@@ -250,14 +250,33 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
   DBUG_VOID_RETURN;
 }
 
+#define MIN_SEND_BUFFER_SIZE (4 * 1024 * 1024)
+
 void
-TransporterRegistry::allocate_send_buffers(Uint64 total_send_buffer)
+TransporterRegistry::allocate_send_buffers(Uint64 total_send_buffer,
+                                           Uint64 extra_send_buffer)
 {
   if (!m_use_default_send_buffer)
     return;
 
   if (total_send_buffer == 0)
     total_send_buffer = get_total_max_send_buffer();
+
+  total_send_buffer += extra_send_buffer;
+
+  if (!extra_send_buffer)
+  {
+    /**
+     * If extra send buffer memory is 0 it means we can decide on an
+     * appropriate value for it. We select to always ensure that the
+     * minimum send buffer memory is 4M, otherwise we simply don't
+     * add any extra send buffer memory at all.
+     */
+    if (total_send_buffer < MIN_SEND_BUFFER_SIZE)
+    {
+      total_send_buffer = (Uint64)MIN_SEND_BUFFER_SIZE;
+    }
+  }
 
   if (m_send_buffers)
   {

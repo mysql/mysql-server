@@ -1118,7 +1118,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_RESTART_INITIAL,
     ConfigInfo::CI_INT,
-    "4",
+    STR_VALUE(NDB_DEFAULT_LOG_PARTS),
     "4",
     STR_VALUE(NDB_MAX_LOG_PARTS)
   },
@@ -1688,11 +1688,24 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true"},
 
   {
+    CFG_EXTRA_SEND_BUFFER_MEMORY,
+    "ExtraSendBufferMemory",
+    DB_TOKEN,
+    "Extra send buffer memory to use for send buffers in all transporters",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "0",
+    "0",
+    "32G"
+  },
+
+  {
     CFG_TOTAL_SEND_BUFFER_MEMORY,
     "TotalSendBufferMemory",
     DB_TOKEN,
     "Total memory to use for send buffers in all transporters",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "0",
@@ -1707,7 +1720,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Amount of bytes (out of TotalSendBufferMemory) to reserve for connection\n"
     "between data nodes. This memory will not be available for connections to\n"
     "management server or API nodes.",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "0",
