@@ -54,6 +54,20 @@ public:
   {
     my_hash_delete(&m_hashtable, (uchar *)sp);
   }
+
+  /**
+    Remove all elements from a stored routine cache if the current
+    number of elements exceeds the argument value.
+
+    @param[in] upper_limit_for_elements  Soft upper limit of elements that
+                                         can be stored in the cache.
+  */
+  void enforce_limit(ulong upper_limit_for_elements)
+  {
+    if (m_hashtable.records > upper_limit_for_elements)
+      my_hash_reset(&m_hashtable);
+  }
+
 private:
   void init();
   void cleanup();
@@ -221,6 +235,21 @@ ulong sp_cache_version()
   return Cversion;
 }
 
+
+/**
+  Enforce that the current number of elements in the cache don't exceed
+  the argument value by flushing the cache if necessary.
+
+  @param[in] c  Cache to check
+  @param[in] upper_limit_for_elements  Soft upper limit for number of sp_head
+                                       objects that can be stored in the cache.
+*/
+void
+sp_cache_enforce_limit(sp_cache *c, ulong upper_limit_for_elements)
+{
+ if (c)
+   c->enforce_limit(upper_limit_for_elements);
+}
 
 /*************************************************************************
   Internal functions 

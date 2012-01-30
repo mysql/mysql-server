@@ -2596,6 +2596,11 @@ i_s_fts_deleted_generic_fill(
 
 	DBUG_ENTER("i_s_fts_deleted_generic_fill");
 
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
 	if (!fts_internal_tbl_name) {
 		DBUG_RETURN(0);
 	}
@@ -2832,6 +2837,11 @@ i_s_fts_inserted_fill(
 	dict_table_t*		user_table;
 
 	DBUG_ENTER("i_s_fts_inserted_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
 
 	if (!fts_internal_tbl_name) {
 		DBUG_RETURN(0);
@@ -3106,6 +3116,11 @@ i_s_fts_index_cache_fill(
 	fts_cache_t*		cache;
 
 	DBUG_ENTER("i_s_fts_index_cache_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
 
 	if (!fts_internal_tbl_name) {
 		DBUG_RETURN(0);
@@ -3412,6 +3427,11 @@ i_s_fts_index_table_fill(
 
 	DBUG_ENTER("i_s_fts_index_table_fill");
 
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
 	if (!fts_internal_tbl_name) {
 		DBUG_RETURN(0);
 	}
@@ -3565,6 +3585,11 @@ i_s_fts_config_fill(
 	unsigned char		str[FTS_MAX_CONFIG_VALUE_LEN + 1];
 
 	DBUG_ENTER("i_s_fts_config_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
 
 	if (!fts_internal_tbl_name) {
 		DBUG_RETURN(0);
@@ -6189,7 +6214,7 @@ innodb_sys_indexes_init(
 {
 	ST_SCHEMA_TABLE*	schema;
 
-	DBUG_ENTER("innodb_sys_index_init");
+	DBUG_ENTER("innodb_sys_indexes_init");
 
 	schema = (ST_SCHEMA_TABLE*) p;
 

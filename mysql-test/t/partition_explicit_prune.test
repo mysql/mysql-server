@@ -1,15 +1,94 @@
 --source include/have_innodb.inc
 --source include/have_partition.inc
 
+# Helper statement
+let $get_handler_status_counts= SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+
+--echo #
+--echo # Bug#13559657: PARTITION SELECTION DOES NOT WORK WITH VIEWS
+--echo #
+CREATE TABLE t1 (a int)
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 2;
+INSERT INTO t1 VALUES (0), (1), (2), (3);
+CREATE VIEW v1 AS SELECT a FROM t1 PARTITION (p0);
+SHOW CREATE VIEW v1;
+FLUSH STATUS;
+--sorted_result
+SELECT * FROM v1;
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+--sorted_result
+SELECT a FROM t1 PARTITION (p0);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO v1 VALUES (10);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+--error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
+INSERT INTO v1 VALUES (11);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+--sorted_result
+SELECT * FROM v1;
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+--sorted_result
+SELECT a FROM t1 PARTITION (p0);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+--sorted_result
+SELECT * FROM t1;
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT a FROM t1 PARTITION (p0) WITH CHECK OPTION;
+FLUSH STATUS;
+INSERT INTO v1 VALUES (20);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+--error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
+INSERT INTO v1 VALUES (21);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+--sorted_result
+SELECT * FROM v1;
+--sorted_result
+SELECT * FROM t1;
+DROP VIEW v1;
+CREATE VIEW v1 AS
+SELECT a FROM t1 PARTITION (p0) WHERE a = 30 WITH CHECK OPTION;
+FLUSH STATUS;
+INSERT INTO v1 VALUES (30);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+--error ER_VIEW_CHECK_FAILED
+INSERT INTO v1 VALUES (31);
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--error ER_VIEW_CHECK_FAILED
+INSERT INTO v1 VALUES (32);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+--sorted_result
+SELECT * FROM v1;
+--sorted_result
+SELECT * FROM t1;
+DROP VIEW v1;
+DROP TABLE t1;
+
 --echo # Original tests for WL#5217
 
 --echo # Must have InnoDB as engine to get the same statistics results.
 --echo # embedded uses MyISAM as default. CREATE SELECT uses the default engine.
 SET @old_default_storage_engine = @@default_storage_engine;
 SET @@default_storage_engine = 'InnoDB';
-
-let $get_handler_status_counts= SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
 
