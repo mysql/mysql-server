@@ -1124,7 +1124,13 @@ public:
     value(value_buff, sizeof(value_buff), cs) {}
   void store_value(Item *item)
   {
-    value_res= item->val_str(&value);
+    String *res= item->val_str(&value);
+    if(res && (res != &value))
+    {
+      // 'res' may point in item's temporary internal data, so make a copy
+      value.copy(*res);
+    }
+    value_res= &value;
   }
   int cmp(Item *arg)
   {

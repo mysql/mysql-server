@@ -609,4 +609,12 @@ INSERT INTO t1 VALUES (0000),(2001);
 --disable_metadata
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #11764651-57510: IN(string,real,string) causes invalid read in sort function
+--echo #
+
+SELECT LEFT(GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.query_cache_type,1,"");
+
+--echo # End of test BUG#11764651-57510
+
 --echo End of 5.1 tests

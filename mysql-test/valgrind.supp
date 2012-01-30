@@ -782,7 +782,7 @@
 }
 
 {
-   missing shutdown_performance_schema 8
+   missing shutdown_performance_schema 8a
    Memcheck:Leak
    fun:malloc
    fun:my_malloc
@@ -791,6 +791,18 @@
    fun:handle_options
    fun:_Z11mysqld_mainiPPc
    fun:main
+}
+
+{
+   missing shutdown_performance_schema 8b
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_Z22add_pfs_instr_to_arrayPKcS0_
+   fun:mysqld_get_one_option
+   fun:handle_options
+   fun:_Z11mysqld_mainiPPc
+   fun:(below main)
 }
 
 {
@@ -823,6 +835,16 @@
    fun:init_dynamic_array2
    fun:_Z11mysqld_mainiPPc
    fun:main
+}
+
+{
+   missing shutdown_performance_schema 11
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:init_dynamic_array2
+   fun:_Z11mysqld_mainiPPc
+   fun:(below main)
 }
 
 {

@@ -126,10 +126,6 @@ SELECT t1.a, t2.b FROM t1 PARTITION (`p0-29`), t2
 WHERE t1.a = t2.a;
 SELECT * FROM v1;
 a	b
--3	(pNeg-)subp0
--4	(pNeg-)subp0
--1	(pNeg-)subp0
--2	(pNeg-)subp0
 3	(p0-29-)subp3
 21	(p0-29-)subp5
 24	(p0-29-)subp5
@@ -138,26 +134,6 @@ a	b
 22	(p0-29-)subp5
 2	(p0-29-)subp3
 23	(p0-29-)subp5
-33	(p30-299-)subp6
-231	(p30-299-)subp8
-234	(p30-299-)subp8
-31	(p30-299-)subp6
-34	(p30-299-)subp6
-232	(p30-299-)subp8
-32	(p30-299-)subp6
-233	(p30-299-)subp8
-303	(p300-2999-)subp8
-301	(p300-2999-)subp8
-304	(p300-2999-)subp8
-302	(p300-2999-)subp8
-3003	(p3000-299999-)subp12
-299997	(p3000-299999-)subp14
-3001	(p3000-299999-)subp12
-3004	(p3000-299999-)subp12
-299998	(p3000-299999-)subp14
-3002	(p3000-299999-)subp12
-299996	(p3000-299999-)subp14
-299999	(p3000-299999-)subp14
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
 1	(p0-29-)subp3
