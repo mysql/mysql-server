@@ -6598,6 +6598,27 @@ void Item_func_sp::fix_length_and_dec()
 }
 
 
+void Item_func_sp::update_null_value()
+{
+  /*
+    This method is called when we try to check if the item value is NULL.
+    We call Item_func_sp::execute() to get value of null_value attribute
+    as a side effect of its execution.
+    We ignore any error since update_null_value() doesn't return value.
+    We used to delegate nullability check to Item::update_null_value as
+    a result of a chain of function calls:
+     Item_func_isnull::val_int --> Item_func::is_null -->
+      Item::update_null_value -->Item_func_sp::val_int -->
+        Field_varstring::val_int
+    Such approach resulted in a call of push_warning_printf() in case
+    if a stored program value couldn't be cast to integer (the case when
+    for example there was a stored function that declared as returning
+    varchar(1) and a function's implementation returned "Y" from its body).
+  */
+  execute();
+}
+
+
 /**
   @brief Execute function & store value in field.
 

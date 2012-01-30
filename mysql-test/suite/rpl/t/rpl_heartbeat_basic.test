@@ -489,6 +489,12 @@ let $status_var_comparsion= >;
 --connection master
 #--replace_result $SLAVE_MYPORT SLAVE_PORT $slave_binlog SLAVE_BINLOG
 #eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SLAVE_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=1, MASTER_LOG_FILE='$slave_binlog';
+
+# BUG#12403008 RPL_HEARTBEAT_BASIC FAILS SPORADICALLY ON PUSHBUILD
+# MASTER_HEARTBEAT_PERIOD had the default value (slave_net_timeout/2)
+# so wait on "Heartbeat event received on master", that only waits for
+# 1 minute, sometimes timeout before heartbeat arrives.
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=1;
 --source include/start_slave.inc
 
 # Insert data on master and on slave and make sure that it replicated for both directions
