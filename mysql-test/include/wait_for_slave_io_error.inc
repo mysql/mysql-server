@@ -10,6 +10,7 @@
 # --let $slave_io_errno= NUMBER [, NUMBER ...]
 # [--let $show_slave_io_error= 1]
 # [--let $slave_io_error_is_nonfatal= 1]
+# [--let $slave_io_error_replace= REGEX]
 # [--let $rpl_debug= 1]
 # [--let $slave_timeout= NUMBER]
 # --source include/wait_for_slave_io_error.inc
@@ -74,11 +75,11 @@ if (`SELECT $_wfsie_errno NOT IN ($slave_io_errno)`) {
 
 if ($show_slave_io_error)
 {
-  --let $_wait_for_slave_io_error_error= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1)
-  # remove timestamp and mask absolute path
-  --replace_regex $slave_io_error_replace
-  --let $_wait_for_slave_io_error_error= `SELECT REPLACE("$_wait_for_slave_io_error_error", '$MYSQL_TEST_DIR', 'MYSQL_TEST_DIR')`
-  --echo Last_IO_Error = '$_wait_for_slave_io_error_error'
+  --let $_wait_for_slave_io_error_old_status_items= $status_items
+  --let $status_items= Last_IO_Error
+  --let $slave_field_result_replace= $slave_io_error_replace
+  --source include/show_slave_status.inc
+  --let $status_items= $_wait_for_slave_io_error_old_status_items
 }
 
 if (!$slave_io_error_is_nonfatal)
