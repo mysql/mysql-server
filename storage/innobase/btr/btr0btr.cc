@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,6 +42,27 @@ Created 6/2/1994 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "trx0trx.h"
 #include "srv0mon.h"
+
+/**************************************************************//**
+Report that an index page is corrupted. */
+UNIV_INTERN
+void
+btr_corruption_report(
+/*==================*/
+	const buf_block_t*	block,	/*!< in: corrupted block */
+	const dict_index_t*	index)	/*!< in: index tree */
+{
+	fprintf(stderr, "InnoDB: flag mismatch in space %u page %u"
+		" index %s of table %s\n",
+		(unsigned) buf_block_get_space(block),
+		(unsigned) buf_block_get_page_no(block),
+		index->name, index->table_name);
+	buf_page_print(buf_block_get_frame(block), 0);
+	if (block->page.zip.data) {
+		buf_page_print(block->page.zip.data,
+			       buf_block_get_zip_size(block));
+	}
+}
 
 #ifdef UNIV_BLOB_DEBUG
 # include "srv0srv.h"
@@ -699,8 +720,7 @@ btr_root_block_get(
 
 	block = btr_block_get(space, zip_size, root_page_no, RW_X_LATCH,
 			      index, mtr);
-	ut_a((ibool)!!page_is_comp(buf_block_get_frame(block))
-	     == dict_table_is_comp(index->table));
+	btr_assert_not_corrupted(block, index);
 #ifdef UNIV_BTR_DEBUG
 	if (!dict_index_is_ibuf(index)) {
 		const page_t*	root = buf_block_get_frame(block);
@@ -1839,7 +1859,7 @@ btr_page_reorganize_low(
 	ibool		success		= FALSE;
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+	btr_assert_not_corrupted(block, index);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -3469,7 +3489,7 @@ btr_compress(
 	page = btr_cur_get_page(cursor);
 	index = btr_cur_get_index(cursor);
 
-	ut_a((ibool) !!page_is_comp(page) == dict_table_is_comp(index->table));
+	btr_assert_not_corrupted(block, index);
 
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));

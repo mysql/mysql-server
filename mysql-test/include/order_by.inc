@@ -1750,3 +1750,34 @@ INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (1,2), (2,3);
 SELECT (SELECT 1 FROM t1 WHERE a=b AND c=1 ORDER BY a DESC) FROM t2;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #13531865
+--echo # TEST_IF_SKIP_SORT_ORDER() INCORRECTLY SKIP FILESORT IF
+--echo # 'TYPE' IS REF_OR_NULL 
+--echo # 
+--echo #
+
+CREATE TABLE t1 (
+  a INT,
+  c INT,
+  UNIQUE KEY a_c (a,c),
+  KEY (a)) engine=myisam;
+
+INSERT INTO t1 VALUES (1,10), (2,NULL), (2,10);
+ANALYZE TABLE t1;
+
+--echo # Using 'KEY a_c' for order-by opt, would have required 
+--echo # REF_OR_NULL access which never can be order_by skipped.
+--echo # -> Keep initial REF on 'KEY a' selected by cond. optimizer
+EXPLAIN
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL);
+EXPLAIN
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+
+EXPLAIN
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
+
+DROP TABLE t1;
