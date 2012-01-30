@@ -19,7 +19,7 @@ a	b	c	d	e	f
 5	50	500	5000	50000	500000
 explain select * from t1 where b > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	b	b	NULL	NULL	NULL;	Using where
 select * from t1 where b > 0;
 a	b	c	d	e	f
 1	10	100	1000	10000	100000
@@ -29,7 +29,7 @@ a	b	c	d	e	f
 5	50	500	5000	50000	500000
 explain select * from t1 where d > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	d	d	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	d	d	NULL	NULL	NULL;	Using where
 select * from t1 where d > 0;
 a	b	c	d	e	f
 1	10	100	1000	10000	100000
@@ -39,7 +39,7 @@ a	b	c	d	e	f
 5	50	500	5000	50000	500000
 explain select a from t1 where d > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	d	d	10	NULL	NULL;	Using where; Using index
+1	SIMPLE	t1	index	d	d	NULL	NULL	NULL;	Using where; Using index
 select a from t1 where d > 0;
 a
 1
@@ -81,7 +81,7 @@ a	b	c	d	e	f
 6	60	500	5000	50000	500000
 explain select * from t1 where b > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	b	b	NULL	NULL	NULL;	Using where
 select * from t1 where b > 0;
 a	b	c	d	e	f
 2	20	100	1000	10000	100000
@@ -91,7 +91,7 @@ a	b	c	d	e	f
 6	60	500	5000	50000	500000
 explain select * from t1 where d > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	d	d	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	d	d	NULL	NULL	NULL;	Using where
 select * from t1 where d > 0;
 a	b	c	d	e	f
 2	20	100	1000	10000	100000
@@ -101,7 +101,7 @@ a	b	c	d	e	f
 6	60	500	5000	50000	500000
 explain select a from t1 where d > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	d	d	10	NULL	NULL;	Using where; Using index
+1	SIMPLE	t1	index	d	d	NULL	NULL	NULL;	Using where; Using index
 select a from t1 where d > 0;
 a
 2
@@ -140,21 +140,21 @@ a	b	c	d	e	f
 3	30	200	2000	20000	200000
 explain select * from t1 where b > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	b	b	NULL	NULL	NULL;	Using where
 select * from t1 where b > 0;
 a	b	c	d	e	f
 2	20	100	1000	10000	100000
 3	30	200	2000	20000	200000
 explain select * from t1 where d > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	d	d	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	d	d	NULL	NULL	NULL;	Using where
 select * from t1 where d > 0;
 a	b	c	d	e	f
 2	20	100	1000	10000	100000
 3	30	200	2000	20000	200000
 explain select a from t1 where d > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	d	d	10	NULL	NULL;	Using where; Using index
+1	SIMPLE	t1	index	d	d	NULL	NULL	NULL;	Using where; Using index
 select a from t1 where d > 0;
 a
 2
@@ -182,21 +182,21 @@ a	b	c	d	e	f
 3	30	200	2000	20000	200000
 explain select * from t1 where b > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	b	b	NULL	NULL	NULL;	Using where
 select * from t1 where b > 0;
 a	b	c	d	e	f
 2	20	100	1000	10000	100000
 3	30	200	2000	20000	200000
 explain select * from t1 where d > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	d	d	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	d	d	NULL	NULL	NULL;	Using where
 select * from t1 where d > 0;
 a	b	c	d	e	f
 2	20	100	1000	10000	100000
 3	30	200	2000	20000	200000
 explain select a from t1 where d > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	d	d	10	NULL	NULL;	Using where; Using index
+1	SIMPLE	t1	range	d	d	NULL	NULL	NULL;	Using where; Using index
 select a from t1 where d > 0;
 a
 2
