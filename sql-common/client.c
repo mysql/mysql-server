@@ -2841,8 +2841,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     goto error;
   }
 
-  if (mysql->options.extension && mysql->options.extension->async_context &&
-      mysql->options.extension->async_context->active)
+  if (mysql->options.extension && mysql->options.extension->async_context)
     net->vio->async_context= mysql->options.extension->async_context;
 
   if (my_net_init(net, net->vio))
