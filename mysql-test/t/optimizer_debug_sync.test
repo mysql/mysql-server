@@ -55,8 +55,10 @@ SET DEBUG_SYNC='RESET';
 --reap
 
 DROP TABLE t;
-
---exit
+--disconnect con1
+--disconnect con2
+--disconnect con3
+--connection default
 
 --echo # End of BUG#56080
 
@@ -86,3 +88,5 @@ reap;
 SET GLOBAL debug = '';
 
 DROP TABLE t1;
+--disconnect con1
+--connection default
