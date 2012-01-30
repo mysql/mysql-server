@@ -214,11 +214,40 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   Uint32 sbpages = 0;
   if (globalTransporterRegistry.get_using_default_send_buffer() == false)
   {
-    Uint64 mem = globalTransporterRegistry.get_total_max_send_buffer();
+    Uint64 mem;
+    {
+      Uint32 tot_mem = 0;
+      ndb_mgm_get_int_parameter(p, CFG_TOTAL_SEND_BUFFER_MEMORY, &tot_mem);
+      if (tot_mem)
+      {
+        mem = (Uint64)tot_mem;
+      }
+      else
+      {
+        mem = globalTransporterRegistry.get_total_max_send_buffer();
+      }
+    }
+
     sbpages = Uint32((mem + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE);
+
+    /**
+     * Add extra send buffer pages for NDB multithreaded case
+     */
+    {
+      Uint64 extra_mem;
+      ndb_mgm_get_int64_parameter(p, CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_mem);
+      Uint32 extra_mem_pages = Uint32((extra_mem + GLOBAL_PAGE_SIZE - 1) /
+                                      GLOBAL_PAGE_SIZE);
+      sbpages += mt_get_extra_send_buffer_pages(sbpages, extra_mem_pages);
+    }
+
     Resource_limit rl;
     rl.m_min = sbpages;
-    rl.m_max = sbpages;
+    /**
+     * allow over allocation (from SharedGlobalMemory) of up to 25% of
+     *   totally allocated SendBuffer
+     */
+    rl.m_max = sbpages + (sbpages * 25) / 100;
     rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
     ed.m_mem_manager->set_resource_limit(rl);
   }
