@@ -3197,7 +3197,7 @@ retry:
 
 	fprintf(stderr,
 		"InnoDB: You can disable Linux Native AIO by"
-		" setting innodb_native_aio = off in my.cnf\n");
+		" setting innodb_use_native_aio = 0 in my.cnf\n");
 	return(FALSE);
 }
 
