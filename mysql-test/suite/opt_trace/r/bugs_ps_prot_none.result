@@ -1659,6 +1659,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                 "range_scan_alternatives": [
                                   {
                                     "index": "a",
+                                    "index_dives_for_eq_ranges": true,
                                     "ranges": [
                                       "1 <= a <= 1"
                                     ] /* ranges */,
@@ -1671,6 +1672,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                   },
                                   {
                                     "index": "a_2",
+                                    "index_dives_for_eq_ranges": true,
                                     "ranges": [
                                       "1 <= a <= 1"
                                     ] /* ranges */,
