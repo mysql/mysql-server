@@ -1118,7 +1118,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_RESTART_INITIAL,
     ConfigInfo::CI_INT,
-    "4",
+    STR_VALUE(NDB_DEFAULT_LOG_PARTS),
     "4",
     STR_VALUE(NDB_MAX_LOG_PARTS)
   },
