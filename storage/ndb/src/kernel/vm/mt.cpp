@@ -2646,9 +2646,13 @@ mt_send_handle::forceSend(NodeId nodeId)
     globalTransporterRegistry.performSend(nodeId);
     sb->m_send_thread = NO_SEND_THREAD;
     unlock(&sb->m_send_lock);
-  } while (sb->m_force_send);
 
-  selfptr->m_send_buffer_pool.release_global(rep->m_mm, RG_TRANSPORTER_BUFFERS);
+    /**
+     * release buffers prior to maybe looping on sb->m_force_send
+     */
+    selfptr->m_send_buffer_pool.release_global(rep->m_mm,
+                                               RG_TRANSPORTER_BUFFERS);
+  } while (sb->m_force_send);
 
   return true;
 }
@@ -2677,9 +2681,13 @@ try_send(thr_data * selfptr, Uint32 node)
     globalTransporterRegistry.performSend(node);
     sb->m_send_thread = NO_SEND_THREAD;
     unlock(&sb->m_send_lock);
-  } while (sb->m_force_send);
 
-  selfptr->m_send_buffer_pool.release_global(rep->m_mm, RG_TRANSPORTER_BUFFERS);
+    /**
+     * release buffers prior to maybe looping on sb->m_force_send
+     */
+    selfptr->m_send_buffer_pool.release_global(rep->m_mm,
+                                               RG_TRANSPORTER_BUFFERS);
+  } while (sb->m_force_send);
 }
 
 /**
@@ -2810,6 +2818,14 @@ do_send(struct thr_data* selfptr, bool must_send)
       if (res)
       {
         register_pending_send(selfptr, node);
+      }
+      if (sb->m_force_send)
+      {
+        /**
+         * release buffers prior to looping on sb->m_force_send
+         */
+        selfptr->m_send_buffer_pool.release_global(rep->m_mm,
+                                                   RG_TRANSPORTER_BUFFERS);
       }
     } while (sb->m_force_send);
   }
