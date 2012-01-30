@@ -459,257 +459,34 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  int (*abort)(DB_INDEXER *indexer);  /* abort  indexing, free memory */\n");
     printf("};\n");
 
-    //engine status info
-    printf("typedef struct __toku_engine_status {\n");
-    printf("  char             creationtime[26];        /* time of environment creation */ \n");
-    printf("  char             startuptime[26];         /* time of engine startup */ \n");
-    printf("  char             now[26];                 /* time of engine status query (i.e. now)  */ \n");
-    printf("  u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released?                                                                      */\n");
-    printf("  u_int64_t        num_waiters_now;         /* How many are waiting on the ydb lock right now (including the current lock holder if any)?                            */\n");
-    printf("  u_int64_t        max_waiters;             /* The maximum of num_waiters_now.                                                                                       */\n");
-    printf("  u_int64_t        total_sleep_time;        /* Total time spent (since the system was booted) sleeping (by the indexer) to give foreground threads a chance to work. */\n");
-    printf("  u_int64_t        max_time_ydb_lock_held;  /* Maximum time that the ydb lock was held (tokutime_t).                                                                 */\n"); 
-    printf("  u_int64_t        total_time_ydb_lock_held;/* Total time client threads held the ydb lock (really tokutime_t, convert to seconds with tokutime_to_seconds())        */\n");
-    printf("  u_int64_t        total_time_since_start;  /* Total time since the lock was created (tokutime_t).  Use this as total_time_ydb_lock_held/total_time_since_start to get a ratio.   */\n");
-    printf("  u_int64_t        checkpoint_period;       /* delay between automatic checkpoints  */ \n");
-    printf("  u_int64_t        checkpoint_footprint;    /* state of checkpoint procedure        */ \n");
-    printf("  char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ \n");
-    printf("  char             checkpoint_time_begin_complete[26]; /* time of last complete checkpoint begin      */ \n");
-    printf("  char             checkpoint_time_end[26]; /* time of last checkpoint end      */ \n");
-    printf("  uint64_t         checkpoint_last_lsn;     /* LSN of last complete checkpoint  */ \n");
-    printf("  uint64_t         checkpoint_count;        /* number of checkpoints taken        */ \n");
-    printf("  uint64_t         checkpoint_count_fail;   /* number of checkpoints failed        */ \n");
-    printf("  uint64_t         checkpoint_waiters_now;  /* number of threads currently waiting to perform a checkpoint */ \n");
-    printf("  uint64_t         checkpoint_waiters_max;  /* max threads ever simultaneously waiting to perform a checkpoint */ \n");
-    printf("  uint64_t         checkpoint_client_wait_on_mo;  /* how many times a client thread waited for the multi_operation lock */ \n");
-    printf("  uint64_t         checkpoint_client_wait_on_cs;  /* how many times a client thread waited for the checkpoint_safe lock */ \n");
-    printf("  uint64_t         checkpoint_wait_sched_cs;      /* how many times a scheduled checkpoint waited for the checkpoint_safe lock */ \n");
-    printf("  uint64_t         checkpoint_wait_client_cs;     /* how many times a client checkpoint waited for the checkpoint_safe lock */ \n");
-    printf("  uint64_t         checkpoint_wait_txn_cs;        /* how many times a txn_commitcheckpoint waited for the checkpoint_safe lock */ \n");
-    printf("  uint64_t         checkpoint_wait_other_cs;      /* how many times a checkpoint for another purpose waited for the checkpoint_safe lock */ \n");
-    printf("  uint64_t         checkpoint_wait_sched_mo;      /* how many times a scheduled checkpoint waited for the multi_operation lock */ \n");
-    printf("  uint64_t         checkpoint_wait_client_mo;     /* how many times a client checkpoint waited for the multi_operation lock */ \n");
-    printf("  uint64_t         checkpoint_wait_txn_mo;        /* how many times a txn_commitcheckpoint waited for the multi_operation lock */ \n");
-    printf("  uint64_t         checkpoint_wait_other_mo;      /* how many times a checkpoint for another purpose waited for the multi_operation lock */ \n");
-    printf("  u_int64_t        cleaner_period;          /* delay between executions of cleaner  */ \n");
-    printf("  u_int64_t        cleaner_iterations;      /* number of nodes to flush per cleaner execution  */ \n");
-    printf("  u_int64_t        txn_begin;               /* number of transactions ever begun             */ \n");
-    printf("  u_int64_t        txn_commit;              /* txn commit operations                         */ \n");
-    printf("  u_int64_t        txn_abort;               /* txn abort operations                          */ \n");
-    printf("  u_int64_t        txn_close;               /* txn completions (should equal commit+abort)   */ \n");
-    printf("  u_int64_t        txn_num_open;            /* should be begin - close                       */ \n");
-    printf("  u_int64_t        txn_max_open;            /* max value of num_open                         */ \n");
-    printf("  u_int64_t        txn_oldest_live;         /* oldest extant txn txnid                            */ \n");
-    printf("  char             txn_oldest_live_starttime[26];   /* oldest extant txn start time                      */ \n");
-    printf("  u_int64_t        next_lsn;                /* lsn that will be assigned to next log entry   */ \n");
-    printf("  u_int64_t        cachetable_lock_taken;   /* how many times has cachetable lock been taken */ \n");
-    printf("  u_int64_t        cachetable_lock_released;/* how many times has cachetable lock been released */ \n");
-    printf("  u_int64_t        cachetable_hit;          /* how many cache hits   */ \n");
-    printf("  u_int64_t        cachetable_miss;         /* how many cache misses */ \n");
-    printf("  u_int64_t        cachetable_misstime;     /* how many usec spent waiting for disk read because of cache miss */ \n");
-    printf("  u_int64_t        cachetable_waittime;     /* how many usec spent waiting for another thread to release cache line */ \n");
-    printf("  u_int64_t        cachetable_wait_reading; /* how many times get_and_pin waits for a node to be read */ \n");
-    printf("  u_int64_t        cachetable_wait_writing; /* how many times get_and_pin waits for a node to be written */ \n");
-    printf("  u_int64_t        cachetable_wait_checkpoint; /* how many times get_and_pin waits for a node to be written for a checkpoint*/ \n");
-    printf("  u_int64_t        puts;                    /* how many times has a newly created node been put into the cachetable */ \n");
-    printf("  u_int64_t        prefetches;              /* how many times has a block been prefetched into the cachetable */ \n");
-    printf("  u_int64_t        maybe_get_and_pins;      /* how many times has maybe_get_and_pin(_clean) been called */ \n");
-    printf("  u_int64_t        maybe_get_and_pin_hits;  /* how many times has get_and_pin(_clean) returned with a node */ \n");
-    printf("  uint64_t         cachetable_size_current; /* sum of the sizes of the nodes represented in the cachetable */ \n");
-    printf("  uint64_t         cachetable_size_limit;   /* the limit to the sum of the node sizes */ \n");
-    printf("  uint64_t         cachetable_size_max;     /* the max value (high water mark) of cachetable_size_current */ \n");
-    printf("  uint64_t         cachetable_size_writing; /* the sum of the sizes of the nodes being written */ \n");
-    printf("  uint64_t         cachetable_size_nonleaf; /* the number of bytes of nonleaf nodes */ \n");
-    printf("  uint64_t         cachetable_size_leaf;    /* the number of bytes of leaf nodes */ \n");
-    printf("  uint64_t         cachetable_size_rollback; /* the number of bytes of nonleaf nodes */ \n");
-    printf("  uint64_t         cachetable_size_cachepressure; /* number of bytes causing cache pressure (sum of buffers and workdone counters)  */ \n");
-    printf("  u_int64_t        cachetable_evictions;    /* how many cache table blocks are evicted */ \n");
-    printf("  u_int64_t        cleaner_executions;      /* how many times the loop in cleaner_thread has executed */ \n");
-    printf("  u_int64_t        range_locks_max;         /* max total number of range locks */ \n");
-    printf("  u_int64_t        range_locks_curr;        /* total range locks currently in use */ \n");
-    printf("  u_int64_t        range_locks_max_memory;   /* max total bytes of range locks */ \n");
-    printf("  u_int64_t        range_locks_curr_memory;  /* total bytes of range locks currently in use */ \n");
-    printf("  u_int64_t        range_lock_escalation_successes;       /* number of times range locks escalation succeeded */ \n");
-    printf("  u_int64_t        range_lock_escalation_failures;        /* number of times range locks escalation failed */ \n");
-    printf("  u_int64_t        range_read_locks;        /* total range read locks taken */ \n");
-    printf("  u_int64_t        range_read_locks_fail;   /* total range read locks unable to be taken */ \n");
-    printf("  u_int64_t        range_out_of_read_locks; /* total times range read locks exhausted */ \n");
-    printf("  u_int64_t        range_write_locks;       /* total range write locks taken */ \n");
-    printf("  u_int64_t        range_write_locks_fail;  /* total range write locks unable to be taken */ \n");
-    printf("  u_int64_t        range_out_of_write_locks; /* total times range write locks exhausted */ \n");
-    printf("  u_int64_t        range_lt_create;         /* number of locktrees created */ \n");
-    printf("  u_int64_t        range_lt_create_fail;    /* number of locktree create failures */ \n");
-    printf("  u_int64_t        range_lt_destroy;        /* number of locktrees destroyed */ \n");
-    printf("  u_int64_t        range_lt_num;            /* number of locktrees (should be created - destroyed) */ \n");
-    printf("  u_int64_t        range_lt_num_max;        /* max number of locktrees that have existed simultaneously */ \n");
-    printf("  u_int64_t        directory_read_locks;        /* total directory read locks taken */ \n");
-    printf("  u_int64_t        directory_read_locks_fail;   /* total directory read locks unable to be taken */ \n");
-    printf("  u_int64_t        directory_write_locks;       /* total directory write locks taken */ \n");
-    printf("  u_int64_t        directory_write_locks_fail;  /* total directory write locks unable to be taken */ \n");
-    printf("  u_int64_t        inserts;                 /* ydb row insert operations              */ \n");
-    printf("  u_int64_t        inserts_fail;            /* ydb row insert operations that failed  */ \n");
-    printf("  u_int64_t        deletes;                 /* ydb row delete operations              */ \n");
-    printf("  u_int64_t        deletes_fail;            /* ydb row delete operations that failed  */ \n");
-    printf("  u_int64_t        updates;                 /* ydb row update operations              */ \n");
-    printf("  u_int64_t        updates_fail;            /* ydb row update operations that failed  */ \n");
-    printf("  u_int64_t        updates_broadcast;       /* ydb row update broadcast operations              */ \n");
-    printf("  u_int64_t        updates_broadcast_fail;  /* ydb row update broadcast operations that failed  */ \n");
-    printf("  u_int64_t        multi_inserts;           /* ydb multi_row insert operations, dictionaray count             */ \n");
-    printf("  u_int64_t        multi_inserts_fail;      /* ydb multi_row insert operations that failed, dictionary count  */ \n");
-    printf("  u_int64_t        multi_deletes;           /* ydb multi_row delete operations, dictionary count              */ \n");
-    printf("  u_int64_t        multi_deletes_fail;      /* ydb multi_row delete operations that failed, dictionary count  */ \n");
-    printf("  u_int64_t        multi_updates;           /* ydb row update operations, dictionary count              */ \n");
-    printf("  u_int64_t        multi_updates_fail;      /* ydb row update operations that failed, dictionary count  */ \n");
-    printf("  u_int64_t        point_queries;           /* ydb point queries                      */ \n");
-    printf("  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ \n");
-    printf("  u_int64_t        num_db_open;             /* number of db_open operations */\n");
-    printf("  u_int64_t        num_db_close;            /* number of db_close operations */\n");
-    printf("  u_int64_t        num_open_dbs;            /* number of currently open dbs */\n");
-    printf("  u_int64_t        max_open_dbs;            /* max number of simultaneously open dbs */\n");
-    printf("  u_int64_t        le_updates;              /* leafentry update operations                        */ \n");
-    printf("  u_int64_t        le_updates_broadcast;    /* leafentry update broadcast operations              */ \n");
-    printf("  u_int64_t        descriptor_set;          /* descriptor set operations              */ \n");
-    printf("  u_int64_t        partial_fetch_hit;        /* node partition is present             */ \n");
-    printf("  u_int64_t        partial_fetch_miss;       /* node is present but partition is absent */ \n");
-    printf("  u_int64_t        partial_fetch_compressed; /* node partition is present but compressed  */ \n");
-    printf("  u_int64_t        partial_evictions_nonleaf; /* number of nonleaf node partial evictions */ \n");
-    printf("  u_int64_t        partial_evictions_leaf;   /* number of leaf node partial evictions */ \n");
-    printf("  u_int64_t        msn_discards;             /* how many messages were ignored by leaf because of msn */ \n");
-    printf("  u_int64_t        max_workdone;             /* max workdone value of any buffer  */ \n");
-    printf("  uint64_t         total_searches;              /* total number of searches */ \n");
-    printf("  uint64_t         total_retries;               /* total number of search retries due to TRY_AGAIN */ \n");
-    printf("  uint64_t         max_search_excess_retries;   /* max number of excess search retries (retries - treeheight) due to TRY_AGAIN */ \n");
-    printf("  uint64_t         max_search_root_tries;       /* max number of times root node was fetched in a single search */ \n");
-    printf("  uint64_t         search_root_retries;         /* number of searches that required the root node to be fetched more than once */ \n");
-    printf("  uint64_t         search_tries_gt_height;      /* number of searches that required more tries than the height of the tree */ \n");
-    printf("  uint64_t         search_tries_gt_heightplus3; /* number of searches that required more tries than the height of the tree plus three */ \n");
-    printf("  uint64_t         cleaner_total_nodes;           /* total number of nodes whose buffers are potentially flushed by cleaner thread */\n");
-    printf("  uint64_t         cleaner_h1_nodes;              /* number of nodes of height one whose message buffers are flushed by cleaner thread */\n");
-    printf("  uint64_t         cleaner_hgt1_nodes;            /* number of nodes of height > 1 whose message buffers are flushed by cleaner thread */\n");
-    printf("  uint64_t         cleaner_empty_nodes;           /* number of nodes that are selected by cleaner, but whose buffers are empty */\n");
-    printf("  uint64_t         cleaner_nodes_dirtied;         /* number of nodes that are made dirty by the cleaner thread */\n");
-    printf("  uint64_t         cleaner_max_buffer_size;       /* max number of bytes in message buffer flushed by cleaner thread */\n");
-    printf("  uint64_t         cleaner_min_buffer_size;       /* min number of bytes in message buffer flushed by cleaner thread */\n");
-    printf("  uint64_t         cleaner_total_buffer_size;     /* total number of bytes in message buffers flushed by cleaner thread */\n");
-    printf("  uint64_t         cleaner_max_buffer_workdone;   /* max workdone value of any message buffer flushed by cleaner thread */\n");
-    printf("  uint64_t         cleaner_min_buffer_workdone;   /* min workdone value of any message buffer flushed by cleaner thread */\n");
-    printf("  uint64_t         cleaner_total_buffer_workdone; /* total workdone value of message buffers flushed by cleaner thread */\n");
-    printf("  uint64_t         cleaner_num_leaf_merges_started;     /* number of times cleaner thread tries to merge a leaf */\n");
-    printf("  uint64_t         cleaner_num_leaf_merges_running;     /* number of cleaner thread leaf merges in progress */\n");
-    printf("  uint64_t         cleaner_num_leaf_merges_completed;   /* number of times cleaner thread successfully merges a leaf */\n");
-    printf("  uint64_t         cleaner_num_dirtied_for_leaf_merge;  /* nodes dirtied by the \"flush from root\" process to merge a leaf node */\n");
-    printf("  uint64_t         flush_total;                 /* total number of flushes done by flusher threads or cleaner threads */\n");
-    printf("  uint64_t         flush_in_memory;             /* number of in memory flushes */\n");
-    printf("  uint64_t         flush_needed_io;             /* number of flushes that had to read a child (or part) off disk */\n");
-    printf("  uint64_t         flush_cascades;              /* number of flushes that triggered another flush in the child */\n");
-    printf("  uint64_t         flush_cascades_1;            /* number of flushes that triggered 1 cascading flush */\n");
-    printf("  uint64_t         flush_cascades_2;            /* number of flushes that triggered 2 cascading flushes */\n");
-    printf("  uint64_t         flush_cascades_3;            /* number of flushes that triggered 3 cascading flushes */\n");
-    printf("  uint64_t         flush_cascades_4;            /* number of flushes that triggered 4 cascading flushes */\n");
-    printf("  uint64_t         flush_cascades_5;            /* number of flushes that triggered 5 cascading flushes */\n");
-    printf("  uint64_t         flush_cascades_gt_5;         /* number of flushes that triggered more than 5 cascading flushes */\n");
-    printf("  uint64_t         disk_flush_leaf;             /* number of leaf nodes flushed to disk, not for checkpoint */\n");
-    printf("  uint64_t         disk_flush_nonleaf;          /* number of nonleaf nodes flushed to disk, not for checkpoint */\n");
-    printf("  uint64_t         disk_flush_leaf_for_checkpoint; /* number of leaf nodes flushed to disk for checkpoint */\n");
-    printf("  uint64_t         disk_flush_nonleaf_for_checkpoint; /* number of nonleaf nodes flushed to disk for checkpoint */\n");
-    printf("  uint64_t         create_leaf;                 /* number of leaf nodes created */\n");
-    printf("  uint64_t         create_nonleaf;              /* number of nonleaf nodes created */\n");
-    printf("  uint64_t         destroy_leaf;                /* number of leaf nodes destroyed */\n");
-    printf("  uint64_t         destroy_nonleaf;             /* number of nonleaf nodes destroyed */\n");
-    printf("  uint64_t         split_leaf;                  /* number of leaf nodes split */\n");
-    printf("  uint64_t         split_nonleaf;               /* number of nonleaf nodes split */\n");
-    printf("  uint64_t         merge_leaf;                  /* number of times leaf nodes are merged */\n");
-    printf("  uint64_t         merge_nonleaf;               /* number of times nonleaf nodes are merged  */\n");
-    printf("  uint64_t         dirty_leaf;                  /* number of times leaf nodes are dirtied when previously clean */\n");
-    printf("  uint64_t         dirty_nonleaf;               /* number of times nonleaf nodes are dirtied when previously clean */\n");
-    printf("  uint64_t         balance_leaf;                /* number of times a leaf node is balanced inside brt */\n");
-    printf("  uint64_t         hot_num_started;             /* number of HOT operations that have begun */\n");
-    printf("  uint64_t         hot_num_completed;           /* number of HOT operations that have successfully completed */\n");
-    printf("  uint64_t         hot_num_aborted;             /* number of HOT operations that have been aborted */\n");
-    printf("  uint64_t         hot_max_root_flush_count;    /* max number of flushes from root ever required to optimize a tree */\n");
-    printf("  uint64_t         msg_bytes_in;                /* how many bytes of messages injected at root (for all trees)*/\n");
-    printf("  uint64_t         msg_bytes_out;               /* how many bytes of messages flushed from h1 nodes to leaves*/\n");
-    printf("  uint64_t         msg_bytes_curr;              /* how many bytes of messages currently in trees (estimate)*/\n");
-    printf("  uint64_t         msg_bytes_max;               /* how many bytes of messages currently in trees (estimate)*/\n");
-    printf("  uint64_t         msg_num;                     /* how many messages injected at root*/\n");
-    printf("  uint64_t         msg_num_broadcast;           /* how many broadcast messages injected at root*/\n");
-    printf("  uint64_t         num_basements_decompressed_normal;  /* how many basement nodes were decompressed because they were the target of a query */\n");
-    printf("  uint64_t         num_basements_decompressed_aggressive; /* ... because they were between lc and rc */\n");
-    printf("  uint64_t         num_basements_decompressed_prefetch;\n");
-    printf("  uint64_t         num_basements_decompressed_write;\n");
-    printf("  uint64_t         num_msg_buffer_decompressed_normal;  /* how many msg buffers were decompressed because they were the target of a query */\n");
-    printf("  uint64_t         num_msg_buffer_decompressed_aggressive; /* ... because they were between lc and rc */\n");
-    printf("  uint64_t         num_msg_buffer_decompressed_prefetch;\n");
-    printf("  uint64_t         num_msg_buffer_decompressed_write;\n");
-    printf("  uint64_t         num_pivots_fetched_query;           /* how many pivots were fetched were fetched for a query */\n");
-    printf("  uint64_t         num_pivots_fetched_prefetch;        /* ... for a prefetch */\n");
-    printf("  uint64_t         num_pivots_fetched_write;           /* ... for a write */\n");
-    printf("  uint64_t         num_basements_fetched_normal;       /* how many basement nodes were fetched because they were the target of a query */\n");
-    printf("  uint64_t         num_basements_fetched_aggressive;      /* ... because they were between lc and rc */\n");
-    printf("  uint64_t         num_basements_fetched_prefetch;\n");
-    printf("  uint64_t         num_basements_fetched_write;\n");
-    printf("  uint64_t         num_msg_buffer_fetched_normal;       /* how many msg buffers were fetched because they were the target of a query */\n");
-    printf("  uint64_t         num_msg_buffer_fetched_aggressive;      /* ... because they were between lc and rc */\n");
-    printf("  uint64_t         num_msg_buffer_fetched_prefetch;\n");
-    printf("  uint64_t         num_msg_buffer_fetched_write;\n");
-    printf("  u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ \n");
-    printf("  u_int64_t        le_max_provisional_xr;   /* max provisional transaction records in any packed le   */ \n");
-    printf("  u_int64_t        le_max_memsize;          /* max memsize of any packed le     */ \n");
-    printf("  u_int64_t        le_expanded;             /* number of times ule used expanded memory     */ \n");
-    printf("  u_int64_t        fsync_count;             /* number of times fsync performed        */ \n");
-    printf("  u_int64_t        fsync_time;              /* total time required to fsync           */ \n");
-    printf("  u_int64_t        logger_ilock_ctr;        /* how many times has logger input lock been taken or released  */ \n");
-    printf("  u_int64_t        logger_olock_ctr;        /* how many times has logger output condition lock been taken or released  */ \n");
-    printf("  u_int64_t        logger_swap_ctr;         /* how many times have logger buffers been swapped  */ \n");
-    printf("  char             enospc_most_recent[26];  /* time of most recent ENOSPC error return from disk write  */ \n");
-    printf("  u_int64_t        enospc_threads_blocked;  /* how many threads are currently blocked by ENOSPC */ \n");
-    printf("  u_int64_t        enospc_ctr;              /* how many times has ENOSPC been returned by disk write */ \n");
-    printf("  u_int64_t        enospc_redzone_ctr;      /* how many times has ENOSPC been returned to user (red zone) */ \n");
-    printf("  u_int64_t        enospc_state;            /* state of ydb-level ENOSPC prevention (0 = green, 1 = yellow, 2 = red) */ \n");
-    printf("  u_int64_t        loader_create;           /* number of loaders created */ \n");
-    printf("  u_int64_t        loader_create_fail;      /* number of failed loader creations */ \n");
-    printf("  u_int64_t        loader_put;              /* number of loader puts (success) */ \n");
-    printf("  u_int64_t        loader_put_fail;         /* number of loader puts that failed */ \n");
-    printf("  u_int64_t        loader_close;            /* number of loaders closed (succeed or fail) */ \n");
-    printf("  u_int64_t        loader_close_fail;       /* number of loaders closed with error return */ \n");
-    printf("  u_int64_t        loader_abort;            /* number of loaders aborted  */ \n");
-    printf("  u_int64_t        loader_current;          /* number of loaders currently existing           */ \n");
-    printf("  u_int64_t        loader_max;              /* max number of loaders extant simultaneously    */ \n");
-    printf("  u_int64_t        logsuppress;             /* number of times logging is suppressed */ \n");
-    printf("  u_int64_t        logsuppressfail;         /* number of times logging cannot be suppressed  */ \n");
-    printf("  u_int64_t        indexer_create;          /* number of indexers created successfully */ \n");
-    printf("  u_int64_t        indexer_create_fail;     /* number of failed indexer creations */ \n");
-    printf("  u_int64_t        indexer_build;           /* number of indexer build calls (succeeded) */ \n");
-    printf("  u_int64_t        indexer_build_fail;      /* number of indexers build calls with error return */ \n");
-    printf("  u_int64_t        indexer_close;           /* number of indexers closed successfully) */ \n");
-    printf("  u_int64_t        indexer_close_fail;      /* number of indexers closed with error return */ \n");
-    printf("  u_int64_t        indexer_abort;           /* number of indexers aborted  */ \n");
-    printf("  u_int64_t        indexer_current;         /* number of indexers currently existing           */ \n");
-    printf("  u_int64_t        indexer_max;             /* max number of indexers extant simultaneously    */ \n");
-    printf("  u_int64_t        upgrade_env_status;      /* Was an environment upgrade done?  What was done?  */ \n");
-    printf("  u_int64_t        upgrade_header;          /* how many brt headers were upgraded? */ \n");
-    printf("  u_int64_t        upgrade_nonleaf;         /* how many brt nonleaf nodes  were upgraded? */ \n");
-    printf("  u_int64_t        upgrade_leaf;            /* how many brt leaf nodes were upgraded? */ \n");
-    printf("  u_int64_t        optimized_for_upgrade;   /* how many optimized_for_upgrade messages were broadcast */ \n");
-    printf("  u_int64_t        original_ver;            /* original environment version  */ \n");
-    printf("  u_int64_t        ver_at_startup;          /* environment version at startup */ \n");
-    printf("  u_int64_t        last_lsn_v13;            /* last lsn of version 13 environment */ \n");
-    printf("  char             upgrade_v14_time[26];    /* timestamp of when upgrade to version 14 environment was done */ \n");
-    printf("  u_int64_t        env_panic;               /* non-zero if environment is panicked */ \n");
-    printf("  u_int64_t        logger_panic;            /* non-zero if logger is panicked */ \n");
-    printf("  u_int64_t        logger_panic_errno;      /* non-zero if environment is panicked */ \n");
-    printf("  uint64_t         malloc_count;            /* number of malloc operations */ \n");
-    printf("  uint64_t         free_count;              /* number of free operations */ \n");
-    printf("  uint64_t         realloc_count;           /* number of realloc operations */ \n");
-    printf("  uint64_t         malloc_fail;             /* number of failed malloc operations */ \n");
-    printf("  uint64_t         realloc_fail;            /* number of failed realloc operations */ \n");
-    printf("  uint64_t         mem_requested;           /* number of bytes requested via malloc/realloc */ \n");
-    printf("  uint64_t         mem_used;                /* number of bytes used (obtained from malloc_usable_size()) */ \n");
-    printf("  uint64_t         mem_freed;               /* number of bytes freed */ \n");
-    printf("  uint64_t         max_mem_in_use;          /* estimated max value of (used - freed) */ \n");
-    printf("  uint64_t         malloc_mmap_threshold;   /* threshold for malloc to use mmap  */ \n");
-    printf("  const char *     mallocator_version;      /* version string from malloc lib */ \n");
-    printf("} ENGINE_STATUS;\n");
+    // Filesystem redzone state
+    printf("typedef enum { \n");
+    printf("    FS_GREEN = 0,                                   // green zone  (we have lots of space) \n");
+    printf("    FS_YELLOW = 1,                                  // yellow zone (issue warning but allow operations) \n");
+    printf("    FS_RED = 2,                                     // red zone    (prevent insert operations) \n");
+    printf("    FS_BLOCKED = 3                                  // For reporting engine status, completely blocked \n");
+    printf("} fs_redzone_state;\n");
+
+
+    // engine status info
+    // engine status is passed to handlerton as an array of TOKU_ENGINE_STATUS_ROW_S[]
+    printf("typedef enum {\n");
+    printf("   FS_STATE = 0,   // interpret as file system state (redzone) enum \n");
+    printf("   UINT64,         // interpret as uint64_t \n");
+    printf("   CHARSTR,        // interpret as char * \n");
+    printf("   UNIXTIME,       // interpret as time_t \n");
+    printf("   TOKUTIME        // interpret as tokutime_t \n");  
+    printf("} toku_engine_status_display_type; \n");
+
+    printf("typedef struct __toku_engine_status_row {\n");
+    printf("  char * keyname;                  // info schema key, should not change across revisions without good reason \n");
+    printf("  char * legend;                   // the text that will appear at user interface \n");
+    printf("  toku_engine_status_display_type type;  // how to interpret the value \n");
+    printf("  union {              \n");
+    printf("         uint64_t num; \n");
+    printf("         char *   str; \n");
+    printf("  } value;       \n");
+    printf("} * TOKU_ENGINE_STATUS_ROW, TOKU_ENGINE_STATUS_ROW_S; \n");
 
     print_dbtype();
 //    print_db_notices();
@@ -725,46 +502,48 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     //print_struct("db_btree_stat", 0, db_btree_stat_fields32, db_btree_stat_fields64, sizeof(db_btree_stat_fields32)/sizeof(db_btree_stat_fields32[0]), 0);
     assert(sizeof(db_env_fields32)==sizeof(db_env_fields64));
     {
-	const char *extra[]={
-                             "int (*checkpointing_set_period)             (DB_ENV*, u_int32_t) /* Change the delay between automatic checkpoints.  0 means disabled. */",
-                             "int (*checkpointing_get_period)             (DB_ENV*, u_int32_t*) /* Retrieve the delay between automatic checkpoints.  0 means disabled. */",
-                             "int (*cleaner_set_period)                   (DB_ENV*, u_int32_t) /* Change the delay between automatic cleaner attempts.  0 means disabled. */",
-                             "int (*cleaner_get_period)                   (DB_ENV*, u_int32_t*) /* Retrieve the delay between automatic cleaner attempts.  0 means disabled. */",
-                             "int (*cleaner_set_iterations)               (DB_ENV*, u_int32_t) /* Change the number of attempts on each cleaner invokation.  0 means disabled. */",
-                             "int (*cleaner_get_iterations)               (DB_ENV*, u_int32_t*) /* Retrieve the number of attempts on each cleaner invokation.  0 means disabled. */",
-                             "int (*checkpointing_postpone)               (DB_ENV*) /* Use for 'rename table' or any other operation that must be disjoint from a checkpoint */",
-                             "int (*checkpointing_resume)                 (DB_ENV*) /* Alert tokudb 'postpone' is no longer necessary */",
-                             "int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */",
-                             "int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */",
-                             "int (*set_default_bt_compare)  (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
-			     "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*, char*, int) /* Fill in status struct, possibly env panic string */",
-			     "int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */",
-			     "int (*crash)                                (DB_ENV*, const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/);",
-			     "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */",
-                             "int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp,    DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags)",
-                             "int (*create_indexer)                       (DB_ENV *env, DB_TXN *txn, DB_INDEXER **idxrp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t indexer_flags)",
-                             "int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
-                             "                                             const DBT *src_key, const DBT *src_val,\n"
-                             "                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array) /* insert into multiple DBs */",
-                             "int (*set_generate_row_callback_for_put)    (DB_ENV *env, generate_row_for_put_func generate_row_for_put)",
-                             "int (*del_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
-                             "                                             const DBT *src_key, const DBT *src_val,\n"
-                             "                                             uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array) /* delete from multiple DBs */",
-                             "int (*set_generate_row_callback_for_del)    (DB_ENV *env, generate_row_for_del_func generate_row_for_del)",
-                             "int (*update_multiple)                      (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
-                             "                                             DBT *old_src_key, DBT *old_src_data,\n"
-                             "                                             DBT *new_src_key, DBT *new_src_data,\n"
-                             "                                             uint32_t num_dbs, DB **db_array, uint32_t *flags_array,\n"
-                             "                                             uint32_t num_keys, DBT *keys,\n"
-                             "                                             uint32_t num_vals, DBT *vals) /* update multiple DBs */",
-                             "int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */",
-                             "int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */",
-                             "int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max)",
-                             "int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max)",
-			     "void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))",
-                             "int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec)",
-                             "int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec)",
-			     NULL};
+        const char *extra[]= {
+            "int (*checkpointing_set_period)             (DB_ENV*, u_int32_t) /* Change the delay between automatic checkpoints.  0 means disabled. */",
+            "int (*checkpointing_get_period)             (DB_ENV*, u_int32_t*) /* Retrieve the delay between automatic checkpoints.  0 means disabled. */",
+            "int (*cleaner_set_period)                   (DB_ENV*, u_int32_t) /* Change the delay between automatic cleaner attempts.  0 means disabled. */",
+            "int (*cleaner_get_period)                   (DB_ENV*, u_int32_t*) /* Retrieve the delay between automatic cleaner attempts.  0 means disabled. */",
+            "int (*cleaner_set_iterations)               (DB_ENV*, u_int32_t) /* Change the number of attempts on each cleaner invokation.  0 means disabled. */",
+            "int (*cleaner_get_iterations)               (DB_ENV*, u_int32_t*) /* Retrieve the number of attempts on each cleaner invokation.  0 means disabled. */",
+            "int (*checkpointing_postpone)               (DB_ENV*) /* Use for 'rename table' or any other operation that must be disjoint from a checkpoint */",
+            "int (*checkpointing_resume)                 (DB_ENV*) /* Alert tokudb 'postpone' is no longer necessary */",
+            "int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */",
+            "int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */",
+            "int (*set_default_bt_compare)               (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
+            "int (*get_engine_status_num_rows)           (DB_ENV*, uint64_t*)  /* return number of rows in engine status */",
+            "int (*get_engine_status)                    (DB_ENV*, TOKU_ENGINE_STATUS_ROW, uint64_t, fs_redzone_state*, uint64_t*, char*, int) /* Fill in status struct and redzone state, possibly env panic string */",
+            "int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */",
+            "int (*crash)                                (DB_ENV*, const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/);",
+            "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */",
+            "int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp,    DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags)",
+            "int (*create_indexer)                       (DB_ENV *env, DB_TXN *txn, DB_INDEXER **idxrp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t indexer_flags)",
+            "int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
+            "                                             const DBT *src_key, const DBT *src_val,\n"
+            "                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array) /* insert into multiple DBs */",
+            "int (*set_generate_row_callback_for_put)    (DB_ENV *env, generate_row_for_put_func generate_row_for_put)",
+            "int (*del_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
+            "                                             const DBT *src_key, const DBT *src_val,\n"
+            "                                             uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array) /* delete from multiple DBs */",
+            "int (*set_generate_row_callback_for_del)    (DB_ENV *env, generate_row_for_del_func generate_row_for_del)",
+            "int (*update_multiple)                      (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
+            "                                             DBT *old_src_key, DBT *old_src_data,\n"
+            "                                             DBT *new_src_key, DBT *new_src_data,\n"
+            "                                             uint32_t num_dbs, DB **db_array, uint32_t *flags_array,\n"
+            "                                             uint32_t num_keys, DBT *keys,\n"
+            "                                             uint32_t num_vals, DBT *vals) /* update multiple DBs */",
+            "int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */",
+            "int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */",
+            "int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max)",
+            "int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max)",
+            "void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))",
+            "int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec)",
+            "int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec)",
+            NULL
+        };
         print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]), extra);
     }
 

@@ -164,13 +164,22 @@ toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync);
 //        fsync
 //        release the outlock
 
-typedef struct logger_status {
-    u_int64_t ilock_ctr;
-    u_int64_t olock_ctr;
-    u_int64_t swap_ctr;
-    u_int64_t panicked;
-    u_int64_t panic_errno;
+
+typedef enum {
+    LOGGER_NEXT_LSN = 0,
+    LOGGER_ILOCK_CTR,
+    LOGGER_OLOCK_CTR,
+    LOGGER_SWAP_CTR,
+    LOGGER_PANICKED,
+    LOGGER_PANIC_ERRNO,
+    LOGGER_STATUS_NUM_ROWS
+} logger_status_entry;
+
+typedef struct {
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[LOGGER_STATUS_NUM_ROWS];
 } LOGGER_STATUS_S, *LOGGER_STATUS;
+
 
 void toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s);
 

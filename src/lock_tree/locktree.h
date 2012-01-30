@@ -118,32 +118,39 @@ struct __toku_lock_tree {
 };
 
 
-// accountability
-typedef struct ltm_status {
-    uint32_t   lock_escalation_successes;  // number of times lock escalation succeeded 
-    uint32_t   lock_escalation_failures;   // number of times lock escalation failed
-    uint64_t   read_lock;                  // number of times read lock taken successfully
-    uint64_t   read_lock_fail;             // number of times read lock denied
-    uint64_t   out_of_read_locks;          // number of times read lock denied for out_of_locks
-    uint64_t   write_lock;                 // number of times write lock taken successfully
-    uint64_t   write_lock_fail;            // number of times write lock denied
-    uint64_t   out_of_write_locks;         // number of times write lock denied for out_of_locks
-    uint64_t   lt_create;                  // number of locktrees created
-    uint64_t   lt_create_fail;             // number of locktrees unable to be created
-    uint64_t   lt_destroy;                 // number of locktrees destroyed
-    uint64_t   lt_num;                     // number of locktrees (should be created - destroyed)
-    uint64_t   lt_num_max;                 // max number of locktrees that have existed simultaneously
+typedef enum {
+    LTM_LOCKS_LIMIT,                // number of locks allowed (obsolete)
+    LTM_LOCKS_CURR,                 // number of locks in existence
+    LTM_LOCK_MEMORY_LIMIT,          // maximum amount of memory allowed for locks 
+    LTM_LOCK_MEMORY_CURR,           // maximum amount of memory allowed for locks 
+    LTM_LOCK_ESCALATION_SUCCESSES,  // number of times lock escalation succeeded 
+    LTM_LOCK_ESCALATION_FAILURES,   // number of times lock escalation failed
+    LTM_READ_LOCK,                  // number of times read lock taken successfully
+    LTM_READ_LOCK_FAIL,             // number of times read lock denied
+    LTM_OUT_OF_READ_LOCKS,          // number of times read lock denied for out_of_locks
+    LTM_WRITE_LOCK,                 // number of times write lock taken successfully
+    LTM_WRITE_LOCK_FAIL,            // number of times write lock denied
+    LTM_OUT_OF_WRITE_LOCKS,         // number of times write lock denied for out_of_locks
+    LTM_LT_CREATE,                  // number of locktrees created
+    LTM_LT_CREATE_FAIL,             // number of locktrees unable to be created
+    LTM_LT_DESTROY,                 // number of locktrees destroyed
+    LTM_LT_NUM,                     // number of locktrees (should be created - destroyed)
+    LTM_LT_NUM_MAX,                 // max number of locktrees that have existed simultaneously
+    LTM_STATUS_NUM_ROWS
+} ltm_status_entry;
+
+typedef struct {
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[LTM_STATUS_NUM_ROWS];
 } LTM_STATUS_S, *LTM_STATUS;
-
-
 
 struct __toku_ltm {
     /** The maximum number of locks allowed for the environment. */
-    uint32_t          max_locks;
+    uint64_t          locks_limit;
     /** The current number of locks for the environment. */
-    uint32_t          curr_locks;
+    uint64_t          curr_locks;
     /** The maximum amount of memory for locks allowed for the environment. */
-    uint64_t          max_lock_memory;
+    uint64_t          lock_memory_limit;
     /** The current amount of memory for locks for the environment. */
     uint64_t          curr_lock_memory;
     /** Status / accountability information */
@@ -398,7 +405,7 @@ int toku_lt_unlock(toku_lock_tree* tree, TXNID txn);
     Creates a lock tree manager..
     
     \param pmgr      A buffer for the new lock tree manager.
-    \param max_locks    The maximum number of locks.
+    \param locks_limit    The maximum number of locks.
 
     \return
     - 0 on success.
@@ -406,8 +413,8 @@ int toku_lt_unlock(toku_lock_tree* tree, TXNID txn);
     - May return other errors due to system calls.
 */
 int toku_ltm_create(toku_ltm** pmgr,
-                    uint32_t max_locks,
-                    uint64_t max_lock_memory,
+                    uint32_t locks_limit,
+                    uint64_t lock_memory_limit,
                     int   (*panic)(DB*, int), 
                     toku_dbt_cmp (*get_compare_fun_from_db)(DB*));
 
@@ -426,26 +433,24 @@ int toku_ltm_close(toku_ltm* mgr);
 /**
     Sets the maximum number of locks on the lock tree manager.
     
-    \param mgr       The lock tree manager to which to set max_locks.
-    \param max_locks    The new maximum number of locks.
+    \param mgr       The lock tree manager to which to set locks_limit.
+    \param locks_limit    The new maximum number of locks.
 
     \return
     - 0 on success.
-    - EINVAL if tree is NULL or max_locks is 0
-    - EDOM   if max_locks is less than the number of locks held by any lock tree
+    - EINVAL if tree is NULL or locks_limit is 0
+    - EDOM   if locks_limit is less than the number of locks held by any lock tree
          held by the manager
 */
-int toku_ltm_set_max_locks(toku_ltm* mgr, uint32_t max_locks);
+int toku_ltm_set_max_locks(toku_ltm* mgr, uint32_t locks_limit);
 
-int toku_ltm_get_max_lock_memory(toku_ltm* mgr, uint64_t* max_lock_memory);
+int toku_ltm_get_max_lock_memory(toku_ltm* mgr, uint64_t* lock_memory_limit);
 
-int toku_ltm_set_max_lock_memory(toku_ltm* mgr, uint64_t max_lock_memory);
+int toku_ltm_set_max_lock_memory(toku_ltm* mgr, uint64_t lock_memory_limit);
 
-void toku_ltm_get_status(toku_ltm* mgr, uint32_t * max_locks, uint32_t * curr_locks, 
-			 uint64_t *max_lock_memory, uint64_t *curr_lock_memory,
-			 LTM_STATUS s);
+void toku_ltm_get_status(toku_ltm* mgr, LTM_STATUS s);
 
-int toku_ltm_get_max_locks(toku_ltm* mgr, uint32_t* max_locks);
+int toku_ltm_get_max_locks(toku_ltm* mgr, uint32_t* locks_limit);
 
 void toku_ltm_incr_lock_memory(void *extra, size_t s);
 void toku_ltm_decr_lock_memory(void *extra, size_t s);

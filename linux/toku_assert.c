@@ -18,14 +18,18 @@
 static void *backtrace_pointers[N_POINTERS];
 #endif
 
+static uint64_t engine_status_num_rows = 0;
+
 // Function pointers are zero by default so asserts can be used by brt-layer tests without an environment.
 static int (*toku_maybe_get_engine_status_text_p)(char* buff, int buffsize) = 0;
 static void (*toku_maybe_set_env_panic_p)(int code, char* msg) = 0;
 
 void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(char*, int), 
-			       void (*toku_maybe_set_env_panic_pointer)(int, char*)) {
+			       void (*toku_maybe_set_env_panic_pointer)(int, char*),
+                               uint64_t num_rows) {
     toku_maybe_get_engine_status_text_p = toku_maybe_get_engine_status_text_pointer;
     toku_maybe_set_env_panic_p = toku_maybe_set_env_panic_pointer;
+    engine_status_num_rows = num_rows;
 }
 
 void (*do_assert_hook)(void) = NULL;
@@ -44,10 +48,9 @@ toku_do_backtrace_abort(void) {
 
     fflush(stderr);
     
-    if (toku_maybe_get_engine_status_text_p) {
-	int buffsize = 1024 * 32;
-	char buff[buffsize];
-	
+    if (engine_status_num_rows && toku_maybe_get_engine_status_text_p) {
+	int buffsize = engine_status_num_rows * 128;  // assume 128 characters per row (gross overestimate, should be safe)
+	char buff[buffsize];	
 	toku_maybe_get_engine_status_text_p(buff, buffsize);  
 	fprintf(stderr, "Engine status:\n%s\n", buff);
     }

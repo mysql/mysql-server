@@ -80,35 +80,42 @@ int toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 
 
 
-/****** 
+/******
  * These functions are called from the ydb level.
  * They return status information and have no side effects.
  * Some status information may be incorrect because no locks are taken to collect status.
  * (If checkpoint is in progress, it may overwrite status info while it is being read.)
  *****/
+typedef enum {
+    CP_PERIOD,
+    CP_FOOTPRINT,
+    CP_TIME_LAST_CHECKPOINT_BEGIN,
+    CP_TIME_LAST_CHECKPOINT_BEGIN_COMPLETE,
+    CP_TIME_LAST_CHECKPOINT_END,
+    CP_LAST_LSN,
+    CP_CHECKPOINT_COUNT,
+    CP_CHECKPOINT_COUNT_FAIL,
+    CP_WAITERS_NOW,          // how many threads are currently waiting for the checkpoint_safe lock to perform a checkpoint
+    CP_WAITERS_MAX,          // max threads ever simultaneously waiting for the checkpoint_safe lock to perform a checkpoint
+    CP_CLIENT_WAIT_ON_MO,    // how many times a client thread waited to take the multi_operation lock, not for checkpoint
+    CP_CLIENT_WAIT_ON_CS,    // how many times a client thread waited for the checkpoint_safe lock, not for checkpoint
+    CP_WAIT_SCHED_CS,        // how many times a scheduled checkpoint waited for the checkpoint_safe lock
+    CP_WAIT_CLIENT_CS,       // how many times a client checkpoint waited for the checkpoint_safe lock
+    CP_WAIT_TXN_CS,          // how many times a txn_commit checkpoint waited for the checkpoint_safe lock
+    CP_WAIT_OTHER_CS,        // how many times a checkpoint for another purpose waited for the checkpoint_safe lock
+    CP_WAIT_SCHED_MO,        // how many times a scheduled checkpoint waited for the multi_operation lock
+    CP_WAIT_CLIENT_MO,       // how many times a client checkpoint waited for the multi_operation lock
+    CP_WAIT_TXN_MO,          // how many times a txn_commit checkpoint waited for the multi_operation lock
+    CP_WAIT_OTHER_MO,        // how many times a checkpoint for another purpose waited for the multi_operation lock
+    CP_STATUS_NUM_ROWS       // number of rows in this status array
+} cp_status_entry;
+
 typedef struct {
-    uint64_t footprint;
-    time_t time_last_checkpoint_begin_complete;
-    time_t time_last_checkpoint_begin;
-    time_t time_last_checkpoint_end;
-    uint64_t last_lsn;
-    uint64_t checkpoint_count;
-    uint64_t checkpoint_count_fail;
-    uint64_t waiters_now;    // how many threads are currently waiting for the checkpoint_safe lock to perform a checkpoint
-    uint64_t waiters_max;    // max threads ever simultaneously waiting for the checkpoint_safe lock to perform a checkpoint
-    uint64_t client_wait_on_mo;   // how many times a client thread waited for the multi_operation lock
-    uint64_t client_wait_on_cs;   // how many times a client thread waited for the checkpoint_safe lock
-    uint64_t cp_wait_sched_cs;      // how many times a scheduled checkpoint waited for the checkpoint_safe lock
-    uint64_t cp_wait_client_cs;   // how many times a client checkpoint waited for the checkpoint_safe lock
-    uint64_t cp_wait_txn_cs;      // how many times a txn_commit checkpoint waited for the checkpoint_safe lock
-    uint64_t cp_wait_other_cs;    // how many times a checkpoint for another purpose waited for the checkpoint_safe lock 
-    uint64_t cp_wait_sched_mo;    // how many times a scheduled checkpoint waited for the multi_operation lock
-    uint64_t cp_wait_client_mo;   // how many times a client checkpoint waited for the multi_operation lock
-    uint64_t cp_wait_txn_mo;      // how many times a txn_commit checkpoint waited for the multi_operation lock
-    uint64_t cp_wait_other_mo;    // how many times a checkpoint for another purpose waited for the multi_operation lock 
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[CP_STATUS_NUM_ROWS];
 } CHECKPOINT_STATUS_S, *CHECKPOINT_STATUS;
 
-void toku_checkpoint_get_status(CHECKPOINT_STATUS stat);
+void toku_checkpoint_get_status(CACHETABLE ct, CHECKPOINT_STATUS stat);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };

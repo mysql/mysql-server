@@ -28,7 +28,46 @@
 
 enum {MAX_FILE_SIZE=256};
 
-static LOADER_STATUS_S status;  // accountability
+///////////////////////////////////////////////////////////////////////////////////
+// Engine status
+//
+// Status is intended for display to humans to help understand system behavior.
+// It does not need to be perfectly thread-safe.
+
+static LOADER_STATUS_S loader_status;
+
+#define STATUS_INIT(k,t,l) { \
+	loader_status.status[k].keyname = #k; \
+	loader_status.status[k].type    = t;  \
+	loader_status.status[k].legend  = "loader: " l; \
+    }
+
+static void
+status_init(void) {
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+    STATUS_INIT(LOADER_CREATE,      UINT64, "number of loaders successfully created");
+    STATUS_INIT(LOADER_CREATE_FAIL, UINT64, "number of calls to toku_loader_create_loader() that failed");
+    STATUS_INIT(LOADER_PUT,       UINT64, "number of calls to loader->put() succeeded");
+    STATUS_INIT(LOADER_PUT_FAIL,  UINT64, "number of calls to loader->put() failed");
+    STATUS_INIT(LOADER_CLOSE,       UINT64, "number of calls to loader->close() that succeeded");
+    STATUS_INIT(LOADER_CLOSE_FAIL,  UINT64, "number of calls to loader->close() that failed");
+    STATUS_INIT(LOADER_ABORT,       UINT64, "number of calls to loader->abort()");
+    STATUS_INIT(LOADER_CURRENT,     UINT64, "number of loaders currently in existence");
+    STATUS_INIT(LOADER_MAX,         UINT64, "max number of loaders that ever existed simultaneously");
+    loader_status.initialized = true;
+}
+#undef STATUS_INIT
+
+void
+toku_loader_get_status(LOADER_STATUS statp) {
+    if (!loader_status.initialized)
+	status_init();
+    *statp = loader_status;
+}
+
+#define STATUS_VALUE(x) loader_status.status[x].value.num
+
 
 struct __toku_loader_internal {
     DB_ENV *env;
@@ -253,13 +292,13 @@ int toku_loader_create_loader(DB_ENV *env,
  create_exit:
     loader_add_refs(loader);
     if (rval == 0) {
-	(void) __sync_fetch_and_add(&status.create, 1);
-	(void) __sync_fetch_and_add(&status.current, 1);
-	if (status.current > status.max)
-	    status.max = status.current;   // not worth a lock to make threadsafe, may be inaccurate
+	(void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CREATE), 1);
+	(void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CURRENT), 1);
+	if (STATUS_VALUE(LOADER_CURRENT) > STATUS_VALUE(LOADER_MAX) )
+	    STATUS_VALUE(LOADER_MAX) = STATUS_VALUE(LOADER_CURRENT);  // not worth a lock to make threadsafe, may be inaccurate
     }
     else {
-	(void) __sync_fetch_and_add(&status.create_fail, 1);
+	(void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CREATE_FAIL), 1);
         free_loader(loader);
     }
     return rval;
@@ -336,15 +375,15 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
     }
  cleanup:
     if (r==0)
-	status.put++;  // executed too often to be worth making threadsafe
+	STATUS_VALUE(LOADER_PUT)++;  // executed too often to be worth making threadsafe
     else
-	status.put_fail++;
+	STATUS_VALUE(LOADER_PUT_FAIL)++;
     return r;
 }
 
 int toku_loader_close(DB_LOADER *loader) 
 {
-    (void) __sync_fetch_and_sub(&status.current, 1);
+    (void) __sync_fetch_and_sub(&STATUS_VALUE(LOADER_CURRENT), 1);
     int r=0;
     if ( loader->i->err_errno != 0 ) {
         if ( loader->i->error_callback != NULL ) {
@@ -380,16 +419,16 @@ int toku_loader_close(DB_LOADER *loader)
     free_loader(loader);
     toku_ydb_unlock();
     if (r==0)
-	(void) __sync_fetch_and_add(&status.close, 1);
+	(void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CLOSE), 1);
     else
-	(void) __sync_fetch_and_add(&status.close_fail, 1);
+	(void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CLOSE_FAIL), 1);
     return r;
 }
 
 int toku_loader_abort(DB_LOADER *loader) 
 {
-    (void) __sync_fetch_and_sub(&status.current, 1);
-    (void) __sync_fetch_and_add(&status.abort, 1);
+    (void) __sync_fetch_and_sub(&STATUS_VALUE(LOADER_CURRENT), 1);
+    (void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_ABORT), 1);
     int r=0;
     if ( loader->i->err_errno != 0 ) {
         if ( loader->i->error_callback != NULL ) {
@@ -442,7 +481,7 @@ exit:
     return result;
 }
 
-void 
-toku_loader_get_status(LOADER_STATUS s) {
-    *s = status;
-}
+
+
+#undef STATUS_VALUE
+

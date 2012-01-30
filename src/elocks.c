@@ -25,27 +25,46 @@ struct ydb_big_lock {
 };
 static struct ydb_big_lock ydb_big_lock;
 
-// status is intended for display to humans to help understand system behavior.
-// It does not need to be perfectly thread-safe.
-static SCHEDULE_STATUS_S status;
-
 static inline u_int64_t u64max(u_int64_t a, u_int64_t b) {return a > b ? a : b; }
 
-static void 
-init_status(void) {
-    status.ydb_lock_ctr = 0;
-    status.num_waiters_now = 0;
-    status.max_waiters = 0;
-    status.total_sleep_time = 0;
-    status.max_time_ydb_lock_held = 0;
-    status.total_time_ydb_lock_held = 0;
-    status.total_time_since_start = 0;
+/* Status is intended for display to humans to help understand system behavior.
+ * It does not need to be perfectly thread-safe.
+ */
+static volatile YDB_LOCK_STATUS_S ydb_lock_status;
+
+#define STATUS_INIT(k,t,l) { \
+	ydb_lock_status.status[k].keyname = #k; \
+	ydb_lock_status.status[k].type    = t;  \
+	ydb_lock_status.status[k].legend  = "ydb lock: " l; \
+    }
+static void
+status_init(void) {
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+    STATUS_INIT(YDB_LOCK_TAKEN,               UINT64,   "taken");
+    STATUS_INIT(YDB_LOCK_RELEASED,            UINT64,   "released");
+    STATUS_INIT(YDB_NUM_WAITERS_NOW,          UINT64,   "num waiters now");
+    STATUS_INIT(YDB_MAX_WAITERS,              UINT64,   "max waiters");
+    STATUS_INIT(YDB_TOTAL_SLEEP_TIME,         UINT64,   "total sleep time (usec)");
+    STATUS_INIT(YDB_MAX_TIME_YDB_LOCK_HELD,   TOKUTIME, "max time held (sec)");
+    STATUS_INIT(YDB_TOTAL_TIME_YDB_LOCK_HELD, TOKUTIME, "total time held (sec)");
+    STATUS_INIT(YDB_TOTAL_TIME_SINCE_START,   TOKUTIME, "total time since start (sec)");
+
+    ydb_lock_status.initialized = true;
+}
+#undef STATUS_INIT
+
+void
+toku_ydb_lock_get_status(YDB_LOCK_STATUS statp) {
+    if (!ydb_lock_status.initialized)
+	status_init();
+    *statp = ydb_lock_status;
 }
 
-void 
-toku_ydb_lock_get_status(SCHEDULE_STATUS statp) {
-    *statp = status;
-}
+#define STATUS_VALUE(x) ydb_lock_status.status[x].value.num
+
+/* End of status section.
+ */
 
 int 
 toku_ydb_lock_init(void) {
@@ -53,7 +72,6 @@ toku_ydb_lock_init(void) {
     r = toku_pthread_mutex_init(&ydb_big_lock.lock, NULL); resource_assert_zero(r);
     ydb_big_lock.starttime   = get_tokutime();
     ydb_big_lock.acquired_time = 0;
-    init_status();
     return r;
 }
 
@@ -66,7 +84,7 @@ toku_ydb_lock_destroy(void) {
 
 void 
 toku_ydb_lock(void) {
-    u_int32_t new_num_waiters = __sync_add_and_fetch(&status.num_waiters_now, 1);
+    u_int32_t new_num_waiters = __sync_add_and_fetch(&STATUS_VALUE(YDB_NUM_WAITERS_NOW), 1);
 
     int r = toku_pthread_mutex_lock(&ydb_big_lock.lock);   resource_assert_zero(r);
 
@@ -76,30 +94,29 @@ toku_ydb_lock(void) {
     ydb_big_lock.acquired_time = now;
 
     // Update status
-    status.ydb_lock_ctr++;
-    if (new_num_waiters > status.max_waiters) status.max_waiters = new_num_waiters;
-    status.total_time_since_start = now - ydb_big_lock.starttime;
-
-    // invariant((status.ydb_lock_ctr & 0x01) == 1);
+    STATUS_VALUE(YDB_LOCK_TAKEN)++;
+    if (new_num_waiters > STATUS_VALUE(YDB_MAX_WAITERS)) 
+	STATUS_VALUE(YDB_MAX_WAITERS) = new_num_waiters;
+    STATUS_VALUE(YDB_TOTAL_TIME_SINCE_START) = now - ydb_big_lock.starttime;
 }
 
 static void 
 ydb_unlock_internal(unsigned long useconds) {
-    status.ydb_lock_ctr++;
-    // invariant((status.ydb_lock_ctr & 0x01) == 0);
+    STATUS_VALUE(YDB_LOCK_RELEASED)++;
 
     tokutime_t now = get_tokutime();
     tokutime_t time_held = now - ydb_big_lock.acquired_time;
-    status.total_time_ydb_lock_held += time_held;
-    if (time_held > status.max_time_ydb_lock_held) status.max_time_ydb_lock_held = time_held;
-    status.total_time_since_start = now - ydb_big_lock.starttime;
+    STATUS_VALUE(YDB_TOTAL_TIME_YDB_LOCK_HELD) += time_held;
+    if (time_held > STATUS_VALUE(YDB_MAX_TIME_YDB_LOCK_HELD))
+	STATUS_VALUE(YDB_MAX_TIME_YDB_LOCK_HELD) = time_held;
+    STATUS_VALUE(YDB_TOTAL_TIME_SINCE_START) = now - ydb_big_lock.starttime;
 
     int r = toku_pthread_mutex_unlock(&ydb_big_lock.lock); resource_assert_zero(r);
 
-    int new_num_waiters = __sync_add_and_fetch(&status.num_waiters_now, -1);
+    int new_num_waiters = __sync_add_and_fetch(&STATUS_VALUE(YDB_NUM_WAITERS_NOW), -1);
 
     if (new_num_waiters > 0 && useconds > 0) {
-	__sync_add_and_fetch(&status.total_sleep_time, useconds);
+	__sync_add_and_fetch(&STATUS_VALUE(YDB_TOTAL_SLEEP_TIME), useconds);
         usleep(useconds);
     }
 }
@@ -118,3 +135,5 @@ toku_pthread_mutex_t *
 toku_ydb_mutex(void) {
     return &ydb_big_lock.lock;
 }
+
+#undef STATUS_VALUE

@@ -19,7 +19,6 @@
 extern "C" {
 #endif
 
-typedef struct brt_status BRT_STATUS_S, *BRT_STATUS;
 typedef struct brt *BRT;
 typedef struct brtnode *BRTNODE;
 typedef struct brtnode_leaf_basement_node *BASEMENTNODE;

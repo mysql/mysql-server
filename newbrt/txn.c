@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -14,13 +14,48 @@ BOOL garbage_collection_debug = FALSE;
 
 static void verify_snapshot_system(TOKULOGGER logger);
 
-// accountability
-static TXN_STATUS_S status;
+///////////////////////////////////////////////////////////////////////////////////
+// Engine status
+//
+// Status is intended for display to humans to help understand system behavior.
+// It does not need to be perfectly thread-safe.
 
+static TXN_STATUS_S txn_status;
+
+#define STATUS_INIT(k,t,l) { \
+	txn_status.status[k].keyname = #k; \
+	txn_status.status[k].type    = t;  \
+	txn_status.status[k].legend  = "txn: " l; \
+    }
+
+static void
+status_init(void) {
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+    STATUS_INIT(TXN_BEGIN,            UINT64,   "begin");
+    STATUS_INIT(TXN_COMMIT,           UINT64,   "successful commits");
+    STATUS_INIT(TXN_ABORT,            UINT64,   "aborts");
+    STATUS_INIT(TXN_CLOSE,            UINT64,   "close (should be sum of aborts and commits)");
+    STATUS_INIT(TXN_NUM_OPEN,         UINT64,   "number currently open (should be begin - close)");
+    STATUS_INIT(TXN_MAX_OPEN,         UINT64,   "max number open simultaneously");
+    STATUS_INIT(TXN_OLDEST_LIVE,      UINT64,   "xid of oldest live transaction");
+    STATUS_INIT(TXN_OLDEST_STARTTIME, UNIXTIME, "start time of oldest live transaction");
+    txn_status.initialized = true;
+}
+#undef STATUS_INIT
+
+#define STATUS_VALUE(x) txn_status.status[x].value.num
 
 void 
-toku_txn_get_status(TXN_STATUS s) {
-    *s = status;
+toku_txn_get_status(TOKULOGGER logger, TXN_STATUS s) {
+    if (!txn_status.initialized)
+	status_init();
+    {
+        time_t oldest_starttime;
+        STATUS_VALUE(TXN_OLDEST_LIVE) = toku_logger_get_oldest_living_xid(logger, &oldest_starttime);
+        STATUS_VALUE(TXN_OLDEST_STARTTIME) = (uint64_t) oldest_starttime;
+    }
+    *s = txn_status;
 }
 
 
@@ -274,10 +309,10 @@ int toku_txn_begin_with_xid (
     if (r != 0) goto died;
 
     *tokutxn = result;
-    status.begin++;
-    status.num_open++;
-    if (status.num_open > status.max_open)
-	status.max_open = status.num_open;
+    STATUS_VALUE(TXN_BEGIN)++;
+    STATUS_VALUE(TXN_NUM_OPEN)++;
+    if (STATUS_VALUE(TXN_NUM_OPEN) > STATUS_VALUE(TXN_MAX_OPEN))
+	STATUS_VALUE(TXN_MAX_OPEN) = STATUS_VALUE(TXN_NUM_OPEN);
     if (garbage_collection_debug) {
         verify_snapshot_system(logger);
     }
@@ -383,7 +418,7 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
     }
     if (r==0) {
 	r = toku_rollback_commit(txn, yield, yieldv, oplsn);
-	status.commit++;
+	STATUS_VALUE(TXN_COMMIT)++;
     }
     // Make sure we release that lock (even if there was an error)
     if (release_multi_operation_client_lock) toku_multi_operation_client_unlock();
@@ -420,7 +455,7 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
     r = toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64);
     if (r==0)  {
 	r = toku_rollback_abort(txn, yield, yieldv, oplsn);
-	status.abort++;
+	STATUS_VALUE(TXN_ABORT)++;
     }
     // Make sure we multi_operation_client_unlock release will happen even if there is an error
     if (release_multi_operation_client_lock) toku_multi_operation_client_unlock();
@@ -463,8 +498,8 @@ void toku_txn_close_txn(TOKUTXN txn) {
     if (garbage_collection_debug)
         verify_snapshot_system(logger);
 
-    status.close++;
-    status.num_open--;
+    STATUS_VALUE(TXN_CLOSE)++;
+    STATUS_VALUE(TXN_NUM_OPEN)--;
     return;
 }
 
@@ -741,3 +776,5 @@ TOKUTXN_STATE
 toku_txn_get_state(TOKUTXN txn) {
     return txn->state;
 }
+
+#undef STATUS_VALUE

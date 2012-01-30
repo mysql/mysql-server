@@ -24,8 +24,49 @@
 #include "xids.h"
 #include "log-internal.h"
 
-// for now 
-static INDEXER_STATUS_S status;
+///////////////////////////////////////////////////////////////////////////////////
+// Engine status
+//
+// Status is intended for display to humans to help understand system behavior.
+// It does not need to be perfectly thread-safe.
+
+static INDEXER_STATUS_S indexer_status;
+
+#define STATUS_INIT(k,t,l) { \
+	indexer_status.status[k].keyname = #k; \
+	indexer_status.status[k].type    = t;  \
+	indexer_status.status[k].legend  = "indexer: " l; \
+    }
+
+static void
+status_init(void) {
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+    STATUS_INIT(INDEXER_CREATE,      UINT64, "number of indexers successfully created");
+    STATUS_INIT(INDEXER_CREATE_FAIL, UINT64, "number of calls to toku_indexer_create_indexer() that failed");
+    STATUS_INIT(INDEXER_BUILD,       UINT64, "number of calls to indexer->build() succeeded");
+    STATUS_INIT(INDEXER_BUILD_FAIL,  UINT64, "number of calls to indexer->build() failed");
+    STATUS_INIT(INDEXER_CLOSE,       UINT64, "number of calls to indexer->close() that succeeded");
+    STATUS_INIT(INDEXER_CLOSE_FAIL,  UINT64, "number of calls to indexer->close() that failed");
+    STATUS_INIT(INDEXER_ABORT,       UINT64, "number of calls to indexer->abort()");
+    STATUS_INIT(INDEXER_CURRENT,     UINT64, "number of indexers currently in existence");
+    STATUS_INIT(INDEXER_MAX,         UINT64, "max number of indexers that ever existed simultaneously");
+    indexer_status.initialized = true;
+}
+#undef STATUS_INIT
+
+void
+toku_indexer_get_status(INDEXER_STATUS statp) {
+    if (!indexer_status.initialized)
+	status_init();
+    *statp = indexer_status;
+}
+
+#define STATUS_VALUE(x) indexer_status.status[x].value.num
+
+
+
+
 
 #include "indexer-internal.h"
 
@@ -175,13 +216,13 @@ create_exit:
         
         *indexerp = indexer;
 
-	(void) __sync_fetch_and_add(&status.create, 1);
-	(void) __sync_fetch_and_add(&status.current, 1);
-	if ( status.current > status.max )
-	    status.max = status.current;   // not worth a lock to make threadsafe, may be inaccurate
-
+	(void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CREATE), 1);
+	(void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CURRENT), 1);
+        if ( STATUS_VALUE(INDEXER_CURRENT) > STATUS_VALUE(INDEXER_MAX) )
+	    STATUS_VALUE(INDEXER_MAX) = STATUS_VALUE(INDEXER_CURRENT);   // NOT WORTH A LOCK TO MAKE THREADSAFE), may be inaccurate
+        
     } else {
-	(void) __sync_fetch_and_add(&status.create_fail, 1);
+	(void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CREATE_FAIL), 1);
         free_indexer(indexer);
     }
 
@@ -270,9 +311,9 @@ build_index(DB_INDEXER *indexer) {
     //  - unique checks?
 
     if ( result == 0 ) {
-        (void) __sync_fetch_and_add(&status.build, 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_BUILD), 1);
     } else {
-	(void) __sync_fetch_and_add(&status.build_fail, 1);
+	(void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_BUILD_FAIL), 1);
     }
 
 
@@ -282,7 +323,7 @@ build_index(DB_INDEXER *indexer) {
 static int 
 close_indexer(DB_INDEXER *indexer) {
     int r = 0;
-    (void) __sync_fetch_and_sub(&status.current, 1);
+    (void) __sync_fetch_and_sub(&STATUS_VALUE(INDEXER_CURRENT), 1);
 
     toku_ydb_lock();
     {
@@ -307,17 +348,17 @@ close_indexer(DB_INDEXER *indexer) {
     toku_ydb_unlock();
 
     if ( r == 0 ) {
-        (void) __sync_fetch_and_add(&status.close, 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CLOSE), 1);
     } else {
-	(void) __sync_fetch_and_add(&status.close_fail, 1);
+	(void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CLOSE_FAIL), 1);
     }
     return r;
 }
 
 static int 
 abort_indexer(DB_INDEXER *indexer) {
-    (void) __sync_fetch_and_sub(&status.current, 1);
-    (void) __sync_fetch_and_add(&status.abort, 1);
+    (void) __sync_fetch_and_sub(&STATUS_VALUE(INDEXER_CURRENT), 1);
+    (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_ABORT), 1);
     
     toku_ydb_lock();
     {
@@ -391,10 +432,6 @@ maybe_call_poll_func(DB_INDEXER *indexer, uint64_t loop_count) {
     return result;
 }
 
-void 
-toku_indexer_get_status(INDEXER_STATUS s) {
-    *s = status;
-}
 
 // this allows us to force errors under test.  Flags are defined in indexer.h
 void
@@ -407,3 +444,7 @@ DB *
 toku_indexer_get_src_db(DB_INDEXER *indexer) {
     return indexer->i->src_db;
 }
+
+
+#undef STATUS_VALUE
+

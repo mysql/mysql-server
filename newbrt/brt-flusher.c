@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -8,14 +8,63 @@
 #include <brt-flusher-internal.h>
 #include <brt-cachetable-wrappers.h>
 
-static BRT_FLUSHER_STATUS_S brt_flusher_status;
+/* Status is intended for display to humans to help understand system behavior.
+ * It does not need to be perfectly thread-safe.
+ */
+static volatile BRT_FLUSHER_STATUS_S brt_flusher_status;
 
+#define STATUS_INIT(k,                                                           t,                                      l) {                                            \
+        brt_flusher_status.status[k].keyname = #k;                      \
+        brt_flusher_status.status[k].type    = t;                       \
+        brt_flusher_status.status[k].legend  = "brt flusher: " l;       \
+    }
+
+#define STATUS_VALUE(x) brt_flusher_status.status[x].value.num
 void toku_brt_flusher_status_init(void) {
-    brt_flusher_status.cleaner_min_buffer_size = UINT64_MAX;
-    brt_flusher_status.cleaner_min_buffer_workdone = UINT64_MAX;
+    // Note,                                                                     this function initializes the keyname,  type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+    STATUS_INIT(BRT_FLUSHER_CLEANER_TOTAL_NODES,                UINT64, "total nodes potentially flushed by cleaner thread");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_H1_NODES,                   UINT64, "height-one nodes flushed by cleaner thread");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_HGT1_NODES,                 UINT64, "height-greater-than-one nodes flushed by cleaner thread");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_EMPTY_NODES,                UINT64, "nodes cleaned which had empty buffers");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_NODES_DIRTIED,              UINT64, "nodes dirtied by cleaner thread");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_MAX_BUFFER_SIZE,            UINT64, "max bytes in a buffer flushed by cleaner thread");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_MIN_BUFFER_SIZE,            UINT64, "min bytes in a buffer flushed by cleaner thread");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_TOTAL_BUFFER_SIZE,          UINT64, "total bytes in buffers flushed by cleaner thread");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_MAX_BUFFER_WORKDONE,        UINT64, "max workdone in a buffer flushed by cleaner thread");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_MIN_BUFFER_WORKDONE,        UINT64, "min workdone in a buffer flushed by cleaner thread");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_TOTAL_BUFFER_WORKDONE,      UINT64, "total workdone in buffers flushed by cleaner thread");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_NUM_LEAF_MERGES_STARTED,    UINT64, "times cleaner thread tries to merge a leaf");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING,    UINT64, "cleaner thread leaf merges in progress");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_NUM_LEAF_MERGES_COMPLETED,  UINT64, "cleaner thread leaf merges successful");
+    STATUS_INIT(BRT_FLUSHER_CLEANER_NUM_DIRTIED_FOR_LEAF_MERGE, UINT64, "nodes dirtied by cleaner thread leaf merges");
+    STATUS_INIT(BRT_FLUSHER_FLUSH_TOTAL,                        UINT64, "total number of flushes done by flusher threads or cleaner threads");
+    STATUS_INIT(BRT_FLUSHER_FLUSH_IN_MEMORY,                    UINT64, "number of in memory flushes");
+    STATUS_INIT(BRT_FLUSHER_FLUSH_NEEDED_IO,                    UINT64, "number of flushes that read something off disk");
+    STATUS_INIT(BRT_FLUSHER_FLUSH_CASCADES,                     UINT64, "number of flushes that triggered another flush in child");
+    STATUS_INIT(BRT_FLUSHER_FLUSH_CASCADES_1,                   UINT64, "number of flushes that triggered 1 cascading flush");
+    STATUS_INIT(BRT_FLUSHER_FLUSH_CASCADES_2,                   UINT64, "number of flushes that triggered 2 cascading flushes");
+    STATUS_INIT(BRT_FLUSHER_FLUSH_CASCADES_3,                   UINT64, "number of flushes that triggered 3 cascading flushes");
+    STATUS_INIT(BRT_FLUSHER_FLUSH_CASCADES_4,                   UINT64, "number of flushes that triggered 4 cascading flushes");
+    STATUS_INIT(BRT_FLUSHER_FLUSH_CASCADES_5,                   UINT64, "number of flushes that triggered 5 cascading flushes");
+    STATUS_INIT(BRT_FLUSHER_FLUSH_CASCADES_GT_5,                UINT64, "number of flushes that triggered over 5 cascading flushes");
+    STATUS_INIT(BRT_FLUSHER_SPLIT_LEAF,                         UINT64, "leaf node splits");
+    STATUS_INIT(BRT_FLUSHER_SPLIT_NONLEAF,                      UINT64, "nonleaf node splits");
+    STATUS_INIT(BRT_FLUSHER_MERGE_LEAF,                         UINT64, "leaf node merges");
+    STATUS_INIT(BRT_FLUSHER_MERGE_NONLEAF,                      UINT64, "nonleaf node merges");
+    STATUS_INIT(BRT_FLUSHER_BALANCE_LEAF,                       UINT64, "leaf node balances");
+
+    STATUS_VALUE(BRT_FLUSHER_CLEANER_MIN_BUFFER_SIZE) = UINT64_MAX;
+    STATUS_VALUE(BRT_FLUSHER_CLEANER_MIN_BUFFER_WORKDONE) = UINT64_MAX;
+
+    brt_flusher_status.initialized = true;
 }
+#undef STATUS_INIT
 
 void toku_brt_flusher_get_status(BRT_FLUSHER_STATUS status) {
+    if (!brt_flusher_status.initialized) {
+        toku_brt_flusher_status_init();
+    }
     *status = brt_flusher_status;
 }
 
@@ -65,22 +114,22 @@ find_heaviest_child(BRTNODE node)
 
 static void
 update_flush_status(BRTNODE child, int cascades) {
-    brt_flusher_status.flush_total++;
+    STATUS_VALUE(BRT_FLUSHER_FLUSH_TOTAL)++;
     if (cascades > 0) {
-        brt_flusher_status.flush_cascades++;
+        STATUS_VALUE(BRT_FLUSHER_FLUSH_CASCADES)++;
         switch (cascades) {
         case 1:
-            brt_flusher_status.flush_cascades_1++; break;
+            STATUS_VALUE(BRT_FLUSHER_FLUSH_CASCADES_1)++; break;
         case 2:
-            brt_flusher_status.flush_cascades_2++; break;
+            STATUS_VALUE(BRT_FLUSHER_FLUSH_CASCADES_2)++; break;
         case 3:
-            brt_flusher_status.flush_cascades_3++; break;
+            STATUS_VALUE(BRT_FLUSHER_FLUSH_CASCADES_3)++; break;
         case 4:
-            brt_flusher_status.flush_cascades_4++; break;
+            STATUS_VALUE(BRT_FLUSHER_FLUSH_CASCADES_4)++; break;
         case 5:
-            brt_flusher_status.flush_cascades_5++; break;
+            STATUS_VALUE(BRT_FLUSHER_FLUSH_CASCADES_5)++; break;
         default:
-            brt_flusher_status.flush_cascades_gt_5++; break;
+            STATUS_VALUE(BRT_FLUSHER_FLUSH_CASCADES_GT_5)++; break;
         }
     }
     bool flush_needs_io = false;
@@ -90,9 +139,9 @@ update_flush_status(BRTNODE child, int cascades) {
         }
     }
     if (flush_needs_io) {
-        brt_flusher_status.flush_needed_io++;
+        STATUS_VALUE(BRT_FLUSHER_FLUSH_NEEDED_IO)++;
     } else {
-        brt_flusher_status.flush_in_memory++;
+        STATUS_VALUE(BRT_FLUSHER_FLUSH_IN_MEMORY)++;
     }
 }
 
@@ -275,7 +324,7 @@ ctm_update_status(
     void* UU(extra)
     )
 {
-    brt_flusher_status.cleaner_num_dirtied_for_leaf_merge += dirtied;
+    STATUS_VALUE(BRT_FLUSHER_CLEANER_NUM_DIRTIED_FOR_LEAF_MERGE) += dirtied;
 }
 
 static void
@@ -287,7 +336,7 @@ ctm_maybe_merge_child(struct flusher_advice *fa,
                       void *extra)
 {
     if (child->height == 0) {
-        (void) __sync_fetch_and_add(&brt_flusher_status.cleaner_num_leaf_merges_completed, 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(BRT_FLUSHER_CLEANER_NUM_LEAF_MERGES_COMPLETED), 1);
     }
     default_merge_child(fa, h, parent, childnum, child, extra);
 }
@@ -357,12 +406,12 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             toku_brtheader_release_treelock(h);
         }
 
-        (void) __sync_fetch_and_add(&brt_flusher_status.cleaner_num_leaf_merges_started, 1);
-        (void) __sync_fetch_and_add(&brt_flusher_status.cleaner_num_leaf_merges_running, 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(BRT_FLUSHER_CLEANER_NUM_LEAF_MERGES_STARTED), 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(BRT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING), 1);
 
         flush_some_child(h, root_node, &new_fa);
 
-        (void) __sync_fetch_and_add(&brt_flusher_status.cleaner_num_leaf_merges_running, -1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(BRT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING), -1);
 
         toku_free(buf);
     }
@@ -375,7 +424,7 @@ ct_update_status(BRTNODE child,
 {
     struct flush_status_update_extra* fste = extra;
     update_flush_status(child, fste->cascades);
-    brt_flusher_status.cleaner_nodes_dirtied += dirtied;
+    STATUS_VALUE(BRT_FLUSHER_CLEANER_NODES_DIRTIED) += dirtied;
     // Incrementing this in case `flush_some_child` decides to recurse.
     fste->cascades++;
 }
@@ -669,7 +718,7 @@ brtleaf_split(
 {
 
     invariant(node->height == 0);
-    brt_flusher_status.split_leaf++;
+    STATUS_VALUE(BRT_FLUSHER_SPLIT_LEAF)++;
     if (node->n_children) {
 	// First move all the accumulated stat64info deltas into the first basement.
 	// After the split, either both nodes or neither node will be included in the next checkpoint.
@@ -874,7 +923,7 @@ brt_nonleaf_split(
     BRTNODE* dependent_nodes)
 {
     //VERIFY_NODE(t,node);
-    brt_flusher_status.split_nonleaf++;
+    STATUS_VALUE(BRT_FLUSHER_SPLIT_NONLEAF)++;
     toku_assert_entire_node_in_memory(node);
     int old_n_children = node->n_children;
     int n_children_in_a = old_n_children/2;
@@ -1036,7 +1085,7 @@ flush_this_child(
 static void
 merge_leaf_nodes(BRTNODE a, BRTNODE b)
 {
-    brt_flusher_status.merge_leaf++;
+    STATUS_VALUE(BRT_FLUSHER_MERGE_LEAF)++;
     toku_assert_entire_node_in_memory(a);
     toku_assert_entire_node_in_memory(b);
     assert(a->height == 0);
@@ -1116,7 +1165,7 @@ balance_leaf_nodes(
 //  If b is bigger then move stuff from b to a until b is the smaller.
 //  If a is bigger then move stuff from a to b until a is the smaller.
 {
-    brt_flusher_status.balance_leaf++;
+    STATUS_VALUE(BRT_FLUSHER_BALANCE_LEAF)++;
     DBT splitk_dbt;
     // first merge all the data into a
     merge_leaf_nodes(a,b);
@@ -1205,7 +1254,7 @@ maybe_merge_pinned_nonleaf_nodes(
     *did_rebalance = FALSE;
     *splitk = NULL;
 
-    brt_flusher_status.merge_nonleaf++;
+    STATUS_VALUE(BRT_FLUSHER_MERGE_NONLEAF)++;
 }
 
 static void
@@ -1613,33 +1662,33 @@ update_cleaner_status(
     BRTNODE node,
     int childnum)
 {
-    brt_flusher_status.cleaner_total_nodes++;
+    STATUS_VALUE(BRT_FLUSHER_CLEANER_TOTAL_NODES)++;
     if (node->height == 1) {
-        brt_flusher_status.cleaner_h1_nodes++;
+        STATUS_VALUE(BRT_FLUSHER_CLEANER_H1_NODES)++;
     } else {
-        brt_flusher_status.cleaner_hgt1_nodes++;
+        STATUS_VALUE(BRT_FLUSHER_CLEANER_HGT1_NODES)++;
     }
 
     unsigned int nbytesinbuf = toku_bnc_nbytesinbuf(BNC(node, childnum));
     if (nbytesinbuf == 0) {
-        brt_flusher_status.cleaner_empty_nodes++;
+        STATUS_VALUE(BRT_FLUSHER_CLEANER_EMPTY_NODES)++;
     } else {
-        if (nbytesinbuf > brt_flusher_status.cleaner_max_buffer_size) {
-            brt_flusher_status.cleaner_max_buffer_size = nbytesinbuf;
+        if (nbytesinbuf > STATUS_VALUE(BRT_FLUSHER_CLEANER_MAX_BUFFER_SIZE)) {
+            STATUS_VALUE(BRT_FLUSHER_CLEANER_MAX_BUFFER_SIZE) = nbytesinbuf;
         }
-        if (nbytesinbuf < brt_flusher_status.cleaner_min_buffer_size) {
-            brt_flusher_status.cleaner_min_buffer_size = nbytesinbuf;
+        if (nbytesinbuf < STATUS_VALUE(BRT_FLUSHER_CLEANER_MIN_BUFFER_SIZE)) {
+            STATUS_VALUE(BRT_FLUSHER_CLEANER_MIN_BUFFER_SIZE) = nbytesinbuf;
         }
-        brt_flusher_status.cleaner_total_buffer_size += nbytesinbuf;
+        STATUS_VALUE(BRT_FLUSHER_CLEANER_TOTAL_BUFFER_SIZE) += nbytesinbuf;
 
         uint64_t workdone = BP_WORKDONE(node, childnum);
-        if (workdone > brt_flusher_status.cleaner_max_buffer_workdone) {
-            brt_flusher_status.cleaner_max_buffer_workdone = workdone;
+        if (workdone > STATUS_VALUE(BRT_FLUSHER_CLEANER_MAX_BUFFER_WORKDONE)) {
+            STATUS_VALUE(BRT_FLUSHER_CLEANER_MAX_BUFFER_WORKDONE) = workdone;
         }
-        if (workdone < brt_flusher_status.cleaner_min_buffer_workdone) {
-            brt_flusher_status.cleaner_min_buffer_workdone = workdone;
+        if (workdone < STATUS_VALUE(BRT_FLUSHER_CLEANER_MIN_BUFFER_WORKDONE)) {
+            STATUS_VALUE(BRT_FLUSHER_CLEANER_MIN_BUFFER_WORKDONE) = workdone;
         }
-        brt_flusher_status.cleaner_total_buffer_workdone += workdone;
+        STATUS_VALUE(BRT_FLUSHER_CLEANER_TOTAL_BUFFER_WORKDONE) += workdone;
     }
 }
 
@@ -1844,3 +1893,5 @@ void
 toku_brt_flusher_drd_ignore(void) {
     DRD_IGNORE_VAR(brt_flusher_status);
 }
+
+#undef STATUS_VALUE

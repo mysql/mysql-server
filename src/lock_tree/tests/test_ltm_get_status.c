@@ -5,14 +5,12 @@
 enum { MAX_LOCKS = 1000, MAX_LOCK_MEMORY = MAX_LOCKS * 64 };
 
 static void do_ltm_status(toku_ltm *ltm) {
-    uint32_t max_locks, curr_locks;
-    uint64_t max_lock_memory, curr_lock_memory;
     LTM_STATUS_S s;
-    toku_ltm_get_status(ltm, &max_locks, &curr_locks, &max_lock_memory, &curr_lock_memory, &s);
-    assert(max_locks == MAX_LOCKS);
-    assert(curr_locks == 0);
-    assert(max_lock_memory == MAX_LOCK_MEMORY);
-    assert(curr_lock_memory == 0);
+    toku_ltm_get_status(ltm, &s);
+    assert(s.status[LTM_LOCKS_LIMIT].value       == MAX_LOCKS);
+    assert(s.status[LTM_LOCKS_CURR].value        == 0);
+    assert(s.status[LTM_LOCK_MEMORY_LIMIT].value == MAX_LOCK_MEMORY);
+    assert(s.status[LTM_LOCK_MEMORY_CURR].value == 0);
 }
 
 int main(int argc, const char *argv[]) {

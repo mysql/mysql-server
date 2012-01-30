@@ -10,6 +10,8 @@
 
 toku_pthread_mutex_t attr_mutex;
 
+// used to access engine status variables 
+#define STATUS_VALUE(x) ct_status.status[x].value.num
 
 const PAIR_ATTR attrs[] = {
     { .size = 20, .nonleaf_size = 13, .leaf_size = 900, .rollback_size = 123, .cache_pressure_size = 403 },
@@ -62,12 +64,12 @@ run_test (void) {
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
-    CACHETABLE_STATUS_S ct_stat;
-    toku_cachetable_get_status(ct, &ct_stat);
-    assert(ct_stat.size_nonleaf == 0);
-    assert(ct_stat.size_leaf == 0);
-    assert(ct_stat.size_rollback == 0);
-    assert(ct_stat.size_cachepressure == 0);
+    CACHETABLE_STATUS_S ct_status;
+    toku_cachetable_get_status(ct, &ct_status);
+    assert(STATUS_VALUE(CT_SIZE_NONLEAF) == 0);
+    assert(STATUS_VALUE(CT_SIZE_LEAF) == 0);
+    assert(STATUS_VALUE(CT_SIZE_ROLLBACK) == 0);
+    assert(STATUS_VALUE(CT_SIZE_CACHEPRESSURE) == 0);
 
     void* vs[n_pairs];
     //void* v2;
@@ -94,11 +96,11 @@ run_test (void) {
         expect.cache_pressure_size += attrs[i].cache_pressure_size;
     }
 
-    toku_cachetable_get_status(ct, &ct_stat);
-    assert(ct_stat.size_nonleaf       == (uint64_t) expect.nonleaf_size);
-    assert(ct_stat.size_leaf          == (uint64_t) expect.leaf_size);
-    assert(ct_stat.size_rollback      == (uint64_t) expect.rollback_size);
-    assert(ct_stat.size_cachepressure == (uint64_t) expect.cache_pressure_size);
+    toku_cachetable_get_status(ct, &ct_status);
+    assert(STATUS_VALUE(CT_SIZE_NONLEAF      ) == (uint64_t) expect.nonleaf_size);
+    assert(STATUS_VALUE(CT_SIZE_LEAF         ) == (uint64_t) expect.leaf_size);
+    assert(STATUS_VALUE(CT_SIZE_ROLLBACK     ) == (uint64_t) expect.rollback_size);
+    assert(STATUS_VALUE(CT_SIZE_CACHEPRESSURE) == (uint64_t) expect.cache_pressure_size);
 
     void *big_v;
     long big_s;
@@ -116,11 +118,11 @@ run_test (void) {
 
     usleep(2*1024*1024);
 
-    toku_cachetable_get_status(ct, &ct_stat);
-    assert(ct_stat.size_nonleaf       == (uint64_t) expect.nonleaf_size);
-    assert(ct_stat.size_leaf          == (uint64_t) expect.leaf_size);
-    assert(ct_stat.size_rollback      == (uint64_t) expect.rollback_size);
-    assert(ct_stat.size_cachepressure == (uint64_t) expect.cache_pressure_size);
+    toku_cachetable_get_status(ct, &ct_status);
+    assert(STATUS_VALUE(CT_SIZE_NONLEAF      ) == (uint64_t) expect.nonleaf_size);
+    assert(STATUS_VALUE(CT_SIZE_LEAF         ) == (uint64_t) expect.leaf_size);
+    assert(STATUS_VALUE(CT_SIZE_ROLLBACK     ) == (uint64_t) expect.rollback_size);
+    assert(STATUS_VALUE(CT_SIZE_CACHEPRESSURE) == (uint64_t) expect.cache_pressure_size);
 
     toku_cachetable_verify(ct);
     r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
@@ -133,3 +135,5 @@ test_main(int argc, const char *argv[]) {
   run_test();
   return 0;
 }
+
+#undef STATUS_VALUE

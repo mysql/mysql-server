@@ -18,12 +18,41 @@
 #define cilk_worker_count 1
 #endif
 
-static BRT_UPGRADE_STATUS_S upgrade_status;  // accountability, used in backwards_x.c
 
-void 
-toku_brt_get_upgrade_status (BRT_UPGRADE_STATUS s) {
-    *s = upgrade_status;
+
+static BRT_UPGRADE_STATUS_S brt_upgrade_status;
+
+#define UPGRADE_STATUS_INIT(k,t,l) {                            \
+        brt_upgrade_status.status[k].keyname = #k;              \
+        brt_upgrade_status.status[k].type    = t;               \
+        brt_upgrade_status.status[k].legend  = "brt upgrade: " l;       \
+    }
+
+static void
+status_init(void)
+{
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+    UPGRADE_STATUS_INIT(BRT_UPGRADE_FOOTPRINT,             UINT64, "footprint");
+    UPGRADE_STATUS_INIT(BRT_UPGRADE_HEADER_13,             UINT64, "V13 headers");
+    UPGRADE_STATUS_INIT(BRT_UPGRADE_NONLEAF_13,            UINT64, "V13 nonleaf nodes");
+    UPGRADE_STATUS_INIT(BRT_UPGRADE_LEAF_13,               UINT64, "V13 leaf nodes");
+    UPGRADE_STATUS_INIT(BRT_UPGRADE_OPTIMIZED_FOR_UPGRADE, UINT64, "optimized for upgrade");
+    brt_upgrade_status.initialized = true;
 }
+#undef UPGRADE_STATUS_INIT
+
+#define UPGRADE_STATUS_VALUE(x) brt_upgrade_status.status[x].value.num
+
+void
+toku_brt_upgrade_get_status(BRT_UPGRADE_STATUS s) {
+    if (!brt_upgrade_status.initialized) {
+        status_init();
+    }
+    UPGRADE_STATUS_VALUE(BRT_UPGRADE_FOOTPRINT) = toku_log_upgrade_get_footprint();
+    *s = brt_upgrade_status;
+}
+
 
 // performance tracing
 #define DO_TOKU_TRACE 0
@@ -1764,7 +1793,7 @@ toku_maybe_upgrade_brt(BRT t) {	// possibly do some work to complete the version
                 if (r == 0 && upgrade) {
                     r = toku_brt_optimize_for_upgrade(t);
 		    if (r==0)
-			__sync_fetch_and_add(&upgrade_status.optimized_for_upgrade, 1);
+			__sync_fetch_and_add(&UPGRADE_STATUS_VALUE(BRT_UPGRADE_OPTIMIZED_FOR_UPGRADE), 1);
                 }
                 if (r == 0) {
                     t->h->upgrade_brt_performed = TRUE;  // no further upgrade necessary
@@ -2228,7 +2257,7 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
                     h->flags &= ~TOKU_DB_VALCMP_BUILTIN_13;
                 }
                 h->layout_version++;
-		__sync_fetch_and_add(&upgrade_status.header_13, 1);  // how many header nodes upgraded from v13
+		__sync_fetch_and_add(&UPGRADE_STATUS_VALUE(BRT_UPGRADE_HEADER_13), 1);  // how many header nodes upgraded from v13
                 upgrade++;
                 //Fall through on purpose
             case BRT_LAYOUT_VERSION_14:
@@ -2871,3 +2900,4 @@ cleanup:
 }
 
 
+#undef UPGRADE_STATUS_VALUE

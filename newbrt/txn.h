@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ifndef TOKUTXN_H
 #define TOKUTXN_H
 
@@ -65,16 +66,24 @@ BOOL toku_txnid_newer(TXNID a, TXNID b);
 void toku_txn_force_fsync_on_commit(TOKUTXN txn);
 
 
-typedef struct txn_status {
-    u_int64_t   begin;       // total number of transactions begun (does not include recovered txns)
-    u_int64_t   commit;      // successful commits
-    u_int64_t   abort;
-    u_int64_t   close;       // should be sum of aborts and commits
-    u_int64_t   num_open;    // should be begin - close
-    u_int64_t   max_open;    // max value of num_open
+typedef enum {
+    TXN_BEGIN,             // total number of transactions begun (does not include recovered txns)
+    TXN_COMMIT,            // successful commits
+    TXN_ABORT,
+    TXN_CLOSE,             // should be sum of aborts and commits
+    TXN_NUM_OPEN,          // should be begin - close
+    TXN_MAX_OPEN,          // max value of num_open
+    TXN_OLDEST_LIVE,       // xid of oldest live transaction
+    TXN_OLDEST_STARTTIME,  // start time of oldest live txn
+    TXN_STATUS_NUM_ROWS
+} txn_status_entry;
+
+typedef struct {
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[TXN_STATUS_NUM_ROWS];
 } TXN_STATUS_S, *TXN_STATUS;
 
-void toku_txn_get_status(TXN_STATUS s);
+void toku_txn_get_status(TOKULOGGER logger, TXN_STATUS s);
 
 BOOL toku_is_txn_in_live_root_txn_list(TOKUTXN txn, TXNID xid);
 

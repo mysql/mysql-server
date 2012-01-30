@@ -94,10 +94,9 @@ run_test(void) {
             r = db->put(db, txn, &k, &v, 0); CKERR(r);
         }
         r = txn->commit(txn, 0); CKERR(r);
-        ENGINE_STATUS es;
-        r = env->get_engine_status(env, &es, NULL, 0); 
-        CKERR(r);
-        if (es.merge_leaf > 0) {
+
+        uint64_t merge_leaf = get_engine_status_val(env, "BRT_FLUSHER_MERGE_LEAF");
+        if (merge_leaf > 0) {
             if (verbose) printf("t=%d\n", t);
             break;
         }

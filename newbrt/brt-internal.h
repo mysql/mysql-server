@@ -798,78 +798,97 @@ int toku_db_badformat(void) __attribute__((__warn_unused_result__));
 int toku_brt_remove_on_commit(TOKUTXN child, DBT* iname_dbt_p) __attribute__((__warn_unused_result__));
 int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p) __attribute__((__warn_unused_result__));
 
-typedef struct brt_upgrade_status {
-    u_int64_t header_13;    // how many headers were upgraded from version 13
-    u_int64_t nonleaf_13;
-    u_int64_t leaf_13;
-    u_int64_t optimized_for_upgrade; // how many optimize_for_upgrade messages were sent
+typedef enum {
+    BRT_UPGRADE_FOOTPRINT = 0,
+    BRT_UPGRADE_HEADER_13,    // how many headers were upgraded from version 13
+    BRT_UPGRADE_NONLEAF_13,
+    BRT_UPGRADE_LEAF_13, 
+    BRT_UPGRADE_OPTIMIZED_FOR_UPGRADE, // how many optimize_for_upgrade messages were sent
+    BRT_UPGRADE_STATUS_NUM_ROWS
+} brt_upgrade_status_entry;
+
+typedef struct {
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[BRT_UPGRADE_STATUS_NUM_ROWS];
 } BRT_UPGRADE_STATUS_S, *BRT_UPGRADE_STATUS;
 
-void toku_brt_get_upgrade_status(BRT_UPGRADE_STATUS);
+void toku_brt_upgrade_get_status(BRT_UPGRADE_STATUS);
 
-typedef struct le_status {
-    u_int64_t max_committed_xr;
-    u_int64_t max_provisional_xr;
-    u_int64_t expanded;
-    u_int64_t max_memsize;
+typedef enum {
+    LE_MAX_COMMITTED_XR = 0,
+    LE_MAX_PROVISIONAL_XR,
+    LE_EXPANDED,
+    LE_MAX_MEMSIZE,
+    LE_STATUS_NUM_ROWS
+} le_status_entry;
+
+typedef struct {
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[LE_STATUS_NUM_ROWS];
 } LE_STATUS_S, *LE_STATUS;
 
 void toku_le_get_status(LE_STATUS);
 
-struct brt_status {
-    u_int64_t updates;
-    u_int64_t updates_broadcast;
-    u_int64_t descriptor_set;
-    u_int64_t partial_fetch_hit;           // node partition is present
-    u_int64_t partial_fetch_miss;          // node is present but partition is absent
-    u_int64_t partial_fetch_compressed;    // node partition is present but compressed
-    u_int64_t partial_evictions_nonleaf;  // number of nonleaf node partial evictions
-    u_int64_t partial_evictions_leaf;      // number of leaf node partial evictions
-    u_int64_t msn_discards;                // how many messages were ignored by leaf because of msn
-    u_int64_t max_workdone;                // max workdone value of any buffer
-    uint64_t  total_searches;              // total number of searches
-    uint64_t  total_retries;               // total number of search retries due to TRY_AGAIN
-    uint64_t  max_search_excess_retries;   // max number of excess search retries (retries - treeheight) due to TRY_AGAIN
-    uint64_t  max_search_root_tries;       // max number of times root node was fetched in a single search
-    uint64_t  search_root_retries;         // number of searches that required the root node to be fetched more than once
-    uint64_t  search_tries_gt_height;      // number of searches that required more tries than the height of the tree
-    uint64_t  search_tries_gt_heightplus3; // number of searches that required more tries than the height of the tree plus three
-    uint64_t  disk_flush_leaf;             // number of leaf nodes flushed to disk, not for checkpoint
-    uint64_t  disk_flush_nonleaf;          // number of nonleaf nodes flushed to disk, not for checkpoint
-    uint64_t  disk_flush_leaf_for_checkpoint; // number of leaf nodes flushed to disk for checkpoint
-    uint64_t  disk_flush_nonleaf_for_checkpoint; // number of nonleaf nodes flushed to disk for checkpoint
-    uint64_t  create_leaf;                 // number of leaf nodes created
-    uint64_t  create_nonleaf;              // number of nonleaf nodes created
-    uint64_t  destroy_leaf;                // number of leaf nodes destroyed
-    uint64_t  destroy_nonleaf;             // number of nonleaf nodes destroyed
-    uint64_t  dirty_leaf;                  // number of times leaf nodes are dirtied when previously clean
-    uint64_t  dirty_nonleaf;               // number of times nonleaf nodes are dirtied when previously clean    
-    uint64_t  msg_bytes_in;                // how many bytes of messages injected at root (for all trees)
-    uint64_t  msg_bytes_out;               // how many bytes of messages flushed from h1 nodes to leaves
-    uint64_t  msg_bytes_curr;              // how many bytes of messages currently in trees (estimate)
-    uint64_t  msg_bytes_max;               // how many bytes of messages currently in trees (estimate)
-    uint64_t  msg_num;                     // how many messages injected at root
-    uint64_t  msg_num_broadcast;           // how many broadcast messages injected at root
-    uint64_t  num_basements_decompressed_normal;  // how many basement nodes were decompressed because they were the target of a query
-    uint64_t  num_basements_decompressed_aggressive; // ... because they were between lc and rc
-    uint64_t  num_basements_decompressed_prefetch;
-    uint64_t  num_basements_decompressed_write;
-    uint64_t  num_msg_buffer_decompressed_normal;  // how many msg buffers were decompressed because they were the target of a query
-    uint64_t  num_msg_buffer_decompressed_aggressive; // ... because they were between lc and rc
-    uint64_t  num_msg_buffer_decompressed_prefetch;
-    uint64_t  num_msg_buffer_decompressed_write;
-    uint64_t  num_pivots_fetched_query;           // how many pivots were fetched for a query
-    uint64_t  num_pivots_fetched_prefetch;        // ... for a prefetch
-    uint64_t  num_pivots_fetched_write;           // ... for a write
-    uint64_t  num_basements_fetched_normal;       // how many basement nodes were fetched because they were the target of a query
-    uint64_t  num_basements_fetched_aggressive;      // ... because they were between lc and rc
-    uint64_t  num_basements_fetched_prefetch;
-    uint64_t  num_basements_fetched_write;
-    uint64_t  num_msg_buffer_fetched_normal;       // how many msg buffers were fetched because they were the target of a query
-    uint64_t  num_msg_buffer_fetched_aggressive;      // ... because they were between lc and rc
-    uint64_t  num_msg_buffer_fetched_prefetch;
-    uint64_t  num_msg_buffer_fetched_write;
-};
+typedef enum {
+    BRT_UPDATES = 0,
+    BRT_UPDATES_BROADCAST,
+    BRT_DESCRIPTOR_SET,
+    BRT_PARTIAL_FETCH_HIT,                      // node partition is present
+    BRT_PARTIAL_FETCH_MISS,                     // node is present but partition is absent
+    BRT_PARTIAL_FETCH_COMPRESSED,               // node partition is present but compressed
+    BRT_PARTIAL_EVICTIONS_NONLEAF,              // number of nonleaf node partial evictions
+    BRT_PARTIAL_EVICTIONS_LEAF,                 // number of leaf node partial evictions
+    BRT_MSN_DISCARDS,                           // how many messages were ignored by leaf because of msn
+    BRT_MAX_WORKDONE,                           // max workdone value of any buffer
+    BRT_TOTAL_SEARCHES,                         // total number of searches
+    BRT_TOTAL_RETRIES,                          // total number of search retries due to TRY_AGAIN
+    BRT_MAX_SEARCH_EXCESS_RETRIES,              // max number of excess search retries (retries - treeheight) due to TRY_AGAIN
+    BRT_MAX_SEARCH_ROOT_TRIES,                  // max number of times root node was fetched in a single search
+    BRT_SEARCH_ROOT_RETRIES,                    // number of searches that required the root node to be fetched more than once
+    BRT_SEARCH_TRIES_GT_HEIGHT,                 // number of searches that required more tries than the height of the tree
+    BRT_SEARCH_TRIES_GT_HEIGHTPLUS3,            // number of searches that required more tries than the height of the tree plus three
+    BRT_DISK_FLUSH_LEAF,                        // number of leaf nodes flushed to disk,    not for checkpoint
+    BRT_DISK_FLUSH_NONLEAF,                     // number of nonleaf nodes flushed to disk, not for checkpoint
+    BRT_DISK_FLUSH_LEAF_FOR_CHECKPOINT,         // number of leaf nodes flushed to disk for checkpoint
+    BRT_DISK_FLUSH_NONLEAF_FOR_CHECKPOINT,      // number of nonleaf nodes flushed to disk for checkpoint
+    BRT_CREATE_LEAF,                            // number of leaf nodes created
+    BRT_CREATE_NONLEAF,                         // number of nonleaf nodes created
+    BRT_DESTROY_LEAF,                           // number of leaf nodes destroyed
+    BRT_DESTROY_NONLEAF,                        // number of nonleaf nodes destroyed
+    BRT_DIRTY_LEAF,                             // number of times leaf nodes are dirtied when previously clean
+    BRT_DIRTY_NONLEAF,                          // number of times nonleaf nodes are dirtied when previously clean
+    BRT_MSG_BYTES_IN,                           // how many bytes of messages injected at root (for all trees)
+    BRT_MSG_BYTES_OUT,                          // how many bytes of messages flushed from h1 nodes to leaves
+    BRT_MSG_BYTES_CURR,                         // how many bytes of messages currently in trees (estimate)
+    BRT_MSG_BYTES_MAX,                          // how many bytes of messages currently in trees (estimate)
+    BRT_MSG_NUM,                                // how many messages injected at root
+    BRT_MSG_NUM_BROADCAST,                      // how many broadcast messages injected at root
+    BRT_NUM_BASEMENTS_DECOMPRESSED_NORMAL,      // how many basement nodes were decompressed because they were the target of a query
+    BRT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE,  // ... because they were between lc and rc
+    BRT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH,
+    BRT_NUM_BASEMENTS_DECOMPRESSED_WRITE,
+    BRT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL,     // how many msg buffers were decompressed because they were the target of a query
+    BRT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE, // ... because they were between lc and rc
+    BRT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH,
+    BRT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE,
+    BRT_NUM_PIVOTS_FETCHED_QUERY,               // how many pivots were fetched for a query
+    BRT_NUM_PIVOTS_FETCHED_PREFETCH,            // ... for a prefetch
+    BRT_NUM_PIVOTS_FETCHED_WRITE,               // ... for a write
+    BRT_NUM_BASEMENTS_FETCHED_NORMAL,           // how many basement nodes were fetched because they were the target of a query
+    BRT_NUM_BASEMENTS_FETCHED_AGGRESSIVE,       // ... because they were between lc and rc
+    BRT_NUM_BASEMENTS_FETCHED_PREFETCH,
+    BRT_NUM_BASEMENTS_FETCHED_WRITE,
+    BRT_NUM_MSG_BUFFER_FETCHED_NORMAL,          // how many msg buffers were fetched because they were the target of a query
+    BRT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE,      // ... because they were between lc and rc
+    BRT_NUM_MSG_BUFFER_FETCHED_PREFETCH,
+    BRT_NUM_MSG_BUFFER_FETCHED_WRITE,
+    BRT_STATUS_NUM_ROWS
+} brt_status_entry;
+
+typedef struct {
+    bool initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[BRT_STATUS_NUM_ROWS];
+} BRT_STATUS_S, *BRT_STATUS;
 
 void toku_brt_get_status(BRT_STATUS);
 

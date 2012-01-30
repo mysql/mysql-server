@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ifndef TOKU_LOADER_H
 #define TOKU_LOADER_H
 
@@ -108,17 +109,25 @@ int toku_loader_abort(DB_LOADER *loader);
 // Remove any loader temp files that may have been left from a crashed system
 int toku_loader_cleanup_temp_files(DB_ENV *env);
 
-typedef struct loader_status {
-  uint64_t create;          // number of loaders succefully created
-  uint64_t create_fail;     // number of calls to toku_loader_create_loader() that failed
-  uint64_t put;             // number of calls to toku_loader_put() that succeeded
-  uint64_t put_fail;        // number of calls to toku_loader_put() that failed
-  uint64_t close;           // number of calls to toku_loader_close()
-  uint64_t close_fail;      // number of calls to toku_loader_close() that failed
-  uint64_t abort;           // number of calls to toku_loader_abort()
-  uint32_t current;         // number of loaders currently in existence
-  uint32_t max;             // max number of loaders that ever existed simultaneously
+
+typedef enum {
+    LOADER_CREATE = 0,      // number of loaders successfully created
+    LOADER_CREATE_FAIL,     // number of calls to toku_loader_create_loader() that failed
+    LOADER_PUT,             // number of calls to toku_loader_put() that succeeded
+    LOADER_PUT_FAIL,        // number of calls to toku_loader_put() that failed
+    LOADER_CLOSE,           // number of calls to toku_loader_close()
+    LOADER_CLOSE_FAIL,      // number of calls to toku_loader_close() that failed
+    LOADER_ABORT,           // number of calls to toku_loader_abort()
+    LOADER_CURRENT,         // number of loaders currently in existence
+    LOADER_MAX,             // max number of loaders that ever existed simultaneously
+    LOADER_STATUS_NUM_ROWS
+} loader_status_entry;
+
+typedef struct {
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[LOADER_STATUS_NUM_ROWS];
 } LOADER_STATUS_S, *LOADER_STATUS;
+
 
 void toku_loader_get_status(LOADER_STATUS s);
 

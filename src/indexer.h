@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ifndef TOKU_INDEXER_H
 #define TOKU_INDEXER_H
 
@@ -70,16 +71,22 @@ void toku_indexer_set_test_only_flags(DB_INDEXER *indexer, int flags) __attribut
 
 #define INDEXER_TEST_ONLY_ERROR_CALLBACK 1
 
-typedef struct indexer_status {
-    uint64_t create;        // number of indexers successfully created
-    uint64_t create_fail;   // number of calls to toku_indexer_create_indexer() that failed
-    uint64_t build;         // number of calls to indexer->build() succeeded
-    uint64_t build_fail;    // number of calls to indexer->build() failed
-    uint64_t close;         // number of calls to indexer->close() that succeeded
-    uint64_t close_fail;    // number of calls to indexer->close() that failed
-    uint64_t abort;         // number of calls to indexer->abort()
-    uint32_t current;       // number of indexers currently in existence
-    uint32_t max;           // max number of indexers that ever existed simultaneously
+typedef enum {
+    INDEXER_CREATE = 0,     // number of indexers successfully created
+    INDEXER_CREATE_FAIL,    // number of calls to toku_indexer_create_indexer() that failed
+    INDEXER_BUILD,          // number of calls to indexer->build() succeeded
+    INDEXER_BUILD_FAIL,     // number of calls to indexer->build() failed
+    INDEXER_CLOSE,          // number of calls to indexer->close() that succeeded
+    INDEXER_CLOSE_FAIL,     // number of calls to indexer->close() that failed
+    INDEXER_ABORT,          // number of calls to indexer->abort()
+    INDEXER_CURRENT,        // number of indexers currently in existence
+    INDEXER_MAX,            // max number of indexers that ever existed simultaneously
+    INDEXER_STATUS_NUM_ROWS
+} indexer_status_entry;
+
+typedef struct {
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[INDEXER_STATUS_NUM_ROWS];
 } INDEXER_STATUS_S, *INDEXER_STATUS;
 
 void toku_indexer_get_status(INDEXER_STATUS s);
