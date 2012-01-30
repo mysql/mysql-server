@@ -322,5 +322,113 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect time value: '10000090000:10:10.1999999999999'
 #
+# Checking Item_func_if::val_str with TIME arguments
+#
+SELECT CAST(IF(1, TIME'00:00:00',TIME'00:00:00') AS CHAR);
+CAST(IF(1, TIME'00:00:00',TIME'00:00:00') AS CHAR)
+00:00:00
+#
+# Checking Item_func_case::val_str with TIME arguments
+#
+SELECT CAST(CASE WHEN 1 THEN TIME'00:00:00' ELSE TIME'00:00:00' END AS CHAR);
+CAST(CASE WHEN 1 THEN TIME'00:00:00' ELSE TIME'00:00:00' END AS CHAR)
+00:00:00
+#
+# Testing CASE with TIME type without a found item
+#
+SELECT CAST(CASE WHEN 0 THEN '01:01:01' END AS TIME);
+CAST(CASE WHEN 0 THEN '01:01:01' END AS TIME)
+NULL
+SELECT CAST(CASE WHEN 0 THEN TIME'01:01:01' END AS TIME);
+CAST(CASE WHEN 0 THEN TIME'01:01:01' END AS TIME)
+NULL
+#
+# Testing COALESCE with TIME type without a found item
+#
+SELECT COALESCE(TIME(NULL));
+COALESCE(TIME(NULL))
+NULL
+#
+# Testing TIME field with NULL value with NOT IN
+#
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1 WHERE a NOT IN (TIME'20:20:20',TIME'10:10:10');
+a
+DROP TABLE t1;
+#
+# Testing Item_func_numhybrid::val_int when TIME type
+#
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES ('10:10:10');
+SELECT CAST(COALESCE(a,a) AS SIGNED) FROM t1;
+CAST(COALESCE(a,a) AS SIGNED)
+101010
+DROP TABLE t1;
+#
+# Testing Item_func_numhybrid::val_decimal when TIME type
+#
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES ('10:10:10');
+SELECT CAST(COALESCE(a,a) AS DECIMAL(23,6)) FROM t1;
+CAST(COALESCE(a,a) AS DECIMAL(23,6))
+101010.000000
+DROP TABLE t1;
+#
+# Testing Item_func_numhybrid::get_time  when non-temporal type
+#
+SELECT CAST(COALESCE(10,20) AS TIME);
+CAST(COALESCE(10,20) AS TIME)
+00:00:10
+#
+# Testing Item_func_min_max::get_time when DATE type and NULL
+#
+SELECT CAST(LEAST(DATE(NULL), DATE(NULL)) AS TIME);
+CAST(LEAST(DATE(NULL), DATE(NULL)) AS TIME)
+NULL
+#
+# Testing Item_func_min_max::get_time with non-temporal arguments
+#
+SELECT CAST(LEAST(111111,222222) AS TIME);
+CAST(LEAST(111111,222222) AS TIME)
+11:11:11
+#
+# Item::get_time_from_numeric
+#
+SELECT CAST(SUM(0) AS TIME);
+CAST(SUM(0) AS TIME)
+00:00:00
+SELECT CAST(SUM(0 + 0e0) AS TIME);
+CAST(SUM(0 + 0e0) AS TIME)
+00:00:00
+SET timestamp=1322115328;
+SELECT CAST(UNIX_TIMESTAMP() AS TIME);
+CAST(UNIX_TIMESTAMP() AS TIME)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '1322115328'
+SET timestamp=default;
+#
+# Item::get_time_from_non_temporal
+#
+SELECT TIME(154559.616 + 0e0);
+TIME(154559.616 + 0e0)
+15:45:59.616000
+#
+# Item_name_const::get_time
+#
+SELECT TIME(NAME_CONST('a', 0));
+TIME(NAME_CONST('a', 0))
+00:00:00
+#
+# Item_cache_datetime::get_time
+#
+CREATE TABLE t1 (a DATE);
+INSERT INTO t1 VALUES (0);
+SELECT TIME(MIN(a)) FROM t1;
+TIME(MIN(a))
+00:00:00
+DROP TABLE t1;
+#
 # End of 5.6 tests
 #

@@ -158,6 +158,15 @@ UPDATE t1 SET t0=a, t1=a, t2=a, t3=a, t4=a, t5=a, t6=a;
 --query_vertical SELECT * FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Testing rounding when casting from DECIMAL to TIME(N)
+--echo #
+CREATE TABLE t1 (a DECIMAL(23,4));
+INSERT INTO t1 VALUES (NULL),(101010.9999),(-101010.9999);
+INSERT INTO t1 VALUES (9999999999999999999999.1), (999999.1);
+SELECT a, CAST(a AS TIME(3)) FROM t1;
+DROP TABLE t1;
+
 
 --echo #
 --echo # Testing that CAST converts days to hours, while EXTRACT/HOUR do not
@@ -1947,6 +1956,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (id INT, a TIME(6));
 INSERT INTO t1 VALUES (1,'00:00:00.123456'), (1,'11:00:00.123456');
 INSERT INTO t1 VALUES (2,'00:01:00.123456'), (2,'11:01:00.123456');
+INSERT INTO t1 VALUES (3, NULL);
 SELECT * FROM t1 WHERE a IN (SELECT MAX(a) FROM t1 GROUP BY id);
 DROP TABLE t1;
 
@@ -3895,6 +3905,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (id INT, a DATETIME(6));
 INSERT INTO t1 VALUES (1, '2001-01-01 00:00:00.123456'), (1, '2001-01-01 11:00:00.123456');
 INSERT INTO t1 VALUES (2, '2001-01-01 00:01:00.123456'), (2, '2001-01-01 11:01:00.123456');
+INSERT INTO t1 VALUES (3, NULL);
 SELECT * FROM t1 WHERE a IN (SELECT MAX(a) FROM t1 GROUP BY id);
 DROP TABLE t1;
 
@@ -7427,6 +7438,15 @@ SELECT c_time FROM t1;
 SELECT c_time AS c1 FROM t1
 WHERE c_timestamp NOT IN (NULL, '0000-00-00 00:00:00');
 DROP TABLE t1;
+
+--echo #
+--echo # Various tests for better gcov coverage
+--echo #
+
+--echo #
+--echo # Comparing DATETIME value to TIME(NULL)
+--echo #
+SELECT TIMESTAMP'2001-01-01 00:00:00' = TIME(NULL);
 
 
 ## TS-TODO: SELECT CAST('00:00:00' AS DATETIME) -> should it use curdate?

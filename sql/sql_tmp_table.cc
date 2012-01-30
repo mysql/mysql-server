@@ -20,6 +20,7 @@
 #include "sql_executor.h"
 #include "sql_base.h"
 #include "opt_trace.h"
+#include "debug_sync.h"
 
 #include <algorithm>
 using std::max;
@@ -1132,6 +1133,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
 
   thd->mem_root= mem_root_save;
+
+  DEBUG_SYNC(thd, "tmp_table_created");
 
   DBUG_RETURN(table);
 

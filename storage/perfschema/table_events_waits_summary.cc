@@ -121,8 +121,8 @@ void table_events_waits_summary_by_instance
   m_row.m_name_length= klass->m_name_length;
   m_row.m_object_instance_addr= (intptr) object_instance_begin;
 
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, pfs_stat);
+  get_normalizer(klass);
+  m_row.m_stat.set(m_normalizer, pfs_stat);
 
   if (pfs->m_lock.end_optimistic_lock(&lock))
     m_row_exists= true;

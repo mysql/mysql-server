@@ -110,6 +110,12 @@ void table_esgs_global_by_event_name::reset_position(void)
   m_next_pos= 1;
 }
 
+int table_esgs_global_by_event_name::rnd_init(bool scan)
+{
+  m_normalizer= time_normalizer::get(stage_timer);
+  return 0;
+}
+
 int table_esgs_global_by_event_name::rnd_next(void)
 {
   PFS_stage_class *stage_class;
@@ -161,8 +167,7 @@ void table_esgs_global_by_event_name
                                         false, /* users */
                                         true, true, & visitor);
 
-  time_normalizer *normalizer= time_normalizer::get(stage_timer);
-  m_row.m_stat.set(normalizer, & visitor.m_stat);
+  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
   m_row_exists= true;
 }
 
