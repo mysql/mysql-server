@@ -2295,6 +2295,13 @@ DECLARE_THREAD(srv_master_thread)(
 	ulint		old_activity_count = srv_get_activity_count();
 	ib_time_t	last_print_time;
 
+	/* Note that we are shutting down. */
+	rw_lock_x_lock(&purge_sys->latch);
+
+	purge_sys->state = PURGE_STATE_RUN;
+
+	rw_lock_x_unlock(&purge_sys->latch);
+
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
@@ -2356,6 +2363,15 @@ suspend_thread:
 	os_event_wait(slot->event);
 
 	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+		/* Note that we are shutting down. */
+		rw_lock_x_lock(&purge_sys->latch);
+
+		purge_sys->state = PURGE_STATE_EXIT;
+
+		purge_sys->running = false;
+
+		rw_lock_x_unlock(&purge_sys->latch);
+
 		os_thread_exit(NULL);
 	}
 
@@ -2651,7 +2667,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 	rw_lock_x_lock(&purge_sys->latch);
 
-	purge_sys->state = PURGE_STATE_INIT;
+	purge_sys->state = PURGE_STATE_RUN;
 
 	rw_lock_x_unlock(&purge_sys->latch);
 
