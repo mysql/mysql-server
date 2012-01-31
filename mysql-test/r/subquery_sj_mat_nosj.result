@@ -7755,5 +7755,26 @@ vc_key
 g
 DROP TABLE t1, t2;
 # End of test for bug#13596176.
+#
+# BUG#11754478: MAX/MIN + SUBQUERY + AND FAILS TO RETURN ANY ROWS
+# BUG#13599013: MAX/MIN + SUBQUERY IN WHERE CLAUSE MATCHING NO 
+#               ROWS + INDEX DOES NOT RETURN NULL
+#
+CREATE TABLE t1 (
+pk int(11) PRIMARY KEY,
+int_key int(11),
+KEY int_key (int_key)
+);
+INSERT INTO t1 VALUES (1,0),(2,0),(3,2),(4,0),(5,3),(6,0);
+SELECT MIN(int_key) FROM t1 WHERE (4, 4) IN (SELECT 1, 2);
+MIN(int_key)
+NULL
+SELECT MIN(int_key) FROM t1 WHERE (4, 4) IN (SELECT 4, 4);
+MIN(int_key)
+0
+SELECT MIN(pk) FROM t1 WHERE pk IN (SELECT int_key FROM t1) AND pk = 6;
+MIN(pk)
+NULL
+DROP TABLE t1;
 # End of 5.6 tests
 set optimizer_switch=default;
