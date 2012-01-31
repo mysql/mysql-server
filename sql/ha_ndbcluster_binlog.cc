@@ -4014,6 +4014,8 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
   cfn_share->m_resolve_column= field_index;
   cfn_share->m_flags = flags;
 
+  /* Init Exceptions Table Writer */
+  new (&cfn_share->m_ex_tab_writer) ExceptionsTableWriter();
   {
     /* get exceptions table */
     char ex_tab_name[FN_REFLEN];
@@ -4025,71 +4027,31 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
     const NDBTAB *ex_tab= ndbtab_g.get_table();
     if (ex_tab)
     {
-      const int fixed_cols= 4;
-      bool ok=
-        ex_tab->getNoOfColumns() >= fixed_cols &&
-        ex_tab->getNoOfPrimaryKeys() == 4 &&
-        /* server id */
-        ex_tab->getColumn(0)->getType() == NDBCOL::Unsigned &&
-        ex_tab->getColumn(0)->getPrimaryKey() &&
-        /* master_server_id */
-        ex_tab->getColumn(1)->getType() == NDBCOL::Unsigned &&
-        ex_tab->getColumn(1)->getPrimaryKey() &&
-        /* master_epoch */
-        ex_tab->getColumn(2)->getType() == NDBCOL::Bigunsigned &&
-        ex_tab->getColumn(2)->getPrimaryKey() &&
-        /* count */
-        ex_tab->getColumn(3)->getType() == NDBCOL::Unsigned &&
-        ex_tab->getColumn(3)->getPrimaryKey();
-      if (ok)
+      char msgBuf[ FN_REFLEN ];
+      const char* msg = NULL;
+      if (cfn_share->m_ex_tab_writer.init(ndbtab,
+                                          ex_tab,
+                                          msgBuf,
+                                          sizeof(msgBuf),
+                                          &msg) == 0)
       {
-        int ncol= ndbtab->getNoOfColumns();
-        int nkey= ndbtab->getNoOfPrimaryKeys();
-        int i, k;
-        for (i= k= 0; i < ncol && k < nkey; i++)
+        /* Ok */
+        /* Hold our table reference outside the table_guard scope */
+        ndbtab_g.release();
+        if (opt_ndb_extra_logging)
         {
-          const NdbDictionary::Column* col= ndbtab->getColumn(i);
-          if (col->getPrimaryKey())
-          {
-            const NdbDictionary::Column* ex_col=
-              ex_tab->getColumn(fixed_cols + k);
-            ok=
-              ex_col != NULL &&
-              col->getType() == ex_col->getType() &&
-              col->getLength() == ex_col->getLength() &&
-              col->getNullable() == ex_col->getNullable();
-            if (!ok)
-              break;
-            /*
-               Store mapping of Exception table key# to
-               orig table attrid
-            */
-            cfn_share->m_key_attrids[k]= i;
-            k++;
-          }
+          sql_print_information("NDB Slave: Table %s.%s logging exceptions to %s.%s",
+                                share->db,
+                                share->table_name,
+                                share->db,
+                                ex_tab_name);
         }
-        if (ok)
-        {
-          cfn_share->m_ex_tab= ex_tab;
-          cfn_share->m_pk_cols= nkey;
-          ndbtab_g.release();
-          if (opt_ndb_extra_logging)
-            sql_print_information("NDB Slave: Table %s.%s logging exceptions to %s.%s",
-                                  share->db,
-                                  share->table_name,
-                                  share->db,
-                                  ex_tab_name);
-        }
-        else
-          sql_print_warning("NDB Slave: exceptions table %s has wrong "
-                            "definition (column %d)",
-                            ex_tab_name, fixed_cols + k);
       }
       else
-        sql_print_warning("NDB Slave: exceptions table %s has wrong "
-                          "definition (initial %d columns)",
-                          ex_tab_name, fixed_cols);
-    }
+      {
+        sql_print_warning("%s", msg);
+      }
+    } /* if (ex_tab) */
   }
   DBUG_RETURN(0);
 }
