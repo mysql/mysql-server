@@ -4271,7 +4271,7 @@ sub extract_warning_lines ($$) {
      qr/^Warning:|mysqld: Warning|\[Warning\]/,
      qr/^Error:|\[ERROR\]/,
      qr/^==\d+==\s+\S/, # valgrind errors
-     qr/InnoDB: Warning|InnoDB: Error/,
+     qr/InnoDB: (Warning|WARNING)|InnoDB: (Error|ERROR)/,
      qr/^safe_mutex:|allocated at line/,
      qr/missing DBUG_RETURN/,
      qr/Attempting backtrace/,
