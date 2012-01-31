@@ -68,6 +68,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
                         ndb_util_thread.h \
                         ndb_table_guard.h \
                         ndb_repl_tab.h \
+                        ndb_conflict.h \
 			ha_partition.h rpl_constants.h \
 			debug_sync.h \
 			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
@@ -147,7 +148,8 @@ libndb_la_SOURCES=	ha_ndbcluster.cc \
 			ndb_mi.cc \
 			ndb_conflict_trans.cc \
                         ndb_component.cc \
-                        ndb_repl_tab.cc
+                        ndb_repl_tab.cc \
+                        ndb_conflict.cc
 
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
