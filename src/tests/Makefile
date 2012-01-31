@@ -164,6 +164,7 @@ BDB_DONTRUN_TESTS = \
 	prelock-read-write \
 	prelock-write-read \
 	prelock-write-write \
+	print_engine_status \
         powerfail \
 	preload-db \
 	preload-db-nested \
