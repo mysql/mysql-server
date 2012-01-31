@@ -1,0 +1,386 @@
+#!/usr/bin/perl
+
+# wl5874_updown
+# 
+# A crude test script to test upgrade-downgrade of the server. 
+#
+# First a simple MTR test is run on the pre-worklog server, just to create
+# tables. Next, the tables are copied to a temporary directory, and after that
+# an MTR test is run on the post-worklog server. The test itself uses
+# (unix-only) commands to copy the table files into its own test directory.
+# Then table definitions are tested, and the tables are modified. After that,
+# the pre-worklog server is run again, this time copying in the tables modified
+# by the post-worklog server.
+
+use strict;
+use Cwd;
+use Getopt::Long;
+
+my $tempDir = "/tmp/wl5874_updown";
+my $preUpgradeTableDir = "$tempDir/pre_upgrade_tables";
+my $preDowngradeTableDir = "$tempDir/pre_downgrade_tables";
+my $mtr = "./mtr";
+
+my $unpatchedServerSrc;
+my $unpatchedServerBuild;
+my $patchedServerSrc;
+my $patchedServerBuild;
+
+GetOptions( "patched-src=s"       => \$patchedServerSrc,
+            "patched-build=s"      => \$patchedServerBuild,
+            "unpatched-src=s"     => \$unpatchedServerSrc,
+            "unpatched-build=s" => \$unpatchedServerBuild );
+
+
+if ( !defined $patchedServerSrc or !defined $unpatchedServerSrc ) {
+  print "Usage: $0 patched-src = ... [ patched-build = ... ]".
+      " unpatched-src = ... [ unpatched-build = ... ]\n".
+      "With:\n".
+      " --patched-src     = Path to source directory of patched server.\n" .
+      " --patched-build   = Path to build directory of patched server.\n" .
+      "                     Defaults to the same as patched-src.\n" .
+      " --unpatched-src   = Path to src directory of unpatched server\n" .
+      " --unpatched-build = Path to build directory of unpatched server\n" .
+      "                     Defaults to the same as unpatched-src.\n";
+  exit 0;
+}
+
+$patchedServerBuild = $patchedServerSrc if !defined $patchedServerBuild;
+$unpatchedServerBuild = $unpatchedServerSrc if !defined $unpatchedServerBuild;
+
+my $startDir = getcwd;
+
+my $preUpgradeTest = "pre_upgrade";
+my $postUpgradeTest = "post_upgrade";
+my $postDowngradeTest = "post_downgrade";
+
+my %files = (
+    'preUpgradeTest'
+        => "$unpatchedServerSrc/mysql-test/t/$preUpgradeTest.test",
+    'preUpgradeResult'
+        => "$unpatchedServerSrc/mysql-test/r/$preUpgradeTest.result",
+    'postUpgradeTest'
+        =>"$patchedServerSrc/mysql-test/t/$postUpgradeTest.test",
+    'postUpgradeResult'
+        =>"$patchedServerSrc/mysql-test/r/$postUpgradeTest.result",
+    'postDowngradeTest'
+        =>"$unpatchedServerSrc/mysql-test/t/postDowngradeTest.test",
+    'postDowngradeResult'
+        =>"$unpatchedServerSrc/mysql-test/r/postDowngradeTest.result",
+);
+
+`mkdir $tempDir` unless -e $tempDir;
+`mkdir $preUpgradeTableDir` unless -e $preUpgradeTableDir;
+`mkdir $preDowngradeTableDir` unless -e $preDowngradeTableDir;
+
+open (PRE_UPGRADE_TEST, ">$files{'preUpgradeTest'}");
+
+print PRE_UPGRADE_TEST "
+CREATE DATABASE wl5874;
+USE wl5874;
+
+CREATE TABLE t1 (
+  a DATETIME,
+  b DATETIME
+);
+
+CREATE TABLE t2 (
+  a TIMESTAMP,
+  b TIMESTAMP NULL
+);
+
+
+CREATE TABLE t3 (
+  a TIMESTAMP,
+  b TIMESTAMP NULL
+);
+
+CREATE TABLE t4 (
+  a TIMESTAMP,
+  b TIMESTAMP NULL
+);
+
+CREATE TABLE t5 (
+  a TIMESTAMP NULL DEFAULT NULL,
+  b TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+SHOW CREATE TABLE t1;
+
+SHOW CREATE TABLE t2;
+
+SHOW CREATE TABLE t3;
+
+SHOW CREATE TABLE t4;
+
+SHOW CREATE TABLE t5;
+
+let \$tables_dir=`SELECT \@\@datadir`;
+exec cp \$tables_dir/wl5874/* $preUpgradeTableDir;
+
+DROP DATABASE wl5874;
+"
+    or die "Write to $files{'preUpgradeTest'} failed";
+
+close PRE_UPGRADE_TEST;
+
+open (PRE_UPGRADE_RESULT, ">$files{'preUpgradeResult'}");
+
+print PRE_UPGRADE_RESULT 
+    "CREATE DATABASE wl5874;
+USE wl5874;
+CREATE TABLE t1 (
+a DATETIME,
+b DATETIME
+);
+CREATE TABLE t2 (
+a TIMESTAMP,
+b TIMESTAMP NULL
+);
+CREATE TABLE t3 (
+a TIMESTAMP,
+b TIMESTAMP NULL
+);
+CREATE TABLE t4 (
+a TIMESTAMP,
+b TIMESTAMP NULL
+);
+CREATE TABLE t5 (
+a TIMESTAMP NULL DEFAULT NULL,
+b TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` datetime DEFAULT NULL,
+  `b` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` timestamp NULL DEFAULT NULL,
+  `b` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP DATABASE wl5874;
+"
+    or die "Write to $files{'preUpgradeResult'} failed";
+
+
+print "Running MTR test $preUpgradeTest on unpatched server ".
+    "($unpatchedServerBuild)\n";
+chdir "$unpatchedServerBuild/mysql-test";
+print `$mtr pre_upgrade`;
+die "MTR test failed" unless $? == 0;
+chdir "$startDir";
+
+open (POST_UPGRADE_TEST, ">$files{'postUpgradeTest'}");
+
+print POST_UPGRADE_TEST "
+CREATE DATABASE wl5874;
+USE wl5874;
+let \$tables_dir=`SELECT \@\@datadir`;
+exec cp $preUpgradeTableDir/* \$tables_dir/wl5874/;
+
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 MODIFY a DATETIME DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE t1 MODIFY b DATETIME DEFAULT CURRENT_TIMESTAMP;
+SHOW CREATE TABLE t1;
+
+SHOW CREATE TABLE t2;
+ALTER TABLE t2 MODIFY a TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE t2 MODIFY b TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+SHOW CREATE TABLE t2;
+
+SHOW CREATE TABLE t3;
+ALTER TABLE t3 MODIFY a TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+ALTER TABLE t3 MODIFY b TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+SHOW CREATE TABLE t3;
+
+SHOW CREATE TABLE t4;
+ALTER TABLE t4 MODIFY a
+TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+ALTER TABLE t4 MODIFY b
+TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+SHOW CREATE TABLE t4;
+
+ALTER TABLE t5 ADD COLUMN c INT;
+ALTER TABLE t5 DROP COLUMN c;
+SHOW CREATE TABLE t5;
+
+exec cp \$tables_dir/wl5874/* $preDowngradeTableDir/;
+
+DROP DATABASE wl5874;
+"
+    or die "Write to $files{'postUpgradeTest'} failed";
+
+close POST_UPGRADE_TEST;
+
+open (POST_UPGRADE_RESULT, ">$files{'postUpgradeResult'}");
+
+print POST_UPGRADE_RESULT
+    "CREATE DATABASE wl5874;
+USE wl5874;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` datetime DEFAULT NULL,
+  `b` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+ALTER TABLE t1 MODIFY a DATETIME DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE t1 MODIFY b DATETIME DEFAULT CURRENT_TIMESTAMP;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` datetime DEFAULT CURRENT_TIMESTAMP,
+  `b` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+ALTER TABLE t2 MODIFY a TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE t2 MODIFY b TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+ALTER TABLE t3 MODIFY a TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+ALTER TABLE t3 MODIFY b TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+ALTER TABLE t4 MODIFY a
+TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+ALTER TABLE t4 MODIFY b
+TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+ALTER TABLE t5 ADD COLUMN c INT;
+ALTER TABLE t5 DROP COLUMN c;
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` timestamp NULL DEFAULT NULL,
+  `b` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP DATABASE wl5874;
+";
+
+print "Running MTR test $postUpgradeTest on patched server ($patchedServerBuild)\n";
+chdir "$patchedServerBuild/mysql-test";
+print `$mtr t/$files{'postUpgradeTest'}`;
+die "MTR test failed" unless $? == 0;
+chdir "$startDir";
+
+open (POST_DOWNGRADE_TEST, ">$files{'postDowngradeTest'}");
+
+print POST_DOWNGRADE_TEST "
+CREATE DATABASE wl5874;
+USE wl5874;
+let \$tables_dir=`SELECT \@\@datadir`;
+exec cp $preDowngradeTableDir/* \$tables_dir/wl5874/;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t4;
+SHOW CREATE TABLE t5;
+DROP DATABASE wl5874;
+"
+    or die "Write to $files{'postDowngradeTest'} failed";
+
+open (POST_DOWNGRADE_RESULT, ">$files{'postDowngradeResult'}");
+
+print POST_DOWNGRADE_RESULT
+    "CREATE DATABASE wl5874;
+USE wl5874;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` datetime DEFAULT NULL,
+  `b` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `b` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` timestamp NULL DEFAULT NULL,
+  `b` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP DATABASE wl5874;
+"
+    or die "Write to $files{'postDowngradeResult'} failed";
+
+chdir "$unpatchedServerBuild/mysql-test";
+print "Running MTR test $postDowngradeTest on unpatched server " .
+    "($unpatchedServerBuild)\n";
+print `$mtr t/$files{'postDowngradeTest'}`;
+die "MTR test failed" unless $? == 0;
+chdir "$startDir";
+
+print "Test Successful.\n";
+
+print "Cleaning up\n";
+
+while ( my ($key, $file) = each %files )
+{
+  print "deleting $file\n";
+  unlink $file;
+}
