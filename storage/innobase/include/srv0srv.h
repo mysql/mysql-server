@@ -749,6 +749,13 @@ srv_path_copy(
 	const char*	basedir,	/*!< in: base directory */
 	const char*	table_name);	/*!< in: source table name */
 
+/**********************************************************************//**
+Wakeup the purge threads. */
+UNIV_INTERN
+void
+srv_purge_wakeup(void);
+/*==================*/
+
 /** Status variables to be passed to MySQL */
 struct export_var_struct{
 	ulint innodb_data_pending_reads;	/*!< Pending reads */

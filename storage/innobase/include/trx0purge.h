@@ -106,8 +106,17 @@ trx_purge_run(void);
 enum purge_state_t {
 	PURGE_STATE_INIT,		/*!< Purge instance created */
 	PURGE_STATE_RUN,		/*!< Purge should be running */
-	PURGE_STATE_STOP		/*!< Purge should be stopped */
+	PURGE_STATE_STOP,		/*!< Purge should be stopped */
+	PURGE_STATE_EXIT		/*!< Purge has been shutdown */
 };
+
+/*******************************************************************//**
+Get the purge state.
+@return purge state. */
+UNIV_INTERN
+purge_state_t
+trx_purge_state(void);
+/*=================*/
 
 /** This is the purge pointer/iterator. We need both the undo no and the
 transaction no up to which purge has parsed and applied the records. */

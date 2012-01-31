@@ -840,6 +840,8 @@ row_purge_end(
 
 	node->undo_recs = NULL;
 
+	fprintf(stderr, "end: %p\n", node);
+
 	node->done = TRUE;
 
 	ut_a(thr->run_node != NULL);
