@@ -24,10 +24,10 @@ struct my_ltm_status {
 static void my_ltm_get_status(toku_ltm *ltm, struct my_ltm_status *my_status) {
     LTM_STATUS_S status;
     toku_ltm_get_status(ltm, &status);
-    my_status->max_locks        = status.status[LTM_LOCKS_LIMIT].value;
-    my_status->curr_locks       = status.status[LTM_LOCKS_CURR].value;
-    my_status->max_lock_memory  = status.status[LTM_LOCK_MEMORY_LIMIT].value;
-    my_status->curr_lock_memory = status.status[LTM_LOCK_MEMORY_CURR].value;
+    my_status->max_locks        = status.status[LTM_LOCKS_LIMIT].value.num;
+    my_status->curr_locks       = status.status[LTM_LOCKS_CURR].value.num;
+    my_status->max_lock_memory  = status.status[LTM_LOCK_MEMORY_LIMIT].value.num;
+    my_status->curr_lock_memory = status.status[LTM_LOCK_MEMORY_CURR].value.num;
 }
 
 static void *my_malloc(size_t s) {
