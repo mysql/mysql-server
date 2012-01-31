@@ -802,6 +802,21 @@ struct thr_tq
   Uint32 m_long_queue[LQ_SIZE];
 };
 
+/**
+ * THR_SEND_BUFFER_ALLOC_SIZE is the amount of 32k pages allocated
+ * when we allocate pages from the global pool of send buffers to
+ * the thread_local_pool (which is local to a thread).
+ *
+ * We allocate a bunch to decrease contention on send-buffer-pool-mutex
+ */
+#define THR_SEND_BUFFER_ALLOC_SIZE 32
+
+/**
+ * Amount of pages that is allowed to linger in a
+ * thread-local send-buffer pool
+ */
+#define THR_SEND_BUFFER_MAX_FREE 32
+
 /*
  * Max number of thread-local job buffers to keep before releasing to
  * global pool.
@@ -872,7 +887,9 @@ struct thr_send_queue
 struct thr_data
 {
   thr_data() : m_jba_write_lock("jbalock"),
-               m_send_buffer_pool(0, THR_FREE_BUF_MAX) {}
+               m_send_buffer_pool(0,
+                                  THR_SEND_BUFFER_MAX_FREE,
+                                  THR_SEND_BUFFER_ALLOC_SIZE) {}
 
   thr_wait m_waiter;
   unsigned m_thr_no;
@@ -1099,7 +1116,9 @@ struct thr_send_thread_instance
                m_awake(FALSE),
                m_thread(NULL),
                m_waiter_struct(),
-               m_send_buffer_pool(0, THR_FREE_BUF_MAX)
+               m_send_buffer_pool(0,
+                                  THR_SEND_BUFFER_MAX_FREE,
+                                  THR_SEND_BUFFER_ALLOC_SIZE)
   {}
   Uint32 m_instance_no;
   Uint32 m_watchdog_counter;
@@ -4160,7 +4179,7 @@ mt_get_extra_send_buffer_pages(Uint32 curr_num_pages,
    * expected to handle this and also since we could change this
    * behaviour at any time.
    */
-  extra_pages += num_threads * 0;
+  extra_pages += num_threads * THR_SEND_BUFFER_MAX_FREE;
 
   if (extra_mem_pages == 0)
   {
