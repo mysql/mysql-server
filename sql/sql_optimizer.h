@@ -509,6 +509,7 @@ Item *remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value);
 bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
 Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
                             bool *inherited_fl);
+Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
 Item *
 make_cond_for_table(Item *cond, table_map tables, table_map used_table,
                     bool exclude_expensive_cond);

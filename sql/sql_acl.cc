@@ -188,6 +188,9 @@ static plugin_ref old_password_plugin;
 #endif
 static plugin_ref native_password_plugin;
 
+#define WARN_DEPRECATED_41_PWD_HASH(thd) \
+  WARN_DEPRECATED(thd, "pre-4.1 password hash", "post-4.1 password hash")
+
 /* Classes */
 
 struct acl_host_and_ip
@@ -2168,6 +2171,10 @@ static bool update_user_table(THD *thd, TABLE *table,
   }
   store_record(table,record[1]);
   table->field[2]->store(new_password, new_password_len, system_charset_info);
+
+  if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+    WARN_DEPRECATED_41_PWD_HASH(thd);
+
   if ((error=table->file->ha_update_row(table->record[1],table->record[0])) &&
       error != HA_ERR_RECORD_IS_THE_SAME)
   {
@@ -2238,6 +2245,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
       DBUG_RETURN(-1);
     }
+    if (combo.password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+      WARN_DEPRECATED_41_PWD_HASH(thd);
     password_len= combo.password.length;
     password=combo.password.str;
   }
