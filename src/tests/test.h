@@ -130,6 +130,7 @@ print_engine_status(DB_ENV * UU(env)) {
 
 static __attribute__((__unused__)) uint64_t
 get_engine_status_val(DB_ENV * UU(env), char * keyname) {
+    uint64_t rval = 0;
 #ifdef USE_TDB
     uint64_t nrows;
     env->get_engine_status_num_rows(env, &nrows);
@@ -141,7 +142,6 @@ get_engine_status_val(DB_ENV * UU(env), char * keyname) {
     int r = env->get_engine_status (env, mystat, nrows, &redzone_state, &panic, panic_string, panic_string_len);
     CKERR(r);
     int found = 0;
-    uint64_t rval = 0;
     for (uint64_t i = 0; i < nrows && !found; i++) {
         if (strcmp(keyname, mystat[i].keyname) == 0) {
             found++;
@@ -149,8 +149,8 @@ get_engine_status_val(DB_ENV * UU(env), char * keyname) {
         }
     }
     CKERR2(found, 1);
-    return rval;
 #endif
+    return rval;
 }
 
 
