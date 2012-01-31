@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -13,9 +13,16 @@ Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ***********************************************************************/
+
+/**************************************************//**
+@file memcached_mysql.cc
+InnoDB Memcached Plugin 
+
+Created 04/12/2011 Jimmy Yang
+*******************************************************/
 
 #include "memcached_mysql.h"
 #include <stdlib.h>
@@ -23,16 +30,16 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <mysql_version.h>
 #include "sql_plugin.h"
 
-
+/** Configuration info passed to memcached, including
+the name of our Memcached InnoDB engine and memcached configure
+string to be loaded by memcached. */
 struct mysql_memcached_context
 {
 	pthread_t		memcached_thread;
 	memcached_context_t	memcached_conf;
 };
 
-/** Configuration info passed to memcached, including
-the name of our Memcached InnoDB engine and memcached configure
-string to be loaded by memcached. */
+/** Variables for configure options */
 static char*	mci_engine_library = NULL;
 static char*	mci_eng_lib_path = NULL; 
 static char*	mci_memcached_option = NULL;
@@ -60,7 +67,7 @@ static MYSQL_SYSVAR_UINT(r_batch_size, mci_r_batch_size,
 
 static MYSQL_SYSVAR_UINT(w_batch_size, mci_w_batch_size,
 			 PLUGIN_VAR_READONLY,
-			 "write batch commit size", 0, 0, 32,
+			 "write batch commit size", 0, 0, 1,
 			 1, 1048576, 0);
 
 static MYSQL_SYSVAR_BOOL(enable_binlog, mci_enable_binlog,
@@ -80,8 +87,8 @@ static struct st_mysql_sys_var *daemon_memcached_sys_var[] = {
 
 static int daemon_memcached_plugin_deinit(void *p)
 {
-	struct st_plugin_int* plugin = (struct st_plugin_int *)p;
-	struct mysql_memcached_context* con = NULL;
+	struct st_plugin_int*		plugin = (struct st_plugin_int *)p;
+	struct mysql_memcached_context*	con = NULL;
 
 	shutdown_server();
 
@@ -155,7 +162,7 @@ mysql_declare_plugin(daemon_memcached)
 	MYSQL_DAEMON_PLUGIN,
 	&daemon_memcached_plugin,
 	"daemon_memcached",
-	"Jimmy Yang",
+	"Oracle Corporation",
 	"Memcached Daemon",
 	PLUGIN_LICENSE_GPL,
 	daemon_memcached_plugin_init,	/* Plugin Init */
