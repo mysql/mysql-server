@@ -18,7 +18,6 @@
 #ifndef NDB_CONFLICT_H
 #define NDB_CONFLICT_H
 
-#include "ha_ndbcluster_glue.h"
 #include "ndb_conflict_trans.h"
 #include <ndbapi/NdbDictionary.hpp>
 #include <ndbapi/NdbTransaction.hpp>
