@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -614,6 +614,8 @@ buf_page_print(
 	ulint		checksum;
 	ulint		old_checksum;
 	ulint		size	= zip_size;
+
+	ut_ad(0);
 
 	if (!size) {
 		size = UNIV_PAGE_SIZE;

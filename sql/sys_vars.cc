@@ -3253,6 +3253,13 @@ static Sys_var_tz Sys_time_zone(
        SESSION_VAR(time_zone), NO_CMD_LINE,
        DEFAULT(&default_tz), NO_MUTEX_GUARD, IN_BINLOG);
 
+static Sys_var_ulong Sys_sp_cache_size(
+       "stored_program_cache",
+       "The soft upper limit for number of cached stored routines for "
+       "one connection.",
+       GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(256, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
+
 
 /****************************************************************************
   Used templates
