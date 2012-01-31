@@ -430,20 +430,23 @@ bool init_hash_workers(ulong slave_parallel_workers)
 {
   DBUG_ENTER("init_hash_workers");
 
-#ifdef HAVE_PSI_INTERFACE
-  mysql_mutex_init(key_mutex_slave_worker_hash, &slave_worker_hash_lock,
-                   MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_cond_slave_worker_hash, &slave_worker_hash_cond, NULL);
-#else
-  mysql_mutex_init(NULL, &slave_worker_hash_lock,
-                   MY_MUTEX_INIT_FAST);
-  mysql_cond_init(NULL, &slave_worker_hash_cond, NULL);
-#endif
-
   inited_hash_workers=
     (my_hash_init(&mapping_db_to_worker, &my_charset_bin,
                  0, 0, 0, get_key,
                  (my_hash_free_key) free_entry, 0) == 0);
+  if (inited_hash_workers)
+  {
+#ifdef HAVE_PSI_INTERFACE
+    mysql_mutex_init(key_mutex_slave_worker_hash, &slave_worker_hash_lock,
+                     MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_cond_slave_worker_hash, &slave_worker_hash_cond, NULL);
+#else
+    mysql_mutex_init(NULL, &slave_worker_hash_lock,
+                     MY_MUTEX_INIT_FAST);
+    mysql_cond_init(NULL, &slave_worker_hash_cond, NULL);
+#endif
+  }
+
   DBUG_RETURN (!inited_hash_workers);
 }
 
@@ -453,9 +456,10 @@ void destroy_hash_workers(Relay_log_info *rli)
   if (inited_hash_workers)
   {
     my_hash_free(&mapping_db_to_worker);
+    mysql_mutex_destroy(&slave_worker_hash_lock);
+    mysql_cond_destroy(&slave_worker_hash_cond);
+    inited_hash_workers= false;
   }
-  mysql_mutex_destroy(&slave_worker_hash_lock);
-  mysql_cond_destroy(&slave_worker_hash_cond);
 
   DBUG_VOID_RETURN;
 }
@@ -1173,9 +1177,9 @@ bool Slave_committed_queue::count_done(Relay_log_info* rli)
 
   DBUG_PRINT("mts", ("Checking if it can simulate a crash:"
              " mts_checkpoint_group %u counter %lu parallel slaves %lu\n",
-             mts_checkpoint_group, cnt, rli->slave_parallel_workers));
+             opt_mts_checkpoint_group, cnt, rli->slave_parallel_workers));
 
-  return (cnt == (rli->slave_parallel_workers * mts_checkpoint_group));
+  return (cnt == (rli->slave_parallel_workers * opt_mts_checkpoint_group));
 }
 #endif
 
@@ -1214,7 +1218,7 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
 
 #ifndef DBUG_OFF
     if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
-        cnt == mts_checkpoint_period)
+        cnt == opt_mts_checkpoint_period)
       return cnt;
 #endif
 
@@ -1743,11 +1747,11 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
 
 #ifndef DBUG_OFF
     DBUG_PRINT("mts", ("Check_slave_debug_group worker %lu mts_checkpoint_group"
-               " %u processed %lu debug %d\n", worker->id, mts_checkpoint_group,
+               " %u processed %lu debug %d\n", worker->id, opt_mts_checkpoint_group,
                worker->groups_done,
                DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0)));
     if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
-        mts_checkpoint_group == worker->groups_done)
+        opt_mts_checkpoint_group == worker->groups_done)
     {
       DBUG_PRINT("mts", ("Putting worker %lu in busy wait.", worker->id));
       while (true) my_sleep(6000000);

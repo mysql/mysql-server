@@ -513,11 +513,6 @@ public:
     DBUG_ASSERT(fixed);
     return decimals;
   }
-  enum Item_result numeric_context_result_type() const
-  {
-    DBUG_ASSERT(fixed);
-    return decimals ? DECIMAL_RESULT : INT_RESULT;
-  }
 };
 
 
@@ -545,12 +540,6 @@ public:
     sql_mode(0)
   { }
   enum Item_result result_type () const { return STRING_RESULT; }
-  enum Item_result numeric_context_result_type() const
-  {
-    DBUG_ASSERT(fixed);
-    return cached_field_type == MYSQL_TYPE_STRING ? STRING_RESULT :
-           decimals ? DECIMAL_RESULT : INT_RESULT;
-  }
   enum_field_types field_type() const { return cached_field_type; }
   const CHARSET_INFO *charset_for_protocol() const
   {

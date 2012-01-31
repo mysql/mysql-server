@@ -20,7 +20,7 @@
 #include "sql_cursor.h"
 #include "sp_rcontext.h"
 #include "sp_pcontext.h"
-#include "sql_select.h"                     // create_virtual_tmp_table
+#include "sql_tmp_table.h"                     // create_virtual_tmp_table
 
 
 ///////////////////////////////////////////////////////////////////////////

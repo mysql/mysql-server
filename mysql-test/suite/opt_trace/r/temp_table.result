@@ -133,7 +133,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
                 "key_length": 1040,
                 "unique_constraint": true,
                 "location": "disk (MyISAM)",
-                "record_format": "fixed"
+                "record_format": "packed"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -153,7 +153,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
             "filesort_priority_queue_optimization": {
               "limit": 3,
               "rows_estimate": 18,
-              "row_size": 1043,
+              "row_size": 1042,
               "memory_available": 262144,
               "chosen": true
             } /* filesort_priority_queue_optimization */,
@@ -163,7 +163,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
               "rows": 4,
               "examined_rows": 8,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 4204,
+              "sort_buffer_size": 4200,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -484,7 +484,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                 "key_length": 13,
                 "unique_constraint": false,
                 "location": "disk (MyISAM)",
-                "record_format": "fixed"
+                "record_format": "packed"
               } /* tmp_table_info */
             } /* converting_tmp_table_to_myisam */
           },
@@ -506,7 +506,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
               "rows": 16,
               "examined_rows": 16,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 676,
+              "sort_buffer_size": 650,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }

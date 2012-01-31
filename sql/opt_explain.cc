@@ -17,10 +17,18 @@
 
 #include "opt_explain.h"
 #include "sql_select.h"
+#include "sql_optimizer.h" // JOIN
 #include "sql_partition.h" // for make_used_partitions_str()
+#include "sql_join_buffer.h" // JOIN_CACHE
 
 static bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit,
                                select_result *result);
+const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
+			      "ALL","range","index","fulltext",
+			      "ref_or_null","unique_subquery","index_subquery",
+                              "index_merge"
+};
+
 
 /**
   A base for all Explain_* classes
@@ -762,24 +770,25 @@ void Explain_table_base::explain_extra_common(const SQL_SELECT *select,
   if (table->reginfo.not_exists_optimize)
     str_extra->append(STRING_WITH_LEN("; Not exists"));
 
-  if (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE &&
-      !(((QUICK_RANGE_SELECT*)(select->quick))->mrr_flags &
-       (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED)))
+  if (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE)
   {
+    uint mrr_flags=
+      ((QUICK_RANGE_SELECT*)(select->quick))->mrr_flags;
+
     /*
       During normal execution of a query, multi_range_read_init() is
       called to initialize MRR. If HA_MRR_SORTED is set at this point,
       multi_range_read_init() for any native MRR implementation will
-      revert to default MRR because they cannot produce sorted output
-      currently.
+      revert to default MRR if not HA_MRR_SUPPORT_SORTED.
       Calling multi_range_read_init() can potentially be costly, so it
-      is not done when executing an EXPLAIN. We therefore make the
-      assumption that HA_MRR_SORTED means no MRR. If some MRR native
-      implementation will support sorted output in the future, a
-      function "bool mrr_supports_sorted()" should be added in the
-      handler.
+      is not done when executing an EXPLAIN. We therefore simulate
+      its effect here:
     */
-    str_extra->append(STRING_WITH_LEN("; Using MRR"));
+    if (mrr_flags & HA_MRR_SORTED && !(mrr_flags & HA_MRR_SUPPORT_SORTED))
+      mrr_flags|= HA_MRR_USE_DEFAULT_IMPL;
+
+    if (!(mrr_flags & HA_MRR_USE_DEFAULT_IMPL))
+      str_extra->append(STRING_WITH_LEN("; Using MRR"));
   }
 }
 

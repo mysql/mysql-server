@@ -61,8 +61,9 @@ ulong server_id = 0;
   User_var_log_events, and Rand_log_events, followed by one
   Query_log_event. If statements are filtered out, the filter has to be
   checked for the Query_log_event. So we have to buffer the Intvar,
-  User_var, and Rand events until we see the Query_log_event. This array
-  buff_ev is used to buffer such events.
+  User_var, and Rand events and their corresponding log postions until we see 
+  the Query_log_event. This dynamic array buff_ev is used to buffer a structure 
+  which stores such an event and the corresponding log position.
 */
 
 DYNAMIC_ARRAY buff_ev;
@@ -155,6 +156,21 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                            const char* logname);
 static Exit_status dump_log_entries(const char* logname);
 static Exit_status safe_connect();
+
+/*
+  This strucure is used to store the event and the log postion of the events 
+  which is later used to print the event details from correct log postions.
+  The Log_event *event is used to store the pointer to the current event and 
+  the event_pos is used to store the current event log postion.
+*/
+
+struct buff_event_info
+  {
+    Log_event *event;
+    my_off_t event_pos;
+  };
+
+struct buff_event_info buff_event;
 
 class Load_log_processor
 {
@@ -741,15 +757,18 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           !((Query_log_event*) ev)->is_trans_keyword() &&
            shall_skip_database(((Query_log_event*) ev)->db);
            
-      for (uint dynamic_array_index= 0; dynamic_array_index < buff_ev.elements; 
-           dynamic_array_index++)
+      for (uint i= 0; i < buff_ev.elements; i++) 
       {
-        Log_event *temp_ev= *dynamic_element(&buff_ev, dynamic_array_index, Log_event **);
+        buff_event_info pop_event_array= *dynamic_element(&buff_ev, i, buff_event_info *);
+        Log_event *temp_event= pop_event_array.event;
+        my_off_t temp_log_pos= pop_event_array.event_pos;
+        print_event_info->hexdump_from= (opt_hexdump ? temp_log_pos : 0); 
         if (!parent_query_skips)
-          temp_ev->print(result_file, print_event_info);
-        delete temp_ev;
+          temp_event->print(result_file, print_event_info);
+        delete temp_event;
       }
       
+      print_event_info->hexdump_from= (opt_hexdump ? pos : 0);
       reset_dynamic(&buff_ev);
 
       if (parent_query_skips)
@@ -763,21 +782,27 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     case INTVAR_EVENT:
     {
       destroy_evt= FALSE;
-      insert_dynamic(&buff_ev, (uchar*) &ev);
+      buff_event.event= ev;
+      buff_event.event_pos= pos;
+      insert_dynamic(&buff_ev, (uchar*) &buff_event);
       break;
     }
     	
     case RAND_EVENT:
     {
-      destroy_evt= FALSE;    
-      insert_dynamic(&buff_ev, (uchar*) &ev);
+      destroy_evt= FALSE;
+      buff_event.event= ev;
+      buff_event.event_pos= pos;      
+      insert_dynamic(&buff_ev, (uchar*) &buff_event);
       break;
     }
     
     case USER_VAR_EVENT:
     {
-      destroy_evt= FALSE;    
-      insert_dynamic(&buff_ev, (uchar*) &ev);
+      destroy_evt= FALSE;
+      buff_event.event= ev;
+      buff_event.event_pos= pos;      
+      insert_dynamic(&buff_ev, (uchar*) &buff_event);
       break; 
     }
 
@@ -1122,7 +1147,7 @@ static struct my_option my_long_options[] =
   {"offset", 'o', "Skip the first N entries.", &offset, &offset,
    0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p', "Password to connect to remote server.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
     &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1316,8 +1341,14 @@ static void cleanup()
   my_free(host);
   my_free(user);
   my_free(dirname_for_local_load);
+  
+  for (uint i= 0; i < buff_ev.elements; i++)
+  {
+    buff_event_info pop_event_array= *dynamic_element(&buff_ev, i, buff_event_info *);
+    delete (pop_event_array.event);
+  }
   delete_dynamic(&buff_ev);
-
+  
   delete glob_description_event;
   if (mysql)
     mysql_close(mysql);
@@ -1528,7 +1559,16 @@ static Exit_status dump_log_entries(const char* logname)
   rc= (remote_opt ? dump_remote_log_entries(&print_event_info, logname) :
        dump_local_log_entries(&print_event_info, logname));
 
-  if (print_event_info.have_unflushed_events)
+  if (buff_ev.elements > 0)
+    warning("The range of printed events ends with an Intvar_event, "
+            "Rand_event or User_var_event with no matching Query_log_event. "
+            "This might be because the last statement was not fully written "
+            "to the log, or because you are using a --stop-position or "
+            "--stop-datetime that refers to an event in the middle of a "
+            "statement. The event(s) from the partial statement have not been "
+            "written to output. ");
+
+  else if (print_event_info.have_unflushed_events)
     warning("The range of printed events ends with a row event or "
             "a table map event that does not have the STMT_END_F "
             "flag set. This might be because the last statement "
@@ -2251,12 +2291,14 @@ int main(int argc, char** argv)
     for the DYNAMIC_ARRAY.
   */
 
-  if((my_init_dynamic_array(&buff_ev, sizeof(Log_event*), 
+  if((my_init_dynamic_array(&buff_ev, sizeof(buff_event_info), 
                             INTVAR_DYNAMIC_INIT, INTVAR_DYNAMIC_INCR)))
     exit(1);
 
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my", load_default_groups, &argc, &argv))
     exit(1);
+  my_getopt_use_args_separator= FALSE;
   defaults_argv= argv;
 
   parse_args(&argc, &argv);
@@ -2355,6 +2397,7 @@ int main(int argc, char** argv)
   if (result_file && (result_file != stdout))
     my_fclose(result_file, MYF(0));
   cleanup();
+
   if (defaults_argv)
     free_defaults(defaults_argv);
   my_free_open_file_info();

@@ -455,6 +455,7 @@ typedef struct system_variables
   ha_rows max_join_size;
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
+  uint  eq_range_index_dive_limit;
   ulong join_buff_size;
   ulong lock_wait_timeout;
   ulong max_allowed_packet;
@@ -578,19 +579,6 @@ typedef struct system_status_var
   ulonglong ha_savepoint_count;
   ulonglong ha_savepoint_rollback_count;
   ulonglong ha_external_lock_count;
-
-#if 0
-  /* Tatiana thinks this may be dead now. */
-  /* KEY_CACHE parts. These are copies of the original */
-  ulonglong key_blocks_changed;
-  ulonglong key_blocks_used;
-  ulonglong key_cache_r_requests;
-  ulonglong key_cache_read;
-  ulonglong key_cache_w_requests;
-  ulonglong key_cache_write;
-  /* END OF KEY_CACHE parts */
-#endif
-
   ulonglong opened_tables;
   ulonglong opened_shares;
   ulonglong select_full_join_count;
@@ -3135,9 +3123,29 @@ public:
   {
     /* TODO: check for OOM condition here */
     if (!stmt_arena->is_conventional())
+    {
+      DBUG_PRINT("info",
+                 ("change_item_tree place %p old_value %p new_value %p",
+                  place, *place, new_value));
       nocheck_register_item_tree_change(place, *place, mem_root);
+    }
     *place= new_value;
   }
+
+/*
+  Find and update change record of an underlying item.
+
+  @param old_ref The old place of moved expression.
+  @param new_ref The new place of moved expression.
+  @details
+  During permanent transformations, e.g. join flattening in simplify_joins,
+  a condition could be moved from one place to another, e.g. from on_expr
+  to WHERE condition. If the moved condition has replaced some other with
+  change_item_tree() function, the change record will restore old value
+  to the wrong place during rollback_item_tree_changes. This function goes
+  through the list of change records, and replaces Item_change_record::place.
+*/
+  void change_item_tree_place(Item **old_ref, Item **new_ref);
   void nocheck_register_item_tree_change(Item **place, Item *old_value,
                                          MEM_ROOT *runtime_memroot);
   void rollback_item_tree_changes();

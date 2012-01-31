@@ -113,24 +113,28 @@ SET(SQL_SHARED_SOURCES
   sql_derived.cc
   sql_do.cc 
   sql_error.cc
+  sql_executor.cc
   sql_get_diagnostics.cc
   sql_handler.cc
   sql_help.cc
   sql_insert.cc
-  sql_join_cache.cc
+  sql_join_buffer.cc
   sql_lex.cc 
   sql_list.cc
   sql_load.cc
   sql_locale.cc
   sql_manager.cc
+  sql_optimizer.cc
   sql_parse.cc
   sql_partition.cc
   sql_partition_admin.cc
+  sql_planner.cc
   sql_plugin.cc
   sql_prepare.cc
   sql_profile.cc
   sql_reload.cc
-  sql_rename.cc 
+  sql_rename.cc
+  sql_resolver.cc
   sql_rewrite.cc
   sql_select.cc
   sql_servers.cc
@@ -142,6 +146,7 @@ SET(SQL_SHARED_SOURCES
   sql_tablespace.cc
   sql_test.cc
   sql_time.cc
+  sql_tmp_table.cc
   sql_trigger.cc
   sql_truncate.cc
   sql_udf.cc

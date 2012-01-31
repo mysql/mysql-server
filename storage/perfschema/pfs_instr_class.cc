@@ -25,6 +25,7 @@
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "pfs_global.h"
+#include "pfs_timer.h"
 #include "pfs_events_waits.h"
 #include "pfs_setup_object.h"
 #include "pfs_atomic.h"
@@ -46,8 +47,20 @@
 */
 my_bool pfs_enabled= TRUE;
 
-DYNAMIC_ARRAY pfs_instr_init_array;
+/**
+  PFS_INSTRUMENT option settings array and associated state variable to
+  serialize access during shutdown.
+ */
+DYNAMIC_ARRAY pfs_instr_config_array;
+int pfs_instr_config_state= PFS_INSTR_CONFIG_NOT_INITIALIZED;
+
 static void configure_instr_class(PFS_instr_class *entry);
+
+static void init_instr_class(PFS_instr_class *klass,
+                             const char *name,
+                             uint name_length,
+                             int flags,
+                             PFS_class_type class_type);
 
 /**
   Current number of elements in mutex_class_array.
@@ -126,6 +139,22 @@ PFS_instr_class global_table_io_class;
 PFS_instr_class global_table_lock_class;
 PFS_instr_class global_idle_class;
 
+/** Class-timer map */
+enum_timer_name *class_timers[] =
+{&wait_timer,      /* PFS_CLASS_NONE */
+ &wait_timer,      /* PFS_CLASS_MUTEX */
+ &wait_timer,      /* PFS_CLASS_RWLOCK */
+ &wait_timer,      /* PFS_CLASS_COND */
+ &wait_timer,      /* PFS_CLASS_FILE */
+ &wait_timer,      /* PFS_CLASS_TABLE */
+ &stage_timer,     /* PFS_CLASS_STAGE */
+ &statement_timer, /* PFS_CLASS_STATEMENT */
+ &wait_timer,      /* PFS_CLASS_SOCKET */
+ &wait_timer,      /* PFS_CLASS_TABLE_IO */
+ &wait_timer,      /* PFS_CLASS_TABLE_LOCK */
+ &idle_timer       /* PFS_CLASS_IDLE */
+};
+
 /**
   Hash index for instrumented table shares.
   This index is searched by table fully qualified name (@c PFS_table_share_key),
@@ -177,32 +206,26 @@ void init_event_name_sizing(const PFS_global_param *param)
   socket_class_start= file_class_start + param->m_file_class_sizing;
   table_class_start= socket_class_start + param->m_socket_class_sizing;
   wait_class_max= table_class_start + 3; /* global table io, lock, idle */
+}
 
-  memcpy(global_table_io_class.m_name, "wait/io/table/sql/handler", 25);
-  global_table_io_class.m_name_length= 25;
-  global_table_io_class.m_flags= 0;
-  global_table_io_class.m_enabled= true;
-  global_table_io_class.m_timed= true;
+void register_global_classes()
+{
+  /* Table IO class */
+  init_instr_class(&global_table_io_class, "wait/io/table/sql/handler", 25,
+                   0, PFS_CLASS_TABLE_IO);
   global_table_io_class.m_event_name_index= table_class_start;
-  /* Set user-defined defaults. */
   configure_instr_class(&global_table_io_class);
 
-  memcpy(global_table_lock_class.m_name, "wait/lock/table/sql/handler", 27);
-  global_table_lock_class.m_name_length= 27;
-  global_table_lock_class.m_flags= 0;
-  global_table_lock_class.m_enabled= true;
-  global_table_lock_class.m_timed= true;
+  /* Table lock class */
+  init_instr_class(&global_table_lock_class, "wait/lock/table/sql/handler", 27,
+                   0, PFS_CLASS_TABLE_LOCK);
   global_table_lock_class.m_event_name_index= table_class_start + 1;
-  /* Set user-defined defaults. */
   configure_instr_class(&global_table_lock_class);
-
-  memcpy(global_idle_class.m_name, "idle", 4);
-  global_idle_class.m_name_length= 4;
-  global_idle_class.m_flags= 0;
-  global_idle_class.m_enabled= true;
-  global_idle_class.m_timed= true;
+  
+  /* Idle class */
+  init_instr_class(&global_idle_class, "idle", 4,
+                   0, PFS_CLASS_IDLE);
   global_idle_class.m_event_name_index= table_class_start + 2;
-  /* Set user-defined defaults. */
   configure_instr_class(&global_idle_class);
 }
 
@@ -592,6 +615,7 @@ static void init_instr_class(PFS_instr_class *klass,
   klass->m_enabled= true;
   klass->m_timed= true;
   klass->m_type= class_type;
+  klass->m_timer= class_timers[class_type];
 }
 
 /**
@@ -601,10 +625,10 @@ static void configure_instr_class(PFS_instr_class *entry)
 {
   uint match_length= 0; /* length of matching pattern */
 
-  for (uint i= 0; i < pfs_instr_init_array.elements; i++)
+  for (uint i= 0; i < pfs_instr_config_array.elements; i++)
   {
-    PFS_instr_init* e;
-    get_dynamic(&pfs_instr_init_array, (uchar*)&e, i);
+    PFS_instr_config* e;
+    get_dynamic(&pfs_instr_config_array, (uchar*)&e, i);
 
     /**
       Compare class name to all configuration entries. In case of multiple
@@ -1249,7 +1273,7 @@ search:
     {
       set_keys(pfs, share);
       /* FIXME: aggregate to table_share sink ? */
-      pfs->m_table_stat.reset();
+      pfs->m_table_stat.fast_reset();
     }
     lf_hash_search_unpin(pins);
     return pfs;
@@ -1291,7 +1315,7 @@ search:
         pfs->m_enabled= enabled;
         pfs->m_timed= timed;
         pfs->init_refcount();
-        pfs->m_table_stat.reset();
+        pfs->m_table_stat.fast_reset();
         set_keys(pfs, share);
 
         int res;
@@ -1332,7 +1356,7 @@ void PFS_table_share::aggregate_io(void)
   uint index= global_table_io_class.m_event_name_index;
   PFS_single_stat *table_io_total= & global_instr_class_waits_array[index];
   m_table_stat.sum_io(table_io_total);
-  m_table_stat.reset_io();
+  m_table_stat.fast_reset_io();
 }
 
 void PFS_table_share::aggregate_lock(void)
@@ -1340,7 +1364,7 @@ void PFS_table_share::aggregate_lock(void)
   uint index= global_table_lock_class.m_event_name_index;
   PFS_single_stat *table_lock_total= & global_instr_class_waits_array[index];
   m_table_stat.sum_lock(table_lock_total);
-  m_table_stat.reset_lock();
+  m_table_stat.fast_reset_lock();
 }
 
 void release_table_share(PFS_table_share *pfs)

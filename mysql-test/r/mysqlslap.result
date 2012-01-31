@@ -247,3 +247,10 @@ mysql
 performance_schema
 test
 DROP DATABASE bug58090;
+#
+# Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+#
+Executing mysqlslap with password.
+Warning: Using a password on the command line interface can be insecure.
+
+End of tests

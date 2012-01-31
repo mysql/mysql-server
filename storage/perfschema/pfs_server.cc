@@ -39,16 +39,21 @@
 
 PFS_global_param pfs_param;
 
+PFS_table_stat PFS_table_stat::g_reset_template;
+
 C_MODE_START
 static void destroy_pfs_thread(void *key);
 C_MODE_END
 
 static void cleanup_performance_schema(void);
+void cleanup_instrument_config(void);
 
 struct PSI_bootstrap*
 initialize_performance_schema(const PFS_global_param *param)
 {
   pfs_initialized= false;
+
+  PFS_table_stat::g_reset_template.reset();
 
   if (! param->m_enabled)
   {
@@ -61,7 +66,9 @@ initialize_performance_schema(const PFS_global_param *param)
 
   init_timers();
   PFS_atomic::init();
+
   init_event_name_sizing(param);
+  register_global_classes();
 
   if (pthread_key_create(&THR_PFS, destroy_pfs_thread))
     return NULL;
@@ -145,6 +152,8 @@ static void destroy_pfs_thread(void *key)
 
 static void cleanup_performance_schema(void)
 {
+  cleanup_instrument_config();
+/*  Disabled: Bug#5666
   cleanup_instruments();
   cleanup_sync_class();
   cleanup_thread_class();
@@ -169,12 +178,14 @@ static void cleanup_performance_schema(void)
   cleanup_account();
   cleanup_account_hash();
   PFS_atomic::cleanup();
+*/
 }
 
 void shutdown_performance_schema(void)
 {
   pfs_initialized= false;
   cleanup_performance_schema();
+#if 0
   /*
     Be careful to not delete un-initialized keys,
     this would affect key 0, which is THR_KEY_mysys,
@@ -185,6 +196,7 @@ void shutdown_performance_schema(void)
     pthread_key_delete(THR_PFS);
     THR_PFS_initialized= false;
   }
+#endif
 }
 
 /**
@@ -193,7 +205,21 @@ void shutdown_performance_schema(void)
 */
 void init_pfs_instrument_array()
 {
-  my_init_dynamic_array(&pfs_instr_init_array, sizeof(PFS_instr_init*), 10, 10);
+  my_init_dynamic_array(&pfs_instr_config_array, sizeof(PFS_instr_config*), 10, 10);
+  pfs_instr_config_state=  PFS_INSTR_CONFIG_ALLOCATED;
+}
+
+/**
+  Deallocate the PFS_INSTRUMENT array. Use an atomic compare-and-swap to ensure
+  that it is deallocated only once in the chaotic environment of server shutdown.
+*/
+void cleanup_instrument_config()
+{
+  int desired_state= PFS_INSTR_CONFIG_ALLOCATED;
+  
+  /* Ignore if another thread has already deallocated the array */
+  if (my_atomic_cas32(&pfs_instr_config_state, &desired_state, PFS_INSTR_CONFIG_DEALLOCATED))
+    delete_dynamic(&pfs_instr_config_array);
 }
 
 /**
@@ -212,12 +238,12 @@ int add_pfs_instr_to_array(const char* name, const char* value)
   int value_length= strlen(value);
 
   /* Allocate structure plus string buffers plus null terminators */
-  PFS_instr_init* e = (PFS_instr_init*)my_malloc(sizeof(PFS_instr_init)
+  PFS_instr_config* e = (PFS_instr_config*)my_malloc(sizeof(PFS_instr_config)
                        + name_length + 1 + value_length + 1, MYF(MY_WME));
   if (!e) return 1;
   
   /* Copy the instrument name */
-  e->m_name= (char*)e + sizeof(PFS_instr_init);
+  e->m_name= (char*)e + sizeof(PFS_instr_config);
   memcpy(e->m_name, name, name_length);
   e->m_name_length= name_length;
   e->m_name[name_length]= '\0';
@@ -253,7 +279,7 @@ int add_pfs_instr_to_array(const char* name, const char* value)
   }
 
   /* Add to the array of default startup options */
-  if (insert_dynamic(&pfs_instr_init_array, &e))
+  if (insert_dynamic(&pfs_instr_config_array, &e))
   {
     my_free(e);
     return 1;

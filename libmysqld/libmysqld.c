@@ -81,7 +81,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   const char *passwd, const char *db,
 		   uint port, const char *unix_socket,ulong client_flag)
 {
-  char name_buff[USERNAME_LENGTH];
+  char name_buff[USERNAME_LENGTH + 1];
 
   DBUG_ENTER("mysql_real_connect");
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s (libmysqld)",

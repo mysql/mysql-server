@@ -1957,12 +1957,12 @@ pars_create_table(
 			dfield_get_data(dfield)));
 
 
-                switch (size) {
+		switch (size) {
 		case 0:
 			break;
 
-                case 1: case 2: case 4: case 8: case 16:
-                	flags |= DICT_TF_COMPACT;
+		case 1: case 2: case 4: case 8: case 16:
+			flags |= DICT_TF_COMPACT;
 			/* FTS-FIXME: needs the zip changes */
 			/* flags |= size << DICT_TF_COMPRESSED_SHIFT; */
 			break;

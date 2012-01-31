@@ -519,31 +519,6 @@ rw_lock_s_unlock_func(
 }
 
 /******************************************************************//**
-Releases a shared mode lock when we know there are no waiters and none
-else will access the lock during the time this function is executed. */
-UNIV_INLINE
-void
-rw_lock_s_unlock_direct(
-/*====================*/
-	rw_lock_t*	lock)	/*!< in/out: rw-lock */
-{
-	ut_ad(lock->lock_word < X_LOCK_DECR);
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, 0, RW_LOCK_SHARED);
-#endif
-
-	/* Decrease reader count by incrementing lock_word */
-	lock->lock_word++;
-
-	ut_ad(!lock->waiters);
-	ut_ad(rw_lock_validate(lock));
-#ifdef UNIV_SYNC_PERF_STAT
-	rw_s_exit_count++;
-#endif
-}
-
-/******************************************************************//**
 Releases an exclusive mode lock. */
 UNIV_INLINE
 void
@@ -585,40 +560,6 @@ rw_lock_x_unlock_func(
 		}
 	}
 
-	ut_ad(rw_lock_validate(lock));
-
-#ifdef UNIV_SYNC_PERF_STAT
-	rw_x_exit_count++;
-#endif
-}
-
-/******************************************************************//**
-Releases an exclusive mode lock when we know there are no waiters, and
-none else will access the lock during the time this function is executed. */
-UNIV_INLINE
-void
-rw_lock_x_unlock_direct(
-/*====================*/
-	rw_lock_t*	lock)	/*!< in/out: rw-lock */
-{
-	/* Reset the exclusive lock if this thread no longer has an x-mode
-	lock */
-
-	ut_ad((lock->lock_word % X_LOCK_DECR) == 0);
-
-	if (lock->lock_word == 0) {
-		lock->recursive = FALSE;
-		UNIV_MEM_INVALID(&lock->writer_thread,
-				 sizeof lock->writer_thread);
-	}
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, 0, RW_LOCK_EX);
-#endif
-
-	lock->lock_word += X_LOCK_DECR;
-
-	ut_ad(!lock->waiters);
 	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT
@@ -676,21 +617,24 @@ pfs_rw_lock_x_lock_func(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	struct PSI_rwlock_locker*	locker;
-	PSI_rwlock_locker_state		state;
+	if (lock->pfs_psi != NULL)
+	{
+		PSI_rwlock_locker*	locker;
+		PSI_rwlock_locker_state	state;
 
-	/* Record the entry of rw x lock request in performance schema */
-	locker = PSI_CALL(get_thread_rwlock_locker)(
-		&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK);
+		/* Record the entry of rw x lock request in performance schema */
+		locker = PSI_CALL(start_rwlock_wrwait)(
+			&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK, file_name, line);
 
-	if (locker != NULL) {
-		PSI_CALL(start_rwlock_wrwait)(locker, file_name, line);
 		rw_lock_x_lock_func(lock, pass, file_name, line);
-		PSI_CALL(end_rwlock_wrwait)(locker, 0);
-		return;
-	}
 
-	rw_lock_x_lock_func(lock, pass, file_name, line);
+		if (locker != NULL)
+			PSI_CALL(end_rwlock_wrwait)(locker, 0);
+	}
+	else
+	{
+		rw_lock_x_lock_func(lock, pass, file_name, line);
+	}
 }
 /******************************************************************//**
 Performance schema instrumented wrap function for
@@ -707,22 +651,27 @@ pfs_rw_lock_x_lock_func_nowait(
 				requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	struct PSI_rwlock_locker*	locker;
-	PSI_rwlock_locker_state		state;
 	ibool	ret;
 
-	/* Record the entry of rw x lock request in performance schema */
-	locker = PSI_CALL(get_thread_rwlock_locker)(
-		&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK);
+	if (lock->pfs_psi != NULL)
+	{
+		PSI_rwlock_locker*	locker;
+		PSI_rwlock_locker_state		state;
 
-	if (locker != NULL) {
-		PSI_CALL(start_rwlock_wrwait)(locker, file_name, line);
+		/* Record the entry of rw x lock request in performance schema */
+		locker = PSI_CALL(start_rwlock_wrwait)(
+			&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK, file_name, line);
+
 		ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
-		PSI_CALL(end_rwlock_wrwait)(locker, 0);
-		return(ret);
+
+		if (locker != NULL)
+			PSI_CALL(end_rwlock_wrwait)(locker, ret);
+	}
+	else
+	{
+		ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
 	}
 
-	ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
 	return(ret);
 }
 /******************************************************************//**
@@ -735,8 +684,11 @@ pfs_rw_lock_free_func(
 /*==================*/
 	rw_lock_t*	lock)	/*!< in: pointer to rw-lock */
 {
-	PSI_CALL(destroy_rwlock)(lock->pfs_psi);
-	lock->pfs_psi = NULL;
+	if (lock->pfs_psi != NULL)
+	{
+		PSI_CALL(destroy_rwlock)(lock->pfs_psi);
+		lock->pfs_psi = NULL;
+	}
 
 	rw_lock_free_func(lock);
 }
@@ -756,20 +708,26 @@ pfs_rw_lock_s_lock_func(
 				requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	struct PSI_rwlock_locker*	locker;
-	PSI_rwlock_locker_state		state;
+	if (lock->pfs_psi != NULL)
+	{
+		PSI_rwlock_locker*	locker;
+		PSI_rwlock_locker_state	state;
 
-	/* Instrumented to inform we are aquiring a shared rwlock */
-	locker = PSI_CALL(get_thread_rwlock_locker)(
-		&state, lock->pfs_psi, PSI_RWLOCK_READLOCK);
-	if (locker != NULL) {
-		PSI_CALL(start_rwlock_rdwait)(locker, file_name, line);
+		/* Instrumented to inform we are aquiring a shared rwlock */
+		locker = PSI_CALL(start_rwlock_rdwait)(
+			&state, lock->pfs_psi, PSI_RWLOCK_READLOCK, file_name, line);
+
 		rw_lock_s_lock_func(lock, pass, file_name, line);
-		PSI_CALL(end_rwlock_rdwait)(locker, 0);
-		return;
+
+		if (locker != NULL)
+			PSI_CALL(end_rwlock_rdwait)(locker, 0);
+	}
+	else
+	{
+		rw_lock_s_lock_func(lock, pass, file_name, line);
 	}
 
-	rw_lock_s_lock_func(lock, pass, file_name, line);
+	return;
 }
 /******************************************************************//**
 Performance schema instrumented wrap function for rw_lock_s_lock_func()
@@ -787,21 +745,27 @@ pfs_rw_lock_s_lock_low(
 	const char*	file_name, /*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	struct PSI_rwlock_locker*	locker;
-	PSI_rwlock_locker_state		state;
 	ibool	ret;
 
-	/* Instrumented to inform we are aquiring a shared rwlock */
-	locker = PSI_CALL(get_thread_rwlock_locker)(
-		&state, lock->pfs_psi, PSI_RWLOCK_READLOCK);
-	if (locker != NULL) {
-		PSI_CALL(start_rwlock_rdwait)(locker, file_name, line);
+	if (lock->pfs_psi != NULL)
+	{
+		PSI_rwlock_locker*	locker;
+		PSI_rwlock_locker_state	state;
+
+		/* Instrumented to inform we are aquiring a shared rwlock */
+		locker = PSI_CALL(start_rwlock_rdwait)(
+			&state, lock->pfs_psi, PSI_RWLOCK_READLOCK, file_name, line);
+
 		ret = rw_lock_s_lock_low(lock, pass, file_name, line);
-		PSI_CALL(end_rwlock_rdwait)(locker, 0);
-		return(ret);
+
+		if (locker != NULL)
+			PSI_CALL(end_rwlock_rdwait)(locker, ret);
+	}
+	else
+	{
+		ret = rw_lock_s_lock_low(lock, pass, file_name, line);
 	}
 
-	ret = rw_lock_s_lock_low(lock, pass, file_name, line);
 	return(ret);
 }
 
@@ -821,7 +785,8 @@ pfs_rw_lock_x_unlock_func(
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
 	/* Inform performance schema we are unlocking the lock */
-	PSI_CALL(unlock_rwlock)(lock->pfs_psi);
+	if (lock->pfs_psi != NULL)
+		PSI_CALL(unlock_rwlock)(lock->pfs_psi);
 
 	rw_lock_x_unlock_func(
 #ifdef UNIV_SYNC_DEBUG
@@ -846,7 +811,8 @@ pfs_rw_lock_s_unlock_func(
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
 	/* Inform performance schema we are unlocking the lock */
-	PSI_CALL(unlock_rwlock)(lock->pfs_psi);
+	if (lock->pfs_psi != NULL)
+		PSI_CALL(unlock_rwlock)(lock->pfs_psi);
 
 	rw_lock_s_unlock_func(
 #ifdef UNIV_SYNC_DEBUG

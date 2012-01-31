@@ -1392,6 +1392,82 @@ SELECT * FROM t1, t1 as t2 WHERE t1.i4 BETWEEN t2.pk AND t2.pk;
 
 DROP TABLE t1;
 
+--echo #
+--echo # BUG#13519696 - 62940: SELECT RESULTS VARY WITH VERSION AND
+--echo # WITH/WITHOUT INDEX RANGE SCAN
+--echo #
+
+create table t1 (id int unsigned not null auto_increment primary key);
+insert into t1 values (null);  
+insert into t1 select null from t1;  
+insert into t1 select null from t1;  
+insert into t1 select null from t1;  
+insert into t1 select null from t1;  
+insert into t1 select null from t1;  
+insert into t1 select null from t1;  
+insert into t1 select null from t1;  
+insert into t1 select null from t1; 
+create table t2 (
+ id int unsigned not null auto_increment,
+ val decimal(5,3) not null,
+ primary key (id,val),
+ unique key (val,id),
+ unique key (id));  
+--disable_warnings
+insert into t2 select null,id*0.0009 from t1;
+--enable_warnings
+
+select count(val) from t2 ignore index (val) where val > 0.1155;
+select count(val) from t2 force index (val)  where val > 0.1155;
+
+drop table t2, t1;
+
+--echo #
+--echo # BUG#13453382 - REGRESSION SINCE 5.1.39, RANGE OPTIMIZER WRONG
+--echo # RESULTS WITH DECIMAL CONVERSION
+--echo #
+
+create table t1 (a int,b int,c int,primary key (a,c));
+insert into t1 values (1,1,2),(1,1,3),(1,1,4);
+# show that the integer 3 is bigger than the decimal 2.9,
+# which should also apply to comparing "c" with 2.9
+# when c is 3.
+select convert(3, signed integer) > 2.9;
+select * from t1 force  index (primary) where a=1 and c>= 2.9;
+select * from t1 ignore index (primary) where a=1 and c>= 2.9;
+select * from t1 force  index (primary) where a=1 and c> 2.9;
+select * from t1 ignore index (primary) where a=1 and c> 2.9;
+drop table t1;
+
+--echo #
+--echo # BUG#13463488 - 63437: CHAR & BETWEEN WITH INDEX RETURNS WRONG
+--echo # RESULT AFTER MYSQL 5.1.
+--echo #
+
+CREATE TABLE t1(
+ F1 CHAR(5) NOT NULL,
+ F2 CHAR(5) NOT NULL,
+ F3 CHAR(5) NOT NULL,
+ PRIMARY KEY(F1),
+ INDEX IDX_F2(F2)
+);
+
+INSERT INTO t1 VALUES
+('A','A','A'),('AA','AA','AA'),('AAA','AAA','AAA'),
+('AAAA','AAAA','AAAA'),('AAAAA','AAAAA','AAAAA');
+
+SELECT * FROM t1 WHERE F1 = 'A    ';
+SELECT * FROM t1 IGNORE INDEX(PRIMARY) WHERE F1 = 'A    ';
+SELECT * FROM t1 WHERE F1 >= 'A    ';
+SELECT * FROM t1 WHERE F1 > 'A    ';
+SELECT * FROM t1 WHERE F1 BETWEEN 'A    ' AND 'AAAAA';
+SELECT * FROM t1 WHERE F2 BETWEEN 'A    ' AND 'AAAAA';
+SELECT * FROM t1 WHERE F3 BETWEEN 'A    ' AND 'AAAAA';
+SELECT * FROM t1 IGNORE INDEX(PRIMARY) WHERE F1 BETWEEN 'A    ' AND
+'AAAAA';
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests
 
 #
@@ -1613,3 +1689,54 @@ eval SELECT * FROM t2
      WHERE (field1, field2) IN ($query);
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#12912171 - ASSERTION FAILED: QUICK->HEAD->READ_SET ==
+--echo # SAVE_READ_SET
+--echo #
+CREATE TABLE t1 (
+ a INT,
+ b INT,
+ c INT,
+ PRIMARY KEY (c,a), KEY (a),KEY (a)
+) ENGINE=INNODB PARTITION BY KEY () PARTITIONS 2;
+INSERT INTO t1 VALUES (1,5,1),(2,4,1),(3,3,1),(4,2,1),(5,1,1);
+UPDATE t1 SET b = 0, c=1 WHERE a <=>0;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#13256446 - ASSERTION QUICK->HEAD->READ_SET ==
+--echo # SAVE_READ_SET' FAILED IN OPT_RANGE.CC:1606 
+--echo #
+CREATE TABLE t1 (
+ f1 INT AUTO_INCREMENT,
+ f2 INT,
+ f3 INT,
+ f4 INT,
+ PRIMARY KEY (f1),KEY(f2)
+) ENGINE=INNODB;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT f1,f2,f3,f4 FROM t1 WHERE f2=103;
+INSERT INTO t1 VALUES (154,0,NULL,0),(0,NULL,9,0),
+ (NULL,102,NULL,3),(0,3,NULL,0), (9,0,NULL,0),(0,9,NULL,157);
+SELECT * FROM v2;
+UPDATE v2 SET f4=0, f2=NULL, f1=NULL WHERE f1 > 16 ORDER BY f1;
+SELECT * FROM v2;
+DROP TABLE t1;
+DROP VIEW v2;
+
+CREATE TABLE t1 (
+ f1 INT AUTO_INCREMENT,
+ f2 INT,
+ f3 INT,
+ f4 INT,
+ PRIMARY KEY (f1),KEY(f2)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1,NULL,NULL,0), (2,2,0,3), (9,0,107,18),
+ (10,0,0,0), (231,0,0,0), (232,0,8,0), (234,0,0,NULL), (235,8,0,3);
+CREATE ALGORITHM=MERGE VIEW v3 AS SELECT f1,f2,f3,f4 FROM t1 WHERE f1<=85 ;
+SELECT * FROM v3;
+UPDATE v3 SET f3=0, f4=4 WHERE f2=68 ORDER BY f1; 
+SELECT * FROM v3;
+DROP TABLE t1;
+DROP VIEW v3;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3123,6 +3123,7 @@ row_sel_get_clust_rec_for_mysql(
 			fputs("\n"
 			      "InnoDB: Submit a detailed bug report"
 			      " to http://bugs.mysql.com\n", stderr);
+			ut_ad(0);
 		}
 
 		clust_rec = NULL;
@@ -4211,10 +4212,12 @@ rec_loop:
 #ifdef UNIV_SEARCH_DEBUG
 	/*
 	fputs("Using ", stderr);
-	dict_index_name_print(stderr, index);
+	dict_index_name_print(stderr, trx, index);
 	fprintf(stderr, " cnt %lu ; Page no %lu\n", cnt,
 	page_get_page_no(page_align(rec)));
-	rec_print(rec);
+	rec_print(stderr, rec, index);
+	printf("delete-mark: %lu\n",
+	       rec_get_deleted_flag(rec, page_rec_is_comp(rec)));
 	*/
 #endif /* UNIV_SEARCH_DEBUG */
 
@@ -4395,8 +4398,10 @@ wrong_offs:
 			btr_pcur_store_position(pcur, &mtr);
 
 			err = DB_RECORD_NOT_FOUND;
-			/* ut_print_name(stderr, index->name);
-			fputs(" record not found 3\n", stderr); */
+#if 0
+			ut_print_name(stderr, trx, FALSE, index->name);
+			fputs(" record not found 3\n", stderr);
+#endif
 
 			goto normal_return;
 		}
@@ -4434,8 +4439,10 @@ wrong_offs:
 			btr_pcur_store_position(pcur, &mtr);
 
 			err = DB_RECORD_NOT_FOUND;
-			/* ut_print_name(stderr, index->name);
-			fputs(" record not found 4\n", stderr); */
+#if 0
+			ut_print_name(stderr, trx, FALSE, index->name);
+			fputs(" record not found 4\n", stderr);
+#endif
 
 			goto normal_return;
 		}

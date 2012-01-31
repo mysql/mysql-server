@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1009,6 +1009,7 @@ trx_undo_update_rec_get_update(
 			fprintf(stderr, "\n"
 				"InnoDB: n_fields = %lu, i = %lu, ptr %p\n",
 				(ulong) n_fields, (ulong) i, ptr);
+			ut_ad(0);
 			*upd = NULL;
 			return(NULL);
 		}

@@ -642,14 +642,24 @@ public:
   inline bool is_null(my_ptrdiff_t row_offset= 0)
   {
     /*
-      If the field is NULLable, it has a valid null_ptr pointer, and its
-      NULLity is recorded in the "null_bit" bit of null_ptr[row_offset].
-      Otherwise, it can still be NULL, if it belongs to the inner table of an
-      outer join and the row is NULL-complemented: that case is recorded in
-      TABLE::null_row.
+      The table may have been marked as containing only NULL values
+      for all fields if it is a NULL-complemented row of an OUTER JOIN
+      or if the query is an implicitly grouped query (has aggregate
+      functions but no GROUP BY clause) with no qualifying rows. If
+      this is the case (in which TABLE::null_row is true), the field
+      is considered to be NULL.
+
+      Otherwise, if the field is NULLable, it has a valid null_ptr
+      pointer, and its NULLity is recorded in the "null_bit" bit of
+      null_ptr[row_offset].
     */
-    return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) :
-      table->null_row;
+    if (table->null_row)
+      return true;
+
+    if (null_ptr)
+      return (null_ptr[row_offset] & null_bit);
+
+    return false;
   }
   inline bool is_real_null(my_ptrdiff_t row_offset= 0)
     { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : 0; }
@@ -1171,6 +1181,10 @@ public:
 	    uchar null_bit_arg, utype unireg_check_arg,
 	    const char *field_name_arg, const CHARSET_INFO *charset);
   Item_result result_type () const { return STRING_RESULT; }
+  Item_result numeric_context_result_type() const
+  { 
+    return REAL_RESULT; 
+  }
   uint decimals() const { return NOT_FIXED_DEC; }
   void make_field(Send_field *field);
   int  store(double nr);
@@ -1931,7 +1945,7 @@ public:
   virtual uint32 max_display_length() { return field_length; }
   virtual bool str_needs_quotes() { return TRUE; }
   virtual uint is_equal(Create_field *new_field);
-  virtual Item_result numeric_context_result_type() const
+  Item_result numeric_context_result_type() const
   {
     return dec ? DECIMAL_RESULT : INT_RESULT;
   }
@@ -2017,7 +2031,7 @@ public:
   longlong val_date_temporal();
   bool get_time(MYSQL_TIME *ltime)
   {
-    return get_date(ltime, 0);
+    return get_date(ltime, TIME_FUZZY_DATE);
   }
 };
 

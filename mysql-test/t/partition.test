@@ -2433,3 +2433,27 @@ SELECT 1 FROM t1 AS t1_0 JOIN t1 ON t1_0.a LIKE (SELECT 1 FROM t1);
 SELECT * FROM vtmp;
 DROP VIEW vtmp;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#13580775 ASSERTION FAILED: RECORD_LENGTH == M_RECORD_LENGTH,
+--echo # FILE FILESORT_UTILS.CC
+--echo #
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b INT,
+  c CHAR(1),
+  d INT,
+  KEY (c,d)
+) PARTITION BY KEY () PARTITIONS 1;
+
+INSERT INTO t1 VALUES (1,1,'a',1), (2,2,'a',1);
+
+SELECT 1 FROM t1 WHERE 1 IN
+(SELECT  group_concat(b)
+ FROM t1
+ WHERE c > geomfromtext('point(1 1)')
+ GROUP BY b
+);
+
+DROP TABLE t1;

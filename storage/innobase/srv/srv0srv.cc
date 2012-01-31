@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -386,6 +386,7 @@ static ulint		srv_n_rows_deleted_old		= 0;
 static ulint		srv_n_rows_read_old		= 0;
 
 UNIV_INTERN ulint	srv_truncated_status_writes	= 0;
+UNIV_INTERN ulint	srv_available_undo_logs         = 0;
 
 /* Set the following to 0 if you want InnoDB to write messages on
 stderr on startup/shutdown. */
@@ -1368,6 +1369,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
 	export_vars.innodb_num_open_files = fil_n_file_opened;
 	export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
+	export_vars.innodb_available_undo_logs = srv_available_undo_logs;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
@@ -1592,6 +1594,7 @@ loop:
 			"InnoDB: Please submit a bug report"
 			" to http://bugs.mysql.com\n",
 			old_lsn, new_lsn);
+		ut_ad(0);
 	}
 
 	old_lsn = new_lsn;

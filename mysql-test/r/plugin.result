@@ -8,8 +8,30 @@ INSTALL PLUGIN EXAMPLE SONAME 'ha_example.so';
 ERROR HY000: Function 'EXAMPLE' already exists
 UNINSTALL PLUGIN example;
 INSTALL PLUGIN example SONAME 'ha_example.so';
+# Example engine does not support indexes
+CREATE TABLE t1 (a int PRIMARY KEY) ENGINE=EXAMPLE;
+ERROR 42000: Too many key parts specified; max 0 parts allowed
+CREATE TABLE t1 (a int, KEY (a)) ENGINE=EXAMPLE;
+ERROR 42000: Too many key parts specified; max 0 parts allowed
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1
+# Let's do some advanced ops with the example engine :)
+INSERT INTO t1 VALUES (0);
+# Only supports table scans (and does always return zero rows :)
 SELECT * FROM t1;
+a
+SELECT * FROM t1 WHERE a = 0;
+a
+# Since there are no rows found, it will never do update_row.
+UPDATE t1 SET a = 1 WHERE a = 0;
+# Since there are no rows found, it will never do delete_row.
+DELETE FROM t1 WHERE a = 0;
+# No support for SQL HANDLER statement
+HANDLER t1 OPEN;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 DROP TABLE t1;
 set global example_ulong_var=500;

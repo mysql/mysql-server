@@ -141,7 +141,7 @@ static struct my_option my_long_options[] =
    &opt_low_priority, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -609,8 +609,11 @@ int main(int argc, char **argv)
   char **argv_to_free;
   MY_INIT(argv[0]);
 
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my",load_default_groups,&argc,&argv))
     return 1;
+  my_getopt_use_args_separator= FALSE;
+
   /* argv is changed in the program */
   argv_to_free= argv;
   if (get_options(&argc, &argv))

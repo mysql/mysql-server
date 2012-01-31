@@ -1051,10 +1051,6 @@ protected:
   bool keep_field_type(void) const { return 1; }
   enum Item_result result_type () const { return hybrid_type; }
   enum enum_field_types field_type() const { return hybrid_field_type; }
-  enum Item_result numeric_context_result_type() const
-  {
-    return args[0]->numeric_context_result_type();
-  }
   void update_field();
   void min_max_update_str_field();
   void min_max_update_temporal_field();

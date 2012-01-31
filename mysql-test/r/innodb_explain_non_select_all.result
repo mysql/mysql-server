@@ -30,12 +30,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	4
 Handler_update	3
 
@@ -69,13 +69,13 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	4
 
 DROP TABLE t1;
@@ -108,13 +108,13 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	4
 
 DROP TABLE t1;
@@ -152,12 +152,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	8
 Handler_update	1
 
@@ -185,10 +185,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	2
-Handler_read_rnd_next	4
-Handler_write	3
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 t11, (SELECT * FROM t2) t12                WHERE t11.a = 1;
@@ -200,20 +196,16 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`t12`.`b` AS `b` from `test`.`t1` `t11` join (/* select#2 */ select `test`.`t2`.`b` AS `b` from `test`.`t2`) `t12` where (`test`.`t11`.`a` = 1)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	2
-Handler_read_rnd_next	4
-Handler_write	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	12
 Handler_write	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	12
 Handler_update	1
 Handler_write	3
@@ -253,12 +245,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	4
-Handler_read_key	8
+Handler_read_key	4
 Handler_read_rnd_next	7
 Handler_update	3
 
@@ -300,12 +292,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	4
-Handler_read_key	8
+Handler_read_key	4
 Handler_read_rnd_next	11
 Handler_update	2
 
@@ -347,12 +339,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	3
-Handler_read_key	6
+Handler_read_key	3
 Handler_read_rnd_next	12
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	5
-Handler_read_key	10
+Handler_read_key	5
 Handler_read_rnd_next	15
 Handler_update	2
 
@@ -380,10 +372,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	2
-Handler_read_rnd_next	4
-Handler_write	3
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 t11, (SELECT * FROM t2) t12;
@@ -395,20 +383,16 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`t12`.`b` AS `b` from `test`.`t1` `t11` join (/* select#2 */ select `test`.`t2`.`b` AS `b` from `test`.`t2`) `t12`
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	2
-Handler_read_rnd_next	4
-Handler_write	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	12
 Handler_write	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	8
+Handler_read_key	5
 Handler_read_rnd	3
 Handler_read_rnd_next	25
 Handler_update	3
@@ -458,13 +442,13 @@ Handler_write	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	5
 Handler_write	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	6
+Handler_read_key	4
 Handler_read_rnd	3
 Handler_read_rnd_next	9
 Handler_update	3
@@ -494,10 +478,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	2
-Handler_read_rnd_next	4
-Handler_write	3
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 t11, (SELECT * FROM t2) t12                WHERE t11.a > 1;
@@ -509,20 +489,16 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`t12`.`b` AS `b` from `test`.`t1` `t11` join (/* select#2 */ select `test`.`t2`.`b` AS `b` from `test`.`t2`) `t12` where (`test`.`t11`.`a` > 1)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	2
-Handler_read_rnd_next	4
-Handler_write	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	12
 Handler_write	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	16
 Handler_update	2
 Handler_write	3
@@ -557,13 +533,13 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	2
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	2
 
 DROP TABLE t1;
@@ -648,7 +624,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	a,b	a	5	NULL	1	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	2
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a = 3;
@@ -658,14 +633,14 @@ Warnings:
 Note	1003	/* select#1 */ select '3' AS `a`,'3' AS `b` from `test`.`t1` where 1
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	4
+Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	4
+Handler_read_key	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
-Handler_read_key	4
+Handler_read_key	1
 
 DROP TABLE t1;
 #15
@@ -685,7 +660,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	a,b	a	5	NULL	1	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	3
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a < 3;
@@ -695,13 +669,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 3)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	9
+Handler_read_key	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	5
+Handler_read_key	1
 
 DROP TABLE t1;
 #16
@@ -720,7 +693,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	1	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	2
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
@@ -730,14 +702,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 0) order by `test`.`t1`.`a`
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	5
+Handler_read_key	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	4
+Handler_read_key	1
 
 INSERT INTO t1 VALUES (1), (2), (3);
 #
@@ -754,7 +725,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	2
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
@@ -764,16 +734,15 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 0) order by `test`.`t1`.`a`
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	5
+Handler_read_key	1
 Handler_read_next	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_next	3
 
 DROP TABLE t1;
@@ -794,7 +763,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
@@ -804,16 +772,15 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (@a:=`test`.`t1`.`a`) order by `test`.`t1`.`a` limit 1
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	3
+Handler_read_key	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
 Handler_read_first	1
-Handler_read_key	3
+Handler_read_key	1
 
 DROP TABLE t1;
 #18
@@ -834,7 +801,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	c,b,a	NULL	NULL	NULL	10	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	3
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 ORDER BY a ASC, b ASC LIMIT 1;
@@ -844,11 +810,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 1
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	6
+Handler_read_key	1
 Handler_read_rnd_next	11
 Sort_rows	1
 Sort_scan	1
@@ -856,7 +821,7 @@ Sort_scan	1
 Variable_name	Value
 Handler_delete	1
 Handler_read_first	1
-Handler_read_key	7
+Handler_read_key	2
 Handler_read_rnd	1
 Handler_read_rnd_next	11
 Sort_rows	10
@@ -888,7 +853,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.b2,test.t1.b1	1	100.00	
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	2
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT *        FROM t1,t2,t3 WHERE a1=a2 AND b2=a3 AND b1=b3;
@@ -900,18 +864,17 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t3`.`a3` AS `a3`,`test`.`t3`.`b3` AS `b3` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`b3` = `test`.`t1`.`b1`) and (`test`.`t3`.`a3` = `test`.`t2`.`b2`) and (`test`.`t2`.`a2` = `test`.`t1`.`a1`))
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	2
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	12
+Handler_read_key	7
 Handler_read_next	3
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	8
 Handler_read_first	1
-Handler_read_key	19
+Handler_read_key	12
 Handler_read_next	3
 Handler_read_rnd	5
 Handler_read_rnd_next	4
@@ -951,12 +914,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	4
-Handler_read_key	8
+Handler_read_key	4
 Handler_read_rnd_next	10
 Handler_update	3
 
@@ -996,13 +959,13 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	6
-Handler_read_key	12
+Handler_read_key	6
 Handler_read_rnd_next	30
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
 Handler_read_first	6
-Handler_read_key	12
+Handler_read_key	6
 Handler_read_rnd_next	30
 
 SET @@optimizer_switch= @save_optimizer_switch;
@@ -1037,13 +1000,13 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	12
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
 Handler_read_first	6
-Handler_read_key	12
+Handler_read_key	6
 Handler_read_rnd_next	30
 
 DROP TABLE t1, t2;
@@ -1076,12 +1039,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	6
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	6
 Handler_update	5
 
@@ -1115,13 +1078,13 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	6
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	6
 
 DROP TABLE t1;
@@ -1147,7 +1110,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	a	a	15	NULL	X	X	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
@@ -1157,17 +1119,16 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	3
+Handler_read_key	1
 Handler_read_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
 Handler_read_first	1
-Handler_read_key	3
+Handler_read_key	1
 Handler_read_next	4
 
 DROP TABLE t1, t2;
@@ -1201,12 +1162,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	4
 Handler_write	3
 
@@ -1241,12 +1202,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	4
 Handler_write	3
 
@@ -1312,25 +1273,23 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	2
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using index condition
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	5
+Handler_read_key	1
 Handler_read_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_next	4
 
 DROP TABLE t1;
@@ -1356,7 +1315,6 @@ Warning	1713	Cannot use range access on index 'i' due to type or collation conve
 Warning	1713	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
@@ -1370,11 +1328,10 @@ Warning	1713	Cannot use range access on index 'i' due to type or collation conve
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
@@ -1382,7 +1339,7 @@ Sort_scan	1
 Variable_name	Value
 Handler_delete	5
 Handler_read_first	1
-Handler_read_key	9
+Handler_read_key	6
 Handler_read_rnd	5
 Handler_read_rnd_next	27
 Sort_rows	8
@@ -1410,7 +1367,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
@@ -1420,11 +1376,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
@@ -1432,7 +1387,7 @@ Sort_scan	1
 Variable_name	Value
 Handler_delete	1
 Handler_read_first	1
-Handler_read_key	5
+Handler_read_key	2
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
@@ -1461,7 +1416,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	a	a	15	NULL	X	X	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
@@ -1471,17 +1425,16 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	3
+Handler_read_key	1
 Handler_read_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
 Handler_read_first	1
-Handler_read_key	3
+Handler_read_key	1
 Handler_read_next	4
 
 DROP TABLE t1, t2;
@@ -1508,7 +1461,6 @@ Warnings:
 Warning	1713	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
@@ -1518,11 +1470,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
@@ -1530,7 +1481,7 @@ Sort_scan	1
 Variable_name	Value
 Handler_delete	1
 Handler_read_first	1
-Handler_read_key	5
+Handler_read_key	2
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
@@ -1606,7 +1557,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	key1,key2	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	4
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
@@ -1616,11 +1566,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`key1` AS `key1`,`test`.`t2`.`key2` AS `key2` from `test`.`t2` where ((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14)) order by `test`.`t2`.`key1`
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	4
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	7
+Handler_read_key	1
 Handler_read_rnd_next	27
 Sort_rows	4
 Sort_scan	1
@@ -1628,7 +1577,7 @@ Sort_scan	1
 Variable_name	Value
 Handler_delete	4
 Handler_read_first	1
-Handler_read_key	11
+Handler_read_key	5
 Handler_read_rnd	4
 Handler_read_rnd_next	27
 Sort_rows	4
@@ -1656,25 +1605,23 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	2
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using index condition
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	5
+Handler_read_key	1
 Handler_read_prev	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_prev	4
 
 DROP TABLE t1, t2;
@@ -1699,7 +1646,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 ORDER BY a, b DESC LIMIT 5;
@@ -1709,11 +1655,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a`,`test`.`t2`.`b` desc limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
@@ -1721,7 +1666,7 @@ Sort_scan	1
 Variable_name	Value
 Handler_delete	5
 Handler_read_first	1
-Handler_read_key	9
+Handler_read_key	6
 Handler_read_rnd	5
 Handler_read_rnd_next	27
 Sort_rows	26
@@ -1750,7 +1695,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	a	a	6	NULL	X	X	
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
@@ -1760,16 +1704,15 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	1
 Handler_read_last	1
 Handler_read_prev	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
-Handler_read_key	3
+Handler_read_key	1
 Handler_read_last	1
 Handler_read_prev	4
 
@@ -1795,24 +1738,22 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	X	X	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	2
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM  t2    WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	X	X	Using index condition
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	X	X	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	5
+Handler_read_key	1
 Handler_read_next	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	10
+Handler_read_key	6
 Handler_read_next	4
 Handler_read_rnd	5
 Handler_update	5
@@ -1842,7 +1783,6 @@ Warning	1713	Cannot use range access on index 'i' due to type or collation conve
 Warning	1713	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
@@ -1856,18 +1796,17 @@ Warning	1713	Cannot use range access on index 'i' due to type or collation conve
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	9
+Handler_read_key	6
 Handler_read_rnd	5
 Handler_read_rnd_next	27
 Handler_update	5
@@ -1896,7 +1835,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
@@ -1906,18 +1844,17 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	5
+Handler_read_key	2
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Handler_update	1
@@ -1947,7 +1884,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	a	a	15	NULL	X	X	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
@@ -1957,16 +1893,15 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	3
+Handler_read_key	1
 Handler_read_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	9
+Handler_read_key	6
 Handler_read_next	4
 Handler_read_rnd	5
 Handler_update	5
@@ -1995,7 +1930,6 @@ Warnings:
 Warning	1713	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
@@ -2005,20 +1939,20 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	5
+Handler_read_key	2
 Handler_read_rnd	1
 Handler_read_rnd_next	27
+Handler_update	1
 Sort_rows	1
 Sort_scan	1
 
@@ -2091,7 +2025,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	key1,key2	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	4
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2      WHERE key1 < 13 or key2 < 14 ORDER BY key1;
@@ -2101,18 +2034,17 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`key1` AS `key1`,`test`.`t2`.`key2` AS `key2` from `test`.`t2` where ((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14)) order by `test`.`t2`.`key1`
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	4
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	7
+Handler_read_key	1
 Handler_read_rnd_next	27
 Sort_rows	4
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	11
+Handler_read_key	5
 Handler_read_rnd	4
 Handler_read_rnd_next	27
 Handler_update	4
@@ -2141,24 +2073,22 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	2
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using index condition
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	5
+Handler_read_key	1
 Handler_read_prev	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	10
+Handler_read_key	6
 Handler_read_prev	4
 Handler_read_rnd	5
 Handler_update	5
@@ -2185,7 +2115,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     ORDER BY a, b DESC LIMIT 5;
@@ -2195,21 +2124,20 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a`,`test`.`t2`.`b` desc limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	9
+Handler_read_key	6
 Handler_read_rnd	5
 Handler_read_rnd_next	27
-Handler_update	4
+Handler_update	5
 Sort_rows	5
 Sort_scan	1
 
@@ -2236,7 +2164,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	a	a	6	NULL	X	X	Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     ORDER BY a DESC, b DESC LIMIT 5;
@@ -2246,15 +2173,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	1
 Handler_read_last	1
 Handler_read_prev	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	9
+Handler_read_key	6
 Handler_read_last	1
 Handler_read_prev	4
 Handler_read_rnd	5
@@ -2284,7 +2210,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY,c1_idx	c1_idx	2	NULL	2	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	3
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1     WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
@@ -2294,14 +2219,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	5
+Handler_read_key	1
 Handler_read_prev	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	8
+Handler_read_key	3
 Handler_read_prev	1
 Handler_read_rnd	2
 Handler_update	2
@@ -2320,7 +2244,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY,c1_idx	c1_idx	2	NULL	2	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	3
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
@@ -2330,15 +2253,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	5
+Handler_read_key	1
 Handler_read_prev	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	2
-Handler_read_key	5
+Handler_read_key	1
 Handler_read_prev	1
 
 DROP TABLE t1;
@@ -2359,7 +2281,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	2
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1     WHERE a > 34;
@@ -2369,14 +2290,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 34)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	2
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_next	2
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	7
+Handler_read_key	3
 Handler_read_next	2
 Handler_read_rnd	2
 Handler_update	2
@@ -2415,12 +2335,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	3
-Handler_read_key	6
+Handler_read_key	3
 Handler_read_rnd_next	5
 
 #
@@ -2452,12 +2372,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	4
 
 DROP TABLE t1, t2;
@@ -2485,7 +2405,6 @@ Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT              (SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1) FROM t1;
@@ -2497,17 +2416,16 @@ Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`t2`.`f4`) from `test`.`t2` where (`test`.`t2`.`f3` = `test`.`t1`.`f1`)) AS `(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1)` from `test`.`t1`
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	7
+Handler_read_key	3
 Handler_read_next	2
 Handler_read_rnd_next	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	7
+Handler_read_key	3
 Handler_read_next	2
 Handler_read_rnd_next	3
 Handler_update	2
@@ -2581,12 +2499,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	2
 Handler_read_rnd_next	6
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	6
+Handler_read_key	3
 Handler_read_rnd	1
 Handler_read_rnd_next	9
 Handler_write	2
@@ -2623,12 +2541,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	3
-Handler_read_key	6
+Handler_read_key	3
 Handler_read_rnd_next	9
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	5
-Handler_read_key	13
+Handler_read_key	7
 Handler_read_rnd	2
 Handler_read_rnd_next	19
 Handler_update	1
@@ -2654,7 +2572,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	2
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM v1 WHERE a < 4;
@@ -2664,17 +2581,16 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 4)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	2
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_next	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	1
 Handler_read_next	3
 
 DROP TABLE t1;
@@ -2701,7 +2617,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT *  FROM t2, v1 WHERE t2.x = v1.a;
@@ -2712,17 +2627,16 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	5
+Handler_read_key	2
 Handler_read_rnd_next	11
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
 Handler_read_first	1
-Handler_read_key	13
+Handler_read_key	9
 Handler_read_rnd	4
 Handler_read_rnd_next	5
 
@@ -2750,7 +2664,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_key	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT *  FROM t2, v1 WHERE t2.x = v1.a;
@@ -2761,17 +2674,16 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	5
+Handler_read_key	2
 Handler_read_rnd_next	11
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
 Handler_read_first	1
-Handler_read_key	13
+Handler_read_key	9
 Handler_read_rnd	4
 Handler_read_rnd_next	5
 
@@ -2842,12 +2754,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_rnd_next	1
 
 DROP TABLE t1, t2;
@@ -2870,53 +2782,41 @@ INSERT INTO t2 VALUES (1), (2), (3);
 EXPLAIN UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	<derived3>	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	3	Using where
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	<derived3>	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_first	2
-Handler_read_key	3
-Handler_read_rnd_next	5
-Handler_write	1
-Sort_rows	3
-Sort_scan	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1            WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	1	100.00	Materialize; Scan
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) where (`test`.`t1`.`a` = `x`.`b`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) where (`x`.`b` = `test`.`t1`.`a`)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	3
-Handler_read_rnd_next	4
-Handler_write	1
-Sort_rows	3
-Sort_scan	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	5
-Handler_read_rnd_next	12
-Handler_write	2
+Handler_read_rnd_next	8
+Handler_write	1
 Sort_rows	3
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	3
-Handler_read_key	5
-Handler_read_rnd_next	9
+Handler_read_first	2
+Handler_read_key	2
+Handler_read_rnd_next	13
 Handler_update	1
 Handler_write	1
 Sort_rows	3
@@ -2928,49 +2828,37 @@ Sort_scan	1
 #
 EXPLAIN UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	1	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	test.t1.a	2	Using index; FirstMatch(t1)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	3
-Handler_read_rnd_next	4
-Handler_write	1
-Sort_rows	3
-Sort_scan	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1, t2            WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join `test`.`t2` where (`test`.`t1`.`a` = `x`.`b`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join `test`.`t2` where (`x`.`b` = `test`.`t1`.`a`)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	3
-Handler_read_rnd_next	4
-Handler_write	1
-Sort_rows	3
-Sort_scan	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	5
-Handler_read_rnd_next	10
+Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
 Sort_scan	1
@@ -2978,7 +2866,7 @@ Sort_scan	1
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	5
-Handler_read_rnd_next	10
+Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
 Sort_scan	1
@@ -2989,61 +2877,49 @@ Sort_scan	1
 #
 EXPLAIN UPDATE        t1, (SELECT * FROM t2) y SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	1	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	test.t1.a	2	Using index; FirstMatch(t1)
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, (SELECT * FROM t2) y SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_first	2
-Handler_read_key	5
-Handler_read_rnd_next	8
-Handler_write	4
-Sort_rows	3
-Sort_scan	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1, (SELECT * FROM t2) y            WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`y`.`b` AS `b` from `test`.`t1` semi join ((/* select#4 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join (/* select#2 */ select `test`.`t2`.`b` AS `b` from `test`.`t2`) `y` where (`test`.`t1`.`a` = `x`.`b`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`y`.`b` AS `b` from `test`.`t1` semi join ((/* select#4 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join (/* select#2 */ select `test`.`t2`.`b` AS `b` from `test`.`t2`) `y` where (`x`.`b` = `test`.`t1`.`a`)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
+Variable_name	Value
+# Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	5
 Handler_read_rnd_next	8
-Handler_write	4
-Sort_rows	3
-Sort_scan	1
-# Status of "equivalent" SELECT query execution:
-Variable_name	Value
-Handler_read_first	3
-Handler_read_key	7
-Handler_read_rnd_next	14
-Handler_write	4
+Handler_write	1
 Sort_rows	3
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	3
-Handler_read_key	7
-Handler_read_rnd_next	14
-Handler_write	4
+Handler_read_first	2
+Handler_read_key	5
+Handler_read_rnd_next	8
+Handler_write	1
 Sort_rows	3
 Sort_scan	1
 
@@ -3062,7 +2938,7 @@ JOIN t1 AS a12 ON a12.c1 = a11.c1
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	100.00	
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	100.00	
 3	DERIVED	a11	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
 3	DERIVED	a21	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 3	DERIVED	a12	eq_ref	PRIMARY	PRIMARY	4	test.a11.c1	1	100.00	Using index

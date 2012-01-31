@@ -87,7 +87,7 @@ const char *relay_log_basename= 0;
   of Relay_log_info::gaq (see @c slave_start_workers()).
   It can be set to any value in [1, ULONG_MAX - 1] range.
 */
-const ulong mts_slave_worker_queue_len_max= 32768;
+const ulong mts_slave_worker_queue_len_max= 16384;
 
 /*
   MTS load-ballancing parameter.
@@ -340,8 +340,9 @@ int init_slave()
   /* If server id is not set, start_slave_thread() will say it */
   if (active_mi->host[0] && !opt_skip_slave_start)
   {
-    /* same as in start_slave() cache the global var value into rli's member */
+    /* same as in start_slave() cache the global var values into rli's members */
     active_mi->rli->opt_slave_parallel_workers= opt_mts_slave_parallel_workers;
+    active_mi->rli->checkpoint_group= opt_mts_checkpoint_group;
     if (start_slave_threads(1 /* need mutex */,
                             0 /* no wait for start*/,
                             active_mi,
@@ -4268,7 +4269,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     cnt= rli->gaq->move_queue_head(&rli->workers);
 #ifndef DBUG_OFF
     if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
-        cnt != mts_checkpoint_period)
+        cnt != opt_mts_checkpoint_period)
       sql_print_error("This an error cnt != mts_checkpoint_period");
 #endif
   } while (!sql_slave_killed(rli->info_thd, rli) &&
@@ -4381,7 +4382,8 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
   }
   set_dynamic(&rli->workers, (uchar*) &w, i);
 
-  if (pthread_create(&th, &connection_attrib, handle_slave_worker,
+  if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
+      pthread_create(&th, &connection_attrib, handle_slave_worker,
                      (void*) w))
   {
     sql_print_error("Failed during slave worker thread create");
@@ -4397,6 +4399,18 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
   insert_dynamic(&rli->least_occupied_workers, (uchar*) &w->jobs.len);
 
 err:
+  if (error && w)
+  {
+    w->end_info();
+    delete_dynamic(&w->jobs.Q);
+    delete w;
+    /*
+      Any failure after dynarray inserted must follow with deletion
+      of just created item.
+    */
+    if (rli->workers.elements == i + 1)
+      delete_dynamic_element(&rli->workers, i);
+  }
   return error;
 }
 
@@ -4408,13 +4422,15 @@ err:
    @return 0         success
            non-zero  as failure
 */
-int slave_start_workers(Relay_log_info *rli, ulong n)
+int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
 {
   uint i;
   int error= 0;
 
   if (n == 0) 
     return error;
+
+  *mts_inited= true;
 
   // RLI constructor time alloc/init
 
@@ -4431,7 +4447,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n)
 
   /* 
      GAQ  queue holds seqno:s of scheduled groups. C polls workers in 
-     @c lwm_checkpoint_period to update GAQ (see @c next_event())
+     @c opt_mts_checkpoint_period to update GAQ (see @c next_event())
      The length of GAQ is set to be equal to checkpoint_group.
      Notice, the size matters for mts_checkpoint_routine's progress loop.
   */
@@ -4462,17 +4478,17 @@ int slave_start_workers(Relay_log_info *rli, ulong n)
   init_alloc_root(&rli->mts_coor_mem_root, NAME_LEN,
                   (MAX_DBS_IN_EVENT_MTS / 2) * NAME_LEN);
 
-  for (i= 0; i < n; i++)
-  {
-    if ((error= slave_start_single_worker(rli, i)))
-      goto err;
-  }
-
   if (init_hash_workers(n))  // MTS: mapping_db_to_worker
   {
     sql_print_error("Failed to init partitions hash");
     error= 1;
     goto err;
+  }
+
+  for (i= 0; i < n; i++)
+  {
+    if ((error= slave_start_single_worker(rli, i)))
+      goto err;
   }
 
 err:
@@ -4494,14 +4510,16 @@ err:
    worker's running_status.
    Coordinator finalizes with its MTS running status to reset few objects.
 */
-void slave_stop_workers(Relay_log_info *rli)
+void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 {
   int i;
   THD *thd= rli->info_thd;
 
-  if (rli->slave_parallel_workers == 0) 
+  if (!*mts_inited) 
     return;
-  
+  else if (rli->slave_parallel_workers == 0)
+    goto end;
+
   /*
     In case of the "soft" graceful stop Coordinator
     guaranteed Workers were assigned with full groups so waiting
@@ -4597,6 +4615,7 @@ void slave_stop_workers(Relay_log_info *rli)
   DBUG_ASSERT(rli->pending_jobs == 0);
   DBUG_ASSERT(rli->mts_pending_jobs_size == 0);
 
+end:
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   destroy_hash_workers(rli);
   delete rli->gaq;
@@ -4606,6 +4625,7 @@ void slave_stop_workers(Relay_log_info *rli)
   rli->deinit_workers();
   rli->slave_parallel_workers= 0;
   free_root(&rli->mts_coor_mem_root, MYF(0));
+  *mts_inited= false;
 }
 
 /**
@@ -4628,7 +4648,8 @@ pthread_handler_t handle_slave_sql(void *arg)
 
   Relay_log_info* rli = ((Master_info*)arg)->rli;
   const char *errmsg;
- 
+  bool mts_inited= false;
+
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
   DBUG_ENTER("handle_slave_sql");
@@ -4671,7 +4692,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   mysql_mutex_unlock(&LOCK_thread_count);
 
   /* MTS: starting the worker pool */
-  if (slave_start_workers(rli, rli->opt_slave_parallel_workers) != 0)
+  if (slave_start_workers(rli, rli->opt_slave_parallel_workers, &mts_inited) != 0)
   {
     mysql_cond_broadcast(&rli->start_cond);
     mysql_mutex_unlock(&rli->run_lock);
@@ -4921,7 +4942,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
  err:
 
-  slave_stop_workers(rli); // stopping worker pool before clearing own error
+  slave_stop_workers(rli, &mts_inited); // stopping worker pool
 
   /*
     Some events set some playgrounds, which won't be cleared because thread
@@ -5513,7 +5534,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       event_len += BINLOG_CHECKSUM_LEN;
       memcpy(rot_buf, buf, event_len - BINLOG_CHECKSUM_LEN);
       int4store(&rot_buf[EVENT_LEN_OFFSET],
-                uint4korr(&rot_buf[EVENT_LEN_OFFSET]) + BINLOG_CHECKSUM_LEN);
+                uint4korr(rot_buf + EVENT_LEN_OFFSET) + BINLOG_CHECKSUM_LEN);
       rot_crc= my_checksum(rot_crc, (const uchar *) rot_buf,
                            event_len - BINLOG_CHECKSUM_LEN);
       int4store(&rot_buf[event_len - BINLOG_CHECKSUM_LEN], rot_crc);
@@ -5536,7 +5557,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         event_len -= BINLOG_CHECKSUM_LEN;
         memcpy(rot_buf, buf, event_len);
         int4store(&rot_buf[EVENT_LEN_OFFSET],
-                  uint4korr(&rot_buf[EVENT_LEN_OFFSET]) - BINLOG_CHECKSUM_LEN);
+                  uint4korr(rot_buf + EVENT_LEN_OFFSET) - BINLOG_CHECKSUM_LEN);
         DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
         DBUG_ASSERT(mi->rli->relay_log.description_event_for_queue->checksum_alg ==
                     mi->rli->relay_log.relay_log_checksum_alg);
@@ -6229,9 +6250,9 @@ static Log_event* next_event(Relay_log_info* rli)
          MTS checkpoint in the successful read branch 
       */
       bool force= (rli->checkpoint_seqno > (rli->checkpoint_group - 1));
-      if (rli->is_parallel_exec() && (mts_checkpoint_period != 0 || force))
+      if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 || force))
       {
-        ulonglong period= static_cast<ulonglong>(mts_checkpoint_period * 1000000ULL);
+        ulonglong period= static_cast<ulonglong>(opt_mts_checkpoint_period * 1000000ULL);
         mysql_mutex_unlock(&rli->data_lock);
         /*
           At this point the coordinator has is delegating jobs to workers and
@@ -6367,12 +6388,12 @@ static Log_event* next_event(Relay_log_info* rli)
         mysql_cond_broadcast(&rli->log_space_cond);
         // Note that wait_for_update_relay_log unlocks lock_log !
 
-        if (rli->is_parallel_exec() && (mts_checkpoint_period != 0 ||
+        if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 ||
             DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0)))
         {
           int ret= 0;
           struct timespec waittime;
-          ulonglong period= static_cast<ulonglong>(mts_checkpoint_period * 1000000ULL);
+          ulonglong period= static_cast<ulonglong>(opt_mts_checkpoint_period * 1000000ULL);
           ulong signal_cnt= rli->relay_log.signal_cnt;
 
           mysql_mutex_unlock(log_lock);
@@ -6863,10 +6884,15 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
       if (thread_mask & SLAVE_SQL)
       {
         /*
-          To cache the system var value and used it in the following.
-          The system var can change but not the cached.
+          To cache the MTS system var values and used them in the following
+          runtime. The system var:s can change meanwhile but having no other
+          effects.
         */
         mi->rli->opt_slave_parallel_workers= opt_mts_slave_parallel_workers;
+#ifndef DBUG_OFF
+        if (!DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
+#endif
+          mi->rli->checkpoint_group= opt_mts_checkpoint_group;
 
         mysql_mutex_lock(&mi->rli->data_lock);
 
@@ -7428,10 +7454,10 @@ bool change_master(THD* thd, Master_info* mi)
   mi->rli->clear_until_condition();
 
   sql_print_information("'CHANGE MASTER TO executed'. "
-    "Previous state master_host='%s', master_port='%u', master_log_file='%s', "
-    "master_log_pos='%ld', master_bind='%s'. "
-    "New state master_host='%s', master_port='%u', master_log_file='%s', "
-    "master_log_pos='%ld', master_bind='%s'.", 
+    "Previous state master_host='%s', master_port= %u, master_log_file='%s', "
+    "master_log_pos= %ld, master_bind='%s'. "
+    "New state master_host='%s', master_port= %u, master_log_file='%s', "
+    "master_log_pos= %ld, master_bind='%s'.", 
     saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
     saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
     (ulong) mi->get_master_log_pos(), mi->bind_addr);

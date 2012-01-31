@@ -220,7 +220,8 @@ SELECT @index;
 
 --echo # fault_injection_registering_index
 SET SESSION debug="+d,fault_injection_registering_index";
--- replace_regex /\.[\\\/]master/master/
+# normalize strerror message for solaris10-sparc-64bit as long as errno is OK
+-- replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 -- error ER_CANT_OPEN_FILE
 flush logs;
 
@@ -240,7 +241,8 @@ SELECT @index;
 
 --echo # fault_injection_updating_index
 SET SESSION debug="+d,fault_injection_updating_index";
--- replace_regex /\.[\\\/]master/master/
+# normalize strerror message for solaris10-sparc-64bit as long as errno is OK
+-- replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 -- error ER_CANT_OPEN_FILE
 flush logs;
 

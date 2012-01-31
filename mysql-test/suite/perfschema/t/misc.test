@@ -5,6 +5,60 @@
 --source include/have_perfschema.inc
 
 #
+# Bug#12790483 OBJECTS_SUMMARY_GLOBAL_BY_TYPE AND RENAME TABLE
+#
+# Rename table leaves old tables names behind in
+# performance_schema.objects_summary_global_by_type
+#
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+  WHERE object_schema='test';
+
+CREATE TABLE test.t_before(a INT);
+INSERT INTO test.t_before VALUES (1);
+
+# The new table should appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE.
+
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+  WHERE object_schema='test';
+
+RENAME TABLE test.t_before TO test.t_after;
+
+# The renamed table should appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE, but only
+# after it is accessed.
+
+SELECT COUNT(*) FROM test.t_after;
+
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+  WHERE object_schema='test';
+
+DROP TABLE test.t_after;
+
+# The renamed table should not appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE.
+
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+  WHERE object_schema='test';
+
+#
+# Verify table views are ignored by the table io instrumentation.
+#
+
+CREATE TABLE test.t1(a INT);
+INSERT INTO test.t1 VALUES (1);
+CREATE VIEW test.v1 AS SELECT * FROM test.t1;
+SELECT COUNT(*) FROM test.v1;
+
+# Verify that a PFS table share was not created for the view.
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+  WHERE object_schema='test';
+
+DROP VIEW test.v1;
+DROP TABLE test.t1;
+
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+  WHERE object_schema='test';
+
+
+#
 # Bug#45496 Performance schema: assertion fails in
 # ha_perfschema::rnd_init:223
 #
@@ -26,6 +80,11 @@ LIMIT 1;
 --error ER_CANT_CREATE_TABLE
 create table test.t1(a int) engine=performance_schema;
 
+# The table should not appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE
+
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+  WHERE object_schema='test';
+
 #
 # Bug#44897 Performance Schema: can create a ghost table in another database
 #
@@ -33,12 +92,22 @@ create table test.t1(a int) engine=performance_schema;
 --error ER_CANT_CREATE_TABLE
 create table test.t1 like performance_schema.events_waits_current;
 
+# The table should not appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE
+
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+  WHERE object_schema='test';
+
 #
 # Bug#44898 PerformanceSchema: can create a table in db performance_schema, cannot insert
 #
 
 --error ER_TABLEACCESS_DENIED_ERROR
 create table performance_schema.t1(a int);
+
+# The table should not appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE
+
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+  WHERE object_schema='test';
 
 #
 # Bug#51447 performance schema evil twin files

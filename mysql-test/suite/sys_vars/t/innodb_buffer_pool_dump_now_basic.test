@@ -17,7 +17,7 @@ SELECT @@global.innodb_buffer_pool_dump_now;
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
   FROM information_schema.global_status
-  WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
 -- source include/wait_condition.inc
 
 # Confirm that the dump file has been created

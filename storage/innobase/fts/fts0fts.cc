@@ -1692,8 +1692,7 @@ ulint
 fts_create_common_tables(
 /*=====================*/
 	trx_t*		trx,			/*!< in: transaction */
-	const dict_table_t*
-			table,			/*!< in: table with FTS index */
+	const dict_table_t* table,		/*!< in: table with FTS index */
 	const char*	name,			/*!< in: table name normalized.*/
 	ibool		skip_doc_id_index)	/*!< in: Skip index on doc id */
 
@@ -1732,7 +1731,7 @@ fts_create_common_tables(
 	graph = fts_parse_sql_no_dict_lock(
 		&fts_table, NULL, fts_config_table_insert_values_sql);
 
-	error = fts_eval_sql( trx, graph);
+	error = fts_eval_sql(trx, graph);
 
 	que_graph_free(graph);
 
@@ -2255,7 +2254,8 @@ fts_trx_add_op(
 	dict_table_t*	table,			/*!< in: table */
 	doc_id_t	doc_id,			/*!< in: new doc id */
 	fts_row_state	state,			/*!< in: state of the row */
-	ib_vector_t*	fts_indexes)		/*!< in: FTS indexes affected */
+	ib_vector_t*	fts_indexes)		/*!< in: FTS indexes affected
+						(NULL=all) */
 {
 	fts_trx_table_t*	tran_ftt;
 	fts_trx_table_t*	stmt_ftt;
@@ -2386,9 +2386,7 @@ fts_get_total_document_count(
 /*=========================*/
 	dict_table_t*   table)		/*!< in: table instance */
 {
-	if (!table->stat_initialized) {
-		dict_stats_update(table, DICT_STATS_RECALC_TRANSIENT, FALSE);
-	}
+	ut_ad(table->stat_initialized);
 
 	return((ulint) table->stat_n_rows);
 }

@@ -290,6 +290,9 @@ int ha_perfschema::rnd_init(bool scan)
   else
     m_table->reset_position();
 
+  if (m_table != NULL)
+    m_table->rnd_init(scan);
+
   result= m_table ? 0 : HA_ERR_OUT_OF_MEM;
   DBUG_RETURN(result);
 }

@@ -272,7 +272,7 @@ select * from t2 where a NOT IN (
 '2006-04-25 10:00:00','2006-04-25 10:02:00','2006-04-25 10:04:00', 
 '2006-04-25 10:06:00', '2006-04-25 10:08:00');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	9	NULL	18	Using index condition; Using MRR
+1	SIMPLE	t2	range	a	a	6	NULL	12	Using index condition; Using MRR
 select * from t2 where a NOT IN (
 '2006-04-25 10:00:00','2006-04-25 10:02:00','2006-04-25 10:04:00', 
 '2006-04-25 10:06:00', '2006-04-25 10:08:00');
@@ -700,11 +700,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT * FROM t1 WHERE c_datetime
 IN ('2009-09-01 00:00:01', '2009-09-02 00:00:01', '2009-09-03 00:00:01');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_datetime	c_datetime	8	NULL	3	Using index condition; Using MRR
+1	SIMPLE	t1	range	c_datetime	c_datetime	5	NULL	3	Using index condition; Using MRR
 EXPLAIN SELECT * FROM t1 WHERE c_datetime
 IN (NULL, '2009-09-01 00:00:01', '2009-09-02 00:00:01', '2009-09-03 00:00:01');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_datetime	c_datetime	8	NULL	3	Using index condition; Using MRR
+1	SIMPLE	t1	range	c_datetime	c_datetime	5	NULL	3	Using index condition; Using MRR
 EXPLAIN SELECT * FROM t1 WHERE c_datetime IN (NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -817,5 +817,12 @@ def				MAX(f1)	MAX(f1)	13	4	4	Y	32864	0	63
 MAX(f1)
 2001
 DROP TABLE t1;
+#
+# Bug #11764651-57510: IN(string,real,string) causes invalid read in sort function
+#
+SELECT LEFT(GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.query_cache_type,1,"");
+LEFT(GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.query_cache_type,1,"")
+0
+# End of test BUG#11764651-57510
 End of 5.1 tests
 set optimizer_switch=default;

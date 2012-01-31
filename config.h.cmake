@@ -519,8 +519,10 @@
 # define HAVE_SETENV
 #define setenv(a,b,c) _putenv_s(a,b)
 #endif
-
-
+/* We don't want the min/max macros */
+#ifdef __WIN__
+#define NOMINMAX
+#endif
 
 
 /*

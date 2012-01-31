@@ -2493,6 +2493,11 @@ void Item_func_format::print(String *str, enum_query_type query_type)
   args[0]->print(str, query_type);
   str->append(',');
   args[1]->print(str, query_type);
+  if(arg_count > 2)
+  {
+    str->append(',');
+    args[2]->print(str,query_type);
+  }
   str->append(')');
 }
 

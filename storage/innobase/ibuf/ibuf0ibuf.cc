@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1255,17 +1255,9 @@ ibuf_rec_get_page_no_func(
 
 	field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
 
-	if (len == 1) {
-		/* This is of the >= 4.1.x record format */
-		ut_a(trx_sys_multiple_tablespace_format);
+	ut_a(len == 1);
 
-		field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_PAGE, &len);
-	} else {
-		ut_a(trx_doublewrite_must_reset_space_ids);
-		ut_a(!trx_sys_multiple_tablespace_format);
-
-		field = rec_get_nth_field_old(rec, 0, &len);
-	}
+	field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_PAGE, &len);
 
 	ut_a(len == 4);
 
@@ -1301,20 +1293,13 @@ ibuf_rec_get_space_func(
 
 	field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
 
-	if (len == 1) {
-		/* This is of the >= 4.1.x record format */
+	ut_a(len == 1);
 
-		ut_a(trx_sys_multiple_tablespace_format);
-		field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_SPACE, &len);
-		ut_a(len == 4);
+	field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_SPACE, &len);
 
-		return(mach_read_from_4(field));
-	}
+	ut_a(len == 4);
 
-	ut_a(trx_doublewrite_must_reset_space_ids);
-	ut_a(!trx_sys_multiple_tablespace_format);
-
-	return(0);
+	return(mach_read_from_4(field));
 }
 
 #ifdef UNIV_DEBUG
@@ -1584,58 +1569,6 @@ ibuf_dummy_index_free(
 	dict_mem_table_free(table);
 }
 
-/*********************************************************************//**
-Builds the entry to insert into a non-clustered index when we have the
-corresponding record in an ibuf index.
-
-NOTE that as we copy pointers to fields in ibuf_rec, the caller must
-hold a latch to the ibuf_rec page as long as the entry is used!
-
-@return own: entry to insert to a non-clustered index */
-UNIV_INLINE
-dtuple_t*
-ibuf_build_entry_pre_4_1_x(
-/*=======================*/
-	const rec_t*	ibuf_rec,	/*!< in: record in an insert buffer */
-	mem_heap_t*	heap,		/*!< in: heap where built */
-	dict_index_t**	pindex)		/*!< out, own: dummy index that
-					describes the entry */
-{
-	ulint		i;
-	ulint		len;
-	const byte*	types;
-	dtuple_t*	tuple;
-	ulint		n_fields;
-
-	ut_a(trx_doublewrite_must_reset_space_ids);
-	ut_a(!trx_sys_multiple_tablespace_format);
-
-	n_fields = rec_get_n_fields_old(ibuf_rec) - 2;
-	tuple = dtuple_create(heap, n_fields);
-	types = rec_get_nth_field_old(ibuf_rec, 1, &len);
-
-	ut_a(len == n_fields * DATA_ORDER_NULL_TYPE_BUF_SIZE);
-
-	for (i = 0; i < n_fields; i++) {
-		const byte*	data;
-		dfield_t*	field;
-
-		field = dtuple_get_nth_field(tuple, i);
-
-		data = rec_get_nth_field_old(ibuf_rec, i + 2, &len);
-
-		dfield_set_data(field, data, len);
-
-		dtype_read_for_order_and_null_size(
-			dfield_get_type(field),
-			types + i * DATA_ORDER_NULL_TYPE_BUF_SIZE);
-	}
-
-	*pindex = ibuf_dummy_index_create(n_fields, FALSE);
-
-	return(tuple);
-}
-
 #ifdef UNIV_DEBUG
 # define ibuf_build_entry_from_ibuf_rec(mtr,ibuf_rec,heap,pindex)	\
 	ibuf_build_entry_from_ibuf_rec_func(mtr,ibuf_rec,heap,pindex)
@@ -1689,15 +1622,7 @@ ibuf_build_entry_from_ibuf_rec_func(
 
 	data = rec_get_nth_field_old(ibuf_rec, IBUF_REC_FIELD_MARKER, &len);
 
-	if (len > 1) {
-		/* This a < 4.1.x format record */
-
-		return(ibuf_build_entry_pre_4_1_x(ibuf_rec, heap, pindex));
-	}
-
-	/* This a >= 4.1.x format record */
-
-	ut_a(trx_sys_multiple_tablespace_format);
+	ut_a(len == 1);
 	ut_a(*data == 0);
 	ut_a(rec_get_n_fields_old(ibuf_rec) > IBUF_REC_FIELD_USER);
 
@@ -1753,8 +1678,6 @@ ibuf_rec_get_size(
 	const rec_t*	rec,			/*!< in: ibuf record */
 	const byte*	types,			/*!< in: fields */
 	ulint		n_fields,		/*!< in: number of fields */
-	ibool		pre_4_1,		/*!< in: TRUE=pre-4.1 format,
-						FALSE=newer */
 	ulint		comp)			/*!< in: 0=ROW_FORMAT=REDUNDANT,
 						nonzero=ROW_FORMAT=COMPACT */
 {
@@ -1763,13 +1686,8 @@ ibuf_rec_get_size(
 	ulint	types_offset;
 	ulint	size = 0;
 
-	if (pre_4_1) {
-		field_offset = 2;
-		types_offset = DATA_ORDER_NULL_TYPE_BUF_SIZE;
-	} else {
-		field_offset = IBUF_REC_FIELD_USER;
-		types_offset = DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE;
-	}
+	field_offset = IBUF_REC_FIELD_USER;
+	types_offset = DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE;
 
 	for (i = 0; i < n_fields; i++) {
 		ulint		len;
@@ -1779,10 +1697,6 @@ ibuf_rec_get_size(
 
 		if (len != UNIV_SQL_NULL) {
 			size += len;
-		} else if (pre_4_1) {
-			dtype_read_for_order_and_null_size(&dtype, types);
-
-			size += dtype_get_sql_null_size(&dtype, comp);
 		} else {
 			dtype_new_read_for_order_and_null_size(&dtype, types);
 
@@ -1820,8 +1734,9 @@ ibuf_rec_get_volume_func(
 	const byte*	types;
 	ulint		n_fields;
 	ulint		data_size;
-	ibool		pre_4_1;
 	ulint		comp;
+	ibuf_op_t	op;
+	ulint		info_len;
 
 	ut_ad(mtr_memo_contains_page(mtr, ibuf_rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, ibuf_rec, MTR_MEMO_PAGE_S_FIX));
@@ -1829,64 +1744,44 @@ ibuf_rec_get_volume_func(
 	ut_ad(rec_get_n_fields_old(ibuf_rec) > 2);
 
 	data = rec_get_nth_field_old(ibuf_rec, IBUF_REC_FIELD_MARKER, &len);
-	pre_4_1 = (len > 1);
+	ut_a(len == 1);
+	ut_a(*data == 0);
 
-	if (pre_4_1) {
-		/* < 4.1.x format record */
+	types = rec_get_nth_field_old(
+		ibuf_rec, IBUF_REC_FIELD_METADATA, &len);
 
-		ut_a(trx_doublewrite_must_reset_space_ids);
-		ut_a(!trx_sys_multiple_tablespace_format);
+	ibuf_rec_get_info(mtr, ibuf_rec, &op, &comp, &info_len, NULL);
 
-		n_fields = rec_get_n_fields_old(ibuf_rec) - 2;
+	if (op == IBUF_OP_DELETE_MARK || op == IBUF_OP_DELETE) {
+		/* Delete-marking a record doesn't take any
+		additional space, and while deleting a record
+		actually frees up space, we have to play it safe and
+		pretend it takes no additional space (the record
+		might not exist, etc.).  */
 
-		types = rec_get_nth_field_old(ibuf_rec, 1, &len);
+		return(0);
+	} else if (comp) {
+		dtuple_t*	entry;
+		ulint		volume;
+		dict_index_t*	dummy_index;
+		mem_heap_t*	heap = mem_heap_create(500);
 
-		ut_ad(len == n_fields * DATA_ORDER_NULL_TYPE_BUF_SIZE);
-		comp = 0;
-	} else {
-		/* >= 4.1.x format record */
-		ibuf_op_t	op;
-		ulint		info_len;
+		entry = ibuf_build_entry_from_ibuf_rec(mtr, ibuf_rec,
+			heap, &dummy_index);
 
-		ut_a(trx_sys_multiple_tablespace_format);
-		ut_a(*data == 0);
+		volume = rec_get_converted_size(dummy_index, entry, 0);
 
-		types = rec_get_nth_field_old(
-			ibuf_rec, IBUF_REC_FIELD_METADATA, &len);
+		ibuf_dummy_index_free(dummy_index);
+		mem_heap_free(heap);
 
-		ibuf_rec_get_info(mtr, ibuf_rec, &op, &comp, &info_len, NULL);
-
-		if (op == IBUF_OP_DELETE_MARK || op == IBUF_OP_DELETE) {
-			/* Delete-marking a record doesn't take any
-			additional space, and while deleting a record
-			actually frees up space, we have to play it safe and
-			pretend it takes no additional space (the record
-			might not exist, etc.).  */
-
-			return(0);
-		} else if (comp) {
-			dtuple_t*	entry;
-			ulint		volume;
-			dict_index_t*	dummy_index;
-			mem_heap_t*	heap = mem_heap_create(500);
-
-			entry = ibuf_build_entry_from_ibuf_rec(
-				mtr, ibuf_rec, heap, &dummy_index);
-
-			volume = rec_get_converted_size(dummy_index, entry, 0);
-
-			ibuf_dummy_index_free(dummy_index);
-			mem_heap_free(heap);
-
-			return(volume + page_dir_calc_reserved_space(1));
-		}
-
-		types += info_len;
-		n_fields = rec_get_n_fields_old(ibuf_rec)
-			- IBUF_REC_FIELD_USER;
+		return(volume + page_dir_calc_reserved_space(1));
 	}
 
-	data_size = ibuf_rec_get_size(ibuf_rec, types, n_fields, pre_4_1, comp);
+	types += info_len;
+	n_fields = rec_get_n_fields_old(ibuf_rec)
+		- IBUF_REC_FIELD_USER;
+
+	data_size = ibuf_rec_get_size(ibuf_rec, types, n_fields, comp);
 
 	return(data_size + rec_get_converted_extra_size(data_size, n_fields, 0)
 	       + page_dir_calc_reserved_space(1));
@@ -2060,7 +1955,7 @@ ibuf_entry_build(
 
 /*********************************************************************//**
 Builds a search tuple used to search buffered inserts for an index page.
-This is for < 4.1.x format records
+This is for >= 4.1.x format records.
 @return	own: search tuple */
 static
 dtuple_t*
@@ -2073,45 +1968,6 @@ ibuf_search_tuple_build(
 	dtuple_t*	tuple;
 	dfield_t*	field;
 	byte*		buf;
-
-	ut_a(space == 0);
-	ut_a(trx_doublewrite_must_reset_space_ids);
-	ut_a(!trx_sys_multiple_tablespace_format);
-
-	tuple = dtuple_create(heap, 1);
-
-	/* Store the page number in tuple */
-
-	field = dtuple_get_nth_field(tuple, 0);
-
-	buf = static_cast<byte*>(mem_heap_alloc(heap, 4));
-
-	mach_write_to_4(buf, page_no);
-
-	dfield_set_data(field, buf, 4);
-
-	dtuple_set_types_binary(tuple, 1);
-
-	return(tuple);
-}
-
-/*********************************************************************//**
-Builds a search tuple used to search buffered inserts for an index page.
-This is for >= 4.1.x format records.
-@return	own: search tuple */
-static
-dtuple_t*
-ibuf_new_search_tuple_build(
-/*========================*/
-	ulint		space,	/*!< in: space id */
-	ulint		page_no,/*!< in: index page number */
-	mem_heap_t*	heap)	/*!< in: heap into which to build */
-{
-	dtuple_t*	tuple;
-	dfield_t*	field;
-	byte*		buf;
-
-	ut_a(trx_sys_multiple_tablespace_format);
 
 	tuple = dtuple_create(heap, IBUF_REC_FIELD_METADATA);
 
@@ -2559,7 +2415,15 @@ ibuf_get_merge_page_nos_func(
 		} else {
 			rec_page_no = ibuf_rec_get_page_no(mtr, rec);
 			rec_space_id = ibuf_rec_get_space(mtr, rec);
-			ut_ad(rec_page_no > IBUF_TREE_ROOT_PAGE_NO);
+			/* In the system tablespace, the smallest
+			possible secondary index leaf page number is
+			bigger than IBUF_TREE_ROOT_PAGE_NO (4). In
+			other tablespaces, the clustered index tree is
+			created at page 3, which makes page 4 the
+			smallest possible secondary index leaf page
+			(and that only after DROP INDEX). */
+			ut_ad(rec_page_no
+			      > IBUF_TREE_ROOT_PAGE_NO - (rec_space_id != 0));
 		}
 
 #ifdef UNIV_IBUF_DEBUG
@@ -2834,8 +2698,7 @@ ibuf_get_volume_buffered_hash(
 
 	len = ibuf_rec_get_size(
 		rec, types,
-		rec_get_n_fields_old(rec) - IBUF_REC_FIELD_USER,
-		FALSE, comp);
+		rec_get_n_fields_old(rec) - IBUF_REC_FIELD_USER, comp);
 	fold = ut_fold_binary(data, len);
 
 	hash += (fold / (CHAR_BIT * sizeof *hash)) % size;
@@ -2895,7 +2758,6 @@ ibuf_get_volume_buffered_count_func(
 	operations.  All pre-4.1 records should have been merged
 	when the database was started up. */
 	ut_a(len == 1);
-	ut_ad(trx_sys_multiple_tablespace_format);
 
 	types = rec_get_nth_field_old(rec, IBUF_REC_FIELD_METADATA, &len);
 
@@ -2909,7 +2771,7 @@ ibuf_get_volume_buffered_count_func(
 		because deletes cannot be buffered if there are
 		old-style inserts buffered for the page. */
 
-		len = ibuf_rec_get_size(rec, types, n_fields, FALSE, 0);
+		len = ibuf_rec_get_size(rec, types, n_fields, 0);
 
 		return(len
 		       + rec_get_converted_extra_size(len, n_fields, 0)
@@ -3013,8 +2875,6 @@ ibuf_get_volume_buffered(
 	const page_t*	next_page;
 	/* bitmap of buffered recs */
 	ulint		hash_bitmap[128 / sizeof(ulint)];
-
-	ut_a(trx_sys_multiple_tablespace_format);
 
 	ut_ad((pcur->latch_mode == BTR_MODIFY_PREV)
 	      || (pcur->latch_mode == BTR_MODIFY_TREE));
@@ -3259,18 +3119,11 @@ ibuf_get_entry_counter_low_func(
 
 	field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
 
-	if (UNIV_UNLIKELY(len != 1)) {
-		/* pre-4.1 format */
-		ut_a(trx_doublewrite_must_reset_space_ids);
-		ut_a(!trx_sys_multiple_tablespace_format);
-
-		return(ULINT_UNDEFINED);
-	}
-
-	ut_a(trx_sys_multiple_tablespace_format);
+	ut_a(len == 1);
 
 	/* Check the tablespace identifier. */
 	field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_SPACE, &len);
+
 	ut_a(len == 4);
 
 	if (mach_read_from_4(field) != space) {
@@ -3410,8 +3263,6 @@ ibuf_insert_low(
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(!no_counter || op == IBUF_OP_INSERT);
 	ut_a(op < IBUF_OP_COUNT);
-
-	ut_a(trx_sys_multiple_tablespace_format);
 
 	do_merge = FALSE;
 
@@ -3712,7 +3563,6 @@ ibuf_insert(
 	this function, so that we will have a consistent view of it. */
 	ibuf_use_t	use		= ibuf_use;
 
-	ut_a(trx_sys_multiple_tablespace_format);
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(ut_is_2pow(zip_size));
 
@@ -3903,6 +3753,7 @@ ibuf_insert_to_index_page_low(
 
 	fputs("InnoDB: Submit a detailed bug report"
 	      " to http://bugs.mysql.com\n", stderr);
+	ut_ad(0);
 }
 
 /************************************************************************
@@ -4096,6 +3947,11 @@ ibuf_set_del_mark(
 							  TRUE, mtr);
 		}
 	} else {
+		const page_t*		page
+			= page_cur_get_page(&page_cur);
+		const buf_block_t*	block
+			= page_cur_get_block(&page_cur);
+
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: unable to find a record to delete-mark\n",
 		      stderr);
@@ -4104,10 +3960,14 @@ ibuf_set_del_mark(
 		fputs("\n"
 		      "InnoDB: record ", stderr);
 		rec_print(stderr, page_cur_get_rec(&page_cur), index);
-		putc('\n', stderr);
-		fputs("\n"
-		      "InnoDB: Submit a detailed bug report"
-		      " to http://bugs.mysql.com\n", stderr);
+		fprintf(stderr, "\nspace %u offset %u"
+			" (%u records, index id %llu)\n"
+			"InnoDB: Submit a detailed bug report"
+			" to http://bugs.mysql.com\n",
+			(unsigned) buf_block_get_space(block),
+			(unsigned) buf_block_get_page_no(block),
+			(unsigned) page_get_n_recs(page),
+			(ulonglong) btr_page_get_index_id(page));
 		ut_ad(0);
 	}
 }
@@ -4151,12 +4011,31 @@ ibuf_delete(
 		offsets = rec_get_offsets(
 			rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-		/* Refuse to delete the last record. */
-		ut_a(page_get_n_recs(page) > 1);
+		if (page_get_n_recs(page) <= 1
+		    || !(REC_INFO_DELETED_FLAG
+			 & rec_get_info_bits(rec, page_is_comp(page)))) {
+			/* Refuse to purge the last record or a
+			record that has not been marked for deletion. */
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: unable to purge a record\n",
+			      stderr);
+			fputs("InnoDB: tuple ", stderr);
+			dtuple_print(stderr, entry);
+			fputs("\n"
+			      "InnoDB: record ", stderr);
+			rec_print_new(stderr, rec, offsets);
+			fprintf(stderr, "\nspace %u offset %u"
+				" (%u records, index id %llu)\n"
+				"InnoDB: Submit a detailed bug report"
+				" to http://bugs.mysql.com\n",
+				(unsigned) buf_block_get_space(block),
+				(unsigned) buf_block_get_page_no(block),
+				(unsigned) page_get_n_recs(page),
+				(ulonglong) btr_page_get_index_id(page));
 
-		/* The record should have been marked for deletion. */
-		ut_ad(REC_INFO_DELETED_FLAG
-		      & rec_get_info_bits(rec, page_is_comp(page)));
+			ut_ad(0);
+			return;
+		}
 
 		lock_update_delete(block, rec);
 
@@ -4242,6 +4121,7 @@ ibuf_restore_pos(
 
 		fprintf(stderr, "InnoDB: ibuf tree ok\n");
 		fflush(stderr);
+		ut_ad(0);
 	}
 
 	return(FALSE);
@@ -4465,13 +4345,7 @@ ibuf_merge_or_delete_for_page(
 
 	heap = mem_heap_create(512);
 
-	if (UNIV_UNLIKELY(!trx_sys_multiple_tablespace_format)) {
-		ut_a(trx_doublewrite_must_reset_space_ids);
-		search_tuple = ibuf_search_tuple_build(space, page_no, heap);
-	} else {
-		search_tuple = ibuf_new_search_tuple_build(space, page_no,
-							   heap);
-	}
+	search_tuple = ibuf_search_tuple_build(space, page_no, heap);
 
 	if (block) {
 		/* Move the ownership of the x-latch on the page to this OS
@@ -4780,7 +4654,7 @@ ibuf_delete_for_discarded_space(
 	/* Use page number 0 to build the search tuple so that we get the
 	cursor positioned at the first entry for this space id */
 
-	search_tuple = ibuf_new_search_tuple_build(space, 0, heap);
+	search_tuple = ibuf_search_tuple_build(space, 0, heap);
 
 	memset(dops, 0, sizeof(dops));
 loop:

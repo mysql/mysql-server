@@ -406,22 +406,6 @@ rw_lock_x_lock_move_ownership(
 	rw_lock_t*	lock);	/*!< in: lock which was x-locked in the
 				buffer read */
 /******************************************************************//**
-Releases a shared mode lock when we know there are no waiters and none
-else will access the lock during the time this function is executed. */
-UNIV_INLINE
-void
-rw_lock_s_unlock_direct(
-/*====================*/
-	rw_lock_t*	lock);	/*!< in/out: rw-lock */
-/******************************************************************//**
-Releases an exclusive mode lock when we know there are no waiters, and
-none else will access the lock durint the time this function is executed. */
-UNIV_INLINE
-void
-rw_lock_x_unlock_direct(
-/*====================*/
-	rw_lock_t*	lock);	/*!< in/out: rw-lock */
-/******************************************************************//**
 Returns the value of writer_count for the lock. Does not reserve the lock
 mutex, so the caller must be sure it is not changed during the call.
 @return	value of writer_count */
@@ -676,9 +660,6 @@ rw_lock_s_lock_gen()
 rw_lock_s_lock_nowait()
 rw_lock_s_unlock_gen()
 rw_lock_free()
-
-Two function APIs rw_lock_x_unlock_direct() and rw_lock_s_unlock_direct()
-do not have any caller/user, they are not instrumented.
 */
 
 #ifdef UNIV_PFS_RWLOCK
