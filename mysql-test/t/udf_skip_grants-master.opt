@@ -1,1 +1,2 @@
 --skip-grant-tables
+$UDF_EXAMPLE_LIB_OPT

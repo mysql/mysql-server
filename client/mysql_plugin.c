@@ -1018,7 +1018,7 @@ static int find_plugin(char *tp_path)
   Build the boostrap file.
   
   Create a new file and populate it with SQL commands to ENABLE or DISABLE
-  the plugin via INSERT and DELETE operations on the mysql.plugin table.
+  the plugin via REPLACE and DELETE operations on the mysql.plugin table.
 
   param[in]  operation  The type of operation (ENABLE or DISABLE)
   param[out] bootstrap  A FILE* pointer
@@ -1035,12 +1035,16 @@ static int build_bootstrap_file(char *operation, char *bootstrap)
     Perform plugin operation : ENABLE or DISABLE
 
     The following creates a temporary bootstrap file and populates it with
-    the appropriate SQL commands for the operation. For ENABLE, INSERT
+    the appropriate SQL commands for the operation. For ENABLE, REPLACE
     statements are created. For DISABLE, DELETE statements are created. The
     values for these statements are derived from the plugin_data read from the
     <plugin_name>.ini configuration file. Once the file is built, a call to
     mysqld is made in read only, bootstrap modes to read the SQL statements
     and execute them.
+    
+    Note: Replace was used so that if a user loads a newer version of a
+          library with a different library name, the new library name is
+          used for symbols that match. 
   */
   if ((error= make_tempfile(bootstrap, "sql")))
   {
@@ -1057,7 +1061,7 @@ static int build_bootstrap_file(char *operation, char *bootstrap)
   if (strcasecmp(operation, "enable") == 0)
   {
     int i= 0;
-    fprintf(file, "INSERT IGNORE INTO mysql.plugin VALUES ");
+    fprintf(file, "REPLACE INTO mysql.plugin VALUES ");
     for (i= 0; i < (int)array_elements(plugin_data.components); i++)
     {
       /* stop when we read the end of the symbol list - marked with NULL */

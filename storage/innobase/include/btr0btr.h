@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -91,6 +91,26 @@ insert/delete buffer when the record is not in the buffer pool. */
 /** Try to purge the record at the searched position using the insert/delete
 buffer when the record is not in the buffer pool. */
 #define BTR_DELETE		8192
+
+/**************************************************************//**
+Report that an index page is corrupted. */
+UNIV_INTERN
+void
+btr_corruption_report(
+/*==================*/
+	const buf_block_t*	block,	/*!< in: corrupted block */
+	const dict_index_t*	index)	/*!< in: index tree */
+	UNIV_COLD __attribute__((nonnull));
+
+/** Assert that a B-tree page is not corrupted.
+@param block buffer block containing a B-tree page
+@param index the B-tree index */
+#define btr_assert_not_corrupted(block, index)			\
+	if ((ibool) !!page_is_comp(buf_block_get_frame(block))	\
+	    != dict_table_is_comp((index)->table)) {		\
+		btr_corruption_report(block, index);		\
+		ut_error;					\
+	}
 
 #ifdef UNIV_BLOB_DEBUG
 # include "ut0rbt.h"
