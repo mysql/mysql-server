@@ -1269,6 +1269,7 @@ field4,field5,field6	{
                     "range_scan_alternatives": [
                       {
                         "index": "col_int_key",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "NULL < col_int_key < 214",
                           "214 < col_int_key"
@@ -1985,6 +1986,7 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "18 <= pk <= 18",
                           "192 <= pk <= 192"

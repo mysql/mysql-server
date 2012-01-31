@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -509,6 +509,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n", stderr);
+		ut_ad(0);
 		break;
 	case ROW_FOUND:
 		btr_cur = btr_pcur_get_btr_cur(&pcur);
