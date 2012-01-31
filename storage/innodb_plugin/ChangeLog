@@ -1,3 +1,9 @@
+2012-01-30	The InnoDB Team
+
+	* fil/fil0fil.c:
+	Fix Bug#13636122 THE ORIGINAL TABLE MISSING WHILE EXECUTE THE
+	DDL 'ALTER TABLE ADD COLUMN'
+
 2012-01-16	The InnoDB Team
 
 	* ibuf/ibuf0ibuf.c:

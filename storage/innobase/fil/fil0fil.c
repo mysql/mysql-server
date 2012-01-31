@@ -772,11 +772,6 @@ retry:
 		return;
 	}
 
-	if (system->n_open < system->max_n_open) {
-
-		return;
-	}
-
 	HASH_SEARCH(hash, system->spaces, space_id, space,
 		    space->id == space_id);
 	if (space != NULL && space->stop_ios) {
@@ -793,11 +788,28 @@ retry:
 
 		mutex_exit(&(system->mutex));
 
+#ifndef UNIV_HOTBACKUP
+		/* Wake the i/o-handler threads to make sure pending
+		i/o's are performed */
+		os_aio_simulated_wake_handler_threads();
+
+		os_thread_sleep(20000);
+#endif /* UNIV_HOTBACKUP */
+
+		/* Flush tablespaces so that we can close modified
+		files in the LRU list */
+		fil_flush_file_spaces(FIL_TABLESPACE);
+
 		os_thread_sleep(20000);
 
 		count2++;
 
 		goto retry;
+	}
+
+	if (system->n_open < system->max_n_open) {
+
+		return;
 	}
 
 	/* If the file is already open, no need to do anything; if the space
@@ -2290,7 +2302,7 @@ fil_rename_tablespace(
 retry:
 	count++;
 
-	if (count > 1000) {
+	if (!(count % 1000)) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Warning: problems renaming ", stderr);
 		ut_print_filename(stderr, old_name);
