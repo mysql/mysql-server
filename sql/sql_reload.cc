@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_reload.h"
-#include "binlog.h"
 #include "sql_priv.h"
 #include "mysqld.h"      // select_errors
 #include "sql_class.h"   // THD
@@ -24,8 +23,8 @@
 #include "sql_base.h"    // close_cached_tables
 #include "sql_db.h"      // my_dbopt_cleanup
 #include "hostname.h"    // hostname_cache_refresh
-#include "rpl_gtid.h"
-#include "rpl_master.h"  // reset_master, reset_slave
+#include "rpl_master.h"  // reset_master
+#include "rpl_slave.h"   // reset_slave
 #include "rpl_rli.h"     // rotate_relay_log
 #include "debug_sync.h"
 

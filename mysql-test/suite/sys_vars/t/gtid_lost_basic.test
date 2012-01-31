@@ -21,5 +21,5 @@ select * from information_schema.session_variables where variable_name='gtid_los
 select @@global.gtid_lost;
 
 #
-# See rpl_gtid_lost for a comprehensive test case.
+# See rpl_gtid_lost.test for a comprehensive test case.
 #

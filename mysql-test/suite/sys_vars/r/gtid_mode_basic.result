@@ -19,7 +19,7 @@ GTID_MODE	OFF
 select * from information_schema.session_variables where variable_name='gtid_mode';
 VARIABLE_NAME	VARIABLE_VALUE
 GTID_MODE	OFF
-set global gtid_mode = 1;
+set global gtid_mode = "ON";
 ERROR HY000: Variable 'gtid_mode' is a read only variable
 select @@global.gtid_mode;
 @@global.gtid_mode

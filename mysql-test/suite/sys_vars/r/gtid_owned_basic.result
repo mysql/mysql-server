@@ -23,3 +23,6 @@ GTID_OWNED
 select @@global.gtid_owned;
 @@global.gtid_owned
 
+select @@session.gtid_owned;
+@@session.gtid_owned
+

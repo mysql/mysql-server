@@ -2271,14 +2271,7 @@ bool show_master_info(THD* thd, Master_info* mi)
   char *sql_gtid_set_buffer= NULL, *io_gtid_set_buffer= NULL;
   int sql_gtid_set_size= 0, io_gtid_set_size= 0;
   DBUG_ENTER("show_master_info");
-
-  /*
-    Why rwlock is necessary here? Sven?
-    Temporarly disabled because this was causing deadlock
-    problems. We need to investigage this.
-
-    /Alfranio
-  */
+  
   global_sid_lock.wrlock();
   const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
   const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();

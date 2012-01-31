@@ -3274,7 +3274,7 @@ public:
   /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
   const Gtid_set *get_gtid_next_list_const() const
   {
-    return const_cast<const Gtid_set *>(const_cast<THD *>(this)->get_gtid_next_list());
+    return const_cast<THD *>(this)->get_gtid_next_list();
   }
 
   /**
