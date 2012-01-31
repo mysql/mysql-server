@@ -1578,8 +1578,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
     if (reg_field->unireg_check == Field::NEXT_NUMBER)
       share->found_next_number_field= field_ptr;
-    if (share->timestamp_field == reg_field)
-      share->timestamp_field_offset= i;
 
     if (use_hash)
       if (my_hash_insert(&share->name_hash, (uchar*) field_ptr) )
@@ -2018,9 +2016,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (share->found_next_number_field)
     outparam->found_next_number_field=
       outparam->field[(uint) (share->found_next_number_field - share->field)];
-  if (share->timestamp_field)
-    outparam->set_timestamp_field(outparam->
-                                  field[share->timestamp_field_offset]);
 
   /* Fix key->name and key_part->field */
   if (share->key_parts)
@@ -3457,9 +3452,6 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   DBUG_ASSERT(!auto_increment_field_not_null);
   auto_increment_field_not_null= FALSE;
 
-  if (timestamp_field)
-    timestamp_field_type= timestamp_field->get_auto_set_type();
-
   pos_in_table_list= tl;
 
   clear_column_bitmaps();
@@ -3992,11 +3984,11 @@ void TABLE_LIST::cleanup_items()
     VIEW_CHECK_SKIP   FAILED, but continue
 */
 
-int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure)
+int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure) const
 {
   if (check_option && check_option->val_int() == 0)
   {
-    TABLE_LIST *main_view= top_table();
+    const TABLE_LIST *main_view= top_table();
     if (ignore_failure)
     {
       push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,

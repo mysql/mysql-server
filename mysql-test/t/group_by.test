@@ -1759,6 +1759,40 @@ GROUP BY
 DROP TABLE t1,t2,t3;
 DROP VIEW view1;
 
+# Another one with Item_direct_view_ref:
+
+CREATE TABLE t1 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+CREATE TABLE t2 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+CREATE ALGORITHM=MERGE VIEW view1 AS
+  SELECT CONCAT( table1.col_varchar_nokey , table2.col_varchar_key ) AS
+field1
+  FROM
+    t2 AS table1 JOIN t1 AS table2
+    ON table2.col_varchar_nokey = table1.col_varchar_key 
+       AND
+       table2.col_varchar_key >= table1.col_varchar_nokey 
+ORDER BY field1
+;
+
+EXPLAIN EXTENDED SELECT * FROM view1;
+
+DROP TABLE t1,t2;
+DROP VIEW view1;
+
 # And a bug with Item_singlerow_subselect:
 
 CREATE TABLE t1 (col_varchar_nokey varchar(1) DEFAULT NULL);

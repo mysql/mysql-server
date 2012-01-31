@@ -1203,6 +1203,15 @@ public:
   virtual bool cleanup_processor(uchar *arg);
   virtual bool collect_item_field_processor(uchar * arg) { return 0; }
   virtual bool add_field_to_set_processor(uchar * arg) { return 0; }
+
+  /**
+     Visitor interface for removing all column expressions (Item_field) in
+     this expression tree from a bitmap. @See walk()
+
+     @param arg  A MY_BITMAP* cast to unsigned char*, where the bits represent
+                 Field::field_index values.
+   */
+  virtual bool remove_column_from_bitmap(uchar *arg) { return false; }
   virtual bool find_item_in_field_list_processor(uchar *arg) { return 0; }
   virtual bool change_context_processor(uchar *context) { return 0; }
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
@@ -2006,6 +2015,7 @@ public:
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
   bool add_field_to_set_processor(uchar * arg);
+  bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
