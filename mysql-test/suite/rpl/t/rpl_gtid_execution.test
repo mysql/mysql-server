@@ -258,7 +258,7 @@ if (!$rpl_debug)
 {
   --disable_query_log
 }
---let $id= 1
+--let $id= `SELECT MIN(id) FROM stmts`
 --let $max_id= `SELECT MAX(id) FROM stmts`
 while ($id <= $max_id)
 {
@@ -457,7 +457,7 @@ while ($id <= $max_id)
 
         # Assert that before + diff = after
         let $assert_text= `
-          SELECT CONCAT("$con:@@$scope.$var: '",
+          SELECT CONCAT("#$id $con:@@$scope.$var: '",
                         UUID_TO_NUMBER('$before'), "' + '",
                         UUID_TO_NUMBER('$diff'), "' = '",
                         UUID_TO_NUMBER('$after'), "'")`;
