@@ -75,10 +75,12 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
                    &data_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_relay_log_info_log_space_lock,
                    &log_space_lock, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_relay_log_info_sleep_lock, &sleep_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_relay_log_info_data_cond, &data_cond, NULL);
   mysql_cond_init(key_relay_log_info_start_cond, &start_cond, NULL);
   mysql_cond_init(key_relay_log_info_stop_cond, &stop_cond, NULL);
   mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond, NULL);
+  mysql_cond_init(key_relay_log_info_sleep_cond, &sleep_cond, NULL);
   relay_log.init_pthread_objects();
   DBUG_VOID_RETURN;
 }
@@ -91,10 +93,12 @@ Relay_log_info::~Relay_log_info()
   mysql_mutex_destroy(&run_lock);
   mysql_mutex_destroy(&data_lock);
   mysql_mutex_destroy(&log_space_lock);
+  mysql_mutex_destroy(&sleep_lock);
   mysql_cond_destroy(&data_cond);
   mysql_cond_destroy(&start_cond);
   mysql_cond_destroy(&stop_cond);
   mysql_cond_destroy(&log_space_cond);
+  mysql_cond_destroy(&sleep_cond);
   relay_log.cleanup();
   DBUG_VOID_RETURN;
 }

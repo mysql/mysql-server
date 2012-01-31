@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -408,7 +408,12 @@ btr_cur_search_to_nth_level(
 	ut_ad(dict_index_check_search_tuple(index, tuple));
 	ut_ad(!dict_index_is_ibuf(index) || ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(tuple));
+	ut_ad(index->page != FIL_NULL);
 
+	UNIV_MEM_INVALID(&cursor->up_match, sizeof cursor->up_match);
+	UNIV_MEM_INVALID(&cursor->up_bytes, sizeof cursor->up_bytes);
+	UNIV_MEM_INVALID(&cursor->low_match, sizeof cursor->low_match);
+	UNIV_MEM_INVALID(&cursor->low_bytes, sizeof cursor->low_bytes);
 #ifdef UNIV_DEBUG
 	cursor->up_match = ULINT_UNDEFINED;
 	cursor->low_match = ULINT_UNDEFINED;
@@ -757,11 +762,11 @@ retry_page_get:
 
 	if (level != 0) {
 		/* x-latch the page */
-		page = btr_page_get(
+		buf_block_t*	child_block = btr_block_get(
 			space, zip_size, page_no, RW_X_LATCH, index, mtr);
 
-		ut_a((ibool)!!page_is_comp(page)
-		     == dict_table_is_comp(index->table));
+		page = buf_block_get_frame(child_block);
+		btr_assert_not_corrupted(child_block, index);
 	} else {
 		cursor->low_match = low_match;
 		cursor->low_bytes = low_bytes;
