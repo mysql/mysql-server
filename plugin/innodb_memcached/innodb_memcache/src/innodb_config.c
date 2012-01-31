@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -13,9 +13,16 @@ Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ***********************************************************************/
+
+/**************************************************//**
+@file innodb_config.c
+InnoDB Memcached configurations
+
+Created 04/12/2011 Jimmy Yang
+*******************************************************/
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -27,7 +34,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string.
-@return own: a copy of the string, must be deallocated with mem_free */
+@return own: a copy of the string, must be deallocated by caller */
 static
 char*
 my_strdupl(
@@ -41,11 +48,11 @@ my_strdupl(
 }
 
 /**********************************************************************//**
-This function frees meta info structure */
+This function frees meta info structures */
 void
 innodb_config_free(
 /*===============*/
-	meta_info_t*	item)	/*!< in: meta info structure */
+	meta_info_t*	item)		/*!< in: meta info structure */
 {
 	int	i;
 
@@ -146,6 +153,7 @@ innodb_read_cache_policy(
 	ib_col_meta_t		col_meta;
 
 	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
+
 	err = innodb_api_begin(NULL, INNODB_META_DB,
 			       INNODB_CACHE_POLICIES, NULL, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_IS);	
@@ -160,8 +168,8 @@ innodb_read_cache_policy(
 
 	tpl = innodb_cb_read_tuple_create(crsr);
 
-	/* Currently, we support one table per memcached set up.
-	We could extend that later */
+	/* Currently, we support one table per memcached setup.
+	We could extend that limit later */
 	err = innodb_cb_cursor_first(crsr);
 
 	if (err != DB_SUCCESS) {
@@ -290,7 +298,13 @@ innodb_read_config_option(
 		assert(data_len != IB_SQL_NULL);
 
 		if (i == CONFIG_KEY) {
-			key =(char*)innodb_cb_col_get_value(tpl, i);
+			key = (char*)innodb_cb_col_get_value(tpl, i);
+
+			/* Currently, we only support one configure option,
+			that is the string "separator" */
+			if (strncmp(key, "separator", 9)) {
+				return(FALSE);
+			}
 		}
 
 		if (i == CONFIG_VALUE) {
@@ -314,6 +328,7 @@ func_exit:
 
 	return(err == DB_SUCCESS);
 }
+
 /**********************************************************************//**
 This function opens the "containers" configuration table, and find the
 table and column info that used for memcached data
@@ -386,6 +401,7 @@ innodb_config_container(
 		goto func_exit;
 	}
 
+	/* Get the column mappings (column for each memcached data */
 	for (i = 0; i < META_CONTAINER_TO_GET; ++i) {
 
 		data_len = innodb_cb_col_get_meta(tpl, i, &col_meta);
@@ -424,8 +440,8 @@ innodb_config_container(
 		goto func_exit;
 	}
 
-	item->m_index.m_name = my_strdupl((char*)innodb_cb_col_get_value(tpl, i),
-					  data_len);
+	item->m_index.m_name = my_strdupl((char*)innodb_cb_col_get_value(
+						tpl, i), data_len);
 
 func_exit:
 
@@ -443,9 +459,9 @@ func_exit:
 }
 
 /**********************************************************************//**
-This function parses possible multiple column name separated by ",", ";"
-or " " in the input "str" for the memcached "value" field
-@return TRUE if everything works out fine */
+This function verifies "value" column(s) specified by configure table are of
+the correct type
+@return TRUE if everything is verified */
 static
 ib_err_t
 innodb_config_value_col_verify(
@@ -460,6 +476,7 @@ innodb_config_value_col_verify(
 	if (!meta_info->m_add_item) {
 		meta_column_t*	cinfo = meta_info->m_item;
 
+		/* "value" column must be of CHAR, VARCHAR or BLOB type */
 		if (strcmp(name, cinfo[META_VALUE].m_str) == 0) {
 			if (col_meta->type != IB_VARCHAR
 			    && col_meta->type != IB_CHAR
@@ -485,8 +502,6 @@ innodb_config_value_col_verify(
 				meta_info->m_add_item[i].m_field_id = col_id;
 				meta_info->m_add_item[i].m_col = *col_meta;
 
-				/* FIXME: this is how we going to parse
-				the value to be stored in multiple column. */
 				meta_info->m_item[META_VALUE].m_field_id = col_id;
 				meta_info->m_item[META_VALUE].m_col = *col_meta;
 				err = DB_SUCCESS;
@@ -537,6 +552,7 @@ innodb_verify(
 
 	err = innodb_cb_open_table(table_name, NULL, &crsr);
 
+	/* Mapped InnoDB table must be able to open */
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: fail to open table"
 				" '%s' \n", table_name);
@@ -548,6 +564,7 @@ innodb_verify(
 
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
+	/* Verify each mapped column */
 	for (i = 0; i < n_cols; i++) {
 		ib_err_t	result = DB_SUCCESS;
 		meta_column_t*	cinfo = info->m_item;
@@ -567,6 +584,7 @@ innodb_verify(
 		}
 
 		if (strcmp(name, cinfo[META_KEY].m_str) == 0) {
+			/* Key column must be CHAR or VARCHAR type */
 			if (col_meta.type != IB_VARCHAR
 			    && col_meta.type != IB_CHAR) {
 				err = DB_DATA_MISMATCH;
@@ -576,6 +594,7 @@ innodb_verify(
 			cinfo[META_KEY].m_col = col_meta;
 			is_key_col = TRUE;
 		} else if (strcmp(name, cinfo[META_FLAG].m_str) == 0) {
+			/* Flag column must be integer type */
 			if (col_meta.type != IB_INT) {
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
@@ -584,6 +603,7 @@ innodb_verify(
 			cinfo[META_FLAG].m_col = col_meta;
 			info->flag_enabled = TRUE;
 		} else if (strcmp(name, cinfo[META_CAS].m_str) == 0) {
+			/* CAS column must be integer type */
 			if (col_meta.type != IB_INT) {
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
@@ -592,6 +612,7 @@ innodb_verify(
 			cinfo[META_CAS].m_col = col_meta;
 			info->cas_enabled = TRUE;
 		} else if (strcmp(name, cinfo[META_EXP].m_str) == 0) {
+			/* EXP column must be integer type */
 			if (col_meta.type != IB_INT) {
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
@@ -613,6 +634,7 @@ innodb_verify(
 		goto func_exit;
 	}
 
+	/* Test the specified index */
 	innodb_cb_cursor_open_index_using_name(crsr, info->m_index.m_name,
 					       &idx_crsr, &index_type,
 					       &index_id);
@@ -646,12 +668,14 @@ func_exit:
 }
 
 /**********************************************************************//**
-This function configures the server with configuration tables
+This function opens the default configuration table, and find the
+table and column info that used for InnoDB Memcached, and set up
+InnoDB Memcached's meta_info_t structure
 @return TRUE if everything works out fine */
 bool
 innodb_config(
 /*==========*/
-	meta_info_t*	item)	/*!< in: meta info structure */
+	meta_info_t*	item)		/*!< out: meta info structure */
 {
 	if (!innodb_config_container(item)) {
 		return(FALSE);

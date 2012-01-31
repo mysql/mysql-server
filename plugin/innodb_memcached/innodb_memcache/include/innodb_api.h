@@ -35,13 +35,13 @@ Created 03/15/2011      Jimmy Yang
 #define HDL_WRITE	0x2
 
 #define LOCK_CONN_IF_NOT_LOCKED(has_lock, engine)	\
-	if (!(has_lock)) {				\       
-		pthread_mutex_lock(&engine->conn_mutex);\       
+	if (!(has_lock)) {				\
+		pthread_mutex_lock(&engine->conn_mutex);\
 	}               
 
 #define UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine)	\
 	if (!(has_lock)) {				\
-		pthread_mutex_unlock(&engine->conn_mutex);\     
+		pthread_mutex_unlock(&engine->conn_mutex);\
 	}               
 
 /**********************************************************************//**

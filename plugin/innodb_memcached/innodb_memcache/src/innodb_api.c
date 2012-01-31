@@ -13,7 +13,7 @@ Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ***********************************************************************/
 
@@ -93,7 +93,7 @@ Register InnoDB Callback functions */
 void
 register_innodb_cb(
 /*===============*/
-	char*	p)		/*!<in: Pointer to callback function arrary */
+	char*	p)		/*!<in: Pointer to callback function array */
 {
 	int	i;
 	int	array_size;
@@ -249,12 +249,11 @@ innodb_api_write_int(
 {
 	ib_col_meta_t   col_meta;
 	ib_col_meta_t*	m_col = &col_meta;
-	int		data_len;
 
-	data_len = ib_cb_col_get_meta(tpl, field, m_col);
+	ib_cb_col_get_meta(tpl, field, m_col);
 
-	assert (m_col->type == IB_INT);
-	assert (m_col->type_len == 8 || m_col->type_len == 4);
+	assert(m_col->type == IB_INT);
+	assert(m_col->type_len == 8 || m_col->type_len == 4);
 
 	if (m_col->attr == IB_COL_UNSIGNED) {
 		if (m_col->type_len == 8) {
@@ -302,7 +301,7 @@ innodb_api_write_int(
 }
 
 /*************************************************************//**
-Fetch data from a read tuple and instantiate a "mci_item"
+Fetch data from a read tuple and instantiate a "mci_item" structure
 @return TRUE if successful */
 static
 bool
@@ -334,7 +333,7 @@ innodb_api_fill_mci(
 }
 
 /*************************************************************//**
-copy data from a read tuple and instantiate a "mci_item"
+Copy data from a read tuple and instantiate a "mci_item"
 @return TRUE if successful */
 static
 bool
@@ -369,8 +368,8 @@ innodb_api_copy_mci(
 }
 
 /*************************************************************//**
-fetch value from a read cursor into "mci_items"
-@return DB_SUCCESS if successful otherwise, error code */
+Fetch value from a read cursor into "mci_items"
+@return DB_SUCCESS if successful */
 static
 ib_err_t
 innodb_api_fill_value(
@@ -399,6 +398,7 @@ innodb_api_fill_value(
 					read_tpl, col_id,
 					&item->mci_item[MCI_COL_VALUE]);
 			}
+
 			err = DB_SUCCESS;
 		}
 	} else {
@@ -425,7 +425,7 @@ innodb_api_fill_value(
 }
 
 /*************************************************************//**
-Position a row accord to key, and fetch value if needed
+Position a row according to the search key, and fetch value if needed
 @return DB_SUCCESS if successful otherwise, error code */
 ib_err_t
 innodb_api_search(
@@ -440,11 +440,11 @@ innodb_api_search(
 					operations */
 	bool			sel_only) /*!< in: for select only */
 {
-	ib_err_t        err = DB_SUCCESS;
+	ib_err_t	err = DB_SUCCESS;
 	meta_info_t*	meta_info = &engine->meta_info;
 	meta_column_t*	col_info = meta_info->m_item;
 	meta_index_t*	meta_index = &meta_info->m_index;
-	ib_tpl_t        key_tpl;
+	ib_tpl_t	key_tpl;
 	ib_crsr_t	srch_crsr;
 
 	/* If m_use_idx is set to META_SECONDARY, we will use the
@@ -499,14 +499,16 @@ innodb_api_search(
 		memset(item, 0, sizeof(*item));
 
 		read_tpl = ib_cb_read_tuple_create(
-				sel_only ? cursor_data->c_r_crsr : cursor_data->c_crsr);
+				sel_only ? cursor_data->c_r_crsr
+					 : cursor_data->c_crsr);
 
 		err = ib_cb_read_row(srch_crsr, read_tpl);
 
 		n_cols = ib_cb_tuple_get_n_cols(read_tpl);
 
-
 		if (meta_info->m_num_add > 0) {
+			/* If there are multiple values to read,allocate
+			memory */
 			item->mci_add_value = malloc(
 				meta_info->m_num_add
 				* sizeof(*item->mci_add_value));
@@ -517,7 +519,7 @@ innodb_api_search(
 		}
 
 		/* The table must have at least MCI_ITEM_TO_GET columns for key
-		value store, and the cas and time expiration info */
+		value, cas and time expiration info */
 		assert(n_cols >= MCI_ITEM_TO_GET);
 
 		for (i = 0; i < n_cols; ++i) {
@@ -601,16 +603,21 @@ func_exit:
 }
 
 /*************************************************************//**
-Get montonically increased cas ID.
-@return new cas ID
-FIXME: This shall be an atomic operation */
+Get montonically increasing cas (check and set) ID.
+@return new cas ID */
 static
 uint64_t
 mci_get_cas(void)
 /*=============*/
 {
 	static uint64_t cas_id = 0;
+
+#if defined(HAVE_IB_GCC_ATOMIC_BUILTINS)
+	return(__sync_add_and_fetch(&cas_id, 1));
+#else
+	/* FIXME: need mutex protection */
 	return(++cas_id);
+#endif
 }
 
 /*************************************************************//**
@@ -649,6 +656,7 @@ innodb_api_set_multi_cols(
 
 	col_info = meta_info->m_add_item;
 
+	/* Input values are separated with "sep" */
 	for (col_val = strtok_r(value, sep, &last);
 	     col_val && last <= end && i < meta_info->m_num_add;
 	     col_val = strtok_r(NULL, sep, &last), i++) {
@@ -665,7 +673,7 @@ innodb_api_set_multi_cols(
 }
 
 /*************************************************************//**
-Set up a "TABLE" record in table->record[0] for binlogging */
+Set up a MySQL "TABLE" record in table->record[0] for binlogging */
 static
 void
 innodb_api_setup_hdl_rec(
@@ -693,13 +701,13 @@ innodb_api_setup_hdl_rec(
 }
 
 /*************************************************************//**
-set up an insert tuple
+Set up an insert tuple
 @return DB_SUCCESS if successful otherwise, error code */
 static
 ib_err_t
 innodb_api_set_tpl(
 /*===============*/
-	ib_tpl_t	tpl,		/*!< in: tuple for insert */
+	ib_tpl_t	tpl,		/*!< in/out: tuple for insert */
 	ib_tpl_t	old_tpl,	/*!< in: old tuple */
 	meta_info_t*	meta_info,	/*!< in: metadata info */
 	meta_column_t*	col_info,	/*!< in: insert col info */
@@ -778,16 +786,16 @@ innodb_api_set_tpl(
 
 /*************************************************************//**
 Insert a row
-@return DB_SUCCESS if successful otherwise, error code */
+@return DB_SUCCESS if successful, otherwise, error code */
 ib_err_t
 innodb_api_insert(
 /*==============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
 	innodb_conn_data_t*     cursor_data,/*!< in: cursor info */
-	const char*		key,	/*!< in: value to insert */
-	int			len,	/*!< in: value length */
+	const char*		key,	/*!< in: key and value to insert */
+	int			len,	/*!< in: key length */
 	uint32_t		val_len,/*!< in: value length */
-	uint64_t		exp,	/*!< in: expire time */
+	uint64_t		exp,	/*!< in: expiration time */
 	uint64_t*		cas,	/*!< in/out: cas value */
 	uint64_t		flags)	/*!< in: flags */
 {
@@ -802,6 +810,7 @@ innodb_api_insert(
 	tpl = ib_cb_read_tuple_create(cursor_data->c_crsr);
 	assert(tpl != NULL);
 
+	/* Set expiration time */
 	if (exp) {
 		uint64_t	time;
 		time = mci_get_time();
@@ -837,7 +846,7 @@ innodb_api_insert(
 /*************************************************************//**
 Update a row, called by innodb_api_store(), it is used by memcached's
 "replace", "prepend", "append" and "set" commands
-@return DB_SUCCESS if successful otherwise, error code */
+@return DB_SUCCESS if successful, otherwise, error code */
 static
 ib_err_t
 innodb_api_update(
@@ -845,8 +854,8 @@ innodb_api_update(
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
 	innodb_conn_data_t*     cursor_data,/*!< in: cursor info */
 	ib_crsr_t		srch_crsr,/*!< in: cursor to use for write */
-	const char*		key,	/*!< in: value to insert */
-	int			len,	/*!< in: value length */
+	const char*		key,	/*!< in: key and value to insert */
+	int			len,	/*!< in: key length */
 	uint32_t		val_len,/*!< in: value length */
 	uint64_t		exp,	/*!< in: expire time */
 	uint64_t*		cas,	/*!< in/out: cas value */
@@ -912,7 +921,7 @@ innodb_api_update(
 }
 
 /*************************************************************//**
-Delete a row, implements the "remove" command
+Delete a row, support the memcached "remove" command
 @return ENGINE_SUCCESS if successful otherwise, error code */
 ENGINE_ERROR_CODE
 innodb_api_delete(
@@ -926,6 +935,7 @@ innodb_api_delete(
 	ib_crsr_t	srch_crsr = cursor_data->c_crsr;
 	mci_item_t	result;
 
+	/* First look for the record, and check whether it exists */
 	err = innodb_api_search(engine, cursor_data, &srch_crsr, key, len,
 				&result, NULL, FALSE);
 
@@ -934,7 +944,7 @@ innodb_api_delete(
 	}
 
 	/* The "result" structure contains only pointers to the data value
-	when exit from innodb_api_search(), so store the delete row info
+	when returning from innodb_api_search(), so store the delete row info
 	before calling ib_cb_delete_row() */
 	if (engine->enable_binlog) {
 		meta_info_t*	meta_info = &engine->meta_info;
@@ -955,6 +965,7 @@ innodb_api_delete(
 
 	err = ib_cb_delete_row(srch_crsr);
 
+	/* Do the binlog of the row being deleted */
 	if (engine->enable_binlog) {
 		if (err == DB_SUCCESS) {
 			handler_binlog_row(cursor_data->mysql_tbl, HDL_DELETE);
@@ -973,7 +984,7 @@ innodb_api_delete(
 /*************************************************************//**
 Link the value with a string, called by innodb_api_store(), and
 used for memcached's "prepend" or "append" commands
-@return DB_SUCCESS if successful otherwise, error code */
+@return DB_SUCCESS if successful, otherwise, error code */
 static
 ib_err_t
 innodb_api_link(
@@ -1128,6 +1139,7 @@ innodb_api_arithmetic(
 	if (err != DB_SUCCESS) {
 		ib_cb_tuple_delete(old_tpl);
 
+		/* If create is true, insert a new row */
 		if (create) {
 			snprintf(value_buf, sizeof(value_buf), "%llu", initial);
 			create_new = TRUE;
@@ -1137,7 +1149,7 @@ innodb_api_arithmetic(
 		}
 	}
 
-	/* Store the original value, this would be an update */
+	/* Save the original value, this would be an update */
 	if (engine->enable_binlog) {
 		innodb_api_setup_hdl_rec(&result, col_info,
 					 cursor_data->mysql_tbl);
@@ -1249,14 +1261,14 @@ func_exit:
 }
 
 /*************************************************************//**
-This is the interface to following commands:
+This is the main interface to following memcached commands:
 	1) add
 	2) replace
 	3) append
 	4) prepend
 	5) set
 	6) cas
-@return ENGINE_SUCCESS if successful otherwise, error code */
+@return ENGINE_SUCCESS if successful, otherwise, error code */
 ENGINE_ERROR_CODE
 innodb_api_store(
 /*=============*/
@@ -1362,7 +1374,8 @@ innodb_api_store(
 
 	return(stored);
 }
-/*********************************************************************
+
+/*************************************************************//**
 Implement the "flush_all" command, map to InnoDB's "trunk table" operation
 return ENGINE_SUCCESS is all successful */
 ENGINE_ERROR_CODE
@@ -1373,7 +1386,8 @@ innodb_api_flush(
 	const char*		name)	/*!< in: table name */
 {
 	ib_err_t	err = DB_SUCCESS;
-	char		table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 1];
+	char		table_name[MAX_TABLE_NAME_LEN
+				   + MAX_DATABASE_NAME_LEN + 1];
 	ib_id_t		new_id;
 
 #ifdef __WIN__
@@ -1394,8 +1408,9 @@ innodb_api_flush(
 		handler_close_thd(thd);
 	}
 
-	return((err == DB_SUCCESS) ? ENGINE_SUCCESS : ENGINE_FAILED);
+	return(err);
 }
+
 /*************************************************************//**
 Increment read and write counters, if they exceed the batch size,
 commit the transaction. */
@@ -1408,7 +1423,6 @@ innodb_api_cursor_reset(
 						with a connection */
 	op_type_t		op_type)	/*!< in: type of DML performed */
 {
-	ib_err_t        err = DB_SUCCESS;
 	bool		commit_trx = FALSE;
 
 	switch (op_type) {
@@ -1437,7 +1451,7 @@ innodb_api_cursor_reset(
 		if (conn_data->c_trx) {
 			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						engine);
-			err = ib_cb_cursor_commit_trx(
+			ib_cb_cursor_commit_trx(
 				conn_data->c_crsr, conn_data->c_trx);
 			conn_data->c_trx = NULL;
 			commit_trx = TRUE;
@@ -1462,7 +1476,7 @@ innodb_api_cursor_reset(
 		if (conn_data->c_r_trx) {
 			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						engine);
-			err = ib_cb_cursor_commit_trx(
+			ib_cb_cursor_commit_trx(
 				conn_data->c_r_crsr,
 				conn_data->c_r_trx);
 			conn_data->c_r_trx = NULL;

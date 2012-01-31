@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -13,7 +13,7 @@ Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ***********************************************************************/
 /**************************************************//**
@@ -37,11 +37,10 @@ NDB memcache, so to make the memcache setup compatible between the two.*/
 #define INNODB_CONFIG_OPTIONS		"config_options"
 
 #ifndef TRUE
-
 #define TRUE    1
 #define FALSE   0
-
 #endif
+
 #define MAX_TABLE_NAME_LEN      192
 #define MAX_DATABASE_NAME_LEN   MAX_TABLE_NAME_LEN
 
@@ -56,7 +55,6 @@ typedef struct meta_columns {
 
 
 /** Columns in the "containers" system table */
-
 enum meta_container_idx {
 	META_NAME,
 	META_DB,
@@ -85,6 +83,7 @@ typedef struct meta_index {
 						index on the key column */
 } meta_index_t;
 
+/** Cache options */
 typedef enum meta_cache_option {
 	META_INNODB = 1,
 	META_CACHE,
@@ -133,45 +132,28 @@ typedef struct meta_container_info {
 
 /**********************************************************************//**
 This function opens the default configuration table, and find the
-table and column info that used for memcached data 
+table and column info that used for InnoDB Memcached, and set up
+InnoDB Memcached's meta_info_t structure
 @return TRUE if everything works out fine */
 bool
 innodb_config(
 /*==========*/
-	meta_info_t*	item);
+	meta_info_t*	item);		/*!< out: meta info structure */
 
 /**********************************************************************//**
-This function verify the table configuration information, and fill
+This function verifies the table configuration information, and fills
 in columns used for memcached functionalities (cas, exp etc.)
 @return TRUE if everything works out fine */
 bool
 innodb_verify(
 /*==========*/
-	meta_info_t*	container);
+	meta_info_t*	info);		/*!< in: meta info structure */
 
 /**********************************************************************//**
 This function frees meta info structure */
 void
 innodb_config_free(
 /*===============*/
-        meta_info_t*	item);
-
-/*******************************************************************//**
-Removes a node from a linked list. */
-#define MCI_LIST_REMOVE(NAME, BASE, N)					\
-do {									\
-        ((BASE).count)--;						\
-        if (((N)->NAME).next != NULL) {					\
-                ((((N)->NAME).next)->NAME).prev = ((N)->NAME).prev;	\
-        } else {							\
-                (BASE).end = ((N)->NAME).prev;				\
-        }								\
-        if (((N)->NAME).prev != NULL) {					\
-                ((((N)->NAME).prev)->NAME).next = ((N)->NAME).next;	\
-        } else {							\
-                (BASE).start = ((N)->NAME).next;			\
-        }								\
-        UT_LIST_REMOVE_CLEAR(NAME, N);					\
-} while (0)
+        meta_info_t*	item);		/*!< in: meta info structure */
 
 #endif
