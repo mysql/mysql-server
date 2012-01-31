@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -13,9 +13,17 @@ Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ***********************************************************************/
+
+/**************************************************//**
+@file innodb_engine.c
+InnoDB Memcached Engine code
+
+Extracted and modified from NDB memcached project
+04/12/2011 Jimmy Yang
+*******************************************************/
 
 #include <stdlib.h>
 #include <string.h>
@@ -31,25 +39,37 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "innodb_api.h"
 #include "hash_item_util.h"
 
-/* Static and local to this file */
-const char * set_ops[] = { "","add","set","replace","append","prepend","cas" };
+/** InnoDB Memcached engine configuration info */
+typedef struct eng_config_info {
+	char*		option_string;
+	void*		cb_ptr;
+	unsigned int	eng_r_batch_size;
+	unsigned int	eng_w_batch_size;
+	bool		enable_binlog;
+} eng_config_info_t;
 
+/*******************************************************************//**
+Get InnoDB Memcached engine handle
+@return InnoDB Memcached engine handle */
 static inline
 struct innodb_engine*
 innodb_handle(
 /*==========*/
-	ENGINE_HANDLE*	handle) 
+	ENGINE_HANDLE*	handle) 	/*!< in: Generic engine handle */
 {
-	return (struct innodb_engine*) handle;
+	return((struct innodb_engine*) handle);
 }
 
+/*******************************************************************//**
+Get default Memcached engine handle
+@return default Memcached engine handle */
 static inline
 struct default_engine*
 default_handle(
 /*===========*/
 	struct innodb_engine*	eng) 
 {
-	return (struct default_engine*) eng->m_default_engine;
+	return((struct default_engine*) eng->m_default_engine);
 }
 
 /****** Gateway to the default_engine's create_instance() function */
@@ -62,14 +82,20 @@ create_my_default_instance(
 
 /*********** FUNCTIONS IMPLEMENTING THE PUBLISHED API BEGIN HERE ********/
 
+/*******************************************************************//**
+Create InnoDB Memcached Engine.
+@return ENGINE_SUCCESS if successful, otherwise, error code */
 ENGINE_ERROR_CODE
 create_instance(
 /*============*/
-	uint64_t		interface, 
-	GET_SERVER_API		get_server_api,
-	ENGINE_HANDLE**		handle )
+	uint64_t		interface,	/*!< in: protocol version,
+						currently always 1 */ 
+	GET_SERVER_API		get_server_api,	/*!< in: Callback the engines
+						may call to get the public
+						server interface */
+	ENGINE_HANDLE**		handle )	/*!< out: Engine handle */
 {
-	ENGINE_ERROR_CODE	e;
+	ENGINE_ERROR_CODE	err;
 	struct innodb_engine*	innodb_eng;
 
 	SERVER_HANDLE_V1 *api = get_server_api();
@@ -78,27 +104,28 @@ create_instance(
 		return ENGINE_ENOTSUP;
 	}
 
-	innodb_eng = malloc(sizeof(struct innodb_engine)); 
+	innodb_eng = malloc(sizeof(struct innodb_engine));
+
 	if(innodb_eng == NULL) {
 		return ENGINE_ENOMEM;
 	}
 
 	innodb_eng->engine.interface.interface = 1;
-	innodb_eng->engine.get_info        = innodb_get_info;
-	innodb_eng->engine.initialize      = innodb_initialize;
-	innodb_eng->engine.destroy         = innodb_destroy;
-	innodb_eng->engine.allocate        = innodb_allocate;
-	innodb_eng->engine.remove          = innodb_remove;
-	innodb_eng->engine.release         = innodb_release;
-	innodb_eng->engine.get             = innodb_get;
-	innodb_eng->engine.get_stats       = innodb_get_stats;
-	innodb_eng->engine.reset_stats     = innodb_reset_stats;
-	innodb_eng->engine.store           = innodb_store;
-	innodb_eng->engine.arithmetic      = innodb_arithmetic;
-	innodb_eng->engine.flush           = innodb_flush;
+	innodb_eng->engine.get_info = innodb_get_info;
+	innodb_eng->engine.initialize = innodb_initialize;
+	innodb_eng->engine.destroy = innodb_destroy;
+	innodb_eng->engine.allocate = innodb_allocate;
+	innodb_eng->engine.remove = innodb_remove;
+	innodb_eng->engine.release = innodb_release;
+	innodb_eng->engine.get = innodb_get;
+	innodb_eng->engine.get_stats = innodb_get_stats;
+	innodb_eng->engine.reset_stats = innodb_reset_stats;
+	innodb_eng->engine.store = innodb_store;
+	innodb_eng->engine.arithmetic = innodb_arithmetic;
+	innodb_eng->engine.flush = innodb_flush;
 	innodb_eng->engine.unknown_command = innodb_unknown_command;
-	innodb_eng->engine.item_set_cas    = item_set_cas;
-	innodb_eng->engine.get_item_info   = innodb_get_item_info; 
+	innodb_eng->engine.item_set_cas = item_set_cas;
+	innodb_eng->engine.get_item_info = innodb_get_item_info; 
 	innodb_eng->engine.get_stats_struct = NULL;
 	innodb_eng->engine.errinfo = NULL;
 
@@ -109,47 +136,49 @@ create_instance(
 	innodb_eng->info.info.description = "InnoDB Memcache " VERSION;
 	innodb_eng->info.info.num_features = 3;
 	innodb_eng->info.info.features[0].feature = ENGINE_FEATURE_CAS;
-	innodb_eng->info.info.features[1].feature = ENGINE_FEATURE_PERSISTENT_STORAGE;
+	innodb_eng->info.info.features[1].feature =
+		ENGINE_FEATURE_PERSISTENT_STORAGE;
 	innodb_eng->info.info.features[0].feature = ENGINE_FEATURE_LRU;
 
 	/* Now call create_instace() for the default engine */
-	e = create_my_default_instance(interface, get_server_api, 
-				 &(innodb_eng->m_default_engine));
-	if(e != ENGINE_SUCCESS) return e;
+	err = create_my_default_instance(interface, get_server_api, 
+				       &(innodb_eng->m_default_engine));
+	
+	if(err != ENGINE_SUCCESS) {
+		free(innodb_eng);
+		return(err);
+	}
 
 	innodb_eng->initialized = true;
 
 	*handle = (ENGINE_HANDLE*) &innodb_eng->engine;
 
-	return ENGINE_SUCCESS;
+	return(ENGINE_SUCCESS);
 }
 
 
-/*** get_info ***/
+/*******************************************************************//**
+Get engine info.
+@return engine info */
 static
 const engine_info*
 innodb_get_info(
 /*============*/
-	ENGINE_HANDLE*	handle)
+	ENGINE_HANDLE*	handle)		/*!< in: Engine handle */
 {
-	return & innodb_handle(handle)->info.info;
+	return(&innodb_handle(handle)->info.info);
 }
 
-typedef struct eng_config_info {
-	char*		option_string;
-	void*		cb_ptr;
-	unsigned int	eng_r_batch_size;
-	unsigned int	eng_w_batch_size;
-	bool		enable_binlog;
-} eng_config_info_t;
-
-/*** initialize ***/
+/*******************************************************************//**
+Initialize InnoDB Memcached Engine.
+@return ENGINE_SUCCESS if successful */
 static
 ENGINE_ERROR_CODE
 innodb_initialize(
 /*==============*/
-	ENGINE_HANDLE*	handle,
-	const char*	config_str) 
+	ENGINE_HANDLE*	handle,		/*!< in/out: InnoDB memcached
+					engine */
+	const char*	config_str)	/*!< in: configure string */ 
 {   
 	ENGINE_ERROR_CODE	return_status = ENGINE_SUCCESS;
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
@@ -203,7 +232,9 @@ innodb_initialize(
 
 extern void handler_close_thd(void*);
 
-/* Cleanup a connection
+/*******************************************************************//**
+Cleanup idle connections if "clear_all" is FALSE, and clean up all
+connections if "clear_all" is TRUE.
 @return number of connection cleaned */
 static
 int
@@ -244,7 +275,7 @@ innodb_conn_clean(
 		/* Either we are clearing all conn_data or this conn_data is
 		not in use */
 		if (clear_all || stale_data) {
-			MCI_LIST_REMOVE(c_list, engine->conn_data, conn_data);
+			UT_LIST_REMOVE(c_list, engine->conn_data, conn_data);
 
 			if (conn_data->c_idx_crsr) {
 				innodb_cb_cursor_close(conn_data->c_idx_crsr);
@@ -285,7 +316,8 @@ innodb_conn_clean(
 			free(conn_data);
 
 			if (clear_all) {
-				engine->server.cookie->store_engine_specific(cookie, NULL);
+				engine->server.cookie->store_engine_specific(
+					cookie, NULL);
 			}
 
 			num_freed++;
@@ -301,7 +333,8 @@ innodb_conn_clean(
 	return(num_freed);
 }
 
-/*** destroy ***/
+/*******************************************************************//**
+Destroy and Free InnoDB Memcached engine */
 static
 void
 innodb_destroy(
@@ -328,26 +361,25 @@ innodb_destroy(
 
 /*** allocate ***/
 
-/* Allocate gets a struct item from the slab allocator, and fills in 
-   everything but the value.  It seems like we can just pass this on to 
-   the default engine; we'll intercept it later in store().
-   This is also called directly from finalize_read() in the commit thread.
-*/
+/*******************************************************************//**
+Allocate gets a struct item from the slab allocator, and fills in 
+everything but the value.  It seems like we can just pass this on to 
+the default engine; we'll intercept it later in store(). */
 static
 ENGINE_ERROR_CODE
 innodb_allocate(
 /*============*/
-	ENGINE_HANDLE*	handle,
-	const void*	cookie,
-	item **		item,
-	const void*	key,
-	const size_t	nkey,
-	const size_t	nbytes,
-	const int	flags,
-	const rel_time_t exptime)
+	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	item **		item,		/*!< out: item to allocate */
+	const void*	key,		/*!< in: key */
+	const size_t	nkey,		/*!< in: key length */
+	const size_t	nbytes,		/*!< in: estimated value length */
+	const int	flags,		/*!< in: flag */
+	const rel_time_t exptime)	/*!< in: expiration time */
 {
-	struct innodb_engine* innodb_eng = innodb_handle(handle);
-	struct default_engine *def_eng = default_handle(innodb_eng);
+	struct innodb_engine*	innodb_eng = innodb_handle(handle);
+	struct default_engine*	def_eng = default_handle(innodb_eng);
 
 	/* We use default engine's memory allocator to allocate memory
 	for item */
@@ -356,6 +388,9 @@ innodb_allocate(
 					flags, exptime);
 }
 
+/*******************************************************************//**
+Cleanup connections
+@return number of connection cleaned */
 /* Initialize a connection's cursor and transactions
 @return the connection's conn_data structure */
 static
@@ -545,17 +580,21 @@ innodb_conn_init(
 	return(conn_data);
 }
 
+/*******************************************************************//**
+Cleanup connections
+@return number of connection cleaned */
 /*** remove ***/
 static
 ENGINE_ERROR_CODE
 innodb_remove(
 /*==========*/
-	ENGINE_HANDLE*		handle,
-	const void*		cookie,
-	const void*		key,
-	const size_t		nkey,
-	uint64_t		cas,
-	uint16_t		vbucket)
+	ENGINE_HANDLE*		handle,		/*!< in: Engine handle */
+	const void*		cookie,		/*!< in: connection cookie */
+	const void*		key,		/*!< in: key */
+	const size_t		nkey,		/*!< in: key length */
+	uint64_t		cas,		/*!< in: cas */
+	uint16_t		vbucket)	/*!< in: bucket, used by default
+						engine only */
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
@@ -595,14 +634,15 @@ innodb_remove(
 }
 
 
-/*** release ***/
+/*******************************************************************//**
+Release the connection, free resource allocated in innodb_allocate */
 static
 void
 innodb_release(
 /*===========*/
-	ENGINE_HANDLE*		handle,
-	const void*		cookie,
-	item*			item)
+	ENGINE_HANDLE*		handle,		/*!< in: Engine handle */
+	const void*		cookie,		/*!< in: connection cookie */
+	item*			item)		/*!< in: item to free */
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
@@ -614,17 +654,20 @@ innodb_release(
 	return;
 }  
 
-/*** get ***/
+/*******************************************************************//**
+Support memcached "GET" command, fetch the value according to key
+@return ENGINE_SUCCESS if successfully, otherwise error code */
 static
 ENGINE_ERROR_CODE
 innodb_get(
 /*=======*/
-	ENGINE_HANDLE*		handle,
-	const void*		cookie,
-	item**			item,
-	const void*		key,
-	const int		nkey,
-	uint16_t		vbucket)
+	ENGINE_HANDLE*		handle,		/*!< in: Engine Handle */
+	const void*		cookie,		/*!< in: connection cookie */
+	item**			item,		/*!< out: item to fill */
+	const void*		key,		/*!< in: search key */
+	const int		nkey,		/*!< in: key length */
+	uint16_t		vbucket)	/*!< in: bucket, used by default
+						engine only */
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	hash_item*		it = NULL;
@@ -749,17 +792,18 @@ func_exit:
 	return(err_ret);
 }
 
-
-/*** get_stats ***/
+/*******************************************************************//**
+Get statistics info
+@return ENGINE_SUCCESS if successfully, otherwise error code */
 static
 ENGINE_ERROR_CODE
 innodb_get_stats(
 /*=============*/
-	ENGINE_HANDLE*		handle,
-	const void*		cookie,
-	const char*		stat_key,
-	int			nkey,
-	ADD_STAT		add_stat)
+	ENGINE_HANDLE*		handle,		/*!< in: Engine Handle */
+	const void*		cookie,		/*!< in: connection cookie */
+	const char*		stat_key,	/*!< in: statistics key */
+	int			nkey,		/*!< in: key length */
+	ADD_STAT		add_stat)	/*!< out: stats to fill */
 {
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
@@ -767,32 +811,36 @@ innodb_get_stats(
 					 stat_key, nkey, add_stat);
 }
 
-
-/*** reset_stats ***/
+/*******************************************************************//**
+reset statistics
+@return ENGINE_SUCCESS if successfully, otherwise error code */
 static
 void
 innodb_reset_stats(
 /*===============*/
-	ENGINE_HANDLE* handle, 
-	const void *cookie)
+	ENGINE_HANDLE*		handle,		/*!< in: Engine Handle */
+	const void*		cookie)		/*!< in: connection cookie */
 {
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
 	def_eng->engine.reset_stats(innodb_eng->m_default_engine, cookie);
 }
 
-
-/*** store ***/
+/*******************************************************************//**
+API interface for memcached's "SET", "ADD", "REPLACE", "APPEND"
+"PREPENT" and "CAS" commands
+@return ENGINE_SUCCESS if successfully, otherwise error code */
 static
 ENGINE_ERROR_CODE
 innodb_store(
 /*=========*/
-	ENGINE_HANDLE*		handle,
-	const void*		cookie,
-	item*			item,
-	uint64_t*		cas,
-	ENGINE_STORE_OPERATION	op,
-	uint16_t		vbucket)
+	ENGINE_HANDLE*		handle,		/*!< in: Engine Handle */
+	const void*		cookie,		/*!< in: connection cookie */
+	item*			item,		/*!< out: result to fill */
+	uint64_t*		cas,		/*!< in: cas value */
+	ENGINE_STORE_OPERATION	op,		/*!< in: type of operation */
+	uint16_t		vbucket)	/*!< in: bucket, used by default
+						engine only */
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	uint16_t		len = hash_item_get_key_len(item);
@@ -828,24 +876,29 @@ innodb_store(
 	return(result);  
 }
 
-
-/*** arithmetic ***/
+/*******************************************************************//**
+Support memcached "INCR" and "DECR" command, add or subtract a "delta"
+value from an integer key value
+@return ENGINE_SUCCESS if successfully, otherwise error code */
 static
 ENGINE_ERROR_CODE
 innodb_arithmetic(
 /*==============*/
-	ENGINE_HANDLE*	handle,
-	const void*	cookie,
-	const void*	key,
-	const int	nkey,
-	const bool	increment,
-	const bool	create,
-	const uint64_t	delta,
-	const uint64_t	initial,
-	const rel_time_t exptime,
-	uint64_t*	cas,
-	uint64_t*	result,
-	uint16_t	vbucket)
+	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	const void*	key,		/*!< in: key for the value to add */
+	const int	nkey,		/*!< in: key length */
+	const bool	increment,	/*!< in: whether to increment
+					or decrement */
+	const bool	create,		/*!< in: whether to create the key
+					value pair if can't find */
+	const uint64_t	delta,		/*!< in: value to add/substract */
+	const uint64_t	initial,	/*!< in: initial */
+	const rel_time_t exptime,	/*!< in: expiration time */
+	uint64_t*	cas,		/*!< out: new cas value */
+	uint64_t*	result,		/*!< out: result value */
+	uint16_t	vbucket)	/*!< in: bucket, used by default
+					engine only */
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
@@ -879,15 +932,17 @@ innodb_arithmetic(
 	return ENGINE_SUCCESS;
 }
 
-
-/*** flush ***/
+/*******************************************************************//**
+Support memcached "FLUSH_ALL" command, clean up storage (trunate InnoDB Table)
+@return ENGINE_SUCCESS if successfully, otherwise error code */
 static
 ENGINE_ERROR_CODE
 innodb_flush(
 /*=========*/
-	ENGINE_HANDLE*	handle,
-	const void*	cookie,
-	time_t		when)
+	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	time_t		when)		/*!< in: when to flush, not used by
+					InnoDB */
 {                                   
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
@@ -938,19 +993,20 @@ innodb_flush(
         pthread_mutex_unlock(&innodb_eng->conn_mutex);
 
 	
-	return(ENGINE_SUCCESS);
+	return((ib_err == DB_SUCCESS) ? ENGINE_SUCCESS : ENGINE_FAILED);
 }
 
-
-/*** unknown_command ***/
+/*******************************************************************//**
+Deal with unknown command. Currently not used
+@return ENGINE_SUCCESS if successfully processed, otherwise error code */
 static
 ENGINE_ERROR_CODE
 innodb_unknown_command(
 /*===================*/
-	ENGINE_HANDLE*	handle,
-	const void*	cookie,
-	protocol_binary_request_header *request,
-	ADD_RESPONSE	response)
+	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	protocol_binary_request_header *request, /*!< in: request */
+	ADD_RESPONSE	response)	/*!< out: respondse */
 {
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
@@ -959,22 +1015,25 @@ innodb_unknown_command(
 					       cookie, request, response);
 }
 
-
-/*** get_item_info ***/
+/*******************************************************************//**
+Callback functions used by Memcached's process_command() function
+to get the result key/value information
+@return TRUE if info fetched */
 static
 bool
 innodb_get_item_info(
 /*=================*/
-	ENGINE_HANDLE*		handle, 
-	const void*		cookie,
-	const item* 		item, 
-	item_info*		item_info)
+	ENGINE_HANDLE*		handle,		/*!< in: Engine Handle */
+	const void*		cookie,		/*!< in: connection cookie */
+	const item* 		item,		/*!< in: item in question */
+	item_info*		item_info)	/*!< out: item info got */
 {
 	hash_item*	it;
 
 	if (item_info->nvalue < 1) {
-	return false;
+		return false;
 	}
+
 	/* Use a hash item */
 	it = (hash_item*) item;
 	item_info->cas = hash_item_get_cas(it);
@@ -989,56 +1048,3 @@ innodb_get_item_info(
 	item_info->value[0].iov_len = it->nbytes;    
 	return true;
 }
-
-
-/* read_cmdline_options requires duplicating code from the default engine. 
-If the default engine supports a new option, you will need to add it here.
-We create a single config_items structure containing options for both 
-engines. This function is not used for now. We passed the configure
-string to default engine for its initialization. But we would need this
-function if we would need to parse InnoDB specific configure strings.
-*/
-void
-read_cmdline_options(
-/*=================*/
-	struct innodb_engine*	innodb,
-	struct default_engine*	se,
-	const char*		conf)
-{
-	int did_parse = 0;   /* 0 = success from parse_config() */
-	if (conf != NULL) {
-		struct config_item items[] = {
-			/* DEFAULT ENGINE OPTIONS */
-			{ .key = "use_cas",
-			.datatype = DT_BOOL,
-			.value.dt_bool = &se->config.use_cas },
-			{ .key = "verbose",
-			.datatype = DT_SIZE,
-			.value.dt_size = &se->config.verbose },
-			{ .key = "eviction",
-			.datatype = DT_BOOL,
-			.value.dt_bool = &se->config.evict_to_free },
-			{ .key = "cache_size",
-			.datatype = DT_SIZE,
-			.value.dt_size = &se->config.maxbytes },
-			{ .key = "preallocate",
-			.datatype = DT_BOOL,
-			.value.dt_bool = &se->config.preallocate },
-			{ .key = "factor",
-			.datatype = DT_FLOAT,
-			.value.dt_float = &se->config.factor },
-			{ .key = "chunk_size",
-			.datatype = DT_SIZE,
-			.value.dt_size = &se->config.chunk_size },
-			{ .key = "item_size_max",
-			.datatype = DT_SIZE,
-			.value.dt_size = &se->config.item_size_max },
-			{ .key = "config_file",
-			.datatype = DT_CONFIGFILE },
-			{ .key = NULL}
-		};
-
-		did_parse = se->server.core->parse_config(conf, items, stderr);
-	}
-}
-

@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -13,91 +13,212 @@ Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ***********************************************************************/
 
-void read_cmdline_options(struct innodb_engine *, struct default_engine *,
-                          const char *);
+/**************************************************//**
+@file innodb_engine_private.h
+Callback functions to support memcached commands
 
-int fetch_core_settings(struct innodb_engine *, struct default_engine *);
+Extracted and modified from NDB memcached project
+04/12/2011 Jimmy Yang
+*******************************************************/
 
-/*************** Declarations of functions that implement 
-                 the engine interface 
- *********************************************************/
-static const engine_info* innodb_get_info(ENGINE_HANDLE* handle);
 
-static ENGINE_ERROR_CODE innodb_initialize(ENGINE_HANDLE* handle,
-                                        const char* config_str);
+#ifndef innodb_engine_private_h
+#define innodb_engine_private_h
 
-static void innodb_destroy(ENGINE_HANDLE* handle, bool force);
 
-static ENGINE_ERROR_CODE innodb_allocate(ENGINE_HANDLE* handle,
-                                      const void* cookie,
-                                      item **item,
-                                      const void* key,
-                                      const size_t nkey,
-                                      const size_t nbytes,
-                                      const int flags,
-                                      const rel_time_t exptime);
+/** Declarations of functions that implement the engine interface */
 
-static ENGINE_ERROR_CODE innodb_remove(ENGINE_HANDLE* handle,
-                                    const void* cookie,
-                                    const void* key,
-                                    const size_t nkey,
-                                    uint64_t cas,
-                                    uint16_t vbucket);
+/*******************************************************************//**
+Get engine info.
+@return engine info */
+static
+const engine_info*
+innodb_get_info(
+/*============*/
+	ENGINE_HANDLE*	handle);	/*!< in: Engine handle */
 
-static void innodb_release(ENGINE_HANDLE* handle,
-                        const void *cookie,
-                        item* item);
 
-static ENGINE_ERROR_CODE innodb_get(ENGINE_HANDLE* handle,
-                                 const void* cookie,
-                                 item** item,
-                                 const void* key,
-                                 const int nkey,
-                                 uint16_t vbucket);
+/*******************************************************************//**
+Initialize InnoDB Memcached Engine.
+@return ENGINE_SUCCESS if successful */
+static
+ENGINE_ERROR_CODE
+innodb_initialize(
+/*==============*/
+	ENGINE_HANDLE*	handle,		/*!< in/out: InnoDB memcached
+					engine */
+	const char*	config_str);	/*!< in: configure string */
 
-static ENGINE_ERROR_CODE innodb_get_stats(ENGINE_HANDLE* handle,
-                                       const void *cookie,
-                                       const char *stat_key,
-                                       int nkey,
-                                       ADD_STAT add_stat);
+/*******************************************************************//**
+Destroy and Free InnoDB Memcached engine */
+static
+void
+innodb_destroy(
+/*===========*/
+	ENGINE_HANDLE*	handle,		/*!< in: Destroy the engine instance */
+	bool		force);		/*!< in: Force to destroy */
 
-static void innodb_reset_stats(ENGINE_HANDLE* handle, 
-                            const void *cookie);
+/*******************************************************************//**
+Allocate gets a struct item from the slab allocator, and fills in
+everything but the value.  It seems like we can just pass this on to
+the default engine; we'll intercept it later in store().
+This is also called directly from finalize_read() in the commit thread. */
+static
+ENGINE_ERROR_CODE
+innodb_allocate(
+/*============*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	item**		item,		/*!< out: item to allocate */
+	const void*	key,		/*!< in: key value(s) */
+	const size_t	nkey,		/*!< in: key length */
+	const size_t	nbytes,		/*!< in: value length */
+	const int	flags,		/*!< in: flag */
+	const rel_time_t exptime);	/*!< in: expiration time */
 
-static ENGINE_ERROR_CODE innodb_store(ENGINE_HANDLE* handle,
-                                   const void *cookie,
-                                   item* item,
-                                   uint64_t *cas,
-                                   ENGINE_STORE_OPERATION operation,
-                                   uint16_t vbucket);
+/*******************************************************************//**
+Cleanup connections
+@return number of connection cleaned */
+/*** remove ***/
+static
+ENGINE_ERROR_CODE
+innodb_remove(
+/*==========*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	const void*	key,		/*!< in: key value */
+	const size_t	nkey,		/*!< in: key length */
+	uint64_t	cas,		/*!< in: cas */
+	uint16_t	vbucket);	/*!< in: bucket, used by default
+					engine only */
 
-static ENGINE_ERROR_CODE innodb_arithmetic(ENGINE_HANDLE* handle,
-                                        const void* cookie,
-                                        const void* key,
-                                        const int nkey,
-                                        const bool increment,
-                                        const bool create,
-                                        const uint64_t delta,
-                                        const uint64_t initial,
-                                        const rel_time_t exptime,
-                                        uint64_t *cas,
-                                        uint64_t *result,
-                                        uint16_t vbucket);
+/*******************************************************************//**
+release */
+static
+void
+innodb_release(
+/*===========*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	item*		item);		/*!< in: item to free */
 
-static ENGINE_ERROR_CODE innodb_flush(ENGINE_HANDLE* handle,
-                                   const void* cookie, 
-                                   time_t when);
+/*******************************************************************//**
+Support memcached "GET" command, fetch the value according to key
+@return ENGINE_SUCCESS if successfully, otherwise error code */
+static
+ENGINE_ERROR_CODE
+innodb_get(
+/*=======*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	item**		item,		/*!< out: item to fill */
+	const void*	key,		/*!< in: search key */
+	const int	nkey,		/*!< in: key length */
+	uint16_t	vbucket);	/*!< in: bucket, used by default
+					engine only */
 
-static ENGINE_ERROR_CODE innodb_unknown_command(ENGINE_HANDLE* handle,
-                                             const void* cookie,
-                                             protocol_binary_request_header *request,
-                                             ADD_RESPONSE response);
+/*******************************************************************//**
+Get statistics info
+@return ENGINE_SUCCESS if successfully, otherwise error code */
+static
+ENGINE_ERROR_CODE
+innodb_get_stats(
+/*=============*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	const char*	stat_key,	/*!< in: statistics key */
+	int		nkey,		/*!< in: key length */
+	ADD_STAT	add_stat);	/*!< out: stats to fill */
 
-static bool innodb_get_item_info(ENGINE_HANDLE *handle, 
-                              const void *cookie,
-                              const item* item, 
-                              item_info *item_info);
+/*******************************************************************//**
+reset statistics
+@return ENGINE_SUCCESS if successfully, otherwise error code */
+static
+void
+innodb_reset_stats(
+/*===============*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
+	const void*	cookie);	/*!< in: connection cookie */
+
+/*******************************************************************//**
+API interface for memcached's "SET", "ADD", "REPLACE", "APPEND"
+"PREPENT" and "CAS" commands
+@return ENGINE_SUCCESS if successfully, otherwise error code */
+static
+ENGINE_ERROR_CODE
+innodb_store(
+/*=========*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	item*		item,		/*!< out: result to fill */
+	uint64_t*	cas,		/*!< in: cas value */
+	ENGINE_STORE_OPERATION  op,	/*!< in: type of operation */
+	uint16_t	vbucket);	/*!< in: bucket, used by default
+					engine only */
+
+/*******************************************************************//**
+Support memcached "INCR" and "DECR" command, add or subtract a "delta" 
+value from an integer key value
+@return ENGINE_SUCCESS if successfully, otherwise error code */
+static
+ENGINE_ERROR_CODE
+innodb_arithmetic(
+/*==============*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	const void*	key,		/*!< in: key for the value to add */
+	const int	nkey,		/*!< in: key length */
+	const bool	increment,	/*!< in: whether to increment 
+					or decrement */
+	const bool	create,		/*!< in: whether to create the key
+					value pair if can't find */
+	const uint64_t	delta,		/*!< in: value to add/substract */
+	const uint64_t	initial,	/*!< in: initial */
+	const rel_time_t exptime,	/*!< in: expiration time */
+	uint64_t*	cas,		/*!< out: new cas value */
+	uint64_t*	result,		/*!< out: result out */
+	uint16_t	vbucket);	/*!< in: bucket, used by default 
+					engine only */
+
+/*******************************************************************//**
+Support memcached "FLUSH_ALL" command, clean up storage (trunate InnoDB Table)
+@return ENGINE_SUCCESS if successfully, otherwise error code */
+static
+ENGINE_ERROR_CODE
+innodb_flush(
+/*=========*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	time_t		when);		/*!< in: when to flush, not used by
+					InnoDB */
+
+/*******************************************************************//**
+Deal with unknown command. Currently not used 
+@return ENGINE_SUCCESS if successfully processed, otherwise error code */
+static
+ENGINE_ERROR_CODE
+innodb_unknown_command(
+/*===================*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	protocol_binary_request_header *request, /*!< in: request */
+	ADD_RESPONSE	response);	/*!< out: respondse */
+
+/*******************************************************************//**
+Callback functions used by Memcached's process_command() function
+to get the result key/value information
+@return TRUE if info fetched */
+static
+bool
+innodb_get_item_info(
+/*=================*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	const item*	item,		/*!< in: item in question */
+	item_info*	item_info);	/*!< out: item info got */
+
+#endif /* innodb_engine_private_h */

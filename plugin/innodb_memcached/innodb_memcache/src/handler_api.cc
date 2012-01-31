@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ****************************************************************************/
 
@@ -24,6 +24,10 @@ Created 3/14/2011 Jimmy Yang
 
 #include "handler_api.h"
 #include "log_event.h"
+
+extern int write_bin_log(THD *thd, bool clear_error,
+                  char const *query, ulong query_length,
+                  bool is_trans= FALSE);
 
 /**********************************************************************//**
 Create a THD object.
@@ -46,10 +50,6 @@ handler_create_thd(void)
 	thd->thread_stack = (char*) &thd;
 	thd->store_globals();
 
-	mysql_mutex_lock(&LOCK_thread_count);
-	//threads.append(thd);
-	mysql_mutex_unlock(&LOCK_thread_count);
-
 	thd->binlog_setup_trx_data();
 
 	/* set binlog_format to "ROW" */
@@ -59,7 +59,7 @@ handler_create_thd(void)
 }
 
 /**********************************************************************//**
-Returns a MySQL TABLE object with specified database name and table name.
+Returns a MySQL "TABLE" object with specified database name and table name.
 @return a pointer to the TABLE object, NULL if does not exist */
 void*
 handler_open_table(
@@ -121,10 +121,6 @@ handler_binlog_row(
 		binlog_log_row(table, table->record[0], 0, log_func);
 	}
 }
-
-extern int write_bin_log(THD *thd, bool clear_error,
-                  char const *query, ulong query_length,
-                  bool is_trans= FALSE);
 
 /**********************************************************************//**
 Flush binlog from cache to binlog file */
@@ -352,6 +348,7 @@ handler_insert_rec(
 
 	return(result);
 }
+
 /**********************************************************************//**
 Update a record
 return 0 if successfully inserted */
@@ -382,6 +379,7 @@ handler_update_rec(
 
 	return(result);
 }
+
 /**********************************************************************//**
 Delete a record
 return 0 if successfully inserted */
@@ -416,6 +414,7 @@ handler_lock_table(
 	return(thd->lock);
 }
 #endif
+
 /**********************************************************************//**
 Unlock a table and commit the transaction
 return 0 if fail to commit the transaction */
