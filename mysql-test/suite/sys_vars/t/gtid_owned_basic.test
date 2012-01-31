@@ -4,7 +4,7 @@ SET @start_global_value = @@global.gtid_owned;
 SELECT @start_global_value;
 
 #
-# exists as global only
+# exists as global and session.
 #
 select @@global.gtid_owned;
 select @@session.gtid_owned;
@@ -18,7 +18,8 @@ select * from information_schema.session_variables where variable_name='gtid_own
 # into it triggers an assertion.
 #
 select @@global.gtid_owned;
+select @@session.gtid_owned;
 
 #
-# See (@TODO Create a test case) for a comprehensive test case.
+# See rpl_gtid_execution.test for a comprehensive test case.
 #

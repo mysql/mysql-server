@@ -25,5 +25,5 @@ set global gtid_next_list = 1;
 select @@session.gtid_next_list;
 
 #
-# See binlog_group_execution for a comprehensive test case.
+# See rpl_gtid_execution.tesst for a comprehensive test case.
 #

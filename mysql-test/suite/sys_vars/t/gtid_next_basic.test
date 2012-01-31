@@ -29,5 +29,5 @@ set session gtid_next = @start_global_value;
 select @@session.gtid_next;
 
 #
-# See binlog_group_execution for a comprehensive test case.
+# See rpl_gtid_execution.test for a comprehensive test case.
 #

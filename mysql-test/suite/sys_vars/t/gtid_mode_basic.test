@@ -18,11 +18,11 @@ select * from information_schema.session_variables where variable_name='gtid_mod
 # show that it isn't writable now.
 #
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-set global gtid_mode = 1;
+set global gtid_mode = "ON";
 select @@global.gtid_mode;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set session gtid_mode = 1;
 
 #
-# See rpl_gtid_mode for a comprehensive test case.
+# See rpl_gtid_mode.test for a comprehensive test case.
 #

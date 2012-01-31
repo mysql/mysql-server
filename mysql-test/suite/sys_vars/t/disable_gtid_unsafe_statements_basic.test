@@ -25,5 +25,5 @@ set session disable_gtid_unsafe_statements= 1;
 SELECT @@global.disable_gtid_unsafe_statements;
 
 #
-# See binlog_disable_gtid_unsafe_statements for a comprehensive test case.
+# See binlog_disable_gtid_unsafe_statements.test for a comprehensive test case.
 #
