@@ -2572,10 +2572,17 @@ srv_suspend_purge_coordinator(
 
 		if (ret == OS_SYNC_TIME_EXCEEDED) {
 
-			ut_a(slot->suspended);
+			srv_sys_mutex_enter();
 
-			slot->suspended = FALSE;
-			++srv_sys->n_threads_active[SRV_PURGE];
+			/* The thread can be woken up after timeout
+			and before this check. */
+
+			if (slot->suspended) {
+				slot->suspended = FALSE;
+				++srv_sys->n_threads_active[SRV_PURGE];
+			}
+
+			srv_sys_mutex_exit();
 
 			if (trx_sys->rseg_history_len > 1000) {
 				if (timeout > 1000) {
