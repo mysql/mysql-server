@@ -2202,6 +2202,8 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_is_being_started = FALSE;
 
+	ut_a(trx_purge_state() == PURGE_STATE_INIT);
+
 	/* Create the master thread which does purge and other utility
 	operations */
 
@@ -2213,8 +2215,6 @@ innobase_start_or_create_for_mysql(void)
 	start the purge thread. */
 	if (srv_n_purge_threads >= 1
 	    && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
-
-		ut_a(trx_purge_state() == PURGE_STATE_INIT);
 
 		os_thread_create(
 			srv_purge_coordinator_thread,
