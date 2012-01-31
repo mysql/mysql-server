@@ -21,7 +21,7 @@
 
 /* We only need the tokens here */
 #define YYSTYPE_IS_DECLARED
-#include <sql_yacc.h>
+#include <../sql/sql_yacc.h>
 #include <lex.h>
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */

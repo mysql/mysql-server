@@ -29,8 +29,8 @@
 
 /* Generated code */
 #define YYSTYPE_IS_DECLARED
-#include "sql_yacc.h"
-#include "pfs_lex_token.h"
+#include <../sql/sql_yacc.h>
+#include <../storage/perfschema/pfs_lex_token.h>
 
 /**
   Token array : 
