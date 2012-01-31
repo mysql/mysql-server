@@ -18,7 +18,7 @@
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 /* distcheck does not compile from here... */
-
+#include "ha_ndbcluster_glue.h"
 #include "ndb_conflict.h"
 
 #ifdef HAVE_NDB_BINLOG
