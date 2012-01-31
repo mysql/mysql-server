@@ -89,6 +89,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_component.cc
   ../../sql/ndb_local_schema.cc
   ../../sql/ndb_repl_tab.cc
+  ../../sql/ndb_conflict.cc
 )
 
 # Include directories used when building ha_ndbcluster

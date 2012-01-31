@@ -33,11 +33,11 @@ NDB_SHARE::destroy(NDB_SHARE* share)
   pthread_mutex_destroy(&share->mutex);
 
 #ifdef HAVE_NDB_BINLOG
-  if (share->m_cfn_share && share->m_cfn_share->m_ex_tab && g_ndb)
+  if (share->m_cfn_share && 
+      share->m_cfn_share->m_ex_tab_writer.hasTable() && 
+      g_ndb)
   {
-    NdbDictionary::Dictionary *dict= g_ndb->getDictionary();
-    dict->removeTableGlobal(*(share->m_cfn_share->m_ex_tab), 0);
-    share->m_cfn_share->m_ex_tab= 0;
+    share->m_cfn_share->m_ex_tab_writer.free(g_ndb);
   }
 #endif
   share->new_op= 0;
