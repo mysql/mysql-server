@@ -59,7 +59,6 @@ DROP TABLE t;
 --exit
 
 --echo # End of BUG#56080
-
 --echo #
 --echo # Bug #13536661: VALGRIND: DEFINITELY LOST: 552 BYTES IN 1 BLOCKS IN
 --echo # CREATE_TMP_TABLE AND HIGHER
@@ -86,3 +85,6 @@ reap;
 SET GLOBAL debug = '';
 
 DROP TABLE t1;
+--disconnect con1
+--connection default
+
