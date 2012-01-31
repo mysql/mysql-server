@@ -35,12 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 			// EXPLAIN_FILENAME_MAX_EXTRA_LENGTH
 
 #include <sql_acl.h>	// PROCESS_ACL
-#include <m_ctype.h>
 #include <mysys_err.h>
-#include <mysql/plugin.h>
 #include <mysql/innodb_priv.h>
-#include <mysql/psi/psi.h>
-#include <my_sys.h>
 
 /** @file ha_innodb.cc */
 
@@ -49,6 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0dump.h"
 #include "buf0lru.h"
 #include "buf0flu.h"
+#include "buf0dblwr.h"
 #include "btr0sea.h"
 #include "os0file.h"
 #include "os0thread.h"
@@ -104,11 +101,7 @@ static bool innodb_inited = 0;
 
 #define INSIDE_HA_INNOBASE_CC
 
-/* In the Windows plugin, the return value of current_thd is
-undefined.  Map it to NULL. */
-
 #define EQ_CURRENT_THD(thd) ((thd) == current_thd)
-
 
 static struct handlerton* innodb_hton_ptr;
 
@@ -325,7 +318,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  ifdef UNIV_SYNC_DEBUG
 	{&sync_thread_mutex_key, "sync_thread_mutex", 0},
 #  endif /* UNIV_SYNC_DEBUG */
-	{&trx_doublewrite_mutex_key, "trx_doublewrite_mutex", 0},
+	{&buf_dblwr_mutex_key, "buf_dblwr_mutex", 0},
 	{&trx_undo_mutex_key, "trx_undo_mutex", 0},
 	{&srv_sys_mutex_key, "srv_sys_mutex", 0},
 	{&lock_sys_mutex_key, "lock_mutex", 0},
@@ -617,6 +610,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_num_open_files,		  SHOW_LONG},
   {"truncated_status_writes",
   (char*) &export_vars.innodb_truncated_status_writes,	  SHOW_LONG},
+  {"available_undo_logs",
+  (char*) &export_vars.innodb_available_undo_logs,        SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -744,6 +739,16 @@ static
 void
 innobase_commit_concurrency_init_default();
 /*=======================================*/
+
+/** @brief Initialize the default and max value of innodb_undo_logs.
+
+Once InnoDB is running, the default value and the max value of
+innodb_undo_logs must be equal to the available undo logs,
+given by srv_available_undo_logs. */
+static
+void
+innobase_undo_logs_init_default_max();
+/*==================================*/
 
 /************************************************************//**
 Validate the file format name and return its corresponding id.
@@ -3055,6 +3060,9 @@ innobase_change_buffering_inited_ok:
 		goto mem_free_and_error;
 	}
 
+	/* Adjust the innodb_undo_logs config object */
+	innobase_undo_logs_init_default_max();
+
 	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
 		innobase_old_blocks_pct, TRUE);
 
@@ -4599,7 +4607,7 @@ table_opened:
 	}
 
 	/* Index block size in InnoDB: used by MySQL in query optimization */
-	stats.block_size = 16 * 1024;
+	stats.block_size = UNIV_PAGE_SIZE;
 
 	/* Init table lock structure */
 	thr_lock_data_init(&share->lock,&lock,(void*) 0);
@@ -7155,7 +7163,6 @@ ha_innobase::innobase_get_index(
 	dict_index_t*	index = 0;
 
 	DBUG_ENTER("innobase_get_index");
-	ha_statistic_increment(&SSV::ha_read_key_count);
 
 	if (keynr != MAX_KEY && table->s->keys > 0) {
 		key = table->key_info + keynr;
@@ -13385,6 +13392,7 @@ innodb_change_buffer_max_size_update(
 	ibuf_max_size_update(innobase_change_buffer_max_size);
 }
 
+
 /*************************************************************//**
 Find the corresponding ibuf_use_t value that indexes into
 innobase_change_buffering_values[] array for the input
@@ -14610,10 +14618,10 @@ static MYSQL_SYSVAR_ULONG(ft_sort_pll_degree, fts_sort_pll_degree,
   "InnoDB Fulltext search parallel sort degree, will round up to nearest power of 2 number",
   NULL, NULL, 2, 1, 16, 0);
 
-static MYSQL_SYSVAR_ULONG(sort_buf_size, srv_sort_buf_size,
+static MYSQL_SYSVAR_ULONG(sort_buffer_size, srv_sort_buf_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "InnoDB Fulltext search sort buffer size",
-  NULL, NULL, 1048576, 524288, 64836480, 0);
+  "Memory buffer size for index creation",
+  NULL, NULL, 1048576, 524288, 64<<20, 0);
 
 static MYSQL_SYSVAR_BOOL(optimize_fulltext_only, innodb_optimize_fulltext_only,
   PLUGIN_VAR_NOCMDARG,
@@ -14850,6 +14858,13 @@ static MYSQL_SYSVAR_BOOL(print_all_deadlocks, srv_print_all_deadlocks,
   "Print all deadlocks to MySQL error log (off by default)",
   NULL, NULL, FALSE);
 
+#ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Debug flags for InnoDB to limit TRX_RSEG_N_SLOTS for trx_rsegf_undo_find_free()",
+  NULL, NULL, 0, 0, 1024, 0);
+#endif /* UNIV_DEBUG */
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -14925,7 +14940,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),
   MYSQL_SYSVAR(support_xa),
-  MYSQL_SYSVAR(sort_buf_size),
+  MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(analyze_is_persistent),
   MYSQL_SYSVAR(sync_spin_loops),
   MYSQL_SYSVAR(spin_wait_delay),
@@ -14963,6 +14978,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(undo_directory),
   MYSQL_SYSVAR(undo_tablespaces),
   MYSQL_SYSVAR(sync_array_size),
+#ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(trx_rseg_n_slots_debug),
+#endif /* UNIV_DEBUG */
   NULL
 };
 
@@ -15026,6 +15044,21 @@ innobase_commit_concurrency_init_default()
 {
 	MYSQL_SYSVAR_NAME(commit_concurrency).def_val
 		= innobase_commit_concurrency;
+}
+
+/** @brief Initialize the default and max value of innodb_undo_logs.
+
+Once InnoDB is running, the default value and the max value of
+innodb_undo_logs must be equal to the available undo logs,
+given by srv_available_undo_logs. */
+static
+void
+innobase_undo_logs_init_default_max()
+/*=================================*/
+{
+	MYSQL_SYSVAR_NAME(undo_logs).max_val
+		= MYSQL_SYSVAR_NAME(undo_logs).def_val
+		= srv_available_undo_logs;
 }
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
@@ -15257,3 +15290,4 @@ ha_innobase::idx_cond_push(
 	/* We will evaluate the condition entirely */
 	DBUG_RETURN(NULL);
 }
+

@@ -2110,6 +2110,14 @@ static Sys_var_ulong Sys_div_precincrement(
        SESSION_VAR(div_precincrement), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, DECIMAL_MAX_SCALE), DEFAULT(4), BLOCK_SIZE(1));
 
+static Sys_var_uint Sys_eq_range_index_dive_limit(
+       "eq_range_index_dive_limit",
+       "The optimizer will use existing index statistics instead of "
+       "doing index dives for equality ranges if the number of equality "
+       "ranges is larger than or equal to this number.",
+       SESSION_VAR(eq_range_index_dive_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, UINT_MAX32), DEFAULT(10), BLOCK_SIZE(1));
+
 static Sys_var_ulong Sys_range_alloc_block_size(
        "range_alloc_block_size",
        "Allocation block size for storing ranges during optimization",
@@ -2326,12 +2334,25 @@ static Sys_var_mybool Sys_query_cache_wlock_invalidate(
        DEFAULT(FALSE));
 #endif /* HAVE_QUERY_CACHE */
 
+static bool
+on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
+{
+  if (!var->save_result.ulonglong_value)
+  {
+    WARN_DEPRECATED(thd, "pre-4.1 password hash", "post-4.1 password hash");
+  }
+  return false;
+}
+
 static Sys_var_mybool Sys_secure_auth(
        "secure_auth",
        "Disallow authentication for accounts that have old (pre-4.1) "
        "passwords",
        GLOBAL_VAR(opt_secure_auth), CMD_LINE(OPT_ARG),
-       DEFAULT(FALSE));
+       DEFAULT(TRUE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(on_check_opt_secure_auth)
+       );
 
 static Sys_var_charptr Sys_secure_file_priv(
        "secure_file_priv",
@@ -3637,7 +3658,7 @@ static Sys_var_uint Sys_checkpoint_mts_period(
        "slave_checkpoint_period", "Gather workers' activities to "
        "Update progress status of Multi-threaded slave and flush "
        "the relay log info to disk after every #th milli-seconds.",
-       GLOBAL_VAR(mts_checkpoint_period), CMD_LINE(REQUIRED_ARG),
+       GLOBAL_VAR(opt_mts_checkpoint_period), CMD_LINE(REQUIRED_ARG),
 #ifndef DBUG_OFF
        VALID_RANGE(0, UINT_MAX), DEFAULT(300), BLOCK_SIZE(1));
 #else
@@ -3648,11 +3669,11 @@ static Sys_var_uint Sys_checkpoint_mts_group(
        "slave_checkpoint_group",
        "Maximum number of processed transactions by Multi-threaded slave "
        "before a checkpoint operation is called to update progress status.",
-       GLOBAL_VAR(mts_checkpoint_group), CMD_LINE(REQUIRED_ARG),
+       GLOBAL_VAR(opt_mts_checkpoint_group), CMD_LINE(REQUIRED_ARG),
 #ifndef DBUG_OFF
-       VALID_RANGE(1, UINT_MAX), DEFAULT(512), BLOCK_SIZE(1));
+       VALID_RANGE(1, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(1));
 #else
-       VALID_RANGE(512, UINT_MAX), DEFAULT(512), BLOCK_SIZE(8));
+       VALID_RANGE(512, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(1));
 #endif /* DBUG_OFF */
 #endif /* HAVE_REPLICATION */
 
@@ -3767,3 +3788,10 @@ static Sys_var_charptr Sys_ignore_db_dirs(
        READ_ONLY GLOBAL_VAR(opt_ignore_db_dirs), 
        NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
+
+static Sys_var_ulong Sys_sp_cache_size(
+       "stored_program_cache",
+       "The soft upper limit for number of cached stored routines for "
+       "one connection.",
+       GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(256, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));

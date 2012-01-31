@@ -113,12 +113,12 @@ dict_mem_table_create(
 	if (dict_table_has_fts_index(table)
 	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
 	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
-                table->fts = fts_create(table);
+		table->fts = fts_create(table);
 		table->fts->cache = fts_cache_create(table);
 		fts_optimize_add_table(table);
-        } else {
-                table->fts = NULL;
-        }
+	} else {
+		table->fts = NULL;
+	}
 #endif /* !UNIV_HOTBACKUP */
 
 	return(table);
@@ -136,6 +136,15 @@ dict_mem_table_free(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_d(table->cached = FALSE);
 
+        if (dict_table_has_fts_index(table)
+            || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
+            || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
+		if (table->fts) {
+			fts_free(table);
+		}
+
+		fts_optimize_remove_table(table);
+	}
 #ifndef UNIV_HOTBACKUP
 	mutex_free(&(table->autoinc_mutex));
 #endif /* UNIV_HOTBACKUP */

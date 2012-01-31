@@ -1461,7 +1461,7 @@ INSERT INTO t1 VALUES (1, 10), (2, NULL);
 EXPLAIN
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref_or_null	a_c,a	a_c	10	const,const	1	Using where
+1	SIMPLE	t1	ref	a_c,a	a	5	const	1	Using where; Using filesort
 # Must return 1 row
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
 col
@@ -1470,7 +1470,7 @@ col
 EXPLAIN
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-x	x	x	ref_or_null	a_c,a	x	x	x	x	x
+x	x	x	ref	a_c,a	x	x	x	x	x
 # Must return 1 row
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
 col
@@ -2587,4 +2587,56 @@ i1	i2
 4	4
 5	5
 DROP TABLE t1, t2, t3;
+#
+# Bug #11885377 VOID JOIN_READ_KEY_UNLOCK_ROW(ST_JOIN_TABLE*): ASSERTION
+# `TAB->REF.USE_COUNT'
+#
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(b INT,c INT);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1,2), (2,3);
+SELECT (SELECT 1 FROM t1 WHERE a=b AND c=1 ORDER BY a DESC) FROM t2;
+(SELECT 1 FROM t1 WHERE a=b AND c=1 ORDER BY a DESC)
+NULL
+NULL
+DROP TABLE t1, t2;
+#
+# Bug #13531865
+# TEST_IF_SKIP_SORT_ORDER() INCORRECTLY SKIP FILESORT IF
+# 'TYPE' IS REF_OR_NULL 
+# 
+#
+CREATE TABLE t1 (
+a INT,
+c INT,
+UNIQUE KEY a_c (a,c),
+KEY (a)) engine=myisam;
+INSERT INTO t1 VALUES (1,10), (2,NULL), (2,10);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Using 'KEY a_c' for order-by opt, would have required 
+# REF_OR_NULL access which never can be order_by skipped.
+# -> Keep initial REF on 'KEY a' selected by cond. optimizer
+EXPLAIN
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a_c,a	a	5	const	1	Using where
+EXPLAIN
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a_c,a	a	5	const	1	Using where; Using filesort
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+c
+NULL
+10
+EXPLAIN
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a_c,a	a	5	const	1	Using where; Using filesort
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
+c
+10
+NULL
+DROP TABLE t1;
 set optimizer_switch=default;

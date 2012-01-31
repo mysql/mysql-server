@@ -82,23 +82,7 @@ static void do_field_8(Copy_field *copy)
   copy->to_ptr[7]=copy->from_ptr[7];
 }
 
-
 static void do_field_to_null_str(Copy_field *copy)
-{
-  if (*copy->from_null_ptr & copy->from_bit)
-  {
-    memset(copy->to_ptr, 0, copy->from_length);
-    copy->to_null_ptr[0]=1;			// Always bit 1
-  }
-  else
-  {
-    copy->to_null_ptr[0]=0;
-    memcpy(copy->to_ptr,copy->from_ptr,copy->from_length);
-  }
-}
-
-
-static void do_outer_field_to_null_str(Copy_field *copy)
 {
   if (*copy->null_row ||
       (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
@@ -211,21 +195,6 @@ static void do_skip(Copy_field *copy __attribute__((unused)))
 
 static void do_copy_null(Copy_field *copy)
 {
-  if (*copy->from_null_ptr & copy->from_bit)
-  {
-    *copy->to_null_ptr|=copy->to_bit;
-    copy->to_field->reset();
-  }
-  else
-  {
-    *copy->to_null_ptr&= ~copy->to_bit;
-    (copy->do_copy2)(copy);
-  }
-}
-
-
-static void do_outer_field_null(Copy_field *copy)
-{
   if (*copy->null_row ||
       (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
   {
@@ -242,7 +211,7 @@ static void do_outer_field_null(Copy_field *copy)
 
 static void do_copy_not_null(Copy_field *copy)
 {
-  if (*copy->from_null_ptr & copy->from_bit)
+  if (*copy->null_row || (*copy->from_null_ptr & copy->from_bit))
   {
     copy->to_field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                 WARN_DATA_TRUNCATED, 1);
@@ -263,7 +232,7 @@ static void do_copy_maybe_null(Copy_field *copy)
 
 static void do_copy_timestamp(Copy_field *copy)
 {
-  if (*copy->from_null_ptr & copy->from_bit)
+  if (*copy->null_row || (*copy->from_null_ptr & copy->from_bit))
   {
     /* Same as in set_field_to_null_with_conversions() */
     copy->to_field->set_time();
@@ -275,7 +244,7 @@ static void do_copy_timestamp(Copy_field *copy)
 
 static void do_copy_next_number(Copy_field *copy)
 {
-  if (*copy->from_null_ptr & copy->from_bit)
+  if (*copy->null_row || (*copy->from_null_ptr & copy->from_bit))
   {
     /* Same as in set_field_to_null_with_conversions() */
     copy->to_field->table->auto_increment_field_not_null= FALSE;
@@ -574,6 +543,7 @@ void Copy_field::set(uchar *to,Field *from)
   from_ptr=from->ptr;
   to_ptr=to;
   from_length=from->pack_length();
+  null_row= &from->table->null_row;
   if (from->maybe_null())
   {
     from_null_ptr=from->null_ptr;
@@ -581,13 +551,7 @@ void Copy_field::set(uchar *to,Field *from)
     to_ptr[0]=	  1;				// Null as default value
     to_null_ptr=  (uchar*) to_ptr++;
     to_bit=	  1;
-    if (from->table->maybe_null)
-    {
-      null_row=   &from->table->null_row;
-      do_copy=	  do_outer_field_to_null_str;
-    }
-    else
-      do_copy=	  do_field_to_null_str;
+    do_copy=	  do_field_to_null_str;
   }
   else
   {
@@ -630,6 +594,7 @@ void Copy_field::set(Field *to,Field *from,bool save)
 
   // set up null handling
   from_null_ptr=to_null_ptr=0;
+  null_row= &from->table->null_row;
   if (from->maybe_null())
   {
     from_null_ptr=	from->null_ptr;
@@ -638,13 +603,7 @@ void Copy_field::set(Field *to,Field *from,bool save)
     {
       to_null_ptr=	to->null_ptr;
       to_bit=		to->null_bit;
-      if (from_null_ptr)
-	do_copy=	do_copy_null;
-      else
-      {
-	null_row=	&from->table->null_row;
-	do_copy=	do_outer_field_null;
-      }
+      do_copy=	do_copy_null;
     }
     else
     {

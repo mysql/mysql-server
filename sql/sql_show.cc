@@ -55,6 +55,8 @@
 #include "debug_sync.h"
 #include "datadict.h"   // dd_frm_type()
 #include "opt_trace.h"     // Optimizer trace information schema tables
+#include "sql_tmp_table.h" // Tmp tables
+#include "sql_optimizer.h" // JOIN
 
 #include <algorithm>
 using std::max;

@@ -53,6 +53,8 @@
 #include "sql_show.h"
 #include "transaction.h"
 #include "datadict.h"  // dd_frm_type()
+#include "sql_resolver.h"              // setup_order, fix_inner_refs
+#include <mysql/psi/mysql_table.h>
 
 #ifdef __WIN__
 #include <io.h>
@@ -2394,9 +2396,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         tbl_name.append('.');
         tbl_name.append(String(table->table_name,system_charset_info));
 
-	push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
-			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
-			    tbl_name.c_ptr());
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+                            ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
+                            tbl_name.c_ptr());
       }
       else
       {
@@ -2422,21 +2424,21 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
       /* No error if non existent table and 'IF EXIST' clause or view */
       if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
-	  (if_exists || table_type == NULL))
+          (if_exists || table_type == NULL))
       {
-	error= 0;
+        error= 0;
         thd->clear_error();
       }
       if (error == HA_ERR_ROW_IS_REFERENCED)
       {
-	/* the table is referenced by a foreign key constraint */
-	foreign_key_error= 1;
+        /* the table is referenced by a foreign key constraint */
+        foreign_key_error= 1;
       }
       if (!error || error == ENOENT || error == HA_ERR_NO_SUCH_TABLE)
       {
         int new_error;
-	/* Delete the table definition file */
-	strmov(end,reg_ext);
+        /* Delete the table definition file */
+        strmov(end,reg_ext);
         if (!(new_error= mysql_file_delete(key_file_frm, path, MYF(MY_WME))))
         {
           non_tmp_table_deleted= TRUE;
@@ -2449,8 +2451,16 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
     if (error)
     {
+      if (error == HA_ERR_TOO_MANY_CONCURRENT_TRXS)
+      {
+        my_error(HA_ERR_TOO_MANY_CONCURRENT_TRXS, MYF(0));
+        wrong_tables.free();
+        error= 1;
+        goto err;
+      }
+
       if (wrong_tables.length())
-	wrong_tables.append(',');
+        wrong_tables.append(',');
 
       wrong_tables.append(String(db,system_charset_info));
       wrong_tables.append('.');
@@ -2463,6 +2473,11 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                     my_printf_error(ER_BAD_TABLE_ERROR,
                                     ER(ER_BAD_TABLE_ERROR), MYF(0),
                                     table->table_name););
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    if (drop_temporary && likely(error == 0))
+      PSI_CALL(drop_table_share)(true, table->db, table->db_length,
+                                 table->table_name, table->table_name_length);
+#endif
   }
   DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
   thd->thread_specific_used|= (trans_tmp_table_deleted ||
@@ -4724,6 +4739,21 @@ mysql_rename_table(handlerton *base, const char *old_db,
     my_error(ER_ERROR_ON_RENAME, MYF(0), from, to,
              error, my_strerror(errbuf, sizeof(errbuf), error));
   }
+
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  /*
+    Remove the old table share from the pfs table share array. The new table
+    share will be created when the renamed table is first accessed.
+   */
+  if (likely(error == 0))
+  {
+    my_bool temp_table= (my_bool)is_prefix(old_name, tmp_file_prefix);
+    PSI_CALL(drop_table_share)(temp_table, old_db, strlen(old_db),
+                               old_name, strlen(old_name));
+  }
+#endif
+
+
   DBUG_RETURN(error != 0);
 }
 

@@ -73,14 +73,6 @@ UNIV_INTERN ulint	os_innodb_umask
 UNIV_INTERN ulint	os_innodb_umask		= 0;
 #endif
 
-#ifdef UNIV_DO_FLUSH
-/* If the following is set to TRUE, we do not call os_file_flush in every
-os_file_write. We can set this TRUE when the doublewrite buffer is used. */
-UNIV_INTERN ibool	os_do_not_call_flush_at_each_write	= FALSE;
-#else
-/* We do not call os_file_flush in every os_file_write. */
-#endif /* UNIV_DO_FLUSH */
-
 #ifndef UNIV_HOTBACKUP
 /* We use these mutexes to protect lseek + file i/o operation, if the
 OS does not provide an atomic pread or pwrite, or similar */
@@ -2355,19 +2347,6 @@ os_file_pwrite(
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
 #endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD < 8 */
 
-# ifdef UNIV_DO_FLUSH
-	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
-	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
-	    && !os_do_not_call_flush_at_each_write) {
-
-		/* Always do fsync to reduce the probability that when
-		the OS crashes, a database page is only partially
-		physically written to disk. */
-
-		ut_a(TRUE == os_file_flush(file));
-	}
-# endif /* UNIV_DO_FLUSH */
-
 	return(ret);
 #else
 	{
@@ -2397,19 +2376,6 @@ os_file_pwrite(
 		}
 
 		ret = write(file, buf, (ssize_t) n);
-
-# ifdef UNIV_DO_FLUSH
-		if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
-		    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
-		    && !os_do_not_call_flush_at_each_write) {
-
-			/* Always do fsync to reduce the probability that when
-			the OS crashes, a database page is only partially
-			physically written to disk. */
-
-			ut_a(TRUE == os_file_flush(file));
-		}
-# endif /* UNIV_DO_FLUSH */
 
 func_exit:
 # ifndef UNIV_HOTBACKUP
@@ -2772,15 +2738,6 @@ retry:
 	}
 
 	ret = WriteFile(file, buf, (DWORD) n, &len, NULL);
-
-	/* Always do fsync to reduce the probability that when the OS crashes,
-	a database page is only partially physically written to disk. */
-
-# ifdef UNIV_DO_FLUSH
-	if (!os_do_not_call_flush_at_each_write) {
-		ut_a(TRUE == os_file_flush(file));
-	}
-# endif /* UNIV_DO_FLUSH */
 
 #ifndef UNIV_HOTBACKUP
 	os_mutex_exit(os_file_seek_mutexes[i]);
@@ -3240,7 +3197,91 @@ retry:
 
 	fprintf(stderr,
 		"InnoDB: You can disable Linux Native AIO by"
-		" setting innodb_native_aio = off in my.cnf\n");
+		" setting innodb_use_native_aio = 0 in my.cnf\n");
+	return(FALSE);
+}
+
+/******************************************************************//**
+Checks if the system supports native linux aio. On some kernel
+versions where native aio is supported it won't work on tmpfs. In such
+cases we can't use native aio as it is not possible to mix simulated
+and native aio.
+@return: TRUE if supported, FALSE otherwise. */
+static
+ibool
+os_aio_native_aio_supported(void)
+/*=============================*/
+{
+	int			fd;
+	byte*			buf;
+	byte*			ptr;
+	struct io_event		io_event;
+	io_context_t		io_ctx;
+	struct iocb		iocb;
+	struct iocb*		p_iocb;
+	int			err;
+
+	if (!os_aio_linux_create_io_ctx(1, &io_ctx)) {
+		/* The platform does not support native aio. */
+		return(FALSE);
+	}
+
+	/* Now check if tmpdir supports native aio ops. */
+	fd = innobase_mysql_tmpfile();
+
+	if (fd < 0) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error: unable to create "
+			"temp file to check native AIO support.\n");
+
+		return(FALSE);
+	}
+
+	memset(&io_event, 0x0, sizeof(io_event));
+
+	buf = static_cast<byte*>(ut_malloc(UNIV_PAGE_SIZE * 2));
+	ptr = static_cast<byte*>(ut_align(buf, UNIV_PAGE_SIZE));
+
+	/* Suppress valgrind warning. */
+	memset(buf, 0x00, UNIV_PAGE_SIZE * 2);
+
+	memset(&iocb, 0x0, sizeof(iocb));
+	p_iocb = &iocb;
+	io_prep_pwrite(p_iocb, fd, ptr, UNIV_PAGE_SIZE, 0);
+
+	err = io_submit(io_ctx, 1, &p_iocb);
+	if (err >= 1) {
+		/* Now collect the submitted IO request. */
+		err = io_getevents(io_ctx, 1, 1, &io_event, NULL);
+	}
+
+	ut_free(buf);
+	close(fd);
+
+	switch (err) {
+	case 1:
+		return(TRUE);
+
+	case -EINVAL:
+	case -ENOSYS:
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Error: Linux Native AIO is not"
+			" supported on tmpdir.\n"
+			"InnoDB: You can either move tmpdir to a"
+			" file system that supports native AIO\n"
+			"InnoDB: or you can set"
+			" innodb_use_native_aio to FALSE to avoid"
+			" this message.\n");
+
+		/* fall through. */
+	default:
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Error: Linux Native AIO check"
+			" on tmpdir returned error[%d]\n", -err);
+	}
+
 	return(FALSE);
 }
 #endif /* LINUX_NATIVE_AIO */
@@ -3411,6 +3452,19 @@ os_aio_init(
 	ut_ad(n_segments >= 4);
 
 	os_io_init_simple();
+
+#if defined(LINUX_NATIVE_AIO)
+	/* Check if native aio is supported on this system and tmpfs */
+	if (srv_use_native_aio
+	    && !os_aio_native_aio_supported()) {
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Warning: Linux Native AIO"
+			" disabled.\n");
+		srv_use_native_aio = FALSE;
+	}
+#endif /* LINUX_NATIVE_AIO */
 
 	for (i = 0; i < n_segments; i++) {
 		srv_set_io_thread_op_info(i, "not started yet");
@@ -4312,16 +4366,8 @@ os_aio_windows_handle(
 	*type = slot->type;
 
 	if (ret && len == slot->len) {
-		ret_val = TRUE;
 
-#ifdef UNIV_DO_FLUSH
-		if (slot->type == OS_FILE_WRITE
-		    && !os_do_not_call_flush_at_each_write) {
-			if (!os_file_flush(slot->file)) {
-				ut_error;
-			}
-		}
-#endif /* UNIV_DO_FLUSH */
+		ret_val = TRUE;
 	} else if (os_file_handle_error(slot->name, "Windows aio")) {
 
 		retry = TRUE;
@@ -4613,15 +4659,8 @@ found:
 	*type = slot->type;
 
 	if ((slot->ret == 0) && (slot->n_bytes == (long) slot->len)) {
-		ret = TRUE;
 
-#ifdef UNIV_DO_FLUSH
-		if (slot->type == OS_FILE_WRITE
-		    && !os_do_not_call_flush_at_each_write)
-		    && !os_file_flush(slot->file) {
-			ut_error;
-		}
-#endif /* UNIV_DO_FLUSH */
+		ret = TRUE;
 	} else {
 		errno = -slot->ret;
 

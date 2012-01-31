@@ -15,10 +15,33 @@ UNINSTALL PLUGIN example;
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 
+--echo # Example engine does not support indexes
+--error ER_TOO_MANY_KEY_PARTS
+CREATE TABLE t1 (a int PRIMARY KEY) ENGINE=EXAMPLE;
+--error ER_TOO_MANY_KEY_PARTS
+CREATE TABLE t1 (a int, KEY (a)) ENGINE=EXAMPLE;
+
+
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 
---error ER_ILLEGAL_HA
+SHOW CREATE TABLE t1;
+
+--echo # Let's do some advanced ops with the example engine :)
+INSERT INTO t1 VALUES (0);
+
+--echo # Only supports table scans (and does always return zero rows :)
 SELECT * FROM t1;
+SELECT * FROM t1 WHERE a = 0;
+
+--echo # Since there are no rows found, it will never do update_row.
+UPDATE t1 SET a = 1 WHERE a = 0;
+
+--echo # Since there are no rows found, it will never do delete_row.
+DELETE FROM t1 WHERE a = 0;
+
+--echo # No support for SQL HANDLER statement
+--error ER_ILLEGAL_HA
+HANDLER t1 OPEN;
 
 DROP TABLE t1;
 

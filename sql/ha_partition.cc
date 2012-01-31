@@ -2454,7 +2454,7 @@ error_end:
 
 bool ha_partition::read_par_file(const char *name)
 {
-  char buff[FN_REFLEN], *tot_name_len_offset;
+  char buff[FN_REFLEN], *tot_name_len_offset, *buff_p= buff;
   File file;
   char *file_buffer;
   uint i, len_bytes, len_words, tot_partition_words, tot_name_words, chksum;
@@ -2471,7 +2471,7 @@ bool ha_partition::read_par_file(const char *name)
     DBUG_RETURN(TRUE);
   if (mysql_file_read(file, (uchar *) &buff[0], PAR_WORD_SIZE, MYF(MY_NABP)))
     goto err1;
-  len_words= uint4korr(buff);
+  len_words= uint4korr(buff_p);
   len_bytes= PAR_WORD_SIZE * len_words;
   if (mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR)
     goto err1;
@@ -3803,13 +3803,13 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
   uint num_parts= m_part_info->num_parts;
   uint num_subparts= m_part_info->num_subparts;
   uint i= 0;
-  uint num_parts_set= alter_info->partition_names.elements;
-  uint num_parts_found= set_part_state(alter_info, m_part_info,
-                                        PART_ADMIN);
   DBUG_ENTER("ha_partition::truncate_partition");
 
   /* Only binlog when it starts any call to the partitions handlers */
   *binlog_stmt= false;
+
+  if (set_part_state(alter_info, m_part_info, PART_ADMIN))
+    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
 
   /*
     TRUNCATE also means resetting auto_increment. Hence, reset
@@ -3819,10 +3819,6 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
   table_share->ha_part_data->next_auto_inc_val= 0;
   table_share->ha_part_data->auto_inc_initialized= FALSE;
   unlock_auto_increment();
-
-  if (num_parts_set != num_parts_found &&
-      (!(alter_info->flags & ALTER_ALL_PARTITION)))
-    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
 
   *binlog_stmt= true;
 

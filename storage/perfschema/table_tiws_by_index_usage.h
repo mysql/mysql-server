@@ -83,6 +83,7 @@ public:
   static PFS_engine_table* create();
   static int delete_all_rows();
 
+  virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);

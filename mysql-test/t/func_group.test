@@ -1184,3 +1184,12 @@ SELECT AVG(DISTINCT outr.col_int_nokey) FROM t1 AS outr LEFT JOIN t1 AS outr2 ON
 outr.col_int_nokey = outr2.col_int_nokey;
 DROP TABLE t1;
 --echo # End of the bug#57932
+
+--echo #
+--echo # BUG#12773464 - 61925: WRONG RESULT WITH AGGREGATE + NOT BETWEEN + KEY
+--echo #
+CREATE TABLE t1 (a int, KEY (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+SELECT MAX(a) FROM t1 WHERE a NOT BETWEEN 3 AND 9;
+
+DROP TABLE t1;

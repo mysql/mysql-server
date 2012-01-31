@@ -78,6 +78,8 @@
 #include "sql_audit.h"
 #include "debug_sync.h"
 #include "opt_explain.h"
+#include "sql_tmp_table.h"    // tmp tables
+#include "sql_optimizer.h"    // JOIN
 
 #include "debug_sync.h"
 

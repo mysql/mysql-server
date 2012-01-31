@@ -1,6 +1,8 @@
 #
 # Bug#55672 mysql_upgrade dies with internal error 
 #
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 mysql.columns_priv                                 OK

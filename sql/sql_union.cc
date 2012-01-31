@@ -26,6 +26,8 @@
 #include "sql_cursor.h"
 #include "sql_base.h"                           // fill_record
 #include "filesort.h"                           // filesort_free_buffers
+#include "sql_tmp_table.h"                      // tmp tables
+#include "sql_optimizer.h"                      // JOIN
 
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option)

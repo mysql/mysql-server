@@ -2204,3 +2204,259 @@ field1	field2
 1	3
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#13422961: WRONG RESULTS FROM SELECT WITH AGGREGATES AND
+#               IMPLICIT GROUPING + MYISAM OR MEM
+#
+CREATE TABLE it (
+pk INT NOT NULL,
+col_int_nokey INT NOT NULL,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+CREATE TABLE ot (
+pk int(11) NOT NULL,
+col_int_nokey int(11) NOT NULL,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+INSERT INTO ot VALUES (10,8);
+
+SELECT col_int_nokey, MAX( pk ) 
+FROM ot 
+WHERE (8, 1) IN ( SELECT pk, COUNT( col_int_nokey ) FROM it );
+col_int_nokey	MAX( pk )
+NULL	NULL
+
+DROP TABLE it,ot;
+#
+# Bug#13430588: WRONG RESULT FROM IMPLICITLY GROUPED QUERY WITH
+#               CONST TABLE AND NO MATCHING ROWS
+#
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (j INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1),(2);
+
+SELECT i, j, COUNT(i) FROM t1 JOIN t2 WHERE j=3;
+i	j	COUNT(i)
+NULL	NULL	0
+
+DROP TABLE t1,t2;
+#
+# BUG#13541761: WRONG RESULTS ON CORRELATED SUBQUERY + 
+#               AGGREGATE FUNCTION + MYISAM OR MEMORY
+#
+CREATE TABLE t1 (
+a varchar(1)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('a'), ('b');
+CREATE TABLE t2 (
+a varchar(1),
+b int(11)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('a',1);
+
+EXPLAIN SELECT (SELECT MAX(b) FROM t2 WHERE t2.a != t1.a) as MAX 
+FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT (SELECT MAX(b) FROM t2 WHERE t2.a != t1.a) as MAX 
+FROM t1;
+MAX
+NULL
+1
+DROP TABLE t1,t2;
+# Bug 11923239 - ERROR WITH CORRELATED SUBQUERY IN VIEW WITH
+# ONLY_FULL_GROUP_BY SQL MODE
+CREATE TABLE t1 (
+pk INT,
+col_int_key INT,
+col_int_nokey INT,
+col_varchar_key VARCHAR(10),
+col_varchar_nokey VARCHAR(10),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t1 VALUES (), ();
+# In GROUP BY, aliases are printed as aliases.
+EXPLAIN EXTENDED SELECT alias1.col_int_nokey AS field1,
+(SELECT alias2.col_int_key
+FROM t1 AS alias2
+WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+) AS field2
+FROM t1 AS alias1
+GROUP BY field1, field2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	alias2	index	NULL	col_int_key	5	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.alias1.col_varchar_key' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.alias1.col_varchar_nokey' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`alias1`.`col_int_nokey` AS `field1`,(/* select#2 */ select `test`.`alias2`.`col_int_key` from `test`.`t1` `alias2` where (`test`.`alias1`.`col_varchar_key` <= `test`.`alias1`.`col_varchar_nokey`)) AS `field2` from `test`.`t1` `alias1` group by `field1`,`field2`
+# In GROUP BY, expressions are printed as expressions.
+EXPLAIN EXTENDED SELECT alias1.col_int_nokey AS field1,
+(SELECT alias2.col_int_key
+FROM t1 AS alias2
+WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+) AS field2
+FROM t1 AS alias1
+GROUP BY field1,
+(SELECT alias2.col_int_key
+FROM t1 AS alias2
+WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+3	DEPENDENT SUBQUERY	alias2	index	NULL	col_int_key	5	NULL	2	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	alias2	index	NULL	col_int_key	5	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.alias1.col_varchar_key' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.alias1.col_varchar_nokey' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.alias1.col_varchar_key' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.alias1.col_varchar_nokey' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`alias1`.`col_int_nokey` AS `field1`,(/* select#2 */ select `test`.`alias2`.`col_int_key` from `test`.`t1` `alias2` where (`test`.`alias1`.`col_varchar_key` <= `test`.`alias1`.`col_varchar_nokey`)) AS `field2` from `test`.`t1` `alias1` group by `field1`,(/* select#3 */ select `test`.`alias2`.`col_int_key` from `test`.`t1` `alias2` where (`test`.`alias1`.`col_varchar_key` <= `test`.`alias1`.`col_varchar_nokey`))
+# Aliased expression in GROUP BY in a view.
+CREATE VIEW v1 AS SELECT alias1.col_int_nokey AS field1,
+(SELECT alias2.col_int_key
+FROM t1 AS alias2
+WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+) AS field2
+FROM t1 AS alias1
+GROUP BY field1, field2;
+# In GROUP BY, aliases are printed as aliases.
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `alias1`.`col_int_nokey` AS `field1`,(select `alias2`.`col_int_key` from `t1` `alias2` where (`alias1`.`col_varchar_key` <= `alias1`.`col_varchar_nokey`)) AS `field2` from `t1` `alias1` group by `field1`,`field2`	latin1	latin1_swedish_ci
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode='ONLY_FULL_GROUP_BY';
+SELECT alias1.col_int_nokey AS field1,
+(SELECT alias2.col_int_key
+FROM t1 AS alias2
+WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+) AS field2
+FROM t1 AS alias1
+GROUP BY field1, field2;
+field1	field2
+NULL	NULL
+# The SELECT above has been accepted, and v1 was created
+# using the same SELECT as above, so SELECTing from v1
+# should be accepted.
+SELECT * FROM v1;
+field1	field2
+NULL	NULL
+# Here is why in GROUP BY we print aliases of subqueries as
+# aliases: below, "GROUP BY (subquery)" confuses
+# ONLY_FULL_GROUP_BY, it causes an error though the subquery of
+# GROUP BY and of SELECT list are the same. Fixing this would
+# require implementing Item_subselect::eq(). It's not worth
+# the effort because:
+# a) GROUP BY (subquery) is non-SQL-standard so is likely of
+# very little interest to users of ONLY_FULL_GROUP_BY
+# b) as the user uses ONLY_FULL_GROUP_BY, he wants to have the
+# same subquery in GROUP BY and SELECT list, so can give the
+# subquery an alias in the SELECT list and use this alias in
+# GROUP BY, thus avoiding the problem.
+SELECT alias1.col_int_nokey AS field1,
+(SELECT alias2.col_int_key
+FROM t1 AS alias2
+WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+) AS field2
+FROM t1 AS alias1
+GROUP BY field1,
+(SELECT alias2.col_int_key
+FROM t1 AS alias2
+WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+);
+ERROR 42000: 'test.alias1.col_varchar_key' isn't in GROUP BY
+DROP VIEW v1;
+SET @@sql_mode = @old_sql_mode;
+# Verify that if an alias is used in GROUP BY/ORDER BY it
+# is printed as an alias, not as the expression.
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES(3),(4);
+EXPLAIN EXTENDED SELECT
+pk AS foo, col_int_key AS bar, (SELECT a FROM t2 WHERE a=t1.pk) AS baz
+FROM t1
+GROUP BY foo, col_int_key, baz ORDER BY pk, bar, (SELECT a FROM t2 WHERE a=t1.pk);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.pk' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.pk' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `t1`.`pk` AS `foo`,`t1`.`col_int_key` AS `bar`,(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `t1`.`pk`)) AS `baz` from `test`.`t1` group by `foo`,`t1`.`col_int_key`,`baz` order by `t1`.`pk`,`bar`,(/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `t1`.`pk`))
+EXPLAIN EXTENDED SELECT
+pk AS foo, col_int_key AS foo, (SELECT a FROM t2 WHERE a=t1.pk) AS foo
+FROM t1
+GROUP BY pk, col_int_key, (SELECT a FROM t2 WHERE a=t1.pk)
+ORDER BY pk, col_int_key, (SELECT a FROM t2 WHERE a=t1.pk);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+4	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.pk' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.pk' of SELECT #4 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.pk' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `t1`.`pk` AS `foo`,`t1`.`col_int_key` AS `foo`,(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `t1`.`pk`)) AS `foo` from `test`.`t1` group by `t1`.`pk`,`t1`.`col_int_key`,(/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `t1`.`pk`)) order by `t1`.`pk`,`t1`.`col_int_key`,(/* select#4 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `t1`.`pk`))
+DROP TABLE t1,t2;
+#
+# Bug#13591138 - ASSERTION NAME && !IS_AUTOGENERATED_NAME IN
+# ITEM::PRINT_FOR_ORDER ON EXPLAIN EXT
+#
+CREATE TABLE t1 (  
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_datetime_key datetime NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_datetime_key (col_datetime_key),
+KEY col_varchar_key (col_varchar_key)
+);
+CREATE TABLE t2 (  
+pk int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk)
+);
+CREATE TABLE t3 (  
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_varchar_key varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+);
+CREATE VIEW view1 AS SELECT * FROM t1;
+EXPLAIN EXTENDED
+SELECT
+alias1.col_datetime_key AS field1
+FROM (
+view1 AS alias1,
+t3 AS alias2
+)
+WHERE (
+(SELECT MIN(SQ1_alias1.pk)
+FROM t2 AS SQ1_alias1
+)
+) OR (alias1.col_varchar_key = alias2.col_varchar_key
+AND alias1.col_varchar_key = 'j'
+) AND alias1.pk IS NULL
+GROUP BY
+field1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `field1` from `test`.`t1` join `test`.`t3` `alias2` where 0 group by `field1`
+DROP TABLE t1,t2,t3;
+DROP VIEW view1;
+CREATE TABLE t1 (col_varchar_nokey varchar(1) DEFAULT NULL);
+INSERT INTO t1 VALUES ('v'),('c');
+EXPLAIN EXTENDED SELECT (SELECT 150) AS field5
+FROM (SELECT * FROM t1) AS alias1
+GROUP BY field5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	100.00	
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+Note	1003	/* select#1 */ select 150 AS `field5` from (/* select#3 */ select `test`.`t1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1`) `alias1` group by `field5`
+DROP TABLE t1;

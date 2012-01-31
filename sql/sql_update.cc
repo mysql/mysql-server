@@ -43,6 +43,9 @@
                          // mysql_handle_derived,
                          // mysql_derived_filling
 #include "opt_trace.h"   // Opt_trace_object
+#include "sql_tmp_table.h"                      // tmp tables
+#include "sql_optimizer.h"                      // remove_eq_conds
+#include "sql_resolver.h"                       // setup_order, fix_inner_refs
 
 /**
    True if the table's input and output record buffers are comparable using
@@ -498,12 +501,15 @@ int mysql_update(THD *thd,
       We can't update table directly;  We must first search after all
       matching rows before updating the table!
     */
+
+    // Verify that table->restore_column_maps_after_mark_index() will work
+    DBUG_ASSERT(table->read_set == &table->def_read_set);
+    DBUG_ASSERT(table->write_set == &table->def_write_set);
+
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
       table->add_read_columns_used_by_index(used_index);
     else
-    {
       table->use_all_columns();
-    }
 
     /* note: We avoid sorting if we sort on the used index */
     if (using_filesort)
@@ -633,8 +639,11 @@ int mysql_update(THD *thd,
       if (error >= 0)
         goto exit_without_my_ok;
     }
-    if (table->key_read)
-      table->restore_column_maps_after_mark_index();
+    /*
+      This restore bitmaps, works for add_read_columns_used_by_index() and
+      use_all_columns():
+    */
+    table->restore_column_maps_after_mark_index();
   }
 
   if (ignore)
@@ -2217,16 +2226,15 @@ int multi_update::do_updates()
           else if (error == VIEW_CHECK_ERROR)
             goto err;
         }
-	if ((local_error=table->file->ha_update_row(table->record[1],
-						    table->record[0])) &&
-            local_error != HA_ERR_RECORD_IS_THE_SAME)
-	{
-	  if (!ignore ||
-              table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
-	    goto err;
-	}
-        if (local_error != HA_ERR_RECORD_IS_THE_SAME)
+        local_error= table->file->ha_update_row(table->record[1],
+                                                table->record[0]);
+        if (!local_error)
           updated++;
+        else if (local_error == HA_ERR_RECORD_IS_THE_SAME)
+          local_error= 0;
+        else if (!ignore ||
+                 table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+          goto err;
         else
           local_error= 0;
       }

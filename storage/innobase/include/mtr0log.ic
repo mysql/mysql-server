@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@ Created 12/7/1995 Heikki Tuuri
 #include "mach0data.h"
 #include "ut0lst.h"
 #include "buf0buf.h"
+#include "buf0dblwr.h"
 #include "fsp0types.h"
 #include "trx0sys.h"
 
@@ -203,7 +204,7 @@ mlog_write_initial_log_record_fast(
 	system tablespace */
 	if (space == TRX_SYS_SPACE
 	    && offset >= FSP_EXTENT_SIZE && offset < 3 * FSP_EXTENT_SIZE) {
-		if (trx_doublewrite_buf_is_being_created) {
+		if (buf_dblwr_being_created) {
 			/* Do nothing: we only come to this branch in an
 			InnoDB database creation. We do not redo log
 			anything for the doublewrite buffer pages. */
@@ -216,6 +217,7 @@ mlog_write_initial_log_record_fast(
 				"Please post a bug report to "
 				"bugs.mysql.com.\n",
 				type, offset, space);
+			ut_ad(0);
 		}
 	}
 

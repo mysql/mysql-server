@@ -2111,6 +2111,23 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
 }
 
 
+void THD::change_item_tree_place(Item **old_ref, Item **new_ref)
+{
+  I_List_iterator<Item_change_record> it(change_list);
+  Item_change_record *change;
+  while ((change= it++))
+  {
+    if (change->place == old_ref)
+    {
+      DBUG_PRINT("info", ("change_item_tree_place old_ref %p new_ref %p",
+                          old_ref, new_ref));
+      change->place= new_ref;
+      break;
+    }
+  }
+}
+
+
 void THD::rollback_item_tree_changes()
 {
   I_List_iterator<Item_change_record> it(change_list);
@@ -2118,7 +2135,13 @@ void THD::rollback_item_tree_changes()
   DBUG_ENTER("rollback_item_tree_changes");
 
   while ((change= it++))
+  {
+    DBUG_PRINT("info",
+               ("rollback_item_tree_changes "
+                "place %p curr_value %p old_value %p",
+                change->place, *change->place, change->old_value));
     *change->place= change->old_value;
+  }
   /* We can forget about changes memory: it's allocated in runtime memroot */
   change_list.empty();
   DBUG_VOID_RETURN;

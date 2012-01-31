@@ -2866,7 +2866,7 @@ recv_init_crash_recovery(void)
 			" half-written data pages from"
 			" the doublewrite\n"
 			"InnoDB: buffer...\n");
-		trx_sys_doublewrite_init_or_restore_pages(TRUE);
+		buf_dblwr_init_or_restore_pages(TRUE);
 	}
 }
 
@@ -3139,7 +3139,7 @@ recv_recovery_from_checkpoint_start_func(
 
 		if (!recv_needed_recovery) {
 			/* Init the doublewrite buffer memory structure */
-			trx_sys_doublewrite_init_or_restore_pages(FALSE);
+			buf_dblwr_init_or_restore_pages(FALSE);
 		}
 	}
 

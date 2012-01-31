@@ -401,7 +401,9 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
       If there is an error, we cannot proceed with the normal operation.
       In this case, we just pick the dest repository if check_info() has
       not failed to execute against it in order to give users the chance
-      to fix the problem and restart the server.
+      to fix the problem and restart the server. One particular case can
+      happen when there is an inplace upgrade: no source table (it did 
+      not exist in 5.5) and the default destination is a file.
 
       Notice that migration will not take place and the destination may
       be empty.
@@ -411,7 +413,9 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
       sql_print_warning("Error while checking replication metadata. "
                         "Setting the requested repository in order to "
                         "give users the chance to fix the problem and "
-                        "restart the server.");
+                        "restart the server. If this is a live upgrade "
+                        "please consider using mysql_upgrade to fix the "
+                        "problem.");
       delete (*handler_src);
       *handler_src= NULL;
       info->set_rpl_info_handler(*handler_dest);
@@ -421,7 +425,12 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
     }
     else
     {
-      *msg= "Error while checking replication metadata.";
+      *msg= "Error while checking replication metadata. This might also happen "
+            "when doing a live upgrade from a version that did not make use "
+            "of the replication metadata tables. If that was the case, consider "
+            "starting the server with the option --skip-slave-start which "
+            "causes the server to bypass the replication metadata tables check "
+            "while it is starting up";
       goto err;
     }
   }

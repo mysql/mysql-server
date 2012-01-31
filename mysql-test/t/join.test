@@ -1015,3 +1015,30 @@ eval $query;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#11752239 - 43368: STRAIGHT_JOIN DOESN'T WORK FOR NESTED JOINS 
+--echo #
+create table t1(c1 int primary key, c2 char(10)) engine=myisam;
+create table t2(c1 int primary key, c2 char(10), ref_t1 int) engine=myisam;
+create table t3(c1 int primary key, c2 char(10), ref_t1 int) engine=myisam;
+create table t4(c1 int primary key, c2 char(10), ref_t1 int) engine=myisam;
+insert into t1 values(1,'a');
+insert into t2 values(1,'a', 1);
+insert into t3 values(1,'a', 1);
+insert into t3 values(2,'b',2);
+insert into t4 values(1,'a', 1);
+insert into t4 values(2,'a', 2);
+insert into t4 values(3,'a', 3);
+insert into t4 values(4,'a', 4);
+insert into t1 values(2,'b');
+insert into t1 values(3,'c');
+
+let $rest_of_query=(t1 join t3 on t3.ref_t1 =
+t1.c1 join t2 on t2.ref_t1 = t1.c1) on t4.ref_t1 = t1.c1;
+
+eval EXPLAIN SELECT * FROM t4 JOIN $rest_of_query;
+eval EXPLAIN SELECT STRAIGHT_JOIN * FROM t4 JOIN $rest_of_query;
+eval EXPLAIN SELECT * FROM t4 STRAIGHT_JOIN $rest_of_query;
+
+drop table t1,t2,t3,t4;

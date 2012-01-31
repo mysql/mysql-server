@@ -254,6 +254,7 @@ ITERATIONS: row_img: MINIMAL
 include/rpl_reset.inc
 include/rpl_reset.inc
 ####### MINIMAL PARTICULAR SCENARIO ######
+####### MINIMAL OTHER PARTICULAR SCENARIO ######
 CON: 'master', IMG: 'NOBLOB', RESTART SLAVE: 'N'
 Variable_name	Value
 binlog_row_image	NOBLOB

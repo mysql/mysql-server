@@ -677,12 +677,12 @@ INSERT INTO t2 VALUES (5);
 CREATE TABLE t3 (k INTEGER);
 
 EXPLAIN
-SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
-SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
 
 EXPLAIN
-SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
-SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
 
 DROP TABLE t1, t2, t3;
 
@@ -929,3 +929,97 @@ SELECT * FROM t3;
 # prove that subquery materialization was used:
 SHOW STATUS LIKE "CREATED_TMP_TABLES";
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug#13552968: Extra row with materialization on join + subquery in
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_nokey varchar(1) NOT NULL
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES ('b');
+
+CREATE TABLE t2 (
+  col_varchar_nokey varchar(1) NOT NULL
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES ('k');
+
+CREATE TABLE t3 (
+  col_varchar_nokey varchar(1) NOT NULL
+) ENGINE=MyISAM;
+
+let $query=
+SELECT STRAIGHT_JOIN *
+FROM t1 LEFT JOIN t2 ON t1.col_varchar_nokey IN (SELECT col_varchar_nokey
+                                                 FROM t3);
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # End of test for bug#13552968
+
+--echo #
+--echo # Bug#13591383: Assertion !(*tab->on_expr_ref && .. && is_expensive())
+--echo # in join_read_const_table()
+--echo #
+
+CREATE TABLE t1 (v INTEGER) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(1);
+
+CREATE TABLE t2 (v INTEGER) ENGINE=MyISAM;
+
+SELECT *
+FROM t1 LEFT JOIN t2
+     ON t2.v IN(SELECT v FROM t1);
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13591383.
+
+--echo #
+--echo # Bug#13607423: Assertion !(*tab->on_expr_ref->is_expensive())
+--echo # in join_read_const_table()
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int DEFAULT NULL,
+  col_int_key int DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1,2,4), (2,150,62);
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_key int DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (1,7);
+
+let $query=
+SELECT table1.pk, table2.pk
+FROM t2 AS table1 LEFT JOIN t2 AS table2
+     ON table2.pk = table1.pk AND
+        table2.col_int_key IN
+         (SELECT col_int_key
+          FROM t1 AS innr
+          WHERE innr.col_int_nokey > innr.col_int_nokey
+          GROUP BY col_int_key
+          HAVING COUNT(*) > 0
+         );
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13607423.
+
+--echo # End of 5.6 tests

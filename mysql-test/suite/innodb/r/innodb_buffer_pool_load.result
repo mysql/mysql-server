@@ -16,7 +16,7 @@ count(*)
 SET GLOBAL innodb_buffer_pool_load_now = ON;
 SELECT variable_value
 FROM information_schema.global_status
-WHERE variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
+WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 variable_value
 Buffer pool(s) load completed at TIMESTAMP_NOW
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page_lru

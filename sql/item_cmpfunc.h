@@ -370,9 +370,9 @@ public:
   Item_bool_func2(Item *a,Item *b)
     :Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(FALSE) {}
   void fix_length_and_dec();
-  void set_cmp_func()
+  int set_cmp_func()
   {
-    cmp.set_cmp_func(this, tmp_arg, tmp_arg+1, TRUE);
+    return cmp.set_cmp_func(this, tmp_arg, tmp_arg+1, TRUE);
   }
   optimize_type select_optimize() const { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
@@ -1124,7 +1124,13 @@ public:
     value(value_buff, sizeof(value_buff), cs) {}
   void store_value(Item *item)
   {
-    value_res= item->val_str(&value);
+    String *res= item->val_str(&value);
+    if(res && (res != &value))
+    {
+      // 'res' may point in item's temporary internal data, so make a copy
+      value.copy(*res);
+    }
+    value_res= &value;
   }
   int cmp(Item *arg)
   {
