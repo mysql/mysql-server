@@ -438,3 +438,67 @@ Level	Code	Message
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 0) and ('0' = `test`.`t1`.`b`))
 DROP TABLE t1;
 # End of 5.1 tests
+#
+# Bug#13463415 63502: INCORRECT RESULTS OF BIGINT AND DECIMAL COMPARISON
+#
+CREATE TABLE t_bigint(id BIGINT);
+INSERT INTO t_bigint VALUES (1), (2);
+SELECT id, id >= 1.1 FROM t_bigint;
+id	id >= 1.1
+1	0
+2	1
+SELECT id, 1.1 <= id FROM t_bigint;
+id	1.1 <= id
+1	0
+2	1
+SELECT id, id = 1.1 FROM t_bigint;
+id	id = 1.1
+1	0
+2	0
+SELECT id, 1.1 = id FROM t_bigint;
+id	1.1 = id
+1	0
+2	0
+SELECT * from t_bigint WHERE id = 1.1;
+id
+SELECT * from t_bigint WHERE id = 1.1e0;
+id
+SELECT * from t_bigint WHERE id = '1.1';
+id
+SELECT * from t_bigint WHERE id = '1.1e0';
+id
+SELECT * from t_bigint WHERE id IN (1.1, 2.2);
+id
+SELECT * from t_bigint WHERE id IN (1.1e0, 2.2e0);
+id
+SELECT * from t_bigint WHERE id IN ('1.1', '2.2');
+id
+SELECT * from t_bigint WHERE id IN ('1.1e0', '2.2e0');
+id
+SELECT * from t_bigint WHERE id BETWEEN 1.1 AND 1.9;
+id
+SELECT * from t_bigint WHERE id BETWEEN 1.1e0 AND 1.9e0;
+id
+SELECT * from t_bigint WHERE id BETWEEN '1.1' AND '1.9';
+id
+SELECT * from t_bigint WHERE id BETWEEN '1.1e0' AND '1.9e0';
+id
+DROP TABLE t_bigint;
+#
+# Bug#11758543 50756: BIGINT '100' MATCHES 1.001E2
+#
+CREATE TABLE t1 (a BIGINT);
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1 WHERE coalesce(a) BETWEEN 0 and 0.9;
+a
+SELECT * FROM t1 WHERE coalesce(a)=0.9;
+a
+SELECT * FROM t1 WHERE coalesce(a) in (0.8,0.9);
+a
+SELECT * FROM t1 WHERE a BETWEEN 0 AND 0.9;
+a
+SELECT * FROM t1 WHERE a=0.9;
+a
+SELECT * FROM t1 WHERE a IN (0.8,0.9);
+a
+DROP TABLE t1;

@@ -72,14 +72,11 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 
 # Show slave last IO errno
 drop table t1;
-let $slave_io_errno= 1236;
-#
-# Win and Unix path is printed differently: BUG#13055685. So
-# show_slave_io_error is made 0 until the bug fixes provide necessary
-# facilities
-#
-let $show_slave_io_error= 0;
-source include/wait_for_slave_io_error.inc;
+--let $slave_io_errno= 1236
+--let $show_slave_io_error= 1
+# Mask line numbers
+--let $slave_io_error_replace= / at [0-9]*/ at XXX/
+--source include/wait_for_slave_io_error.inc
 
 --echo ==== clean up ====
 

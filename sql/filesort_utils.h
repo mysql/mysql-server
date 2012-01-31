@@ -89,7 +89,7 @@ public:
   uchar **alloc_sort_buffer(uint num_records, uint record_length);
 
   /// What is the <num_records, record_length> for the buffer?
-  std::pair<uint, uint> sort_buffer_properties()
+  std::pair<uint, uint> sort_buffer_properties() const
   { return std::make_pair(m_idx_array.size(), m_record_length); }
 
   /// Frees the buffer.

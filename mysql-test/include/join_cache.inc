@@ -1984,3 +1984,35 @@ GROUP BY t1.col2;
 DROP TABLE t1,t2;
 
 --echo # End of Bug#12997905
+
+--echo #
+--echo # Bug 13596330 - EXTRA ROW ON SELECT WITH NESTED IN CLAUSE + IS
+--echo # NULL WHEN SEMIJOIN + BNL IS ON
+--echo #
+
+CREATE TABLE t1 (  
+  col_int_nokey int
+);
+INSERT INTO t1 VALUES(-1),(-1);
+
+CREATE TABLE t2 (
+  col_int_nokey int,
+  col_datetime_nokey datetime NOT NULL,
+  col_varchar_key varchar(1),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t2 VALUES (9, '2002-08-25 20:35:06', 'e'),
+                      (9, '2002-08-25 20:35:06', 'e');
+
+let $query=SELECT PARENT1.col_varchar_key
+FROM t2 AS PARENT1 LEFT JOIN t1 USING (col_int_nokey)
+WHERE PARENT1.col_varchar_key IN
+      ( SELECT col_varchar_key FROM t2 AS CHILD1
+        WHERE PARENT1.col_datetime_nokey IS NULL
+              AND t1.col_int_nokey IS NULL )
+;
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
