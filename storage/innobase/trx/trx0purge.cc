@@ -125,7 +125,7 @@ trx_purge_sys_create(
 {
 	purge_sys = static_cast<trx_purge_t*>(mem_zalloc(sizeof(*purge_sys)));
 
-	purge_sys->state = PURGE_STATE_RUN;
+	purge_sys->state = PURGE_STATE_INIT;
 	purge_sys->event = os_event_create("purge");
 
 	/* Take ownership of ib_bh, we are responsible for freeing it. */
@@ -1066,7 +1066,7 @@ trx_purge_attach_undo_recs(
 		}
 
 		thr = UT_LIST_GET_NEXT(thrs, thr);
-
+ 
 		if (!(++i % n_purge_threads)) {
 			thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
 		}
@@ -1246,15 +1246,11 @@ trx_purge(
 
 	/* Do it synchronously. */
 	} else {
-		thr = que_fork_start_command(purge_sys->query);
+		thr = que_fork_scheduler_round_robin(purge_sys->query, NULL);
 		ut_ad(thr);
 
 run_synchronously:
 		++purge_sys->n_submitted;
-
-		if (srv_print_thread_releases) {
-			fputs("Starting purge\n", stderr);
-		}
 
 		que_run_threads(thr);
 
@@ -1277,12 +1273,26 @@ run_synchronously:
 	MONITOR_INC_VALUE(MONITOR_PURGE_INVOKED, 1);
 	MONITOR_INC_VALUE(MONITOR_PURGE_N_PAGE_HANDLED, n_pages_handled);
 
-	if (srv_print_thread_releases) {
-		fprintf(stderr, "Purge ends; pages handled %lu\n",
-			n_pages_handled);
-	}
-
 	return(n_pages_handled);
+}
+
+/*******************************************************************//**
+Get the purge state.
+@return purge state. */
+UNIV_INTERN
+purge_state_t
+trx_purge_state(void)
+/*=================*/
+{
+	purge_state_t	state;
+
+	rw_lock_x_lock(&purge_sys->latch);
+
+	state = purge_sys->state;
+
+	rw_lock_x_unlock(&purge_sys->latch);
+
+	return(state);
 }
 
 /*******************************************************************//**
@@ -1296,11 +1306,11 @@ trx_purge_stop(void)
 
 	ib_int64_t	sig_count = os_event_reset(purge_sys->event);
 
-	fprintf(stderr, "Stopping purge\n");
-
 	rw_lock_x_lock(&purge_sys->latch);
 
 	++purge_sys->n_stop;
+
+	ut_a(purge_sys->state != PURGE_STATE_EXIT);
 
 	state = purge_sys->state;
 
@@ -1312,9 +1322,6 @@ trx_purge_stop(void)
 		/* Wait for purge coordinator to signal that it
 		is suspended. */
 		os_event_wait_low(purge_sys->event, sig_count);
-		fprintf(stderr, "Purge stopped\n");
-	} else {
-		fprintf(stderr, "Purge already stopped\n");
 	}
 }
 

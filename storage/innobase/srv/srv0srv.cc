@@ -457,6 +457,9 @@ static ulint   srv_main_shutdown_loops		= 0;
 /* Log writes involving flush. */
 static ulint   srv_log_writes_and_flush		= 0;
 
+/** Maximum wait time on the purge event. */
+static const ulint SRV_PURGE_MAX_TIMEOUT	= 1000000;
+
 /* This is only ever touched by the master thread. It records the
 time when the last flush of log file has happened. The master
 thread ensures that we flush the log files at least once per
@@ -1701,6 +1704,14 @@ srv_get_active_thread_type(void)
 
 	srv_sys_mutex_exit();
 
+	/* Check only on shutdown. */
+	if (ret == SRV_NONE
+	    && srv_shutdown_state != SRV_SHUTDOWN_NONE
+	    && trx_purge_state() != PURGE_STATE_EXIT) {
+
+		ret = SRV_PURGE;
+	}
+
 	return(ret);
 }
 
@@ -2353,10 +2364,37 @@ suspend_thread:
 }
 
 /*********************************************************************//**
-Fetch and execute a task from the work queue.
-@return	TRUE if a task was executed */
+Check if purge should stop.
+@return true if it should shutdown. */
 static
-ibool
+bool
+srv_purge_exit(
+/*===========*/
+	ulint		n_purged)	/*!< in: pages purged in last batch */
+{
+	switch (srv_shutdown_state) {
+	case SRV_SHUTDOWN_NONE:
+		/* Normal operation. */
+		break;
+
+	case SRV_SHUTDOWN_CLEANUP:
+	case SRV_SHUTDOWN_EXIT_THREADS:
+		/* Exit unless slow shutdown requested or all done. */
+		return(srv_fast_shutdown != 0 || n_purged == 0);
+
+	case SRV_SHUTDOWN_LAST_PHASE:
+	case SRV_SHUTDOWN_FLUSH_PHASE:
+		ut_error;
+	}
+
+	return(false);
+}
+
+/*********************************************************************//**
+Fetch and execute a task from the work queue.
+@return	true if a task was executed */
+static
+bool
 srv_task_execute(void)
 /*==================*/
 {
@@ -2399,15 +2437,15 @@ DECLARE_THREAD(srv_worker_thread)(
 						required by os_thread_create */
 {
 	srv_slot_t*	slot;
+	bool		purged;
 
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	fprintf(stderr, "Worker thread starts, id %lu\n",
-		os_thread_pf(os_thread_get_curr_id()));
-#endif /* UNIV_DEBUG_THREAD_CREATION */
-
 	srv_sys_mutex_enter();
+
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: worker thread starting, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
 
 	slot = srv_table_reserve_slot(SRV_WORKER);
 
@@ -2418,19 +2456,20 @@ DECLARE_THREAD(srv_worker_thread)(
 
 	srv_sys_mutex_exit();
 
-	while (srv_shutdown_state == SRV_SHUTDOWN_NONE && !srv_fast_shutdown) {
-
+	do {
 		srv_suspend_thread(slot);
 
 		os_event_wait(slot->event);
 
-		srv_task_execute();
+		if ((purged = srv_task_execute())) {
+			
+			/* If there are tasks in the queue, wakeup
+			the purge coordinator thread. */
 
-		/* If there is no task in the queue, wakeup the purge
-		coordinator thread. */
+			srv_wake_purge_thread_if_not_active();
+		}
 
-		srv_wake_purge_thread_if_not_active();
-	}
+	} while (!srv_purge_exit(purged ? 1 : 0));
 
 	srv_suspend_thread(slot);
 
@@ -2440,12 +2479,11 @@ DECLARE_THREAD(srv_worker_thread)(
 	ut_ad(slot->in_use);
 	slot->in_use = FALSE;
 
-	srv_sys_mutex_exit();
-
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	fprintf(stderr, "Worker thread exits, id %lu\n",
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: Purge worker thread exiting, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
-#endif /* UNIV_DEBUG_THREAD_CREATION */
+
+	srv_sys_mutex_exit();
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
@@ -2503,23 +2541,22 @@ srv_do_purge(
 		ut_a(n_use_threads <= n_threads);
 
 		/* Take a snapshot of the history list before purge. */
-		rseg_history_len = trx_sys->rseg_history_len;
+		if ((rseg_history_len = trx_sys->rseg_history_len) == 0) {
+			break;
+		}
 
 		n_pages_purged = trx_purge(n_use_threads, srv_purge_batch_size);
 
 		*n_total_purged += n_pages_purged;
 
-	} while (srv_shutdown_state == SRV_SHUTDOWN_NONE
-		 && srv_fast_shutdown == 0
-		 && n_pages_purged > 0);
-
+	} while (!srv_purge_exit(n_pages_purged));
 }
 
 /*********************************************************************//**
 Suspend the purge coordinator thread. */
 static
 void
-srv_suspend_purge_coordinator(
+srv_purge_coordinator_suspend(
 /*==========================*/
 	srv_slot_t*	slot)		/*!< in/out: Purge coordinator
 					thread slot */
@@ -2580,11 +2617,12 @@ srv_suspend_purge_coordinator(
 
 			srv_sys_mutex_exit();
 
+			/* Decrease the timeout if the history list is long. */
 			if (trx_sys->rseg_history_len > 1000) {
 				if (timeout > 1000) {
 					timeout -= 100;
 				}
-			} else if (timeout < 1000000) {
+			} else if (timeout < SRV_PURGE_MAX_TIMEOUT) {
 				timeout += 1000;
 			}
 		}
@@ -2603,23 +2641,28 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 						required by os_thread_create */
 {
 	srv_slot_t*	slot;
-	bool		stop = false;
 	ulint           n_total_purged = ULINT_UNDEFINED;
 
 	ut_a(srv_n_purge_threads >= 1);
 
+	ut_a(trx_purge_state() == PURGE_STATE_INIT);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
+
+	rw_lock_x_lock(&purge_sys->latch);
+
+	purge_sys->state = PURGE_STATE_INIT;
+
+	rw_lock_x_unlock(&purge_sys->latch);
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_purge_thread_key);
 #endif /* UNIV_PFS_THREAD */
 
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	fprintf(stderr, "Purge coordinator thread starts, id %lu\n",
-		os_thread_pf(os_thread_get_curr_id()));
-#endif /* UNIV_DEBUG_THREAD_CREATION */
-
 	srv_sys_mutex_enter();
+
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: Purge coordinator thread created, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
 
 	slot = srv_table_reserve_slot(SRV_PURGE);
 
@@ -2634,37 +2677,20 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		if (purge_sys->state == PURGE_STATE_STOP
 		    || n_total_purged == 0) {
 
-			srv_suspend_purge_coordinator(slot);
+			srv_purge_coordinator_suspend(slot);
 		}
 
-		switch (srv_shutdown_state) {
-		case SRV_SHUTDOWN_NONE:
-			/* Normal operation. */
+		if (srv_purge_exit(n_total_purged)) {
 			break;
-
-		case SRV_SHUTDOWN_EXIT_THREADS:
-			/* Exit unless slow shutdown requested or all done. */
-			stop = (srv_fast_shutdown != 0 || n_total_purged == 0);
-			break;
-
-		case SRV_SHUTDOWN_CLEANUP:
-			stop = srv_fast_shutdown > 0;
-			break;
-
-		case SRV_SHUTDOWN_LAST_PHASE:
-		case SRV_SHUTDOWN_FLUSH_PHASE:
-			/* The purge theads should not be active when the
-			server enters this state. */
-			ut_error;
 		}
 
 		n_total_purged = 0;
 
-		for (int i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+		for (int i = 0;i < TRX_SYS_N_RSEGS; ++i) {
 			srv_do_purge(srv_n_purge_threads, &n_total_purged);
 		}
 
-	} while (!stop);
+	} while (!srv_purge_exit(n_total_purged));
 
 	/* The task queue should always be empty, independent of fast
 	shutdown state. */
@@ -2684,12 +2710,20 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	ut_ad(slot->in_use);
 	slot->in_use = FALSE;
 
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: Purge coordinator exiting, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+
 	srv_sys_mutex_exit();
 
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	fprintf(stderr, "Purge coordinator exiting, id %lu\n",
-		os_thread_pf(os_thread_get_curr_id()));
-#endif /* UNIV_DEBUG_THREAD_CREATION */
+	/* Note that we are shutting down. */
+	rw_lock_x_lock(&purge_sys->latch);
+
+	purge_sys->state = PURGE_STATE_EXIT;
+
+	purge_sys->running = false;
+
+	rw_lock_x_unlock(&purge_sys->latch);
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
@@ -2734,3 +2768,18 @@ srv_get_task_queue_length(void)
 
 	return(n_tasks);
 }
+
+/**********************************************************************//**
+Wakeup the purge threads. */
+UNIV_INTERN
+void
+srv_purge_wakeup(void)
+/*==================*/
+{
+	if (srv_n_purge_threads > 0
+	    && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
+		srv_wake_purge_thread();
+		srv_wake_worker_threads(srv_n_purge_threads - 1);
+	}
+}
+
