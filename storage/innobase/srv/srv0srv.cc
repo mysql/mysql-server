@@ -2504,11 +2504,7 @@ srv_do_purge(
 
 		/* Take a snapshot of the history list before purge. */
 		rseg_history_len = trx_sys->rseg_history_len;
-#if 0
-		fprintf(stderr, "%lu:%lu %lu\n",
-			rseg_history_len, trx_sys->rseg_history_len,
-			n_use_threads);
-#endif
+
 		n_pages_purged = trx_purge(n_use_threads, srv_purge_batch_size);
 
 		*n_total_purged += n_pages_purged;
@@ -2607,7 +2603,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 						required by os_thread_create */
 {
 	srv_slot_t*	slot;
-	ulint		retries = 0;
+	bool		stop = false;
 	ulint           n_total_purged = ULINT_UNDEFINED;
 
 	ut_a(srv_n_purge_threads >= 1);
@@ -2617,7 +2613,6 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_purge_thread_key);
 #endif /* UNIV_PFS_THREAD */
-
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Purge coordinator thread starts, id %lu\n",
@@ -2632,38 +2627,44 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 	srv_sys_mutex_exit();
 
-	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
-
+	do {
 		/* If there are no records to purge or the last
-		purge didn't purge any records then wait for activity.
-	        We peek at the history len without holding any mutex
-		because in the worst case we will end up waiting for
-		the next purge event. */
+		purge didn't purge any records then wait for activity. */
 
 		if (purge_sys->state == PURGE_STATE_STOP
-		    || trx_sys->rseg_history_len == 0
-		    || (n_total_purged == 0 && retries >= TRX_SYS_N_RSEGS)) {
+		    || n_total_purged == 0) {
 
 			srv_suspend_purge_coordinator(slot);
-			retries = 0;
 		}
 
-		/* Check for shutdown and whether we should do purge at all. */
-		if (srv_shutdown_state != SRV_SHUTDOWN_NONE
-		    || srv_fast_shutdown) {
-
+		switch (srv_shutdown_state) {
+		case SRV_SHUTDOWN_NONE:
+			/* Normal operation. */
 			break;
+
+		case SRV_SHUTDOWN_EXIT_THREADS:
+			/* Exit unless slow shutdown requested or all done. */
+			stop = (srv_fast_shutdown != 0 || n_total_purged == 0);
+			break;
+
+		case SRV_SHUTDOWN_CLEANUP:
+			stop = srv_fast_shutdown > 0;
+			break;
+
+		case SRV_SHUTDOWN_LAST_PHASE:
+		case SRV_SHUTDOWN_FLUSH_PHASE:
+			/* The purge theads should not be active when the
+			server enters this state. */
+			ut_error;
 		}
 
-		if (n_total_purged == 0 && retries <= TRX_SYS_N_RSEGS) {
-			++retries;
-		} else if (n_total_purged > 0) {
-			retries = 0;
-			n_total_purged = 0;
+		n_total_purged = 0;
+
+		for (int i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+			srv_do_purge(srv_n_purge_threads, &n_total_purged);
 		}
 
-		srv_do_purge(srv_n_purge_threads, &n_total_purged);
-	}
+	} while (!stop);
 
 	/* The task queue should always be empty, independent of fast
 	shutdown state. */
