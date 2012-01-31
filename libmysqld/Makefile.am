@@ -50,6 +50,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	ha_ndbcluster_connection.cc ha_ndbinfo.cc \
 	ha_ndb_index_stat.cc \
 	ha_ndbcluster_binlog.cc ndb_conflict_trans.cc ndb_component.cc \
+	ndb_conflict.cc \
         ha_partition.cc \
 	handler.cc sql_handler.cc \
 	hostname.cc init.cc password.c \
@@ -129,6 +130,9 @@ ha_ndbinfo.o: ha_ndbinfo.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 ndb_conflict_trans.o: ndb_conflict_trans.cc
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
+
+ndb_conflict.o: ndb_conflict.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 # Until we can remove dependency on ha_ndbcluster.h
