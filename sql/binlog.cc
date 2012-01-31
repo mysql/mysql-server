@@ -635,7 +635,7 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
   Group_cache* group_cache= &cache_data->group_cache;
 
   // in dbug mode, take wrlock so that we can call gtid_state.dbug_print
-#ifdef NO_DBUG  
+#ifdef DBUG_OFF  
   global_sid_lock.rdlock();
 #else
   global_sid_lock.wrlock();
@@ -4877,7 +4877,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
       }
 
       // in dbug mode, take wrlock so that we can call gtid_state.dbug_print
-#ifdef NO_DBUG  
+#ifdef DBUG_OFF  
       global_sid_lock.rdlock();
 #else
       global_sid_lock.wrlock();

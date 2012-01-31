@@ -11778,7 +11778,7 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
   uint8 const common_header_len=
     descr_event->common_header_len;
 
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   uint8 const post_header_len=
     buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ?
     descr_event->post_header_len[ANONYMOUS_GTID_LOG_EVENT - 1] :
@@ -11826,7 +11826,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
   }
   else
     sid.clear();
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   char buf[MAX_SET_STRING_LENGTH + 1];
   to_string(buf);
   DBUG_PRINT("info", ("%s", buf));
@@ -11883,7 +11883,7 @@ bool Gtid_log_event::write_data_header(IO_CACHE *file)
   *ptr_buffer= commit_flag ? 1 : 0;
   ptr_buffer+= ENCODED_FLAG_LENGTH;
 
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   char buf[rpl_sid::TEXT_LENGTH + 1];
   sid.to_string(buf);
   DBUG_PRINT("info", ("sid=%s sidno=%d gno=%lld",
@@ -11981,7 +11981,7 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
 #ifndef MYSQL_CLIENT
 int Previous_gtids_log_event::pack_info(Protocol *protocol)
 {
-  size_t length;
+  size_t length= 0;
   global_sid_lock.rdlock();
   char *str= get_str(&length, &Gtid_set::default_string_format);
   global_sid_lock.unlock();
@@ -12018,7 +12018,7 @@ void Previous_gtids_log_event::print(FILE *file,
 int Previous_gtids_log_event::add_to_set(Gtid_set *target) const
 {
   DBUG_ENTER("Previous_gtids_log_event::add_to_set(Gtid_set *)");
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   char *str= get_str(NULL, &Gtid_set::default_string_format);
   DBUG_PRINT("info", ("adding gtid_set: '%s'", str));
   my_free(str);
