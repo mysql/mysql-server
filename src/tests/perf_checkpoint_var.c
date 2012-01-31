@@ -87,6 +87,7 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
     }
     for (int i = 0; i < num_threads; i++) {
         myargs[i].operation = checkpoint_var;
+        myargs[i].crash_on_operation_failure = false;
         myargs[i].operation_extra = &val_size;
     }
     run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
