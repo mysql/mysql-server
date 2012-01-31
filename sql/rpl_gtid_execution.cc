@@ -313,6 +313,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
     }
   }
   DBUG_ASSERT(0);/*NOTREACHED*/
+  DBUG_RETURN(GTID_STATEMENT_CANCEL);
 }
 
 
@@ -322,7 +323,7 @@ int gtid_rollback(THD *thd)
 
   global_sid_lock.rdlock();
   // gtid_state.update(..., false) can't fail.
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   DBUG_ASSERT(gtid_state.update(thd, false) == RETURN_STATUS_OK);
 #else
   gtid_state.update(thd, false);
