@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -13,21 +13,23 @@ Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ***********************************************************************/
 /**************************************************//**
-@file innodb_api_proto.h
+@file innodb_cb_api.h
 
 Created 03/15/2011      Jimmy Yang
 *******************************************************/
 
-#ifndef innodb_api_proto_h
-#define innodb_api_proto_h
+#ifndef innodb_cb_api_h
+#define innodb_cb_api_h
 
 #include "api0api.h"
 
-/** Following are callback function defines for InnoDB APIs */
+/** Following are callback function defines for InnoDB APIs, mapped to
+functions defined in api0api.c */
+
 typedef
 ib_err_t
 (*CB_OPEN_TABLE)(
@@ -371,4 +373,4 @@ CB_BINLOG_ENABLED		ib_cb_binlog_enabled;
 CB_CURSOR_SET_CLUSTER_ACCESS	ib_cb_cursor_set_cluster_access;
 CB_CURSOR_COMMIT_TRX		ib_cb_cursor_commit_trx;
 
-#endif
+#endif /* innodb_cb_api_h */

@@ -413,7 +413,7 @@ handler_lock_table(
 
 	return(thd->lock);
 }
-#endif
+#endif /* HANDLER_API_MEMCACHED */
 
 /**********************************************************************//**
 Unlock a table and commit the transaction

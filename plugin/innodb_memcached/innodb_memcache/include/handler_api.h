@@ -22,8 +22,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 Created 3/14/2011 Jimmy Yang
 *******************************************************/
 
-#ifndef MYSQL_DML_H
-#define MYSQL_DML_H
+#ifndef HANDLER_API_H
+#define HANDLER_API_H
 
 
 #define MYSQL_SERVER 1
@@ -54,6 +54,7 @@ typedef struct field_arg {
 	char**	value;
 } field_arg_t;
 
+/** Macros to create and instantiate fields */
 #define MCI_ADD_FIELD(m_args, m_fld, m_value, m_len)			\
 	do {								\
 		(m_args)->len[m_fld] = m_len;				\
@@ -240,5 +241,5 @@ handler_lock_table(
 	enum thr_lock_type	lock_mode);	/*!< in: lock mode */
 
 #endif /* HANDLER_API_MEMCACHED */
-#endif
+#endif /* HANDLER_API_H */
 
