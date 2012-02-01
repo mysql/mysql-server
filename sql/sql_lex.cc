@@ -1643,50 +1643,6 @@ int lex_one_token(void *arg, void *yythd)
 }
 
 
-/**
-  Construct a copy of this object to be used for mysql_alter_table
-  and mysql_create_table.
-
-  Historically, these two functions modify their Alter_info
-  arguments. This behaviour breaks re-execution of prepared
-  statements and stored procedures and is compensated by always
-  supplying a copy of Alter_info to these functions.
-
-  @return You need to use check the error in THD for out
-  of memory condition after calling this function.
-*/
-
-Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
-  :drop_list(rhs.drop_list, mem_root),
-  alter_list(rhs.alter_list, mem_root),
-  key_list(rhs.key_list, mem_root),
-  create_list(rhs.create_list, mem_root),
-  flags(rhs.flags),
-  keys_onoff(rhs.keys_onoff),
-  tablespace_op(rhs.tablespace_op),
-  partition_names(rhs.partition_names, mem_root),
-  num_parts(rhs.num_parts),
-  change_level(rhs.change_level),
-  datetime_field(rhs.datetime_field),
-  error_if_not_empty(rhs.error_if_not_empty)
-{
-  /*
-    Make deep copies of used objects.
-    This is not a fully deep copy - clone() implementations
-    of Alter_drop, Alter_column, Key, foreign_key, Key_part_spec
-    do not copy string constants. At the same length the only
-    reason we make a copy currently is that ALTER/CREATE TABLE
-    code changes input Alter_info definitions, but string
-    constants never change.
-  */
-  list_copy_and_replace_each_value(drop_list, mem_root);
-  list_copy_and_replace_each_value(alter_list, mem_root);
-  list_copy_and_replace_each_value(key_list, mem_root);
-  list_copy_and_replace_each_value(create_list, mem_root);
-  /* partition_names are not deeply copied currently */
-}
-
-
 void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str)
 {
   /*
@@ -3723,8 +3679,8 @@ bool st_select_lex::handle_derived(LEX *lex,
 bool LEX::is_partition_management() const
 {
   return (sql_command == SQLCOM_ALTER_TABLE &&
-          (alter_info.flags == ALTER_ADD_PARTITION ||
-           alter_info.flags == ALTER_REORGANIZE_PARTITION));
+          (alter_info.flags == Alter_info::ALTER_ADD_PARTITION ||
+           alter_info.flags == Alter_info::ALTER_REORGANIZE_PARTITION));
 }
 
 

@@ -11,10 +11,8 @@ update worklog5743 set a = (repeat("b", 16000));
 create index idx on worklog5743(a(900));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 768 bytes
-Warning	1071	Specified key was too long; max key length is 768 bytes
 show warnings;
 Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 768 bytes
 Warning	1071	Specified key was too long; max key length is 768 bytes
 begin;
 update worklog5743 set a = (repeat("x", 17000));
@@ -96,7 +94,6 @@ ERROR HY000: Too big row
 show warnings;
 Level	Code	Message
 Warning	1071	Specified key was too long; max key length is 767 bytes
-Warning	1071	Specified key was too long; max key length is 767 bytes
 Error	139	Too big row
 Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 1982. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
@@ -124,10 +121,8 @@ set global innodb_large_prefix=1;
 create index idx1 on worklog5743_2(a2(4000));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 768 bytes
-Warning	1071	Specified key was too long; max key length is 768 bytes
 show warnings;
 Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 768 bytes
 Warning	1071	Specified key was too long; max key length is 768 bytes
 show create table worklog5743_2;
 Table	Create Table
@@ -139,10 +134,8 @@ worklog5743_2	CREATE TABLE `worklog5743_2` (
 create index idx3 on worklog5743_2(a2(769));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 768 bytes
-Warning	1071	Specified key was too long; max key length is 768 bytes
 show warnings;
 Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 768 bytes
 Warning	1071	Specified key was too long; max key length is 768 bytes
 create index idx4 on worklog5743_2(a2(768));
 show warnings;
@@ -159,10 +152,8 @@ set global innodb_large_prefix=0;
 create index idx1 on worklog5743_4(a2(4000));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
-Warning	1071	Specified key was too long; max key length is 767 bytes
 show warnings;
 Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 767 bytes
 Warning	1071	Specified key was too long; max key length is 767 bytes
 show create table worklog5743_4;
 Table	Create Table
@@ -174,18 +165,14 @@ worklog5743_4	CREATE TABLE `worklog5743_4` (
 create index idx3 on worklog5743_4(a2(769));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
-Warning	1071	Specified key was too long; max key length is 767 bytes
 show warnings;
 Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 767 bytes
 Warning	1071	Specified key was too long; max key length is 767 bytes
 create index idx4 on worklog5743_4(a2(768));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
-Warning	1071	Specified key was too long; max key length is 767 bytes
 show warnings;
 Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 767 bytes
 Warning	1071	Specified key was too long; max key length is 767 bytes
 create index idx5 on worklog5743_4(a1, a2(765));
 ERROR 42000: Specified key was too long; max key length is 768 bytes
@@ -359,10 +346,8 @@ create table worklog5743(a TEXT not null) ROW_FORMAT=DYNAMIC;
 create index idx1 on worklog5743(a(769));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 768 bytes
-Warning	1071	Specified key was too long; max key length is 768 bytes
 show warnings;
 Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 768 bytes
 Warning	1071	Specified key was too long; max key length is 768 bytes
 create index idx2 on worklog5743(a(768));
 show warnings;

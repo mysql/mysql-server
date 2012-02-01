@@ -220,11 +220,10 @@ class ha_innobase: public handler
 	int cmp_ref(const uchar *ref1, const uchar *ref2);
 	/** Fast index creation (smart ALTER TABLE) @see handler0alter.cc @{ */
 	int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
-		      handler_add_index **add);
-	int final_add_index(handler_add_index *add, bool commit);
-	int prepare_drop_index(TABLE *table_arg, uint *key_num,
-			       uint num_of_keys);
-	int final_drop_index(TABLE *table_arg);
+		      inplace_alter_handler_ctx **add);
+	int final_add_index(inplace_alter_handler_ctx *add, bool commit);
+	int prepare_drop_index(KEY **keys, uint num_of_keys);
+	int final_drop_index();
 	/** @} */
 	bool check_if_incompatible_data(HA_CREATE_INFO *info,
 					uint table_changes);

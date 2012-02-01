@@ -40,7 +40,7 @@ HANDLER t1 OPEN;
 --connection default
 let $ID= `SELECT @id := CONNECTION_ID()`;
 LOCK TABLE t1 WRITE;
-SET DEBUG_SYNC='mdl_upgrade_shared_lock_to_exclusive SIGNAL waiting';
+SET DEBUG_SYNC='mdl_upgrade_lock SIGNAL waiting';
 send TRUNCATE TABLE t1;
 #
 # Get the default connection ID into a variable in an invisible statement.
@@ -92,7 +92,7 @@ HANDLER t1 OPEN;
 --echo # connection default
 --connection default
 LOCK TABLE t1 WRITE;
-SET DEBUG_SYNC='mdl_upgrade_shared_lock_to_exclusive SIGNAL waiting';
+SET DEBUG_SYNC='mdl_upgrade_lock SIGNAL waiting';
 send TRUNCATE TABLE t1;
 #
 # Remove datafile.

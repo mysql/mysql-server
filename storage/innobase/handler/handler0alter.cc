@@ -889,15 +889,21 @@ innobase_create_temporary_tablename(
 	return(name);
 }
 
-class ha_innobase_add_index : public handler_add_index
+class ha_innobase_add_index : public inplace_alter_handler_ctx
 {
 public:
 	/** table where the indexes are being created */
 	dict_table_t* indexed_table;
-	ha_innobase_add_index(TABLE* table, KEY* key_info, uint num_of_keys,
-			      dict_table_t* indexed_table_arg) :
-		handler_add_index(table, key_info, num_of_keys),
-		indexed_table (indexed_table_arg) {}
+	KEY* key_info;
+	uint num_of_keys;
+	ha_innobase_add_index(
+			dict_table_t* indexed_table_arg,
+			KEY *key_info_arg,
+			uint num_of_keys_arg) :
+		inplace_alter_handler_ctx(),
+		indexed_table (indexed_table_arg),
+		key_info (key_info_arg),
+		num_of_keys (num_of_keys_arg) {}
 	~ha_innobase_add_index() {}
 };
 
@@ -996,7 +1002,7 @@ ha_innobase::add_index(
 						to be created */
 	uint			num_of_keys,	/*!< in: Number of indexes
 						to be created */
-	handler_add_index**	add)		/*!< out: context */
+	inplace_alter_handler_ctx**	add)		/*!< out: context */
 {
 	dict_index_t**	index = NULL;	/*!< Index to be created */
 	dict_index_t*	fts_index = NULL;/*!< FTS Index to be created */
@@ -1291,8 +1297,7 @@ error_handling:
 	case DB_SUCCESS:
 		ut_d(dict_table_check_for_dup_indexes(prebuilt->table, TRUE));
 
-		*add = new ha_innobase_add_index(
-			table, key_info, num_of_keys, indexed_table);
+		*add = new ha_innobase_add_index(indexed_table, key_info, num_of_keys);
 
 		dict_table_close(prebuilt->table, dict_locked);
 		break;
@@ -1352,7 +1357,7 @@ UNIV_INTERN
 int
 ha_innobase::final_add_index(
 /*=========================*/
-	handler_add_index*	add_arg,/*!< in: context from add_index() */
+	inplace_alter_handler_ctx*	add_arg,/*!< in: context from add_index() */
 	bool			commit)	/*!< in: true=commit, false=rollback */
 {
 	ha_innobase_add_index*	add;
@@ -1557,8 +1562,7 @@ UNIV_INTERN
 int
 ha_innobase::prepare_drop_index(
 /*============================*/
-	TABLE*	in_table,	/*!< in: Table where indexes are dropped */
-	uint*	key_num,	/*!< in: Key nums to be dropped */
+	KEY**	keys,		/*!< in: Keys to be dropped */
 	uint	num_of_keys)	/*!< in: Number of keys to be dropped */
 {
 	trx_t*		trx;
@@ -1566,8 +1570,7 @@ ha_innobase::prepare_drop_index(
 	uint		n_key;
 
 	DBUG_ENTER("ha_innobase::prepare_drop_index");
-	ut_ad(table);
-	ut_ad(key_num);
+	ut_ad(keys);
 	ut_ad(num_of_keys);
 	if (srv_created_new_raw || srv_force_recovery) {
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -1598,14 +1601,14 @@ ha_innobase::prepare_drop_index(
 		const KEY*	key;
 		dict_index_t*	index;
 
-		key = table->key_info + key_num[n_key];
+		key = keys[n_key];
 		index = dict_table_get_index_on_name_and_min_id(
 			prebuilt->table, key->name);
 
 		if (!index) {
 			sql_print_error("InnoDB could not find key n:o %u "
 					"with name %s for table %s",
-					key_num[n_key],
+					n_key,
 					key ? key->name : "NULL",
 					prebuilt->table->name);
 
@@ -1761,15 +1764,13 @@ UNIV_INTERN
 int
 ha_innobase::final_drop_index(
 /*==========================*/
-	TABLE*	        iin_table)	/*!< in: Table where indexes
-					are dropped */
+)
 {
 	dict_index_t*	index;		/*!< Index to be dropped */
 	trx_t*		trx;		/*!< Transaction */
 	int		err;
 
 	DBUG_ENTER("ha_innobase::final_drop_index");
-	ut_ad(table);
 
 	if (srv_created_new_raw || srv_force_recovery) {
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);

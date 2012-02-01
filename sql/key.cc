@@ -349,20 +349,19 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
   @param
      table	Table to use
   @param
-     idx	Key number
+     key	Key
 */
 
-void key_unpack(String *to,TABLE *table,uint idx)
+void key_unpack(String *to, TABLE *table, KEY *key)
 {
-  KEY_PART_INFO *key_part,*key_part_end;
   Field *field;
   String tmp;
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
   DBUG_ENTER("key_unpack");
 
   to->length(0);
-  for (key_part=table->key_info[idx].key_part,key_part_end=key_part+
-	 table->key_info[idx].key_parts ;
+  KEY_PART_INFO *key_part_end= key->key_part + key->key_parts;
+  for (KEY_PART_INFO *key_part= key->key_part;
        key_part < key_part_end;
        key_part++)
   {

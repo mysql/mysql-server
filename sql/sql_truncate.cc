@@ -270,7 +270,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
                   share->table_name.str, &create_info, 1);
 
   if (open_table_uncached(thd, share->path.str, share->db.str,
-                          share->table_name.str, TRUE))
+                          share->table_name.str, true, true))
   {
     error= FALSE;
     thd->thread_specific_used= TRUE;
@@ -489,7 +489,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
     to a shared one.
   */
   if (m_ticket_downgrade)
-    m_ticket_downgrade->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+    m_ticket_downgrade->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
 
   DBUG_RETURN(error);
 }

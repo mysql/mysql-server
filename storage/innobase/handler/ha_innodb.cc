@@ -10777,17 +10777,16 @@ ha_innobase::can_switch_engines(void)
 	bool	can_switch;
 
 	DBUG_ENTER("ha_innobase::can_switch_engines");
-
-	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
+	update_thd();
 
 	prebuilt->trx->op_info =
 			"determining if there are foreign key constraints";
-	row_mysql_lock_data_dictionary(prebuilt->trx);
+	row_mysql_freeze_data_dictionary(prebuilt->trx);
 
 	can_switch = !UT_LIST_GET_FIRST(prebuilt->table->referenced_list)
 			&& !UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
 
-	row_mysql_unlock_data_dictionary(prebuilt->trx);
+	row_mysql_unfreeze_data_dictionary(prebuilt->trx);
 	prebuilt->trx->op_info = "";
 
 	DBUG_RETURN(can_switch);

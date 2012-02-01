@@ -589,7 +589,7 @@ end:
     with the implicit commit.
   */
   if (thd->locked_tables_mode && tables && lock_upgrade_done)
-    mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+    mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
 
   /* Restore the query table list. Used only for drop trigger. */
   if (!create)

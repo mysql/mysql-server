@@ -1475,3 +1475,419 @@ t1	CREATE TABLE `t1` (
   `c3` char(16) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
+#
+# WL#5534 Online ALTER, Phase 1
+#
+# Single thread tests.
+# See innodb_mysql_sync.test for multi thread tests.
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT PRIMARY KEY, b INT) engine=InnoDB;
+CREATE TABLE m1(a INT PRIMARY KEY, b INT) engine=MyISAM;
+INSERT INTO t1 VALUES (1,1), (2,2);
+INSERT INTO m1 VALUES (1,1), (2,2);
+#
+# 1: Test ALGORITHM keyword
+#
+# --enable_info allows us to see how many rows were updated
+# by ALTER TABLE. in-place will show 0 rows, while copy > 0.
+ALTER TABLE t1 ADD INDEX i1(b);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ADD INDEX i2(b), ALGORITHM= DEFAULT;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ADD INDEX i3(b), ALGORITHM= COPY;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ADD INDEX i4(b), ALGORITHM= INPLACE;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ADD INDEX i5(b), ALGORITHM= INVALID;
+ERROR HY000: Unknown ALGORITHM 'INVALID'
+ALTER TABLE m1 ENABLE KEYS;
+affected rows: 0
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= DEFAULT;
+affected rows: 0
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE;
+affected rows: 0
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+#
+# 2: Test ALGORITHM + old_alter_table
+#
+SET SESSION old_alter_table= 1;
+affected rows: 0
+ALTER TABLE t1 ADD INDEX i1(b);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ADD INDEX i2(b), ALGORITHM= DEFAULT;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ADD INDEX i3(b), ALGORITHM= COPY;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ADD INDEX i4(b), ALGORITHM= INPLACE;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SET SESSION old_alter_table= 0;
+affected rows: 0
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+#
+# 3: Test unsupported in-place operation
+#
+ALTER TABLE t1 ADD COLUMN (c1 INT);
+ALTER TABLE t1 ADD COLUMN (c2 INT), ALGORITHM= DEFAULT;
+ALTER TABLE t1 ADD COLUMN (c3 INT), ALGORITHM= COPY;
+ALTER TABLE t1 ADD COLUMN (c4 INT), ALGORITHM= INPLACE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD COLUMN (c4 INT), ALGORITHM= INPLACE'
+ALTER TABLE t1 DROP COLUMN c1, DROP COLUMN c2, DROP COLUMN c3;
+#
+# 4: Test LOCK keyword
+#
+ALTER TABLE t1 ADD INDEX i1(b), LOCK= DEFAULT;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+# TODO: This should not fail once WL#5526 is pushed.
+ALTER TABLE t1 ADD INDEX i2(b), LOCK= NONE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD INDEX i2(b), LOCK= NONE'
+ALTER TABLE t1 ADD INDEX i3(b), LOCK= SHARED;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ADD INDEX i4(b), LOCK= EXCLUSIVE;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ADD INDEX i5(b), LOCK= INVALID;
+ERROR HY000: Unknown LOCK type 'INVALID'
+ALTER TABLE m1 ENABLE KEYS, LOCK= DEFAULT;
+ALTER TABLE m1 ENABLE KEYS, LOCK= NONE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE m1 ENABLE KEYS, LOCK= NONE'
+ALTER TABLE m1 ENABLE KEYS, LOCK= SHARED;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE m1 ENABLE KEYS, LOCK= SHARED'
+ALTER TABLE m1 ENABLE KEYS, LOCK= EXCLUSIVE;
+# TODO: Drop i2 once WL#5526 is pushed.
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i3, DROP INDEX i4;
+#
+# 5: Test ALGORITHM + LOCK
+#
+# TODO: This should not fail once WL#5526 is pushed.
+ALTER TABLE t1 ADD INDEX i1(b), ALGORITHM= INPLACE, LOCK= NONE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD INDEX i1(b), ALGORITHM= INPLACE, LOCK= NONE'
+ALTER TABLE t1 ADD INDEX i2(b), ALGORITHM= INPLACE, LOCK= SHARED;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ADD INDEX i3(b), ALGORITHM= INPLACE, LOCK= EXCLUSIVE;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ADD INDEX i4(b), ALGORITHM= COPY, LOCK= NONE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD INDEX i4(b), ALGORITHM= COPY, LOCK= NONE'
+ALTER TABLE t1 ADD INDEX i5(b), ALGORITHM= COPY, LOCK= SHARED;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ADD INDEX i6(b), ALGORITHM= COPY, LOCK= EXCLUSIVE;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= NONE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= NONE'
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= SHARED;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= SHARED'
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= EXCLUSIVE;
+affected rows: 0
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= NONE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= NONE'
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= SHARED;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= EXCLUSIVE;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+DROP TABLE t1, m1;
+#
+# 6: Possible deadlock involving thr_lock.c
+#
+CREATE TABLE t1(a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES (1,1), (2,2);
+START TRANSACTION;
+INSERT INTO t1 VALUES (3,3);
+# Connection con1
+# Sending:
+ALTER TABLE t1 DISABLE KEYS;
+# Connection default
+# Waiting until ALTER TABLE is blocked.
+UPDATE t1 SET b = 4;
+COMMIT;
+# Connection con1
+# Reaping: ALTER TABLE t1 DISABLE KEYS
+# Connection default
+DROP TABLE t1;
+#
+# 7: Which operations require copy and which can be done in-place?
+#
+# Test which ALTER TABLE operations are done in-place and
+# which operations are done using temporary table copy.
+#
+# --enable_info allows us to see how many rows were updated
+# by ALTER TABLE. in-place will show 0 rows, while copy > 0.
+#
+DROP TABLE IF EXISTS ti1, ti2, ti3, tm1, tm2, tm3;
+# Single operation tests
+CREATE TABLE ti1(a INT NOT NULL, b INT, c INT) engine=InnoDB;
+CREATE TABLE tm1(a INT NOT NULL, b INT, c INT) engine=MyISAM;
+CREATE TABLE ti2(a INT PRIMARY KEY AUTO_INCREMENT, b INT, c INT) engine=InnoDB;
+CREATE TABLE tm2(a INT PRIMARY KEY AUTO_INCREMENT, b INT, c INT) engine=MyISAM;
+INSERT INTO ti1 VALUES (1,1,1), (2,2,2);
+INSERT INTO ti2 VALUES (1,1,1), (2,2,2);
+INSERT INTO tm1 VALUES (1,1,1), (2,2,2);
+INSERT INTO tm2 VALUES (1,1,1), (2,2,2);
+ALTER TABLE ti1;
+affected rows: 0
+ALTER TABLE tm1;
+affected rows: 0
+ALTER TABLE ti1 ADD COLUMN d VARCHAR(200);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD COLUMN d VARCHAR(200);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ADD COLUMN e ENUM('a', 'b') FIRST;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD COLUMN e ENUM('a', 'b') FIRST;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ADD COLUMN f INT AFTER a;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD COLUMN f INT AFTER a;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ADD INDEX ii1(b);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD INDEX im1(b);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ADD PRIMARY KEY (a);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD PRIMARY KEY (a);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ADD UNIQUE INDEX ii2 (c);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD UNIQUE INDEX im2 (c);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ADD FULLTEXT INDEX ii3 (d);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD FULLTEXT INDEX im3 (d);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ADD CONSTRAINT fi1 FOREIGN KEY (b) REFERENCES ti2(a);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD CONSTRAINT fm1 FOREIGN KEY (b) REFERENCES tm2(a);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ALTER COLUMN b SET DEFAULT 1;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ALTER COLUMN b SET DEFAULT 1;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ALTER COLUMN b DROP DEFAULT;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ALTER COLUMN b DROP DEFAULT;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 CHANGE COLUMN f g INT;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 CHANGE COLUMN f g INT;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 CHANGE COLUMN g h VARCHAR(20);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 CHANGE COLUMN g h VARCHAR(20);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 MODIFY COLUMN e ENUM('a', 'b', 'c');
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN e ENUM('a', 'b', 'c');
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 MODIFY COLUMN e INT;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN e INT;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 MODIFY COLUMN e INT AFTER h;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN e INT AFTER h;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 MODIFY COLUMN e INT FIRST;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN e INT FIRST;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 MODIFY COLUMN c INT NOT NULL;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN c INT NOT NULL;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 MODIFY COLUMN h VARCHAR(30);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN h VARCHAR(30);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 MODIFY COLUMN h VARCHAR(30) AFTER d;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN h VARCHAR(30) AFTER d;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 DROP COLUMN h;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP COLUMN h;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 DROP INDEX ii2;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP INDEX im2;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 DROP INDEX ii3;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP INDEX im3;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 DROP PRIMARY KEY;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP PRIMARY KEY;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 DROP FOREIGN KEY fi1;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP FOREIGN KEY fm1;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 RENAME TO ti3;
+affected rows: 0
+ALTER TABLE tm1 RENAME TO tm3;
+affected rows: 0
+ALTER TABLE ti3 RENAME TO ti1;
+affected rows: 0
+ALTER TABLE tm3 RENAME TO tm1;
+affected rows: 0
+ALTER TABLE ti1 ORDER BY b;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ORDER BY b;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 CONVERT TO CHARACTER SET utf16;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 CONVERT TO CHARACTER SET utf16;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 DEFAULT CHARACTER SET utf8;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DEFAULT CHARACTER SET utf8;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 FORCE;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 FORCE;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 AUTO_INCREMENT 3;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 AUTO_INCREMENT 3;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 AVG_ROW_LENGTH 10;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 AVG_ROW_LENGTH 10;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 CHECKSUM 1;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 CHECKSUM 1;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 COMMENT 'test';
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 COMMENT 'test';
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 MAX_ROWS 100;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MAX_ROWS 100;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 MIN_ROWS 1;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MIN_ROWS 1;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 PACK_KEYS 1;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 PACK_KEYS 1;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+DROP TABLE ti1, ti2, tm1, tm2;
+# Tests of >1 operation (InnoDB)
+CREATE TABLE ti1(a INT PRIMARY KEY AUTO_INCREMENT, b INT) engine=InnoDB;
+INSERT INTO ti1(b) VALUES (1), (2);
+ALTER TABLE ti1 RENAME TO ti3, ADD INDEX ii1(b);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE ti3 DROP INDEX ii1, AUTO_INCREMENT 5;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+INSERT INTO ti3(b) VALUES (5);
+ALTER TABLE ti3 ADD INDEX ii1(b), AUTO_INCREMENT 7;
+affected rows: 3
+info: Records: 3  Duplicates: 0  Warnings: 0
+INSERT INTO ti3(b) VALUES (7);
+SELECT * FROM ti3;
+a	b
+1	1
+2	2
+5	5
+7	7
+DROP TABLE ti3;
+#
+# 8: Scenario in which ALTER TABLE was returning an unwarranted
+#    ER_ILLEGAL_HA error at some point during work on this WL.
+#
+CREATE TABLE tm1(i INT DEFAULT 1) engine=MyISAM;
+ALTER TABLE tm1 ADD INDEX ii1(i), ALTER COLUMN i DROP DEFAULT;
+DROP TABLE tm1;

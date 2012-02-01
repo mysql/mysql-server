@@ -6624,3 +6624,8 @@ ER_INNODB_FT_LIMIT
 
 ER_INNODB_NO_FT_TEMP_TABLE
   eng "Cannot create FULLTEXT index on temporary InnoDB table"
+
+ER_UNKNOWN_ALTER_ALGORITHM
+  eng "Unknown ALGORITHM '%s'"
+ER_UNKNOWN_ALTER_LOCK
+  eng "Unknown LOCK type '%s'"
