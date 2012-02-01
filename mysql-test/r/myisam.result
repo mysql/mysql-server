@@ -2412,4 +2412,17 @@ CARDINALITY
 DROP TABLE t1;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 SET myisam_repair_threads=@@global.myisam_repair_threads;
+#
+# BUG 11756869 - 48848: MYISAMCHK DOING SORT RECOVER IN CERTAIN
+#                       CASES RESETS DATA POINTER TO SMAL
+#
+CREATE TABLE t1(a INT, KEY(a));
+ALTER TABLE t1 DISABLE KEYS;
+SET @before:= (SELECT MAX_DATA_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test');
+FLUSH TABLES;
+SET @after:= (SELECT MAX_DATA_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test');
+SELECT @before=@after;
+@before=@after
+1
+DROP TABLE t1;
 End of 5.1 tests
