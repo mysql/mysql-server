@@ -33,8 +33,8 @@
 #
 # We use a table where each row contains a specification of a
 # statement, together with a description of how we expect
-# @@GLOBAL.GTID_DONE, @@SESSION.GTID_DONE, and @@SESSION.GTID_OWNED to
-# change when the statement is executed.
+# @@[GLOBAL|SESSION].GTID_[DONE|OWNED] to change when the statement is
+# executed.
 #
 # In the "main loop", we iterate over the rows in the table.  For each
 # row, we execute the statement and check that the @@variables are
@@ -47,9 +47,10 @@
 # Created as part in WL#3584: Global Transaction Identifiers.
 
 --source include/have_innodb.inc
+--source include/have_gtid.inc
 --let $rpl_extra_connections_per_server= 3
 --source include/master-slave.inc
---source include/rpl_set_gtid_mode.inc
+--source include/have_debug.inc
 
 --echo #### Initialize ####
 
@@ -61,8 +62,8 @@ CREATE table t (a INT) ENGINE = InnoDB;
 
 # This table contains specifications of all tests we are going to
 # perform.  It contains the connection to execute in, the statement to
-# execute, and the expected outcome in terms of @@GLOBAL.GTID_DONE,
-# @@SESSION.GTID_DONE, @@SESSION.GTID_OWNED.
+# execute, and the expected outcome in terms of
+# @@[GLOBAL|SESSION].GTID_[DONE|OWNED].
 #
 # Columns:
 #  id
@@ -85,6 +86,10 @@ CREATE table t (a INT) ENGINE = InnoDB;
 #        in include/gtid_utils.inc)
 #      CREATE, INSERT, BEGIN, COMMIT, ROLLBACK
 #        Execute the given statement.
+#      CREATE-NODROP
+#        Like CREATE, this executes a CREATE TABLE, but unlike CREATE,
+#        the statement is expected to be skipped, so we do not have to
+#        match the statement by a DROP TABLE at the cleanup stage.
 #      SAVEPOINT <N>
 #        Execute SAVEPOINT SP_<N>
 #      ROLLBACK <N>
@@ -106,10 +111,10 @@ CREATE table t (a INT) ENGINE = InnoDB;
 #    '~', the gtids are expected to be removed instead.  UUIDs are
 #    abbreviated as in stmt_type (see above).
 #
-#  session_gtid_done, session_gtid_owned
-#    Specify how @@SESSION.GTID_DONE and @@SESSION.GTID_OWNED are
-#    expected to change after the statement.  These have the same form
-#    as global_gtid_done (see above).
+#  session_gtid_done, gtid_owned
+#    Specify how @@SESSION.GTID_DONE and @@[SESSION|GLOBAL].GTID_OWNED
+#    are expected to change after the statement.  These have the same
+#    form as global_gtid_done (see above).
 #
 #  error
 #    Expected errno for the statement, or 0 if the statement is
@@ -121,132 +126,133 @@ CREATE TABLE stmts (
   global_gtid_done TEXT(10000) NOT NULL,
   session_gtid_done TEXT(10000) NOT NULL,
   session_gtid_owned TEXT(10000) NOT NULL,
+  global_gtid_owned TEXT(10000) NOT NULL,
   error INT NOT NULL)
   ENGINE = InnoDB;
 
 eval INSERT INTO stmts VALUES
-#  ID  CON  STATEMENT_TYPE    GLOB.DONE  SESS.DONE  SESS.OWNED  ERROR
+#  ID  CON  STATEMENT_TYPE      G.DONE   S.DONE   S.OWNED  G.OWNED  ERROR
   # DML statements
-  (1000, 1, '1:1',              '',        '',        '1:1',      0)
- ,(1001, 1, 'AUTOCOMMIT=1',     '',        '',        '',         0)
- ,(1002, 1, 'INSERT',           '1:1',     '',        '~1:1',     0)
- ,(1003, 1, '1:3',              '',        '',        '1:3',      0)
- ,(1004, 1, 'INSERT',           '1:3',     '',        '~1:3',     0)
+  (1000, 1, '1:1',              '',      '',      '1:1',   '1:1',   0)
+ ,(1001, 1, 'AUTOCOMMIT=1',     '',      '',      '',      '',      0)
+ ,(1002, 1, 'INSERT',           '1:1',   '',      '~1:1',  '~1:1',  0)
+ ,(1003, 1, '1:3',              '',      '',      '1:3',   '1:3',   0)
+ ,(1004, 1, 'INSERT',           '1:3',   '',      '~1:3',  '~1:3',  0)
   # skipped DML statements
- ,(1010, 1, '1:3',              '',        '',        '',         0)
- ,(1011, 1, 'INSERT',           '',        '',        '',         0)
- ,(1012, 1, '1:1',              '',        '',        '',         0)
- ,(1013, 1, 'INSERT',           '',        '',        '',         0)
+ ,(1010, 1, '1:3',              '',      '',      '',      '',      0)
+ ,(1011, 1, 'INSERT',           '',      '',      '',      '',      0)
+ ,(1012, 1, '1:1',              '',      '',      '',      '',      0)
+ ,(1013, 1, 'INSERT',           '',      '',      '',      '',      0)
   # DDL statements
- ,(1020, 1, '2:3',              '',        '',        '2:3',      0)
- ,(1021, 1, 'CREATE',           '2:3',     '',        '~2:3',     0)
- ,(1022, 1, '2:4',              '',        '',        '2:4',      0)
- ,(1023, 1, 'CREATE',           '2:4',     '',        '~2:4',     0)
+ ,(1020, 1, '2:3',              '',      '',      '2:3',   '2:3',   0)
+ ,(1021, 1, 'CREATE',           '2:3',   '',      '~2:3',  '~2:3',  0)
+ ,(1022, 1, '2:4',              '',      '',      '2:4',   '2:4',   0)
+ ,(1023, 1, 'CREATE',           '2:4',   '',      '~2:4',  '~2:4',  0)
   # skipped DDL statements
- ,(1030, 1, '2:3',              '',        '',        '',         0)
- ,(1031, 1, 'CREATE',           '',        '',        '',         0)
- ,(1032, 1, '2:4',              '',        '',        '',         0)
- ,(1033, 1, 'CREATE',           '',        '',        '',         0)
+ ,(1030, 1, '2:3',              '',      '',      '',      '',      0)
+ ,(1031, 1, 'CREATE-NODROP',    '',      '',      '',      '',      0)
+ ,(1032, 1, '2:4',              '',      '',      '',      '',      0)
+ ,(1033, 1, 'CREATE-NODROP',    '',      '',      '',      '',      0)
   # simple transaction
- ,(1040, 1, '4:1',              '',        '',        '4:1',      0)
- ,(1041, 1, 'BEGIN',            '',        '',        '',         0)
- ,(1042, 1,   'INSERT',         '',        '4:1',     '',         0)
- ,(1043, 1,   'INSERT',         '',        '',        '',         0)
- ,(1044, 1, 'COMMIT',           '4:1',     '~4:1',    '~4:1',     0)
+ ,(1040, 1, '4:1',              '',      '',      '4:1',   '4:1',   0)
+ ,(1041, 1, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1042, 1,   'INSERT',         '',      '4:1',   '',      '',      0)
+ ,(1043, 1,   'INSERT',         '',      '',      '',      '',      0)
+ ,(1044, 1, 'COMMIT',           '4:1',   '~4:1',  '~4:1',  '~4:1',  0)
   # skipped simple transaction
- ,(1050, 1, '4:1',              '',        '',        '',         0)
- ,(1051, 1, 'BEGIN',            '',        '',        '',         0)
- ,(1052, 1,   'INSERT',         '',        '',        '',         0)
- ,(1053, 1,   'INSERT',         '',        '',        '',         0)
- ,(1054, 1, 'COMMIT',           '',        '',        '',         0)
+ ,(1050, 1, '4:1',              '',      '',      '',      '',      0)
+ ,(1051, 1, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1052, 1,   'INSERT',         '',      '',      '',      '',      0)
+ ,(1053, 1,   'INSERT',         '',      '',      '',      '',      0)
+ ,(1054, 1, 'COMMIT',           '',      '',      '',      '',      0)
   # rollback transaction
- ,(1060, 1, '6:1',              '',        '',        '6:1',      0)
- ,(1061, 1, 'BEGIN',            '',        '',        '',         0)
- ,(1062, 1,   'INSERT',         '',        '6:1',     '',         0)
- ,(1063, 1,   'INSERT',         '',        '',        '',         0)
- ,(1064, 1, 'ROLLBACK',         '',        '~6:1',    '~6:1',     0)
+ ,(1060, 1, '6:1',              '',      '',      '6:1',   '6:1',   0)
+ ,(1061, 1, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1062, 1,   'INSERT',         '',      '6:1',   '',      '',      0)
+ ,(1063, 1,   'INSERT',         '',      '',      '',      '',      0)
+ ,(1064, 1, 'ROLLBACK',         '',      '~6:1',  '~6:1',  '~6:1',  0)
   # rollback to savepoint
- ,(1070, 1, '6:1',              '',        '',        '6:1',      0)
- ,(1071, 1, 'BEGIN',            '',        '',        '',         0)
- ,(1072, 1,   'SAVEPOINT 1',    '',        '',        '',         0)
- ,(1073, 1,     'SAVEPOINT 2',  '',        '',        '',         0)
- ,(1074, 1,       'INSERT',     '',        '6:1',     '',         0)
- ,(1075, 1,       'INSERT',     '',        '',        '',         0)
- ,(1076, 1,     'ROLLBACK 2',   '',        '~6:1',    '',         0)
- ,(1077, 1,     'SAVEPOINT 3',  '',        '',        '',         0)
- ,(1078, 1,       'INSERT',     '',        '6:1',     '',         0)
- ,(1079, 1,       'SAVEPOINT 4','',        '',        '',         0)
- ,(1080, 1,     'ROLLBACK 3',   '',        '~6:1',    '',         0)
- ,(1081, 1,     'INSERT',       '',        '6:1',     '',         0)
- ,(1082, 1,     'SAVEPOINT 2',  '',        '',        '',         0)
- ,(1083, 1,     'ROLLBACK 2',   '',        '',        '',         0)
- ,(1084, 1,   'ROLLBACK 1',     '',        '~6:1',    '',         0)
- ,(1085, 1, 'ROLLBACK',         '',        '',        '~6:1',     0)
+ ,(1070, 1, '6:1',              '',      '',      '6:1',   '6:1',   0)
+ ,(1071, 1, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1072, 1,   'SAVEPOINT 1',    '',      '',      '',      '',      0)
+ ,(1073, 1,     'SAVEPOINT 2',  '',      '',      '',      '',      0)
+ ,(1074, 1,       'INSERT',     '',      '6:1',   '',      '',      0)
+ ,(1075, 1,       'INSERT',     '',      '',      '',      '',      0)
+ ,(1076, 1,     'ROLLBACK 2',   '',      '~6:1',  '',      '',      0)
+ ,(1077, 1,     'SAVEPOINT 3',  '',      '',      '',      '',      0)
+ ,(1078, 1,       'INSERT',     '',      '6:1',   '',      '',      0)
+ ,(1079, 1,       'SAVEPOINT 4','',      '',      '',      '',      0)
+ ,(1080, 1,     'ROLLBACK 3',   '',      '~6:1',  '',      '',      0)
+ ,(1081, 1,     'INSERT',       '',      '6:1',   '',      '',      0)
+ ,(1082, 1,     'SAVEPOINT 2',  '',      '',      '',      '',      0)
+ ,(1083, 1,     'ROLLBACK 2',   '',      '',      '',      '',      0)
+ ,(1084, 1,   'ROLLBACK 1',     '',      '~6:1',  '',      '',      0)
+ ,(1085, 1, 'ROLLBACK',         '',      '',      '~6:1',  '~6:1',  0)
   # empty group
- ,(1090, 1, '9:1',              '',        '',        '9:1',      0)
- ,(1091, 1, 'COMMIT',           '9:1',     '',        '~9:1',     0)
+ ,(1090, 1, '9:1',              '',      '',      '9:1',   '9:1',   0)
+ ,(1091, 1, 'COMMIT',           '9:1',   '',      '~9:1',  '~9:1',  0)
   # skipped empty group
- ,(1100, 1, '9:1',              '',        '',        '',         0)
- ,(1101, 1, 'COMMIT',           '',        '',        '',         0)
+ ,(1100, 1, '9:1',              '',      '',      '',      '',      0)
+ ,(1101, 1, 'COMMIT',           '',      '',      '',      '',      0)
   # rollback 'empty' group
- ,(1110, 1, '11:1',             '',        '',        '11:1',     0)
- ,(1111, 1, 'ROLLBACK',         '',        '',        '~11:1',    0)
+ ,(1110, 1, '11:1',             '',      '',      '11:1',  '11:1',  0)
+ ,(1111, 1, 'ROLLBACK',         '',      '',      '~11:1', '~11:1', 0)
   # concurrent group: committed and skipped
- ,(1120, 1, '12:1',             '',        '',        '12:1',     0)
- ,(1121, 2, 'send 12:1',        '',        '',        '',         0)
- ,(1122, 1, 'BEGIN',            '',        '',        '',         0)
- ,(1123, 1, 'INSERT',           '',        '12:1',    '',         0)
- ,(1124, 2, 'running',          '',        '',        '',         0)
- ,(1125, 1, 'COMMIT',           '12:1',    '~12:1',   '~12:1',    0)
- ,(1126, 2, 'reap',             '12:1',    '',        '',         0)
+ ,(1120, 1, '12:1',             '',      '',      '12:1',  '12:1',  0)
+ ,(1121, 2, 'send 12:1',        '',      '',      '',      '',      0)
+ ,(1122, 1, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1123, 1, 'INSERT',           '',      '12:1',  '',      '',      0)
+ ,(1124, 2, 'running',          '',      '',      '',      '',      0)
+ ,(1125, 1, 'COMMIT',           '12:1',  '~12:1', '~12:1', '~12:1', 0)
+ ,(1126, 2, 'reap',             '12:1',  '',      '',      '~12:1', 0)
   # concurrent group: rolled back, other thread takes over
- ,(1130, 1, '13:1',             '',        '',        '13:1',     0)
- ,(1131, 2, 'send 13:1',        '',        '',        '',         0)
- ,(1132, 1, 'BEGIN',            '',        '',        '',         0)
- ,(1133, 1, 'INSERT',           '',        '13:1',    '',         0)
- ,(1134, 2, 'running',          '',        '',        '',         0)
- ,(1135, 1, 'ROLLBACK',         '',        '~13:1',   '~13:1',    0)
- ,(1136, 2, 'reap',             '',        '',        '13:1',     0)
- ,(1137, 2, 'BEGIN',            '',        '',        '',         0)
- ,(1138, 2, 'INSERT',           '',        '13:1',    '',         0)
- ,(1139, 2, 'COMMIT',           '13:1',    '~13:1',   '~13:1',    0)
+ ,(1130, 1, '13:1',             '',      '',      '13:1',  '13:1',  0)
+ ,(1131, 2, 'send 13:1',        '',      '',      '',      '',      0)
+ ,(1132, 1, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1133, 1, 'INSERT',           '',      '13:1',  '',      '',      0)
+ ,(1134, 2, 'running',          '',      '',      '',      '',      0)
+ ,(1135, 1, 'ROLLBACK',         '',      '~13:1', '~13:1', '',      0)
+ ,(1136, 2, 'reap',             '',      '',      '13:1',  '',      0)
+ ,(1137, 2, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1138, 2, 'INSERT',           '',      '13:1',  '',      '',      0)
+ ,(1139, 2, 'COMMIT',           '13:1',  '~13:1', '~13:1', '~13:1', 0)
   # concurrent group: rolled back, ownership transferred from 1->2->3->1
- ,(1140, 1, '14:1',             '',        '',        '14:1',     0)
- ,(1141, 2, 'send 14:1',        '',        '',        '',         0)
- ,(1142, 1, 'BEGIN',            '',        '',        '',         0)
- ,(1143, 1,   'INSERT',         '',        '14:1',    '',         0)
- ,(1144, 2, 'running',          '',        '',        '',         0)
- ,(1145, 1, 'ROLLBACK',         '',        '~14:1',   '~14:1',    0)
- ,(1146, 2, 'reap',             '',        '',        '14:1',     0)
- ,(1147, 2, 'BEGIN',            '',        '',        '',         0)
- ,(1148, 2,   'INSERT',         '',        '14:1',    '',         0)
- ,(1149, 3, 'send 14:1',        '',        '',        '',         0)
- ,(1150, 3, 'running',          '',        '',        '',         0)
- ,(1151, 2, 'ROLLBACK',         '',        '~14:1',   '~14:1',    0)
- ,(1152, 3, 'reap',             '',        '',        '14:1',     0)
- ,(1153, 1, 'send 14:1',        '',        '',        '',         0)
- ,(1154, 3, 'BEGIN',            '',        '',        '',         0)
- ,(1155, 3,   'INSERT',         '',        '14:1',    '',         0)
- ,(1156, 3, 'running',          '',        '',        '',         0)
- ,(1157, 3, 'ROLLBACK',         '',        '~14:1',   '~14:1',    0)
- ,(1158, 1, 'reap',             '',        '',        '14:1',     0)
- ,(1159, 1, 'BEGIN',            '',        '',        '',         0)
- ,(1160, 1,   'INSERT',         '',        '14:1',    '',         0)
- ,(1161, 1, 'COMMIT',           '14:1',    '~14:1',   '~14:1',    0)
+ ,(1140, 1, '14:1',             '',      '',      '14:1',  '14:1',  0)
+ ,(1141, 2, 'send 14:1',        '',      '',      '',      '',      0)
+ ,(1142, 1, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1143, 1,   'INSERT',         '',      '14:1',  '',      '',      0)
+ ,(1144, 2, 'running',          '',      '',      '',      '',      0)
+ ,(1145, 1, 'ROLLBACK',         '',      '~14:1', '~14:1', '',      0)
+ ,(1146, 2, 'reap',             '',      '',      '14:1',  '',      0)
+ ,(1147, 2, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1148, 2,   'INSERT',         '',      '14:1',  '',      '',      0)
+ ,(1149, 3, 'send 14:1',        '',      '',      '',      '',      0)
+ ,(1150, 3, 'running',          '',      '',      '',      '',      0)
+ ,(1151, 2, 'ROLLBACK',         '',      '~14:1', '~14:1', '',      0)
+ ,(1152, 3, 'reap',             '',      '',      '14:1',  '',      0)
+ ,(1153, 1, 'send 14:1',        '',      '',      '',      '',      0)
+ ,(1154, 3, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1155, 3,   'INSERT',         '',      '14:1',  '',      '',      0)
+ ,(1156, 3, 'running',          '',      '',      '',      '',      0)
+ ,(1157, 3, 'ROLLBACK',         '',      '~14:1', '~14:1', '',      0)
+ ,(1158, 1, 'reap',             '',      '',      '14:1',  '',      0)
+ ,(1159, 1, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1160, 1,   'INSERT',         '',      '14:1',  '',      '',      0)
+ ,(1161, 1, 'COMMIT',           '14:1',  '~14:1', '~14:1', '~14:1', 0)
   # concurrent group and rollback to savepoint
- ,(1170, 1, '17:1',             '',        '',        '17:1',     0)
- ,(1171, 2, 'send 17:1',        '',        '',        '',         0)
- ,(1172, 1, 'BEGIN',            '',        '',        '',         0)
- ,(1173, 1,   'SAVEPOINT 1',    '',        '',        '',         0)
- ,(1174, 1,     'INSERT',       '',        '17:1',    '',         0)
- ,(1175, 1,   'ROLLBACK 1',     '',        '~17:1',   '',         0)
- ,(1176, 1,   'INSERT',         '',        '17:1',    '',         0)
- ,(1177, 2, 'running',          '',        '',        '',         0)
- ,(1178, 1, 'ROLLBACK',         '',        '~17:1',   '~17:1',    0)
- ,(1179, 2, 'reap',             '',        '',        '17:1',     0)
- ,(1180, 2, 'BEGIN',            '',        '',        '',         0)
- ,(1181, 2, 'INSERT',           '',        '17:1',    '',         0)
- ,(1182, 2, 'COMMIT',           '17:1',    '~17:1',   '~17:1',    0)
+ ,(1170, 1, '17:1',             '',      '',      '17:1',  '17:1',  0)
+ ,(1171, 2, 'send 17:1',        '',      '',      '',      '',      0)
+ ,(1172, 1, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1173, 1,   'SAVEPOINT 1',    '',      '',      '',      '',      0)
+ ,(1174, 1,     'INSERT',       '',      '17:1',  '',      '',      0)
+ ,(1175, 1,   'ROLLBACK 1',     '',      '~17:1', '',      '',      0)
+ ,(1176, 1,   'INSERT',         '',      '17:1',  '',      '',      0)
+ ,(1177, 2, 'running',          '',      '',      '',      '',      0)
+ ,(1178, 1, 'ROLLBACK',         '',      '~17:1', '~17:1', '',      0)
+ ,(1179, 2, 'reap',             '',      '',      '17:1',  '',      0)
+ ,(1180, 2, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1181, 2, 'INSERT',           '',      '17:1',  '',      '',      0)
+ ,(1182, 2, 'COMMIT',           '17:1',  '~17:1', '~17:1', '~17:1', 0)
 ;
 
 # Clear binlog to get better debug info
@@ -295,6 +301,10 @@ while ($id <= $max_id)
     --let $stmt= CREATE TABLE t_$id (a INT) ENGINE = InnoDB
     --let $drop_stmt= $drop_stmt DROP TABLE t_$id;
   }
+  if ($stmt_type == 'CREATE-NODROP')
+  {
+    --let $stmt= CREATE TABLE t_$id (a INT) ENGINE = InnoDB
+  }
   if ($stmt_type == 'BEGIN')
   {
     --let $stmt= BEGIN
@@ -342,11 +352,18 @@ while ($id <= $max_id)
       SET @session_gtid_done= @@SESSION.GTID_DONE;
       SET @global_gtid_done= @@GLOBAL.GTID_DONE;
       SET @session_gtid_owned= @@SESSION.GTID_OWNED;
-      --let $rpl_connection_name= slave
-      --source include/rpl_connection.inc
-      SET @session_gtid_owned= @@GLOBAL.GTID_DONE;
-      --let $rpl_connection_name= server_1_$connection
-      --source include/rpl_connection.inc
+      SET @global_gtid_owned= SUBSTRING_INDEX(@@GLOBAL.GTID_OWNED, '#', 1);
+
+      --let $eval_no_result= 1
+      --let $include_silent= 1
+      --let $eval_expr= SET @binlog_file_before= "[master:SHOW MASTER STATUS, File, 1]"
+      --source include/eval.inc
+      --let $eval_expr= SET @binlog_pos_before= [master:SHOW MASTER STATUS, Position, 1]
+      --source include/eval.inc
+      --let $eval_expr= SET @slave_global_gtid_done= "[slave:SELECT @@GLOBAL.GTID_DONE]"
+      --source include/eval.inc
+      --let $include_silent= 0
+      --let $eval_no_result= 0
     }
   }
 
@@ -388,12 +405,13 @@ while ($id <= $max_id)
     }
   }
 
-  --let $rpl_connection_name= default
+  --let $rpl_connection_name= master
   --source include/rpl_connection.inc
 
   # Check that thread is still running query
   if ($send_reap == 'running')
   {
+    # Don't use include/assert.inc because $last_send_stmt may contain quotes
     --echo Checking that thread is still running query
     --let $info= `SELECT Info FROM INFORMATION_SCHEMA.PROCESSLIST WHERE Id = $last_send_id`
     if ($info != $last_send_stmt)
@@ -411,44 +429,57 @@ while ($id <= $max_id)
     if ($send_reap != 'running')
     {
       --sync_slave_with_master
+      --connection master
 
-      --let $con_0= server_1_$connection
-      --let $scope_0= global
-      --let $var_0= gtid_done
+      --let $text_0= @@GLOBAL.GTID_DONE
+      --let $after_0= [server_1_$connection:SELECT @@GLOBAL.GTID_DONE]
+      --let $before_0= @global_gtid_done
+      --let $col_0= global_gtid_done
 
-      --let $con_1= server_1_$connection
-      --let $scope_1= session
-      --let $var_1= gtid_done
+      --let $text_1= @@SESSION.GTID_DONE
+      --let $after_1= [server_1_$connection:SELECT @@SESSION.GTID_DONE]
+      --let $before_1= @session_gtid_done
+      --let $col_1= session_gtid_done
 
-      --let $con_2= server_1_$connection
-      --let $scope_2= session
-      --let $var_2= gtid_owned
+      --let $text_2= @@SESSION.GTID_OWNED
+      --let $after_2= [server_1_$connection:SELECT @@SESSION.GTID_OWNED]
+      --let $before_2= @session_gtid_owned
+      --let $col_2= session_gtid_owned
 
-      --let $con_3= slave
-      --let $scope_3= global
-      --let $var_3= gtid_done
+      --let $text_3= @@GLOBAL.GTID_OWNED
+      --let $after_3= [server_1_$connection:SELECT SUBSTRING_INDEX(@@GLOBAL.GTID_OWNED, "#", 1)]
+      --let $before_3= @global_gtid_owned
+      --let $col_3= global_gtid_owned
 
-      --let $underscore= _
+      --let $text_4= slave:@@GLOBAL.GTID_DONE
+      --let $after_4= [slave: SELECT @@GLOBAL.GTID_DONE]
+      --let $before_4= @slave_global_gtid_done
+      --let $col_4= global_gtid_done
 
       --let $i= 0
-      while ($i < 3)
+      while ($i < 5)
       {
-        --let $con= \$con_$i
-        --let $scope= \$scope_$i
-        --let $var= \$var_$i
-        --let $rpl_connection_name= $con
-        --source include/rpl_connection.inc
+        --let $text= \$text_$i
+        --let $after= \$after_$i
+        --let $before= \$before_$i
+        --let $col= \$col_$i
 
         # $after = the value of the $variable now
-        --let $after= `SELECT @@$scope.$var`
+        --let $eval_expr= "$after"
+        --let $include_silent= 1
+        --source include/eval.inc
+        --let $include_silent= 0
+        --let $after= $eval_result
 
         # $before = the value of the $variable before the statement
-        --let $before= `SELECT @$scope$underscore$var`
+        --let $rpl_connection_name= server_1_$connection
+        --source include/rpl_connection.inc
+        --let $before= `SELECT $before`
+        --let $rpl_connection_name= master
+        --source include/rpl_connection.inc
 
         # $diff = the expected change in the variable
-        --let $rpl_connection_name= default
-        --source include/rpl_connection.inc
-        --let $diff= `SELECT NUMBER_TO_UUID($scope$underscore$var) FROM stmts WHERE id = $id`
+        --let $diff= `SELECT NUMBER_TO_UUID($col) FROM stmts WHERE id = $id`
 
         if ($rpl_debug)
         {
@@ -457,18 +488,53 @@ while ($id <= $max_id)
 
         # Assert that before + diff = after
         let $assert_text= `
-          SELECT CONCAT("#$id $con:@@$scope.$var: '",
+          SELECT CONCAT("#$id $text: '",
                         UUID_TO_NUMBER('$before'), "' + '",
                         UUID_TO_NUMBER('$diff'), "' = '",
                         UUID_TO_NUMBER('$after'), "'")`;
         --let $assert_cond= GTID_COMPARE("$before", "$diff", "$after")
-        if ($rpl_debug)
-        {
-          eval SELECT $assert_cond;
-        }
         --source include/assert.inc
 
         --inc $i
+      }
+
+      # Assert that binlog changed or didn't change (according to
+      # whether gtid_done changed/didn't change).
+
+      --let $rpl_connection_name= master
+      --source include/rpl_connection.inc
+
+      --let $changed_binlog= `SELECT global_gtid_done != '' FROM stmts WHERE id = $id`
+      if ($changed_binlog)
+      {
+        let $assert_cond=
+          [SHOW MASTER STATUS, Position, 1] >
+          [server_1_$connection:SELECT @binlog_pos_before];
+        --let $assert_text= Something was written to the binlog
+        --source include/assert.inc
+
+        let $assert_cond=
+          "[SHOW BINLOG EVENTS IN
+            "[server_1_$connection:SELECT @binlog_file_before]"
+            FROM [server_1_$connection:SELECT @binlog_pos_before]
+            LIMIT 1, Event_type, 1]" = "Gtid";
+        --let $assert_text= The first added event in the binlog should be a Gtid_log_event
+        --source include/assert.inc
+        #--let $assert_cond= "[SHOW BINLOG EVENTS IN "$binlog_file_before" FROM $binlog_pos_before LIMIT 1, Info, 1]" = "SET GTID_NEXT = "
+      }
+      if (!$changed_binlog)
+      {
+        let $assert_cond=
+          "[SHOW MASTER STATUS, File, 1]" =
+          "[server_1_$connection:SELECT @binlog_file_before]";
+        --let $assert_text= Binlog was not rotated
+        --source include/assert.inc
+
+        let $assert_cond=
+          [SHOW MASTER STATUS, Position, 1] =
+          [server_1_$connection:SELECT @binlog_pos_before];
+        --let $assert_text= Binlog position was not updated
+        --source include/assert.inc
       }
     }
   }
