@@ -2423,7 +2423,8 @@ ibuf_get_merge_page_nos_func(
 			smallest possible secondary index leaf page
 			(and that only after DROP INDEX). */
 			ut_ad(rec_page_no
-			      > IBUF_TREE_ROOT_PAGE_NO - (rec_space_id != 0));
+			      > (ulint) IBUF_TREE_ROOT_PAGE_NO
+			      - (rec_space_id != 0));
 		}
 
 #ifdef UNIV_IBUF_DEBUG
