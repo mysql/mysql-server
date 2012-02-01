@@ -680,7 +680,8 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
   uint32 name_size= 0;
   char* gtid_string= NULL;
   const uchar* ptr_buffer= (uchar *) packet;
-  Gtid_set gtid_set(&global_sid_map);
+  Sid_map sid_map(NULL/*no sid_lock because this is a completely local object*/);
+  Gtid_set slave_gtid_done(&sid_map);
 
   status_var_increment(thd->status_var.com_other);
   thd->enable_slow_log= opt_log_slow_admin_statements;
@@ -706,15 +707,10 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
 
     if (mysql_bin_log.is_open())
     {
-      global_sid_lock.rdlock();
-      if (gtid_set.add_gtid_encoding(ptr_buffer, data_size) !=
+      if (slave_gtid_done.add_gtid_encoding(ptr_buffer, data_size) !=
           RETURN_STATUS_OK)
-      {
-        global_sid_lock.unlock();
         DBUG_RETURN(false);
-      }
-      gtid_string= gtid_set.to_string();
-      global_sid_lock.unlock();
+      gtid_string= slave_gtid_done.to_string();
           
       /*
         Resetting the name of the file in order to force to start
@@ -731,7 +727,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
   general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %llu GTIDs: %s",
                     name, pos, gtid_string);
   my_free(gtid_string);
-  mysql_binlog_send(thd, name, (my_off_t) pos, flags, &gtid_set);
+  mysql_binlog_send(thd, name, (my_off_t) pos, flags, &slave_gtid_done);
 
   unregister_slave(thd, 1, 1);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
@@ -743,7 +739,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
 */
 
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
-		       ushort flags, const Gtid_set* gtid_set)
+		       ushort flags, const Gtid_set* slave_gtid_done)
 {
 #define GOTO_ERR                                                        \
   do {                                                                  \
@@ -840,10 +836,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     GOTO_ERR;
   }
 
-  if (gtid_set != NULL)
+  if (slave_gtid_done != NULL)
   {
     global_sid_lock.wrlock();
-    if (!gtid_state.get_lost_gtids()->is_subset(gtid_set))
+    if (!gtid_state.get_lost_gtids()->is_subset(slave_gtid_done))
     {
       global_sid_lock.unlock();
       errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
@@ -1136,14 +1132,16 @@ impossible position";
 
             I think we can do better than that. /Alfranio.
           */
-          ulonglong checksum_size= ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
-                                     p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-                                    BINLOG_CHECKSUM_LEN + ev_offset : ev_offset);
-          Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
-                                                   packet->length() - checksum_size,
-                                                   p_fdle);
-          skip_group= gtid_set->contains_gtid(gtid->get_sidno(true),
-                                              gtid->get_gno());
+          ulonglong checksum_size=
+            ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+              p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
+             BINLOG_CHECKSUM_LEN + ev_offset : ev_offset);
+          Gtid_log_event* gtid=
+            new Gtid_log_event(packet->ptr() + ev_offset,
+                               packet->length() - checksum_size,
+                               p_fdle);
+          skip_group= slave_gtid_done->contains_gtid(gtid->get_sidno(true),
+                                                     gtid->get_gno());
           searching_first_gtid= skip_group;
 #ifndef DBUG_OFF
           DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "
@@ -1401,14 +1399,16 @@ impossible position";
             }
             if (using_gtid_proto)
             {
-              ulonglong checksum_size= ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
-                                         p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-                                        BINLOG_CHECKSUM_LEN + ev_offset : ev_offset);
-              Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
-                                                       packet->length() - checksum_size,
-                                                       p_fdle);
-              skip_group= gtid_set->contains_gtid(gtid->get_sidno(true),
-                                                  gtid->get_gno());
+              ulonglong checksum_size=
+                ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+                  p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
+                 BINLOG_CHECKSUM_LEN + ev_offset : ev_offset);
+              Gtid_log_event* gtid=
+                new Gtid_log_event(packet->ptr() + ev_offset,
+                                   packet->length() - checksum_size,
+                                   p_fdle);
+              skip_group= slave_gtid_done->contains_gtid(gtid->get_sidno(true),
+                                                         gtid->get_gno());
               searching_first_gtid= skip_group;
 #ifndef DBUG_OFF
               DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "
@@ -1723,9 +1723,9 @@ bool show_binlog_info(THD* thd)
   const Gtid_set* gtid_set= gtid_state.get_logged_gtids();
   if ((gtid_set_size= gtid_set->to_string(&gtid_set_buffer)) < 0)
   {
+    global_sid_lock.unlock();
     my_eof(thd);
     my_free(gtid_set_buffer);
-    global_sid_lock.unlock();
     DBUG_RETURN(true);
   }
   global_sid_lock.unlock();
