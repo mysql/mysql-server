@@ -1,0 +1,32 @@
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+connection con1;
+
+CREATE TABLE t (a INT PRIMARY KEY, c TEXT) ENGINE=InnoDB;
+
+INSERT INTO t VALUES (1,'aa');
+SET DEBUG_SYNC='row_log_apply_before SIGNAL created WAIT_FOR dml_done';
+--send
+CREATE INDEX c1 ON t (c(1));
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR created';
+UPDATE t SET c='ab';
+# Allow purge to kick in. TODO: Trigger this faster, somehow.
+SELECT SLEEP(10);
+SET DEBUG_SYNC='now SIGNAL dml_done';
+connection con1;
+# crash
+reap;
+disconnect con1;
+connection default;
+SET DEBUG_SYNC='RESET';
+DROP TABLE t;
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

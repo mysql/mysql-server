@@ -42,6 +42,7 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0upd.h"
 #include "row0vers.h"
 #include "row0mysql.h"
+#include "row0log.h"
 #include "log0log.h"
 #include "srv0mon.h"
 
@@ -431,8 +432,37 @@ row_purge_remove_sec_if_poss(
 
 	/*	fputs("Purge: Removing secondary record\n", stderr); */
 
-	if (dict_index_online_trylog(index, entry, 0, ROW_OP_PURGE)) {
-		return;
+	if (dict_index_is_online_ddl(index)) {
+		ibool	online = FALSE;
+
+		/* Exclusively latch the index tree to prevent DML
+		threads from making changes. Otherwise, the return
+		status of row_purge_poss_sec() could change. For
+		row_log_online_op(), an S-latch would suffice. */
+		rw_lock_x_lock(dict_index_get_lock(index));
+
+		switch (dict_index_get_online_status(index)) {
+		case ONLINE_INDEX_CREATION:
+			if (row_purge_poss_sec(node, index, entry)) {
+				row_log_online_op(
+					index, entry, 0, ROW_OP_PURGE);
+			}
+			/* fall through */
+		case ONLINE_INDEX_ABORTED:
+		case ONLINE_INDEX_ABORTED_DROPPED:
+			online = TRUE;
+			break;
+		case ONLINE_INDEX_COMPLETE:
+			/* The index was just completed. We must
+			perform the operation directly on it. */
+			break;
+		}
+
+		rw_lock_x_unlock(dict_index_get_lock(index));
+
+		if (online) {
+			return;
+		}
 	}
 
 	if (row_purge_remove_sec_if_poss_leaf(node, index, entry)) {
