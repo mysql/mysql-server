@@ -1781,3 +1781,33 @@ SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
 SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #13528826 
+--echo # TEST_IF_CHEAPER_ORDERING(): CALCULATES INCORRECT 'SELECT_LIMIT'
+--echo # 
+--echo #
+
+CREATE TABLE t1(a int PRIMARY KEY, b int) ENGINE=myisam;
+INSERT INTO t1 VALUES
+  (5, 10), (2, 70), (7, 80), (6, 20), (1, 50), (9, 40), (8, 30), (3, 60);
+CREATE TABLE t2 (p int, a int, INDEX i_a(a)) ENGINE=myisam;
+INSERT INTO t2 VALUES
+  (103, 7), (109, 3), (102, 3), (108, 1), (106, 3),
+  (107, 7), (105, 1), (101, 3), (100, 7), (110, 1);
+
+--echo # number of rows in t1 was incorrectly used as an 
+--echo # implicit limit-clause if not explicit specified
+EXPLAIN
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a;
+
+--echo # Query above used to be explained identical to this:
+EXPLAIN
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 8;
+
+-- echo # A really high limit was required to give the correct explain
+EXPLAIN
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 1000;
+
+DROP TABLE t1, t2;
+
