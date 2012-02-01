@@ -281,7 +281,7 @@ ib_err_t
 (*CB_TABLE_TRUNCATE)(
 /*=================*/
 	const char*	table_name,
-	ib_id_t*	table_id);
+	ib_id_u64_t*	table_id);
 
 typedef
 ib_err_t
@@ -314,7 +314,7 @@ ib_err_t
 	const char*	index_name,
 	ib_crsr_t*	ib_crsr,
 	int*		idx_type,
-        ib_id_t*	idx_id);
+        ib_id_u64_t*	idx_id);
 
 typedef
 void

@@ -69,7 +69,7 @@ struct innodb_conn_data {
 	void*		c_cookie;	/*!< connection cookie */
 	uint64_t	c_r_count;	/*!< number of reads */
 	uint64_t	c_r_count_commit;/*!< number of reads since
-					last commit */ 
+					last commit */
 	uint64_t        c_w_count;	/*!< number of updates, including
 					write/update/delete */
 	uint64_t	c_w_count_commit;/*!< number of updates since
@@ -85,30 +85,31 @@ typedef UT_LIST_BASE_NODE_T(innodb_conn_data_t)	conn_base_t;
 engine and InnoDB memcached engine */
 typedef struct innodb_engine {
 	ENGINE_HANDLE_V1	engine;
-	SERVER_HANDLE_V1 	server;
-	GET_SERVER_API 		get_server_api;
+	SERVER_HANDLE_V1	server;
+	GET_SERVER_API		get_server_api;
 	ENGINE_HANDLE*		m_default_engine;
 
 	struct {
-		size_t nthreads;
-		bool cas_enabled;  
+		size_t		nthreads;
+		bool		cas_enabled;
 	} server_options;
 
 	union {
-	engine_info info;
-	char buffer[sizeof(engine_info) * (LAST_REGISTERED_ENGINE_FEATURE + 1)];
+		engine_info	info;
+		char		buffer[sizeof(engine_info)
+				       * (LAST_REGISTERED_ENGINE_FEATURE + 1)];
 	} info;
 
 	/** following are InnoDB specific variables */
-	bool		initialized;
-	bool		connected;
-	bool		enable_binlog;
-	meta_info_t	meta_info;
-	conn_base_t	conn_data;
-	pthread_mutex_t conn_mutex;
-	ib_cb_t*	innodb_cb;
-	uint64_t	r_batch_size;
-	uint64_t	w_batch_size;	
+	bool			initialized;
+	bool			connected;
+	bool			enable_binlog;
+	meta_info_t		meta_info;
+	conn_base_t		conn_data;
+	pthread_mutex_t		conn_mutex;
+	ib_cb_t*		innodb_cb;
+	uint64_t		r_batch_size;
+	uint64_t		w_batch_size;
 } innodb_engine_t;
 
 /**********************************************************************//**
@@ -159,7 +160,7 @@ handler_unlock_table(
         }								\
 }									\
 
-# define UT_LIST_REMOVE_CLEAR(NAME, N)          			\
+# define UT_LIST_REMOVE_CLEAR(NAME, N)					\
 ((N)->NAME.prev = (N)->NAME.next = (void*) -1)
 
 /** Removes a node from a linked list. */

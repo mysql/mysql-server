@@ -656,7 +656,7 @@ trx_sys_file_format_max_read(void)
 	mtr_t			mtr;
 	const byte*		ptr;
 	const buf_block_t*	block;
-	ib_idd_t		file_format_id;
+	ib_id_t			file_format_id;
 
 	/* Since this is called during the startup phase it's safe to
 	read the value without a covering mutex. */
@@ -986,7 +986,7 @@ trx_sys_read_file_format_id(
 	byte		buf[UNIV_PAGE_SIZE * 2];
 	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
 	const byte*	ptr;
-	ib_idd_t	file_format_id;
+	ib_id_t		file_format_id;
 
 	*format_id = ULINT_UNDEFINED;
 

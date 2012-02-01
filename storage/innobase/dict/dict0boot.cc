@@ -75,7 +75,7 @@ dict_hdr_get_new_id(
 					(not assigned if NULL) */
 {
 	dict_hdr_t*	dict_hdr;
-	ib_idd_t	id;
+	ib_id_t		id;
 	mtr_t		mtr;
 
 	mtr_start(&mtr);

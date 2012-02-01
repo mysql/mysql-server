@@ -1274,7 +1274,7 @@ que_thr_t*
 trx_rollback_start(
 /*===============*/
 	trx_t*		trx,		/*!< in: transaction */
-	ib_idd_t	roll_limit)	/*!< in: rollback to undo no (for
+	ib_id_t		roll_limit)	/*!< in: rollback to undo no (for
 					partial undo), 0 if we are rolling back
 					the entire transaction */
 {
@@ -1364,7 +1364,7 @@ trx_rollback_step(
 
 	if (node->state == ROLL_NODE_SEND) {
 		trx_t*		trx;
-		ib_idd_t	roll_limit = 0;
+		ib_id_t		roll_limit = 0;
 
 		trx = thr_get_trx(thr);
 

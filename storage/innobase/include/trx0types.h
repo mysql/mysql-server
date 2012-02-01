@@ -100,13 +100,13 @@ enum trx_rb_ctx {
 };
 
 /** Row identifier (DB_ROW_ID, DATA_ROW_ID) */
-typedef ib_idd_t	row_id_t;
+typedef ib_id_t	row_id_t;
 /** Transaction identifier (DB_TRX_ID, DATA_TRX_ID) */
-typedef ib_idd_t	trx_id_t;
+typedef ib_id_t	trx_id_t;
 /** Rollback pointer (DB_ROLL_PTR, DATA_ROLL_PTR) */
-typedef ib_idd_t	roll_ptr_t;
+typedef ib_id_t	roll_ptr_t;
 /** Undo number */
-typedef ib_idd_t	undo_no_t;
+typedef ib_id_t	undo_no_t;
 
 /** Transaction savepoint */
 typedef struct trx_savept_struct trx_savept_t;

@@ -229,7 +229,7 @@ static
 dict_table_t*
 ib_open_table_by_id(
 /*================*/
-	ib_idd_t		tid,		/*!< in: table id to lookup */
+	ib_id_u64_t	tid,		/*!< in: table id to lookup */
 	ib_bool_t	locked)		/*!< in: TRUE if own dict mutex */
 {
 	dict_table_t*	table;
@@ -947,7 +947,7 @@ ib_err_t
 ib_table_get_id_low(
 /*================*/
 	const char*	table_name,	/*!< in: table to find */
-	ib_idd_t*	table_id)	/*!< out: table id if found */
+	ib_id_u64_t*	table_id)	/*!< out: table id if found */
 {
 	dict_table_t*	table;
 	ib_err_t	err = DB_TABLE_NOT_FOUND;
@@ -975,7 +975,7 @@ ib_create_cursor(
 /*=============*/
 	ib_crsr_t*	ib_crsr,	/*!< out: InnoDB cursor */
 	dict_table_t*	table,		/*!< in: table instance */
-	ib_idd_t	index_id,	/*!< in: index id or 0 */
+	ib_id_u64_t	index_id,	/*!< in: index id or 0 */
 	trx_t*		trx)		/*!< in: transaction */
 {
 	mem_heap_t*	heap;
@@ -1049,7 +1049,7 @@ UNIV_INTERN
 ib_err_t
 ib_cursor_open_table_using_id(
 /*==========================*/
-	ib_idd_t	table_id,	/*!< in: table id of table to open */
+	ib_id_u64_t	table_id,	/*!< in: table id of table to open */
 	ib_trx_t	ib_trx,		/*!< in: Current transaction handle
 					can be NULL */
 	ib_crsr_t*	ib_crsr)	/*!< out,own: InnoDB cursor */
@@ -1080,7 +1080,7 @@ UNIV_INTERN
 ib_err_t
 ib_cursor_open_index_using_id(
 /*==========================*/
-	ib_idd_t	index_id,	/*!< in: index id of index to open */
+	ib_id_u64_t	index_id,	/*!< in: index id of index to open */
 	ib_trx_t	ib_trx,		/*!< in: Current transaction handle
 					can be NULL */
 	ib_crsr_t*	ib_crsr)	/*!< out: InnoDB cursor */
@@ -1133,11 +1133,11 @@ ib_cursor_open_index_using_name(
 	const char*	index_name,	/*!< in: secondary index name */
 	ib_crsr_t*	ib_crsr,	/*!< out,own: InnoDB index cursor */
 	int*		idx_type,	/*!< out: index is cluster index */
-	ib_idd_t*	idx_id)		/*!< out: index id */
+	ib_id_u64_t*	idx_id)		/*!< out: index id */
 {
 	dict_table_t*	table;
 	dict_index_t*	index;
-	ib_idd_t	index_id = 0;
+	ib_id_u64_t	index_id = 0;
 	ib_err_t	err = DB_TABLE_NOT_FOUND;
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_open_crsr;
 
@@ -3056,7 +3056,7 @@ ib_err_t
 ib_table_get_id(
 /*============*/
 	const char*	table_name,	/*!< in: table to find */
-	ib_idd_t*	table_id)	/*!< out: table id if found */
+	ib_id_u64_t*	table_id)	/*!< out: table id if found */
 {
 	ib_err_t	err;
 
@@ -3078,7 +3078,7 @@ ib_index_get_id(
 /*============*/
 	const char*	table_name,	/*!< in: find index for this table */
 	const char*	index_name,	/*!< in: index to find */
-	ib_idd_t*	index_id)	/*!< out: index id if found */
+	ib_id_u64_t*	index_id)	/*!< out: index id if found */
 {
 	dict_table_t*	table;
 	char*		normalized_name;
@@ -3193,7 +3193,7 @@ ib_err_t
 ib_table_lock(
 /*==========*/
 	ib_trx_t	ib_trx,		/*!< in/out: transaction */
-	ib_idd_t		table_id,	/*!< in: table id */
+	ib_id_u64_t	table_id,	/*!< in: table id */
 	ib_lck_mode_t	ib_lck_mode)	/*!< in: InnoDB lock mode */
 {
 	ib_err_t	err;
@@ -3577,7 +3577,7 @@ ib_cursor_truncate(
 /*===============*/
 	ib_crsr_t*	ib_crsr,	/*!< in/out: cursor for table
 					to truncate */
-	ib_idd_t*	table_id)	/*!< out: new table id */
+	ib_id_u64_t*	table_id)	/*!< out: new table id */
 {
 	ib_err_t        err;
 	ib_cursor_t*    cursor = *(ib_cursor_t**) ib_crsr;
@@ -3620,7 +3620,7 @@ ib_err_t
 ib_table_truncate(
 /*==============*/
 	const char*	table_name,	/*!< in: table name */
-	ib_idd_t*	table_id)	/*!< out: new table id */
+	ib_id_u64_t*	table_id)	/*!< out: new table id */
 {
 	ib_err_t        err;
 	dict_table_t*   table;
