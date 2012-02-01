@@ -2386,9 +2386,7 @@ fts_get_total_document_count(
 /*=========================*/
 	dict_table_t*   table)		/*!< in: table instance */
 {
-	if (!table->stat_initialized) {
-		dict_stats_update(table, DICT_STATS_RECALC_TRANSIENT, FALSE);
-	}
+	ut_ad(table->stat_initialized);
 
 	return((ulint) table->stat_n_rows);
 }

@@ -29,6 +29,10 @@ protected:
   virtual void TearDown()
   {
     fs_info.free_sort_buffer();
+    std::pair<uint, uint> buffer_properties= fs_info.sort_buffer_properties();
+    EXPECT_EQ(0U, buffer_properties.first);
+    EXPECT_EQ(0U, buffer_properties.second);
+    EXPECT_TRUE(NULL == fs_info.get_sort_keys());
   }
 
   Filesort_info fs_info;
@@ -49,6 +53,7 @@ TEST_F(FileSortBufferTest, FileSortBuffer)
 
   uchar **null_sort_keys= NULL;
   EXPECT_NE(null_sort_keys, sort_keys);
+  EXPECT_NE(null_sort_keys, fs_info.get_sort_keys());
   for (uint ix= 0; ix < 10; ++ix)
   {
     uchar *ptr= fs_info.get_record_buffer(ix);

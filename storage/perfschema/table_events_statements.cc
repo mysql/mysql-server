@@ -318,8 +318,7 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   m_row.m_nesting_event_id= statement->m_nesting_event_id;
   m_row.m_nesting_event_type= statement->m_nesting_event_type;
 
-  time_normalizer *normalizer= time_normalizer::get(statement_timer);
-  normalizer->to_pico(statement->m_timer_start, statement->m_timer_end,
+  m_normalizer->to_pico(statement->m_timer_start, statement->m_timer_end,
                       & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
   m_row.m_lock_time= statement->m_lock_time * MICROSEC_TO_PICOSEC;
 
@@ -606,6 +605,12 @@ void table_events_statements_current::reset_position(void)
   m_next_pos.reset();
 }
 
+int table_events_statements_current::rnd_init(bool scan)
+{
+  m_normalizer= time_normalizer::get(statement_timer);
+  return 0;
+}
+
 int table_events_statements_current::rnd_next(void)
 {
   PFS_thread *pfs_thread;
@@ -708,6 +713,12 @@ void table_events_statements_history::reset_position(void)
   m_next_pos.reset();
 }
 
+int table_events_statements_history::rnd_init(bool scan)
+{
+  m_normalizer= time_normalizer::get(statement_timer);
+  return 0;
+}
+
 int table_events_statements_history::rnd_next(void)
 {
   PFS_thread *pfs_thread;
@@ -803,6 +814,12 @@ void table_events_statements_history_long::reset_position(void)
 {
   m_pos.m_index= 0;
   m_next_pos.m_index= 0;
+}
+
+int table_events_statements_history_long::rnd_init(bool scan)
+{
+  m_normalizer= time_normalizer::get(statement_timer);
+  return 0;
 }
 
 int table_events_statements_history_long::rnd_next(void)

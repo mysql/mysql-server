@@ -1847,6 +1847,15 @@ void Item_func_now::fix_length_and_dec()
 }
 
 
+void Item_func_now_local::store_in(Field *field)
+{
+  THD *thd= field->table != NULL ? field->table->in_use : current_thd;
+  const timeval tm= thd->query_start_timeval_trunc(field->decimals());
+  field->set_notnull();
+  return field->store_timestamp(&tm);
+}
+
+
 Time_zone *Item_func_now_local::time_zone()
 {
   return current_thd->time_zone();
@@ -3428,19 +3437,25 @@ null_date:
 
 bool Item_func_last_day::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
-  if (get_arg0_date(ltime, fuzzy_date & ~TIME_FUZZY_DATE) ||
-      (ltime->month == 0))
+  if ((null_value= get_arg0_date(ltime, fuzzy_date)))
+    return true;
+
+  if (ltime->month == 0)
   {
-    null_value= 1;
-    return 1;
+    /*
+      Cannot calculate last day for zero month.
+      Let's print a warning and return NULL.
+    */
+    ltime->time_type= MYSQL_TIMESTAMP_DATE;
+    ErrConvString str(ltime, 0);
+    make_truncated_value_warning(ErrConvString(str), MYSQL_TIMESTAMP_ERROR);
+    return (null_value= true);
   }
-  null_value= 0;
-  uint month_idx= ltime->month-1;
+
+  uint month_idx= ltime->month - 1;
   ltime->day= days_in_month[month_idx];
-  if ( month_idx == 1 && calc_days_in_year(ltime->year) == 366)
+  if (month_idx == 1 && calc_days_in_year(ltime->year) == 366)
     ltime->day= 29;
-  ltime->hour= ltime->minute= ltime->second= 0;
-  ltime->second_part= 0;
-  ltime->time_type= MYSQL_TIMESTAMP_DATE;
-  return 0;
+  datetime_to_date(ltime);
+  return false;
 }

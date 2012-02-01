@@ -2240,8 +2240,9 @@ dict_load_foreign(
 		/* Not found */
 
 		fprintf(stderr,
-			"InnoDB: Error A: cannot load foreign constraint "
-			"%.*s\n", (int) id_len, id);
+			"InnoDB: Error: cannot load foreign constraint "
+			"%.*s: could not find the relevant record in "
+			"SYS_FOREIGN\n", (int) id_len, id);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -2256,8 +2257,9 @@ dict_load_foreign(
 	if (len != id_len || ut_memcmp(id, field, len) != 0) {
 
 		fprintf(stderr,
-			"InnoDB: Error B: cannot load foreign constraint "
-			"%.*s\n", (int) id_len, id);
+			"InnoDB: Error: cannot load foreign constraint "
+			"%.*s: found %.*s instead in SYS_FOREIGN\n",
+			(int) id_len, id, (int) len, field);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);

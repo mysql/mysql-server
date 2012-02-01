@@ -184,7 +184,20 @@ typedef struct st_user_var_events
   bool unsigned_flag;
 } BINLOG_USER_VAR_EVENT;
 
-/*
+
+/**
+   This class encapsulates a data change operation. There are three such
+   operations.
+
+   -# Insert statements, i.e. INSERT INTO .. VALUES
+
+   -# Update statements. UPDATE <table> SET ...
+
+   -# Delete statements. Currently this class is not used for delete statements
+      and thus has not yet been adapted to handle it.
+
+   @todo Rename this class.
+
   The COPY_INFO structure is used by INSERT/REPLACE code.
   The schema of the row counting by the INSERT/INSERT ... ON DUPLICATE KEY
   UPDATE code:
@@ -196,22 +209,289 @@ typedef struct st_user_var_events
       of the INSERT ... ON DUPLICATE KEY UPDATE no matter whether the row
       was actually changed or not.
 */
-typedef struct st_copy_info {
-  ha_rows records; /**< Number of processed records */
-  ha_rows deleted; /**< Number of deleted records */
-  ha_rows updated; /**< Number of updated records */
-  ha_rows copied;  /**< Number of copied records */
-  ha_rows error_count;
-  ha_rows touched; /* Number of touched records */
+class COPY_INFO: public Sql_alloc
+{
+public:
+  class Statistics
+  {
+  public:
+    Statistics() :
+      records(0), deleted(0), updated(0), copied(0), error_count(0), touched(0)
+    {}
+
+    ha_rows records; /**< Number of processed records */
+    ha_rows deleted; /**< Number of deleted records */
+    ha_rows updated; /**< Number of updated records */
+    ha_rows copied;  /**< Number of copied records */
+    ha_rows error_count;
+    ha_rows touched; /* Number of touched records */
+  };
+
+  enum operation_type { INSERT_OPERATION, UPDATE_OPERATION };
+
+private:
+  COPY_INFO(const COPY_INFO &other);            ///< undefined
+  void operator=(COPY_INFO &);                  ///< undefined
+
+  /// Describes the data change operation that this object represents.
+  const operation_type m_optype;
+
+  /**
+     The columns of the target table for which new data is to be inserted or
+     updated.
+  */
+  List<Item> *m_changed_columns;
+
+  /**
+     A second list of columns to be inserted or updated. See the constructor
+     specific of LOAD DATA INFILE, below.
+  */
+  List<Item> *m_changed_columns2;
+
+
+  /** Whether this object must manage function defaults */
+  const bool m_manage_defaults;
+  /** Bitmap: bit is set if we should set column #i to its function default */
+  MY_BITMAP *m_function_default_columns;
+
+protected:
+
+  /**
+     Policy for handling insertion of duplicate values. Protected for legacy
+     reasons.
+
+     @see Delayable_insert_operation::set_dup_and_ignore()
+  */
   enum enum_duplicates handle_duplicates;
-  int escape_char, last_errno;
+
+  /**
+     Policy for whether certain errors should be ignored. Protected for legacy
+     reasons.
+
+     @see Delayable_insert_operation::set_dup_and_ignore()
+  */
   bool ignore;
-  /* for INSERT ... UPDATE */
-  List<Item> *update_fields;
+
+  /**
+     This function will, unless done already, calculate and keep the set of
+     function default columns.
+
+     Function default columns are those columns declared DEFAULT <function>
+     and/or ON UPDATE <function>. These will store the return value of
+     <function> when the relevant operation is applied on the table.
+
+     Calling this function, without error, is a prerequisite for calling
+     COPY_INFO::set_function_defaults().
+     
+     @param table The table to be used for instantiating the column set.
+
+     @retval false Success.
+     @retval true Memory allocation error.
+  */
+  bool get_function_default_columns(TABLE *table);
+
+  /**
+     The column bitmap which has been cached for this data change operation.
+     @see COPY_INFO::get_function_default_columns()
+
+     @return The cached bitmap, or NULL if no bitmap was cached.
+   */
+  MY_BITMAP *get_cached_bitmap() const { return m_function_default_columns; }
+
+public:
+  Statistics stats;
+  int escape_char, last_errno;
+  /** Values for UPDATE; needed by write_record() if INSERT with DUP_UPDATE */
   List<Item> *update_values;
-  /* for VIEW ... WITH CHECK OPTION */
-  TABLE_LIST *view;
-} COPY_INFO;
+
+  /**
+     Initializes this data change operation as an SQL @c INSERT (with all
+     possible syntaxes and variants).
+
+     @param optype           The data change operation type.
+     @param inserted_columns The columns to inserted. Note that these columns
+                             must belong to the table. May be NULL, which is
+                             interpreted as all columns in the order they
+                             appear in the table definition.
+     @param manage_defaults  Whether this object should manage function
+                             defaults.
+     @param duplicate_handling The policy for handling duplicates.
+     @param ignore_errors    Whether certain ignorable errors should be
+                             ignored. A proper documentation has never existed
+                             for this member, so the following has been
+                             compiled by examining how clients actually use
+                             the member.
+
+     - Ignore non-fatal errors, except duplicate key error, during this insert
+       operation (this constructor can only construct an insert operation).
+     - If the insert operation spawns an update operation (as in ON DUPLICATE
+       KEY UPDATE), tell the layer below
+       (fill_record_n_invoke_before_triggers) to 'ignore errors'. (More
+       detailed documentation is not available).
+     - Let @i v be a view for which WITH CHECK OPTION applies. This can happen
+       either if @i v is defined with WITH ... CHECK OPTION, or if @i v is
+       being inserted into by a cascaded insert and an outer view is defined
+       with "WITH CASCADED CHECK OPTION".
+       If the insert operation on @i v spawns an update operation (as in ON
+       DUPLICATE KEY UPDATE) for a certain row, and hence the @i v is being
+       updated, ignore whether the WHERE clause was true for this row or
+       not. I.e. if ignore is true, WITH CHECK OPTION can be ignored.
+     - If the insert operation spawns an update operation (as in ON DUPLICATE
+       KEY UPDATE) that fails, ignore this error.
+  */
+  COPY_INFO(operation_type optype,
+            List<Item> *inserted_columns,
+            bool manage_defaults,
+            enum_duplicates duplicate_handling,
+            bool ignore_errors) :
+    m_optype(optype),
+    m_changed_columns(inserted_columns),
+    m_changed_columns2(NULL),
+    m_manage_defaults(manage_defaults),
+    m_function_default_columns(NULL),
+    handle_duplicates(duplicate_handling),
+    ignore(ignore_errors),
+    stats(),
+    escape_char(0),
+    last_errno(0),
+    update_values(NULL)
+  {
+    DBUG_ASSERT(optype == INSERT_OPERATION);
+  }
+
+  /**
+     Initializes this data change operation as an SQL @c LOAD @c DATA @c
+     INFILE.
+     Note that this statement has its inserted columns spread over two
+     lists:
+@verbatim
+     LOAD DATA INFILE a_file
+     INTO TABLE a_table (col1, col2)   < first list (col1, col2)
+     SET col3=val;                     < second list (col3)
+@endverbatim
+
+     @param optype            The data change operation type.
+     @param inserted_columns  Columns for which values are to be inserted.
+     @param inserted_columns2 A second list of columns for which values are to
+                              be inserted.
+     @param manage_defaults   Whether this object should manage function
+                              defaults.
+     @param ignore_duplicates   Whether duplicate rows are ignored.
+     @param duplicates_handling How to handle duplicates.
+     @param escape_character    The escape character.
+  */
+  COPY_INFO(operation_type optype,
+            List<Item> *inserted_columns,
+            List<Item> *inserted_columns2,
+            bool manage_defaults,
+            enum_duplicates duplicates_handling,
+            bool ignore_duplicates,
+            int escape_character) :
+    m_optype(optype),
+    m_changed_columns(inserted_columns),
+    m_changed_columns2(inserted_columns2),
+    m_manage_defaults(manage_defaults),
+    m_function_default_columns(NULL),
+    handle_duplicates(duplicates_handling),
+    ignore(ignore_duplicates),
+    stats(),
+    escape_char(escape_character),
+    last_errno(0),
+    update_values(NULL)
+  {
+    DBUG_ASSERT(optype == INSERT_OPERATION);
+  }
+
+  /**
+     Initializes this data change operation as an SQL @c UPDATE (multi- or
+     not).
+
+     @param fields  The column objects that are to be updated.
+     @param values  The values to be assigned to the fields.
+     @note that UPDATE always lists columns, so non-listed columns may need a
+     default thus m_manage_defaults is always true.
+  */
+  COPY_INFO(operation_type optype, List<Item> *fields, List<Item> *values) :
+    m_optype(optype),
+    m_changed_columns(fields),
+    m_changed_columns2(NULL),
+    m_manage_defaults(true),
+    m_function_default_columns(NULL),
+    handle_duplicates(DUP_ERROR),
+    ignore(false),
+    stats(),
+    escape_char(0),
+    last_errno(0),
+    update_values(values)
+  {
+    DBUG_ASSERT(optype == UPDATE_OPERATION);
+  }
+
+  operation_type get_operation_type() const { return m_optype; }
+
+  List<Item> *get_changed_columns() const { return m_changed_columns; }
+
+  const List<Item> *get_changed_columns2() const { return m_changed_columns2; }
+
+  bool get_manage_defaults() const { return m_manage_defaults; }
+
+  enum_duplicates get_duplicate_handling() const { return handle_duplicates; }
+
+  bool get_ignore_errors() const { return ignore; }
+
+  /**
+     Assigns function default values to columns of the supplied table. This
+     function cannot fail, but COPY_INFO::get_function_default_columns() must
+     be called beforehand.
+
+     @note COPY_INFO::add_function_default_columns() must be called prior to
+     invoking this function.
+
+     @param table  The table to which columns belong.
+
+     @note It is assumed that all columns in this COPY_INFO are resolved to the
+     table.
+  */
+  virtual void set_function_defaults(TABLE *table);
+
+  /**
+     Adds the columns that are bound to receive default values from a function
+     (e.g. CURRENT_TIMESTAMP) to the set columns. Uses lazy instantiation of the set
+     of function default columns.
+
+     @param      table    The table on which the operation is performed.
+     @param[out] columns  The function default columns are added to this set.
+
+     @retval false Success.
+     @retval true Memory allocation error during lazy instantiation.
+  */
+  bool add_function_default_columns(TABLE *table, MY_BITMAP *columns)
+  {
+    if (get_function_default_columns(table))
+      return true;
+    bitmap_union(columns, m_function_default_columns);
+    return false;
+  }
+
+  /**
+     True if this operation will set some fields to function default result
+     values when invoked on the table.
+
+     @note COPY_INFO::add_function_default_columns() must be called prior to
+     invoking this function.
+  */
+  bool function_defaults_apply(const TABLE *table) const
+  {
+    DBUG_ASSERT(m_function_default_columns != NULL);
+    return !bitmap_is_clear_all(m_function_default_columns);
+  }
+
+  /**
+     This class allocates its memory in a MEM_ROOT, so there's nothing to
+     delete.
+  */
+  virtual ~COPY_INFO() {}
+};
 
 
 class Key_part_spec :public Sql_alloc {
@@ -455,6 +735,7 @@ typedef struct system_variables
   ha_rows max_join_size;
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
+  uint  eq_range_index_dive_limit;
   ulong join_buff_size;
   ulong lock_wait_timeout;
   ulong max_allowed_packet;
@@ -2873,12 +3154,12 @@ public:
     query_start_usec_used= 1;
     return start_time.tv_usec;
   }
-  inline struct timeval *query_start_timeval()
+  inline timeval query_start_timeval()
   {
-    query_start_used= query_start_usec_used= 1;
-    return &start_time;
+    query_start_used= query_start_usec_used= true;
+    return start_time;
   }
-  struct timeval query_start_timeval_trunc(uint decimals);
+  timeval query_start_timeval_trunc(uint decimals);
   inline void set_time()
   {
     start_utime= utime_after_lock= my_micro_time();
@@ -3767,19 +4048,108 @@ public:
   bool send_data(List<Item> &items);
 };
 
-
+/**
+   @todo This class is declared in sql_class.h, but the members are defined in
+   sql_insert.cc. It is very confusing that a class is defined in a file with
+   a different name than the file where it is declared.
+*/
 class select_insert :public select_result_interceptor {
- public:
+public:
   TABLE_LIST *table_list;
   TABLE *table;
+private:
+  /**
+     The columns of the table to be inserted into, *or* the columns of the
+     table from which values are selected. For legacy reasons both are
+     allowed.
+   */
   List<Item> *fields;
+public:
   ulonglong autoinc_value_of_last_inserted_row; // autogenerated or not
   COPY_INFO info;
+  COPY_INFO update; ///< the UPDATE part of "info"
   bool insert_into_view;
+
+  /**
+     Creates a select_insert for routing a result set to an existing
+     table.
+
+     @param table_list_par   The table reference for the destination table.
+     @param table_par        The destination table. May be NULL.
+     @param target_columns   The columns of the table which is the target for
+                             insertion. May be NULL, but if not, the same
+                             value must be used for target_or_source_columns.
+     @param target_or_source_columns The columns of the source table providing
+                             data, or columns of the target table. If the
+                             target table is known, the columns of that table
+                             should be used. If the target table is not known
+                             (it may not yet exist), the columns of the source
+                             table should be used, and target_columns should
+                             be NULL.
+     @param update_fields    The columns to be updated in case of duplicate
+                             keys. May be NULL.
+     @param update_values    The values to be assigned in case of duplicate
+                             keys. May be NULL.
+     @param duplicate        The policy for handling duplicates.
+     @param ignore           How the insert operation is to handle certain
+                             errors. See COPY_INFO.
+
+     @todo This constructor takes 8 arguments, 6 of which are used to
+     immediately construct a COPY_INFO object. Obviously the constructor
+     should take the COPY_INFO object as argument instead. Also, some
+     select_insert members initialized here are totally redundant, as they are
+     found inside the COPY_INFO.
+
+     Here is the explanation of how we set the manage_defaults parameter of
+     info's constructor below.
+     @li if target_columns==NULL, the statement is
+@verbatim
+     CREATE TABLE a_table (possibly some columns1) SELECT columns2
+@endverbatim
+     which sets all of a_table's columns2 to values returned by SELECT (no
+     default needs to be set); a_table's columns1 get set from defaults
+     prepared by make_empty_rec() when table is created, not by COPY_INFO. So
+     manage_defaults is "false".
+     @li otherwise, target_columns!=NULL and so it is INSERT SELECT. If there
+     are explicitely listed columns like
+@verbatim
+     INSERT INTO a_table (columns1) SELECT ...
+@verbatim
+     then non-listed columns (columns of a_table which are not columns1) may
+     need a default set by COPY_INFO so manage_defaults is "true". If no
+     column is explicitely listed, all columns will be set to values returned
+     by SELECT, so "manage_defaults" is false.
+  */
   select_insert(TABLE_LIST *table_list_par,
-		TABLE *table_par, List<Item> *fields_par,
-		List<Item> *update_fields, List<Item> *update_values,
-		enum_duplicates duplic, bool ignore);
+                TABLE *table_par,
+                List<Item> *target_columns,
+                List<Item> *target_or_source_columns,
+                List<Item> *update_fields,
+                List<Item> *update_values,
+                enum_duplicates duplic,
+                bool ignore)
+    :table_list(table_list_par),
+     table(table_par),
+     fields(target_or_source_columns),
+     autoinc_value_of_last_inserted_row(0),
+     info(COPY_INFO::INSERT_OPERATION,
+          target_columns,
+          // manage_defaults
+          target_columns != NULL && target_columns->elements != 0,
+          duplic,
+          ignore),
+     update(COPY_INFO::UPDATE_OPERATION,
+            update_fields,
+            update_values),
+     insert_into_view(table_list_par && table_list_par->view != 0)
+  {
+    DBUG_ASSERT(target_or_source_columns != NULL);
+    DBUG_ASSERT(target_columns == target_or_source_columns ||
+                target_columns == NULL);
+  }
+
+
+public:
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   virtual int prepare2(void);
@@ -3793,6 +4163,12 @@ class select_insert :public select_result_interceptor {
 };
 
 
+/**
+   @todo This class inherits a class which is non-abstract. This is not in
+   line with good programming practices and the inheritance should be broken
+   up. Also, the class is declared in sql_class.h, but defined sql_insert.cc
+   which is confusing.
+*/
 class select_create: public select_insert {
   ORDER *group;
   TABLE_LIST *create_table;
@@ -3810,13 +4186,20 @@ public:
                  Alter_info *alter_info_arg,
 		 List<Item> &select_fields,enum_duplicates duplic, bool ignore,
                  TABLE_LIST *select_tables_arg)
-    :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore),
-    create_table(table_arg),
-    create_info(create_info_par),
-    select_tables(select_tables_arg),
-    alter_info(alter_info_arg),
-    m_plock(NULL)
-    {}
+    :select_insert (NULL, // table_list_par
+                    NULL, // table_par
+                    NULL, // target_columns
+                    &select_fields,
+                    NULL, // update_fields
+                    NULL, // update_values
+                    duplic,
+                    ignore),
+     create_table(table_arg),
+     create_info(create_info_par),
+     select_tables(select_tables_arg),
+     alter_info(alter_info_arg),
+     m_plock(NULL)
+  {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
   int binlog_show_create_table(TABLE **tables, uint count);
@@ -4210,6 +4593,10 @@ public:
 };
 
 
+/**
+   @todo This class is declared here but implemented in sql_update.cc, which
+   is very confusing.
+*/
 class multi_update :public select_result_interceptor
 {
   TABLE_LIST *all_tables; /* query/update command tables */
@@ -4237,6 +4624,22 @@ class multi_update :public select_result_interceptor
      so that afterward send_error() needs to find out that.
   */
   bool error_handled;
+
+  /**
+     Array of update operations, arranged per _updated_ table. For each
+     _updated_ table in the multiple table update statement, a COPY_INFO
+     pointer is present at the table's position in this array.
+
+     The array is allocated and populated during multi_update::prepare(). The
+     position that each table is assigned is also given here and is stored in
+     the member TABLE::pos_in_table_list::shared. However, this is a publicly
+     available field, so nothing can be trusted about its integrity.
+
+     This member is NULL when the multi_update is created.
+
+     @see multi_update::prepare
+  */
+  COPY_INFO **update_operations;
 
 public:
   multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,

@@ -42,7 +42,7 @@ SELECT @global_start_value;
 #           Display the DEFAULT value of secure_auth                   #
 ######################################################################## 
 
-SET @@global.secure_auth = 1;
+SET @@global.secure_auth = 0;
 SET @@global.secure_auth = DEFAULT;
 SELECT @@global.secure_auth;
 

@@ -1516,6 +1516,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "NULL <= d <= NULL"
                         ] /* ranges */,
@@ -1891,6 +1892,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                           "range_scan_alternatives": [
                             {
                               "index": "d",
+                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "NULL <= d <= NULL"
                               ] /* ranges */,
@@ -6708,6 +6710,7 @@ update t6 set d=5 where d is NULL	{
           "range_scan_alternatives": [
             {
               "index": "d",
+              "index_dives_for_eq_ranges": true,
               "ranges": [
                 "NULL <= d <= NULL"
               ] /* ranges */,
@@ -6772,6 +6775,7 @@ delete from t6 where d=5	{
           "range_scan_alternatives": [
             {
               "index": "d",
+              "index_dives_for_eq_ranges": true,
               "ranges": [
                 "5 <= d <= 5"
               ] /* ranges */,
@@ -6896,6 +6900,7 @@ insert into t6 select * from t6 where d>7	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "7 < d"
                         ] /* ranges */,
@@ -7083,6 +7088,7 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "7000 < d"
                         ] /* ranges */,
@@ -7287,6 +7293,7 @@ delete t6 from t5, t6 where d>7000	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "7000 < d"
                         ] /* ranges */,
@@ -7715,6 +7722,7 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "3 <= d <= 3"
                         ] /* ranges */,
@@ -8398,6 +8406,7 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "3 <= d <= 3"
                         ] /* ranges */,
@@ -9128,6 +9137,7 @@ insert into t2 select d,100,200 from t6 where d is not null	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "NULL < d"
                         ] /* ranges */,
@@ -10021,6 +10031,7 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "3 <= d <= 3"
                         ] /* ranges */,

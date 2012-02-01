@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3123,6 +3123,7 @@ row_sel_get_clust_rec_for_mysql(
 			fputs("\n"
 			      "InnoDB: Submit a detailed bug report"
 			      " to http://bugs.mysql.com\n", stderr);
+			ut_ad(0);
 		}
 
 		clust_rec = NULL;

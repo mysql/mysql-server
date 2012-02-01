@@ -618,28 +618,6 @@ buf_dblwr_update(void)
 }
 
 /********************************************************************//**
-Flush a batch of writes to the datafiles that have already been
-written by the OS. */
-static
-void
-buf_dblwr_sync_datafiles(void)
-/*==========================*/
-{
-	/* Wake possible simulated aio thread to actually post the
-	writes to the operating system */
-	os_aio_simulated_wake_handler_threads();
-
-	/* Wait that all async writes to tablespaces have been posted to
-	the OS */
-	os_aio_wait_until_no_pending_writes();
-
-	/* Now we flush the data to disk (for example, with fsync) */
-	fil_flush_file_spaces(FIL_TABLESPACE);
-
-	return;
-}
-
-/********************************************************************//**
 Check the LSN values on the page. */
 static
 void
@@ -780,7 +758,7 @@ buf_dblwr_flush_buffered_writes(void)
 
 	if (!srv_use_doublewrite_buf || buf_dblwr == NULL) {
 		/* Sync the writes to the disk. */
-		buf_dblwr_sync_datafiles();
+		buf_flush_sync_datafiles();
 		return;
 	}
 
@@ -1094,7 +1072,7 @@ retry:
 	buf_dblwr_write_block_to_datafile((buf_block_t*) bpage);
 
 	/* Sync the writes to the disk. */
-	buf_dblwr_sync_datafiles();
+	buf_flush_sync_datafiles();
 
 	mutex_enter(&buf_dblwr->mutex);
 

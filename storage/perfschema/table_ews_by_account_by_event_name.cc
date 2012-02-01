@@ -246,8 +246,8 @@ void table_ews_by_account_by_event_name
 
   m_row_exists= true;
 
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, & visitor.m_stat);
+  get_normalizer(klass);
+  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
 }
 
 int table_ews_by_account_by_event_name
