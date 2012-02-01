@@ -140,9 +140,10 @@ ifneq ($(USE_STATIC),)
 $(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB) $(MULTIBENCH_TDB) $(PTQUERY_TDB): DLINK_FILES=
 
 OFILES = \
+	$(TOKUROOT)/src/ydb_lib.o \
 	$(TOKUROOT)src/ydb.lib \
-	$(TOKUROOT)src/range_tree/rangetree.lib \
 	$(TOKUROOT)src/lock_tree/locktree.lib \
+	$(TOKUROOT)src/range_tree/rangetree.lib \
 	$(TOKUROOT)newbrt/newbrt.lib \
 	$(LIBPORTABILITY_SO) \
 #end
