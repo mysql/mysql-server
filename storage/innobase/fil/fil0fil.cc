@@ -3013,6 +3013,24 @@ error_exit2:
 
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
+Report that a page is corrupted. */
+static
+void
+fil_page_corrupted(
+/*===============*/
+	const char*	name,		/*!< in: name of the file or path as a
+					null-terminated string */
+	os_offset_t	offset,		/*!< in: file offset */
+	ulint		size)		/*!< in: page size */
+{
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		" InnoDB: %s: Page %lu at offset " UINT64PF
+		" looks corrupted.\n",
+		name, (ulint) (offset / size), offset);
+}
+
+/********************************************************************//**
 Read a file page for resetting the space identifier and the system lsn.
 @return 0 on success, 1 if all zero, 2 if corrupted */
 static
@@ -3029,36 +3047,36 @@ fil_reset_space_and_lsn_read(
 {
 	const ulint	size	= zip_size ? zip_size : UNIV_PAGE_SIZE;
 
+	/* Check that the page number corresponds to the offset in
+	the file. Flag as corrupt if it doesn't. */
+
 	if (!os_file_read(file, page, offset, size)
-	    || UNIV_UNLIKELY(buf_page_is_corrupted(page, zip_size))) {
-	corrupted:
+	    || buf_page_is_corrupted(page, zip_size)
+	    || (page_get_page_no(page) != offset / size
+		&& page_get_page_no(page) != 0)) {
 
-		fprintf(stderr,
-			"InnoDB: %s: Page %u at offset " UINT64PF
-			" looks corrupted.\n",
-			name, (unsigned) (offset / size), offset);
+		fil_page_corrupted(name, offset, size);
 		return(2);
-	}
 
-	if (UNIV_UNLIKELY(page_get_page_no(page) != offset / size)) {
+	} else if (page_get_page_no(page) == 0) {
+
 		const byte*	b = page;
-		const byte*	e = page + size;
-		/* On page number mismatch, check if the page
-		is all zero.  Do nothing if it is. */
-		if (page_get_page_no(page) != 0) {
+		const byte*	e = b + size;
 
-			goto corrupted;
-		}
+		/* If the page number is zero then the entire
+		page MUST consist of zeroes. If not then we flag
+		it as corrupt. */
 
 		while (b != e) {
 			if (*b++) {
-				goto corrupted;
+				fil_page_corrupted(name, offset, size);
+				return(2);
 			}
 		}
 
 		/* The page is all zero: do nothing. */
 		return(1);
-	}
+	} 
 
 	return(0);
 }
