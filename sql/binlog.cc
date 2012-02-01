@@ -695,26 +695,32 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 */
 int gtid_empty_group_log_and_cleanup(THD *thd)
 {
-  int ret= 0;
-  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
-  binlog_cache_data* cache_data= &cache_mngr->trx_cache;
-
+  int ret= 1;
+  binlog_cache_data* cache_data= NULL;
+  THD_TRANS *trans= NULL;
+  Ha_trx_info *ha_info= NULL;
+  
   DBUG_ENTER("gtid_empty_group_log_and_cleanup");
 
-  Query_log_event end_evt(thd, STRING_WITH_LEN("COMMIT"),
-                          cache_data->is_trx_cache(), FALSE, TRUE, 0, TRUE);
-
+  Query_log_event end_evt(thd, STRING_WITH_LEN("COMMIT"), TRUE,
+                          FALSE, TRUE, 0, TRUE);
   DBUG_ASSERT(!end_evt.is_using_immediate_logging());
 
-  if (binlog_start_trans_and_stmt(thd, &end_evt) ||
-      write_event_to_cache(thd, &end_evt, cache_data) ||
-      gtid_before_write_cache(thd, cache_data)   ||
-      mysql_bin_log.write_cache(thd, cache_data, 0))
-    ret= 1;
-  cache_data->reset();
+  if (binlog_start_trans_and_stmt(thd, &end_evt))
+    goto err;
 
-  THD_TRANS *trans= &thd->transaction.stmt;
-  Ha_trx_info *ha_info= trans->ha_list;
+  cache_data= &thd_get_cache_mngr(thd)->trx_cache;
+  if (write_event_to_cache(thd, &end_evt, cache_data) ||
+      gtid_before_write_cache(thd, cache_data) ||
+      mysql_bin_log.write_cache(thd, cache_data, 0))
+    goto err;
+
+  ret= 0;
+
+err:
+  cache_data->reset();
+  trans= &thd->transaction.stmt;
+  ha_info= trans->ha_list;
     
   DBUG_ASSERT(thd->transaction.all.ha_list == 0);
   ha_info->reset(); /* keep it conveniently zero-filled */
