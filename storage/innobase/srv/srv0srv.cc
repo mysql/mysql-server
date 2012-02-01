@@ -861,38 +861,6 @@ srv_release_threads(
 }
 
 /*********************************************************************//**
-Check whether thread type has reserved a slot. Return the first slot that
-is found. This works because we currently have only 1 thread of each type.
-@return	slot number or ULINT_UNDEFINED if not found*/
-UNIV_INTERN
-ulint
-srv_thread_has_reserved_slot(
-/*=========================*/
-	enum srv_thread_type	type)	/*!< in: thread type to check */
-{
-	ulint			i;
-	ulint			slot_no = ULINT_UNDEFINED;
-
-	ut_ad(srv_thread_type_validate(type));
-	srv_sys_mutex_enter();
-
-	for (i = 0; i < OS_THREAD_MAX_N; i++) {
-		const srv_slot_t*	slot;
-
-		slot = srv_table_get_nth_slot(i);
-
-		if (slot->in_use && srv_slot_get_type(slot) == type) {
-			slot_no = i;
-			break;
-		}
-	}
-
-	srv_sys_mutex_exit();
-
-	return(slot_no);
-}
-
-/*********************************************************************//**
 Initializes the server. */
 UNIV_INTERN
 void
