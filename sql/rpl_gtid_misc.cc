@@ -16,6 +16,9 @@
 #include "rpl_gtid.h"
 
 
+#include <ctype.h>
+
+
 #include "mysqld_error.h"
 #ifndef MYSQL_CLIENT
 #include "sql_class.h"
@@ -36,32 +39,57 @@ Gtid_state gtid_state(&global_sid_lock, &global_sid_map);
 
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
 {
+#define SKIP_WHITESPACE() while (isspace(*s)) s++
   DBUG_ENTER("Gtid::parse");
   rpl_sid sid;
+  const char *s= text;
+
+  SKIP_WHITESPACE();
 
   // parse sid
-  if (sid.parse(text) == RETURN_STATUS_OK)
+  if (sid.parse(s) == RETURN_STATUS_OK)
   {
     rpl_sidno sidno_var= sid_map->add_sid(&sid);
     if (sidno_var <= 0)
       RETURN_REPORTED_ERROR;
-    text += Uuid::TEXT_LENGTH;
+    s += Uuid::TEXT_LENGTH;
+
+    SKIP_WHITESPACE();
 
     // parse colon
-    if (*text == ':')
+    if (*s == ':')
     {
-      text++;
+      s++;
+
+      SKIP_WHITESPACE();
 
       // parse gno
-      rpl_gno gno_var= parse_gno(&text);
-      if (gno_var > 0 && *text == 0)
+      rpl_gno gno_var= parse_gno(&s);
+      if (gno_var > 0)
       {
-        sidno= sidno_var;
-        gno= gno_var;
-        RETURN_OK;
+        SKIP_WHITESPACE();
+        if (*s == '\0')
+        {
+          sidno= sidno_var;
+          gno= gno_var;
+          RETURN_OK;
+        }
+        else
+          DBUG_PRINT("info", ("expected end of string, found garbage '%.80s' "
+                              "at char %d in '%s'",
+                              s, (int)(s - text), text));
       }
+      else
+        DBUG_PRINT("info", ("GNO was zero or invalid (%lld) at char %d in '%s'",
+                            gno_var, (int)(s - text), text));
     }
+    else
+      DBUG_PRINT("info", ("missing colon at char %d in '%s'",
+                          (int)(s - text), text));
   }
+  else
+    DBUG_PRINT("info", ("not a uuid at char %d in '%s'",
+                        (int)(s - text), text));
   BINLOG_ERROR(("Malformed GTID specification: %.200s", text),
                (ER_MALFORMED_GTID_SPECIFICATION, MYF(0), text));
   RETURN_REPORTED_ERROR;
@@ -90,16 +118,38 @@ int Gtid::to_string(const Sid_map *sid_map, char *buf) const
 bool Gtid::is_valid(const char *text)
 {
   DBUG_ENTER("Gtid::is_valid");
-  if (!rpl_sid::is_valid(text))
+  const char *s= text;
+  SKIP_WHITESPACE();
+  if (!rpl_sid::is_valid(s))
+  {
+    DBUG_PRINT("info", ("not a uuid at char %d in '%s'",
+                        (int)(s - text), text));
     DBUG_RETURN(false);
-  text += Uuid::TEXT_LENGTH;
-  if (*text != ':')
+  }
+  s += Uuid::TEXT_LENGTH;
+  SKIP_WHITESPACE();
+  if (*s != ':')
+  {
+    DBUG_PRINT("info", ("missing colon at char %d in '%s'",
+                        (int)(s - text), text));
     DBUG_RETURN(false);
-  text++;
-  if (parse_gno(&text) <= 0)
+  }
+  s++;
+  SKIP_WHITESPACE();
+  if (parse_gno(&s) <= 0)
+  {
+    DBUG_PRINT("info", ("GNO was zero or invalid at char %d in '%s'",
+                        (int)(s - text), text));
     DBUG_RETURN(false);
-  if (*text != 0)
+  }
+  SKIP_WHITESPACE();
+  if (*s != 0)
+  {
+    DBUG_PRINT("info", ("expected end of string, found garbage '%.80s' "
+                        "at char %d in '%s'",
+                        s, (int)(s - text), text));
     DBUG_RETURN(false);
+  }
   DBUG_RETURN(true);
 }
 

@@ -413,9 +413,12 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
 
   SKIP_WHITESPACE();
   if (*s == 0)
+  {
+    DBUG_PRINT("info", ("'%s' is empty", text));
     RETURN_OK;
+  }
 
-  DBUG_PRINT("info", ("'%s' not empty", s));
+  DBUG_PRINT("info", ("'%s' not only whitespace", text));
   // Allocate space for all intervals at once, if nothing is allocated.
   if (chunks == NULL)
   {
@@ -442,7 +445,10 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
 
     // We allow empty Gtid_sets containing only commas.
     if (*s == 0)
+    {
+      DBUG_PRINT("info", ("successfully parsed"));
       RETURN_OK;
+    }
 
     // Parse SID.
     if (anonymous != NULL && strncmp(s, "ANONYMOUS", 9) == 0)
@@ -454,7 +460,10 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
     {
       rpl_sid sid;
       if (sid.parse(s) != 0)
+      {
+        DBUG_PRINT("info", ("expected UUID; found garbage '%.80s' at char %d in '%s'", s, (int)(s - text), text));
         goto parse_error;
+      }
       s += rpl_sid::TEXT_LENGTH;
       rpl_sidno sidno= sid_map->add_sid(&sid);
       if (sidno <= 0)
@@ -472,7 +481,14 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
         // Read start of interval.
         rpl_gno start= parse_gno(&s);
         if (start <= 0)
+        {
+          if (start == 0)
+            DBUG_PRINT("info", ("expected positive NUMBER; found zero ('%.80s') at char %d in '%s'", s - 1, (int)(s - text) - 1, text));
+          else
+            DBUG_PRINT("info", ("expected positive NUMBER; found zero or garbage '%.80s' at char %d in '%s'", s, (int)(s - text), text));
+
           goto parse_error;
+        }
         SKIP_WHITESPACE();
 
         // Read end of interval.
@@ -482,7 +498,10 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
           s++;
           end= parse_gno(&s);
           if (end < 0)
+          {
+            DBUG_PRINT("info", ("expected NUMBER; found garbage '%.80s' at char %d in '%s'", s, (int)(s - text), text));
             goto parse_error;
+          }
           end++;
           SKIP_WHITESPACE();
         }
@@ -505,7 +524,10 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
     // Must be end of string or comma. (Commas are consumed and
     // end-of-loop is detected at the beginning of the loop.)
     if (*s != ',' && *s != 0)
+    {
+      DBUG_PRINT("info", ("expected end of string, UUID, or :NUMBER; found garbage '%.80s' at char %d in '%s'", s, (int)(s - text), text));
       goto parse_error;
+    }
   }
   DBUG_ASSERT(0);
 

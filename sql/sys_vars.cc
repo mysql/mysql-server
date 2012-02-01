@@ -3857,6 +3857,8 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
   // Note: we also check in sql_yacc.yy:set_system_variable that the
   // SET GTID_NEXT statement does not invoke a stored function.
 
+  DBUG_PRINT("info", ("thd->in_sub_stmt=%d", thd->in_sub_stmt));
+
   // GTID_NEXT must be set by SUPER in a top-level statement
   if (check_top_level_stmt_and_super(self, thd, var))
     DBUG_RETURN(true);
@@ -3866,7 +3868,7 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 
   // Inside a transaction, GTID_NEXT is read-only if GTID_NEXT_LIST is
   // NULL.
-  if (thd->in_active_multi_stmt_transaction() && gtid_next_list != NULL)
+  if (thd->in_active_multi_stmt_transaction() && gtid_next_list == NULL)
   {
     my_error(ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL, MYF(0));
     DBUG_RETURN(true);

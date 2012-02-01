@@ -1991,7 +1991,7 @@ class Sys_var_charptr_func: public sys_var
 public:
   Sys_var_charptr_func(const char *name_arg, const char *comment,
                        flag_enum flag_arg)
-    : sys_var(&all_sys_vars, name_arg, comment, flag_arg,
+    : sys_var(&all_sys_vars, name_arg, comment, READ_ONLY flag_arg,
               0/*off*/, NO_CMD_LINE.id, NO_CMD_LINE.arg_type,
               SHOW_CHAR, (intptr)0/*def_val*/,
               NULL/*polylock*/, VARIABLE_NOT_IN_BINLOG,

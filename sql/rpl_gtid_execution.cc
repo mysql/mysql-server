@@ -217,7 +217,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
 
 enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
 {
-  DBUG_ENTER("gtid_check_session_variables_before_statement");
+  DBUG_ENTER("gtid_pre_statement_checks");
 
   if (disable_gtid_unsafe_statements && !thd->is_ddl_gtid_compatible())
   {
@@ -244,11 +244,23 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
     @todo: figure out how to handle SQLCOM_XA_*
   */
   enum_sql_command sql_command= thd->lex->sql_command;
-  if (sql_command != SQLCOM_COMMIT && sql_command != SQLCOM_BEGIN &&
-      sql_command != SQLCOM_ROLLBACK)
+  if (sql_command == SQLCOM_COMMIT || sql_command == SQLCOM_BEGIN ||
+      sql_command == SQLCOM_ROLLBACK ||
+      ((sql_command == SQLCOM_SELECT ||
+        sql_command == SQLCOM_SET_OPTION) &&
+       !thd->lex->uses_stored_routines()))
     DBUG_RETURN(GTID_STATEMENT_EXECUTE);
 
   const Gtid_set *gtid_next_list= thd->get_gtid_next_list_const();
+
+  DBUG_PRINT("info", ("gtid_next_list=%p gtid_next->type=%d "
+                      "thd->owned_gtid.gtid.{sidno,gno}={%d,%lld} "
+                      "thd->thread_id=%lu",
+                      gtid_next_list, gtid_next->type,
+                      thd->owned_gtid.sidno,
+                      thd->owned_gtid.gno,
+                      (ulong)thd->thread_id));
+
   if (gtid_next_list == NULL)
   {
     if (gtid_next->type == GTID_GROUP)
@@ -256,9 +268,10 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
       if (thd->owned_gtid.sidno == 0)
       {
         /// @todo assert that statement is logged and not owned /sven
-        DBUG_PRINT("info", ("skipping statement. "
+        DBUG_PRINT("info", ("skipping statement '%s'. "
                             "gtid_next->type=%d sql_command=%d "
                             "thd->thread_id=%lu",
+                            thd->query(),
                             gtid_next->type, sql_command,
                             thd->thread_id));
         /*
@@ -298,9 +311,10 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
           ER(ER_SKIPPING_LOGGED_TRANSACTION), buf);
         */
         /// @todo assert that statement is logged and not owned /sven
-        DBUG_PRINT("info", ("skipping statement. "
+        DBUG_PRINT("info", ("skipping statement '%s'. "
                             "gtid_next->type=%d sql_command=%d "
                             "thd->thread_id=%lu",
+                            thd->query(),
                             gtid_next->type, sql_command,
                             thd->thread_id));
         DBUG_RETURN(GTID_STATEMENT_SKIP);
