@@ -740,7 +740,7 @@ row_log_apply_ops(
 	ulint		error;
 	const mrec_t*	mrec	= NULL;
 	const mrec_t*	next_mrec;
-	const mrec_t*	mrec_end;
+	const mrec_t*	mrec_end= NULL; /* silence bogus warning */
 	const mrec_t*	next_mrec_end;
 	mem_heap_t*	heap;
 	ulint*		offsets;
@@ -754,6 +754,7 @@ row_log_apply_ops(
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->info.online_log);
+	UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
 
 	offsets = static_cast<ulint*>(ut_malloc(i * sizeof *offsets));
 	offsets[0] = i;
