@@ -2101,6 +2101,7 @@ memory_get_status(void) {
     if (!memory_status.initialized)
 	memory_status_init();
     LOCAL_MEMORY_STATUS_S local_memstat;
+    toku_memory_get_status(&local_memstat);
     MEMORY_STATUS_VALUE(MEMORY_MALLOC_COUNT) = local_memstat.malloc_count;
     MEMORY_STATUS_VALUE(MEMORY_FREE_COUNT) = local_memstat.free_count;  
     MEMORY_STATUS_VALUE(MEMORY_REALLOC_COUNT) = local_memstat.realloc_count;
