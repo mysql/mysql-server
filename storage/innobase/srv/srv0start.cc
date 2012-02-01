@@ -2750,7 +2750,7 @@ srv_path_copy(
 
 		ulint	len;
 
-		ut_a(last > ptr);
+		ut_a(last == 0 || last > ptr);
 		ut_a(dest_len > written);
 
 		len = ut_snprintf(
@@ -2762,7 +2762,7 @@ srv_path_copy(
 
 		written += len;
 
-		if (*last != 0) {
+		if (last != 0 && *last != 0) {
 			name[written++] = SRV_PATH_SEPARATOR;
 		}
 	}
