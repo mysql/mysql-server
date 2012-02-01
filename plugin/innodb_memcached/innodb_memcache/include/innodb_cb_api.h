@@ -38,7 +38,7 @@ ib_err_t
 	ib_trx_t	ib_trx,
 	ib_crsr_t*	ib_crsr);
 
-typedef 
+typedef
 ib_err_t
 (*CB_READ_ROW)(
 /*===========*/

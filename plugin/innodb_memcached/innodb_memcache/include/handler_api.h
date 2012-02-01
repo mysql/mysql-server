@@ -29,26 +29,6 @@ Created 3/14/2011 Jimmy Yang
 
 #define MYSQL_SERVER 1
 
-#include <my_global.h>
-#include <sql_priv.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <mysql_version.h>
-#include <mysql/plugin.h>
-#include <my_dir.h>
-#include "my_pthread.h"
-#include "my_sys.h"
-#include "m_string.h"
-#include "sql_plugin.h"
-#include "table.h"
-#include "sql_class.h"
-#include <sql_base.h>
-#include "key.h"
-#include "lock.h"
-#include "transaction.h"
-#include "sql_handler.h"
-#include "handler.h"
-
 /** Defines for handler_unlock_table()'s mode field */
 #define HDL_READ	0x1
 #define HDL_WRITE	0x2
@@ -58,7 +38,9 @@ Created 3/14/2011 Jimmy Yang
 #define HDL_INSERT	2
 #define HDL_DELETE	3
 
+#ifdef __cplusplus 
 extern "C" {
+#endif
 /**********************************************************************//**
 Creates a THD object.
 @return a pointer to the THD object, NULL if failed */
@@ -119,6 +101,7 @@ handler_rec_setup_int(
         int		value,		/*!< in: value to set */
 	bool		unsigned_flag,	/*!< in: whether it is unsigned */
 	bool		is_null);	/*!< in: whether it is null value */
+
 /**********************************************************************//**
 Unlock a table and commit the transaction
 return 0 if fail to commit the transaction */
@@ -128,12 +111,14 @@ handler_unlock_table(
 	void*			my_thd,		/*!< in: thread */
 	void*			my_table,	/*!< in: Table metadata */
 	int			mode);		/*!< in: mode */
+
 /**********************************************************************//**
 close an handler */
 void
 handler_close_thd(
 /*==============*/
 	void*			my_thd);	/*!< in: thread */
+
 /**********************************************************************//**
 copy an record */
 void
@@ -148,21 +133,10 @@ handler_binlog_truncate(
 /*====================*/
 	void*			my_thd,		/*!< in: THD* */
 	char*			table_name);	/*!< in: table name */
+
+#ifdef __cplusplus 
 }
-
-/**********************************************************************//**
-binlog a row operation */
-extern
-int
-binlog_log_row(
-/*===========*/
-	TABLE*		table,		/*!< in: ptr to TABLE */
-	const uchar	*before_record,	/*!< in: Before image of record */
-	const uchar	*after_record,	/*!< in: Current image of record */
-	Log_func*	log_func);	/*!< in: Log function */
-
-/** function to close a connection and thd, defined in sql/handler.cc */
-extern void ha_close_connection(THD* thd);
+#endif
 
 /**********************************************************************
 Following APIs  can perform DMLs through MySQL handler interface. They

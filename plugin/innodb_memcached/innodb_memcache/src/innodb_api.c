@@ -185,6 +185,8 @@ innodb_api_begin(
 		if (engine) {
 			meta_info_t*	meta_info = &engine->meta_info;
 			meta_index_t*	meta_index = &meta_info->m_index;
+
+			/* set up secondary index cursor */
 			if (meta_index->m_use_idx == META_SECONDARY) {
 				ib_cb_cursor_new_trx(*idx_crsr, ib_trx);
 				ib_cb_cursor_lock(*idx_crsr, lock_mode);
@@ -432,7 +434,7 @@ innodb_api_search(
 /*==============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
 	innodb_conn_data_t*	cursor_data,/*!< in: cursor info */
-	ib_crsr_t*		crsr,	/*!< out: cursor used to seacrh */
+	ib_crsr_t*		crsr,	/*!< in/out: cursor used to seacrh */
 	const char*		key,	/*!< in: key to search */
 	int			len,	/*!< in: key length */
 	mci_item_t*		item,	/*!< in: result */
