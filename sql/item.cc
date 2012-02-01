@@ -9052,13 +9052,13 @@ void Item_type_holder::get_full_info(Item *item)
     DBUG_ASSERT((enum_set_typelib &&
                  get_real_type(item) == MYSQL_TYPE_NULL) ||
                 (!enum_set_typelib &&
-                 item->type() == Item::FIELD_ITEM &&
-                 (get_real_type(item) == MYSQL_TYPE_ENUM ||
-                  get_real_type(item) == MYSQL_TYPE_SET) &&
-                 ((Field_enum*)((Item_field *) item)->field)->typelib));
+                 item->real_item()->type() == Item::FIELD_ITEM &&
+                 (get_real_type(item->real_item()) == MYSQL_TYPE_ENUM ||
+                  get_real_type(item->real_item()) == MYSQL_TYPE_SET) &&
+                 ((Field_enum*)((Item_field *) item->real_item())->field)->typelib));
     if (!enum_set_typelib)
     {
-      enum_set_typelib= ((Field_enum*)((Item_field *) item)->field)->typelib;
+      enum_set_typelib= ((Field_enum*)((Item_field *) item->real_item())->field)->typelib;
     }
   }
 }
