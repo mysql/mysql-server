@@ -1847,6 +1847,15 @@ void Item_func_now::fix_length_and_dec()
 }
 
 
+void Item_func_now_local::store_in(Field *field)
+{
+  THD *thd= field->table != NULL ? field->table->in_use : current_thd;
+  const timeval tm= thd->query_start_timeval_trunc(field->decimals());
+  field->set_notnull();
+  return field->store_timestamp(&tm);
+}
+
+
 Time_zone *Item_func_now_local::time_zone()
 {
   return current_thd->time_zone();
