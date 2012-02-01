@@ -18,13 +18,14 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 /**************************************************//**
 @file handler_api.h
+Interface to MySQL Handler functions, currently used
+for binlogging
 
 Created 3/14/2011 Jimmy Yang
 *******************************************************/
 
 #ifndef HANDLER_API_H
 #define HANDLER_API_H
-
 
 #define MYSQL_SERVER 1
 
@@ -47,35 +48,6 @@ Created 3/14/2011 Jimmy Yang
 #include "transaction.h"
 #include "sql_handler.h"
 #include "handler.h"
-
-typedef struct field_arg {
-	unsigned int	num_arg;
-	int*	len;
-	char**	value;
-} field_arg_t;
-
-/** Macros to create and instantiate fields */
-#define MCI_ADD_FIELD(m_args, m_fld, m_value, m_len)			\
-	do {								\
-		(m_args)->len[m_fld] = m_len;				\
-		(m_args)->value[m_fld] = (char*)(m_value);		\
-	} while(0)
-
-#define MCI_CREATE_FIELD(field, num_fld)				\
-	do {								\
-		field->len = (int*)malloc(num_fld * sizeof(*(field->len)));\
-		memset(field->len, 0, num_fld * sizeof(*(field->len)));	\
-		field->value = (char**)malloc(num_fld			\
-					      * sizeof(*(field->value)));\
-		field->num_arg = num_fld;				\
-	} while(0)
-
-#define MCI_FREE_FIELD(field)						\
-	do {								\
-		free(field->len);					\
-		free(field->value);					\
-		field->num_arg = 0;					\
-	} while(0)
 
 /** Defines for handler_unlock_table()'s mode field */
 #define HDL_READ	0x1
@@ -189,9 +161,46 @@ binlog_log_row(
 	const uchar	*after_record,	/*!< in: Current image of record */
 	Log_func*	log_func);	/*!< in: Log function */
 
+/** function to close a connection and thd, defined in sql/handler.cc */
 extern void ha_close_connection(THD* thd);
 
+/**********************************************************************
+Following APIs  can perform DMLs through MySQL handler interface. They
+are currently disabled and under HANDLER_API_MEMCACHED define
+**********************************************************************/
+
 #ifdef HANDLER_API_MEMCACHED
+
+/** structure holds the search field(s) */
+typedef struct field_arg {
+	unsigned int	num_arg;
+	int*		len;
+	char**		value;
+} field_arg_t;
+
+/** Macros to create and instantiate fields */
+#define MCI_ADD_FIELD(m_args, m_fld, m_value, m_len)			\
+	do {								\
+		(m_args)->len[m_fld] = m_len;				\
+		(m_args)->value[m_fld] = (char*)(m_value);		\
+	} while(0)
+
+#define MCI_CREATE_FIELD(field, num_fld)				\
+	do {								\
+		field->len = (int*)malloc(num_fld * sizeof(*(field->len)));\
+		memset(field->len, 0, num_fld * sizeof(*(field->len)));	\
+		field->value = (char**)malloc(num_fld			\
+					      * sizeof(*(field->value)));\
+		field->num_arg = num_fld;				\
+	} while(0)
+
+#define MCI_FREE_FIELD(field)						\
+	do {								\
+		free(field->len);					\
+		free(field->value);					\
+		field->num_arg = 0;					\
+	} while(0)
+
 /**********************************************************************//**
 Search table for a record with particular search criteria
 @return a pointer to table->record[0] */
@@ -202,6 +211,7 @@ handler_select_rec(
 	TABLE*		table,		/*!< in: TABLE structure */
 	field_arg_t*	srch_args,	/*!< in: field to search */
 	int		idx_to_use);	/*!< in: index to use */
+
 /**********************************************************************//**
 Insert a record to the table
 return 0 if successfully inserted */
@@ -211,6 +221,7 @@ handler_insert_rec(
 	THD*		thd,		/*!< in: thread */
 	TABLE*		table,		/*!< in: TABLE structure */
 	field_arg_t*	store_args);	/*!< in: inserting row data */
+
 /**********************************************************************//**
 Update a record
 return 0 if successfully inserted */
@@ -241,5 +252,6 @@ handler_lock_table(
 	enum thr_lock_type	lock_mode);	/*!< in: lock mode */
 
 #endif /* HANDLER_API_MEMCACHED */
+
 #endif /* HANDLER_API_H */
 

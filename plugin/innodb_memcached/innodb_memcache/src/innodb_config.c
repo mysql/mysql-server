@@ -156,7 +156,7 @@ innodb_read_cache_policy(
 
 	err = innodb_api_begin(NULL, INNODB_META_DB,
 			       INNODB_CACHE_POLICIES, NULL, ib_trx,
-			       &crsr, &idx_crsr, IB_LOCK_IS);	
+			       &crsr, &idx_crsr, IB_LOCK_IS);
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: Cannot open config table"
@@ -208,16 +208,16 @@ innodb_read_cache_policy(
 
 		switch (i) {
 		case CACHE_OPT_GET:
-			item->m_get_option = opt_val;	
+			item->m_get_option = opt_val;
 			break;
 		case CACHE_OPT_SET:
-			item->m_set_option = opt_val;	
+			item->m_set_option = opt_val;
 			break;
 		case CACHE_OPT_DEL:
-			item->m_del_option = opt_val;	
+			item->m_del_option = opt_val;
 			break;
 		case CACHE_OPT_FLUSH:
-			item->m_flush_option = opt_val;	
+			item->m_flush_option = opt_val;
 			break;
 		default:
 			assert(0);
@@ -262,7 +262,7 @@ innodb_read_config_option(
 	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
 	err = innodb_api_begin(NULL, INNODB_META_DB,
 			       INNODB_CONFIG_OPTIONS, NULL, ib_trx,
-			       &crsr, &idx_crsr, IB_LOCK_IS);	
+			       &crsr, &idx_crsr, IB_LOCK_IS);
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: Cannot open config table"
@@ -354,7 +354,7 @@ innodb_config_container(
 	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
 	err = innodb_api_begin(NULL, INNODB_META_DB,
 			       INNODB_META_CONTAINER_TABLE, NULL, ib_trx,
-			       &crsr, &idx_crsr, IB_LOCK_IS);	
+			       &crsr, &idx_crsr, IB_LOCK_IS);
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: Please create config table"
@@ -512,8 +512,8 @@ innodb_config_value_col_verify(
 
 	return(err);
 }
-				
-			
+
+
 /**********************************************************************//**
 This function verifies the table configuration information, and fills
 in columns used for memcached functionalities (cas, exp etc.)
@@ -536,7 +536,7 @@ innodb_verify(
 	bool		is_key_col = FALSE;
 	bool		is_value_col = FALSE;
 	int		index_type;
-	ib_id_t		index_id;
+	ib_id_u64_t	index_id;
 
 	dbname = info->m_item[META_DB].m_str;
 	name = info->m_item[META_TABLE].m_str;
@@ -688,7 +688,7 @@ innodb_config(
 	/* Following two configure operations are optional, and can be
         failed */
         innodb_read_cache_policy(item);
-        
+
         innodb_read_config_option(item);
 
 	return(TRUE);

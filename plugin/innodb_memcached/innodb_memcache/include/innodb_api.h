@@ -25,7 +25,6 @@ Created 03/15/2011      Jimmy Yang
 #ifndef innodb_api_h
 #define innodb_api_h
 
-#include <memcached/types.h>
 #include "api0api.h"
 #include "innodb_engine.h"
 #include "assert.h"
@@ -34,27 +33,28 @@ Created 03/15/2011      Jimmy Yang
 #define HDL_READ	0x1
 #define HDL_WRITE	0x2
 
+/** Macros to lock/unlock the engine connection mutex */
 #define LOCK_CONN_IF_NOT_LOCKED(has_lock, engine)	\
 	if (!(has_lock)) {				\
 		pthread_mutex_lock(&engine->conn_mutex);\
-	}               
+	}
 
 #define UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine)	\
 	if (!(has_lock)) {				\
 		pthread_mutex_unlock(&engine->conn_mutex);\
-	}               
+	}
 
 /**********************************************************************//**
-Creates a THD object.
-@return a pointer to the THD object, NULL if failed */
+Creates a MySQL "THD" object.
+@return a pointer to the "THD" object, NULL if failed */
 extern
 void*
 handler_create_thd(void);
 /*====================*/
 
 /**********************************************************************//**
-Creates a table object with specified database name and table name.
-@return a pointer to the TABLE object, NULL if does not exist */
+Creates a MySQL "TABLE" object with specified database name and table name.
+@return a pointer to the "TABLE" object, NULL if does not exist */
 extern
 void*
 handler_open_table(
@@ -65,7 +65,7 @@ handler_open_table(
 	int		lock_mode);	/*!< in: lock mode */
 
 /**********************************************************************//**
-Wrapper of function binlog_log_row() to binlog an operation on a row */
+Wrapper function of binlog_log_row(), used to binlog an operation on a row */
 extern
 void
 handler_binlog_row(
@@ -457,7 +457,7 @@ innodb_cb_cursor_open_index_using_name(
 	const char*	index_name,	/*!< in: secondary index name */
 	ib_crsr_t*	ib_crsr,	/*!< out,own: InnoDB index cursor */
 	int*		idx_type,	/*!< out: index is cluster index */
-	ib_id_t*	idx_id);	/*!< out: index id */
+	ib_id_u64_t*	idx_id);	/*!< out: index id */
 /*****************************************************************//**
 Check whether the binlog option is turned on
 (innodb_direct_access_enable_binlog)

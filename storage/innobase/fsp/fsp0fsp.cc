@@ -2064,7 +2064,7 @@ fseg_create_general(
 	ulint		zip_size;
 	fsp_header_t*	space_header;
 	fseg_inode_t*	inode;
-	ib_idd_t		seg_id;
+	ib_id_t		seg_id;
 	buf_block_t*	block	= 0; /* remove warning */
 	fseg_header_t*	header	= 0; /* remove warning */
 	rw_lock_t*	latch;
@@ -2268,7 +2268,7 @@ fseg_fill_free_list(
 {
 	xdes_t*	descr;
 	ulint	i;
-	ib_idd_t	seg_id;
+	ib_id_t	seg_id;
 	ulint	reserved;
 	ulint	used;
 
@@ -2332,7 +2332,7 @@ fseg_alloc_free_extent(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	xdes_t*		descr;
-	ib_idd_t		seg_id;
+	ib_id_t		seg_id;
 	fil_addr_t	first;
 
 	ut_ad(!((page_offset(inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
@@ -2396,7 +2396,7 @@ fseg_alloc_free_page_low(
 {
 	fsp_header_t*	space_header;
 	ulint		space_size;
-	ib_idd_t		seg_id;
+	ib_id_t		seg_id;
 	ulint		used;
 	ulint		reserved;
 	xdes_t*		descr;		/*!< extent of the hinted page */
@@ -3106,8 +3106,8 @@ fseg_free_page_low(
 	xdes_t*	descr;
 	ulint	not_full_n_used;
 	ulint	state;
-	ib_idd_t	descr_id;
-	ib_idd_t	seg_id;
+	ib_id_t	descr_id;
+	ib_id_t	seg_id;
 	ulint	i;
 
 	ut_ad(seg_inode && mtr);
@@ -3533,7 +3533,7 @@ fseg_validate_low(
 	mtr_t*		mtr2)	/*!< in/out: mini-transaction */
 {
 	ulint		space;
-	ib_idd_t		seg_id;
+	ib_id_t		seg_id;
 	mtr_t		mtr;
 	xdes_t*		descr;
 	fil_addr_t	node_addr;
@@ -3676,7 +3676,7 @@ fseg_print_low(
 	ulint	reserved;
 	ulint	used;
 	ulint	page_no;
-	ib_idd_t	seg_id;
+	ib_id_t	seg_id;
 
 	ut_ad(mtr_memo_contains_page(mtr, inode, MTR_MEMO_PAGE_X_FIX));
 	space = page_get_space_id(page_align(inode));
@@ -4007,7 +4007,7 @@ fsp_print(
 	ulint		n_free;
 	ulint		n_free_frag;
 	ulint		n_full_frag;
-	ib_idd_t	seg_id;
+	ib_id_t		seg_id;
 	ulint		n;
 	ulint		n_segs		= 0;
 	mtr_t		mtr;

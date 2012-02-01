@@ -55,7 +55,7 @@ static inline
 struct innodb_engine*
 innodb_handle(
 /*==========*/
-	ENGINE_HANDLE*	handle) 	/*!< in: Generic engine handle */
+	ENGINE_HANDLE*	handle)		/*!< in: Generic engine handle */
 {
 	return((struct innodb_engine*) handle);
 }
@@ -67,7 +67,7 @@ static inline
 struct default_engine*
 default_handle(
 /*===========*/
-	struct innodb_engine*	eng) 
+	struct innodb_engine*	eng)
 {
 	return((struct default_engine*) eng->m_default_engine);
 }
@@ -89,7 +89,7 @@ ENGINE_ERROR_CODE
 create_instance(
 /*============*/
 	uint64_t		interface,	/*!< in: protocol version,
-						currently always 1 */ 
+						currently always 1 */
 	GET_SERVER_API		get_server_api,	/*!< in: Callback the engines
 						may call to get the public
 						server interface */
@@ -125,7 +125,7 @@ create_instance(
 	innodb_eng->engine.flush = innodb_flush;
 	innodb_eng->engine.unknown_command = innodb_unknown_command;
 	innodb_eng->engine.item_set_cas = item_set_cas;
-	innodb_eng->engine.get_item_info = innodb_get_item_info; 
+	innodb_eng->engine.get_item_info = innodb_get_item_info;
 	innodb_eng->engine.get_stats_struct = NULL;
 	innodb_eng->engine.errinfo = NULL;
 
@@ -141,9 +141,9 @@ create_instance(
 	innodb_eng->info.info.features[0].feature = ENGINE_FEATURE_LRU;
 
 	/* Now call create_instace() for the default engine */
-	err = create_my_default_instance(interface, get_server_api, 
+	err = create_my_default_instance(interface, get_server_api,
 				       &(innodb_eng->m_default_engine));
-	
+
 	if(err != ENGINE_SUCCESS) {
 		free(innodb_eng);
 		return(err);
@@ -178,8 +178,8 @@ innodb_initialize(
 /*==============*/
 	ENGINE_HANDLE*	handle,		/*!< in/out: InnoDB memcached
 					engine */
-	const char*	config_str)	/*!< in: configure string */ 
-{   
+	const char*	config_str)	/*!< in: configure string */
+{
 	ENGINE_ERROR_CODE	return_status = ENGINE_SUCCESS;
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
@@ -362,8 +362,8 @@ innodb_destroy(
 /*** allocate ***/
 
 /*******************************************************************//**
-Allocate gets a struct item from the slab allocator, and fills in 
-everything but the value.  It seems like we can just pass this on to 
+Allocate gets a struct item from the slab allocator, and fills in
+everything but the value.  It seems like we can just pass this on to
 the default engine; we'll intercept it later in store(). */
 static
 ENGINE_ERROR_CODE
@@ -448,7 +448,7 @@ innodb_conn_init(
 			meta_info->m_item[META_DB].m_str,
 			meta_info->m_item[META_TABLE].m_str,
 			conn_data,
-		 	conn_data->c_r_trx,
+			conn_data->c_r_trx,
 			&conn_data->c_r_crsr,
 			&conn_data->c_r_idx_crsr,
 			(lock_mode == IB_LOCK_X)
@@ -652,7 +652,7 @@ innodb_release(
 	}
 
 	return;
-}  
+}
 
 /*******************************************************************//**
 Support memcached "GET" command, fetch the value according to key
@@ -873,7 +873,7 @@ innodb_store(
 
 	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_WRITE);
 
-	return(result);  
+	return(result);
 }
 
 /*******************************************************************//**
@@ -943,7 +943,7 @@ innodb_flush(
 	const void*	cookie,		/*!< in: connection cookie */
 	time_t		when)		/*!< in: when to flush, not used by
 					InnoDB */
-{                                   
+{
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
 	ENGINE_ERROR_CODE	err = ENGINE_SUCCESS;
@@ -976,7 +976,7 @@ innodb_flush(
         conn_data = innodb_conn_init(innodb_eng, cookie, FALSE,
 				     IB_LOCK_X, TRUE);
 
-	
+
 	if (!conn_data) {
 		pthread_mutex_unlock(&innodb_eng->conn_mutex);
 		return(ENGINE_SUCCESS);
@@ -992,7 +992,6 @@ innodb_flush(
 
         pthread_mutex_unlock(&innodb_eng->conn_mutex);
 
-	
 	return((ib_err == DB_SUCCESS) ? ENGINE_SUCCESS : ENGINE_FAILED);
 }
 
@@ -1025,7 +1024,7 @@ innodb_get_item_info(
 /*=================*/
 	ENGINE_HANDLE*		handle,		/*!< in: Engine Handle */
 	const void*		cookie,		/*!< in: connection cookie */
-	const item* 		item,		/*!< in: item in question */
+	const item*		item,		/*!< in: item in question */
 	item_info*		item_info)	/*!< out: item info got */
 {
 	hash_item*	it;
@@ -1045,6 +1044,6 @@ innodb_get_item_info(
 	item_info->nvalue = 1;
 	item_info->key = hash_item_get_key(it);
 	item_info->value[0].iov_base = hash_item_get_data(it);
-	item_info->value[0].iov_len = it->nbytes;    
+	item_info->value[0].iov_len = it->nbytes;
 	return true;
 }

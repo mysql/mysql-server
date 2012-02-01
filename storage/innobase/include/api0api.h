@@ -123,7 +123,7 @@ typedef uint64_t                ib_u64_t;
 typedef void*			ib_opaque_t;
 typedef ib_opaque_t		ib_charset_t;
 typedef ib_ulint_t		ib_bool_t;
-typedef ib_u64_t		ib_id_t;
+typedef ib_u64_t		ib_id_u64_t;
 
 /** @enum ib_cfg_type_t Possible types for a configuration variable. */
 typedef enum {
@@ -747,7 +747,7 @@ Open an InnoDB table and return a cursor handle to it.
 ib_err_t
 ib_cursor_open_table_using_id(
 /*==========================*/
-	ib_id_t		table_id,
+	ib_id_u64_t	table_id,
 	ib_trx_t	ib_trx,
 	ib_crsr_t*	ib_crsr) UNIV_NO_IGNORE;
 
@@ -763,7 +763,7 @@ Open an InnoDB index and return a cursor handle to it.
 ib_err_t
 ib_cursor_open_index_using_id(
 /*==========================*/
-	ib_id_t		index_id,
+	ib_id_u64_t	index_id,
 	ib_trx_t	ib_trx,
 	ib_crsr_t*	ib_crsr) UNIV_NO_IGNORE;
 
@@ -778,7 +778,7 @@ ib_cursor_open_index_using_name(
 	const char*	index_name,	/*!< in: secondary index name */
 	ib_crsr_t*	ib_crsr,	/*!< out,own: InnoDB index cursor */
 	int*		idx_type,	/*!< out: index is cluster index */
-	ib_id_t*	idx_id);	/*!< out: index id */
+	ib_id_u64_t*	idx_id);	/*!< out: index id */
 
 /*****************************************************************//**
 Open an InnoDB table by name and return a cursor handle to it.
@@ -1337,7 +1337,7 @@ ib_err_t
 ib_cursor_truncate(
 /*===============*/
 	ib_crsr_t*	ib_crsr,
-	ib_id_t*	table_id) UNIV_NO_IGNORE;
+	ib_id_u64_t*	table_id) UNIV_NO_IGNORE;
 
 /*****************************************************************//**
 Get a table id.
@@ -1351,7 +1351,7 @@ ib_err_t
 ib_table_get_id(
 /*============*/
 	const char*	table_name,
-	ib_id_t*	table_id) UNIV_NO_IGNORE;
+	ib_id_u64_t*	table_id) UNIV_NO_IGNORE;
 
 /*****************************************************************//**
 Get an index id.
@@ -1367,7 +1367,7 @@ ib_index_get_id(
 /*============*/
 	const char*	table_name,
 	const char*	index_name,
-	ib_id_t*	index_id) UNIV_NO_IGNORE;
+	ib_id_u64_t*	index_id) UNIV_NO_IGNORE;
 
 /*****************************************************************//**
 Check if cursor is positioned.
@@ -1455,7 +1455,7 @@ ib_err_t
 ib_table_lock(
 /*===========*/
 	ib_trx_t	ib_trx,
-	ib_id_t		table_id,
+	ib_id_u64_t	table_id,
 	ib_lck_mode_t	ib_lck_mode) UNIV_NO_IGNORE;
 
 /*****************************************************************//**
@@ -1756,7 +1756,7 @@ ib_err_t
 ib_table_truncate(
 /*==============*/
 	const char*	table_name,	/*!< in: table name */
-	ib_id_t*	table_id);	/*!< out: new table id */
+	ib_id_u64_t*	table_id);	/*!< out: new table id */
 
 /*****************************************************************//**
 Frees a possible InnoDB trx object associated with the current THD.

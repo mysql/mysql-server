@@ -31,7 +31,7 @@ UNIV_INLINE
 int
 fts_write_object_id(
 /*================*/
-	ib_idd_t	id,		/* in: a table/index id */
+	ib_id_t		id,		/* in: a table/index id */
 	char*		str)		/* in: buffer to write the id to */
 {
 #ifdef __WIN__
@@ -51,7 +51,7 @@ UNIV_INLINE
 ibool
 fts_read_object_id(
 /*===============*/
-	ib_idd_t*	id,		/* out: an id */
+	ib_id_t*	id,		/* out: an id */
 	const char*	str)		/* in: buffer to read from */
 {
 	return(sscanf(str, IB_ID_FMT, id) == 2);

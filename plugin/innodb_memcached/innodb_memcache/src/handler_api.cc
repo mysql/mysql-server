@@ -75,10 +75,10 @@ handler_open_table(
 	Open_table_context	ot_act(thd, 0);
 	enum thr_lock_type	lock_mode;
 
-	lock_mode = (lock_type < TL_IGNORE) 
+	lock_mode = (lock_type < TL_IGNORE)
 			? TL_READ
 			: (enum thr_lock_type) lock_type;
- 
+
 	tables.init_one_table(db_name, strlen(db_name), table_name,
 			      strlen(table_name), table_name, lock_mode);
 
@@ -135,7 +135,7 @@ handler_binlog_flush(
 
 	thd->binlog_write_table_map((TABLE*) my_table, 1, 0);
 	ret = tc_log->log_xid(thd, 0);
-	
+
 	if (ret) {
 		tc_log->unlog(ret, 0);
 	}
@@ -241,6 +241,46 @@ handler_close_thd(
 	my_pthread_setspecific_ptr(THR_THD,  0);
 }
 
+/**********************************************************************//**
+Unlock a table and commit the transaction
+return 0 if fail to commit the transaction */
+int
+handler_unlock_table(
+/*=================*/
+	void*		my_thd,		/*!< in: thread */
+	void*		my_table,	/*!< in: Table metadata */
+	int		mode)		/*!< in: mode */
+{
+	int			result;
+	THD*			thd = (THD*) my_thd;
+	TABLE*			table = (TABLE*) my_table;
+	enum thr_lock_type	lock_mode;
+
+	lock_mode = (mode & HDL_READ)
+			? TL_READ
+			: TL_WRITE;
+
+	if (lock_mode == TL_WRITE) {
+		query_cache_invalidate3(thd, table, 1);
+		table->file->ha_release_auto_increment();
+	}
+
+	result = trans_commit_stmt(thd);
+
+	if (thd->lock) {
+		mysql_unlock_tables(thd, thd->lock);
+	}
+
+	close_mysql_tables(thd);
+	thd->lock = 0;
+
+	return(result);
+}
+
+/********************************************************************** 
+Following APIs  can perform DMLs through MySQL handler interface. They 
+are currently disabled and under HANDLER_API_MEMCACHED define 
+**********************************************************************/
 
 #ifdef HANDLER_API_MEMCACHED
 /**********************************************************************//**
@@ -252,7 +292,7 @@ handler_select_rec(
 	THD*		thd,		/*!< in: thread */
 	TABLE*		table,		/*!< in: TABLE structure */
 	field_arg_t*	srch_args,	/*!< in: field to search */
-	int		idx_to_use)	/*!< in: index to use */	
+	int		idx_to_use)	/*!< in: index to use */
 {
 	KEY*		key_info = &(table->key_info[0]);
 	uchar*		srch_buf = (uchar*) malloc(
@@ -265,7 +305,7 @@ handler_select_rec(
 	assert(srch_args->num_arg <=  key_info->key_parts);
 
 	for (unsigned int i = 0; i < key_info->key_parts; i ++) {
-		KEY_PART_INFO*	key_part; 
+		KEY_PART_INFO*	key_part;
 		int		srch_len;
 		char*		srch_value;
 
@@ -415,38 +455,3 @@ handler_lock_table(
 }
 #endif /* HANDLER_API_MEMCACHED */
 
-/**********************************************************************//**
-Unlock a table and commit the transaction
-return 0 if fail to commit the transaction */
-int
-handler_unlock_table(
-/*=================*/
-	void*		my_thd,		/*!< in: thread */
-	void*		my_table,	/*!< in: Table metadata */
-	int		mode)		/*!< in: mode */
-{
-	int			result;
-	THD*			thd = (THD*) my_thd;
-	TABLE*			table = (TABLE*) my_table;
-	enum thr_lock_type	lock_mode;
-
-	lock_mode = (mode & HDL_READ) 
-			? TL_READ
-			: TL_WRITE;
-	
-	if (lock_mode == TL_WRITE) {
-		query_cache_invalidate3(thd, table, 1);
-		table->file->ha_release_auto_increment();
-	}
-
-	result = trans_commit_stmt(thd);
-
-	if (thd->lock) {
-		mysql_unlock_tables(thd, thd->lock);
-	}
-
-	close_mysql_tables(thd);
-	thd->lock = 0;
-
-	return(result);
-}

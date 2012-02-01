@@ -155,8 +155,8 @@ innodb_api_begin(
 
 			/* Open the cursor */
 			if (meta_index->m_use_idx == META_SECONDARY) {
-				int	index_type;
-				ib_id_t	index_id;
+				int		index_type;
+				ib_id_u64_t	index_id;
 
 				ib_cb_cursor_open_index_using_name(
 					*crsr, meta_index->m_name,
@@ -191,7 +191,7 @@ innodb_api_begin(
 			}
 		}
 	}
-		
+
 	return(err);
 }
 
@@ -268,7 +268,7 @@ innodb_api_write_int(
 		} else if (m_col->type_len == 4) {
 			uint32_t	value32;
 			value32 = (uint32_t) value;
-			
+
 			ib_cb_tuple_write_u32(tpl, field, value32);
 			if (table) {
 				handler_rec_setup_int(
@@ -374,11 +374,11 @@ static
 ib_err_t
 innodb_api_fill_value(
 /*==================*/
-	meta_info_t*	meta_info, 	/*!< in: Metadata */
+	meta_info_t*	meta_info,	/*!< in: Metadata */
 	mci_item_t*	item,		/*!< out: result */
 	ib_tpl_t	read_tpl,	/*!< in: read tuple */
 	int		col_id,		/*!< in: column Id */
-	bool		alloc_mem)	/*!< in: allocate memory */		
+	bool		alloc_mem)	/*!< in: allocate memory */
 {
 	ib_err_t	err = DB_NOT_FOUND;
 
@@ -679,7 +679,7 @@ void
 innodb_api_setup_hdl_rec(
 /*=====================*/
 	mci_item_t*		item,		/*!< in: item contain data
-						to set on table->record[0] */ 
+						to set on table->record[0] */
 	meta_column_t*		col_info,	/*!< in: column information */
 	void*			table)		/*!< out: MySQL TABLE* */
 {
@@ -765,7 +765,7 @@ innodb_api_set_tpl(
 
 	if (meta_info->cas_enabled) {
 		err = innodb_api_write_int(
-			tpl, col_info[META_CAS].m_field_id, cas, table); 
+			tpl, col_info[META_CAS].m_field_id, cas, table);
 		assert(err == DB_SUCCESS);
 	}
 
@@ -1123,7 +1123,6 @@ innodb_api_arithmetic(
 	int		before_len;
 	int		column_used = 0;
 	ENGINE_ERROR_CODE ret = ENGINE_SUCCESS;
-	
 
 	err = innodb_api_search(engine, cursor_data, &srch_crsr, key, len,
 				&result, &old_tpl, FALSE);
@@ -1183,12 +1182,12 @@ innodb_api_arithmetic(
 		goto func_exit;
 	}
 
-	errno = 0;	
+	errno = 0;
 
 	if (before_val) {
 		value = strtoull(before_val, &end_ptr, 10);
 	}
-	
+
 	if (errno == ERANGE) {
 		ib_cb_tuple_delete(old_tpl);
 		ret = ENGINE_EINVAL;
@@ -1309,7 +1308,7 @@ innodb_api_store(
 						val_len, exp, cas, flags);
 		} else {
 			err = DB_ERROR;
-		} 
+		}
 		break;
 	case OPERATION_REPLACE:
 		if (err == DB_SUCCESS) {
@@ -1388,7 +1387,7 @@ innodb_api_flush(
 	ib_err_t	err = DB_SUCCESS;
 	char		table_name[MAX_TABLE_NAME_LEN
 				   + MAX_DATABASE_NAME_LEN + 1];
-	ib_id_t		new_id;
+	ib_id_u64_t	new_id;
 
 #ifdef __WIN__
 	sprintf(table_name, "%s\%s", dbname, name);
@@ -1456,7 +1455,7 @@ innodb_api_cursor_reset(
 			conn_data->c_trx = NULL;
 			commit_trx = TRUE;
 			conn_data->c_in_use = FALSE;
-				
+
 			UNLOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						  engine);
 		}
@@ -1686,7 +1685,7 @@ innodb_cb_cursor_open_index_using_name(
 	const char*	index_name,	/*!< in: secondary index name */
 	ib_crsr_t*	ib_crsr,	/*!< out,own: InnoDB index cursor */
 	int*		idx_type,	/*!< out: index is cluster index */
-	ib_id_t*	idx_id)		/*!< out: index id */
+	ib_id_u64_t*	idx_id)		/*!< out: index id */
 {
 	return(ib_cb_cursor_open_index_using_name(ib_open_crsr, index_name,
 						  ib_crsr, idx_type, idx_id));

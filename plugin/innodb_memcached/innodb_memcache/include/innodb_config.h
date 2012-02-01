@@ -22,8 +22,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 Created 03/15/2011      Jimmy Yang
 *******************************************************/
 
-#ifndef innodb_config_h 
-#define innodb_config_h 
+#ifndef innodb_config_h
+#define innodb_config_h
 
 #include "api0api.h"
 
@@ -98,7 +98,7 @@ enum meta_cache_cols {
 	CACHE_OPT_SET,
 	CACHE_OPT_DEL,
 	CACHE_OPT_FLUSH,
-	CACHE_OPT_NUM_COLS	
+	CACHE_OPT_NUM_COLS
 };
 
 /** columns in the "config_options" table */

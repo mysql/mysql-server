@@ -161,7 +161,7 @@ innodb_store(
 					engine only */
 
 /*******************************************************************//**
-Support memcached "INCR" and "DECR" command, add or subtract a "delta" 
+Support memcached "INCR" and "DECR" command, add or subtract a "delta"
 value from an integer key value
 @return ENGINE_SUCCESS if successfully, otherwise error code */
 static
@@ -172,7 +172,7 @@ innodb_arithmetic(
 	const void*	cookie,		/*!< in: connection cookie */
 	const void*	key,		/*!< in: key for the value to add */
 	const int	nkey,		/*!< in: key length */
-	const bool	increment,	/*!< in: whether to increment 
+	const bool	increment,	/*!< in: whether to increment
 					or decrement */
 	const bool	create,		/*!< in: whether to create the key
 					value pair if can't find */
@@ -181,7 +181,7 @@ innodb_arithmetic(
 	const rel_time_t exptime,	/*!< in: expiration time */
 	uint64_t*	cas,		/*!< out: new cas value */
 	uint64_t*	result,		/*!< out: result out */
-	uint16_t	vbucket);	/*!< in: bucket, used by default 
+	uint16_t	vbucket);	/*!< in: bucket, used by default
 					engine only */
 
 /*******************************************************************//**
@@ -197,7 +197,7 @@ innodb_flush(
 					InnoDB */
 
 /*******************************************************************//**
-Deal with unknown command. Currently not used 
+Deal with unknown command. Currently not used
 @return ENGINE_SUCCESS if successfully processed, otherwise error code */
 static
 ENGINE_ERROR_CODE
