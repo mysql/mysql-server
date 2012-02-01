@@ -2605,6 +2605,11 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       for such group.
     */
     DBUG_ASSERT(!ends_group() ||
+                /*
+                  This is an empty group being processed due to gtids.
+                */
+                (rli->curr_group_seen_begin && rli->curr_group_seen_gtid &&
+                 ends_group()) ||
                 (rli->mts_end_group_sets_max_dbs &&
                  ((rli->curr_group_da.elements == 3 && rli->curr_group_seen_gtid) ||
                  (rli->curr_group_da.elements == 2 && !rli->curr_group_seen_gtid)) &&
@@ -2900,6 +2905,11 @@ int Log_event::apply_event(Relay_log_info *rli)
 
   DBUG_ASSERT(actual_exec_mode == EVENT_EXEC_PARALLEL);
   DBUG_ASSERT(!(rli->curr_group_seen_begin && ends_group()) ||
+              /*
+                This is an empty group being processed due to gtids.
+              */
+              (rli->curr_group_seen_begin && rli->curr_group_seen_gtid
+               && ends_group()) ||
               rli->last_assigned_worker ||
               /*
                 Begin_load_query can be logged w/o db info and within
