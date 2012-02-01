@@ -812,8 +812,7 @@ srv_suspend_thread(
 Releases threads of the type given from suspension in the thread table.
 NOTE! The server mutex has to be reserved by the caller!
 @return number of threads released: this may be less than n if not
-        enough threads were suspended at the moment. ULINT_DEFINED if there
-	are no threads of the type running. */
+        enough threads were suspended at the moment. */
 UNIV_INTERN
 ulint
 srv_release_threads(
@@ -822,7 +821,7 @@ srv_release_threads(
 	ulint			n)	/*!< in: number of threads to release */
 {
 	ulint		i;
-	ulint		count	= ULINT_UNDEFINED;
+	ulint		count	= 0;
 
 	ut_ad(srv_thread_type_validate(type));
 	ut_ad(n > 0);
@@ -834,22 +833,18 @@ srv_release_threads(
 
 		slot = srv_table_get_nth_slot(i);
 
-		if (slot->in_use && srv_slot_get_type(slot) == type) {
+		if (slot->in_use
+		    && srv_slot_get_type(slot) == type
+		    && slot->suspended) {
 
-			if (count == ULINT_UNDEFINED) {
-				count = 0;
-			}
+			slot->suspended = FALSE;
 
-			if (slot->suspended) {
-				slot->suspended = FALSE;
+			srv_sys->n_threads_active[type]++;
 
-				srv_sys->n_threads_active[type]++;
+			os_event_set(slot->event);
 
-				os_event_set(slot->event);
-
-				if (++count == n) {
-					break;
-				}
+			if (++count == n) {
+				break;
 			}
 
 		/* We have only one master thread and it should be the
