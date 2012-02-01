@@ -847,7 +847,7 @@ srv_release_threads(
 
 				os_event_set(slot->event);
 
-				if (count == n) {
+				if (++count == n) {
 					break;
 				}
 			}
