@@ -33,11 +33,11 @@
 */
 #if defined(__i386__) || defined(_WIN32)
 #define MY_BYTE_ORDER_ARCH_OPTIMIZED
-#include "byteorder/byte_order_generic_x86.h"
+#include "byte_order_generic_x86.h"
 #elif defined(__x86_64__)
-#include "byteorder/byte_order_generic_x86_64.h"
+#include "byte_order_generic_x86_64.h"
 #else
-#include "byteorder/byte_order_generic.h"
+#include "byte_order_generic.h"
 #endif
 
 /*
@@ -46,9 +46,9 @@
   a register) and M a pointer to byte.
 */
 #ifdef WORDS_BIGENDIAN
-#include "byteorder/big_endian.h"
+#include "big_endian.h"
 #else
-#include "byteorder/little_endian.h"
+#include "little_endian.h"
 #endif
 
 #endif /* MY_BYTEORDER_INCLUDED */
