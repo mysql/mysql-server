@@ -2168,8 +2168,6 @@ row_merge_insert_index_tuples(
 	if (!row_merge_read(fd, foffs, block)) {
 		error = DB_CORRUPTION;
 	} else {
-		mrec_buf_t*	buf;
-
 		buf = static_cast<mrec_buf_t*>(
 			mem_heap_alloc(heap, sizeof *buf));
 
