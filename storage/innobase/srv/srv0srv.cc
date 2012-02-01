@@ -812,7 +812,8 @@ srv_suspend_thread(
 Releases threads of the type given from suspension in the thread table.
 NOTE! The server mutex has to be reserved by the caller!
 @return number of threads released: this may be less than n if not
-enough threads were suspended at the moment */
+        enough threads were suspended at the moment. ULINT_DEFINED if there
+	are no threads of the type running. */
 UNIV_INTERN
 ulint
 srv_release_threads(
@@ -821,7 +822,7 @@ srv_release_threads(
 	ulint			n)	/*!< in: number of threads to release */
 {
 	ulint		i;
-	ulint		count	= 0;
+	ulint		count	= ULINT_UNDEFINED;
 
 	ut_ad(srv_thread_type_validate(type));
 	ut_ad(n > 0);
@@ -843,14 +844,7 @@ srv_release_threads(
 
 			os_event_set(slot->event);
 
-			if (srv_print_thread_releases) {
-				fprintf(stderr,
-					"Releasing thread type %lu"
-					" from slot %lu\n",
-					(ulong) type, (ulong) i);
-			}
-
-			count++;
+			count = (count == ULINT_UNDEFINED) ? 1 : count + 1;
 
 			if (count == n) {
 				break;
@@ -2476,6 +2470,10 @@ DECLARE_THREAD(srv_worker_thread)(
 
 	srv_sys_mutex_exit();
 
+	/* We need to ensure that the worker threads exit after the
+	purge coordinator thread. Otherwise he purge coordinaor can
+	end up waiting forever in trx_purge_wait_for_workers_to_complete() */
+
 	do {
 		srv_suspend_thread(slot);
 
@@ -2489,7 +2487,8 @@ DECLARE_THREAD(srv_worker_thread)(
 			srv_wake_purge_thread_if_not_active();
 		}
 
-	} while (!srv_purge_exit(purged ? 1 : 0));
+	} while (!srv_purge_exit(purged ? 1 : 0)
+		 && purge_sys->state != PURGE_STATE_EXIT);
 
 	srv_suspend_thread(slot);
 
