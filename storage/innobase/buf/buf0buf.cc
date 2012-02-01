@@ -455,6 +455,7 @@ UNIV_INTERN
 ibool
 buf_page_is_corrupted(
 /*==================*/
+	bool		import,		/*!< in: true if IMPORT in progress */
 	const byte*	read_buf,	/*!< in: a database page */
 	ulint		zip_size)	/*!< in: size of compressed page;
 					0 for uncompressed pages */
@@ -479,14 +480,17 @@ buf_page_is_corrupted(
 	if (recv_lsn_checks_on) {
 		lsn_t	current_lsn;
 
-		if (log_peek_lsn(&current_lsn)
-		    && UNIV_UNLIKELY
-		    (current_lsn
-		     < mach_read_from_8(read_buf + FIL_PAGE_LSN))) {
+		/* Since we are going to reset the page LSN during the import
+		phase it makes no sense to spam the log with error messages. */
+
+		if (!import
+		    && log_peek_lsn(&current_lsn)
+		    && current_lsn
+		    < mach_read_from_8(read_buf + FIL_PAGE_LSN)) {
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
-				"  InnoDB: Error: page %lu log sequence number"
+				" InnoDB: Error: page %lu log sequence number"
 				" " LSN_PF "\n"
 				"InnoDB: is in the future! Current system "
 				"log sequence number " LSN_PF ".\n"
@@ -3942,7 +3946,7 @@ buf_page_io_complete(
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
-		if (buf_page_is_corrupted(frame,
+		if (buf_page_is_corrupted(false, frame,
 					  buf_page_get_zip_size(bpage))) {
 corrupt:
 			fprintf(stderr,

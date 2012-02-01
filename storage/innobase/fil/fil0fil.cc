@@ -3051,21 +3051,21 @@ fil_reset_space_and_lsn_read(
 	the file. Flag as corrupt if it doesn't. */
 
 	if (!os_file_read(file, page, offset, size)
-	    || buf_page_is_corrupted(page, zip_size)
+	    || buf_page_is_corrupted(true, page, zip_size)
 	    || (page_get_page_no(page) != offset / size
 		&& page_get_page_no(page) != 0)) {
 
 		fil_page_corrupted(name, offset, size);
 		return(2);
 
-	} else if (page_get_page_no(page) == 0) {
+	} else if (offset > 0 && page_get_page_no(page) == 0) {
 
 		const byte*	b = page;
 		const byte*	e = b + size;
 
-		/* If the page number is zero then the entire
-		page MUST consist of zeroes. If not then we flag
-		it as corrupt. */
+		/* If the page number is zero and offset > 0 then
+		the entire page MUST consist of zeroes. If not then
+		we flag it as corrupt. */
 
 		while (b != e) {
 			if (*b++) {
@@ -3272,7 +3272,7 @@ renamed:
 	ut_print_timestamp(stderr);
 	if (table->space != fil_space_id) {
 		fprintf(stderr,
-			"  InnoDB: Tablespace file %lu is"
+			" InnoDB: Tablespace file %lu is"
 			" to be imported to space %lu.\n",
 			(ulong) fil_space_id, (ulong) table->space);
 
