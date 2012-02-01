@@ -181,5 +181,6 @@ int rea_create_table(THD *thd, const char *path,
                      HA_CREATE_INFO *create_info,
   		     List<Create_field> &create_field,
                      uint key_count,KEY *key_info,
-                     handler *file);
+                     handler *file,
+                     bool no_ha_table);
 #endif

@@ -12892,7 +12892,7 @@ ERROR HY000: Can't create table 'test.#sql-temporary' (errno: -1)
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1071	Specified key was too long; max key length is 8 bytes
-Warning	1071	Specified key was too long; max key length is 8 bytes
+Warning	1194	Found wrong key definition in #sql-temporary; Please do "ALTER TABLE `#sql-temporary` FORCE" to fix it!
 Warning	1194	Found wrong key definition in #sql-temporary; Please do "ALTER TABLE `#sql-temporary` FORCE" to fix it!
 Error	1005	Can't create table 'test.#sql-temporary' (errno: -1)
 DROP TABLE t1;

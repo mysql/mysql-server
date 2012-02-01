@@ -67,6 +67,7 @@
                                         // mysql_*_alter_copy_data
 #include "opt_range.h"                  // store_key_image_to_rec
 #include "sql_analyse.h"                // append_escaped
+#include "sql_alter.h"                  // Alter_table_ctx
 
 #include <algorithm>
 using std::max;
@@ -4572,7 +4573,7 @@ bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
   do
   {
     partition_element *part_elem= part_it++;
-    if ((alter_info->flags & ALTER_ALL_PARTITION) ||
+    if ((alter_info->flags & Alter_info::ALTER_ALL_PARTITION) ||
          (is_name_in_list(part_elem->partition_name,
           alter_info->partition_names)))
     {
@@ -4591,7 +4592,7 @@ bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
   } while (++part_count < tab_part_info->num_parts);
 
   if (num_parts_found != alter_info->partition_names.elements &&
-      !(alter_info->flags & ALTER_ALL_PARTITION))
+      !(alter_info->flags & Alter_info::ALTER_ALL_PARTITION))
   {
     /* Not all given partitions found, revert and return failure */
     part_it.rewind();
@@ -4658,7 +4659,7 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
   @param[in] table               Table object
   @param[in,out] alter_info      Alter information
   @param[in,out] create_info     Create info for CREATE TABLE
-  @param[in] old_db_type         Old engine type
+  @param[in]  alter_ctx          ALTER TABLE runtime context
   @param[out] partition_changed  Boolean indicating whether partition changed
   @param[out] fast_alter_table   Internal temporary table allowing fast
                                  partition change or NULL if not possible
@@ -4679,24 +4680,23 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
 
 uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
-                           handlerton *old_db_type,
+                           Alter_table_ctx *alter_ctx,
                            bool *partition_changed,
-                           char *db,
-                           const char *table_name,
-                           const char *path,
                            TABLE **fast_alter_table)
 {
   TABLE *new_table= NULL;
   DBUG_ENTER("prep_alter_part_table");
 
   /* Foreign keys on partitioned tables are not supported, waits for WL#148 */
-  if (table->part_info && (alter_info->flags & ALTER_FOREIGN_KEY))
+  if (table->part_info && (alter_info->flags & Alter_info::ADD_FOREIGN_KEY ||
+                           alter_info->flags & Alter_info::DROP_FOREIGN_KEY))
   {
     my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
   }
   /* Remove partitioning on a not partitioned table is not possible */
-  if (!table->part_info && (alter_info->flags & ALTER_REMOVE_PARTITIONING))
+  if (!table->part_info && (alter_info->flags &
+                            Alter_info::ALTER_REMOVE_PARTITIONING))
   {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
@@ -4709,12 +4709,15 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     DBUG_RETURN(TRUE);
 
   /* ALTER_ADMIN_PARTITION is handled in mysql_admin_table */
-  DBUG_ASSERT(!(alter_info->flags & ALTER_ADMIN_PARTITION));
+  DBUG_ASSERT(!(alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION));
 
   if (alter_info->flags &
-      (ALTER_ADD_PARTITION | ALTER_DROP_PARTITION |
-       ALTER_COALESCE_PARTITION | ALTER_REORGANIZE_PARTITION |
-       ALTER_TABLE_REORG | ALTER_REBUILD_PARTITION))
+      (Alter_info::ALTER_ADD_PARTITION |
+       Alter_info::ALTER_DROP_PARTITION |
+       Alter_info::ALTER_COALESCE_PARTITION |
+       Alter_info::ALTER_REORGANIZE_PARTITION |
+       Alter_info::ALTER_TABLE_REORG |
+       Alter_info::ALTER_REBUILD_PARTITION))
   {
     partition_info *tab_part_info;
     partition_info *alt_part_info= thd->work_part_info;
@@ -4736,9 +4739,13 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       Open it as a copy of the original table, and modify its partition_info
       object to allow fast_alter_partition_table to perform the changes.
     */
-    DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, table_name,
+    DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE,
+                                               alter_ctx->db,
+                                               alter_ctx->table_name,
                                                MDL_INTENTION_EXCLUSIVE));
-    new_table= open_table_uncached(thd, path, db, table_name, 0);
+    new_table= open_table_uncached(thd, alter_ctx->get_path(),
+                                   alter_ctx->db, alter_ctx->table_name,
+                                   false, true);
     if (!new_table)
       DBUG_RETURN(TRUE);
 
@@ -4750,7 +4757,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
  
     tab_part_info= new_table->part_info;
 
-    if (alter_info->flags & ALTER_TABLE_REORG)
+    if (alter_info->flags & Alter_info::ALTER_TABLE_REORG)
     {
       uint new_part_no, curr_part_no;
       if (tab_part_info->part_type != HASH_PARTITION ||
@@ -4778,7 +4785,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           We will add more partitions, we use the ADD PARTITION without
           setting the flag for no default number of partitions
         */
-        alter_info->flags|= ALTER_ADD_PARTITION;
+        alter_info->flags|= Alter_info::ALTER_ADD_PARTITION;
         thd->work_part_info->num_parts= new_part_no - curr_part_no;
       }
       else
@@ -4787,7 +4794,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           We will remove hash partitions, we use the COALESCE PARTITION
           without setting the flag for no default number of partitions
         */
-        alter_info->flags|= ALTER_COALESCE_PARTITION;
+        alter_info->flags|= Alter_info::ALTER_COALESCE_PARTITION;
         alter_info->num_parts= curr_part_no - new_part_no;
       }
     }
@@ -4800,8 +4807,8 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       *fast_alter_table= new_table;
     DBUG_PRINT("info", ("*fast_alter_table: %p  flags: 0x%x",
                         *fast_alter_table, flags));
-    if ((alter_info->flags & ALTER_ADD_PARTITION) ||
-         (alter_info->flags & ALTER_REORGANIZE_PARTITION))
+    if ((alter_info->flags & Alter_info::ALTER_ADD_PARTITION) ||
+        (alter_info->flags & Alter_info::ALTER_REORGANIZE_PARTITION))
     {
       if (thd->work_part_info->part_type != tab_part_info->part_type)
       {
@@ -4868,7 +4875,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         goto err;
       }
     }
-    if (alter_info->flags & ALTER_ADD_PARTITION)
+    if (alter_info->flags & Alter_info::ALTER_ADD_PARTITION)
     {
       /*
         We start by moving the new partitions to the list of temporary
@@ -5108,7 +5115,7 @@ that are reorganised.
         of partitions anymore. We use this code also for Table reorganisations
         and here we don't set any default flags to FALSE.
       */
-      if (!(alter_info->flags & ALTER_TABLE_REORG))
+      if (!(alter_info->flags & Alter_info::ALTER_TABLE_REORG))
       {
         if (!alt_part_info->use_default_partitions)
         {
@@ -5119,7 +5126,7 @@ that are reorganised.
         tab_part_info->is_auto_partitioned= FALSE;
       }
     }
-    else if (alter_info->flags & ALTER_DROP_PARTITION)
+    else if (alter_info->flags & Alter_info::ALTER_DROP_PARTITION)
     {
       /*
         Drop a partition from a range partition and list partitioning is
@@ -5170,7 +5177,7 @@ that are reorganised.
       }
       tab_part_info->num_parts-= num_parts_dropped;
     }
-    else if (alter_info->flags & ALTER_REBUILD_PARTITION)
+    else if (alter_info->flags & Alter_info::ALTER_REBUILD_PARTITION)
     {
       if (set_part_state(alter_info, tab_part_info, PART_CHANGED))
       {
@@ -5183,7 +5190,7 @@ that are reorganised.
         goto err;
       }
     }
-    else if (alter_info->flags & ALTER_COALESCE_PARTITION)
+    else if (alter_info->flags & Alter_info::ALTER_COALESCE_PARTITION)
     {
       uint num_parts_coalesced= alter_info->num_parts;
       uint num_parts_remain= tab_part_info->num_parts - num_parts_coalesced;
@@ -5281,13 +5288,13 @@ state of p1.
         } while (part_count < tab_part_info->num_parts);
         tab_part_info->num_parts= num_parts_remain;
       }
-      if (!(alter_info->flags & ALTER_TABLE_REORG))
+      if (!(alter_info->flags & Alter_info::ALTER_TABLE_REORG))
       {
         tab_part_info->use_default_num_partitions= FALSE;
         tab_part_info->is_auto_partitioned= FALSE;
       }
     }
-    else if (alter_info->flags & ALTER_REORGANIZE_PARTITION)
+    else if (alter_info->flags & Alter_info::ALTER_REORGANIZE_PARTITION)
     {
       /*
         Reorganise partitions takes a number of partitions that are next
@@ -5462,8 +5469,8 @@ the generated partition syntax in a correct manner.
     }
     *partition_changed= TRUE;
     thd->work_part_info= tab_part_info;
-    if (alter_info->flags & ALTER_ADD_PARTITION ||
-        alter_info->flags & ALTER_REORGANIZE_PARTITION)
+    if (alter_info->flags & Alter_info::ALTER_ADD_PARTITION ||
+        alter_info->flags & Alter_info::ALTER_REORGANIZE_PARTITION)
     {
       if (tab_part_info->use_default_subpartitions &&
           !alt_part_info->use_default_subpartitions)
@@ -5481,7 +5488,7 @@ the generated partition syntax in a correct manner.
         since this function "fixes" the item trees of the new partitions
         to reorganize into
       */
-      if (alter_info->flags == ALTER_REORGANIZE_PARTITION &&
+      if (alter_info->flags == Alter_info::ALTER_REORGANIZE_PARTITION &&
           tab_part_info->part_type == RANGE_PARTITION &&
           ((is_last_partition_reorged &&
             (tab_part_info->column_list ?
@@ -5562,7 +5569,7 @@ the generated partition syntax in a correct manner.
     */
     if (table->part_info)
     {
-      if (alter_info->flags & ALTER_REMOVE_PARTITIONING)
+      if (alter_info->flags & Alter_info::ALTER_REMOVE_PARTITIONING)
       {
         DBUG_PRINT("info", ("Remove partitioning"));
         if (!(create_info->used_fields & HA_CREATE_USED_ENGINE))
@@ -6376,7 +6383,8 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (write_log_changed_partitions(lpt, &next_entry, (const char*)path))
     goto error;
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
-                      lpt->alter_info->flags & ALTER_REORGANIZE_PARTITION))
+                                   lpt->alter_info->flags &
+                                   Alter_info::ALTER_REORGANIZE_PARTITION))
     goto error;
   if (write_log_replace_delete_frm(lpt, next_entry, shadow_path, path, TRUE))
     goto error;
@@ -6680,7 +6688,7 @@ static void downgrade_mdl_if_lock_tables_mode(THD *thd, MDL_ticket *ticket,
                                               enum_mdl_type type)
 {
   if (thd->locked_tables_mode)
-    ticket->downgrade_exclusive_lock(type);
+    ticket->downgrade_lock(type);
 }
 
 
@@ -6796,7 +6804,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       goto err;
     }
   }
-  else if (alter_info->flags & ALTER_DROP_PARTITION)
+  else if (alter_info->flags & Alter_info::ALTER_DROP_PARTITION)
   {
     /*
       Now after all checks and setting state on dropped partitions we can
@@ -6896,7 +6904,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       goto err;
     }
   }
-  else if ((alter_info->flags & ALTER_ADD_PARTITION) &&
+  else if ((alter_info->flags & Alter_info::ALTER_ADD_PARTITION) &&
            (part_info->part_type == RANGE_PARTITION ||
             part_info->part_type == LIST_PARTITION))
   {

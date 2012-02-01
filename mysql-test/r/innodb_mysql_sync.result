@@ -101,7 +101,7 @@ DROP TABLE IF EXISTS t1;
 CREATE DATABASE db1;
 CREATE TABLE db1.t1(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, value INT) engine=innodb;
 INSERT INTO db1.t1(value) VALUES (1), (2);
-SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+SET DEBUG_SYNC= "alter_table_inplace_after_lock_downgrade SIGNAL manage WAIT_FOR query";
 # Sending:
 ALTER TABLE db1.t1 ADD INDEX(value);
 # Connection con1
@@ -117,7 +117,7 @@ SET DEBUG_SYNC= "now SIGNAL query";
 DROP DATABASE db1;
 # Test 2: Primary index (implicit), should block reads.
 CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL) engine=innodb;
-SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+SET DEBUG_SYNC= "alter_table_inplace_after_lock_downgrade SIGNAL manage WAIT_FOR query";
 # Sending:
 ALTER TABLE t1 ADD UNIQUE INDEX(a);
 # Connection con1
@@ -136,7 +136,7 @@ a	b
 # Test 3: Primary index (explicit), should block reads.
 # Connection default
 ALTER TABLE t1 DROP INDEX a;
-SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+SET DEBUG_SYNC= "alter_table_inplace_after_lock_downgrade SIGNAL manage WAIT_FOR query";
 # Sending:
 ALTER TABLE t1 ADD PRIMARY KEY (a);
 # Connection con1
@@ -153,7 +153,7 @@ SET DEBUG_SYNC= "now SIGNAL query";
 a	b
 # Test 4: Secondary unique index, should not block reads.
 # Connection default
-SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+SET DEBUG_SYNC= "alter_table_inplace_after_lock_downgrade SIGNAL manage WAIT_FOR query";
 # Sending:
 ALTER TABLE t1 ADD UNIQUE (b);
 # Connection con1
@@ -186,3 +186,147 @@ a	b
 1	12345
 2	23456
 DROP TABLE t1;
+#
+# WL#5534 Online ALTER, Phase 1
+#
+# Multi thread tests.
+# See alter_table.test for single thread tests.
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT PRIMARY KEY, b INT) engine=InnoDB;
+INSERT INTO t1 VALUES (1,1), (2,2);
+SET DEBUG_SYNC= 'RESET';
+SET SESSION lock_wait_timeout= 1;
+#
+# 1: In-place + writes blocked.
+#
+# Connection default
+SET DEBUG_SYNC= 'alter_opened_table SIGNAL opened WAIT_FOR continue1';
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_upgrade SIGNAL upgraded WAIT_FOR continue2';
+SET DEBUG_SYNC= 'alter_table_inplace_before_commit SIGNAL beforecommit WAIT_FOR continue3';
+SET DEBUG_SYNC= 'alter_table_before_main_binlog SIGNAL binlog WAIT_FOR continue4';
+# Sending:
+ALTER TABLE t1 ADD INDEX i1(b), ALGORITHM= INPLACE, LOCK= SHARED;
+# Connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+# At this point, neither reads nor writes should be blocked.
+SELECT * FROM t1;
+a	b
+1	1
+2	2
+INSERT INTO t1 VALUES (3,3);
+SET DEBUG_SYNC= 'now SIGNAL continue1';
+SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
+# Now writes should be blocked, reads still allowed.
+SELECT * FROM t1;
+a	b
+1	1
+2	2
+3	3
+INSERT INTO t1 VALUES (4,4);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC= 'now SIGNAL continue2';
+SET DEBUG_SYNC= 'now WAIT_FOR beforecommit';
+# Now both reads and writes should be blocked.
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 VALUES (5,5);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC= 'now SIGNAL continue3';
+SET DEBUG_SYNC= 'now WAIT_FOR binlog';
+# Same here.
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 VALUES (6,6);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC= 'now SIGNAL continue4';
+# Connection default
+# Reaping ALTER TABLE ...
+SET DEBUG_SYNC= 'RESET';
+DELETE FROM t1 WHERE a= 3;
+#
+# 2: Copy + writes blocked.
+#
+SET DEBUG_SYNC= 'alter_opened_table SIGNAL opened WAIT_FOR continue1';
+SET DEBUG_SYNC= 'alter_table_copy_after_lock_upgrade SIGNAL upgraded WAIT_FOR continue2';
+SET DEBUG_SYNC= 'alter_table_before_main_binlog SIGNAL binlog WAIT_FOR continue3';
+# Sending:
+ALTER TABLE t1 ADD INDEX i2(b), ALGORITHM= COPY, LOCK= SHARED;
+# Connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+# At this point, neither reads nor writes should be blocked.
+SELECT * FROM t1;
+a	b
+1	1
+2	2
+INSERT INTO t1 VALUES (3,3);
+SET DEBUG_SYNC= 'now SIGNAL continue1';
+SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
+# Now writes should be blocked, reads still allowed.
+SELECT * FROM t1;
+a	b
+1	1
+2	2
+3	3
+INSERT INTO t1 VALUES (4,4);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC= 'now SIGNAL continue2';
+SET DEBUG_SYNC= 'now WAIT_FOR binlog';
+# Now both reads and writes should be blocked.
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 VALUES (5,5);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC= 'now SIGNAL continue3';
+# Connection default
+# Reaping ALTER TABLE ...
+SET DEBUG_SYNC= 'RESET';
+DELETE FROM t1 WHERE a= 3;
+#
+# 3: In-place + writes allowed.
+#
+# TODO: Enable this test once WL#5526 is pushed
+#
+# 4: In-place + reads and writes blocked.
+#
+# Connection default
+SET DEBUG_SYNC= 'alter_opened_table SIGNAL opened WAIT_FOR continue1';
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_upgrade SIGNAL upgraded WAIT_FOR continue2';
+SET DEBUG_SYNC= 'alter_table_inplace_before_commit SIGNAL beforecommit WAIT_FOR continue3';
+SET DEBUG_SYNC= 'alter_table_before_main_binlog SIGNAL binlog WAIT_FOR continue4';
+# Sending:
+ALTER TABLE t1 ADD INDEX i4(b), ALGORITHM= INPLACE, LOCK= EXCLUSIVE;
+# Connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+# At this point, neither reads nor writes should be blocked.
+SELECT * FROM t1;
+a	b
+1	1
+2	2
+INSERT INTO t1 VALUES (3,3);
+SET DEBUG_SYNC= 'now SIGNAL continue1';
+SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
+# Now both reads and writes should be blocked.
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 VALUES (4,4);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC= 'now SIGNAL continue2';
+SET DEBUG_SYNC= 'now WAIT_FOR beforecommit';
+# Same here.
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 VALUES (5,5);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC= 'now SIGNAL continue3';
+SET DEBUG_SYNC= 'now WAIT_FOR binlog';
+# Same here.
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 VALUES (6,6);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC= 'now SIGNAL continue4';
+# Connection default
+# Reaping ALTER TABLE ...
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';

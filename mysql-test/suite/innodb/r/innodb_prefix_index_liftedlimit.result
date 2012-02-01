@@ -1194,7 +1194,6 @@ DROP INDEX prefix_idx ON worklog5743;
 CREATE INDEX prefix_idx ON worklog5743(col_1_varbinary (4000));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 3072 bytes
-Warning	1071	Specified key was too long; max key length is 3072 bytes
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
 SELECT col_1_varbinary = REPEAT("a", 4000) FROM worklog5743;
 col_1_varbinary = REPEAT("a", 4000)
@@ -1251,7 +1250,6 @@ col_1_text = REPEAT("c", 4000)
 DROP INDEX prefix_idx ON worklog5743;
 CREATE INDEX prefix_idx ON worklog5743(col_1_text (4000));
 Warnings:
-Warning	1071	Specified key was too long; max key length is 3072 bytes
 Warning	1071	Specified key was too long; max key length is 3072 bytes
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
 SELECT col_1_text = REPEAT("a", 4000) FROM worklog5743;
@@ -1367,6 +1365,5 @@ PRIMARY KEY (col_1_varchar(767))
 ) engine = innodb;
 CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (1000));
 Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
 Warning	1071	Specified key was too long; max key length is 767 bytes
 DROP TABLE worklog5743;
