@@ -1,6 +1,7 @@
 # index stats ON
 
 set @is_enable_default = @@global.ndb_index_stat_enable;
+let is_table_exists = `select count(*) <> 2 from information_schema.tables where table_name in ('ndb_index_stat_head', 'ndb_index_stat_sample') and table_schema='mysql'`;
 
 set @is_enable = 1;
 source ndb_index_stat_enable.inc;
