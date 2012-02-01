@@ -987,9 +987,6 @@ int ha_tina::write_row(uchar * buf)
 
   ha_statistic_increment(&SSV::ha_write_count);
 
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->get_timestamp_field()->set_time();
-
   size= encode_quote(buf);
 
   if (!share->tina_write_opened)
@@ -1038,8 +1035,8 @@ int ha_tina::open_update_temp_file_if_needed()
 
 /*
   This is called for an update.
-  Make sure you put in code to increment the auto increment, also
-  update any timestamp data. Currently auto increment is not being
+  Make sure you put in code to increment the auto increment.
+  Currently auto increment is not being
   fixed since autoincrements have yet to be added to this table handler.
   This will be called in a table scan right before the previous ::rnd_next()
   call.
@@ -1051,9 +1048,6 @@ int ha_tina::update_row(const uchar * old_data, uchar * new_data)
   DBUG_ENTER("ha_tina::update_row");
 
   ha_statistic_increment(&SSV::ha_update_count);
-
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->get_timestamp_field()->set_time();
 
   size= encode_quote(new_data);
 
