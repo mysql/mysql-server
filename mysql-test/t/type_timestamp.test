@@ -82,22 +82,6 @@ insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00
 select ix+0 from t1;
 drop table t1;
 
-#
-# Test for TIMESTAMP column with default now() and on update now() clauses
-#
-
-# These statements should fail.
---error 1293
-create table t1 (t1 timestamp, t2 timestamp default now());
---error 1293
-create table t1 (t1 timestamp, t2 timestamp on update now());
---error 1293
-create table t1 (t1 timestamp, t2 timestamp default now() on update now());
---error 1293
-create table t1 (t1 timestamp default now(), t2 timestamp on update now());
---error 1293
-create table t1 (t1 timestamp on update now(), t2 timestamp default now() on update now());
-
 # Let us test TIMESTAMP auto-update behaviour
 # Also we will test behaviour of TIMESTAMP field in SHOW CREATE TABLE and
 # behaviour of DEFAULT literal for such fields

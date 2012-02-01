@@ -226,8 +226,6 @@ int ha_heap::write_row(uchar * buf)
 {
   int res;
   ha_statistic_increment(&SSV::ha_write_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->get_timestamp_field()->set_time();
   if (table->next_number_field && buf == table->record[0])
   {
     if ((res= update_auto_increment()))
@@ -250,8 +248,6 @@ int ha_heap::update_row(const uchar * old_data, uchar * new_data)
 {
   int res;
   ha_statistic_increment(&SSV::ha_update_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->get_timestamp_field()->set_time();
   res= heap_update(file,old_data,new_data);
   if (!res && ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > 
               file->s->records)

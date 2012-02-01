@@ -3,8 +3,6 @@ Warnings:
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 grant select on test.* to test_nopw;
 grant select on test.* to test_oldpw identified by password "09301740536db389";
-Warnings:
-Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 grant select on test.* to test_newpw identified by "newpw";
 select user(), current_user(), database();
 user()	current_user()	database()
