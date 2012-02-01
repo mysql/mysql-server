@@ -1,0 +1,12 @@
+CREATE TABLE t (a INT PRIMARY KEY, c TEXT) ENGINE=InnoDB;
+INSERT INTO t VALUES (1,'aa');
+SET DEBUG_SYNC='row_log_apply_before SIGNAL created WAIT_FOR dml_done';
+CREATE INDEX c1 ON t (c(1));
+SET DEBUG_SYNC='now WAIT_FOR created';
+UPDATE t SET c='ab';
+SELECT SLEEP(10);
+SLEEP(10)
+0
+SET DEBUG_SYNC='now SIGNAL dml_done';
+SET DEBUG_SYNC='RESET';
+DROP TABLE t;

@@ -100,7 +100,10 @@ row_log_online_op(
 	ut_ad(dtuple_validate(tuple));
 	ut_ad(dtuple_get_n_fields(tuple) == dict_index_get_n_fields(index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED)
+	      == (op != ROW_OP_PURGE));
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX)
+	      == (op == ROW_OP_PURGE));
 #endif /* UNIV_SYNC_DEBUG */
 
 #ifdef UNIV_DEBUG
