@@ -834,21 +834,24 @@ srv_release_threads(
 
 		slot = srv_table_get_nth_slot(i);
 
-		if (slot->in_use
-		    && slot->suspended
-		    && srv_slot_get_type(slot) == type) {
+		if (slot->in_use && srv_slot_get_type(slot) == type) {
 
-			slot->suspended = FALSE;
-
-			srv_sys->n_threads_active[type]++;
-
-			os_event_set(slot->event);
-
-			count = (count == ULINT_UNDEFINED) ? 1 : count + 1;
-
-			if (count == n) {
-				break;
+			if (count == ULINT_UNDEFINED) {
+				count = 0;
 			}
+
+			if (slot->suspended) {
+				slot->suspended = FALSE;
+
+				srv_sys->n_threads_active[type]++;
+
+				os_event_set(slot->event);
+
+				if (count == n) {
+					break;
+				}
+			}
+
 		/* We have only one master thread and it should be the
 		first entry always. */
 		} else if (type == SRV_MASTER) {
