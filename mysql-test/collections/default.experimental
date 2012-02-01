@@ -9,10 +9,39 @@ main.func_math @freebsd                  # Bug#11751977 2010-05-04 alik main.fun
 main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
 main.signal_demo3 @solaris               # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_none @solaris           # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_none_bka @solaris       # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrunbzr rename 
-main.subquery_sj_none_bkaunique @solaris # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_none_bka_nixbnl @solaris # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
+main.subquery_sj_all_bka_nixbnl @solaris
+main.subquery_sj_all_bka @solaris
+main.subquery_sj_all_bkaunique @solaris
+main.subquery_sj_all @solaris
+main.subquery_sj_dupsweed_bka_nixbnl @solaris
+main.subquery_sj_dupsweed_bka @solaris
+main.subquery_sj_dupsweed_bkaunique @solaris
+main.subquery_sj_dupsweed @solaris
+main.subquery_sj_firstmatch_bka_nixbnl @solaris
+main.subquery_sj_firstmatch_bka @solaris
+main.subquery_sj_firstmatch_bkaunique @solaris
+main.subquery_sj_firstmatch @solaris
+main.subquery_sj_innodb_all_bka_nixbnl @solaris
+main.subquery_sj_innodb_all_bka @solaris
+main.subquery_sj_innodb_all_bkaunique @solaris
+main.subquery_sj_innodb_all @solaris
+main.subquery_sj_innodb_none_bka_nixbnl @solaris
+main.subquery_sj_innodb_none_bka @solaris
+main.subquery_sj_innodb_none_bkaunique @solaris
+main.subquery_sj_innodb_none @solaris
+main.subquery_sj_loosescan_bka_nixbnl @solaris
+main.subquery_sj_loosescan_bka @solaris
+main.subquery_sj_loosescan_bkaunique @solaris
+main.subquery_sj_loosescan @solaris
+main.subquery_sj_mat_bka_nixbnl @solaris
+main.subquery_sj_mat_bka @solaris
+main.subquery_sj_mat_bkaunique @solaris
+main.subquery_sj_mat_nosj @solaris
+main.subquery_sj_mat @solaris
+main.subquery_sj_none_bka_nixbnl @solaris
+main.subquery_sj_none_bka @solaris
+main.subquery_sj_none_bkaunique @solaris
+main.subquery_sj_none @solaris
 main.kill @freebsd                       # Bug#12619719 2011-08-04 Occasional failure in PB2
 
 innodb.innodb_monitor                    # Bug#12320827 2011-08-04 Occasional failure in PB2
