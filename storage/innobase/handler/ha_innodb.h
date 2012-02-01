@@ -524,7 +524,7 @@ innobase_fts_check_doc_id_index(
 						or NULL if none */
 	ulint*			fts_doc_col_no)	/*!< out: The column number for
 						Doc ID */
-	__attribute((nonnull(1), warn_unused_result));
+	__attribute__((nonnull(1), warn_unused_result));
 
 /*******************************************************************//**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME

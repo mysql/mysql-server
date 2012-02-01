@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -167,7 +167,7 @@ row_merge_drop_indexes(
 	dict_table_t*	table,	/*!< in/out: table containing the indexes */
 	ibool		locked)	/*!< in: TRUE=table locked,
 				FALSE=may need to do a lazy drop */
-	__attribute((nonnull));
+	__attribute__((nonnull));
 /*********************************************************************//**
 Drop all partially created indexes during crash recovery. */
 UNIV_INTERN
