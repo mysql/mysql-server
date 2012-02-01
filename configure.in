@@ -2034,7 +2034,7 @@ dnl Checks for library functions.
 AC_FUNC_ALLOCA
 AC_PROG_GCC_TRADITIONAL
 AC_TYPE_SIGNAL
-AC_CHECK_FUNCS(re_comp regcomp strdup)
+AC_CHECK_FUNCS(re_comp regcomp strdup strndup)
 
 dnl Sun compilers have their own vis.h that is about something
 dnl totally different. So, not to change the libedit source, we

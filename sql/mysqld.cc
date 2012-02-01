@@ -1588,7 +1588,6 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_delayed_insert);
   (void) pthread_mutex_destroy(&LOCK_delayed_status);
   (void) pthread_mutex_destroy(&LOCK_delayed_create);
-  (void) pthread_mutex_destroy(&LOCK_manager);
   (void) pthread_mutex_destroy(&LOCK_crypt);
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
@@ -1629,7 +1628,6 @@ static void clean_up_mutexes()
   (void) pthread_cond_destroy(&COND_global_read_lock);
   (void) pthread_cond_destroy(&COND_thread_cache);
   (void) pthread_cond_destroy(&COND_flush_thread_cache);
-  (void) pthread_cond_destroy(&COND_manager);
   DBUG_VOID_RETURN;
 }
 
@@ -3887,7 +3885,6 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_delayed_insert,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_delayed_status,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_delayed_create,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_manager,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_crypt,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
@@ -3927,7 +3924,6 @@ static int init_thread_environment()
   (void) pthread_cond_init(&COND_global_read_lock,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
-  (void) pthread_cond_init(&COND_manager,NULL);
 #ifdef HAVE_REPLICATION
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_rpl_status, NULL);

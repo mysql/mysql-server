@@ -191,7 +191,8 @@ bool end_active_trans(THD *thd)
     if (ha_commit(thd))
       error=1;
 #ifdef WITH_ARIA_STORAGE_ENGINE
-    ha_maria::implicit_commit(thd, TRUE);
+    if (ha_storage_engine_is_enabled(maria_hton))
+      ha_maria::implicit_commit(thd, TRUE);
 #endif
   }
   thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
@@ -1231,6 +1232,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       char *beginning_of_next_stmt= (char*) end_of_stmt;
 
 #ifdef WITH_ARIA_STORAGE_ENGINE
+    if (ha_storage_engine_is_enabled(maria_hton))
       ha_maria::implicit_commit(thd, FALSE);
 #endif
 
@@ -1608,7 +1610,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->transaction.stmt.reset();
 
 #ifdef WITH_ARIA_STORAGE_ENGINE
-  ha_maria::implicit_commit(thd, FALSE);
+    if (ha_storage_engine_is_enabled(maria_hton))
+      ha_maria::implicit_commit(thd, FALSE);
 #endif
 
   if (!(sql_command_flags[thd->lex->sql_command] & CF_CHANGES_DATA))

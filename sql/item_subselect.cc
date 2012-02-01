@@ -1586,7 +1586,6 @@ Item_in_subselect::single_value_transformer(JOIN *join)
                               (Item**)optimizer->get_cache(),
 			      (char *)"<no matter>",
 			      (char *)in_left_expr_name);
-
   }
 
   DBUG_RETURN(false);
@@ -2229,7 +2228,12 @@ bool Item_in_subselect::create_in_to_exists_cond(JOIN *join_arg)
   /*
     The IN=>EXISTS transformation makes non-correlated subqueries correlated.
   */
-  join_arg->select_lex->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
+  if (!left_expr->const_item() || left_expr->is_expensive())
+  {
+    join_arg->select_lex->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
+    join_arg->select_lex->master_unit()->uncacheable|= 
+                                         UNCACHEABLE_DEPENDENT_INJECTED;
+  }
   /*
     The uncacheable property controls a number of actions, e.g. whether to
     save/restore (via init_save_join_tab/restore_tmp) the original JOIN for
@@ -2495,6 +2499,7 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
       left_expr && !left_expr->fixed &&
       left_expr->fix_fields(thd_arg, &left_expr))
     return TRUE;
+  else
   if (Item_subselect::fix_fields(thd_arg, ref))
     return TRUE;
   fixed= TRUE;
@@ -3142,6 +3147,8 @@ bool subselect_uniquesubquery_engine::copy_ref_key()
 
   for (store_key **copy= tab->ref.key_copy ; *copy ; copy++)
   {
+    if ((*copy)->store_key_is_const())
+      continue;
     tab->ref.key_err= (*copy)->copy();
 
     /*

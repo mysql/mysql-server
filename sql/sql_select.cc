@@ -10332,6 +10332,15 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
   }
   
 
+  /*
+    Cleanup to avoid interference of calls of this function for
+    ORDER BY and GROUP BY
+  */
+  for (JOIN_TAB *tab= join->join_tab + join->const_tables;
+       tab < join->join_tab + join->table_count;
+       tab++)
+    tab->cached_eq_ref_table= FALSE;
+
   prev_ptr= &first_order;
   *simple_order= *join->join_tab[join->const_tables].on_expr_ref ? 0 : 1;
 
@@ -18390,7 +18399,6 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     table->sort.io_cache= NULL;
 
     select->cleanup();				// filesort did select
-    tab->select= 0;
     table->quick_keys.clear_all();  // as far as we cleanup select->quick
     table->intersect_keys.clear_all();
     table->sort.io_cache= tablesort_result_cache;

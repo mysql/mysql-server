@@ -9168,6 +9168,8 @@ table_map Item_ref_null_helper::used_tables() const
 }
 
 
+#ifndef DBUG_OFF
+
 /* Debugger help function */
 static char dbug_item_print_buf[256];
 
@@ -9184,6 +9186,9 @@ const char *dbug_print_item(Item *item)
   else
     return "Couldn't fit into buffer";
 }
+
+#endif /*DBUG_OFF*/
+
 /*****************************************************************************
 ** Instantiate templates
 *****************************************************************************/

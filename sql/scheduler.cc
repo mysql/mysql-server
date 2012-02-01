@@ -512,7 +512,7 @@ static void libevent_connection_close(THD *thd)
 
   thd->killed= KILL_CONNECTION;                // Avoid error messages
 
-  if (thd->net.vio->sd >= 0)                  // not already closed
+  if (thd->net.vio->type != VIO_CLOSED) // not already closed
   {
     end_connection(thd);
     close_connection(thd, 0, 1);

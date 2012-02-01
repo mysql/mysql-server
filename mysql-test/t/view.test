@@ -3980,7 +3980,6 @@ drop table t1,t2;
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.
 --echo # -----------------------------------------------------------------
-
 --echo #
 --echo # Bug #59696 Optimizer does not use equalities for conditions over view 
 --echo #
