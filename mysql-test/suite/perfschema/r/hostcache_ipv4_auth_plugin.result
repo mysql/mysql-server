@@ -3,9 +3,6 @@ flush hosts;
 select @@global.debug;
 @@global.debug
 
-show global status like "%peer%";
-Variable_name	Value
-Peer_address_errors	0
 CREATE USER 'plug'@'santa.claus.ipv4.example.com'
   IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 CREATE USER 'plug_dest'@'santa.claus.ipv4.example.com'

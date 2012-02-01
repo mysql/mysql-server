@@ -18,7 +18,6 @@ call mtr.add_suppression("santa.claus.ipv6.example.com");
 flush status;
 flush hosts;
 select @@global.debug;
-show global status like "%peer%";
 
 grant select on test.* to 'root'@'santa.claus.ipv6.example.com';
 grant select on test.* to 'root'@'2001:db8::6:6';

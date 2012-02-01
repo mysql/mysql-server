@@ -237,7 +237,12 @@ extern I_List<THD> threads;
 extern char err_shared_dir[];
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
-extern ulong peer_addr_errors;
+extern ulong connection_select_errors;
+extern ulong connection_accept_errors;
+extern ulong connection_tcpwrap_errors;
+extern ulong connection_internal_errors;
+extern ulong connection_max_connection_errors;
+extern ulong connection_peer_addr_errors;
 extern ulong log_warnings;
 
 /*

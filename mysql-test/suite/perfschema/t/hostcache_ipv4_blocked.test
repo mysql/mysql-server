@@ -18,7 +18,6 @@ flush user_resources;
 select @@global.debug;
 select @@global.max_connect_errors;
 select @@global.max_connect_errors into @saved_max_connect_errors;
-show global status like "%peer%";
 
 set global max_connect_errors = 2;
 

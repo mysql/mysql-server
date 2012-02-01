@@ -12,7 +12,7 @@
 flush status;
 flush hosts;
 select @@global.debug;
-show global status like "%peer%";
+show global status like "connection_%_errors";
 
 connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 select "Con1 is alive";
@@ -28,7 +28,7 @@ connect (con2,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
-show global status like "%peer%";
+show global status like "connection_%_errors";
 --source ../include/hostcache_dump.inc
 
 --disable_query_log
@@ -37,11 +37,11 @@ connect (con3,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
-show global status like "%peer%";
+show global status like "connection_%_errors";
 --source ../include/hostcache_dump.inc
 
 set global debug= default;
 
 flush status;
-show global status like "%peer%";
+show global status like "connection_%_errors";
 

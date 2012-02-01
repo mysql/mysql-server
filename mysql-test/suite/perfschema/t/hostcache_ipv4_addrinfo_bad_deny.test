@@ -19,7 +19,6 @@ call mtr.add_suppression("santa.claus.ipv4.example.com");
 flush status;
 flush hosts;
 select @@global.debug;
-show global status like "%peer%";
 
 connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 select "Con1 is alive";

@@ -24,7 +24,6 @@ select @@global.debug;
 select @@global.max_user_connections;
 select @@global.max_connections;
 select @@global.max_connections into @saved_max_connections;
-show global status like "%peer%";
 
 create user 'quota'@'santa.claus.ipv6.example.com';
 grant select on test.* to 'quota'@'santa.claus.ipv6.example.com';

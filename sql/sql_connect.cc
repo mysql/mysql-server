@@ -443,7 +443,10 @@ bool init_new_connection_handler_thread()
 {
   pthread_detach_this_thread();
   if (my_thread_init())
+  {
+    connection_internal_errors++;
     return 1;
+  }
   return 0;
 }
 
@@ -548,13 +551,18 @@ static int check_connection(THD *thd)
         there is nothing to show in the host_cache,
         so increment the global status variable "peer_address_errors".
       */
-      statistic_increment(peer_addr_errors, &LOCK_status);
+      statistic_increment(connection_peer_addr_errors, &LOCK_status);
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
     {
-      /* FIXME: no error accounting in host_cache. */
+      /*
+        No error accounting per IP in host_cache,
+        this is treated as a global server OOM error.
+        TODO: remove the need for my_strdup.
+      */
+      connection_internal_errors++;
       return 1; /* The error is set by my_strdup(). */
     }
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
@@ -608,7 +616,18 @@ static int check_connection(THD *thd)
 
   if (thd->packet.alloc(thd->variables.net_buffer_length))
   {
-    /* FIXME: no error accounting in host_cache. */
+    /*
+      Important note:
+      net_buffer_length is a SESSION variable,
+      so it may be tempting to account OOM conditions per IP in the HOST_CACHE,
+      in case some clients are more demanding than others ...
+      However, this session variable is *not* initialized with a per client
+      value during the initial connection, it is initialized from the
+      GLOBAL net_buffer_length variable from the server.
+      Hence, there is no reason to account on OOM conditions per client IP,
+      we count failures in the global server status instead.
+    */
+    connection_internal_errors++;
     return 1; /* The error is set by alloc(). */
   }
 
