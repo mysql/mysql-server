@@ -629,6 +629,7 @@ UNIV_INTERN
 ibool
 buf_page_is_corrupted(
 /*==================*/
+	bool		import,		/*!< in: true if IMPORT in progress */
 	const byte*	read_buf,	/*!< in: a database page */
 	ulint		zip_size);	/*!< in: size of compressed page;
 					0 for uncompressed pages */
