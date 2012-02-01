@@ -188,7 +188,7 @@ create table `articles`(`a` varchar(2) not null)engine=innodb;
 
 # This create index should fail. FTS_DOC_ID_INDEX is reserved as a unique
 # index on FTS_DOC_ID
---error ER_UNSUPPORTED_EXTENSION
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
 create fulltext index `FTS_DOC_ID_INDEX` on `articles`(`a`);
 
 create unique index `a` on `articles`(`a`);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -40,6 +40,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0rnd.h"
 #include "ut0byte.h"
 #include "trx0types.h"
+#include "row0types.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "sync0sync.h"
@@ -77,7 +78,11 @@ dict_table_t*
 dict_table_open_on_id(
 /*==================*/
 	table_id_t	table_id,	/*!< in: table id */
-	ibool		dict_locked);	/*!< in: TRUE=data dictionary locked */
+	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
+	ibool		try_drop)	/*!< in: TRUE=try to drop any orphan
+					indexes after an aborted online
+					index creation */
+	__attribute__((warn_unused_result));
 /********************************************************************//**
 Decrements the count of open handles to a table. */
 UNIV_INTERN
@@ -85,7 +90,11 @@ void
 dict_table_close(
 /*=============*/
 	dict_table_t*	table,		/*!< in/out: table */
-	ibool		dict_locked);	/*!< in: TRUE=data dictionary locked */
+	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
+	ibool		try_drop)	/*!< in: TRUE=try to drop any orphan
+					indexes after an aborted online
+					index creation */
+	__attribute__((nonnull));
 /**********************************************************************//**
 Inits the data dictionary module. */
 UNIV_INTERN
@@ -352,16 +361,19 @@ ibool
 dict_table_is_referenced_by_foreign_key(
 /*====================================*/
 	const dict_table_t*	table);	/*!< in: InnoDB table */
+#if 1 /* TODO: enable this in WL#6049 (MDL for FK lookups) */
 /**********************************************************************//**
-Replace the index in the foreign key list that matches this index's
-definition with an equivalent index. */
+Replace the index passed in with another equivalent index in the
+foreign key lists of the table. */
 UNIV_INTERN
 void
-dict_table_replace_index_in_foreign_list(
-/*=====================================*/
-	dict_table_t*	table,  /*!< in/out: table */
-	dict_index_t*	index,	/*!< in: index to be replaced */
-	const trx_t*	trx);	/*!< in: transaction handle */
+dict_foreign_replace_index(
+/*=======================*/
+	dict_table_t*		table,  /*!< in/out: table */
+	const dict_index_t*	index,	/*!< in: index to be replaced */
+	const trx_t*		trx)	/*!< in: transaction handle */
+	__attribute__((nonnull));
+#endif
 /**********************************************************************//**
 Determines whether a string starts with the specified keyword.
 @return TRUE if str starts with keyword */
@@ -371,7 +383,8 @@ dict_str_starts_with_keyword(
 /*=========================*/
 	void*		mysql_thd,	/*!< in: MySQL thread handle */
 	const char*	str,		/*!< in: string to scan for keyword */
-	const char*	keyword);	/*!< in: keyword to look for */
+	const char*	keyword)	/*!< in: keyword to look for */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Checks if a index is defined for a foreign key constraint. Index is a part
 of a foreign key constraint if the index is referenced by foreign key
@@ -439,7 +452,11 @@ dict_table_t*
 dict_table_open_on_name(
 /*====================*/
 	const char*	table_name,	/*!< in: table name */
-	ibool		dict_locked);	/*!< in: TRUE=data dictionary locked */
+	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
+	ibool		try_drop)	/*!< in: TRUE=try to drop any orphan
+					indexes after an aborted online
+					index creation */
+	__attribute__((nonnull, warn_unused_result));
 
 /**********************************************************************//**
 Returns a table object and increment its open handle count. Table
@@ -452,18 +469,38 @@ dict_table_open_on_name_no_stats(
 /*=============================*/
 	const char*	table_name,	/*!< in: table name */
 	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
+	ibool		try_drop,	/*!< in: TRUE=try to drop any orphan
+					indexes after an aborted online
+					index creation */
 	dict_err_ignore_t
-			ignore_err);	/*!< in: error to be ignored when
+			ignore_err)	/*!< in: error to be ignored when
 					loading the table */
-/**********************************************************************//**
-Find an index that is equivalent to the one passed in and is not marked
-for deletion.
-@return	index equivalent to foreign->foreign_index, or NULL */
+	__attribute__((nonnull, warn_unused_result));
+/*********************************************************************//**
+Tries to find an index whose first fields are the columns in the array,
+in the same order and is not marked for deletion and is not the same
+as types_idx.
+@return	matching index, NULL if not found */
 UNIV_INTERN
 dict_index_t*
-dict_foreign_find_equiv_index(
-/*==========================*/
-	dict_foreign_t*	foreign);/*!< in: foreign key */
+dict_foreign_find_index(
+/*====================*/
+	const dict_table_t*	table,	/*!< in: table */
+	const char**		columns,/*!< in: array of column names */
+	ulint			n_cols,	/*!< in: number of columns */
+	const dict_index_t*	types_idx,
+					/*!< in: NULL or an index
+					whose types the column types
+					must match */
+	ibool			check_charsets,
+					/*!< in: whether to check
+					charsets.  only has an effect
+					if types_idx != NULL */
+	ulint			check_null)
+					/*!< in: nonzero if none of
+					the columns must be declared
+					NOT NULL */
+	__attribute__((nonnull(1,2), warn_unused_result));
 /**********************************************************************//**
 Returns an index object by matching on the name and column names and
 if more than one index matches return the index with the max id
@@ -1065,6 +1102,15 @@ dict_index_check_search_tuple(
 /*==========================*/
 	const dict_index_t*	index,	/*!< in: index tree */
 	const dtuple_t*		tuple);	/*!< in: tuple used in a search */
+/** Whether and when to allow temporary index names */
+enum check_name {
+	/** Require all indexes to be complete. */
+	CHECK_ALL_COMPLETE,
+	/** Allow aborted online index creation. */
+	CHECK_ABORTED_OK,
+	/** Allow partial indexes to exist. */
+	CHECK_PARTIAL_OK
+};
 /**********************************************************************//**
 Check for duplicate index entries in a table [using the index name] */
 UNIV_INTERN
@@ -1073,8 +1119,9 @@ dict_table_check_for_dup_indexes(
 /*=============================*/
 	const dict_table_t*	table,	/*!< in: Check for dup indexes
 					in this table */
-	ibool			tmp_ok);/*!< in: TRUE=allow temporary
-					index names */
+	enum check_name		check)	/*!< in: whether and when to allow
+					temporary index names */
+	__attribute__((nonnull));
 #endif /* UNIV_DEBUG */
 /**********************************************************************//**
 Builds a node pointer out of a physical record and a page number.
@@ -1167,6 +1214,62 @@ UNIV_INLINE
 ulint
 dict_index_get_space_reserve(void);
 /*==============================*/
+
+/* Online index creation @{ */
+/********************************************************************//**
+Gets the status of online index creation.
+@return the status */
+UNIV_INLINE
+enum online_index_status
+dict_index_get_online_status(
+/*=========================*/
+	const dict_index_t*	index)	/*!< in: secondary index */
+	__attribute__((nonnull, pure, warn_unused_result));
+/********************************************************************//**
+Sets the status of online index creation. */
+UNIV_INLINE
+void
+dict_index_set_online_status(
+/*=========================*/
+	dict_index_t*			index,	/*!< in/out: secondary index */
+	enum online_index_status	status)	/*!< in: status */
+	__attribute__((nonnull));
+/********************************************************************//**
+Determines if a secondary index is being or has been created online,
+allowing concurrent modifications to the table.
+@retval TRUE if the index is being or has been built online
+@retval FALSE if the index has been created completely */
+UNIV_INLINE
+ibool
+dict_index_is_online_ddl(
+/*=====================*/
+	const dict_index_t*	index)	/*!< in: index */
+	__attribute__((nonnull, warn_unused_result));
+
+/*********************************************************************//**
+Logs an operation to a secondary index that is being created. */
+UNIV_INTERN
+void
+dict_index_online_log(
+/*==================*/
+	dict_index_t*	index,	/*!< in/out: index, S-locked */
+	const dtuple_t*	entry,	/*!< in: index entry */
+	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
+	enum row_op	op)	/*!< in: operation */
+	UNIV_COLD __attribute__((nonnull));
+/*********************************************************************//**
+Attempts to log an operation on a secondary index that is being created.
+@return TRUE if the operation was logged or the index creation failed;
+FALSE if the index creation was completed */
+UNIV_INLINE
+ibool
+dict_index_online_trylog(
+/*=====================*/
+	dict_index_t*	index,	/*!< in/out: index */
+	const dtuple_t*	entry,	/*!< in: index entry */
+	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
+	enum row_op	op)	/*!< in: operation on the index entry */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Calculates the minimum record length in an index. */
 UNIV_INTERN

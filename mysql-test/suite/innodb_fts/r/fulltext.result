@@ -273,6 +273,8 @@ PRIMARY KEY  (id),
 KEY ind5 (title)
 ) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX ft1 ON t1(title);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 insert into t1 (title) values ('this is a test');
 select * from t1 where match title against ('test' in boolean mode);
 id	title

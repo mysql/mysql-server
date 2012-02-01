@@ -1549,9 +1549,9 @@ ALTER TABLE t1 DROP COLUMN c1, DROP COLUMN c2, DROP COLUMN c3;
 ALTER TABLE t1 ADD INDEX i1(b), LOCK= DEFAULT;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-# TODO: This should not fail once WL#5526 is pushed.
 ALTER TABLE t1 ADD INDEX i2(b), LOCK= NONE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD INDEX i2(b), LOCK= NONE'
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t1 ADD INDEX i3(b), LOCK= SHARED;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -1566,14 +1566,13 @@ ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE m1 ENABLE KE
 ALTER TABLE m1 ENABLE KEYS, LOCK= SHARED;
 ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE m1 ENABLE KEYS, LOCK= SHARED'
 ALTER TABLE m1 ENABLE KEYS, LOCK= EXCLUSIVE;
-# TODO: Drop i2 once WL#5526 is pushed.
-ALTER TABLE t1 DROP INDEX i1, DROP INDEX i3, DROP INDEX i4;
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
 #
 # 5: Test ALGORITHM + LOCK
 #
-# TODO: This should not fail once WL#5526 is pushed.
 ALTER TABLE t1 ADD INDEX i1(b), ALGORITHM= INPLACE, LOCK= NONE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD INDEX i1(b), ALGORITHM= INPLACE, LOCK= NONE'
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t1 ADD INDEX i2(b), ALGORITHM= INPLACE, LOCK= SHARED;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -1682,7 +1681,9 @@ affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD FULLTEXT INDEX ii3 (d);
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ALTER TABLE tm1 ADD FULLTEXT INDEX im3 (d);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1809,8 +1810,8 @@ ALTER TABLE tm1 CONVERT TO CHARACTER SET utf16;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 DEFAULT CHARACTER SET utf8;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 DEFAULT CHARACTER SET utf8;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1821,8 +1822,8 @@ ALTER TABLE tm1 FORCE;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 AUTO_INCREMENT 3;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 AUTO_INCREMENT 3;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1845,8 +1846,8 @@ ALTER TABLE tm1 COMMENT 'test';
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MAX_ROWS 100;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 MAX_ROWS 100;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1857,8 +1858,8 @@ ALTER TABLE tm1 MIN_ROWS 1;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 PACK_KEYS 1;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 PACK_KEYS 1;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1867,15 +1868,15 @@ DROP TABLE ti1, ti2, tm1, tm2;
 CREATE TABLE ti1(a INT PRIMARY KEY AUTO_INCREMENT, b INT) engine=InnoDB;
 INSERT INTO ti1(b) VALUES (1), (2);
 ALTER TABLE ti1 RENAME TO ti3, ADD INDEX ii1(b);
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE ti3 DROP INDEX ii1, AUTO_INCREMENT 5;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti3 DROP INDEX ii1, AUTO_INCREMENT 5;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 INSERT INTO ti3(b) VALUES (5);
 ALTER TABLE ti3 ADD INDEX ii1(b), AUTO_INCREMENT 7;
-affected rows: 3
-info: Records: 3  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 INSERT INTO ti3(b) VALUES (7);
 SELECT * FROM ti3;
 a	b

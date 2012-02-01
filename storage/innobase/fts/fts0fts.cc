@@ -5763,7 +5763,8 @@ fts_check_and_drop_orphaned_tables(
 		sys_table = static_cast<fts_sys_table_t*>(
 			ib_vector_get(tables, i));
 
-		table = dict_table_open_on_id(sys_table->parent_id, FALSE);
+		table = dict_table_open_on_id(
+			sys_table->parent_id, FALSE, FALSE);
 
 		if (table == NULL || table->fts == NULL) {
 
@@ -5794,7 +5795,7 @@ fts_check_and_drop_orphaned_tables(
 		}
 
 		if (table) {
-			dict_table_close(table, FALSE);
+			dict_table_close(table, FALSE, FALSE);
 		}
 
 		if (drop) {

@@ -1,0 +1,256 @@
+call mtr.add_suppression("Cannot find index .*c2 in InnoDB index translation table");
+call mtr.add_suppression("Find index .*c2 in InnoDB index list but not its MySQL index number");
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+SET GLOBAL innodb_monitor_enable=module_ddl;
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
+SET DEBUG_SYNC='write_row_noreplace SIGNAL have_handle WAIT_FOR go_ahead';
+INSERT INTO t1 VALUES(1,2,3);
+SET DEBUG_SYNC='now WAIT_FOR have_handle';
+SET lock_wait_timeout=1;
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC='now SIGNAL go_ahead';
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
+SET SESSION DEBUG='+d,innodb_OOM_prepare_inplace_alter';
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SET SESSION DEBUG='-d,innodb_OOM_prepare_inplace_alter';
+SET SESSION DEBUG='+d,innodb_OOM_inplace_alter';
+CREATE UNIQUE INDEX c2 ON t1(c2);
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SET SESSION DEBUG='-d,innodb_OOM_inplace_alter';
+CREATE UNIQUE INDEX c2 ON t1(c2);
+DROP INDEX c2 ON t1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+BEGIN;
+INSERT INTO t1 VALUES(7,4,2);
+SET DEBUG_SYNC='row_log_apply_before SIGNAL scanned WAIT_FOR rollback_done';
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+COMMIT;
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+ERROR 23000: Duplicate entry '4' for key 'c2'
+DELETE FROM t1 WHERE c1=7;
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+SET DEBUG_SYNC='now WAIT_FOR scanned';
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	1
+ddl_pending_alter_table	1
+BEGIN;
+INSERT INTO t1 VALUES(7,4,2);
+ROLLBACK;
+SET DEBUG_SYNC='now SIGNAL rollback_done';
+ERROR 23000: Duplicate entry '4' for key 'c2'
+SET DEBUG_SYNC='row_log_apply_after SIGNAL created WAIT_FOR dml_done';
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+SET DEBUG_SYNC='now WAIT_FOR created';
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	1
+INSERT INTO t1 VALUES(6,3,1);
+ERROR 23000: Can't write; duplicate key in table 't1'
+SET DEBUG_SYNC='now SIGNAL dml_done';
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
+INSERT INTO t1 VALUES(6,3,1);
+ERROR 23000: Duplicate entry '3' for key 'c2'
+INSERT INTO t1 VALUES(7,4,2);
+ERROR 23000: Duplicate entry '4' for key 'c2'
+SET SESSION innodb_analyze_is_persistent=1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT * FROM mysql.innodb_index_stats;
+database_name	table_name	index_name	last_update	stat_name	stat_value	sample_size	stat_description
+test	t1	PRIMARY	LAST_UPDATE	n_diff_pfx01	5	1	c1
+test	t1	PRIMARY	LAST_UPDATE	n_leaf_pages	1	NULL	Number of leaf pages in the index
+test	t1	PRIMARY	LAST_UPDATE	size	1	NULL	Number of pages in the index
+test	t1	c2	LAST_UPDATE	n_diff_pfx01	5	1	c2
+test	t1	c2	LAST_UPDATE	n_leaf_pages	1	NULL	Number of leaf pages in the index
+test	t1	c2	LAST_UPDATE	size	1	NULL	Number of pages in the index
+CREATE TABLE t1_c2_stats SELECT * FROM mysql.innodb_index_stats
+WHERE database_name='test' AND table_name='t1' and index_name='c2';
+DROP INDEX c2 ON t1;
+SELECT * FROM mysql.innodb_index_stats;
+database_name	table_name	index_name	last_update	stat_name	stat_value	sample_size	stat_description
+test	t1	PRIMARY	LAST_UPDATE	n_diff_pfx01	5	1	c1
+test	t1	PRIMARY	LAST_UPDATE	n_leaf_pages	1	NULL	Number of leaf pages in the index
+test	t1	PRIMARY	LAST_UPDATE	size	1	NULL	Number of pages in the index
+KILL QUERY @id;
+ERROR 70100: Query execution was interrupted
+SET DEBUG_SYNC='row_log_apply_before SIGNAL c2d_created WAIT_FOR kill_done';
+CREATE INDEX c2d ON t1(c2);
+SET DEBUG_SYNC='now WAIT_FOR c2d_created';
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	1
+ddl_pending_alter_table	1
+KILL QUERY @id;
+SET DEBUG_SYNC='now SIGNAL kill_done';
+ERROR 70100: Query execution was interrupted
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 SELECT 5+c1,c2,c3 FROM t1;
+INSERT INTO t1 SELECT 10+c1,c2,c3 FROM t1;
+INSERT INTO t1 SELECT 20+c1,c2,c3 FROM t1;
+INSERT INTO t1 SELECT 40+c1,c2,c3 FROM t1;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2>3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+UPDATE t1_c2_stats SET index_name='c2d';
+UPDATE t1_c2_stats SET stat_value=2 WHERE stat_name='n_diff_pfx01';
+INSERT INTO t1_c2_stats
+SELECT database_name,table_name,index_name,last_update,'n_diff_pfx02',80,
+sample_size,'c2,c1' FROM t1_c2_stats
+WHERE stat_name='n_diff_pfx01' AND stat_description='c2';
+INSERT INTO mysql.innodb_index_stats SELECT * FROM t1_c2_stats;
+DROP TABLE t1_c2_stats;
+CREATE INDEX c2d ON t1(c2);
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	c1	A	80	NULL	NULL		BTREE		
+t1	1	c2d	1	c2	A	4	NULL	NULL	YES	BTREE		
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2>3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c2d	c2d	5	NULL	32	Using where; Using index
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `c2d` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SET DEBUG_SYNC='row_log_apply_before SIGNAL c2e_created WAIT_FOR dml2_done';
+ALTER TABLE t1 DROP INDEX c2d, ADD INDEX c2e(c2);
+INSERT INTO t1 SELECT 80+c1,c2,c3 FROM t1;
+INSERT INTO t1 SELECT 160+c1,c2,c3 FROM t1;
+UPDATE t1 SET c2=c2+1;
+SET DEBUG_SYNC='now WAIT_FOR c2e_created';
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	1
+ddl_pending_alter_table	1
+BEGIN;
+DELETE FROM t1;
+ROLLBACK;
+UPDATE t1 SET c2=c2+1;
+BEGIN;
+UPDATE t1 SET c2=c2+1;
+DELETE FROM t1;
+ROLLBACK;
+BEGIN;
+DELETE FROM t1;
+ROLLBACK;
+UPDATE t1 SET c2=c2+1;
+BEGIN;
+UPDATE t1 SET c2=c2+1;
+DELETE FROM t1;
+ROLLBACK;
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	1
+ddl_pending_alter_table	1
+SET DEBUG_SYNC='now SIGNAL dml2_done';
+ERROR HY000: Creating index 'c2e' required more than 'innodb_online_alter_log_max_size' bytes of modification log. Please try again.
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	1
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
+ALTER TABLE t1 COMMENT 'testing if c2e will be dropped';
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
+SET GLOBAL innodb_monitor_disable=module_ddl;
+SET DEBUG_SYNC='row_log_apply_before SIGNAL c2f_created WAIT_FOR dml3_done';
+ALTER TABLE t1 ADD INDEX c2f(c2);
+SET DEBUG_SYNC='now WAIT_FOR c2f_created';
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
+BEGIN;
+INSERT INTO t1 SELECT 320+c1,c2,c3 FROM t1 WHERE c1>160;
+DELETE FROM t1 WHERE c1>320;
+ROLLBACK;
+BEGIN;
+UPDATE t1 SET c2=c2+1;
+DELETE FROM t1;
+ROLLBACK;
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
+SET DEBUG_SYNC='now SIGNAL dml3_done';
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
+SELECT COUNT(c2) FROM t1;
+COUNT(c2)
+320
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SET DEBUG_SYNC='RESET';
+SET GLOBAL innodb_monitor_disable=module_ddl;
+DROP TABLE t1;
+SET GLOBAL innodb_monitor_enable=default;
+SET GLOBAL innodb_monitor_disable=default;

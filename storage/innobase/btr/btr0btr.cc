@@ -1959,6 +1959,7 @@ UNIV_INTERN
 rec_t*
 btr_root_raise_and_insert(
 /*======================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: cursor at which to insert: must be
 				on the root page; when the function returns,
 				the cursor is positioned on the predecessor
@@ -2116,7 +2117,7 @@ btr_root_raise_and_insert(
 			PAGE_CUR_LE, page_cursor);
 
 	/* Split the child and insert tuple */
-	return(btr_page_split_and_insert(cursor, tuple, n_ext, mtr));
+	return(btr_page_split_and_insert(flags, cursor, tuple, n_ext, mtr));
 }
 
 /*************************************************************//**
@@ -2445,6 +2446,7 @@ UNIV_INTERN
 void
 btr_insert_on_non_leaf_level_func(
 /*==============================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	dict_index_t*	index,	/*!< in: index */
 	ulint		level,	/*!< in: level, must be > 0 */
 	dtuple_t*	tuple,	/*!< in: the record to be inserted */
@@ -2463,7 +2465,8 @@ btr_insert_on_non_leaf_level_func(
 				    BTR_CONT_MODIFY_TREE,
 				    &cursor, 0, file, line, mtr);
 
-	err = btr_cur_pessimistic_insert(BTR_NO_LOCKING_FLAG
+	err = btr_cur_pessimistic_insert(flags
+					 | BTR_NO_LOCKING_FLAG
 					 | BTR_KEEP_SYS_FLAG
 					 | BTR_NO_UNDO_LOG_FLAG,
 					 &cursor, tuple, &rec,
@@ -2478,6 +2481,8 @@ static
 void
 btr_attach_half_pages(
 /*==================*/
+	ulint		flags,		/*!< in: undo logging and
+					locking flags */
 	dict_index_t*	index,		/*!< in: the index tree */
 	buf_block_t*	block,		/*!< in/out: page to be split */
 	const rec_t*	split_rec,	/*!< in: first record on upper
@@ -2555,7 +2560,8 @@ btr_attach_half_pages(
 	/* Insert it next to the pointer to the lower half. Note that this
 	may generate recursion leading to a split on the higher level. */
 
-	btr_insert_on_non_leaf_level(index, level + 1, node_ptr_upper, mtr);
+	btr_insert_on_non_leaf_level(flags, index, level + 1,
+				     node_ptr_upper, mtr);
 
 	/* Free the memory heap */
 	mem_heap_free(heap);
@@ -2648,6 +2654,7 @@ UNIV_INTERN
 rec_t*
 btr_page_split_and_insert(
 /*======================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: cursor at which to insert; when the
 				function returns, the cursor is positioned
 				on the predecessor of the inserted record */
@@ -2788,7 +2795,7 @@ insert_empty:
 
 	/* 4. Do first the modifications in the tree structure */
 
-	btr_attach_half_pages(cursor->index, block,
+	btr_attach_half_pages(flags, cursor->index, block,
 			      first_rec, new_block, direction, mtr);
 
 	/* If the split is made on the leaf level and the insert will fit
@@ -3187,8 +3194,8 @@ btr_node_ptr_delete(
 	/* Delete node pointer on father page */
 	btr_page_get_father(index, block, mtr, &cursor);
 
-	compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor, RB_NONE,
-						mtr);
+	compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor,
+						BTR_CREATE_FLAG, RB_NONE, mtr);
 	ut_a(err == DB_SUCCESS);
 
 	if (!compressed) {
@@ -4555,7 +4562,7 @@ btr_validate_index(
 
 	/* Full Text index are implemented by auxiliary tables,
 	not the B-tree */
-	if (index->type & DICT_FTS) {
+	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
 		return(TRUE);
 	}
 
