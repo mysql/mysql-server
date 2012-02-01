@@ -793,7 +793,7 @@ struct trx_struct{
 					transaction branch */
 	lsn_t		commit_lsn;	/*!< lsn at the time of the commit */
 	table_id_t	table_id;	/*!< Table to drop iff dict_operation
-					is TRUE, or 0. */
+					== TRX_DICT_OP_TABLE, or 0. */
 	/*------------------------------*/
 	void*		mysql_thd;	/*!< MySQL thread handle corresponding
 					to this trx, or NULL */

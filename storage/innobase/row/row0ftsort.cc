@@ -47,9 +47,6 @@ Created 10/13/2010 Jimmy Yang
 /** Parallel sort degree */
 UNIV_INTERN ulong	fts_sort_pll_degree	= 2;
 
-/** Parallel sort buffer size */
-UNIV_INTERN ulong	srv_sort_buf_size 	= 1048576;
-
 /*********************************************************************//**
 Create a temporary "fts sort index" used to merge sort the
 tokenized doc string. The index has three "fields":

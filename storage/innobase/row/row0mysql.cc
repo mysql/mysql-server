@@ -882,7 +882,7 @@ row_prebuilt_free(
 		mem_free(base);
 	}
 
-	dict_table_close(prebuilt->table, dict_locked);
+	dict_table_close(prebuilt->table, dict_locked, TRUE);
 
 	mem_heap_free(prebuilt->heap);
 }
@@ -2050,19 +2050,20 @@ output by the master thread. If the table name ends in "innodb_mem_validate",
 InnoDB will try to invoke mem_validate().
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-int
+enum db_err
 row_create_table_for_mysql(
 /*=======================*/
 	dict_table_t*	table,	/*!< in, own: table definition
-				(will be freed) */
-	trx_t*		trx)	/*!< in: transaction handle */
+				(will be freed, or on DB_SUCCESS
+				added to the data dictionary cache) */
+	trx_t*		trx)	/*!< in/out: transaction */
 {
 	tab_node_t*	node;
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
 	const char*	table_name;
 	ulint		table_name_len;
-	ulint		err;
+	enum db_err	err;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
@@ -2153,7 +2154,17 @@ err_exit:
 
 	heap = mem_heap_create(512);
 
-	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+	switch (trx_get_dict_operation(trx)) {
+	case TRX_DICT_OP_NONE:
+		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+	case TRX_DICT_OP_TABLE:
+		break;
+	case TRX_DICT_OP_INDEX:
+		/* If the transaction was previously flagged as
+		TRX_DICT_OP_INDEX, we should be creating auxiliary
+		tables for full-text indexes. */
+		ut_ad(strstr(table->name, "/FTS_") != NULL);
+	}
 
 	node = tab_create_graph_create(table, heap);
 
@@ -2180,7 +2191,7 @@ err_exit:
 		fputs(" because tablespace full\n", stderr);
 
 		if (dict_table_open_on_name_no_stats(
-			table->name, FALSE, DICT_ERR_IGNORE_NONE)) {
+			    table->name, FALSE, FALSE, DICT_ERR_IGNORE_NONE)) {
 
 			/* Make things easy for the drop table code. */
 
@@ -2188,7 +2199,7 @@ err_exit:
 				dict_table_move_from_lru_to_non_lru(table);
 			}
 
-			dict_table_close(table, FALSE);
+			dict_table_close(table, FALSE, FALSE);
 
 			row_drop_table_for_mysql(table->name, trx, FALSE);
 			trx_commit_for_mysql(trx);
@@ -2224,7 +2235,7 @@ err_exit:
 
 	trx->op_info = "";
 
-	return((int) err);
+	return(err);
 }
 
 /*********************************************************************//**
@@ -2255,7 +2266,7 @@ row_create_index_for_mysql(
 	char*		table_name;
 	char*		index_name;
 	dict_table_t*	table;
-	ibool		is_fts = FALSE;
+	ibool		is_fts;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
@@ -2272,7 +2283,7 @@ row_create_index_for_mysql(
 
 	is_fts = (index->type == DICT_FTS);
 
-	table = dict_table_open_on_name_no_stats(table_name, TRUE,
+	table = dict_table_open_on_name_no_stats(table_name, TRUE, TRUE,
 						 DICT_ERR_IGNORE_NONE);
 
 	trx_start_if_not_started_xa(trx);
@@ -2327,7 +2338,7 @@ row_create_index_for_mysql(
 	}
 
 error_handling:
-	dict_table_close(table, TRUE);
+	dict_table_close(table, TRUE, FALSE);
 
 	if (err != DB_SUCCESS) {
 		/* We have special error handling here */
@@ -2493,8 +2504,8 @@ loop:
 		return(n_tables + n_tables_dropped);
 	}
 
-	table = dict_table_open_on_name_no_stats(drop->table_name, FALSE,
-						 DICT_ERR_IGNORE_NONE);
+	table = dict_table_open_on_name_no_stats(
+		drop->table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 		/* If for some reason the table has already been dropped
@@ -2505,7 +2516,7 @@ loop:
 
 	ut_a(!table->can_be_evicted);
 
-	dict_table_close(table, FALSE);
+	dict_table_close(table, FALSE, FALSE);
 
 	if (DB_SUCCESS != row_drop_table_for_mysql_in_background(
 		    drop->table_name)) {
@@ -2667,7 +2678,7 @@ row_discard_tablespace_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	table = dict_table_open_on_name_no_stats(name, TRUE,
+	table = dict_table_open_on_name_no_stats(name, TRUE, FALSE,
 						 DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
@@ -2795,7 +2806,7 @@ row_discard_tablespace_for_mysql(
 funct_exit:
 
 	if (table != NULL) {
-		dict_table_close(table, TRUE);
+		dict_table_close(table, TRUE, FALSE);
 	}
 
 	trx_commit_for_mysql(trx);
@@ -2864,7 +2875,7 @@ row_import_tablespace_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	table = dict_table_open_on_name_no_stats(name, TRUE,
+	table = dict_table_open_on_name_no_stats(name, TRUE, FALSE,
 						 DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
@@ -2938,7 +2949,7 @@ row_import_tablespace_for_mysql(
 funct_exit:
 
 	if (table != NULL) {
-		dict_table_close(table, TRUE);
+		dict_table_close(table, TRUE, FALSE);
 	}
 
 	trx_commit_for_mysql(trx);
@@ -3472,7 +3483,7 @@ retry:
 #endif /* UNIV_SYNC_DEBUG */
 
 	table = dict_table_open_on_name_no_stats(
-		name, TRUE,
+		name, TRUE, FALSE,
 		static_cast<dict_err_ignore_t>(
 			DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT));
 
@@ -3533,7 +3544,7 @@ retry:
 		dict_table_move_from_lru_to_non_lru(table);
 	}
 
-	dict_table_close(table, TRUE);
+	dict_table_close(table, TRUE, FALSE);
 
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
@@ -3661,8 +3672,18 @@ check_next_foreign:
 
 	ut_a(!lock_table_has_locks(table));
 
-	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
-	trx->table_id = table->id;
+	switch (trx_get_dict_operation(trx)) {
+	case TRX_DICT_OP_NONE:
+		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+		trx->table_id = table->id;
+	case TRX_DICT_OP_TABLE:
+		break;
+	case TRX_DICT_OP_INDEX:
+		/* If the transaction was previously flagged as
+		TRX_DICT_OP_INDEX, we should be dropping auxiliary
+		tables for full-text indexes. */
+		ut_ad(strstr(table->name, "/FTS_") != NULL);
+	}
 
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in deleting the dictionary data from system
@@ -3746,7 +3767,7 @@ check_next_foreign:
 			   "DELETE FROM SYS_COLUMNS\n"
 			   "WHERE TABLE_ID = table_id;\n"
 			   "DELETE FROM SYS_TABLES\n"
-			   "WHERE ID = table_id;\n"
+			   "WHERE NAME = :table_name;\n"
 			   "END;\n"
 			   , FALSE, trx);
 
@@ -4065,8 +4086,9 @@ loop:
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
 		ut_a(memcmp(table_name, name, namelen) == 0);
 
-		table = dict_table_open_on_name_no_stats(table_name, TRUE,
-							 DICT_ERR_IGNORE_NONE);
+		table = dict_table_open_on_name_no_stats(
+			table_name, TRUE, FALSE,
+			DICT_ERR_IGNORE_NONE);
 
 		ut_a(table);
 		ut_a(!table->can_be_evicted);
@@ -4258,8 +4280,8 @@ row_rename_table_for_mysql(
 
 	dict_locked = trx->dict_operation_lock_mode == RW_X_LATCH;
 
-	table = dict_table_open_on_name_no_stats(old_name, dict_locked,
-						 DICT_ERR_IGNORE_NONE);
+	table = dict_table_open_on_name_no_stats(
+		old_name, dict_locked, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -4517,7 +4539,7 @@ end:
 funct_exit:
 
 	if (table != NULL) {
-		dict_table_close(table, dict_locked);
+		dict_table_close(table, dict_locked, FALSE);
 	}
 
 	if (commit) {
@@ -4569,7 +4591,7 @@ row_check_index_for_mysql(
 
 	/* Full Text index are implemented by auxiliary tables,
 	not the B-tree */
-	if (index->type & DICT_FTS) {
+	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
 		return(TRUE);
 	}
 

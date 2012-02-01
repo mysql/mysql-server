@@ -114,7 +114,9 @@ enum db_err {
 	DB_UNDO_RECORD_TOO_BIG,		/*!< the undo log record is too big */
 	DB_READ_ONLY,			/*!< Update operation attempted in
 					a read-only transaction */
-	DB_FTS_INVALID_DOCID,		/* FTS Doc ID cannot be zero */
+	DB_FTS_INVALID_DOCID,		/*!< FTS Doc ID cannot be zero */
+	DB_ONLINE_LOG_TOO_BIG,		/*!< Modification log grew too big
+					during online index creation */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

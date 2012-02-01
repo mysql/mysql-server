@@ -136,16 +136,16 @@ create table worklog5743_4(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=4;
 
 # Test edge cases for indexes using key_block_size=1
 set global innodb_large_prefix=0;
--- error 139
+-- error ER_TOO_BIG_ROWSIZE
 create index idx1 on worklog5743_1(a2(4000));
 show warnings;
--- error 139
+-- error ER_TOO_BIG_ROWSIZE
 create index idx3 on worklog5743_1(a2(436));
 show warnings;
 # Bug#13391353 Limit is one byte less on on 32bit-Linux only
 create index idx4 on worklog5743_1(a2(434));
 show warnings;
--- error 139
+-- error ER_TOO_BIG_ROWSIZE
 create index idx5 on worklog5743_1(a1, a2(430));
 show warnings;
 # Bug#13391353 Limit is one byte less on on 32bit-Linux only

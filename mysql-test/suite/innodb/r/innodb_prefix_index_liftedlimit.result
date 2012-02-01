@@ -1308,7 +1308,7 @@ AND col_2_text = REPEAT("o", 4000);
 col_1_text = REPEAT("c", 4000)
 ALTER TABLE worklog5743 DROP PRIMARY KEY;
 ALTER TABLE worklog5743 ADD PRIMARY KEY (col_1_text (950));
-ERROR HY000: Too big row
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
 SELECT col_1_text = REPEAT("a", 4000) FROM worklog5743;
 col_1_text = REPEAT("a", 4000)

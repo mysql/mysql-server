@@ -65,7 +65,11 @@ enum btr_latch_mode {
 	/** Search the previous record. */
 	BTR_SEARCH_PREV = 35,
 	/** Modify the previous record. */
-	BTR_MODIFY_PREV = 36
+	BTR_MODIFY_PREV = 36,
+	/** Apply records that were logged during online index creation. */
+	BTR_MODIFY_LEAF_APPLY_LOG = 37,
+	/** Apply records that were logged during online index creation. */
+	BTR_MODIFY_TREE_APPLY_LOG = 38
 };
 
 /* BTR_INSERT, BTR_DELETE and BTR_DELETE_MARK are mutually exclusive. */
@@ -395,6 +399,7 @@ UNIV_INTERN
 rec_t*
 btr_root_raise_and_insert(
 /*======================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: cursor at which to insert: must be
 				on the root page; when the function returns,
 				the cursor is positioned on the predecessor
@@ -453,6 +458,7 @@ UNIV_INTERN
 rec_t*
 btr_page_split_and_insert(
 /*======================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: cursor at which to insert; when the
 				function returns, the cursor is positioned
 				on the predecessor of the inserted record */
@@ -466,14 +472,15 @@ UNIV_INTERN
 void
 btr_insert_on_non_leaf_level_func(
 /*==============================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	dict_index_t*	index,	/*!< in: index */
 	ulint		level,	/*!< in: level, must be > 0 */
 	dtuple_t*	tuple,	/*!< in: the record to be inserted */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mtr */
-# define btr_insert_on_non_leaf_level(i,l,t,m)				\
-	btr_insert_on_non_leaf_level_func(i,l,t,__FILE__,__LINE__,m)
+# define btr_insert_on_non_leaf_level(f,i,l,t,m)			\
+	btr_insert_on_non_leaf_level_func(f,i,l,t,__FILE__,__LINE__,m)
 #endif /* !UNIV_HOTBACKUP */
 /****************************************************************//**
 Sets a record as the predefined minimum record. */

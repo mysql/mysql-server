@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -169,10 +169,10 @@ row_purge_remove_clust_if_poss_low(
 	}
 
 	if (mode == BTR_MODIFY_LEAF) {
-		success = btr_cur_optimistic_delete(btr_cur, &mtr);
+		success = btr_cur_optimistic_delete(btr_cur, 0, &mtr);
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
 					   RB_NONE, &mtr);
 
 		if (err == DB_SUCCESS) {
@@ -327,7 +327,7 @@ row_purge_remove_sec_if_poss_tree(
 		      & rec_get_info_bits(btr_cur_get_rec(btr_cur),
 					  dict_table_is_comp(index->table)));
 
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
 					   RB_NONE, &mtr);
 		switch (UNIV_EXPECT(err, DB_SUCCESS)) {
 		case DB_SUCCESS:
@@ -390,7 +390,7 @@ row_purge_remove_sec_if_poss_leaf(
 				      btr_cur_get_rec(btr_cur),
 				      dict_table_is_comp(index->table)));
 
-			if (!btr_cur_optimistic_delete(btr_cur, &mtr)) {
+			if (!btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
 
 				/* The index entry could not be deleted. */
 				success = FALSE;
@@ -430,6 +430,10 @@ row_purge_remove_sec_if_poss(
 	ulint	n_tries		= 0;
 
 	/*	fputs("Purge: Removing secondary record\n", stderr); */
+
+	if (dict_index_online_trylog(index, entry, 0, ROW_OP_PURGE)) {
+		return;
+	}
 
 	if (row_purge_remove_sec_if_poss_leaf(node, index, entry)) {
 
@@ -672,33 +676,22 @@ row_purge_parse_undo_rec(
 					       &info_bits);
 	node->table = NULL;
 
-	if (type == TRX_UNDO_UPD_EXIST_REC
-	    && node->cmpl_info & UPD_NODE_NO_ORD_CHANGE
-	    && !(*updated_extern)) {
-
-		/* Purge requires no changes to indexes: we may return */
-
-		return(FALSE);
-	}
-
 	/* Prevent DROP TABLE etc. from running when we are doing the purge
 	for this row */
 
-	rw_lock_s_lock_func(&dict_operation_lock, 0, __FILE__, __LINE__);
+	rw_lock_s_lock(&dict_operation_lock);
 
-	node->table = dict_table_open_on_id(table_id, FALSE);
+	node->table = dict_table_open_on_id(table_id, FALSE, FALSE);
 
 	if (node->table == NULL) {
-err_exit:
 		/* The table has been dropped: no need to do purge */
-		rw_lock_s_unlock_gen(&dict_operation_lock, 0);
-		return(FALSE);
+		goto err_exit;
 	}
 
 	if (node->table->ibd_file_missing) {
 		/* We skip purge of missing .ibd files */
 
-		dict_table_close(node->table, FALSE);
+		dict_table_close(node->table, FALSE, FALSE);
 
 		node->table = NULL;
 
@@ -708,12 +701,22 @@ err_exit:
 	clust_index = dict_table_get_first_index(node->table);
 
 	if (clust_index == NULL) {
+		/* The table was corrupt in the data dictionary.
+		dict_set_corrupted() works on an index, and
+		we do not have an index to call it with. */
+close_exit:
+		dict_table_close(node->table, FALSE, FALSE);
+err_exit:
+		rw_lock_s_unlock(&dict_operation_lock);
+		return(FALSE);
+	}
 
-		dict_table_close(node->table, FALSE);
+	if (type == TRX_UNDO_UPD_EXIST_REC
+	    && (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)
+	    && !*updated_extern) {
 
-		/* The table was corrupt in the data dictionary */
-
-		goto err_exit;
+		/* Purge requires no changes to indexes: we may return */
+		goto close_exit;
 	}
 
 	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
@@ -778,7 +781,7 @@ row_purge_record_func(
 	}
 
 	if (node->table != NULL) {
-		dict_table_close(node->table, FALSE);
+		dict_table_close(node->table, FALSE, FALSE);
 		node->table = NULL;
 	}
 

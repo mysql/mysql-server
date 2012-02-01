@@ -331,6 +331,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&os_mutex_key, "os_mutex", 0},
 #ifndef HAVE_ATOMIC_BUILTINS
 	{&srv_conc_mutex_key, "srv_conc_mutex", 0},
+	{&monitor_mutex_key, "monitor_mutex", 0},
 #endif /* !HAVE_ATOMIC_BUILTINS */
 	{&ut_list_mutex_key, "ut_list_mutex", 0},
 	{&trx_sys_mutex_key, "trx_sys_mutex", 0},
@@ -360,6 +361,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	{&trx_i_s_cache_lock_key, "trx_i_s_cache_lock", 0},
 	{&trx_purge_latch_key, "trx_purge_latch", 0},
 	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0},
+	{&index_online_log_key, "index_online_log", 0},
 	{&dict_table_stats_latch_key, "dict_table_stats", 0},
 	{&hash_table_rw_lock_key, "hash table locks", 0}
 };
@@ -421,9 +423,9 @@ innodb_session_stopword_update(
 						formal string goes */
 	const void*			save);	/*!< in: immediate result
 						from check function */
-/** "GEN_CLUST_INDEX" is the name reserved for Innodb default
-system primary index. */
-static const char innobase_index_reserve_name[]= "GEN_CLUST_INDEX";
+/** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
+system clustered index when there is no primary key. */
+const char innobase_index_reserve_name[] = "GEN_CLUST_INDEX";
 
 static const char innobase_hton_name[]= "InnoDB";
 
@@ -719,13 +721,6 @@ int
 innobase_file_format_validate_and_set(
 /*==================================*/
 	const char*	format_max);	/*!< in: parameter value */
-/****************************************************************//**
-Return alter table flags supported in an InnoDB database. */
-static
-uint
-innobase_alter_table_flags(
-/*=======================*/
-	uint	flags);
 
 /*******************************************************************//**
 This function is used to prepare an X/Open XA distributed transaction.
@@ -1219,7 +1214,7 @@ Converts an InnoDB error code to a MySQL error code and also tells to MySQL
 about a possible transaction rollback inside InnoDB caused by a lock wait
 timeout or a deadlock.
 @return	MySQL error code */
-UNIV_INTERN
+static
 int
 convert_error_code_to_mysql(
 /*========================*/
@@ -2066,6 +2061,9 @@ ha_innobase::update_thd(
 {
 	trx_t*		trx;
 
+	/* The table should have been opened in ha_innobase::open(). */
+	DBUG_ASSERT(prebuilt->table->n_ref_count > 0);
+
 	trx = check_trx_exists(thd);
 
 	if (prebuilt->trx != trx) {
@@ -2629,8 +2627,6 @@ innobase_init(
 	innobase_hton->release_temporary_latches =
 		innobase_release_temporary_latches;
 
-	innobase_hton->alter_table_flags = innobase_alter_table_flags;
-
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
 #ifndef DBUG_OFF
@@ -3116,23 +3112,6 @@ innobase_flush_logs(
 	log_buffer_flush_to_disk();
 
 	DBUG_RETURN(result);
-}
-
-/****************************************************************//**
-Return alter table flags supported in an InnoDB database. */
-static
-uint
-innobase_alter_table_flags(
-/*=======================*/
-	uint	flags)
-{
-	return(HA_INPLACE_ADD_INDEX_NO_READ_WRITE
-		| HA_INPLACE_ADD_INDEX_NO_WRITE
-		| HA_INPLACE_DROP_INDEX_NO_READ_WRITE
-		| HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE
-		| HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE
-		| HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE
-		| HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE);
 }
 
 /*****************************************************************//**
@@ -4285,7 +4264,7 @@ ha_innobase::open(
 
 retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
-	ib_table = dict_table_open_on_name(norm_name, FALSE);
+	ib_table = dict_table_open_on_name(norm_name, FALSE, TRUE);
 
 	if (NULL == ib_table) {
 		if (is_part && retries < 10) {
@@ -4329,7 +4308,7 @@ retry:
 				}
 
 				ib_table = dict_table_open_on_name(
-					par_case_name, FALSE);
+					par_case_name, FALSE, TRUE);
 			}
 
 			if (!ib_table) {
@@ -4404,7 +4383,7 @@ table_opened:
 		free_share(share);
 		my_errno = ENOENT;
 
-		dict_table_close(ib_table, FALSE);
+		dict_table_close(ib_table, FALSE, FALSE);
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
@@ -8454,7 +8433,7 @@ ha_innobase::update_create_info(
 
 /*****************************************************************//**
 Initialize the table FTS stopword list
-@TRUE if succeed */
+@return TRUE if success */
 UNIV_INTERN
 ibool
 innobase_fts_load_stopword(
@@ -8463,10 +8442,10 @@ innobase_fts_load_stopword(
 	trx_t*		trx,	/*!< in: transaction */
 	THD*		thd)	/*!< in: current thread */
 {
-	return (fts_load_stopword(table, trx,
-				  fts_server_stopword_table,
-				  THDVAR(thd, ft_user_stopword_table),
-				  THDVAR(thd, ft_enable_stopword), FALSE));
+	return(fts_load_stopword(table, trx,
+				 fts_server_stopword_table,
+				 THDVAR(thd, ft_user_stopword_table),
+				 THDVAR(thd, ft_enable_stopword), FALSE));
 }
 /*****************************************************************//**
 Creates a new table to an InnoDB database.
@@ -8812,19 +8791,19 @@ ha_innobase::create(
 	/* Create the ancillary tables that are common to all FTS indexes on
 	this table. */
 	if (fts_indexes > 0) {
-		ulint	ret = 0;
+		enum fts_doc_id_index_enum	ret;
 
 		innobase_table = dict_table_open_on_name_no_stats(
-			norm_name, TRUE, DICT_ERR_IGNORE_NONE);
+			norm_name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
 
 		ut_a(innobase_table);
 
-		/* Check whether there alreadys exist FTS_DOC_ID_INDEX */
+		/* Check whether there already exists FTS_DOC_ID_INDEX */
 		ret = innobase_fts_check_doc_id_index_in_def(
 			form->s->keys, form->s->key_info);
 
-		/* Raise error if FTS_DOC_ID_INDEX is of wrong format */
-		if (ret == FTS_INCORRECT_DOC_ID_INDEX) {
+		switch (ret) {
+		case FTS_INCORRECT_DOC_ID_INDEX:
 			push_warning_printf(thd,
 					    Sql_condition::WARN_LEVEL_WARN,
 					    ER_WRONG_NAME_FOR_INDEX,
@@ -8843,11 +8822,14 @@ ha_innobase::create(
 				fts_free(innobase_table);
 			}
 
-			dict_table_close(innobase_table, TRUE);
+			dict_table_close(innobase_table, TRUE, FALSE);
 			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
 				 FTS_DOC_ID_INDEX_NAME);
 			error = -1;
 			goto cleanup;
+		case FTS_EXIST_DOC_ID_INDEX:
+		case FTS_NOT_EXIST_DOC_ID_INDEX:
+			break;
 		}
 
 		error = fts_create_common_tables(
@@ -8856,7 +8838,7 @@ ha_innobase::create(
 
 		error = convert_error_code_to_mysql(error, 0, NULL);
 
-		dict_table_close(innobase_table, TRUE);
+		dict_table_close(innobase_table, TRUE, FALSE);
 
 		if (error) {
 			goto cleanup;
@@ -8930,7 +8912,7 @@ ha_innobase::create(
 
 	log_buffer_flush_to_disk();
 
-	innobase_table = dict_table_open_on_name(norm_name, FALSE);
+	innobase_table = dict_table_open_on_name(norm_name, FALSE, FALSE);
 
 	DBUG_ASSERT(innobase_table != 0);
 
@@ -8946,7 +8928,7 @@ ha_innobase::create(
 	/* Load server stopword into FTS cache */
 	if (fts_indexes > 0) {
 		if (!innobase_fts_load_stopword(innobase_table, NULL, thd)) {
-			dict_table_close(innobase_table, FALSE);
+			dict_table_close(innobase_table, FALSE, FALSE);
 			srv_active_wake_master_thread();
 			trx_free_for_mysql(trx);
 			DBUG_RETURN(-1);
@@ -8983,7 +8965,7 @@ ha_innobase::create(
 		dict_table_autoinc_unlock(innobase_table);
 	}
 
-	dict_table_close(innobase_table, FALSE);
+	dict_table_close(innobase_table, FALSE, FALSE);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -9830,7 +9812,6 @@ ha_innobase::info_low(
 					the persistent storage */
 {
 	dict_table_t*	ib_table;
-	dict_index_t*	index;
 	ha_rows		rec_per_key;
 	ib_int64_t	n_rows;
 	char		path[FN_REFLEN];
@@ -9856,6 +9837,7 @@ ha_innobase::info_low(
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
 	ib_table = prebuilt->table;
+	DBUG_ASSERT(ib_table->n_ref_count > 0);
 
 	if (flag & HA_STATUS_TIME) {
 		if (stats_upd_option != DICT_STATS_FETCH
@@ -10016,12 +9998,40 @@ ha_innobase::info_low(
 		matches up. If prebuilt->clust_index_was_generated
 		holds, InnoDB defines GEN_CLUST_INDEX internally */
 		ulint	num_innodb_index = UT_LIST_GET_LEN(ib_table->indexes)
-					- prebuilt->clust_index_was_generated;
+			- prebuilt->clust_index_was_generated;
+		if (table->s->keys < num_innodb_index) {
+			/* If there are too many indexes defined
+			inside InnoDB, ignore those that are being
+			created, because MySQL will only consider
+			the fully built indexes here. */
 
-		if (table->s->keys != num_innodb_index
-		    && (innobase_fts_check_doc_id_index(ib_table, NULL)
-			== FTS_EXIST_DOC_ID_INDEX
-			&& table->s->keys != (num_innodb_index - 1))) {
+			for (const dict_index_t* index
+				     = UT_LIST_GET_FIRST(ib_table->indexes);
+			     index != NULL;
+			     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+				/* First, online index creation is
+				completed inside InnoDB, and then
+				MySQL attempts to upgrade the
+				meta-data lock so that it can rebuild
+				the .frm file. If we get here in that
+				time frame, dict_index_is_online_ddl()
+				would not hold and the index would
+				still not be included in TABLE_SHARE. */
+				if (*index->name == TEMP_INDEX_PREFIX) {
+					num_innodb_index--;
+				}
+			}
+
+			if (table->s->keys < num_innodb_index
+			    && innobase_fts_check_doc_id_index(
+				    ib_table, NULL, NULL)
+			    == FTS_EXIST_DOC_ID_INDEX) {
+				num_innodb_index--;
+			}
+		}
+
+		if (table->s->keys != num_innodb_index) {
 			sql_print_error("InnoDB: Table %s contains %lu "
 					"indexes inside InnoDB, which "
 					"is different from the number of "
@@ -10037,7 +10047,7 @@ ha_innobase::info_low(
 			The identity of index (match up index name with
 			that of table->key_info[i]) is already verified in
 			innobase_get_index().  */
-			index = innobase_get_index(i);
+			dict_index_t* index = innobase_get_index(i);
 
 			if (index == NULL) {
 				sql_print_error("Table %s contains fewer "
@@ -10293,10 +10303,10 @@ ha_innobase::check(
 		putc('\n', stderr);
 #endif
 
-		/* If this is an index being created, break */
+		/* If this is an index being created or dropped, break */
 		if (*index->name == TEMP_INDEX_PREFIX) {
 			break;
-		}  else if (!btr_validate_index(index, prebuilt->trx)) {
+		} else if (!btr_validate_index(index, prebuilt->trx)) {
 			is_ok = FALSE;
 
 			innobase_format_name(
@@ -12637,124 +12647,6 @@ innobase_set_cursor_view(
 }
 
 /*******************************************************************//**
-If col_name is not NULL, check whether the named column is being
-renamed in the table. If col_name is not provided, check
-whether any one of columns in the table is being renamed.
-@return true if the column is being renamed */
-static
-bool
-check_column_being_renamed(
-/*=======================*/
-	const TABLE*	table,		/*!< in: MySQL table */
-	const char*	col_name)	/*!< in: name of the column */
-{
-	uint		k;
-	Field*		field;
-
-	for (k = 0; k < table->s->fields; k++) {
-		field = table->field[k];
-
-		if (field->flags & FIELD_IS_RENAMED) {
-
-			/* If col_name is not provided, return
-			if the field is marked as being renamed. */
-			if (!col_name) {
-				return(true);
-			}
-
-			/* If col_name is provided, return only
-			if names match */
-			if (innobase_strcasecmp(field->field_name,
-						col_name) == 0) {
-				return(true);
-			}
-		}
-	}
-
-	return(false);
-}
-
-/*******************************************************************//**
-Check whether any of the given columns is being renamed in the table.
-@return true if any of col_names is being renamed in table */
-static
-bool
-column_is_being_renamed(
-/*====================*/
-	TABLE*		table,		/*!< in: MySQL table */
-	uint		n_cols,		/*!< in: number of columns */
-	const char**	col_names)	/*!< in: names of the columns */
-{
-	uint		j;
-
-	for (j = 0; j < n_cols; j++) {
-		if (check_column_being_renamed(table, col_names[j])) {
-			return(true);
-		}
-	}
-
-	return(false);
-}
-
-/*******************************************************************//**
-Check whether a column in table "table" is being renamed and if this column
-is part of a foreign key, either part of another table, referencing this
-table or part of this table, referencing another table.
-@return true if a column that participates in a foreign key definition
-is being renamed */
-static
-bool
-foreign_key_column_is_being_renamed(
-/*================================*/
-	row_prebuilt_t*	prebuilt,	/* in: InnoDB prebuilt struct */
-	TABLE*		table)		/* in: MySQL table */
-{
-	dict_foreign_t*	foreign;
-
-	/* check whether there are foreign keys at all */
-	if (UT_LIST_GET_LEN(prebuilt->table->foreign_list) == 0
-	    && UT_LIST_GET_LEN(prebuilt->table->referenced_list) == 0) {
-		/* no foreign keys involved with prebuilt->table */
-
-		return(false);
-	}
-
-	row_mysql_lock_data_dictionary(prebuilt->trx);
-
-	/* Check whether any column in the foreign key constraints which refer
-	to this table is being renamed. */
-	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->referenced_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
-
-		if (column_is_being_renamed(table, foreign->n_fields,
-					    foreign->referenced_col_names)) {
-
-			row_mysql_unlock_data_dictionary(prebuilt->trx);
-			return(true);
-		}
-	}
-
-	/* Check whether any column in the foreign key constraints in the
-	table is being renamed. */
-	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
-
-		if (column_is_being_renamed(table, foreign->n_fields,
-					    foreign->foreign_col_names)) {
-
-			row_mysql_unlock_data_dictionary(prebuilt->trx);
-			return(true);
-		}
-	}
-
-	row_mysql_unlock_data_dictionary(prebuilt->trx);
-
-	return(false);
-}
-
-/*******************************************************************//**
 */
 UNIV_INTERN
 bool
@@ -12775,25 +12667,8 @@ ha_innobase::check_if_incompatible_data(
 		return(COMPATIBLE_DATA_NO);
 	}
 
-	/* For column rename operation, MySQL does not supply enough
-	information (new column name etc.) for InnoDB to make appropriate
-	system metadata change. To avoid system metadata inconsistency,
-	currently we can just request a table rebuild/copy by returning
-	COMPATIBLE_DATA_NO */
-	if (check_column_being_renamed(table, NULL)) {
-		return(COMPATIBLE_DATA_NO);
-	}
-
-	/* Check if a column participating in a foreign key is being renamed.
-	There is no mechanism for updating InnoDB foreign key definitions. */
-	if (foreign_key_column_is_being_renamed(prebuilt, table)) {
-
-		return(COMPATIBLE_DATA_NO);
-	}
-
 	/* Check that row format didn't change */
 	if ((info->used_fields & HA_CREATE_USED_ROW_FORMAT)
-	    && info->row_type != ROW_TYPE_DEFAULT
 	    && info->row_type != get_row_type()) {
 
 		return(COMPATIBLE_DATA_NO);
@@ -13173,7 +13048,7 @@ innodb_internal_table_validate(
 	}
 
 	user_table = dict_table_open_on_name_no_stats(
-			table_name, FALSE, DICT_ERR_IGNORE_NONE);
+		table_name, FALSE, TRUE, DICT_ERR_IGNORE_NONE);
 
 	if (user_table) {
 		if (dict_table_has_fts_index(user_table)) {
@@ -13181,7 +13056,7 @@ innodb_internal_table_validate(
 			ret = 0;
 		}
 
-		dict_table_close(user_table, FALSE);
+		dict_table_close(user_table, FALSE, TRUE);
 	}
 
 	return(ret);
@@ -14550,7 +14425,12 @@ static MYSQL_SYSVAR_ULONG(ft_sort_pll_degree, fts_sort_pll_degree,
 static MYSQL_SYSVAR_ULONG(sort_buffer_size, srv_sort_buf_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Memory buffer size for index creation",
-  NULL, NULL, 1048576, 524288, 64<<20, 0);
+  NULL, NULL, 1048576, 65536, 64<<20, 0);
+
+static MYSQL_SYSVAR_ULONGLONG(online_alter_log_max_size, srv_online_max_size,
+  PLUGIN_VAR_RQCMDARG,
+  "Maximum modification log file size for online index creation",
+  NULL, NULL, 128<<20, 65536, ~0ULL, 0);
 
 static MYSQL_SYSVAR_BOOL(optimize_fulltext_only, innodb_optimize_fulltext_only,
   PLUGIN_VAR_NOCMDARG,
@@ -14864,6 +14744,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(strict_mode),
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sort_buffer_size),
+  MYSQL_SYSVAR(online_alter_log_max_size),
   MYSQL_SYSVAR(analyze_is_persistent),
   MYSQL_SYSVAR(sync_spin_loops),
   MYSQL_SYSVAR(spin_wait_delay),
