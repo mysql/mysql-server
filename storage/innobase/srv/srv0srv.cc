@@ -2569,7 +2569,7 @@ srv_do_purge(
 
 		*n_total_purged += n_pages_purged;
 
-	} while (!srv_purge_exit(n_pages_purged));
+	} while (!srv_purge_exit(n_pages_purged) && n_pages_purged > 0);
 }
 
 /*********************************************************************//**
