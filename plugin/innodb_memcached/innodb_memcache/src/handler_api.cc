@@ -23,11 +23,45 @@ Created 3/14/2011 Jimmy Yang
 *******************************************************/
 
 #include "handler_api.h"
+
+#include <my_global.h>
+#include <sql_priv.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <mysql_version.h>
+#include <mysql/plugin.h>
+#include <my_dir.h>
+#include "my_pthread.h"
+#include "my_sys.h"
+#include "m_string.h"
+#include "sql_plugin.h"
+#include "table.h"
+#include "sql_class.h"
+#include <sql_base.h>
+#include "key.h"
+#include "lock.h"
+#include "transaction.h"
+#include "sql_handler.h"
+#include "handler.h"
+
 #include "log_event.h"
 
+/** Some handler functions defined in sql/sql_table.cc and sql/handler.cc etc.
+and being used here */
 extern int write_bin_log(THD *thd, bool clear_error,
                   char const *query, ulong query_length,
                   bool is_trans= FALSE);
+
+/** function to close a connection and thd, defined in sql/handler.cc */
+extern void ha_close_connection(THD* thd);
+
+/** binlog a row operation */
+extern int binlog_log_row(TABLE*          table,
+			  const uchar     *before_record,
+			  const uchar     *after_record,
+			  Log_func*       log_func);
+
+
 
 /**********************************************************************//**
 Create a THD object.

@@ -28,10 +28,7 @@ Created 03/15/2011      Jimmy Yang
 #include "api0api.h"
 #include "innodb_engine.h"
 #include "assert.h"
-
-/** Defines for handler_unlock_table()'s mode field */
-#define HDL_READ	0x1
-#define HDL_WRITE	0x2
+#include "handler_api.h"
 
 /** Macros to lock/unlock the engine connection mutex */
 #define LOCK_CONN_IF_NOT_LOCKED(has_lock, engine)	\
@@ -44,123 +41,22 @@ Created 03/15/2011      Jimmy Yang
 		pthread_mutex_unlock(&engine->conn_mutex);\
 	}
 
-/**********************************************************************//**
-Creates a MySQL "THD" object.
-@return a pointer to the "THD" object, NULL if failed */
-extern
-void*
-handler_create_thd(void);
-/*====================*/
-
-/**********************************************************************//**
-Creates a MySQL "TABLE" object with specified database name and table name.
-@return a pointer to the "TABLE" object, NULL if does not exist */
-extern
-void*
-handler_open_table(
-/*===============*/
-	void*		thd,		/*!< in: thread */
-	const char*	db_name,	/*!< in: database name */
-	const char*	table_name,	/*!< in: table name */
-	int		lock_mode);	/*!< in: lock mode */
-
-/**********************************************************************//**
-Wrapper function of binlog_log_row(), used to binlog an operation on a row */
-extern
-void
-handler_binlog_row(
-/*===============*/
-	void*		my_table,	/*!< in: table metadata */
-	int		mode);		/*!< in: type of DML */
-
-
-/**********************************************************************//**
-Flush binlog from cache to binlog file */
-extern
-void
-handler_binlog_flush(
-/*=================*/
-	void*		my_thd,		/*!< in: THD* */
-	void*		my_table);	/*!< in: Table metadata */
-
-/**********************************************************************//**
-close an handler */
-extern
-void
-handler_close_thd(
-/*==============*/
-	void*		my_thd);	/*!< in: thread */
-
-/**********************************************************************//**
-binlog a truncate table statement */
-extern
-void
-handler_binlog_truncate(
-/*====================*/
-	void*		my_thd,		/*!< in: THD* */
-	char*		table_name);	/*!< in: table name */
-
-/**********************************************************************//**
-Reset TABLE->record[0] */
-extern
-void
-handler_rec_init(
-/*=============*/
-	void*		table);		/*!< in/out: TABLE structure */
-
-/**********************************************************************//**
-Set up a char based field in TABLE->record[0] */
-extern
-void
-handler_rec_setup_str(
-/*==================*/
-	void*		my_table,       /*!< in/out: TABLE structure */
-	int		field_id,	/*!< in: Field ID for the field */
-	const char*	str,		/*!< in: string to set */
-	int		len);		/*!< in: length of string */
-
-/**********************************************************************//**
-Set up an integer field in TABLE->record[0] */
-extern
-void
-handler_rec_setup_int(
-/*==============*/
-	void*		my_table,	/*!< in/out: TABLE structure */
-	int		field_id,	/*!< in: Field ID for the field */
-	int		value,		/*!< in: value to set */
-	bool		unsigned_flag,	/*!< in: whether it is unsigned */
-	bool		is_null);	/*!< in: whether it is null value */
-
-/**********************************************************************//**
-copy an record */
-extern
-void
-handler_store_record(
-/*=================*/
-        void*                   table);         /*!< in: TABLE */
-
-/**********************************************************************//**
-Unlock a table and commit the transaction
-return 0 if fail to commit the transaction */
-int
-handler_unlock_table(
-/*=================*/
-	void*		my_thd,		/*!< in: thread */
-	void*		my_table,	/*!< in: Table metadata */
-	int		my_lock_mode);	/*!< in: lock mode */
-
-
+/** mci_column is the structure stores and describes a column info in InnoDB
+Memcached. The column type we need to support in the memcached key value
+store is either of character type of integer type (see following "enum
+mci_item_idx" for columns supporting memcached) */
 typedef struct mci_column {
-	char*		m_str;
-	int		m_len;
-	uint64_t	m_digit;
-	bool		m_is_str;
-	bool		m_enabled;
-	bool		m_is_null;
-	bool		m_allocated;
+	char*		m_str;		/*!< char value of the column */
+	int		m_len;		/*!< char value length */
+	uint64_t	m_digit;	/*!< integer value */
+	bool		m_is_str;	/*!< whether the value is char or int */
+	bool		m_enabled;	/*!< valid column value */
+	bool		m_is_null;	/*!< whether it is a NULL value */
+	bool		m_allocated;	/*!< whether memory allocated to store
+					the value */
 } mci_column_t;
 
-/** We would need to fetch 5 values from each key value rows if they
+/** We would need to fetch 5 column values from each key value rows if they
 are available. They are the "key", "value", "cas", "exp" and "flag" */
 #define	MCI_ITEM_TO_GET		5
 
@@ -172,10 +68,15 @@ enum mci_item_idx {
 	MCI_COL_EXP
 };
 
+/** mci_item_t describes columns from a row we fetched from a memcached
+mapped InnoDB table */
 typedef struct mci_items {
-	mci_column_t	mci_item[MCI_ITEM_TO_GET];
-	mci_column_t*	mci_add_value;
-	int		mci_add_num;
+	mci_column_t	mci_item[MCI_ITEM_TO_GET]; /*!< columns in a row */
+	mci_column_t*	mci_add_value;		/*!< whether there will be
+						additional/multiple values
+						to be stored */
+	int		mci_add_num;		/*!< number of additional
+						value columns */
 } mci_item_t;
 
 /*************************************************************//**
@@ -200,7 +101,6 @@ innodb_api_begin(
 	ib_crsr_t*	idx_crsr,	/*!< out: innodb index cursor */
 	ib_lck_mode_t	lock_mode);	/*!< in:  lock mode */
 
-
 /*************************************************************//**
 Position a row accord to key, and fetch value if needed
 @return DB_SUCCESS if successful otherwise, error code */
@@ -209,7 +109,7 @@ innodb_api_search(
 /*==============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
 	innodb_conn_data_t*	cursor_data,/*!< in: cursor info */
-	ib_crsr_t*		crsr,	/*!< out: cursor used to seacrh */
+	ib_crsr_t*		crsr,	/*!< in/out: cursor used to seacrh */
 	const char*		key,	/*!< in: key to search */
 	int			len,	/*!< in: key length */
 	mci_item_t*		item,	/*!< in: result */
@@ -300,7 +200,7 @@ uint64_t
 mci_get_time(void);
 /*==============*/
 
-/** types of operation performed */
+/** types of operations performed */
 typedef enum conn_op_type {
 	CONN_OP_READ,
 	CONN_OP_WRITE,
@@ -318,8 +218,8 @@ innodb_api_cursor_reset(
 						engine */
 	innodb_conn_data_t*	conn_data,	/*!< in/out: cursor affiliated
 						with a connection */
-	op_type_t               op_type);	/*!< in: type of DML performed */
-
+	op_type_t               op_type);	/*!< in: type of DML
+						performed */
 
 /*************************************************************//**
 Following are a set of InnoDB callback function wrappers for functions
@@ -336,7 +236,7 @@ Start a transaction
 ib_trx_t
 innodb_cb_trx_begin(
 /*================*/
-	ib_trx_level_t	ib_trx_level);	/*!< in:  trx isolation level */
+	ib_trx_level_t	ib_trx_level);	/*!< in: trx isolation level */
 
 /*************************************************************//**
 Commit the transaction
@@ -352,22 +252,25 @@ Close table associated to the connection
 ib_err_t
 innodb_cb_close_thd(
 /*=================*/
-	void*		thd);		/*!<in: THD */
+	void*		thd);		/*!< in: THD */
 
 /*****************************************************************//**
 update the cursor with new transactions and also reset the cursor
-@return DB_SUCCESS or err code */
+@return DB_SUCCESS or error code */
 ib_err_t
 innodb_cb_cursor_new_trx(
 /*=====================*/
 	ib_crsr_t	ib_crsr,	/*!< in/out: InnoDB cursor */
 	ib_trx_t	ib_trx);	/*!< in: transaction */
 
+/*****************************************************************//**
+Lock the table with specified lock mode
+@return DB_SUCCESS or error code */
 ib_err_t
 innodb_cb_cursor_lock(
 /*==================*/
-	ib_crsr_t	ib_crsr,
-	ib_lck_mode_t	ib_lck_mode);
+	ib_crsr_t	ib_crsr,	/*!< in/out: cursor on the table */
+	ib_lck_mode_t	ib_lck_mode);	/*!< in: lock mode */
 
 /*****************************************************************//**
 Create an InnoDB tuple used for index/table search.
@@ -458,6 +361,7 @@ innodb_cb_cursor_open_index_using_name(
 	ib_crsr_t*	ib_crsr,	/*!< out,own: InnoDB index cursor */
 	int*		idx_type,	/*!< out: index is cluster index */
 	ib_id_u64_t*	idx_id);	/*!< out: index id */
+
 /*****************************************************************//**
 Check whether the binlog option is turned on
 (innodb_direct_access_enable_binlog)
