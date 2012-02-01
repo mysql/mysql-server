@@ -3155,7 +3155,8 @@ handle_reorg_trigger(DiGetNodesConf * conf)
   {
     conf->fragId = conf->nodes[MAX_REPLICAS];
     conf->reqinfo = conf->nodes[MAX_REPLICAS+1];
-    memcpy(conf->nodes, conf->nodes+MAX_REPLICAS+2, sizeof(conf->nodes));
+    memcpy(conf->nodes, conf->nodes+MAX_REPLICAS+2,
+           sizeof(Uint32)*MAX_REPLICAS);
   }
   else
   {
