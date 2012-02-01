@@ -2230,28 +2230,21 @@ innobase_start_or_create_for_mysql(void)
 		}
 	}
 
-
-	os_thread_create(
-		buf_flush_page_cleaner_thread, NULL, NULL);
+	os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
 
 	/* Wait for the purge coordinator and master thread to startup. */
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE
-	       && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
+	       && srv_force_recovery < SRV_FORCE_NO_BACKGROUND
+	       && (!(trx_purge_state() == PURGE_STATE_RUN
+	          && trx_purge_state() == PURGE_STATE_STOP))) {
 
-		if (srv_thread_has_reserved_slot(SRV_MASTER) == ULINT_UNDEFINED
-		    || (srv_n_purge_threads > 0
-			&& srv_thread_has_reserved_slot(SRV_PURGE)
-			== ULINT_UNDEFINED)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: "
+			"Waiting for the background threads to "
+			"start\n");
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: "
-				"Waiting for the background threads to "
-				"start\n");
-			os_thread_sleep(1000000);
-		} else {
-			break;
-		}
+		os_thread_sleep(1000000);
 
 		ut_a(trx_purge_state() != PURGE_STATE_EXIT);
 	}
