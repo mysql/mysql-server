@@ -4,9 +4,6 @@ flush hosts;
 select @@global.debug;
 @@global.debug
 
-show global status like "%peer%";
-Variable_name	Value
-Peer_address_errors	0
 grant select on test.* to 'root'@'2001:db8::6:6';
 select "Con1 is alive";
 Con1 is alive

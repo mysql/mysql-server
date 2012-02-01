@@ -11,9 +11,6 @@ select @@global.max_connections;
 @@global.max_connections
 151
 select @@global.max_connections into @saved_max_connections;
-show global status like "%peer%";
-Variable_name	Value
-Peer_address_errors	0
 create user 'quota'@'santa.claus.ipv4.example.com';
 grant select on test.* to 'quota'@'santa.claus.ipv4.example.com';
 grant usage on *.* to 'quota'@'santa.claus.ipv4.example.com'

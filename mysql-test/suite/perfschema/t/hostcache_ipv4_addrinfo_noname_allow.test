@@ -17,7 +17,6 @@ call mtr.add_suppression("santa.claus.ipv4.example.com");
 flush status;
 flush hosts;
 select @@global.debug;
-show global status like "%peer%";
 
 grant select on test.* to 'root'@'santa.claus.ipv4.example.com';
 grant select on test.* to 'root'@'192.0.2.4';

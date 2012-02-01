@@ -18,7 +18,6 @@ call mtr.add_suppression("2001:db8::6:6");
 flush status;
 flush hosts;
 select @@global.debug;
-show global status like "%peer%";
 
 grant select on test.* to 'root'@'2001:db8::6:6';
 

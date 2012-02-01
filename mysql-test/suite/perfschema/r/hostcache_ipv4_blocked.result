@@ -8,9 +8,6 @@ select @@global.max_connect_errors;
 @@global.max_connect_errors
 10
 select @@global.max_connect_errors into @saved_max_connect_errors;
-show global status like "%peer%";
-Variable_name	Value
-Peer_address_errors	0
 set global max_connect_errors = 2;
 grant select on test.* to 'root'@'santa.claus.ipv4.example.com';
 select "Con1 is alive";

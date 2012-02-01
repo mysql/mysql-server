@@ -17,7 +17,6 @@
 flush status;
 flush hosts;
 select @@global.debug;
-show global status like "%peer%";
 
 CREATE USER 'plug'@'santa.claus.ipv6.example.com'
   IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
