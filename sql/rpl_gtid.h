@@ -220,12 +220,12 @@ struct Uuid
   /// Copies the given 16-byte data to this UUID.
   void copy_from(const uchar *data) { memcpy(bytes, data, BYTE_LENGTH); }
   /// Copies the given UUID object to this UUID.
-  void copy_from(const Uuid *data) { copy_from(data->bytes); }
+  void copy_from(const Uuid &data) { copy_from(data.bytes); }
   /// Copies the given UUID object to this UUID.
   void copy_to(uchar *data) const { memcpy(data, bytes, BYTE_LENGTH); }
   /// Returns true if this UUID is equal the given UUID.
-  bool equals(const Uuid *other) const
-  { return memcmp(bytes, other->bytes, BYTE_LENGTH) == 0; }
+  bool equals(const Uuid &other) const
+  { return memcmp(bytes, other.bytes, BYTE_LENGTH) == 0; }
   /**
     Generates a 36+1 character long representation of this UUID object
     in the given string buffer.
@@ -467,7 +467,7 @@ public:
     not exist, an existing if it did exist).
     @retval negative Error. This function calls my_error.
   */
-  rpl_sidno add_sid(const rpl_sid *sid);
+  rpl_sidno add_sid(const rpl_sid &sid);
   /**
     Get the SIDNO for a given SID
 
@@ -478,11 +478,11 @@ public:
     @retval SIDNO if the given SID exists in this map.
     @retval 0 if the given SID does not exist in this map.
   */
-  rpl_sidno sid_to_sidno(const rpl_sid *sid) const
+  rpl_sidno sid_to_sidno(const rpl_sid &sid) const
   {
     if (sid_lock != NULL)
       sid_lock->assert_some_lock();
-    Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
+    Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid.bytes,
                                        rpl_sid::BYTE_LENGTH);
     if (node == NULL)
       return 0;
@@ -501,12 +501,12 @@ public:
     even after this Sid_map is modified, but not if this Sid_map is
     destroyed.
   */
-  const rpl_sid *sidno_to_sid(rpl_sidno sidno) const
+  const rpl_sid &sidno_to_sid(rpl_sidno sidno) const
   {
     if (sid_lock != NULL)
       sid_lock->assert_some_lock();
     DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
-    return &(*dynamic_element(&_sidno_to_sid, sidno - 1, Node **))->sid;
+    return (*dynamic_element(&_sidno_to_sid, sidno - 1, Node **))->sid;
   }
   /**
     Return the n'th smallest sidno, in the order of the SID's UUID.
@@ -555,7 +555,7 @@ private:
     @param sid The SID to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add_node(rpl_sidno sidno, const rpl_sid *sid);
+  enum_return_status add_node(rpl_sidno sidno, const rpl_sid &sid);
 
   /// Read-write lock that protects updates to the number of SIDNOs.
   mutable Checkable_rwlock *sid_lock;
@@ -716,6 +716,10 @@ private:
 
 /**
   Holds information about a GTID: the sidno and the gno.
+
+  This is a POD. It has to be a POD because it is part of
+  Gtid_specification, which has to be a POD because it is used in
+  THD::variables.
 */
 struct Gtid
 {
@@ -743,7 +747,7 @@ struct Gtid
     MAX_TEXT_LENGTH+1 bytes long).
     @return Length of the string, not counting '\0'.
   */
-  int to_string(const rpl_sid *sid, char *buf) const;
+  int to_string(const rpl_sid &sid, char *buf) const;
   /**
     Convert this Gtid to a string.
     @param sid_map sid_map to use when converting sidno to a SID.
@@ -753,7 +757,7 @@ struct Gtid
   */
   int to_string(const Sid_map *sid_map, char *buf) const;
   /// Returns true if this Gtid has the same sid and gno as 'other'.
-  bool equals(const Gtid other) const
+  bool equals(const Gtid &other) const
   { return sidno == other.sidno && gno == other.gno; }
   /**
     Parses the given string and stores in this Gtid.
@@ -885,7 +889,8 @@ public:
     @param gtid Gtid to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status _add_gtid(Gtid gtid) { return _add_gtid(gtid.sidno, gtid.gno); }
+  enum_return_status _add_gtid(const Gtid &gtid)
+  { return _add_gtid(gtid.sidno, gtid.gno); }
   /**
     Adds all groups from the given Gtid_set to this Gtid_set.
 
@@ -946,7 +951,7 @@ public:
   /// Return true iff the given GTID exists in this set.
   bool contains_gtid(rpl_sidno sidno, rpl_gno gno) const;
   /// Return true iff the given GTID exists in this set.
-  bool contains_gtid(Gtid gtid) const
+  bool contains_gtid(const Gtid &gtid) const
   { return contains_gtid(gtid.sidno, gtid.gno); }
   /// Returns the maximal sidno that this Gtid_set currently has space for.
   rpl_sidno get_max_sidno() const
@@ -1130,9 +1135,9 @@ public:
     /// The first GNO after this interval.
     rpl_gno end;
     /// Return true iff this interval is equal to the given interval.
-    bool equals(const Interval *other) const
+    bool equals(const Interval &other) const
     {
-      return start == other->start && end == other->end;
+      return start == other.start && end == other.end;
     }
     /// Pointer to next interval in list.
     Interval *next;
@@ -1520,6 +1525,9 @@ private:
   session variable is NULL, and the field gtid_set may be NULL or
   non-NULL.  If is_non_null is true, then the value of the session
   variable is not NULL, and the field gtid_set has to be non-NULL.
+
+  This is a POD. It has to be a POD because it is stored in
+  THD::variables.
 */
 struct Gtid_set_or_null
 {
@@ -1589,7 +1597,7 @@ public:
     @param owner The my_thread_id of the group to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add_gtid_owner(Gtid gtid, my_thread_id owner);
+  enum_return_status add_gtid_owner(const Gtid &gtid, my_thread_id owner);
   /**
     Returns the owner of the given GTID, or 0 if the GTID is not owned.
 
@@ -1597,7 +1605,7 @@ public:
     @return my_thread_id of the thread that owns the group, or
     0 if the group is not owned.
   */
-  my_thread_id get_owner(Gtid gtid) const;
+  my_thread_id get_owner(const Gtid &gtid) const;
   /**
     Removes the given GTID.
 
@@ -1606,7 +1614,7 @@ public:
 
     @param gtid The Gtid.
   */
-  void remove_gtid(Gtid gtid);
+  void remove_gtid(const Gtid &gtid);
   /**
     Ensures that this Owned_gtids object can accomodate SIDNOs up to
     the given SIDNO.
@@ -1651,7 +1659,7 @@ public:
         DBUG_ASSERT(node != NULL);
         if (!printed_sid)
         {
-          p+= global_sid_map.sidno_to_sid(sidno)->to_string(p);
+          p+= global_sid_map.sidno_to_sid(sidno).to_string(p);
           printed_sid= true;
         }
         p+= sprintf(p, ":%lld#%lu", node->gno, node->owner);
@@ -1764,10 +1772,10 @@ private:
     Returns the Node for the given group, or NULL if the group does
     not exist in this Owned_gtids object.
   */
-  Node *get_node(Gtid gtid) const
+  Node *get_node(const Gtid &gtid) const
   { return get_node(get_hash(gtid.sidno), gtid.gno); };
   /// Return true iff this Owned_gtids object contains the given group.
-  bool contains_gtid(Gtid gtid) const { return get_node(gtid) != NULL; }
+  bool contains_gtid(const Gtid &gtid) const { return get_node(gtid) != NULL; }
   /// Growable array of hashes.
   DYNAMIC_ARRAY sidno_to_hash;
 };
@@ -1849,7 +1857,7 @@ public:
     @retval true The group is logged in the binary log.
     @retval false The group is not logged in the binary log.
   */
-  bool is_logged(Gtid gtid) const
+  bool is_logged(const Gtid &gtid) const
   {
     DBUG_ENTER("Gtid_state::is_logged");
     bool ret= logged_gtids.contains_gtid(gtid);
@@ -1862,7 +1870,7 @@ public:
     @return my_thread_id of the thread that owns the group, or
     0 if the group is not owned.
   */
-  my_thread_id get_owner(Gtid gtid) const
+  my_thread_id get_owner(const Gtid &gtid) const
   { return owned_gtids.get_owner(gtid); }
 #ifndef MYSQL_CLIENT
   /**
@@ -1870,11 +1878,11 @@ public:
 
     The caller must lock the SIDNO before invoking this function.
 
-    @param gtid The Gtid to acquire ownership of.
     @param thd The thread that will own the GTID.
+    @param gtid The Gtid to acquire ownership of.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status acquire_ownership(Gtid gtid, THD *thd);
+  enum_return_status acquire_ownership(THD *thd, const Gtid &gtid);
   /**
     Update the state after the given thread has committed or rolled back.
 
@@ -1921,7 +1929,7 @@ public:
     @param thd THD object of the caller.
     @param g Gtid to wait for.
   */
-  void wait_for_gtid(THD *thd, Gtid g);
+  void wait_for_gtid(THD *thd, const Gtid &gtid);
 #endif // ifndef MYSQL_CLIENT
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at
@@ -2084,20 +2092,20 @@ struct Gtid_specification
   void set(rpl_sidno sidno, rpl_gno gno)
   { type= GTID_GROUP; gtid.sidno= sidno; gtid.gno= gno; }
   /// Set the type to GTID_GROUP and SID, GNO to the given Gtid.
-  void set(const Gtid gtid_param) { set(gtid_param.sidno, gtid_param.gno); }
+  void set(const Gtid &gtid_param) { set(gtid_param.sidno, gtid_param.gno); }
   /// Set the type to GTID_GROUP and SID, GNO to 0, 0.
   void clear() { set(0, 0); }
   /// Return true if this Gtid_specification is equal to 'other'.
-  bool equals(const Gtid_specification *other) const
+  bool equals(const Gtid_specification &other) const
   {
-    return (type == other->type &&
-            (type != GTID_GROUP || gtid.equals(other->gtid)));
+    return (type == other.type &&
+            (type != GTID_GROUP || gtid.equals(other.gtid)));
   }
   /**
     Return true if this Gtid_specification is a GTID_GROUP with the
     same SID, GNO as 'other_gtid'.
   */
-  bool equals(Gtid other_gtid) const
+  bool equals(const Gtid &other_gtid) const
   { return type == GTID_GROUP && gtid.equals(other_gtid); }
 #ifndef MYSQL_CLIENT
   /**
@@ -2129,7 +2137,8 @@ struct Gtid_specification
     Writes this Gtid_specification to the given string buffer.
 
     @param sid SID to use if the type of this Gtid_specification is
-    GTID_GROUP.
+    GTID_GROUP.  Can be NULL if this Gtid_specification is
+    ANONYMOUS_GROUP or AUTOMATIC_GROUP.
     @param buf[out] The buffer
     @retval The number of characters written.
     @buf[out]
@@ -2224,7 +2233,7 @@ public:
 
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_add_group_status add_empty_group(Gtid gtid);
+  enum_add_group_status add_empty_group(const Gtid &gtid);
 #ifndef MYSQL_CLIENT
   /**
     Write all gtids in this cache to the global Gtid_state.
@@ -2251,7 +2260,7 @@ public:
     @retval true The group exists in this cache.
     @retval false The group does not exist in this cache.
   */
-  bool contains_gtid(Gtid gtid) const;
+  bool contains_gtid(const Gtid &gtid) const;
   /**
     Add all GTIDs that exist in this Group_cache to the given Gtid_set.
 
@@ -2276,7 +2285,7 @@ public:
       Cached_group *group= get_unsafe_pointer(i);
       char uuid[Uuid::TEXT_LENGTH + 1]= "[]";
       if (group->spec.gtid.sidno)
-        sm->sidno_to_sid(group->spec.gtid.sidno)->to_string(uuid);
+        sm->sidno_to_sid(group->spec.gtid.sidno).to_string(uuid);
       s += sprintf(s, "  %s:%lld [offset %lld] %s\n",
                    uuid, group->spec.gtid.gno, group->binlog_offset,
                    group->spec.type == GTID_GROUP ? "GTID" :

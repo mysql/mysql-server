@@ -49,7 +49,7 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
   // parse sid
   if (sid.parse(s) == RETURN_STATUS_OK)
   {
-    rpl_sidno sidno_var= sid_map->add_sid(&sid);
+    rpl_sidno sidno_var= sid_map->add_sid(sid);
     if (sidno_var <= 0)
       RETURN_REPORTED_ERROR;
     s += Uuid::TEXT_LENGTH;
@@ -96,10 +96,10 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
 }
 
 
-int Gtid::to_string(const rpl_sid *sid, char *buf) const
+int Gtid::to_string(const rpl_sid &sid, char *buf) const
 {
   DBUG_ENTER("Gtid::to_string");
-  char *s= buf + sid->to_string(buf);
+  char *s= buf + sid.to_string(buf);
   *s= ':';
   s++;
   s+= format_gno(s, gno);

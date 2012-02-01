@@ -46,7 +46,7 @@ Group_cache::enum_add_group_status
 Group_cache::add_logged_group(const THD *thd, my_off_t binlog_offset)
 {
   DBUG_ENTER("Group_cache::add_logged_group(THD *, my_off_t)");
-  const Gtid_specification *spec= &thd->variables.gtid_next;
+  const Gtid_specification &spec= thd->variables.gtid_next;
   // merge with previous group if possible
   Cached_group *prev= get_last_group();
   if (prev != NULL && prev->spec.equals(spec))
@@ -55,7 +55,7 @@ Group_cache::add_logged_group(const THD *thd, my_off_t binlog_offset)
   Cached_group *group= allocate_group();
   if (group ==  NULL)
     DBUG_RETURN(ERROR);
-  group->spec= *spec;
+  group->spec= spec;
   group->binlog_offset= binlog_offset;
   // Update the internal status of this Group_cache (see comment above
   // definition of enum_group_cache_type).
@@ -72,7 +72,7 @@ Group_cache::add_logged_group(const THD *thd, my_off_t binlog_offset)
 }
 
 
-bool Group_cache::contains_gtid(Gtid gtid) const
+bool Group_cache::contains_gtid(const Gtid &gtid) const
 {
   int n_groups= get_n_groups();
   for (int i= 0; i < n_groups; i++)
@@ -85,7 +85,8 @@ bool Group_cache::contains_gtid(Gtid gtid) const
 }
 
 
-Group_cache::enum_add_group_status Group_cache::add_empty_group(Gtid gtid)
+Group_cache::enum_add_group_status
+Group_cache::add_empty_group(const Gtid &gtid)
 {
   DBUG_ENTER("Group_cache::add_empty_group");
   // merge with previous group if possible
@@ -145,7 +146,7 @@ enum_return_status Group_cache::generate_automatic_gno(THD *thd)
             gtid_state.unlock_sidno(automatic_gtid.sidno);
             RETURN_REPORTED_ERROR;
           }
-          gtid_state.acquire_ownership(automatic_gtid, thd);
+          gtid_state.acquire_ownership(thd, automatic_gtid);
           gtid_state.unlock_sidno(automatic_gtid.sidno);
         }
       }

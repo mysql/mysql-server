@@ -11821,7 +11821,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
   if (spec.type == GTID_GROUP)
   {
     global_sid_lock.rdlock();
-    sid= *global_sid_map.sidno_to_sid(spec.gtid.sidno);
+    sid= global_sid_map.sidno_to_sid(spec.gtid.sidno);
     global_sid_lock.unlock();
   }
   else
