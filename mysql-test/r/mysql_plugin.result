@@ -23,12 +23,24 @@ wacky	libdaemon_example.so
 wicky	libdaemon_example.so
 wonky	libdaemon_example.so
 #
+# Ensure the plugin is loaded.
+#
+SELECT * FROM mysql.plugin WHERE dl like '%libdaemon%' ORDER BY name;
+name	dl
+daemon_example	libdaemon_example.so
+#
+# Ensure the plugin is replaced.
+#
+SELECT * FROM mysql.plugin WHERE dl like '%libdaemon%' ORDER BY name;
+name	dl
+daemon_example	liblibdaemon_example.so
+#
 # Disable the plugin...
 #
 #
 # Ensure the plugin isn't loaded.
 #
-SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
+SELECT * FROM mysql.plugin WHERE dl like '%libdaemon%' ORDER BY name;
 name	dl
 #
 # Attempt to load non-existant plugin

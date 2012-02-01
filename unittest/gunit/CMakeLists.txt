@@ -246,11 +246,17 @@ SET(TESTS
 
 # Add tests (link them with gunit library and the server libraries) 
 SET(SERVER_TESTS
+  copy_info
+  create_field
+  delayable_insert_operation
   field
+  field_timestamp
   item
+  item_func_now_local
   my_decimal
   opt_range
   opt_trace
+  sql_table
   get_diagnostics
   segfault
 )
