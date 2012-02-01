@@ -663,3 +663,20 @@ flush privileges;
 
 ALTER TABLE slave_master_info ADD Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)';
 ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files';
+
+--
+-- Check for accounts with old pre-4.1 passwords and issue a warning
+--
+
+-- SCRAMBLED_PASSWORD_CHAR_LENGTH_323 = 16
+SET @deprecated_pwds=(SELECT COUNT(*) FROM mysql.user WHERE LENGTH(password) = 16 AND plugin='');
+
+-- signal the deprecation error
+DROP PROCEDURE IF EXISTS mysql.warn_pre41_pwd;
+CREATE PROCEDURE mysql.warn_pre41_pwd() SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Pre-4.1 password hash is deprecated and will be removed in a future release. Please upgrade the user definitions using it to a new format.';
+SET @cmd='call mysql.warn_pre41_pwd()';
+SET @str=IF(@deprecated_pwds > 0, @cmd, 'SET @dummy=0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+DROP PROCEDURE mysql.warn_pre41_pwd;

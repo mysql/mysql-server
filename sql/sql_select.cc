@@ -1224,11 +1224,6 @@ bool JOIN::get_best_combination()
 
   set_semijoin_info();
 
-  if (set_access_methods())
-    DBUG_RETURN(true);
-
-  update_depend_map(this);
-
   DBUG_RETURN(false);
 }
 
@@ -1242,6 +1237,11 @@ bool JOIN::get_best_combination()
      - There is no key selected (use JT_ALL)
      - Loose scan semi-join strategy is selected (use JT_ALL)
      - A ref key can be used (use JT_REF, JT_REF_OR_NULL, JT_EQ_REF or JT_FT)
+
+  @note We cannot setup fields used for ref access before we have sorted
+        the items within multiple equalities according to the final order of
+        the tables involved in the join operation. Currently, this occurs in
+        @see substitute_for_best_equal_field().
 */
 bool JOIN::set_access_methods()
 {
@@ -1360,8 +1360,14 @@ void JOIN::set_semijoin_info()
   @details
     This function will set up a ref access using the best key found
     during access path analysis and cost analysis.
-*/
 
+  @note We cannot setup fields used for ref access before we have sorted
+        the items within multiple equalities according to the final order of
+        the tables involved in the join operation. Currently, this occurs in
+        @see substitute_for_best_equal_field().
+        The exception is ref access for const tables, which are fixed
+        before the greedy search planner is invoked.  
+*/
 
 bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
                         table_map used_tables)
@@ -1452,6 +1458,14 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
         keyuse++;                               // Skip other parts
 
       uint maybe_null= test(keyinfo->key_part[part_no].null_bit);
+
+      if (keyuse->val->type() == Item::FIELD_ITEM)
+      {
+        // Look up the most appropriate field to base the ref access on.
+        keyuse->val= get_best_field(static_cast<Item_field *>(keyuse->val),
+                                    join->cond_equal);
+        keyuse->used_tables= keyuse->val->used_tables();
+      }
       j->ref.items[part_no]=keyuse->val;        // Save for cond removal
       j->ref.cond_guards[part_no]= keyuse->cond_guard;
       if (keyuse->null_rejecting) 
@@ -2579,14 +2593,11 @@ bool setup_sj_materialization(JOIN_TAB *tab)
     it.rewind();
     for (uint i=0; i < sjm->table_cols.elements; i++)
     {
-      bool dummy;
-      Item_equal *item_eq;
       Item *item= (it++)->real_item();
       DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
-      Field *copy_to= ((Item_field*)item)->field;
       /*
-        Tricks with Item_equal are due to the following: suppose we have a
-        query:
+        The trick with get_best_field() is due to the following;
+        suppose we have a query:
         
         ... WHERE cond(ot.col) AND ot.col IN (SELECT it2.col FROM it1,it2
                                                WHERE it1.col= it2.col)
@@ -2609,21 +2620,8 @@ bool setup_sj_materialization(JOIN_TAB *tab)
          element equality propagation member that refers to table that is
          within the subquery.
       */
-      item_eq= find_item_equal(tab->join->cond_equal, copy_to, &dummy);
-
-      if (item_eq)
-      {
-        List_iterator<Item_field> it(item_eq->fields);
-        Item_field *item;
-        while ((item= it++))
-        {
-          if (!(item->used_tables() & ~emb_sj_nest->sj_inner_tables))
-          {
-            copy_to= item->field;
-            break;
-          }
-        }
-      }
+      Field *copy_to= get_best_field(static_cast<Item_field *>(item),
+                                     tab->join->cond_equal)->field;
       sjm->copy_field[i].set(copy_to, sjm->table->field[i], FALSE);
       /* The write_set for source tables must be set up to allow the copying */
       bitmap_set_bit(copy_to->table->write_set, copy_to->field_index);
@@ -2632,8 +2630,6 @@ bool setup_sj_materialization(JOIN_TAB *tab)
 
   DBUG_RETURN(FALSE);
 }
-
-
 
 
 /**
@@ -3565,6 +3561,38 @@ is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
 }
 
 /**
+  Test if REF_OR_NULL optimization will be used if the specified
+  ref_key is used for REF-access to 'tab'
+
+  @retval
+    true	JT_REF_OR_NULL will be used
+  @retval
+    false	no JT_REF_OR_NULL access
+*/
+bool
+is_ref_or_null_optimized(const JOIN_TAB *tab, uint ref_key)
+{
+  if (tab->keyuse)
+  {
+    const Key_use *keyuse= tab->keyuse;
+    while (keyuse->key != ref_key && keyuse->table == tab->table)
+      keyuse++;
+
+    const table_map const_tables= tab->join->const_table_map;
+    do
+    {
+      if (!(keyuse->used_tables & ~const_tables))
+      {
+        if (keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL)
+          return true;
+      }
+      keyuse++;
+    } while (keyuse->key == ref_key && keyuse->table == tab->table);
+  }
+  return false;
+}
+
+/**
   Test if we can use one of the 'usable_keys' instead of 'ref' key
   for sorting.
 
@@ -3577,12 +3605,13 @@ is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
 */
 
 static uint
-test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
+test_if_subkey(ORDER *order, JOIN_TAB *tab, uint ref, uint ref_key_parts,
 	       const key_map *usable_keys)
 {
   uint nr;
   uint min_length= (uint) ~0;
   uint best= MAX_KEY;
+  TABLE *table= tab->table;
   KEY_PART_INFO *ref_key_part= table->key_info[ref].key_part;
   KEY_PART_INFO *ref_key_part_end= ref_key_part + ref_key_parts;
 
@@ -3593,6 +3622,7 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
 	table->key_info[nr].key_parts >= ref_key_parts &&
 	is_subkey(table->key_info[nr].key_part, ref_key_part,
 		  ref_key_part_end) &&
+        !is_ref_or_null_optimized(tab, nr) &&
 	test_if_order_by_key(order, table, nr))
     {
       min_length= table->key_info[nr].key_length;
@@ -3620,6 +3650,9 @@ public:
   */
   Plan_change_watchdog(const JOIN_TAB *tab_arg, bool no_changes_arg)
   {
+    // Only to keep gcc 4.1.2-44 silent about uninitialized variables
+    quick= NULL;
+    quick_index= 0;
     if (no_changes_arg)
     {
       tab= tab_arg;
@@ -3633,7 +3666,14 @@ public:
       index= tab->index;
     }
     else
+    {
       tab= NULL;
+      // Only to keep gcc 4.1.2-44 silent about uninitialized variables
+      type= JT_UNKNOWN;
+      select= NULL;
+      ref_key= ref_key_parts= index= 0;
+      use_quick= QS_NONE;
+    }
   }
   ~Plan_change_watchdog()
   {
@@ -3722,6 +3762,14 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
   Plan_change_watchdog watchdog(tab, no_changes);
 
+  /* Sorting a single row can always be skipped */
+  if (tab->type == JT_EQ_REF ||
+      tab->type == JT_CONST  ||
+      tab->type == JT_SYSTEM)
+  {
+    DBUG_RETURN(1);
+  }
+
   /*
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
     been taken into account.
@@ -3803,7 +3851,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       if (table->covering_keys.is_set(ref_key))
 	usable_keys.intersect(table->covering_keys);
 
-      if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
+      if ((new_ref_key= test_if_subkey(order, tab, ref_key, ref_key_parts,
 				       &usable_keys)) < MAX_KEY)
       {
 	/* Found key that can be used to retrieve data in sorted order */
@@ -3825,6 +3873,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                                  tab->join->const_table_map))
             goto use_filesort;
 
+          DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
           pick_table_access_method(tab);
 	}
 	else
@@ -3966,11 +4015,16 @@ check_reverse_order:
         (select && select->quick && select->quick!=save_quick);
 
       /* 
-         If ref_key used index tree reading only ('Using index' in EXPLAIN),
-         and best_key doesn't, then revert the decision.
+         If 'best_key' has changed from  prev. 'ref_key':
+         Update strategy for using index tree reading only
+         ('Using index' in EXPLAIN)
       */
-      if (!table->covering_keys.is_set(best_key))
-        table->set_keyread(FALSE);
+      if (best_key != ref_key)
+      {
+        const bool using_index= 
+          (table->covering_keys.is_set(best_key) && !table->no_keyread);
+        table->set_keyread(using_index);
+      }
       if (!quick_created)
       {
         if (select)                  // Throw any existing quick select
@@ -3981,8 +4035,6 @@ check_reverse_order:
                                 join_read_first:join_read_last;
         tab->type=JT_INDEX_SCAN;       // Read with index_first(), index_next()
 
-        if (table->covering_keys.is_set(best_key))
-          table->set_keyread(TRUE);
         table->file->ha_index_or_rnd_end();
         if (tab->join->select_options & SELECT_DESCRIBE)
         {
@@ -4000,6 +4052,7 @@ check_reverse_order:
           method is actually used.
         */
         DBUG_ASSERT(tab->select->quick);
+        DBUG_ASSERT(tab->select->quick->index==(uint)best_key);
         tab->type=JT_ALL;
         tab->use_quick=QS_RANGE;
         tab->ref.key= -1;

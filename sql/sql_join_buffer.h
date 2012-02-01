@@ -277,7 +277,7 @@ protected:
   void create_flag_fields();
   void create_remaining_fields(bool all_read_fields);
   void set_constants();
-  int alloc_buffer();
+  bool alloc_buffer();
 
   uint get_size_of_rec_offset() { return size_of_rec_ofs; }
   uint get_size_of_rec_length() { return size_of_rec_len; }

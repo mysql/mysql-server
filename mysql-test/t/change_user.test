@@ -2,8 +2,12 @@
 # functional change user tests
 #
 
+SET GLOBAL secure_auth = OFF;
 grant select on test.* to test_nopw;
+# need to suppress the deprecation warnings because they're absent in embedded
+--disable_warnings
 grant select on test.* to test_oldpw identified by password "09301740536db389";
+--enable_warnings
 grant select on test.* to test_newpw identified by "newpw";
 
 select user(), current_user(), database();
@@ -122,3 +126,5 @@ if ($after != $before){
   die The value of com_select changed during change_user;
 }
 echo Value of com_select did not change;
+
+SET GLOBAL secure_auth = DEFAULT;

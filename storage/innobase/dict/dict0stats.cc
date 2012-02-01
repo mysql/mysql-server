@@ -160,7 +160,7 @@ dict_stats_update_transient(
 	if (index == NULL) {
 		/* Table definition is corrupt */
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "InnoDB: table %s has no indexes. "
+		fprintf(stderr, " InnoDB: table %s has no indexes. "
 			"Cannot calculate statistics.\n", table->name);
 		return;
 	}
@@ -2252,10 +2252,9 @@ dict_stats_update(
 	if (table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: cannot calculate statistics for table %s\n"
-			"InnoDB: because the .ibd file is missing.  For help,"
-			" please refer to\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting.html\n",
+			" InnoDB: cannot calculate statistics for table %s "
+			"because the .ibd file is missing. For help, please "
+			"refer to " REFMAN "innodb-troubleshooting.html\n",
 			table->name);
 
 		return(DB_TABLESPACE_DELETED);

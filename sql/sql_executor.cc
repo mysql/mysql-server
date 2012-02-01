@@ -145,12 +145,6 @@ JOIN::exec()
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
-    if (result->send_result_set_metadata(*columns_list,
-                                         Protocol::SEND_NUM_ROWS |
-                                         Protocol::SEND_EOF))
-    {
-      DBUG_VOID_RETURN;
-    }
     /*
       We have to test for 'conds' here as the WHERE may not be constant
       even if we don't have any tables for prepared statements or if
@@ -165,6 +159,12 @@ JOIN::exec()
         (!conds || conds->val_int()) &&
         (!having || having->val_int()))
     {
+      if (result->send_result_set_metadata(*columns_list,
+                                           Protocol::SEND_NUM_ROWS |
+                                           Protocol::SEND_EOF))
+      {
+        DBUG_VOID_RETURN;
+      }
       if (do_send_rows &&
           (procedure ? (procedure->send_row(procedure_fields_list) ||
            procedure->end_of_records()) : result->send_data(fields_list)))
@@ -175,15 +175,15 @@ JOIN::exec()
         send_records= ((select_options & OPTION_FOUND_ROWS) ? 1 :
                        thd->get_sent_row_count());
       }
+      /* Query block (without union) always returns 0 or 1 row */
+      thd->limit_found_rows= send_records;
+      thd->set_examined_row_count(0);
     }
     else
     {
-      error=(int) result->send_eof();
-      send_records= 0;
+      tables= 0;
+      return_zero_rows(this, *columns_list);
     }
-    /* Single select (without union) always returns 0 or 1 row */
-    thd->limit_found_rows= send_records;
-    thd->set_examined_row_count(0);
     DBUG_VOID_RETURN;
   }
   /*
@@ -798,9 +798,7 @@ JOIN::create_intermediate_table(List<Item> *tmp_table_fields,
         prepare_sum_aggregators(sum_funcs,
                                 !join_tab->is_using_agg_loose_index_scan()) ||
         setup_sum_funcs(thd, sum_funcs))
-    {
-      DBUG_RETURN(NULL);
-    }
+      goto err;
     group_list= NULL;
   }
   else
@@ -809,9 +807,7 @@ JOIN::create_intermediate_table(List<Item> *tmp_table_fields,
         prepare_sum_aggregators(sum_funcs,
                                 !join_tab->is_using_agg_loose_index_scan()) ||
         setup_sum_funcs(thd, sum_funcs))
-    {
-      DBUG_RETURN(NULL);
-    }
+      goto err;
 
     if (!group_list && !tab->distinct && order && simple_order)
     {
@@ -819,13 +815,16 @@ JOIN::create_intermediate_table(List<Item> *tmp_table_fields,
       THD_STAGE_INFO(thd, stage_sorting_for_order);
       if (create_sort_index(thd, this, order,
                             HA_POS_ERROR, HA_POS_ERROR, true))
-      {
-        DBUG_RETURN(NULL);
-      }
+        goto err;
       order= NULL;
     }
   }
   DBUG_RETURN(tab);
+
+err:
+  if (tab != NULL)
+    free_tmp_table(thd, tab);
+  DBUG_RETURN(NULL);
 }
 
 

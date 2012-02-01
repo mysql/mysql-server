@@ -4227,6 +4227,18 @@ DROP VIEW t1;
 DROP TEMPORARY TABLE t1;
 
 
+--echo #
+--echo # Bug#13601606: FAILED VIEW CREATION ERROR MESSAGE (FOR DB NOT PRESENT) 
+--echo #               NEEDS BIG IMPROVEMENT 
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS nodb;
+--enable_warnings
+--error ER_BAD_DB_ERROR
+CREATE VIEW nodb.a AS SELECT 1;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

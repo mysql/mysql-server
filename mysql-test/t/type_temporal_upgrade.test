@@ -15,6 +15,16 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 SHOW CREATE TABLE t1;
 
+# Testing bad values
+INSERT INTO t1 (f_time, f_datetime, f_timestamp)
+VALUES (9999999, 999999999999999, 999999999999999);
+INSERT INTO t1 (f_time, f_datetime, f_timestamp)
+VALUES (-9999999, -999999999999999, -999999999999999);
+
+# Testing zero values
+INSERT INTO t1 (f_time, f_datetime, f_timestamp)
+VALUES ('00:00:00', '0000-00-00 00:00:00','0000-00-00 00:00:00');
+
 SELECT * FROM t1;
 
 SELECT * FROM t1 ORDER BY f_time;
@@ -22,18 +32,27 @@ SELECT * FROM t1 WHERE f_time > '00:00:00';
 SELECT * FROM t1 WHERE f_time > '00:00:00' ORDER BY f_time;
 SELECT * FROM t1 WHERE f_time = '01:01:10';
 SELECT * FROM t1 WHERE f_time IS NULL;
+# Field_time::store_packed
+SELECT COUNT(*), MIN(f_time) FROM t1 GROUP BY f_time;
 
 SELECT * FROM t1 ORDER BY f_timestamp;
 SELECT * FROM t1 WHERE f_timestamp > '2011-11-21 17:11:01';
 SELECT * FROM t1 WHERE f_timestamp > '2011-11-21 17:11:01' ORDER BY f_timestamp;
 SELECT * FROM t1 WHERE f_timestamp = '2015-11-21 17:11:01';
 SELECT * FROM t1 WHERE f_timestamp IS NULL;
+# Field_timestamp::store_packed
+SELECT COUNT(*), MIN(f_timestamp) FROM t1 GROUP BY f_timestamp;
+# Field_timestamp::get_timestamp
+SELECT UNIX_TIMESTAMP(f_timestamp) FROM t1 ORDER BY f_timestamp;
 
 SELECT * FROM t1 ORDER BY f_datetime;
 SELECT * FROM t1 WHERE f_datetime > '2000-01-01 01:01:01';
 SELECT * FROM t1 WHERE f_datetime > '2000-01-01 01:01:01' ORDER BY f_datetime;
 SELECT * FROM t1 WHERE f_datetime = '2010-10-10 10:10:10';
 SELECT * FROM t1 WHERE f_datetime IS NULL;
+# Field_datetime::store_packed
+SELECT COUNT(*), MIN(f_datetime) FROM t1 GROUP BY f_datetime;
+
 
 --echo #
 --echo # Checking various val_xxx() methods for the old fields
