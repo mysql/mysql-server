@@ -61,7 +61,7 @@ int gtid_acquire_ownership_single(THD *thd)
     // GTID not owned by anyone: acquire ownership
     if (owner == 0)
     {
-      if (gtid_state.acquire_ownership(gtid_next, thd) != RETURN_STATUS_OK)
+      if (gtid_state.acquire_ownership(thd, gtid_next) != RETURN_STATUS_OK)
         ret= 1;
       thd->owned_gtid= gtid_next;
       break;
@@ -191,7 +191,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
     if (!gtid_state.is_logged(g))
     {
       DBUG_ASSERT(gtid_state.get_owner(g) == 0);
-      if (gtid_state.acquire_ownership(g, thd) != RETURN_STATUS_OK ||
+      if (gtid_state.acquire_ownership(thd, g) != RETURN_STATUS_OK ||
           thd->owned_gtid_set._add_gtid(g))
       {
         /// @todo release ownership on error

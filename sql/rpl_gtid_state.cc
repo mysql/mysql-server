@@ -32,7 +32,7 @@ void Gtid_state::clear()
 }
 
 
-enum_return_status Gtid_state::acquire_ownership(Gtid gtid, THD *thd)
+enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
 {
   DBUG_ENTER("Gtid_state::acquire_ownership");
   // caller must take lock on the SIDNO.
@@ -163,7 +163,7 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
 }
 
 
-void Gtid_state::wait_for_gtid(THD *thd, Gtid gtid)
+void Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid)
 {
   DBUG_ENTER("Gtid_state::wait_for_gtid");
   // Enter cond, wait, exit cond.
@@ -246,7 +246,7 @@ int Gtid_state::init()
   rpl_sid server_sid;
   if (server_sid.parse(server_uuid) != RETURN_STATUS_OK)
     DBUG_RETURN(1);
-  rpl_sidno sidno= sid_map->add_sid(&server_sid);
+  rpl_sidno sidno= sid_map->add_sid(server_sid);
   if (sidno <= 0)
     DBUG_RETURN(1);
   server_sidno= sidno;

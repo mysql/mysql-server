@@ -465,7 +465,7 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
         goto parse_error;
       }
       s += rpl_sid::TEXT_LENGTH;
-      rpl_sidno sidno= sid_map->add_sid(&sid);
+      rpl_sidno sidno= sid_map->add_sid(sid);
       if (sidno <= 0)
         RETURN_REPORTED_ERROR;
       PROPAGATE_REPORTED_ERROR(ensure_sidno(sidno));
@@ -645,7 +645,7 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
       Const_interval_iterator other_ivit(other, other_sidno);
       if (other_ivit.get() != NULL)
       {
-        const rpl_sid *sid= other_sid_map->sidno_to_sid(other_sidno);
+        const rpl_sid &sid= other_sid_map->sidno_to_sid(other_sidno);
         rpl_sidno this_sidno= sid_map->add_sid(sid);
         if (this_sidno <= 0)
           RETURN_REPORTED_ERROR;
@@ -678,7 +678,7 @@ enum_return_status Gtid_set::remove_gtid_set(const Gtid_set *other)
       Const_interval_iterator other_ivit(other, other_sidno);
       if (other_ivit.get() != NULL)
       {
-        const rpl_sid *sid= other_sid_map->sidno_to_sid(other_sidno);
+        const rpl_sid &sid= other_sid_map->sidno_to_sid(other_sidno);
         rpl_sidno this_sidno= sid_map->sid_to_sidno(sid);
         if (this_sidno != 0)
           PROPAGATE_REPORTED_ERROR(
@@ -755,7 +755,7 @@ int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const
         memcpy(s, sf->gno_sid_separator, sf->gno_sid_separator_length);
         s+= sf->gno_sid_separator_length;
       }
-      s+= sid_map->sidno_to_sid(sidno)->to_string(s);
+      s+= sid_map->sidno_to_sid(sidno).to_string(s);
       bool first_gno= true;
       do
       {
@@ -889,7 +889,7 @@ bool Gtid_set::sidno_equals(rpl_sidno sidno, const Gtid_set *other,
   const Interval *other_iv= other_ivit.get();
   while (iv != NULL && other_iv != NULL)
   {
-    if (!iv->equals(other_iv))
+    if (!iv->equals(*other_iv))
       DBUG_RETURN(false);
     ivit.next();
     other_ivit.next();
@@ -957,9 +957,9 @@ bool Gtid_set::equals(const Gtid_set *other) const
       // return true iff both sets reached the max sidno
       DBUG_RETURN(sid_i == map_max_sidno && other_sid_i == other_map_max_sidno);
     // check if sids are equal
-    const rpl_sid *sid= sid_map->sidno_to_sid(sidno);
-    const rpl_sid *other_sid= other_sid_map->sidno_to_sid(other_sidno);
-    if (!sid->equals(other_sid))
+    const rpl_sid &sid= sid_map->sidno_to_sid(sidno);
+    const rpl_sid &other_sid= other_sid_map->sidno_to_sid(other_sidno);
+    if (!sid.equals(other_sid))
       DBUG_RETURN(false);
     // check if all intervals are equal
     if (!sidno_equals(sidno, other, other_sidno))
@@ -1061,7 +1061,7 @@ void Gtid_set::encode(uchar *buf) const
     {
       n_sids++;
       // store SID
-      sid_map->sidno_to_sid(sidno)->copy_to(buf);
+      sid_map->sidno_to_sid(sidno).copy_to(buf);
       buf+= rpl_sid::BYTE_LENGTH;
       // make place for number of intervals
       uint64 n_intervals= 0;
@@ -1120,7 +1120,7 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded, size_t leng
     pos+= 16;
     uint64 n_intervals= uint8korr(encoded + pos);
     pos+= 8;
-    rpl_sidno sidno= sid_map->add_sid(&sid);
+    rpl_sidno sidno= sid_map->add_sid(sid);
     if (sidno < 0)
     {
       DBUG_PRINT("error", ("sidno=%d", sidno));

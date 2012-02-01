@@ -102,7 +102,8 @@ error:
 }
 
 
-enum_return_status Owned_gtids::add_gtid_owner(Gtid gtid, my_thread_id owner)
+enum_return_status Owned_gtids::add_gtid_owner(const Gtid &gtid,
+                                               my_thread_id owner)
 {
   DBUG_ENTER("Owned_gtids::add_gtid_owner(Gtid, my_thread_id)");
   DBUG_ASSERT(!contains_gtid(gtid));
@@ -126,7 +127,7 @@ enum_return_status Owned_gtids::add_gtid_owner(Gtid gtid, my_thread_id owner)
 }
 
 
-void Owned_gtids::remove_gtid(Gtid gtid)
+void Owned_gtids::remove_gtid(const Gtid &gtid)
 {
   DBUG_ENTER("Owned_gtids::remove_gtid(Gtid)");
   //printf("Owned_gtids::remove(sidno=%d gno=%lld)\n", sidno, gno);
@@ -147,7 +148,7 @@ void Owned_gtids::remove_gtid(Gtid gtid)
 }
 
 
-my_thread_id Owned_gtids::get_owner(Gtid gtid) const
+my_thread_id Owned_gtids::get_owner(const Gtid &gtid) const
 {
   Node *n= get_node(gtid);
   if (n != NULL)

@@ -56,17 +56,17 @@ enum_return_status Sid_map::clear()
   RETURN_OK;
 }
 
-rpl_sidno Sid_map::add_sid(const rpl_sid *sid)
+rpl_sidno Sid_map::add_sid(const rpl_sid &sid)
 {
   DBUG_ENTER("Sid_map::add_sid(const rpl_sid *)");
 #ifndef DBUG_OFF
   char buf[Uuid::TEXT_LENGTH + 1];
-  sid->to_string(buf);
+  sid.to_string(buf);
   DBUG_PRINT("info", ("SID=%s", buf));
 #endif
   if (sid_lock)
     sid_lock->assert_some_lock();
-  Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
+  Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid.bytes,
                                      rpl_sid::BYTE_LENGTH);
   if (node != NULL)
   {
@@ -86,7 +86,7 @@ rpl_sidno Sid_map::add_sid(const rpl_sid *sid)
   }
   DBUG_PRINT("info", ("is_wrlock=%d sid_lock=%p", is_wrlock, sid_lock));
   rpl_sidno sidno;
-  node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
+  node= (Node *)my_hash_search(&_sid_to_sidno, sid.bytes,
                                rpl_sid::BYTE_LENGTH);
   if (node != NULL)
     sidno= node->sidno;
@@ -108,7 +108,7 @@ rpl_sidno Sid_map::add_sid(const rpl_sid *sid)
   DBUG_RETURN(sidno);
 }
 
-enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
+enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
 {
   DBUG_ENTER("Sid_map::add_node(rpl_sidno, const rpl_sid *)");
   if (sid_lock)
@@ -118,7 +118,7 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
     RETURN_REPORTED_ERROR;
 
   node->sidno= sidno;
-  node->sid= *sid;
+  node->sid= sid;
   if (insert_dynamic(&_sidno_to_sid, &node) == 0)
   {
     if (insert_dynamic(&_sorted, &sidno) == 0)
@@ -144,8 +144,8 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
           {
             rpl_sidno *sorted_p= dynamic_element(&_sorted, sorted_i,
                                                  rpl_sidno *);
-            const rpl_sid *other_sid= sidno_to_sid(*sorted_p);
-            if (memcmp(sid->bytes, other_sid->bytes,
+            const rpl_sid &other_sid= sidno_to_sid(*sorted_p);
+            if (memcmp(sid.bytes, other_sid.bytes,
                        rpl_sid::BYTE_LENGTH) >= 0)
               break;
             memcpy(prev_sorted_p, sorted_p, sizeof(rpl_sidno));

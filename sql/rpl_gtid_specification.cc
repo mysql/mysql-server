@@ -78,7 +78,7 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const
     strcpy(buf, "ANONYMOUS");
     DBUG_RETURN(9);
   case GTID_GROUP:
-    DBUG_RETURN(gtid.to_string(sid, buf));
+    DBUG_RETURN(gtid.to_string(*sid, buf));
   case INVALID_GROUP:
     DBUG_ASSERT(0);
   }
@@ -90,6 +90,6 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const
 int Gtid_specification::to_string(const Sid_map *sid_map, char *buf) const
 {
   return to_string(type == GTID_GROUP ?
-                   sid_map->sidno_to_sid(gtid.sidno) : NULL,
+                   &sid_map->sidno_to_sid(gtid.sidno) : NULL,
                    buf);
 }
