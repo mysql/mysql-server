@@ -2617,6 +2617,7 @@ row_add_table_to_background_drop_list(
 
 /** Callback for row_mysql_sys_index_iterate() */
 struct SysIndexCallback {
+	virtual ~SysIndexCallback() { }
 	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) = 0;
 };
 
