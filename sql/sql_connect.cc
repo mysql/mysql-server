@@ -790,6 +790,7 @@ void prepare_new_connection_state(THD* thd)
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())
     {
+      Host_errors errors;
       ulong packet_length;
       NET *net= &thd->net;
 
@@ -819,6 +820,8 @@ void prepare_new_connection_state(THD* thd)
       thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
       thd->protocol->end_statement();
       thd->killed = THD::KILL_CONNECTION;
+      errors.m_init_connect= 1;
+      inc_host_errors(thd->main_security_ctx.ip, &errors);
       return;
     }
 

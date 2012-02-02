@@ -71,8 +71,10 @@ public:
   ulong m_max_user_connection_per_hour;
   /** Number of errors from max connection. */
   ulong m_max_connection;
-  /** Number of errors from user grants. */
-  ulong m_user_acl;
+  /** Number of errors from the default database. */
+  ulong m_default_database;
+  /** Number of errors from init_connect. */
+  ulong m_init_connect;
   /** Number of errors from the server itself. */
   ulong m_local;
 
@@ -96,7 +98,8 @@ public:
       || (m_max_user_connection != 0)
       || (m_max_user_connection_per_hour != 0)
       || (m_max_connection != 0)
-      || (m_user_acl != 0)
+      || (m_default_database != 0)
+      || (m_init_connect != 0)
       || (m_local != 0));
   }
 
@@ -104,9 +107,6 @@ public:
   {
     /* Current (historical) behavior: */
     m_connect= m_handshake;
-    /* Proposed behavior:
-    m_connect= m_host_acl + m_handshake + m_authentication + m_user_acl;
-    */
   }
 
   void clear_connect_errors()

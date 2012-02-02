@@ -66,7 +66,8 @@ Host_errors::Host_errors()
   m_max_user_connection(0),
   m_max_user_connection_per_hour(0),
   m_max_connection(0),
-  m_user_acl(0),
+  m_default_database(0),
+  m_init_connect(0),
   m_local(0)
 {}
 
@@ -94,7 +95,8 @@ void Host_errors::reset()
   m_max_user_connection= 0;
   m_max_user_connection_per_hour= 0;
   m_max_connection= 0;
-  m_user_acl= 0;
+  m_default_database= 0;
+  m_init_connect= 0;
   m_local= 0;
 }
 
@@ -119,7 +121,8 @@ void Host_errors::aggregate(const Host_errors *errors)
   m_max_user_connection+= errors->m_max_user_connection;
   m_max_user_connection_per_hour+= errors->m_max_user_connection_per_hour;
   m_max_connection+= errors->m_max_connection;
-  m_user_acl+= errors->m_user_acl;
+  m_default_database+= errors->m_default_database;
+  m_init_connect+= errors->m_init_connect;
   m_local+= errors->m_local;
 }
 

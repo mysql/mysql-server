@@ -80,8 +80,10 @@ struct row_host_cache
   ulonglong m_count_max_user_connection_per_hour_errors;
   /** Column COUNT_MAX_CONNECTION_ERRORS. */
   ulonglong m_count_max_connection_errors;
-  /** Column COUNT_USER_ACL_ERRORS. */
-  ulonglong m_count_user_acl_errors;
+  /** Column COUNT_DEFAULT_DATABASE_ERRORS. */
+  ulonglong m_count_default_database_errors;
+  /** Column COUNT_INIT_CONNECT_ERRORS. */
+  ulonglong m_count_init_connect_errors;
   /** Column COUNT_LOCAL_ERRORS. */
   ulonglong m_count_local_errors;
   /** Column COUNT_UNKNOWN_ERRORS. */

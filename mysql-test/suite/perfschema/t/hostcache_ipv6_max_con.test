@@ -13,9 +13,8 @@
 --source include/have_ipv6.inc
 --source include/have_perfschema.inc
 
-# [Warning] IP address '192.0.2.4' could not be resolved:
-# no reverse address mapping.
-# call mtr.add_suppression("192.0.2.4");
+# Enforce a clean state
+--source ../include/wait_for_pfs_thread_count.inc
 
 flush status;
 flush hosts;

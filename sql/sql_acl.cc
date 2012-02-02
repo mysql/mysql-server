@@ -9667,7 +9667,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
         thd->user_connect= 0;
       }
       Host_errors errors;
-      errors.m_user_acl= 1;
+      errors.m_default_database= 1;
       inc_host_errors(mpvio.ip, &errors);
       DBUG_RETURN(1);
     }
