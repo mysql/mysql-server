@@ -635,10 +635,7 @@ private:
    * are real LQHs run by multiple threads.
    */
 protected:
-  enum { MaxInstances = 3 +
-         MAX_NDBMT_TC_THREADS +
-         MAX_NDBMT_LQH_WORKERS +
-         MAX_NDBMT_RECEIVE_THREADS };
+  enum { MaxInstances = NDBMT_MAX_BLOCK_INSTANCES };
 private:
   SimulatedBlock** theInstanceList; // set in main, indexed by instance
   SimulatedBlock* theMainInstance;  // set in all
