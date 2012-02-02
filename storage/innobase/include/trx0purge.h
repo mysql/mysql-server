@@ -90,13 +90,13 @@ trx_purge(
 	ulint	limit);			/*!< in: the maximum number of
 					records to purge in one batch */
 /*******************************************************************//**
-Stop purge and wait for it to stop. */
+Stop purge and wait for it to stop, move to PURGE_STATE_STOP. */
 UNIV_INTERN
 void
 trx_purge_stop(void);
 /*================*/
 /*******************************************************************//**
-Restart purge. */
+Resume purge, move to PURGE_STATE_RUN. */
 UNIV_INTERN
 void
 trx_purge_run(void);
