@@ -2234,19 +2234,29 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Wait for the purge coordinator and master thread to startup. */
 
+	purge_state_t	state = trx_purge_state();
+
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE
 	       && srv_force_recovery < SRV_FORCE_NO_BACKGROUND
-	       && (!(trx_purge_state() == PURGE_STATE_RUN
-	          && trx_purge_state() == PURGE_STATE_STOP))) {
+	       && state == PURGE_STATE_INIT) {
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: "
-			"Waiting for the background threads to "
-			"start\n");
+	       	switch (state = trx_purge_state()) {
+		case PURGE_STATE_RUN:
+		case PURGE_STATE_STOP:
+			break;
 
-		os_thread_sleep(1000000);
+		case PURGE_STATE_INIT:
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: "
+				"Waiting for the background threads to "
+				"start\n");
 
-		ut_a(trx_purge_state() != PURGE_STATE_EXIT);
+			os_thread_sleep(50000);
+			break;
+
+		case PURGE_STATE_EXIT:
+			ut_error;
+		}
 	}
 
 #ifdef UNIV_DEBUG
