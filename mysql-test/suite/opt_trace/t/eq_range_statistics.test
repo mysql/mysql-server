@@ -38,8 +38,12 @@ EXPLAIN SELECT * FROM t1 WHERE a IN (1,2,3);
 SET eq_range_index_dive_limit=3;
 SELECT @@eq_range_index_dive_limit;
 
+# Crash server if records_in_range() is called
+SET SESSION DEBUG="+d,crash_records_in_range";
 --echo # Index statistics kicks in, giving incorrect estimate of 3x2=6 records
 EXPLAIN SELECT * FROM t1 WHERE a IN (1,2,3);
+SELECT * FROM t1 WHERE a IN (1,2,3);
+SET SESSION DEBUG="-d,crash_records_in_range";
 
 --echo #####
 --echo # Below: A number of tests to verify that the number of equality ranges
@@ -53,15 +57,21 @@ EXPLAIN SELECT * FROM t1 WHERE a IN (1,2,3);
 EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1);
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
+# This query will use index statistics (as shown in trace) but
+# we cannot make it crash if records_in_range() is called
+# because the "a>10" range will correctly call records_in_range()
 --echo
 --echo # 3 equality ranges: should use index statistics
 EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2);
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
+# Crash server if records_in_range() is called
 --echo
 --echo # 3 equality ranges: should use index statistics
+SET SESSION DEBUG="+d,crash_records_in_range";
 EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4);
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
+SET SESSION DEBUG="-d,crash_records_in_range";
 
 --echo
 --echo # 2 equality ranges: should not use index statistics
