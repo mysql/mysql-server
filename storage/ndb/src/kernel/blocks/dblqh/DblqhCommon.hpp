@@ -30,10 +30,6 @@
  *
  *   log part number = log part id % 4
  *
- * Currently instance key (1-4) is
- *
- *   instance key = 1 + log part number
- *
  * This may change, and the code (except this file) must not assume
  * any connection between log part number and instance key.
  *
@@ -49,9 +45,7 @@ struct NdbLogPartInfo {
   Bitmask<(NDB_MAX_LOG_PARTS+31)/32> partMask;
   Uint32 partNoFromId(Uint32 lpid) const;
   bool partNoOwner(Uint32 lpno) const;
-  bool partNoOwner(Uint32 tabId, Uint32 fragId);
   Uint32 partNoIndex(Uint32 lpno) const;
-  Uint32 instanceKey(Uint32 lpno) const;
 };
 
 #endif
