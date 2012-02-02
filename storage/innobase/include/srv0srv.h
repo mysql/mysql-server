@@ -803,13 +803,13 @@ struct export_var_struct{
 
 /** Thread slot in the thread table.  */
 struct srv_slot_struct{
-	enum srv_thread_type
-			type;			/*!< thread type: user,
+	srv_thread_type type;			/*!< thread type: user,
 						utility etc. */
 	ibool		in_use;			/*!< TRUE if this slot
 						is in use */
-	ibool		suspended;		/*!< TRUE if the thread is waiting for the
-						event of this slot */
+	ibool		suspended;		/*!< TRUE if the thread is
+						waiting for the event of this
+						slot */
 	ib_time_t	suspend_time;		/*!< time when the thread was
 						suspended. Initialized by
 						lock_wait_table_reserve_slot()
@@ -819,9 +819,9 @@ struct srv_slot_struct{
 						Initialized by
 						lock_wait_table_reserve_slot()
 						for lock wait */
-	os_event_t	event;			/*!< event used in suspending the
-						thread when it has nothing to
-						do */
+	os_event_t	event;			/*!< event used in suspending
+						the thread when it has nothing
+						to do */
 	que_thr_t*	thr;			/*!< suspended query thread
 						(only used for user threads) */
 };

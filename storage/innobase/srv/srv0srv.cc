@@ -673,7 +673,7 @@ static
 ibool
 srv_thread_type_validate(
 /*=====================*/
-	enum srv_thread_type	type)	/*!< in: thread type */
+	srv_thread_type	type)	/*!< in: thread type */
 {
 	switch (type) {
 	case SRV_NONE:
@@ -692,12 +692,12 @@ srv_thread_type_validate(
 Gets the type of a thread table slot.
 @return thread type */
 static
-enum srv_thread_type
+srv_thread_type
 srv_slot_get_type(
 /*==============*/
 	const srv_slot_t*	slot)	/*!< in: thread slot */
 {
-	enum srv_thread_type	type	= (enum srv_thread_type) slot->type;
+	srv_thread_type	type = slot->type;
 	ut_ad(srv_thread_type_validate(type));
 	return(type);
 }
@@ -710,7 +710,7 @@ static
 srv_slot_t*
 srv_table_reserve_slot(
 /*===================*/
-	enum srv_thread_type	type)	/*!< in: type of the thread */
+	srv_thread_type	type)	/*!< in: type of the thread */
 {
 	srv_slot_t*	slot;
 
@@ -750,7 +750,7 @@ srv_suspend_thread(
 /*===============*/
 	srv_slot_t*	slot)	/*!< in/out: thread slot */
 {
-	enum srv_thread_type	type;
+	srv_thread_type	type;
 
 	srv_sys_mutex_enter();
 	ut_ad(slot->in_use);
@@ -790,8 +790,8 @@ UNIV_INTERN
 ulint
 srv_release_threads(
 /*================*/
-	enum srv_thread_type	type,	/*!< in: thread type */
-	ulint			n)	/*!< in: number of threads to release */
+	srv_thread_type	type,	/*!< in: thread type */
+	ulint		n)	/*!< in: number of threads to release */
 {
 	ulint		i;
 	ulint		count	= 0;
@@ -1619,18 +1619,18 @@ type.
 @return SRV_NONE if all are suspended or have exited, thread
 type if any are still active. */
 UNIV_INTERN
-enum srv_thread_type
+srv_thread_type
 srv_get_active_thread_type(void)
 /*============================*/
 {
 	ulint	i;
-	enum srv_thread_type ret = SRV_NONE;
+	srv_thread_type ret = SRV_NONE;
 
 	srv_sys_mutex_enter();
 
 	for (i = SRV_WORKER; i <= SRV_MASTER; ++i) {
 		if (srv_sys->n_threads_active[i] != 0) {
-			ret = static_cast<enum srv_thread_type>(i);
+			ret = static_cast<srv_thread_type>(i);
 			break;
 		}
 	}
