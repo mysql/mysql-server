@@ -101,14 +101,14 @@ my_bool my_gethwaddr(uchar *to)
     uint i;
     for (i= 0; res && i < ifc.ifc_len / sizeof(ifr[0]); i++)
     {
-#ifdef SIOCGIFHWADDR
+#ifdef __linux__
       if (ioctl(fd, SIOCGIFHWADDR, &ifr[i]) >= 0)
         res= memcpy_and_test(to, (uchar *)&ifr[i].ifr_hwaddr.sa_data,
                              ETHER_ADDR_LEN);
 #else
       /*
-        A bug in OpenSolaris prevents non-root from getting a mac address:
-        http://bugs.opensolaris.org/bugdatabase/view_bug.do?bug_id=4720634
+        A bug in OpenSolaris used to prevent non-root from getting a mac address:
+        {no url. Oracle killed the old OpenSolaris bug database}
 
         Thus, we'll use an alternative method and extract the address from the
         arp table.

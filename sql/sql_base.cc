@@ -7197,11 +7197,16 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       if (!(eq_cond= new Item_func_eq(item_ident_1, item_ident_2)))
         goto err;                               /* Out of memory. */
 
+      if (field_1 && field_1->vcol_info)
+        field_1->table->mark_virtual_col(field_1);
+      if (field_2 && field_2->vcol_info)
+        field_2->table->mark_virtual_col(field_2);
+
       /*
         Add the new equi-join condition to the ON clause. Notice that
         fix_fields() is applied to all ON conditions in setup_conds()
         so we don't do it here.
-       */
+      */
       add_join_on((table_ref_1->outer_join & JOIN_TYPE_RIGHT ?
                    table_ref_1 : table_ref_2),
                   eq_cond);

@@ -1560,3 +1560,32 @@ DROP TABLE t1;
 select 1 order by max(1) + min(1);
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Fix of LP BUG#793589 Wrong result with double ORDER BY
+--echo #
+CREATE TABLE t1 ( b int) ;
+INSERT INTO t1 VALUES (8),(9);
+
+CREATE TABLE t2 ( a int, b int, PRIMARY KEY (a)) ;
+INSERT INTO t2 VALUES (6,7),(7,7),(8,1),(9,7),(10,1),(11,5),(12,2),(13,0),(14,1),(15,8),(16,1),(17,1),(18,9),(19,1),(20,5);
+
+SELECT t2.b AS field1 FROM t1, t2 WHERE t1.b = t2.a GROUP BY field1 ORDER BY t1.b, field1;
+SELECT t2.b, t1.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b, t2.b;
+SELECT t2.b,t1.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b;
+SELECT t2.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b;
+
+--echo # field1 removed from ORDER BY
+explain extended
+SELECT t2.b AS field1 FROM t1, t2 WHERE t1.b = t2.a GROUP BY field1 ORDER BY t1.b, field1;
+explain extended
+SELECT t2.b, t1.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b, t2.b;
+explain extended
+SELECT t2.b,t1.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b;
+explain extended
+SELECT t2.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b;
+
+
+drop table t1,t2;
+
+--echo End of 5.2 tests

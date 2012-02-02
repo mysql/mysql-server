@@ -45,8 +45,8 @@
 #define MACHINE_TYPE	"ia64" 
 #elif defined(_M_IX86) 
 #define MACHINE_TYPE	"ia32" 
-#elif defined(_M_ALPHA) 
-#define MACHINE_TYPE	"axp" 
+#elif defined(_M_X64) 
+#define MACHINE_TYPE	"x64" 
 #else
 #define MACHINE_TYPE	"unknown"	/* Define to machine type name */
 #endif 

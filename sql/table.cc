@@ -4481,6 +4481,7 @@ Item *Field_iterator_table::create_item(THD *thd)
   {
     select->non_agg_fields.push_back(item);
     item->marker= select->cur_pos_in_select_list;
+    select->set_non_agg_field_used(true);
   }
   return item;
 }
@@ -5183,6 +5184,9 @@ void st_table::mark_virtual_columns_for_write(bool insert_fl)
 {
   Field **vfield_ptr, *tmp_vfield;
   bool bitmap_updated= FALSE;
+
+  if (!vfield)
+    return;
 
   for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
   {
