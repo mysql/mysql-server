@@ -2429,7 +2429,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 
     if (_create_index_by_sort(&sort_param,
 			      (my_bool) (!(param->testflag & T_VERBOSE)),
-			      (uint) param->sort_buffer_length))
+                              param->sort_buffer_length))
     {
       param->retry_repair=1;
       goto err;
