@@ -4469,11 +4469,20 @@ error:
 }
 
 
-/*
-  Sets which partitions to be used in the command
+/**
+  Sets which partitions to be used in the command.
+
+  @param alter_info     Alter_info pointer holding partition names and flags.
+  @param tab_part_info  partition_info holding all partitions.
+  @param part_state     Which state to set for the named partitions.
+
+  @return Operation status
+    @retval false  Success
+    @retval true   Failure
 */
-uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
-               enum partition_state part_state)
+
+bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
+                    enum partition_state part_state)
 {
   uint part_count= 0;
   uint num_parts_found= 0;
@@ -4499,7 +4508,21 @@ uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
     else
       part_elem->part_state= PART_NORMAL;
   } while (++part_count < tab_part_info->num_parts);
-  return num_parts_found;
+
+  if (num_parts_found != alter_info->partition_names.elements &&
+      !(alter_info->flags & ALTER_ALL_PARTITION))
+  {
+    /* Not all given partitions found, revert and return failure */
+    part_it.rewind();
+    part_count= 0;
+    do
+    {
+      partition_element *part_elem= part_it++;
+      part_elem->part_state= PART_NORMAL;
+    } while (++part_count < tab_part_info->num_parts);
+    return true;
+  }
+  return false;
 }
 
 
@@ -5018,11 +5041,7 @@ that are reorganised.
     }
     else if (alter_info->flags & ALTER_REBUILD_PARTITION)
     {
-      uint num_parts_found;
-      uint num_parts_opt= alter_info->partition_names.elements;
-      num_parts_found= set_part_state(alter_info, tab_part_info, PART_CHANGED);
-      if (num_parts_found != num_parts_opt &&
-          (!(alter_info->flags & ALTER_ALL_PARTITION)))
+      if (set_part_state(alter_info, tab_part_info, PART_CHANGED))
       {
         my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), "REBUILD");
         goto err;
