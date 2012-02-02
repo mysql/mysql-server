@@ -2488,8 +2488,10 @@ srv_do_purge(
 	ulint*		n_total_purged)	/*!< in/out: total pages purged */
 {
 	ulint		n_pages_purged;
+
 	static ulint	n_use_threads = 0;
 	static ulint	rseg_history_len = 0;
+	static ulint	old_activity_count = srv_get_activity_count();
 
 	ut_a(n_threads > 0);
 
@@ -2513,11 +2515,15 @@ srv_do_purge(
 				++n_use_threads;
 			}
 
-		} else if (n_use_threads > 1) {
+		} else if (srv_check_activity(old_activity_count)
+			   && n_use_threads > 1) {
+
 			/* History length same or smaller since last snapshot,
 			use fewer threads. */
 
 			--n_use_threads;
+
+			old_activity_count = srv_get_activity_count();
 		}
 
 		/* Ensure that the purge threads are less than what
