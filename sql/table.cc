@@ -4504,10 +4504,14 @@ Item *Field_iterator_table::create_item(THD *thd)
 
   Item_field *item= new Item_field(thd, &select->context, *ptr);
   if (item && thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
-      !thd->lex->in_sum_func && select->cur_pos_in_select_list != UNDEF_POS)
+      !thd->lex->in_sum_func &&
+      select->cur_pos_in_all_fields != SELECT_LEX::ALL_FIELDS_UNDEF_POS)
   {
-    select->non_agg_fields.push_back(item);
-    item->marker= select->cur_pos_in_select_list;
+    /*
+      This function creates Item-s which don't go through fix_fields(), so we
+      need to:
+    */
+    item->push_to_non_agg_fields(select);
     select->set_non_agg_field_used(true);
   }
   return item;
