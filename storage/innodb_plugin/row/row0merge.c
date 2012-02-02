@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -576,7 +576,7 @@ row_merge_buf_write(
 						   REC_STATUS_ORDINARY,
 						   entry, n_fields,
 						   &extra_size);
-		ut_ad(size > extra_size);
+		ut_ad(size >= extra_size);
 		ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 		extra_size -= REC_N_NEW_EXTRA_BYTES;
 		size -= REC_N_NEW_EXTRA_BYTES;
