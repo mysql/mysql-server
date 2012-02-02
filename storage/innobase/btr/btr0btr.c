@@ -56,11 +56,12 @@ btr_corruption_report(
 		(unsigned) buf_block_get_space(block),
 		(unsigned) buf_block_get_page_no(block),
 		index->name, index->table_name);
-	buf_page_print(buf_block_get_frame(block), 0);
 	if (block->page.zip.data) {
 		buf_page_print(block->page.zip.data,
-			       buf_block_get_zip_size(block));
+			       buf_block_get_zip_size(block),
+			       BUF_PAGE_PRINT_NO_CRASH);
 	}
+	buf_page_print(buf_block_get_frame(block), 0, 0);
 }
 
 #ifdef UNIV_BLOB_DEBUG
@@ -1215,9 +1216,11 @@ btr_page_get_father_node_ptr_func(
 			  != page_no)) {
 		rec_t*	print_rec;
 		fputs("InnoDB: Dump of the child page:\n", stderr);
-		buf_page_print(page_align(user_rec), 0);
+		buf_page_print(page_align(user_rec), 0,
+			       BUF_PAGE_PRINT_NO_CRASH);
 		fputs("InnoDB: Dump of the parent page:\n", stderr);
-		buf_page_print(page_align(node_ptr), 0);
+		buf_page_print(page_align(node_ptr), 0,
+			       BUF_PAGE_PRINT_NO_CRASH);
 
 		fputs("InnoDB: Corruption of an index tree: table ", stderr);
 		ut_print_name(stderr, NULL, TRUE, index->table_name);
@@ -1654,8 +1657,8 @@ btr_page_reorganize_low(
 
 	if (UNIV_UNLIKELY(data_size1 != data_size2)
 	    || UNIV_UNLIKELY(max_ins_size1 != max_ins_size2)) {
-		buf_page_print(page, 0);
-		buf_page_print(temp_page, 0);
+		buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
+		buf_page_print(temp_page, 0, BUF_PAGE_PRINT_NO_CRASH);
 		fprintf(stderr,
 			"InnoDB: Error: page old data size %lu"
 			" new data size %lu\n"
@@ -1666,6 +1669,7 @@ btr_page_reorganize_low(
 			(unsigned long) data_size1, (unsigned long) data_size2,
 			(unsigned long) max_ins_size1,
 			(unsigned long) max_ins_size2);
+		ut_ad(0);
 	} else {
 		success = TRUE;
 	}
@@ -3867,7 +3871,7 @@ btr_index_rec_validate(
 			(ulong) rec_get_n_fields_old(rec), (ulong) n);
 
 		if (dump_on_error) {
-			buf_page_print(page, 0);
+			buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
 			fputs("InnoDB: corrupt record ", stderr);
 			rec_print_old(stderr, rec);
@@ -3905,7 +3909,8 @@ btr_index_rec_validate(
 				(ulong) i, (ulong) len, (ulong) fixed_size);
 
 			if (dump_on_error) {
-				buf_page_print(page, 0);
+				buf_page_print(page, 0,
+					       BUF_PAGE_PRINT_NO_CRASH);
 
 				fputs("InnoDB: corrupt record ", stderr);
 				rec_print_new(stderr, rec, offsets);
@@ -4115,8 +4120,8 @@ loop:
 			btr_validate_report2(index, level, block, right_block);
 			fputs("InnoDB: broken FIL_PAGE_NEXT"
 			      " or FIL_PAGE_PREV links\n", stderr);
-			buf_page_print(page, 0);
-			buf_page_print(right_page, 0);
+			buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
+			buf_page_print(right_page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
 			ret = FALSE;
 		}
@@ -4125,8 +4130,8 @@ loop:
 				  != page_is_comp(page))) {
 			btr_validate_report2(index, level, block, right_block);
 			fputs("InnoDB: 'compact' flag mismatch\n", stderr);
-			buf_page_print(page, 0);
-			buf_page_print(right_page, 0);
+			buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
+			buf_page_print(right_page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
 			ret = FALSE;
 
@@ -4149,8 +4154,8 @@ loop:
 			fputs("InnoDB: records in wrong order"
 			      " on adjacent pages\n", stderr);
 
-			buf_page_print(page, 0);
-			buf_page_print(right_page, 0);
+			buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
+			buf_page_print(right_page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
 			fputs("InnoDB: record ", stderr);
 			rec = page_rec_get_prev(page_get_supremum_rec(page));
@@ -4199,8 +4204,8 @@ loop:
 			fputs("InnoDB: node pointer to the page is wrong\n",
 			      stderr);
 
-			buf_page_print(father_page, 0);
-			buf_page_print(page, 0);
+			buf_page_print(father_page, 0, BUF_PAGE_PRINT_NO_CRASH);
+			buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
 			fputs("InnoDB: node ptr ", stderr);
 			rec_print(stderr, node_ptr, index);
@@ -4232,8 +4237,10 @@ loop:
 
 				btr_validate_report1(index, level, block);
 
-				buf_page_print(father_page, 0);
-				buf_page_print(page, 0);
+				buf_page_print(father_page, 0,
+					       BUF_PAGE_PRINT_NO_CRASH);
+				buf_page_print(page, 0,
+					       BUF_PAGE_PRINT_NO_CRASH);
 
 				fputs("InnoDB: Error: node ptrs differ"
 				      " on levels > 0\n"
@@ -4278,9 +4285,15 @@ loop:
 					btr_validate_report1(index, level,
 							     block);
 
-					buf_page_print(father_page, 0);
-					buf_page_print(page, 0);
-					buf_page_print(right_page, 0);
+					buf_page_print(
+						father_page, 0,
+						BUF_PAGE_PRINT_NO_CRASH);
+					buf_page_print(
+						page, 0,
+						BUF_PAGE_PRINT_NO_CRASH);
+					buf_page_print(
+						right_page, 0,
+						BUF_PAGE_PRINT_NO_CRASH);
 				}
 			} else {
 				page_t*	right_father_page
@@ -4298,10 +4311,18 @@ loop:
 					btr_validate_report1(index, level,
 							     block);
 
-					buf_page_print(father_page, 0);
-					buf_page_print(right_father_page, 0);
-					buf_page_print(page, 0);
-					buf_page_print(right_page, 0);
+					buf_page_print(
+						father_page, 0,
+						BUF_PAGE_PRINT_NO_CRASH);
+					buf_page_print(
+						right_father_page, 0,
+						BUF_PAGE_PRINT_NO_CRASH);
+					buf_page_print(
+						page, 0,
+						BUF_PAGE_PRINT_NO_CRASH);
+					buf_page_print(
+						right_page, 0,
+						BUF_PAGE_PRINT_NO_CRASH);
 				}
 
 				if (page_get_page_no(right_father_page)
@@ -4315,10 +4336,18 @@ loop:
 					btr_validate_report1(index, level,
 							     block);
 
-					buf_page_print(father_page, 0);
-					buf_page_print(right_father_page, 0);
-					buf_page_print(page, 0);
-					buf_page_print(right_page, 0);
+					buf_page_print(
+						father_page, 0,
+						BUF_PAGE_PRINT_NO_CRASH);
+					buf_page_print(
+						right_father_page, 0,
+						BUF_PAGE_PRINT_NO_CRASH);
+					buf_page_print(
+						page, 0,
+						BUF_PAGE_PRINT_NO_CRASH);
+					buf_page_print(
+						right_page, 0,
+						BUF_PAGE_PRINT_NO_CRASH);
 				}
 			}
 		}
