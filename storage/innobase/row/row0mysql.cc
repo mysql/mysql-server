@@ -5907,6 +5907,9 @@ row_mysql_quiesce_table_begin(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: There was an error writing to the "
 			"meta data file.\n");
+	} else {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: %s flushed to disk.\n", table->name);
 	}
 
 	// FIXME: Ignore races for now. Though I can't see why
@@ -5922,9 +5925,6 @@ row_mysql_quiesce_table_complete(
 /*=============================*/
 	dict_table_t*	table)		/*!< in: quiesce this table */
 {
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: Sync to disk of %s complete.\n", table->name);
-
 	ut_a(table->quiesce = QUIESCE_COMPLETE);
 
 	trx_purge_run();
