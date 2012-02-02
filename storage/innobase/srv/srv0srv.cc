@@ -704,23 +704,30 @@ srv_slot_get_type(
 
 /*********************************************************************//**
 Reserves a slot in the thread table for the current thread.
-NOTE! The server mutex has to be reserved by the caller!
 @return	reserved slot */
 static
 srv_slot_t*
-srv_table_reserve_slot(
-/*===================*/
+srv_reserve_slot(
+/*=============*/
 	srv_thread_type	type)	/*!< in: type of the thread */
 {
 	srv_slot_t*	slot;
+	ulint		i = 2;	/* First two slots are reserved, see below. */
 
-	ut_ad(srv_sys_mutex_own());
+	srv_sys_mutex_enter();
 
 	ut_ad(srv_thread_type_validate(type));
 
-	if (type != SRV_MASTER) {
-		ulint	i = 1;
+	switch (type) {
+	case SRV_MASTER:
+		slot = srv_table_get_nth_slot(0);
+		break;
 
+	case SRV_PURGE:
+		slot = srv_table_get_nth_slot(1);
+		break;
+
+	case SRV_WORKER:
 		/* Find an empty slot. */
 		for (slot = srv_table_get_nth_slot(i);
 		     slot->in_use;
@@ -728,9 +735,10 @@ srv_table_reserve_slot(
 
 			++i;
 		}
+		break;
 
-	} else {
-		slot = srv_table_get_nth_slot(0);
+	case SRV_NONE:
+		ut_error;
 	}
 
 	slot->in_use = TRUE;
@@ -738,7 +746,39 @@ srv_table_reserve_slot(
 	slot->type = type;
 	ut_ad(srv_slot_get_type(slot) == type);
 
+	++srv_sys->n_threads_active[type];
+
+	srv_sys_mutex_exit();
+
 	return(slot);
+}
+
+/*********************************************************************//**
+Suspends the calling thread to wait for the event in its thread slot.
+@return the current signal count of the event. */
+static
+ib_int64_t
+srv_suspend_thread_low(
+/*===================*/
+	srv_slot_t*	slot)	/*!< in/out: thread slot */
+{
+	ut_ad(srv_sys_mutex_own());
+
+	ut_ad(slot->in_use);
+	ut_ad(!slot->suspended);
+
+	srv_thread_type	type = srv_slot_get_type(slot);
+
+	/* The master thread always uses the first slot. */
+	ut_a(type != SRV_MASTER || slot == srv_sys->sys_threads);
+
+	slot->suspended = TRUE;
+
+	ut_ad(srv_sys->n_threads_active[type] > 0);
+
+	srv_sys->n_threads_active[type]--;
+
+	return(os_event_reset(slot->event));
 }
 
 /*********************************************************************//**
@@ -750,31 +790,9 @@ srv_suspend_thread(
 /*===============*/
 	srv_slot_t*	slot)	/*!< in/out: thread slot */
 {
-	srv_thread_type	type;
-
 	srv_sys_mutex_enter();
-	ut_ad(slot->in_use);
-	ut_ad(!slot->suspended);
 
-	if (srv_print_thread_releases) {
-		fprintf(stderr,
-			"Suspending thread %lu to slot %lu\n",
-			(ulong) os_thread_get_curr_id(),
-			(ulong) (slot - srv_sys->sys_threads));
-	}
-
-	type = srv_slot_get_type(slot);
-
-	/* The master thread always uses the first slot. */
-	ut_a(type != SRV_MASTER || slot == srv_sys->sys_threads);
-
-	slot->suspended = TRUE;
-
-	ut_ad(srv_sys->n_threads_active[type] > 0);
-
-	srv_sys->n_threads_active[type]--;
-
-	ib_int64_t	sig_count = os_event_reset(slot->event);
+	ib_int64_t	sig_count = srv_suspend_thread_low(slot);
 
 	srv_sys_mutex_exit();
 
@@ -831,6 +849,26 @@ srv_release_threads(
 	srv_sys_mutex_exit();
 
 	return(count);
+}
+
+/*********************************************************************//**
+Release a thread's slot. */
+static
+void
+srv_free_slot(
+/*==========*/
+	srv_slot_t*	slot)	/*!< in/out: thread slot */
+{
+	srv_sys_mutex_enter();
+
+	/* Mark the thread as inactive. */
+	srv_suspend_thread_low(slot);
+
+	/* Free the slot for reuse. */
+	ut_ad(slot->in_use);
+	slot->in_use = FALSE;
+
+	srv_sys_mutex_exit();
 }
 
 /*********************************************************************//**
@@ -2249,14 +2287,8 @@ DECLARE_THREAD(srv_master_thread)(
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
 
-	srv_sys_mutex_enter();
-
-	slot = srv_table_reserve_slot(SRV_MASTER);
+	slot = srv_reserve_slot(SRV_MASTER);
 	ut_a(slot == srv_sys->sys_threads);
-
-	srv_sys->n_threads_active[SRV_MASTER]++;
-
-	srv_sys_mutex_exit();
 
 	last_print_time = ut_time();
 loop:
@@ -2394,17 +2426,18 @@ DECLARE_THREAD(srv_worker_thread)(
 
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
-	srv_sys_mutex_enter();
-
+#ifdef UNIV_DEBUG_THREAD_CREATION
 	ut_print_timestamp(stderr);
 	fprintf(stderr, " InnoDB: worker thread starting, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
+#endif /* UNIV_DEBUG_THREAD_CREATION */
 
-	slot = srv_table_reserve_slot(SRV_WORKER);
-
-	++srv_sys->n_threads_active[SRV_WORKER];
+	slot = srv_reserve_slot(SRV_WORKER);
 
 	ut_a(srv_n_purge_threads > 1);
+
+	srv_sys_mutex_enter();
+
 	ut_a(srv_sys->n_threads_active[SRV_WORKER] < srv_n_purge_threads);
 
 	srv_sys_mutex_exit();
@@ -2429,19 +2462,13 @@ DECLARE_THREAD(srv_worker_thread)(
 	} while (!srv_purge_exit(purged ? 1 : 0)
 		 && purge_sys->state != PURGE_STATE_EXIT);
 
-	srv_suspend_thread(slot);
+	srv_free_slot(slot);
 
-	srv_sys_mutex_enter();
-
-	/* Free the slot for reuse. */
-	ut_ad(slot->in_use);
-	slot->in_use = FALSE;
-
+#ifdef UNIV_DEBUG_THREAD_CREATION
 	ut_print_timestamp(stderr);
 	fprintf(stderr, " InnoDB: Purge worker thread exiting, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
-
-	srv_sys_mutex_exit();
+#endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
@@ -2630,17 +2657,13 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	pfs_register_thread(srv_purge_thread_key);
 #endif /* UNIV_PFS_THREAD */
 
-	srv_sys_mutex_enter();
-
+#ifdef UNIV_DEBUG_THREAD_CREATION
 	ut_print_timestamp(stderr);
 	fprintf(stderr, " InnoDB: Purge coordinator thread created, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
+#endif /* UNIV_DEBUG_THREAD_CREATION */
 
-	slot = srv_table_reserve_slot(SRV_PURGE);
-
-	++srv_sys->n_threads_active[SRV_PURGE];
-
-	srv_sys_mutex_exit();
+	slot = srv_reserve_slot(SRV_PURGE);
 
 	ulint	rseg_history_len = trx_sys->rseg_history_len;
 
@@ -2671,25 +2694,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	shutdown state. */
 	ut_a(srv_get_task_queue_length() == 0);
 
-	/* Ensure that all the worker threads quit. */
-	if (srv_n_purge_threads > 1) {
-		srv_wake_worker_threads(srv_n_purge_threads - 1);
-	}
-
-	/* Decrement the active count. */
-	srv_suspend_thread(slot);
-
-	srv_sys_mutex_enter();
-
-	/* Free the slot for reuse. */
-	ut_ad(slot->in_use);
-	slot->in_use = FALSE;
-
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: Purge coordinator exiting, id %lu\n",
-		os_thread_pf(os_thread_get_curr_id()));
-
-	srv_sys_mutex_exit();
+	srv_free_slot(slot);
 
 	/* Note that we are shutting down. */
 	rw_lock_x_lock(&purge_sys->latch);
@@ -2699,6 +2704,17 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	purge_sys->running = false;
 
 	rw_lock_x_unlock(&purge_sys->latch);
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: Purge coordinator exiting, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif /* UNIV_DEBUG_THREAD_CREATION */
+
+	/* Ensure that all the worker threads quit. */
+	if (srv_n_purge_threads > 1) {
+		srv_wake_worker_threads(srv_n_purge_threads - 1);
+	}
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
