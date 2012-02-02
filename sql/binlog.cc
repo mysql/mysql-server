@@ -6179,6 +6179,12 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 bool THD::is_ddl_gtid_compatible() const
 {
   DBUG_ENTER("THD::is_ddl_gtid_compatible");
+
+  // If @@session.sql_log_bin has been manually turned off (only
+  // doable by SUPER), then no problem, we can execute any statement.
+  if ((variables.option_bits & OPTION_BIN_LOG) == 0)
+    DBUG_RETURN(true);
+
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
       !(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
       lex->select_lex.item_list.elements)
@@ -6216,6 +6222,13 @@ bool THD::is_ddl_gtid_compatible() const
 
 bool THD::is_dml_gtid_compatible(bool non_transactional_table) const
 {
+  DBUG_ENTER("THD::is_dml_gtid_compatible(bool)");
+
+  // If @@session.sql_log_bin has been manually turned off (only
+  // doable by SUPER), then no problem, we can execute any statement.
+  if ((variables.option_bits & OPTION_BIN_LOG) == 0)
+    DBUG_RETURN(true);
+
   /*
     Non-transactional updates are unsafe: they will be logged as a
     transaction of their own.  If they are re-executed on the slave
@@ -6236,10 +6249,10 @@ bool THD::is_dml_gtid_compatible(bool non_transactional_table) const
       !DBUG_EVALUATE_IF("allow_gtid_unsafe_non_transactional_updates", 1, 0))
   {
     my_error(ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE, MYF(0));
-    return false;
+    DBUG_RETURN(false);
   }
 
-  return true;
+  DBUG_RETURN(true);
 }
 
 /*
