@@ -585,10 +585,6 @@ struct srv_sys_struct{
 						fields below. */
 	srv_table_t*	sys_threads;		/*!< server thread table */
 
-	ulint		n_threads[SRV_MASTER + 1];
-						/*!< number of system threads
-						in a thread class */
-
 	ulint		n_threads_active[SRV_MASTER + 1];
 						/*!< number of threads active
 						in a thread class */
@@ -667,29 +663,6 @@ srv_table_get_nth_slot(
 	ut_a(index < OS_THREAD_MAX_N);
 
 	return(srv_sys->sys_threads + index);
-}
-
-/*********************************************************************//**
-Gets the number of threads in the system.
-@return	sum of srv_sys_t::n_threads[] */
-UNIV_INTERN
-ulint
-srv_get_n_threads(void)
-/*===================*/
-{
-	ulint	i;
-	ulint	n_threads	= 0;
-
-	srv_sys_mutex_enter();
-
-	for (i = SRV_WORKER; i < SRV_MASTER + 1; i++) {
-
-		n_threads += srv_sys->n_threads[i];
-	}
-
-	srv_sys_mutex_exit();
-
-	return(n_threads);
 }
 
 #ifdef UNIV_DEBUG

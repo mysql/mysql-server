@@ -524,13 +524,6 @@ void
 srv_general_init(void);
 /*==================*/
 /*********************************************************************//**
-Gets the number of threads in the system.
-@return	sum of srv_n_threads[] */
-UNIV_INTERN
-ulint
-srv_get_n_threads(void);
-/*===================*/
-/*********************************************************************//**
 Sets the info describing an i/o thread current state. */
 UNIV_INTERN
 void
