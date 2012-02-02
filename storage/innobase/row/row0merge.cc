@@ -144,7 +144,7 @@ row_merge_buf_encode(
 
 	size = rec_get_converted_size_comp(
 		index, REC_STATUS_ORDINARY, entry, n_fields, &extra_size);
-	ut_ad(size > extra_size);
+	ut_ad(size >= extra_size);
 	ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 	extra_size -= REC_N_NEW_EXTRA_BYTES;
 	size -= REC_N_NEW_EXTRA_BYTES;
@@ -495,7 +495,6 @@ row_merge_buf_add(
 
 		ut_ad(data_size + extra == size);
 		ut_ad(extra_size + REC_N_NEW_EXTRA_BYTES == extra);
-		ut_ad(data_size > 0);
 	}
 #endif /* UNIV_DEBUG */
 
