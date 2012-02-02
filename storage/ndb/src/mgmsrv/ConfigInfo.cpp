@@ -1705,7 +1705,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "TotalSendBufferMemory",
     DB_TOKEN,
     "Total memory to use for send buffers in all transporters",
-    ConfigInfo::CI_DEPRECATED,
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
     "0",
