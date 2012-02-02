@@ -513,12 +513,16 @@ buf_dblwr_init_or_restore_pages(
 							  page, zip_size)) {
 					fprintf(stderr,
 						"InnoDB: Dump of the page:\n");
-					buf_page_print(read_buf, zip_size);
+					buf_page_print(
+						read_buf, zip_size,
+						BUF_PAGE_PRINT_NO_CRASH);
 					fprintf(stderr,
 						"InnoDB: Dump of"
 						" corresponding page"
 						" in doublewrite buffer:\n");
-					buf_page_print(page, zip_size);
+					buf_page_print(
+						page, zip_size,
+						BUF_PAGE_PRINT_NO_CRASH);
 
 					fprintf(stderr,
 						"InnoDB: Also the page in the"
@@ -532,7 +536,7 @@ buf_dblwr_init_or_restore_pages(
 						"InnoDB: option:\n"
 						"InnoDB:"
 						" innodb_force_recovery=6\n");
-					exit(1);
+					ut_error;
 				}
 
 				/* Write the good page from the
@@ -655,7 +659,7 @@ buf_dblwr_assert_on_corrupt_block(
 /*==============================*/
 	const buf_block_t*	block)	/*!< in: block to check */
 {
-	buf_page_print(block->frame, 0);
+	buf_page_print(block->frame, 0, BUF_PAGE_PRINT_NO_CRASH);
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,

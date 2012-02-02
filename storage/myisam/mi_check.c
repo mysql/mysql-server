@@ -2429,7 +2429,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 
     if (_create_index_by_sort(&sort_param,
 			      (my_bool) (!(param->testflag & T_VERBOSE)),
-			      (uint) param->sort_buffer_length))
+                              param->sort_buffer_length))
     {
       param->retry_repair=1;
       goto err;
@@ -4303,14 +4303,6 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
     u_ptr->seg=keyseg;
     keyseg+=u_ptr->keysegs+1;
   }
-  if (share.options & HA_OPTION_COMPRESS_RECORD)
-    share.base.records=max_records=info.state->records;
-  else if (share.base.min_pack_length)
-    max_records=(ha_rows) (mysql_file_seek(info.dfile, 0L, MY_SEEK_END,
-                                           MYF(0)) /
-			   (ulong) share.base.min_pack_length);
-  else
-    max_records=0;
   unpack= (share.options & HA_OPTION_COMPRESS_RECORD) &&
     (param->testflag & T_UNPACK);
   share.options&= ~HA_OPTION_TEMP_COMPRESS_RECORD;
@@ -4320,10 +4312,17 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   set_if_bigger(file_length,param->max_data_file_length);
   set_if_bigger(file_length,tmp_length);
   set_if_bigger(file_length,(ulonglong) share.base.max_data_file_length);
+ 
+  if (share.options & HA_OPTION_COMPRESS_RECORD)
+    share.base.records= max_records= info.state->records;
+  else if (!(share.options & HA_OPTION_PACK_RECORD))
+    max_records= (ha_rows) (file_length / share.base.pack_reclength);
+  else
+    max_records= 0;
 
   (void) mi_close(*org_info);
   memset(&create_info, 0, sizeof(create_info));
-  create_info.max_rows= MY_MAX(max_records, share.base.records);
+  create_info.max_rows= max_records;
   create_info.reloc_rows=share.base.reloc;
   create_info.old_options=(share.options |
 			   (unpack ? HA_OPTION_TEMP_COMPRESS_RECORD : 0));
