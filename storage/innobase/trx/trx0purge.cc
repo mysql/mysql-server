@@ -1296,21 +1296,21 @@ trx_purge_state(void)
 }
 
 /*******************************************************************//**
-Stop purge and wait for it to stop. */
+Stop purge and wait for it to stop, move to PURGE_STATE_STOP. */
 UNIV_INTERN
 void
 trx_purge_stop(void)
 /*================*/
 {
 	purge_state_t	state;
-
 	ib_int64_t	sig_count = os_event_reset(purge_sys->event);
 
 	rw_lock_x_lock(&purge_sys->latch);
 
-	++purge_sys->n_stop;
-
+	ut_a(purge_sys->state != PURGE_STATE_INIT);
 	ut_a(purge_sys->state != PURGE_STATE_EXIT);
+
+	++purge_sys->n_stop;
 
 	state = purge_sys->state;
 
@@ -1337,7 +1337,7 @@ trx_purge_stop(void)
 }
 
 /*******************************************************************//**
-Start purge. */
+Resume purge, move to PURGE_STATE_RUN. */
 UNIV_INTERN
 void
 trx_purge_run(void)
@@ -1345,20 +1345,23 @@ trx_purge_run(void)
 {
 	rw_lock_x_lock(&purge_sys->latch);
 
-	ut_a(purge_sys->n_stop > 0);
+	ut_a(purge_sys->state != PURGE_STATE_INIT);
+	ut_a(purge_sys->state != PURGE_STATE_EXIT);
 
-	--purge_sys->n_stop;
+	if (purge_sys->n_stop > 0) {
 
-	if (purge_sys->n_stop == 0) {
+		--purge_sys->n_stop;
 
-		ut_print_timestamp(stderr);
+		if (purge_sys->n_stop == 0) {
 
-		if (purge_sys->state == PURGE_STATE_STOP) {
+			ut_print_timestamp(stderr);
 			fprintf(stderr, " InnoDB: Resuming purge\n");
+
+			ut_a(purge_sys->state == PURGE_STATE_STOP);
 			purge_sys->state = PURGE_STATE_RUN;
-		} else {
-			fprintf(stderr, " InnoDB: Purge already running\n");
 		}
+	} else {
+		ut_a(purge_sys->state == PURGE_STATE_RUN);
 	}
 
 	rw_lock_x_unlock(&purge_sys->latch);
