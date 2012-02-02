@@ -56,7 +56,7 @@ innodb_config_free(
 {
 	int	i;
 
-	for (i = 0; i < META_CONTAINER_TO_GET; i++) {
+	for (i = 0; i < CONTAINER_NUM_COLS; i++) {
 		if (item->m_item[i].m_str) {
 			free(item->m_item[i].m_str);
 		}
@@ -154,14 +154,14 @@ innodb_read_cache_policy(
 
 	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
 
-	err = innodb_api_begin(NULL, INNODB_META_DB,
-			       INNODB_CACHE_POLICIES, NULL, ib_trx,
+	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
+			       MCI_CFG_CACHE_POLICIES, NULL, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_IS);
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: Cannot open config table"
 				"'%s' in database '%s'\n",
-			INNODB_CACHE_POLICIES, INNODB_META_DB);
+			MCI_CFG_CACHE_POLICIES, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
 		goto func_exit;
 	}
@@ -175,7 +175,7 @@ innodb_read_cache_policy(
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: fail to locate entry in"
 				" config table '%s' in database '%s' \n",
-			INNODB_CACHE_POLICIES, INNODB_META_DB);
+			MCI_CFG_CACHE_POLICIES, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
 		goto func_exit;
 	}
@@ -184,22 +184,22 @@ innodb_read_cache_policy(
 
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
-	assert(n_cols >= CACHE_OPT_NUM_COLS);
+	assert(n_cols >= CACHE_POLICY_NUM_COLS);
 
-	for (i = 0; i < CACHE_OPT_NUM_COLS; ++i) {
+	for (i = 0; i < CACHE_POLICY_NUM_COLS; ++i) {
 		char			opt_name;
 		meta_cache_option_t	opt_val;
 
 		/* Skip cache policy name for now, We could have
 		different cache policy stored, and switch dynamically */
-		if (i == CACHE_OPT_NAME) {
+		if (i == CACHE_POLICY_NAME) {
 			continue;
 		}
 
 		data_len = innodb_cb_col_get_meta(tpl, i, &col_meta);
 
 		if (data_len == IB_SQL_NULL) {
-			opt_val = META_INNODB;
+			opt_val = META_CACHE_OPT_INNODB;
 		} else {
 			opt_name = *(char*)innodb_cb_col_get_value(tpl, i);
 
@@ -207,16 +207,16 @@ innodb_read_cache_policy(
 		}
 
 		switch (i) {
-		case CACHE_OPT_GET:
+		case CACHE_POLICY_GET:
 			item->m_get_option = opt_val;
 			break;
-		case CACHE_OPT_SET:
+		case CACHE_POLICY_SET:
 			item->m_set_option = opt_val;
 			break;
-		case CACHE_OPT_DEL:
+		case CACHE_POLICY_DEL:
 			item->m_del_option = opt_val;
 			break;
-		case CACHE_OPT_FLUSH:
+		case CACHE_POLICY_FLUSH:
 			item->m_flush_option = opt_val;
 			break;
 		default:
@@ -260,14 +260,14 @@ innodb_read_config_option(
 	ib_col_meta_t		col_meta;
 
 	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
-	err = innodb_api_begin(NULL, INNODB_META_DB,
-			       INNODB_CONFIG_OPTIONS, NULL, ib_trx,
+	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
+			       MCI_CFG_CONFIG_OPTIONS, NULL, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_IS);
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: Cannot open config table"
 				"'%s' in database '%s'\n",
-			INNODB_CONFIG_OPTIONS, INNODB_META_DB);
+			MCI_CFG_CONFIG_OPTIONS, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
 		goto func_exit;
 	}
@@ -279,7 +279,7 @@ innodb_read_config_option(
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: fail to locate entry in"
 				" config table '%s' in database '%s' \n",
-			INNODB_CONFIG_OPTIONS, INNODB_META_DB);
+			MCI_CFG_CONFIG_OPTIONS, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
 		goto func_exit;
 	}
@@ -288,16 +288,16 @@ innodb_read_config_option(
 
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
-	assert(n_cols >= CONFIG_NUM_COLS);
+	assert(n_cols >= CONFIG_OPT_NUM_COLS);
 
-	for (i = 0; i < CONFIG_NUM_COLS; ++i) {
+	for (i = 0; i < CONFIG_OPT_NUM_COLS; ++i) {
 		char*	key;
 
 		data_len = innodb_cb_col_get_meta(tpl, i, &col_meta);
 
 		assert(data_len != IB_SQL_NULL);
 
-		if (i == CONFIG_KEY) {
+		if (i == CONFIG_OPT_KEY) {
 			key = (char*)innodb_cb_col_get_value(tpl, i);
 
 			/* Currently, we only support one configure option,
@@ -307,7 +307,7 @@ innodb_read_config_option(
 			}
 		}
 
-		if (i == CONFIG_VALUE) {
+		if (i == CONFIG_OPT_VALUE) {
 			item->m_separator = my_strdupl(
 				(char*)innodb_cb_col_get_value(tpl, i), data_len);
 			item->m_sep_len = strlen(item->m_separator);
@@ -352,15 +352,15 @@ innodb_config_container(
 	memset(item, 0, sizeof(*item));
 
 	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
-	err = innodb_api_begin(NULL, INNODB_META_DB,
-			       INNODB_META_CONTAINER_TABLE, NULL, ib_trx,
+	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
+			       MCI_CFG_CONTAINER_TABLE, NULL, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_IS);
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: Please create config table"
 				"'%s' in database '%s' by running"
 				" 'scripts/innodb_config.sql'\n",
-			INNODB_META_CONTAINER_TABLE, INNODB_META_DB);
+			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
 		goto func_exit;
 	}
@@ -374,7 +374,7 @@ innodb_config_container(
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: fail to locate entry in"
 				" config table '%s' in database '%s' \n",
-			INNODB_META_CONTAINER_TABLE, INNODB_META_DB);
+			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
 		goto func_exit;
 	}
@@ -384,25 +384,25 @@ innodb_config_container(
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: fail to read row from"
 				" config table '%s' in database '%s' \n",
-			INNODB_META_CONTAINER_TABLE, INNODB_META_DB);
+			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
 		goto func_exit;
 	}
 
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
-	if (n_cols < META_CONTAINER_TO_GET) {
+	if (n_cols < CONTAINER_NUM_COLS) {
 		fprintf(stderr, "  InnoDB_Memcached: config table '%s' in"
 				" database '%s' has only %d column(s),"
 				" server is expecting %d columns\n",
-			INNODB_META_CONTAINER_TABLE, INNODB_META_DB,
-			n_cols, META_CONTAINER_TO_GET);
+			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME,
+			n_cols, CONTAINER_NUM_COLS);
 		err = DB_ERROR;
 		goto func_exit;
 	}
 
 	/* Get the column mappings (column for each memcached data */
-	for (i = 0; i < META_CONTAINER_TO_GET; ++i) {
+	for (i = 0; i < CONTAINER_NUM_COLS; ++i) {
 
 		data_len = innodb_cb_col_get_meta(tpl, i, &col_meta);
 
@@ -411,7 +411,7 @@ innodb_config_container(
 					" the entry for config table '%s' in"
 					" database '%s' has an invalid"
 					" NULL value\n",
-				i, INNODB_META_CONTAINER_TABLE, INNODB_META_DB);
+				i, MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
 
 			err = DB_ERROR;
 			goto func_exit;
@@ -424,7 +424,7 @@ innodb_config_container(
 		item->m_item[i].m_str = my_strdupl(
 			(char*)innodb_cb_col_get_value(tpl, i), data_len);
 
-		if (i == META_VALUE) {
+		if (i == CONTAINER_VALUE) {
 			innodb_config_parse_value_col(
 				item, item->m_item[i].m_str, data_len);
 		}
@@ -477,15 +477,15 @@ innodb_config_value_col_verify(
 		meta_column_t*	cinfo = meta_info->m_item;
 
 		/* "value" column must be of CHAR, VARCHAR or BLOB type */
-		if (strcmp(name, cinfo[META_VALUE].m_str) == 0) {
+		if (strcmp(name, cinfo[CONTAINER_VALUE].m_str) == 0) {
 			if (col_meta->type != IB_VARCHAR
 			    && col_meta->type != IB_CHAR
 			    && col_meta->type != IB_BLOB) {
 				err = DB_DATA_MISMATCH;
 			}
 
-			cinfo[META_VALUE].m_field_id = col_id;
-			cinfo[META_VALUE].m_col = *col_meta;
+			cinfo[CONTAINER_VALUE].m_field_id = col_id;
+			cinfo[CONTAINER_VALUE].m_col = *col_meta;
 			err = DB_SUCCESS;
 		}
 	} else {
@@ -502,8 +502,10 @@ innodb_config_value_col_verify(
 				meta_info->m_add_item[i].m_field_id = col_id;
 				meta_info->m_add_item[i].m_col = *col_meta;
 
-				meta_info->m_item[META_VALUE].m_field_id = col_id;
-				meta_info->m_item[META_VALUE].m_col = *col_meta;
+				meta_info->m_item[CONTAINER_VALUE].m_field_id
+					= col_id;
+				meta_info->m_item[CONTAINER_VALUE].m_col
+					= *col_meta;
 				err = DB_SUCCESS;
 			}
 		}
@@ -538,8 +540,8 @@ innodb_verify(
 	int		index_type;
 	ib_id_u64_t	index_id;
 
-	dbname = info->m_item[META_DB].m_str;
-	name = info->m_item[META_TABLE].m_str;
+	dbname = info->m_item[CONTAINER_DB].m_str;
+	name = info->m_item[CONTAINER_TABLE].m_str;
 	info->flag_enabled = FALSE;
 	info->cas_enabled = FALSE;
 	info->exp_enabled = FALSE;
@@ -583,42 +585,42 @@ innodb_verify(
 			goto func_exit;
 		}
 
-		if (strcmp(name, cinfo[META_KEY].m_str) == 0) {
+		if (strcmp(name, cinfo[CONTAINER_KEY].m_str) == 0) {
 			/* Key column must be CHAR or VARCHAR type */
 			if (col_meta.type != IB_VARCHAR
 			    && col_meta.type != IB_CHAR) {
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
-			cinfo[META_KEY].m_field_id = i;
-			cinfo[META_KEY].m_col = col_meta;
+			cinfo[CONTAINER_KEY].m_field_id = i;
+			cinfo[CONTAINER_KEY].m_col = col_meta;
 			is_key_col = TRUE;
-		} else if (strcmp(name, cinfo[META_FLAG].m_str) == 0) {
+		} else if (strcmp(name, cinfo[CONTAINER_FLAG].m_str) == 0) {
 			/* Flag column must be integer type */
 			if (col_meta.type != IB_INT) {
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
-			cinfo[META_FLAG].m_field_id = i;
-			cinfo[META_FLAG].m_col = col_meta;
+			cinfo[CONTAINER_FLAG].m_field_id = i;
+			cinfo[CONTAINER_FLAG].m_col = col_meta;
 			info->flag_enabled = TRUE;
-		} else if (strcmp(name, cinfo[META_CAS].m_str) == 0) {
+		} else if (strcmp(name, cinfo[CONTAINER_CAS].m_str) == 0) {
 			/* CAS column must be integer type */
 			if (col_meta.type != IB_INT) {
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
-			cinfo[META_CAS].m_field_id = i;
-			cinfo[META_CAS].m_col = col_meta;
+			cinfo[CONTAINER_CAS].m_field_id = i;
+			cinfo[CONTAINER_CAS].m_col = col_meta;
 			info->cas_enabled = TRUE;
-		} else if (strcmp(name, cinfo[META_EXP].m_str) == 0) {
+		} else if (strcmp(name, cinfo[CONTAINER_EXP].m_str) == 0) {
 			/* EXP column must be integer type */
 			if (col_meta.type != IB_INT) {
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
-			cinfo[META_EXP].m_field_id = i;
-			cinfo[META_EXP].m_col = col_meta;
+			cinfo[CONTAINER_EXP].m_field_id = i;
+			cinfo[CONTAINER_EXP].m_col = col_meta;
 			info->exp_enabled = TRUE;
 		}
 	}

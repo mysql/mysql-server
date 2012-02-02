@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -13,7 +13,7 @@ Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ***********************************************************************/
 /**************************************************//**
@@ -41,10 +41,22 @@ Created 03/15/2011      Jimmy Yang
 		pthread_mutex_unlock(&engine->conn_mutex);\
 	}
 
-/** mci_column is the structure stores and describes a column info in InnoDB
-Memcached. The column type we need to support in the memcached key value
-store is either of character type of integer type (see following "enum
-mci_item_idx" for columns supporting memcached) */
+/** We would need to fetch 5 column values from each key value rows if they
+are available. They are the "key", "value", "cas", "exp" and "flag" */
+#define	MCI_ITEM_TO_GET		5
+
+enum mci_item_idx {
+	MCI_COL_KEY,		/*!< key */
+	MCI_COL_VALUE,		/*!< value */
+	MCI_COL_FLAG,		/*!< flag */
+	MCI_COL_CAS,		/*!< check and set value */
+	MCI_COL_EXP		/*!< expiration */
+};
+
+/** mci_column is the structure that stores and describes a column info
+in InnoDB Memcached. The supported column types are either character
+type or integer type (see following "enum mci_item_idx" for columns
+supporting memcached) */
 typedef struct mci_column {
 	char*		m_str;		/*!< char value of the column */
 	int		m_len;		/*!< char value length */
@@ -56,26 +68,21 @@ typedef struct mci_column {
 					the value */
 } mci_column_t;
 
-/** We would need to fetch 5 column values from each key value rows if they
-are available. They are the "key", "value", "cas", "exp" and "flag" */
-#define	MCI_ITEM_TO_GET		5
-
-enum mci_item_idx {
-	MCI_COL_KEY,
-	MCI_COL_VALUE,
-	MCI_COL_FLAG,
-	MCI_COL_CAS,
-	MCI_COL_EXP
-};
-
-/** mci_item_t describes columns from a row we fetched from a memcached
-mapped InnoDB table */
+/** "mci_item_t" represents values we read from a table row, and enough
+to assemble to an memcached response. As described in above mci_item_idx,
+we must have "MCI_ITEM_TO_GET" (5) column values to read. In addition,
+the user table could have multiple "value" columns, and it is possible
+to map such multiple "value" columns to a single memcached key,
+such value is separated by "separator" as defined in the "config_option"
+table. And we will assemble and disassemble the memcached value from these
+column values.  And "m_add_value" and "m_add_num" is used to support multiple
+value columns */
 typedef struct mci_items {
-	mci_column_t	mci_item[MCI_ITEM_TO_GET]; /*!< columns in a row */
-	mci_column_t*	mci_add_value;		/*!< whether there will be
+	mci_column_t	m_value[MCI_ITEM_TO_GET]; /*!< columns in a row */
+	mci_column_t*	m_add_value;		/*!< whether there will be
 						additional/multiple values
 						to be stored */
-	int		mci_add_num;		/*!< number of additional
+	int		m_add_num;		/*!< number of additional
 						value columns */
 } mci_item_t;
 
