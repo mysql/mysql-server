@@ -64,6 +64,7 @@ Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
   *status= add_gtid_text(text);
 }
 
+
 /*
 Gtid_set::Gtid_set(Gtid_set *other, enum_return_status *status)
 {
@@ -404,6 +405,8 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
 #define SKIP_WHITESPACE() while (isspace(*s)) s++
   DBUG_ENTER("Gtid_set::add_gtid_text(const char*)");
   DBUG_ASSERT(sid_map != NULL);
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
   const char *s= text;
 
   DBUG_PRINT("info", ("adding '%s'", text));
@@ -661,6 +664,8 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
 enum_return_status Gtid_set::remove_gtid_set(const Gtid_set *other)
 {
   DBUG_ENTER("Gtid_set::remove_gtid_set(Gtid_set *)");
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
   rpl_sidno max_other_sidno= other->get_max_sidno();
   if (other->sid_map == sid_map || other->sid_map == NULL || sid_map == NULL)
   {
@@ -1094,6 +1099,8 @@ void Gtid_set::encode(uchar *buf) const
 enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded, size_t length)
 {
   DBUG_ENTER("Gtid_set::add_gtid_encoding(const uchar *, size_t)");
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
   size_t pos= 0;
   uint64 n_sids;
   // read number of SIDs
