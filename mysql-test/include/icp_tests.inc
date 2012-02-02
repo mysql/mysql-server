@@ -1043,7 +1043,7 @@ INSERT INTO t2 VALUES (0,9),(3,10),(4,6),(6,1),(100,3),(200,5);
 
 let $query=
 SELECT t2.col_int_key AS field1
-FROM t2 JOIN t1 ON t2.col_int_key
+FROM t2 USE INDEX(col_int_key) STRAIGHT_JOIN t1 ON t2.col_int_key
 WHERE t2.pk < 7 AND t2.col_int_key <> 7
 GROUP BY field1;
 
