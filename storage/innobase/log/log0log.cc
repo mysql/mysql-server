@@ -3215,7 +3215,7 @@ loop:
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr, " InnoDB: Waiting for %s "
-				" to be suspended\n", thread_type);
+				"to be suspended\n", thread_type);
 			count = 0;
 		}
 
