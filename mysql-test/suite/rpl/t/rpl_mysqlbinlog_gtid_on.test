@@ -1,0 +1,87 @@
+#
+# WL#3584 GTID
+# The test verifies how mysqlbinlog handles GTID related options.
+#
+--source include/master-slave.inc
+--source include/have_gtid.inc
+--source include/have_innodb.inc
+--source include/have_binlog_format_mixed.inc
+
+# Replication link is implemented through 
+# mysqlbinlog | mysql | slave pipe
+# the test call master-slave.inc to get connections to either server.
+
+--connection slave
+--source include/stop_slave.inc
+
+--connection master
+### Generate some data on the master  ###
+
+# example of a DDL
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) engine=Innodb;
+
+# Single-statement transaction
+SET @@SESSION.AUTOCOMMIT= ON;
+INSERT INTO t1 VALUES (NULL);
+
+# Multi-statement transaction
+BEGIN;
+  INSERT INTO t1 VALUES (NULL);
+  INSERT INTO t1 VALUES (NULL);
+COMMIT;
+
+#
+# Verification actions include
+# restoring t1 from binlog and checking data consistency
+#
+
+--let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+--let $datadir= `SELECT @@datadir`
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo ================ FULL FILE ================
+--exec $MYSQL_BINLOG $datadir/$binlog_file | $MYSQL --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+
+
+--echo ================ --include-gtid ============
+
+INSERT INTO t1 VALUES (NULL) /* 4 */;
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES (NULL);
+
+#
+# TODO: discuss `:' to `,' change as the comma is the first thing that comes to 
+# anyone's mind when talking on a list of items.
+#
+--exec $MYSQL_BINLOG --include-gtid=$server_uuid:4-5:6 $datadir/$binlog_file | $MYSQL --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
+
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+INSERT INTO t1 VALUES (NULL) /* 7 */;
+INSERT INTO t1 VALUES (NULL);
+
+--echo ================ --skip-gtid ================
+
+INSERT INTO t1 VALUES (NULL) /* 9 */;
+
+--exec $MYSQL_BINLOG --skip-gtid=$server_uuid:1:2:3-8 $datadir/$binlog_file | $MYSQL --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
+
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+#
+# cleanup
+#
+
+--connection master
+
+FLUSH LOGS;
+DROP TABLE t1;
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--exec $MYSQL_BINLOG $datadir/$binlog_file | $MYSQL --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
+
+
