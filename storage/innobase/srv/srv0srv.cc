@@ -2576,7 +2576,7 @@ srv_purge_coordinator_suspend(
 		we want to signal the thread that wants to suspend purge. */
 
 		if (stop) {
-			os_event_wait(slot->event);
+			os_event_wait_low(slot->event, sig_count);
 			ret = 0;
 		} else if (rseg_history_len <= trx_sys->rseg_history_len) {
 			ret = os_event_wait_time_low(
