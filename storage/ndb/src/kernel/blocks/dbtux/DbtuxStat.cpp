@@ -497,22 +497,26 @@ Dbtux::statMonStart(Signal* signal, StatMon& mon)
   Index& index = *c_indexPool.getPtr(req->indexId);
   D("statMonStart" << V(mon));
 
-  // RT_START_MON also sends ZNIL to all non-monitoring nodes
-  if (req->fragId == ZNIL)
+  FragPtr fragPtr;
+  fragPtr.setNull();
+
+  if (req->fragId != ZNIL)
   {
     jam();
-    index.m_statFragPtrI = RNIL;
-    D("non-monitoring node");
+    findFrag(index, req->fragId, fragPtr);
+  }
+
+  if (fragPtr.i != RNIL)
+  {
+    jam();
+    index.m_statFragPtrI = fragPtr.i;
+    fragPtr.p->m_entryOps = 0;
+    D("monitoring node" << V(index));
   }
   else
   {
     jam();
-    FragPtr fragPtr;
-    findFrag(index, req->fragId, fragPtr);
-    ndbrequire(fragPtr.i != RNIL);
-    index.m_statFragPtrI = fragPtr.i;
-    fragPtr.p->m_entryOps = 0;
-    D("monitoring node" << V(index));
+    index.m_statFragPtrI = RNIL;
   }
 
   statMonConf(signal, mon);
