@@ -84,7 +84,6 @@ static const Uint32 MAX_SIGNALS_BEFORE_WAKEUP = 128;
                            MAX_NDBMT_LQH_THREADS +  \
                            MAX_NDBMT_TC_THREADS +   \
                            MAX_NDBMT_RECEIVE_THREADS)
-#define MAX_BLOCK_INSTANCES (MAX_BLOCK_THREADS+1)
 
 /* If this is too small it crashes before first signal. */
 #define MAX_INSTANCES_PER_THREAD (16 + 8 * MAX_NDBMT_LQH_THREADS)
@@ -3242,14 +3241,14 @@ struct thr_map_entry {
   thr_map_entry() : thr_no(NULL_THR_NO) {}
 };
 
-static struct thr_map_entry thr_map[NO_OF_BLOCKS][MAX_BLOCK_INSTANCES];
+static struct thr_map_entry thr_map[NO_OF_BLOCKS][NDBMT_MAX_BLOCK_INSTANCES];
 
 static inline Uint32
 block2ThreadId(Uint32 block, Uint32 instance)
 {
   assert(block >= MIN_BLOCK_NO && block <= MAX_BLOCK_NO);
   Uint32 index = block - MIN_BLOCK_NO;
-  assert(instance < MAX_BLOCK_INSTANCES);
+  assert(instance < NDB_ARRAY_SIZE(thr_map[index]));
   const thr_map_entry& entry = thr_map[index][instance];
   assert(entry.thr_no < num_threads);
   return entry.thr_no;
@@ -3261,7 +3260,7 @@ add_thr_map(Uint32 main, Uint32 instance, Uint32 thr_no)
   assert(main == blockToMain(main));
   Uint32 index = main - MIN_BLOCK_NO;
   assert(index < NO_OF_BLOCKS);
-  assert(instance < MAX_BLOCK_INSTANCES);
+  assert(instance < NDB_ARRAY_SIZE(thr_map[index]));
 
   SimulatedBlock* b = globalData.getBlock(main, instance);
   require(b != 0);
@@ -3419,14 +3418,14 @@ mt_finalize_thr_map()
   {
     Uint32 bno = b + MIN_BLOCK_NO;
     Uint32 cnt = 0;
-    while (cnt < MAX_BLOCK_INSTANCES &&
+    while (cnt < NDB_ARRAY_SIZE(thr_map[b]) &&
            thr_map[b][cnt].thr_no != thr_map_entry::NULL_THR_NO)
       cnt++;
 
-    if (cnt != MAX_BLOCK_INSTANCES)
+    if (cnt != NDB_ARRAY_SIZE(thr_map[b]))
     {
       SimulatedBlock * main = globalData.getBlock(bno, 0);
-      for (Uint32 i = cnt; i < MAX_BLOCK_INSTANCES; i++)
+      for (Uint32 i = cnt; i < NDB_ARRAY_SIZE(thr_map[b]); i++)
       {
         Uint32 dup = (cnt == 1) ? 0 : 1 + ((i - 1) % (cnt - 1));
         if (thr_map[b][i].thr_no == thr_map_entry::NULL_THR_NO)
@@ -4937,7 +4936,7 @@ mt_get_thread_references_for_blocks(const Uint32 blocks[], Uint32 threadId,
      */
     assert(block == blockToMain(block));
     Uint32 index = block - MIN_BLOCK_NO;
-    for (Uint32 instance = 0; instance < MAX_BLOCK_INSTANCES; instance++)
+    for (Uint32 instance = 0; instance < NDB_ARRAY_SIZE(thr_map[instance]); instance++)
     {
       Uint32 thr_no = thr_map[index][instance].thr_no;
       if (thr_no == thr_map_entry::NULL_THR_NO)
