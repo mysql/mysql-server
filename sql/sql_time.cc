@@ -409,13 +409,14 @@ str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time, uint flags)
 static bool
 lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime, uint flags, int *warnings)
 {
-  bool rc= number_to_datetime(lld.quot, ltime, flags, warnings) == LL(-1);
-  if (rc)
+  if (lld.rem < 0 || // Catch negative numbers with zero int part, e.g: -0.1
+      number_to_datetime(lld.quot, ltime, flags, warnings) == LL(-1))
   {
     /* number_to_datetime does not clear ltime in case of ZERO DATE */
     set_zero_time(ltime, MYSQL_TIMESTAMP_ERROR);
     if (!*warnings) /* Neither sets warnings in case of ZERO DATE */
       *warnings|= MYSQL_TIME_WARN_TRUNCATED;
+    return true;
   }
   else if (ltime->time_type == MYSQL_TIMESTAMP_DATE)
   {
@@ -430,9 +431,9 @@ lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime, uint flags, int *warnings)
   else if (!(flags & TIME_NO_NSEC_ROUNDING))
   {
     ltime->second_part= lld.rem / 1000;
-    rc= datetime_add_nanoseconds_with_round(ltime, lld.rem % 1000, warnings);
+    return datetime_add_nanoseconds_with_round(ltime, lld.rem % 1000, warnings);
   }
-  return rc;
+  return false;
 }
 
 

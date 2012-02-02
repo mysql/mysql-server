@@ -2423,7 +2423,8 @@ ibuf_get_merge_page_nos_func(
 			smallest possible secondary index leaf page
 			(and that only after DROP INDEX). */
 			ut_ad(rec_page_no
-			      > IBUF_TREE_ROOT_PAGE_NO - (rec_space_id != 0));
+			      > (ulint) IBUF_TREE_ROOT_PAGE_NO
+			      - (rec_space_id != 0));
 		}
 
 #ifdef UNIV_IBUF_DEBUG
@@ -3804,9 +3805,10 @@ ibuf_insert_to_index_page(
 		      "InnoDB: but the number of fields does not match!\n",
 		      stderr);
 dump:
-		buf_page_print(page, 0);
+		buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
 		dtuple_print(stderr, entry);
+		ut_ad(0);
 
 		fputs("InnoDB: The table where where"
 		      " this index record belongs\n"
@@ -4378,12 +4380,14 @@ ibuf_merge_or_delete_for_page(
 
 			bitmap_page = ibuf_bitmap_get_map_page(space, page_no,
 							       zip_size, &mtr);
-			buf_page_print(bitmap_page, 0);
+			buf_page_print(bitmap_page, 0,
+				       BUF_PAGE_PRINT_NO_CRASH);
 			ibuf_mtr_commit(&mtr);
 
 			fputs("\nInnoDB: Dump of the page:\n", stderr);
 
-			buf_page_print(block->frame, 0);
+			buf_page_print(block->frame, 0,
+				       BUF_PAGE_PRINT_NO_CRASH);
 
 			fprintf(stderr,
 				"InnoDB: Error: corruption in the tablespace."
@@ -4403,6 +4407,7 @@ ibuf_merge_or_delete_for_page(
 				(ulong) page_no,
 				(ulong)
 				fil_page_get_type(block->frame));
+			ut_ad(0);
 		}
 	}
 

@@ -882,6 +882,14 @@ bool Item_field::add_field_to_set_processor(uchar *arg)
   DBUG_RETURN(FALSE);
 }
 
+
+bool Item_field::remove_column_from_bitmap(uchar *argument)
+{
+  MY_BITMAP *bitmap= reinterpret_cast<MY_BITMAP*>(argument);
+  bitmap_clear_bit(bitmap, field->field_index);
+  return false;
+}
+
 /**
   Check if an Item_field references some field from a list of fields.
 
@@ -1444,6 +1452,7 @@ const CHARSET_INFO *Item::default_charset()
 
 int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
 {
+  DBUG_ENTER("Item::save_in_field_no_warnings");
   int res;
   TABLE *table= field->table;
   THD *thd= table->in_use;
@@ -1458,7 +1467,7 @@ int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
   thd->count_cuted_fields= tmp;
   dbug_tmp_restore_column_map(table->write_set, old_map);
   thd->variables.sql_mode= sql_mode;
-  return res;
+  DBUG_RETURN(res);
 }
 
 

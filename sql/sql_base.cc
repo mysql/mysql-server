@@ -9544,11 +9544,6 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
     /* Make sure all columns get assigned to a default value */
     table->use_all_columns();
     table->no_replicate= 1;
-    /*
-      Don't set automatic timestamps as we may want to use time of logging,
-      not from query start
-    */
-    table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   }
   else
     thd->restore_backup_open_tables_state(backup);

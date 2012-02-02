@@ -6753,9 +6753,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   lpt->pack_frm_data= NULL;
   lpt->pack_frm_len= 0;
 
-  /* Never update timestamp columns when alter */
-  lpt->table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
-
   if (table->file->alter_table_flags(alter_info->flags) &
         HA_PARTITION_ONE_PHASE)
   {
