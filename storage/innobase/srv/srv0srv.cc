@@ -2437,7 +2437,7 @@ DECLARE_THREAD(srv_worker_thread)(
 	srv_sys_mutex_exit();
 
 	/* We need to ensure that the worker threads exit after the
-	purge coordinator thread. Otherwise he purge coordinaor can
+	purge coordinator thread. Otherwise the purge coordinaor can
 	end up waiting forever in trx_purge_wait_for_workers_to_complete() */
 
 	do {
@@ -2478,9 +2478,10 @@ DECLARE_THREAD(srv_worker_thread)(
 }
 
 /*********************************************************************//**
-Do the actual purge operation. */
+Do the actual purge operation.
+@return length of history list before the last purge batch. */
 static
-void
+ulint
 srv_do_purge(
 /*=========*/
 	ulint		n_threads,	/*!< in: number of threads to use */
@@ -2535,6 +2536,8 @@ srv_do_purge(
 		*n_total_purged += n_pages_purged;
 
 	} while (!srv_purge_exit(n_pages_purged) && n_pages_purged > 0);
+
+	return(rseg_history_len);
 }
 
 /*********************************************************************//**
@@ -2543,8 +2546,10 @@ static
 void
 srv_purge_coordinator_suspend(
 /*==========================*/
-	srv_slot_t*	slot)		/*!< in/out: Purge coordinator
-					thread slot */
+	srv_slot_t*	slot,			/*!< in/out: Purge coordinator
+						thread slot */
+	ulint		rseg_history_len)	/*!< in: history list length
+						before last purge */
 {
 	rw_lock_x_lock(&purge_sys->latch);
 
@@ -2553,7 +2558,7 @@ srv_purge_coordinator_suspend(
 	rw_lock_x_unlock(&purge_sys->latch);
 
 	bool		stop = false;
-	static ulint	timeout = 100000;
+	static ulint	timeout = 10000;
 
 	do {
 		ulint		ret;
@@ -2567,9 +2572,14 @@ srv_purge_coordinator_suspend(
 		if (stop) {
 			os_event_wait(slot->event);
 			ret = 0;
-		} else {
+		} else if (rseg_history_len <= trx_sys->rseg_history_len) {
 			ret = os_event_wait_time_low(
 				slot->event, timeout, sig_count);
+		} else {
+			/* We don't want to waste time waiting if the
+			history list has increased by the time we get here
+			unless purge has been stopped. */
+			ret = 0;
 		}
 
 		rw_lock_x_lock(&purge_sys->latch);
@@ -2602,14 +2612,12 @@ srv_purge_coordinator_suspend(
 
 			srv_sys_mutex_exit();
 
-			/* Decrease the timeout if the history list is long. */
-			if (trx_sys->rseg_history_len > 1000) {
-				if (timeout > 1000) {
-					timeout -= 100;
-				}
-			} else if (timeout < SRV_PURGE_MAX_TIMEOUT) {
-				timeout += 1000;
-			}
+			/* No new records added since wait started then simply
+			wait for new records. */
+
+			if (rseg_history_len == trx_sys->rseg_history_len) {
+				stop = true;
+			} 
 		}
 
 	} while (stop);
@@ -2655,6 +2663,8 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 	srv_sys_mutex_exit();
 
+	ulint	rseg_history_len = trx_sys->rseg_history_len;
+
 	do {
 		/* If there are no records to purge or the last
 		purge didn't purge any records then wait for activity. */
@@ -2662,7 +2672,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		if (purge_sys->state == PURGE_STATE_STOP
 		    || n_total_purged == 0) {
 
-			srv_purge_coordinator_suspend(slot);
+			srv_purge_coordinator_suspend(slot, rseg_history_len);
 		}
 
 		if (srv_purge_exit(n_total_purged)) {
@@ -2672,7 +2682,8 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		n_total_purged = 0;
 
 		for (int i = 0;i < TRX_SYS_N_RSEGS; ++i) {
-			srv_do_purge(srv_n_purge_threads, &n_total_purged);
+			rseg_history_len = srv_do_purge(
+				srv_n_purge_threads, &n_total_purged);
 		}
 
 	} while (!srv_purge_exit(n_total_purged));
