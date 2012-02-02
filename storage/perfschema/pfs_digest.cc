@@ -262,6 +262,8 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
   PFS_statements_digest_stat **entry;
   PFS_statements_digest_stat *pfs= NULL;
 
+  ulonglong now= my_micro_time();
+
   /* Lookup LF_HASH using this new key. */
   entry= reinterpret_cast<PFS_statements_digest_stat**>
     (lf_hash_search(&digest_hash, pins,
@@ -272,12 +274,15 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
     /* 
       If statement digest entry doesn't exist.
     */
-    if(digest_index==0)
+    if(digest_index == 0)
     {
       /*
         digest_stat array is full. Add stat at index 0 and return.
       */
       pfs= &statements_digest_stat_array[0];
+      if(pfs->m_first_seen!=0)
+        pfs->m_first_seen= now;
+      pfs->m_last_seen= now;
       return pfs;
     }
 
@@ -292,11 +297,16 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
     */
     pfs->m_digest_storage.m_byte_count= digest_storage->m_byte_count;
     pfs->m_digest_storage.m_last_id_index= digest_storage->m_last_id_index;
-    memcpy(pfs->m_digest_storage.m_token_array, digest_storage->m_token_array, PFS_MAX_DIGEST_STORAGE_SIZE);
-    memcpy(pfs->m_digest_storage.m_digest_hash.m_md5, digest_storage->m_digest_hash.m_md5, 16);
+    memcpy(pfs->m_digest_storage.m_token_array, digest_storage->m_token_array,
+           PFS_MAX_DIGEST_STORAGE_SIZE);
+    memcpy(pfs->m_digest_storage.m_digest_hash.m_md5,
+           digest_storage->m_digest_hash.m_md5, 16);
 
     /* Set digest hash/LF Hash search key. */
     memcpy(pfs->m_md5_hash.m_md5, hash_key, 16);
+
+    pfs->m_first_seen= now;
+    pfs->m_last_seen= now;
     
     /* Increment index. */
     digest_index++;
@@ -304,7 +314,7 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
     if(digest_index%statements_digest_size == 0)
     {
       /* 
-        Digest stat array is full. Now all stat for all further 
+        Digest stat array is full. Now stat for all further 
         entries will go into index 0.
       */
       digest_index= 0;
@@ -324,9 +334,10 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
   else if (entry && (entry != MY_ERRPTR))
   {
     /* 
-      If stmt digest already exists, update stat and return 
+      If stmt digest already exists, update stat and return. 
     */
     pfs= *entry;
+    pfs->m_last_seen= now;
     lf_hash_search_unpin(pins);
     return pfs;
   }
@@ -348,6 +359,8 @@ void reset_esms_by_digest()
   {
     statements_digest_stat_array[index].m_md5_hash.m_md5[0]= '\0';
     statements_digest_stat_array[index].m_stat.reset();
+    statements_digest_stat_array[index].m_first_seen= 0;
+    statements_digest_stat_array[index].m_last_seen= 0;
   }
 
   /* 
