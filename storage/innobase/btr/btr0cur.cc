@@ -581,9 +581,7 @@ search_loop:
 	} else if (latch_mode <= BTR_MODIFY_LEAF) {
 		rw_latch = latch_mode;
 
-		// FIXME: Potential race in the quiesce check
 		if (btr_op != BTR_NO_OP
-		    && index->table->quiesce == QUIESCE_NONE
 		    && ibuf_should_try(index, btr_op != BTR_INSERT_OP)) {
 
 			/* Try to buffer the operation if the leaf

@@ -11857,15 +11857,21 @@ ha_innobase::store_lock(
 	if (sql_command == SQLCOM_FLUSH && lock_type == TL_READ_NO_INSERT) {
 		dict_index_t*	index;
 
-		/* TODO: Use the cluster index rw_lock to control queisce
-		state changes for now. */
-		index = dict_table_get_first_index(prebuilt->table);
+		for (index = dict_table_get_first_index(prebuilt->table);
+		     index != NULL;
+		     index = dict_table_get_next_index(index)) {
 
-		rw_lock_x_lock(&index->lock);
+			rw_lock_x_lock(&index->lock);
+		}
 
 		prebuilt->table->quiesce = QUIESCE_INIT;
 
-		rw_lock_x_unlock(&index->lock);
+		for (index = dict_table_get_first_index(prebuilt->table);
+		     index != NULL;
+		     index = dict_table_get_next_index(index)) {
+
+			rw_lock_x_unlock(&index->lock);
+		}
 
 	} else if (sql_command == SQLCOM_DROP_TABLE) {
 

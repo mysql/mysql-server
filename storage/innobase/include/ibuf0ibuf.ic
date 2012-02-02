@@ -124,9 +124,12 @@ ibuf_should_try(
 						a secondary index when we
 						decide */
 {
+	/* Note: We are doing a dirty read of index->table->quiesce. */
+
 	return(ibuf_use != IBUF_USE_NONE
 	       && ibuf->max_size != 0
 	       && !dict_index_is_clust(index)
+	       && index->table->quiesce == QUIESCE_NONE
 	       && (ignore_sec_unique || !dict_index_is_unique(index)));
 }
 
