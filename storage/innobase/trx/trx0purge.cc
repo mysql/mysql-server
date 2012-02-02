@@ -1314,6 +1314,11 @@ trx_purge_stop(void)
 
 	state = purge_sys->state;
 
+	if (state == PURGE_STATE_RUN) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Stopping purge\n");
+	}
+
 	purge_sys->state = PURGE_STATE_STOP;
 
 	rw_lock_x_unlock(&purge_sys->latch);
@@ -1339,11 +1344,14 @@ trx_purge_run(void)
 	--purge_sys->n_stop;
 
 	if (purge_sys->n_stop == 0) {
+
+		ut_print_timestamp(stderr);
+
 		if (purge_sys->state == PURGE_STATE_STOP) {
-			fprintf(stderr, "Resuming purge\n");
+			fprintf(stderr, " InnoDB: Resuming purge\n");
 			purge_sys->state = PURGE_STATE_RUN;
 		} else {
-			fprintf(stderr, "Purge already running\n");
+			fprintf(stderr, " InnoDB: Purge already running\n");
 		}
 	}
 

@@ -5883,7 +5883,7 @@ row_mysql_quiesce_table_begin(
 	dict_table_t*	table)		/*!< in: quiesce this table */
 {
 	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnODB: Quiesce: %s\n", table->name);
+	fprintf(stderr, " InnoDB: Sync to disk of %s started.\n", table->name);
 
 	table->quiesce = QUIESCE_START;
 
@@ -5922,8 +5922,8 @@ row_mysql_quiesce_table_complete(
 /*=============================*/
 	dict_table_t*	table)		/*!< in: quiesce this table */
 {
-
-	fprintf(stderr, "End: Quiesce: %s\n", table->name);
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: Sync to disk of %s complete.\n", table->name);
 
 	ut_a(table->quiesce = QUIESCE_COMPLETE);
 
