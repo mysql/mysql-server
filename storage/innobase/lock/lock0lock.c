@@ -1615,7 +1615,7 @@ lock_sec_rec_some_has_impl_off_kernel(
 
 	if (!lock_check_trx_id_sanity(page_get_max_trx_id(page),
 				      rec, index, offsets, TRUE)) {
-		buf_page_print(page, 0);
+		buf_page_print(page, 0, 0);
 
 		/* The page is corrupt: try to avoid a crash by returning
 		NULL */
