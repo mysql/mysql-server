@@ -12,6 +12,9 @@
 --source include/have_debug.inc
 --source include/have_perfschema.inc
 
+# Enforce a clean state
+--source ../include/wait_for_pfs_thread_count.inc
+
 flush status;
 flush hosts;
 flush user_resources;
