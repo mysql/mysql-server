@@ -1305,6 +1305,11 @@ trx_purge_stop(void)
 	purge_state_t	state;
 	ib_int64_t	sig_count = os_event_reset(purge_sys->event);
 
+	/* FIXME: Only support stopping purge if purge is done via
+	separate threads.  */
+
+	ut_a(srv_n_purge_threads > 0);
+
 	rw_lock_x_lock(&purge_sys->latch);
 
 	ut_a(purge_sys->state != PURGE_STATE_INIT);

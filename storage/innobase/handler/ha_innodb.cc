@@ -11864,7 +11864,11 @@ ha_innobase::store_lock(
 			rw_lock_x_lock(&index->lock);
 		}
 
-		prebuilt->table->quiesce = QUIESCE_INIT;
+		// FIXME: Only if we have separate purge threads.
+		if (srv_n_purge_threads > 0) {
+			ut_a(prebuilt->table->quiesce == QUIESCE_NONE);
+			prebuilt->table->quiesce = QUIESCE_INIT;
+		}
 
 		for (index = dict_table_get_first_index(prebuilt->table);
 		     index != NULL;

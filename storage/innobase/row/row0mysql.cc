@@ -5883,6 +5883,8 @@ row_mysql_quiesce_table_begin(
 /*==========================*/
 	dict_table_t*	table)		/*!< in: quiesce this table */
 {
+	ut_a(srv_n_purge_threads > 0);
+
 	ut_print_timestamp(stderr);
 	fprintf(stderr, " InnoDB: Sync to disk of %s started.\n", table->name);
 
