@@ -334,7 +334,7 @@ mysql_event_fill_row(THD *thd,
     */
   }
 
-  fields[ET_FIELD_MODIFIED]->set_time();
+  Item_func_now_local::store_in(fields[ET_FIELD_MODIFIED]);
 
   if (et->comment.str)
   {
@@ -716,7 +716,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     goto end;
   }
 
-  table->field[ET_FIELD_CREATED]->set_time();
+  Item_func_now_local::store_in(table->field[ET_FIELD_CREATED]);
 
   /*
     mysql_event_fill_row() calls my_error() in case of error so no need to
@@ -826,9 +826,6 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   if (parse_data->check_dates(thd,
                               (int) table->field[ET_FIELD_ON_COMPLETION]->val_int()))
     goto end;
-
-  /* Don't update create on row update. */
-  table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   /*
     mysql_event_fill_row() calls my_error() in case of error so no need to
@@ -1125,8 +1122,6 @@ update_timing_fields_for_event(THD *thd,
     goto end;
 
   store_record(table, record[1]);
-  /* Don't update create on row update. */
-  table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   my_tz_OFFSET0->gmt_sec_to_TIME(&time, last_executed);
   fields[ET_FIELD_LAST_EXECUTED]->set_notnull();

@@ -994,8 +994,6 @@ int ha_archive::write_row(uchar *buf)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   ha_statistic_increment(&SSV::ha_write_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->get_timestamp_field()->set_time();
   mysql_mutex_lock(&share->mutex);
 
   if (!share->archive_write_open)

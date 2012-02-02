@@ -720,7 +720,7 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_NUM_UNDO_SLOT_CACHED},
 
-	{"trx_rseg_curent_size", "transaction",
+	{"trx_rseg_current_size", "transaction",
 	 "Current rollback segment size in pages",
 	 static_cast<monitor_type_t>(
 	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),

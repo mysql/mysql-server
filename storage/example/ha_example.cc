@@ -362,8 +362,8 @@ int ha_example::close(void)
   ha_berekly.cc has an example of how to store it intact by "packing" it
   for ha_berkeley's own native storage type.
 
-  See the note for update_row() on auto_increments and timestamps. This
-  case also applies to write_row().
+  See the note for update_row() on auto_increments. This case also applies to
+  write_row().
 
   Called from item_sum.cc, item_sum.cc, sql_acl.cc, sql_insert.cc,
   sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc, and sql_update.cc.
@@ -394,13 +394,14 @@ int ha_example::write_row(uchar *buf)
   clause was used. Consecutive ordering is not guaranteed.
 
   @details
-  Currently new_data will not have an updated auto_increament record, or
-  and updated timestamp field. You can do these for example by doing:
+  Currently new_data will not have an updated auto_increament record. You can
+  do this for example by doing:
+
   @code
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->get_timestamp_field()->set_time();
+
   if (table->next_number_field && record == table->record[0])
     update_auto_increment();
+
   @endcode
 
   Called from sql_select.cc, sql_acl.cc, sql_update.cc, and sql_insert.cc.

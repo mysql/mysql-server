@@ -3232,6 +3232,7 @@ end_with_restore_list:
       if (!res && (sel_result= new select_insert(first_table,
                                                  first_table->table,
                                                  &lex->field_list,
+                                                 &lex->field_list,
                                                  &lex->update_list,
                                                  &lex->value_list,
                                                  lex->duplicates,
@@ -6027,14 +6028,15 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     /* 
       Default value should be literal => basic constants =>
       no need fix_fields()
-      
-      We allow only one function as part of default value - 
-      NOW() as default for TIMESTAMP type.
+
+      We allow only CURRENT_TIMESTAMP as function default for the TIMESTAMP or
+      DATETIME types.
     */
     if (default_value->type() == Item::FUNC_ITEM && 
-        !(((Item_func*)default_value)->functype() == Item_func::NOW_FUNC &&
-         real_type_with_now_as_default(type) &&
-         default_value->decimals == datetime_precision))
+        (static_cast<Item_func*>(default_value)->functype() !=
+         Item_func::NOW_FUNC ||
+         (!real_type_with_now_as_default(type)) ||
+         default_value->decimals != datetime_precision))
     {
       my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
       DBUG_RETURN(1);

@@ -1076,8 +1076,6 @@ int ha_myisammrg::write_row(uchar * buf)
   if (file->merge_insert_method == MERGE_INSERT_DISABLED || !file->tables)
     DBUG_RETURN(HA_ERR_TABLE_READONLY);
 
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->get_timestamp_field()->set_time();
   if (table->next_number_field && buf == table->record[0])
   {
     int error;
@@ -1091,8 +1089,6 @@ int ha_myisammrg::update_row(const uchar * old_data, uchar * new_data)
 {
   DBUG_ASSERT(this->file->children_attached);
   ha_statistic_increment(&SSV::ha_update_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->get_timestamp_field()->set_time();
   return myrg_update(file,old_data,new_data);
 }
 

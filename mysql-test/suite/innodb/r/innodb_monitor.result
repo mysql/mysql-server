@@ -132,7 +132,7 @@ trx_active_transactions	disabled
 trx_rseg_history_len	disabled
 trx_undo_slots_used	disabled
 trx_undo_slots_cached	disabled
-trx_rseg_curent_size	disabled
+trx_rseg_current_size	disabled
 purge_del_mark_records	disabled
 purge_upd_exist_or_extern_records	disabled
 purge_invoked	disabled
