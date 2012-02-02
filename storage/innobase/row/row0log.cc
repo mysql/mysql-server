@@ -140,7 +140,7 @@ op_ok:
 	size = rec_get_converted_size_comp(
 		index, REC_STATUS_ORDINARY,
 		tuple->fields, tuple->n_fields, &extra_size);
-	ut_ad(size > extra_size);
+	ut_ad(size >= extra_size);
 	ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 	extra_size -= REC_N_NEW_EXTRA_BYTES;
 	size -= REC_N_NEW_EXTRA_BYTES;
