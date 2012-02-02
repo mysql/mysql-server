@@ -104,35 +104,33 @@ void PFS_account_row::set_field(uint index, Field *f)
 int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
 {
   /*
-    Copy digest text from statements_digest_stat_array to be shown as
-    DIGEST_TEXT in this row.
-  */
-  m_digest_text_length= pfs->m_digest_text_length;
-  if (m_digest_text_length > sizeof(m_digest_text))
-    return 1;
-  if (m_digest_text_length > 0)
-    memcpy(m_digest_text, pfs->m_digest_text, sizeof(m_digest_text));
- 
-  /*
-    "NULL" value for digest text indicates special entry i.e. aggregated
+    "NULL" value for MD5_HASH indicates special entry i.e. aggregated
     stats at index 0 of statements_digest_stat_array. So do not calculate
-    digest as it should always be "NULL".
+    digest/digest_text as it should always be "NULL".
   */
-  if(m_digest_text_length != 0 &&
-     pfs->m_digest_text[0] != '\0') 
+  if(pfs->m_md5_hash.m_md5[0] != '\0')
   {
-    MD5_HASH_TO_STRING(pfs->m_md5_hash.m_md5, pfs->m_digest);
-    pfs->m_digest_length= 16;
     /*
-      Copy digest from statements_digest_stat_array to be shown as
+      Calculate digest from MD5 HASH collected to be shown as
       DIGEST in this row.
     */
-    m_digest_length= pfs->m_digest_length;
-    memcpy(m_digest, pfs->m_digest, sizeof(m_digest));
+    MD5_HASH_TO_STRING(pfs->m_md5_hash.m_md5, m_digest);
+    m_digest_length= 16;
+
+    /* 
+      Caclulate digest_text information from the token array collected
+      to be shown as DIGEST_TEXT column.
+    */ 
+    get_digest_text(m_digest_text,
+                    pfs->m_digest_storage.m_token_array,
+                    pfs->m_digest_storage.m_byte_count);
+    m_digest_text_length= strlen(m_digest_text);
+
   }
   else
   {
     m_digest_length= 0;
+    m_digest_text_length= 0;
   }
   
   return 0;

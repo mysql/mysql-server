@@ -153,11 +153,6 @@ unsigned int digest_index= 1;
 static LF_HASH digest_hash;
 static bool digest_hash_inited= false;
 
-
-static void get_digest_text(char* digest_text,
-                            char* token_array,
-                            int byte_count);
-
 /**
   Initialize table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST.
   @param digest_sizing      
@@ -291,11 +286,14 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
     */
     pfs= &statements_digest_stat_array[digest_index];
     
-    /* Calculate and set digest text. */
-    get_digest_text(pfs->m_digest_text,
-                    digest_storage->m_token_array,
-                    digest_storage->m_byte_count);
-    pfs->m_digest_text_length= strlen(pfs->m_digest_text);
+    /* 
+      Copy digest storage to statement_digest_stat_array so that it could be
+      used later to generate digest text.
+    */
+    pfs->m_digest_storage.m_byte_count= digest_storage->m_byte_count;
+    pfs->m_digest_storage.m_last_id_index= digest_storage->m_last_id_index;
+    memcpy(pfs->m_digest_storage.m_token_array, digest_storage->m_token_array, PFS_MAX_DIGEST_STORAGE_SIZE);
+    memcpy(pfs->m_digest_storage.m_digest_hash.m_md5, digest_storage->m_digest_hash.m_md5, 16);
 
     /* Set digest hash/LF Hash search key. */
     memcpy(pfs->m_md5_hash.m_md5, hash_key, 16);
@@ -348,10 +346,6 @@ void reset_esms_by_digest()
   */
   for (index= 0; index < statements_digest_size; index++)
   {
-    statements_digest_stat_array[index].m_digest[0]= '\0';
-    statements_digest_stat_array[index].m_digest_length= 0;
-    statements_digest_stat_array[index].m_digest_text[0]= '\0';;
-    statements_digest_stat_array[index].m_digest_text_length= 0;
     statements_digest_stat_array[index].m_md5_hash.m_md5[0]= '\0';
     statements_digest_stat_array[index].m_stat.reset();
   }
@@ -366,7 +360,7 @@ void reset_esms_by_digest()
 /*
   This function, iterates token array and updates digest_text.
 */
-static void get_digest_text(char* digest_text,
+void get_digest_text(char* digest_text,
                             char* token_array,
                             int byte_count)
 {

@@ -368,23 +368,25 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   /* 
     Filling up statement digest information.
   */
-  if(statement->statement_digest_stat_ptr)
+  PFS_statements_digest_stat *pfs= statement->statement_digest_stat_ptr;
+  if(pfs && pfs->m_md5_hash.m_md5[0] != '\0')
   {
-    MD5_HASH_TO_STRING(statement->statement_digest_stat_ptr->m_md5_hash.m_md5,
-                       statement->statement_digest_stat_ptr->m_digest);
-    statement->statement_digest_stat_ptr->m_digest_length= 16;
+    /*
+      Calculate digest from MD5 HASH collected to be shown as
+      DIGEST in this row.
+    */
+    MD5_HASH_TO_STRING(pfs->m_md5_hash.m_md5,
+                       m_row.m_digest.m_digest);
+    m_row.m_digest.m_digest_length= 16;
 
-    memcpy(m_row.m_digest.m_digest,
-           statement->statement_digest_stat_ptr->m_digest,
-           statement->statement_digest_stat_ptr->m_digest_length);
-    m_row.m_digest.m_digest_length=
-           statement->statement_digest_stat_ptr->m_digest_length;
-
-    memcpy(m_row.m_digest.m_digest_text,
-           statement->statement_digest_stat_ptr->m_digest_text,
-           statement->statement_digest_stat_ptr->m_digest_text_length);
-    m_row.m_digest.m_digest_text_length=
-           statement->statement_digest_stat_ptr->m_digest_text_length;
+    /* 
+      Caclulate digest_text information from the token array collected
+      to be shown as DIGEST_TEXT column.
+    */ 
+    get_digest_text(m_row.m_digest.m_digest_text,
+                    pfs->m_digest_storage.m_token_array,
+                    pfs->m_digest_storage.m_byte_count);
+    m_row.m_digest.m_digest_text_length= strlen(m_row.m_digest.m_digest_text);
   }
   else
   {

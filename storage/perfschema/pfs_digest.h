@@ -54,11 +54,10 @@ struct {
 /** A statement digest stat record. */
 struct PFS_statements_digest_stat
 {
-  char m_digest[COL_DIGEST_SIZE];
-  unsigned int m_digest_length;
-  char m_digest_text[COL_DIGEST_TEXT_SIZE];
-  unsigned int m_digest_text_length;
-  
+  /**
+    Digest Storage.
+  */
+  PFS_digest_storage m_digest_storage;
   /**
     Digest hash/LF Hash search key.
   */
@@ -79,6 +78,10 @@ int init_digest_hash(void);
 void cleanup_digest_hash(void);
 PFS_statements_digest_stat* find_or_create_digest(PFS_thread*,
                                                   PFS_digest_storage*);
+
+void get_digest_text(char* digest_text,
+                            char* token_array,
+                            int byte_count);
 
 void reset_esms_by_digest();
 
