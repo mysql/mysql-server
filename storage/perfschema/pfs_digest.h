@@ -67,6 +67,12 @@ struct PFS_statements_digest_stat
     Statement stat.
   */
   PFS_statement_stat m_stat;
+
+  /**
+    First Seen/last seen.
+  */
+  ulonglong m_first_seen;
+  ulonglong m_last_seen;
 };
 
 

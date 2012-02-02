@@ -36,7 +36,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     { C_STRING_WITH_LEN("DIGEST") },
-    { C_STRING_WITH_LEN("varchar(64)") },
+    { C_STRING_WITH_LEN("varchar(32)") },
     { NULL, 0}
   },
   {
@@ -163,12 +163,22 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("SUM_NO_GOOD_INDEX_USED") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("FIRST_SEEN") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0}
+  },
+  { 
+    { C_STRING_WITH_LEN("LAST_SEEN") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0}
   }
 };
 
 TABLE_FIELD_DEF
 table_esms_by_digest::m_field_def=
-{ 26, field_types };
+{ 28, field_types };
 
 PFS_engine_table_share
 table_esms_by_digest::m_share=
@@ -263,6 +273,8 @@ table_esms_by_digest::rnd_pos(const void *pos)
 void table_esms_by_digest::make_row(PFS_statements_digest_stat* digest_stat)
 {
   m_row_exists= false;
+  m_row.m_first_seen= digest_stat->m_first_seen;
+  m_row.m_last_seen= digest_stat->m_last_seen;
   m_row.m_digest.make_row(digest_stat);
 
   /*
@@ -299,6 +311,12 @@ int table_esms_by_digest
       case 0: /* DIGEST */
       case 1: /* DIGEST_TEXT */
         m_row.m_digest.set_field(f->field_index, f);
+        break;
+      case 26: /* FIRST_SEEN */
+        set_field_timestamp(f, m_row.m_first_seen);
+        break;
+      case 27: /* LAST_SEEN */
+        set_field_timestamp(f, m_row.m_last_seen);
         break;
       default: /* 1, ... COUNT/SUM/MIN/AVG/MAX */
         m_row.m_stat.set_field(f->field_index - 2, f);
