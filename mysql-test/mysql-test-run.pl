@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1691,7 +1691,7 @@ sub command_line_setup {
     $opt_testcase_timeout*= 10;
     $opt_suite_timeout*= 6;
     $opt_start_timeout*= 10;
-
+    $opt_debug_sync_timeout*= 10;
   }
   elsif ( $opt_valgrind_mysqld )
   {
