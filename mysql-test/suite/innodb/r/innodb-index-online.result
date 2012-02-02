@@ -1,3 +1,4 @@
+call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
 call mtr.add_suppression("Cannot find index .*c2 in InnoDB index translation table");
 call mtr.add_suppression("Find index .*c2 in InnoDB index list but not its MySQL index number");
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT) ENGINE=InnoDB;
