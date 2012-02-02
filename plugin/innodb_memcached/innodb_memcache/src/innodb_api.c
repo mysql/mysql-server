@@ -303,7 +303,7 @@ innodb_api_write_int(
 }
 
 /*************************************************************//**
-Fetch data from a read tuple and instantiate a "mci_item" structure
+Fetch data from a read tuple and instantiate a "mci_column_t" structure
 @return TRUE if successful */
 static
 bool
@@ -335,7 +335,7 @@ innodb_api_fill_mci(
 }
 
 /*************************************************************//**
-Copy data from a read tuple and instantiate a "mci_item"
+Copy data from a read tuple and instantiate a "mci_column_t" structure
 @return TRUE if successful */
 static
 bool
@@ -385,20 +385,20 @@ innodb_api_fill_value(
 	ib_err_t	err = DB_NOT_FOUND;
 
 	/* If just read a single "value", fill mci_item[MCI_COL_VALUE],
-	otherwise, fill multiple value in mci_add_value[i] */
+	otherwise, fill multiple value in m_add_value[i] */
 	if (meta_info->m_num_add == 0) {
 		meta_column_t*	col_info = meta_info->m_item;
 
-		if (col_id == col_info[META_VALUE].m_field_id) {
+		if (col_id == col_info[CONTAINER_VALUE].m_field_id) {
 
 			if (alloc_mem) {
 				innodb_api_copy_mci(
 					read_tpl, col_id,
-					&item->mci_item[MCI_COL_VALUE]);
+					&item->m_value[MCI_COL_VALUE]);
 			} else {
 				innodb_api_fill_mci(
 					read_tpl, col_id,
-					&item->mci_item[MCI_COL_VALUE]);
+					&item->m_value[MCI_COL_VALUE]);
 			}
 
 			err = DB_SUCCESS;
@@ -410,11 +410,11 @@ innodb_api_fill_value(
 				if (alloc_mem) {
 					innodb_api_copy_mci(
 						read_tpl, col_id,
-						&item->mci_add_value[i]);
+						&item->m_add_value[i]);
 				} else {
 					innodb_api_fill_mci(
 						read_tpl, col_id,
-						&item->mci_add_value[i]);
+						&item->m_add_value[i]);
 				}
 
 				err = DB_SUCCESS;
@@ -455,7 +455,7 @@ innodb_api_search(
 		ib_crsr_t	idx_crsr;
 
 		if (sel_only) {
-			idx_crsr = cursor_data->c_r_idx_crsr;
+			idx_crsr = cursor_data->c_ro_idx_crsr;
 		} else {
 			idx_crsr = cursor_data->c_idx_crsr;
 		}
@@ -469,7 +469,7 @@ innodb_api_search(
 	} else {
 		ib_crsr_t	c_crsr;
 		if (sel_only) {
-			c_crsr = cursor_data->c_r_crsr;
+			c_crsr = cursor_data->c_ro_crsr;
 		} else {
 			c_crsr = cursor_data->c_crsr;
 		}
@@ -501,7 +501,7 @@ innodb_api_search(
 		memset(item, 0, sizeof(*item));
 
 		read_tpl = ib_cb_read_tuple_create(
-				sel_only ? cursor_data->c_r_crsr
+				sel_only ? cursor_data->c_ro_crsr
 					 : cursor_data->c_crsr);
 
 		err = ib_cb_read_row(srch_crsr, read_tpl);
@@ -511,13 +511,13 @@ innodb_api_search(
 		if (meta_info->m_num_add > 0) {
 			/* If there are multiple values to read,allocate
 			memory */
-			item->mci_add_value = malloc(
+			item->m_add_value = malloc(
 				meta_info->m_num_add
-				* sizeof(*item->mci_add_value));
-			item->mci_add_num = meta_info->m_num_add;
+				* sizeof(*item->m_add_value));
+			item->m_add_num = meta_info->m_num_add;
 		} else {
-			item->mci_add_value = NULL;
-			item->mci_add_num = 0;
+			item->m_add_value = NULL;
+			item->m_add_num = 0;
 		}
 
 		/* The table must have at least MCI_ITEM_TO_GET columns for key
@@ -530,58 +530,58 @@ innodb_api_search(
 
 			data_len = ib_cb_col_get_meta(read_tpl, i, &col_meta);
 
-			if (i == col_info[META_KEY].m_field_id) {
+			if (i == col_info[CONTAINER_KEY].m_field_id) {
 				assert(data_len != IB_SQL_NULL);
-				item->mci_item[MCI_COL_KEY].m_str =
+				item->m_value[MCI_COL_KEY].m_str =
 					(char*)ib_cb_col_get_value(read_tpl, i);
-				item->mci_item[MCI_COL_KEY].m_len = data_len;
-				item->mci_item[MCI_COL_KEY].m_is_str = TRUE;
-				item->mci_item[MCI_COL_KEY].m_enabled = TRUE;
+				item->m_value[MCI_COL_KEY].m_len = data_len;
+				item->m_value[MCI_COL_KEY].m_is_str = TRUE;
+				item->m_value[MCI_COL_KEY].m_enabled = TRUE;
 			} else if (meta_info->flag_enabled
-				   && i == col_info[META_FLAG].m_field_id) {
+				   && i == col_info[CONTAINER_FLAG].m_field_id) {
 
 				if (data_len == IB_SQL_NULL) {
-					item->mci_item[MCI_COL_FLAG].m_is_null
+					item->m_value[MCI_COL_FLAG].m_is_null
 						= true;
 				} else {
-					item->mci_item[MCI_COL_FLAG].m_digit =
+					item->m_value[MCI_COL_FLAG].m_digit =
 						innodb_api_read_int(
-						&col_info[META_FLAG].m_col,
+						&col_info[CONTAINER_FLAG].m_col,
 						read_tpl, i);
-					item->mci_item[MCI_COL_FLAG].m_is_str
+					item->m_value[MCI_COL_FLAG].m_is_str
 						 = FALSE;
-					item->mci_item[MCI_COL_FLAG].m_len
+					item->m_value[MCI_COL_FLAG].m_len
 						 = data_len;
-					item->mci_item[MCI_COL_FLAG].m_enabled
+					item->m_value[MCI_COL_FLAG].m_enabled
 						 = TRUE;
 				}
 			} else if (meta_info->cas_enabled
-				   && i == col_info[META_CAS].m_field_id) {
+				   && i == col_info[CONTAINER_CAS].m_field_id) {
 				if (data_len == IB_SQL_NULL) {
-					item->mci_item[MCI_COL_CAS].m_is_null
+					item->m_value[MCI_COL_CAS].m_is_null
 						= true;
 				}
-				item->mci_item[MCI_COL_CAS].m_digit =
+				item->m_value[MCI_COL_CAS].m_digit =
 					 innodb_api_read_int(
-						&col_info[META_CAS].m_col,
+						&col_info[CONTAINER_CAS].m_col,
 						read_tpl, i);
-				item->mci_item[MCI_COL_CAS].m_is_str = FALSE;
-				item->mci_item[MCI_COL_CAS].m_len = data_len;
-				item->mci_item[MCI_COL_CAS].m_enabled = TRUE;
+				item->m_value[MCI_COL_CAS].m_is_str = FALSE;
+				item->m_value[MCI_COL_CAS].m_len = data_len;
+				item->m_value[MCI_COL_CAS].m_enabled = TRUE;
 			} else if (meta_info->exp_enabled
-				   && i == col_info[META_EXP].m_field_id) {
+				   && i == col_info[CONTAINER_EXP].m_field_id) {
 				if (data_len == IB_SQL_NULL) {
-					item->mci_item[MCI_COL_EXP].m_is_null
+					item->m_value[MCI_COL_EXP].m_is_null
 						= true;
 				}
 
-				item->mci_item[MCI_COL_EXP].m_digit =
+				item->m_value[MCI_COL_EXP].m_digit =
 					 innodb_api_read_int(
-						&col_info[META_EXP].m_col,
+						&col_info[CONTAINER_EXP].m_col,
 						read_tpl, i);
-				item->mci_item[MCI_COL_EXP].m_is_str = FALSE;
-				item->mci_item[MCI_COL_EXP].m_len = data_len;
-				item->mci_item[MCI_COL_EXP].m_enabled = TRUE;
+				item->m_value[MCI_COL_EXP].m_is_str = FALSE;
+				item->m_value[MCI_COL_EXP].m_len = data_len;
+				item->m_value[MCI_COL_EXP].m_enabled = TRUE;
 			} else {
 				innodb_api_fill_value(meta_info, item,
 						      read_tpl, i,
@@ -688,16 +688,16 @@ innodb_api_setup_hdl_rec(
 	int	i;
 
 	for (i = 0; i < MCI_ITEM_TO_GET; i++) {
-		if (item->mci_item[i].m_is_str) {
+		if (item->m_value[i].m_is_str) {
 			handler_rec_setup_str(
-				table, col_info[META_KEY + i].m_field_id,
-				item->mci_item[i].m_str,
-				item->mci_item[i].m_len);
+				table, col_info[CONTAINER_KEY + i].m_field_id,
+				item->m_value[i].m_str,
+				item->m_value[i].m_len);
 		} else {
 			handler_rec_setup_int(
-				table, col_info[META_KEY + i].m_field_id,
-				item->mci_item[i].m_digit, TRUE,
-				item->mci_item[i].m_is_null);
+				table, col_info[CONTAINER_KEY + i].m_field_id,
+				item->m_value[i].m_digit, TRUE,
+				item->m_value[i].m_is_null);
 		}
 	}
 }
@@ -729,7 +729,7 @@ innodb_api_set_tpl(
 		ib_cb_tuple_copy(tpl, old_tpl);
 	}
 
-	err = ib_cb_col_set_value(tpl, col_info[META_KEY].m_field_id,
+	err = ib_cb_col_set_value(tpl, col_info[CONTAINER_KEY].m_field_id,
 				  key, key_len);
 
 	/* If "table" is not NULL, we need to setup MySQL record
@@ -737,7 +737,8 @@ innodb_api_set_tpl(
 	if (table) {
 		handler_rec_init(table);
 		handler_rec_setup_str(
-			table, col_info[META_KEY].m_field_id, key, key_len);
+			table, col_info[CONTAINER_KEY].m_field_id,
+			key, key_len);
 	}
 
 	assert(err == DB_SUCCESS);
@@ -754,11 +755,12 @@ innodb_api_set_tpl(
 				value, value_len);
 		}
 	} else {
-		err = ib_cb_col_set_value(tpl, col_info[META_VALUE].m_field_id,
-					  value, value_len);
+		err = ib_cb_col_set_value(
+			tpl, col_info[CONTAINER_VALUE].m_field_id,
+			value, value_len);
 		if (table) {
 			handler_rec_setup_str(
-				table, col_info[META_VALUE].m_field_id,
+				table, col_info[CONTAINER_VALUE].m_field_id,
 				value, value_len);
 		}
 	}
@@ -767,19 +769,19 @@ innodb_api_set_tpl(
 
 	if (meta_info->cas_enabled) {
 		err = innodb_api_write_int(
-			tpl, col_info[META_CAS].m_field_id, cas, table);
+			tpl, col_info[CONTAINER_CAS].m_field_id, cas, table);
 		assert(err == DB_SUCCESS);
 	}
 
 	if (meta_info->exp_enabled) {
 		err = innodb_api_write_int(
-			tpl, col_info[META_EXP].m_field_id, exp, table);
+			tpl, col_info[CONTAINER_EXP].m_field_id, exp, table);
 		assert(err == DB_SUCCESS);
 	}
 
 	if (meta_info->flag_enabled) {
 		err = innodb_api_write_int(
-			tpl, col_info[META_FLAG].m_field_id, flag, table);
+			tpl, col_info[CONTAINER_FLAG].m_field_id, flag, table);
 		assert(err == DB_SUCCESS);
 	}
 
@@ -837,8 +839,8 @@ innodb_api_insert(
 		}
 
 	} else {
-		ib_cb_trx_rollback(cursor_data->c_trx);
-		cursor_data->c_trx = NULL;
+		ib_cb_trx_rollback(cursor_data->c_crsr_trx);
+		cursor_data->c_crsr_trx = NULL;
 	}
 
 	ib_cb_tuple_delete(tpl);
@@ -913,8 +915,8 @@ innodb_api_update(
 		}
 
 	} else {
-		ib_cb_trx_rollback(cursor_data->c_trx);
-		cursor_data->c_trx = NULL;
+		ib_cb_trx_rollback(cursor_data->c_crsr_trx);
+		cursor_data->c_crsr_trx = NULL;
 	}
 
 	ib_cb_tuple_delete(new_tpl);
@@ -955,8 +957,8 @@ innodb_api_delete(
 		if (!cursor_data->mysql_tbl) {
 			cursor_data->mysql_tbl = handler_open_table(
 				cursor_data->thd,
-				meta_info->m_item[META_DB].m_str,
-				meta_info->m_item[META_TABLE].m_str, -2);
+				meta_info->m_item[CONTAINER_DB].m_str,
+				meta_info->m_item[CONTAINER_TABLE].m_str, -2);
 		}
 
 		assert(cursor_data->mysql_tbl);
@@ -1030,17 +1032,17 @@ innodb_api_link(
 	as an indication on which column to apply the operation. Otherwise,
 	the first column will be appended / prepended */
 	if (meta_info->m_num_add > 0) {
-		if (flags < meta_info->m_num_add) {
+		if (flags < (uint64_t) meta_info->m_num_add) {
 			column_used = flags;
 		} else {
 			column_used = 0;
 		}
 
-		before_len = result->mci_add_value[column_used].m_len;
-		before_val = result->mci_add_value[column_used].m_str;
+		before_len = result->m_add_value[column_used].m_len;
+		before_val = result->m_add_value[column_used].m_str;
 	} else {
-		before_len = result->mci_item[MCI_COL_VALUE].m_len;
-		before_val = result->mci_item[MCI_COL_VALUE].m_str;
+		before_len = result->m_value[MCI_COL_VALUE].m_len;
+		before_val = result->m_value[MCI_COL_VALUE].m_str;
 		column_used = UPDATE_ALL_VAL_COL;
 	}
 
@@ -1122,7 +1124,7 @@ innodb_api_arithmetic(
 	meta_column_t*	col_info = meta_info->m_item;
 	ib_crsr_t       srch_crsr = cursor_data->c_crsr;
 	char*		before_val;
-	int		before_len;
+	unsigned int	before_len;
 	int		column_used = 0;
 	ENGINE_ERROR_CODE ret = ENGINE_SUCCESS;
 
@@ -1132,8 +1134,8 @@ innodb_api_arithmetic(
 	if (engine->enable_binlog && !cursor_data->mysql_tbl
 	    && (err == DB_SUCCESS || create)) {
 		cursor_data->mysql_tbl = handler_open_table(
-			cursor_data->thd, meta_info->m_item[META_DB].m_str,
-			meta_info->m_item[META_TABLE].m_str, -2);
+			cursor_data->thd, meta_info->m_item[CONTAINER_DB].m_str,
+			meta_info->m_item[CONTAINER_TABLE].m_str, -2);
 	}
 
 	/* Can't find the row, decide whether to insert a new row */
@@ -1162,19 +1164,19 @@ innodb_api_arithmetic(
 	as an indication on which column to apply the operation. Otherwise,
 	the first column will be appended / prepended */
 	if (meta_info->m_num_add > 0) {
-		uint64_t flags = result.mci_item[MCI_COL_FLAG].m_digit;
+		uint64_t flags = result.m_value[MCI_COL_FLAG].m_digit;
 
-		if (flags < meta_info->m_num_add) {
+		if (flags < (uint64_t) meta_info->m_num_add) {
 			column_used = flags;
 		} else {
 			column_used = 0;
 		}
 
-		before_len = result.mci_add_value[column_used].m_len;
-		before_val = result.mci_add_value[column_used].m_str;
+		before_len = result.m_add_value[column_used].m_len;
+		before_val = result.m_add_value[column_used].m_str;
 	} else {
-		before_len = result.mci_item[MCI_COL_VALUE].m_len;
-		before_val = result.mci_item[MCI_COL_VALUE].m_str;
+		before_len = result.m_value[MCI_COL_VALUE].m_len;
+		before_val = result.m_value[MCI_COL_VALUE].m_str;
 		column_used = UPDATE_ALL_VAL_COL;
 	}
 
@@ -1199,7 +1201,7 @@ innodb_api_arithmetic(
 	if (increment) {
 		value += delta;
 	} else {
-		if (delta > value) {
+		if (delta > (int) value) {
 			value = 0;
 		} else {
 			value -= delta;
@@ -1218,8 +1220,8 @@ create_new_value:
 	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info,
 				 key, len, value_buf, strlen(value_buf),
 				 *cas,
-				 result.mci_item[MCI_COL_EXP].m_digit,
-				 result.mci_item[MCI_COL_FLAG].m_digit,
+				 result.m_value[MCI_COL_EXP].m_digit,
+				 result.m_value[MCI_COL_FLAG].m_digit,
 				 column_used, cursor_data->mysql_tbl);
 
 	assert(err == DB_SUCCESS);
@@ -1298,8 +1300,8 @@ innodb_api_store(
 		meta_info_t*            meta_info = &engine->meta_info;
 
 		cursor_data->mysql_tbl = handler_open_table(
-			cursor_data->thd, meta_info->m_item[META_DB].m_str,
-			meta_info->m_item[META_TABLE].m_str, -2);
+			cursor_data->thd, meta_info->m_item[CONTAINER_DB].m_str,
+			meta_info->m_item[CONTAINER_TABLE].m_str, -2);
 	}
 
 	switch (op) {
@@ -1322,7 +1324,7 @@ innodb_api_store(
 	case OPERATION_APPEND:
 	case OPERATION_PREPEND:
 		/* FIXME: Check cas is used for append and prepend */
-		/* if (*cas != result.mci_item[MCI_COL_CAS].m_digit) {
+		/* if (*cas != result.m_value[MCI_COL_CAS].m_digit) {
 			stored = ENGINE_KEY_EEXISTS;
 			break;
 		} */
@@ -1350,7 +1352,7 @@ innodb_api_store(
 		if (err != DB_SUCCESS) {
 			stored = ENGINE_KEY_ENOENT;
 
-		} else if (input_cas == result.mci_item[MCI_COL_CAS].m_digit) {
+		} else if (input_cas == result.m_value[MCI_COL_CAS].m_digit) {
 			err = innodb_api_update(engine, cursor_data, srch_crsr,
 						key, len, val_len, exp,
 						cas, flags, old_tpl, &result);
@@ -1449,12 +1451,12 @@ innodb_api_cursor_reset(
 			ib_cb_cursor_reset(conn_data->c_idx_crsr);
 		}
 
-		if (conn_data->c_trx) {
+		if (conn_data->c_crsr_trx) {
 			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						engine);
 			ib_cb_cursor_commit_trx(
-				conn_data->c_crsr, conn_data->c_trx);
-			conn_data->c_trx = NULL;
+				conn_data->c_crsr, conn_data->c_crsr_trx);
+			conn_data->c_crsr_trx = NULL;
 			commit_trx = TRUE;
 			conn_data->c_in_use = FALSE;
 
@@ -1465,22 +1467,22 @@ innodb_api_cursor_reset(
 		conn_data->c_w_count_commit = 0;
 	}
 
-	if (conn_data->c_r_crsr
+	if (conn_data->c_ro_crsr
 	    && (conn_data->c_r_count_commit > engine->r_batch_size
 	        || (op_type == CONN_OP_FLUSH))) {
-		ib_cb_cursor_reset(conn_data->c_r_crsr);
+		ib_cb_cursor_reset(conn_data->c_ro_crsr);
 
-		if (conn_data->c_r_idx_crsr) {
-			ib_cb_cursor_reset(conn_data->c_r_idx_crsr);
+		if (conn_data->c_ro_idx_crsr) {
+			ib_cb_cursor_reset(conn_data->c_ro_idx_crsr);
 		}
 
-		if (conn_data->c_r_trx) {
+		if (conn_data->c_ro_crsr_trx) {
 			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						engine);
 			ib_cb_cursor_commit_trx(
-				conn_data->c_r_crsr,
-				conn_data->c_r_trx);
-			conn_data->c_r_trx = NULL;
+				conn_data->c_ro_crsr,
+				conn_data->c_ro_crsr_trx);
+			conn_data->c_ro_crsr_trx = NULL;
 			commit_trx = TRUE;
 			conn_data->c_in_use = FALSE;
 			UNLOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,

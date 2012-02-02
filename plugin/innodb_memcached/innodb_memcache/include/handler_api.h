@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ****************************************************************************/
 
@@ -38,7 +38,7 @@ Created 3/14/2011 Jimmy Yang
 #define HDL_INSERT	2
 #define HDL_DELETE	3
 
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" {
 #endif
 /**********************************************************************//**
@@ -54,7 +54,7 @@ Creates a MySQL TABLE object with specified database name and table name.
 void*
 handler_open_table(
 /*===============*/
-	void*		thd,		/*!< in: THD* */
+	void*		my_thd,		/*!< in: THD* */
 	const char*	db_name,	/*!< in: database name */
 	const char*	table_name,	/*!< in: table name */
 	int		lock_mode);	/*!< in: lock mode */
@@ -79,16 +79,17 @@ handler_binlog_flush(
 Reset TABLE->record[0] */
 void
 handler_rec_init(
-	void*		table);		/*!< in: Table metadata */
+/*=============*/
+	void*		my_table);	/*!< in: Table metadata */
 
 /**********************************************************************//**
-Set up a char based field in TABLE->record[0] */
+Store a string in TABLE->record[0] for field specified by "field_id" */
 void
 handler_rec_setup_str(
 /*==================*/
-	void*		table,		/*!< in/out: TABLE structure */
+	void*		my_table,	/*!< in/out: TABLE structure */
 	int		field_id,	/*!< in: Field ID for the field */
-	const char*		str,		/*!< in: string to set */
+	const char*	str,		/*!< in: string to set */
 	int		len);		/*!< in: length of string */
 
 /**********************************************************************//**
@@ -96,7 +97,7 @@ Set up an integer field in TABLE->record[0] */
 void
 handler_rec_setup_int(
 /*==================*/
-        void*		table,		/*!< in/out: TABLE structure */
+        void*		my_table,	/*!< in/out: TABLE structure */
         int		field_id,	/*!< in: Field ID for the field */
         int		value,		/*!< in: value to set */
 	bool		unsigned_flag,	/*!< in: whether it is unsigned */
@@ -108,33 +109,33 @@ return 0 if fail to commit the transaction */
 int
 handler_unlock_table(
 /*=================*/
-	void*			my_thd,		/*!< in: thread */
-	void*			my_table,	/*!< in: Table metadata */
-	int			mode);		/*!< in: mode */
+	void*		my_thd,		/*!< in: thread */
+	void*		my_table,	/*!< in: Table metadata */
+	int		mode);		/*!< in: mode */
 
 /**********************************************************************//**
 close an handler */
 void
 handler_close_thd(
 /*==============*/
-	void*			my_thd);	/*!< in: thread */
+	void*		my_thd);		/*!< in: thread */
 
 /**********************************************************************//**
 copy an record */
 void
 handler_store_record(
 /*=================*/
-	void*			table);		/*!< in: TABLE */
+	void*		my_table);		/*!< in: TABLE */
 
 /**********************************************************************//**
 binlog a truncate table statement */
 void
 handler_binlog_truncate(
 /*====================*/
-	void*			my_thd,		/*!< in: THD* */
-	char*			table_name);	/*!< in: table name */
+	void*		my_thd,		/*!< in: THD* */
+	char*		table_name);	/*!< in: table name */
 
-#ifdef __cplusplus 
+#ifdef __cplusplus
 }
 #endif
 
@@ -153,13 +154,13 @@ typedef struct field_arg {
 } field_arg_t;
 
 /** Macros to create and instantiate fields */
-#define MCI_ADD_FIELD(m_args, m_fld, m_value, m_len)			\
+#define MCI_FIELD_ADD(m_args, m_fld, m_value, m_len)			\
 	do {								\
 		(m_args)->len[m_fld] = m_len;				\
 		(m_args)->value[m_fld] = (char*)(m_value);		\
 	} while(0)
 
-#define MCI_CREATE_FIELD(field, num_fld)				\
+#define MCI_FIELD_CREATE(field, num_fld)				\
 	do {								\
 		field->len = (int*)malloc(num_fld * sizeof(*(field->len)));\
 		memset(field->len, 0, num_fld * sizeof(*(field->len)));	\
@@ -168,7 +169,7 @@ typedef struct field_arg {
 		field->num_arg = num_fld;				\
 	} while(0)
 
-#define MCI_FREE_FIELD(field)						\
+#define MCI_FIELD_FREE(field)						\
 	do {								\
 		free(field->len);					\
 		free(field->value);					\
@@ -181,8 +182,8 @@ Search table for a record with particular search criteria
 uchar*
 handler_select_rec(
 /*===============*/
-	THD*		thd,		/*!< in: thread */
-	TABLE*		table,		/*!< in: TABLE structure */
+	THD*		my_thd,		/*!< in: thread */
+	TABLE*		my_table,	/*!< in: TABLE structure */
 	field_arg_t*	srch_args,	/*!< in: field to search */
 	int		idx_to_use);	/*!< in: index to use */
 
@@ -192,8 +193,8 @@ return 0 if successfully inserted */
 int
 handler_insert_rec(
 /*===============*/
-	THD*		thd,		/*!< in: thread */
-	TABLE*		table,		/*!< in: TABLE structure */
+	THD*		my_thd,		/*!< in: thread */
+	TABLE*		my_table,	/*!< in: TABLE structure */
 	field_arg_t*	store_args);	/*!< in: inserting row data */
 
 /**********************************************************************//**
@@ -202,8 +203,8 @@ return 0 if successfully inserted */
 int
 handler_update_rec(
 /*===============*/
-	THD*		thd,		/*!< in: thread */
-	TABLE*		table,		/*!< in: TABLE structure */
+	THD*		my_thd,		/*!< in: thread */
+	TABLE*		my_table,	/*!< in: TABLE structure */
 	field_arg_t*	store_args);	/*!< in: update row data */
 
 /**********************************************************************//**
@@ -212,8 +213,8 @@ return 0 if successfully inserted */
 int
 handler_delete_rec(
 /*===============*/
-        THD*		thd,		/*!< in: thread */
-        TABLE*		table);		/*!< in: TABLE structure */
+        THD*		my_thd,		/*!< in: thread */
+        TABLE*		my_table);	/*!< in: TABLE structure */
 
 /**********************************************************************//**
 Lock a table
@@ -221,8 +222,8 @@ return A lock structure pointer on success, NULL on error */
 MYSQL_LOCK *
 handler_lock_table(
 /*===============*/
-	THD*			thd,		/*!< in: thread */
-	TABLE*			table,		/*!< in: Table metadata */
+	THD*			my_thd,		/*!< in: thread */
+	TABLE*			my_table,	/*!< in: Table metadata */
 	enum thr_lock_type	lock_mode);	/*!< in: lock mode */
 
 #endif /* HANDLER_API_MEMCACHED */

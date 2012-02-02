@@ -439,7 +439,7 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_set_cluster_access,
 	(ib_cb_t) ib_cursor_commit_trx
 };
-	
+
 /*************************************************************//**
 Check whether valid argument given to innodb_ft_*_stopword_table.
 This function is registered as a callback with MySQL.

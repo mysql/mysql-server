@@ -218,7 +218,7 @@ innodb_initialize(
 
 	/* Fetch InnoDB specific settings */
 	if (!innodb_config(&innodb_eng->meta_info)) {
-		return(ENGINE_FAILED);
+		return(ENGINE_TMPFAIL);
 	}
 
 	if (innodb_eng->m_default_engine) {
@@ -281,24 +281,24 @@ innodb_conn_clean(
 				innodb_cb_cursor_close(conn_data->c_idx_crsr);
 			}
 
-			if (conn_data->c_r_idx_crsr) {
-				innodb_cb_cursor_close(conn_data->c_r_idx_crsr);
+			if (conn_data->c_ro_idx_crsr) {
+				innodb_cb_cursor_close(conn_data->c_ro_idx_crsr);
 			}
 
 			if (conn_data->c_crsr) {
 				innodb_cb_cursor_close(conn_data->c_crsr);
 			}
 
-			if (conn_data->c_r_crsr) {
-				innodb_cb_cursor_close(conn_data->c_r_crsr);
+			if (conn_data->c_ro_crsr) {
+				innodb_cb_cursor_close(conn_data->c_ro_crsr);
 			}
 
-			if (conn_data->c_r_trx) {
-				innodb_cb_trx_commit(conn_data->c_r_trx);
+			if (conn_data->c_ro_crsr_trx) {
+				innodb_cb_trx_commit(conn_data->c_ro_crsr_trx);
 			}
 
-			if (conn_data->c_trx) {
-				innodb_cb_trx_commit(conn_data->c_trx);
+			if (conn_data->c_crsr_trx) {
+				innodb_cb_trx_commit(conn_data->c_crsr_trx);
 			}
 
 			if (conn_data->mysql_tbl) {
@@ -439,27 +439,27 @@ innodb_conn_init(
 	/* Each connection comes with a read cursor and write cursor,
 	and a read transaction and write transaction committed
 	intermittently */
-	if (!conn_data->c_r_trx) {
-		conn_data->c_r_trx = innodb_cb_trx_begin(
+	if (!conn_data->c_ro_crsr_trx) {
+		conn_data->c_ro_crsr_trx = innodb_cb_trx_begin(
 			IB_TRX_READ_UNCOMMITTED);
 
 		err = innodb_api_begin(
 			engine,
-			meta_info->m_item[META_DB].m_str,
-			meta_info->m_item[META_TABLE].m_str,
+			meta_info->m_item[CONTAINER_DB].m_str,
+			meta_info->m_item[CONTAINER_TABLE].m_str,
 			conn_data,
-			conn_data->c_r_trx,
-			&conn_data->c_r_crsr,
-			&conn_data->c_r_idx_crsr,
+			conn_data->c_ro_crsr_trx,
+			&conn_data->c_ro_crsr,
+			&conn_data->c_ro_idx_crsr,
 			(lock_mode == IB_LOCK_X)
 				? IB_LOCK_X
 				: IB_LOCK_IS);
 
 		if (err != DB_SUCCESS) {
-			innodb_cb_cursor_close(conn_data->c_r_crsr);
-			innodb_cb_trx_commit(conn_data->c_r_trx);
-			conn_data->c_r_trx = NULL;
-			conn_data->c_r_crsr = NULL;
+			innodb_cb_cursor_close(conn_data->c_ro_crsr);
+			innodb_cb_trx_commit(conn_data->c_ro_crsr_trx);
+			conn_data->c_ro_crsr_trx = NULL;
+			conn_data->c_ro_crsr = NULL;
 			conn_data->c_in_use = FALSE;
 
 			return(NULL);
@@ -473,25 +473,25 @@ innodb_conn_init(
 
 		/* If not a read only query, initialize a write cursor */
 		if (!is_select) {
-			conn_data->c_trx = innodb_cb_trx_begin(
+			conn_data->c_crsr_trx = innodb_cb_trx_begin(
 				IB_TRX_READ_UNCOMMITTED);
 
 			err = innodb_api_begin(
 				engine,
-				meta_info->m_item[META_DB].m_str,
-				meta_info->m_item[META_TABLE].m_str,
+				meta_info->m_item[CONTAINER_DB].m_str,
+				meta_info->m_item[CONTAINER_TABLE].m_str,
 				conn_data,
-				conn_data->c_trx, &conn_data->c_crsr,
+				conn_data->c_crsr_trx, &conn_data->c_crsr,
 				&conn_data->c_idx_crsr, lock_mode);
 
 			if (err != DB_SUCCESS) {
 				innodb_cb_cursor_close(conn_data->c_crsr);
 				conn_data->c_crsr = NULL;
-				if (conn_data->c_r_crsr) {
+				if (conn_data->c_ro_crsr) {
 					innodb_cb_cursor_close(
-						conn_data->c_r_crsr);
-					conn_data->c_r_crsr = NULL;
-					conn_data->c_r_trx = NULL;
+						conn_data->c_ro_crsr);
+					conn_data->c_ro_crsr = NULL;
+					conn_data->c_ro_crsr_trx = NULL;
 				}
 				conn_data->c_in_use = FALSE;
 				return(NULL);
@@ -505,15 +505,15 @@ innodb_conn_init(
 
 		if (!is_select) {
 			if (!crsr) {
-				conn_data->c_trx = innodb_cb_trx_begin(
+				conn_data->c_crsr_trx = innodb_cb_trx_begin(
 					IB_TRX_READ_UNCOMMITTED);
 
 				err = innodb_api_begin(
 					engine,
-					meta_info->m_item[META_DB].m_str,
-					meta_info->m_item[META_TABLE].m_str,
+					meta_info->m_item[CONTAINER_DB].m_str,
+					meta_info->m_item[CONTAINER_TABLE].m_str,
 					conn_data,
-					conn_data->c_trx,
+					conn_data->c_crsr_trx,
 					&conn_data->c_crsr,
 					&conn_data->c_idx_crsr,
 					lock_mode);
@@ -522,25 +522,25 @@ innodb_conn_init(
 					innodb_cb_cursor_close(
 						conn_data->c_crsr);
 					conn_data->c_crsr = NULL;
-					conn_data->c_trx = NULL;
+					conn_data->c_crsr_trx = NULL;
 					conn_data->c_in_use = FALSE;
 					return(NULL);
 				}
-			}  else if (!conn_data->c_trx) {
+			}  else if (!conn_data->c_crsr_trx) {
 
 				/* There exists a cursor, just need update
 				with a new transaction */
-				conn_data->c_trx = innodb_cb_trx_begin(
+				conn_data->c_crsr_trx = innodb_cb_trx_begin(
 					IB_TRX_READ_UNCOMMITTED);
 
-				innodb_cb_cursor_new_trx(crsr, conn_data->c_trx);
+				innodb_cb_cursor_new_trx(crsr, conn_data->c_crsr_trx);
 				err = innodb_cb_cursor_lock(crsr, lock_mode);
 
 				if (err != DB_SUCCESS) {
 					innodb_cb_cursor_close(
 						conn_data->c_crsr);
 					conn_data->c_crsr = NULL;
-					conn_data->c_trx = NULL;
+					conn_data->c_crsr_trx = NULL;
 					conn_data->c_in_use = FALSE;
 					return(NULL);
 				}
@@ -549,27 +549,31 @@ innodb_conn_init(
 
 					idx_crsr = conn_data->c_idx_crsr;
 					innodb_cb_cursor_new_trx(
-						idx_crsr, conn_data->c_trx);
+						idx_crsr,
+						conn_data->c_crsr_trx);
 					innodb_cb_cursor_lock(
 						idx_crsr, lock_mode);
 				}
 			}
 		} else {
-			if (!conn_data->c_r_trx) {
-				conn_data->c_r_trx = innodb_cb_trx_begin(
+			if (!conn_data->c_ro_crsr_trx) {
+				conn_data->c_ro_crsr_trx = innodb_cb_trx_begin(
 					IB_TRX_READ_UNCOMMITTED);
 
-				innodb_cb_cursor_new_trx(conn_data->c_r_crsr,
-						     conn_data->c_r_trx);
+				innodb_cb_cursor_new_trx(
+					conn_data->c_ro_crsr,
+					conn_data->c_ro_crsr_trx);
 
-                                innodb_cb_cursor_lock(conn_data->c_r_crsr,
-						  lock_mode);
+                                innodb_cb_cursor_lock(
+					conn_data->c_ro_crsr,
+					lock_mode);
 
                                 if (meta_index->m_use_idx == META_SECONDARY) {
-                                        idx_crsr = conn_data->c_r_idx_crsr;
+                                        idx_crsr = conn_data->c_ro_idx_crsr;
 
                                         innodb_cb_cursor_new_trx(
-                                                idx_crsr, conn_data->c_r_trx);
+                                                idx_crsr,
+						conn_data->c_ro_crsr_trx);
                                         innodb_cb_cursor_lock(
 						idx_crsr, lock_mode);
                                 }
@@ -602,8 +606,8 @@ innodb_remove(
 	innodb_conn_data_t*	conn_data;
 	meta_info_t*		meta_info = &innodb_eng->meta_info;
 
-	if (meta_info->m_set_option == META_CACHE
-	    || meta_info->m_set_option == META_MIX) {
+	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT 
+	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
 		hash_item*	item = item_get(def_eng, key, nkey);
 
 		if (item != NULL) {
@@ -611,13 +615,17 @@ innodb_remove(
 			item_release(def_eng, item);
 		}
 
-		if (meta_info->m_set_option == META_CACHE) {
+		if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT) {
 			return(ENGINE_SUCCESS);
 		}
 	}
 
 	conn_data = innodb_conn_init(innodb_eng, cookie,
 				     FALSE, IB_LOCK_IX, FALSE);
+
+	if (!conn_data) {
+		return(ENGINE_TMPFAIL);
+	}
 
 	/* In the binary protocol there is such a thing as a CAS delete.
 	This is the CAS check. If we will also be deleting from the database,
@@ -682,21 +690,25 @@ innodb_get(
 	int			total_len = 0;
 	meta_info_t*		meta_info = &innodb_eng->meta_info;
 
-	if (meta_info->m_set_option == META_CACHE
-	    || meta_info->m_set_option == META_MIX) {
+	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT
+	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
 		*item = item_get(default_handle(innodb_eng), key, nkey);
 
 		if (*item != NULL) {
 			return(ENGINE_SUCCESS);
 		}
 
-		if (meta_info->m_set_option == META_CACHE) {
+		if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT) {
 			return(ENGINE_KEY_ENOENT);
 		}
 	}
 
 	conn_data = innodb_conn_init(innodb_eng, cookie, TRUE,
 				     IB_LOCK_IX, FALSE);
+
+	if (!conn_data) {
+		return(ENGINE_TMPFAIL);
+	}
 
 	err = innodb_api_search(innodb_eng, conn_data, &crsr, key,
 				nkey, &result, NULL, TRUE);
@@ -708,45 +720,45 @@ innodb_get(
 
 	/* Only if expiration field is enabled, and the value is not zero,
 	we will check whether the item is expired */
-	if (result.mci_item[MCI_COL_EXP].m_enabled
-	    && result.mci_item[MCI_COL_EXP].m_digit) {
+	if (result.m_value[MCI_COL_EXP].m_enabled
+	    && result.m_value[MCI_COL_EXP].m_digit) {
 		uint64_t		time;
 		time = mci_get_time();
 
-		if (time > result.mci_item[MCI_COL_EXP].m_digit) {
+		if (time > result.m_value[MCI_COL_EXP].m_digit) {
 			err_ret = ENGINE_KEY_ENOENT;
 			goto func_exit;
 		}
 	}
 
-	if (result.mci_item[MCI_COL_FLAG].m_enabled) {
-		flags = ntohl(result.mci_item[MCI_COL_FLAG].m_digit);
+	if (result.m_value[MCI_COL_FLAG].m_enabled) {
+		flags = ntohl(result.m_value[MCI_COL_FLAG].m_digit);
 	}
 
-	if (result.mci_item[MCI_COL_CAS].m_enabled) {
-		cas = result.mci_item[MCI_COL_CAS].m_digit;
+	if (result.m_value[MCI_COL_CAS].m_enabled) {
+		cas = result.m_value[MCI_COL_CAS].m_digit;
 	}
 
-	if (result.mci_item[MCI_COL_EXP].m_enabled) {
-		exp = result.mci_item[MCI_COL_EXP].m_digit;
+	if (result.m_value[MCI_COL_EXP].m_enabled) {
+		exp = result.m_value[MCI_COL_EXP].m_digit;
 	}
 
-	if (result.mci_add_value) {
+	if (result.m_add_value) {
 		int	i;
-		for (i = 0; i < result.mci_add_num; i++) {
+		for (i = 0; i < result.m_add_num; i++) {
 
-			if (result.mci_add_value[i].m_len == 0) {
+			if (result.m_add_value[i].m_len == 0) {
 				continue;
 			}
 
-			total_len += (result.mci_add_value[i].m_len
+			total_len += (result.m_add_value[i].m_len
 				      + meta_info->m_sep_len);
 		}
 
 		/* No need to add the last separator */
 		total_len -= meta_info->m_sep_len;
 	} else {
-		total_len = result.mci_item[MCI_COL_VALUE].m_len;
+		total_len = result.m_value[MCI_COL_VALUE].m_len;
 	}
 
 	innodb_allocate(handle, cookie, item, key, nkey, total_len, flags, exp);
@@ -757,31 +769,31 @@ innodb_get(
 		hash_item_set_cas(it, cas);
 	}
 
-	if (result.mci_add_value) {
+	if (result.m_add_value) {
 		int	i;
 		char*	c_value = hash_item_get_data(it);
 
-		for (i = 0; i < result.mci_add_num; i++) {
+		for (i = 0; i < result.m_add_num; i++) {
 
-			if (result.mci_add_value[i].m_len == 0) {
+			if (result.m_add_value[i].m_len == 0) {
 				continue;
 			}
 
 			memcpy(c_value,
-			       result.mci_add_value[i].m_str,
-			       result.mci_add_value[i].m_len);
+			       result.m_add_value[i].m_str,
+			       result.m_add_value[i].m_len);
 
-			c_value += result.mci_add_value[i].m_len;
+			c_value += result.m_add_value[i].m_len;
 			memcpy(c_value, meta_info->m_separator,
 			       meta_info->m_sep_len);
 			c_value += meta_info->m_sep_len;
 		}
 	} else {
 		memcpy(hash_item_get_data(it),
-		       result.mci_item[MCI_COL_VALUE].m_str, it->nbytes);
+		       result.m_value[MCI_COL_VALUE].m_str, it->nbytes);
 
-		if (result.mci_item[MCI_COL_VALUE].m_allocated) {
-			free(result.mci_item[MCI_COL_VALUE].m_str);
+		if (result.m_value[MCI_COL_VALUE].m_allocated) {
+			free(result.m_value[MCI_COL_VALUE].m_str);
 		}
 	}
 
@@ -853,18 +865,22 @@ innodb_store(
 	meta_info_t*		meta_info = &innodb_eng->meta_info;
 	uint32_t		val_len = ((hash_item*)item)->nbytes;
 
-	if (meta_info->m_set_option == META_CACHE
-	    || meta_info->m_set_option == META_MIX) {
+	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT 
+	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
 		result = store_item(default_handle(innodb_eng), item, cas,
 				    op, cookie);
 
-		if (meta_info->m_set_option == META_CACHE) {
+		if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT) {
 			return(result);
 		}
 	}
 
 	conn_data = innodb_conn_init(innodb_eng, cookie, FALSE,
 				     IB_LOCK_IX, FALSE);
+
+	if (!conn_data) {
+		return(ENGINE_NOT_STORED);
+	}
 
 	input_cas = hash_item_get_cas(item);
 
@@ -906,8 +922,8 @@ innodb_arithmetic(
 	meta_info_t*		meta_info = &innodb_eng->meta_info;
 	ENGINE_ERROR_CODE	err;
 
-	if (meta_info->m_set_option == META_CACHE
-	    || meta_info->m_set_option == META_MIX) {
+	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT 
+	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
 		/* For cache-only, forward this to the
 		default engine */
 		err = def_eng->engine.arithmetic(
@@ -915,13 +931,17 @@ innodb_arithmetic(
 			increment, create, delta, initial, exptime, cas,
 			result, vbucket);
 
-		if (meta_info->m_set_option == META_CACHE) {
+		if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT) {
 			return(err);
 		}
 	}
 
 	conn_data = innodb_conn_init(innodb_eng, cookie, FALSE,
 				     IB_LOCK_IX, FALSE);
+
+	if (!conn_data) {
+		return(ENGINE_NOT_STORED);
+	}
 
 	innodb_api_arithmetic(innodb_eng, conn_data, key, nkey, delta,
 			      increment, cas, exptime, create, initial,
@@ -951,13 +971,13 @@ innodb_flush(
 	ib_err_t		ib_err = DB_SUCCESS;
 	innodb_conn_data_t*	conn_data;
 
-	if (meta_info->m_set_option == META_CACHE
-	    || meta_info->m_set_option == META_MIX) {
+	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT 
+	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
 		/* default engine flush */
 		err = def_eng->engine.flush(innodb_eng->m_default_engine,
 					    cookie, when);
 
-		if (meta_info->m_set_option == META_CACHE) {
+		if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT) {
 			return(err);
 		}
 	}
@@ -987,12 +1007,12 @@ innodb_flush(
 	innodb_conn_clean(innodb_eng, TRUE, TRUE);
 
 	ib_err = innodb_api_flush(innodb_eng,
-				  meta_info->m_item[META_DB].m_str,
-			          meta_info->m_item[META_TABLE].m_str);
+				  meta_info->m_item[CONTAINER_DB].m_str,
+			          meta_info->m_item[CONTAINER_TABLE].m_str);
 
         pthread_mutex_unlock(&innodb_eng->conn_mutex);
 
-	return((ib_err == DB_SUCCESS) ? ENGINE_SUCCESS : ENGINE_FAILED);
+	return((ib_err == DB_SUCCESS) ? ENGINE_SUCCESS : ENGINE_TMPFAIL);
 }
 
 /*******************************************************************//**

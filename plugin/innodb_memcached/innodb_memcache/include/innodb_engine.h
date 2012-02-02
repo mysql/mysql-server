@@ -34,10 +34,12 @@ Created 03/15/2011      Jimmy Yang
 #include <memcached/visibility.h>
 #include <innodb_config.h>
 
-
-/** default settings that determine the number of read/write operation for
+/** default settings that determine the number of write operation for
 a connection before committing the transaction */
 #define	CONN_NUM_WRITE_COMMIT	1
+
+/** default settings that determine the number of read operation for
+a connection before committing the transaction */
 #define CONN_NUM_READ_COMMIT	1048510
 
 /** structure contains the cursor information for each connection */
@@ -59,10 +61,11 @@ struct {								\
 									\
 /** Connection specific data */
 struct innodb_conn_data {
-	ib_trx_t	c_r_trx;	/*!< read transaction */
-	ib_trx_t	c_trx;		/*!< write transaction */
-	ib_crsr_t	c_r_crsr;	/*!< data cursor for read */
-	ib_crsr_t	c_r_idx_crsr;	/*!< index cursor for read */
+	ib_trx_t	c_ro_crsr_trx;	/*!< transaction for read only crsr */
+	ib_crsr_t	c_ro_crsr;	/*!< read only cursor for the
+					connection */
+	ib_crsr_t	c_ro_idx_crsr;	/*!< index cursor for read */
+	ib_trx_t	c_crsr_trx;	/*!< transaction for write cursor */
 	ib_crsr_t       c_crsr;         /*!< data cursor */
 	ib_crsr_t       c_idx_crsr;     /*!< index cursor */
 	bool            c_in_use;       /*!< whether they are in use */

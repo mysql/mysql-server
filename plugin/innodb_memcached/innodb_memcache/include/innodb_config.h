@@ -30,11 +30,18 @@ Created 03/15/2011      Jimmy Yang
 
 /* Database name and table name for our metadata "system" tables for
 InnoDB memcache. The table names are the same as those for the
-NDB memcache, so to make the memcache setup compatible between the two.*/
-#define	INNODB_META_DB			"innodb_memcache"
-#define INNODB_META_CONTAINER_TABLE	"containers"
-#define INNODB_CACHE_POLICIES		"cache_policies"
-#define INNODB_CONFIG_OPTIONS		"config_options"
+NDB memcache, so to make the memcache setup compatible between the two.
+There are 3 "system tables":
+1) containers - main configure table contains row describing which InnoDB
+		table is used to store/retrieve Memcached key/value if InnoDB
+		Memcached engine is used
+2) cache_policies - decide whether to use Memcached Default Engine or InnoDB
+		    Memcached Engine to handler the requests
+3) config_options - for miscellaneous configuration options */
+#define MCI_CFG_DB_NAME			"innodb_memcache"
+#define MCI_CFG_CONTAINER_TABLE		"containers"
+#define MCI_CFG_CACHE_POLICIES		"cache_policies"
+#define MCI_CFG_CONFIG_OPTIONS		"config_options"
 
 #ifndef TRUE
 #define TRUE    1
@@ -53,63 +60,89 @@ typedef struct meta_columns {
 	ib_col_meta_t	m_col;			/*!< column  meta info */
 } meta_column_t;
 
+/** Following are enums defining column IDs indexing into each of three
+system tables */
 
-/** Columns in the "containers" system table */
+/** Columns in the "containers" system table, this maps the Memcached
+operation to a consistent InnoDB table */
 enum meta_container_idx {
-	META_NAME,
-	META_DB,
-	META_TABLE,
-	META_KEY,
-	META_VALUE,
-	META_FLAG,
-	META_CAS,
-	META_EXP,
-	META_CONTAINER_TO_GET
+	CONTAINER_NAME,		/*!< name for this mapping */
+	CONTAINER_DB,		/*!< database name */
+	CONTAINER_TABLE,	/*!< table name */
+	CONTAINER_KEY,		/*!< column name for column maps to
+				memcached "key" */
+	CONTAINER_VALUE,	/*!< column name for column maps to
+				memcached "value" */
+	CONTAINER_FLAG,		/*!< column name for column maps to
+				memcached "flag" value */
+	CONTAINER_CAS,		/*!< column name for column maps to
+				memcached "cas" value */
+	CONTAINER_EXP,		/*!< column name for column maps to
+				"expiration" value */
+	CONTAINER_NUM_COLS	/*!< number of columns */
 };
-
-/** Indicate whether we have cluster or secondary index on "key" column
-of the table. Please note the index must be unique index */
-typedef enum meta_use_idx {
-	META_NO_INDEX = 1,
-	META_CLUSTER,
-	META_SECONDARY
-} meta_use_idx_t;
-
-/** Describes the index's name and ID of the index on the "key" column */
-typedef struct meta_index {
-	char*		m_name;			/*!< index name */
-	int		m_id;			/*!< index id */
-	meta_use_idx_t	m_use_idx;		/*!< has cluster or secondary
-						index on the key column */
-} meta_index_t;
-
-/** Cache options */
-typedef enum meta_cache_option {
-	META_INNODB = 1,
-	META_CACHE,
-	META_MIX,
-	META_DISABLED
-} meta_cache_option_t;
 
 /** columns in the "cache_policy" table */
 enum meta_cache_cols {
-	CACHE_OPT_NAME,
-	CACHE_OPT_GET,
-	CACHE_OPT_SET,
-	CACHE_OPT_DEL,
-	CACHE_OPT_FLUSH,
-	CACHE_OPT_NUM_COLS
+	CACHE_POLICY_NAME,	/*!< "name" column, for the "cache_policy"
+				name */
+	CACHE_POLICY_GET,	/*!< "get" column, specifies the cache policy
+				for "get" command */
+	CACHE_POLICY_SET,	/*!< "set" column, specifies the cache policy
+				for "set" command */
+	CACHE_POLICY_DEL,	/*!< "delete" column, specifies the cache
+				policy for "delete" command */
+	CACHE_POLICY_FLUSH,	/*!< "flush_all" column, specifies the
+				cache policy for "flush_all" command */
+	CACHE_POLICY_NUM_COLS	/*!< total 5 columns */
 };
 
 /** columns in the "config_options" table */
 enum meta_config_cols {
-	CONFIG_KEY,
-	CONFIG_VALUE,
-	CONFIG_NUM_COLS
+	CONFIG_OPT_KEY,		/*!< key column in the "config_option" table */
+	CONFIG_OPT_VALUE,	/*!< value column */
+	CONFIG_OPT_NUM_COLS	/*!< number of columns (currently 2) in table */
 };
 
+
+/** Following are some value defines describes the options that configures
+the InnoDB Memcached */
+
+/** Values to set up "m_use_idx" field of "meta_index_t" structure,
+indicating whether we will use cluster or secondary index on the
+"key" column to perform the search. Please note the index must
+be unique index */
+typedef enum meta_use_idx {
+	META_NO_INDEX = 1,	/*!< no cluster or unique secondary index
+				on the key column. This is an error, will
+				cause setup to fail */
+	META_CLUSTER,		/*!< have cluster index on the key column */
+	META_SECONDARY		/*!< have unique secondary index on the
+				key column */
+} meta_use_idx_t;
+
+/** Describes the index's name and ID of the index on the "key" column */
+typedef struct meta_index {
+	char*		m_name;		/*!< index name */
+	int		m_id;		/*!< index id */
+	meta_use_idx_t	m_use_idx;	/*!< has cluster or secondary
+					index on the key column */
+} meta_index_t;
+
+/** Cache options, tells if we will used Memcached default engine or InnoDB
+Memcached engine to handle the request */
+typedef enum meta_cache_option {
+	META_CACHE_OPT_INNODB = 1,	/*!< Use InnoDB Memcached Engine only */
+	META_CACHE_OPT_DEFAULT,		/*!< Use Default Memcached Engine
+					only */
+	META_CACHE_OPT_MIX		/*!< Use both, first use default
+					memcached engine */
+} meta_cache_option_t;
+
+/** In memory structure contains most necessary metadata info
+to configure an InnoDB Memcached engine */
 typedef struct meta_container_info {
-	meta_column_t	m_item[META_CONTAINER_TO_GET]; /*!< column info */
+	meta_column_t	m_item[CONTAINER_NUM_COLS]; /*!< column info */
 	meta_column_t*	m_add_item;		/*!< additional columns
 						specified for the value field */
 	int		m_num_add;		/*!< number of additional

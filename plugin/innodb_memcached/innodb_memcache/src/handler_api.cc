@@ -49,8 +49,8 @@ Created 3/14/2011 Jimmy Yang
 /** Some handler functions defined in sql/sql_table.cc and sql/handler.cc etc.
 and being used here */
 extern int write_bin_log(THD *thd, bool clear_error,
-                  char const *query, ulong query_length,
-                  bool is_trans= FALSE);
+			 char const *query, ulong query_length,
+			 bool is_trans= FALSE);
 
 /** function to close a connection and thd, defined in sql/handler.cc */
 extern void ha_close_connection(THD* thd);
@@ -203,13 +203,13 @@ Reset TABLE->record[0] */
 void
 handler_rec_init(
 /*=============*/
-	void*		table)		/*!< in/out: TABLE structure */
+	void*		my_table)	/*!< in/out: TABLE structure */
 {
-	empty_record((TABLE*) table);
+	empty_record((TABLE*) my_table);
 }
 
 /**********************************************************************//**
-Set up a char based field in TABLE->record[0] */
+Store a string in TABLE->record[0] for field specified by "field_id" */
 void
 handler_rec_setup_str(
 /*==================*/
@@ -258,9 +258,9 @@ copy an record */
 void
 handler_store_record(
 /*=================*/
-	void*		table)		/*!< in: TABLE */
+	void*		my_table)	/*!< in: TABLE */
 {
-	store_record((TABLE*) table, record[1]);
+	store_record((TABLE*) my_table, record[1]);
 }
 /**********************************************************************//**
 close an handler */
@@ -323,18 +323,18 @@ Search table for a record with particular search criteria
 uchar*
 handler_select_rec(
 /*===============*/
-	THD*		thd,		/*!< in: thread */
-	TABLE*		table,		/*!< in: TABLE structure */
+	THD*		my_thd,		/*!< in: thread */
+	TABLE*		my_table,	/*!< in: TABLE structure */
 	field_arg_t*	srch_args,	/*!< in: field to search */
 	int		idx_to_use)	/*!< in: index to use */
 {
-	KEY*		key_info = &(table->key_info[0]);
+	KEY*		key_info = &(my_table->key_info[0]);
 	uchar*		srch_buf = (uchar*) malloc(
 					key_info->key_length);
 	size_t		total_key_len = 0;
 	key_part_map	part_map;
 	int		result;
-	handler*	handle = table->file;
+	handler*	handle = my_table->file;
 
 	assert(srch_args->num_arg <=  key_info->key_parts);
 
@@ -363,20 +363,20 @@ handler_select_rec(
 		}
 	}
 
-	key_copy(srch_buf, table->record[0], key_info, total_key_len);
-	table->read_set = &table->s->all_set;
+	key_copy(srch_buf, my_table->record[0], key_info, total_key_len);
+	my_table->read_set = &my_table->s->all_set;
 	part_map = (1 << srch_args->num_arg) - 1;
 
 	handle->ha_index_or_rnd_end();
 	handle->ha_index_init(idx_to_use, 1);
 
-	result = handle->index_read_map(table->record[0], srch_buf,
+	result = handle->index_read_map(my_table->record[0], srch_buf,
 					part_map, HA_READ_KEY_EXACT);
 
 	free(srch_buf);
 
 	if (!result) {
-		return(table->record[0]);
+		return(my_table->record[0]);
 	}
 
 	return(NULL);
@@ -387,21 +387,21 @@ return 0 if successfully inserted */
 int
 handler_insert_rec(
 /*===============*/
-	THD*		thd,		/*!< in: thread */
-	TABLE*		table,		/*!< in: TABLE structure */
+	THD*		my_thd,		/*!< in: thread */
+	TABLE*		my_table,	/*!< in: TABLE structure */
 	field_arg_t*	store_args)	/*!< in: inserting row data */
 {
 	uchar*		insert_buf;
 	KEY*		key_info = &(table->key_info[0]);
 	int		result;
-	handler*	handle = table->file;
+	handler*	handle = my_table->file;
 
-	empty_record(table);
+	empty_record(my_table);
 
 	assert(table->reginfo.lock_type > TL_READ);
 
-	insert_buf = table->record[0];
-	memset(insert_buf, 0, table->s->null_bytes);
+	insert_buf = my_table->record[0];
+	memset(insert_buf, 0, my_table->s->null_bytes);
 
 	assert(store_args->num_arg == key_info->key_parts);
 
@@ -418,7 +418,7 @@ handler_insert_rec(
 		}
 	}
 
-	result = handle->ha_write_row((uchar *)table->record[0]);
+	result = handle->ha_write_row((uchar *)my_table->record[0]);
 
 	return(result);
 }
@@ -429,27 +429,27 @@ return 0 if successfully inserted */
 int
 handler_update_rec(
 /*===============*/
-	THD*		thd,		/*!< in: thread */
-	TABLE*		table,		/*!< in: TABLE structure */
+	THD*		my_thd,		/*!< in: thread */
+	TABLE*		my_table,	/*!< in: TABLE structure */
 	field_arg_t*	store_args)	/*!< in: update row data */
 {
 	int		result;
-        uchar*		buf = table->record[0];
-	handler*	handle = table->file;
-	KEY*		key_info = &(table->key_info[0]);
+        uchar*		buf = my_table->record[0];
+	handler*	handle = my_table->file;
+	KEY*		key_info = &(my_table->key_info[0]);
 
-        store_record(table, record[1]);
+        store_record(my_table, record[1]);
 
 	for (unsigned int ix = 0; ix < key_info->key_parts; ix++) {
 		Field*		fld;
 
-		fld = table->field[ix];
+		fld = my_table->field[ix];
 		fld->store(store_args->value[ix],
 			   store_args->len[ix], &my_charset_bin);
 		fld->set_notnull();
 	}
 
-        result = handle->ha_update_row(table->record[1], buf);
+        result = handle->ha_update_row(my_table->record[1], buf);
 
 	return(result);
 }
@@ -460,13 +460,13 @@ return 0 if successfully inserted */
 int
 handler_delete_rec(
 /*===============*/
-	THD*		thd,		/*!< in: thread */
-	TABLE*		table)		/*!< in: TABLE structure */
+	THD*		my_thd,		/*!< in: thread */
+	TABLE*		my_table)	/*!< in: TABLE structure */
 {
 	int		result;
-	handler*	handle = table->file;
+	handler*	handle = my_table->file;
 
-	result = handle->ha_delete_row(table->record[0]);
+	result = handle->ha_delete_row(my_table->record[0]);
 
 	return(result);
 }
@@ -477,15 +477,15 @@ return a lock structure pointer on success, NULL on error */
 MYSQL_LOCK *
 handler_lock_table(
 /*===============*/
-	THD*		thd,		/*!< in: thread */
-	TABLE*		table,		/*!< in: Table metadata */
+	THD*		my_thd,		/*!< in: thread */
+	TABLE*		my_table,	/*!< in: Table metadata */
 	enum thr_lock_type lock_mode)	/*!< in: lock mode */
 {
 
-	table->reginfo.lock_type = lock_mode;
-	thd->lock = mysql_lock_tables(thd, &table, 1, 0);
+	my_table->reginfo.lock_type = lock_mode;
+	my_thd->lock = mysql_lock_tables(my_thd, &my_table, 1, 0);
 
-	return(thd->lock);
+	return(my_thd->lock);
 }
 #endif /* HANDLER_API_MEMCACHED */
 
