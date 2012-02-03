@@ -1606,6 +1606,9 @@ struct TABLE_LIST
    */
   char *get_table_name() { return view != NULL ? view_name.str : table_name; }
 
+
+  bool single_table_updatable();
+
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);

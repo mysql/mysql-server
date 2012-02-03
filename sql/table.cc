@@ -3722,6 +3722,28 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
   DBUG_RETURN(FALSE);
 }
 
+/**
+  Check that table/view is updatable and if it has single
+  underlying tables/views it is also updatable
+
+  @return Result of the check.
+*/
+
+bool TABLE_LIST::single_table_updatable()
+{
+  if (!updatable)
+    return false;
+  if (view_tables && view_tables->elements == 1)
+  {
+    /*
+      We need to check deeply only single table views. Multi-table views
+      will be turned to multi-table updates and then checked by leaf tables
+    */
+    return view_tables->head()->single_table_updatable();
+  }
+  return true;
+}
+
 
 /*
   Merge ON expressions for a view
