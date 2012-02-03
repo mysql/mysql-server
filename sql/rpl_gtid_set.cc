@@ -51,16 +51,18 @@ const Gtid_set::String_format Gtid_set::commented_string_format=
 
 
 Gtid_set::Gtid_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
+  : sid_lock(_sid_lock), sid_map(_sid_map)
 {
-  init(_sid_map, _sid_lock);
+  init();
 }
 
 
 Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
                    enum_return_status *status, Checkable_rwlock *_sid_lock)
+  : sid_lock(_sid_lock), sid_map(_sid_map)
 {
   DBUG_ASSERT(_sid_map != NULL);
-  init(_sid_map, _sid_lock);
+  init();
   *status= add_gtid_text(text);
 }
 
@@ -73,16 +75,16 @@ Gtid_set::Gtid_set(Gtid_set *other, enum_return_status *status)
 }
 */
 
-void Gtid_set::init(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
+void Gtid_set::init()
 {
   DBUG_ENTER("Gtid_set::init");
-  sid_map= _sid_map;
-  sid_lock= _sid_lock;
   cached_string_length= -1;
   cached_string_format= NULL;
   chunks= NULL;
   free_intervals= NULL;
   my_init_dynamic_array(&intervals, sizeof(Interval *), 0, 8);
+  if (sid_lock)
+    mysql_mutex_init(0, &free_intervals_mutex, NULL);
 #ifndef DBUG_OFF
   n_chunks= 0;
 #endif
@@ -105,6 +107,8 @@ Gtid_set::~Gtid_set()
   }
   DBUG_ASSERT(n_chunks == 0);
   delete_dynamic(&intervals);
+  if (sid_lock)
+    mysql_mutex_destroy(&free_intervals_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -170,9 +174,10 @@ error:
 }
 
 
-void Gtid_set::add_interval_memory(int n_ivs, Interval *ivs)
+void Gtid_set::add_interval_memory_lock_taken(int n_ivs, Interval *ivs)
 {
   DBUG_ENTER("Gtid_set::add_interval_memory");
+  assert_free_intervals_locked();
   // make ivs a linked list
   for (int i= 0; i < n_ivs - 1; i++)
     ivs[i].next= &(ivs[i + 1]);
@@ -189,6 +194,7 @@ enum_return_status Gtid_set::create_new_chunk(int size)
   DBUG_ENTER("Gtid_set::create_new_chunk");
   // allocate the new chunk. one element is already pre-allocated, so
   // we only add size-1 elements to the size of the struct.
+  assert_free_intervals_locked();
   Interval_chunk *new_chunk=
     (Interval_chunk *)my_malloc(sizeof(Interval_chunk) +
                                 sizeof(Interval) * (size - 1),
@@ -202,7 +208,7 @@ enum_return_status Gtid_set::create_new_chunk(int size)
   n_chunks++;
 #endif
   // add the intervals in the chunk to the list of free intervals
-  add_interval_memory(size, new_chunk->intervals);
+  add_interval_memory_lock_taken(size, new_chunk->intervals);
   RETURN_OK;
 }
 
@@ -210,6 +216,7 @@ enum_return_status Gtid_set::create_new_chunk(int size)
 enum_return_status Gtid_set::get_free_interval(Interval **out)
 {
   DBUG_ENTER("Gtid_set::get_free_interval");
+  assert_free_intervals_locked();
   Interval_iterator ivit(this);
   if (ivit.get() == NULL)
     PROPAGATE_REPORTED_ERROR(create_new_chunk(CHUNK_GROW_SIZE));
@@ -222,6 +229,7 @@ enum_return_status Gtid_set::get_free_interval(Interval **out)
 void Gtid_set::put_free_interval(Interval *iv)
 {
   DBUG_ENTER("Gtid_set::put_free_interval");
+  assert_free_intervals_locked();
   Interval_iterator ivit(this);
   iv->next= ivit.get();
   ivit.set(iv);
@@ -259,8 +267,10 @@ void Gtid_set::clear()
 }
 
 
-enum_return_status Gtid_set::add_gno_interval(Interval_iterator *ivitp,
-                                              rpl_gno start, rpl_gno end)
+enum_return_status
+Gtid_set::add_gno_interval(Interval_iterator *ivitp,
+                           rpl_gno start, rpl_gno end,
+                           Free_intervals_lock *lock)
 {
   DBUG_ENTER("Gtid_set::add_gno_interval(Interval_iterator*, rpl_gno, rpl_gno)");
   DBUG_ASSERT(start > 0);
@@ -284,6 +294,7 @@ enum_return_status Gtid_set::add_gno_interval(Interval_iterator *ivitp,
       // intersects with the next interval.
       while (iv->next && end >= iv->next->start)
       {
+        lock->lock_if_not_locked();
         ivit.remove(this);
         iv= ivit.get();
       }
@@ -303,6 +314,7 @@ enum_return_status Gtid_set::add_gno_interval(Interval_iterator *ivitp,
     insert it at the current position.
   */
   Interval *new_iv;
+  lock->lock_if_not_locked();
   PROPAGATE_REPORTED_ERROR(get_free_interval(&new_iv));
   new_iv->start= start;
   new_iv->end= end;
@@ -313,7 +325,8 @@ enum_return_status Gtid_set::add_gno_interval(Interval_iterator *ivitp,
 
 
 enum_return_status Gtid_set::remove_gno_interval(Interval_iterator *ivitp,
-                                                 rpl_gno start, rpl_gno end)
+                                                 rpl_gno start, rpl_gno end,
+                                                 Free_intervals_lock *lock)
 {
   DBUG_ENTER("Gtid_set::remove_gno_interval(Interval_iterator *ivitp, rpl_gno start, rpl_gno end)");
   DBUG_ASSERT(start < end);
@@ -340,6 +353,7 @@ enum_return_status Gtid_set::remove_gno_interval(Interval_iterator *ivitp,
     {
       // iv cuts also the end of the removed interval: split iv in two
       Interval *new_iv;
+      lock->lock_if_not_locked();
       PROPAGATE_REPORTED_ERROR(get_free_interval(&new_iv));
       new_iv->start= end;
       new_iv->end= iv->end;
@@ -363,6 +377,7 @@ enum_return_status Gtid_set::remove_gno_interval(Interval_iterator *ivitp,
   {
     // iv ends before the end of the removed interval, so it is
     // completely covered: remove iv.
+    lock->lock_if_not_locked();
     ivit.remove(this);
     iv= ivit.get();
     if (iv == NULL)
@@ -403,7 +418,7 @@ int format_gno(char *s, rpl_gno gno)
 enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
 {
 #define SKIP_WHITESPACE() while (isspace(*s)) s++
-  DBUG_ENTER("Gtid_set::add_gtid_text(const char*)");
+  DBUG_ENTER("Gtid_set::add_gtid_text(const char *, bool *)");
   DBUG_ASSERT(sid_map != NULL);
   if (sid_lock != NULL)
     sid_lock->assert_some_wrlock();
@@ -421,6 +436,8 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
     RETURN_OK;
   }
 
+  Free_intervals_lock lock(this);
+
   DBUG_PRINT("info", ("'%s' not only whitespace", text));
   // Allocate space for all intervals at once, if nothing is allocated.
   if (chunks == NULL)
@@ -433,7 +450,9 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
       if (*s == ':')
         n_intervals++;
     // allocate all intervals in one chunk
+    lock.lock_if_not_locked();
     create_new_chunk(n_intervals);
+    lock.unlock_if_locked();
     s= text;
   }
 
@@ -470,7 +489,9 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
       s += rpl_sid::TEXT_LENGTH;
       rpl_sidno sidno= sid_map->add_sid(sid);
       if (sidno <= 0)
+      {
         RETURN_REPORTED_ERROR;
+      }
       PROPAGATE_REPORTED_ERROR(ensure_sidno(sidno));
       SKIP_WHITESPACE();
 
@@ -519,7 +540,10 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
           Interval *current= ivit.get();
           if (current == NULL || start < current->start)
             ivit.init(this, sidno);
-          PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit, start, end));
+          if (add_gno_interval(&ivit, start, end, &lock) != RETURN_STATUS_OK)
+          {
+            RETURN_REPORTED_ERROR;
+          }
         }
       }
     }
@@ -594,15 +618,16 @@ bool Gtid_set::is_valid(const char *text)
 
 enum_return_status
 Gtid_set::add_gno_intervals(rpl_sidno sidno,
-                            Const_interval_iterator other_ivit)
+                            Const_interval_iterator other_ivit,
+                            Free_intervals_lock *lock)
 {
-  DBUG_ENTER("Gtid_set::add_gno_intervals(rpl_sidno, Interval_iterator)");
+  DBUG_ENTER("Gtid_set::add_gno_intervals(rpl_sidno, Const_interval_iterator, bool *)");
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
   Interval *iv;
   Interval_iterator ivit(this, sidno);
   while ((iv= other_ivit.get()) != NULL)
   {
-    PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit, iv->start, iv->end));
+    PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit, iv->start, iv->end, lock));
     other_ivit.next();
   }
   RETURN_OK;
@@ -611,15 +636,17 @@ Gtid_set::add_gno_intervals(rpl_sidno sidno,
 
 enum_return_status
 Gtid_set::remove_gno_intervals(rpl_sidno sidno,
-                               Const_interval_iterator other_ivit)
+                               Const_interval_iterator other_ivit,
+                               Free_intervals_lock *lock)
 {
-  DBUG_ENTER("Gtid_set::remove_gno_intervals(rpl_sidno, Interval_iterator)");
+  DBUG_ENTER("Gtid_set::remove_gno_intervals(rpl_sidno, Interval_iterator, bool *)");
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
   Interval *iv;
   Interval_iterator ivit(this, sidno);
   while ((iv= other_ivit.get()) != NULL)
   {
-    PROPAGATE_REPORTED_ERROR(remove_gno_interval(&ivit, iv->start, iv->end));
+    PROPAGATE_REPORTED_ERROR(remove_gno_interval(&ivit, iv->start, iv->end,
+                                                 lock));
     other_ivit.next();
   }
   RETURN_OK;
@@ -628,16 +655,18 @@ Gtid_set::remove_gno_intervals(rpl_sidno sidno,
 
 enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
 {
-  DBUG_ENTER("Gtid_set::add_gtid_set(Gtid_set *)");
+  DBUG_ENTER("Gtid_set::add_gtid_set(const Gtid_set *)");
   if (sid_lock != NULL)
     sid_lock->assert_some_wrlock();
   rpl_sidno max_other_sidno= other->get_max_sidno();
+  Free_intervals_lock lock(this);
   if (other->sid_map == sid_map || other->sid_map == NULL || sid_map == NULL)
   {
     PROPAGATE_REPORTED_ERROR(ensure_sidno(max_other_sidno));
     for (rpl_sidno sidno= 1; sidno <= max_other_sidno; sidno++)
       PROPAGATE_REPORTED_ERROR(
-        add_gno_intervals(sidno, Const_interval_iterator(other, sidno)));
+        add_gno_intervals(sidno, Const_interval_iterator(other, sidno),
+                          &lock));
   }
   else
   {
@@ -653,7 +682,8 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
         if (this_sidno <= 0)
           RETURN_REPORTED_ERROR;
         PROPAGATE_REPORTED_ERROR(ensure_sidno(this_sidno));
-        PROPAGATE_REPORTED_ERROR(add_gno_intervals(this_sidno, other_ivit));
+        PROPAGATE_REPORTED_ERROR(add_gno_intervals(this_sidno, other_ivit,
+                                                   &lock));
       }
     }
   }
@@ -667,12 +697,14 @@ enum_return_status Gtid_set::remove_gtid_set(const Gtid_set *other)
   if (sid_lock != NULL)
     sid_lock->assert_some_wrlock();
   rpl_sidno max_other_sidno= other->get_max_sidno();
+  Free_intervals_lock lock(this);
   if (other->sid_map == sid_map || other->sid_map == NULL || sid_map == NULL)
   {
     rpl_sidno max_sidno= min(max_other_sidno, get_max_sidno());
     for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
       PROPAGATE_REPORTED_ERROR(
-        remove_gno_intervals(sidno, Const_interval_iterator(other, sidno)));
+        remove_gno_intervals(sidno, Const_interval_iterator(other, sidno),
+                             &lock));
   }
   else
   {
@@ -687,7 +719,7 @@ enum_return_status Gtid_set::remove_gtid_set(const Gtid_set *other)
         rpl_sidno this_sidno= sid_map->sid_to_sidno(sid);
         if (this_sidno != 0)
           PROPAGATE_REPORTED_ERROR(
-            remove_gno_intervals(this_sidno, other_ivit));
+            remove_gno_intervals(this_sidno, other_ivit, &lock));
       }
     }
   }
@@ -1103,6 +1135,7 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded, size_t leng
     sid_lock->assert_some_wrlock();
   size_t pos= 0;
   uint64 n_sids;
+  Free_intervals_lock lock(this);
   // read number of SIDs
   if (length < 8)
   {
@@ -1164,7 +1197,7 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded, size_t leng
       if (current == NULL || start < current->start)
         ivit.init(this, sidno);
       DBUG_PRINT("info", ("adding %d:%lld-%lld", sidno, start, end - 1));
-      PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit, start, end));
+      PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit, start, end, &lock));
     }
   }
   if (pos != length)
