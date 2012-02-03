@@ -48,7 +48,6 @@ innodb.innodb_monitor                    # Bug#12320827 2011-08-04 Occasional fa
 
 rpl.rpl_change_master_dbug               # BUG#11933491 2011-06-13 Anitha  Test fails on redhat 
 rpl.rpl_delayed_slave                    # BUG#11764654 rpl_delayed_slave fails sporadically in pb
-rpl.rpl_heartbeat_basic                  # BUG#12403008 2011-04-27 sven fails sporadically
 rpl.rpl_innodb_bug28430                  # Bug#11754425
 rpl.rpl_row_sp011  @solaris              # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 rpl.rpl_seconds_behind_master            # BUG#11765124 2010-11-24 luis fails sporadically on pb2
