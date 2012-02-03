@@ -234,7 +234,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
      * Add extra send buffer pages for NDB multithreaded case
      */
     {
-      Uint64 extra_mem;
+      Uint64 extra_mem = 0;
       ndb_mgm_get_int64_parameter(p, CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_mem);
       Uint32 extra_mem_pages = Uint32((extra_mem + GLOBAL_PAGE_SIZE - 1) /
                                       GLOBAL_PAGE_SIZE);
