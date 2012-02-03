@@ -5888,15 +5888,9 @@ row_mysql_quiesce_table_begin(
 	ut_print_timestamp(stderr);
 	fprintf(stderr, " InnoDB: Sync to disk of %s started.\n", table->name);
 
-	table->quiesce = QUIESCE_START;
-
 	trx_purge_stop();
 
-	table->quiesce = QUIESCE_MERGING;
-
 	ibuf_contract_in_background(table->id, TRUE);
-
-	table->quiesce = QUIESCE_FLUSHING;
 
 	ulint	n_pages = buf_flush_list(
 		table->space, ULINT_MAX, ULINT_UNDEFINED);
@@ -5915,9 +5909,7 @@ row_mysql_quiesce_table_begin(
 		fprintf(stderr, " InnoDB: %s flushed to disk.\n", table->name);
 	}
 
-	// FIXME: Ignore races for now. Though I can't see why
-	// there should be a race for the interim states.
-	table->quiesce = QUIESCE_COMPLETE;
+	row_mysql_quiesce_set_state(table, QUIESCE_COMPLETE);
 }
 
 /*********************************************************************//**
@@ -5928,12 +5920,55 @@ row_mysql_quiesce_table_complete(
 /*=============================*/
 	dict_table_t*	table)		/*!< in: quiesce this table */
 {
-	ut_a(table->quiesce = QUIESCE_COMPLETE);
-
 	trx_purge_run();
 
-	// FIXME: Ignore races for now. Though I can't see why
-	// there should be a race for the interim states.
-	table->quiesce = QUIESCE_NONE;
+	row_mysql_quiesce_set_state(table, QUIESCE_NONE);
+}
+
+/*********************************************************************//**
+Set a table's quiesce state. */
+UNIV_INTERN
+void
+row_mysql_quiesce_set_state(
+/*========================*/
+	dict_table_t*	table,		/*!< in: quiesce this table */
+	ib_quiesce_t	state)		/*!< in: quiesce state to set */
+{
+	dict_index_t*	index;
+
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+
+		rw_lock_x_lock(&index->lock);
+	}
+
+	// FIXME: Only if we have separate purge threads.
+
+	if (srv_n_purge_threads > 0) {
+
+		switch (state) {
+		case QUIESCE_START:
+			ut_a(table->quiesce == QUIESCE_NONE);
+			break;
+
+		case QUIESCE_COMPLETE:
+			ut_a(table->quiesce == QUIESCE_START);
+			break;
+
+		case QUIESCE_NONE:
+			ut_a(table->quiesce == QUIESCE_COMPLETE);
+			break;
+		}
+
+		table->quiesce = state;
+	}
+
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+
+		rw_lock_x_unlock(&index->lock);
+	}
 }
 

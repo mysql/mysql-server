@@ -11138,12 +11138,12 @@ ha_innobase::external_lock(
 
 	reset_template();
 
-	if (prebuilt->table->quiesce == QUIESCE_INIT) {
+	if (prebuilt->table->quiesce == QUIESCE_START) {
 		/* Check for FLUSH TABLE t WITH READ LOCK; */
 		if (thd_sql_command(thd) == SQLCOM_FLUSH
 		    && lock_type == F_RDLCK) {
 
-			row_mysql_quiesce_table_begin(prebuilt->table);
+			row_mysql_quiesce_table_start(prebuilt->table);
 		}
 
 	} else if (prebuilt->table->quiesce == QUIESCE_COMPLETE) {
@@ -11849,27 +11849,8 @@ ha_innobase::store_lock(
 
 	/* Check for LOCK TABLE t1,...,tn WITH SHARED LOCKS */
 	if (sql_command == SQLCOM_FLUSH && lock_type == TL_READ_NO_INSERT) {
-		dict_index_t*	index;
 
-		for (index = dict_table_get_first_index(prebuilt->table);
-		     index != NULL;
-		     index = dict_table_get_next_index(index)) {
-
-			rw_lock_x_lock(&index->lock);
-		}
-
-		// FIXME: Only if we have separate purge threads.
-		if (srv_n_purge_threads > 0) {
-			ut_a(prebuilt->table->quiesce == QUIESCE_NONE);
-			prebuilt->table->quiesce = QUIESCE_INIT;
-		}
-
-		for (index = dict_table_get_first_index(prebuilt->table);
-		     index != NULL;
-		     index = dict_table_get_next_index(index)) {
-
-			rw_lock_x_unlock(&index->lock);
-		}
+		row_mysql_quiesce_set_state(prebuilt->table, QUIESCE_START);
 
 	} else if (sql_command == SQLCOM_DROP_TABLE) {
 
