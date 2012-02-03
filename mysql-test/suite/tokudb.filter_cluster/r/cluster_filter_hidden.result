@@ -196,7 +196,7 @@ a	b	c	d	e	f
 3	30	200	2000	20000	200000
 explain select a from t1 where d > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	d	d	NULL	NULL	NULL;	Using where; Using index
+1	SIMPLE	t1	NULL	d	d	NULL	NULL	NULL;	Using where; Using index
 select a from t1 where d > 0;
 a
 2
