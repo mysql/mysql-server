@@ -1,4 +1,0 @@
-MYSQL_PLUGIN(auth_pam, [PAM Authentication Plugin], [PAM Authentication Plugin])
-MYSQL_PLUGIN_DYNAMIC(auth_pam, [auth_pam.la])
-
-AC_CHECK_HEADER([security/pam_appl.h],,[MYSQL_PLUGIN_WITHOUT(auth_pam)])
