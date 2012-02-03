@@ -92,18 +92,25 @@ Split_or_merge (node, childnum) {
   }
 }
 
+Here's how querying works:
+
 lookups:
     - As of Dr. No, we don't do any tree shaping on lookup.
     - We don't promote eagerly or use aggressive promotion or passive-aggressive 
     promotion.	We just push messages down according to the traditional BRT 
     algorithm on insertions.
     - when a node is brought into memory, we apply ancestor messages above it.
+
+basement nodes, bulk fetch,  and partial fetch:
+    - leaf nodes are comprised of N basement nodes, each of nominal size. when
+    a query hits a leaf node. it may require one or more basement nodes to be in memory.
     - for point queries, we do not read the entire node into memory. instead,
       we only read in the required basement node
     - for range queries, cursors may return cursor continue in their callback
-      to take a shortcut path to the next row in the basement node.
-    - for range queries, cursors that prelock a range benefit from 
-      internal prefetching of nodes within that range.
+      to take a the shortcut path until the end of the basement node.
+    - for range queries, cursors may prelock a range of keys (with or without a txn).
+      the fractal tree will prefetch nodes aggressively until the end of the range.
+    - without a prelocked range, range queries behave like successive point queries.
 
 */
 
