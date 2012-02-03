@@ -7710,7 +7710,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         }
         const Uint32 max = NGPtr.p->nodeCount;
 	
-	fragments[count++] = (NGPtr.p->m_next_log_part++ / cnoReplicas); // Store logpart first
+	fragments[count++] = (NGPtr.p->m_next_log_part++ / cnoReplicas) % globalData.ndbLogParts; // Store logpart first
 	Uint32 tmp= next_replica_node[NGPtr.i];
         for(Uint32 replicaNo = 0; replicaNo < noOfReplicas; replicaNo++)
         {
@@ -7811,7 +7811,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
                                        NDB_ARRAY_SIZE(fragments_per_node));
           NGPtr.i = getNodeGroup(node);
           ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
-          fragments[count++] = NGPtr.p->m_next_log_part++;
+          fragments[count++] = (NGPtr.p->m_next_log_part++) % globalData.ndbLogParts;
           fragments[count++] = node;
           fragments_per_node[node]++;
           for (Uint32 r = 0; r<noOfReplicas; r++)
@@ -16473,6 +16473,17 @@ void Dbdih::readFragment(RWFragment* rf, FragmentstorePtr fragPtr)
   fragPtr.p->distributionKey = TdistKey;
 
   fragPtr.p->m_log_part_id = readPageWord(rf);
+  if (!ndbd_128_instances_address(getMinVersion()))
+  {
+    jam();
+    /**
+     * Limit log-part to 0-3 as older version didn't handle
+     *   getting requests to instances > 4
+     *   (in reality 7 i think...but that is useless as log-part dividor anyway)
+     */
+    fragPtr.p->m_log_part_id %= 4;
+  }
+
   inc_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
 }//Dbdih::readFragment()
 
@@ -19406,4 +19417,26 @@ error:
   ref->errorCode = err;
   sendSignal(req->senderRef, GSN_DROP_NODEGROUP_IMPL_REF, signal,
              DropNodegroupImplRef::SignalLength, JBB);
+}
+
+Uint32
+Dbdih::getMinVersion() const
+{
+  Uint32 ver = getNodeInfo(getOwnNodeId()).m_version;
+  NodeRecordPtr specNodePtr;
+  specNodePtr.i = cfirstAliveNode;
+  do
+  {
+    jam();
+    ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);
+    Uint32 v = getNodeInfo(specNodePtr.i).m_version;
+    if (v < ver)
+    {
+      jam();
+      ver = v;
+    }
+    specNodePtr.i = specNodePtr.p->nextNode;
+  } while (specNodePtr.i != RNIL);
+
+  return ver;
 }
