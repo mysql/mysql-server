@@ -1310,6 +1310,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   azio_stream writer;
   char writer_filename[FN_REFLEN];
 
+  pthread_mutex_lock(&share->mutex);
   init_archive_reader();
 
   // now we close both our writer and our reader for the rename
@@ -1324,7 +1325,10 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
             MY_REPLACE_EXT | MY_UNPACK_FILENAME);
 
   if (!(azopen(&writer, writer_filename, O_CREAT|O_RDWR|O_BINARY)))
+  {
+    pthread_mutex_unlock(&share->mutex);
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE); 
+  }
 
   /* 
     An extended rebuild is a lot more effort. We open up each row and re-record it. 
@@ -1403,10 +1407,12 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   rc = my_rename(writer_filename,share->data_file_name,MYF(0));
 
 
+  pthread_mutex_unlock(&share->mutex);
   DBUG_RETURN(rc);
 error:
   DBUG_PRINT("ha_archive", ("Failed to recover, error was %d", rc));
   azclose(&writer);
+  pthread_mutex_unlock(&share->mutex);
 
   DBUG_RETURN(rc); 
 }
