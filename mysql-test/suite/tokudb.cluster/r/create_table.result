@@ -1,5 +1,6 @@
 SET STORAGE_ENGINE='tokudb';
 DROP TABLE IF EXISTS t1;
+set tokudb_prelock_empty=off;
 create table t1(a int, b int, c int, d int, primary key(a), clustering key(b))engine=tokudb;
 show create table t1;
 Table	Create Table

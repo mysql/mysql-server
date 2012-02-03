@@ -5,6 +5,11 @@ SET STORAGE_ENGINE='tokudb';
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
+#setting tokudb_prelock_empty to off
+# so that after insertions, data is cached
+# and row estimates are accurate
+set tokudb_prelock_empty=off;
+
 create table t1(a int, b int, c int, d int, primary key(a), clustering key(b))engine=tokudb;
 
 show create table t1;
