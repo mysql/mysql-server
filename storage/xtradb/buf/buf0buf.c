@@ -57,7 +57,7 @@ Created 11/5/1995 Heikki Tuuri
 /* prototypes for new functions added to ha_innodb.cc */
 trx_t* innobase_get_trx();
 
-inline void _increment_page_get_statistics(buf_block_t* block, trx_t* trx)
+static inline void _increment_page_get_statistics(buf_block_t* block, trx_t* trx)
 {
 	ulint           block_hash;
 	ulint           block_hash_byte;
