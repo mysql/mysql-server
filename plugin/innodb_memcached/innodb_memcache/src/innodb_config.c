@@ -542,9 +542,9 @@ innodb_verify(
 
 	dbname = info->m_item[CONTAINER_DB].m_str;
 	name = info->m_item[CONTAINER_TABLE].m_str;
-	info->flag_enabled = FALSE;
-	info->cas_enabled = FALSE;
-	info->exp_enabled = FALSE;
+	info->m_flag_enabled = FALSE;
+	info->m_cas_enabled = FALSE;
+	info->m_exp_enabled = FALSE;
 
 #ifdef __WIN__
 	sprintf(table_name, "%s\%s", dbname, name);
@@ -603,7 +603,7 @@ innodb_verify(
 			}
 			cinfo[CONTAINER_FLAG].m_field_id = i;
 			cinfo[CONTAINER_FLAG].m_col = col_meta;
-			info->flag_enabled = TRUE;
+			info->m_flag_enabled = TRUE;
 		} else if (strcmp(name, cinfo[CONTAINER_CAS].m_str) == 0) {
 			/* CAS column must be integer type */
 			if (col_meta.type != IB_INT) {
@@ -612,7 +612,7 @@ innodb_verify(
 			}
 			cinfo[CONTAINER_CAS].m_field_id = i;
 			cinfo[CONTAINER_CAS].m_col = col_meta;
-			info->cas_enabled = TRUE;
+			info->m_cas_enabled = TRUE;
 		} else if (strcmp(name, cinfo[CONTAINER_EXP].m_str) == 0) {
 			/* EXP column must be integer type */
 			if (col_meta.type != IB_INT) {
@@ -621,7 +621,7 @@ innodb_verify(
 			}
 			cinfo[CONTAINER_EXP].m_field_id = i;
 			cinfo[CONTAINER_EXP].m_col = col_meta;
-			info->exp_enabled = TRUE;
+			info->m_exp_enabled = TRUE;
 		}
 	}
 

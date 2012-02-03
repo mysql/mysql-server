@@ -43,9 +43,9 @@ Created 03/15/2011      Jimmy Yang
 
 /** We would need to fetch 5 column values from each key value rows if they
 are available. They are the "key", "value", "cas", "exp" and "flag" */
-#define	MCI_ITEM_TO_GET		5
+#define	MCI_COL_TO_GET		5
 
-enum mci_item_idx {
+enum mci_col {
 	MCI_COL_KEY,		/*!< key */
 	MCI_COL_VALUE,		/*!< value */
 	MCI_COL_FLAG,		/*!< flag */
@@ -55,7 +55,7 @@ enum mci_item_idx {
 
 /** mci_column is the structure that stores and describes a column info
 in InnoDB Memcached. The supported column types are either character
-type or integer type (see following "enum mci_item_idx" for columns
+type or integer type (see above "enum mci_col" for columns
 supporting memcached) */
 typedef struct mci_column {
 	char*		m_str;		/*!< char value of the column */
@@ -70,7 +70,7 @@ typedef struct mci_column {
 
 /** "mci_item_t" represents values we read from a table row, and enough
 to assemble to an memcached response. As described in above mci_item_idx,
-we must have "MCI_ITEM_TO_GET" (5) column values to read. In addition,
+we must have "MCI_COL_TO_GET" (5) column values to read. In addition,
 the user table could have multiple "value" columns, and it is possible
 to map such multiple "value" columns to a single memcached key,
 such value is separated by "separator" as defined in the "config_option"
@@ -78,7 +78,7 @@ table. And we will assemble and disassemble the memcached value from these
 column values.  And "m_add_value" and "m_add_num" is used to support multiple
 value columns */
 typedef struct mci_items {
-	mci_column_t	m_value[MCI_ITEM_TO_GET]; /*!< columns in a row */
+	mci_column_t	m_value[MCI_COL_TO_GET]; /*!< columns in a row */
 	mci_column_t*	m_add_value;		/*!< whether there will be
 						additional/multiple values
 						to be stored */

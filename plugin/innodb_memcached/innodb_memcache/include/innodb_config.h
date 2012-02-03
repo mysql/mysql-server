@@ -65,7 +65,7 @@ system tables */
 
 /** Columns in the "containers" system table, this maps the Memcached
 operation to a consistent InnoDB table */
-enum meta_container_idx {
+enum container_cols {
 	CONTAINER_NAME,		/*!< name for this mapping */
 	CONTAINER_DB,		/*!< database name */
 	CONTAINER_TABLE,	/*!< table name */
@@ -83,7 +83,7 @@ enum meta_container_idx {
 };
 
 /** columns in the "cache_policy" table */
-enum meta_cache_cols {
+enum cache_policy_cols {
 	CACHE_POLICY_NAME,	/*!< "name" column, for the "cache_policy"
 				name */
 	CACHE_POLICY_GET,	/*!< "get" column, specifies the cache policy
@@ -98,12 +98,11 @@ enum meta_cache_cols {
 };
 
 /** columns in the "config_options" table */
-enum meta_config_cols {
+enum config_option_cols {
 	CONFIG_OPT_KEY,		/*!< key column in the "config_option" table */
 	CONFIG_OPT_VALUE,	/*!< value column */
 	CONFIG_OPT_NUM_COLS	/*!< number of columns (currently 2) in table */
 };
-
 
 /** Following are some value defines describes the options that configures
 the InnoDB Memcached */
@@ -148,9 +147,9 @@ typedef struct meta_container_info {
 	int		m_num_add;		/*!< number of additional
 						value columns */
 	meta_index_t	m_index;		/*!< Index info */
-	bool		flag_enabled;		/*!< whether flag is enabled */
-	bool		cas_enabled;		/*!< whether cas is enabled */
-	bool		exp_enabled;		/*!< whether exp is enabled */
+	bool		m_flag_enabled;		/*!< whether flag is enabled */
+	bool		m_cas_enabled;		/*!< whether cas is enabled */
+	bool		m_exp_enabled;		/*!< whether exp is enabled */
 	char*		m_separator;		/*!< separator that separates
 						incoming "value" string for
 						multiple columns */
