@@ -61,7 +61,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   bool          need_sort= FALSE;
   bool          err= true;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  bool no_parts_used;
+  bool all_parts_pruned_away;
 #endif
   ORDER *order= (ORDER *) ((order_list && order_list->elements) ?
                            order_list->first : NULL);
@@ -112,21 +112,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     Non delete tables are pruned in JOIN::prepare,
     only the delete table needs this.
   */
-  if (prune_partitions(thd, table, conds, true, &no_parts_used))
+  if (prune_partitions(thd, table, conds, true, &all_parts_pruned_away))
     DBUG_RETURN(true);
-  if (no_parts_used)
-  {
-    /* No matching records */
-    if (thd->lex->describe)
-    {
-      err= explain_no_table(thd, "No matching rows after partition pruning");
-      goto exit_without_my_ok;
-    }
-
-    free_underlaid_joins(thd, select_lex);
-    my_ok(thd, 0);
-    DBUG_RETURN(0);
-  }
+  if (all_parts_pruned_away)
+    goto exit_all_parts_pruned_away;
 #endif
 
   if (lock_query_tables(thd))
@@ -224,21 +213,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* Prune a second time to be able to prune on subqueries in WHERE clause. */
-  if (prune_partitions(thd, table, conds, false, &no_parts_used))
+  if (prune_partitions(thd, table, conds, false, &all_parts_pruned_away))
     DBUG_RETURN(true);
-  if (no_parts_used)
-  {
-    /* No matching records */
-    if (thd->lex->describe)
-    {
-      err= explain_no_table(thd, "No matching rows after partition pruning");
-      goto exit_without_my_ok;
-    }
-
-    free_underlaid_joins(thd, select_lex);
-    my_ok(thd, 0);
-    DBUG_RETURN(0);
-  }
+  if (all_parts_pruned_away)
+    goto exit_all_parts_pruned_away;
 #endif
 
   select=make_select(table, 0, 0, conds, 0, &error);
@@ -496,6 +474,16 @@ cleanup:
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
   DBUG_RETURN(thd->is_error() || thd->killed);
+
+exit_all_parts_pruned_away:
+  /* No matching records */
+  if (!thd->lex->describe)
+  {
+    free_underlaid_joins(thd, select_lex);
+    my_ok(thd, 0);
+    DBUG_RETURN(0);
+  }
+  err= explain_no_table(thd, "No matching rows after partition pruning");
 
 exit_without_my_ok:
   delete select;

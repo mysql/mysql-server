@@ -39,6 +39,7 @@ void upgrade_lock_type_for_insert(THD *thd, thr_lock_type *lock_type,
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list);
 void prepare_triggers_for_insert_stmt(TABLE *table);
+void default_record(bool copy_default_values, TABLE *table);
 int write_record(THD *thd, TABLE *table, COPY_INFO *info);
 void kill_delayed_threads(void);
 

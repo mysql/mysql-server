@@ -270,7 +270,7 @@ JOIN::optimize()
       {
         Item *prune_cond= tbl->join_cond()? tbl->join_cond() : conds;
         if (prune_partitions(thd, tbl->table, prune_cond, false,
-            &tbl->table->no_partitions_used))
+            &tbl->table->all_partitions_pruned_away))
         {
           error= 1;
           DBUG_PRINT("error", ("Error from prune_partitions"));
@@ -2886,9 +2886,9 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     enum enum_const_table_extraction extract_method= extract_const_table;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-    const bool no_partitions_used= table->no_partitions_used;
+    const bool all_partitions_pruned_away= table->all_partitions_pruned_away;
 #else
-    const bool no_partitions_used= false;
+    const bool all_partitions_pruned_away= false;
 #endif
 
     if (tables->in_outer_join_nest())
@@ -2919,7 +2919,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     case extract_empty_table:
       /* Extract tables with zero rows, but only if statistics are exact */
       if ((table->file->stats.records == 0 ||
-           no_partitions_used) &&
+           all_partitions_pruned_away) &&
           (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
         set_position(join, const_count++, s, NULL);
       break;
@@ -2933,7 +2933,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       */ 
       if ((table->s->system ||
            table->file->stats.records <= 1 ||
-           no_partitions_used) &&
+           all_partitions_pruned_away) &&
           !s->dependent &&                                               // 1
           (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) && // 2
           !table->fulltext_searched)                                     // 3

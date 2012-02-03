@@ -25,6 +25,8 @@
 #include "sql_acl.h"                          // *_ACL
 #include "table.h"                            // TABLE_LIST
 #include "my_bitmap.h"                        // bitmap*
+#include "sql_insert.h"                       // default_record
+#include "sql_base.h"                         // fill_record
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -90,7 +92,7 @@ partition_info *partition_info::get_clone()
 */
 
 bool partition_info::add_named_partition(const char *part_name,
-                                                uint length)
+                                         uint length)
 {
   HASH *part_name_hash;
   PART_NAME_DEF *part_def;
@@ -100,7 +102,8 @@ bool partition_info::add_named_partition(const char *part_name,
   DBUG_ASSERT(part_name_hash->records);
 
   part_def= (PART_NAME_DEF*) my_hash_search(part_name_hash,
-                                            (const uchar*) part_name, length);
+                                            (const uchar*) part_name,
+                                            length);
   if (!part_def)
   {
     my_error(ER_UNKNOWN_PARTITION, MYF(0), part_name, table->alias);
@@ -227,6 +230,177 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
   bitmap_copy(&lock_partitions, &read_partitions);
   DBUG_ASSERT(bitmap_get_first_set(&lock_partitions) != MY_BIT_NONE);
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Checks if possible to do prune partitions on insert.
+
+  @param duplic        How to handle duplicates
+  @param update_fields In case of ON DUPLICATE UPDATE, which fields to update
+  @param fields        Listed fields
+  @param empty_values  True if values is empty (only defaults)
+  @param[out] prune_needs_default_values  Set on return if copying of default
+                                          values is needed
+*/
+
+partition_info::enum_can_prune
+partition_info::can_prune_insert(enum_duplicates duplic,
+                                 List<Item> &update_fields,
+                                 List<Item> &fields,
+                                 bool empty_values,
+                                 bool *prune_needs_default_values)
+{
+  DBUG_ENTER("partition_info::can_prune_insert");
+  /*
+    If under LOCK TABLES pruning will skip start_stmt instead of external_lock
+    for unused partitions.
+
+    Cannot prune if there are BEFORE INSERT triggers,
+    since they may change the row to be in another partition.
+  */
+  if (table->triggers &&
+      table->triggers->has_triggers(TRG_EVENT_INSERT, TRG_ACTION_BEFORE))
+    DBUG_RETURN(PRUNE_NO);
+
+  /*
+    Note: It makes no sense to prune on partition/subpartition level when
+    only partition/subpartition fields are affected.
+    For subpartitioned tables, there makes little sense to prune only on
+    partition level or subpartition level. Since it is only possible in
+    few cases (update/auto_inc fields only in part OR subpart fields).
+    Cannot be INSERT SELECT.
+  */
+  if (table->found_next_number_field)
+  {
+    /*
+      If the field is used in the partitioning expression, we cannot prune.
+      TODO: If all rows have not null values and
+      is not 0 (with NO_AUTO_VALUE_ON_ZERO sql_mode), then pruning is possible!
+    */
+    if (bitmap_is_set(&table->part_info->full_part_field_set,
+        table->found_next_number_field->field_index))
+      DBUG_RETURN(PRUNE_NO);
+  }
+
+  /*
+    If updating a field in the partitioning expression, we cannot prune.
+
+    Note: TIMESTAMP_AUTO_SET_ON_INSERT is handled by converting Item_null
+    to the start time of the statement. Which will be the same as in
+    write_row(). So pruning of TIMESTAMP DEFAULT CURRENT_TIME will work.
+    But TIMESTAMP_AUTO_SET_ON_UPDATE cannot be pruned if the timestamp
+    column is a part of any part/subpart expression.
+
+    TODO: Verify this again when merging with WL#5874.
+  */
+  if (duplic == DUP_UPDATE)
+  {
+    Field *timestamp_field= table->get_timestamp_field();
+    if (timestamp_field &&
+        bitmap_is_set(&table->part_info->full_part_field_set,
+                      timestamp_field->field_index))
+    {
+      /*
+        The timestamp field is part of a partitioning expression.
+        If it is set on update, it is not possible to
+        prune, unless verifying all rows is not set to NULL.
+      */
+      DBUG_PRINT("info", ("timestamp_field_type: %d",
+                          table->timestamp_field_type));
+      if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+        DBUG_RETURN(PRUNE_NO);
+    }
+
+    /* TODO: add check for static update values, which can be pruned. */
+    if (is_field_in_part_expr(update_fields))
+      DBUG_RETURN(PRUNE_NO);
+
+    /*
+      Cannot prune if there are BEFORE UPDATE triggers,
+      since they may change the row to be in another partition.
+    */
+    if (table->triggers &&
+        table->triggers->has_triggers(TRG_EVENT_UPDATE,
+                                      TRG_ACTION_BEFORE))
+      DBUG_RETURN(PRUNE_NO);
+  }
+
+  /*
+    If not all partitioning fields are given,
+    we also must set all non given partitioning fields
+    to get correct defaults.
+    we do this by copy the full default record in default_record().
+    TODO: If any gain, we could enhance this by only copy the needed default
+    fields by
+      1) check which fields needs to be set.
+      2) only copy those fields from the default record.
+  */
+  *prune_needs_default_values= false;
+  if (fields.elements)
+  {
+    if (!is_full_part_expr_in_fields(fields))
+      *prune_needs_default_values= true;
+  }
+  else if (empty_values)
+  {
+    *prune_needs_default_values= true; // like 'INSERT INTO t () VALUES ()'
+  }
+
+  /*
+    If no partitioning field in set (e.g. defaults) check pruning only once.
+  */
+  if (fields.elements &&
+      !is_field_in_part_expr(fields))
+    DBUG_RETURN(PRUNE_DEFAULTS);
+
+  DBUG_RETURN(PRUNE_YES);
+}
+
+
+/**
+  Mark the partition, the record belongs to, as used.
+
+  @param table            Table to use
+  @param fields           Fields to set
+  @param values           Values to use
+  @param used_partitions  Bitmap to set
+
+  @returns Operational status
+    @retval false  Success
+    @retval true   Failure
+*/
+
+bool partition_info::set_used_partition(List<Item> &fields,
+                                        List<Item> &values,
+                                        bool copy_default_values,
+                                        MY_BITMAP *used_partitions)
+{
+  THD *thd= table->in_use;
+  uint32 part_id;
+  longlong func_value;
+  DBUG_ENTER("set_partition");
+  DBUG_ASSERT(thd);
+
+  default_record(copy_default_values, table);
+
+  if (fields.elements || !values.elements)
+  {
+    if (fill_record(thd, fields, values, false, &full_part_field_set))
+      DBUG_RETURN(true);
+  }
+  else
+  {
+    if (fill_record(thd, table->field, values, false, &full_part_field_set))
+      DBUG_RETURN(true);
+  }
+
+  if (get_partition_id(this, &part_id, &func_value))
+    DBUG_RETURN(true);
+
+  DBUG_PRINT("info", ("Insert into partition %u", part_id));
+  bitmap_set_bit(used_partitions, part_id);
+  DBUG_RETURN(false);
 }
 
 
@@ -1889,16 +2063,16 @@ bool partition_info::is_field_in_part_expr(List<Item> &fields)
   DBUG_ENTER("is_fields_in_part_expr");
   while ((item= it++))
   {
-    if (!(field= item->filed_for_view_update()))
-    {
-      DBUG_ASSERT(0); // Should already be checked
-      DBUG_RETURN(true);
-    }
-    else
+    if ((field= item->field_for_view_update()))
     {
       DBUG_ASSERT(field->field->table == table);
       if (bitmap_is_set(&full_part_field_set, field->field->field_index))
         DBUG_RETURN(true);
+    }
+    else
+    {
+      DBUG_ASSERT(0); // Should already be checked
+      DBUG_RETURN(true);
     }
   }
   DBUG_RETURN(false);
@@ -1928,7 +2102,7 @@ bool partition_info::is_full_part_expr_in_fields(List<Item> &fields)
   
     while ((item= it++))
     {
-      if (!(field= item->filed_for_view_update()))
+      if (!(field= item->field_for_view_update()))
       {
         DBUG_ASSERT(0); // Should already be checked
         DBUG_RETURN(false);

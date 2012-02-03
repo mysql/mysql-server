@@ -11134,8 +11134,6 @@ ha_innobase::external_lock(
 		}
 
 		trx->n_mysql_tables_in_use++;
-                DBUG_PRINT("info", ("trx->n_mysql_tables_in_use++: %u",
-                  trx->n_mysql_tables_in_use));
 		prebuilt->mysql_has_locked = TRUE;
 
 		if (!trx_is_started(trx)
@@ -11151,8 +11149,6 @@ ha_innobase::external_lock(
 	/* MySQL is releasing a table lock */
 
 	trx->n_mysql_tables_in_use--;
-        DBUG_PRINT("info", ("trx->n_mysql_tables_in_use: %u",
-                  trx->n_mysql_tables_in_use));
 	prebuilt->mysql_has_locked = FALSE;
 
 	/* Release a possible FIFO ticket and search latch. Since we
