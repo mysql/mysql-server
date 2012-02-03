@@ -90,7 +90,7 @@ select * from t1 where b > 0;
 explain select * from t1 where d > 0;
 select * from t1 where d > 0;
 
---replace_column 7 NULL 9 NULL;
+--replace_column 4 NULL 7 NULL 9 NULL;
 explain select a from t1 where d > 0;
 select a from t1 where d > 0;
 select e,f from t1 where c > 0;
