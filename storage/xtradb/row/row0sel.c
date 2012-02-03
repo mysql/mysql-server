@@ -3259,16 +3259,15 @@ row_sel_pop_cached_row_for_mysql(
 }
 
 /********************************************************************//**
-Pushes a row for MySQL to the fetch cache.
-@return TRUE on success, FALSE if the record contains incomplete BLOBs */
-UNIV_INLINE __attribute__((warn_unused_result))
-ibool
+Pushes a row for MySQL to the fetch cache. */
+UNIV_INLINE 
+void
 row_sel_push_cache_row_for_mysql(
 /*=============================*/
 	byte*		mysql_rec,	/*!< in/out: MySQL record */
 	row_prebuilt_t*	prebuilt)	/*!< in/out: prebuilt struct */
 {
-	ut_ad(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
+        ut_a(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
 	ut_a(!prebuilt->templ_contains_blob);
 
 	if (UNIV_UNLIKELY(prebuilt->fetch_cache[0] == NULL)) {
@@ -3300,12 +3299,7 @@ row_sel_push_cache_row_for_mysql(
 	memcpy(prebuilt->fetch_cache[prebuilt->n_fetch_cached],
 	       mysql_rec, prebuilt->mysql_row_len);
 
-	if (++prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE) {
-		return(FALSE);
-	}
-
-	row_sel_pop_cached_row_for_mysql(mysql_rec, prebuilt);
-	return(TRUE);
+        ++prebuilt->n_fetch_cached;
 }
 
 /*********************************************************************//**
@@ -4669,6 +4663,11 @@ requires_clust_rec:
 		not cache rows because there the cursor is a scrollable
 		cursor. */
 
+                ut_a(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
+
+                /* We only convert from InnoDB row format to MySQL row
+                format when ICP is disabled. */
+
 		if (!prebuilt->idx_cond
 		    && !row_sel_store_mysql_rec(buf, prebuilt, result_rec,
 						result_rec != rec, offsets)) {
@@ -4680,8 +4679,12 @@ requires_clust_rec:
 			transaction. Rollback happens at a lower
 			level, not here. */
 			goto next_rec;
-		} else if (row_sel_push_cache_row_for_mysql(buf, prebuilt)) {
-			goto next_rec;
+		}
+
+                row_sel_push_cache_row_for_mysql(buf, prebuilt);
+
+                if (prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE) {
+                        goto next_rec;
 		}
 	} else {
 		if (UNIV_UNLIKELY
