@@ -2787,6 +2787,12 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
       gtid_set.encode(ptr_buffer);
       ptr_buffer+= encoded_data_size;
+      /*
+        Resetting the name of the file in order to force to start
+        reading from the oldest binary log available.
+      */
+      DBUG_ASSERT(BINLOG_NAME_INFO_SIZE == 0 &&
+                  mi->get_master_log_pos() == BIN_LOG_HEADER_SIZE);
     }
     else
     {

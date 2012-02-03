@@ -74,6 +74,86 @@ INSERT INTO t1 VALUES (NULL) /* 9 */;
 --source include/diff_tables.inc
 
 #
+# In what follows we are going to check if a dump file created with
+# --read-from-remote-master={BINLOG-DUMP-NON-GTID, BINLOG-DUMP-GTID}
+# is equal to a dump file created with --read-from-remote-server or
+# an empty option (i.e. without neiter --read-from-remote-master nor
+# --read-from-remote-server).
+#
+# The --raw option is combined with the aforementioned options to
+# create additional dump files.
+#
+# Finally we use the options --include-gtid and --exclude-gtid to
+# also create additional files.
+#
+
+--echo ================ --read-from-remote-master ================
+--connection master
+FLUSH LOGS;
+
+let $MYSQLD_DATADIR= `SELECT @@DATADIR`;
+let $UUID= `SELECT @@SERVER_UUID`;
+
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000001
+--exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000002
+--exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-NON-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000003
+--exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000004
+--exec $MYSQL_BINLOG --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/tmp/$binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000005
+--exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-NON-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/tmp/$binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000006
+--exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/tmp/$binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000007
+
+--diff_files $MYSQLTEST_VARDIR/tmp/output.000002 $MYSQLTEST_VARDIR/tmp/output.000001
+--diff_files $MYSQLTEST_VARDIR/tmp/output.000003 $MYSQLTEST_VARDIR/tmp/output.000001
+--diff_files $MYSQLTEST_VARDIR/tmp/output.000004 $MYSQLTEST_VARDIR/tmp/output.000001
+--diff_files $MYSQLTEST_VARDIR/tmp/output.000005 $MYSQLTEST_VARDIR/tmp/output.000001
+--diff_files $MYSQLTEST_VARDIR/tmp/output.000006 $MYSQLTEST_VARDIR/tmp/output.000001
+--diff_files $MYSQLTEST_VARDIR/tmp/output.000007 $MYSQLTEST_VARDIR/tmp/output.000001
+--remove_file $MYSQLTEST_VARDIR/tmp/output.000001
+--remove_file $MYSQLTEST_VARDIR/tmp/output.000002
+--remove_file $MYSQLTEST_VARDIR/tmp/output.000003
+--remove_file $MYSQLTEST_VARDIR/tmp/output.000004
+--remove_file $MYSQLTEST_VARDIR/tmp/output.000005
+--remove_file $MYSQLTEST_VARDIR/tmp/output.000006
+--remove_file $MYSQLTEST_VARDIR/tmp/output.000007
+
+--echo ================ --read-from-remote-master with --exclude-gtid ================
+
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file --exclude-gtid=$UUID:1-3 --result-file=$MYSQLTEST_VARDIR/tmp/output.000001
+--exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-NON-GTID --exclude-gtid=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000002
+
+--exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-GTID --exclude-gtid=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000003
+--error 1
+--exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-NON-GTID --exclude-gtid=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-GTID --exclude-gtid=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/tmp/$binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000004
+
+#
+# Strange but filtering on master and on the client procudes different positions.
+# For that reason, we do not compare all outputs.
+#
+--diff_files $MYSQLTEST_VARDIR/tmp/output.000001 $MYSQLTEST_VARDIR/tmp/output.000002
+--diff_files $MYSQLTEST_VARDIR/tmp/output.000003 $MYSQLTEST_VARDIR/tmp/output.000004
+--remove_file $MYSQLTEST_VARDIR/tmp/output.000001
+--remove_file $MYSQLTEST_VARDIR/tmp/output.000002
+--remove_file $MYSQLTEST_VARDIR/tmp/output.000003
+--remove_file $MYSQLTEST_VARDIR/tmp/output.000004
+
+--echo ================ --read-from-remote-master with --include-gtid ================
+
+--exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-NON-GTID --include-gtid=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000001
+--exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-GTID --include-gtid=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000002
+--error 1
+--exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-NON-GTID --include-gtid=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--error 1
+--exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-GTID --include-gtid=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--diff_files $MYSQLTEST_VARDIR/tmp/output.000002 $MYSQLTEST_VARDIR/tmp/output.000001
+--remove_file $MYSQLTEST_VARDIR/tmp/output.000001
+--remove_file $MYSQLTEST_VARDIR/tmp/output.000002
+
+#
 # cleanup
 #
 
@@ -83,5 +163,3 @@ FLUSH LOGS;
 DROP TABLE t1;
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --exec $MYSQL_BINLOG $datadir/$binlog_file | $MYSQL --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
-
-
