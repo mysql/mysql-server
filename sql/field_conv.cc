@@ -157,10 +157,14 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     Check if this is a special type, which will get a special walue
     when set to NULL (TIMESTAMP fields which allow setting to NULL
     are handled by first check).
+
+    From the manual:
+
+    TIMESTAMP columns [...] assigning NULL assigns the current timestamp.
   */
   if (field->type() == MYSQL_TYPE_TIMESTAMP)
   {
-    field->set_time();
+    Item_func_now_local::store_in(field);
     return 0;					// Ok to set time to NULL
   }
   
@@ -235,7 +239,7 @@ static void do_copy_timestamp(Copy_field *copy)
   if (*copy->null_row || (*copy->from_null_ptr & copy->from_bit))
   {
     /* Same as in set_field_to_null_with_conversions() */
-    copy->to_field->set_time();
+    Item_func_now_local::store_in(copy->to_field);
   }
   else
     (copy->do_copy2)(copy);

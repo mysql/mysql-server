@@ -2902,9 +2902,6 @@ int ha_ndbcluster::write_row(uchar *record)
   }
 
   ha_statistic_increment(&SSV::ha_write_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->get_timestamp_field()->set_time();
-
   if (!(op= trans->getNdbOperation(m_table)))
     ERR_RETURN(trans->getNdbError());
 
@@ -3142,11 +3139,6 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
   }
 
   ha_statistic_increment(&SSV::ha_update_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-  {
-    table->get_timestamp_field()->set_time();
-    bitmap_set_bit(table->write_set, table->timestamp_field->field_index);
-  }
 
   if (m_use_partition_function &&
       (error= get_parts_for_update(old_data, new_data, table->record[0],

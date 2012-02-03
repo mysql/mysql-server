@@ -6114,9 +6114,6 @@ ha_innobase::write_row(
 
 	ha_statistic_increment(&SSV::ha_write_count);
 
-	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-		table->get_timestamp_field()->set_time();
-
 	sql_command = thd_sql_command(user_thd);
 
 	if ((sql_command == SQLCOM_ALTER_TABLE
@@ -6657,9 +6654,6 @@ ha_innobase::update_row(
 	}
 
 	ha_statistic_increment(&SSV::ha_update_count);
-
-	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-		table->get_timestamp_field()->set_time();
 
 	if (prebuilt->upd_node) {
 		uvect = prebuilt->upd_node->update;
