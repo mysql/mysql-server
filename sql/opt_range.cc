@@ -3052,11 +3052,11 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
 */
 
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond,
-                      bool is_prepare, bool *no_parts_used)
+                      bool is_prepare, bool *all_parts_pruned_away)
 {
   partition_info *part_info = table->part_info;
   DBUG_ENTER("prune_partitions");
-  *no_parts_used= false;
+  *all_parts_pruned_away= false;
 
   if (!part_info)
     DBUG_RETURN(FALSE); /* not a partitioned table */
@@ -3192,9 +3192,14 @@ end:
   thd->no_errors=0;
   thd->mem_root= range_par->old_root;
   free_root(&alloc,MYF(0));			// Return memory & allocator
-  /* Must be a subset of the locked partitions */
-  bitmap_intersect(&(prune_param.part_info->read_partitions),
-                   &(prune_param.part_info->lock_partitions));
+  /*
+    Must be a subset of the locked partitions.
+    lock_partitions contains the partitions marked by explicit partition
+    selection (... t PARTITION (pX) ...) and we must only use partitions
+    within that set.
+  */
+  bitmap_intersect(&prune_param.part_info->read_partitions,
+                   &prune_param.part_info->lock_partitions);
   /*
     If not yet locked, also prune partitions to lock if not UPDATEing
     partition key fields.
@@ -3204,10 +3209,12 @@ end:
   */
   if (table->file->get_lock_type() == F_UNLCK &&
       !partition_key_modified(table, table->write_set))
-    bitmap_intersect(&(prune_param.part_info->lock_partitions),
-                     &(prune_param.part_info->read_partitions));
+  {
+    bitmap_copy(&prune_param.part_info->lock_partitions,
+                &prune_param.part_info->read_partitions);
+  }
   if (bitmap_is_clear_all(&(prune_param.part_info->read_partitions)))
-    *no_parts_used= true;
+    *all_parts_pruned_away= true;
   DBUG_RETURN(false);
 }
 
@@ -6485,10 +6492,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
        field->type() == MYSQL_TYPE_DATETIME))
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
 
-  if (!param->thd->lex->is_query_tables_locked() &&
-      (!value->const_item() || value->has_subquery()))
+  if (!can_evaluate_item_now(param->thd, value))
   {
-    /* Don't eval non const or subqueries if not locked. I.e. in prepare. */
     tree= 0;
     field->table->in_use->variables.sql_mode= orig_sql_mode;
     goto end;

@@ -3021,62 +3021,31 @@ err_alloc:
   as many PSI_tables as there are partitions.
 */
 #ifdef HAVE_M_PSI_PER_PARTITION
-/**
-  Release the psi for reuse of another thread.
-*/
-
 void ha_partition::unbind_psi()
 {
-
-  DBUG_ENTER("ha_partition::unbind_psi");
-#ifdef HAVE_PSI_TABLE_INTERFACE
   uint i;
 
-  DBUG_ASSERT(bitmap_is_subset(&m_part_info->lock_partitions,
-                               &m_psi_bound_partitions)
-              || ha_thd()->is_error());
-  DBUG_ASSERT(bitmap_is_subset(&m_part_info->read_partitions,
-                               &m_psi_bound_partitions)
-              || ha_thd()->is_error());
+  DBUG_ENTER("ha_partition::unbind_psi");
   handler::unbind_psi();
-  for (i= bitmap_get_first_set(&m_psi_bound_partitions);
-       i < m_tot_parts;
-       i= bitmap_get_next_set(&m_psi_bound_partitions, i))
+  for (i= 0; i < m_tot_parts; i++)
   {
-    DBUG_ASSERT(m_file[i]);
+    DBUG_ASSERT(m_file[i] != NULL);
     m_file[i]->unbind_psi();
   }
-  bitmap_clear_all(&m_psi_bound_partitions);
-#endif
   DBUG_VOID_RETURN;
 }
 
-
-/**
-  Bind the psi to this thread.
-*/
-
 void ha_partition::rebind_psi()
 {
-  DBUG_ENTER("ha_partition::rebind_psi");
-  
-#ifdef HAVE_PSI_TABLE_INTERFACE
   uint i;
-  /*
-    TODO: Make sure that partitioning pruning is done before
-    calling rebind_psi.
-  */
-  DBUG_ASSERT(bitmap_is_clear_all(&m_psi_bound_partitions));
+
+  DBUG_ENTER("ha_partition::rebind_psi");
   handler::rebind_psi();
-  for (i= bitmap_get_first_set(&m_part_info->lock_partitions);
-       i < m_tot_parts;
-       i= bitmap_get_next_set(&m_part_info->lock_partitions, i))
+  for (i= 0; i < m_tot_parts; i++)
   {
-    DBUG_ASSERT(m_file[i]);
+    DBUG_ASSERT(m_file[i] != NULL);
     m_file[i]->rebind_psi();
   }
-  bitmap_copy(&m_psi_bound_partitions, &m_part_info->lock_partitions);
-#endif
   DBUG_VOID_RETURN;
 }
 #endif /* HAVE_M_PSI_PER_PARTITION */
@@ -6937,7 +6906,7 @@ handler::Table_flags ha_partition::table_flags() const
   uint first_used_partition= 0;
   DBUG_ENTER("ha_partition::table_flags");
   if (m_handler_status < handler_initialized ||
-    m_handler_status >= handler_closed)
+      m_handler_status >= handler_closed)
     DBUG_RETURN(PARTITION_ENABLED_TABLE_FLAGS);
 
   if (get_lock_type() != F_UNLCK)

@@ -1315,7 +1315,7 @@ public:
   virtual void bring_value() {}
 
   Field *tmp_table_field_from_field_type(TABLE *table, bool fixed_length);
-  virtual Item_field *filed_for_view_update() { return 0; }
+  virtual Item_field *field_for_view_update() { return 0; }
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
   virtual Item *update_value_transformer(uchar *select_arg) { return this; }
@@ -2007,7 +2007,7 @@ public:
   bool set_no_const_sub(uchar *arg);
   Item *replace_equal_field(uchar *arg);
   inline uint32 max_disp_length() { return field->max_display_length(); }
-  Item_field *filed_for_view_update() { return this; }
+  Item_field *field_for_view_update() { return this; }
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(uchar *select_arg);
@@ -2924,8 +2924,8 @@ public:
                         Item_transformer transformer, uchar *arg_t);
   virtual void print(String *str, enum_query_type query_type);
   void cleanup();
-  Item_field *filed_for_view_update()
-    { return (*ref)->filed_for_view_update(); }
+  Item_field *field_for_view_update()
+    { return (*ref)->field_for_view_update(); }
   virtual Ref_Type ref_type() { return REF; }
 
   // Row emulation: forwarding of ROW-related calls to ref
@@ -4118,6 +4118,7 @@ void mark_select_range_as_dependent(THD *thd,
                                     st_select_lex *current_sel,
                                     Field *found_field, Item *found_item,
                                     Item_ident *resolved_item);
+extern inline bool can_evaluate_item_now(THD *thd, Item *item);
 
 extern Cached_item *new_Cached_item(THD *thd, Item *item,
                                     bool use_result_field);

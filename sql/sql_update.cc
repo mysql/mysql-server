@@ -146,7 +146,7 @@ static bool check_fields(THD *thd, List<Item> &items)
 
   while ((item= it++))
   {
-    if (!(field= item->filed_for_view_update()))
+    if (!(field= item->field_for_view_update()))
     {
       /* item has name, because it comes from VIEW SELECT list */
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->name);
@@ -390,7 +390,7 @@ int mysql_update(THD *thd,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
-    bool no_parts_used;
+    bool all_parts_pruned_away;
     bool prune_locks= true;
     MY_BITMAP lock_partitions;
     if (table->triggers &&
@@ -427,10 +427,11 @@ int mysql_update(THD *thd,
       bitmap_copy(&lock_partitions, &table->part_info->lock_partitions);
     }
 
-    if (prune_partitions(thd, table, conds, true, &no_parts_used))
+    if (prune_partitions(thd, table, conds, true, &all_parts_pruned_away))
       DBUG_RETURN(1);
-    if (no_parts_used)
-    { // No matching records
+    if (all_parts_pruned_away)
+    {
+      /* No matching records */
       if (thd->lex->describe)
       {
         error= explain_no_table(thd,

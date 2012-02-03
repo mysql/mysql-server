@@ -316,6 +316,16 @@ public:
   void report_part_expr_error(bool use_subpart_expr);
   bool is_field_in_part_expr(List<Item> &fields);
   bool is_full_part_expr_in_fields(List<Item> &fields);
+  bool set_used_partition(List<Item> &fields,
+                          List<Item> &values,
+                          bool copy_default_values,
+                          MY_BITMAP *used_partitions);
+  enum enum_can_prune {PRUNE_NO=0, PRUNE_DEFAULTS, PRUNE_YES};
+  enum_can_prune can_prune_insert(enum enum_duplicates duplic,
+                                  List<Item> &update_fields,
+                                  List<Item> &fields,
+                                  bool empty_values,
+                                  bool *prune_needs_default_values);
 private:
   static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,

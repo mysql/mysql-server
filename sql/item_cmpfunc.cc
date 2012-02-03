@@ -418,9 +418,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
   Field *field= field_item->field;
   int result= 0;
 
-  if ((*item)->const_item() &&
-      /* Only evaluate subselects if the tables are locked.*/
-      (thd->lex->is_query_tables_locked() || !(*item)->has_subquery()))
+  if (can_evaluate_item_now(thd, (*item)))
   {
     TABLE *table= field->table;
     sql_mode_t orig_sql_mode= thd->variables.sql_mode;
@@ -848,9 +846,8 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
       aren't locked.
     */
     if (!thd->lex->is_ps_or_view_context_analysis() &&
-        cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item() &&
-        /* Do not evaluate subqueries unless the tables are locked */
-        (thd->lex->is_query_tables_locked() || !str_arg->has_subquery()) &&
+        cmp_type != CMP_DATE_WITH_DATE &&
+        can_evaluate_item_now(thd, str_arg) &&
         (str_arg->type() != Item::FUNC_ITEM ||
         ((Item_func*)str_arg)->functype() != Item_func::GUSERVAR_FUNC))
     {
@@ -5324,9 +5321,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
       We could also do boyer-more for non-const items, but as we would have to
       recompute the tables for each row it's not worth it.
     */
-    if (args[1]->const_item() &&
-        /* Do not evaluate subqueries unless the tables are locked */
-        (thd->lex->is_query_tables_locked() || !args[1]->has_subquery()) &&
+    if (can_evaluate_item_now(thd, args[1]) &&
         !use_strnxfrm(collation.collation) &&
         !(specialflag & SPECIAL_NO_NEW_FUNC))
     {

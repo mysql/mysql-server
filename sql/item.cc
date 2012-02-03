@@ -9251,3 +9251,24 @@ void view_error_processor(THD *thd, void *data)
   ((TABLE_LIST *)data)->hide_view_error(thd);
 }
 
+
+/**
+  Returns wether it is OK to evaluate the item now.
+
+  @param thd   Thread object
+  @param item  Item to check
+
+  @return true if only constant and is either locked or has no subquery.
+
+  @note After WL#4443 there must be no optimize or exec call during
+  prepare phase.
+*/
+
+inline bool can_evaluate_item_now(THD *thd, Item *item)
+{
+  if (item->const_item() &&
+      ((thd->lex->is_query_tables_locked() ||
+        !item->has_subquery())))
+    return true;
+  return false;
+}
