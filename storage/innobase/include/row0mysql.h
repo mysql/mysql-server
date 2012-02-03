@@ -555,7 +555,7 @@ row_mysql_close(void);
 Quiesce the tablespace that the table resides in. */
 UNIV_INTERN
 void
-row_mysql_quiesce_table_begin(
+row_mysql_quiesce_table_start(
 /*==========================*/
 	dict_table_t*	table);		/*!< in: quiesce this table */
 
@@ -566,6 +566,15 @@ void
 row_mysql_quiesce_table_complete(
 /*=============================*/
 	dict_table_t*	table);		/*!< in: quiesce this table */
+
+/*********************************************************************//**
+Set a table's quiesce state. */
+UNIV_INTERN
+void
+row_mysql_quiesce_set_state(
+/*========================*/
+	dict_table_t*	table,		/*!< in: quiesce this table */
+	ib_quiesce_t	state);		/*!< in: quiesce state to set */
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.

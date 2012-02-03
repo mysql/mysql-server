@@ -348,12 +348,7 @@ dict_mem_referenced_table_name_lookup_set(
 /** Quiescing states for flushing tables to disk. */
 enum ib_quiesce_t {
 	QUIESCE_NONE,
-	QUIESCE_INIT,			/*!< Initialise, prepare to start */
-	QUIESCE_START,			/*!< Notify background threads */
-	QUIESCE_MERGING,		/*!< Merging the change buffer */
-	QUIESCE_FLUSHING,		/*!< Flush dirty pages to disk */
-	QUIESCE_ABORT,			/*!< Abort operation */
-	QUIESCE_ABORTED,		/*!< Aborted or interrupted */
+	QUIESCE_START,			/*!< Initialise, prepare to start */
 	QUIESCE_COMPLETE		/*!< All done */
 };
 
