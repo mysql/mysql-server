@@ -87,6 +87,7 @@ typedef UT_LIST_BASE_NODE_T(innodb_conn_data_t)	conn_base_t;
 /** The InnoDB engine global data. Some layout are common to NDB memcached
 engine and InnoDB memcached engine */
 typedef struct innodb_engine {
+	/* members all common to Memcached Engines */
 	ENGINE_HANDLE_V1	engine;
 	SERVER_HANDLE_V1	server;
 	GET_SERVER_API		get_server_api;
@@ -103,7 +104,7 @@ typedef struct innodb_engine {
 				       * (LAST_REGISTERED_ENGINE_FEATURE + 1)];
 	} info;
 
-	/** following are InnoDB specific variables */
+	/* following are InnoDB specific variables */
 	bool			initialized;
 	bool			connected;
 	bool			enable_binlog;

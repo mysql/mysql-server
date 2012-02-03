@@ -520,9 +520,9 @@ innodb_api_search(
 			item->m_add_num = 0;
 		}
 
-		/* The table must have at least MCI_ITEM_TO_GET columns for key
-		value, cas and time expiration info */
-		assert(n_cols >= MCI_ITEM_TO_GET);
+		/* The table must have at least MCI_COL_TO_GET(5) columns
+		for memcached key, value, flag, cas and time expiration info */
+		assert(n_cols >= MCI_COL_TO_GET);
 
 		for (i = 0; i < n_cols; ++i) {
 			ib_ulint_t      data_len;
@@ -537,7 +537,7 @@ innodb_api_search(
 				item->m_value[MCI_COL_KEY].m_len = data_len;
 				item->m_value[MCI_COL_KEY].m_is_str = TRUE;
 				item->m_value[MCI_COL_KEY].m_enabled = TRUE;
-			} else if (meta_info->flag_enabled
+			} else if (meta_info->m_flag_enabled
 				   && i == col_info[CONTAINER_FLAG].m_field_id) {
 
 				if (data_len == IB_SQL_NULL) {
@@ -555,7 +555,7 @@ innodb_api_search(
 					item->m_value[MCI_COL_FLAG].m_enabled
 						 = TRUE;
 				}
-			} else if (meta_info->cas_enabled
+			} else if (meta_info->m_cas_enabled
 				   && i == col_info[CONTAINER_CAS].m_field_id) {
 				if (data_len == IB_SQL_NULL) {
 					item->m_value[MCI_COL_CAS].m_is_null
@@ -568,7 +568,7 @@ innodb_api_search(
 				item->m_value[MCI_COL_CAS].m_is_str = FALSE;
 				item->m_value[MCI_COL_CAS].m_len = data_len;
 				item->m_value[MCI_COL_CAS].m_enabled = TRUE;
-			} else if (meta_info->exp_enabled
+			} else if (meta_info->m_exp_enabled
 				   && i == col_info[CONTAINER_EXP].m_field_id) {
 				if (data_len == IB_SQL_NULL) {
 					item->m_value[MCI_COL_EXP].m_is_null
@@ -687,7 +687,7 @@ innodb_api_setup_hdl_rec(
 {
 	int	i;
 
-	for (i = 0; i < MCI_ITEM_TO_GET; i++) {
+	for (i = 0; i < MCI_COL_TO_GET; i++) {
 		if (item->m_value[i].m_is_str) {
 			handler_rec_setup_str(
 				table, col_info[CONTAINER_KEY + i].m_field_id,
@@ -767,19 +767,19 @@ innodb_api_set_tpl(
 
 	assert(err == DB_SUCCESS);
 
-	if (meta_info->cas_enabled) {
+	if (meta_info->m_cas_enabled) {
 		err = innodb_api_write_int(
 			tpl, col_info[CONTAINER_CAS].m_field_id, cas, table);
 		assert(err == DB_SUCCESS);
 	}
 
-	if (meta_info->exp_enabled) {
+	if (meta_info->m_exp_enabled) {
 		err = innodb_api_write_int(
 			tpl, col_info[CONTAINER_EXP].m_field_id, exp, table);
 		assert(err == DB_SUCCESS);
 	}
 
-	if (meta_info->flag_enabled) {
+	if (meta_info->m_flag_enabled) {
 		err = innodb_api_write_int(
 			tpl, col_info[CONTAINER_FLAG].m_field_id, flag, table);
 		assert(err == DB_SUCCESS);
