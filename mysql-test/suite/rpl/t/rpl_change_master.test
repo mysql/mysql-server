@@ -15,6 +15,7 @@
 
 # BUG#11758581 - 50801: CHANGE MASTER ACCEPTS BOGUS VARIABLES
 # We want to check if CHANGE MASTER values have newline characters.
+--source include/rpl_reset.inc
 connection slave;
 
 ###
