@@ -136,6 +136,7 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET_TARGET_PROPERTIES(${target} PROPERTIES COMPILE_DEFINITONS "MYSQL_SERVER")
     DTRACE_INSTRUMENT(${target})
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
+    RESTRICT_SYMBOL_EXPORTS(${target})
     IF(WITH_EMBEDDED_SERVER)
       # Embedded library should contain PIC code and be linkable
       # to shared libraries (on systems that need PIC)

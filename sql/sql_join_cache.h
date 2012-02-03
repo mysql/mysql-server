@@ -550,7 +550,7 @@ public:
     BNL_JOIN_ALG,     /* Block Nested Loop Join algorithm                  */
     BNLH_JOIN_ALG,    /* Block Nested Loop Hash Join algorithm             */
     BKA_JOIN_ALG,     /* Batched Key Access Join algorithm                 */
-    BKAH_JOIN_ALG,    /* Batched Key Access with Hash Table Join Algorithm */
+    BKAH_JOIN_ALG    /* Batched Key Access with Hash Table Join Algorithm */
   };
 
   /* 
