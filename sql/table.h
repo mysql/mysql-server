@@ -1797,7 +1797,6 @@ struct TABLE_LIST
   int fetch_number_of_rows();
   bool change_refs_to_fields();
 
-
   bool single_table_updatable();
 
 private:
