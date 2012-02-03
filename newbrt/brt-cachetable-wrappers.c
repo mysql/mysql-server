@@ -8,7 +8,6 @@
 #include <brttypes.h>
 #include <brt-flusher.h>
 #include <brt-internal.h>
-#include <cachetable.h>
 
 static void
 brtnode_get_key_and_fullhash(
@@ -49,11 +48,7 @@ cachetable_put_empty_node_with_dep_nodes(
         brtnode_get_key_and_fullhash,
         new_node,
         make_pair_attr(sizeof(BRTNODE)),
-        toku_brtnode_flush_callback,
-        toku_brtnode_pe_est_callback,
-        toku_brtnode_pe_callback,
-        toku_brtnode_cleaner_callback,
-        h,
+        get_write_callbacks_for_node(h),
         h,
         num_dependent_nodes,
         dependent_cf,
@@ -142,15 +137,11 @@ toku_pin_brtnode(
             fullhash,
             &node_v,
             NULL,
-            toku_brtnode_flush_callback,
+            get_write_callbacks_for_node(brt->h),
             toku_brtnode_fetch_callback,
-            toku_brtnode_pe_est_callback,
-            toku_brtnode_pe_callback,
             toku_brtnode_pf_req_callback,
             toku_brtnode_pf_callback,
-            toku_brtnode_cleaner_callback,
             bfe, //read_extraargs
-            brt->h, //write_extraargs
             unlockers);
     if (r==0) {
         BRTNODE node = node_v;
@@ -184,15 +175,11 @@ toku_pin_brtnode_holding_lock(
         fullhash,
         &node_v,
         NULL,
-        toku_brtnode_flush_callback,
+        get_write_callbacks_for_node(brt->h),
         toku_brtnode_fetch_callback,
-        toku_brtnode_pe_est_callback,
-        toku_brtnode_pe_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
-        toku_brtnode_cleaner_callback,
-        bfe,
-        brt->h
+        bfe
         );
     assert(r==0);
     BRTNODE node = node_v;
@@ -228,15 +215,11 @@ toku_pin_brtnode_off_client_thread(
         fullhash,
         &node_v,
         NULL,
-        toku_brtnode_flush_callback,
+        get_write_callbacks_for_node(h),
         toku_brtnode_fetch_callback,
-        toku_brtnode_pe_est_callback,
-        toku_brtnode_pe_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
-        toku_brtnode_cleaner_callback,
         bfe,
-        h,
         num_dependent_nodes,
         dependent_cf,
         dependent_keys,

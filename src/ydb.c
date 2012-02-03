@@ -4433,10 +4433,10 @@ toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporar
             );
     }
 
-    r = toku_grab_read_lock_on_directory(db, txn);
-    if (r != 0) 
-        return r;
-    
+    //r = toku_grab_read_lock_on_directory(db, txn);
+    //if (r != 0) 
+    //    return r;
+    r = 0;
     struct __toku_dbc_external *XMALLOC(eresult); // so the internal stuff is stuck on the end
     memset(eresult, 0, sizeof(*eresult));
     DBC *result = &eresult->external_part;

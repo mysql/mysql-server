@@ -532,9 +532,20 @@ extern void toku_brtnode_pe_est_callback(void* brtnode_pv, long* bytes_freed_est
 extern int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR old_attr, PAIR_ATTR* new_attr, void *extraargs);
 extern BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs);
 int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, PAIR_ATTR* sizep);
+extern int toku_brtnode_cleaner_callback( void *brtnode_pv, BLOCKNUM blocknum, u_int32_t fullhash, void *extraargs);
 extern int toku_brt_alloc_init_header(BRT t, TOKUTXN txn);
 extern int toku_read_brt_header_and_store_in_cachefile (BRT brt, CACHEFILE cf, LSN max_acceptable_lsn, struct brt_header **header, BOOL* was_open);
 extern CACHEKEY* toku_calculate_root_offset_pointer (struct brt_header* h, u_int32_t *root_hash);
+
+static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(struct brt_header* h) {
+    CACHETABLE_WRITE_CALLBACK wc;
+    wc.flush_callback = toku_brtnode_flush_callback;
+    wc.pe_est_callback = toku_brtnode_pe_est_callback;
+    wc.pe_callback = toku_brtnode_pe_callback;
+    wc.cleaner_callback = toku_brtnode_cleaner_callback;
+    wc.write_extraargs = h;
+    return wc;
+}
 
 static const BRTNODE null_brtnode=0;
 

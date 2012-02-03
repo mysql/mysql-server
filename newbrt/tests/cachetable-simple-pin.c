@@ -34,22 +34,6 @@ flush (CACHEFILE f __attribute__((__unused__)),
   }
 }
 
-static int
-fetch (CACHEFILE f        __attribute__((__unused__)),
-       int UU(fd),
-       CACHEKEY k         __attribute__((__unused__)),
-       u_int32_t fullhash __attribute__((__unused__)),
-       void **value       __attribute__((__unused__)),
-       PAIR_ATTR *sizep        __attribute__((__unused__)),
-       int  *dirtyp,
-       void *extraargs    __attribute__((__unused__))
-       ) {
-  *dirtyp = 0;
-  *value = NULL;
-  *sizep = make_pair_attr(8);
-  return 0;
-}
-
 static void kibbutz_work(void *fe_v)
 {
     CACHEFILE f1 = fe_v;
@@ -75,16 +59,18 @@ run_test (void) {
     //void* v2;
     long s1;
     //long s2;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, NULL, NULL);
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.flush_callback = flush;
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, NULL);
     foo = FALSE;
     cachefile_kibbutz_enq(f1, kibbutz_work, f1);
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, NULL, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, NULL);
     assert(foo);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
 
     //now let's do a simple checkpoint test
     // first dirty the PAIR
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, NULL, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, NULL);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
 
     // now this should mark the pair for checkpoint
@@ -95,7 +81,7 @@ run_test (void) {
     //
     check_me = TRUE;
     flush_called = FALSE;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, NULL, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, NULL);
     assert(flush_called);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
 

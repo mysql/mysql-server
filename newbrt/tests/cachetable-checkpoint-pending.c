@@ -82,7 +82,9 @@ do_update (void *UU(ignore))
         u_int32_t hi = toku_cachetable_hash(cf, key);
         void *vv;
 	long size;
-        int r = toku_cachetable_get_and_pin(cf, key, hi, &vv, &size, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0);
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        wc.flush_callback = flush;
+        int r = toku_cachetable_get_and_pin(cf, key, hi, &vv, &size, wc, fetch, def_pf_req_callback, def_pf_callback, 0);
 	//printf("g");
 	assert(r==0);
 	assert(size==sizeof(int));
@@ -131,7 +133,9 @@ static void checkpoint_pending(void) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t hi = toku_cachetable_hash(cf, key);
 	values[i] = 42;
-        r = toku_cachetable_put(cf, key, hi, &values[i], make_pair_attr(sizeof(int)), flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        wc.flush_callback = flush;
+        r = toku_cachetable_put(cf, key, hi, &values[i], make_pair_attr(sizeof(int)), wc);
         assert(r == 0);
 
         r = toku_cachetable_unpin(cf, key, hi, CACHETABLE_DIRTY, make_pair_attr(item_size));

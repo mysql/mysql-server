@@ -578,6 +578,15 @@ static int toku_rollback_cleaner_callback (
     return 0;
 }
 
+static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_rollback_log(struct brt_header* h) {
+    CACHETABLE_WRITE_CALLBACK wc;
+    wc.flush_callback = toku_rollback_flush_callback;
+    wc.pe_est_callback = toku_rollback_pe_est_callback;
+    wc.pe_callback = toku_rollback_pe_callback;
+    wc.cleaner_callback = toku_rollback_cleaner_callback;
+    wc.write_extraargs = h;
+    return wc;
+}
 
 static int toku_create_new_rollback_log (TOKUTXN txn, BLOCKNUM older, uint32_t older_hash, ROLLBACK_LOG_NODE *result) {
     ROLLBACK_LOG_NODE MALLOC(log);
@@ -605,11 +614,7 @@ static int toku_create_new_rollback_log (TOKUTXN txn, BLOCKNUM older, uint32_t o
     *result = log;
     r=toku_cachetable_put(cf, log->thislogname, log->thishash,
                           log, rollback_memory_size(log),
-                          toku_rollback_flush_callback, 
-                          toku_rollback_pe_est_callback,
-                          toku_rollback_pe_callback,
-                          toku_rollback_cleaner_callback,
-                          h);
+                          get_write_callbacks_for_rollback_log(h));
     assert(r==0);
     txn->current_rollback      = log->thislogname;
     txn->current_rollback_hash = log->thishash;
@@ -833,14 +838,10 @@ toku_maybe_prefetch_older_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
         struct brt_header *h = toku_cachefile_get_userdata(cf);
         BOOL doing_prefetch = FALSE;
         r = toku_cachefile_prefetch(cf, name, hash,
-                                    toku_rollback_flush_callback,
+                                    get_write_callbacks_for_rollback_log(h),
                                     toku_rollback_fetch_callback,
-                                    toku_rollback_pe_est_callback,
-                                    toku_rollback_pe_callback,
                                     toku_brtnode_pf_req_callback,
                                     toku_brtnode_pf_callback,
-                                    toku_rollback_cleaner_callback,
-                                    h,
                                     h,
                                     &doing_prefetch);
         assert(r==0);
@@ -865,14 +866,10 @@ int toku_get_and_pin_rollback_log(TOKUTXN txn, TXNID xid, uint64_t sequence, BLO
         struct brt_header *h = toku_cachefile_get_userdata(cf);
         r = toku_cachetable_get_and_pin(cf, name, hash,
                                         &log_v, NULL,
-                                        toku_rollback_flush_callback, 
+                                        get_write_callbacks_for_rollback_log(h),
                                         toku_rollback_fetch_callback,
-                                        toku_rollback_pe_est_callback,
-                                        toku_rollback_pe_callback,
                                         toku_rollback_pf_req_callback,
                                         toku_rollback_pf_callback,
-                                        toku_rollback_cleaner_callback,
-                                        h,
                                         h
                                         );
         assert(r==0);

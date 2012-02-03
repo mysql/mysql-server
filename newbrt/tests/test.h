@@ -196,6 +196,16 @@ def_cleaner_callback(
     return 0;
 }
 
+static UU() CACHETABLE_WRITE_CALLBACK def_write_callback(void* write_extraargs) {
+    CACHETABLE_WRITE_CALLBACK wc;
+    wc.flush_callback = def_flush;
+    wc.pe_est_callback = def_pe_est_callback;
+    wc.pe_callback = def_pe_callback;
+    wc.cleaner_callback = def_cleaner_callback;
+    wc.write_extraargs = write_extraargs;
+    return wc;
+}
+
 int verbose=0;
 
 static inline void

@@ -81,6 +81,8 @@ static void cachetable_prefetch_maybegetandpin_test (BOOL do_partial_fetch) {
     do_pf = FALSE;
     CACHEKEY key = make_blocknum(0);
     u_int32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.flush_callback = flush;
     if (do_partial_fetch) {
         expect_pf = TRUE;
         void* value;
@@ -91,14 +93,10 @@ static void cachetable_prefetch_maybegetandpin_test (BOOL do_partial_fetch) {
             fullhash, 
             &value, 
             &size, 
-            flush, 
+            wc, 
             fetch,
-            def_pe_est_callback, 
-            def_pe_callback, 
             pf_req_callback,
             pf_callback,
-            def_cleaner_callback,
-            0,
             0
             );
         assert(r==0);
@@ -110,16 +108,16 @@ static void cachetable_prefetch_maybegetandpin_test (BOOL do_partial_fetch) {
 
     // prefetch block 0. this will take 2 seconds.
     do_pf = TRUE;
-    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, def_pe_est_callback, def_pe_callback, pf_req_callback, pf_callback, def_cleaner_callback, 0, 0, NULL);
+    r = toku_cachefile_prefetch(f1, key, fullhash, wc, fetch, pf_req_callback, pf_callback, 0, NULL);
     toku_cachetable_verify(ct);
 
     // verify that get_and_pin waits while the prefetch is in progress
     void *v = 0;
     long size = 0;
     do_pf = FALSE;
-    r = toku_cachetable_get_and_pin_nonblocking(f1, key, fullhash, &v, &size, flush, fetch, def_pe_est_callback, def_pe_callback, pf_req_callback, pf_callback, def_cleaner_callback, NULL, NULL, NULL);
+    r = toku_cachetable_get_and_pin_nonblocking(f1, key, fullhash, &v, &size, wc, fetch, pf_req_callback, pf_callback, NULL, NULL);
     assert(r==TOKUDB_TRY_AGAIN);
-    r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, flush, fetch, def_pe_est_callback, def_pe_callback, pf_req_callback, pf_callback, def_cleaner_callback, NULL, NULL);
+    r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, wc, fetch, pf_req_callback, pf_callback, NULL);
     assert(r == 0 && v == 0 && size == 2);
 
     struct timeval tend; 

@@ -51,6 +51,9 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
     u_int32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
 
     // let's get and pin this node a bunch of times to drive up the clock count
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.pe_est_callback = pe_est_callback;
+    wc.pe_callback = pe_callback;
     for (int i = 0; i < 20; i++) {
         void* value;
         long size;
@@ -60,14 +63,10 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
             fullhash, 
             &value, 
             &size, 
-            def_flush, 
+            wc, 
             def_fetch,
-            pe_est_callback, 
-            pe_callback, 
             def_pf_req_callback,
             def_pf_callback,
-            def_cleaner_callback,
-            0,
             0
             );
         assert(r==0);
@@ -86,14 +85,10 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
         1,
         &value2,
         &size2,
-        def_flush, 
+        wc, 
         def_fetch,
-        pe_est_callback, 
-        pe_callback, 
         def_pf_req_callback,
         def_pf_callback,
-        def_cleaner_callback,
-        0,
         0
         );
     assert(r==0);
@@ -110,14 +105,10 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
         fullhash, 
         &v, 
         &size, 
-        def_flush, 
+        wc, 
         def_fetch, 
-        pe_est_callback, 
-        pe_callback, 
         def_pf_req_callback, 
         def_pf_callback, 
-        def_cleaner_callback,
-        NULL, 
         NULL, 
         NULL
         );
@@ -128,14 +119,10 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
         fullhash, 
         &v, 
         &size, 
-        def_flush, 
+        wc, 
         def_fetch, 
-        pe_est_callback, 
-        pe_callback, 
         def_pf_req_callback, 
         def_pf_callback, 
-        def_cleaner_callback,
-        NULL, 
         NULL
         );
     assert(r == 0 && v == 0 && size == 1);

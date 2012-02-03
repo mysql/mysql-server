@@ -111,14 +111,15 @@ static void move_number_to_child(
     CACHEKEY child_key;
     child_key.b = child;
     u_int32_t child_fullhash = toku_cachetable_hash(f1, child_key);
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.flush_callback = flush;
     r = toku_cachetable_get_and_pin_with_dep_pairs(
         f1,
         child_key,
         child_fullhash,
         &v1,
         &s1,
-        flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback,
-        NULL,
+        wc, fetch, def_pf_req_callback, def_pf_callback,
         NULL,
         1, //num_dependent_pairs
         &f1,
@@ -155,14 +156,15 @@ static void *move_numbers(void *arg) {
         CACHEKEY parent_key;
         parent_key.b = parent;
         u_int32_t parent_fullhash = toku_cachetable_hash(f1, parent_key);
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        wc.flush_callback = flush;
         r = toku_cachetable_get_and_pin_with_dep_pairs(
             f1,
             parent_key,
             parent_fullhash,
             &v1,
             &s1,
-            flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback,
-            NULL,
+            wc, fetch, def_pf_req_callback, def_pf_callback,
             NULL,
             0, //num_dependent_pairs
             NULL,
@@ -218,14 +220,15 @@ static void merge_and_split_child(
     child_key.b = child;
     u_int32_t child_fullhash = toku_cachetable_hash(f1, child_key);
     enum cachetable_dirty child_dirty = CACHETABLE_CLEAN;
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.flush_callback = flush;
     r = toku_cachetable_get_and_pin_with_dep_pairs(
         f1,
         child_key,
         child_fullhash,
         &v1,
         &s1,
-        flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback,
-        NULL,
+        wc, fetch, def_pf_req_callback, def_pf_callback,
         NULL,
         1, //num_dependent_pairs
         &f1,
@@ -258,8 +261,7 @@ static void merge_and_split_child(
         other_child_fullhash,
         &v1,
         &s1,
-        flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback,
-        NULL,
+        wc, fetch, def_pf_req_callback, def_pf_callback,
         NULL,
         2, //num_dependent_pairs
         cfs,
@@ -289,8 +291,7 @@ static void merge_and_split_child(
           get_data,
           data_val,
           make_pair_attr(8),
-          flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback,
-          NULL, // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
+          wc,
           &other_child,
           2, // number of dependent pairs that we may need to checkpoint
           cfs,
@@ -327,14 +328,15 @@ static void *merge_and_split(void *arg) {
         CACHEKEY parent_key;
         parent_key.b = parent;
         u_int32_t parent_fullhash = toku_cachetable_hash(f1, parent_key);
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        wc.flush_callback = flush;
         r = toku_cachetable_get_and_pin_with_dep_pairs(
             f1,
             parent_key,
             parent_fullhash,
             &v1,
             &s1,
-            flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback,
-            NULL,
+            wc, fetch, def_pf_req_callback, def_pf_callback,
             NULL,
             0, //num_dependent_pairs
             NULL,

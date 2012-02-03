@@ -163,7 +163,9 @@ static void test_chaining (void) {
 	int fnum = i%N_FILES;
 	//printf("%s:%d Add %d\n", __FILE__, __LINE__, i);
 	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
-	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, make_pair_attr(test_object_size), flush_forchain, def_pe_est_callback, def_pe_callback, def_cleaner_callback, (void*)i);
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback((void *)i);
+        wc.flush_callback = flush_forchain;
+	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, make_pair_attr(test_object_size), wc);
 	assert(r==0);
 	item_becomes_present(ct, f[fnum], make_blocknum(i));
 	r = toku_cachetable_unpin(f[fnum], make_blocknum(i), fhash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));
@@ -184,19 +186,17 @@ static void test_chaining (void) {
 	    void *value;
 	    //printf("Touching %d (%lld, %p)\n", whichone, whichkey, whichcf);
 	    u_int32_t fhash = toku_cachetable_hash(whichcf, whichkey);
+            CACHETABLE_WRITE_CALLBACK wc = def_write_callback((void*)(long)whichkey.b);
+            wc.flush_callback = flush_forchain;
 	    r = toku_cachetable_get_and_pin(whichcf,
 					    whichkey,
 					    fhash,
 					    &value,
 					    NULL,
-					    flush_forchain,
+					    wc,
 					    fetch_forchain,
-					    def_pe_est_callback,
-					    def_pe_callback,
 					    def_pf_req_callback,
 					    def_pf_callback,
-					    def_cleaner_callback,
-					    (void*)(long)whichkey.b,
                                             (void*)(long)whichkey.b
 					    );
 	    assert(r==0);
@@ -213,7 +213,9 @@ static void test_chaining (void) {
         // if i is a duplicate, cachetable_put will return -1
 	// printf("%s:%d Add {%ld,%p}\n", __FILE__, __LINE__, i, f[fnum]);
 	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
-	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, make_pair_attr(test_object_size), flush_forchain, def_pe_est_callback, def_pe_callback, def_cleaner_callback, (void*)i);
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback((void *)i);
+        wc.flush_callback = flush_forchain;
+	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, make_pair_attr(test_object_size), wc);
         assert(r==0 || r==-1);
         if (r==0) {
             item_becomes_present(ct, f[fnum], make_blocknum(i));

@@ -61,7 +61,9 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     for (i=0; i<n; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t hi = toku_cachetable_hash(f1, key);
-        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, make_pair_attr(1), flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        wc.flush_callback = flush;
+        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, make_pair_attr(1), wc);
         assert(r == 0);
 
         r = toku_cachetable_unpin(f1, key, hi, dirty, make_pair_attr(item_size));

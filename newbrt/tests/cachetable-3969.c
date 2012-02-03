@@ -5,27 +5,6 @@
 
 CACHETABLE ct;
 
-//
-// This test exposed a bug (#3970) caught only by Valgrind.
-// freed memory was being accessed by toku_cachetable_unpin_and_remove
-//
-
-static int
-fetch (CACHEFILE f        __attribute__((__unused__)),
-       int UU(fd),
-       CACHEKEY k         __attribute__((__unused__)),
-       u_int32_t fullhash __attribute__((__unused__)),
-       void **value       __attribute__((__unused__)),
-       PAIR_ATTR *sizep        __attribute__((__unused__)),
-       int  *dirtyp,
-       void *extraargs    __attribute__((__unused__))
-       ) {
-  *dirtyp = 0;
-  *value = NULL;
-  *sizep = make_pair_attr(8);
-  return 0;
-}
-
 CACHEFILE f1;
 
 static void
@@ -52,11 +31,11 @@ run_test (void) {
     long s1;
     long s2;
     
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, def_flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, NULL, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, def_write_callback(NULL), def_fetch, def_pf_req_callback, def_pf_callback, NULL);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8)); assert(r==0);
 
     for (int i = 0; i < 20; i++) {
-        r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, def_flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, NULL, NULL);
+        r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, def_write_callback(NULL), def_fetch, def_pf_req_callback, def_pf_callback, NULL);
         r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(8)); assert(r==0);
     }
 
@@ -68,12 +47,12 @@ run_test (void) {
 
 
     // pin 1 and 2
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v2, &s2, def_flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, NULL, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v2, &s2, def_write_callback(NULL), def_fetch, def_pf_req_callback, def_pf_callback, NULL);
     r = toku_cachetable_begin_checkpoint(ct, NULL);
     // mark nodes as pending a checkpoint, so that get_and_pin_nonblocking on block 1 will return TOKUDB_TRY_AGAIN
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8)); assert(r==0);
 
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, def_flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, NULL, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, def_write_callback(NULL), def_fetch, def_pf_req_callback, def_pf_callback, NULL);
     // now we try to pin 1, and it should get evicted out from under us
     struct unlockers foo;
     foo.extra = NULL;
@@ -86,14 +65,10 @@ run_test (void) {
         1,
         &v1,
         &s1,
-        def_flush,
-        fetch,
-        def_pe_est_callback,
-        def_pe_callback,
+        def_write_callback(NULL),
+        def_fetch,
         def_pf_req_callback,
         def_pf_callback,
-        def_cleaner_callback,
-        NULL,
         NULL,
         &foo
         );

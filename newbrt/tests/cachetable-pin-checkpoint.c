@@ -118,14 +118,15 @@ static void *move_numbers(void *arg) {
         less_key.b = less;
         u_int32_t less_fullhash = less;
         enum cachetable_dirty less_dirty = CACHETABLE_DIRTY;
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        wc.flush_callback = flush;
         r = toku_cachetable_get_and_pin_with_dep_pairs(
             f1,
             less_key,
             less,
             &v1,
             &s1,
-            flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback,
-            NULL,
+            wc, fetch, def_pf_req_callback, def_pf_callback,
             NULL,
             0, //num_dependent_pairs
             NULL,
@@ -146,8 +147,7 @@ static void *move_numbers(void *arg) {
             greater,
             &v1,
             &s1,
-            flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback,
-            NULL,
+            wc, fetch, def_pf_req_callback, def_pf_callback, 
             NULL,
             1, //num_dependent_pairs
             &f1,
@@ -180,8 +180,7 @@ static void *move_numbers(void *arg) {
                 third,
                 &v1,
                 &s1,
-                flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback,
-                NULL,
+                wc, fetch, def_pf_req_callback, def_pf_callback,
                 NULL,
                 1, //num_dependent_pairs
                 &f1,
@@ -209,14 +208,15 @@ static void *read_random_numbers(void *arg) {
         void* v1;
         long s1;
         int r1;
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        wc.flush_callback = flush;
         r1 = toku_cachetable_get_and_pin_nonblocking(
             f1,
             make_blocknum(rand_key1),
             rand_key1,
             &v1,
             &s1,
-            flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 
-            NULL,
+            wc, fetch, def_pf_req_callback, def_pf_callback, 
             NULL,
             NULL
             );

@@ -34,11 +34,12 @@ run_test (void) {
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
     
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     void* v1;
     //void* v2;
     long s1;
     //long s2;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, def_flush, def_fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, NULL, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, NULL);
     toku_cachetable_unpin(
         f1, 
         make_blocknum(1), 
@@ -49,7 +50,7 @@ run_test (void) {
 
     // now this should mark the pair for checkpoint
     r = toku_cachetable_begin_checkpoint(ct, NULL);
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, def_flush, def_fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, NULL, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, NULL);
 
     toku_pthread_t mytid;
     r = toku_pthread_create(&mytid, NULL, run_end_chkpt, NULL);

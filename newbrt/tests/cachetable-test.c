@@ -176,28 +176,30 @@ static void test0 (void) {
     u_int32_t h5 = toku_cachetable_hash(f, make_blocknum(5));
     u_int32_t h6 = toku_cachetable_hash(f, make_blocknum(6));
     u_int32_t h7 = toku_cachetable_hash(f, make_blocknum(7));
-    r=toku_cachetable_put(f, make_blocknum(1), h1, make_item(1), make_pair_attr(test_object_size), flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, t3);   /* 1P */        /* this is the lru list.  1 is pinned. */
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(t3);
+    wc.flush_callback = flush;
+    r=toku_cachetable_put(f, make_blocknum(1), h1, make_item(1), make_pair_attr(test_object_size), wc);   /* 1P */        /* this is the lru list.  1 is pinned. */
     assert(r==0);
     assert(expect_n_flushes==0);
 
     expect_init();
-    r=toku_cachetable_put(f, make_blocknum(2), h2, make_item(2), make_pair_attr(test_object_size), flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, t3);
+    r=toku_cachetable_put(f, make_blocknum(2), h2, make_item(2), make_pair_attr(test_object_size), wc);
     assert(r==0);
     r=toku_cachetable_unpin(f, make_blocknum(2), h2, CACHETABLE_DIRTY, make_pair_attr(1));           /* 2U 1P */
     assert(expect_n_flushes==0);
 
     expect_init(); 
-    r=toku_cachetable_put(f, make_blocknum(3), h3, make_item(3), make_pair_attr(test_object_size), flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, t3);
+    r=toku_cachetable_put(f, make_blocknum(3), h3, make_item(3), make_pair_attr(test_object_size), wc);
     assert(r==0);
     assert(expect_n_flushes==0);            /* 3P 2U 1P */   /* 3 is most recently used (pinned), 2 is next (unpinned), 1 is least recent (pinned) */
 
     expect_init(); 
-    r=toku_cachetable_put(f, make_blocknum(4), h4, make_item(4), make_pair_attr(test_object_size), flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, t3);
+    r=toku_cachetable_put(f, make_blocknum(4), h4, make_item(4), make_pair_attr(test_object_size), wc);
     assert(r==0);
     assert(expect_n_flushes==0);            /* 4P 3P 2U 1P */
 
     expect_init();
-    r=toku_cachetable_put(f, make_blocknum(5), h5, make_item(5), make_pair_attr(test_object_size), flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, t3);
+    r=toku_cachetable_put(f, make_blocknum(5), h5, make_item(5), make_pair_attr(test_object_size), wc);
     assert(r==0);
     r=toku_cachetable_unpin(f, make_blocknum(5), h5, CACHETABLE_DIRTY, make_pair_attr(test_object_size));
     assert(r==0);
@@ -206,7 +208,7 @@ static void test0 (void) {
     assert(expect_n_flushes==0);            /* 5U 4P 3U 2U 1P */
 
     expect1(2); /* 2 is the oldest unpinned item. */
-    r=toku_cachetable_put(f, make_blocknum(6), h6, make_item(6), make_pair_attr(test_object_size), flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, t3);   /* 6P 5U 4P 3U 1P */
+    r=toku_cachetable_put(f, make_blocknum(6), h6, make_item(6), make_pair_attr(test_object_size), wc);   /* 6P 5U 4P 3U 1P */
     assert(r==0);
     test_mutex_lock();
     while (expect_n_flushes != 0) {
@@ -216,7 +218,7 @@ static void test0 (void) {
     test_mutex_unlock();
 
     expect1(3);
-    r=toku_cachetable_put(f, make_blocknum(7), h7, make_item(7), make_pair_attr(test_object_size), flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, t3);
+    r=toku_cachetable_put(f, make_blocknum(7), h7, make_item(7), make_pair_attr(test_object_size), wc);
     assert(r==0);
     test_mutex_lock();
     while (expect_n_flushes != 0) {
@@ -230,7 +232,7 @@ static void test0 (void) {
     {
 	void *item_v=0;
 	expect_init(); 
-	r=toku_cachetable_get_and_pin(f, make_blocknum(5), toku_cachetable_hash(f, make_blocknum(5)), &item_v, NULL, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, t3, t3);  /* 5P 7U 6P 4P 1P */
+	r=toku_cachetable_get_and_pin(f, make_blocknum(5), toku_cachetable_hash(f, make_blocknum(5)), &item_v, NULL, wc, fetch, def_pf_req_callback, def_pf_callback, t3);  /* 5P 7U 6P 4P 1P */
 	assert(r==0);
 	assert(((struct item *)item_v)->key.b==5);
 	assert(strcmp(((struct item *)item_v)->something,"something")==0);
@@ -245,7 +247,9 @@ static void test0 (void) {
 	assert(r==0);
 	expect1(4);
 	did_fetch=make_blocknum(-1);
-	r=toku_cachetable_get_and_pin(f, make_blocknum(2), toku_cachetable_hash(f, make_blocknum(2)), &item_v, NULL, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, t3, t3);  /* 2p 5P 7U 6P 1P */
+        CACHETABLE_WRITE_CALLBACK wc2 = def_write_callback(t3);
+        wc2.flush_callback = flush;
+	r=toku_cachetable_get_and_pin(f, make_blocknum(2), toku_cachetable_hash(f, make_blocknum(2)), &item_v, NULL, wc2, fetch, def_pf_req_callback, def_pf_callback, t3);  /* 2p 5P 7U 6P 1P */
 	assert(r==0);
 	assert(did_fetch.b==2); /* Expect that 2 is fetched in. */
 	assert(((struct item *)item_v)->key.b==2);
@@ -324,10 +328,12 @@ static void test_nested_pin (void) {
 
     i0=0; i1=0;
     u_int32_t f1hash = toku_cachetable_hash(f, make_blocknum(1));
-    r = toku_cachetable_put(f, make_blocknum(1), f1hash, &i0, make_pair_attr(1), flush_n, def_pe_est_callback, def_pe_callback, def_cleaner_callback, f2);
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(f2);
+    wc.flush_callback = flush_n;
+    r = toku_cachetable_put(f, make_blocknum(1), f1hash, &i0, make_pair_attr(1), wc);
     assert(r==0);
     r = toku_cachetable_unpin(f, make_blocknum(1), f1hash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));
-    r = toku_cachetable_get_and_pin(f, make_blocknum(1), f1hash, &vv, NULL, flush_n, fetch_n, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, f2, f2);
+    r = toku_cachetable_get_and_pin(f, make_blocknum(1), f1hash, &vv, NULL, wc, fetch_n, def_pf_req_callback, def_pf_callback, f2);
     assert(r==0);
     assert(vv==&i0);
     assert(i0==0);
@@ -339,7 +345,7 @@ static void test_nested_pin (void) {
     r = toku_cachetable_unpin(f, make_blocknum(1), f1hash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));
     assert(r==0);
     u_int32_t f2hash = toku_cachetable_hash(f, make_blocknum(2));
-    r = toku_cachetable_put(f, make_blocknum(2), f2hash, &i1, make_pair_attr(test_object_size), flush_n, def_pe_est_callback, def_pe_callback, def_cleaner_callback, f2);
+    r = toku_cachetable_put(f, make_blocknum(2), f2hash, &i1, make_pair_attr(test_object_size), wc);
     assert(r==0); // The other one is pinned, but now the cachetable fails gracefully:  It allows the pin to happen
     r = toku_cachetable_unpin(f, make_blocknum(2), f2hash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));
     assert(r==0);
@@ -401,13 +407,16 @@ static void test_multi_filehandles (void) {
     assert(f1==f2);
     assert(f1!=f3);
     
-    r = toku_cachetable_put(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), (void*)124, make_pair_attr(test_object_size), null_flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, (void*)123); assert(r==0);
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback((void*)123);
+    wc.flush_callback = null_flush;
+    r = toku_cachetable_put(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), (void*)124, make_pair_attr(test_object_size), wc); assert(r==0);
     r = toku_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_DIRTY, make_pair_attr(0)); assert(r==0);
-    r = toku_cachetable_get_and_pin(f2, make_blocknum(1), toku_cachetable_hash(f2, make_blocknum(1)), &v, NULL, null_flush, add123_fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, (void*)123, (void*)123); assert(r==0);
+    r = toku_cachetable_get_and_pin(f2, make_blocknum(1), toku_cachetable_hash(f2, make_blocknum(1)), &v, NULL, wc, add123_fetch, def_pf_req_callback, def_pf_callback, (void*)123); assert(r==0);
     assert((unsigned long)v==124);
-    r = toku_cachetable_get_and_pin(f2, make_blocknum(2), toku_cachetable_hash(f2, make_blocknum(2)), &v, NULL, null_flush, add123_fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, (void*)123, (void*)123); assert(r==0);
+    r = toku_cachetable_get_and_pin(f2, make_blocknum(2), toku_cachetable_hash(f2, make_blocknum(2)), &v, NULL, wc, add123_fetch, def_pf_req_callback, def_pf_callback, (void*)123); assert(r==0);
     assert((unsigned long)v==125);
-    r = toku_cachetable_get_and_pin(f3, make_blocknum(2), toku_cachetable_hash(f3, make_blocknum(2)), &v, NULL, null_flush, add222_fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, (void*)222, (void*)222); assert(r==0);
+    wc.write_extraargs = (void*)222;
+    r = toku_cachetable_get_and_pin(f3, make_blocknum(2), toku_cachetable_hash(f3, make_blocknum(2)), &v, NULL, wc, add222_fetch, def_pf_req_callback, def_pf_callback, (void*)222); assert(r==0);
     assert((unsigned long)v==224);
 
     r = toku_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_CLEAN, make_pair_attr(0)); assert(r==0);
@@ -467,7 +476,9 @@ static void test_dirty(void) {
 
     key = make_blocknum(1); value = (void*)1;
     u_int32_t hkey = toku_cachetable_hash(f, key);
-    r = toku_cachetable_put(f, key, hkey, value, make_pair_attr(test_object_size), test_dirty_flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.flush_callback = test_dirty_flush;
+    r = toku_cachetable_put(f, key, hkey, value, make_pair_attr(test_object_size), wc);
     assert(r == 0);
 
     // cachetable_print_state(t);
@@ -483,8 +494,8 @@ static void test_dirty(void) {
     assert(dirty == 1);
     assert(pinned == 0);
 
-    r = toku_cachetable_get_and_pin(f, key, hkey, &value, NULL, test_dirty_flush,
-				    test_dirty_fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0);
+    r = toku_cachetable_get_and_pin(f, key, hkey, &value, NULL, wc,
+				    test_dirty_fetch, def_pf_req_callback, def_pf_callback, 0);
     assert(r == 0);
 
     // cachetable_print_state(t);
@@ -505,8 +516,8 @@ static void test_dirty(void) {
     key = make_blocknum(2);
     hkey = toku_cachetable_hash(f, key);
     r = toku_cachetable_get_and_pin(f, key, hkey,
-				    &value, NULL, test_dirty_flush,
-				    test_dirty_fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0);
+				    &value, NULL, wc,
+				    test_dirty_fetch, def_pf_req_callback, def_pf_callback, 0);
     assert(r == 0);
 
     // cachetable_print_state(t);
@@ -525,8 +536,8 @@ static void test_dirty(void) {
     assert(pinned == 0);
 
     r = toku_cachetable_get_and_pin(f, key, hkey,
-				    &value, NULL, test_dirty_flush,
-				    test_dirty_fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0);
+				    &value, NULL, wc,
+				    test_dirty_fetch, def_pf_req_callback, def_pf_callback, 0);
     assert(r == 0);
 
     // cachetable_print_state(t);
@@ -598,7 +609,9 @@ static void test_size_resize(void) {
 
     u_int32_t hkey = toku_cachetable_hash(f, key);
 
-    r = toku_cachetable_put(f, key, hkey, value, make_pair_attr(size), test_size_flush_callback, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.flush_callback = test_size_flush_callback;
+    r = toku_cachetable_put(f, key, hkey, value, make_pair_attr(size), wc);
     assert(r == 0);
 
     void *entry_value; int dirty; long long pinned; long entry_size;
@@ -615,7 +628,7 @@ static void test_size_resize(void) {
 
     void *current_value;
     long current_size;
-    r = toku_cachetable_get_and_pin(f, key, hkey, &current_value, &current_size, test_size_flush_callback, 0, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0);
+    r = toku_cachetable_get_and_pin(f, key, hkey, &current_value, &current_size, wc, 0, def_pf_req_callback, def_pf_callback, 0);
     assert(r == 0);
     assert(current_value == value);
     assert(current_size == new_size);
@@ -661,7 +674,9 @@ static void test_size_flush(void) {
         void *value = (void *)(long)-i;
         //        printf("test_size put %lld %p %lld\n", key, value, size);
 	u_int32_t hkey = toku_cachetable_hash(f, key);
-        r = toku_cachetable_put(f, key, hkey, value, make_pair_attr(size), test_size_flush_callback, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        wc.flush_callback = test_size_flush_callback;
+        r = toku_cachetable_put(f, key, hkey, value, make_pair_attr(size), wc);
         assert(r == 0);
 
         int n_entries, hash_size; long size_current, size_limit, size_max;

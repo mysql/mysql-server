@@ -70,10 +70,13 @@ cachetable_test (void) {
   r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
   BOOL doing_prefetch = FALSE;
-  r = toku_cachefile_prefetch(f1, make_blocknum(1), 1, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, &dirty_val, &dirty_val, &doing_prefetch);
+  CACHETABLE_WRITE_CALLBACK wc = def_write_callback(&dirty_val);
+  wc.flush_callback = flush;
+  r = toku_cachefile_prefetch(f1, make_blocknum(1), 1, wc, fetch, def_pf_req_callback, def_pf_callback, &dirty_val, &doing_prefetch);
   assert(doing_prefetch);
   doing_prefetch = FALSE;
-  r = toku_cachefile_prefetch(f1, make_blocknum(2), 2, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, NULL, NULL, &doing_prefetch);
+  wc.write_extraargs = NULL;
+  r = toku_cachefile_prefetch(f1, make_blocknum(2), 2, wc, fetch, def_pf_req_callback, def_pf_callback, NULL, &doing_prefetch);
   assert(doing_prefetch);
 
   //

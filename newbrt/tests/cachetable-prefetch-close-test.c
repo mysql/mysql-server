@@ -64,6 +64,8 @@ static void cachetable_prefetch_full_test (BOOL partial_fetch) {
     // if we want to do a test of partial fetch,
     // we first put the key into the cachefile so that
     // the subsequent prefetch does a partial fetch
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.flush_callback = flush;
     if (partial_fetch) {
         expect_pf = TRUE;
         void* value;
@@ -74,21 +76,17 @@ static void cachetable_prefetch_full_test (BOOL partial_fetch) {
             fullhash, 
             &value, 
             &size, 
-            flush, 
+            wc, 
             fetch,
-            def_pe_est_callback, 
-            def_pe_callback, 
             def_pf_req_callback,
             def_pf_callback,
-            def_cleaner_callback,
-            0,
             0
             );
         assert(r==0);
         r = toku_cachetable_unpin(f1, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(1));
     }
     
-    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0, NULL);
+    r = toku_cachefile_prefetch(f1, key, fullhash, wc, fetch, def_pf_req_callback, def_pf_callback, 0, NULL);
     toku_cachetable_verify(ct);
 
     // close with the prefetch in progress. the close should block until

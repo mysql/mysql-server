@@ -67,12 +67,14 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     int i;
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.flush_callback = flush;
 
     // prefetch keys 0 .. N-1.  they should all fit in the cachetable
     for (i=0; i<cachetable_size_limit; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0, NULL);
+        r = toku_cachefile_prefetch(f1, key, fullhash, wc, fetch, def_pf_req_callback, def_pf_callback, 0, NULL);
         toku_cachetable_verify(ct);
     }
 
@@ -83,7 +85,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     for (i=i; i<2*cachetable_size_limit; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0, NULL);
+        r = toku_cachefile_prefetch(f1, key, fullhash, wc, fetch, def_pf_req_callback, def_pf_callback, 0, NULL);
         toku_cachetable_verify(ct);
 	// sleep(1);
     }

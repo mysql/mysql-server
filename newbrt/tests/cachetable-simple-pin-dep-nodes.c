@@ -77,8 +77,12 @@ cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
     long s1;
     long s2;
     long s3;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, &val1, NULL);
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, &val2, NULL);
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(&val1);
+    wc.flush_callback = flush;
+    wc.write_extraargs = &val1;
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, fetch, def_pf_req_callback, def_pf_callback, &val1);
+    wc.write_extraargs = &val2;
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, &val2);
 
     CACHEFILE dependent_cfs[2];
     dependent_cfs[0] = f1;
@@ -105,15 +109,15 @@ cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
     check_me = TRUE;
     v1_written = FALSE;
     v2_written = FALSE;
+    wc.write_extraargs = &val3;
     r = toku_cachetable_get_and_pin_with_dep_pairs(
         f1,
         make_blocknum(3),
         3,
         &v3,
         &s3,
-        flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback,
+        wc, fetch, def_pf_req_callback, def_pf_callback,
         &val3,
-        NULL,
         2, //num_dependent_pairs
         dependent_cfs,
         dependent_keys,

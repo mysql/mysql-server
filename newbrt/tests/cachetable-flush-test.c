@@ -4,6 +4,7 @@
 
 static void
 test_cachetable_def_flush (int n) {
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     const int test_limit = 2*n;
     int r;
     CACHETABLE ct;
@@ -23,12 +24,12 @@ test_cachetable_def_flush (int n) {
     for (i=0; i<n; i++) {
         u_int32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
-        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), def_flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
+        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), wc);
         assert(r == 0);
         r = toku_cachetable_unpin(f1, make_blocknum(i), hi, CACHETABLE_CLEAN, make_pair_attr(1));
         assert(r == 0);
         hi = toku_cachetable_hash(f2, make_blocknum(i));
-        r = toku_cachetable_put(f2, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), def_flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
+        r = toku_cachetable_put(f2, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), wc);
         assert(r == 0);
         r = toku_cachetable_unpin(f2, make_blocknum(i), hi, CACHETABLE_CLEAN, make_pair_attr(1));
         assert(r == 0);

@@ -1298,8 +1298,7 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
     //printf("%s:%d put %lld\n", __FILE__, __LINE__, newroot_diskoff);
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, newroot_diskoff);
     newroot->fullhash = fullhash;
-    toku_cachetable_put(brt->cf, newroot_diskoff, fullhash, newroot, make_brtnode_pair_attr(newroot),
-			toku_brtnode_flush_callback, toku_brtnode_pe_est_callback, toku_brtnode_pe_callback, toku_brtnode_cleaner_callback, brt->h);
+    toku_cachetable_put(brt->cf, newroot_diskoff, fullhash, newroot, make_brtnode_pair_attr(newroot), get_write_callbacks_for_node(brt->h));
     *newrootp = newroot;
 }
 
@@ -2915,7 +2914,7 @@ static int setup_initial_brt_root_node (BRT t, BLOCKNUM blocknum) {
     node->fullhash = fullhash;
     int r = toku_cachetable_put(t->cf, blocknum, fullhash,
                                 node, make_brtnode_pair_attr(node),
-                                toku_brtnode_flush_callback, toku_brtnode_pe_est_callback, toku_brtnode_pe_callback, toku_brtnode_cleaner_callback, t->h);
+                                get_write_callbacks_for_node(t->h));
     if (r != 0)
 	toku_free(node);
     else
@@ -4999,15 +4998,11 @@ brt_node_maybe_prefetch(BRT brt, BRTNODE node, int childnum, BRT_CURSOR brtcurso
                 brt->cf,
                 nextchildblocknum,
                 nextfullhash,
-                toku_brtnode_flush_callback,
+                get_write_callbacks_for_node(brt->h),
                 brtnode_fetch_callback_and_free_bfe,
-                toku_brtnode_pe_est_callback,
-                toku_brtnode_pe_callback,
                 toku_brtnode_pf_req_callback,
                 brtnode_pf_callback_and_free_bfe,
-                toku_brtnode_cleaner_callback,
                 bfe,
-                brt->h,
                 &doing_prefetch
                 );
             if (!doing_prefetch) {
@@ -6011,15 +6006,11 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
         fullhash,
         &node_v, 
         NULL,
-	toku_brtnode_flush_callback, 
+        get_write_callbacks_for_node(brt->h),
 	toku_brtnode_fetch_callback, 
-	toku_brtnode_pe_est_callback,
-	toku_brtnode_pe_callback, 
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
-        toku_brtnode_cleaner_callback,
-	&bfe, 
-	brt->h
+	&bfe 
 	);
     assert_zero(r);
     node=node_v;

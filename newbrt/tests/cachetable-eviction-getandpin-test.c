@@ -47,20 +47,18 @@ static void cachetable_predef_fetch_maybegetandpin_test (void) {
     for (int i = 0; i < 20; i++) {
         void* value;
         long size;
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        wc.flush_callback = flush;
         r = toku_cachetable_get_and_pin(
             f1, 
             key, 
             fullhash, 
             &value, 
             &size, 
-            flush, 
+            wc, 
             def_fetch,
-            def_pe_est_callback, 
-            def_pe_callback, 
             def_pf_req_callback,
             def_pf_callback,
-            def_cleaner_callback,
-            0,
             0
             );
         assert(r==0);
@@ -74,20 +72,17 @@ static void cachetable_predef_fetch_maybegetandpin_test (void) {
     do_sleep = TRUE;
     void* value2;
     long size2;
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     r = toku_cachetable_get_and_pin(
         f1,
         make_blocknum(1),
         1,
         &value2,
         &size2,
-        def_flush, 
+        wc, 
         def_fetch,
-        def_pe_est_callback, 
-        def_pe_callback, 
         def_pf_req_callback,
         def_pf_callback,
-        def_cleaner_callback,
-        0,
         0
         );
     assert(r==0);
@@ -98,9 +93,11 @@ static void cachetable_predef_fetch_maybegetandpin_test (void) {
     void *v = 0;
     long size = 0;
     // now verify that the block we are trying to evict may be pinned
-    r = toku_cachetable_get_and_pin_nonblocking(f1, key, fullhash, &v, &size, flush, def_fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, NULL, NULL, NULL);
+    wc = def_write_callback(NULL);
+    wc.flush_callback = flush;
+    r = toku_cachetable_get_and_pin_nonblocking(f1, key, fullhash, &v, &size, wc, def_fetch, def_pf_req_callback, def_pf_callback, NULL, NULL);
     assert(r == TOKUDB_TRY_AGAIN);
-    r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, flush, def_fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, NULL, NULL);
+    r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, wc, def_fetch, def_pf_req_callback, def_pf_callback, NULL);
     assert(r == 0 && v == 0 && size == 8);
     do_sleep = FALSE;
 
