@@ -861,8 +861,10 @@ srv_free_slot(
 {
 	srv_sys_mutex_enter();
 
-	/* Mark the thread as inactive. */
-	srv_suspend_thread_low(slot);
+	if (!slot->suspended) {
+		/* Mark the thread as inactive. */
+		srv_suspend_thread_low(slot);
+	}
 
 	/* Free the slot for reuse. */
 	ut_ad(slot->in_use);
@@ -2619,9 +2621,14 @@ srv_purge_coordinator_suspend(
 			srv_sys_mutex_exit();
 
 			/* No new records added since wait started then simply
-			wait for new records. */
+			wait for new records. The magic number 5000 is an
+			approximation for the case where we have cached UNDO
+			log records which prevent truncate of the UNDO
+			segments. */
 
-			if (rseg_history_len == trx_sys->rseg_history_len) {
+			if (rseg_history_len == trx_sys->rseg_history_len
+			    && trx_sys->rseg_history_len < 5000) {
+
 				stop = true;
 			} 
 		}
