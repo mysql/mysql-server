@@ -45,20 +45,17 @@ struct {
   on which digest is to be calculated.
 */
 struct {
+         PFS_digest_hash m_digest_hash;
          int m_byte_count;
          int m_last_id_index;
          char m_token_array[PFS_MAX_DIGEST_STORAGE_SIZE];
-         PFS_digest_hash m_digest_hash;
+
+         void reset();
        } typedef PFS_digest_storage;
 
 /** A statement digest stat record. */
 struct PFS_statements_digest_stat
 {
-  /**
-    Digest hash/LF Hash search key.
-  */
-  PFS_digest_hash m_md5_hash;
-
   /**
     Digest Storage.
   */

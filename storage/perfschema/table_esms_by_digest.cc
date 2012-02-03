@@ -231,11 +231,11 @@ int table_esms_by_digest::rnd_next(void)
   digest_stat= &statements_digest_stat_array[m_pos.m_index];
 
   /* 
-    If MD5 HASH information exist for this record or
+    If byte_count is not 0 i.e. its a valid entry in stat array or
     If it is a record at index 0 of statements_digest_stat_array,
     make a new row.
   */
-  if(digest_stat->m_md5_hash.m_md5[0] != '\0' ||
+  if(digest_stat->m_digest_storage.m_byte_count != 0 ||
      m_pos.m_index == 0)
   {
     make_row(digest_stat);
@@ -255,11 +255,11 @@ table_esms_by_digest::rnd_pos(const void *pos)
   digest_stat= &statements_digest_stat_array[m_pos.m_index];
 
   /* 
-    If MD5 HASH information exist for this record or
+    If byte_count is not 0 i.e. its a valid entry in stat array or
     If it is a record at index 0 of statements_digest_stat_array,
     make a new row.
   */
-  if(digest_stat->m_md5_hash.m_md5[0] != '\0' ||
+  if(digest_stat->m_digest_storage.m_byte_count != 0 ||
      m_pos.m_index == 0)
   {
     make_row(digest_stat);
