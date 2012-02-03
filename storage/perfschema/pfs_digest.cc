@@ -67,7 +67,7 @@ int init_digest(unsigned int statements_digest_sizing)
   unsigned int index;
 
   /* 
-    TBD. Allocate memory for statements_digest_stat_array based on 
+    Allocate memory for statements_digest_stat_array based on 
     performance_schema_digests_size values
   */
   statements_digest_size= statements_digest_sizing;
@@ -89,7 +89,7 @@ int init_digest(unsigned int statements_digest_sizing)
 void cleanup_digest(void)
 {
   /* 
-    TBD. Free memory allocated to statements_digest_stat_array. 
+    Free memory allocated to statements_digest_stat_array. 
   */
   pfs_free(statements_digest_stat_array);
   statements_digest_stat_array= NULL;
@@ -107,7 +107,7 @@ static uchar *digest_hash_get_key(const uchar *entry, size_t *length,
   digest= *typed_entry;
   DBUG_ASSERT(digest != NULL);
   *length= 16; 
-  result= digest->m_md5_hash.m_md5;
+  result= digest->m_digest_storage.m_digest_hash.m_md5;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
 }
 C_MODE_END
@@ -202,13 +202,13 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
     */
     pfs->m_digest_storage.m_byte_count= digest_storage->m_byte_count;
     pfs->m_digest_storage.m_last_id_index= digest_storage->m_last_id_index;
+    /* Copy token array. */
     memcpy(pfs->m_digest_storage.m_token_array, digest_storage->m_token_array,
            PFS_MAX_DIGEST_STORAGE_SIZE);
+    /* Copy digest hash/LF Hash search key. */
     memcpy(pfs->m_digest_storage.m_digest_hash.m_md5,
            digest_storage->m_digest_hash.m_md5, 16);
 
-    /* Set digest hash/LF Hash search key. */
-    memcpy(pfs->m_md5_hash.m_md5, hash_key, 16);
 
     pfs->m_first_seen= now;
     pfs->m_last_seen= now;
@@ -250,6 +250,42 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
   return NULL;
 }
  
+void purge_digest(PFS_thread* thread, unsigned char* hash_key)
+{
+  /* get digest pin. */
+  LF_PINS *pins= get_digest_hash_pins(thread);
+  if(unlikely(pins == NULL))
+    return;
+
+  PFS_statements_digest_stat **entry;
+
+  /* Lookup LF_HASH using this new key. */
+  entry= reinterpret_cast<PFS_statements_digest_stat**>
+    (lf_hash_search(&digest_hash, pins,
+                    hash_key, 16));
+
+  if(entry && (entry != MY_ERRPTR))
+  { 
+    lf_hash_delete(&digest_hash, pins,
+                   hash_key, 16);
+  }
+  lf_hash_search_unpin(pins);
+  return;
+}
+
+void PFS_digest_storage::reset()
+{
+  PFS_thread *thread= PFS_thread::get_current_thread();
+  if (unlikely(thread == NULL))
+      return;
+
+  m_byte_count= 0;
+  m_last_id_index= 0;
+  m_token_array[0]= '\0';
+  purge_digest(thread, m_digest_hash.m_md5);
+  m_digest_hash.m_md5[0]= '\0';
+}
+
 void reset_esms_by_digest()
 {
   uint index;
@@ -262,14 +298,14 @@ void reset_esms_by_digest()
   */
   for (index= 0; index < statements_digest_size; index++)
   {
-    statements_digest_stat_array[index].m_md5_hash.m_md5[0]= '\0';
+    statements_digest_stat_array[index].m_digest_storage.reset();
     statements_digest_stat_array[index].m_stat.reset();
     statements_digest_stat_array[index].m_first_seen= 0;
     statements_digest_stat_array[index].m_last_seen= 0;
   }
 
   /* 
-    Reset index which indicates where the next calculated digest informationi
+    Reset index which indicates where the next calculated digest information
     to be inserted in statements_digest_stat_array.
   */
   digest_index= 1;

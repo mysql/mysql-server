@@ -104,17 +104,17 @@ void PFS_account_row::set_field(uint index, Field *f)
 int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
 {
   /*
-    "NULL" value for MD5_HASH indicates special entry i.e. aggregated
+    "0" value for byte_count indicates special entry i.e. aggregated
     stats at index 0 of statements_digest_stat_array. So do not calculate
     digest/digest_text as it should always be "NULL".
   */
-  if(pfs->m_md5_hash.m_md5[0] != '\0')
+  if(pfs->m_digest_storage.m_byte_count != 0)
   {
     /*
       Calculate digest from MD5 HASH collected to be shown as
       DIGEST in this row.
     */
-    MD5_HASH_TO_STRING(pfs->m_md5_hash.m_md5, m_digest);
+    MD5_HASH_TO_STRING(pfs->m_digest_storage.m_digest_hash.m_md5, m_digest);
     m_digest_length= 16;
 
     /* 
