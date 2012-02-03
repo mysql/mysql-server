@@ -3943,12 +3943,20 @@ REPLACE v1 SET a = 10;
 ERROR HY000: The target table v1 of the INSERT is not insertable-into
 INSERT into v1 values (20);
 ERROR HY000: The target table v1 of the INSERT is not insertable-into
+DELETE from v1;
+ERROR HY000: The target table v1 of the DELETE is not updatable
 UPDATE v3 SET b= 10;
 ERROR HY000: The target table v2 of the UPDATE is not updatable
 REPLACE v3 SET b= 10;
 ERROR HY000: The target table v3 of the INSERT is not insertable-into
 INSERT into v3(b) values (20);
 ERROR HY000: The target table v3 of the INSERT is not insertable-into
+DELETE from v3 where b=20;
+ERROR HY000: Can not delete from join view 'test.v3'
+DELETE from v3 where a=20;
+ERROR HY000: Can not delete from join view 'test.v3'
+DELETE v1 from v1,t1 where v1.a=t1.a;
+ERROR HY000: The target table v1 of the DELETE is not updatable
 UPDATE v3 SET a = 10;
 REPLACE v3 SET a = 11;
 INSERT INTO v3(a) values (20);
@@ -3959,6 +3967,16 @@ select * from t2;
 a
 10
 11
+20
+CREATE OR REPLACE ALGORITHM = MERGE VIEW v2 AS SELECT * FROM t2;
+DELETE from v1 where a=11;
+DELETE v1 from v1,t1 where v1.a=t1.a;
+select * from t1;
+a
+1
+select * from t2;
+a
+10
 20
 DROP VIEW v1,v2,v3;
 DROP TABLE t1,t2;

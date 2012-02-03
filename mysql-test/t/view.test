@@ -3998,15 +3998,29 @@ REPLACE v1 SET a = 10;
 --error ER_NON_INSERTABLE_TABLE
 INSERT into v1 values (20);
 --error ER_NON_UPDATABLE_TABLE
+DELETE from v1;
+--error ER_NON_UPDATABLE_TABLE
 UPDATE v3 SET b= 10;
 --error ER_NON_INSERTABLE_TABLE
 REPLACE v3 SET b= 10;
 --error ER_NON_INSERTABLE_TABLE
 INSERT into v3(b) values (20);
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE from v3 where b=20;
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE from v3 where a=20;
+--error ER_NON_UPDATABLE_TABLE
+DELETE v1 from v1,t1 where v1.a=t1.a;
 UPDATE v3 SET a = 10;
 REPLACE v3 SET a = 11;
 INSERT INTO v3(a) values (20);
 
+select * from t1;
+select * from t2;
+
+CREATE OR REPLACE ALGORITHM = MERGE VIEW v2 AS SELECT * FROM t2;
+DELETE from v1 where a=11;
+DELETE v1 from v1,t1 where v1.a=t1.a;
 select * from t1;
 select * from t2;
 
