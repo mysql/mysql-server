@@ -3259,12 +3259,12 @@ row_sel_pop_cached_row_for_mysql(
 }
 
 /********************************************************************//**
-Pushes a row for MySQL to the fetch cache. */
-UNIV_INLINE 
-void
-row_sel_push_cache_row_for_mysql(
-/*=============================*/
-	byte*		mysql_rec,	/*!< in/out: MySQL record */
+Get the last fetch cache buffer from the queue.
+@return pointer to buffer. */
+UNIV_INLINE
+byte*
+row_sel_fetch_last_buf(
+/*===================*/
 	row_prebuilt_t*	prebuilt)	/*!< in/out: prebuilt struct */
 {
         ut_a(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
@@ -3296,8 +3296,26 @@ row_sel_push_cache_row_for_mysql(
 	UNIV_MEM_INVALID(prebuilt->fetch_cache[prebuilt->n_fetch_cached],
 			 prebuilt->mysql_row_len);
 
-	memcpy(prebuilt->fetch_cache[prebuilt->n_fetch_cached],
-	       mysql_rec, prebuilt->mysql_row_len);
+	return(prebuilt->fetch_cache[prebuilt->n_fetch_cached]);
+}
+
+/********************************************************************//**
+Pushes a row for MySQL to the fetch cache. */
+UNIV_INLINE 
+void
+row_sel_push_cache_row_for_mysql(
+/*=============================*/
+	byte*		mysql_rec,	/*!< in/out: MySQL record */
+	row_prebuilt_t*	prebuilt)	/*!< in/out: prebuilt struct */
+{
+	/* For non ICP code path the row should already exist in the
+	next fetch cache slot. */
+
+	if (prebuilt->idx_cond != NULL) {
+		byte*	dest = row_sel_fetch_last_buf(prebuilt);
+
+		ut_memcpy(dest, mysql_rec, prebuilt->mysql_row_len);
+	}
 
         ++prebuilt->n_fetch_cached;
 }
@@ -4669,8 +4687,10 @@ requires_clust_rec:
                 format when ICP is disabled. */
 
 		if (!prebuilt->idx_cond
-		    && !row_sel_store_mysql_rec(buf, prebuilt, result_rec,
-						result_rec != rec, offsets)) {
+		    && !row_sel_store_mysql_rec(
+                            row_sel_fetch_last_buf(prebuilt),
+                            prebuilt, result_rec,
+			    result_rec != rec, offsets)) {
 			/* Only fresh inserts may contain incomplete
 			externally stored columns. Pretend that such
 			records do not exist. Such records may only be
