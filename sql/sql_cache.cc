@@ -1452,10 +1452,10 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       In case the wait time can't be determined there is an upper limit which
       causes try_lock() to abort with a time out.
 
-      The 'TRUE' parameter indicate that the lock is allowed to timeout
+      The 'TIMEOUT' parameter indicate that the lock is allowed to timeout
 
     */
-    if (try_lock(thd, Query_cache::WAIT))
+    if (try_lock(thd, Query_cache::TIMEOUT))
       DBUG_VOID_RETURN;
     if (query_cache_size == 0)
     {
@@ -1781,9 +1781,9 @@ Query_cache::send_result_to_client(THD *thd, char *org_sql, uint query_length)
     disabled or if a full cache flush is in progress, the attempt to
     get the lock is aborted.
 
-    The WAIT parameter indicate that the lock is allowed to timeout.
+    The TIMEOUT parameter indicate that the lock is allowed to timeout.
   */
-  if (try_lock(thd, Query_cache::WAIT))
+  if (try_lock(thd, Query_cache::TIMEOUT))
     goto err;
 
   if (query_cache_size == 0)

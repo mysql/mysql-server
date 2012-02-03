@@ -429,8 +429,8 @@ protected:
 	      uint def_query_hash_size = QUERY_CACHE_DEF_QUERY_HASH_SIZE,
 	      uint def_table_hash_size = QUERY_CACHE_DEF_TABLE_HASH_SIZE);
 
-  bool is_disabled(void) { return m_cache_status != OK; }
-  bool is_disable_in_progress(void)
+  inline bool is_disabled(void) { return m_cache_status != OK; }
+  inline bool is_disable_in_progress(void)
   { return m_cache_status == DISABLE_REQUEST; }
 
   /* initialize cache (mutex) */
