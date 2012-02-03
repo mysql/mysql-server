@@ -487,10 +487,8 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
-typedef void (*digest_add_token_v1_t)
+typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
   (struct PSI_digest_locker *locker, uint token, char *yytext, int yylen);
-typedef void (*digest_end_v1_t)
-  (struct PSI_digest_locker *locker);
 struct PSI_v1
 {
   register_mutex_v1_t register_mutex;
@@ -588,7 +586,6 @@ struct PSI_v1
   set_socket_thread_owner_v1_t set_socket_thread_owner;
   digest_start_v1_t digest_start;
   digest_add_token_v1_t digest_add_token;
-  digest_end_v1_t digest_end;
 };
 typedef struct PSI_v1 PSI;
 typedef struct PSI_mutex_info_v1 PSI_mutex_info;

@@ -416,17 +416,17 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
   return reinterpret_cast<PSI_digest_locker*> (state);
 }
 
-void pfs_digest_add_token_v1(PSI_digest_locker *locker,
-                             uint token,
-                             char *yytext,
-                             int yylen)
+PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
+                                           uint token,
+                                           char *yytext,
+                                           int yylen)
 {
   PSI_digest_locker_state *state= NULL;
   PFS_events_statements   *pfs= NULL;
   PFS_digest_storage      *digest_storage= NULL;
 
   if(!locker)
-    return;
+    return NULL;
 
   state= reinterpret_cast<PSI_digest_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
@@ -440,7 +440,7 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
     /*
       If digest storage record is full, do nothing.
     */
-    return;
+    return locker;
   }
 
   /* 
@@ -589,27 +589,6 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
       break;
     }
   }
-}
 
-void pfs_digest_end_v1(PSI_digest_locker *locker)
-{
-  PSI_digest_locker_state *state= NULL;
-  PFS_events_statements   *pfs= NULL;
-  PFS_digest_storage      *digest_storage= NULL;
-
-  if(!locker)
-    return;
-
-  state= reinterpret_cast<PSI_digest_locker_state*> (locker);
-  DBUG_ASSERT(state != NULL);
-
-  pfs= reinterpret_cast<PFS_events_statements *>(state->m_statement);
-  digest_storage= &pfs->m_digest_storage;
-
-  /*
-    Calculate MD5 Hash of the tokens received.
-  */
-  MY_MD5_HASH(digest_storage->m_digest_hash.m_md5,
-              (unsigned char *)digest_storage->m_token_array,
-              (uint) sizeof(digest_storage->m_token_array));
+  return locker;
 }
