@@ -8284,9 +8284,12 @@ SHOW_VAR status_vars[]= {
   {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
   {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
   {"Handler_discover",         (char*) offsetof(STATUS_VAR, ha_discover_count), SHOW_LONG_STATUS},
+#if 0
+  /* Made 3 counters below temporarily invisible until we agree upon their names */
   {"Handler_mrr_extra_key_sorts",   (char*) offsetof(STATUS_VAR, ha_mrr_extra_key_sorts), SHOW_LONG_STATUS},
   {"Handler_mrr_extra_rowid_sorts", (char*) offsetof(STATUS_VAR, ha_mrr_extra_rowid_sorts), SHOW_LONG_STATUS},
   {"Handler_mrr_init",         (char*) offsetof(STATUS_VAR, ha_multi_range_read_init_count),  SHOW_LONG_STATUS},
+#endif
   {"Handler_prepare",          (char*) offsetof(STATUS_VAR, ha_prepare_count),  SHOW_LONG_STATUS},
   {"Handler_read_first",       (char*) offsetof(STATUS_VAR, ha_read_first_count), SHOW_LONG_STATUS},
   {"Handler_read_key",         (char*) offsetof(STATUS_VAR, ha_read_key_count), SHOW_LONG_STATUS},
