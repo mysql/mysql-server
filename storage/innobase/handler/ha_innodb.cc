@@ -9176,10 +9176,6 @@ ha_innobase::delete_table(
 
 	parent_trx = check_trx_exists(thd);
 
-	trx_start_if_not_started(parent_trx);
-
-	//innobase_register_trx(ht, thd, parent_trx);
-
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
 
@@ -9243,8 +9239,6 @@ ha_innobase::delete_table(
 	innobase_commit_low(trx);
 
 	trx_free_for_mysql(trx);
-
-	innobase_commit_low(parent_trx);
 
 	error = convert_error_code_to_mysql(error, 0, NULL);
 
