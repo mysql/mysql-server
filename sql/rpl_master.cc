@@ -711,12 +711,6 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
           RETURN_STATUS_OK)
         DBUG_RETURN(false);
       gtid_string= slave_gtid_done.to_string();
-          
-      /*
-        Resetting the name of the file in order to force to start
-        reading from the oldest binary log available.
-      */
-      DBUG_ASSERT(name[0] == 0 && pos == BIN_LOG_HEADER_SIZE);
     }
   }
   DBUG_PRINT("info", ("Slave %d requested to read %s at position %llu gtid set "
@@ -913,8 +907,7 @@ impossible position";
     given that we want minimum modification of 4.0, we send the normal
     and fake Rotates.
   */
-  if (!searching_first_gtid &&
-      fake_rotate_event(net, packet, log_file_name, pos, &errmsg,
+  if (fake_rotate_event(net, packet, log_file_name, pos, &errmsg,
       get_binlog_checksum_value_at_connect(current_thd)))
   {
     /*
@@ -1170,6 +1163,7 @@ impossible position";
       case ROTATE_EVENT:
         skip_group= false;
         break;
+
       default:
         /* do nothing */
         break;
@@ -1390,6 +1384,9 @@ impossible position";
         {
           switch (event_type)
           {
+          case ANONYMOUS_GTID_LOG_EVENT:
+            /* do nothing */
+            break;
           case GTID_LOG_EVENT:
             if (gtid_mode == 0)
             {
@@ -1420,8 +1417,10 @@ impossible position";
             break;
 
           case STOP_EVENT:
-            skip_group= searching_first_gtid;
             binlog_can_be_corrupted= false;
+            /* FALLTHROUGH */
+          case INCIDENT_EVENT:
+            skip_group= searching_first_gtid;
             break;
 
           case PREVIOUS_GTIDS_LOG_EVENT:
@@ -1432,11 +1431,9 @@ impossible position";
               GOTO_ERR;
             }
             /* FALLTHROUGH */
-          case INCIDENT_EVENT:
           case ROTATE_EVENT:
-            skip_group= searching_first_gtid;
+            skip_group= false;
             break;
-          case ANONYMOUS_GTID_LOG_EVENT:
           default:
             /* do nothing */
             break;
