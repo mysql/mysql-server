@@ -615,17 +615,12 @@ digest_start_noop(PSI_statement_locker *locker NNN)
   return NULL;
 }
 
-static void digest_add_token_noop(PSI_digest_locker *locker NNN,
+static PSI_digest_locker* digest_add_token_noop(PSI_digest_locker *locker NNN,
                                 uint token NNN,
                                 char *yytext NNN,
                                 int yylen NNN)
 {
-  return;
-}
-
-static void digest_end_noop(PSI_digest_locker *locker NNN)
-{
-  return;
+  return NULL;
 }
 
 static PSI PSI_noop=
@@ -723,8 +718,7 @@ static PSI PSI_noop=
   set_socket_info_noop,
   set_socket_thread_owner_noop,
   digest_start_noop,
-  digest_add_token_noop,
-  digest_end_noop
+  digest_add_token_noop
 };
 
 /**

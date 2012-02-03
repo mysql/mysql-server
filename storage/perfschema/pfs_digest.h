@@ -93,13 +93,10 @@ extern PFS_statements_digest_stat *statements_digest_stat_array;
 /* Instrumentation callbacks for pfs.cc */
 
 struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker);
-void pfs_digest_add_token_v1(PSI_digest_locker *locker,
-                             uint token,
-                             char *yytext,
-                             int yylen);
-void pfs_digest_end_v1(PSI_digest_locker *locker);
-
-
+PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
+                                           uint token,
+                                           char *yytext,
+                                           int yylen);
 
 /** 
   Function to read a single token from token array.

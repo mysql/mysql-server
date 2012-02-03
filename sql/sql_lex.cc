@@ -32,34 +32,28 @@
 #include "sql_select.h"                // JOIN
 #include "sql_optimizer.h"             // JOIN
 
-#define PASS_TOKEN_TO_PS(_token,_yychar,_yylen)                              \
+#define PASS_TOKEN_TO_PS(_token)                                             \
   /*
     Passing token to PS function to calculate statement digest
     for this statement.
   */                                                                         \
-  if( _token != 0 )                                                          \
+  if( _token != 0 && lip->m_digest_psi != NULL)                              \
   {                                                                          \
     uint yylen= 0;                                                           \
     char *yychar= NULL;                                                      \
-    if( _token != END_OF_INPUT )                                             \
+    if( _token == IDENT_QUOTED || _token == IDENT )                          \
     {                                                                        \
-      if( _yylen!=0 )                                                        \
-      {                                                                      \
-        yylen= _yylen;                                                       \
-        yychar= (char*)_yychar;                                              \
-      }                                                                      \
-      else                                                                   \
-      {                                                                      \
-        /*
-          Get the length of processed token and make sure it doesn't exceed  \
-          TOCK_NAME_LENGTH. If it does, truncate it to TOCK_NAME_LENGTH.     \
-        */                                                                   \
-        yylen= lip->yyLength_PS();                                           \
-        yylen= yylen<TOCK_NAME_LENGTH ? yylen : TOCK_NAME_LENGTH-1;          \
-        yychar= (char*)lip->get_cpp_tok_start();                             \
-      }                                                                      \
-    }                                                                        \
-    PSI_CALL(digest_add_token)(lip->m_digest_psi,_token,yychar,yylen);       \
+      /*
+        If it is an identifier, get the length of processed token and
+        make sure it doesn't exceed TOCK_NAME_LENGTH. If it does,
+        truncate it to TOCK_NAME_LENGTH.
+      */                                                                    \
+      yylen= lip->yyLength() + 1;                                           \
+      yylen= yylen<TOCK_NAME_LENGTH ? yylen : TOCK_NAME_LENGTH-1;           \
+      yychar= (char*)lip->get_cpp_tok_start();                              \
+    }                                                                       \
+    lip->m_digest_psi= PSI_CALL(digest_add_token)(lip->m_digest_psi,        \
+                                                  _token, yychar, yylen);   \
   }
 
 static int lex_one_token(void *arg, void *yythd);
@@ -912,7 +906,7 @@ int MYSQLlex(void *arg, void *yythd)
     lip->lookahead_token= -1;
     *yylval= *(lip->lookahead_yylval);
     lip->lookahead_yylval= NULL;
-    PASS_TOKEN_TO_PS(token,NULL,0);
+    PASS_TOKEN_TO_PS(token);
     return token;
   }
 
@@ -930,10 +924,10 @@ int MYSQLlex(void *arg, void *yythd)
     token= lex_one_token(arg, yythd);
     switch(token) {
     case CUBE_SYM:
-      PASS_TOKEN_TO_PS(WITH_CUBE_SYM,"WITH CUBE",9);
+      PASS_TOKEN_TO_PS(WITH_CUBE_SYM);
       return WITH_CUBE_SYM;
     case ROLLUP_SYM:
-      PASS_TOKEN_TO_PS(WITH_ROLLUP_SYM,"WITH ROLLUP",11);
+      PASS_TOKEN_TO_PS(WITH_ROLLUP_SYM);
       return WITH_ROLLUP_SYM;
     default:
       /*
@@ -942,7 +936,7 @@ int MYSQLlex(void *arg, void *yythd)
       lip->lookahead_yylval= lip->yylval;
       lip->yylval= NULL;
       lip->lookahead_token= token;
-      PASS_TOKEN_TO_PS(WITH,"WITH",4);
+      PASS_TOKEN_TO_PS(WITH);
       return WITH;
     }
     break;
@@ -950,7 +944,7 @@ int MYSQLlex(void *arg, void *yythd)
     break;
   }
 
-  PASS_TOKEN_TO_PS(token,NULL,0);
+  PASS_TOKEN_TO_PS(token);
   return token;
 }
 
