@@ -9143,18 +9143,22 @@ void Item_ref::update_used_tables()
 }
 
 
-table_map Item_direct_view_ref::used_tables() const		
+table_map Item_direct_view_ref::used_tables() const
 {
-  return get_depended_from() ? 
+  return get_depended_from() ?
          OUTER_REF_TABLE_BIT :
-         (view->merged ? (*ref)->used_tables() : view->table->map); 
+         ((view->merged || !view->table) ?
+          (*ref)->used_tables() :
+          view->table->map);
 }
 
-table_map Item_direct_view_ref::not_null_tables() const		
+table_map Item_direct_view_ref::not_null_tables() const
 {
-  return get_depended_from() ? 
+  return get_depended_from() ?
          0 :
-         (view->merged ? (*ref)->not_null_tables() : view->table->map); 
+         ((view->merged || !view->table) ?
+          (*ref)->not_null_tables() :
+          view->table->map);
 }
 
 /*

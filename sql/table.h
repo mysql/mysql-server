@@ -1797,6 +1797,9 @@ struct TABLE_LIST
   int fetch_number_of_rows();
   bool change_refs_to_fields();
 
+
+  bool single_table_updatable();
+
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);

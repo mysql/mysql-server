@@ -7927,7 +7927,8 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
     while ((table_list= ti++))
     {
       TABLE *table= table_list->table;
-      table->pos_in_table_list= table_list;
+      if (table)
+        table->pos_in_table_list= table_list;
       if (first_select_table &&
           table_list->top_table() == first_select_table)
       {
@@ -7940,7 +7941,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
       {
         table_list->jtbm_table_no= tablenr;
       }
-      else
+      else if (table)
       {
         table->pos_in_table_list= table_list;
         setup_table_map(table, table_list, tablenr);
