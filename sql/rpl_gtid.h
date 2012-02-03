@@ -840,8 +840,10 @@ public:
   */
   Gtid_set(Sid_map *sid_map, const char *text, enum_return_status *status,
            Checkable_rwlock *sid_lock= NULL);
+private:
   /// Worker for the constructor.
-  void init(Sid_map *_sid_map, Checkable_rwlock *_sid_lock);
+  void init();
+public:
   /// Destroy this Gtid_set.
   ~Gtid_set();
   /**
@@ -862,8 +864,11 @@ public:
   */
   enum_return_status _add_gtid(rpl_sidno sidno, rpl_gno gno)
   {
+    DBUG_ENTER("Gtid_set::_add_gtid(sidno, gno)");
     Interval_iterator ivit(this, sidno);
-    return add_gno_interval(&ivit, gno, gno + 1);
+    Free_intervals_lock lock(this);
+    enum_return_status ret= add_gno_interval(&ivit, gno, gno + 1, &lock);
+    DBUG_RETURN(ret);
   }
   /**
     Removes the given GTID from this Gtid_set.
@@ -874,12 +879,15 @@ public:
   */
   enum_return_status _remove_gtid(rpl_sidno sidno, rpl_gno gno)
   {
+    DBUG_ENTER("Gtid_set::_remove_gtid(rpl_sidno, rpl_gno)");
     if (sidno <= get_max_sidno())
     {
       Interval_iterator ivit(this, sidno);
-      return remove_gno_interval(&ivit, gno, gno + 1);
+      Free_intervals_lock lock(this);
+      enum_return_status ret= remove_gno_interval(&ivit, gno, gno + 1, &lock);
+      DBUG_RETURN(ret);
     }
-    return RETURN_STATUS_OK;
+    RETURN_OK;
   }
   /**
     Adds the given GTID to this Gtid_set.
@@ -977,11 +985,6 @@ public:
   bool equals(const Gtid_set *other) const;
   /// Returns true if this Gtid_set is a subset of the other Gtid_set.
   bool is_subset(const Gtid_set *super) const;
-  /**
-    Computes the intersection of this set and the other set and stores
-    in this set.
-  */
-  //Gtid_set in_place_intersection(Gtid_set *other);
   /// Returns true if this Gtid_set is empty.
   bool is_empty() const
   {
@@ -989,7 +992,7 @@ public:
     return git.get().sidno == 0;
   }
   /**
-    Returns true if this Gtid_set contains at least one group with
+    Returns true if this Gtid_set contains at least one GTID with
     the given SIDNO.
 
     @param sidno The SIDNO to test.
@@ -1152,7 +1155,15 @@ public:
     @param n_intervals The number of intervals to add.
     @param intervals Array of n_intervals intervals.
   */
-  void add_interval_memory(int n_intervals, Interval *intervals);
+  void add_interval_memory(int n_intervals, Interval *intervals)
+  {
+    if (sid_lock != NULL)
+      mysql_mutex_lock(&free_intervals_mutex);
+    add_interval_memory_lock_taken(n_intervals, intervals);
+    if (sid_lock != NULL)
+      mysql_mutex_unlock(&free_intervals_mutex);
+  }
+
 
   /**
     Iterator over intervals for a given SIDNO.
@@ -1335,21 +1346,7 @@ public:
     Const_interval_iterator ivit;
   };
 
-  /**
-    Adds the interval (start, end) to the given Interval_iterator.
-
-    This is the lowest-level function that adds groups; this is where
-    Interval objects are added, grown, or merged.
-
-    @param ivitp Pointer to iterator.  After this function returns,
-    the current_element of the iterator will be the interval that
-    contains start and end.
-    @param start The first GNO in the interval.
-    @param end The first GNO after the interval.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status add_gno_interval(Interval_iterator *ivitp,
-                                      rpl_gno start, rpl_gno end);
+public:
 
   /**
     Encodes this Gtid_set as a binary string.
@@ -1411,48 +1408,6 @@ private:
     return ret;
   }
   /**
-    Adds a list of intervals to the given SIDNO.
-
-    The SIDNO must exist in the Gtid_set before this function is called.
-
-    @param sidno The SIDNO to which intervals will be added.
-    @param ivit Iterator over the intervals to add. This is typically
-    an iterator over some other Gtid_set.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status add_gno_intervals(rpl_sidno sidno,
-                                       Const_interval_iterator ivit);
-  /**
-    Removes a list of intervals from the given SIDNO.
-
-    It is not required that the intervals exist in this Gtid_set.
-
-    @param sidno The SIDNO from which intervals will be removed.
-    @param ivit Iterator over the intervals to remove. This is typically
-    an iterator over some other Gtid_set.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status remove_gno_intervals(rpl_sidno sidno,
-                                          Const_interval_iterator ivit);
-  /**
-    Removes the interval (start, end) from the given
-    Interval_iterator. This is the lowest-level function that removes
-    groups; this is where Interval objects are removed, truncated, or
-    split.
-
-    It is not required that the groups in the interval exist in this
-    Gtid_set.
-
-    @param ivitp Pointer to iterator.  After this function returns,
-    the current_element of the iterator will be the next interval
-    after end.
-    @param start The first GNO in the interval.
-    @param end The first GNO after the interval.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status remove_gno_interval(Interval_iterator *ivitp,
-                                         rpl_gno start, rpl_gno end);
-  /**
     Allocates a new chunk of Intervals and adds them to the list of
     unused intervals.
 
@@ -1476,9 +1431,158 @@ private:
     unlink it from its place in any other list.
   */
   void put_free_interval(Interval *iv);
+  /**
+    Like add_interval_memory, but does not acquire
+    free_intervals_mutex.
+    @see Gtid_set::add_interval_memory
+  */
+  void add_interval_memory_lock_taken(int n_ivs, Interval *ivs);
 
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
+  /**
+    Lock protecting the list of free intervals.  This lock is only
+    used if sid_lock is not NULL.
+  */
+  mysql_mutex_t free_intervals_mutex;
+  /**
+    Class representing a lock on free_intervals_mutex.
+
+    This is used by the add_* and remove_* functions.  The lock is
+    declared by the top-level function and a pointer to the lock is
+    passed down to low-level functions. If the low-level function
+    decides to access the free intervals list, then it acquires the
+    lock.  The lock is then automatically released by the destructor
+    when the top-level function returns.
+
+    The lock is not taken if Gtid_set->sid_lock == NULL; such
+    Gtid_sets are assumed to be thread-local.
+  */
+  class Free_intervals_lock
+  {
+  public:
+    /// Create a new lock, but do not acquire it.
+    Free_intervals_lock(Gtid_set *_gtid_set)
+      : gtid_set(_gtid_set), locked(false) {}
+    /// Lock the lock if it is not already locked.
+    void lock_if_not_locked()
+    {
+      if (gtid_set->sid_lock && !locked)
+      {
+        mysql_mutex_lock(&gtid_set->free_intervals_mutex);
+        locked= true;
+      }
+    }
+    /// Lock the lock if it is locked.
+    void unlock_if_locked()
+    {
+      if (gtid_set->sid_lock && locked)
+      {
+        mysql_mutex_unlock(&gtid_set->free_intervals_mutex);
+        locked= false;
+      }
+    }
+    /// Destroy this object and unlock the lock if it is locked.
+    ~Free_intervals_lock()
+    {
+      unlock_if_locked();
+    }
+  private:
+    Gtid_set *gtid_set;
+    bool locked;
+  };
+  void assert_free_intervals_locked()
+  {
+    if (sid_lock != NULL)
+      mysql_mutex_assert_owner(&free_intervals_mutex);
+  }
+
+  /**
+    Adds the interval (start, end) to the given Interval_iterator.
+
+    This is the lowest-level function that adds groups; this is where
+    Interval objects are added, grown, or merged.
+
+    @param ivitp Pointer to iterator.  After this function returns,
+    the current_element of the iterator will be the interval that
+    contains start and end.
+    @param start The first GNO in the interval.
+    @param end The first GNO after the interval.
+    @param lock If this function has to add or remove an interval,
+    then this lock will be taken unless it is already taken.  This
+    mechanism means that the lock will be taken lazily by
+    e.g. add_gtid_set() the first time that the list of free intervals
+    is accessed, and automatically released when add_gtid_set()
+    returns.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status add_gno_interval(Interval_iterator *ivitp,
+                                      rpl_gno start, rpl_gno end,
+                                      Free_intervals_lock *lock);
+  /**
+    Removes the interval (start, end) from the given
+    Interval_iterator. This is the lowest-level function that removes
+    groups; this is where Interval objects are removed, truncated, or
+    split.
+
+    It is not required that the groups in the interval exist in this
+    Gtid_set.
+
+    @param ivitp Pointer to iterator.  After this function returns,
+    the current_element of the iterator will be the next interval
+    after end.
+    @param start The first GNO in the interval.
+    @param end The first GNO after the interval.
+    @param lock If this function has to add or remove an interval,
+    then this lock will be taken unless it is already taken.  This
+    mechanism means that the lock will be taken lazily by
+    e.g. add_gtid_set() the first time that the list of free intervals
+    is accessed, and automatically released when add_gtid_set()
+    returns.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status remove_gno_interval(Interval_iterator *ivitp,
+                                         rpl_gno start, rpl_gno end,
+                                         Free_intervals_lock *lock);
+  /**
+    Adds a list of intervals to the given SIDNO.
+
+    The SIDNO must exist in the Gtid_set before this function is called.
+
+    @param sidno The SIDNO to which intervals will be added.
+    @param ivit Iterator over the intervals to add. This is typically
+    an iterator over some other Gtid_set.
+    @param lock If this function has to add or remove an interval,
+    then this lock will be taken unless it is already taken.  This
+    mechanism means that the lock will be taken lazily by
+    e.g. add_gtid_set() the first time that the list of free intervals
+    is accessed, and automatically released when add_gtid_set()
+    returns.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status add_gno_intervals(rpl_sidno sidno,
+                                       Const_interval_iterator ivit,
+                                       Free_intervals_lock *lock);
+  /**
+    Removes a list of intervals from the given SIDNO.
+
+    It is not required that the intervals exist in this Gtid_set.
+
+    @param sidno The SIDNO from which intervals will be removed.
+    @param ivit Iterator over the intervals to remove. This is typically
+    an iterator over some other Gtid_set.
+    @param lock If this function has to add or remove an interval,
+    then this lock will be taken unless it is already taken.  This
+    mechanism means that the lock will be taken lazily by
+    e.g. add_gtid_set() the first time that the list of free intervals
+    is accessed, and automatically released when add_gtid_set()
+    returns.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status remove_gno_intervals(rpl_sidno sidno,
+                                          Const_interval_iterator ivit,
+                                          Free_intervals_lock *lock);
+
   /// Sid_map associated with this Gtid_set.
   Sid_map *sid_map;
   /**
@@ -1506,6 +1610,8 @@ private:
 #ifdef FRIEND_OF_GTID_SET
   friend FRIEND_OF_GTID_SET;
 #endif
+  /// Only Free_intervals_lock is allowed to access free_intervals_mutex.
+  friend class Gtid_set::Free_intervals_lock;
 };
 
 
