@@ -714,4 +714,27 @@ ndb_configurable_log_parts(Uint32 x)
   }
   return x >= NDBD_CONFIGURABLE_LOG_PARTS_72;
 }
+
+#define NDBD_128_INSTANCES_ADDRESS_70 NDB_MAKE_VERSION(7,0,31)
+#define NDBD_128_INSTANCES_ADDRESS_71 NDB_MAKE_VERSION(7,1,20)
+#define NDBD_128_INSTANCES_ADDRESS_72 NDB_MAKE_VERSION(7,2,5)
+
+static
+inline
+int
+ndbd_128_instances_address(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor < 2)
+  {
+    if (minor == 0)
+      return x >= NDBD_128_INSTANCES_ADDRESS_70;
+    else if (minor == 1)
+      return x >= NDBD_128_INSTANCES_ADDRESS_71;
+  }
+  return x >= NDBD_128_INSTANCES_ADDRESS_72;
+}
+
 #endif
