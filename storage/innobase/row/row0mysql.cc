@@ -3230,28 +3230,30 @@ row_import_tablespace_adjust_root_pages(
 						the import */
 	dict_table_t*		table,		/*!< in: table the indexes
 						belong to */
-	dict_index_t**		index,		/*!< out: index where error
-						detected */
 	ulint			n_rows_in_table)/*!< in: number of rows
 						left in index */
 {
+	dict_index_t*		index;
 	db_err			err = DB_SUCCESS;
 
-	*index = dict_table_get_first_index(table);
+	index = dict_table_get_first_index(table);
 
-	while ((*index = dict_table_get_next_index(*index)) != NULL) {
+	while ((index = dict_table_get_next_index(index)) != NULL) {
 		ulint		n_rows;
 
-		err = (db_err) btr_root_adjust_on_import(*index);
+		err = (db_err) btr_root_adjust_on_import(index);
 
-		if (err != DB_SUCCESS) {
-			break;
-		} else if (!btr_validate_index(*index, trx, TRUE)) {
+		/* We have already validated the cluster index, skip it here. */
+
+		if (err != DB_SUCCESS
+		    || (!dict_index_is_clust(index)
+			&& !btr_validate_index(index, trx, TRUE))) {
+
 			break;
 		}
 
 		err = (db_err) row_import_tablespace_scan_index(
-			*index, trx, table->space, &n_rows);
+			index, trx, table->space, &n_rows);
 
 		if (err != DB_SUCCESS) {
 			break;
@@ -3259,7 +3261,7 @@ row_import_tablespace_adjust_root_pages(
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr, " InnoDB: ");
-			dict_index_name_print(stderr, trx, *index);
+			dict_index_name_print(stderr, trx, index);
 			fprintf(stderr,
 				" contains %lu entries, should be %lu\n",
 				(ulong) n_rows,
@@ -3291,23 +3293,23 @@ row_import_tablespace_set_sys_max_row_id(
 /*=====================================*/
 	row_prebuilt_t*		prebuilt,	/*!< in/out: prebuilt from
 						handler */
-	const dict_table_t*	table,		/*!< in: table to import */
-	dict_index_t**		index)		/*!< out: current index */
+	const dict_table_t*	table)		/*!< in: table to import */
 {
 	db_err			err;
 	const rec_t*		rec;
 	mtr_t			mtr;
 	btr_pcur_t		pcur;
 	row_id_t		row_id	= 0;
+	dict_index_t*		index;
 
-	*index = dict_table_get_first_index(table);
-	ut_a(dict_index_is_clust(*index));
+	index = dict_table_get_first_index(table);
+	ut_a(dict_index_is_clust(index));
 
 	mtr_start(&mtr);
 
 	btr_pcur_open_at_index_side(
 		FALSE,		// High end
-		*index,
+		index,
 		BTR_SEARCH_LEAF,
 		&pcur,
 		TRUE,		// Init cursor
@@ -3327,11 +3329,11 @@ row_import_tablespace_set_sys_max_row_id(
 		rec_offs_init(offsets_);
 
 		offsets = rec_get_offsets(
-			rec, *index, offsets_, ULINT_UNDEFINED, &heap);
+			rec, index, offsets_, ULINT_UNDEFINED, &heap);
 
 		field = rec_get_nth_field(
 			rec, offsets,
-			dict_index_get_sys_col_pos(*index, DATA_ROW_ID),
+			dict_index_get_sys_col_pos(index, DATA_ROW_ID),
 			&len);
 
 		if (len == DATA_ROW_ID_LEN) {
@@ -3561,7 +3563,7 @@ row_import_tablespace_set_index_root(
 			" InnoDB: Unsupported meta-data version number (%lu). "
 			"File ignored.\n", (ulint) value);
 
-		return(DB_IO_ERROR);
+		return(DB_ERROR);
 	}
 
 	return(DB_ERROR);
@@ -3721,11 +3723,6 @@ row_import_tablespace_for_mysql(
 		ut_print_name(stderr, prebuilt->trx, TRUE, table->name);
 		fprintf(stderr, "\n");
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: in ALTER TABLE ");
-		ut_print_name(stderr, prebuilt->trx, TRUE, table->name);
-		fprintf(stderr, " IMPORT TABLESPACE\n");
-
 		return(row_import_tablespace_cleanup(prebuilt, trx, DB_ERROR));
 	}
 
@@ -3748,11 +3745,6 @@ row_import_tablespace_for_mysql(
 			fprintf(stderr, " InnoDB: table ");
 			ut_print_name(stderr, prebuilt->trx, TRUE, table->name);
 			fprintf(stderr, "\n");
-
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: in ALTER TABLE ");
-			ut_print_name(stderr, prebuilt->trx, TRUE, table->name);
-			fprintf(stderr, " IMPORT TABLESPACE\n");
 		}
 
 		return(row_import_tablespace_cleanup(prebuilt, trx, DB_ERROR));
@@ -3797,7 +3789,7 @@ row_import_tablespace_for_mysql(
 	}
 
 	err = row_import_tablespace_adjust_root_pages(
-		prebuilt, trx, table, &index, n_rows_in_table);
+		prebuilt, trx, table, n_rows_in_table);
 
 	if (err != DB_SUCCESS) {
 		return(row_import_tablespace_error(prebuilt, trx, err));
@@ -3807,12 +3799,9 @@ row_import_tablespace_for_mysql(
 
 	table->ibd_file_missing = FALSE;
 
-	index = dict_table_get_first_index(table);
-
 	if (!dict_index_is_unique(index)) {
 
-		err = row_import_tablespace_set_sys_max_row_id(
-			prebuilt, table, &index);
+		err = row_import_tablespace_set_sys_max_row_id(prebuilt, table);
 
 		if (err != DB_SUCCESS) {
 			return(row_import_tablespace_error(prebuilt, trx, err));
