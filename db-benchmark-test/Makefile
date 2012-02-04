@@ -158,6 +158,8 @@ $(SCANRACE_TDB): scanrace.c $(PTHREAD_LOCAL)
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES) $(LINK_MUST_BE_LAST)
 $(MULTIBENCH_TDB): multi-bench.c $(PTHREAD_LOCAL)
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES) $(LINK_MUST_BE_LAST)
+$(TXNCOMMIT_TDB): txncommit.c $(PTHREAD_LOCAL)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES) $(LINK_MUST_BE_LAST)
 
 else
 ifeq ($(OS_CHOICE),windows)
