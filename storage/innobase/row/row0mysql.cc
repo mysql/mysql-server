@@ -5879,7 +5879,7 @@ row_mysql_quiesce_write_meta_data(
 Quiesce the tablespace that the table resides in. */
 UNIV_INTERN
 void
-row_mysql_quiesce_table_begin(
+row_mysql_quiesce_table_start(
 /*==========================*/
 	dict_table_t*	table)		/*!< in: quiesce this table */
 {
