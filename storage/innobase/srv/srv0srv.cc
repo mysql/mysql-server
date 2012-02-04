@@ -774,7 +774,7 @@ srv_suspend_thread_low(
 
 	slot->suspended = TRUE;
 
-	ut_ad(srv_sys->n_threads_active[type] > 0);
+	ut_a(srv_sys->n_threads_active[type] > 0);
 
 	srv_sys->n_threads_active[type]--;
 
