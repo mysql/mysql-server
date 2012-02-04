@@ -104,9 +104,16 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
 inline void read_token(uint *dest, int *index, char *src)
 {
   unsigned short sh;
-  sh= ((0x00ff & src[*index + 1])<<8) | (0x00ff & src[*index]);
-  *dest= (uint)(sh);
-  *index= *index + PFS_SIZE_OF_A_TOKEN;
+  int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE - *index;
+  DBUG_ASSERT(remaining_bytes >= 0);
+
+  /* Make sure we have enough space to read a token. */
+  if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)
+  {
+    sh= ((0x00ff & src[*index + 1])<<8) | (0x00ff & src[*index]);
+    *dest= (uint)(sh);
+    *index= *index + PFS_SIZE_OF_A_TOKEN;
+  }
 }
 
 /**
@@ -117,11 +124,17 @@ inline void store_token(PFS_digest_storage* digest_storage, uint token)
   char* dest= digest_storage->m_token_array;
   int* index= &digest_storage->m_byte_count;
   unsigned short sh= (unsigned short)token;
+  int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE - *index;
+  DBUG_ASSERT(remaining_bytes >= 0);
 
-  dest[*index]= (sh) & 0xff;
-  *index= *index + 1;
-  dest[*index]= (sh>>8) & 0xff;
-  *index= *index + 1;
+  /* Make sure we have enough space to store a token. */
+  if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)
+  {
+    dest[*index]= (sh) & 0xff;
+    *index= *index + 1;
+    dest[*index]= (sh>>8) & 0xff;
+    *index= *index + 1;
+  }
 }
 
 /**

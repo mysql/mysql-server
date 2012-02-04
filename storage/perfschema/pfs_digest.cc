@@ -440,7 +440,7 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
     /*
       If digest storage record is full, do nothing.
     */
-    return locker;
+    return NULL;
   }
 
   /* 
