@@ -70,6 +70,13 @@ Created 10/8/1995 Heikki Tuuri
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"
 
+/** Maximum number of background threads tracked by srv_sys_t::sys_threads:
+We currently only use a total of:
+ - one SRV_MASTER thread
+ - one SRV_PURGE thread
+ - max 32 SRV_WORKER threads */
+static const ulint SRV_SYS_MAX_THREADS = 34;
+
 /* The following counter is incremented whenever there is some user activity
 in the server */
 UNIV_INTERN ulint	srv_activity_count	= 0;
@@ -660,7 +667,7 @@ srv_table_get_nth_slot(
 	ulint	index)		/*!< in: index of the slot */
 {
 	ut_ad(srv_sys_mutex_own());
-	ut_a(index < OS_THREAD_MAX_N);
+	ut_a(index < SRV_SYS_MAX_THREADS);
 
 	return(srv_sys->sys_threads + index);
 }
@@ -765,13 +772,13 @@ srv_suspend_thread_low(
 	ut_ad(srv_sys_mutex_own());
 
 	ut_ad(slot->in_use);
-	ut_ad(!slot->suspended);
 
 	srv_thread_type	type = srv_slot_get_type(slot);
 
 	/* The master thread always uses the first slot. */
 	ut_a(type != SRV_MASTER || slot == srv_sys->sys_threads);
 
+	ut_a(!slot->suspended);
 	slot->suspended = TRUE;
 
 	ut_a(srv_sys->n_threads_active[type] > 0);
@@ -819,7 +826,7 @@ srv_release_threads(
 
 	srv_sys_mutex_enter();
 
-	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+	for (i = 0; i < SRV_SYS_MAX_THREADS; i++) {
 		srv_slot_t*	slot;
 
 		slot = srv_table_get_nth_slot(i);
@@ -828,21 +835,41 @@ srv_release_threads(
 		    && srv_slot_get_type(slot) == type
 		    && slot->suspended) {
 
+			switch (type) {
+			case SRV_NONE:
+				ut_error;
+
+			case SRV_MASTER:
+				/* We have only one master thread and it
+				should be the first entry always. */
+				ut_a(n == 1);
+				ut_a(i == 0);
+				ut_a(srv_sys->n_threads_active[type] == 0);
+				break;
+
+			case SRV_PURGE:
+				/* We have only one purge coordinator thread
+				and it should be the second entry always. */
+				ut_a(n == 1);
+				ut_a(i == 1);
+				ut_a(srv_sys->n_threads_active[type] == 0);
+				break;
+
+			case SRV_WORKER:
+				ut_a(srv_sys->n_threads_active[type]
+				     < srv_n_purge_threads - 1);
+				break;
+			}
+
 			slot->suspended = FALSE;
 
-			srv_sys->n_threads_active[type]++;
+			++srv_sys->n_threads_active[type];
 
 			os_event_set(slot->event);
 
 			if (++count == n) {
 				break;
 			}
-
-		/* We have only one master thread and it should be the
-		first entry always. */
-		} else if (type == SRV_MASTER) {
-			ut_a(i == 0);
-			break;
 		}
 	}
 
@@ -890,7 +917,8 @@ srv_init(void)
 	mutex_create(srv_innodb_monitor_mutex_key,
 		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
 
-	srv_sys_sz = sizeof(*srv_sys) + (OS_THREAD_MAX_N * sizeof(srv_slot_t));
+	srv_sys_sz = sizeof(*srv_sys)
+		+ (SRV_SYS_MAX_THREADS * sizeof(srv_slot_t));
 
 	srv_sys = static_cast<srv_sys_t*>(mem_zalloc(srv_sys_sz));
 
@@ -901,7 +929,7 @@ srv_init(void)
 
 	srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
 
-	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+	for (i = 0; i < SRV_SYS_MAX_THREADS; i++) {
 		srv_slot_t*	slot;
 
 		slot = srv_sys->sys_threads + i;
@@ -1763,8 +1791,8 @@ srv_active_wake_master_thread(void)
 Tells the purge thread that there has been activity in the database
 and wakes up the purge thread if it is suspended (not sleeping).  Note
 that there is a small chance that the purge thread stays suspended
-(we do not protect our operation with the srv_sys_t:mutex, for
-performance reasons). */
+(we do not protect our check with the srv_sys_t:mutex and the
+purge_sys->latch, for performance reasons). */
 UNIV_INTERN
 void
 srv_wake_purge_thread_if_not_active(void)
@@ -1772,8 +1800,8 @@ srv_wake_purge_thread_if_not_active(void)
 {
 	ut_ad(!srv_sys_mutex_own());
 
-	if (purge_sys->state == PURGE_STATE_RUN
-	    && srv_n_purge_threads > 0
+	if (srv_n_purge_threads > 0
+	    && purge_sys->state == PURGE_STATE_RUN
 	    && srv_sys->n_threads_active[SRV_PURGE] == 0) {
 
 		srv_release_threads(SRV_PURGE, 1);
@@ -1792,38 +1820,6 @@ srv_wake_master_thread(void)
 	srv_inc_activity_count();
 
 	srv_release_threads(SRV_MASTER, 1);
-}
-
-/*******************************************************************//**
-Wakes up the purge thread if it's not already awake. */
-UNIV_INTERN
-void
-srv_wake_purge_thread(void)
-/*=======================*/
-{
-	ut_ad(!srv_sys_mutex_own());
-
-	if (srv_n_purge_threads > 0) {
-
-		srv_release_threads(SRV_PURGE, 1);
-	}
-}
-
-/*******************************************************************//**
-Wakes up the worker threads. */
-UNIV_INTERN
-void
-srv_wake_worker_threads(
-/*====================*/
-	ulint	n_workers)		/*!< number or workers to wake up */
-{
-	ut_ad(!srv_sys_mutex_own());
-
-	if (srv_n_purge_threads > 1) {
-
-		ut_a(n_workers > 0);
-		srv_release_threads(SRV_WORKER, n_workers);
-	}
 }
 
 /*******************************************************************//**
@@ -2559,6 +2555,8 @@ srv_purge_coordinator_suspend(
 	ulint		rseg_history_len)	/*!< in: history list length
 						before last purge */
 {
+	ut_a(slot->type == SRV_PURGE);
+
 	rw_lock_x_lock(&purge_sys->latch);
 
 	purge_sys->running = false;
@@ -2570,9 +2568,7 @@ srv_purge_coordinator_suspend(
 
 	do {
 		ulint		ret;
-		ib_int64_t	sig_count;
-
-		sig_count = srv_suspend_thread(slot);
+		ib_int64_t	sig_count = srv_suspend_thread(slot);
 
 		/* We don't wait right away on the the non-timed wait because
 		we want to signal the thread that wants to suspend purge. */
@@ -2589,6 +2585,19 @@ srv_purge_coordinator_suspend(
 			unless purge has been stopped. */
 			ret = 0;
 		}
+
+		srv_sys_mutex_enter();
+
+		/* The thread can be in state !suspended after the timeout
+		but before this check if another thread sent a wakeup signal. */
+
+		if (slot->suspended) {
+			slot->suspended = FALSE;
+			++srv_sys->n_threads_active[slot->type];
+			ut_a(srv_sys->n_threads_active[slot->type] == 1);
+		}
+
+		srv_sys_mutex_exit();
 
 		rw_lock_x_lock(&purge_sys->latch);
 
@@ -2608,18 +2617,6 @@ srv_purge_coordinator_suspend(
 
 		if (ret == OS_SYNC_TIME_EXCEEDED) {
 
-			srv_sys_mutex_enter();
-
-			/* The thread can be woken up after timeout
-			and before this check. */
-
-			if (slot->suspended) {
-				slot->suspended = FALSE;
-				++srv_sys->n_threads_active[SRV_PURGE];
-			}
-
-			srv_sys_mutex_exit();
-
 			/* No new records added since wait started then simply
 			wait for new records. The magic number 5000 is an
 			approximation for the case where we have cached UNDO
@@ -2634,6 +2631,8 @@ srv_purge_coordinator_suspend(
 		}
 
 	} while (stop);
+
+	ut_a(!slot->suspended);
 }
 
 /*********************************************************************//**
@@ -2650,7 +2649,6 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	ulint           n_total_purged = ULINT_UNDEFINED;
 
 	ut_a(srv_n_purge_threads >= 1);
-
 	ut_a(trx_purge_state() == PURGE_STATE_INIT);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
@@ -2685,6 +2683,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		}
 
 		if (srv_purge_exit(n_total_purged)) {
+			ut_a(!slot->suspended);
 			break;
 		}
 
@@ -2701,8 +2700,6 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	shutdown state. */
 	ut_a(srv_get_task_queue_length() == 0);
 
-	srv_free_slot(slot);
-
 	/* Note that we are shutting down. */
 	rw_lock_x_lock(&purge_sys->latch);
 
@@ -2712,6 +2709,8 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 	rw_lock_x_unlock(&purge_sys->latch);
 
+	srv_free_slot(slot);
+
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ut_print_timestamp(stderr);
 	fprintf(stderr, " InnoDB: Purge coordinator exiting, id %lu\n",
@@ -2720,7 +2719,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 	/* Ensure that all the worker threads quit. */
 	if (srv_n_purge_threads > 1) {
-		srv_wake_worker_threads(srv_n_purge_threads - 1);
+		srv_release_threads(SRV_WORKER, srv_n_purge_threads - 1);
 	}
 
 	/* We count the number of threads in os_thread_exit(). A created
@@ -2776,8 +2775,14 @@ srv_purge_wakeup(void)
 {
 	if (srv_n_purge_threads > 0
 	    && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
-		srv_wake_purge_thread();
-		srv_wake_worker_threads(srv_n_purge_threads - 1);
+
+		srv_release_threads(SRV_PURGE, 1);
+
+		if (srv_n_purge_threads > 1) {
+			ulint	n_workers = srv_n_purge_threads - 1;
+
+			srv_release_threads(SRV_WORKER, n_workers);
+		}
 	}
 }
 
