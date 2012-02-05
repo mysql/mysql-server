@@ -543,12 +543,6 @@ void
 srv_wake_purge_thread_if_not_active(void);
 /*=====================================*/
 /*******************************************************************//**
-Wakes up the purge thread if it's not already awake. */
-UNIV_INTERN
-void
-srv_wake_purge_thread(void);
-/*=======================*/
-/*******************************************************************//**
 Tells the Innobase server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used
 in the MySQL interface. Note that there is a small chance that the master
@@ -681,15 +675,6 @@ DECLARE_THREAD(srv_worker_thread)(
 	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
 						required by os_thread_create */
 } /* extern "C" */
-
-/*******************************************************************//**
-Wakes up the worker threads. */
-UNIV_INTERN
-void
-srv_wake_worker_threads(
-/*====================*/
-	ulint	n_workers);			/*!< number or workers to
-						wake up */
 
 /**********************************************************************//**
 Get count of tasks in the queue.
