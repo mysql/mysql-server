@@ -70,13 +70,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"
 
-/** Maximum number of background threads tracked by srv_sys_t::sys_threads:
-We currently only use a total of:
- - one SRV_MASTER thread
- - one SRV_PURGE thread
- - max 32 SRV_WORKER threads */
-static const ulint SRV_SYS_MAX_THREADS = 34;
-
 /* The following counter is incremented whenever there is some user activity
 in the server */
 UNIV_INTERN ulint	srv_activity_count	= 0;
@@ -589,7 +582,11 @@ struct srv_sys_struct{
 			tasks;			/*!< task queue */
 
 	mutex_t		mutex;			/*!< variable protecting the
+
 						fields below. */
+	ulint		n_sys_threads;		/*!< size of the sys_threads
+						array */
+
 	srv_table_t*	sys_threads;		/*!< server thread table */
 
 	ulint		n_threads_active[SRV_MASTER + 1];
@@ -667,7 +664,7 @@ srv_table_get_nth_slot(
 	ulint	index)		/*!< in: index of the slot */
 {
 	ut_ad(srv_sys_mutex_own());
-	ut_a(index < SRV_SYS_MAX_THREADS);
+	ut_a(index < srv_sys->n_sys_threads);
 
 	return(srv_sys->sys_threads + index);
 }
@@ -845,7 +842,7 @@ srv_release_threads(
 
 	srv_sys_mutex_enter();
 
-	for (i = 0; i < SRV_SYS_MAX_THREADS; i++) {
+	for (i = 0; i < srv_sys->n_sys_threads; i++) {
 		srv_slot_t*	slot;
 
 		slot = srv_table_get_nth_slot(i);
@@ -929,6 +926,7 @@ srv_init(void)
 {
 	ulint			i;
 	ulint			srv_sys_sz;
+	ulint			n_sys_threads;
 
 #ifndef HAVE_ATOMIC_BUILTINS
 	mutex_create(server_mutex_key, &server_mutex, SYNC_ANY_LATCH);
@@ -937,8 +935,10 @@ srv_init(void)
 	mutex_create(srv_innodb_monitor_mutex_key,
 		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
 
-	srv_sys_sz = sizeof(*srv_sys)
-		+ (SRV_SYS_MAX_THREADS * sizeof(srv_slot_t));
+	/* Number of purge threads + master thread */
+	n_sys_threads = srv_n_purge_threads + 1;
+
+	srv_sys_sz = sizeof(*srv_sys) + (n_sys_threads * sizeof(srv_slot_t));
 
 	srv_sys = static_cast<srv_sys_t*>(mem_zalloc(srv_sys_sz));
 
@@ -947,9 +947,10 @@ srv_init(void)
 	mutex_create(srv_sys_tasks_mutex_key,
 		     &srv_sys->tasks_mutex, SYNC_ANY_LATCH);
 
+	srv_sys->n_sys_threads = n_sys_threads;
 	srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
 
-	for (i = 0; i < SRV_SYS_MAX_THREADS; i++) {
+	for (i = 0; i < srv_sys->n_sys_threads; i++) {
 		srv_slot_t*	slot;
 
 		slot = srv_sys->sys_threads + i;
