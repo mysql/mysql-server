@@ -5932,9 +5932,9 @@ row_mysql_quiesce_set_state(
 		rw_lock_x_lock(&index->lock);
 	}
 
-	// FIXME: Only if we have separate purge threads.
+	// FIXME: Only if we have separate purge threads
 
-	if (srv_n_purge_threads > 0) {
+	if (srv_n_purge_threads > 0 && table->space != TRX_SYS_SPACE) {
 
 		switch (state) {
 		case QUIESCE_START:
