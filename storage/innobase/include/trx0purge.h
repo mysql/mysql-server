@@ -132,24 +132,25 @@ typedef struct purge_iter_struct {
 struct trx_purge_struct{
 	sess_t*		sess;		/*!< System session running the purge
 					query */
-
-	ulint		n_stop;		/*!< Counter to track number stops */
-	purge_state_t	state;		/*!< Purge coordinator thread states */
-	os_event_t	event;		/*!< State signal event */
-	bool		running;	/*!< true, if purge is active */
-
 	trx_t*		trx;		/*!< System transaction running the
 					purge query: this trx is not in the
 					trx list of the trx system and it
 					never ends */
-	que_t*		query;		/*!< The query graph which will do the
-					parallelized purge operation */
 	rw_lock_t	latch;		/*!< The latch protecting the purge
 					view. A purge operation must acquire an
 					x-latch here for the instant at which
 					it changes the purge view: an undo
 					log operation can prevent this by
-					obtaining an s-latch here. */
+					obtaining an s-latch here. It also
+					protects state and running */
+	os_event_t	event;		/*!< State signal event */
+	ulint		n_stop;		/*!< Counter to track number stops */
+	bool		running;	/*!< true, if purge is active */
+	volatile purge_state_t	state;	/*!< Purge coordinator thread states,
+					we check this in several places
+					without holding the latch. */
+	que_t*		query;		/*!< The query graph which will do the
+					parallelized purge operation */
 	read_view_t*	view;		/*!< The purge will not remove undo logs
 					which are >= this view (purge view) */
 	volatile ulint	n_submitted;	/*!< Count of total tasks submitted

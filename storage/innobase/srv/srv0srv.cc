@@ -2477,8 +2477,9 @@ DECLARE_THREAD(srv_worker_thread)(
 			srv_wake_purge_thread_if_not_active();
 		}
 
-	} while (!srv_purge_exit(purged ? 1 : 0)
-		 && purge_sys->state != PURGE_STATE_EXIT);
+		/* Note: we are checking the state without holding the
+		purge_sys->latch here. */
+	} while (purge_sys->state != PURGE_STATE_EXIT);
 
 	srv_free_slot(slot);
 
@@ -2681,6 +2682,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 	rw_lock_x_lock(&purge_sys->latch);
 
+	purge_sys->running = true;
 	purge_sys->state = PURGE_STATE_RUN;
 
 	rw_lock_x_unlock(&purge_sys->latch);
