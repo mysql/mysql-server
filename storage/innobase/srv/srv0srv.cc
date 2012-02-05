@@ -627,7 +627,7 @@ static const ulint	SRV_PURGE_SLOT	= 1;
 /** Slot index in the srv_sys->sys_threads array for the master thread. */
 static const ulint	SRV_MASTER_SLOT = 0;
 
-/***********************************************************************
+/*********************************************************************//**
 Prints counters for work done by srv_master_thread. */
 static
 void
@@ -857,6 +857,7 @@ srv_release_threads(
 				and it should be the second entry always. */
 				ut_a(n == 1);
 				ut_a(i == SRV_PURGE_SLOT);
+				ut_a(srv_n_purge_threads > 0);
 				ut_a(srv_sys->n_threads_active[type] == 0);
 				break;
 
@@ -925,7 +926,7 @@ srv_init(void)
 		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
 
 	/* Number of purge threads + master thread */
-	n_sys_threads = srv_n_purge_threads + 1;
+	n_sys_threads = srv_n_purge_threads + 2;
 
 	srv_sys_sz = sizeof(*srv_sys) + (n_sys_threads * sizeof(srv_slot_t));
 
@@ -1851,12 +1852,12 @@ UNIV_INTERN
 ibool
 srv_check_activity(
 /*===============*/
-	ulint		old_activity_count)	/*!< old activity count */
+	ulint		old_activity_count)	/*!< in: old activity count */
 {
 	return(srv_sys->activity_count != old_activity_count);
 }
 
-/**********************************************************************
+/********************************************************************//**
 The master thread is tasked to ensure that flush of log file happens
 once every second in the background. This is to ensure that not more
 than one second of trxs are lost in case of crash when
