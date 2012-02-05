@@ -2482,6 +2482,13 @@ DECLARE_THREAD(srv_worker_thread)(
 
 	srv_free_slot(slot);
 
+	rw_lock_x_lock(&purge_sys->latch);
+
+	ut_a(!purge_sys->running);
+	ut_a(purge_sys->state == PURGE_STATE_EXIT);
+
+	rw_lock_x_unlock(&purge_sys->latch);
+
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ut_print_timestamp(stderr);
 	fprintf(stderr, " InnoDB: Purge worker thread exiting, id %lu\n",
@@ -2720,6 +2727,8 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	shutdown state. */
 	ut_a(srv_get_task_queue_length() == 0);
 
+	srv_free_slot(slot);
+
 	/* Note that we are shutting down. */
 	rw_lock_x_lock(&purge_sys->latch);
 
@@ -2728,8 +2737,6 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	purge_sys->running = false;
 
 	rw_lock_x_unlock(&purge_sys->latch);
-
-	srv_free_slot(slot);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ut_print_timestamp(stderr);
