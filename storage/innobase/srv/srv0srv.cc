@@ -621,6 +621,12 @@ and/or load it during startup. */
 UNIV_INTERN char	srv_buffer_pool_dump_at_shutdown = FALSE;
 UNIV_INTERN char	srv_buffer_pool_load_at_startup = FALSE;
 
+/** Slot index in the srv_sys->sys_threads array for the purge thread. */
+static const ulint	SRV_PURGE_SLOT	= 1;
+
+/** Slot index in the srv_sys->sys_threads array for the master thread. */
+static const ulint	SRV_MASTER_SLOT = 0;
+
 /***********************************************************************
 Prints counters for work done by srv_master_thread. */
 static
@@ -651,22 +657,6 @@ srv_set_io_thread_op_info(
 	ut_a(i < SRV_MAX_N_IO_THREADS);
 
 	srv_io_thread_op_info[i] = str;
-}
-
-/*********************************************************************//**
-Accessor function to get pointer to n'th slot in the server thread
-table.
-@return	pointer to the slot */
-static
-srv_slot_t*
-srv_table_get_nth_slot(
-/*===================*/
-	ulint	index)		/*!< in: index of the slot */
-{
-	ut_ad(srv_sys_mutex_own());
-	ut_a(index < srv_sys->n_sys_threads);
-
-	return(srv_sys->sys_threads + index);
 }
 
 #ifdef UNIV_DEBUG
@@ -724,19 +714,18 @@ srv_reserve_slot(
 
 	switch (type) {
 	case SRV_MASTER:
-		slot = srv_table_get_nth_slot(0);
+		slot = &srv_sys->sys_threads[SRV_MASTER_SLOT];
 		break;
 
 	case SRV_PURGE:
-		slot = srv_table_get_nth_slot(1);
+		slot = &srv_sys->sys_threads[SRV_PURGE_SLOT];
 		break;
 
 	case SRV_WORKER:
 		/* Find an empty slot. */
-		for (slot = srv_table_get_nth_slot(i);
-		     slot->in_use;
-		     slot = srv_table_get_nth_slot(i)) {
+		for (slot = srv_sys->sys_threads; slot->in_use; ++slot) {
 
+			ut_a(i < srv_sys->n_sys_threads);
 			++i;
 		}
 		break;
@@ -845,7 +834,7 @@ srv_release_threads(
 	for (i = 0; i < srv_sys->n_sys_threads; i++) {
 		srv_slot_t*	slot;
 
-		slot = srv_table_get_nth_slot(i);
+		slot = &srv_sys->sys_threads[i];
 
 		if (slot->in_use
 		    && srv_slot_get_type(slot) == type
@@ -859,7 +848,7 @@ srv_release_threads(
 				/* We have only one master thread and it
 				should be the first entry always. */
 				ut_a(n == 1);
-				ut_a(i == 0);
+				ut_a(i == SRV_MASTER_SLOT);
 				ut_a(srv_sys->n_threads_active[type] == 0);
 				break;
 
@@ -867,7 +856,7 @@ srv_release_threads(
 				/* We have only one purge coordinator thread
 				and it should be the second entry always. */
 				ut_a(n == 1);
-				ut_a(i == 1);
+				ut_a(i == SRV_PURGE_SLOT);
 				ut_a(srv_sys->n_threads_active[type] == 0);
 				break;
 
@@ -1787,7 +1776,7 @@ srv_active_wake_master_thread(void)
 
 		srv_sys_mutex_enter();
 
-		slot = srv_table_get_nth_slot(0);
+		slot = &srv_sys->sys_threads[SRV_MASTER_SLOT];
 
 		/* Only if the master thread has been started. */
 
