@@ -775,8 +775,27 @@ srv_suspend_thread_low(
 
 	srv_thread_type	type = srv_slot_get_type(slot);
 
-	/* The master thread always uses the first slot. */
-	ut_a(type != SRV_MASTER || slot == srv_sys->sys_threads);
+	switch (type) {
+	case SRV_NONE:
+		ut_error;
+
+	case SRV_MASTER:
+		/* We have only one master thread and it
+		should be the first entry always. */
+		ut_a(srv_sys->n_threads_active[type] == 1);
+		break;
+
+	case SRV_PURGE:
+		/* We have only one purge coordinator thread
+		and it should be the second entry always. */
+		ut_a(srv_sys->n_threads_active[type] == 1);
+		break;
+
+	case SRV_WORKER:
+		ut_a(srv_n_purge_threads > 1);
+		ut_a(srv_sys->n_threads_active[type] > 0);
+		break;
+	}
 
 	ut_a(!slot->suspended);
 	slot->suspended = TRUE;
@@ -856,6 +875,7 @@ srv_release_threads(
 				break;
 
 			case SRV_WORKER:
+				ut_a(srv_n_purge_threads > 1);
 				ut_a(srv_sys->n_threads_active[type]
 				     < srv_n_purge_threads - 1);
 				break;
