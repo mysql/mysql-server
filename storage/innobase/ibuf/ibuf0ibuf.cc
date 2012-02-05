@@ -2833,8 +2833,6 @@ ibuf_contract_in_background(
 		sum_pages += n_pag2;
 	}
 
-	fprintf(stderr, "ibuf: bytes merged: %lu\n", sum_bytes);
-
 	return(sum_bytes);
 }
 
