@@ -1250,7 +1250,7 @@ static struct my_option my_long_options[] =
    "COM_BINLOG_DUMP_GTID commands by setting the option to either "
    "BINLOG-DUMP-NON-GTIDS or BINLOG-DUMP-GTIDS, respectively. If "
    "--read-from-remote-master=BINLOG-DUMP-GTIDS is combined with "
-   "--exclude-gtids transactions can be filtered out on the master "
+   "--exclude-gtids, transactions can be filtered out on the master "
    "avoiding unnecessary network traffic.",
    &opt_remote_proto_str, &opt_remote_proto_str, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
