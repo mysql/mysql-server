@@ -2952,222 +2952,375 @@ func_exit:
 	return((int) err);
 }
 
-/********************************************************************//**
-Scans an index in the database, purging all delete-marked records.
-In the clustered index, adjusts DB_TRX_ID, DB_ROLL_PTR and BLOB pointers
-as needed.
-@return DB_SUCCESS or error code */
-static
-ulint
-row_import_tablespace_scan_index(
-/*=============================*/
-	dict_index_t*	index,	/*!< in: index to be processed */
-	trx_t*		trx,	/*!< in/out: transaction */
-	ulint		space_id,/*!< in: tablespace identifier */
-	ulint*		n_rows)	/*!< out: number of rows left in index */
-{
-	btr_pcur_t	pcur;
-	mtr_t		mtr;
-	ulint		n_recs = 0;
-	mem_heap_t*	heap = NULL;
-	ulint		err = DB_SUCCESS;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets = offsets_;
-	ibool		is_clust = dict_index_is_clust(index);
-	ibool		comp = dict_table_is_comp(index->table);
-	rec_offs_init(offsets_);
+/** Class that imports indexes, both secondary and cluster. */
+class IndexImporter {
+public:
+	/** Constructor
+	@param trx - the user transaction covering the import tablespace
+	@param index - to be imported
+	@param space_id - space id of the tablespace */
+	IndexImporter(
+		trx_t*		trx,
+		dict_index_t*	index,
+		ulint		space_id) throw()
+		:
+		m_trx(trx),
+		m_heap(0),
+		m_index(index),
+		m_n_recs(0),
+		m_space_id(space_id)
+	{
+		rec_offs_init(m_offsets_);
+	}
 
-	trx->op_info = "scanning index";
+	/** Descructor
+	Free the heap if one was allocated during create offsets. */
+	~IndexImporter() throw()
+	{
+		if (m_heap != 0) {
+			mem_heap_free(m_heap);
+		}
+	}
 
-	mtr_start(&mtr);
+	/** Scan the index and adjust sys fields, purge delete marked records
+	and adjust BLOB references if it is a cluster index.
+	@return DB_SUCCESS or error code. */
+	db_err	import() throw()
+	{
+		db_err	err;
+		ulint*	offsets = m_offsets_;
+		ibool	comp = dict_table_is_comp(m_index->table);
 
-	btr_pcur_open_at_index_side(
-		TRUE, index, BTR_MODIFY_LEAF, &pcur, TRUE, &mtr);
+		/* Open the persistent cursor and start the
+		mini-transaction. */
 
-	for (;;) {
-		rec_t*	rec;
-		ibool	deleted;
+		open();
 
-		btr_pcur_move_to_next_on_page(&pcur);
+		while ((err = next()) == DB_SUCCESS) {
+
+			rec_t*	rec = btr_pcur_get_rec(&m_pcur);
+			ibool	deleted = rec_get_deleted_flag(rec, comp);
+
+			/* Skip secondary index rows that
+			are not delete marked. */
+
+			if (!deleted && !dict_index_is_clust(m_index)) {
+				++m_n_recs;
+			} else {
+
+				offsets = update_offsets(rec, offsets);
+
+				/* For the clustered index we have to adjust
+				the BLOB reference and the system fields
+				irrespective of the delete marked flag. The
+				adjustment of delete marked cluster records
+				is required for purge to work later. */
+
+				err = adjust(rec, offsets, deleted);
+
+				if (err != DB_SUCCESS) {
+					break;
+				}
+			}
+		}
+
+		/* Close the persistent cursor and commit the
+		mini-transaction. */
+
+		close();
+
+		return(err);
+	}
+
+	/** Gettor for m_n_recs.
+	@return total records in the index after purge */
+	ulint	get_n_recs() throw()
+	{
+		return(m_n_recs);
+	}
+
+private:
+	/** Begin import, position the cursor on the first record. */
+	void	open() throw()
+	{
+		mtr_start(&m_mtr);
+
+		btr_pcur_open_at_index_side(
+			TRUE, m_index, BTR_MODIFY_LEAF, &m_pcur, TRUE, &m_mtr);
+	}
+
+	/** Close the persistent curosr and commit the mini-transaction. */
+	void	close() throw()
+	{
+		btr_pcur_close(&m_pcur);
+		mtr_commit(&m_mtr);
+	}
+
+	/** Update the column offsets w.r.t to rec.
+	@param rec - new record
+	@param offsets - current offsets
+	@return offsets accociated with rec. */
+	ulint*	update_offsets(const rec_t* rec, ulint* offsets) throw()
+	{
+		return(rec_get_offsets(
+				rec, m_index, offsets, ULINT_UNDEFINED,
+				&m_heap));
+	}
+
+	/** Postition the cursor on the next record.
+	@return DB_SUCCESS or error code */
+	db_err	next() throw()
+	{
+		btr_pcur_move_to_next_on_page(&m_pcur);
 
 		/* When switching pages, commit the mini-transaction
 		in order to release the latch on the old page. */
 
-		if (btr_pcur_is_after_last_on_page(&pcur)) {
-
-			if (trx_is_interrupted(trx)) {
-				err = DB_INTERRUPTED;
-				goto func_exit;
-			}
-
-			btr_pcur_store_position(&pcur, &mtr);
-
-			if (is_clust) {
-				/* Write a dummy change to the page,
-				so that it will be flagged dirty and
-				the resetting of DB_TRX_ID and
-				DB_ROLL_PTR will be written to disk. */
-
-				mlog_write_ulint(
-					FIL_PAGE_TYPE
-					+ btr_pcur_get_page(&pcur),
-					FIL_PAGE_INDEX,
-					MLOG_2BYTES, &mtr);
-			}
-
-			mtr_commit(&mtr);
-			mtr_start(&mtr);
-
-			// FIXME: If we are importing a tablespace then
-			// why do we need to X lock the index(es)?
-			//mtr_x_lock(dict_index_get_lock(index), &mtr);
-
-			btr_pcur_restore_position(
-				BTR_MODIFY_LEAF, &pcur, &mtr);
-
-			if (!btr_pcur_move_to_next_user_rec(&pcur, &mtr)) {
-
-				/* End of index */
-				goto func_exit;
-			}
+		if (!btr_pcur_is_after_last_on_page(&m_pcur)) {
+			return(DB_SUCCESS);
+		} else if (trx_is_interrupted(m_trx)) {
+			/* Check after every page because the check
+			is expensive. */
+			return(DB_INTERRUPTED);
 		}
 
-		rec = btr_pcur_get_rec(&pcur);
+		btr_pcur_store_position(&m_pcur, &m_mtr);
 
-		deleted = rec_get_deleted_flag(rec, comp);
+		if (dict_index_is_clust(m_index)) {
+			/* Write a dummy change to the page,
+			so that it will be flagged dirty and
+			the resetting of DB_TRX_ID and
+			DB_ROLL_PTR will be written to disk. */
 
-		if (!deleted && !is_clust) {
-
-			/* Nothing to purge or adjust. */
-			goto next_rec;
+			mlog_write_ulint(
+				FIL_PAGE_TYPE
+				+ btr_pcur_get_page(&m_pcur),
+				FIL_PAGE_INDEX,
+				MLOG_2BYTES, &m_mtr);
 		}
 
-		offsets = rec_get_offsets(
-			rec, index, offsets, ULINT_UNDEFINED, &heap);
+		mtr_commit(&m_mtr);
 
-		if (is_clust) {
-			page_zip_des_t*	page_zip;
+		mtr_start(&m_mtr);
 
-			page_zip = buf_block_get_page_zip(
-				btr_pcur_get_block(&pcur));
+		btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
 
-			if (!rec_offs_any_extern(offsets)) {
+		if (!btr_pcur_move_to_next_user_rec(&m_pcur, &m_mtr)) {
 
-				goto blobs_adjusted;
-			}
+			return(DB_END_OF_INDEX);
+		}
 
-			/* Adjust the space_id in the BLOB pointers. */
+		return(DB_SUCCESS);
+	}
 
-			for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
-				ulint	len;
-				byte*	field;
+	/** Fix the BLOB column reference.
+	@param page_zip - zip descriptor or 0
+	@param rec - current rec
+	@param offsets - offsets within current record
+	@param i - column ordinal value
+	@return DB_SUCCESS or error code */
+	db_err	adjust_blob_column(
+		page_zip_des_t*	page_zip,
+		rec_t*		rec,
+		const ulint*	offsets,
+		ulint 		i) throw()
+	{
+		ulint		len;
+		byte*		field;
 
-				if (!rec_offs_nth_extern(offsets, i)) {
+		ut_ad(dict_index_is_clust(m_index));
 
-					continue;
+		field = rec_get_nth_field(rec, offsets, i, &len);
+
+		if (len <= BTR_EXTERN_FIELD_REF_SIZE) {
+
+			/* TODO: push an error to the connection. */
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: externally stored"
+				" column has  a reference length "
+				"of %lu\n", len);
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "InnoDB: in index ");
+			dict_index_name_print(stderr, m_trx, m_index);
+			fprintf(stderr, "\n");
+
+			return(DB_CORRUPTION);
+		}
+
+		field += BTR_EXTERN_SPACE_ID - BTR_EXTERN_FIELD_REF_SIZE + len;
+
+		if (page_zip) {
+			mach_write_to_4(field, m_space_id);
+
+			page_zip_write_blob_ptr(
+				page_zip, rec, m_index, offsets, i, &m_mtr);
+		} else {
+			mlog_write_ulint(
+				field, m_space_id, MLOG_4BYTES, &m_mtr);
+		}
+
+		return(DB_SUCCESS);
+	}
+
+	/** Adjusts the BLOB pointers in the clustered index row.
+	@param page_zip - zip descriptor or 0
+	@param rec - current record
+	@param offsets - column offsets within current record
+	@return DB_SUCCESS or error code */
+	db_err	adjust_blob_columns(
+		page_zip_des_t*	page_zip,
+		rec_t*		rec,
+		const ulint*	offsets) throw()
+	{
+		ut_ad(dict_index_is_clust(m_index));
+
+		/* Adjust the space_id in the BLOB pointers. */
+
+		for (ulint i = 0; i < rec_offs_n_fields(offsets); ++i) {
+
+			/* Only if the column is stored "externally". */
+
+			if (rec_offs_nth_extern(offsets, i)) {
+
+				db_err	err = adjust_blob_column(
+					page_zip, rec, offsets, i);
+
+				if (err != DB_SUCCESS) {
+					break;
 				}
-
-				field = rec_get_nth_field(
-					rec, offsets, i, &len);
-
-				if (len <= BTR_EXTERN_FIELD_REF_SIZE) {
-
-					/* TODO: push an error to the
-					connection*/
-					ut_print_timestamp(stderr);
-					fprintf(stderr,
-						" InnoDB: externally stored"
-						" column has length %lu\n"
-						"InnoDB: ", len);
-					dict_index_name_print(
-						stderr, trx, index);
-					putc('\n', stderr);
-
-					err = DB_CORRUPTION;
-					goto func_exit;
-				}
-
-				field += BTR_EXTERN_SPACE_ID
-					- BTR_EXTERN_FIELD_REF_SIZE
-					+ len;
-
-				if (page_zip) {
-					mach_write_to_4(field, space_id);
-
-					page_zip_write_blob_ptr(
-						page_zip, rec, index, offsets,
-						i, &mtr);
-				} else {
-					mlog_write_ulint(
-						field, space_id,
-						MLOG_4BYTES, &mtr);
-				}
 			}
 
-blobs_adjusted:
-			/* Reset DB_TRX_ID and DB_ROLL_PTR.  This
-			change is not covered by the redo log.
-			Normally, these fields are only written in
-			conjunction with other changes to the record.
-			However, when importing a tablespace, it is
-			not necessary to log the writes until the
-			dictionary transaction whose trx->table_id
-			points to the table has been committed, as
-			long as we flush the dirty blocks to the file
-			before committing the transaction. */
-			row_upd_rec_sys_fields(rec, page_zip, index, offsets,
-					       trx, 0);
 		}
 
-		if (!deleted) {
-next_rec:
-			n_recs++;
-			continue;
+		return(DB_SUCCESS);
+	}
+
+	/** In the clustered index, adjusts DB_TRX_ID, DB_ROLL_PTR and
+	BLOB pointers as needed.
+	@return DB_SUCCESS or error code */
+	db_err	adjust_clust_index(rec_t* rec, const ulint* offsets) throw()
+	{
+		ut_ad(dict_index_is_clust(m_index));
+
+		page_zip_des_t*	page_zip;
+
+		page_zip = buf_block_get_page_zip(btr_pcur_get_block(&m_pcur));
+
+		if (rec_offs_any_extern(offsets)) {
+			db_err		err;
+
+			err = adjust_blob_columns(page_zip, rec, offsets);
+
+			if (err != DB_SUCCESS) {
+				return(err);
+			}
 		}
 
-		/* Purge delete-marked records. */
+		/* Reset DB_TRX_ID and DB_ROLL_PTR.  This change is not covered
+		by the redo log.  Normally, these fields are only written in
+		conjunction with other changes to the record. However, when
+		importing a tablespace, it is not necessary to log the writes
+		until the dictionary transaction whose trx->table_id points to
+		the table has been committed, as long as we flush the dirty
+		blocks to the file before committing the transaction. */
+
+		row_upd_rec_sys_fields(
+			rec, page_zip, m_index, offsets, m_trx, 0);
+
+		return(DB_SUCCESS);
+	}
+
+	/** Store the persistent cursor position and reopen the
+	B-tree cursor in BTR_MODIFY_TREE mode, because the
+	tree structure may be changed in pessimistic delete. */
+	void	purge_pessimistic_delete() throw()
+	{
+		ulint	err;
+
+		btr_pcur_store_position(&m_pcur, &m_mtr);
+
+		btr_pcur_restore_position(BTR_MODIFY_TREE, &m_pcur, &m_mtr);
+
+		btr_cur_pessimistic_delete(
+			&err, FALSE, btr_pcur_get_btr_cur(&m_pcur),
+			RB_NONE, &m_mtr);
+
+		ut_a(err == DB_SUCCESS);
+
+		/* Reopen the B-tree cursor in BTR_MODIFY_LEAF mode */
+		mtr_commit(&m_mtr);
+
+		mtr_start(&m_mtr);
+
+		btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
+	}
+
+	/** Adjust the BLOB references and sys fields for the current record.
+	@param rec - current row
+	@param offsets - column offsets
+	@param deleted - true of row is delete marked
+	@return DB_SUCCESS or error code. */
+	db_err	adjust(rec_t* rec, const ulint* offsets, ibool deleted) throw()
+	{
+		/* Only adjust the system fields and BLOB pointers in the
+		cluster index. */
+
+		if (dict_index_is_clust(m_index)) {
+
+			db_err	err;
+
+			err = adjust_clust_index(rec, offsets);
+
+			if (err != DB_SUCCESS) {
+				return(err);
+			}
+		}
+
+		/* We need to purge both secondary and clustered index. */
+
+		if (deleted) {
+			purge(offsets);
+		} else {
+			++m_n_recs;
+		}
+
+		return(DB_SUCCESS);
+	}
+
+	/** Purge delete-marked records. 
+	@param offsets - current row offsets. */
+	void	purge(const ulint* offsets) throw()
+	{
+		/* Rows with externally stored columns have to be purged
+		using the hard way. */
 
 		if (rec_offs_any_extern(offsets)
-		    || !btr_cur_optimistic_delete(btr_pcur_get_btr_cur(&pcur),
-						  &mtr)) {
+		    || !btr_cur_optimistic_delete(
+			    btr_pcur_get_btr_cur(&m_pcur), &m_mtr)) {
 
-			/* Store the persistent cursor position and
-			reopen the B-tree cursor in BTR_MODIFY_TREE
-			mode, because the tree structure may be
-			changed in pessimistic delete. */
-			btr_pcur_store_position(&pcur, &mtr);
-
-			btr_pcur_restore_position(
-				BTR_MODIFY_TREE, &pcur, &mtr);
-
-			btr_cur_pessimistic_delete(
-				&err, FALSE, btr_pcur_get_btr_cur(&pcur),
-				RB_NONE, &mtr);
-
-			ut_a(err == DB_SUCCESS);
-
-			/* Reopen the B-tree cursor in BTR_MODIFY_LEAF mode */
-			mtr_commit(&mtr);
-			mtr_start(&mtr);
-
-			btr_pcur_restore_position(
-				BTR_MODIFY_LEAF, &pcur, &mtr);
+			purge_pessimistic_delete();
 		}
 	}
 
-func_exit:
-	btr_pcur_close(&pcur);
-	mtr_commit(&mtr);
+protected:
+	// Disable copying
+	IndexImporter(void) throw();
+	IndexImporter(const IndexImporter&);
+	IndexImporter &operator=(const IndexImporter&);
 
-	if (heap) {
-		mem_heap_free(heap);
-	}
-
-	trx->op_info = "";
-	*n_rows = n_recs;
-
-	return(err);
-}
+private:
+	trx_t*			m_trx;		/*!< User transaction */
+	mtr_t			m_mtr;		/*!< Mini-transaction */
+	mem_heap_t*		m_heap;		/*!< Heap to use */
+	btr_pcur_t		m_pcur;		/*!< Persistent cursor */
+	dict_index_t*		m_index;	/*!< Index to be processed */
+	ulint			m_n_recs;	/*!< Records in index */
+	ulint			m_space_id;	/*!< Tablespace id */
+	ulint			m_offsets_[REC_OFFS_NORMAL_SIZE];
+						/*!< Column offsets */
+};
 
 /*****************************************************************//**
 Cleanup after import tablespace. */
@@ -3252,12 +3405,17 @@ row_import_tablespace_adjust_root_pages(
 			break;
 		}
 
-		err = (db_err) row_import_tablespace_scan_index(
-			index, trx, table->space, &n_rows);
+		IndexImporter	importer(trx, index, table->space);
+
+		trx->op_info = "importing secondary index";
+
+		err = importer.import();
+
+		trx->op_info = "";
 
 		if (err != DB_SUCCESS) {
 			break;
-		} else if (n_rows != n_rows_in_table) {
+		} else if (importer.get_n_recs() != n_rows_in_table) {
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr, " InnoDB: ");
@@ -3780,11 +3938,21 @@ row_import_tablespace_for_mysql(
 			prebuilt, trx, DB_CORRUPTION));
 	}
 
-	err = (db_err) row_import_tablespace_scan_index(
-		index, trx, table->space, &n_rows_in_table);
+	{
+		IndexImporter	importer(trx, index, table->space);
+
+		trx->op_info = "importing cluster index";
+
+		err = importer.import();
+
+		if (err == DB_SUCCESS) {
+			n_rows_in_table = importer.get_n_recs();
+		}
+
+		trx->op_info = "";
+	}
 
 	if (err != DB_SUCCESS) {
-
 		return(row_import_tablespace_error(prebuilt, trx, err));
 	}
 
