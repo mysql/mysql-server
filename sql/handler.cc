@@ -37,6 +37,7 @@
 #include "probes_mysql.h"
 #include <mysql/psi/mysql_table.h>
 #include "debug_sync.h"         // DEBUG_SYNC
+#include <my_bit.h>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -4583,10 +4584,39 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       min_endp= range.start_key.length? &range.start_key : NULL;
       max_endp= range.end_key.length? &range.end_key : NULL;
     }
-    if ((range.range_flag & UNIQUE_RANGE) && !(range.range_flag & NULL_RANGE))
+    /*
+      Get the number of rows in the range. This is done by calling
+      records_in_range() unless:
+
+        1) The range is an equality range and the index is unique.
+           There cannot be more than one matching row, so 1 is
+           assumed. Note that it is possible that the correct number
+           is actually 0, so the row estimate may be too high in this
+           case. Also note: ranges of the form "x IS NULL" may have more
+           than 1 mathing row so records_in_range() is called for these.
+        2) a) The range is an equality range but the index is either 
+              not unique or all of the keyparts are not used. 
+           b) The user has requested that index statistics should be used
+              for equality ranges to avoid the incurred overhead of 
+              index dives in records_in_range().
+           c) Index statistics is available.
+           Ranges of the form "x IS NULL" will not use index statistics 
+           because the number of rows with this value are likely to be 
+           very different than the values in the index statistics.
+    */
+    int keyparts_used= 0;
+    if ((range.range_flag & UNIQUE_RANGE) &&                        // 1)
+        !(range.range_flag & NULL_RANGE))
       rows= 1; /* there can be at most one row */
+    else if ((range.range_flag & EQ_RANGE) &&                       // 2a)
+             (range.range_flag & USE_INDEX_STATISTICS) &&           // 2b)
+             (keyparts_used= my_count_bits(range.start_key.keypart_map)) &&
+             table->key_info[keyno].rec_per_key[keyparts_used-1] && // 2c)
+             !(range.range_flag & NULL_RANGE))
+      rows= table->key_info[keyno].rec_per_key[keyparts_used-1];
     else
     {
+      DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
       if (HA_POS_ERROR == (rows= this->records_in_range(keyno, min_endp, 
                                                         max_endp)))
       {
@@ -4601,7 +4631,9 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   if (total_rows != HA_POS_ERROR)
   {
     /* The following calculation is the same as in multi_range_read_info(): */
-    *flags |= HA_MRR_USE_DEFAULT_IMPL;
+    *flags|= HA_MRR_USE_DEFAULT_IMPL;
+    *flags|= HA_MRR_SUPPORT_SORTED;
+
     DBUG_ASSERT(cost->is_zero());
     if ((*flags & HA_MRR_INDEX_ONLY) && total_rows > 2)
       cost->add_io(index_only_read_time(keyno, total_rows) *
@@ -4655,7 +4687,8 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 {
   *bufsz= 0; /* Default implementation doesn't need a buffer */
 
-  *flags |= HA_MRR_USE_DEFAULT_IMPL;
+  *flags|= HA_MRR_USE_DEFAULT_IMPL;
+  *flags|= HA_MRR_SUPPORT_SORTED;
 
   DBUG_ASSERT(cost->is_zero());
 
@@ -4819,13 +4852,15 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   handler *new_h2= 0;
   int retval= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
+  THD *thd= current_thd;
 
   /*
     index_merge may invoke a scan on an object for which dsmrr_info[_const]
     has not been called, so set the owner handler here as well.
   */
   h= h_arg;
-  if (mode & HA_MRR_USE_DEFAULT_IMPL || mode & HA_MRR_SORTED)
+  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
+      mode & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED)) // DS-MRR doesn't sort
   {
     use_default_impl= TRUE;
     retval= h->handler::multi_range_read_init(seq_funcs, seq_init_param,
@@ -4875,7 +4910,6 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   if (!h2)
   {
     /* Create a separate handler object to do rndpos() calls. */
-    THD *thd= current_thd;
     /*
       ::clone() takes up a lot of stack, especially on 64 bit platforms.
       The constant 5 is an empiric result.
@@ -5155,6 +5189,7 @@ ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
     *flags= def_flags;
     *bufsz= def_bufsz;
+    DBUG_ASSERT(*flags & HA_MRR_USE_DEFAULT_IMPL);
   }
   else
   {
@@ -5198,6 +5233,7 @@ ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
     *flags= def_flags;
     *bufsz= def_bufsz;
+    DBUG_ASSERT(*flags & HA_MRR_USE_DEFAULT_IMPL);
   }
   else
   {
@@ -5237,12 +5273,11 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   bool res;
   THD *thd= current_thd;
   if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
-      *flags & HA_MRR_INDEX_ONLY ||
+      *flags & (HA_MRR_INDEX_ONLY | HA_MRR_SORTED) || // Unsupported by DS-MRR
       (keyno == table->s->primary_key && h->primary_key_is_clustered()) ||
        key_uses_partial_cols(table, keyno))
   {
-    /* Use the default implementation */
-    *flags |= HA_MRR_USE_DEFAULT_IMPL;
+    /* Use the default implementation, don't modify args: See comments  */
     return TRUE;
   }
   
@@ -5266,7 +5301,7 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   if (force_dsmrr || (dsmrr_cost.total_cost() <= cost->total_cost()))
   {
     *flags &= ~HA_MRR_USE_DEFAULT_IMPL;  /* Use the DS-MRR implementation */
-    *flags &= ~HA_MRR_SORTED;          /* We will return unordered output */
+    *flags &= ~HA_MRR_SUPPORT_SORTED;    /* We can't provide ordered output */
     *cost= dsmrr_cost;
     res= FALSE;
   }

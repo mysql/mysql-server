@@ -27,6 +27,7 @@ GRANT ALL PRIVILEGES ON test.* TO test_user_2 IDENTIFIED BY 'testpw';
 GRANT ALL PRIVILEGES ON test.* TO test_user_3 IDENTIFIED BY 'testpw';
 
 connect (session1, localhost, test_user_1,'testpw',test);
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`) WHERE a BETWEEN 0 AND 9 LOCK IN SHARE MODE;
 UPDATE t1 PARTITION (`p0-29`) SET b='p0-29-upd-1' WHERE a BETWEEN 0 AND 9 ;
 
@@ -48,6 +49,7 @@ connection session2;
 --echo ####### expect p0-29 has not been updated
 --sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
+--sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`) WHERE a BETWEEN 20 AND 29 FOR UPDATE;
 UPDATE t1 PARTITION (`p0-29`) SET b='p0-29-upd-2' WHERE a BETWEEN 20 AND 29 ;
 

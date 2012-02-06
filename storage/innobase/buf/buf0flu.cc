@@ -822,6 +822,28 @@ buf_flush_init_for_writing(
 
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
+Flush a batch of writes to the datafiles that have already been
+written by the OS. */
+UNIV_INTERN
+void
+buf_flush_sync_datafiles(void)
+/*==========================*/
+{
+	/* Wake possible simulated aio thread to actually post the
+	writes to the operating system */
+	os_aio_simulated_wake_handler_threads();
+
+	/* Wait that all async writes to tablespaces have been posted to
+	the OS */
+	os_aio_wait_until_no_pending_writes();
+
+	/* Now we flush the data to disk (for example, with fsync) */
+	fil_flush_file_spaces(FIL_TABLESPACE);
+
+	return;
+}
+
+/********************************************************************//**
 Does an asynchronous write of a buffer page. NOTE: in simulated aio and
 also when the doublewrite buffer is used, we must call
 buf_dblwr_flush_buffered_writes after we have posted a batch of
@@ -1063,6 +1085,7 @@ buf_flush_page_try(
 	/* The following call will release the buffer pool and
 	block mutex. */
 	buf_flush_page(buf_pool, &block->page, BUF_FLUSH_SINGLE_PAGE);
+	buf_flush_sync_datafiles();
 	return(TRUE);
 }
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -1891,6 +1914,8 @@ buf_flush_single_page_from_LRU(
 	/* The following call will release the buffer pool and
 	block mutex. */
 	buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE);
+
+	buf_flush_sync_datafiles();
 
 	/* At this point the page has been written to the disk.
 	As we are not holding buffer pool or block mutex therefore

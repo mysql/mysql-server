@@ -1,0 +1,18 @@
+--echo #
+--echo # Test of function defaults for non-embedded server.
+--echo #
+
+--source include/not_embedded.inc
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # Function defaults run 1. No microsecond precision.
+--echo #
+let $timestamp=TIMESTAMP;
+--source include/function_defaults_notembedded.inc
+
+--echo #
+--echo # Function defaults run 2. Six digits scale on seconds precision.
+--echo #
+let $timestamp=TIMESTAMP(6);
+--source include/function_defaults_notembedded.inc

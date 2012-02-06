@@ -783,7 +783,20 @@ static Bigint *multadd(Bigint *b, int m, int a, Stack_alloc *alloc)
   return b;
 }
 
+/**
+  Converts a string to Bigint.
+  
+  Now we have nd0 digits, starting at s, followed by a
+  decimal point, followed by nd-nd0 digits.  
+  Unless nd0 == nd, in which case we have a number of the form:
+     ".xxxxxx"    or    "xxxxxx."
 
+  @param s     Input string, already partially parsed by my_strtod_int().
+  @param nd0   Number of digits before decimal point.
+  @param nd    Total number of digits.
+  @param y9    Pre-computed value of the first nine digits.
+  @param alloc Stack allocator for Bigints.
+ */
 static Bigint *s2b(const char *s, int nd0, int nd, ULong y9, Stack_alloc *alloc)
 {
   Bigint *b;
@@ -803,10 +816,11 @@ static Bigint *s2b(const char *s, int nd0, int nd, ULong y9, Stack_alloc *alloc)
     do
       b= multadd(b, 10, *s++ - '0', alloc);
     while (++i < nd0);
-    s++;
+    s++;                                        /* skip '.' */
   }
   else
     s+= 10;
+  /* now do the fractional part */
   for(; i < nd; i++)
     b= multadd(b, 10, *s++ - '0', alloc);
   return b;
@@ -1397,7 +1411,7 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
     else if (nd < 16)
       z= 10*z + c - '0';
   nd0= nd;
-  if (s < end - 1 && c == '.')
+  if (s < end && c == '.')
   {
     c= *++s;
     if (!nd)
@@ -1416,20 +1430,29 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
     for (; s < end && c >= '0' && c <= '9'; c = *++s)
     {
  have_dig:
-      nz++;
-      if (c-= '0')
+      /*
+        Here we are parsing the fractional part.
+        We can stop counting digits after a while: the extra digits
+        will not contribute to the actual result produced by s2b().
+        We have to continue scanning, in case there is an exponent part.
+       */
+      if (nd < 2 * DBL_DIG)
       {
-        nf+= nz;
-        for (i= 1; i < nz; i++)
+        nz++;
+        if (c-= '0')
+        {
+          nf+= nz;
+          for (i= 1; i < nz; i++)
+            if (nd++ < 9)
+              y*= 10;
+            else if (nd <= DBL_DIG + 1)
+              z*= 10;
           if (nd++ < 9)
-            y*= 10;
+            y= 10*y + c;
           else if (nd <= DBL_DIG + 1)
-            z*= 10;
-        if (nd++ < 9)
-          y= 10*y + c;
-        else if (nd <= DBL_DIG + 1)
-          z= 10*z + c;
-        nz= 0;
+            z= 10*z + c;
+          nz= 0;
+        }
       }
     }
   }
