@@ -375,7 +375,7 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
       Calculate digest from MD5 HASH collected to be shown as
       DIGEST in this row.
     */
-    MD5_HASH_TO_STRING(pfs->m_digest_storage.m_digest_hash.m_md5,
+    MD5_HASH_TO_STRING(pfs->m_digest_hash.m_md5,
                        m_row.m_digest.m_digest);
     m_row.m_digest.m_digest_length= 16;
 

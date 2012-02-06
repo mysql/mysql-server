@@ -45,17 +45,18 @@ struct {
   on which digest is to be calculated.
 */
 struct {
-         PFS_digest_hash m_digest_hash;
          int m_byte_count;
-         int m_last_id_index;
          char m_token_array[PFS_MAX_DIGEST_STORAGE_SIZE];
-
-         void reset();
        } typedef PFS_digest_storage;
 
 /** A statement digest stat record. */
 struct PFS_statements_digest_stat
 {
+  /**
+    Digest MD5 Hash.
+  */
+  PFS_digest_hash m_digest_hash;
+
   /**
     Digest Storage.
   */
@@ -71,6 +72,8 @@ struct PFS_statements_digest_stat
   */
   ulonglong m_first_seen;
   ulonglong m_last_seen;
+
+  void reset();
 };
 
 int init_digest(unsigned int digest_sizing);
@@ -79,6 +82,7 @@ void cleanup_digest();
 int init_digest_hash(void);
 void cleanup_digest_hash(void);
 PFS_statements_digest_stat* find_or_create_digest(PFS_thread*,
+                                                  PFS_digest_hash,
                                                   PFS_digest_storage*);
 
 void get_digest_text(char* digest_text,
@@ -196,10 +200,9 @@ inline void store_identifier(PFS_digest_storage* digest_storage,
   is found, do not look for token after that.
 */
 inline void read_last_two_tokens(PFS_digest_storage* digest_storage,
-                                 uint *t1, uint *t2)
+                                 int last_id_index, uint *t1, uint *t2)
 {
   int last_token_index;
-  int last_id_index= digest_storage->m_last_id_index;
   int byte_count= digest_storage->m_byte_count;
 
   if(last_id_index <= byte_count - PFS_SIZE_OF_A_TOKEN)
