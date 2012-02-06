@@ -141,12 +141,12 @@ SET GTID_NEXT = 'AUTOMATIC';
 # Can't set value from stored function
 CREATE FUNCTION set_var() RETURNS INT BEGIN SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:9'; RETURN 1; END;
 SELECT set_var();
-ERROR HY000: The system variable gtid_next can not be set in stored functions or triggers.
+ERROR HY000: The system variable gtid_next cannot be set in stored functions or triggers.
 DROP FUNCTION set_var;
 # Can't set value from trigger
 CREATE TRIGGER t BEFORE INSERT ON t1 FOR EACH ROW SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10';
 INSERT INTO t1 VALUES (1);
-ERROR HY000: The system variable gtid_next can not be set in stored functions or triggers.
+ERROR HY000: The system variable gtid_next cannot be set in stored functions or triggers.
 DROP TRIGGER t;
 # Can't set value when invoking SF
 SET @@SESSION.GTID_NEXT = f();
@@ -171,21 +171,28 @@ ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The clien
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:13. Ownership is released on COMMIT or ROLLBACK.
 ROLLBACK;
-# can't do implicit commit while owning a GTID
+# can't do implicit commit while gtid_next=SID:GNO
 BEGIN;
+CREATE TABLE t2 (a INT);
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when GTID_NEXT != AUTOMATIC or GTID_NEXT_LIST != NULL.
+ROLLBACK;
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:15';
+# can't do implicit commit while gtid_next=SID:GNO
+SET AUTOCOMMIT = 0;
+INSERT INTO t1 VALUES (1);
 CREATE TABLE t2 (a INT);
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when GTID_NEXT != AUTOMATIC or GTID_NEXT_LIST != NULL.
 ROLLBACK;
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
-AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:13
+AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:15
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 DROP TABLE t1;
 DROP FUNCTION f;
 DROP USER nonsuper@localhost;
 CREATE PROCEDURE p ()
 BEGIN
-SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:15';
+SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:16';
 ROLLBACK;
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 END|

@@ -208,14 +208,16 @@ eval SET @@SESSION.GTID_NEXT = '$ida:14';
 eval SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 ROLLBACK;
 
---echo # can't do implicit commit while owning a GTID
+--echo # can't do implicit commit while gtid_next=SID:GNO
 BEGIN;
 --error 1775 # ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t2 (a INT);
 ROLLBACK;
 
---echo # can't do implicit commit while owning a GTID
+eval SET GTID_NEXT = '$ida:15';
+--echo # can't do implicit commit while gtid_next=SID:GNO
 SET AUTOCOMMIT = 0;
+INSERT INTO t1 VALUES (1);
 --error 1775 # ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t2 (a INT);
 ROLLBACK;
@@ -234,7 +236,7 @@ DROP USER nonsuper@localhost;
 --delimiter |
 eval CREATE PROCEDURE p ()
 BEGIN
-  SET @@SESSION.GTID_NEXT = '$ida:15';
+  SET @@SESSION.GTID_NEXT = '$ida:16';
   ROLLBACK;
   SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 END|
