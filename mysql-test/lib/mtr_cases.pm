@@ -967,37 +967,6 @@ sub collect_one_test_case {
     }
   }
 
-  if ( $::opt_embedded_server )
-  {
-    if ( $tinfo->{'not_embedded'} )
-    {
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Not run for embedded server";
-      return $tinfo;
-    }
-  }
-
-  if ( $tinfo->{'not_valgrind'} )
-  {
-    if ( $::opt_valgrind_mysqld )
-    {
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Not compatible with Valgrind testing";
-      return $tinfo;
-    }
-  }
-
-  if ( $tinfo->{'need_ssl'} )
-  {
-    # This is a test that needs ssl
-    if ( ! $::opt_ssl_supported ) {
-      # SSL is not supported, skip it
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No SSL support";
-      return $tinfo;
-    }
-  }
-
   if ( $tinfo->{'need_ipv6'} )
   {
     # This is a test that needs ssl
@@ -1059,14 +1028,10 @@ sub collect_one_test_case {
 
 
 my $tags_map= {'big_test' => ['big_test', 1],
-               'have_debug' => ['need_debug', 1],
                'have_ndb' => ['ndb_test', 1],
                'have_multi_ndb' => ['ndb_test', 1],
                'master-slave' => ['rpl_test', 1],
                'ndb_master-slave' => ['rpl_test', 1, 'ndb_test', 1],
-               'not_embedded' => ['not_embedded', 1],
-               'not_valgrind' => ['not_valgrind', 1],
-               'have_ssl' => ['need_ssl', 1],
                'check_ipv6' => ['need_ipv6', 1],
                'long_test' => ['long_test', 1],
 };
