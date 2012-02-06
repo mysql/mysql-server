@@ -5406,6 +5406,7 @@ void create_thread_to_handle_connection(THD *thd)
       mysql_mutex_unlock(&LOCK_connection_count);
 
       statistic_increment(aborted_connects,&LOCK_status);
+      statistic_increment(connection_internal_errors, &LOCK_status);
       /* Can't use my_error() since store_globals has not been called. */
       my_snprintf(error_message_buff, sizeof(error_message_buff),
                   ER_THD(thd, ER_CANT_CREATE_THREAD), error);
@@ -5414,7 +5415,6 @@ void create_thread_to_handle_connection(THD *thd)
       mysql_mutex_lock(&LOCK_thread_count);
       delete thd;
       mysql_mutex_unlock(&LOCK_thread_count);
-      connection_internal_errors++;
       return;
       /* purecov: end */
     }
@@ -5455,7 +5455,7 @@ static void create_new_thread(THD *thd)
     DBUG_PRINT("error",("Too many connections"));
     close_connection(thd, ER_CON_COUNT_ERROR);
     delete thd;
-    connection_max_connection_errors++;
+    statistic_increment(connection_max_connection_errors, &LOCK_status);
     DBUG_VOID_RETURN;
   }
 
@@ -5585,7 +5585,7 @@ void handle_connections_sockets()
           There is not much details to report about the client,
           increment the server global status variable.
         */
-        connection_select_errors++;
+        statistic_increment(connection_select_errors, &LOCK_status);
         if (!select_errors++ && !abort_loop)  /* purecov: inspected */
           sql_print_error("mysqld: Got error %d from select",socket_errno); /* purecov: inspected */
       }
@@ -5667,7 +5667,7 @@ void handle_connections_sockets()
         There is not much details to report about the client,
         increment the server global status variable.
       */
-      connection_accept_errors++;
+      statistic_increment(connection_accept_errors, &LOCK_status);
       if ((error_count++ & 255) == 0)   // This can happen often
         sql_perror("Error in accept");
       MAYBE_BROKEN_SYSCALL;
@@ -5710,7 +5710,7 @@ void handle_connections_sockets()
             The connection was refused by TCP wrappers.
             There are no details (by client IP) available to update the host_cache.
           */
-          connection_tcpwrap_errors++;
+          statistic_increment(connection_tcpwrap_errors, &LOCK_status);
           continue;
         }
       }
@@ -5725,7 +5725,7 @@ void handle_connections_sockets()
     {
       (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
       (void) mysql_socket_close(new_sock);
-      connection_internal_errors++;
+      statistic_increment(connection_internal_errors, &LOCK_status);
       continue;
     }
 
@@ -5750,7 +5750,7 @@ void handle_connections_sockets()
         (void) mysql_socket_close(new_sock);
       }
       delete thd;
-      connection_internal_errors++;
+      statistic_increment(connection_internal_errors, &LOCK_status);
       continue;
     }
     init_net_server_extension(thd);

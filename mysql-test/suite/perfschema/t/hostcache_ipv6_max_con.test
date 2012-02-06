@@ -77,6 +77,9 @@ connect (con2e,"::1",quota,,test,$MASTER_MYPORT,);
 --connection default
 --source ../include/hostcache_dump.inc
 
+# Wait for all disconnects
+--source ../include/wait_for_pfs_thread_count.inc
+
 grant usage on *.* to 'quota'@'santa.claus.ipv6.example.com'
   with max_connections_per_hour 0;
 grant usage on *.* to 'quota'@'santa.claus.ipv6.example.com'
@@ -123,6 +126,9 @@ connect (con3e,"::1",quota,,test,$MASTER_MYPORT,);
 disconnect con3a;
 disconnect con3b;
 disconnect con3c;
+
+# Wait for all disconnects
+--source ../include/wait_for_pfs_thread_count.inc
 
 grant usage on *.* to 'quota'@'santa.claus.ipv6.example.com'
   with max_user_connections 0;
@@ -171,8 +177,12 @@ disconnect con4a;
 disconnect con4b;
 disconnect con4c;
 
+# Wait for all disconnects
+--source ../include/wait_for_pfs_thread_count.inc
+
 set global max_user_connections = 0;
 set global max_connections = 3;
+flush user_resources;
 
 connect (con5a,"::1",quota,,test,$MASTER_MYPORT,);
 select "Con4a is alive";
@@ -206,6 +216,9 @@ connect (con5d,"::1",quota,,test,$MASTER_MYPORT,);
 
 disconnect con5a;
 disconnect con5b;
+
+# Wait for all disconnects
+--source ../include/wait_for_pfs_thread_count.inc
 
 set global max_connections = @saved_max_connections;
 

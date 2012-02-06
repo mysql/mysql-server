@@ -133,11 +133,6 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("COUNT_MAX_CONNECTION_ERRORS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
     { C_STRING_WITH_LEN("COUNT_DEFAULT_DATABASE_ERRORS") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
@@ -181,7 +176,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_host_cache::m_field_def=
-{ 30, field_types };
+{ 29, field_types };
 
 PFS_engine_table_share
 table_host_cache::m_share=
@@ -301,7 +296,6 @@ void table_host_cache::make_row(Host_entry *entry, row_host_cache *row)
   row->m_count_ssl_errors= entry->m_errors.m_ssl;
   row->m_count_max_user_connection_errors= entry->m_errors.m_max_user_connection;
   row->m_count_max_user_connection_per_hour_errors= entry->m_errors.m_max_user_connection_per_hour;
-  row->m_count_max_connection_errors= entry->m_errors.m_max_connection;
   row->m_count_default_database_errors= entry->m_errors.m_default_database;
   row->m_count_init_connect_errors= entry->m_errors.m_init_connect;
   row->m_count_local_errors= entry->m_errors.m_local;
@@ -440,34 +434,31 @@ int table_host_cache::read_row_values(TABLE *table,
       case 20: /* COUNT_MAX_USER_CONNECTION_PER_HOUR_ERRORS */
         set_field_ulonglong(f, m_row->m_count_max_user_connection_per_hour_errors);
         break;
-      case 21: /* COUNT_MAX_CONNECTION_ERRORS */
-        set_field_ulonglong(f, m_row->m_count_max_connection_errors);
-        break;
-      case 22: /* COUNT_DEFAULT_DATABASE_ERRORS */
+      case 21: /* COUNT_DEFAULT_DATABASE_ERRORS */
         set_field_ulonglong(f, m_row->m_count_default_database_errors);
         break;
-      case 23: /* COUNT_INIT_CONNECT_ERRORS */
+      case 22: /* COUNT_INIT_CONNECT_ERRORS */
         set_field_ulonglong(f, m_row->m_count_init_connect_errors);
         break;
-      case 24: /* COUNT_LOCAL_ERRORS */
+      case 23: /* COUNT_LOCAL_ERRORS */
         set_field_ulonglong(f, m_row->m_count_local_errors);
         break;
-      case 25: /* COUNT_UNKNOWN_ERRORS */
+      case 24: /* COUNT_UNKNOWN_ERRORS */
         set_field_ulonglong(f, m_row->m_count_unknown_errors);
         break;
-      case 26: /* FIRST_SEEN */
+      case 25: /* FIRST_SEEN */
         set_field_timestamp(f, m_row->m_first_seen);
         break;
-      case 27: /* LAST_SEEN */
+      case 26: /* LAST_SEEN */
         set_field_timestamp(f, m_row->m_last_seen);
         break;
-      case 28: /* FIRST_ERROR_SEEN */
+      case 27: /* FIRST_ERROR_SEEN */
         if (m_row->m_first_error_seen != 0)
           set_field_timestamp(f, m_row->m_first_error_seen);
         else
           f->set_null();
         break;
-      case 29: /* LAST_ERROR_SEEN */
+      case 28: /* LAST_ERROR_SEEN */
         if (m_row->m_last_error_seen != 0)
           set_field_timestamp(f, m_row->m_last_error_seen);
         else
