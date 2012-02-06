@@ -207,6 +207,7 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_hash d_hash, PFS_digest_sto
       used later to generate digest text.
     */
     pfs->m_digest_storage.m_byte_count= digest_storage->m_byte_count;
+    pfs->m_digest_storage.m_full= digest_storage->m_full;
     /* Copy token array. */
     memcpy(pfs->m_digest_storage.m_token_array, digest_storage->m_token_array,
            PFS_MAX_DIGEST_STORAGE_SIZE);
@@ -285,6 +286,7 @@ void PFS_statements_digest_stat::reset()
 
   m_digest_storage.m_byte_count= 0;
   m_digest_storage.m_token_array[0]= '\0';
+  m_digest_storage.m_full= false;
   m_stat.reset();
   purge_digest(thread, m_digest_hash.m_md5);
   m_digest_hash.m_md5[0]= '\0';
@@ -317,53 +319,68 @@ void reset_esms_by_digest()
 /*
   This function, iterates token array and updates digest_text.
 */
-void get_digest_text(char* digest_text, char* token_array, int byte_count)
+void get_digest_text(char* digest_text, PFS_digest_storage* digest_storage)
 {
   uint tok= 0;
   int current_byte= 0;
   char *digest_text_start= digest_text;
   lex_token_string *tok_data;
+  char* token_array= digest_storage->m_token_array;
+  int byte_count= digest_storage->m_byte_count;
+  /* -4 is to make sure extra space for ... and a '\0' at the end. */
+  int available_bytes_to_write= COL_DIGEST_TEXT_SIZE-4;
 
   DBUG_ASSERT(byte_count <= PFS_MAX_DIGEST_STORAGE_SIZE);
 
   while(current_byte<byte_count &&
-        (digest_text-digest_text_start)<COL_DIGEST_TEXT_SIZE-3)
+        available_bytes_to_write>0)
   {
     read_token(&tok, &current_byte, token_array);
     tok_data= & lex_token_array[tok];
-
+    
     switch (tok)
     {
     /* All identifiers are printed with their name. */
     case IDENT:
     case IDENT_QUOTED:
-      read_identifier(&digest_text, &current_byte, token_array);
+      read_identifier(&digest_text, &current_byte,
+                      token_array, (uint)available_bytes_to_write);
       *digest_text= ' ';
       digest_text++;
       break;
 
     /* Everything else is printed as is. */
     default:
+      /* 
+        Make sure not to overflow digest_text buffer while writing
+        this token string.
+        +/-1 is to make sure extra space for ' '.
+      */
+      int length= available_bytes_to_write >= tok_data->m_token_length+1?
+                                              tok_data->m_token_length:
+                                              available_bytes_to_write-1;
       strncpy(digest_text,
               tok_data->m_token_string,
-              tok_data->m_token_length);
-      digest_text+= tok_data->m_token_length;
+              length);
+      digest_text+= length;
       *digest_text= ' ';
       digest_text++;
     }
+
+    available_bytes_to_write-= digest_text-digest_text_start;
+    digest_text_start= digest_text;
   }
 
   /* 
     Truncate digest text in case of long queries.
   */
-  if(digest_text-digest_text_start == COL_DIGEST_TEXT_SIZE-3)
+  if(digest_storage->m_full)
   {
     strcpy(digest_text,"...");
+    digest_text+= 3;
   }
-  else
-  {
-    *digest_text= '\0';
-  }
+
+  *digest_text= '\0';
 }
 
 struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
@@ -410,6 +427,7 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
   state->m_last_id_index= 0;
   while(digest_storage->m_byte_count)
     digest_storage->m_token_array[--digest_storage->m_byte_count]= 0;
+  digest_storage->m_full= false;
 
   /*
     Set digest_locker_state's statement info pointer.
@@ -441,8 +459,9 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
       PFS_SIZE_OF_A_TOKEN)
   {
     /*
-      If digest storage record is full, do nothing.
+      If digest storage record is full.
     */
+    digest_storage->m_full= true;
     return NULL;
   }
 

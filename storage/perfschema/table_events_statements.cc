@@ -383,9 +383,7 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
       Caclulate digest_text information from the token array collected
       to be shown as DIGEST_TEXT column.
     */ 
-    get_digest_text(m_row.m_digest.m_digest_text,
-                    pfs->m_digest_storage.m_token_array,
-                    pfs->m_digest_storage.m_byte_count);
+    get_digest_text(m_row.m_digest.m_digest_text, &pfs->m_digest_storage);
     m_row.m_digest.m_digest_text_length= strlen(m_row.m_digest.m_digest_text);
   }
   else
