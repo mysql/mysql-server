@@ -3048,10 +3048,11 @@ fil_reset_space_and_lsn_read(
 	const ulint	size	= zip_size ? zip_size : UNIV_PAGE_SIZE;
 
 	/* Check that the page number corresponds to the offset in
-	the file. Flag as corrupt if it doesn't. */
+	the file. Flag as corrupt if it doesn't. Disable the check
+	for LSN in buf_page_is_corrupted() */
 
 	if (!os_file_read(file, page, offset, size)
-	    || buf_page_is_corrupted(true, page, zip_size)
+	    || buf_page_is_corrupted(false, page, zip_size)
 	    || (page_get_page_no(page) != offset / size
 		&& page_get_page_no(page) != 0)) {
 
