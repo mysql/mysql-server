@@ -78,8 +78,8 @@ class Master_info : public Slave_reporting_capability
   File fd; // we keep the file open, so we need to remember the file pointer
   IO_CACHE file;
 
-  mysql_mutex_t data_lock, run_lock;
-  mysql_cond_t data_cond, start_cond, stop_cond;
+  mysql_mutex_t data_lock, run_lock, sleep_lock;
+  mysql_cond_t data_cond, start_cond, stop_cond, sleep_cond;
   THD *io_thd;
   MYSQL* mysql;
   uint32 file_id;				/* for 3.23 load data infile */

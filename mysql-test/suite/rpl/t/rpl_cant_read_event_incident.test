@@ -14,11 +14,6 @@
 
 --source include/master-slave.inc
 --source include/have_binlog_format_mixed.inc
-#
-# Bug#13050593 swallows `\' from  Last_IO_Error
-# todo: uncomment the filter once the bug is fixed.
-#
---source include/not_windows.inc
 
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 
@@ -51,6 +46,7 @@ start slave;
 --let $slave_param_value=1236
 --source include/wait_for_slave_param.inc
 
+--let $slave_field_result_replace= / at [0-9]*/ at XXX/
 --let $status_items= Last_IO_Errno, Last_IO_Error
 --source include/show_slave_status.inc
 
