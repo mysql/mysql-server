@@ -35,6 +35,7 @@ typedef struct st_archive_share {
   mysql_mutex_t mutex;
   THR_LOCK lock;
   azio_stream archive_write;     /* Archive file we are working with */
+  bool in_optimize;
   bool archive_write_open;
   bool dirty;               /* Flag for if a flush should occur */
   bool crashed;             /* Meta file is crashed */

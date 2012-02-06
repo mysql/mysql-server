@@ -154,7 +154,8 @@ The following options may be given as the first argument:
  --eq-range-index-dive-limit=# 
  The optimizer will use existing index statistics instead
  of doing index dives for equality ranges if the number of
- equality ranges is larger than or equal to this number.
+ equality ranges for the index is larger than or equal to
+ this number.
  --event-scheduler[=name] 
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
