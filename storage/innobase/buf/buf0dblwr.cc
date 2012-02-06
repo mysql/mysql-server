@@ -497,7 +497,7 @@ buf_dblwr_init_or_restore_pages(
 
 			/* Check if the page is corrupt */
 
-			if (buf_page_is_corrupted(false,
+			if (buf_page_is_corrupted(true,
 						   read_buf, zip_size)) {
 
 				fprintf(stderr,
@@ -509,7 +509,7 @@ buf_dblwr_init_or_restore_pages(
 					" the doublewrite buffer.\n",
 					(ulong) space_id, (ulong) page_no);
 
-				if (buf_page_is_corrupted(false,
+				if (buf_page_is_corrupted(true,
 							  page, zip_size)) {
 					fprintf(stderr,
 						"InnoDB: Dump of the page:\n");

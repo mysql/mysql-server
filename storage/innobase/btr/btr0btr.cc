@@ -744,9 +744,6 @@ btr_root_get(
 }
 
 /**************************************************************//**
-Checks and adjusts a file segment header during IMPORT TABLESPACE.
-@return TRUE on success, FALSE on failure */
-/**************************************************************//**
 Checks a file segment header within a B-tree root page.
 @return	TRUE if valid */
 static
@@ -765,9 +762,8 @@ btr_root_fseg_adjust_on_import(
 	    || offset > UNIV_PAGE_SIZE - FIL_PAGE_DATA_END) {
 
 		return(FALSE);
-	}
 
-	if (page_zip) {
+	} else if (page_zip) {
 		mach_write_to_4(seg_header + FSEG_HDR_SPACE, space);
 		page_zip_write_header(page_zip, seg_header + FSEG_HDR_SPACE,
 				      4, mtr);
@@ -4632,7 +4628,7 @@ loop:
 
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
-					"InnoDB: Error: node ptrs differ"
+					" InnoDB: Error: node ptrs differ"
 					" on levels > 0\n"
 					"InnoDB: node ptr ");
 				rec_print_new(stderr, node_ptr, offsets);
