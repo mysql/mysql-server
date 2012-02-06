@@ -45,17 +45,19 @@ struct {
   on which digest is to be calculated.
 */
 struct {
-         PFS_digest_hash m_digest_hash;
+         bool m_full;
          int m_byte_count;
-         int m_last_id_index;
          char m_token_array[PFS_MAX_DIGEST_STORAGE_SIZE];
-
-         void reset();
        } typedef PFS_digest_storage;
 
 /** A statement digest stat record. */
 struct PFS_statements_digest_stat
 {
+  /**
+    Digest MD5 Hash.
+  */
+  PFS_digest_hash m_digest_hash;
+
   /**
     Digest Storage.
   */
@@ -71,6 +73,8 @@ struct PFS_statements_digest_stat
   */
   ulonglong m_first_seen;
   ulonglong m_last_seen;
+
+  void reset();
 };
 
 int init_digest(unsigned int digest_sizing);
@@ -79,11 +83,10 @@ void cleanup_digest();
 int init_digest_hash(void);
 void cleanup_digest_hash(void);
 PFS_statements_digest_stat* find_or_create_digest(PFS_thread*,
+                                                  PFS_digest_hash,
                                                   PFS_digest_storage*);
 
-void get_digest_text(char* digest_text,
-                            char* token_array,
-                            int byte_count);
+void get_digest_text(char* digest_text, PFS_digest_storage*);
 
 void reset_esms_by_digest();
 
@@ -101,17 +104,18 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
 /** 
   Function to read a single token from token array.
 */
-inline void read_token(uint *dest, int *index, char *src)
+inline void read_token(uint *tok, int *index, char *src)
 {
   unsigned short sh;
   int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE - *index;
   DBUG_ASSERT(remaining_bytes >= 0);
 
-  /* Make sure we have enough space to read a token. */
+  /* Make sure we have enough space to read a token from.
+   */
   if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)
   {
     sh= ((0x00ff & src[*index + 1])<<8) | (0x00ff & src[*index]);
-    *dest= (uint)(sh);
+    *tok= (uint)(sh);
     *index= *index + PFS_SIZE_OF_A_TOKEN;
   }
 }
@@ -127,7 +131,7 @@ inline void store_token(PFS_digest_storage* digest_storage, uint token)
   int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE - *index;
   DBUG_ASSERT(remaining_bytes >= 0);
 
-  /* Make sure we have enough space to store a token. */
+  /* Make sure we have enough space to write a token to. */
   if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)
   {
     dest[*index]= (sh) & 0xff;
@@ -140,23 +144,27 @@ inline void store_token(PFS_digest_storage* digest_storage, uint token)
 /**
   Function to read an identifier from token array.
 */
-inline void read_identifier(char **dest, int *index, char *src)
+inline void read_identifier(char **dest, int *index, char *src,
+                            uint available_bytes_to_write)
 {
   uint length;
   int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE - *index;
   DBUG_ASSERT(remaining_bytes >= 0);
   /*
     Read ID's length.
-    Make sure that space, to read ID's length, is available.
+    Make sure that space to read ID's length from, is available.
   */
   if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)
   {
     read_token(&length, index, src);
     /*
-      While storing ID length, it has already been stored
-      in a way that ID doesn't go beyond the storage size,
-      so no need to check length here.
+      Make sure not to overflow digest_text buffer while writing
+      identifier name.
+      +/-1 is to make sure extra space for ' '.
     */
+    length= available_bytes_to_write >= length+1 ?
+                                        length :
+                                        available_bytes_to_write-1;
     strncpy(*dest, src + *index, length);
     *index= *index + length;
     *dest= *dest + length;
@@ -196,10 +204,9 @@ inline void store_identifier(PFS_digest_storage* digest_storage,
   is found, do not look for token after that.
 */
 inline void read_last_two_tokens(PFS_digest_storage* digest_storage,
-                                 uint *t1, uint *t2)
+                                 int last_id_index, uint *t1, uint *t2)
 {
   int last_token_index;
-  int last_id_index= digest_storage->m_last_id_index;
   int byte_count= digest_storage->m_byte_count;
 
   if(last_id_index <= byte_count - PFS_SIZE_OF_A_TOKEN)

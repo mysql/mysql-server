@@ -2034,7 +2034,8 @@ public:
   bool is_outer_field() const
   {
     DBUG_ASSERT(fixed);
-    return field->table->pos_in_table_list->outer_join;
+    return field->table->pos_in_table_list->outer_join ||
+           field->table->pos_in_table_list->in_outer_join_nest();
   }
   Field::geometry_type get_geometry_type() const
   {

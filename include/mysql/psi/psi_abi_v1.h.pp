@@ -239,7 +239,7 @@ struct PSI_table_locker_state_v1
 };
 struct PSI_digest_locker_state_v1
 {
-  uint m_token_count; 
+  int m_last_id_index;
   void *m_statement;
 };
 struct PSI_statement_locker_state_v1
