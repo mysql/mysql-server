@@ -9101,7 +9101,6 @@ ha_innobase::truncate()
 /*===================*/
 {
 	ulint	err;
-	trx_t*	trx;
 
 	DBUG_ENTER("ha_innobase::truncate");
 
@@ -9113,17 +9112,11 @@ ha_innobase::truncate()
 	if (!trx_is_started(prebuilt->trx)) {
 		++prebuilt->trx->will_lock;
 	}
-	/* Truncate the table in InnoDB */
-	trx = innobase_trx_allocate(user_thd);
 
-	err = row_truncate_table_for_mysql(prebuilt->table,
-					   prebuilt->trx, trx);
+	err = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
 
-	innobase_commit_low(trx);
-	trx_free_for_mysql(trx);
-
-	DBUG_RETURN(convert_error_code_to_mysql(err, prebuilt->table->flags,
-						NULL));
+	DBUG_RETURN(convert_error_code_to_mysql(
+			err, prebuilt->table->flags, NULL));
 }
 
 /*****************************************************************//**
