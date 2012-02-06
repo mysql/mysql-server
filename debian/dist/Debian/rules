@@ -66,7 +66,7 @@ endif
 	( test -d $(builddir) || mkdir $(builddir) ) && cd $(builddir) && \
 	sh -c 'PATH=$${MYSQL_BUILD_PATH:-"/bin:/usr/bin:/usr/local/bin"} \
 			CC=$${MYSQL_BUILD_CC:-gcc} \
-			CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wno-uninitialized"} \
+			CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wno-uninitialized $$(case `lsb_release -sc` in (lenny) echo -DWORKAROUND_GCC_4_3_2_BUG ;; esac)"} \
 			CXX=$${MYSQL_BUILD_CXX:-g++} \
 			CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wno-uninitialized"} \
 		cmake .. \

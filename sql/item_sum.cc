@@ -1647,7 +1647,7 @@ double Item_sum_avg::val_real()
 
 my_decimal *Item_sum_avg::val_decimal(my_decimal *val)
 {
-  my_decimal sum_buff, cnt;
+  my_decimal cnt;
   const my_decimal *sum_dec;
   DBUG_ASSERT(fixed == 1);
   if (aggr)
