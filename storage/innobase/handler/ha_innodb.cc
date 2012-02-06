@@ -53,7 +53,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 #include "trx0roll.h"
 #include "trx0trx.h"
-#include "trx0purge.h"
 
 #include "trx0sys.h"
 #include "mtr0mtr.h"
