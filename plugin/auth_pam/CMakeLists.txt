@@ -1,0 +1,8 @@
+INCLUDE (CheckIncludeFiles)
+
+CHECK_INCLUDE_FILES (security/pam_appl.h HAVE_PAM_APPL_H)
+
+IF(HAVE_PAM_APPL_H)
+  MYSQL_ADD_PLUGIN(auth_pam auth_pam.c LINK_LIBRARIES pam MODULE_ONLY)
+ENDIF(HAVE_PAM_APPL_H)
+
