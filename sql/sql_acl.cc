@@ -9640,9 +9640,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     mysql_mutex_unlock(&LOCK_connection_count);
     if (!count_ok)
     {                                         // too many connections
-      Host_errors errors;
-      errors.m_max_connection= 1;
-      inc_host_errors(mpvio.ip, &errors);
+      statistic_increment(connection_max_connection_errors, &LOCK_status);
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }

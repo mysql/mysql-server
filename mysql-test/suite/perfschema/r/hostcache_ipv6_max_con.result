@@ -918,6 +918,7 @@ FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
 set global max_user_connections = 0;
 set global max_connections = 3;
+flush user_resources;
 select "Con4a is alive";
 Con4a is alive
 Con4a is alive

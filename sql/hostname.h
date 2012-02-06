@@ -69,8 +69,6 @@ public:
   ulong m_max_user_connection;
   /** Number of errors from max user connection per hour. */
   ulong m_max_user_connection_per_hour;
-  /** Number of errors from max connection. */
-  ulong m_max_connection;
   /** Number of errors from the default database. */
   ulong m_default_database;
   /** Number of errors from init_connect. */
@@ -97,7 +95,6 @@ public:
       || (m_ssl != 0)
       || (m_max_user_connection != 0)
       || (m_max_user_connection_per_hour != 0)
-      || (m_max_connection != 0)
       || (m_default_database != 0)
       || (m_init_connect != 0)
       || (m_local != 0));
