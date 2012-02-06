@@ -9258,7 +9258,6 @@ innobase_drop_database(
 				'mysql/data/test' the database name is 'test' */
 {
 	ulint	len		= 0;
-	trx_t*	parent_trx;
 	trx_t*	trx;
 	char*	ptr;
 	char*	namebuf;
@@ -9271,15 +9270,13 @@ innobase_drop_database(
 
 	/* In the Windows plugin, thd = current_thd is always NULL */
 	if (thd) {
-		parent_trx = check_trx_exists(thd);
+		trx_t*	parent_trx = check_trx_exists(thd);
 
 		/* In case MySQL calls this in the middle of a SELECT
 		query, release possible adaptive hash latch to avoid
 		deadlocks of threads */
 
 		trx_search_latch_release_if_reserved(parent_trx);
-	} else {
-		parent_trx = NULL;
 	}
 
 	ptr = strend(path) - 2;
