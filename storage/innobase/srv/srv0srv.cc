@@ -736,9 +736,12 @@ srv_reserve_slot(
 		ut_error;
 	}
 
+	ut_a(!slot->in_use);
+
 	slot->in_use = TRUE;
 	slot->suspended = FALSE;
 	slot->type = type;
+
 	ut_ad(srv_slot_get_type(slot) == type);
 
 	++srv_sys->n_threads_active[type];
