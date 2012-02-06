@@ -4654,21 +4654,25 @@ void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
 
 
 /*
-  Get selectivity of a ROR scan wrt ROR-intersection.
+  Get selectivity of adding a ROR scan to the ROR-intersection.
 
   SYNOPSIS
     ror_scan_selectivity()
-      info  ROR-interection 
-      scan  ROR scan
+      info  ROR-interection, an intersection of ROR index scans 
+      scan  ROR scan that may or may not improve the selectivity
+            of 'info'
       
   NOTES
-    Suppose we have a condition on several keys
-    cond=k_11=c_11 AND k_12=c_12 AND ...  // parts of first key
-         k_21=c_21 AND k_22=c_22 AND ...  // parts of second key
+    Suppose we have conditions on several keys
+    cond=k_11=c_11 AND k_12=c_12 AND ...  // key_parts of first key in 'info'
+         k_21=c_21 AND k_22=c_22 AND ...  // key_parts of second key in 'info'
           ...
-         k_n1=c_n1 AND k_n3=c_n3 AND ...  (1) //parts of the key used by *scan
+         k_n1=c_n1 AND k_n3=c_n3 AND ...  (1) //key_parts of 'scan'
 
     where k_ij may be the same as any k_pq (i.e. keys may have common parts).
+
+    Note that for ROR retrieval, only equality conditions are usable so there
+    are no open ranges (e.g., k_ij > c_ij) in 'scan' or 'info'
 
     A full row is retrieved if entire condition holds.
 
@@ -4736,19 +4740,30 @@ void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
 
     where i1,i2, .. are key parts that were already marked as fixed.
 
-    In order to minimize number of expensive records_in_range calls we group
-    and reduce adjacent fractions.
+    In order to minimize number of expensive records_in_range calls we
+    group and reduce adjacent fractions. Note that on the optimizer's
+    request, index statistics may be used instead of records_in_range
+    @see RANGE_OPT_PARAM::use_index_statistics.
 
   RETURN
-    Selectivity of given ROR scan.
+    Selectivity of given ROR scan, a number between 0 and 1. 1 means that
+    adding 'scan' to the intersection does not improve the selectivity.
 */
 
 static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info, 
                                    const ROR_SCAN_INFO *scan)
 {
   double selectivity_mult= 1.0;
-  KEY_PART_INFO *key_part= info->param->table->key_info[scan->keynr].key_part;
-  uchar key_val[MAX_KEY_LENGTH+MAX_FIELD_WIDTH]; /* key values tuple */
+  const TABLE * const table= info->param->table;
+  const KEY_PART_INFO * const key_part= table->key_info[scan->keynr].key_part;
+  /**
+    key values tuple, used to store both min_range.key and
+    max_range.key. This function is only called for equality ranges;
+    open ranges (e.g. "min_value < X < max_value") cannot be used for
+    rowid ordered retrieval, so in this function we know that
+    min_range.key == max_range.key
+  */
+  uchar key_val[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
   uchar *key_ptr= key_val;
   SEL_ARG *sel_arg, *tuple_arg= NULL;
   key_part_map keypart_map= 0;
@@ -4761,7 +4776,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   min_range.flag= HA_READ_KEY_EXACT;
   max_range.key= key_val;
   max_range.flag= HA_READ_AFTER_KEY;
-  ha_rows prev_records= info->param->table->file->stats.records;
+  ha_rows prev_records= table->file->stats.records;
   DBUG_ENTER("ror_scan_selectivity");
 
   for (sel_arg= scan->sel_arg; sel_arg;
@@ -4773,12 +4788,14 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
     if (cur_covered != prev_covered)
     {
       /* create (part1val, ..., part{n-1}val) tuple. */
+      bool is_null_range= false;
       ha_rows records;
       if (!tuple_arg)
       {
         tuple_arg= scan->sel_arg;
         /* Here we use the length of the first key part */
-        tuple_arg->store_min(key_part->store_length, &key_ptr, 0);
+        tuple_arg->store_min(key_part[0].store_length, &key_ptr, 0);
+        is_null_range|= tuple_arg->is_null_interval();
         keypart_map= 1;
       }
       while (tuple_arg->next_key_part != sel_arg)
@@ -4786,12 +4803,33 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
         tuple_arg= tuple_arg->next_key_part;
         tuple_arg->store_min(key_part[tuple_arg->part].store_length,
                              &key_ptr, 0);
+        is_null_range|= tuple_arg->is_null_interval();
         keypart_map= (keypart_map << 1) | 1;
       }
       min_range.length= max_range.length= (size_t) (key_ptr - key_val);
       min_range.keypart_map= max_range.keypart_map= keypart_map;
-      records= (info->param->table->file->
-                records_in_range(scan->keynr, &min_range, &max_range));
+
+      /* 
+        Get the number of rows in this range. This is done by calling
+        records_in_range() unless all these are true:
+          1) The user has requested that index statistics should be used
+             for equality ranges to avoid the incurred overhead of 
+             index dives in records_in_range()
+          2) The range is not on the form "x IS NULL". The reason is
+             that the number of rows with this value are likely to be
+             very different than the values in the index statistics
+          3) Index statistics is available.
+        @see key_val
+      */
+      if (!info->param->use_index_statistics ||        // (1)
+          is_null_range ||                             // (2)
+          !(records= table->key_info[scan->keynr].
+                     rec_per_key[tuple_arg->part]))    // (3)
+      {
+        DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
+        records= (table->file->
+                  records_in_range(scan->keynr, &min_range, &max_range));
+      }
       if (cur_covered)
       {
         /* uncovered -> covered */
@@ -4810,11 +4848,13 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   }
   if (!prev_covered)
   {
-    double tmp= rows2double(info->param->table->quick_rows[scan->keynr]) /
+    double tmp= rows2double(table->quick_rows[scan->keynr]) /
                 rows2double(prev_records);
     DBUG_PRINT("info", ("Selectivity multiplier: %g", tmp));
     selectivity_mult *= tmp;
   }
+  // Todo: This assert fires in PB sysqa RQG tests.
+  // DBUG_ASSERT(selectivity_mult <= 1.0);
   DBUG_PRINT("info", ("Returning multiplier: %g", selectivity_mult));
   DBUG_RETURN(selectivity_mult);
 }
