@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2090,7 +2090,15 @@ ibuf_get_merge_page_nos(
 		} else {
 			rec_page_no = ibuf_rec_get_page_no(rec);
 			rec_space_id = ibuf_rec_get_space(rec);
-			ut_ad(rec_page_no > IBUF_TREE_ROOT_PAGE_NO);
+			/* In the system tablespace, the smallest
+			possible secondary index leaf page number is
+			bigger than IBUF_TREE_ROOT_PAGE_NO (4). In
+			other tablespaces, the clustered index tree is
+			created at page 3, which makes page 4 the
+			smallest possible secondary index leaf page
+			(and that only after DROP INDEX). */
+			ut_ad(rec_page_no
+			      > IBUF_TREE_ROOT_PAGE_NO - (rec_space_id != 0));
 		}
 
 #ifdef UNIV_IBUF_DEBUG
