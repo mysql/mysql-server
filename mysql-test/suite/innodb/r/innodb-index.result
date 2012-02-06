@@ -114,6 +114,10 @@ t12963823	CREATE TABLE `t12963823` (
   KEY `ndx_o` (`o`(500)),
   KEY `ndx_p` (`p`(500))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+create table t1(a varchar(2) primary key) engine=innodb;
+insert into t1 values('');
+create index t1a1 on t1(a(1));
+drop table t1;
 set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2963,6 +2963,7 @@ row_sel_get_clust_rec_for_mysql(
 			fputs("\n"
 			      "InnoDB: Submit a detailed bug report"
 			      " to http://bugs.mysql.com\n", stderr);
+			ut_ad(0);
 		}
 
 		clust_rec = NULL;
@@ -3997,7 +3998,8 @@ rec_loop:
 wrong_offs:
 		if (srv_force_recovery == 0 || moves_up == FALSE) {
 			ut_print_timestamp(stderr);
-			buf_page_print(page_align(rec), 0);
+			buf_page_print(page_align(rec), 0,
+				       BUF_PAGE_PRINT_NO_CRASH);
 			fprintf(stderr,
 				"\nInnoDB: rec address %p,"
 				" buf block fix count %lu\n",
@@ -4016,7 +4018,7 @@ wrong_offs:
 			      "InnoDB: restore from a backup, or"
 			      " dump + drop + reimport the table.\n",
 			      stderr);
-
+			ut_ad(0);
 			err = DB_CORRUPTION;
 
 			goto lock_wait_or_error;

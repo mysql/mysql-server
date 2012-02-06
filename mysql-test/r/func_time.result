@@ -1402,8 +1402,220 @@ NULL
 # Bug#12584302 AFTER FIX FOR #12403504: ASSERTION FAILED: DELSUM+(INT) Y/4-TEMP > 0,
 #
 DO WEEK((DATE_ADD((CAST(0 AS DATE)), INTERVAL 1 YEAR_MONTH)), 5);
+#
+# BUG#13458237 INCONSISTENT HANDLING OF INVALIDE DATES WITH ZERO DAY
+# SIMILAR TO '2009-10-00' 
+#
+SELECT
+DATE('20091000'),
+STR_TO_DATE('200910','%Y%m'),
+LAST_DAY('2009-10-00'),
+LAST_DAY(DATE('2009-10-00')),
+LAST_DAY(DATE'2009-10-00'),
+LAST_DAY(STR_TO_DATE('200910','%Y%m')),
+WEEK('2009-10-00'),
+WEEK(DATE('2009-10-00')),
+WEEK(DATE'2009-10-00'),
+WEEK(STR_TO_DATE('200910','%Y%m')),
+WEEKOFYEAR('2009-10-00'),
+WEEKOFYEAR(DATE('2009-10-00')),
+WEEKOFYEAR(DATE'2009-10-00'),
+WEEKOFYEAR(STR_TO_DATE('200910','%Y%m')),
+DAYOFYEAR('2009-10-00'),
+DAYOFYEAR(DATE('2009-10-00')),
+DAYOFYEAR(DATE'2009-10-00'),
+DAYOFYEAR(STR_TO_DATE('200910','%Y%m')),
+WEEKDAY('2009-10-00'),
+WEEKDAY(DATE('2009-10-00')),
+WEEKDAY(DATE'2009-10-00'),
+WEEKDAY(STR_TO_DATE('200910','%Y%m')),
+TO_DAYs('2009-10-00'),
+TO_DAYs(DATE('2009-10-00')),
+TO_DAYs(DATE'2009-10-00'),
+TO_DAYs(STR_TO_DATE('200910','%Y%m'));
+DATE('20091000')	2009-10-00
+STR_TO_DATE('200910','%Y%m')	2009-10-00
+LAST_DAY('2009-10-00')	NULL
+LAST_DAY(DATE('2009-10-00'))	2009-10-31
+LAST_DAY(DATE'2009-10-00')	NULL
+LAST_DAY(STR_TO_DATE('200910','%Y%m'))	2009-10-31
+WEEK('2009-10-00')	NULL
+WEEK(DATE('2009-10-00'))	39
+WEEK(DATE'2009-10-00')	NULL
+WEEK(STR_TO_DATE('200910','%Y%m'))	NULL
+WEEKOFYEAR('2009-10-00')	NULL
+WEEKOFYEAR(DATE('2009-10-00'))	40
+WEEKOFYEAR(DATE'2009-10-00')	NULL
+WEEKOFYEAR(STR_TO_DATE('200910','%Y%m'))	NULL
+DAYOFYEAR('2009-10-00')	NULL
+DAYOFYEAR(DATE('2009-10-00'))	273
+DAYOFYEAR(DATE'2009-10-00')	NULL
+DAYOFYEAR(STR_TO_DATE('200910','%Y%m'))	NULL
+WEEKDAY('2009-10-00')	NULL
+WEEKDAY(DATE('2009-10-00'))	2
+WEEKDAY(DATE'2009-10-00')	NULL
+WEEKDAY(STR_TO_DATE('200910','%Y%m'))	NULL
+TO_DAYs('2009-10-00')	NULL
+TO_DAYs(DATE('2009-10-00'))	734045
+TO_DAYs(DATE'2009-10-00')	NULL
+TO_DAYs(STR_TO_DATE('200910','%Y%m'))	NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '0'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '2009-10-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '2009-10-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '2009-10-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '2009-10-00'
+Level	Warning
+Code	1411
+Message	Incorrect datetime value: '200910' for function str_to_date
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '2009-10-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '2009-10-00'
+Level	Warning
+Code	1411
+Message	Incorrect datetime value: '200910' for function str_to_date
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '2009-10-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '2009-10-00'
+Level	Warning
+Code	1411
+Message	Incorrect datetime value: '200910' for function str_to_date
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '2009-10-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '2009-10-00'
+Level	Warning
+Code	1411
+Message	Incorrect datetime value: '200910' for function str_to_date
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '2009-10-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '2009-10-00'
+Level	Warning
+Code	1411
+Message	Incorrect datetime value: '200910' for function str_to_date
+SELECT
+DATE('00000100'),
+STR_TO_DATE('000001','%Y%m'),
+LAST_DAY('0000-01-00'),
+LAST_DAY(DATE('0000-01-00')),
+LAST_DAY(DATE'0000-01-00'),
+LAST_DAY(STR_TO_DATE('000001','%Y%m')),
+WEEK('0000-01-00'),
+WEEK(DATE('0000-01-00')),
+WEEK(DATE'0000-01-00'),
+WEEK(STR_TO_DATE('000001','%Y%m')),
+WEEKOFYEAR('0000-01-00'),
+WEEKOFYEAR(DATE('0000-01-00')),
+WEEKOFYEAR(DATE'0000-01-00'),
+WEEKOFYEAR(STR_TO_DATE('000001','%Y%m')),
+DAYOFYEAR('0000-01-00'),
+DAYOFYEAR(DATE('0000-01-00')),
+DAYOFYEAR(DATE'0000-01-00'),
+DAYOFYEAR(STR_TO_DATE('000001','%Y%m')),
+WEEKDAY('0000-01-00'),
+WEEKDAY(DATE('0000-01-00')),
+WEEKDAY(DATE'0000-01-00'),
+WEEKDAY(STR_TO_DATE('000001','%Y%m')),
+TO_DAYs('0000-01-00'),
+TO_DAYs(DATE('0000-01-00')),
+TO_DAYs(DATE'0000-01-00'),
+TO_DAYs(STR_TO_DATE('000001','%Y%m'));
+DATE('00000100')	0000-01-00
+STR_TO_DATE('000001','%Y%m')	0000-01-00
+LAST_DAY('0000-01-00')	NULL
+LAST_DAY(DATE('0000-01-00'))	0000-01-31
+LAST_DAY(DATE'0000-01-00')	NULL
+LAST_DAY(STR_TO_DATE('000001','%Y%m'))	0000-01-31
+WEEK('0000-01-00')	NULL
+WEEK(DATE('0000-01-00'))	52
+WEEK(DATE'0000-01-00')	NULL
+WEEK(STR_TO_DATE('000001','%Y%m'))	NULL
+WEEKOFYEAR('0000-01-00')	NULL
+WEEKOFYEAR(DATE('0000-01-00'))	52
+WEEKOFYEAR(DATE'0000-01-00')	NULL
+WEEKOFYEAR(STR_TO_DATE('000001','%Y%m'))	NULL
+DAYOFYEAR('0000-01-00')	NULL
+DAYOFYEAR(DATE('0000-01-00'))	0
+DAYOFYEAR(DATE'0000-01-00')	NULL
+DAYOFYEAR(STR_TO_DATE('000001','%Y%m'))	NULL
+WEEKDAY('0000-01-00')	NULL
+WEEKDAY(DATE('0000-01-00'))	5
+WEEKDAY(DATE'0000-01-00')	NULL
+WEEKDAY(STR_TO_DATE('000001','%Y%m'))	NULL
+TO_DAYs('0000-01-00')	NULL
+TO_DAYs(DATE('0000-01-00'))	0
+TO_DAYs(DATE'0000-01-00')	NULL
+TO_DAYs(STR_TO_DATE('000001','%Y%m'))	NULL
+Warnings:
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '0000-01-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '0000-01-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '0000-01-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '0000-01-00'
+Level	Warning
+Code	1411
+Message	Incorrect datetime value: '000001' for function str_to_date
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '0000-01-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '0000-01-00'
+Level	Warning
+Code	1411
+Message	Incorrect datetime value: '000001' for function str_to_date
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '0000-01-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '0000-01-00'
+Level	Warning
+Code	1411
+Message	Incorrect datetime value: '000001' for function str_to_date
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '0000-01-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '0000-01-00'
+Level	Warning
+Code	1411
+Message	Incorrect datetime value: '000001' for function str_to_date
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '0000-01-00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '0000-01-00'
+Level	Warning
+Code	1411
+Message	Incorrect datetime value: '000001' for function str_to_date
 End of 5.1 tests
 #
 # Bug#57039: constant subtime expression returns incorrect result.

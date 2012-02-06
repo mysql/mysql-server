@@ -2195,6 +2195,9 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
 
   thd->protocol= save_protocol;
 
+  sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
+  sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
+
   /* check_prepared_statemnt sends the metadata packet in case of success */
   DBUG_VOID_RETURN;
 }
@@ -2559,6 +2562,9 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   thd->protocol= &thd->protocol_binary;
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
   thd->protocol= save_protocol;
+
+  sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
+  sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
 
   /* Close connection socket; for use with client testing (Bug#43560). */
   DBUG_EXECUTE_IF("close_conn_after_stmt_execute", vio_close(thd->net.vio););

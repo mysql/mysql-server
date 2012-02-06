@@ -757,7 +757,8 @@ buf_flush_buffered_writes(void)
 			if (UNIV_UNLIKELY
 			    (!page_simple_validate_new(block->frame))) {
 corrupted_page:
-				buf_page_print(block->frame, 0);
+				buf_page_print(block->frame, 0,
+					       BUF_PAGE_PRINT_NO_CRASH);
 
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
