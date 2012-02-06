@@ -948,6 +948,19 @@ innobase_get_charset(
 	return(thd_charset((THD*) mysql_thd));
 }
 
+/**********************************************************************//**
+Get the current setting of the lower_case_table_names global parameter from
+mysqld.cc. We do a dirty read because for one there is no synchronization
+object and secondly there is little harm in doing so even if we get a torn
+read.
+@return	value of lower_case_table_names */
+ulint
+innobase_get_lower_case_table_names(void)
+/*=====================================*/
+{
+	return(lower_case_table_names);
+}
+
 #if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
 extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 /*******************************************************************//**
@@ -2579,52 +2592,139 @@ ha_innobase::bas_ext() const
   return ha_innobase_exts;
 }
 
+/** Always normalize table name to lower case on Windows */
+#ifdef __WIN__
+#define normalize_table_name(norm_name, name)		\
+	normalize_table_name_low(norm_name, name, TRUE)
+#else
+#define normalize_table_name(norm_name, name)           \
+	normalize_table_name_low(norm_name, name, FALSE)
+#endif /* __WIN__ */
 
 /*********************************************************************
 Normalizes a table name string. A normalized name consists of the
 database name catenated to '/' and table name. An example:
 test/mytable. On Windows normalization puts both the database name and the
-table name always to lower case. */
+table name always to lower case if "set_lower_case" is set to TRUE. */
 static
 void
-normalize_table_name(
-/*=================*/
+normalize_table_name_low(
+/*=====================*/
 	char*		norm_name,	/* out: normalized name as a
 					null-terminated string */
-	const char*	name)		/* in: table name string */
+	const char*	name,		/* in: table name string */
+	ibool		set_lower_case) /* in: TRUE if we want to set
+					name to lower case */
 {
 	char*	name_ptr;
 	char*	db_ptr;
+	ulint	db_len;
 	char*	ptr;
 
 	/* Scan name from the end */
 
-	ptr = strend(name)-1;
+	ptr = strend(name) - 1;
 
+	/* seek to the last path separator */
 	while (ptr >= name && *ptr != '\\' && *ptr != '/') {
 		ptr--;
 	}
 
 	name_ptr = ptr + 1;
 
-	DBUG_ASSERT(ptr > name);
+	/* skip any number of path separators */
+	while (ptr >= name && (*ptr == '\\' || *ptr == '/')) {
+		ptr--;
+	}
 
-	ptr--;
+	DBUG_ASSERT(ptr >= name);
 
+	/* seek to the last but one path separator or one char before
+	the beginning of name */
+	db_len = 0;
 	while (ptr >= name && *ptr != '\\' && *ptr != '/') {
 		ptr--;
+		db_len++;
 	}
 
 	db_ptr = ptr + 1;
 
-	memcpy(norm_name, db_ptr, strlen(name) + 1 - (db_ptr - name));
+	memcpy(norm_name, db_ptr, db_len);
 
-	norm_name[name_ptr - db_ptr - 1] = '/';
+	norm_name[db_len] = '/';
 
-#ifdef __WIN__
-	innobase_casedn_str(norm_name);
-#endif
+	memcpy(norm_name + db_len + 1, name_ptr, strlen(name_ptr) + 1);
+
+	if (set_lower_case) {
+		innobase_casedn_str(norm_name);
+	}
 }
+
+#if !defined(DBUG_OFF)
+/*********************************************************************
+Test normalize_table_name_low(). */
+static
+void
+test_normalize_table_name_low()
+/*===========================*/
+{
+	char		norm_name[128];
+	const char*	test_data[][2] = {
+		/* input, expected result */
+		{"./mysqltest/t1", "mysqltest/t1"},
+		{"./test/#sql-842b_2", "test/#sql-842b_2"},
+		{"./test/#sql-85a3_10", "test/#sql-85a3_10"},
+		{"./test/#sql2-842b-2", "test/#sql2-842b-2"},
+		{"./test/bug29807", "test/bug29807"},
+		{"./test/foo", "test/foo"},
+		{"./test/innodb_bug52663", "test/innodb_bug52663"},
+		{"./test/t", "test/t"},
+		{"./test/t1", "test/t1"},
+		{"./test/t10", "test/t10"},
+		{"/a/b/db/table", "db/table"},
+		{"/a/b/db///////table", "db/table"},
+		{"/a/b////db///////table", "db/table"},
+		{"/var/tmp/mysqld.1/#sql842b_2_10", "mysqld.1/#sql842b_2_10"},
+		{"db/table", "db/table"},
+		{"ddd/t", "ddd/t"},
+		{"d/ttt", "d/ttt"},
+		{"d/t", "d/t"},
+		{".\\mysqltest\\t1", "mysqltest/t1"},
+		{".\\test\\#sql-842b_2", "test/#sql-842b_2"},
+		{".\\test\\#sql-85a3_10", "test/#sql-85a3_10"},
+		{".\\test\\#sql2-842b-2", "test/#sql2-842b-2"},
+		{".\\test\\bug29807", "test/bug29807"},
+		{".\\test\\foo", "test/foo"},
+		{".\\test\\innodb_bug52663", "test/innodb_bug52663"},
+		{".\\test\\t", "test/t"},
+		{".\\test\\t1", "test/t1"},
+		{".\\test\\t10", "test/t10"},
+		{"C:\\a\\b\\db\\table", "db/table"},
+		{"C:\\a\\b\\db\\\\\\\\\\\\\\table", "db/table"},
+		{"C:\\a\\b\\\\\\\\db\\\\\\\\\\\\\\table", "db/table"},
+		{"C:\\var\\tmp\\mysqld.1\\#sql842b_2_10", "mysqld.1/#sql842b_2_10"},
+		{"db\\table", "db/table"},
+		{"ddd\\t", "ddd/t"},
+		{"d\\ttt", "d/ttt"},
+		{"d\\t", "d/t"},
+	};
+
+	for (size_t i = 0; i < UT_ARR_SIZE(test_data); i++) {
+		printf("test_normalize_table_name_low(): "
+		       "testing \"%s\", expected \"%s\"... ",
+		       test_data[i][0], test_data[i][1]);
+
+		normalize_table_name_low(norm_name, test_data[i][0], FALSE);
+
+		if (strcmp(norm_name, test_data[i][1]) == 0) {
+			printf("ok\n");
+		} else {
+			printf("got \"%s\"\n", norm_name);
+			ut_error;
+		}
+	}
+}
+#endif /* !DBUG_OFF */
 
 /************************************************************************
 Get the upper limit of the MySQL integral and floating-point type. */
@@ -2806,6 +2906,8 @@ ha_innobase::open(
 	THD*		thd;
 	ulint		retries = 0;
 	char*		is_part = NULL;
+	ibool		par_case_name_set = FALSE;
+	char		par_case_name[MAX_FULL_NAME_LEN + 1];
 
 	DBUG_ENTER("ha_innobase::open");
 
@@ -2852,16 +2954,87 @@ ha_innobase::open(
 	workaround for http://bugs.mysql.com/bug.php?id=33349. Look
 	at support issue https://support.mysql.com/view.php?id=21080
 	for more details. */
+#ifdef __WIN__
+	is_part = strstr(norm_name, "#p#");
+#else
 	is_part = strstr(norm_name, "#P#");
+#endif /* __WIN__ */
+
 retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_get(norm_name, TRUE);
-	
+
 	if (NULL == ib_table) {
 		if (is_part && retries < 10) {
-			++retries;
-			os_thread_sleep(100000);
-			goto retry;
+			/* MySQL partition engine hard codes the file name
+			separator as "#P#". The text case is fixed even if
+			lower_case_table_names is set to 1 or 2. This is true
+			for sub-partition names as well. InnoDB always
+			normalises file names to lower case on Windows, this
+			can potentially cause problems when copying/moving
+			tables between platforms.
+
+			1) If boot against an installation from Windows
+			platform, then its partition table name could
+			be all be in lower case in system tables. So we
+			will need to check lower case name when load table.
+
+			2) If  we boot an installation from other case
+			sensitive platform in Windows, we might need to
+			check the existence of table name without lowering
+			case them in the system table. */
+			if (innobase_get_lower_case_table_names() == 1) {
+
+				if (!par_case_name_set) {
+#ifndef __WIN__
+					/* Check for the table using lower
+					case name, including the partition
+					separator "P" */
+					memcpy(par_case_name, norm_name,
+					       strlen(norm_name));
+					par_case_name[strlen(norm_name)] = 0;
+					innobase_casedn_str(par_case_name);
+#else
+					/* On Windows platfrom, check
+					whether there exists table name in
+					system table whose name is
+					not being normalized to lower case */
+					normalize_table_name_low(
+						par_case_name, name, FALSE);
+#endif
+					par_case_name_set = TRUE;
+				}
+
+				ib_table = dict_table_get(
+					par_case_name, FALSE);
+			}
+			if (!ib_table) {
+				++retries;
+				os_thread_sleep(100000);
+				goto retry;
+			} else {
+#ifndef __WIN__
+				sql_print_warning("Partition table %s opened "
+						  "after converting to lower "
+						  "case. The table may have "
+						  "been moved from a case "
+						  "in-sensitive file system. "
+						  "Please recreate table in "
+						  "the current file system\n",
+						  norm_name);
+#else
+				sql_print_warning("Partition table %s opened "
+						  "after skipping the step to "
+						  "lower case the table name. "
+						  "The table may have been "
+						  "moved from a case sensitive "
+						  "file system. Please "
+						  "recreate table in the "
+						  "current file system\n",
+						  norm_name);
+#endif
+				goto table_opened;
+			}
 		}
 
 		if (is_part) {
@@ -2891,6 +3064,8 @@ retry:
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
+
+table_opened:
 
 	if (ib_table->ibd_file_missing && !thd_tablespace_op(thd)) {
 		sql_print_error("MySQL is trying to open a table handle but "
@@ -5891,6 +6066,11 @@ ha_innobase::delete_table(
 	char	norm_name[1000];
 
 	DBUG_ENTER("ha_innobase::delete_table");
+
+	DBUG_EXECUTE_IF(
+		"test_normalize_table_name_low",
+		test_normalize_table_name_low();
+	);
 
 	/* Strangely, MySQL passes the table name without the '.frm'
 	extension, in contrast to ::create */
