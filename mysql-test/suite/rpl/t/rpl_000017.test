@@ -45,4 +45,3 @@ delete from mysql.user where user="replicate";
 # End of 4.1 tests
 --source include/rpl_end.inc
 
---source include/force_restart.inc

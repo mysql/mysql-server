@@ -4039,27 +4039,6 @@ sub find_analyze_request
 }
 
 
-# The test can leave a file in var/tmp/ to signal
-# that all servers should be restarted
-sub restart_forced_by_test($)
-{
-  my $file = shift;
-  my $restart = 0;
-  foreach my $mysqld ( mysqlds() )
-  {
-    my $datadir = $mysqld->value('datadir');
-    my $force_restart_file = "$datadir/mtr/$file";
-    if ( -f $force_restart_file )
-    {
-      mtr_verbose("Restart of servers forced by test");
-      $restart = 1;
-      last;
-    }
-  }
-  return $restart;
-}
-
-
 # Return timezone value of tinfo or default value
 sub timezone {
   my ($tinfo)= @_;
@@ -4403,11 +4382,7 @@ sub run_testcase ($$) {
       if ( $res == 0 )
       {
 	my $check_res;
-	if ( restart_forced_by_test('force_restart') )
-	{
-	  stop_all_servers($opt_shutdown_timeout);
-	}
-	elsif ( $opt_check_testcases and
+	if ( $opt_check_testcases and
 	     $check_res= check_testcase($tinfo, "after"))
 	{
 	  if ($check_res == 1) {
@@ -4443,8 +4418,7 @@ sub run_testcase ($$) {
 	find_testcase_skipped_reason($tinfo);
 	mtr_report_test_skipped($tinfo);
 	# Restart if skipped due to missing perl, it may have had side effects
-	if ( restart_forced_by_test('force_restart_if_skipped') ||
-             $tinfo->{'comment'} =~ /^perl not found/ )
+	if ( $tinfo->{'comment'} =~ /^perl not found/ )
 	{
 	  stop_all_servers($opt_shutdown_timeout);
 	}
@@ -6446,7 +6420,7 @@ Options for debugging the product
   max-save-datadir      Limit the number of datadir saved (to avoid filling
                         up disks for heavily crashing server). Defaults to
                         $opt_max_save_datadir, set to 0 for no limit. Set
-                        it's default with MTR_MAX_SAVE_DATDIR
+                        it's default with MTR_MAX_SAVE_DATADIR
   max-test-fail         Limit the number of test failurs before aborting
                         the current test run. Defaults to
                         $opt_max_test_fail, set to 0 for no limit. Set

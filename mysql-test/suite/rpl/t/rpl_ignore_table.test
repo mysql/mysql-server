@@ -183,4 +183,3 @@ DROP TABLE t5;
 sync_slave_with_master;
 
 --source include/rpl_end.inc
---source include/force_restart.inc

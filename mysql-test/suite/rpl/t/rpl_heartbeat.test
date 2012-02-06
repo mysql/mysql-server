@@ -17,7 +17,9 @@ reset master;
 
 connection slave;
 set @restore_slave_net_timeout= @@global.slave_net_timeout;
+--disable_warnings
 set @@global.slave_net_timeout= 10;
+--enable_warnings
 
 ###
 ### Checking the range

@@ -1,0 +1,264 @@
+show tables;
+Tables_in_db
+columns_priv
+db
+event
+func
+general_log
+help_category
+help_keyword
+help_relation
+help_topic
+host
+ndb_binlog_index
+plugin
+proc
+procs_priv
+servers
+slow_log
+tables_priv
+time_zone
+time_zone_leap_second
+time_zone_name
+time_zone_transition
+time_zone_transition_type
+user
+show create table db;
+Table	Create Table
+db	CREATE TABLE `db` (
+  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Db` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `User` char(16) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Select_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Insert_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Update_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Delete_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Drop_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Grant_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `References_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Index_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Alter_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_tmp_table_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Lock_tables_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_view_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Show_view_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_routine_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Alter_routine_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Execute_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Event_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Trigger_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  PRIMARY KEY (`Host`,`Db`,`User`),
+  KEY `User` (`User`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Database privileges'
+show create table host;
+Table	Create Table
+host	CREATE TABLE `host` (
+  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Db` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Select_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Insert_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Update_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Delete_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Drop_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Grant_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `References_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Index_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Alter_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_tmp_table_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Lock_tables_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_view_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Show_view_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_routine_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Alter_routine_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Execute_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Trigger_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  PRIMARY KEY (`Host`,`Db`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Host privileges;  Merged with database privileges'
+show create table user;
+Table	Create Table
+user	CREATE TABLE `user` (
+  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `User` char(16) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Password` char(41) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL DEFAULT '',
+  `Select_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Insert_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Update_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Delete_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Drop_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Reload_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Shutdown_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Process_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `File_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Grant_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `References_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Index_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Alter_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Show_db_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Super_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_tmp_table_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Lock_tables_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Execute_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Repl_slave_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Repl_client_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_view_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Show_view_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_routine_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Alter_routine_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_user_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Event_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Trigger_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `ssl_type` enum('','ANY','X509','SPECIFIED') CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `ssl_cipher` blob NOT NULL,
+  `x509_issuer` blob NOT NULL,
+  `x509_subject` blob NOT NULL,
+  `max_questions` int(11) unsigned NOT NULL DEFAULT '0',
+  `max_updates` int(11) unsigned NOT NULL DEFAULT '0',
+  `max_connections` int(11) unsigned NOT NULL DEFAULT '0',
+  `max_user_connections` int(11) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`Host`,`User`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Users and global privileges'
+show create table func;
+Table	Create Table
+func	CREATE TABLE `func` (
+  `name` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `ret` tinyint(1) NOT NULL DEFAULT '0',
+  `dl` char(128) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `type` enum('function','aggregate') CHARACTER SET utf8 NOT NULL,
+  PRIMARY KEY (`name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='User defined functions'
+show create table tables_priv;
+Table	Create Table
+tables_priv	CREATE TABLE `tables_priv` (
+  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Db` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `User` char(16) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Table_name` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Grantor` char(77) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `Table_priv` set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `Column_priv` set('Select','Insert','Update','References') CHARACTER SET utf8 NOT NULL DEFAULT '',
+  PRIMARY KEY (`Host`,`Db`,`User`,`Table_name`),
+  KEY `Grantor` (`Grantor`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Table privileges'
+show create table columns_priv;
+Table	Create Table
+columns_priv	CREATE TABLE `columns_priv` (
+  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Db` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `User` char(16) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Table_name` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Column_name` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `Column_priv` set('Select','Insert','Update','References') CHARACTER SET utf8 NOT NULL DEFAULT '',
+  PRIMARY KEY (`Host`,`Db`,`User`,`Table_name`,`Column_name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Column privileges'
+show create table procs_priv;
+Table	Create Table
+procs_priv	CREATE TABLE `procs_priv` (
+  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Db` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `User` char(16) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Routine_name` char(64) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `Routine_type` enum('FUNCTION','PROCEDURE') COLLATE utf8_bin NOT NULL,
+  `Grantor` char(77) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Proc_priv` set('Execute','Alter Routine','Grant') CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Host`,`Db`,`User`,`Routine_name`,`Routine_type`),
+  KEY `Grantor` (`Grantor`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Procedure privileges'
+show create table servers;
+Table	Create Table
+servers	CREATE TABLE `servers` (
+  `Server_name` char(64) NOT NULL DEFAULT '',
+  `Host` char(64) NOT NULL DEFAULT '',
+  `Db` char(64) NOT NULL DEFAULT '',
+  `Username` char(64) NOT NULL DEFAULT '',
+  `Password` char(64) NOT NULL DEFAULT '',
+  `Port` int(4) NOT NULL DEFAULT '0',
+  `Socket` char(64) NOT NULL DEFAULT '',
+  `Wrapper` char(64) NOT NULL DEFAULT '',
+  `Owner` char(64) NOT NULL DEFAULT '',
+  PRIMARY KEY (`Server_name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='MySQL Foreign Servers table'
+show create table proc;
+Table	Create Table
+proc	CREATE TABLE `proc` (
+  `db` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `name` char(64) NOT NULL DEFAULT '',
+  `type` enum('FUNCTION','PROCEDURE') NOT NULL,
+  `specific_name` char(64) NOT NULL DEFAULT '',
+  `language` enum('SQL') NOT NULL DEFAULT 'SQL',
+  `sql_data_access` enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA') NOT NULL DEFAULT 'CONTAINS_SQL',
+  `is_deterministic` enum('YES','NO') NOT NULL DEFAULT 'NO',
+  `security_type` enum('INVOKER','DEFINER') NOT NULL DEFAULT 'DEFINER',
+  `param_list` blob NOT NULL,
+  `returns` longblob NOT NULL,
+  `body` longblob NOT NULL,
+  `definer` char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH') NOT NULL DEFAULT '',
+  `comment` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `character_set_client` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `collation_connection` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `db_collation` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `body_utf8` longblob,
+  PRIMARY KEY (`db`,`name`,`type`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Stored Procedures'
+show create table event;
+Table	Create Table
+event	CREATE TABLE `event` (
+  `db` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `name` char(64) NOT NULL DEFAULT '',
+  `body` longblob NOT NULL,
+  `definer` char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `execute_at` datetime DEFAULT NULL,
+  `interval_value` int(11) DEFAULT NULL,
+  `interval_field` enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND') DEFAULT NULL,
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `last_executed` datetime DEFAULT NULL,
+  `starts` datetime DEFAULT NULL,
+  `ends` datetime DEFAULT NULL,
+  `status` enum('ENABLED','DISABLED','SLAVESIDE_DISABLED') NOT NULL DEFAULT 'ENABLED',
+  `on_completion` enum('DROP','PRESERVE') NOT NULL DEFAULT 'DROP',
+  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH') NOT NULL DEFAULT '',
+  `comment` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `originator` int(10) unsigned NOT NULL,
+  `time_zone` char(64) CHARACTER SET latin1 NOT NULL DEFAULT 'SYSTEM',
+  `character_set_client` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `collation_connection` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `db_collation` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `body_utf8` longblob,
+  PRIMARY KEY (`db`,`name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Events'
+show create table general_log;
+Table	Create Table
+general_log	CREATE TABLE `general_log` (
+  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `user_host` mediumtext NOT NULL,
+  `thread_id` int(11) NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
+  `command_type` varchar(64) NOT NULL,
+  `argument` mediumtext NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
+show create table slow_log;
+Table	Create Table
+slow_log	CREATE TABLE `slow_log` (
+  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `user_host` mediumtext NOT NULL,
+  `query_time` time NOT NULL,
+  `lock_time` time NOT NULL,
+  `rows_sent` int(11) NOT NULL,
+  `rows_examined` int(11) NOT NULL,
+  `db` varchar(512) NOT NULL,
+  `last_insert_id` int(11) NOT NULL,
+  `insert_id` int(11) NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
+  `sql_text` mediumtext NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
+show tables;
+Tables_in_test

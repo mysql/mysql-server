@@ -9,11 +9,12 @@
 -- source include/have_binlog_format_row.inc
 # Embedded server doesn't support binlogging
 -- source include/not_embedded.inc
--- source include/master-slave.inc
 # This test requires the cp932 charset compiled in
 -- source include/have_cp932.inc
 # Slow test, don't run during staging part
 -- source include/not_staging.inc
+
+-- source include/master-slave.inc
 
 # Setup Section
 # we need this for getting fixed timestamps inside of this test

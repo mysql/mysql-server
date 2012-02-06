@@ -34,13 +34,11 @@ our $print_testcases;
 our $skip_rpl;
 our $do_test;
 our $skip_test;
-our $skip_combinations;
 our $binlog_format;
 our $enable_disabled;
 our $default_storage_engine;
 our $opt_with_ndbcluster_only;
 our $defaults_file;
-our $quick_collect;
 
 sub collect_option {
   my ($opt, $value)= @_;
@@ -67,9 +65,6 @@ require "mtr_misc.pl";
 # Precompiled regex's for tests to do or skip
 my $do_test_reg;
 my $skip_test_reg;
-
-# If "Quick collect", set to 1 once a test to run has been found.
-my $some_test_found;
 
 my $default_suite_object = do 'My/Suite.pm';
 
@@ -129,7 +124,6 @@ sub collect_test_cases ($$$$) {
     foreach my $suite (split(",", $suites))
     {
       push(@$cases, collect_one_suite($suite, $opt_cases, $opt_skip_test_list));
-      last if $some_test_found;
     }
   }
 
@@ -170,7 +164,7 @@ sub collect_test_cases ($$$$) {
     }
   }
 
-  if ( $opt_reorder && !$quick_collect)
+  if ( $opt_reorder )
   {
     # Reorder the test cases in an order that will make them faster to run
     my %sort_criteria;
@@ -432,7 +426,6 @@ sub collect_one_suite
   # Read combinations for this suite and build testcases x combinations
   # if any combinations exists
   # ----------------------------------------------------------------------
-  if ( ! $skip_combinations && ! $quick_collect )
   {
     my @combinations;
     my $combination_file= "$suitedir/combinations";
@@ -624,12 +617,6 @@ sub optimize_cases {
 	  if ( $default_engine =~ /^ndb/i );
       }
     }
-
-    if ($quick_collect && ! $tinfo->{'skip'})
-    {
-      $some_test_found= 1;
-      return;
-    }
   }
   @$cases= @new_cases;
 }
@@ -660,23 +647,6 @@ sub process_opts {
       next;
     }
 
-    $value= mtr_match_prefix($opt, "--result-file=");
-    if ( defined $value )
-    {
-      # Specifies the file mysqltest should compare
-      # output against
-      $tinfo->{'result_file'}= "r/$value.result";
-      next;
-    }
-
-    $value= mtr_match_prefix($opt, "--config-file-template=");
-    if ( defined $value)
-    {
-      # Specifies the configuration file to use for this test
-      $tinfo->{'template_path'}= dirname($tinfo->{path})."/$value";
-      next;
-    }
-
     # If we set default time zone, remove the one we have
     $value= mtr_match_prefix($opt, "--default-time-zone=");
     if ( defined $value )
@@ -684,23 +654,6 @@ sub process_opts {
       # Set timezone for this test case to something different
       $tinfo->{'timezone'}= "GMT-8";
       # Fallthrough, add the --default-time-zone option
-    }
-
-    # The --restart option forces a restart even if no special
-    # option is set. If the options are the same as next testcase
-    # there is no need to restart after the testcase
-    # has completed
-    if ( $opt eq "--force-restart" )
-    {
-      $tinfo->{'force_restart'}= 1;
-      next;
-    }
-
-    $value= mtr_match_prefix($opt, "--testcase-timeout=");
-    if ( defined $value ) {
-      # Overrides test case timeout for this test
-      $tinfo->{'case-timeout'}= $value;
-      next;
     }
 
     # Ok, this was a real option, add it
@@ -874,13 +827,6 @@ sub collect_one_test_case {
     }
   }
 
-  # ----------------------------------------------------------------------
-  # <tname>.slave-mi
-  # ----------------------------------------------------------------------
-  mtr_error("$tname: slave-mi not supported anymore")
-    if ( -f "$testdir/$tname.slave-mi");
-
-
   my ($master_opts, $slave_opts)=
     tags_from_test_file($tinfo, "$testdir/${tname}.test", $suitedir);
 
@@ -907,6 +853,7 @@ sub collect_one_test_case {
     $tinfo->{'comment'}= "Test needs --big-test";
     return $tinfo
   }
+
   if ( $tinfo->{'big_test'} )
   {
     # All 'big_test' takes a long time to run
@@ -917,13 +864,6 @@ sub collect_one_test_case {
   {
     $tinfo->{'skip'}= 1;
     $tinfo->{'comment'}= "Small test";
-    return $tinfo
-  }
-
-  if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
-  {
-    $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test needs debug binaries";
     return $tinfo
   }
 

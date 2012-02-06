@@ -75,4 +75,3 @@ connection master;
 DROP TABLE t1;
 
 --source include/rpl_end.inc
---source include/force_restart.inc

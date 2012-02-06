@@ -10,6 +10,7 @@
 
 
 -- source include/not_ndb_default.inc
+-- source include/have_binlog_format_mixed_or_row.inc
 -- source include/master-slave.inc
 
 # Since this test generates row-based events in the binary log, the
@@ -18,7 +19,6 @@
 # BINLOG_FORMAT.
 
 connection slave;
--- source include/have_binlog_format_mixed_or_row.inc
 
 connection master;
 --disable_warnings

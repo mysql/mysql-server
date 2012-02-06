@@ -10,8 +10,8 @@
 ##########
 
 # Includes
--- source include/master-slave.inc
 -- source include/have_binlog_format_mixed_or_row.inc
+-- source include/master-slave.inc
 
 -- source extra/rpl_tests/rpl_loadfile.test
 
