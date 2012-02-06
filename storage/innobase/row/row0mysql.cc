@@ -3289,7 +3289,7 @@ private:
 		return(DB_SUCCESS);
 	}
 
-	/** Purge delete-marked records. 
+	/** Purge delete-marked records.
 	@param offsets - current row offsets. */
 	void	purge(const ulint* offsets) throw()
 	{

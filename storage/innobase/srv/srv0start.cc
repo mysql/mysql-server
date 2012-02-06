@@ -2240,7 +2240,7 @@ innobase_start_or_create_for_mysql(void)
 	       && srv_force_recovery < SRV_FORCE_NO_BACKGROUND
 	       && state == PURGE_STATE_INIT) {
 
-	       	switch (state = trx_purge_state()) {
+		switch (state = trx_purge_state()) {
 		case PURGE_STATE_RUN:
 		case PURGE_STATE_STOP:
 			break;
@@ -2742,7 +2742,7 @@ srv_path_copy(
 	char*		last;
 	char*		copy;
 	char*		name = dest;
-	
+
 	copy = static_cast<char*>(ut_malloc(strlen(table_name) + 1));
 	strcpy(copy, table_name);
 
