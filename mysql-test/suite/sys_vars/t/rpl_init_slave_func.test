@@ -29,7 +29,6 @@
 ###############################################################################
 
 source include/master-slave.inc;
-source include/not_gtid_enabled.inc;
 --echo connection slave
 connection slave;
 --disable_query_log

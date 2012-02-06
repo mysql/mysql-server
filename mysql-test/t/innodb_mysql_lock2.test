@@ -1,6 +1,5 @@
 # This test covers behavior for InnoDB tables.
 --source include/have_innodb.inc
---source include/not_gtid_enabled.inc
 # This test requires statement/mixed mode binary logging.
 # Row-based mode puts weaker serializability requirements
 # so weaker locks are acquired for it.

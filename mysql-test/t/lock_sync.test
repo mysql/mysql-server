@@ -11,7 +11,6 @@
 # Until bug#41971 'Thread state on embedded server is always "Writing to net"'
 # is fixed this test can't be run on embedded version of server.
 --source include/not_embedded.inc
---source include/not_gtid_enabled.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
