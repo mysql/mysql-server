@@ -33,7 +33,12 @@
 #include "mem_root_array.h"
 #include "sql_executor.h"
 
-#define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
+/**
+   Returns a constant of type 'type' with the 'A' lowest-weight bits set.
+   Example: LOWER_BITS(uint, 3) == 7.
+   Requirement: A < sizeof(type) * 8.
+*/
+#define LOWER_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 
 /* Values in optimize */
 #define KEY_OPTIMIZE_EXISTS		1
@@ -101,7 +106,7 @@ public:
   */
   bool *cond_guard;
   /**
-     0..64    <=> This was created from semi-join IN-equality # sj_pred_no.
+     0..63    <=> This was created from semi-join IN-equality # sj_pred_no.
      UINT_MAX  Otherwise
 
      Not used if the index is fulltext (such index cannot be used for

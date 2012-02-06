@@ -364,7 +364,6 @@ let $wait_condition=
 --echo # Waiting until INSERT ... is blocked
 --source include/wait_condition.inc
 DELETE FROM t1;
-COMMIT;
 
 --echo # Connection con2
 --connection con2
@@ -373,6 +372,14 @@ COMMIT;
 --reap
 --error ER_XA_RBDEADLOCK
 XA COMMIT 'xid1';
+
+--echo # Connection default
+connection default;
+
+COMMIT;
+
+--echo # Connection con2
+connection con2;
 # This caused the assert to be triggered
 XA START 'xid1';
 

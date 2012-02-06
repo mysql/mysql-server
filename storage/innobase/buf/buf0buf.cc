@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -682,8 +682,12 @@ void
 buf_page_print(
 /*===========*/
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size)	/*!< in: compressed page size, or
-				0 for uncompressed pages */
+	ulint		zip_size,	/*!< in: compressed page size, or
+					0 for uncompressed pages */
+	ulint		flags)		/*!< in: 0 or
+					BUF_PAGE_PRINT_NO_CRASH or
+					BUF_PAGE_PRINT_NO_FULL */
+
 {
 #ifndef UNIV_HOTBACKUP
 	dict_index_t*	index;
@@ -694,11 +698,14 @@ buf_page_print(
 		size = UNIV_PAGE_SIZE;
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: Page dump in ascii and hex (%lu bytes):\n",
-		(ulong) size);
-	ut_print_buf(stderr, read_buf, size);
-	fputs("\nInnoDB: End of page dump\n", stderr);
+	if (!(flags & BUF_PAGE_PRINT_NO_FULL)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Page dump in ascii and hex (%lu bytes):\n",
+			(ulong) size);
+		ut_print_buf(stderr, read_buf, size);
+		fputs("\nInnoDB: End of page dump\n", stderr);
+	}
 
 	if (zip_size) {
 		/* Print compressed page. */
@@ -848,6 +855,8 @@ buf_page_print(
 		      stderr);
 		break;
 	}
+
+	ut_ad(flags & BUF_PAGE_PRINT_NO_CRASH);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -3075,9 +3084,18 @@ buf_page_get_known_nowait(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
-	mutex_enter(&block->mutex);
-	ut_a(!block->page.file_page_was_freed);
-	mutex_exit(&block->mutex);
+	if (mode != BUF_KEEP_OLD) {
+		/* If mode == BUF_KEEP_OLD, we are executing an I/O
+		completion routine.  Avoid a bogus assertion failure
+		when ibuf_merge_or_delete_for_page() is processing a
+		page that was just freed due to DROP INDEX, or
+		deleting a record from SYS_INDEXES. This check will be
+		skipped in recv_recover_page() as well. */
+
+		mutex_enter(&block->mutex);
+		ut_a(!block->page.file_page_was_freed);
+		mutex_exit(&block->mutex);
+	}
 #endif
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -3941,7 +3959,8 @@ corrupt:
 				"InnoDB: You may have to recover"
 				" from a backup.\n",
 				(ulong) bpage->offset);
-			buf_page_print(frame, buf_page_get_zip_size(bpage));
+			buf_page_print(frame, buf_page_get_zip_size(bpage),
+				       BUF_PAGE_PRINT_NO_CRASH);
 			fprintf(stderr,
 				"InnoDB: Database page corruption on disk"
 				" or a failed\n"

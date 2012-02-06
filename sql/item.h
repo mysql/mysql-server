@@ -1071,6 +1071,15 @@ public:
   }
 
   void print_item_w_name(String *, enum_query_type query_type);
+  /**
+     Prints the item when it's part of ORDER BY and GROUP BY.
+     @param  str            String to print to
+     @param  query_type     How to format the item
+     @param  used_alias     Whether item was referenced with alias.
+  */
+  void print_for_order(String *str, enum_query_type query_type,
+                       bool used_alias);
+
   virtual void update_used_tables() {}
   virtual void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                               List<Item> &fields) {}
@@ -1194,6 +1203,15 @@ public:
   virtual bool cleanup_processor(uchar *arg);
   virtual bool collect_item_field_processor(uchar * arg) { return 0; }
   virtual bool add_field_to_set_processor(uchar * arg) { return 0; }
+
+  /**
+     Visitor interface for removing all column expressions (Item_field) in
+     this expression tree from a bitmap. @See walk()
+
+     @param arg  A MY_BITMAP* cast to unsigned char*, where the bits represent
+                 Field::field_index values.
+   */
+  virtual bool remove_column_from_bitmap(uchar *arg) { return false; }
   virtual bool find_item_in_field_list_processor(uchar *arg) { return 0; }
   virtual bool change_context_processor(uchar *context) { return 0; }
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
@@ -1997,6 +2015,7 @@ public:
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
   bool add_field_to_set_processor(uchar * arg);
+  bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
@@ -2015,7 +2034,8 @@ public:
   bool is_outer_field() const
   {
     DBUG_ASSERT(fixed);
-    return field->table->pos_in_table_list->outer_join;
+    return field->table->pos_in_table_list->outer_join ||
+           field->table->pos_in_table_list->in_outer_join_nest();
   }
   Field::geometry_type get_geometry_type() const
   {

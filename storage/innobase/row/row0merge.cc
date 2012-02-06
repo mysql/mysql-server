@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -664,7 +664,7 @@ row_merge_buf_write(
 						   REC_STATUS_ORDINARY,
 						   entry, n_fields,
 						   &extra_size);
-		ut_ad(size > extra_size);
+		ut_ad(size >= extra_size);
 		ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 		extra_size -= REC_N_NEW_EXTRA_BYTES;
 		size -= REC_N_NEW_EXTRA_BYTES;
@@ -2334,8 +2334,8 @@ row_merge_drop_temp_indexes(void)
 		}
 
 		rec = btr_pcur_get_rec(&pcur);
-		field = rec_get_nth_field_old(rec, DICT_SYS_INDEXES_NAME_FIELD,
-					      &len);
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_INDEXES__NAME, &len);
 		if (len == UNIV_SQL_NULL || len == 0
 		    || (char) *field != TEMP_INDEX_PREFIX) {
 			continue;
@@ -2343,7 +2343,8 @@ row_merge_drop_temp_indexes(void)
 
 		/* This is a temporary index. */
 
-		field = rec_get_nth_field_old(rec, 0/*TABLE_ID*/, &len);
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
 		if (len != 8) {
 			/* Corrupted TABLE_ID */
 			continue;

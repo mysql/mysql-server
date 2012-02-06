@@ -359,6 +359,7 @@ TRACE
                     "range_scan_alternatives": [
                       {
                         "index": "a",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "12 < a"
                         ] /* ranges */,
@@ -2675,7 +2676,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Using where
 2	DEPENDENT SUBQUERY	t1	index	a	a	5	NULL	10	Using where; Using index
 2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.a	1	Using index
-2	DEPENDENT SUBQUERY	t3	ref	a	a	5	test.t2.a	1	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	ref	a	a	5	test.t1.a	1	Using index
 select * from information_schema.optimizer_trace;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain select * 
@@ -3324,7 +3325,7 @@ from t0 where a in
                       {
                         "database": "test",
                         "table": "t3",
-                        "attached": "(`test`.`t3`.`a` = `test`.`t1`.`a`)"
+                        "attached": null
                       }
                     ] /* attached_conditions_summary */
                   } /* attaching_conditions_to_tables */
@@ -3393,7 +3394,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from ((`test`.`t1` join `test`.`t2` on((`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))) join `test`.`t3` on((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`))) group by `test`.`t2`.`PARID` order by max(`test`.`t3`.`DATA`) desc"
+            "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from ((`test`.`t1` join `test`.`t2` on((`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))) join `test`.`t3` on((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`))) group by `test`.`t2`.`PARID` order by `DATA` desc"
           }
         ] /* steps */
       } /* join_preparation */
@@ -3403,7 +3404,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select 497 AS `497`,`tmp`.`ID` AS `ID`,NULL AS `NULL` from (/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from ((`test`.`t1` join `test`.`t2` on((`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))) join `test`.`t3` on((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`))) group by `test`.`t2`.`PARID` order by max(`test`.`t3`.`DATA`) desc) `tmp`"
+            "expanded_query": "/* select#1 */ select 497 AS `497`,`tmp`.`ID` AS `ID`,NULL AS `NULL` from (/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from ((`test`.`t1` join `test`.`t2` on((`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))) join `test`.`t3` on((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`))) group by `test`.`t2`.`PARID` order by `DATA` desc) `tmp`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -3422,7 +3423,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "JOIN_condition_to_WHERE",
                       "parenthesis_removal"
                     ] /* transformations */,
-                    "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`) and (`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`)) group by `test`.`t2`.`PARID` order by max(`test`.`t3`.`DATA`) desc"
+                    "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`) and (`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`)) group by `test`.`t2`.`PARID` order by `DATA` desc"
                   } /* transformations_to_nested_joins */
                 },
                 {
@@ -4110,6 +4111,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= seq_0_id <= 1"
                         ] /* ranges */,
@@ -4197,6 +4199,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= seq_0_id <= 1"
                         ] /* ranges */,
@@ -4294,6 +4297,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= seq_0_id <= 1"
                         ] /* ranges */,
@@ -4738,7 +4742,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from (`test`.`t1` `alias1` straight_join `test`.`t2` `alias2` on((`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`))) where `test`.`alias1`.`pk` group by `test`.`alias2`.`pk` order by `test`.`alias1`.`col_int_key`,`test`.`alias2`.`pk`"
+            "expanded_query": "/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from (`test`.`t1` `alias1` straight_join `test`.`t2` `alias2` on((`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`))) where `test`.`alias1`.`pk` group by `field2` order by `test`.`alias1`.`col_int_key`,`test`.`alias2`.`pk`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -4753,7 +4757,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from `test`.`t1` `alias1` straight_join `test`.`t2` `alias2` where (`test`.`alias1`.`pk` and (`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`)) group by `test`.`alias2`.`pk` order by `test`.`alias1`.`col_int_key`,`test`.`alias2`.`pk`"
+              "expanded_query": "/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from `test`.`t1` `alias1` straight_join `test`.`t2` `alias2` where (`test`.`alias1`.`pk` and (`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`)) group by `field2` order by `test`.`alias1`.`col_int_key`,`test`.`alias2`.`pk`"
             } /* transformations_to_nested_joins */
           },
           {
@@ -4944,14 +4948,14 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
           {
             "clause_processing": {
               "clause": "GROUP BY",
-              "original_clause": "`test`.`alias2`.`pk`",
+              "original_clause": "`field2`",
               "items": [
                 {
                   "item": "`test`.`alias2`.`pk`"
                 }
               ] /* items */,
               "resulting_clause_is_simple": false,
-              "resulting_clause": "`test`.`alias2`.`pk`"
+              "resulting_clause": "`field2`"
             } /* clause_processing */
           },
           {
