@@ -5896,13 +5896,16 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                                  0);
 
           error= mysql_execute_command(thd);
-          if (thd->variables.gtid_next.type == GTID_GROUP &&
+          if (error == 0 &&
+              thd->variables.gtid_next.type == GTID_GROUP &&
               thd->owned_gtid.sidno != 0 &&
               (thd->lex->sql_command == SQLCOM_COMMIT ||
                stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END)))
           {
-            // GTID logging and cleanup incl DDL
-            error |= gtid_empty_group_log_and_cleanup(thd);
+            // This is executed at the end of a DDL statement or after
+            // COMMIT.  It ensures that an empty group is logged if
+            // needed.
+            error= gtid_empty_group_log_and_cleanup(thd);
           }
           MYSQL_QUERY_EXEC_DONE(error);
 	}
