@@ -687,13 +687,7 @@ btr_root_fseg_validate(
 {
 	ulint	offset = mach_read_from_2(seg_header + FSEG_HDR_OFFSET);
 
-	// FIXME:
-	if (mach_read_from_4(seg_header + FSEG_HDR_SPACE) != space) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: space id mismatch: %lu != %lu\n",
-			space, mach_read_from_4(seg_header + FSEG_HDR_SPACE));
-	}
-
+	ut_a(mach_read_from_4(seg_header + FSEG_HDR_SPACE) == space);
 	ut_a(offset >= FIL_PAGE_DATA);
 	ut_a(offset <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
 	return(TRUE);
