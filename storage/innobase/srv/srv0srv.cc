@@ -722,8 +722,10 @@ srv_reserve_slot(
 		break;
 
 	case SRV_WORKER:
-		/* Find an empty slot. */
-		for (slot = srv_sys->sys_threads; slot->in_use; ++slot) {
+		/* Find an empty slot, skip the master and purge slots. */
+		for (slot = &srv_sys->sys_threads[2];
+		     slot->in_use;
+		     ++slot) {
 
 			ut_a(i < srv_sys->n_sys_threads);
 			++i;
@@ -926,7 +928,7 @@ srv_init(void)
 		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
 
 	/* Number of purge threads + master thread */
-	n_sys_threads = srv_n_purge_threads + 2;
+	n_sys_threads = srv_n_purge_threads + 1;
 
 	srv_sys_sz = sizeof(*srv_sys) + (n_sys_threads * sizeof(srv_slot_t));
 
