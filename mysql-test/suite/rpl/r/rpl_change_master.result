@@ -96,6 +96,7 @@ drop table t1;
 include/stop_slave.inc
 CHANGE MASTER TO master_host='SAVE_MASTER_HOST';
 include/start_slave.inc
+include/rpl_reset.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='', MASTER_PORT=MASTER_PORT;
 ERROR HY000: Incorrect arguments to MASTER_HOST
