@@ -158,6 +158,7 @@ BDB_DONTRUN_TESTS = \
 	multiprocess \
 	mvcc-create-table \
         mvcc-many-committed \
+	perf_nop \
 	perf_ptquery \
 	perf_checkpoint_var \
 	prelock-read-read \
