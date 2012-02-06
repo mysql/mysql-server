@@ -3076,7 +3076,7 @@ fil_reset_space_and_lsn_read(
 
 		/* The page is all zero: do nothing. */
 		return(1);
-	} 
+	}
 
 	return(0);
 }

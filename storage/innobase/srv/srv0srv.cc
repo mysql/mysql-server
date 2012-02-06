@@ -2461,7 +2461,7 @@ DECLARE_THREAD(srv_worker_thread)(
 		os_event_wait(slot->event);
 
 		if ((purged = srv_task_execute())) {
-			
+
 			/* If there are tasks in the queue, wakeup
 			the purge coordinator thread. */
 
@@ -2646,7 +2646,7 @@ srv_purge_coordinator_suspend(
 			    && trx_sys->rseg_history_len < 5000) {
 
 				stop = true;
-			} 
+			}
 		}
 
 	} while (stop);

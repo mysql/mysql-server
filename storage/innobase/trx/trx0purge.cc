@@ -1066,7 +1066,7 @@ trx_purge_attach_undo_recs(
 		}
 
 		thr = UT_LIST_GET_NEXT(thrs, thr);
- 
+
 		if (!(++i % n_purge_threads)) {
 			thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
 		}
