@@ -4116,8 +4116,6 @@ int
 row_truncate_table_for_mysql(
 /*=========================*/
 	dict_table_t*	table,	/*!< in: table handle */
-	trx_t*		user_trx,/*!< in: user transaction handle for
-				obtaining a table lock */
 	trx_t*		trx)	/*!< in: transaction handle */
 {
 	ulint		err;
@@ -4177,7 +4175,6 @@ row_truncate_table_for_mysql(
 		return(DB_ERROR);
 	}
 
-	trx_start_if_not_started(user_trx);
 	trx_start_if_not_started(trx);
 
 	trx->op_info = "truncating table";
@@ -4195,13 +4192,6 @@ row_truncate_table_for_mysql(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-
-	err = row_mysql_lock_table(user_trx, table, LOCK_X,
-				   "setting table lock for TRUNCATE TABLE");
-	if (err != DB_SUCCESS) {
-
-		goto funct_exit;
-	}
 
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */

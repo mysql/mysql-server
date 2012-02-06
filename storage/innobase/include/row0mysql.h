@@ -445,8 +445,6 @@ int
 row_truncate_table_for_mysql(
 /*=========================*/
 	dict_table_t*	table,	/*!< in: table handle */
-	trx_t*		user_trx,/*!< in: user transaction handle for
-				obtaining a table lock */
 	trx_t*		trx);	/*!< in: transaction handle */
 /*********************************************************************//**
 Drops a table for MySQL.  If the name of the dropped table ends in
