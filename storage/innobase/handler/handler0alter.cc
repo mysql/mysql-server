@@ -733,6 +733,8 @@ innobase_fts_check_doc_id_index(
 	}
 
 	if (ha_alter_info) {
+		/* Check if a unique index with the name of
+		FTS_DOC_ID_INDEX_NAME is being created. */
 		for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
 			const KEY& key = ha_alter_info->key_info_buffer[
 				ha_alter_info->index_add_buffer[i]];
@@ -1203,6 +1205,34 @@ online_retry_drop_indexes(
 #endif /* UNIV_DEBUG */
 }
 
+/********************************************************************//**
+Commit a dictionary transaction and drop any indexes that we were not
+able to free previously due to open table handles. */
+static __attribute__((nonnull))
+void
+online_retry_drop_indexes_with_trx(
+/*===============================*/
+	dict_table_t*	table,	/*!< in/out: table */
+	trx_t*		trx)	/*!< in/out: transaction */
+{
+	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
+
+	/* Now that the dictionary is being locked, check if we can
+	drop any incompletely created indexes that may have been left
+	behind in rollback_inplace_alter_table() earlier. */
+	if (table->drop_aborted) {
+		/* Re-use the dictionary transaction object
+		to avoid some memory allocation overhead. */
+		ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_TABLE);
+		trx->dict_operation = TRX_DICT_OP_INDEX;
+		trx->table_id = 0;
+		trx_start_if_not_started(trx);
+		online_retry_drop_indexes_low(table, trx);
+		trx_commit_for_mysql(trx);
+	}
+}
+
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
@@ -1362,21 +1392,7 @@ prepare_inplace_alter_table_dict(
 
 			ut_ad(user_table->n_ref_count == 1);
 
-			/* Now that the dictionary is being locked,
-			check if we can drop any incompletely created
-			indexes that may have been left behind in
-			rollback_inplace_alter_table() earlier. */
-			if (user_table->drop_aborted) {
-				/* Re-use the dictionary transaction object
-				to avoid some memory allocation overhead. */
-				ut_ad(trx_get_dict_operation(trx)
-				      == TRX_DICT_OP_TABLE);
-				trx->dict_operation = TRX_DICT_OP_INDEX;
-				trx->table_id = 0;
-				trx_start_if_not_started(trx);
-				online_retry_drop_indexes_low(user_table, trx);
-				trx_commit_for_mysql(trx);
-			}
+			online_retry_drop_indexes_with_trx(user_table, trx);
 
 			row_mysql_unlock_data_dictionary(trx);
 			mem_heap_free(heap);
@@ -1559,29 +1575,16 @@ error_handling:
 			row_merge_drop_table(trx, indexed_table);
 		}
 
+		trx_commit_for_mysql(trx);
 		ut_ad(user_table->n_ref_count == 1);
 
-		/* Now that the dictionary is being locked, check if we
-		can drop any incompletely created indexes that may have
-		been left behind in rollback_inplace_alter_table() earlier. */
-
-		if (user_table->drop_aborted) {
-			/* Commit the row_merge_drop_table() above. */
-			trx_commit_for_mysql(trx);
-			/* Re-use the dictionary transaction object
-			to avoid some memory allocation overhead. */
-			ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_TABLE);
-			trx->dict_operation = TRX_DICT_OP_INDEX;
-			trx->table_id = 0;
-			trx_start_if_not_started(trx);
-			online_retry_drop_indexes_low(user_table, trx);
-		}
+		online_retry_drop_indexes_with_trx(user_table, trx);
 	} else {
 		ut_ad(indexed_table == user_table);
 		row_merge_drop_indexes(trx, user_table, TRUE);
+		trx_commit_for_mysql(trx);
 	}
 
-	trx_commit_for_mysql(trx);
 	ut_d(dict_table_check_for_dup_indexes(user_table, CHECK_ALL_COMPLETE));
 	ut_ad(!user_table->drop_aborted);
 	row_mysql_unlock_data_dictionary(trx);

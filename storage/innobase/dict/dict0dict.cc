@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -413,11 +413,12 @@ dict_table_try_drop_aborted(
 	}
 
 	if (table && table->n_ref_count == ref_count && table->drop_aborted) {
+		/* Silence a debug assertion in row_merge_drop_indexes(). */
 		ut_d(table->n_ref_count++);
 		row_merge_drop_indexes(trx, table, TRUE);
-		trx_commit_for_mysql(trx);
 		ut_d(table->n_ref_count--);
 		ut_ad(table->n_ref_count == ref_count);
+		trx_commit_for_mysql(trx);
 	}
 
 	row_mysql_unlock_data_dictionary(trx);
@@ -463,19 +464,12 @@ dict_table_close(
 					indexes after an aborted online
 					index creation */
 {
-	ibool		drop_aborted;
-
 	if (!dict_locked) {
 		mutex_enter(&dict_sys->mutex);
 	}
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_a(table->n_ref_count > 0);
-
-	drop_aborted = try_drop
-		&& table->drop_aborted
-		&& table->n_ref_count == 1
-		&& dict_table_get_first_index(table);
 
 	--table->n_ref_count;
 
@@ -492,7 +486,13 @@ dict_table_close(
 #endif /* UNIV_DEBUG */
 
 	if (!dict_locked) {
-		table_id_t	table_id = table->id;
+		table_id_t	table_id	= table->id;
+		ibool		drop_aborted;
+
+		drop_aborted = try_drop
+			&& table->drop_aborted
+			&& table->n_ref_count == 1
+			&& dict_table_get_first_index(table);
 
 		mutex_exit(&dict_sys->mutex);
 
@@ -1796,6 +1796,7 @@ dict_table_remove_from_cache_low(
 
 		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
+		/* Silence a debug assertion in row_merge_drop_indexes(). */
 		ut_d(table->n_ref_count++);
 		row_merge_drop_indexes(trx, table, TRUE);
 		ut_d(table->n_ref_count--);
@@ -5821,14 +5822,13 @@ dict_table_check_for_dup_indexes(
 				switch (dict_index_get_online_status(index1)) {
 				case ONLINE_INDEX_COMPLETE:
 				case ONLINE_INDEX_CREATION:
+					ut_error;
 					break;
 				case ONLINE_INDEX_ABORTED:
 				case ONLINE_INDEX_ABORTED_DROPPED:
-					goto aborted_ok;
+					break;
 				}
-				ut_error;
-			aborted_ok:
-				break;
+				/* fall through */
 			case CHECK_PARTIAL_OK:
 				break;
 			}
