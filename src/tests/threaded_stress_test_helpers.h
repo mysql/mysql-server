@@ -121,15 +121,17 @@ static void lock_worker_op(struct worker_extra* we) {
 
 static void unlock_worker_op(struct worker_extra* we) {
     ARG arg = we->thread_arg;
-    toku_pthread_mutex_lock(we->operation_lock_mutex);
-    if (arg->lock_type == STRESS_LOCK_SHARED) {
-        rwlock_read_unlock(we->operation_lock);
-    } else if (arg->lock_type == STRESS_LOCK_EXCL) {
-        rwlock_write_unlock(we->operation_lock);
-    } else {
-        assert(arg->lock_type == STRESS_LOCK_NONE);
+    if (arg->lock_type != STRESS_LOCK_NONE) {
+        toku_pthread_mutex_lock(we->operation_lock_mutex);
+        if (arg->lock_type == STRESS_LOCK_SHARED) {
+            rwlock_read_unlock(we->operation_lock);
+        } else if (arg->lock_type == STRESS_LOCK_EXCL) {
+            rwlock_write_unlock(we->operation_lock);
+        } else {
+            assert(false);
+        }
+        toku_pthread_mutex_unlock(we->operation_lock_mutex);
     }
-    toku_pthread_mutex_unlock(we->operation_lock_mutex);
 }
 
 static void *worker(void *arg_v) {
