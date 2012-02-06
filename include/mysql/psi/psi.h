@@ -1826,11 +1826,8 @@ typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
 
-typedef void (*digest_add_token_v1_t)
+typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
   (struct PSI_digest_locker *locker, uint token, char *yytext, int yylen);
-
-typedef void (*digest_end_v1_t)
-  (struct PSI_digest_locker *locker);
 
 /**
   Performance Schema Interface, version 1.
@@ -2027,8 +2024,6 @@ struct PSI_v1
   digest_start_v1_t digest_start;
   /** @sa digest_add_token_v1_t. */
   digest_add_token_v1_t digest_add_token;
-  /** @sa digest_end_v1_t. */
-  digest_end_v1_t digest_end;
 };
 
 /** @} (end of group Group_PSI_v1) */

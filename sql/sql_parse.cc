@@ -7789,9 +7789,6 @@ bool parse_sql(THD *thd,
               (mysql_parse_status && thd->is_error()) ||
               (mysql_parse_status && thd->get_internal_handler()));
 
-  /* End Digest */
-  MYSQL_DIGEST_END(thd->m_parser_state->m_lip.m_digest_psi);
-
   /* Reset parser state. */
 
   thd->m_parser_state= NULL;

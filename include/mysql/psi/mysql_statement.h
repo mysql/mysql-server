@@ -42,13 +42,6 @@
 #endif
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  #define MYSQL_DIGEST_END(LOCKER) \
-    inline_mysql_digest_end(LOCKER)
-#else
-  #define MYSQL_DIGEST_END(LOCKER) 
-#endif
-
-#ifdef HAVE_PSI_STATEMENT_INTERFACE
   #define MYSQL_DIGEST_START(LOCKER) \
     inline_mysql_digest_start(LOCKER)
 #else
@@ -127,13 +120,6 @@ inline_mysql_digest_start(PSI_statement_locker *locker)
   if (likely(locker != NULL))
     digest_locker= PSI_CALL(digest_start)(locker);
   return digest_locker;
-}
-
-static inline void
-inline_mysql_digest_end(PSI_digest_locker *locker)
-{
-  if (likely(locker != NULL))
-    PSI_CALL(digest_end)(locker);
 }
 
 static inline struct PSI_statement_locker *
