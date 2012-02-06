@@ -9,8 +9,6 @@ CREATE SCHEMA IF NOT EXISTS mysqlslap;
 USE mysqlslap;
 --enable_warnings
 
-select @@global.binlog_format;
-
 #
 # BUG#25507 "multi-row insert delayed + auto increment causes
 # duplicate key entries on slave";
@@ -145,7 +143,7 @@ select * from t1;
 connection master;
 drop table t1;
 sync_slave_with_master;
-if  (`SELECT @@global.binlog_format != 'ROW'`)
+if  (`SELECT @@global.binlog_format = 'STATEMENT'`)
 {
   #flush the logs after the test
   FLUSH LOGS;

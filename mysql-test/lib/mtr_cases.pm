@@ -616,20 +616,6 @@ sub collect_one_test_case {
      suite         => $suites{$suitename},
     );
 
-  my $result_file= "$resdir/$tname.result";
-  if (-f $result_file) {
-    # Allow nonexistsing result file
-    # in that case .test must issue "exit" otherwise test
-    # should fail by default
-    $tinfo->{result_file}= $result_file;
-  }
-  else {
-    # No .result file exist
-    # Remember the path  where it should be
-    # saved in case of --record
-    $tinfo->{record_file}= $result_file;
-  }
-
   # ----------------------------------------------------------------------
   # Skip some tests but include in list, just mark them as skipped
   # ----------------------------------------------------------------------
@@ -871,6 +857,36 @@ sub collect_one_test_case {
   {
     @cases = map make_combinations($_, @{$comb}), @cases;
   }
+
+  for $tinfo (@cases) {
+    if ($tinfo->{combinations}) {
+      my $re = '(?:' . join('|', @{$tinfo->{combinations}}) . ')';
+      my $found = 0;
+      for (<$resdir/$tname,*.result>) {
+        m|$tname((?:,$re)+)\.result$| or next;
+        my $combs = $&;
+        my @commas = ($combs =~ m/,/g);
+        # prefer the most specific result file
+        if (@commas > $found) {
+          $found = @commas;
+          $tinfo->{result_file} = $_;
+        }
+      }
+    }
+    
+    unless (defined $tinfo->{result_file}) {
+      my $result_file= "$resdir/$tname.result";
+      if (-f $result_file) {
+        $tinfo->{result_file}= $result_file;
+      } else {
+        # No .result file exist
+        # Remember the path  where it should be
+        # saved in case of --record
+        $tinfo->{record_file}= $result_file;
+      }
+    }
+  }
+
   return @cases;
 }
 
