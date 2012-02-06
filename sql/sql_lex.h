@@ -1952,18 +1952,6 @@ public:
     return (uint) ((m_ptr - m_tok_start) - 1);
   }
    
-  uint yyLength_PS()
-  {
-    /* 
-      Length of the last token processed.
-      This new function is introduced because while using yylength(), there
-      were cases when (m_ptr < m_tok_start) and due to which it was aborting
-      when was called from SQLlex() for PS.
-    */
-    DBUG_ASSERT(m_cpp_ptr >= m_cpp_tok_start);
-    return (uint) (m_cpp_ptr - m_cpp_tok_start);
-  }
-
   /** Get the utf8-body string. */
   const char *get_body_utf8_str()
   {

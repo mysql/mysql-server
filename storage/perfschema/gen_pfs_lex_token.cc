@@ -49,10 +49,8 @@ char char_tokens[256];
 
 int tok_pfs_generic_value= 0;
 int tok_pfs_generic_value_list= 0;
-int tok_pfs_row_possible_single_value= 0;
 int tok_pfs_row_single_value= 0;
 int tok_pfs_row_single_value_list= 0;
-int tok_pfs_row_possible_multiple_value= 0;
 int tok_pfs_row_multiple_value= 0;
 int tok_pfs_row_multiple_value_list= 0;
 int tok_pfs_unused= 0;
@@ -179,35 +177,27 @@ void compute_tokens()
 
   max_token_seen++;
   tok_pfs_generic_value= max_token_seen;
-  set_token(tok_pfs_generic_value, "#");
+  set_token(tok_pfs_generic_value, "?");
 
   max_token_seen++;
   tok_pfs_generic_value_list= max_token_seen;
-  set_token(tok_pfs_generic_value_list, "#,#");
-
-  max_token_seen++;
-  tok_pfs_row_possible_single_value= max_token_seen;
-  set_token(tok_pfs_row_possible_single_value, "(#");
+  set_token(tok_pfs_generic_value_list, "?, ...");
 
   max_token_seen++;
   tok_pfs_row_single_value= max_token_seen;
-  set_token(tok_pfs_row_single_value, "(#)");
+  set_token(tok_pfs_row_single_value, "(?)");
 
   max_token_seen++;
   tok_pfs_row_single_value_list= max_token_seen;
-  set_token(tok_pfs_row_single_value_list, "(#),(#)");
-
-  max_token_seen++;
-  tok_pfs_row_possible_multiple_value= max_token_seen;
-  set_token(tok_pfs_row_possible_multiple_value, "(#,#");
+  set_token(tok_pfs_row_single_value_list, "(?) /* , ... */");
 
   max_token_seen++;
   tok_pfs_row_multiple_value= max_token_seen;
-  set_token(tok_pfs_row_multiple_value, "(#,#)");
+  set_token(tok_pfs_row_multiple_value, "(...)");
 
   max_token_seen++;
   tok_pfs_row_multiple_value_list= max_token_seen;
-  set_token(tok_pfs_row_multiple_value_list, "(#,#),(#,#)");
+  set_token(tok_pfs_row_multiple_value_list, "(...) /* , ... */");
 
   max_token_seen++;
   tok_pfs_unused= max_token_seen;
@@ -243,10 +233,8 @@ void print_tokens()
   printf("/* PFS specific tokens. */\n");
   printf("#define TOK_PFS_GENERIC_VALUE %d\n", tok_pfs_generic_value);
   printf("#define TOK_PFS_GENERIC_VALUE_LIST %d\n", tok_pfs_generic_value_list);
-  printf("#define TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE %d\n", tok_pfs_row_possible_single_value);
   printf("#define TOK_PFS_ROW_SINGLE_VALUE %d\n", tok_pfs_row_single_value);
   printf("#define TOK_PFS_ROW_SINGLE_VALUE_LIST %d\n", tok_pfs_row_single_value_list);
-  printf("#define TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE %d\n", tok_pfs_row_possible_multiple_value);
   printf("#define TOK_PFS_ROW_MULTIPLE_VALUE %d\n", tok_pfs_row_multiple_value);
   printf("#define TOK_PFS_ROW_MULTIPLE_VALUE_LIST %d\n", tok_pfs_row_multiple_value_list);
   printf("#define TOK_PFS_UNUSED %d\n", tok_pfs_unused);

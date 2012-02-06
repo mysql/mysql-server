@@ -35,11 +35,16 @@
 */
 struct row_esms_by_digest
 {
-  /** Columns TBD. Adding few dummy as of now. */
+  /** Columns DIGEST/DIGEST_TEXT. */
   PFS_digest_row m_digest;
 
   /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER_WAIT. */
   PFS_statement_stat_row m_stat;
+
+  /** Column FIRST_SEEN. */
+  ulonglong m_first_seen;
+  /** Column LAST_SEEN. */
+  ulonglong m_last_seen;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */

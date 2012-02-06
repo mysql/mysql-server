@@ -34,10 +34,9 @@ THR_LOCK table_esms_by_digest::m_table_lock;
 
 static const TABLE_FIELD_TYPE field_types[]=
 {
-  /* TBD */
   {
     { C_STRING_WITH_LEN("DIGEST") },
-    { C_STRING_WITH_LEN("varchar(64)") },
+    { C_STRING_WITH_LEN("varchar(32)") },
     { NULL, 0}
   },
   {
@@ -164,12 +163,22 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("SUM_NO_GOOD_INDEX_USED") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("FIRST_SEEN") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0}
+  },
+  { 
+    { C_STRING_WITH_LEN("LAST_SEEN") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0}
   }
 };
 
 TABLE_FIELD_DEF
 table_esms_by_digest::m_field_def=
-{ 26, field_types };
+{ 28, field_types };
 
 PFS_engine_table_share
 table_esms_by_digest::m_share=
@@ -222,11 +231,11 @@ int table_esms_by_digest::rnd_next(void)
   digest_stat= &statements_digest_stat_array[m_pos.m_index];
 
   /* 
-    If digest information exist for this record or
+    If byte_count is not 0 i.e. its a valid entry in stat array or
     If it is a record at index 0 of statements_digest_stat_array,
     make a new row.
   */
-  if(digest_stat->m_digest_text[0] != '\0' ||
+  if(digest_stat->m_digest_storage.m_byte_count != 0 ||
      m_pos.m_index == 0)
   {
     make_row(digest_stat);
@@ -246,11 +255,11 @@ table_esms_by_digest::rnd_pos(const void *pos)
   digest_stat= &statements_digest_stat_array[m_pos.m_index];
 
   /* 
-    If digest information exist for this record or
+    If byte_count is not 0 i.e. its a valid entry in stat array or
     If it is a record at index 0 of statements_digest_stat_array,
     make a new row.
   */
-  if(digest_stat->m_digest_text[0] != '\0' ||
+  if(digest_stat->m_digest_storage.m_byte_count != 0 ||
      m_pos.m_index == 0)
   {
     make_row(digest_stat);
@@ -264,10 +273,12 @@ table_esms_by_digest::rnd_pos(const void *pos)
 void table_esms_by_digest::make_row(PFS_statements_digest_stat* digest_stat)
 {
   m_row_exists= false;
+  m_row.m_first_seen= digest_stat->m_first_seen;
+  m_row.m_last_seen= digest_stat->m_last_seen;
   m_row.m_digest.make_row(digest_stat);
 
   /*
-   Get statements stats.
+    Get statements stats.
   */
   time_normalizer *normalizer= time_normalizer::get(statement_timer);
   m_row.m_stat.set(normalizer, & digest_stat->m_stat);
@@ -285,8 +296,8 @@ int table_esms_by_digest
     return HA_ERR_RECORD_DELETED;
 
   /* 
-     Set the null bits. It indicates how many fields could be null
-     in the table.
+    Set the null bits. It indicates how many fields could be null
+    in the table.
   */
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0]= 0;
@@ -300,6 +311,12 @@ int table_esms_by_digest
       case 0: /* DIGEST */
       case 1: /* DIGEST_TEXT */
         m_row.m_digest.set_field(f->field_index, f);
+        break;
+      case 26: /* FIRST_SEEN */
+        set_field_timestamp(f, m_row.m_first_seen);
+        break;
+      case 27: /* LAST_SEEN */
+        set_field_timestamp(f, m_row.m_last_seen);
         break;
       default: /* 1, ... COUNT/SUM/MIN/AVG/MAX */
         m_row.m_stat.set_field(f->field_index - 2, f);
