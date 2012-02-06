@@ -161,7 +161,7 @@ op_ok:
 # error
 #endif
 	mach_write_to_6(b, trx_id);
-	b += 6;
+	b += DATA_TRX_ID_LEN;
 
 	if (extra_size < 0x80) {
 		*b++ = (byte) extra_size;
@@ -663,7 +663,7 @@ corrupted:
 # error
 #endif
 	trx_id = mach_read_from_6(mrec);
-	mrec += 6;
+	mrec += DATA_TRX_ID_LEN;
 
 	extra_size = *mrec++;
 
