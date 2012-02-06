@@ -3029,7 +3029,7 @@ public:
 
 		close();
 
-		return(err);
+		return(err == DB_END_OF_INDEX ? DB_SUCCESS : err);
 	}
 
 	/** Gettor for m_n_recs.
