@@ -918,11 +918,6 @@ retry:
 		return;
 	}
 
-	if (fil_system->n_open < fil_system->max_n_open) {
-
-		return;
-	}
-
 	space = fil_space_get_by_id(space_id);
 
 	if (space != NULL && space->stop_ios) {
@@ -939,11 +934,35 @@ retry:
 
 		mutex_exit(&fil_system->mutex);
 
+#ifndef UNIV_HOTBACKUP
+
+		/* Wake the i/o-handler threads to make sure pending
+		i/o's are performed */
+		os_aio_simulated_wake_handler_threads();
+
+		/* The sleep here is just to give IO helper threads a
+		bit of time to do some work. It is not required that
+		all IO related to the tablespace being renamed must
+		be flushed here as we do fil_flush() in
+		fil_rename_tablespace() as well. */
+		os_thread_sleep(20000);
+
+#endif /* UNIV_HOTBACKUP */
+
+		/* Flush tablespaces so that we can close modified
+		files in the LRU list */
+		fil_flush_file_spaces(FIL_TABLESPACE);
+
 		os_thread_sleep(20000);
 
 		count2++;
 
 		goto retry;
+	}
+
+	if (fil_system->n_open < fil_system->max_n_open) {
+
+		return;
 	}
 
 	/* If the file is already open, no need to do anything; if the space
@@ -2496,7 +2515,7 @@ fil_rename_tablespace(
 retry:
 	count++;
 
-	if (count > 1000) {
+	if (!(count % 1000)) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Warning: problems renaming ", stderr);
 		ut_print_filename(stderr, old_name);

@@ -1877,7 +1877,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
 {
   uint i;
   my_bool body_found= 0;
-  char *create_stmt_ptr;
+  char *create_stmt_ptr= NULL;
   ulong create_stmt_len= 0;
   MYSQL_FIELD *field;
   ulong *lengths= mysql_fetch_lengths(tableRes);

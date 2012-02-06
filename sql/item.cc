@@ -7006,7 +7006,7 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
 
       return my_time_compare(&field_time, &item_time);
     }
-    return stringcmp(field_result, item_result);
+    return sortcmp(field_result, item_result, field->charset());
   }
   if (res_type == INT_RESULT)
     return 0;					// Both are of type int
@@ -7018,7 +7018,7 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
     if (item->null_value)
       return 0;
     field_val= field->val_decimal(&field_buf);
-    return my_decimal_cmp(item_val, field_val);
+    return my_decimal_cmp(field_val, item_val);
   }
   double result= item->val_real();
   if (item->null_value)
