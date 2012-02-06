@@ -80,7 +80,12 @@ int init_digest(unsigned int statements_digest_sizing)
                      MYF(MY_ZEROFILL));
    
   for (index= 0; index < statements_digest_size; index++)
-  statements_digest_stat_array[index].m_stat.reset();
+  {
+    statements_digest_stat_array[index].m_digest_storage.reset();
+    statements_digest_stat_array[index].m_stat.reset();
+    statements_digest_stat_array[index].m_first_seen= 0;
+    statements_digest_stat_array[index].m_last_seen= 0;
+  }
 
   return (statements_digest_stat_array ? 0 : 1);
 }
