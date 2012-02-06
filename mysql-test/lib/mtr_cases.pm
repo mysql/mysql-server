@@ -30,7 +30,6 @@ use mtr_match;
 
 # Options used for the collect phase
 our $start_from;
-our $print_testcases;
 our $skip_rpl;
 our $do_test;
 our $skip_test;
@@ -85,21 +84,6 @@ sub init_pattern {
   return $from;
 }
 
-
-sub testcase_sort_order {
-  my ($a, $b, $sort_criteria)= @_;
-  # Run slow tests first, trying to avoid getting stuck at the end
-  # with a slow test in one worker and the other workers idle.
-  return -1 if $a->{'long_test'} && !$b->{'long_test'};
-  return 1 if !$a->{'long_test'} && $b->{'long_test'};
-
-  my $a_sort_criteria= $sort_criteria->{$a->fullname()};
-  my $b_sort_criteria= $sort_criteria->{$b->fullname()};
-  my $res= $a_sort_criteria cmp $b_sort_criteria;
-  return $res if $res;
-
-  return $a->fullname() cmp $b->fullname();
-}
 
 ##############################################################################
 #
@@ -180,42 +164,22 @@ sub collect_test_cases ($$$$) {
       #
       # Append the criteria for sorting, in order of importance.
       #
-      push(@criteria, "ndb=" . ($tinfo->{'ndb_test'} ? "A" : "B"));
+      push @criteria, ($tinfo->{'long_test'} ? "long" : "short");
       push(@criteria, $tinfo->{template_path});
-      # Group test with equal options together.
-      # Ending with "~" makes empty sort later than filled
-      my $opts= $tinfo->{'master_opt'} ? $tinfo->{'master_opt'} : [];
-      push(@criteria, join("!", sort @{$opts}) . "~");
-      # Add slave opts if any
-      if ($tinfo->{'slave_opt'})
-      {
-	push(@criteria, join("!", sort @{$tinfo->{'slave_opt'}}));
+      for (qw(master_opt slave_opt)) {
+        # Group test with equal options together.
+        # Ending with "~" makes empty sort later than filled
+        my $opts= $tinfo->{$_} ? $tinfo->{$_} : [];
+        push(@criteria, join("!", sort @{$opts}) . "~");
       }
-      # This sorts tests with force-restart *before* identical tests
-      push(@criteria, $tinfo->{force_restart} ? "force-restart" : "no-restart");
-
+      push @criteria, $tinfo->{name};
       $tinfo->{criteria}= join(" ", @criteria);
-      $sort_criteria{$tinfo->fullname()} = $tinfo->{criteria};
     }
 
-    @$cases = sort { testcase_sort_order($a, $b, \%sort_criteria) } @$cases;
-
-    # For debugging the sort-order
-    # foreach my $tinfo (@$cases)
-    # {
-    #   my $tname= $tinfo->{name} . ' ' . $tinfo->{combination};
-    #   my $crit= $tinfo->{criteria};
-    #   print("$tname\n\t$crit\n");
-    # }
-  }
-
-  if (defined $print_testcases){
-    print_testcases(@$cases);
-    exit(1);
+    @$cases = sort { $a->{criteria} cmp $b->{criteria} } @$cases;
   }
 
   return $cases;
-
 }
 
 
@@ -462,7 +426,6 @@ sub collect_one_suite
     if (@combinations)
     {
       print " - adding combinations for $suite\n";
-      #print_testcases(@cases);
 
       my @new_cases;
       TEST: foreach my $test (@cases)
@@ -513,14 +476,11 @@ sub collect_one_suite
 	}
       }
 
-      #print_testcases(@new_cases);
       @cases= @new_cases;
-      #print_testcases(@cases);
     }
   }
 
   optimize_cases(\@cases);
-  #print_testcases(@cases);
 
   return @cases;
 }
@@ -680,30 +640,6 @@ sub collect_one_test_case {
   my $suite_opts= shift;
 
   my $local_default_storage_engine= $default_storage_engine;
-
-  #print "collect_one_test_case\n";
-  #print " suitedir: $suitedir\n";
-  #print " testdir: $testdir\n";
-  #print " resdir: $resdir\n";
-  #print " suitename: $suitename\n";
-  #print " tname: $tname\n";
-  #print " filename: $filename\n";
-
-  # ----------------------------------------------------------------------
-  # Check --start-from
-  # ----------------------------------------------------------------------
-  if ( $start_from && 0)
-  {
-    # start_from can be specified as [suite.].testname_prefix
-    my ($suite, $test)= split_testname($start_from);
-
-    if ( $suite and $suitename lt $suite){
-      return; # Skip silently
-    }
-    if ((!$suite || $suitename == $suite) && $tname lt $test ){
-      return; # Skip silently
-    }
-  }
 
   # ----------------------------------------------------------------------
   # Set defaults
@@ -1130,17 +1066,6 @@ sub opts_from_file ($) {
   close FILE;
   return @args;
 }
-
-sub print_testcases {
-  my (@cases)= @_;
-
-  print "=" x 60, "\n";
-  foreach my $test (@cases){
-    $test->print_test();
-  }
-  print "=" x 60, "\n";
-}
-
 
 1;
 

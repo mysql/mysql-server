@@ -554,13 +554,6 @@ sub main {
 
   if ( @$completed != $num_tests){
 
-    if ($opt_force){
-      # All test should have been run, print any that are still in $tests
-      #foreach my $test ( @$tests ){
-      #  $test->print_test();
-      #}
-    }
-
     # Not all tests completed, failure
     mtr_report();
     mtr_report("Only ", int(@$completed), " of $num_tests completed.");
@@ -669,7 +662,6 @@ sub run_test_server ($$$) {
 
 	if ($line eq 'TESTRESULT'){
 	  $result= My::Test::read_test($sock);
-	  # $result->print_test();
 
 	  # Report test status
 	  mtr_report_test($result);
@@ -871,8 +863,6 @@ sub run_test_server ($$$) {
 	    next if (defined $t->{reserved} and $t->{reserved} != $wid);
 	    if (! defined $t->{reserved})
 	    {
-	      # Force-restart not relevant when comparing *next* test
-	      $t->{criteria} =~ s/force-restart$/no-restart/;
 	      my $criteria= $t->{criteria};
 	      # Reserve similar tests for this worker, but not too many
 	      my $maxres= (@$tests - $i) / $opt_parallel + 1;
@@ -981,7 +971,6 @@ sub run_worker ($) {
     chomp($line);
     if ($line eq 'TESTCASE'){
       my $test= My::Test::read_test($server);
-      #$test->print_test();
 
       # Clear comment and logfile, to avoid
       # reusing them from previous test
@@ -998,7 +987,6 @@ sub run_worker ($) {
       run_testcase($test, $server);
       #$test->{result}= 'MTR_RES_PASSED';
       # Send it back, now with results set
-      #$test->print_test();
       $test->write_test($server, 'TESTRESULT');
       mark_time_used('restart');
     }
@@ -5540,11 +5528,6 @@ sub server_need_restart {
   {
     mtr_verbose_restart($server, "no restart for --extern server");
     return 0;
-  }
-
-  if ( $tinfo->{'force_restart'} ) {
-    mtr_verbose_restart($server, "forced in .opt file");
-    return 1;
   }
 
   if ( $opt_force_restart ) {
