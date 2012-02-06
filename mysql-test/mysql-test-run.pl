@@ -342,8 +342,6 @@ our $debug_compiled_binaries;
 
 our %mysqld_variables;
 
-our %suites;
-
 my $source_dist= 0;
 
 my $opt_max_save_core= env_or_val(MTR_MAX_SAVE_CORE => 5);
@@ -4074,7 +4072,7 @@ sub config_files($) {
   my ($tinfo) = @_;
   (
     'my.cnf' => \&mycnf_create,
-    $suites{$tinfo->{suite}}->config_files()
+    $tinfo->{suite}->config_files()
   );
 }
 
@@ -4105,7 +4103,7 @@ sub fix_servers($) {
       SORT => 220,
       START => undef,
     },
-    $suites{$tinfo->{suite}}->servers()
+    $tinfo->{suite}->servers()
   );
   for ($config->groups()) {
     while (my ($re,$prop) = each %servers) {
@@ -4324,7 +4322,7 @@ sub run_testcase ($$) {
     return 1;
   }
 
-  my $test= $suites{$tinfo->{suite}}->start_test($tinfo);
+  my $test= $tinfo->{suite}->start_test($tinfo);
   # Set only when we have to keep waiting after expectedly died server
   my $keep_waiting_proc = 0;
 

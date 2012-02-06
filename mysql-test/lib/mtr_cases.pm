@@ -66,6 +66,7 @@ require "mtr_misc.pl";
 my $do_test_reg;
 my $skip_test_reg;
 
+my %suites;
 my $default_suite_object = do 'My/Suite.pm';
 
 sub init_pattern {
@@ -317,11 +318,11 @@ sub collect_one_suite
   #
   # Load the Suite object
   #
-  unless ($::suites{$suite}) {
+  unless ($suites{$suite}) {
     if (-f "$suitedir/suite.pm") {
-      $::suites{$suite} = do "$suitedir/suite.pm";
+      $suites{$suite} = do "$suitedir/suite.pm";
     } else {
-      $::suites{$suite} = $default_suite_object;
+      $suites{$suite} = $default_suite_object;
     }
   }
 
@@ -377,7 +378,7 @@ sub collect_one_suite
 
   my @case_names;
   {
-    my $s= $::suites{$suite};
+    my $s= $suites{$suite};
     $s = 'My::Suite' unless ref $s;
     @case_names= $s->list_cases($testdir);
   }
@@ -712,7 +713,7 @@ sub collect_one_test_case {
      name          => "$suitename.$tname",
      shortname     => $tname,
      path          => "$testdir/$filename",
-     suite         => $suitename,
+     suite         => $suites{$suitename},
     );
 
   my $result_file= "$resdir/$tname.result";
@@ -947,10 +948,10 @@ sub collect_one_test_case {
     $tinfo->{template_path}= $config;
   }
 
-  if (not ref $::suites{$tinfo->{suite}})
+  if (not ref $suites{$suitename})
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= $::suites{$tinfo->{suite}};
+    $tinfo->{'comment'}= $suites{$suitename};
     return $tinfo;
   }
 
