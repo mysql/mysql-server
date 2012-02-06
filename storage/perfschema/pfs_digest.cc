@@ -80,7 +80,9 @@ int init_digest(unsigned int statements_digest_sizing)
                      MYF(MY_ZEROFILL));
    
   for (index= 0; index < statements_digest_size; index++)
-  statements_digest_stat_array[index].m_stat.reset();
+  {
+    statements_digest_stat_array[index].reset();
+  }
 
   return (statements_digest_stat_array ? 0 : 1);
 }
@@ -107,7 +109,7 @@ static uchar *digest_hash_get_key(const uchar *entry, size_t *length,
   digest= *typed_entry;
   DBUG_ASSERT(digest != NULL);
   *length= 16; 
-  result= digest->m_digest_storage.m_digest_hash.m_md5;
+  result= digest->m_digest_hash.m_md5;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
 }
 C_MODE_END
@@ -151,7 +153,7 @@ static LF_PINS* get_digest_hash_pins(PFS_thread *thread)
 }
 
 PFS_statements_digest_stat* 
-find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
+find_or_create_digest(PFS_thread* thread, PFS_digest_hash d_hash, PFS_digest_storage* digest_storage)
 {
   /* get digest pin. */
   LF_PINS *pins= get_digest_hash_pins(thread);
@@ -162,7 +164,7 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
     return NULL;
   }
 
-  unsigned char* hash_key= digest_storage->m_digest_hash.m_md5;
+  unsigned char* hash_key= d_hash.m_md5;
  
   PFS_statements_digest_stat **entry;
   PFS_statements_digest_stat *pfs= NULL;
@@ -185,7 +187,11 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
         digest_stat array is full. Add stat at index 0 and return.
       */
       pfs= &statements_digest_stat_array[0];
-      if(pfs->m_first_seen!=0)
+      /*
+         If this is the first entry at index 0, update
+         first seen information.
+      */
+      if(pfs->m_first_seen==0)
         pfs->m_first_seen= now;
       pfs->m_last_seen= now;
       return pfs;
@@ -201,14 +207,13 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
       used later to generate digest text.
     */
     pfs->m_digest_storage.m_byte_count= digest_storage->m_byte_count;
-    pfs->m_digest_storage.m_last_id_index= digest_storage->m_last_id_index;
+    pfs->m_digest_storage.m_full= digest_storage->m_full;
     /* Copy token array. */
     memcpy(pfs->m_digest_storage.m_token_array, digest_storage->m_token_array,
            PFS_MAX_DIGEST_STORAGE_SIZE);
     /* Copy digest hash/LF Hash search key. */
-    memcpy(pfs->m_digest_storage.m_digest_hash.m_md5,
-           digest_storage->m_digest_hash.m_md5, 16);
-
+    memcpy(pfs->m_digest_hash.m_md5,
+           d_hash.m_md5, 16);
 
     pfs->m_first_seen= now;
     pfs->m_last_seen= now;
@@ -273,17 +278,20 @@ void purge_digest(PFS_thread* thread, unsigned char* hash_key)
   return;
 }
 
-void PFS_digest_storage::reset()
+void PFS_statements_digest_stat::reset()
 {
   PFS_thread *thread= PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
       return;
 
-  m_byte_count= 0;
-  m_last_id_index= 0;
-  m_token_array[0]= '\0';
+  m_digest_storage.m_byte_count= 0;
+  m_digest_storage.m_token_array[0]= '\0';
+  m_digest_storage.m_full= false;
+  m_stat.reset();
   purge_digest(thread, m_digest_hash.m_md5);
   m_digest_hash.m_md5[0]= '\0';
+  m_first_seen= 0;
+  m_last_seen= 0;
 }
 
 void reset_esms_by_digest()
@@ -298,10 +306,7 @@ void reset_esms_by_digest()
   */
   for (index= 0; index < statements_digest_size; index++)
   {
-    statements_digest_stat_array[index].m_digest_storage.reset();
-    statements_digest_stat_array[index].m_stat.reset();
-    statements_digest_stat_array[index].m_first_seen= 0;
-    statements_digest_stat_array[index].m_last_seen= 0;
+    statements_digest_stat_array[index].reset();
   }
 
   /* 
@@ -314,53 +319,68 @@ void reset_esms_by_digest()
 /*
   This function, iterates token array and updates digest_text.
 */
-void get_digest_text(char* digest_text, char* token_array, int byte_count)
+void get_digest_text(char* digest_text, PFS_digest_storage* digest_storage)
 {
   uint tok= 0;
   int current_byte= 0;
   char *digest_text_start= digest_text;
   lex_token_string *tok_data;
+  char* token_array= digest_storage->m_token_array;
+  int byte_count= digest_storage->m_byte_count;
+  /* -4 is to make sure extra space for ... and a '\0' at the end. */
+  int available_bytes_to_write= COL_DIGEST_TEXT_SIZE-4;
 
   DBUG_ASSERT(byte_count <= PFS_MAX_DIGEST_STORAGE_SIZE);
 
   while(current_byte<byte_count &&
-        (digest_text-digest_text_start)<COL_DIGEST_TEXT_SIZE-3)
+        available_bytes_to_write>0)
   {
     read_token(&tok, &current_byte, token_array);
     tok_data= & lex_token_array[tok];
-
+    
     switch (tok)
     {
     /* All identifiers are printed with their name. */
     case IDENT:
     case IDENT_QUOTED:
-      read_identifier(&digest_text, &current_byte, token_array);
+      read_identifier(&digest_text, &current_byte,
+                      token_array, (uint)available_bytes_to_write);
       *digest_text= ' ';
       digest_text++;
       break;
 
     /* Everything else is printed as is. */
     default:
+      /* 
+        Make sure not to overflow digest_text buffer while writing
+        this token string.
+        +/-1 is to make sure extra space for ' '.
+      */
+      int length= available_bytes_to_write >= tok_data->m_token_length+1?
+                                              tok_data->m_token_length:
+                                              available_bytes_to_write-1;
       strncpy(digest_text,
               tok_data->m_token_string,
-              tok_data->m_token_length);
-      digest_text+= tok_data->m_token_length;
+              length);
+      digest_text+= length;
       *digest_text= ' ';
       digest_text++;
     }
+
+    available_bytes_to_write-= digest_text-digest_text_start;
+    digest_text_start= digest_text;
   }
 
   /* 
     Truncate digest text in case of long queries.
   */
-  if(digest_text-digest_text_start == COL_DIGEST_TEXT_SIZE-3)
+  if(digest_storage->m_full)
   {
     strcpy(digest_text,"...");
+    digest_text+= 3;
   }
-  else
-  {
-    *digest_text= '\0';
-  }
+
+  *digest_text= '\0';
 }
 
 struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
@@ -404,9 +424,10 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
     Initialize token array and token count to 0.
   */
   digest_storage->m_byte_count= PFS_MAX_DIGEST_STORAGE_SIZE;
-  digest_storage->m_last_id_index= 0;
+  state->m_last_id_index= 0;
   while(digest_storage->m_byte_count)
     digest_storage->m_token_array[--digest_storage->m_byte_count]= 0;
+  digest_storage->m_full= false;
 
   /*
     Set digest_locker_state's statement info pointer.
@@ -438,8 +459,9 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
       PFS_SIZE_OF_A_TOKEN)
   {
     /*
-      If digest storage record is full, do nothing.
+      If digest storage record is full.
     */
+    digest_storage->m_full= true;
     return NULL;
   }
 
@@ -450,7 +472,7 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
   uint last_token = TOK_PFS_UNUSED;
   uint last_token2= TOK_PFS_UNUSED;
   
-  read_last_two_tokens(digest_storage, &last_token, &last_token2);
+  read_last_two_tokens(digest_storage, state->m_last_id_index, &last_token, &last_token2);
 
   switch (token)
   {
@@ -507,7 +529,7 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
         token= TOK_PFS_ROW_SINGLE_VALUE;
       
         /* Read last two tokens again */
-        read_last_two_tokens(digest_storage, &last_token, &last_token2);
+        read_last_two_tokens(digest_storage, state->m_last_id_index, &last_token, &last_token2);
 
         if((last_token2 == TOK_PFS_ROW_SINGLE_VALUE ||
             last_token2 == TOK_PFS_ROW_SINGLE_VALUE_LIST) &&
@@ -538,7 +560,7 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
         token= TOK_PFS_ROW_MULTIPLE_VALUE;
 
         /* Read last two tokens again */
-        read_last_two_tokens(digest_storage, &last_token, &last_token2);
+        read_last_two_tokens(digest_storage, state->m_last_id_index, &last_token, &last_token2);
 
         if((last_token2 == TOK_PFS_ROW_MULTIPLE_VALUE ||
             last_token2 == TOK_PFS_ROW_MULTIPLE_VALUE_LIST) &&
@@ -577,7 +599,7 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
       /* 
         Update the index of last identifier found.
       */
-      digest_storage->m_last_id_index= digest_storage->m_byte_count;
+      state->m_last_id_index= digest_storage->m_byte_count;
       break;
     }
     default:

@@ -326,9 +326,10 @@ typedef struct st_mi_sort_param
   */
   ulonglong unique[MI_MAX_KEY_SEG+1];
   ulonglong notnull[MI_MAX_KEY_SEG+1];
+  ulonglong sortbuff_size;
 
   my_off_t pos,max_pos,filepos,start_recpos;
-  uint key, key_length,real_key_length,sortbuff_size;
+  uint key, key_length,real_key_length;
   uint maxbuffers, keys, find_length, sort_keys_length;
   my_bool fix_datafile, master;
   my_bool calc_checksum;                /* calculate table checksum */
@@ -779,7 +780,7 @@ pthread_handler_t thr_find_all_keys(void *arg);
 int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file);
 
 int sort_write_record(MI_SORT_PARAM *sort_param);
-int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages, ulong);
+int _create_index_by_sort(MI_SORT_PARAM *info, my_bool no_messages, ulonglong);
 
 extern void mi_set_index_cond_func(MI_INFO *info, index_cond_func_t func,
                                    void *func_arg);

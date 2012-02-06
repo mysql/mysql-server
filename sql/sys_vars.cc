@@ -2129,7 +2129,7 @@ static Sys_var_uint Sys_eq_range_index_dive_limit(
        "eq_range_index_dive_limit",
        "The optimizer will use existing index statistics instead of "
        "doing index dives for equality ranges if the number of equality "
-       "ranges is larger than or equal to this number.",
+       "ranges for the index is larger than or equal to this number.",
        SESSION_VAR(eq_range_index_dive_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(10), BLOCK_SIZE(1));
 
