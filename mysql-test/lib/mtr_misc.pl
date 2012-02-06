@@ -263,6 +263,11 @@ sub mtr_wait_lock_file {
   return ($waited);
 }
 
+sub uniq(@) {
+  my %seen = map { $_ => $_ } @_;
+  values %seen;
+}
+
 # Simple functions to start and check timers (have to be actively polled)
 # Timer can be "killed" by setting it to 0
 

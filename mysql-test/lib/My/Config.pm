@@ -165,6 +165,8 @@ sub value {
 }
 
 
+sub auto { 0 };
+
 #
 # Return value for an option if it exist
 #
@@ -188,6 +190,8 @@ sub new {
   my ($class, $group_name)= @_;
   bless My::Config::Group->new($group_name), $class;
 }
+
+sub auto { 1 };
 
 #
 # Return value for an option in the group, fail if it does not exist
@@ -213,6 +217,8 @@ our @ISA=qw(My::Config::Group);
 use strict;
 use warnings;
 use Carp;
+
+sub auto { 1 };
 
 sub new {
   my ($class, $group_name)= @_;

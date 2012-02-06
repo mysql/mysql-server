@@ -5101,8 +5101,8 @@ sub after_failure ($) {
   my $save_dir= "$opt_vardir/log/";
   $save_dir.= $tinfo->{name};
   # Add combination name if any
-  $save_dir.= "-$tinfo->{combination}"
-    if defined $tinfo->{combination};
+  $save_dir.= '-' . join(',', sort @{$tinfo->{combinations}})
+    if defined $tinfo->{combinations};
 
   # Save savedir  path for server
   $tinfo->{savedir}= $save_dir;

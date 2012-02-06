@@ -37,8 +37,8 @@ sub new {
 
 sub fullname {
   my ($self)= @_;
-  $self->{name} . (defined $self->{combination}
-                   ? " '$self->{combination}'"
+  $self->{name} . (defined $self->{combinations}
+                   ? " '" . join(',', sort @{$self->{combinations}}) . "'"
                    : "")
 }
 

@@ -213,6 +213,28 @@ sub split_testname {
   mtr_error("Illegal format of test name: $test_name");
 }
 
+sub combinations_from_file($)
+{
+  my ($filename) = @_;
+  return () if @::opt_combinations or not -f $filename;
+
+  # Read combinations file in my.cnf format
+  mtr_verbose("Read combinations file");
+  my $config= My::Config->new($filename);
+  my @combs;
+  foreach my $group ($config->groups()) {
+    next if $group->auto();
+    my $comb= { name => $group->name() };
+    foreach my $option ( $group->options() ) {
+      push(@{$comb->{comb_opt}}, $option->option());
+    }
+    push @combs, $comb;
+  }
+  @combs;
+}
+
+my $suite_combinations = { };
+my $file_combinations = { };
 
 sub collect_one_suite
 {
@@ -336,6 +358,30 @@ sub collect_one_suite
 	}
     }
 
+  # ----------------------------------------------------------------------
+  # Read combinations for this suite
+  # ----------------------------------------------------------------------
+  {
+    if (@::opt_combinations)
+    {
+      # take the combination from command-line
+      mtr_verbose("Take the combination from command line");
+      foreach my $combination (@::opt_combinations) {
+	my $comb= {};
+	$comb->{name}= $combination;
+	push(@{$comb->{comb_opt}}, $combination);
+        push @{$suite_combinations->{$suite}}, $comb;
+      }
+    }
+    else
+    {
+      my @combs = combinations_from_file("$suitedir/combinations");
+      my %env_filter = map { $_ => 1 } split /:/, $ENV{"\U${suite}_COMBINATIONS"};
+      @combs = grep $env_filter{$_->{name}}, @combs if %env_filter;
+      $suite_combinations->{$suite} = [ @combs ];
+    }
+  }
+
   # Read suite.opt file
   my $suite_opts= [ opts_from_file("$testdir/suite.opt") ];
   $suite_opts = [ opts_from_file("$suitedir/suite.opt") ] unless @$suite_opts;
@@ -387,99 +433,6 @@ sub collect_one_suite
   #  Return empty list if no testcases found
   return if (@cases == 0);
 
-  # ----------------------------------------------------------------------
-  # Read combinations for this suite and build testcases x combinations
-  # if any combinations exists
-  # ----------------------------------------------------------------------
-  {
-    my @combinations;
-    my $combination_file= "$suitedir/combinations";
-    #print "combination_file: $combination_file\n";
-    if (@::opt_combinations)
-    {
-      # take the combination from command-line
-      mtr_verbose("Take the combination from command line");
-      foreach my $combination (@::opt_combinations) {
-	my $comb= {};
-	$comb->{name}= $combination;
-	push(@{$comb->{comb_opt}}, $combination);
-	push(@combinations, $comb);
-      }
-    }
-    elsif (-f $combination_file )
-    {
-      # Read combinations file in my.cnf format
-      mtr_verbose("Read combinations file");
-      my %env_filter = map { $_ => 1 } split /:/, $ENV{"\U${suite}_COMBINATIONS"};
-      my $config= My::Config->new($combination_file);
-      foreach my $group ($config->groups()) {
-	my $comb= {};
-	$comb->{name}= $group->name();
-        next if %env_filter and not $env_filter{$comb->{name}};
-        foreach my $option ( $group->options() ) {
-	  push(@{$comb->{comb_opt}}, $option->option());
-	}
-	push(@combinations, $comb) if $comb->{comb_opt};
-      }
-    }
-
-    if (@combinations)
-    {
-      print " - adding combinations for $suite\n";
-
-      my @new_cases;
-      TEST: foreach my $test (@cases)
-      {
-        if ( $test->{'skip'} )
-        {
-          push(@new_cases, $test);
-          next;
-        }
-
-        foreach my $comb (@combinations)
-        {
-	  # Skip all other combinations if the values they change
-	  # are already fixed in master_opt or slave_opt
-	  if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) &&
-	      My::Options::is_set($test->{slave_opt}, $comb->{comb_opt}) ){
-
-            # Add combination name short name
-            $test->{combination}= $comb->{name};
-
-            # Add the test to new test cases list
-            push(@new_cases, $test);
-            next TEST;
-	  }
-        }
-
-        foreach my $comb (@combinations)
-        {
-	  # Copy test options
-	  my $new_test= My::Test->new();
-	  while (my ($key, $value) = each(%$test)) {
-	    if (ref $value eq "ARRAY") {
-	      push(@{$new_test->{$key}}, @$value);
-	    } else {
-	      $new_test->{$key}= $value;
-	    }
-	  }
-
-	  # Append the combination options to master_opt and slave_opt
-	  push(@{$new_test->{master_opt}}, @{$comb->{comb_opt}});
-	  push(@{$new_test->{slave_opt}}, @{$comb->{comb_opt}});
-
-	  # Add combination name short name
-	  $new_test->{combination}= $comb->{name};
-
-	  # Add the new test to new test cases list
-	  push(@new_cases, $new_test);
-	}
-      }
-
-      @cases= @new_cases;
-    }
-  }
-
   optimize_cases(\@cases);
 
   return @cases;
@@ -505,51 +458,16 @@ sub optimize_cases {
     next if $tinfo->{skip};
 
     # =======================================================
-    # If a special binlog format was selected with
-    # --mysqld=--binlog-format=x, skip all test that does not
-    # support it
-    # =======================================================
-    #print "binlog_format: $binlog_format\n";
-    if (not defined $binlog_format )
-    {
-      # =======================================================
-      # Use dynamic switching of binlog format
-      # =======================================================
-
-      # Get binlog-format used by this test from master_opt
-      my $test_binlog_format;
-      foreach my $opt ( @{$tinfo->{master_opt}} ) {
-	$test_binlog_format=
-	  mtr_match_prefix($opt, "--binlog-format=") || $test_binlog_format;
-      }
-
-      if (defined $test_binlog_format and
-	  defined $tinfo->{binlog_formats} )
-      {
-	my $supported=
-	  grep { $_ eq $test_binlog_format } @{$tinfo->{'binlog_formats'}};
-	if ( !$supported )
-	{
-	  $tinfo->{'skip'}= 1;
-	  $tinfo->{'comment'}=
-	    "Doesn't support --binlog-format='$test_binlog_format'";
-          # This test was added as a replication combination, but it is not
-          # actually ever possible to run it, as it is not made for this
-          # combination.
-          # So delete it from the list, rather than confuse the user with a
-          # message that this test is skipped (it is not really, just run
-          # with other combinations).
-          pop(@new_cases);
-	  next;
-	}
-      }
-    }
-
-    # =======================================================
     # Check that engine selected by
     # --default-storage-engine=<engine> is supported
     # =======================================================
-    my %builtin_engines = ('myisam' => 1, 'memory' => 1, 'csv' => 1);
+
+    #
+    # mandatory engines cannot be disabled with --skip-FOO.
+    # That is, --FOO switch does not exist, and mtr cannot detect
+    # if the engine is available.
+    #
+    my %mandatory_engines = ('myisam' => 1, 'memory' => 1, 'csv' => 1);
 
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
       my $default_engine=
@@ -567,7 +485,7 @@ sub optimize_cases {
 	#print " - The mysqld_variables says '$engine_value'\n";
 
 	if ( ! exists $::mysqld_variables{$default_engine} and
-	     ! exists $builtin_engines{$default_engine} )
+	     ! exists $mandatory_engines{$default_engine} )
 	{
 	  $tinfo->{'skip'}= 1;
 	  $tinfo->{'comment'}=
@@ -620,6 +538,52 @@ sub process_opts {
     # Ok, this was a real option, add it
     push(@{$tinfo->{$opt_name}}, $opt);
   }
+}
+
+sub make_combinations($@)
+{
+  my ($test, @combinations) = @_;
+
+  return ($test) if $test->{'skip'} or not @combinations;
+
+  foreach my $comb (@combinations)
+  {
+    # Skip all other combinations if the values they change
+    # are already fixed in master_opt or slave_opt
+    if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) &&
+        My::Options::is_set($test->{slave_opt}, $comb->{comb_opt}) ){
+
+      # Add combination name short name
+      push @{$test->{combinations}}, $comb->{name};
+
+      return ($test);
+    }
+  }
+
+  my @cases;
+  foreach my $comb (@combinations)
+  {
+    # Copy test options
+    my $new_test= My::Test->new();
+    while (my ($key, $value) = each(%$test)) {
+      if (ref $value eq "ARRAY") {
+        push(@{$new_test->{$key}}, @$value);
+      } else {
+        $new_test->{$key}= $value;
+      }
+    }
+    
+    # Append the combination options to master_opt and slave_opt
+    push(@{$new_test->{master_opt}}, @{$comb->{comb_opt}});
+    push(@{$new_test->{slave_opt}}, @{$comb->{comb_opt}});
+
+    # Add combination name short name
+    push @{$new_test->{combinations}}, $comb->{name};
+
+    # Add the new test to new test cases list
+    push(@cases, $new_test);
+  }
+  return @cases;
 }
 
 
@@ -764,8 +728,9 @@ sub collect_one_test_case {
     }
   }
 
+  my $filename = "$testdir/${tname}.test";
   my ($master_opts, $slave_opts)=
-    tags_from_test_file($tinfo, "$testdir/${tname}.test", $suitedir);
+    tags_from_test_file($tinfo, $filename, $suitedir);
 
   # Get default storage engine from suite.opt file
 
@@ -900,7 +865,13 @@ sub collect_one_test_case {
   process_opts($tinfo, 'master_opt');
   process_opts($tinfo, 'slave_opt');
 
-  return $tinfo;
+  my @cases = ($tinfo);
+  for my $comb ($suite_combinations->{$suitename},
+                @{$file_combinations->{$filename}})
+  {
+    @cases = map make_combinations($_, @{$comb}), @cases;
+  }
+  return @cases;
 }
 
 
@@ -927,14 +898,10 @@ my $file_to_slave_opts= { };
 # cached result.
 # We need to be a bit careful about speed here; previous version of this code
 # took forever to scan the full test suite.
-sub get_tags_from_file {
+sub get_tags_from_file($$) {
   my ($file, $suitedir)= @_;
 
-  return ([], [], []) unless -f $file;
-
-  return ($file_to_tags->{$file}, $file_to_master_opts->{$file},
-          $file_to_slave_opts->{$file})
-    if exists($file_to_tags->{$file});
+  return @{$file_to_tags->{$file}} if exists $file_to_tags->{$file};
 
   my $F= IO::File->new($file)
     or mtr_error("can't open file \"$file\": $!");
@@ -942,6 +909,7 @@ sub get_tags_from_file {
   my $tags= [];
   my $master_opts= [];
   my $slave_opts= [];
+  my @combinations;
 
   while (my $line= <$F>)
   {
@@ -972,11 +940,10 @@ sub get_tags_from_file {
       {
         if (-e $sourced_file)
         {
-          my ($sub_tags, $sub_master_opts, $sub_slave_opts)=
-            get_tags_from_file($sourced_file, $suitedir);
-          push @$tags, @$sub_tags;
-          push @$master_opts, @$sub_master_opts;
-          push @$slave_opts, @$sub_slave_opts;
+          push @$tags, get_tags_from_file($sourced_file, $suitedir);
+          push @$master_opts, @{$file_to_master_opts->{$sourced_file}};
+          push @$slave_opts, @{$file_to_slave_opts->{$sourced_file}};
+          push @combinations, @{$file_combinations->{$sourced_file}};
           last;
         }
       }
@@ -992,22 +959,28 @@ sub get_tags_from_file {
   push @$master_opts, @common_opts, opts_from_file("$file_no_ext-master.opt");
   push @$slave_opts, @common_opts, opts_from_file("$file_no_ext-slave.opt");
 
+  push @combinations, [ combinations_from_file("$file_no_ext.combinations") ];
+
   # Save results so we can reuse without parsing if seen again.
   $file_to_tags->{$file}= $tags;
   $file_to_master_opts->{$file}= $master_opts;
   $file_to_slave_opts->{$file}= $slave_opts;
-  return ($tags, $master_opts, $slave_opts);
+  $file_combinations->{$file}= [ uniq(@combinations) ];
+  return @{$tags};
 }
 
 sub tags_from_test_file {
   my ($tinfo, $file, $suitedir)= @_;
 
-  my ($tags, $master_opts, $slave_opts)= get_tags_from_file($file, $suitedir);
-  for (@$tags)
+  # a suite may generate tests that don't map to real *.test files
+  # see unit suite for an example.
+  return ([], []) unless -f $file;
+
+  for (get_tags_from_file($file, $suitedir))
   {
     $tinfo->{$_->[0]}= $_->[1];
   }
-  return ($master_opts, $slave_opts);
+  return ($file_to_master_opts->{$file}, $file_to_slave_opts->{$file});
 }
 
 sub unspace {
