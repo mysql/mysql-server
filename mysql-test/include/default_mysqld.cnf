@@ -24,6 +24,7 @@ character-set-server=      latin1
 connect-timeout=            60
 
 plugin-dir=@OPT.plugindir
+secure-file-priv= @OPT.vardir
 
 log-basename=mysqld
 debug-no-sync
