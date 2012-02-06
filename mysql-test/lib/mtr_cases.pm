@@ -29,7 +29,6 @@ use mtr_report;
 use mtr_match;
 
 # Options used for the collect phase
-our $start_from;
 our $skip_rpl;
 our $do_test;
 our $skip_test;
@@ -862,14 +861,17 @@ sub collect_one_test_case {
     if ($tinfo->{combinations}) {
       my $re = '(?:' . join('|', @{$tinfo->{combinations}}) . ')';
       my $found = 0;
-      for (<$resdir/$tname,*.result>) {
-        m|$tname((?:,$re)+)\.result$| or next;
-        my $combs = $&;
+      for (<$resdir/$tname,*.{rdiff,result}>) {
+        my ($combs, $ext) = m@$tname((?:,$re)+)\.(rdiff|result)$@ or next;
         my @commas = ($combs =~ m/,/g);
         # prefer the most specific result file
         if (@commas > $found) {
           $found = @commas;
           $tinfo->{result_file} = $_;
+          if ($ext eq 'rdiff' and not $::exe_patch) {
+            $tinfo->{skip} = 1;
+            $tinfo->{comment} = "requires patch executable";
+          }
         }
       }
     }

@@ -185,6 +185,7 @@ my $DEFAULT_SUITES= join(',', qw(
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
+our $exe_patch;
 our $exe_mysql;
 our $exe_mysql_plugin;
 our $exe_mysqladmin;
@@ -2035,6 +2036,8 @@ sub find_mysqld {
 
 sub executable_setup () {
 
+  $exe_patch='patch' if `patch -v`;
+
   #
   # Check if libtool is available in this distribution/clone
   # we need it when valgrinding or debugging non installed binary
@@ -2399,7 +2402,6 @@ sub environment_setup {
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."/std_data";
   }
-    
 
   #
   # Some stupid^H^H^H^H^H^Hignorant network providers set up "wildcard DNS"
@@ -3229,7 +3231,8 @@ sub mysql_server_start($) {
 
   # Run <tname>-master.sh
   if ($mysqld->option('#!run-master-sh') and
-     run_sh_script($tinfo->{master_sh}) )
+      defined $tinfo->{master_sh} and 
+      run_system('/bin/sh ' . $tinfo->{master_sh}) )
   {
     $tinfo->{'comment'}= "Failed to execute '$tinfo->{master_sh}'";
     return 1;
@@ -3237,7 +3240,8 @@ sub mysql_server_start($) {
 
   # Run <tname>-slave.sh
   if ($mysqld->option('#!run-slave-sh') and
-      run_sh_script($tinfo->{slave_sh}))
+      defined $tinfo->{slave_sh} and
+      run_system('/bin/sh ' . $tinfo->{slave_sh}))
   {
     $tinfo->{'comment'}= "Failed to execute '$tinfo->{slave_sh}'";
     return 1;
@@ -3710,16 +3714,35 @@ sub run_query {
 sub do_before_run_mysqltest($)
 {
   my $tinfo= shift;
+  my $resfile= $tinfo->{result_file};
 
   # Remove old files produced by mysqltest
-  my $base_file= mtr_match_extension($tinfo->{result_file},
-				     "result"); # Trim extension
-  if (defined $base_file ){
-    unlink("$base_file.reject");
-    unlink("$base_file.progress");
-    unlink("$base_file.log");
-    unlink("$base_file.warnings");
+  die "unsupported result file name $resfile, stoping" unless
+         $resfile =~ /^(.*)\.(rdiff|result)$/;
+  my $base_file= $1;
+  # if the result file is a diff, make a proper result file
+  if ($2 eq 'rdiff') {
+    my $resdir= dirname($resfile);
+    # we'll use a separate extension for generated result files
+    # to be able to distinguish them from manually created version
+    # controlled results, and to ignore them in bzr.
+    my $dest = "$base_file.result~";
+    if (-w $resdir) {
+      # don't rebuild a file if it's up to date
+      unless (-e $dest and -M $dest < -M $resfile) {
+        run_system("$exe_patch -o $dest -i $resfile -r - -f -s -d $resdir");
+      }
+    } else {
+      $dest = $opt_tmpdir . '/' . basename($dest);
+      run_system("$exe_patch -o $dest -i $resfile -r - -f -s -d $resdir");
+    }
+    $tinfo->{result_file} = $dest;
   }
+
+  unlink("$base_file.reject");
+  unlink("$base_file.progress");
+  unlink("$base_file.log");
+  unlink("$base_file.warnings");
 }
 
 
@@ -5204,13 +5227,10 @@ sub report_failure_and_restart ($) {
 }
 
 
-sub run_sh_script {
+sub run_system($) {
   my ($script)= @_;
-
-  return 0 unless defined $script;
-
   mtr_verbose("Running '$script'");
-  my $ret= system("/bin/sh $script") >> 8;
+  my $ret= system($script) >> 8;
   return $ret;
 }
 
