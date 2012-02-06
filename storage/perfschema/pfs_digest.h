@@ -45,6 +45,7 @@ struct {
   on which digest is to be calculated.
 */
 struct {
+         bool m_full;
          int m_byte_count;
          char m_token_array[PFS_MAX_DIGEST_STORAGE_SIZE];
        } typedef PFS_digest_storage;
@@ -85,9 +86,7 @@ PFS_statements_digest_stat* find_or_create_digest(PFS_thread*,
                                                   PFS_digest_hash,
                                                   PFS_digest_storage*);
 
-void get_digest_text(char* digest_text,
-                            char* token_array,
-                            int byte_count);
+void get_digest_text(char* digest_text, PFS_digest_storage*);
 
 void reset_esms_by_digest();
 
@@ -105,17 +104,18 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
 /** 
   Function to read a single token from token array.
 */
-inline void read_token(uint *dest, int *index, char *src)
+inline void read_token(uint *tok, int *index, char *src)
 {
   unsigned short sh;
   int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE - *index;
   DBUG_ASSERT(remaining_bytes >= 0);
 
-  /* Make sure we have enough space to read a token. */
+  /* Make sure we have enough space to read a token from.
+   */
   if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)
   {
     sh= ((0x00ff & src[*index + 1])<<8) | (0x00ff & src[*index]);
-    *dest= (uint)(sh);
+    *tok= (uint)(sh);
     *index= *index + PFS_SIZE_OF_A_TOKEN;
   }
 }
@@ -131,7 +131,7 @@ inline void store_token(PFS_digest_storage* digest_storage, uint token)
   int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE - *index;
   DBUG_ASSERT(remaining_bytes >= 0);
 
-  /* Make sure we have enough space to store a token. */
+  /* Make sure we have enough space to write a token to. */
   if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)
   {
     dest[*index]= (sh) & 0xff;
@@ -144,23 +144,27 @@ inline void store_token(PFS_digest_storage* digest_storage, uint token)
 /**
   Function to read an identifier from token array.
 */
-inline void read_identifier(char **dest, int *index, char *src)
+inline void read_identifier(char **dest, int *index, char *src,
+                            uint available_bytes_to_write)
 {
   uint length;
   int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE - *index;
   DBUG_ASSERT(remaining_bytes >= 0);
   /*
     Read ID's length.
-    Make sure that space, to read ID's length, is available.
+    Make sure that space to read ID's length from, is available.
   */
   if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)
   {
     read_token(&length, index, src);
     /*
-      While storing ID length, it has already been stored
-      in a way that ID doesn't go beyond the storage size,
-      so no need to check length here.
+      Make sure not to overflow digest_text buffer while writing
+      identifier name.
+      +/-1 is to make sure extra space for ' '.
     */
+    length= available_bytes_to_write >= length+1 ?
+                                        length :
+                                        available_bytes_to_write-1;
     strncpy(*dest, src + *index, length);
     *index= *index + length;
     *dest= *dest + length;

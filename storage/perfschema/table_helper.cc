@@ -121,9 +121,7 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
       Caclulate digest_text information from the token array collected
       to be shown as DIGEST_TEXT column.
     */ 
-    get_digest_text(m_digest_text,
-                    pfs->m_digest_storage.m_token_array,
-                    pfs->m_digest_storage.m_byte_count);
+    get_digest_text(m_digest_text, &pfs->m_digest_storage);
     m_digest_text_length= strlen(m_digest_text);
 
   }
