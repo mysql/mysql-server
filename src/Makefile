@@ -12,7 +12,11 @@ DEPEND_COMPILE += \
 include $(TOKUROOT)toku_include/Makefile.include
 CPPFLAGS+=-D_GNU_SOURCE -D_THREAD_SAFE
 
+ifeq ($(PROF),1)
+LIBRARY=../lib/lib$(LIBTOKUDB).$(AEXT)
+else
 LIBRARY=../lib/lib$(LIBTOKUDB).$(SOEXT)
+endif
 
 OBJS_RAW = \
 	ydb_lib \

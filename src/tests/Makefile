@@ -24,10 +24,24 @@ LIBTDB=$(WIN_YDB)
 %.tdb$(BINSUF):  LINK_FILES+=$(WIN_YDB)
 TDB_EXTRA_NEEDED=$(WIN_YDB)
 else
+ ifeq ($(PROF),1)
+LIBTDB=../../lib/lib$(LIBTOKUDB).$(AEXT)
+STATIC_LIBS_NEEDED= \
+	../ydb_lib.$(OEXT) \
+	$(LIBTDB) \
+	$(LOCKTREE) \
+	$(RANGETREE) \
+	../../lib/libnewbrt.$(AEXT) \
+# last line
+TLIBTDB=../libtokudbtrace.$(SOEXT)
+%.tdb$(BINSUF):  LINK_FILES+=$(STATIC_LIBS_NEEDED)
+%.tdb$(BINSUF):  RPATH_DIRS+=$(TOKUROOT)/lib
+ else
 LIBTDB=../../lib/lib$(LIBTOKUDB).$(SOEXT)
 TLIBTDB=../libtokudbtrace.$(SOEXT)
 %.tdb$(BINSUF):  DLINK_FILES+=$(LIBTDB)
 %.tdb$(BINSUF):  RPATH_DIRS+=$(patsubst %/,%,$(dir $(LIBTDB)))
+ endif
 endif
 
 RECOVER_SRCS = $(wildcard recover-*.c)
