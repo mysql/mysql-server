@@ -115,7 +115,7 @@
 #include "sql_select.h"
 #include "opt_trace.h"
 #include "filesort.h"         // filesort_free_buffers
-#include "sql_optimizer.h"    // is_indexed_agg_distinct,field_time_cmp_date
+#include "sql_optimizer.h"    // is_indexed_agg_distinct
 
 using std::min;
 using std::max;
@@ -6354,18 +6354,14 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
        WHERE latin1_swedish_ci_colimn = BINARY 'a '
 
-    3. Grep for IndexedTimeComparedToDate. If 'value' is a DATETIME part,
-       using the index on the TIME column would retain only the TIME part of
-       'value', giving false comparison results.
   */
-  if ((field->result_type() == STRING_RESULT &&
-       field->match_collation_to_optimize_range() &&
-       value->result_type() == STRING_RESULT &&
-       key_part->image_type == Field::itRAW &&
-       field->charset() != conf_func->compare_collation() &&
-       !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
-         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC))) ||
-      field_time_cmp_date(field, value))
+  if (field->result_type() == STRING_RESULT &&
+      field->match_collation_to_optimize_range() &&
+      value->result_type() == STRING_RESULT &&
+      key_part->image_type == Field::itRAW &&
+      field->charset() != conf_func->compare_collation() &&
+      !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
+        (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC)))
   {
     if (param->using_real_indexes &&
         param->thd->lex->describe & DESCRIBE_EXTENDED)
