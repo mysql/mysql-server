@@ -2606,17 +2606,13 @@ UNIV_INLINE
 void
 btr_cur_del_mark_set_clust_rec_log(
 /*===============================*/
-	ulint		flags,	/*!< in: flags */
 	rec_t*		rec,	/*!< in: record */
 	dict_index_t*	index,	/*!< in: index of the record */
-	ibool		val,	/*!< in: value to set */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	roll_ptr_t	roll_ptr,/*!< in: roll ptr to the undo log record */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	byte*	log_ptr;
-	ut_ad(flags < 256);
-	ut_ad(val <= 1);
 
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
@@ -2632,10 +2628,8 @@ btr_cur_del_mark_set_clust_rec_log(
 		return;
 	}
 
-	mach_write_to_1(log_ptr, flags);
-	log_ptr++;
-	mach_write_to_1(log_ptr, val);
-	log_ptr++;
+	*log_ptr++ = 0;
+	*log_ptr++ = 1;
 
 	log_ptr = row_upd_write_sys_vals_to_log(
 		index, trx_id, roll_ptr, log_ptr, mtr);
@@ -2738,12 +2732,10 @@ UNIV_INTERN
 ulint
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
-	ulint		flags,	/*!< in: undo logging and locking flags */
 	buf_block_t*	block,	/*!< in/out: buffer block of the record */
 	rec_t*		rec,	/*!< in/out: record */
 	dict_index_t*	index,	/*!< in: clustered index of the record */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
-	ibool		val,	/*!< in: value to set */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
@@ -2768,7 +2760,7 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
-	err = lock_clust_rec_modify_check_and_lock(flags, block,
+	err = lock_clust_rec_modify_check_and_lock(BTR_NO_LOCKING_FLAG, block,
 						   rec, index, offsets, thr);
 
 	if (err != DB_SUCCESS) {
@@ -2776,7 +2768,7 @@ btr_cur_del_mark_set_clust_rec(
 		return(err);
 	}
 
-	err = trx_undo_report_row_operation(flags, TRX_UNDO_MODIFY_OP, thr,
+	err = trx_undo_report_row_operation(0, TRX_UNDO_MODIFY_OP, thr,
 					    index, NULL, NULL, 0, rec,
 					    &roll_ptr);
 	if (err != DB_SUCCESS) {
@@ -2790,17 +2782,14 @@ btr_cur_del_mark_set_clust_rec(
 
 	page_zip = buf_block_get_page_zip(block);
 
-	btr_blob_dbg_set_deleted_flag(rec, index, offsets, val);
-	btr_rec_set_deleted_flag(rec, page_zip, val);
+	btr_blob_dbg_set_deleted_flag(rec, index, offsets, TRUE);
+	btr_rec_set_deleted_flag(rec, page_zip, TRUE);
 
 	trx = thr_get_trx(thr);
 
-	if (!(flags & BTR_KEEP_SYS_FLAG)) {
-		row_upd_rec_sys_fields(rec, page_zip,
-				       index, offsets, trx, roll_ptr);
-	}
+	row_upd_rec_sys_fields(rec, page_zip, index, offsets, trx, roll_ptr);
 
-	btr_cur_del_mark_set_clust_rec_log(flags, rec, index, val, trx->id,
+	btr_cur_del_mark_set_clust_rec_log(rec, index, trx->id,
 					   roll_ptr, mtr);
 
 	return(err);
