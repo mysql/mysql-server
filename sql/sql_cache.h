@@ -560,7 +560,8 @@ struct Query_cache_query_flags
 #define query_cache_maybe_disabled(T)                                 \
   (T->variables.query_cache_type == 0 || query_cache.query_cache_size == 0)
 #define query_cache_is_cacheable_query(L) \
-  (((L)->sql_command == SQLCOM_SELECT) && (L)->safe_to_cache_query)
+  (((L)->sql_command == SQLCOM_SELECT) && (L)->safe_to_cache_query && \
+   !(L)->describe)
 #else
 #define QUERY_CACHE_FLAGS_SIZE 0
 #define query_cache_store_query(A, B)

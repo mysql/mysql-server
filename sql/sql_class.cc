@@ -4414,7 +4414,8 @@ void xid_cache_delete(XID_STATE *xid_state)
    @retval false Suceess.
    @retval true Memory allocation error.
 */
-static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap)
+
+bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap)
 {
   DBUG_ENTER("allocate_column_bitmap");
   const uint number_bits= table->s->fields;
