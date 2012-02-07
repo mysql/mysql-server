@@ -154,7 +154,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     return -1;
 
   /*
-    Check if this is a special type, which will get a special walue
+    Check if this is a special type, which will get a special value
     when set to NULL (TIMESTAMP fields which allow setting to NULL
     are handled by first check).
 

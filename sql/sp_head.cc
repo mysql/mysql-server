@@ -2940,7 +2940,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
                                UINT_MAX, false));
 
     if (!res)
-      res= open_and_lock_tables(thd, m_lex->query_tables, true, 0);
+      res= open_query_tables(thd) || lock_query_tables(thd);
 
     if (!res)
     {

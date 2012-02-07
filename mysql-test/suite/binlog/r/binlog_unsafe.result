@@ -85,8 +85,6 @@ DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from function func_retval_1 returning value from unsafe UUID() function.
 CREATE VIEW view_retval_2 AS SELECT func_retval_1();
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_retval_2;
 Warnings:
@@ -149,8 +147,6 @@ DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe UUID() function.
 CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
@@ -411,8 +407,6 @@ DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from function func_retval_1 returning value from unsafe @@hostname variable.
 CREATE VIEW view_retval_2 AS SELECT func_retval_1();
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_retval_2;
 Warnings:
@@ -475,8 +469,6 @@ DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
 CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
@@ -657,8 +649,6 @@ DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
 CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
@@ -1049,8 +1039,6 @@ DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
 CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
@@ -1245,8 +1233,6 @@ DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from function func_retval_1 returning value from unsafe UDF.
 CREATE VIEW view_retval_2 AS SELECT func_retval_1();
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_retval_2;
 Warnings:
@@ -1309,8 +1295,6 @@ DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe UDF.
 CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
@@ -1551,8 +1535,6 @@ DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
 CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
@@ -1819,13 +1801,6 @@ DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking statement that is unsafe in many ways.
 CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 * binlog_format = STATEMENT: expect 6 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
@@ -2080,9 +2055,6 @@ DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
 CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
@@ -2216,9 +2188,6 @@ DROP TRIGGER trig_1;
 
 Invoking view view_sidef_1 invoking statement that is unsafe several times.
 CREATE VIEW view_sidef_1 AS SELECT multi_unsafe_func();
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO t1 SELECT * FROM view_sidef_1;
 Warnings:
@@ -2262,9 +2231,6 @@ DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
 CREATE VIEW view_sidef_2 AS SELECT * FROM view_sidef_1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:

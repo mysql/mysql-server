@@ -2423,6 +2423,7 @@ public:
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
+  int get_lock_type() const { return m_lock_type; }
 };
 
 
