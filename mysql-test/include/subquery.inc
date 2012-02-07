@@ -5688,12 +5688,12 @@ SELECT alias2.col_varchar_nokey
 FROM v1 AS alias1
   RIGHT JOIN t1 AS alias2 ON 1
 WHERE alias2.col_varchar_key IN (
-  SELECT SQ2_alias1.col_varchar_nokey
-  FROM v1 AS SQ2_alias1
-    LEFT JOIN t1 AS SQ2_alias2
-    ON (SQ2_alias2.col_int_key = SQ2_alias1.pk)
-  WHERE SQ2_alias1.pk != alias1.col_int_key
-    AND SQ2_alias1.col_varchar_key > alias1.col_varchar_key
+  SELECT sq2_alias1.col_varchar_nokey
+  FROM v1 AS sq2_alias1
+    LEFT JOIN t1 AS sq2_alias2
+    ON (sq2_alias2.col_int_key = sq2_alias1.pk)
+  WHERE sq2_alias1.pk != alias1.col_int_key
+    AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 )
 ;
 
@@ -5715,12 +5715,12 @@ let $query=SELECT alias2.col_varchar_nokey
 FROM t1 AS alias2
   LEFT JOIN v1 AS alias1 ON 1
 WHERE alias2.col_varchar_key IN (
-  SELECT SQ2_alias1.col_varchar_nokey
-  FROM v1 AS SQ2_alias1
-    LEFT JOIN t1 AS SQ2_alias2
-    ON (SQ2_alias2.col_int_key = SQ2_alias1.pk)
-  WHERE SQ2_alias1.pk != alias1.col_int_key
-    AND SQ2_alias1.col_varchar_key > alias1.col_varchar_key
+  SELECT sq2_alias1.col_varchar_nokey
+  FROM v1 AS sq2_alias1
+    LEFT JOIN t1 AS sq2_alias2
+    ON (sq2_alias2.col_int_key = sq2_alias1.pk)
+  WHERE sq2_alias1.pk != alias1.col_int_key
+    AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 );
 
 eval EXPLAIN EXTENDED $query;
