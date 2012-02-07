@@ -25,7 +25,7 @@
 #include <random.h>
 #include <NdbTick.h>
 #include <my_sys.h>
-#include <SignalSender.hpp>
+#include "../../src/ndbapi/SignalSender.hpp"
 #include <GlobalSignalNumbers.h>
 
 #define MAX_NDB_OBJECTS 32678
