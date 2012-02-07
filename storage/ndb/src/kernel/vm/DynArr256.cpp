@@ -44,6 +44,8 @@ struct DA256Page
 {
   struct DA256CL m_header[2];
   struct DA256Node m_nodes[30];
+
+  bool get(Uint32 node, Uint32 idx, Uint32 type_id, Uint32*& val_ptr) const;
 };
 
 #undef require
@@ -69,6 +71,13 @@ Uint32 allocatedpages = 0;
 Uint32 allocatednodes = 0;
 Uint32 releasednodes = 0;
 #endif
+
+static
+inline
+Uint32 div15(Uint32 x)
+{
+  return ((x << 8) + (x << 4) + x + 255) >> 12;
+}
 
 inline
 void
@@ -101,6 +110,35 @@ DynArr256Pool::init(NdbMutex* m, Uint32 type_id, const Pool_context & pc)
   m_type_id = type_id;
   m_memroot = (DA256Page*)m_ctx.get_memroot();
   m_mutex = m;
+}
+
+inline
+bool
+DA256Page::get(Uint32 node, Uint32 idx, Uint32 type_id, Uint32*& val_ptr) const
+{
+  Uint32 *magic_ptr, p;
+  if (idx != 255)
+  {
+    Uint32 line = div15(idx);
+    Uint32* ptr = (Uint32*)(m_nodes + node);
+
+    p = 0;
+    val_ptr = (ptr + 1 + idx + line);
+    magic_ptr =(ptr + (idx & ~15));
+  }
+  else
+  {
+    Uint32 b = (node + 1) >> 4;
+    Uint32 * ptr = (Uint32*)(m_header+b);
+
+    p = node - (b << 4) + b;
+    val_ptr = (ptr + 1 + p);
+    magic_ptr = ptr;
+  }
+
+  Uint32 magic = *magic_ptr;
+
+  return ((magic & (1 << p)) && (magic >> 16) == type_id);
 }
 
 static const Uint32 g_max_sizes[5] = { 0, 256, 65536, 16777216, ~0 };
@@ -148,34 +186,13 @@ DynArr256::get(Uint32 pos) const
     Uint32 page_no = ptrI >> DA256_BITS;
     Uint32 page_idx = ptrI & DA256_MASK;
     DA256Page * page = memroot + page_no;
-    
-    Uint32 *magic_ptr, p;
-    if (p0 != 255)
-    {
-      Uint32 line = ((p0 << 8) + (p0 << 4) + p0 + 255) >> 12;
-      Uint32 * ptr = (Uint32*)(page->m_nodes + page_idx);
-      
-      p = 0;
-      retVal = (ptr + 1 + p0 + line);
-      magic_ptr =(ptr + (p0 & ~15));
-    }
-    else
-    {
-      Uint32 b = (page_idx + 1) >> 4;
-      Uint32 * ptr = (Uint32*)(page->m_header+b);
-      
-      p = page_idx - (b << 4) + b;
-      retVal = (ptr + 1 + p);
-      magic_ptr = ptr;
-    }
-    
-    ptrI = *retVal;
-    Uint32 magic = *magic_ptr;
-    
-    if (unlikely(! ((magic & (1 << p)) && (magic >> 16) == type_id)))
+
+    if (unlikely(! page->get(page_idx, p0, type_id, retVal)))
       goto err;
+
+    ptrI = *retVal;
   }
-  
+
   return retVal;
 err:
   require(false);
@@ -228,31 +245,10 @@ DynArr256::set(Uint32 pos)
     Uint32 page_idx = ptrI & DA256_MASK;
     DA256Page * page = memroot + page_no;
     
-    Uint32 *magic_ptr, p;
-    if (p0 != 255)
-    {
-      Uint32 line = ((p0 << 8) + (p0 << 4) + p0 + 255) >> 12;
-      Uint32 * ptr = (Uint32*)(page->m_nodes + page_idx);
-
-      p = 0;
-      magic_ptr = (ptr + (p0 & ~15));
-      retVal = (ptr + 1 + p0 + line);
-    }
-    else
-    {
-      Uint32 b = (page_idx + 1) >> 4;
-      Uint32 * ptr = (Uint32*)(page->m_header+b);
-      
-      p = page_idx - (b << 4) + b;
-      magic_ptr = ptr;
-      retVal = (ptr + 1 + p);
-    }
-     
-    ptrI = * retVal;
-    Uint32 magic = *magic_ptr;
-
-    if (unlikely(! ((magic & (1 << p)) && (magic >> 16) == type_id)))
+    if (unlikely(! page->get(page_idx, p0, type_id, retVal)))
       goto err;
+
+    ptrI = * retVal;
   } 
   
   return retVal;
@@ -392,30 +388,12 @@ DynArr256::release(ReleaseIterator &iter, Uint32 * retptr)
     Uint32 p0 = iter.m_pos & 255;
     for (; p0<256; p0++)
     {
-      Uint32 *retVal, *magic_ptr, p;
-      if (p0 != 255)
-      {
-	Uint32 line = ((p0 << 8) + (p0 << 4) + p0 + 255) >> 12;
-	Uint32 * ptr = (Uint32*)(page->m_nodes + page_idx);
-	
-	p = 0;
-	retVal = (ptr + 1 + p0 + line);
-	magic_ptr =(ptr + (p0 & ~15));
-      }
-      else
-      {
-	Uint32 b = (page_idx + 1) >> 4;
-	Uint32 * ptr = (Uint32*)(page->m_header+b);
-	
-	p = page_idx - (b << 4) + b;
-	retVal = (ptr + 1 + p);
-	magic_ptr = ptr;
-      }
-      
-      Uint32 magic = *magic_ptr;
-      Uint32 val = *retVal;
-      if (unlikely(! ((magic & (1 << p)) && (magic >> 16) == type_id)))
+      Uint32 *retVal;
+
+      if (unlikely(! page->get(page_idx, p0, type_id, retVal)))
 	goto err;
+
+      Uint32 val = *retVal;
       
       if (sz == m_head.m_sz)
       {
