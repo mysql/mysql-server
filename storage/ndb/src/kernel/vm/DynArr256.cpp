@@ -52,13 +52,19 @@ struct DA256Page
 //#define DA256_USE_PREFETCH
 #define DA256_EXTRA_SAFE
 
+#ifdef TAP_TEST
+#define UNIT_TEST
+#include "NdbTap.hpp"
+#endif
 
 #ifdef UNIT_TEST
+#include "my_sys.h"
 #ifdef USE_CALLGRIND
 #include <valgrind/callgrind.h>
 #else
 #define CALLGRIND_TOGGLE_COLLECT()
 #endif
+Uint32 verbose = 0;
 Uint32 allocatedpages = 0;
 Uint32 allocatednodes = 0;
 Uint32 releasednodes = 0;
@@ -638,10 +644,10 @@ DynArr256Pool::release(Uint32 ptrI)
 #ifdef UNIT_TEST
 
 static
-void
+bool
 simple(DynArr256 & arr, int argc, char* argv[])
 {
-  ndbout_c("argc: %d", argc);
+  if (verbose) ndbout_c("argc: %d", argc);
   for (Uint32 i = 1; i<(Uint32)argc; i++)
   {
     Uint32 * s = arr.set(atoi(argv[i]));
@@ -661,12 +667,13 @@ simple(DynArr256 & arr, int argc, char* argv[])
     
     Uint32 * g = arr.get(atoi(argv[i]));
     Uint32 v = g ? *g : ~0;
-    ndbout_c("p: %p %p %d", s, g, v);
+    if (verbose) ndbout_c("p: %p %p %d", s, g, v);
   }
+  return true;
 }
 
 static
-void
+bool
 basic(DynArr256& arr, int argc, char* argv[])
 {
 #define MAXLEN 65536
@@ -723,29 +730,19 @@ basic(DynArr256& arr, int argc, char* argv[])
     }
     }
   }
-}
-
-unsigned long long 
-micro()
-{
-  struct timeval tv;
-  gettimeofday(&tv, 0);
-  unsigned long long ret = tv.tv_sec;
-  ret *= 1000000;
-  ret += tv.tv_usec;
-  return ret;
+  return true;
 }
 
 static
-void
+bool
 read(DynArr256& arr, int argc, char ** argv)
 {
   Uint32 cnt = 100000;
   Uint64 mbytes = 16*1024;
-  Uint32 seed = time(0);
+  Uint32 seed = (Uint32) time(0);
   Uint32 seq = 0, seqmask = 0;
 
-  for (Uint32 i = 1; i<argc; i++)
+  for (int i = 1; i < argc; i++)
   {
     if (strncmp(argv[i], "--mbytes=", sizeof("--mbytes=")-1) == 0)
     {
@@ -767,10 +764,17 @@ read(DynArr256& arr, int argc, char ** argv)
   /**
    * Populate with 5Mb
    */
-  Uint32 maxidx = (1024*mbytes+31) / 32;
+
+  if (mbytes >= 134217720)
+  {
+    ndberr.println("--mbytes must be less than 134217720");
+    return false;
+  }
+  Uint32 maxidx = (Uint32)((1024*mbytes+31) / 32);
   Uint32 nodes = (maxidx+255) / 256;
   Uint32 pages = (nodes + 29)/ 30;
-  ndbout_c("%lldmb data -> %d entries (%dkb)",
+  if (verbose)
+    ndbout_c("%lldmb data -> %d entries (%dkb)",
 	   mbytes, maxidx, 32*pages);
   
   for (Uint32 i = 0; i<maxidx; i++)
@@ -788,13 +792,14 @@ read(DynArr256& arr, int argc, char ** argv)
     seqmask = ~(Uint32)0;
   }
 
-  ndbout_c("Timing %d %s reads (seed: %u)", cnt, 
+  if (verbose)
+    ndbout_c("Timing %d %s reads (seed: %u)", cnt,
 	   seq ? "sequential" : "random", seed);
 
   for (Uint32 i = 0; i<10; i++)
   {
     Uint32 sum0 = 0, sum1 = 0;
-    Uint64 start = micro();
+    Uint64 start = my_micro_time();
     for (Uint32 i = 0; i<cnt; i++)
     {
       Uint32 idx = ((rand() & (~seqmask)) + ((i + seq) & seqmask)) % maxidx;
@@ -802,22 +807,24 @@ read(DynArr256& arr, int argc, char ** argv)
       sum0 += idx;
       sum1 += *ptr;
     }
-    start = micro() - start;
-    float uspg = start; uspg /= cnt;
-    ndbout_c("Elapsed %lldus diff: %d -> %f us/get", start, sum0 - sum1, uspg);
+    start = my_micro_time() - start;
+    float uspg = (float)start; uspg /= cnt;
+    if (verbose)
+      ndbout_c("Elapsed %lldus diff: %d -> %f us/get", start, sum0 - sum1, uspg);
   }
+  return true;
 }
 
 static
-void
+bool
 write(DynArr256& arr, int argc, char ** argv)
 {
   Uint32 seq = 0, seqmask = 0;
   Uint32 cnt = 100000;
   Uint64 mbytes = 16*1024;
-  Uint32 seed = time(0);
+  Uint32 seed = (Uint32) time(0);
 
-  for (Uint32 i = 1; i<argc; i++)
+  for (int i = 1; i<argc; i++)
   {
     if (strncmp(argv[i], "--mbytes=", sizeof("--mbytes=")-1) == 0)
     {
@@ -839,10 +846,17 @@ write(DynArr256& arr, int argc, char ** argv)
   /**
    * Populate with 5Mb
    */
-  Uint32 maxidx = (1024*mbytes+31) / 32;
+
+  if (mbytes >= 134217720)
+  {
+    ndberr.println("--mbytes must be less than 134217720");
+    return false;
+  }
+  Uint32 maxidx = (Uint32)((1024*mbytes+31) / 32);
   Uint32 nodes = (maxidx+255) / 256;
   Uint32 pages = (nodes + 29)/ 30;
-  ndbout_c("%lldmb data -> %d entries (%dkb)",
+  if (verbose)
+    ndbout_c("%lldmb data -> %d entries (%dkb)",
 	   mbytes, maxidx, 32*pages);
 
   srand(seed);
@@ -853,25 +867,28 @@ write(DynArr256& arr, int argc, char ** argv)
     seqmask = ~(Uint32)0;
   }
 
-  ndbout_c("Timing %d %s writes (seed: %u)", cnt, 
+  if (verbose)
+    ndbout_c("Timing %d %s writes (seed: %u)", cnt,
 	   seq ? "sequential" : "random", seed);
   for (Uint32 i = 0; i<10; i++)
   {
-    Uint64 start = micro();
+    Uint64 start = my_micro_time();
     for (Uint32 i = 0; i<cnt; i++)
     {
       Uint32 idx = ((rand() & (~seqmask)) + ((i + seq) & seqmask)) % maxidx;
       Uint32 *ptr = arr.set(idx);
       *ptr = i;
     }
-    start = micro() - start;
-    float uspg = start; uspg /= cnt;
-    ndbout_c("Elapsed %lldus -> %f us/set", start, uspg);
+    start = my_micro_time() - start;
+    float uspg = (float)start; uspg /= cnt;
+    if (verbose)
+      ndbout_c("Elapsed %lldus -> %f us/set", start, uspg);
     DynArr256::ReleaseIterator iter;
     arr.init(iter);
     Uint32 val;
     while(arr.release(iter, &val));
   }
+  return true;
 }
 
 static
@@ -889,13 +906,37 @@ usage(FILE *f, int argc, char **argv)
 
 # include "test_context.hpp"
 
+#ifdef TAP_TEST
+static
+char* flatten(int argc, char** argv) /* NOT MT-SAFE */
+{
+  static char buf[10000];
+  size_t off = 0;
+  for (; argc > 0; argc--, argv++)
+  {
+    int i = 0;
+    if (off > 0 && (off + 1 < sizeof(buf)))
+      buf[off++] = ' ';
+    for (i = 0; (off + 1 < sizeof(buf)) && argv[0][i] != 0; i++, off++)
+      buf[off] = argv[0][i];
+    buf[off] = 0;
+  }
+  return buf;
+}
+#endif
+
 int
 main(int argc, char** argv)
 {
+#ifndef TAP_TEST
+  verbose = 1;
   if (argc == 1) {
     usage(stderr, argc, argv);
     exit(2);
   }
+#else
+  verbose = 0;
+#endif
 
   Pool_context pc = test_context(10000 /* pages */);
 
@@ -905,6 +946,42 @@ main(int argc, char** argv)
   DynArr256::Head head;
   DynArr256 arr(pool, head);
 
+#ifdef TAP_TEST
+  if (argc == 1)
+  {
+    char *argv[2] = { (char*)"dummy", NULL };
+    plan(5);
+    ok(simple(arr, 1, argv), "simple");
+    ok(basic(arr, 1, argv), "basic");
+    ok(read(arr, 1, argv), "read");
+    ok(write(arr, 1, argv), "write");
+  }
+  else if (strcmp(argv[1], "--simple") == 0)
+  {
+    plan(2);
+    ok(simple(arr, argc - 1, argv + 1), "simple %s", flatten(argc - 1, argv + 1));
+  }
+  else if (strcmp(argv[1], "--basic") == 0)
+  {
+    plan(2);
+    ok(basic(arr, argc - 1, argv + 1), "basic %s", flatten(argc - 1, argv + 1));
+  }
+  else if (strcmp(argv[1], "--read") == 0)
+  {
+    plan(2);
+    ok(read(arr, argc - 1, argv + 1), "read %s", flatten(argc - 1, argv + 1));
+  }
+  else if (strcmp(argv[1], "--write") == 0)
+  {
+    plan(2);
+    ok(write(arr, argc - 1, argv + 1), "write %s", flatten(argc - 1, argv + 1));
+  }
+  else
+  {
+    usage(stderr, argc, argv);
+    BAIL_OUT("Bad usage: %s %s", argv[0], flatten(argc - 1, argv + 1));
+  }
+#else
   if (strcmp(argv[1], "--simple") == 0)
     simple(arr, argc - 1, argv + 1);
   else if (strcmp(argv[1], "--basic") == 0)
@@ -918,34 +995,26 @@ main(int argc, char** argv)
     usage(stderr, argc, argv);
     exit(2);
   }
+#endif
 
   DynArr256::ReleaseIterator iter;
   arr.init(iter);
   Uint32 cnt = 0, val;
   while (arr.release(iter, &val)) cnt++;
   
-  ndbout_c("allocatedpages: %d allocatednodes: %d releasednodes: %d"
+  if (verbose)
+    ndbout_c("allocatedpages: %d allocatednodes: %d releasednodes: %d"
 	   " releasecnt: %d",
 	   allocatedpages, 
 	   allocatednodes,
 	   releasednodes,
 	   cnt);
-  
-  return 0;
-}
-
-#endif
-
 #ifdef TAP_TEST
-#include <NdbTap.hpp>
-#include "test_context.hpp"
-
-TAPTEST(DynArr256)
-{
-  Pool_context pc = test_context(10000);
-
-  OK(true);
-
-  return 1;
+  ok(allocatednodes == releasednodes, "release");
+  return exit_status();
+#else
+  return 0;
+#endif
 }
+
 #endif
