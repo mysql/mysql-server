@@ -1508,7 +1508,10 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     empty_record(table);
     if (table->group && join->tmp_table_param.sum_func_count &&
         table->s->keys && !table->file->inited)
-      table->file->ha_index_init(0, 0);
+    {
+      if (table->file->ha_index_init(0, 0))
+        DBUG_RETURN(-1);
+    }
   }
   /* Set up select_end */
   Next_select_func end_select= setup_end_select_func(join);
@@ -2804,7 +2807,11 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
   if (!table->file->inited)
   {
     DBUG_ASSERT(!tab->sorted);  // Don't expect sort req. for single row.
-    table->file->ha_index_init(table_ref->key, tab->sorted);
+    if ((error= table->file->ha_index_init(table_ref->key, tab->sorted)))
+    {
+      (void) report_error(table, error);
+      return 1;
+    }
   }
 
   /*
@@ -2893,8 +2900,12 @@ join_read_always_key(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   /* Initialize the index first */
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+  {
+    (void) report_error(table, error);
+    return 1;
+  }
 
   /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   TABLE_REF *ref= &tab->ref;
@@ -2930,8 +2941,12 @@ join_read_last_key(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+  {
+    (void) report_error(table, error);
+    return 1;
+  }
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
   if ((error=table->file->index_read_last_map(table->record[0],
@@ -3092,8 +3107,12 @@ join_read_first(JOIN_TAB *tab)
   tab->read_record.record=table->record[0];
   tab->read_record.read_record=join_read_next;
 
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->index, tab->sorted);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->index, tab->sorted)))
+  {
+    (void) report_error(table, error);
+    return 1;
+  }
   if ((error= tab->table->file->ha_index_first(tab->table->record[0])))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -3126,8 +3145,12 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.table=table;
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->index, tab->sorted);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->index, tab->sorted)))
+  {
+    (void) report_error(table, error);
+    return 1;
+  }
   if ((error= tab->table->file->ha_index_last(tab->table->record[0])))
     return report_error(table, error);
   return 0;
@@ -3150,8 +3173,12 @@ join_ft_read_first(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+  {
+    (void) report_error(table, error);
+    return 1;
+  }
   table->file->ft_init();
 
   if ((error= table->file->ft_read(table->record[0])))
@@ -3642,7 +3669,11 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 				error, FALSE, NULL))
       DBUG_RETURN(NESTED_LOOP_ERROR);            // Not a table_is_full error
     /* Change method to update rows */
-    table->file->ha_index_init(0, 0);
+    if ((error= table->file->ha_index_init(0, 0)))
+    {
+      table->file->print_error(error,MYF(0));
+      DBUG_RETURN(NESTED_LOOP_ERROR);
+    }
     join->join_tab[join->tables-1].next_select=end_unique_update;
   }
   join->send_records++;
@@ -4065,7 +4096,8 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
   org_record=(char*) (record=table->record[0])+offset;
   new_record=(char*) table->record[1]+offset;
 
-  file->ha_rnd_init(1);
+  if ((error= file->ha_rnd_init(1)))
+    goto err;
   error=file->ha_rnd_next(record);
   for (;;)
   {
@@ -4193,7 +4225,8 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     DBUG_RETURN(1);
   }
 
-  file->ha_rnd_init(1);
+  if ((error= file->ha_rnd_init(1)))
+    goto err;
   key_pos=key_buffer;
   for (;;)
   {
@@ -4251,7 +4284,8 @@ err:
   my_free(key_buffer);
   my_hash_free(&hash);
   file->extra(HA_EXTRA_NO_CACHE);
-  (void) file->ha_rnd_end();
+  if (file->inited == handler::RND)
+    (void) file->ha_rnd_end();
   if (error)
     file->print_error(error,MYF(0));
   DBUG_RETURN(1);

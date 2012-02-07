@@ -1587,6 +1587,7 @@ failure:
 */
 int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
 {
+  int error;
   List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
   QUICK_RANGE_SELECT* quick;
   DBUG_ENTER("QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan");
@@ -1600,8 +1601,8 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
       There is no use of this->file. Use it for the first of merged range
       selects.
     */
-    if (quick->init_ror_merged_scan(TRUE))
-      DBUG_RETURN(1);
+    if ((error= quick->init_ror_merged_scan(TRUE)))
+      DBUG_RETURN(error);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
   }
   while ((quick= quick_it++))
@@ -1610,8 +1611,8 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
     const MY_BITMAP * const save_read_set= quick->head->read_set;
     const MY_BITMAP * const save_write_set= quick->head->write_set;
 #endif
-    if (quick->init_ror_merged_scan(FALSE))
-      DBUG_RETURN(1);
+    if ((error= quick->init_ror_merged_scan(FALSE)))
+      DBUG_RETURN(error);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
     // Sets are shared by all members of "quick_selects" so must not change
     DBUG_ASSERT(quick->head->read_set == save_read_set);
@@ -1620,10 +1621,10 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
     quick->record= head->record[0];
   }
 
-  if (need_to_fetch_row && head->file->ha_rnd_init(1))
+  if (need_to_fetch_row && (error= head->file->ha_rnd_init(1)))
   {
     DBUG_PRINT("error", ("ROR index_merge rnd_init call failed"));
-    DBUG_RETURN(1);
+    DBUG_RETURN(error);
   }
   DBUG_RETURN(0);
 }
@@ -1783,8 +1784,8 @@ int QUICK_ROR_UNION_SELECT::reset()
   List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
   while ((quick= it++))
   {
-    if (quick->reset())
-      DBUG_RETURN(1);
+    if ((error= quick->reset()))
+      DBUG_RETURN(error);
     if ((error= quick->get_next()))
     {
       if (error == HA_ERR_END_OF_FILE)
@@ -1795,10 +1796,10 @@ int QUICK_ROR_UNION_SELECT::reset()
     queue_insert(&queue, (uchar*)quick);
   }
 
-  if (head->file->ha_rnd_init(1))
+  if ((error= head->file->ha_rnd_init(1)))
   {
     DBUG_PRINT("error", ("ROR index_merge rnd_init call failed"));
-    DBUG_RETURN(1);
+    DBUG_RETURN(error);
   }
 
   DBUG_RETURN(0);
