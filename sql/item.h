@@ -2034,7 +2034,8 @@ public:
   bool is_outer_field() const
   {
     DBUG_ASSERT(fixed);
-    return field->table->pos_in_table_list->outer_join;
+    return field->table->pos_in_table_list->outer_join ||
+           field->table->pos_in_table_list->in_outer_join_nest();
   }
   Field::geometry_type get_geometry_type() const
   {
@@ -2922,7 +2923,16 @@ public:
       (*ref)->update_used_tables(); 
   }
   virtual table_map resolved_used_tables() const;
-  table_map not_null_tables() const { return (*ref)->not_null_tables(); }
+  table_map not_null_tables() const
+  {
+    /*
+      It can happen that our 'depended_from' member is set but the
+      'depended_from' member of the referenced item is not (example: if a
+      field in a subquery belongs to an outer merged view), so we first test
+      ours:
+    */
+    return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->not_null_tables();
+  }
   void set_result_field(Field *field)	{ result_field= field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)

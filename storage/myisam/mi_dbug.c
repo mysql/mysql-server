@@ -36,7 +36,6 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
   {
     if (flag++)
       (void) putc('-',stream);
-    end= key+ keyseg->length;
     if (keyseg->flag & HA_NULL_PART)
     {
       /* A NULL value is encoded by a 1-byte flag. Zero means NULL. */
@@ -46,6 +45,7 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
 	continue;
       }
     }
+    end= key + keyseg->length;
 
     switch (keyseg->type) {
     case HA_KEYTYPE_BINARY:
