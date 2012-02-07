@@ -2023,8 +2023,8 @@ row_upd_clust_rec_by_insert(
 		ut_ad(page_rec_is_user_rec(rec));
 
 		err = btr_cur_del_mark_set_clust_rec(
-			BTR_NO_LOCKING_FLAG, btr_cur_get_block(btr_cur),
-			rec, index, offsets, TRUE, thr, mtr);
+			btr_cur_get_block(btr_cur), rec, index, offsets,
+			thr, mtr);
 		if (err != DB_SUCCESS) {
 err_exit:
 			mtr_commit(mtr);
@@ -2261,8 +2261,8 @@ row_upd_del_mark_clust_rec(
 	locks, because we assume that we have an x-lock on the record */
 
 	err = btr_cur_del_mark_set_clust_rec(
-		BTR_NO_LOCKING_FLAG, btr_cur_get_block(btr_cur),
-		btr_cur_get_rec(btr_cur), index, offsets, TRUE, thr, mtr);
+		btr_cur_get_block(btr_cur), btr_cur_get_rec(btr_cur),
+		index, offsets, thr, mtr);
 	if (err == DB_SUCCESS && referenced) {
 		/* NOTE that the following call loses the position of pcur ! */
 
