@@ -1634,14 +1634,13 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 
   azclose(&writer);
   share->dirty= FALSE;
+  azclose(&archive);
+  archive_reader_open= FALSE;
 
   // make the file we just wrote be our data file
   rc= my_rename(writer_filename, share->data_file_name, MYF(0));
   share->in_optimize= false;
   mysql_mutex_unlock(&share->mutex);
-
-  azclose(&archive);
-  archive_reader_open= FALSE;
 
   DBUG_RETURN(rc);
 error:
