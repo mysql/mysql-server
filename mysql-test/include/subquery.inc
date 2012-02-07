@@ -5660,3 +5660,73 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #13595212 EXTRA ROWS RETURNED ON RIGHT JOIN WITH VIEW AND
+--echo # IN-SUBQUERY IN WHERE
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_key int(11) NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (1,0,'j','j'),(2,8,'v','v'),
+(3,1,'c','c'),(4,8,'m','m'),(5,9,'d','d');
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+# RIGHT JOIN
+
+let $query=
+SELECT alias2.col_varchar_nokey
+FROM v1 AS alias1
+  RIGHT JOIN t1 AS alias2 ON 1
+WHERE alias2.col_varchar_key IN (
+  SELECT SQ2_alias1.col_varchar_nokey
+  FROM v1 AS SQ2_alias1
+    LEFT JOIN t1 AS SQ2_alias2
+    ON (SQ2_alias2.col_int_key = SQ2_alias1.pk)
+  WHERE SQ2_alias1.pk != alias1.col_int_key
+    AND SQ2_alias1.col_varchar_key > alias1.col_varchar_key
+)
+;
+
+eval EXPLAIN EXTENDED $query;
+--sorted_result
+eval $query;
+
+# Same, but in view:
+
+eval CREATE VIEW v2 AS $query;
+
+EXPLAIN EXTENDED SELECT * FROM v2;
+--sorted_result
+SELECT * FROM v2;
+
+# Same, with LEFT JOIN
+
+let $query=SELECT alias2.col_varchar_nokey
+FROM t1 AS alias2
+  LEFT JOIN v1 AS alias1 ON 1
+WHERE alias2.col_varchar_key IN (
+  SELECT SQ2_alias1.col_varchar_nokey
+  FROM v1 AS SQ2_alias1
+    LEFT JOIN t1 AS SQ2_alias2
+    ON (SQ2_alias2.col_int_key = SQ2_alias1.pk)
+  WHERE SQ2_alias1.pk != alias1.col_int_key
+    AND SQ2_alias1.col_varchar_key > alias1.col_varchar_key
+);
+
+eval EXPLAIN EXTENDED $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1;
+DROP VIEW v1,v2;
+
