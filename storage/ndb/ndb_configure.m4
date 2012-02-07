@@ -255,6 +255,22 @@ AC_DEFUN([NDB_COMPILER_FEATURES],
     AC_MSG_RESULT([no])
   )
 
+  AC_MSG_CHECKING([checking __builtin_ctz(unsigned)])
+  AC_TRY_COMPILE([unsigned A = 7;],[ unsigned a = __builtin_ctz(A)],
+    [ AC_MSG_RESULT([yes])
+      AC_DEFINE([HAVE___BUILTIN_CTZ], [1],
+              [Compiler supports __builtin_ctz])],
+    AC_MSG_RESULT([no])
+  )
+
+  AC_MSG_CHECKING([checking __builtin_clz(unsigned)])
+  AC_TRY_COMPILE([unsigned A = 7;],[ unsigned a = __builtin_clz(A)],
+    [ AC_MSG_RESULT([yes])
+      AC_DEFINE([HAVE___BUILTIN_CLZ], [1],
+              [Compiler supports __builtin_clz])],
+    AC_MSG_RESULT([no])
+  )
+
   AC_LANG_POP([C++])
 ])
 
