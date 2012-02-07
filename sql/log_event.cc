@@ -11081,14 +11081,17 @@ TABLE_SCAN:
 
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
-          table->file->ha_rnd_init(1);
+        {
+          if ((error= table->file->ha_rnd_init(1)))
+            goto err;
+        }
         break;
 
       default:
         DBUG_PRINT("info", ("Failed to get next record"
                             " (ha_rnd_next returns %d)",error));
         table->file->print_error(error, MYF(0));
-        table->file->ha_rnd_end();
+        (void) table->file->ha_rnd_end();
         goto err;
       }
     }

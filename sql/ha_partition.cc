@@ -4452,7 +4452,6 @@ int ha_partition::index_init(uint inx, bool sorted)
   file= m_file;
   do
   {
-    /* TODO RONM: Change to index_init() when code is stable */
     if (bitmap_is_set(&(m_part_info->read_partitions), (file - m_file)))
       if ((error= (*file)->ha_index_init(inx, sorted)))
       {
@@ -4491,7 +4490,6 @@ int ha_partition::index_end()
   do
   {
     int tmp;
-    /* TODO RONM: Change to index_end() when code is stable */
     if (bitmap_is_set(&(m_part_info->read_partitions), (file - m_file)))
       if ((tmp= (*file)->ha_index_end()))
         error= tmp;
@@ -7309,7 +7307,7 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
       /* Only nb_desired_values = 1 makes sense */
       (*file)->get_auto_increment(offset, increment, 1,
                                  &first_value_part, &nb_reserved_values_part);
-      if (first_value_part == ~(ulonglong)(0)) // error in one partition
+      if (first_value_part == ULONGLONG_MAX) // error in one partition
       {
         *first_value= first_value_part;
         /* log that the error was between table/partition handler */

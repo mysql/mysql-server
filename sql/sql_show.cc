@@ -5203,7 +5203,11 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     DBUG_RETURN(1);
   }
-  proc_table->file->ha_index_init(0, 1);
+  if (proc_table->file->ha_index_init(0, 1))
+  {
+    res= 1;
+    goto err;
+  }
   if ((res= proc_table->file->ha_index_first(proc_table->record[0])))
   {
     res= (res == HA_ERR_END_OF_FILE) ? 0 : 1;
@@ -5229,7 +5233,8 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   }
 
 err:
-  proc_table->file->ha_index_end();
+  if (proc_table->file->inited == handler::INDEX)
+    (void) proc_table->file->ha_index_end();
   close_system_tables(thd, &open_tables_state_backup);
   DBUG_RETURN(res);
 }
