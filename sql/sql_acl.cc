@@ -2664,7 +2664,13 @@ replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
 
   get_grantor(thd, grantor);
 
-  table->file->ha_index_init(0, 1);
+  if ((error= table->file->ha_index_init(0, 1)))
+  {
+    table->file->print_error(error, MYF(0));
+    DBUG_PRINT("info", ("ha_index_init error"));
+    DBUG_RETURN(-1);
+  }
+
   if (table->file->ha_index_read_map(table->record[0], user_key,
                                      HA_WHOLE_KEY,
                                      HA_READ_KEY_EXACT))
@@ -2906,7 +2912,12 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
     key_copy(key, col_privs->record[0], col_privs->key_info, key_prefix_len);
     col_privs->field[4]->store("",0, &my_charset_latin1);
 
-    col_privs->file->ha_index_init(0, 1);
+    if (col_privs->file->ha_index_init(0, 1))
+    {
+      cols= 0;
+      return;
+    }
+
     if (col_privs->file->ha_index_read_map(col_privs->record[0], (uchar*) key,
                                            (key_part_map)15, HA_READ_KEY_EXACT))
     {
@@ -3064,7 +3075,11 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   List_iterator <LEX_COLUMN> iter(columns);
   class LEX_COLUMN *column;
-  table->file->ha_index_init(0, 1);
+  if ((error= table->file->ha_index_init(0, 1)))
+  {
+    table->file->print_error(error,MYF(0));
+    DBUG_RETURN(-1);
+  }
   while ((column= iter++))
   {
     ulong privileges= column->rights;
@@ -3532,7 +3547,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       class LEX_COLUMN *column;
       List_iterator <LEX_COLUMN> column_iter(columns);
 
-      if (open_normal_and_derived_tables(thd, table_list, 0))
+      if (open_query_tables(thd))
         DBUG_RETURN(TRUE);
 
       while ((column = column_iter++))
@@ -4229,7 +4244,8 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   (void) my_hash_init(&func_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
                       0,0);
-  p_table->file->ha_index_init(0, 1);
+  if (p_table->file->ha_index_init(0, 1))
+    DBUG_RETURN(TRUE);
   p_table->use_all_columns();
 
   if (!p_table->file->ha_index_first(p_table->record[0]))
@@ -4330,7 +4346,8 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
   t_table = tables[0].table;
   c_table = tables[1].table;
-  t_table->file->ha_index_init(0, 1);
+  if (t_table->file->ha_index_init(0, 1))
+    goto end_index_init;
   t_table->use_all_columns();
   c_table->use_all_columns();
 
@@ -4375,9 +4392,10 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   return_val=0;					// Return ok
 
 end_unlock:
-  thd->variables.sql_mode= old_sql_mode;
   t_table->file->ha_index_end();
   my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
+end_index_init:
+  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
 }
 

@@ -79,7 +79,7 @@
 */
 #define HA_REQUIRES_KEY_COLUMNS_FOR_DELETE (1 << 6)
 #define HA_NULL_IN_KEY         (1 << 7) /* One can have keys with NULL */
-#define HA_DUPLICATE_POS       (1 << 8)    /* ha_position() gives dup row */
+#define HA_DUPLICATE_POS       (1 << 8)    /* position() gives dup row */
 #define HA_NO_BLOBS            (1 << 9) /* Doesn't support blobs */
 #define HA_CAN_INDEX_BLOBS     (1 << 10)
 #define HA_AUTO_PART_KEY       (1 << 11) /* auto-increment in multi-part key */
@@ -1464,8 +1464,8 @@ public:
     m_psi(NULL), m_lock_type(F_UNLCK)
     {
       DBUG_PRINT("info",
-                 ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
-                  F_UNLCK, F_RDLCK, F_UNLCK));
+                 ("handler created F_RDLCK %d F_WRLCK %d F_UNLCK %d",
+                  F_RDLCK, F_WRLCK, F_UNLCK));
     }
   virtual ~handler(void)
   {
@@ -1482,41 +1482,10 @@ public:
 
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
   int ha_close(void);
-  int ha_index_init(uint idx, bool sorted)
-  {
-    int result;
-    DBUG_ENTER("ha_index_init");
-    DBUG_ASSERT(inited==NONE);
-    if (!(result= index_init(idx, sorted)))
-      inited=INDEX;
-    end_range= NULL;
-    DBUG_RETURN(result);
-  }
-  int ha_index_end()
-  {
-    DBUG_ENTER("ha_index_end");
-    DBUG_ASSERT(inited==INDEX);
-    inited=NONE;
-    end_range= NULL;
-    DBUG_RETURN(index_end());
-  }
-  int ha_rnd_init(bool scan)
-  {
-    int result;
-    DBUG_ENTER("ha_rnd_init");
-    DBUG_ASSERT(inited==NONE || (inited==RND && scan));
-    inited= (result= rnd_init(scan)) ? NONE: RND;
-    end_range= NULL;
-    DBUG_RETURN(result);
-  }
-  int ha_rnd_end()
-  {
-    DBUG_ENTER("ha_rnd_end");
-    DBUG_ASSERT(inited==RND);
-    inited=NONE;
-    end_range= NULL;
-    DBUG_RETURN(rnd_end());
-  }
+  int ha_index_init(uint idx, bool sorted);
+  int ha_index_end();
+  int ha_rnd_init(bool scan);
+  int ha_rnd_end();
   int ha_rnd_next(uchar *buf);
   int ha_rnd_pos(uchar * buf, uchar *pos);
   int ha_index_read_map(uchar *buf, const uchar *key,
@@ -1560,16 +1529,8 @@ public:
   /** to be actually called to get 'check()' functionality*/
   int ha_check(THD *thd, HA_CHECK_OPT *check_opt);
   int ha_repair(THD* thd, HA_CHECK_OPT* check_opt);
-  void ha_start_bulk_insert(ha_rows rows)
-  {
-    estimation_rows_to_insert= rows;
-    start_bulk_insert(rows);
-  }
-  int ha_end_bulk_insert()
-  {
-    estimation_rows_to_insert= 0;
-    return end_bulk_insert();
-  }
+  void ha_start_bulk_insert(ha_rows rows);
+  int ha_end_bulk_insert();
   int ha_bulk_update_row(const uchar *old_data, uchar *new_data,
                          uint *dup_key_found);
   int ha_delete_all_rows();
@@ -2462,6 +2423,7 @@ public:
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
+  int get_lock_type() const { return m_lock_type; }
 };
 
 

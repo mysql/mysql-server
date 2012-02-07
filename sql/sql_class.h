@@ -487,6 +487,16 @@ public:
   }
 
   /**
+    True if any of the columns set in the bitmap have default functions
+    that may set the column.
+  */
+  bool function_defaults_apply_on_columns(MY_BITMAP *map)
+  {
+    DBUG_ASSERT(m_function_default_columns != NULL);
+    return bitmap_is_overlapping(m_function_default_columns, map);
+  }
+
+  /**
      This class allocates its memory in a MEM_ROOT, so there's nothing to
      delete.
   */
