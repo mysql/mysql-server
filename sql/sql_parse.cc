@@ -2414,9 +2414,12 @@ case SQLCOM_PREPARE:
       select_result *result;
 
       /*
-        CREATE TABLE...IGNORE/REPLACE SELECT... can be unsafe, unless
-        ORDER BY PRIMARY KEY clause is used in SELECT statement. We therefore
-        use row based logging if mixed or row based logging is available.
+         - CREATE TABLE...IGNORE
+         - REPLACE SELECT...
+         - CREATE TABLE [with auto inc. column]...SELECT
+        can be unsafe, unless ORDER BY PRIMARY KEY clause is used in SELECT
+        statement. We therefore use row based logging if mixed or row based
+        logging is available.
         TODO: Check if the order of the output of the select statement is
         deterministic. Waiting for BUG#42415
       */
@@ -2425,6 +2428,9 @@ case SQLCOM_PREPARE:
       
       if(lex->duplicates == DUP_REPLACE)
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_REPLACE_SELECT);
+
+      if (lex->type & AUTO_INCREMENT_FLAG)
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_SELECT_AUTOINC);
 
       /*
         If:
