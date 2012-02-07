@@ -354,7 +354,7 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
     while ((item= it++))
     {
       Item_field *field;
-      if ((field= item->filed_for_view_update()))
+      if ((field= item->field_for_view_update()))
       {
         /*
          any_privileges may be reset later by the Item_field::set_field
@@ -448,7 +448,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
-  if (open_and_lock_tables(thd, lex->query_tables, TRUE, 0))
+  /* Not required to lock any tables. */
+  if (open_query_tables(thd))
   {
     view= lex->unlink_first_table(&link_to_local);
     res= TRUE;
@@ -655,7 +656,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       Item *item;
       while ((item= it++))
       {
-        Item_field *fld= item->filed_for_view_update();
+        Item_field *fld= item->field_for_view_update();
         uint priv= (get_column_grant(thd, &view->grant, view->db,
                                      view->table_name, item->name) &
                     VIEW_ANY_ACL);
@@ -1923,7 +1924,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
         for (k= trans; k < end_of_trans; k++)
         {
           Item_field *field;
-          if ((field= k->item->filed_for_view_update()) &&
+          if ((field= k->item->field_for_view_update()) &&
               field->field == key_part->field)
             break;
         }
@@ -1945,7 +1946,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
       for (fld= trans; fld < end_of_trans; fld++)
       {
         Item_field *field;
-        if ((field= fld->item->filed_for_view_update()) &&
+        if ((field= fld->item->field_for_view_update()) &&
             field->field == *field_ptr)
           break;
       }
@@ -1999,7 +2000,7 @@ bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
   for (Field_translator *entry= trans; entry < trans_end; entry++)
   {
     Item_field *fld;
-    if ((fld= entry->item->filed_for_view_update()))
+    if ((fld= entry->item->field_for_view_update()))
       list->push_back(fld);
     else
     {

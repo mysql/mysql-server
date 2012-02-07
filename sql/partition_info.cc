@@ -25,6 +25,8 @@
 #include "sql_acl.h"                          // *_ACL
 #include "table.h"                            // TABLE_LIST
 #include "my_bitmap.h"                        // bitmap*
+#include "sql_insert.h"                       // default_record
+#include "sql_base.h"                         // fill_record
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -79,6 +81,79 @@ partition_info *partition_info::get_clone()
 
 
 /**
+  Mark named [sub]partition to be used/locked.
+
+  @param part_name  Partition name to match.
+  @param length     Partition name length.
+
+  @return Success if partition found
+    @retval true  Partition found
+    @retval false Partition not found
+*/
+
+bool partition_info::add_named_partition(const char *part_name,
+                                         uint length)
+{
+  HASH *part_name_hash;
+  PART_NAME_DEF *part_def;
+  DBUG_ENTER("partition_info::add_named_partition");
+  DBUG_ASSERT(table && table->s && table->s->ha_part_data);
+  part_name_hash= &table->s->ha_part_data->partition_name_hash;
+  DBUG_ASSERT(part_name_hash->records);
+
+  part_def= (PART_NAME_DEF*) my_hash_search(part_name_hash,
+                                            (const uchar*) part_name,
+                                            length);
+  if (!part_def)
+  {
+    my_error(ER_UNKNOWN_PARTITION, MYF(0), part_name, table->alias);
+    DBUG_RETURN(true);
+  }
+
+  if (part_def->is_subpart)
+  {
+    bitmap_set_bit(&read_partitions, part_def->part_id);
+  }
+  else
+  {
+    if (is_sub_partitioned())
+    {
+      /* Mark all subpartitions in the partition */
+      uint j, start= part_def->part_id;
+      uint end= start + num_subparts;
+      for (j= start; j < end; j++)
+        bitmap_set_bit(&read_partitions, j);
+    }
+    else
+      bitmap_set_bit(&read_partitions, part_def->part_id);
+  }
+  DBUG_PRINT("info", ("Found partition %u is_subpart %d for name %s",
+                      part_def->part_id, part_def->is_subpart,
+                      part_name));
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Mark named [sub]partition to be used/locked.
+
+  @param part_elem  Partition element that matched.
+*/
+
+bool partition_info::set_named_partition_bitmap(const char *part_name,
+                                                uint length)
+{
+  DBUG_ENTER("partition_info::set_named_partition_bitmap");
+  bitmap_clear_all(&read_partitions);
+  if (add_named_partition(part_name, length))
+    DBUG_RETURN(true);
+  bitmap_copy(&lock_partitions, &read_partitions);
+  DBUG_RETURN(false);
+}
+
+
+
+/**
   Prune away partitions not mentioned in the PARTITION () clause,
   if used.
 
@@ -93,12 +168,7 @@ bool partition_info::prune_partition_bitmaps(TABLE_LIST *table_list)
   List_iterator<String> partition_names_it(*(table_list->partition_names));
   uint num_names= table_list->partition_names->elements;
   uint i= 0;
-  HASH *part_name_hash;
   DBUG_ENTER("partition_info::prune_partition_bitmaps");
-
-  DBUG_ASSERT(table && table->s && table->s->ha_part_data);
-  part_name_hash= &table->s->ha_part_data->partition_name_hash;
-  DBUG_ASSERT(part_name_hash->records);
   if (num_names < 1)
     DBUG_RETURN(true);
 
@@ -115,38 +185,8 @@ bool partition_info::prune_partition_bitmaps(TABLE_LIST *table_list)
   do
   {
     String *part_name_str= partition_names_it++;
-    const char *part_name= part_name_str->c_ptr();
-    PART_NAME_DEF *part_def;
-    part_def= (PART_NAME_DEF*) my_hash_search(part_name_hash,
-                                              (const uchar*) part_name,
-                                              part_name_str->length());
-    if (!part_def)
-    {
-      my_error(ER_NO_SUCH_PARTITION, MYF(0), part_name);
+    if (add_named_partition(part_name_str->c_ptr(), part_name_str->length()))
       DBUG_RETURN(true);
-    }
-
-    if (part_def->is_subpart)
-    {
-      bitmap_set_bit(&read_partitions, part_def->part_id);
-    }
-    else
-    {
-      if (is_sub_partitioned())
-      {
-        /* Mark all subpartitions in the partition */
-        uint j, start= part_def->part_id;
-        uint end= start + num_subparts;
-        for (j= start; j < end; j++)
-          bitmap_set_bit(&read_partitions, j);
-      }
-      else
-        bitmap_set_bit(&read_partitions, part_def->part_id);
-    }
-
-    DBUG_PRINT("info", ("Found partition %u is_subpart %d for name %s",
-                        part_def->part_id, part_def->is_subpart,
-                        part_name));
   } while (++i < num_names);
   DBUG_RETURN(false);
 }
@@ -188,7 +228,172 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
     DBUG_PRINT("info", ("Set all partitions"));
   }
   bitmap_copy(&lock_partitions, &read_partitions);
+  DBUG_ASSERT(bitmap_get_first_set(&lock_partitions) != MY_BIT_NONE);
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Checks if possible to do prune partitions on insert.
+
+  @param duplic        How to handle duplicates
+  @param update_fields In case of ON DUPLICATE UPDATE, which fields to update
+  @param fields        Listed fields
+  @param empty_values  True if values is empty (only defaults)
+  @param[out] prune_needs_default_values  Set on return if copying of default
+                                          values is needed
+*/
+
+partition_info::enum_can_prune
+partition_info::can_prune_insert(enum_duplicates duplic,
+                                 COPY_INFO &update,
+                                 List<Item> &update_fields,
+                                 List<Item> &fields,
+                                 bool empty_values,
+                                 bool *prune_needs_default_values)
+{
+  DBUG_ENTER("partition_info::can_prune_insert");
+  /*
+    If under LOCK TABLES pruning will skip start_stmt instead of external_lock
+    for unused partitions.
+
+    Cannot prune if there are BEFORE INSERT triggers,
+    since they may change the row to be in another partition.
+  */
+  if (table->triggers &&
+      table->triggers->has_triggers(TRG_EVENT_INSERT, TRG_ACTION_BEFORE))
+    DBUG_RETURN(PRUNE_NO);
+
+  /*
+    Note: It makes no sense to prune on partition/subpartition level when
+    only partition/subpartition fields are affected.
+    For subpartitioned tables, there makes little sense to prune only on
+    partition level or subpartition level. Since it is only possible in
+    few cases (update/auto_inc fields only in part OR subpart fields).
+    Cannot be INSERT SELECT.
+  */
+  if (table->found_next_number_field)
+  {
+    /*
+      If the field is used in the partitioning expression, we cannot prune.
+      TODO: If all rows have not null values and
+      is not 0 (with NO_AUTO_VALUE_ON_ZERO sql_mode), then pruning is possible!
+    */
+    if (bitmap_is_set(&table->part_info->full_part_field_set,
+        table->found_next_number_field->field_index))
+      DBUG_RETURN(PRUNE_NO);
+  }
+
+  /*
+    If updating a field in the partitioning expression, we cannot prune.
+
+    Note: TIMESTAMP_AUTO_SET_ON_INSERT is handled by converting Item_null
+    to the start time of the statement. Which will be the same as in
+    write_row(). So pruning of TIMESTAMP DEFAULT CURRENT_TIME will work.
+    But TIMESTAMP_AUTO_SET_ON_UPDATE cannot be pruned if the timestamp
+    column is a part of any part/subpart expression.
+  */
+  if (duplic == DUP_UPDATE)
+  {
+    /*
+      Cannot prune if any field in the partitioning expression can
+      be updated by ON DUPLICATE UPDATE.
+    */
+    if (update.function_defaults_apply_on_columns(&table->part_info->
+                                                  full_part_field_set))
+      DBUG_RETURN(PRUNE_NO);
+ 
+    /*
+      TODO: add check for static update values, which can be pruned.
+    */
+    if (is_field_in_part_expr(update_fields))
+      DBUG_RETURN(PRUNE_NO);
+
+    /*
+      Cannot prune if there are BEFORE UPDATE triggers,
+      since they may change the row to be in another partition.
+    */
+    if (table->triggers &&
+        table->triggers->has_triggers(TRG_EVENT_UPDATE,
+                                      TRG_ACTION_BEFORE))
+      DBUG_RETURN(PRUNE_NO);
+  }
+
+  /*
+    If not all partitioning fields are given,
+    we also must set all non given partitioning fields
+    to get correct defaults.
+    we do this by copy the full default record in default_record().
+    TODO: If any gain, we could enhance this by only copy the needed default
+    fields by
+      1) check which fields needs to be set.
+      2) only copy those fields from the default record.
+  */
+  *prune_needs_default_values= false;
+  if (fields.elements)
+  {
+    if (!is_full_part_expr_in_fields(fields))
+      *prune_needs_default_values= true;
+  }
+  else if (empty_values)
+  {
+    *prune_needs_default_values= true; // like 'INSERT INTO t () VALUES ()'
+  }
+
+  /*
+    If no partitioning field in set (e.g. defaults) check pruning only once.
+  */
+  if (fields.elements &&
+      !is_field_in_part_expr(fields))
+    DBUG_RETURN(PRUNE_DEFAULTS);
+
+  DBUG_RETURN(PRUNE_YES);
+}
+
+
+/**
+  Mark the partition, the record belongs to, as used.
+
+  @param table            Table to use
+  @param fields           Fields to set
+  @param values           Values to use
+  @param used_partitions  Bitmap to set
+
+  @returns Operational status
+    @retval false  Success
+    @retval true   Failure
+*/
+
+bool partition_info::set_used_partition(List<Item> &fields,
+                                        List<Item> &values,
+                                        bool copy_default_values,
+                                        MY_BITMAP *used_partitions)
+{
+  THD *thd= table->in_use;
+  uint32 part_id;
+  longlong func_value;
+  DBUG_ENTER("set_partition");
+  DBUG_ASSERT(thd);
+
+  default_record(copy_default_values, table);
+
+  if (fields.elements || !values.elements)
+  {
+    if (fill_record(thd, fields, values, false, &full_part_field_set))
+      DBUG_RETURN(true);
+  }
+  else
+  {
+    if (fill_record(thd, table->field, values, false, &full_part_field_set))
+      DBUG_RETURN(true);
+  }
+
+  if (get_partition_id(this, &part_id, &func_value))
+    DBUG_RETURN(true);
+
+  DBUG_PRINT("info", ("Insert into partition %u", part_id));
+  bitmap_set_bit(used_partitions, part_id);
+  DBUG_RETURN(false);
 }
 
 
@@ -1830,6 +2035,85 @@ void partition_info::report_part_expr_error(bool use_subpart_expr)
   else
     my_error(ER_PARTITION_FUNC_NOT_ALLOWED_ERROR, MYF(0), "PARTITION");
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  Check if fields are in the partitioning expression.
+
+  @param fields  List of Items (fields)
+
+  @return True if any field in the fields list is used by a partitioning expr.
+    @retval true  At least one field in the field list is found.
+    @retval false No field is within any partitioning expression.
+*/
+
+bool partition_info::is_field_in_part_expr(List<Item> &fields)
+{
+  List_iterator<Item> it(fields);
+  Item *item;
+  Item_field *field;
+  DBUG_ENTER("is_fields_in_part_expr");
+  while ((item= it++))
+  {
+    if ((field= item->field_for_view_update()))
+    {
+      DBUG_ASSERT(field->field->table == table);
+      if (bitmap_is_set(&full_part_field_set, field->field->field_index))
+        DBUG_RETURN(true);
+    }
+    else
+    {
+      DBUG_ASSERT(0); // Should already be checked
+      DBUG_RETURN(true);
+    }
+  }
+  DBUG_RETURN(false);
+}
+ 
+
+/**
+  Check if all partitioning fields are included.
+*/
+
+bool partition_info::is_full_part_expr_in_fields(List<Item> &fields)
+{
+  Field *part_field= full_part_field_array[0];
+  DBUG_ASSERT(part_field);
+  DBUG_ENTER("is_full_part_expr_in_fields");
+  /*
+    It is very seldom many fields in full_part_field_array, so it is OK
+    to loop over all of them instead of creating a bitmap fields argument
+    to compare with.
+  */
+  do
+  {
+    List_iterator<Item> it(fields);
+    Item *item;
+    Item_field *field;
+    bool found= false;
+  
+    while ((item= it++))
+    {
+      if (!(field= item->field_for_view_update()))
+      {
+        DBUG_ASSERT(0); // Should already be checked
+        DBUG_RETURN(false);
+      }
+      else
+      {
+        DBUG_ASSERT(field->field->table == table);
+        if (part_field == field->field)
+        {
+          found= true;
+          break;
+        }
+      }
+    }
+    if (!found)
+      DBUG_RETURN(false);
+  } while (++part_field);
+  DBUG_RETURN(true);
 }
  
 

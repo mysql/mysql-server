@@ -146,7 +146,7 @@ static bool check_fields(THD *thd, List<Item> &items)
 
   while ((item= it++))
   {
-    if (!(field= item->filed_for_view_update()))
+    if (!(field= item->field_for_view_update()))
     {
       /* item has name, because it comes from VIEW SELECT list */
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->name);
@@ -275,7 +275,6 @@ int mysql_update(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
-  uint          table_count= 0;
   ha_rows	updated, found;
   key_map	old_covering_keys;
   TABLE		*table;
@@ -289,29 +288,15 @@ int mysql_update(THD *thd,
 
   DBUG_ENTER("mysql_update");
 
-  if (open_tables(thd, &table_list, &table_count, 0))
+  if (open_query_tables(thd))
     DBUG_RETURN(1);
 
   if (table_list->multitable_view)
   {
     DBUG_ASSERT(table_list->view != 0);
     DBUG_PRINT("info", ("Switch to multi-update"));
-    /* pass counter value */
-    thd->lex->table_count= table_count;
     /* convert to multiupdate */
     DBUG_RETURN(2);
-  }
-  if (lock_tables(thd, table_list, table_count, 0))
-    DBUG_RETURN(1);
-
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
-    DBUG_RETURN(1);
-
-  if (thd->fill_derived_tables() &&
-      mysql_handle_derived(thd->lex, &mysql_derived_create))
-  {
-    mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
-    DBUG_RETURN(1);
   }
 
   THD_STAGE_INFO(thd, stage_init);
@@ -395,20 +380,67 @@ int mysql_update(THD *thd,
   table->covering_keys.clear_all();
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (prune_partitions(thd, table, conds))
-  { // No matching records
-    if (thd->lex->describe)
+  if (table->part_info)
+  {
+    bool all_parts_pruned_away;
+    bool prune_locks= true;
+    MY_BITMAP lock_partitions;
+    if (table->triggers &&
+        table->triggers->has_triggers(TRG_EVENT_UPDATE, TRG_ACTION_BEFORE))
     {
-      error= explain_no_table(thd,
-                              "No matching rows after partition pruning");
-      goto exit_without_my_ok;
+      /*
+        BEFORE UPDATE triggers may change the records partitioning
+        column, forcing it to another partition.
+        So it is not possible to prune external_lock/start_stmt for
+        partitions (lock_partitions bitmap), only for scanning
+        (read_partitions bitmap).
+        Copy the current lock_partitions bitmap and restore it after
+        prune_partitions call, to lock all non explicitly selected
+        partitions.
+      */
+      uint32 *bitmap_buf;
+      uint bitmap_bytes;
+      uint num_partitions;
+      DBUG_ASSERT(table->part_info->bitmaps_are_initialized);
+      prune_locks= false;
+      num_partitions= table->part_info->lock_partitions.n_bits;
+      bitmap_bytes= bitmap_buffer_size(num_partitions);
+      if (!(bitmap_buf= (uint32*) thd->alloc(bitmap_bytes)))
+      {
+        mem_alloc_error(bitmap_bytes);
+        DBUG_RETURN(1);
+      }
+      /* Also clears all bits. */
+      if (bitmap_init(&lock_partitions, bitmap_buf, num_partitions, FALSE))
+      {
+        mem_alloc_error(bitmap_bytes);   /* Cannot happen, due to pre-alloc */
+        DBUG_RETURN(1);
+      }
+      bitmap_copy(&lock_partitions, &table->part_info->lock_partitions);
     }
 
-    free_underlaid_joins(thd, select_lex);
-    my_ok(thd);				// No matching records
-    DBUG_RETURN(0);
+    if (prune_partitions(thd, table, conds, true, &all_parts_pruned_away))
+      DBUG_RETURN(1);
+    if (all_parts_pruned_away)
+    {
+      /* No matching records */
+      if (thd->lex->describe)
+      {
+        error= explain_no_table(thd,
+                                "No matching rows after partition pruning");
+        goto exit_without_my_ok;
+      }
+      free_underlaid_joins(thd, select_lex);
+      my_ok(thd);                            // No matching records
+      DBUG_RETURN(0);
+    }
+    if (!prune_locks)
+      bitmap_copy(&table->part_info->lock_partitions, &lock_partitions);
   }
 #endif
+  if (lock_query_tables(thd))
+    DBUG_RETURN(1);
+
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
@@ -1248,12 +1280,6 @@ int mysql_multi_update_prepare(THD *thd)
   List<Item> *fields= &lex->select_lex.item_list;
   table_map tables_for_update;
   bool update_view= 0;
-  /*
-    if this multi-update was converted from usual update, here is table
-    counter else junk will be assigned here, but then replaced with real
-    count in open_tables()
-  */
-  uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
   DBUG_ENTER("mysql_multi_update_prepare");
@@ -1268,11 +1294,7 @@ int mysql_multi_update_prepare(THD *thd)
     keep prepare of multi-UPDATE compatible with concurrent LOCK TABLES WRITE
     and global read lock.
   */
-  if ((original_multiupdate &&
-       open_tables(thd, &table_list, &table_count,
-                   (thd->stmt_arena->is_stmt_prepare() ?
-                    MYSQL_OPEN_FORCE_SHARED_MDL : 0))) ||
-      mysql_handle_derived(lex, &mysql_derived_prepare))
+  if (original_multiupdate && open_query_tables(thd))
     DBUG_RETURN(TRUE);
   /*
     setup_tables() need for VIEWs. JOIN::prepare() will call setup_tables()
@@ -1381,12 +1403,6 @@ int mysql_multi_update_prepare(THD *thd)
     }
   }
 
-  /* now lock and fill tables */
-  if (!thd->stmt_arena->is_stmt_prepare() &&
-      lock_tables(thd, table_list, table_count, 0))
-  {
-    DBUG_RETURN(TRUE);
-  }
   /* @todo: downgrade the metadata locks here. */
 
   /*
@@ -1456,7 +1472,8 @@ bool mysql_multi_update(THD *thd,
     res= mysql_select(thd,
                       table_list, select_lex->with_wild,
                       total_list,
-                      conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
+                      conds, (SQL_I_List<ORDER> *) NULL,
+                      (SQL_I_List<ORDER> *)NULL, (Item *) NULL,
                       (ORDER *)NULL,
                       options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                       OPTION_SETUP_TABLES_DONE,
@@ -2074,7 +2091,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       /* Store regular updated fields in the row. */
       fill_record(thd,
                   tmp_table->field + 1 + unupdated_check_opt_tables.elements,
-                  *values_for_table[offset], 1);
+                  *values_for_table[offset], 1, NULL);
 
       /* Write row, ignoring duplicated updates to a row */
       error= tmp_table->file->ha_write_row(tmp_table->record[0]);
@@ -2178,7 +2195,8 @@ int multi_update::do_updates()
     org_updated= updated;
     tmp_table= tmp_tables[cur_table->shared];
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
-    (void) table->file->ha_rnd_init(0);
+    if ((local_error= table->file->ha_rnd_init(0)))
+      goto err;
     table->file->extra(HA_EXTRA_NO_CACHE);
 
     check_opt_it.rewind();
@@ -2303,11 +2321,16 @@ err:
   }
 
 err2:
-  (void) table->file->ha_rnd_end();
-  (void) tmp_table->file->ha_rnd_end();
+  if (table->file->inited == handler::RND)
+    (void) table->file->ha_rnd_end();
+  if (tmp_table->file->inited == handler::RND)
+    (void) tmp_table->file->ha_rnd_end();
   check_opt_it.rewind();
   while (TABLE *tbl= check_opt_it++)
-      tbl->file->ha_rnd_end();
+  {
+    if (tbl->file->inited == handler::RND)
+      (void) tbl->file->ha_rnd_end();
+  }
 
   if (updated != org_updated)
   {

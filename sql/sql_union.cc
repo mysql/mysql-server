@@ -32,13 +32,39 @@
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option)
 {
+  bool res;
+  bool store_in_query_cache= false;
   DBUG_ENTER("mysql_union");
-  bool res= unit->prepare(thd, result, SELECT_NO_UNLOCK |
-                           setup_tables_done_option) ||
-            unit->optimize() ||
-            unit->exec();
+
+  if (open_query_tables(thd))
+    DBUG_RETURN(true);
+
+  /* Only register the query if it was opened above */
+  if (thd->lex->tables_state < Query_tables_list::TABLES_STATE_LOCKED)
+    store_in_query_cache= true;
+
+  res= unit->prepare(thd, result,
+		     SELECT_NO_UNLOCK | setup_tables_done_option);
+  if (res)
+    goto err;
+
+  if (lock_query_tables(thd))
+    goto err;
+
+  /*
+    Tables must be locked before storing the query in the query cache.
+    Transactional engines must been signalled that the statement started,
+    which external_lock signals.
+  */
+  if (store_in_query_cache)
+    query_cache_store_query(thd, thd->lex->query_tables);
+
+  res= unit->optimize() || unit->exec();
   res|= unit->cleanup();
   DBUG_RETURN(res);
+err:
+  (void) unit->cleanup();
+  DBUG_RETURN(true);
 }
 
 
@@ -61,7 +87,7 @@ bool select_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
-  fill_record(thd, table->field, values, 1);
+  fill_record(thd, table->field, values, 1, NULL);
   if (thd->is_error())
     return 1;
 
@@ -597,8 +623,7 @@ void st_select_lex_unit::explain()
     saved_error= mysql_select(thd,
                           &result_table_list,
                           0, item_list, NULL,
-                          global_parameters->order_list.elements,
-                          global_parameters->order_list.first,
+                          &global_parameters->order_list,
                           NULL, NULL, NULL,
                           fake_select_lex->options | SELECT_NO_UNLOCK,
                           result, this, fake_select_lex);
@@ -731,8 +756,7 @@ bool st_select_lex_unit::exec()
                      0,                       // wild_num
                      item_list,               // fields
                      NULL,                    // conds
-                     global_parameters->order_list.elements, // og_num
-                     global_parameters->order_list.first,    // order
+                     &global_parameters->order_list,    // order
                      NULL,                    // group
                      NULL,                    // having
                      NULL,                    // proc_param

@@ -750,8 +750,8 @@ call p_verify_status_increment(4, 4, 4, 4);
 --echo #
 --echo # Sic: no table is created.
 create table if not exists t2 (a int) select 6 union select 7;
---echo # Sic: first commits the statement, and then the transaction.
-call p_verify_status_increment(2, 0, 2, 0);
+--echo # No table are locked before existing t2 is found, so nothing to commit.
+call p_verify_status_increment(0, 0, 0, 0);
 create table t3 select a from t2;
 call p_verify_status_increment(2, 0, 4, 4);
 alter table t3 add column (b int);
@@ -763,7 +763,11 @@ call p_verify_status_increment(0, 0, 0, 0);
 truncate table t3;
 call p_verify_status_increment(2, 0, 2, 0);
 create view v1 as select * from t2;
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(0, 0, 0, 0);
+select * from v1;
+call p_verify_status_increment(1, 0, 1, 0);
+commit;
+call p_verify_status_increment(1, 0, 1, 0);
 check table t1;
 call p_verify_status_increment(2, 0, 2, 0);
 --echo # Sic: after this bug is fixed, CHECK leaves no pending transaction

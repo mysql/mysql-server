@@ -555,6 +555,35 @@ uint bitmap_get_first_set(const MY_BITMAP *map)
 }
 
 
+uint bitmap_get_next_set(const MY_BITMAP *map, uint bitmap_bit)
+{
+  uint word_pos, start_pos;
+  uint32 first_word;
+  my_bitmap_map *data_ptr, *end= map->last_word_ptr;
+
+  DBUG_ASSERT(map->bitmap);
+
+  /* Look for the next bit */
+  bitmap_bit++;
+  if (bitmap_bit >= map->n_bits)
+    return MY_BIT_NONE;
+  start_pos= word_pos= bitmap_bit / 32;
+  data_ptr= map->bitmap + word_pos;
+  first_word= *data_ptr & (0xFFFFFFFF << (bitmap_bit % 32));
+  if (data_ptr == end)
+    return get_first_set(first_word & ~map->last_word_mask, word_pos);
+   
+  if (first_word)
+    return get_first_set(first_word, word_pos);
+
+  for (data_ptr++, word_pos++; data_ptr < end; data_ptr++, word_pos++)
+    if (*data_ptr)
+      return get_first_set(*data_ptr, word_pos);
+
+  return get_first_set(*end & ~map->last_word_mask, word_pos);
+}
+
+
 uint bitmap_get_first(const MY_BITMAP *map)
 {
   uint word_pos;
