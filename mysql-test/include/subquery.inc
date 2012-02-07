@@ -5643,3 +5643,20 @@ WHERE (col_varchar_nokey, 'x') IN
 
 --echo
 DROP TABLE it, ot;
+
+--echo #
+--echo # Bug #11829691: Pure virtual method called in Item_bool_func2::fix...()
+--echo #
+
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(b INTEGER);
+
+PREPARE stmt FROM "
+SELECT SUM(b) FROM t2 GROUP BY b HAVING b IN (SELECT b FROM t1)";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+
+DROP TABLE t1, t2;

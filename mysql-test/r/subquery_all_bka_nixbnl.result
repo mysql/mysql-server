@@ -6823,5 +6823,18 @@ Warnings:
 Note	1003	/* select#1 */ select '1' AS `col_int_nokey` from (`test`.`it`) where ((`test`.`it`.`col_varchar_key2` = 'x') and (`test`.`it`.`col_varchar_key` = 'x') and isnull(`test`.`it`.`col_int_key`))
 
 DROP TABLE it, ot;
+#
+# Bug #11829691: Pure virtual method called in Item_bool_func2::fix...()
+#
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(b INTEGER);
+PREPARE stmt FROM "
+SELECT SUM(b) FROM t2 GROUP BY b HAVING b IN (SELECT b FROM t1)";
+EXECUTE stmt;
+SUM(b)
+EXECUTE stmt;
+SUM(b)
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1, t2;
 set optimizer_switch=default;
 set optimizer_switch=default;
