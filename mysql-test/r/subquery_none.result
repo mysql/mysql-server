@@ -6821,4 +6821,17 @@ Warnings:
 Note	1003	/* select#1 */ select '1' AS `col_int_nokey` from dual where <in_optimizer>(('x','x'),<exists>(<index_lookup>(<cache>('x') in it on idx_cvk_cvk2_cik where (isnull(`test`.`it`.`col_int_key`) and (<cache>('x') = `test`.`it`.`col_varchar_key`) and (<cache>('x') = `test`.`it`.`col_varchar_key2`)))))
 
 DROP TABLE it, ot;
+#
+# Bug #11829691: Pure virtual method called in Item_bool_func2::fix...()
+#
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(b INTEGER);
+PREPARE stmt FROM "
+SELECT SUM(b) FROM t2 GROUP BY b HAVING b IN (SELECT b FROM t1)";
+EXECUTE stmt;
+SUM(b)
+EXECUTE stmt;
+SUM(b)
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1, t2;
 set optimizer_switch=default;
