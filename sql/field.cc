@@ -5808,21 +5808,7 @@ longlong Field_timef::val_time_temporal()
 
 int Field_timef::store_internal(const MYSQL_TIME *ltime, int *warnings)
 {
-  const int res= store_packed(TIME_to_longlong_time_packed(ltime));
-  if (res == 0 && non_zero_date(ltime))
-  {
-    /*
-      The DATE part got lost; we warn, like in
-      Field_newdate::store_internal.
-    */
-    *warnings|= MYSQL_TIME_NOTE_TRUNCATED;
-    /*
-      Field_newdate returns 3 in this case (which value "3" will trigger some
-      code in get_mm_leaf(), see the test for err==3 there).
-      But, to introduce no behaviour change for now, we return 0.
-    */
-  }
-  return res;
+  return store_packed(TIME_to_longlong_time_packed(ltime));
 }
 
 

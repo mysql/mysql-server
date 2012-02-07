@@ -4559,23 +4559,10 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
             Can't optimize datetime_column=indexed_varchar_column,
             also can't use indexes if the effective collation
             of the operation differ from the field collation.
-            IndexedTimeComparedToDate: can't optimize
-            'indexed_time = temporal_expr_with_date_part' because:
-            - without index, a TIME column with value '48:00:00' is equal to a
-            DATETIME column with value 'CURDATE() + 2 days'
-            - with ref access into the TIME column, CURDATE() + 2 days becomes
-            "00:00:00" (Field_timef::store_internal() simply extracts the time
-            part from the datetime) which is a lookup key which does not match
-            "48:00:00"; so ref access is not be able to give the same result
-            as without index, so is disabled.
-            On the other hand, we can optimize indexed_datetime = time
-            because Field_temporal_with_date::store_time() will convert
-            48:00:00 to CURDATE() + 2 days which is the correct lookup key.
           */
           if ((!field->is_temporal() && value[0]->is_temporal()) ||
               (field->cmp_type() == STRING_RESULT &&
-               field->charset() != cond->compare_collation()) ||
-              field_time_cmp_date(field, value[0]))
+               field->charset() != cond->compare_collation()))
           {
             warn_index_not_applicable(stat->join->thd, field, possible_keys);
             return;
