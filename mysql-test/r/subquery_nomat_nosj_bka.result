@@ -6856,33 +6856,33 @@ EXPLAIN EXTENDED SELECT alias2.col_varchar_nokey
 FROM v1 AS alias1
 RIGHT JOIN t1 AS alias2 ON 1
 WHERE alias2.col_varchar_key IN (
-SELECT SQ2_alias1.col_varchar_nokey
-FROM v1 AS SQ2_alias1
-LEFT JOIN t1 AS SQ2_alias2
-ON (SQ2_alias2.col_int_key = SQ2_alias1.pk)
-WHERE SQ2_alias1.pk != alias1.col_int_key
-AND SQ2_alias1.col_varchar_key > alias1.col_varchar_key
+SELECT sq2_alias1.col_varchar_nokey
+FROM v1 AS sq2_alias1
+LEFT JOIN t1 AS sq2_alias2
+ON (sq2_alias2.col_int_key = sq2_alias1.pk)
+WHERE sq2_alias1.pk != alias1.col_int_key
+AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 )
 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	5	100.00	
 1	PRIMARY	t1	index	NULL	col_varchar_key	7	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t1	ALL	col_varchar_key	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	SQ2_alias2	index	col_int_key	col_int_key	4	NULL	5	80.00	Using where; Using index; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	sq2_alias2	index	col_int_key	col_int_key	4	NULL	5	80.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1276	Field or reference 'alias1.col_int_key' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'alias1.col_varchar_key' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `alias2` left join (`test`.`t1`) on(1) where <in_optimizer>(`test`.`alias2`.`col_varchar_key`,<exists>(/* select#2 */ select 1 from `test`.`t1` left join `test`.`t1` `SQ2_alias2` on((`test`.`SQ2_alias2`.`col_int_key` = `test`.`t1`.`pk`)) where ((`test`.`t1`.`pk` <> `test`.`t1`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` > `test`.`t1`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`t1`.`col_varchar_nokey`))))
+Note	1003	/* select#1 */ select `test`.`alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `alias2` left join (`test`.`t1`) on(1) where <in_optimizer>(`test`.`alias2`.`col_varchar_key`,<exists>(/* select#2 */ select 1 from `test`.`t1` left join `test`.`t1` `sq2_alias2` on((`test`.`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`)) where ((`test`.`t1`.`pk` <> `test`.`t1`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` > `test`.`t1`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`t1`.`col_varchar_nokey`))))
 SELECT alias2.col_varchar_nokey
 FROM v1 AS alias1
 RIGHT JOIN t1 AS alias2 ON 1
 WHERE alias2.col_varchar_key IN (
-SELECT SQ2_alias1.col_varchar_nokey
-FROM v1 AS SQ2_alias1
-LEFT JOIN t1 AS SQ2_alias2
-ON (SQ2_alias2.col_int_key = SQ2_alias1.pk)
-WHERE SQ2_alias1.pk != alias1.col_int_key
-AND SQ2_alias1.col_varchar_key > alias1.col_varchar_key
+SELECT sq2_alias1.col_varchar_nokey
+FROM v1 AS sq2_alias1
+LEFT JOIN t1 AS sq2_alias2
+ON (sq2_alias2.col_int_key = sq2_alias1.pk)
+WHERE sq2_alias1.pk != alias1.col_int_key
+AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 )
 ;
 col_varchar_nokey
@@ -6899,12 +6899,12 @@ CREATE VIEW v2 AS SELECT alias2.col_varchar_nokey
 FROM v1 AS alias1
 RIGHT JOIN t1 AS alias2 ON 1
 WHERE alias2.col_varchar_key IN (
-SELECT SQ2_alias1.col_varchar_nokey
-FROM v1 AS SQ2_alias1
-LEFT JOIN t1 AS SQ2_alias2
-ON (SQ2_alias2.col_int_key = SQ2_alias1.pk)
-WHERE SQ2_alias1.pk != alias1.col_int_key
-AND SQ2_alias1.col_varchar_key > alias1.col_varchar_key
+SELECT sq2_alias1.col_varchar_nokey
+FROM v1 AS sq2_alias1
+LEFT JOIN t1 AS sq2_alias2
+ON (sq2_alias2.col_int_key = sq2_alias1.pk)
+WHERE sq2_alias1.pk != alias1.col_int_key
+AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 )
 ;
 EXPLAIN EXTENDED SELECT * FROM v2;
@@ -6912,11 +6912,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	5	100.00	
 1	PRIMARY	t1	index	NULL	col_varchar_key	7	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 3	DEPENDENT SUBQUERY	t1	ALL	col_varchar_key	NULL	NULL	NULL	5	100.00	Using where
-3	DEPENDENT SUBQUERY	SQ2_alias2	index	col_int_key	col_int_key	4	NULL	5	80.00	Using where; Using index; Using join buffer (Block Nested Loop)
+3	DEPENDENT SUBQUERY	sq2_alias2	index	col_int_key	col_int_key	4	NULL	5	80.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1276	Field or reference 'alias1.col_int_key' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'alias1.col_varchar_key' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `alias2` left join (`test`.`t1`) on(1) where <in_optimizer>(`test`.`alias2`.`col_varchar_key`,<exists>(/* select#3 */ select 1 from `test`.`t1` left join `test`.`t1` `SQ2_alias2` on((`SQ2_alias2`.`col_int_key` = `test`.`t1`.`pk`)) where ((`test`.`t1`.`pk` <> `t1`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` > `t1`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`t1`.`col_varchar_nokey`))))
+Note	1003	/* select#1 */ select `test`.`alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `alias2` left join (`test`.`t1`) on(1) where <in_optimizer>(`test`.`alias2`.`col_varchar_key`,<exists>(/* select#3 */ select 1 from `test`.`t1` left join `test`.`t1` `sq2_alias2` on((`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`)) where ((`test`.`t1`.`pk` <> `t1`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` > `t1`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`t1`.`col_varchar_nokey`))))
 SELECT * FROM v2;
 col_varchar_nokey
 d
@@ -6932,32 +6932,32 @@ EXPLAIN EXTENDED SELECT alias2.col_varchar_nokey
 FROM t1 AS alias2
 LEFT JOIN v1 AS alias1 ON 1
 WHERE alias2.col_varchar_key IN (
-SELECT SQ2_alias1.col_varchar_nokey
-FROM v1 AS SQ2_alias1
-LEFT JOIN t1 AS SQ2_alias2
-ON (SQ2_alias2.col_int_key = SQ2_alias1.pk)
-WHERE SQ2_alias1.pk != alias1.col_int_key
-AND SQ2_alias1.col_varchar_key > alias1.col_varchar_key
+SELECT sq2_alias1.col_varchar_nokey
+FROM v1 AS sq2_alias1
+LEFT JOIN t1 AS sq2_alias2
+ON (sq2_alias2.col_int_key = sq2_alias1.pk)
+WHERE sq2_alias1.pk != alias1.col_int_key
+AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	5	100.00	
 1	PRIMARY	t1	index	NULL	col_varchar_key	7	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t1	ALL	col_varchar_key	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	SQ2_alias2	index	col_int_key	col_int_key	4	NULL	5	80.00	Using where; Using index; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	sq2_alias2	index	col_int_key	col_int_key	4	NULL	5	80.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1276	Field or reference 'alias1.col_int_key' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'alias1.col_varchar_key' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `alias2` left join (`test`.`t1`) on(1) where <in_optimizer>(`test`.`alias2`.`col_varchar_key`,<exists>(/* select#2 */ select 1 from `test`.`t1` left join `test`.`t1` `SQ2_alias2` on((`SQ2_alias2`.`col_int_key` = `test`.`t1`.`pk`)) where ((`test`.`t1`.`pk` <> `t1`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` > `t1`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`t1`.`col_varchar_nokey`))))
+Note	1003	/* select#1 */ select `test`.`alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `alias2` left join (`test`.`t1`) on(1) where <in_optimizer>(`test`.`alias2`.`col_varchar_key`,<exists>(/* select#2 */ select 1 from `test`.`t1` left join `test`.`t1` `sq2_alias2` on((`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`)) where ((`test`.`t1`.`pk` <> `t1`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` > `t1`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`t1`.`col_varchar_nokey`))))
 SELECT alias2.col_varchar_nokey
 FROM t1 AS alias2
 LEFT JOIN v1 AS alias1 ON 1
 WHERE alias2.col_varchar_key IN (
-SELECT SQ2_alias1.col_varchar_nokey
-FROM v1 AS SQ2_alias1
-LEFT JOIN t1 AS SQ2_alias2
-ON (SQ2_alias2.col_int_key = SQ2_alias1.pk)
-WHERE SQ2_alias1.pk != alias1.col_int_key
-AND SQ2_alias1.col_varchar_key > alias1.col_varchar_key
+SELECT sq2_alias1.col_varchar_nokey
+FROM v1 AS sq2_alias1
+LEFT JOIN t1 AS sq2_alias2
+ON (sq2_alias2.col_int_key = sq2_alias1.pk)
+WHERE sq2_alias1.pk != alias1.col_int_key
+AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 );
 col_varchar_nokey
 d
