@@ -1234,13 +1234,12 @@ do_warm_cache(DB_ENV *env, DB **dbs, struct cli_args *args)
     scan_arg.operation_extra = &soe;
     scan_arg.operation = scan_op_no_check;
     scan_arg.lock_type = STRESS_LOCK_NONE;
-    int64_t x;
     struct worker_extra we;
-    we.thread_arg = &arg;
+    we.thread_arg = &scan_arg;
     we.operation_lock = NULL;
     we.operation_lock_mutex = NULL;
-    we.num_operations_completed = &x;
-    worker(&worker_extra);
+    we.num_operations_completed = 0;
+    worker(&we);
 }
 
 static void
