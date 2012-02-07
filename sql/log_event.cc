@@ -940,6 +940,11 @@ my_bool Log_event::need_checksum()
                   which IO thread instantiates via queue_binlog_ver_3_event.
                */
                get_type_code() == ROTATE_EVENT ||
+               /*
+                  The previous event has its checksum option defined
+                  according to the format description event.
+               */
+               get_type_code() == PREVIOUS_GTIDS_LOG_EVENT ||
                /* FD is always checksummed */
                get_type_code() == FORMAT_DESCRIPTION_EVENT) && 
                checksum_alg != BINLOG_CHECKSUM_ALG_OFF));
@@ -947,7 +952,7 @@ my_bool Log_event::need_checksum()
   DBUG_ASSERT(checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
   DBUG_ASSERT(((get_type_code() != ROTATE_EVENT &&
                 get_type_code() != STOP_EVENT) ||
-               get_type_code() != FORMAT_DESCRIPTION_EVENT) ||
+                get_type_code() != FORMAT_DESCRIPTION_EVENT) ||
               event_cache_type == Log_event::EVENT_NO_CACHE);
 
   DBUG_RETURN(ret);
