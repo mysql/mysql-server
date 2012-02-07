@@ -1,8 +1,6 @@
-rpl_checksum : Skipped due to assertion problems.
 rpl_ignore_table : Skipped due to assertion problems.
 rpl_replicate_ignore_db: Skipped due to assertion problems.
 rpl_alter_repository: Skipped due to assertion problems.
-rpl_checksum_cache: Skipped due to assertion problems.
 rpl_stm_lcase_tblnames: Skipped due to assertion problems.
 rpl_row_lcase_tblnames: Skipped due to assertion problems.
 rpl.rpl_multi_update4: Skipped due to assertion problems.
@@ -68,8 +66,10 @@ rpl_known_bugs_detection : Skipped due to clashes in debug.
 rpl_slave_load_remove_tmpfile : Skipped due to clashes in debug.
 binlog_index : Skipped due to clashes in debug.
 binlog_write_error : Skipped due to clashes in debug.
-pl_show_errors : Skipped due to clashes in debug.
+rpl_show_errors : Skipped due to clashes in debug.
 rpl_bug33931    : Skipped due to clashes in debug.
+rpl_checksum : Skipped due to clashes in debug.
+rpl_checksum_cache: Skipped due to clashes in debug.
 
 
 

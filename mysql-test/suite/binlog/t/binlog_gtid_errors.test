@@ -34,6 +34,7 @@
 --source include/have_innodb.inc
 --source include/have_log_bin.inc
 --source include/have_gtid.inc
+--source include/have_debug.inc
 
 --let $ida= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 --let $idb= bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
