@@ -187,7 +187,7 @@ static void *worker(void *arg_v) {
             }
         }
         unlock_worker_op(we);
-        we->num_operations_completed++;
+        (void) __sync_fetch_and_add(&we->num_operations_completed, 1);
         if (arg->sleep_ms) {
             usleep(arg->sleep_ms * 1000);
         }
@@ -410,7 +410,7 @@ static int UU() ptquery_op_no_check(DB_TXN *txn, ARG arg, void* UU(operation_ext
 }
 
 static int UU() cursor_create_close_op(DB_TXN *txn, ARG arg, void* UU(operation_extra)) {
-    int db_index = arg->num_DBs > 1 ? random()%arg->num_DBs : 0;
+    int db_index = arg->num_DBs > 1 ? myrandom_r(arg->random_data)%arg->num_DBs : 0;
     DB* db = arg->dbp[db_index];
     DBC* cursor = NULL;
     int r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
@@ -753,30 +753,30 @@ static void *test_time(void *arg) {
     memset(num_operations_completed_total, 0, sizeof num_operations_completed_total);
     for (int i = 0; i < num_seconds; i += tte->performance_period) {
         usleep(tte->performance_period*1000*1000);
-        int total_operations_in_period = 0;
+        int64_t total_operations_in_period = 0;
         for (int we = 0; we < tte->num_wes; ++we) {
-            int last = num_operations_completed_total[we];
-            int current = __sync_fetch_and_add(&tte->wes[we].num_operations_completed, 0);
+            int64_t last = num_operations_completed_total[we];
+            int64_t current = __sync_fetch_and_add(&tte->wes[we].num_operations_completed, 0);
             if (tte->print_thread_performance) {
-                printf("Thread %d Iteration %d Operations %d\n", we, i, current - last);
+                printf("Thread %d Iteration %d Operations %"PRId64"\n", we, i, current - last);
             }
             total_operations_in_period += (current - last);
             num_operations_completed_total[we] = current;
         }
         if (tte->print_performance) {
-            printf("Iteration %d Total_Operations %d\n", i, total_operations_in_period);
+            printf("Iteration %d Total_Operations %"PRId64"\n", i, total_operations_in_period);
         }
     }
-    int total_operations_in_test = 0;
+    int64_t total_operations_in_test = 0;
     for (int we = 0; we < tte->num_wes; ++we) {
-        int current = __sync_fetch_and_add(&tte->wes[we].num_operations_completed, 0);
+        int64_t current = __sync_fetch_and_add(&tte->wes[we].num_operations_completed, 0);
         if (tte->print_thread_performance) {
-        printf("TOTAL Thread %d Operations %d\n", we, current);
+            printf("TOTAL Thread %d Operations %"PRId64"\n", we, current);
         }
         total_operations_in_test += current;
     }
     if (tte->print_performance) {
-        printf("Total_Operations %d\n", total_operations_in_test);
+        printf("Total_Operations %"PRId64"\n", total_operations_in_test);
     }
 
     if (verbose) {
