@@ -57,6 +57,7 @@ use My::Config;
 use My::Platform;
 use My::Test;
 use My::Find;
+use My::Suite;
 
 require "mtr_misc.pl";
 
@@ -65,7 +66,6 @@ my $do_test_reg;
 my $skip_test_reg;
 
 my %suites;
-my $default_suite_object = do 'My/Suite.pm';
 
 sub init_pattern {
   my ($from, $what)= @_;
@@ -99,6 +99,8 @@ sub collect_test_cases ($$$$) {
 
   $do_test_reg= init_pattern($do_test, "--do-test");
   $skip_test_reg= init_pattern($skip_test, "--skip-test");
+
+  parse_disabled($_) for @$opt_skip_test_list;
 
   # If not reordering, we also shouldn't group by suites, unless
   # no test cases were named.
@@ -212,25 +214,36 @@ sub split_testname {
   mtr_error("Illegal format of test name: $test_name");
 }
 
-my %suite_combinations;
 my %skip_combinations;
 my %file_combinations;
 
 sub load_suite_object {
-  my ($suite, $suitedir) = @_;
-  unless ($suites{$suite}) {
+  my ($suitename, $suitedir) = @_;
+  my $suite;
+  unless (defined $suites{$suitename}) {
     if (-f "$suitedir/suite.pm") {
-      $suites{$suite} = do "$suitedir/suite.pm";
-      return unless ref $suites{$suite};
+      $suite= do "$suitedir/suite.pm";
+      unless (ref $suite) {
+        my $comment = $suite;
+        $suite = do 'My/Suite.pm';
+        $suite->{skip} = $comment;
+      }
     } else {
-      $suites{$suite} = $default_suite_object;
+      $suite = do 'My/Suite.pm';
     }
-    my %suite_skiplist = $suites{$suite}->skip_combinations();
+
+    $suites{$suitename} = $suite;
+
+    # add suite skiplist to a global hash, so that we can check it
+    # with only one lookup
+    my %suite_skiplist = $suite->skip_combinations();
     while (my ($file, $skiplist) = each %suite_skiplist) {
       $skip_combinations{"$suitedir/$file => $_"} = 1 for (@$skiplist);
     }
   }
+  return $suites{$suitename};
 }
+
 
 # returns a pair of (suite, suitedir)
 sub find_suite_of_file($) {
@@ -247,7 +260,9 @@ sub combinations_from_file($)
   my ($filename) = @_;
   return () if @::opt_combinations or not -f $filename;
 
-  load_suite_object(find_suite_of_file($filename));
+  # check the suite object, and load its %skip_combinations
+  my $suite = load_suite_object(find_suite_of_file($filename));
+  return () if $suite->{skip}; # XXX
 
   # Read combinations file in my.cnf format
   mtr_verbose("Read combinations file");
@@ -256,7 +271,7 @@ sub combinations_from_file($)
   foreach my $group ($config->groups()) {
     next if $group->auto();
     my $comb= { name => $group->name() };
-    next if $skip_combinations{"$filename => $comb->{name}"};
+    next if $skip_combinations{"$filename => $comb->{name}"}; # XXX
     foreach my $option ( $group->options() ) {
       push(@{$comb->{comb_opt}}, $option->option());
     }
@@ -265,22 +280,40 @@ sub combinations_from_file($)
   @combs;
 }
 
+our %disabled;
+sub parse_disabled {
+  my ($filename, $suitename) = @_;
+
+  if (open(DISABLED, $filename)) {
+    while (<DISABLED>) {
+      chomp;
+      next if /^\s*#/ or /^\s*$/;
+      mtr_error("Syntax error in $filename line $.")
+        unless /^\s*(?:([-0-9A-Za-z_]+)\.)?([-0-9A-Za-z_]+)\s*:\s*(.*?)\s*$/;
+      mtr_error("Wrong suite name in $filename line $.")
+        if defined $1 and defined $suitename and $1 ne $suitename;
+      $disabled{($1 || $suitename || '') . ".$2"} = $3;
+    }
+    close DISABLED;
+  }
+}
+
 sub collect_one_suite
 {
-  my $suite= shift;  # Test suite name
+  my $suitename= shift;  # Test suite name
   my $opt_cases= shift;
   my $opt_skip_test_list= shift;
   my @cases; # Array of hash
 
-  mtr_verbose("Collecting: $suite");
+  mtr_verbose("Collecting: $suitename");
 
   my $suitedir= "$::glob_mysql_test_dir"; # Default
-  if ( $suite ne "main" )
+  if ( $suitename ne "main" )
   {
-    # Allow suite to be path to "some dir" if $suite has at least
+    # Allow suite to be path to "some dir" if $suitename has at least
     # one directory part
-    if ( -d $suite and splitdir($suite) > 1 ){
-      $suitedir= $suite;
+    if ( -d $suitename and splitdir($suitename) > 1 ){
+      $suitedir= $suitename;
       mtr_report(" - from '$suitedir'");
 
     }
@@ -294,9 +327,9 @@ sub collect_one_suite
 			      # Look in storage engine specific suite dirs
 			      "storage/*/mtr",
 			      # Look in plugin specific suite dir
-			      "plugin/$suite/tests",
+			      "plugin/$suitename/tests",
 			     ],
-			     [$suite, "mtr"]);
+			     [$suitename]);
     }
     mtr_verbose("suitedir: $suitedir");
   }
@@ -330,35 +363,20 @@ sub collect_one_suite
   mtr_verbose("testdir: $testdir");
   mtr_verbose("resdir: $resdir");
 
-  load_suite_object($suite, $suitedir);
+  my $suite = load_suite_object($suitename, $suitedir);
 
-  # ----------------------------------------------------------------------
-  # Build a hash of disabled testcases for this suite
-  # ----------------------------------------------------------------------
-  my %disabled;
-  my @disabled_collection= @{$opt_skip_test_list} if defined @{$opt_skip_test_list};
-  push (@disabled_collection, "$testdir/disabled.def");
-  for my $skip (@disabled_collection)
-  {
-    if ( open(DISABLED, $skip ) )
-    {
-      while ( <DISABLED> )
-      {
-        chomp;
-        next if /^\s*#/ or /^\s*$/;
-        mtr_error("Syntax error in $skip line $.")
-          unless /^\s*([-0-9A-Za-z_]+\.)?([-0-9A-Za-z_]+)\s*:\s*(.*?)\s*$/;
-        next if defined $1 and $1 ne "$suite.";
-        $disabled{$2}= $3;
-      }
-      close DISABLED;
-    }
-  }
+  #
+  # Read suite config files, unless it was done aleady
+  #
+  unless (defined $suite->{dir}) {
+    $suite->{dir} = $suitedir;
+    $suite->{tdir} = $testdir;
+    $suite->{rdir} = $resdir;
 
-  # ----------------------------------------------------------------------
-  # Read combinations for this suite
-  # ----------------------------------------------------------------------
-  {
+    # disabled.def
+    parse_disabled("$testdir/disabled.def", $suitename);
+
+    # combinations
     if (@::opt_combinations)
     {
       # take the combination from command-line
@@ -367,26 +385,20 @@ sub collect_one_suite
 	my $comb= {};
 	$comb->{name}= $combination;
 	push(@{$comb->{comb_opt}}, $combination);
-        push @{$suite_combinations{$suite}}, $comb;
+        push @{$suite->{combinations}}, $comb;
       }
     }
     else
     {
       my @combs = combinations_from_file("$suitedir/combinations");
-      $suite_combinations{$suite} = [ @combs ];
+      $suite->{combinations} = [ @combs ];
     }
+
+    # suite.opt
+    $suite->{opts} = [ opts_from_file("$suitedir/suite.opt") ];
   }
 
-  # Read suite.opt file
-  my $suite_opts= [ opts_from_file("$testdir/suite.opt") ];
-  $suite_opts = [ opts_from_file("$suitedir/suite.opt") ] unless @$suite_opts;
-
-  my @case_names;
-  {
-    my $s= $suites{$suite};
-    $s = 'My::Suite' unless ref $s;
-    @case_names= $s->list_cases($testdir);
-  }
+  my @case_names= $suite->list_cases($testdir);
 
   if ( @$opt_cases )
   {
@@ -399,10 +411,9 @@ sub collect_one_suite
       my ($sname, $tname)= split_testname($test_name_spec);
 
       # Check correct suite if suitename is defined
-      next if (defined $sname and $suite ne $sname);
+      next if (defined $sname and $suitename ne $sname);
 
-      # Extension was specified, check if the test exists
-      if ( ! $case_names{$tname})
+      if (not $case_names{$tname})
       {
         # This is only an error if suite was specified, otherwise it
         # could exist in another suite
@@ -420,8 +431,7 @@ sub collect_one_suite
     # Skip tests that do not match the --do-test= filter
     next if ($do_test_reg and not $_ =~ /$do_test_reg/o);
 
-    push(@cases, collect_one_test_case($suitedir, $testdir, $resdir,
-                                       $suite, $_, \%disabled, $suite_opts));
+    push @cases, collect_one_test_case($suitename, $_);
   }
 
   #  Return empty list if no testcases found
@@ -582,34 +592,32 @@ sub make_combinations($@)
 ##############################################################################
 
 sub collect_one_test_case {
-  my $suitedir=   shift;
-  my $testdir=    shift;
-  my $resdir=     shift;
   my $suitename=  shift;
   my $tname=      shift;
-  my $disabled=   shift;
-  my $suite_opts= shift;
 
-  my $local_default_storage_engine= $default_storage_engine;
-  my $filename=   "$testdir/$tname.test";
+  my $name     = "$suitename.$tname";
+  my $suite    =  $suites{$suitename};
+  my $suitedir =  $suite->{dir};
+  my $testdir  =  $suite->{tdir};
+  my $resdir   =  $suite->{rdir};
+  my $filename = "$testdir/${tname}.test";
 
   # ----------------------------------------------------------------------
   # Set defaults
   # ----------------------------------------------------------------------
   my $tinfo= My::Test->new
     (
-     name          => "$suitename.$tname",
+     name          => $name,
      shortname     => $tname,
      path          => $filename,
-     suite         => $suites{$suitename},
-     master_opt    => [ @$suite_opts ],
-     slave_opt     => [ @$suite_opts ],
+     suite         => $suite,
+     master_opt    => [ @{$suite->{opts}} ],
+     slave_opt     => [ @{$suite->{opts}} ],
     );
 
   # ----------------------------------------------------------------------
   # Skip some tests but include in list, just mark them as skipped
   # ----------------------------------------------------------------------
-  my $name= $suitename . ".$tname";
   if ( $skip_test_reg and ($tname =~ /$skip_test_reg/o ||
                            $name =~ /$skip_test/o))
   {
@@ -620,9 +628,10 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   # Check for disabled tests
   # ----------------------------------------------------------------------
-  if ($disabled->{$tname})
+  my $disable = $disabled{".$tname"} || $disabled{$name};
+  if ($disable)
   {
-    $tinfo->{'comment'}= $disabled->{$tname};
+    $tinfo->{comment}= $disable;
     if ( $enable_disabled )
     {
       # User has selected to run all disabled tests
@@ -635,6 +644,12 @@ sub collect_one_test_case {
       $tinfo->{'disable'}= 1;   # Sub type of 'skip'
       return $tinfo;
     }
+  }
+
+  if ($suite->{skip}) {
+    $tinfo->{skip}= 1;
+    $tinfo->{comment}= $suite->{skip};
+    return $tinfo;
   }
 
   # ----------------------------------------------------------------------
@@ -684,23 +699,6 @@ sub collect_one_test_case {
 
   my ($master_opts, $slave_opts)=
     tags_from_test_file($tinfo, $filename, $suitedir);
-
-  # Get default storage engine from suite.opt file
-
-  if (defined $suite_opts &&
-      "@$suite_opts" =~ "default-storage-engine=\s*([^\s]*)")
-  {
-    $local_default_storage_engine= $1;
-  }
-
-  if ( defined $local_default_storage_engine )
-  {
-    # Different default engine is used
-    # tag test to require that engine
-    $tinfo->{'ndb_test'}= 1
-      if ( $local_default_storage_engine =~ /^ndb/i );
-
-  }
 
   if ( $tinfo->{'big_test'} and ! $::opt_big_test )
   {
@@ -802,13 +800,6 @@ sub collect_one_test_case {
     $tinfo->{template_path}= $config;
   }
 
-  if (not ref $suites{$suitename})
-  {
-    $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= $suites{$suitename};
-    return $tinfo;
-  }
-
   # ----------------------------------------------------------------------
   # Append mysqld extra options to master and slave, as appropriate
   # ----------------------------------------------------------------------
@@ -819,8 +810,7 @@ sub collect_one_test_case {
   process_opts($tinfo, 'slave_opt');
 
   my @cases = ($tinfo);
-  for my $comb ($suite_combinations{$suitename},
-                @{$file_combinations{$filename}})
+  for my $comb ($suite->{combinations}, @{$file_combinations{$filename}})
   {
     @cases = map make_combinations($_, @{$comb}), @cases;
   }

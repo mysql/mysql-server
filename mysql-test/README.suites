@@ -29,8 +29,7 @@ Usually, using my.cnf template (see below) is preferrable.
 But command line options (.opt files and combinations file) get special
 treatment - they can have special options that affect mtr behavior. cnf
 files cannot. Special options are
- --timezone, --plugin-load, --result-file, --config-file-template,
- --default-time-zone, --force-restart
+ --timezone, --plugin-load, --default-time-zone,
 
 In particular, all --plugin-load instances on the command line (on the
 combined command line, assembled from different .opt and combinations
