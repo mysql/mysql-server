@@ -1953,7 +1953,7 @@ row_ins_duplicate_error_in_clust(
 
 	UT_NOT_USED(mtr);
 
-	ut_a(dict_index_is_clust(cursor->index));
+	ut_ad(dict_index_is_clust(cursor->index));
 	ut_ad(dict_index_is_unique(cursor->index));
 
 	/* NOTE: For unique non-clustered indexes there may be any number
@@ -2063,8 +2063,8 @@ row_ins_duplicate_error_in_clust(
 			}
 		}
 
-		ut_a(!dict_index_is_clust(cursor->index));
 		/* This should never happen */
+		ut_error;
 	}
 
 	err = DB_SUCCESS;
