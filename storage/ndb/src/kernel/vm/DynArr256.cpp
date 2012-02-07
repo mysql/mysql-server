@@ -357,8 +357,7 @@ void
 DynArr256::init(ReleaseIterator &iter)
 {
   iter.m_sz = 1;
-  iter.m_pos = 0;
-  iter.m_ptr_i[0] = RNIL;
+  iter.m_pos = ~(~0U << (8 * m_head.m_sz));
   iter.m_ptr_i[1] = m_head.m_ptr_i;
   iter.m_ptr_i[2] = RNIL;
   iter.m_ptr_i[3] = RNIL;
@@ -373,74 +372,83 @@ DynArr256::init(ReleaseIterator &iter)
  * 2 - no data
  */
 Uint32
-DynArr256::release(ReleaseIterator &iter, Uint32 * retptr)
+DynArr256::truncate(Uint32 keep_pos, ReleaseIterator& iter, Uint32* ptrVal)
 {
-  Uint32 sz = iter.m_sz;
-  Uint32 ptrI = iter.m_ptr_i[sz];
-  Uint32 page_no = ptrI >> DA256_BITS;
-  Uint32 page_idx = ptrI & DA256_MASK;
   Uint32 type_id = (~m_pool.m_type_id) & 0xFFFF;
   DA256Page * memroot = m_pool.m_memroot;
-  DA256Page * page = memroot + page_no;
 
-  if (ptrI != RNIL)
+  for (;;)
   {
-    Uint32 p0 = iter.m_pos & 255;
-    for (; p0<256; p0++)
+    if (iter.m_sz == 0 ||
+        iter.m_pos < keep_pos ||
+        m_head.m_sz == 0)
     {
-      Uint32 *retVal;
-
-      if (unlikely(! page->get(page_idx, p0, type_id, retVal)))
-	goto err;
-
-      Uint32 val = *retVal;
-      
-      if (sz == m_head.m_sz)
-      {
-	* retptr = val;
-	p0++;
-	if (p0 != 256)
-	{
-	  /**
-	   * Move next
-	   */
-	  iter.m_pos &= ~(Uint32)255;
-	  iter.m_pos |= p0;
-	}
-	else
-	{
-	  /**
-	   * Move up
-	   */
-	  m_pool.release(ptrI);
-	  iter.m_sz --;
-	  iter.m_pos >>= 8;
-	}
-	return 1;
-      }
-      else if (val != RNIL)
-      {
-	iter.m_sz++;
-	iter.m_ptr_i[iter.m_sz] = val;
-	iter.m_pos = (p0 << 8);
-	* retVal = RNIL;
-	return 2;
-      }
+      return 0;
     }
-    
-    assert(p0 == 256);
-    m_pool.release(ptrI);
-    iter.m_sz --;
-    iter.m_pos >>= 8;
-    return 2;
+
+    Uint32* refPtr;
+    Uint32 ptrI = iter.m_ptr_i[iter.m_sz];
+    Uint32 page_no = ptrI >> DA256_BITS;
+    Uint32 page_idx = (ptrI & DA256_MASK) ;
+    DA256Page* page = memroot + page_no;
+    Uint32 node_index = (iter.m_pos >> (8 * (m_head.m_sz - iter.m_sz))) & 255;
+    bool is_value = (iter.m_sz == m_head.m_sz);
+
+    if (unlikely(! page->get(page_idx, node_index, type_id, refPtr)))
+    {
+      require(false);
+    }
+    assert(refPtr != NULL);
+    *ptrVal = *refPtr;
+
+    if (iter.m_sz == 1 &&
+        (iter.m_pos >> (8 * (m_head.m_sz - iter.m_sz))) == 0)
+    {
+      assert(iter.m_ptr_i[iter.m_sz] == m_head.m_ptr_i);
+      assert(iter.m_ptr_i[iter.m_sz + 1] == RNIL);
+      iter.m_ptr_i[iter.m_sz] = is_value ? RNIL : *refPtr;
+      m_pool.release(m_head.m_ptr_i);
+      m_head.m_sz --;
+      m_head.m_ptr_i = iter.m_ptr_i[iter.m_sz];
+      return is_value ? 1 : 2;
+    }
+
+    if (is_value || iter.m_ptr_i[iter.m_sz + 1] == *refPtr)
+    { // sz--
+      Uint32 ptrI = *refPtr;
+      if (!is_value)
+      {
+        if (ptrI != RNIL)
+        {
+          m_pool.release(ptrI);
+          *refPtr = iter.m_ptr_i[iter.m_sz+1] = RNIL;
+        }
+      }
+      if (node_index == 0)
+      {
+        iter.m_sz --;
+      }
+      else if (!is_value && ptrI == RNIL)
+      {
+        assert((~iter.m_pos & ~(0xffffffff << (8 * (m_head.m_sz - iter.m_sz)))) == 0);
+        iter.m_pos -= 1U << (8 * (m_head.m_sz - iter.m_sz));
+      }
+      else
+      {
+        assert((iter.m_pos & ~(0xffffffff << (8 * (m_head.m_sz - iter.m_sz)))) == 0);
+        iter.m_pos --;
+      }
+      if (is_value)
+        return 1;
+    }
+    else
+    { // sz++
+      assert(iter.m_ptr_i[iter.m_sz + 1] == RNIL);
+      iter.m_sz ++;
+      iter.m_ptr_i[iter.m_sz] = *refPtr;
+      return 2;
+    }
   }
-  
-  new (&m_head) Head();
-  return 0;
-  
-err:
-  require(false);
-  return false;
 }
 
 static
