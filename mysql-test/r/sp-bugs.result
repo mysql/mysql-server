@@ -110,3 +110,12 @@ DROP TABLE db1.t1;
 DROP DATABASE db1;
 DROP DATABASE db2;
 End of 5.1 tests
+#
+# BUG#13489996 valgrind:conditional jump or move depends on
+# uninitialised values-field_blob
+#
+CREATE FUNCTION sf() RETURNS BLOB RETURN "";
+SELECT sf();
+sf()
+
+DROP FUNCTION sf;

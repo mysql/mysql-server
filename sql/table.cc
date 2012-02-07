@@ -930,8 +930,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     share->table_charset= default_charset_info;
   }
   share->db_record_offset= 1;
-  if (db_create_options & HA_OPTION_LONG_BLOB_PTR)
-    share->blob_ptr_size= portable_sizeof_char_ptr;
   /* Set temporarily a good value for db_low_byte_first */
   share->db_low_byte_first= test(legacy_db_type != DB_TYPE_ISAM);
   error=4;
