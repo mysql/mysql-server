@@ -159,6 +159,7 @@ BDB_DONTRUN_TESTS = \
 	mvcc-create-table \
         mvcc-many-committed \
 	perf_checkpoint_var \
+	perf_cursor_nop \
 	perf_malloc_free \
 	perf_nop \
 	perf_ptquery \
