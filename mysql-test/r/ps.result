@@ -1,3 +1,4 @@
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 drop table if exists t1,t2,t3,t4;
 drop database if exists client_test_db;
 create table t1
@@ -230,8 +231,12 @@ execute stmt1;
 execute stmt1;
 prepare stmt1 from "create table t1 select 1 as i";
 execute stmt1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. CREATE TABLE... SELECT...  on a table with an auto-increment column is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are inserted. This order cannot be predicted and may differ on master and the slave.
 drop table t1;
 execute stmt1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. CREATE TABLE... SELECT...  on a table with an auto-increment column is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are inserted. This order cannot be predicted and may differ on master and the slave.
 prepare stmt1 from "insert into t1 select i from t1";
 execute stmt1;
 execute stmt1;
@@ -1713,6 +1718,8 @@ drop tables t1;
 prepare stmt from "create table t1 select ?";
 set @a=1.0;
 execute stmt using @a;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. CREATE TABLE... SELECT...  on a table with an auto-increment column is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are inserted. This order cannot be predicted and may differ on master and the slave.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
