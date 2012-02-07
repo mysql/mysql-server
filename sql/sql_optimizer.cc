@@ -377,11 +377,9 @@ JOIN::optimize()
   }
 
   if (const_table_map != found_const_table_map &&
-      !(select_options & SELECT_DESCRIBE) &&
-      (!conds ||
-       !(conds->used_tables() & RAND_TABLE_BIT) ||
-       select_lex->master_unit() == &thd->lex->unit)) // upper level SELECT
+      !(select_options & SELECT_DESCRIBE))
   {
+    // There is at least one empty const table
     zero_result_cause= "no matching row in const table";
     DBUG_PRINT("error",("Error: %s", zero_result_cause));
     goto setup_subq_exit;
