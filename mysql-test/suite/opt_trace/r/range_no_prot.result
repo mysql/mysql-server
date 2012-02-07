@@ -4008,13 +4008,11 @@ EXPLAIN SELECT 1 FROM
                         "chosen": true
                       } /* best_covering_index_scan */,
                       "setup_range_conditions": [
-                        {
-                          "impossible_condition": {
-                            "cause": "comparison_with_null_always_false"
-                          } /* impossible_condition */
-                        }
                       ] /* setup_range_conditions */,
-                      "impossible_range": true
+                      "group_index_range": {
+                        "chosen": false,
+                        "cause": "not_single_table"
+                      } /* group_index_range */
                     } /* range_analysis */
                   } /* rows_estimation_per_outer_row */
                 },
@@ -4042,13 +4040,11 @@ EXPLAIN SELECT 1 FROM
                         "chosen": true
                       } /* best_covering_index_scan */,
                       "setup_range_conditions": [
-                        {
-                          "impossible_condition": {
-                            "cause": "comparison_with_null_always_false"
-                          } /* impossible_condition */
-                        }
                       ] /* setup_range_conditions */,
-                      "impossible_range": true
+                      "group_index_range": {
+                        "chosen": false,
+                        "cause": "not_single_table"
+                      } /* group_index_range */
                     } /* range_analysis */
                   } /* rows_estimation_per_outer_row */
                 }
@@ -4359,13 +4355,11 @@ EXPLAIN SELECT 1 FROM
                         "chosen": true
                       } /* best_covering_index_scan */,
                       "setup_range_conditions": [
-                        {
-                          "impossible_condition": {
-                            "cause": "comparison_with_null_always_false"
-                          } /* impossible_condition */
-                        }
                       ] /* setup_range_conditions */,
-                      "impossible_range": true
+                      "group_index_range": {
+                        "chosen": false,
+                        "cause": "not_single_table"
+                      } /* group_index_range */
                     } /* range_analysis */
                   } /* rows_estimation_per_outer_row */
                 }
