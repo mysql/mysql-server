@@ -325,6 +325,10 @@ public:
   uchar     *record_pointers;    /* If sorted in memory */
   ha_rows   found_records;      /* How many records in sort */
 
+  /** Sort filesort_buffer */
+  void sort_buffer(Sort_param *param, uint count)
+  { filesort_buffer.sort_buffer(param, count); }
+
   /**
      Accessors for Filesort_buffer (which @c).
   */
