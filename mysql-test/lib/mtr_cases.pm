@@ -337,46 +337,23 @@ sub collect_one_suite
   # ----------------------------------------------------------------------
   my %disabled;
   my @disabled_collection= @{$opt_skip_test_list} if defined @{$opt_skip_test_list};
-  unshift (@disabled_collection, "$testdir/disabled.def");
+  push (@disabled_collection, "$testdir/disabled.def");
   for my $skip (@disabled_collection)
+  {
+    if ( open(DISABLED, $skip ) )
     {
-      if ( open(DISABLED, $skip ) )
-	{
-	  # $^O on Windows considered not generic enough
-	  my $plat= (IS_WINDOWS) ? 'windows' : $^O;
-
-	  while ( <DISABLED> )
-	    {
-	      chomp;
-	      #diasble the test case if platform matches
-	      if ( /\@/ )
-		{
-		  if ( /\@$plat/ )
-		    {
-		      /^\s*(\S+)\s*\@$plat.*:\s*(.*?)\s*$/ ;
-		      $disabled{$1}= $2 if not exists $disabled{$1};
-		    }
-		  elsif ( /\@!(\S*)/ )
-		    {
-		      if ( $1 ne $plat)
-			{
-			  /^\s*(\S+)\s*\@!.*:\s*(.*?)\s*$/ ;
-			  $disabled{$1}= $2 if not exists $disabled{$1};
-			}
-		    }
-		}
-	      elsif ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
-		{
-		  chomp;
-		  if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
-		    {
-		      $disabled{$1}= $2 if not exists $disabled{$1};
-		    }
-		}
-	    }
-	  close DISABLED;
-	}
+      while ( <DISABLED> )
+      {
+        chomp;
+        next if /^\s*#/ or /^\s*$/;
+        mtr_error("Syntax error in $skip line $.")
+          unless /^\s*([-0-9A-Za-z_]+\.)?([-0-9A-Za-z_]+)\s*:\s*(.*?)\s*$/;
+        next if defined $1 and $1 ne "$suite.";
+        $disabled{$2}= $3;
+      }
+      close DISABLED;
     }
+  }
 
   # ----------------------------------------------------------------------
   # Read combinations for this suite
@@ -444,8 +421,7 @@ sub collect_one_suite
     next if ($do_test_reg and not $_ =~ /$do_test_reg/o);
 
     push(@cases, collect_one_test_case($suitedir, $testdir, $resdir,
-                                       $suite, $_, "$_.test", \%disabled,
-                                       $suite_opts));
+                                       $suite, $_, \%disabled, $suite_opts));
   }
 
   #  Return empty list if no testcases found
@@ -582,18 +558,12 @@ sub make_combinations($@)
   foreach my $comb (@combinations)
   {
     # Copy test options
-    my $new_test= My::Test->new();
-    while (my ($key, $value) = each(%$test)) {
-      if (ref $value eq "ARRAY") {
-        push(@{$new_test->{$key}}, @$value);
-      } else {
-        $new_test->{$key}= $value;
-      }
-    }
+    my $new_test= $test->copy();
     
-    # Append the combination options to master_opt and slave_opt
-    push(@{$new_test->{master_opt}}, @{$comb->{comb_opt}});
-    push(@{$new_test->{slave_opt}}, @{$comb->{comb_opt}});
+    # Prepend the combination options to master_opt and slave_opt
+    # (on the command line combinations go *before* .opt files)
+    unshift @{$new_test->{master_opt}}, @{$comb->{comb_opt}};
+    unshift @{$new_test->{slave_opt}}, @{$comb->{comb_opt}};
 
     # Add combination name short name
     push @{$new_test->{combinations}}, $comb->{name};
@@ -617,11 +587,11 @@ sub collect_one_test_case {
   my $resdir=     shift;
   my $suitename=  shift;
   my $tname=      shift;
-  my $filename=   shift;
   my $disabled=   shift;
   my $suite_opts= shift;
 
   my $local_default_storage_engine= $default_storage_engine;
+  my $filename=   "$testdir/$tname.test";
 
   # ----------------------------------------------------------------------
   # Set defaults
@@ -630,14 +600,16 @@ sub collect_one_test_case {
     (
      name          => "$suitename.$tname",
      shortname     => $tname,
-     path          => "$testdir/$filename",
+     path          => $filename,
      suite         => $suites{$suitename},
+     master_opt    => [ @$suite_opts ],
+     slave_opt     => [ @$suite_opts ],
     );
 
   # ----------------------------------------------------------------------
   # Skip some tests but include in list, just mark them as skipped
   # ----------------------------------------------------------------------
-  my $name= basename($suitename) . ".$tname";
+  my $name= $suitename . ".$tname";
   if ( $skip_test_reg and ($tname =~ /$skip_test_reg/o ||
                            $name =~ /$skip_test/o))
   {
@@ -648,25 +620,9 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   # Check for disabled tests
   # ----------------------------------------------------------------------
-  my $marked_as_disabled= 0;
-  if ( $disabled->{$tname} or $disabled->{"$suitename.$tname"} )
+  if ($disabled->{$tname})
   {
-    # Test was marked as disabled in suites disabled.def file
-    $marked_as_disabled= 1;
-    # Test name may have been disabled with or without suite name part
-    $tinfo->{'comment'}= $disabled->{$tname} || 
-                         $disabled->{"$suitename.$tname"};
-  }
-
-  my $disabled_file= "$testdir/$tname.disabled";
-  if ( -f $disabled_file )
-  {
-    $marked_as_disabled= 1;
-    $tinfo->{'comment'}= mtr_fromfile($disabled_file);
-  }
-
-  if ( $marked_as_disabled )
-  {
+    $tinfo->{'comment'}= $disabled->{$tname};
     if ( $enable_disabled )
     {
       # User has selected to run all disabled tests
@@ -680,12 +636,6 @@ sub collect_one_test_case {
       return $tinfo;
     }
   }
-
-  # ----------------------------------------------------------------------
-  # Append suite extra options to both master and slave
-  # ----------------------------------------------------------------------
-  push(@{$tinfo->{'master_opt'}}, @$suite_opts);
-  push(@{$tinfo->{'slave_opt'}}, @$suite_opts);
 
   # ----------------------------------------------------------------------
   # Check for test specific config file
@@ -732,7 +682,6 @@ sub collect_one_test_case {
     }
   }
 
-  my $filename = "$testdir/${tname}.test";
   my ($master_opts, $slave_opts)=
     tags_from_test_file($tinfo, $filename, $suitedir);
 
@@ -923,9 +872,9 @@ my $tags_map= {'big_test' => ['big_test', 1],
 my $tags_regex_string= join('|', keys %$tags_map);
 my $tags_regex= qr:include/($tags_regex_string)\.inc:o;
 
-my $file_to_tags= { };
-my $file_to_master_opts= { };
-my $file_to_slave_opts= { };
+my %file_to_tags;
+my %file_to_master_opts;
+my %file_to_slave_opts;
 
 # Get various tags from a file, recursively scanning also included files.
 # And get options from .opt file, also recursively for included files.
@@ -938,7 +887,7 @@ my $file_to_slave_opts= { };
 sub get_tags_from_file($$) {
   my ($file, $suitedir)= @_;
 
-  return @{$file_to_tags->{$file}} if exists $file_to_tags->{$file};
+  return @{$file_to_tags{$file}} if exists $file_to_tags{$file};
 
   my $F= IO::File->new($file)
     or mtr_error("can't open file \"$file\": $!");
@@ -978,8 +927,8 @@ sub get_tags_from_file($$) {
         if (-e $sourced_file)
         {
           push @$tags, get_tags_from_file($sourced_file, $suitedir);
-          push @$master_opts, @{$file_to_master_opts->{$sourced_file}};
-          push @$slave_opts, @{$file_to_slave_opts->{$sourced_file}};
+          push @$master_opts, @{$file_to_master_opts{$sourced_file}};
+          push @$slave_opts, @{$file_to_slave_opts{$sourced_file}};
           push @combinations, @{$file_combinations{$sourced_file}};
           last;
         }
@@ -999,9 +948,9 @@ sub get_tags_from_file($$) {
   push @combinations, [ combinations_from_file("$file_no_ext.combinations") ];
 
   # Save results so we can reuse without parsing if seen again.
-  $file_to_tags->{$file}= $tags;
-  $file_to_master_opts->{$file}= $master_opts;
-  $file_to_slave_opts->{$file}= $slave_opts;
+  $file_to_tags{$file}= $tags;
+  $file_to_master_opts{$file}= $master_opts;
+  $file_to_slave_opts{$file}= $slave_opts;
   $file_combinations{$file}= [ uniq(@combinations) ];
   return @{$tags};
 }
@@ -1017,7 +966,7 @@ sub tags_from_test_file {
   {
     $tinfo->{$_->[0]}= $_->[1];
   }
-  return ($file_to_master_opts->{$file}, $file_to_slave_opts->{$file});
+  return ($file_to_master_opts{$file}, $file_to_slave_opts{$file});
 }
 
 sub unspace {

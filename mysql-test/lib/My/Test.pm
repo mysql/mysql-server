@@ -35,6 +35,19 @@ sub new {
   return $self;
 }
 
+sub copy {
+  my $self= shift;
+  my $copy= My::Test->new();
+  while (my ($key, $value) = each(%$self)) {
+    if (ref $value eq "ARRAY") {
+      push(@{$copy->{$key}}, @$value);
+    } else {
+      $copy->{$key}= $value;
+    }
+  }
+  $copy;
+}
+
 sub fullname {
   my ($self)= @_;
   $self->{name} . (defined $self->{combinations}
