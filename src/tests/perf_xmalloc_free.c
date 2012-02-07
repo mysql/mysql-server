@@ -14,40 +14,12 @@
 
 #include "threaded_stress_test_helpers.h"
 
-//
-// This test is a form of stress that does operations on a single dictionary:
-// We create a dictionary bigger than the cachetable (around 4x greater).
-// Then, we spawn a bunch of pthreads that do the following:
-//  - scan dictionary forward with bulk fetch
-//  - scan dictionary forward slowly
-//  - scan dictionary backward with bulk fetch
-//  - scan dictionary backward slowly
-//  - Grow the dictionary with insertions
-//  - do random point queries into the dictionary
-// With the small cachetable, this should produce quite a bit of churn in reading in and evicting nodes.
-// If the test runs to completion without crashing, we consider it a success. It also tests that snapshots
-// work correctly by verifying that table scans sum their vals to 0.
-//
-// This does NOT test:
-//  - splits and merges
-//  - multiple DBs
-//
-// Variables that are interesting to tweak and run:
-//  - small cachetable
-//  - number of elements
-//
+// The intent of this test is to measure the throughput of toku_malloc and toku_free
+// with multiple threads.
 
 static void
 stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
     int n = cli_args->num_elements;
-    //
-    // the threads that we want:
-    //   - some threads constantly updating random values
-    //   - one thread doing table scan with bulk fetch
-    //   - one thread doing table scan without bulk fetch
-    //   - some threads doing random point queries
-    //
-
     if (verbose) printf("starting creation of pthreads\n");
     const int num_threads = cli_args->num_ptquery_threads;
     struct arg myargs[num_threads];
