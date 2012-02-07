@@ -73,7 +73,6 @@
 
 /* Some portable defines */
 
-#define portable_sizeof_char_ptr 8
 #define STRING_BUFFER_USUAL_SIZE 80
 
 /* Memory allocated when parsing a statement / saving a statement */
