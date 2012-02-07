@@ -212,10 +212,42 @@ sub split_testname {
   mtr_error("Illegal format of test name: $test_name");
 }
 
+my %suite_combinations;
+my %skip_combinations;
+my %file_combinations;
+
+sub load_suite_object {
+  my ($suite, $suitedir) = @_;
+  unless ($suites{$suite}) {
+    if (-f "$suitedir/suite.pm") {
+      $suites{$suite} = do "$suitedir/suite.pm";
+      return unless ref $suites{$suite};
+    } else {
+      $suites{$suite} = $default_suite_object;
+    }
+    my %suite_skiplist = $suites{$suite}->skip_combinations();
+    while (my ($file, $skiplist) = each %suite_skiplist) {
+      $skip_combinations{"$suitedir/$file => $_"} = 1 for (@$skiplist);
+    }
+  }
+}
+
+# returns a pair of (suite, suitedir)
+sub find_suite_of_file($) {
+  my ($file) = @_;
+  return ($2, $1)
+    if $file =~ m@^(.*/(?:storage|plugin)/\w+/mysql-test/(\w+))/@;
+  return ($2, $1) if $file =~ m@^(.*/mysql-test/suite/(\w+))/@;
+  return ('main', $1) if $file =~ m@^(.*/mysql-test)/@;
+  mtr_error("Cannot determine suite for $file");
+}
+
 sub combinations_from_file($)
 {
   my ($filename) = @_;
   return () if @::opt_combinations or not -f $filename;
+
+  load_suite_object(find_suite_of_file($filename));
 
   # Read combinations file in my.cnf format
   mtr_verbose("Read combinations file");
@@ -224,6 +256,7 @@ sub combinations_from_file($)
   foreach my $group ($config->groups()) {
     next if $group->auto();
     my $comb= { name => $group->name() };
+    next if $skip_combinations{"$filename => $comb->{name}"};
     foreach my $option ( $group->options() ) {
       push(@{$comb->{comb_opt}}, $option->option());
     }
@@ -231,9 +264,6 @@ sub combinations_from_file($)
   }
   @combs;
 }
-
-my $suite_combinations = { };
-my $file_combinations = { };
 
 sub collect_one_suite
 {
@@ -300,16 +330,7 @@ sub collect_one_suite
   mtr_verbose("testdir: $testdir");
   mtr_verbose("resdir: $resdir");
 
-  #
-  # Load the Suite object
-  #
-  unless ($suites{$suite}) {
-    if (-f "$suitedir/suite.pm") {
-      $suites{$suite} = do "$suitedir/suite.pm";
-    } else {
-      $suites{$suite} = $default_suite_object;
-    }
-  }
+  load_suite_object($suite, $suitedir);
 
   # ----------------------------------------------------------------------
   # Build a hash of disabled testcases for this suite
@@ -369,15 +390,13 @@ sub collect_one_suite
 	my $comb= {};
 	$comb->{name}= $combination;
 	push(@{$comb->{comb_opt}}, $combination);
-        push @{$suite_combinations->{$suite}}, $comb;
+        push @{$suite_combinations{$suite}}, $comb;
       }
     }
     else
     {
       my @combs = combinations_from_file("$suitedir/combinations");
-      my %env_filter = map { $_ => 1 } split /:/, $ENV{"\U${suite}_COMBINATIONS"};
-      @combs = grep $env_filter{$_->{name}}, @combs if %env_filter;
-      $suite_combinations->{$suite} = [ @combs ];
+      $suite_combinations{$suite} = [ @combs ];
     }
   }
 
@@ -851,8 +870,8 @@ sub collect_one_test_case {
   process_opts($tinfo, 'slave_opt');
 
   my @cases = ($tinfo);
-  for my $comb ($suite_combinations->{$suitename},
-                @{$file_combinations->{$filename}})
+  for my $comb ($suite_combinations{$suitename},
+                @{$file_combinations{$filename}})
   {
     @cases = map make_combinations($_, @{$comb}), @cases;
   }
@@ -961,7 +980,7 @@ sub get_tags_from_file($$) {
           push @$tags, get_tags_from_file($sourced_file, $suitedir);
           push @$master_opts, @{$file_to_master_opts->{$sourced_file}};
           push @$slave_opts, @{$file_to_slave_opts->{$sourced_file}};
-          push @combinations, @{$file_combinations->{$sourced_file}};
+          push @combinations, @{$file_combinations{$sourced_file}};
           last;
         }
       }
@@ -983,7 +1002,7 @@ sub get_tags_from_file($$) {
   $file_to_tags->{$file}= $tags;
   $file_to_master_opts->{$file}= $master_opts;
   $file_to_slave_opts->{$file}= $slave_opts;
-  $file_combinations->{$file}= [ uniq(@combinations) ];
+  $file_combinations{$file}= [ uniq(@combinations) ];
   return @{$tags};
 }
 

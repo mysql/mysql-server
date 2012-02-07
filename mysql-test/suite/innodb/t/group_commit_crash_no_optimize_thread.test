@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 # Testing group commit by crashing a few times.
 # Test adapted from the Facebook patch: lp:mysqlatfacebook
 --source include/not_embedded.inc

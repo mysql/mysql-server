@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 
 let collation=utf32_bin;
 --source include/have_collation.inc

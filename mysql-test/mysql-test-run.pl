@@ -3715,6 +3715,7 @@ sub do_before_run_mysqltest($)
 {
   my $tinfo= shift;
   my $resfile= $tinfo->{result_file};
+  return unless defined $resfile;
 
   # Remove old files produced by mysqltest
   die "unsupported result file name $resfile, stoping" unless

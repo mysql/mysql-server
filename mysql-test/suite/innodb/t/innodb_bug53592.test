@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 # Testcase for Bug #53592 - "crash replacing duplicates into
 # table after fast alter table added unique key". The fix is to make
 # sure index number lookup should go through "index translation table".

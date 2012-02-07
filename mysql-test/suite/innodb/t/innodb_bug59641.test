@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 # Bug #59641 Prepared XA transaction causes shutdown hang after a crash
 
 -- source include/not_embedded.inc

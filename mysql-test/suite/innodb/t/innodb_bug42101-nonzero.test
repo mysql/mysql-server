@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug#42101  	Race condition in innodb_commit_concurrency
 # http://bugs.mysql.com/42101

@@ -5,6 +5,7 @@ package My::Suite;
 
 sub config_files { () }
 sub servers { () }
+sub skip_combinations { () }
 
 sub list_cases {
   my ($self, $testdir) = @_;

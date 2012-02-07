@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 # This is the test case for bug #53756. Alter table operation could
 # leave a deleted record for the temp table (later renamed to the altered
 # table) in the SYS_TABLES secondary index, we should ignore this row and

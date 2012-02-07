@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # http://bugs.mysql.com/53046
 # dict_update_statistics_low can still be run concurrently on same table

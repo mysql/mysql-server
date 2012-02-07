@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 
 --echo #
 --echo # Bug #40113: Embedded SELECT inside UPDATE or DELETE can timeout 

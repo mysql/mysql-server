@@ -1,6 +1,7 @@
 --source include/not_embedded.inc
 --source include/have_query_cache.inc
 --source include/have_debug_sync.inc
+--source include/long_test.inc
 
 #
 # Bug #30887 Server crashes on SET GLOBAL query_cache_size=0

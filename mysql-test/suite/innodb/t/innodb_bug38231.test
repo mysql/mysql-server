@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug#38231 Innodb crash in lock_reset_all_on_table() on TRUNCATE + LOCK / UNLOCK
 # http://bugs.mysql.com/38231

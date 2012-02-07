@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug #56716 InnoDB locks a record gap without locking the table
 #

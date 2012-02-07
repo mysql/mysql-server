@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug #57904 Missing constraint from information schema REFERENTIAL_CONSTRAINTS table
 #

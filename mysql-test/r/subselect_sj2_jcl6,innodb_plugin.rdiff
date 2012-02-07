@@ -1,0 +1,20 @@
+--- r/subselect_sj2_jcl6.result	2012-01-11 18:05:14.000000000 +0100
++++ r/subselect_sj2_jcl6.reject	2012-02-07 12:52:32.000000000 +0100
+@@ -81,7 +81,7 @@
+ explain select * from t3 where b in (select a from t1);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	3	
+-1	PRIMARY	t3	ref	b	b	5	test.t1.a	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
++1	PRIMARY	t3	ref	b	b	5	test.t1.a	1	
+ 2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+ select * from t3 where b in (select a from t1);
+ a	b	pk1	pk2	pk3
+@@ -107,7 +107,7 @@
+ explain select * from t3 where b in (select a from t0);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	10	
+-1	PRIMARY	t3	ref	b	b	5	test.t0.a	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
++1	PRIMARY	t3	ref	b	b	5	test.t0.a	1	
+ 2	MATERIALIZED	t0	ALL	NULL	NULL	NULL	NULL	10	Using where
+ select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
+ a	b	pk1	pk2

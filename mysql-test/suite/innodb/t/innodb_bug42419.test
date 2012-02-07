@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Testcase for InnoDB
 # Bug#42419 Server crash with "Pure virtual method called" on two concurrent connections

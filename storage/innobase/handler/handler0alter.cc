@@ -65,7 +65,7 @@ innobase_col_to_mysql(
 			*--ptr = *data++;
 		}
 
-		if (!(field->flags & UNSIGNED_FLAG)) {
+		if (!(col->prtype & DATA_UNSIGNED)) {
 			((byte*) dest)[len - 1] ^= 0x80;
 		}
 

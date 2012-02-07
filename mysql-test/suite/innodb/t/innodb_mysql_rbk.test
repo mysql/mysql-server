@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 
 #
 # Bug #41453: Assertion `m_status == DA_ERROR' failed in

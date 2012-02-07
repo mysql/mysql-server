@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Make sure http://bugs.mysql.com/41904 remains fixed.
 #

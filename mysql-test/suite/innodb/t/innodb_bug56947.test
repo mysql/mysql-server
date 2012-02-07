@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug #56947 valgrind reports a memory leak in innodb-plugin.innodb-index
 #

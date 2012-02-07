@@ -12,7 +12,7 @@
 
 # Slow test, don't run during staging part
 --source include/not_staging.inc
---source include/have_innodb.inc
+--source include/have_xtradb.inc
 
 let $engine_type= InnoDB;
 # InnoDB does not support Merge tables (affects include/index_merge1.inc)

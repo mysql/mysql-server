@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 # This is the test for bug 46000. We shall
 # block any index creation with the name of
 # "GEN_CLUST_INDEX", which is the reserved

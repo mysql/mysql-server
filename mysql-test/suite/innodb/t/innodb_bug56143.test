@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug#56143 too many foreign keys causes output of show create table to become invalid
 # http://bugs.mysql.com/56143

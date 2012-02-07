@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug #51920: InnoDB connections in lock wait ignore KILL until timeout
 #

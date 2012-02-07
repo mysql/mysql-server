@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 # Bug #40565 Update Query Results in "1 Row Affected" But Should Be "Zero Rows"
 
 create table bug40565(value decimal(4,2)) engine=innodb;

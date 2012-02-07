@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 ######## suite/innodb/t/innodb_prefix_index_liftedlimit.test ##########
 #                                                                    #
 # Testcase for worklog WL#5743: Lift the limit of index key prefixes #

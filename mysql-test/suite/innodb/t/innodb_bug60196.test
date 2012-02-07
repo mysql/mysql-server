@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 # Bug#60196 - Setting lowercase_table_names to 2 on Windows causing
 # Foreign Key problems after an engine is restarted.
 

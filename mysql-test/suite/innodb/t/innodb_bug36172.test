@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Test case for bug 36172
 #

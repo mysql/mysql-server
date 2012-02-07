@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug #56680 InnoDB may return wrong results from a case-insensitive index
 #

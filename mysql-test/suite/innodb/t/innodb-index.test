@@ -1,3 +1,4 @@
+-- source include/have_innodb.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 

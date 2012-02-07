@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug#36169 create innodb compressed table with too large row size crashed
 # http://bugs.mysql.com/36169

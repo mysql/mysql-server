@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug #24200: Provide backwards compatibility mode for 4.x "rollback on
 # transaction timeout"

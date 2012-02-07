@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 # This is the test for bug 47777. GEOMETRY
 # data is treated as BLOB data in innodb.
 # Consequently, its key value generation/storing

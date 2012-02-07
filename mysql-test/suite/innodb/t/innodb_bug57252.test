@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug#57252 disabling innobase_stats_on_metadata disables ANALYZE
 # http://bugs.mysql.com/57252

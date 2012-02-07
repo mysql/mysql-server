@@ -68,6 +68,7 @@ explain select b+0 from t1;
 select b+0 from t1;
 explain select a+0, b+0 from t1;
 select a+0, b+0 from t1;
+--replace_column 9 #
 explain select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 explain select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;

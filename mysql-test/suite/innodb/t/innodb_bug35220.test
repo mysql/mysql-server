@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug#35220 ALTER TABLE too picky on reserved word "foreign"
 # http://bugs.mysql.com/35220

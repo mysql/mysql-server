@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug#44571 InnoDB Plugin crashes on ADD INDEX
 # http://bugs.mysql.com/44571

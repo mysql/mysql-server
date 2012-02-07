@@ -8,7 +8,7 @@
 #               main code t/rowid_order_innodb.test -> include/rowid_order.inc
 #
 
---source include/have_innodb.inc
+--source include/have_xtradb.inc
 let $engine_type= InnoDB;
 
 --source include/rowid_order.inc
