@@ -239,8 +239,10 @@ prepare stmt1 from "select 1 into @var";
 execute stmt1;
 execute stmt1;
 prepare stmt1 from "create table t1 select 1 as i";
+--disable_warnings ONCE
 execute stmt1;
 drop table t1;
+--disable_warnings ONCE
 execute stmt1;
 prepare stmt1 from "insert into t1 select i from t1";
 execute stmt1;
@@ -1819,6 +1821,7 @@ drop tables t1;
 #
 prepare stmt from "create table t1 select ?";
 set @a=1.0;
+--disable_warnings ONCE
 execute stmt using @a;
 show create table t1;
 drop table t1;
