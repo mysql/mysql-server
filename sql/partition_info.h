@@ -17,6 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "partition_element.h"
+#include "sql_class.h"                        // enum_duplicates
 
 class partition_info;
 class COPY_INFO;
@@ -322,7 +323,7 @@ public:
                           bool copy_default_values,
                           MY_BITMAP *used_partitions);
   enum enum_can_prune {PRUNE_NO=0, PRUNE_DEFAULTS, PRUNE_YES};
-  enum_can_prune can_prune_insert(enum enum_duplicates duplic,
+  enum_can_prune can_prune_insert(enum_duplicates duplic,
                                   COPY_INFO &update,
                                   List<Item> &update_fields,
                                   List<Item> &fields,
