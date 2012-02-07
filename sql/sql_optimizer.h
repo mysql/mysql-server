@@ -514,5 +514,16 @@ Item *
 make_cond_for_table(Item *cond, table_map tables, table_map used_table,
                     bool exclude_expensive_cond);
 
+/**
+   Returns true if arguments are a temporal Field having no date,
+   part and a temporal expression having a date part.
+   @param  f  Field
+   @param  v  Expression
+ */
+inline bool field_time_cmp_date(const Field *f, const Item *v)
+{
+  return f->is_temporal() && !f->is_temporal_with_date() &&
+    v->is_temporal_with_date();
+}
 
 #endif /* SQL_OPTIMIZER_INCLUDED */
