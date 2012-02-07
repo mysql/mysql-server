@@ -9334,7 +9334,7 @@ void view_error_processor(THD *thd, void *data)
   prepare phase.
 */
 
-inline bool can_evaluate_item_now(THD *thd, Item *item)
+bool can_evaluate_item_now(THD *thd, Item *item)
 {
   if (item->const_item() &&
       ((thd->lex->is_query_tables_locked() ||

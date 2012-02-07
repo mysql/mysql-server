@@ -4137,7 +4137,7 @@ void mark_select_range_as_dependent(THD *thd,
                                     st_select_lex *current_sel,
                                     Field *found_field, Item *found_item,
                                     Item_ident *resolved_item);
-extern inline bool can_evaluate_item_now(THD *thd, Item *item);
+bool can_evaluate_item_now(THD *thd, Item *item);
 
 extern Cached_item *new_Cached_item(THD *thd, Item *item,
                                     bool use_result_field);
