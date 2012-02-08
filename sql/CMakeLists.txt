@@ -347,9 +347,4 @@ IF(WIN32)
     mysql_upgrade_service.cc
     COMPONENT Server)	
   TARGET_LINK_LIBRARIES(mysql_upgrade_service mysys winservice)
-ENDIF()
-
-ADD_CUSTOM_TARGET(show-dist-name
-  COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
-)
-
+ENDIF(WIN32)

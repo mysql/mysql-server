@@ -1,5 +1,7 @@
 install plugin pam soname 'auth_pam.so';
 create user test_pam identified via pam using 'mariadb_mtr';
+create user pam_test;
+grant proxy on pam_test to test_pam;
 #
 # athentication is successful, challenge/pin are ok
 # note that current_user() differts from user()
@@ -19,4 +21,5 @@ Enter: not very secret challenge
 Now, the magic number!
 PIN: ****
 drop user test_pam;
+drop user pam_test;
 uninstall plugin pam;

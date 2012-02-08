@@ -7,7 +7,7 @@
 # Even minor modifications require translation updates and such
 # changes should be coordinated with translators and reviewers.
 
-Template: mariadb-server-5.3/really_downgrade
+Template: mariadb-server-5.5/really_downgrade
 Type: boolean
 Default: false
 _Description: Really proceed with downgrade?
@@ -73,7 +73,7 @@ _Description: Unable to set password for the MariaDB "root" user
  .
  You should check the account's password after the package installation.
  .
- Please read the /usr/share/doc/mariadb-server-5.3/README.Debian file
+ Please read the /usr/share/doc/mariadb-server-5.5/README.Debian file
  for more information.
 
 Template: mysql-server/password_mismatch

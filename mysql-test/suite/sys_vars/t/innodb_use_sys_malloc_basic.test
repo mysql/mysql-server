@@ -5,11 +5,14 @@
 
 --source include/have_innodb.inc
 
+# when running with valgring, mtr uses --innodb-use-sys-malloc=0,
+# while below we want to see the default value.
+--source include/not_valgrind.inc
+
 #
 # show the global and session values;
 #
 --echo Valid values are 'ON' and 'OFF' 
-select @@global.innodb_adaptive_flushing in (0, 1);
 select @@global.innodb_use_sys_malloc;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.innodb_use_sys_malloc;

@@ -76,12 +76,12 @@ MY_ADD_TEST(ma_pagecache_single_1k)
 
 ADD_EXECUTABLE(ma_pagecache_single_8k-t ${ma_pagecache_single_src})
 SET_TARGET_PROPERTIES(ma_pagecache_single_8k-t
-        PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=8192")
+        PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=8192 -DBIG")
 MY_ADD_TEST(ma_pagecache_single_8k)
 
 ADD_EXECUTABLE(ma_pagecache_single_64k-t ${ma_pagecache_single_src})
 SET_TARGET_PROPERTIES(ma_pagecache_single_64k-t
-        PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=65536")
+        PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=65536 -DBIG")
 MY_ADD_TEST(ma_pagecache_single_64k)
 
 ADD_EXECUTABLE(ma_pagecache_consist_1k-t ${ma_pagecache_consist_src})

@@ -2293,7 +2293,11 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
       DBUG_ASSERT(buf0 < to->buf + to->len);
       *buf0=(dec1)guess;
     }
+#ifdef WORKAROUND_GCC_4_3_2_BUG
+    dcarry= *(volatile dec1 *)start1;
+#else
     dcarry= *start1;
+#endif
     start1++;
   }
   if (mod)

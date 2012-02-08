@@ -35,7 +35,7 @@ static const char *default_dbug_option;
 
 #ifdef MULTIFLUSH_TEST
 
-#define LONG_BUFFER_SIZE (16384L)
+#define LONG_BUFFER_SZ (16384L)
 #define MIN_REC_LENGTH 10
 #define SHOW_DIVIDER 20
 #define ITERATIONS 10000
@@ -45,7 +45,7 @@ static const char *default_dbug_option;
 
 #else
 
-#define LONG_BUFFER_SIZE (512L*1024L*1024L)
+#define LONG_BUFFER_SZ (512L*1024L*1024L)
 #define MIN_REC_LENGTH 30
 #define SHOW_DIVIDER 10
 #define ITERATIONS 3
@@ -54,6 +54,8 @@ static const char *default_dbug_option;
 #define FLUSHERS 0
 
 #endif
+
+#define LONG_BUFFER_SIZE (LONG_BUFFER_SZ >> (skip_big_tests ? 4 : 0))
 
 static uint number_of_writers= WRITERS;
 static uint number_of_flushers= FLUSHERS;
@@ -270,6 +272,7 @@ int main(int argc __attribute__((unused)),
   int rc;
   MY_INIT(argv[0]);
 
+  // plan read MYTAP_CONFIG so skip_big_tests will be set before using
   plan(WRITERS + FLUSHERS +
        ITERATIONS * WRITERS * 3 + FLUSH_ITERATIONS * FLUSHERS );
   /* We don't need to do physical syncs in this test */

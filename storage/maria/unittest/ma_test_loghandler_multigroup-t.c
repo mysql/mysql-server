@@ -39,6 +39,7 @@ static TRN *trn= &dummy_transaction_object;
 #define LOG_FILE_SIZE (1024L*1024L*1024L + 1024L*1024L*512)
 #define ITERATIONS 2
 #define READONLY 0
+#define BIG 1
 
 #else
 
@@ -48,6 +49,7 @@ static TRN *trn= &dummy_transaction_object;
 #define LOG_FILE_SIZE (1024L*1024L*1024L + 1024L*1024L*512)
 #define ITERATIONS 2
 #define READONLY 1
+#undef BIG
 
 #endif /*READONLY_TEST*/
 
@@ -243,6 +245,15 @@ int main(int argc __attribute__((unused)), char *argv[])
   int rc;
   MY_INIT(argv[0]);
 
+  plan(0); // read configuration (MYTAP_CONFIG)
+#ifdef BIG
+  if (skip_big_tests)
+  {
+    plan(1);
+    ok(1, "skipped as big test");
+    return 0;
+  }
+#endif
 
   load_defaults("my", load_default_groups, &argc, &argv);
   get_options(&argc, &argv);

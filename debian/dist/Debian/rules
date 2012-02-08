@@ -66,7 +66,7 @@ endif
 	( test -d $(builddir) || mkdir $(builddir) ) && cd $(builddir) && \
 	sh -c 'PATH=$${MYSQL_BUILD_PATH:-"/bin:/usr/bin:/usr/local/bin"} \
 			CC=$${MYSQL_BUILD_CC:-gcc} \
-			CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wno-uninitialized"} \
+			CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wno-uninitialized $$(case `lsb_release -sc` in (lenny) echo -DWORKAROUND_GCC_4_3_2_BUG ;; esac)"} \
 			CXX=$${MYSQL_BUILD_CXX:-g++} \
 			CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wno-uninitialized"} \
 		cmake .. \
@@ -191,7 +191,7 @@ install: build
 	install -m 0755 $(BUILDDIR)/scripts/mysqld_safe $(TMP)/usr/bin/mysqld_safe
 	mkdir -p $(TMP)/usr/share/doc/mariadb-server-5.5/examples
 	# We have a sane my.cnf, cruft not needed (remove my-*.cnf and config-*.cnf)
-	#  $(TMP)/usr/share/mysql/*cnf      $(TMP)/usr/share/doc/mariadb-server-5.3/examples/
+	#  $(TMP)/usr/share/mysql/*cnf      $(TMP)/usr/share/doc/mariadb-server-5.5/examples/
 	rm -vf $(TMP)/usr/share/mysql/my-*.cnf \
 	       $(TMP)/usr/share/mysql/config-*.cnf \
 	       $(TMP)/usr/share/mysql/mi_test_all* \
@@ -202,6 +202,9 @@ install: build
 	install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/mysql/
 	install -m 0755 debian/additions/debian-start $(TMP)/etc/mysql/
 	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/mysql/
+
+	install -m 0644 $(builddir)/Docs/INFO_SRC $(TMP)/usr/share/doc/mariadb-server-5.5/INFO_SRC
+	install -m 0644 $(builddir)/Docs/INFO_BIN $(TMP)/usr/share/doc/mariadb-server-5.5/INFO_BIN
 
 	# mariadb-test
 	mv $(TMP)/usr/mysql-test	$(TMP)/usr/share/mysql

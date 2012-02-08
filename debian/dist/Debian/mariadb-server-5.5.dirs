@@ -5,6 +5,6 @@ usr/bin
 usr/sbin
 usr/share/man/man8
 usr/share/mysql
-usr/share/doc/mariadb-server-5.3
+usr/share/doc/mariadb-server-5.5
 var/run/mysqld
 var/lib/mysql-upgrade
