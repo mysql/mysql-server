@@ -31,13 +31,13 @@ SET GTID_NEXT = 'AUTOMATIC';
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 SET GTID_NEXT = 'ANONYMOUS';
 INSERT INTO t1 VALUES (1);
-show binlog events in 'master-bin.000001' from <binlog_start> limit 1;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-show binlog events in 'slave-bin.000001' from <binlog_start> limit 1;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Query	#	#	BEGIN
-show relaylog events in 'slave-relay-bin.000002' from <binlog_start> limit 1;
+include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Rotate	#	#	master-bin.000001;pos=POS
 ==== Checks performed at server start when GTID_MODE = ON ====
@@ -76,13 +76,13 @@ ROLLBACK;
 ---- GTIDs are in binlog ----
 SET GTID_NEXT = 'AUTOMATIC';
 INSERT INTO t1 VALUES (2);
-show binlog events in 'master-bin.000002' from <binlog_start> limit 1;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Previous_gtids	#	#	
-show binlog events in 'slave-bin.000002' from <binlog_start> limit 1;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000002	#	Previous_gtids	#	#	
-show relaylog events in 'slave-relay-bin.000005' from <binlog_start> limit 1;
+include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Previous_gtids	#	#	
 ---- CHANGE MASTER TO MASTER_AUTO_POSITION = 1 works ----

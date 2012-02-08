@@ -4,7 +4,7 @@ Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 CREATE TABLE t1(c1 INT);
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(c1 INT)
 
@@ -13,7 +13,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(c1 INT)
 # In a statement, some CCs are applied while others are not. The CCs
 # which are not applied on master will be binlogged as common comments.
 /*!99999 --- */INSERT /*!INTO*/ /*!10000 t1 */ VALUES(10) /*!99999 ,(11)*/;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; /* 99999 --- */INSERT /*!INTO*/ /*!10000 t1 */ VALUES(10) /* 99999 ,(11)*/
@@ -37,7 +37,7 @@ EXECUTE stmt USING @value;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT);
 EXECUTE stmt USING @value;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO /* 99999 blabla*/ t1 VALUES(60) /* 99999 ,(61)*/
@@ -68,7 +68,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 #           pre-processed query buffer.
 #
 CREATE/*!*/EVENT e1 ON SCHEDULE EVERY 10 DAY DO/*!*/SELECT 'abc';
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT e1 ON SCHEDULE EVERY 10 DAY DO SELECT 'abc'
 DROP TABLE t1;

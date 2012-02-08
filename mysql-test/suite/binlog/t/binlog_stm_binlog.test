@@ -3,6 +3,7 @@
 # No clear purpose, has probably been used in the past as a place to
 # dump various tests.  Do not add more tests here.
 
+# not gtids because it uses create...select and BUG#11756034 has not been fixed
 --source include/not_gtid_enabled.inc
 --source include/not_embedded.inc
 --source include/have_binlog_format_mixed.inc

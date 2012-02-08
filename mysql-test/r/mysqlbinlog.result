@@ -894,7 +894,7 @@ CREATE TABLE t1(id int);
 DROP TABLE t1;
 DROP DATABASE test1;
 FLUSH LOGS;
-show binlog events in 'master-bin.000002' from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	#	#	CREATE DATABASE test1
 master-bin.000002	#	Query	#	#	use `test1`; CREATE TABLE t1(id int)
