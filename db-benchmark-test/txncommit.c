@@ -1,14 +1,13 @@
 // run txn begin commit on multiple threads and measure the throughput
 
+#include "toku_portability.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <assert.h>
 #include <string.h>
 #include <sys/time.h>
 #include "db.h"
-#include "toku_portability.h"
 #include "toku_pthread.h"
 
 static double now(void) {
