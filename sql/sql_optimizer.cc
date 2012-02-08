@@ -55,7 +55,7 @@ static Item *optimize_cond(JOIN *join, Item *conds,
                            List<TABLE_LIST> *join_list,
 			   bool build_equalities,
                            Item::cond_result *cond_value);
-static bool list_contains_unique_index(TABLE *table,
+static bool list_contains_unique_index(JOIN_TAB *tab,
                           bool (*find_func) (Field *, void *), void *data);
 static bool find_field_in_item_list (Field *field, void *data);
 static bool find_field_in_order_list (Field *field, void *data);
@@ -377,11 +377,9 @@ JOIN::optimize()
   }
 
   if (const_table_map != found_const_table_map &&
-      !(select_options & SELECT_DESCRIBE) &&
-      (!conds ||
-       !(conds->used_tables() & RAND_TABLE_BIT) ||
-       select_lex->master_unit() == &thd->lex->unit)) // upper level SELECT
+      !(select_options & SELECT_DESCRIBE))
   {
+    // There is at least one empty const table
     zero_result_cause= "no matching row in const table";
     DBUG_PRINT("error",("Error: %s", zero_result_cause));
     goto setup_subq_exit;
@@ -522,7 +520,7 @@ JOIN::optimize()
        QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
   {
     if (group_list && rollup.state == ROLLUP::STATE_NONE &&
-       list_contains_unique_index(join_tab[const_tables].table,
+       list_contains_unique_index(&join_tab[const_tables],
                                  find_field_in_order_list,
                                  (void *) group_list))
     {
@@ -560,7 +558,7 @@ JOIN::optimize()
       group= 0;
     }
     if (select_distinct &&
-       list_contains_unique_index(join_tab[const_tables].table,
+       list_contains_unique_index(&join_tab[const_tables],
                                  find_field_in_item_list,
                                  (void *) &fields_list))
     {
@@ -8069,7 +8067,7 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
         if (!eq_cond)
           return cond;
 
-        if (field->table->pos_in_table_list->outer_join)
+        if (args[0]->is_outer_field())
         {
           // outer join: transform "col IS NULL" to "col IS NULL or col=0"
           Item *or_cond= new(thd->mem_root) Item_cond_or(eq_cond, cond);
@@ -8223,7 +8221,7 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
     can safely remove the GROUP BY/DISTINCT,
     as no result set can be more distinct than an unique key.
 
-  @param table                The table to operate on.
+  @param tab                  The join table to operate on.
   @param find_func            function to iterate over the list and search
                               for a field
 
@@ -8231,13 +8229,19 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
     1                    found
   @retval
     0                    not found.
+
+  @note
+    The function assumes that make_outerjoin_info() has been called in
+    order for the check for outer tables to work.
 */
 
 static bool
-list_contains_unique_index(TABLE *table,
+list_contains_unique_index(JOIN_TAB *tab,
                           bool (*find_func) (Field *, void *), void *data)
 {
-  if (table->pos_in_table_list->outer_join)
+  TABLE *table= tab->table;
+
+  if (tab->is_inner_table_of_outer_join())
     return 0;
   for (uint keynr= 0; keynr < table->s->keys; keynr++)
   {
