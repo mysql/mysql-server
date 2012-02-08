@@ -412,8 +412,8 @@ private:
 Cleanup after import tablespace. */
 static
 db_err
-row_import_tablespace_cleanup(
-/*==========================*/
+row_import_cleanup(
+/*===============*/
 	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt from handler */
 	trx_t*		trx,		/*!< in/out: transaction for import */
 	db_err		err)		/*!< in: error code */
@@ -439,8 +439,8 @@ row_import_tablespace_cleanup(
 Report error during tablespace import. */
 static
 db_err
-row_import_tablespace_error(
-/*========================*/
+row_import_error(
+/*=============*/
 	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt from handler */
 	trx_t*		trx,		/*!< in/out: transaction for import */
 	db_err		err)		/*!< in: error code */
@@ -453,7 +453,7 @@ row_import_tablespace_error(
 			(ulint) err);
 	}
 
-	return(row_import_tablespace_cleanup(prebuilt, trx, err));
+	return(row_import_cleanup(prebuilt, trx, err));
 }
 
 /*****************************************************************//**
@@ -461,7 +461,7 @@ Adjust the root on the table's indexes.
 @return error code */
 static
 db_err
-row_import_tablespace_adjust_root_pages(
+row_import_adjust_root_pages(
 /*====================================*/
 	row_prebuilt_t*		prebuilt,	/*!< in/out: prebuilt from
 						handler */
@@ -533,8 +533,8 @@ Ensure that dict_sys->row_id exceeds SELECT MAX(DB_ROW_ID).
 @return error code */
 static
 db_err
-row_import_tablespace_set_sys_max_row_id(
-/*=====================================*/
+row_import_set_sys_max_row_id(
+/*==========================*/
 	row_prebuilt_t*		prebuilt,	/*!< in/out: prebuilt from
 						handler */
 	const dict_table_t*	table)		/*!< in: table to import */
@@ -618,8 +618,8 @@ Read the tablename from the meta data file.
 @return DB_SUCCESS or error code. */
 static
 db_err
-row_import_tablespace_cfg_read_index_name(
-/*======================================*/
+row_import_cfg_read_index_name(
+/*===========================*/
 	FILE*		file,		/*!< in/out: File to read from */
 	char*		name,		/*!< out: index name */
 	ulint		max_len)	/*!< in: max size of name buffer, this
@@ -655,10 +655,11 @@ Set the index root page number for v1 format.
 @return DB_SUCCESS or error code. */
 static
 db_err
-row_import_tablespace_set_index_root_v1(
-/*====================================*/
+row_import_set_index_root_v1(
+/*=========================*/
 	dict_table_t*	table,		/*!< in: table */
-	FILE*		file)		/*!< in: File to read from */
+	FILE*		file,		/*!< in: File to read from */
+	void*		thd)		/*!< in: session */
 {
 	byte*		ptr;
 	ulint		n_indexes;
@@ -667,11 +668,7 @@ row_import_tablespace_set_index_root_v1(
 
 	/* Read the tablespace page size. */
 	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: IO error (%lu), reading "
-			"page size.\n",
-			(ulint) errno);
+		ib_logf("IO error (%lu), reading page size.\n", (ulint) errno);
 
 		return(DB_IO_ERROR);
 	}
@@ -682,12 +679,13 @@ row_import_tablespace_set_index_root_v1(
 	ptr += sizeof(ib_uint32_t);
 
 	if (page_size != UNIV_PAGE_SIZE) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
+
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
 			" InnoDB: Tablespace to be imported has different "
 			"page size than this server. Server page size "
 			"is: %lu, whereas tablespace page size is %lu.\n",
 			UNIV_PAGE_SIZE, page_size);
+
 		return(DB_ERROR);
 	}
 
@@ -731,8 +729,7 @@ row_import_tablespace_set_index_root_v1(
 
 		char*	name = static_cast<char*>(ut_malloc(len));
 
-		err = row_import_tablespace_cfg_read_index_name(
-			file, name, len);
+		err = row_import_cfg_read_index_name(file, name, len);
 
 		if (err != DB_SUCCESS) {
 			ut_free(name);
@@ -745,11 +742,20 @@ row_import_tablespace_set_index_root_v1(
 			index->page = pageno;
 			index->space = table->space;
 		} else {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Index ");
-			ut_print_name(stderr, NULL, TRUE, name);
-			fprintf(stderr, " not in table ");
-			ut_print_name(stderr, NULL, TRUE, table->name);
+			char index_name[MAX_FULL_NAME_LEN + 1];
+
+			innobase_format_name(
+				index_name, sizeof(index_name), name, TRUE);
+
+			char table_name[MAX_FULL_NAME_LEN + 1];
+
+			innobase_format_name(
+				table_name, sizeof(table_name),
+				table->name, FALSE);
+
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+				 "InnoDB: Index %s not in table %s",
+				 index_name, table_name);
 
 			/* TODO: If the table schema matches, it would
 			be better to just ignore this error. */
@@ -769,17 +775,17 @@ Set the index root <space, pageno> from the meta-data.
 @return DB_SUCCESS or error code. */
 static
 db_err
-row_import_tablespace_set_index_root(
-/*=================================*/
+row_import_set_index_root(
+/*======================*/
 	dict_table_t*	table,		/*!< in: table */
-	FILE*		file)		/*!< in: File to read from */
+	FILE*		file,		/*!< in: File to read from */
+	void*		thd)		/*!< in: session */
 {
 	ib_uint32_t	value;
 
 	if (fread(&value, sizeof(value), 1, file) != 1) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: IO error (%lu), reading version\n",
+		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_INDEX_CORRUPT,
+			"InnoDB: IO error (%lu), reading version\n",
 			(ulint) errno);
 
 		return(DB_IO_ERROR);
@@ -790,11 +796,10 @@ row_import_tablespace_set_index_root(
 	/* Check the version number. */
 	switch (value) {
 	case IB_EXPORT_CFG_VERSION_V1:
-		return(row_import_tablespace_set_index_root_v1(table, file));
+		return(row_import_set_index_root_v1(table, file, thd));
 	default:
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Unsupported meta-data version number (%lu). "
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			"InnoDB: Unsupported meta-data version number (%lu). "
 			"File ignored.\n", (ulint) value);
 
 		return(DB_ERROR);
@@ -808,9 +813,10 @@ Get the index root <space, pageno> from the meta-data.
 @return DB_SUCCESS or error code. */
 static
 db_err
-row_import_tablespace_set_index_root(
-/*=================================*/
-	dict_table_t*	table)	/*!< in: table */
+row_import_set_index_root(
+/*======================*/
+	dict_table_t*	table,	/*!< in: table */
+	void*		thd)	/*!< in: session */
 {
 	db_err		err;
 	char		name[OS_FILE_MAX_PATH];
@@ -820,11 +826,11 @@ row_import_tablespace_set_index_root(
 	FILE*	file = fopen(name, "r");
 
 	if (file == NULL) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error opening: %s\n", name);
+		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_INDEX_CORRUPT,
+			 "InnoDB: Error opening: %s\n", name);
 		err = DB_IO_ERROR;
 	} else {
-		err = row_import_tablespace_set_index_root(table, file);
+		err = row_import_set_index_root(table, file, thd);
 		fclose(file);
 	}
 
@@ -837,8 +843,8 @@ of the table in the data dictionary.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 db_err
-row_import_tablespace_for_mysql(
-/*============================*/
+row_import_for_mysql(
+/*=================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
 {
@@ -876,12 +882,12 @@ row_import_tablespace_for_mysql(
 
 	if (err != DB_SUCCESS) {
 
-		return(row_import_tablespace_cleanup(prebuilt, trx, err));
+		return(row_import_cleanup(prebuilt, trx, err));
 
 	} else if (trx->update_undo == NULL) {
 
-		return(row_import_tablespace_cleanup(
-			prebuilt, trx, DB_TOO_MANY_CONCURRENT_TRXS));
+		err = DB_TOO_MANY_CONCURRENT_TRXS;
+		return(row_import_cleanup(prebuilt, trx, err));
 	}
 
 	prebuilt->trx->op_info = "read meta-data file";
@@ -890,10 +896,10 @@ row_import_tablespace_for_mysql(
 	B-tree root page numbers in the tablespace. Also, check if
 	the tablespace page size is the same as UNIV_PAGE_SIZE. */
 
-	err = row_import_tablespace_set_index_root(table);
+	err = row_import_set_index_root(table, trx->mysql_thd);
 
 	if (err != DB_SUCCESS) {
-		return(row_import_tablespace_error(prebuilt, trx, err));
+		return(row_import_error(prebuilt, trx, err));
 	}
 
 	prebuilt->trx->op_info = "importing tablespace";
@@ -918,7 +924,7 @@ row_import_tablespace_for_mysql(
 	mutex_exit(&dict_sys->mutex);
 
 	if (err != DB_SUCCESS) {
-		return(row_import_tablespace_cleanup(prebuilt, trx, err));
+		return(row_import_cleanup(prebuilt, trx, err));
 	}
 
 	/* It is possible that the lsn's in the tablespace to be
@@ -935,7 +941,7 @@ row_import_tablespace_for_mysql(
 		ut_print_name(stderr, prebuilt->trx, TRUE, table->name);
 		fprintf(stderr, "\n");
 
-		return(row_import_tablespace_cleanup(prebuilt, trx, DB_ERROR));
+		return(row_import_cleanup(prebuilt, trx, DB_ERROR));
 	}
 
 	/* Play it safe and remove all insert buffer entries for this
@@ -959,13 +965,13 @@ row_import_tablespace_for_mysql(
 			fprintf(stderr, "\n");
 		}
 
-		return(row_import_tablespace_cleanup(prebuilt, trx, DB_ERROR));
+		return(row_import_cleanup(prebuilt, trx, DB_ERROR));
 	}
 
 	err = (db_err) ibuf_check_bitmap_on_import(trx, table->space);
 
 	if (err != DB_SUCCESS) {
-		return(row_import_tablespace_cleanup(prebuilt, trx, err));
+		return(row_import_cleanup(prebuilt, trx, err));
 	}
 
 	dict_index_t*	index = dict_table_get_first_index(table);
@@ -976,20 +982,18 @@ row_import_tablespace_for_mysql(
 	delete-marked records from every index. */
 
 	if (!dict_index_is_clust(index)) {
-		return(row_import_tablespace_error(
-			prebuilt, trx, DB_CORRUPTION));
+		return(row_import_error(prebuilt, trx, DB_CORRUPTION));
 	}
 
 	err = (db_err) btr_root_adjust_on_import(index);
 
 	if (err != DB_SUCCESS) {
 
-		return(row_import_tablespace_error(prebuilt, trx, err));
+		return(row_import_error(prebuilt, trx, err));
 
 	} else if (!btr_validate_index(index, trx, TRUE)) {
 
-		return(row_import_tablespace_error(
-			prebuilt, trx, DB_CORRUPTION));
+		return(row_import_error(prebuilt, trx, DB_CORRUPTION));
 	}
 
 	{
@@ -1007,14 +1011,14 @@ row_import_tablespace_for_mysql(
 	}
 
 	if (err != DB_SUCCESS) {
-		return(row_import_tablespace_error(prebuilt, trx, err));
+		return(row_import_error(prebuilt, trx, err));
 	}
 
-	err = row_import_tablespace_adjust_root_pages(
+	err = row_import_adjust_root_pages(
 		prebuilt, trx, table, n_rows_in_table);
 
 	if (err != DB_SUCCESS) {
-		return(row_import_tablespace_error(prebuilt, trx, err));
+		return(row_import_error(prebuilt, trx, err));
 	}
 
 	/* TODO: Copy table->flags to SYS_TABLES.TYPE and N_COLS */
@@ -1023,10 +1027,10 @@ row_import_tablespace_for_mysql(
 
 	if (!dict_index_is_unique(index)) {
 
-		err = row_import_tablespace_set_sys_max_row_id(prebuilt, table);
+		err = row_import_set_sys_max_row_id(prebuilt, table);
 
 		if (err != DB_SUCCESS) {
-			return(row_import_tablespace_error(prebuilt, trx, err));
+			return(row_import_error(prebuilt, trx, err));
 		}
 	}
 
@@ -1041,6 +1045,6 @@ row_import_tablespace_for_mysql(
 	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
 
 	ut_a(err == DB_SUCCESS);
-	return(row_import_tablespace_cleanup(prebuilt, trx, err));
+	return(row_import_cleanup(prebuilt, trx, err));
 }
 

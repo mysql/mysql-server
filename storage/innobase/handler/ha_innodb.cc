@@ -9150,7 +9150,7 @@ ha_innobase::discard_or_import_tablespace(
 			goto func_exit;
 		}
 
-		error = row_import_tablespace_for_mysql(dict_table, prebuilt);
+		error = row_import_for_mysql(dict_table, prebuilt);
 
 		if (error == DB_SUCCESS && table->found_next_number_field) {
 			dict_table_autoinc_lock(dict_table);
