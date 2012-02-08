@@ -7851,6 +7851,11 @@ int ha_tokudb::delete_all_rows() {
             txn
             );
         if (error) { goto cleanup; }
+        error = share->key_file[i]->pre_acquire_table_lock(
+            share->key_file[i], 
+            txn
+            );
+        if (error) { goto cleanup; }
     }
     for (uint i = 0; i < curr_num_DBs; i++) {
         error = truncate_dictionary(i, txn);
