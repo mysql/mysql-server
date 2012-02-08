@@ -3386,8 +3386,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                               " UNTIL position %s", llstr(rli->until_pos(), buf));
       else
       {
-        char *buffer= NULL;
-        global_sid_lock.rdlock();
+        char *buffer;
+        global_sid_lock.wrlock();
         if ((buffer= (char *) my_malloc(rli->request_gtids_obj.get_string_length() + 1,
                                         MYF(MY_WME))))
           rli->request_gtids_obj.to_string(buffer);
