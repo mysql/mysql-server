@@ -444,7 +444,7 @@ bool init_new_connection_handler_thread()
   pthread_detach_this_thread();
   if (my_thread_init())
   {
-    statistic_increment(connection_internal_errors, &LOCK_status);
+    statistic_increment(connection_errors_internal, &LOCK_status);
     return 1;
   }
   return 0;
@@ -549,9 +549,9 @@ static int check_connection(THD *thd)
       /*
         Since we can not even get the peer IP address,
         there is nothing to show in the host_cache,
-        so increment the global status variable "peer_address_errors".
+        so increment the global status variable for peer address errors.
       */
-      statistic_increment(connection_peer_addr_errors, &LOCK_status);
+      statistic_increment(connection_errors_peer_addr, &LOCK_status);
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
@@ -562,7 +562,7 @@ static int check_connection(THD *thd)
         this is treated as a global server OOM error.
         TODO: remove the need for my_strdup.
       */
-      statistic_increment(connection_internal_errors, &LOCK_status);
+      statistic_increment(connection_errors_internal, &LOCK_status);
       return 1; /* The error is set by my_strdup(). */
     }
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
@@ -627,7 +627,7 @@ static int check_connection(THD *thd)
       Hence, there is no reason to account on OOM conditions per client IP,
       we count failures in the global server status instead.
     */
-    statistic_increment(connection_internal_errors, &LOCK_status);
+    statistic_increment(connection_errors_internal, &LOCK_status);
     return 1; /* The error is set by alloc(). */
   }
 
