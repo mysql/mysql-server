@@ -33,29 +33,21 @@
 #include "sql_optimizer.h"             // JOIN
 
 #ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-#define PASS_TOKEN_TO_PS(_token)                                             \
+#define PASS_TOKEN_TO_PS(_token, _yylval)                                   \
   /*
     Passing token to PS function to calculate statement digest
     for this statement.
-  */                                                                         \
-  if( _token != 0 && lip->m_digest_psi != NULL)                              \
-  {                                                                          \
-    uint yylen= 0;                                                           \
-    char *yychar= NULL;                                                      \
-    if( _token == IDENT_QUOTED || _token == IDENT )                          \
-    {                                                                        \
-      /*
-        If it is an identifier, get the length of processed token and
-        make sure it doesn't exceed TOCK_NAME_LENGTH. If it does,
-        truncate it to TOCK_NAME_LENGTH.
-      */                                                                    \
-      yylen= lip->yyLength() + 1;                                           \
-      yylen= yylen<TOCK_NAME_LENGTH ? yylen : TOCK_NAME_LENGTH-1;           \
-      yychar= (char*)lip->get_cpp_tok_start();                              \
-    }                                                                       \
+  */                                                                        \
+  if(lip->m_digest_psi != NULL)                                             \
+  {                                                                         \
     lip->m_digest_psi= PSI_CALL(digest_add_token)(lip->m_digest_psi,        \
-                                                  _token, yychar, yylen);   \
+                                                  _token,                   \
+                                                  _yylval->lex_str.str,     \
+                                                  _yylval->lex_str.length); \
   }
+#else
+#define PASS_TOKEN_TO_PS(_token, _yylval)                                   \
+  do{}while(0);
 #endif
 
 static int lex_one_token(void *arg, void *yythd);
@@ -908,9 +900,7 @@ int MYSQLlex(void *arg, void *yythd)
     lip->lookahead_token= -1;
     *yylval= *(lip->lookahead_yylval);
     lip->lookahead_yylval= NULL;
-#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-    PASS_TOKEN_TO_PS(token);
-#endif
+    PASS_TOKEN_TO_PS(token, yylval);
     return token;
   }
 
@@ -928,14 +918,10 @@ int MYSQLlex(void *arg, void *yythd)
     token= lex_one_token(arg, yythd);
     switch(token) {
     case CUBE_SYM:
-#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-      PASS_TOKEN_TO_PS(WITH_CUBE_SYM);
-#endif
+      PASS_TOKEN_TO_PS(WITH_CUBE_SYM, yylval);
       return WITH_CUBE_SYM;
     case ROLLUP_SYM:
-#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-      PASS_TOKEN_TO_PS(WITH_ROLLUP_SYM);
-#endif
+      PASS_TOKEN_TO_PS(WITH_ROLLUP_SYM, yylval);
       return WITH_ROLLUP_SYM;
     default:
       /*
@@ -944,9 +930,7 @@ int MYSQLlex(void *arg, void *yythd)
       lip->lookahead_yylval= lip->yylval;
       lip->yylval= NULL;
       lip->lookahead_token= token;
-#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-      PASS_TOKEN_TO_PS(WITH);
-#endif
+      PASS_TOKEN_TO_PS(WITH, yylval);
       return WITH;
     }
     break;
@@ -954,9 +938,7 @@ int MYSQLlex(void *arg, void *yythd)
     break;
   }
 
-#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-  PASS_TOKEN_TO_PS(token);
-#endif
+  PASS_TOKEN_TO_PS(token, yylval);
   return token;
 }
 
