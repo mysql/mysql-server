@@ -17,9 +17,6 @@
 
 package testsuite.clusterj.tie;
 
-import org.junit.Ignore;
-
-@Ignore
 public class StressTest extends testsuite.clusterj.StressTest {
 
 }
