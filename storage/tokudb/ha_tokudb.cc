@@ -3151,13 +3151,6 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
         share->try_table_lock = false; // RFP what good is the mutex?
         pthread_mutex_unlock(&share->mutex);
     }
-    for (uint i = 0; i < curr_num_DBs; i++) {
-        DB* curr_DB = share->key_file[i];
-        int error = curr_DB->pre_acquire_fileops_shared_lock(curr_DB, transaction);
-        if (!error) {
-            mult_put_flags[i] |= DB_PRELOCKED_FILE_READ;
-        }
-    }
     DBUG_VOID_RETURN;
 }
 
@@ -3229,11 +3222,6 @@ cleanup:
     }
     num_DBs_locked_in_bulk = false;
     lock_count = 0;
-
-    for (uint i = 0; i < curr_num_DBs; i++) {
-        u_int32_t prelocked_read_flag = DB_PRELOCKED_FILE_READ;
-        mult_put_flags[i] &= ~(prelocked_read_flag);
-    }
 
     if (loader) {
         error = sprintf(write_status_msg, "aborting bulk load"); 
@@ -3625,7 +3613,7 @@ void ha_tokudb::set_main_dict_put_flags(
     u_int32_t* put_flags
     ) 
 {
-    u_int32_t old_prelock_flags = (*put_flags)&(DB_PRELOCKED_FILE_READ);
+    u_int32_t old_prelock_flags = (*put_flags);
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     bool in_hot_index = share->num_DBs > curr_num_DBs;
     bool using_ignore_flag_opt = do_ignore_flag_optimization(
@@ -6037,7 +6025,14 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
             }
             lock.type = lock_type;
             rw_unlock(&share->num_DBs_lock);
-        } else {
+        } 
+        // force alter table to lock out other readers
+        else if (thd_sql_command(thd)== SQLCOM_CREATE_INDEX || 
+                 thd_sql_command(thd)== SQLCOM_ALTER_TABLE ||
+                 thd_sql_command(thd)== SQLCOM_DROP_INDEX) {
+            lock_type = TL_WRITE;
+        }
+        else {
             // If we are not doing a LOCK TABLE, then allow multiple writers
             if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && 
                 !thd->in_lock_tables && thd_sql_command(thd) != SQLCOM_TRUNCATE && !thd_tablespace_op(thd)) {
