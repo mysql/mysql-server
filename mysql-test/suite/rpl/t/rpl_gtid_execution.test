@@ -235,7 +235,7 @@ eval INSERT INTO stmts VALUES
  ,(1153, 1, 'send 14:1',        '',      '',      '',      '',      0)
  ,(1154, 3, 'BEGIN',            '',      '',      '',      '',      0)
  ,(1155, 3,   'INSERT',         '',      '14:1',  '',      '',      0)
- ,(1156, 3, 'running',          '',      '',      '',      '',      0)
+ ,(1156, 1, 'running',          '',      '',      '',      '',      0)
  ,(1157, 3, 'ROLLBACK',         '',      '~14:1', '~14:1', '',      0)
  ,(1158, 1, 'reap',             '',      '',      '14:1',  '',      0)
  ,(1159, 1, 'BEGIN',            '',      '',      '',      '',      0)
@@ -413,6 +413,9 @@ while ($id <= $max_id)
     --let $last_send_stmt= $stmt
     --send
     eval $stmt;
+    --connection master
+    --let $wait_condition= SELECT Info = '$last_send_stmt' FROM INFORMATION_SCHEMA.PROCESSLIST WHERE Id = $last_send_id
+    --source include/wait_condition.inc
   }
   if ($send_reap == 'reap')
   {
