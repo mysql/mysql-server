@@ -12064,7 +12064,6 @@ bool Previous_gtids_log_event::write_data_body(IO_CACHE *file)
 int Previous_gtids_log_event::do_update_pos(Relay_log_info *rli)
 {
   rli->inc_event_relay_log_pos();
-  rli->set_group_relay_log_pos(rli->get_event_relay_log_pos());
   return 0;
 }
 #endif
