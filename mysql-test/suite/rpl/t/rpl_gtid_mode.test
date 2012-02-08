@@ -214,6 +214,25 @@ eval SET GTID_NEXT = '$uuida:1';
 SET GTID_NEXT = 'ANONYMOUS';
 ROLLBACK;
 
+#
+# Show that setting the same GTID twice raises an error the second time
+#
+SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+--error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
+SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+ROLLBACK;
+
+#
+# Show that connection close releases GTID_NEXT
+#
+connect (master_gtid,127.0.0.1,root,,test,$MASTER_MYPORT);
+--connection master_gtid
+SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+disconnect master_gtid;
+--connection master
+SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+ROLLBACK;
+
 --echo ---- GTIDs are in binlog ----
 
 SET GTID_NEXT = 'AUTOMATIC';
