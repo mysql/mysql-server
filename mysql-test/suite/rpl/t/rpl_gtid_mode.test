@@ -72,16 +72,16 @@ call mtr.add_suppression("Aborting");
 
 --echo ---- GTID_MODE is read-only ----
 
---error 1238 # ER_NOT_SUPPORTED_YET
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GTID_MODE = OFF;
 
---error 1238 # ER_NOT_SUPPORTED_YET
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GTID_MODE = UPGRADE_STEP_1;
 
---error 1238 # ER_NOT_SUPPORTED_YET
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GTID_MODE = UPGRADE_STEP_2;
 
---error 1238 # ER_NOT_SUPPORTED_YET
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GTID_MODE = ON;
 
 --let $assert_text= GTID_MODE should still be OFF after failing to change GTID_MODE
@@ -96,7 +96,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 SET GTID_NEXT = 'ANONYMOUS';
 
 # should generate error
---error 1778 # ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF
+--error ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF
 eval SET GTID_NEXT = '$uuida:1';
 
 --echo ---- CHANGE MASTER TO MASTER_AUTO_POSITION not supported ----
@@ -104,7 +104,7 @@ eval SET GTID_NEXT = '$uuida:1';
 --connection slave
 
 # should generate error
---error 1774 # ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
+--error ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
 CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
 
 # No error
@@ -211,7 +211,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 eval SET GTID_NEXT = '$uuida:1';
 
 # should generate error
---error 1779 # ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
+--error ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
 SET GTID_NEXT = 'ANONYMOUS';
 ROLLBACK;
 
