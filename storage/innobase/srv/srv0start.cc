@@ -2775,3 +2775,24 @@ srv_path_copy(
 	return(written);
 }
 
+/*****************************************************************//**
+Get the meta-data filename from the table name. */
+UNIV_INTERN
+void
+srv_get_meta_data_filename(
+/*=======================*/
+	const dict_table_t*	table,		/*!< in: table */
+	char*			filename,	/*!< out: filename */
+	ulint			max_len)	/*!< in: filename max length */
+{
+	static const ulint	suffix_len = strlen(".cfg");
+
+	ulint	len = srv_path_copy(
+		filename, max_len - suffix_len, srv_data_home, table->name);
+
+	ut_a(len != ULINT_UNDEFINED);
+
+	ut_snprintf(filename + len, max_len - (len + suffix_len), ".cfg");
+
+	srv_normalize_path_for_win(filename);
+}

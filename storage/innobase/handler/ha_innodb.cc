@@ -80,6 +80,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "pars0pars.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "row0import.h"
+#include "row0quiesce.h"
 
 #include "ha_innodb.h"
 #include "i_s.h"
@@ -2456,7 +2458,7 @@ no_db_name:
 A wrapper function of innobase_convert_name(), convert a table or
 index name to the MySQL system_charset_info (UTF-8) and quote it if needed.
 @return	pointer to the end of buf */
-static inline
+UNIV_INTERN
 void
 innobase_format_name(
 /*==================*/
@@ -2467,8 +2469,8 @@ innobase_format_name(
 {
 	const char*     bufend;
 
-	bufend = innobase_convert_name(buf, buflen, name, strlen(name),
-				       NULL, !is_index_name);
+	bufend = innobase_convert_name(
+		buf, buflen, name, strlen(name), NULL, !is_index_name);
 
 	ut_ad((ulint) (bufend - buf) < buflen);
 
@@ -11214,7 +11216,7 @@ ha_innobase::external_lock(
 		if (thd_sql_command(thd) == SQLCOM_FLUSH
 		    && lock_type == F_RDLCK) {
 
-			row_mysql_quiesce_table_start(prebuilt->table);
+			row_quiesce_table_start(prebuilt->table);
 		}
 
 	} else if (prebuilt->table->quiesce == QUIESCE_COMPLETE) {
@@ -11222,7 +11224,7 @@ ha_innobase::external_lock(
 		if (thd_sql_command(thd) == SQLCOM_UNLOCK_TABLES
 		    && lock_type == F_UNLCK) {
 
-			row_mysql_quiesce_table_complete(prebuilt->table);
+			row_quiesce_table_complete(prebuilt->table);
 		}
 	} else {
 		ut_a(prebuilt->table->quiesce == QUIESCE_NONE);
@@ -11921,7 +11923,7 @@ ha_innobase::store_lock(
 	/* Check for LOCK TABLE t1,...,tn WITH SHARED LOCKS */
 	if (sql_command == SQLCOM_FLUSH && lock_type == TL_READ_NO_INSERT) {
 
-		row_mysql_quiesce_set_state(prebuilt->table, QUIESCE_START);
+		row_quiesce_set_state(prebuilt->table, QUIESCE_START);
 
 	} else if (sql_command == SQLCOM_DROP_TABLE) {
 
@@ -15373,3 +15375,105 @@ ha_innobase::idx_cond_push(
 	DBUG_RETURN(NULL);
 }
 
+/******************************************************************//**
+Push a warning message to the client, it is a wrapper around:
+								    
+void push_warning_printf(
+	THD *thd, Sql_condition::enum_warning_level level,
+	uint code, const char *format, ...);
+*/
+UNIV_INTERN
+void
+ib_pushf(
+/*=====*/
+	void*		thd,		/*!< in/out: session */
+	ib_log_level_t	level,		/*!< in: warning level */
+	ib_uint32_t	code,		/*!< MySQL error code */
+	const char*	format,		/*!< printf format */
+	...)				/*!< Args */
+{
+	char*		str;
+	va_list         args;
+
+	va_start(args, format);
+
+#ifdef __WIN__
+	int		size = _vscprintf(format, args);
+	str = static_cast<char*>(malloc(size));
+	vsnprintf(str, size, args);
+#else
+	vasprintf(&str, format, args);
+#endif /* __WIN__ */
+
+	if (thd == NULL) {
+		switch(level) {
+		case IB_LOG_LEVEL_INFO:
+			sql_print_information(format, str);
+			break;
+		case IB_LOG_LEVEL_WARN:
+			sql_print_warning(format, str);
+			break;
+		case IB_LOG_LEVEL_ERROR:
+			sql_print_error(format, str);
+			break;
+		case IB_LOG_LEVEL_FATAL:
+			sql_print_error(format, str);
+			break;
+		}
+	} else {
+
+		Sql_condition::enum_warning_level	l;
+
+		switch(level) {
+		case IB_LOG_LEVEL_INFO:
+			l = Sql_condition::WARN_LEVEL_NOTE;
+			break;
+		case IB_LOG_LEVEL_WARN:
+			l = Sql_condition::WARN_LEVEL_WARN;
+			break;
+		case IB_LOG_LEVEL_ERROR:
+			l = Sql_condition::WARN_LEVEL_ERROR;
+			break;
+		case IB_LOG_LEVEL_FATAL:
+			l = Sql_condition::WARN_LEVEL_END;
+			break;
+		}
+
+		push_warning_printf((THD*) thd, l, code, "%s", str);
+	}
+
+	va_end(args);
+	free(str);
+
+	if (level == IB_LOG_LEVEL_FATAL) {
+		ut_error;
+	}
+}
+
+/******************************************************************//**
+Write a message to the log. For printing INFO messages. */
+UNIV_INTERN
+void
+ib_logf(
+/*=====*/
+	const char*	format,		/*!< printf format */
+	...)				/*!< Args */
+{
+	char*		str;
+	va_list         args;
+
+	va_start(args, format);
+
+#ifdef __WIN__
+	int		size = _vscprintf(format, args);
+	str = static_cast<char*>(malloc(size));
+	vsnprintf(str, size, args);
+#else
+	vasprintf(&str, format, args);
+#endif /* __WIN__ */
+
+	ib_pushf(NULL, IB_LOG_LEVEL_INFO, 0, "%s", str);
+
+	va_end(args);
+	free(str);
+}

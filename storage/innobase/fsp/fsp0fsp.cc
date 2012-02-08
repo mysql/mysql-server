@@ -1887,12 +1887,7 @@ fseg_inode_try_get(
 
 	inode_addr.page = mach_read_from_4(header + FSEG_HDR_PAGE_NO);
 	inode_addr.boffset = mach_read_from_2(header + FSEG_HDR_OFFSET);
-
-	// FIXME:
-	if (space != mach_read_from_4(header + FSEG_HDR_SPACE)) {
-		fprintf(stderr, "space mismatch: %lu != %lu\n",
-			space, mach_read_from_4(header + FSEG_HDR_SPACE));
-	}
+	ut_ad(space == mach_read_from_4(header + FSEG_HDR_SPACE));
 
 	inode = fut_get_ptr(space, zip_size, inode_addr, RW_X_LATCH, mtr);
 

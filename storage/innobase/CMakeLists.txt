@@ -296,6 +296,7 @@ SET(INNOBASE_SOURCES
 	rem/rem0rec.cc
 	row/row0ext.cc
 	row/row0ftsort.cc
+	row/row0import.cc
 	row/row0ins.cc
 	row/row0merge.cc
 	row/row0mysql.cc
@@ -306,6 +307,7 @@ SET(INNOBASE_SOURCES
 	row/row0umod.cc
 	row/row0undo.cc
 	row/row0upd.cc
+	row/row0quiesce.cc
 	row/row0vers.cc
 	srv/srv0conc.cc
 	srv/srv0mon.cc

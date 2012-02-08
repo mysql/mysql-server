@@ -27,6 +27,7 @@ Created 5/11/2006 Osku Salerma
 #ifndef HA_INNODB_PROTOTYPES_H
 #define HA_INNODB_PROTOTYPES_H
 
+#include "mysqld_error.h"
 #include "my_compare.h"
 
 #include "trx0types.h"
@@ -411,4 +412,53 @@ ibool
 thd_trx_is_auto_commit(
 /*===================*/
 	void*	thd);	/*!< in: thread handle (THD*) can be NULL */
+
+/*****************************************************************//**
+A wrapper function of innobase_convert_name(), convert a table or
+index name to the MySQL system_charset_info (UTF-8) and quote it if needed.
+@return	pointer to the end of buf */
+UNIV_INTERN
+void
+innobase_format_name(
+/*==================*/
+	char*		buf,		/*!< out: buffer for converted
+					identifier */
+	ulint		buflen,		/*!< in: length of buf, in bytes */
+	const char*	name,		/*!< in: index or table name
+					to format */
+	ibool		is_index_name); /*!< in: index name */
+
+/** Corresponds to Sql_condition:enum_warning_level. */
+enum ib_log_level_t {
+	IB_LOG_LEVEL_INFO,
+	IB_LOG_LEVEL_WARN,
+	IB_LOG_LEVEL_ERROR,
+	IB_LOG_LEVEL_FATAL
+};
+
+/******************************************************************//**
+Push a warning message to the client, it is a wrapper around:
+								    
+void push_warning_printf(
+	THD *thd, Sql_condition::enum_warning_level level,
+	uint code, const char *format, ...);
+*/
+UNIV_INTERN
+void
+ib_pushf(
+/*=====*/
+	void*		thd,		/*!< in/out: session */
+	ib_log_level_t	level,		/*!< in: warning level */
+	ib_uint32_t	code,		/*!< MySQL error code */
+	const char*	format,		/*!< printf format */
+	...);				/*!< Args */
+
+/******************************************************************//**
+Write a message to the log. For printing INFO messages. */
+UNIV_INTERN
+void
+ib_logf(
+/*====*/
+	const char*	format,		/*!< printf format */
+	...);				/*!< Args */
 #endif /* HA_INNODB_PROTOTYPES_H */

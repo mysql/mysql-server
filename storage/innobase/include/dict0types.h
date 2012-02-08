@@ -62,4 +62,11 @@ enum dict_err_ignore {
 
 typedef enum dict_err_ignore		dict_err_ignore_t;
 
+/** Quiescing states for flushing tables to disk. */
+enum ib_quiesce_t {
+	QUIESCE_NONE,
+	QUIESCE_START,			/*!< Initialise, prepare to start */
+	QUIESCE_COMPLETE		/*!< All done */
+};
+
 #endif

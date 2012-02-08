@@ -36,6 +36,9 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0pcur.h"
 #include "trx0types.h"
 
+// Forward declaration
+class SysIndexCallback;
+
 extern ibool row_rollback_on_timeout;
 
 typedef struct row_prebuilt_struct row_prebuilt_t;
@@ -550,29 +553,25 @@ row_mysql_close(void);
 /*=================*/
 
 /*********************************************************************//**
-Quiesce the tablespace that the table resides in. */
+Reassigns the table identifier of a table.
+@return	error code or DB_SUCCESS */
 UNIV_INTERN
-void
-row_mysql_quiesce_table_start(
-/*==========================*/
-	dict_table_t*	table);		/*!< in: quiesce this table */
-
-/*********************************************************************//**
-Cleanup after table quiesce. */
-UNIV_INTERN
-void
-row_mysql_quiesce_table_complete(
-/*=============================*/
-	dict_table_t*	table);		/*!< in: quiesce this table */
-
-/*********************************************************************//**
-Set a table's quiesce state. */
-UNIV_INTERN
-void
-row_mysql_quiesce_set_state(
+db_err
+row_mysql_table_id_reassign(
 /*========================*/
-	dict_table_t*	table,		/*!< in: quiesce this table */
-	ib_quiesce_t	state);		/*!< in: quiesce state to set */
+	dict_table_t*	table,	/*!< in/out: table */
+	trx_t*		trx);	/*!< in/out: transaction */
+
+/*********************************************************************//**
+Iterate over the table's indexes in SYS_INDEXES.
+@param table_id - to search for matching records.
+@param callback - function to call for each matching record  */
+UNIV_INTERN
+void
+row_mysql_sys_index_iterate(
+/*========================*/
+	ib_id_t			table_id,	/*!< in: table id to match */
+	SysIndexCallback*	callback);	/*!< in: callback */
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
@@ -846,6 +845,41 @@ struct row_prebuilt_struct {
 					magic_n */
 };
 
+/** Callback for row_mysql_sys_index_iterate() */
+struct SysIndexCallback {
+	virtual ~SysIndexCallback() { }
+
+	/** Callback method
+	@param mtr - current mini transaction
+	@param pcur - persistent cursor. */
+	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) throw() = 0;
+};
+
+/** Functor used by IMPORT and DISCARD to set the index space
+and root columns in the SYS_INDEXES table */
+struct SetIndexRoot : public SysIndexCallback {
+
+	SetIndexRoot(dict_table_t* table)
+		:
+		m_table(table)
+	{
+		m_heap = mem_heap_create(256);
+	}
+
+	virtual ~SetIndexRoot()
+	{
+		mem_heap_free(m_heap);
+	}
+
+	/** Callback method
+	@param mtr - current mini transaction
+	@param pcur - persistent cursor. */
+	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) throw();
+
+	mem_heap_t*	m_heap;
+	dict_table_t*	m_table;
+};
+
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687
 
 #define ROW_MYSQL_WHOLE_ROW	0
@@ -863,11 +897,8 @@ struct row_prebuilt_struct {
 #define ROW_READ_TRY_SEMI_CONSISTENT	1
 #define ROW_READ_DID_SEMI_CONSISTENT	2
 
-/** The version number of the export meta-data text file. */
-#define IB_EXPORT_CFG_VERSION_V1	0x1UL
-
 #ifndef UNIV_NONINL
 #include "row0mysql.ic"
 #endif
 
-#endif
+#endif /* row0mysql.h */
