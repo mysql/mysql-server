@@ -39,8 +39,8 @@ of the table in the data dictionary.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 db_err
-row_import_tablespace_for_mysql(
-/*============================*/
+row_import_for_mysql(
+/*=================*/
 	dict_table_struct*	table,		/*!< in/out: table */
 	row_prebuilt_struct*	prebuilt);	/*!< in: prebuilt struct
 						in MySQL */
