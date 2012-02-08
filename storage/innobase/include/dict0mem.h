@@ -345,13 +345,6 @@ dict_mem_referenced_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
-/** Quiescing states for flushing tables to disk. */
-enum ib_quiesce_t {
-	QUIESCE_NONE,
-	QUIESCE_START,			/*!< Initialise, prepare to start */
-	QUIESCE_COMPLETE		/*!< All done */
-};
-
 /** Data structure for a column in a table */
 struct dict_col_struct{
 	/*----------------------*/

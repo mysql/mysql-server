@@ -96,11 +96,21 @@ innobase_shutdown_for_mysql(void);
 /********************************************************************
 Signal all per-table background threads to shutdown, and wait for them to do
 so. */
-
+UNIV_INTERN
 void
 srv_shutdown_table_bg_threads(void);
-
 /*=============================*/
+
+/*****************************************************************//**
+Get the meta-data filename from the table name. */
+UNIV_INTERN
+void
+srv_get_meta_data_filename(
+/*======================*/
+	const dict_table_t*	table,		/*!< in: table */
+	char*			filename,	/*!< out: filename */
+	ulint			max_len);	/*!< in: filename max length */
+
 /** Log sequence number at shutdown */
 extern	lsn_t	srv_shutdown_lsn;
 /** Log sequence number immediately after startup */
