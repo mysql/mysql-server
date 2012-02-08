@@ -454,11 +454,24 @@ ib_pushf(
 	...);				/*!< Args */
 
 /******************************************************************//**
-Write a message to the log. For printing INFO messages. */
+Write a message to the log, prefixed with "InnoDB: ". For printing
+INFO messages. */
 UNIV_INTERN
 void
 ib_logf(
 /*====*/
 	const char*	format,		/*!< printf format */
 	...);				/*!< Args */
+
+/******************************************************************//**
+Write a message to the MySQL log, prefixed with "InnoDB: ".
+Wrapper around sql_print_information() */
+UNIV_INTERN
+void
+ib_logf(
+/*====*/
+	ib_log_level_t	level,		/*!< in: warning level */
+	const char*	format,		/*!< printf format */
+	...);				/*!< Args */
+
 #endif /* HA_INNODB_PROTOTYPES_H */

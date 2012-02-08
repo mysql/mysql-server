@@ -15395,6 +15395,11 @@ ib_pushf(
 	char*		str;
 	va_list         args;
 
+	/* If the caller wants to push a message to the client then
+	the caller must pass a valid session handle. */
+
+	ut_a(thd != NULL);
+
 	va_start(args, format);
 
 #ifdef __WIN__
@@ -15405,42 +15410,24 @@ ib_pushf(
 	vasprintf(&str, format, args);
 #endif /* __WIN__ */
 
-	if (thd == NULL) {
-		switch(level) {
-		case IB_LOG_LEVEL_INFO:
-			sql_print_information("InnoDB: %s", str);
-			break;
-		case IB_LOG_LEVEL_WARN:
-			sql_print_warning("InnoDB: %s", str);
-			break;
-		case IB_LOG_LEVEL_ERROR:
-			sql_print_error("InnoDB: %s", str);
-			break;
-		case IB_LOG_LEVEL_FATAL:
-			sql_print_error("InnoDB: %s", str);
-			break;
-		}
-	} else {
+	Sql_condition::enum_warning_level	l;
 
-		Sql_condition::enum_warning_level	l;
-
-		switch(level) {
-		case IB_LOG_LEVEL_INFO:
-			l = Sql_condition::WARN_LEVEL_NOTE;
-			break;
-		case IB_LOG_LEVEL_WARN:
-			l = Sql_condition::WARN_LEVEL_WARN;
-			break;
-		case IB_LOG_LEVEL_ERROR:
-			l = Sql_condition::WARN_LEVEL_ERROR;
-			break;
-		case IB_LOG_LEVEL_FATAL:
-			l = Sql_condition::WARN_LEVEL_END;
-			break;
-		}
-
-		push_warning_printf((THD*) thd, l, code, "InnoDB: %s", str);
+	switch(level) {
+	case IB_LOG_LEVEL_INFO:
+		l = Sql_condition::WARN_LEVEL_NOTE;
+		break;
+	case IB_LOG_LEVEL_WARN:
+		l = Sql_condition::WARN_LEVEL_WARN;
+		break;
+	case IB_LOG_LEVEL_ERROR:
+		l = Sql_condition::WARN_LEVEL_ERROR;
+		break;
+	case IB_LOG_LEVEL_FATAL:
+		l = Sql_condition::WARN_LEVEL_END;
+		break;
 	}
+
+	push_warning_printf((THD*) thd, l, code, "InnoDB: %s", str);
 
 	va_end(args);
 	free(str);
@@ -15451,11 +15438,12 @@ ib_pushf(
 }
 
 /******************************************************************//**
-Write a message to the log. For printing INFO messages. */
+Write a message to the MySQL log, prefixed with "InnoDB: " */
 UNIV_INTERN
 void
 ib_logf(
-/*=====*/
+/*====*/
+	ib_log_level_t	level,		/*!< in: warning level */
 	const char*	format,		/*!< printf format */
 	...)				/*!< Args */
 {
@@ -15472,7 +15460,53 @@ ib_logf(
 	vasprintf(&str, format, args);
 #endif /* __WIN__ */
 
-	ib_pushf(NULL, IB_LOG_LEVEL_INFO, 0, "%s", str);
+	switch(level) {
+	case IB_LOG_LEVEL_INFO:
+		sql_print_information("InnoDB: %s", str);
+		break;
+	case IB_LOG_LEVEL_WARN:
+		sql_print_warning("InnoDB: %s", str);
+		break;
+	case IB_LOG_LEVEL_ERROR:
+		sql_print_error("InnoDB: %s", str);
+		break;
+	case IB_LOG_LEVEL_FATAL:
+		sql_print_error("InnoDB: %s", str);
+		break;
+	}
+
+	va_end(args);
+	free(str);
+
+	if (level == IB_LOG_LEVEL_FATAL) {
+		ut_error;
+	}
+}
+
+/******************************************************************//**
+Write a message to the log, prefixed with "InnoDB: ". For printing
+INFO messages. */
+UNIV_INTERN
+void
+ib_logf(
+/*====*/
+	const char*	format,		/*!< printf format */
+	...)				/*!< Args */
+{
+	char*		str;
+	va_list         args;
+
+	va_start(args, format);
+
+#ifdef __WIN__
+	int		size = _vscprintf(format, args);
+	str = static_cast<char*>(malloc(size));
+	vsnprintf(str, size, args);
+#else
+	vasprintf(&str, format, args);
+#endif /* __WIN__ */
+
+	sql_print_information("InnoDB: %s", str);
 
 	va_end(args);
 	free(str);
