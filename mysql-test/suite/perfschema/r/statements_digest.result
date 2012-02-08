@@ -68,19 +68,19 @@ use performance_schema;
 select DIGEST, DIGEST_TEXT, COUNT_STAR from events_statements_summary_by_digest;
 DIGEST	DIGEST_TEXT	COUNT_STAR
 NULL	NULL	0
-560c2f53c356e1db	TRUNCATE TABLE performance_schema . events_statements_summa  	1
+bb399912758e2135	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
 c4cdaf6f814e367d	SELECT ? FROM t1  	1
 58681943ba1f6965	SELECT ?, ... FROM t1  	2
 dd87e085c2c5a2b6	SELECT ? FROM t2  	1
 fc7ca6a130fec1a4	SELECT ?, ... FROM t2  	2
 164f41cc7a0b2f31	INSERT INTO t1 VALUES (?)  	1
 06bd734b89c6f98f	INSERT INTO t2 VALUES (?)  	1
-d45807bf8c1e5d68	INSERT INTO t3 VALUES (...)  	1
-f0ea2c0da2e91d0f	INSERT INTO t4 VALUES (...)  	1
-093d15f7db5ca81e	INSERT INTO t5 VALUES (...)  	1
-92e8773c5e94030a	INSERT INTO t1 VALUES (?) /* , ... */  	2
-6a0a84a8f519cb96	INSERT INTO t3 VALUES (...) /* , ... */  	1
-36609be6d3cf105b	INSERT INTO t5 VALUES (...) /* , ... */  	1
+3a4848d584923fd7	INSERT INTO t3 VALUES (...)  	1
+37c0599e49fd77fe	INSERT INTO t4 VALUES (...)  	1
+e63c7357e9f87f44	INSERT INTO t5 VALUES (...)  	1
+1cd783ad398f6755	INSERT INTO t1 VALUES (?) /* , ... */  	2
+f52370e9b5183696	INSERT INTO t3 VALUES (...) /* , ... */  	1
+edc61a0866ec47da	INSERT INTO t5 VALUES (...) /* , ... */  	1
 06ec53eb6a3e3d4c	SELECT ? + ?  	3
 a68272fa2b30c2e3	SELECT ?  	1
 49d23ec9aebe975b	CREATE SCHEMA statements_digest_temp  	2
