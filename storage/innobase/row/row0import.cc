@@ -421,11 +421,36 @@ row_import_cleanup(
 	ut_a(prebuilt->trx != trx);
 
 	if (err != DB_SUCCESS) {
+		dict_table_t*	table = prebuilt->table;
+
 		prebuilt->trx->error_info = NULL;
 
-		/* TODO: drop the broken *.ibd file, because
-		trx would be committed and crash recovery
-		would not drop the table. */
+		char table_name[MAX_FULL_NAME_LEN + 1];
+
+		innobase_format_name(
+			table_name, sizeof(table_name),
+			prebuilt->table->name, FALSE);
+
+		ib_logf("Discarding tablespace of table %s", table_name);
+
+		row_mysql_lock_data_dictionary(trx);
+
+		/* Since we update the index root page numbers on disk after
+		we've done a successful import. The table will not be loadable.
+		However, we need to ensure that the in memory root page numbers
+		are reset to "NULL". */
+
+		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+		     index != 0;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			index->page = FIL_NULL;
+			index->space = FIL_NULL;
+		}
+
+		table->ibd_file_missing = TRUE;
+
+		row_mysql_unlock_data_dictionary(trx);
 	}
 
 	trx_commit_for_mysql(trx);
