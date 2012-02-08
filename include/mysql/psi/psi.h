@@ -26,6 +26,7 @@
 #define DISABLE_PSI_STAGE
 #define DISABLE_PSI_STATEMENT
 #define DISABLE_PSI_IDLE
+#define DISABLE_PSI_STATEMENT_DIGEST
 #endif /* EMBEDDED_LIBRARY */
 
 #ifndef MY_GLOBAL_INCLUDED
@@ -241,6 +242,15 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 
 #ifndef DISABLE_PSI_STATEMENT
 #define HAVE_PSI_STATEMENT_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_STATEMENT_DIGEST
+  Compiling option to disable the statement digest instrumentation.
+*/
+
+#ifndef DISABLE_PSI_STATEMENT_DIGEST
+#define HAVE_PSI_STATEMENT_DIGEST_INTERFACE
 #endif
 
 /**
@@ -922,7 +932,6 @@ struct PSI_table_locker_state_v1
   */
   uint m_index;
 };
-
 struct PSI_digest_locker_state_v1
 {
   int m_last_id_index;

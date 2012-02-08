@@ -2603,14 +2603,13 @@ case SQLCOM_PREPARE:
     /* Might have been updated in create_table_precheck */
     create_info.alias= create_table->alias;
 
-#ifdef HAVE_READLINK
-    /* Fix names if symlinked tables */
+    /* Fix names if symlinked or relocated tables */
     if (append_file_to_dir(thd, &create_info.data_file_name,
 			   create_table->table_name) ||
 	append_file_to_dir(thd, &create_info.index_file_name,
 			   create_table->table_name))
       goto end_with_restore_list;
-#endif
+
     /*
       If no engine type was given, work out the default now
       rather than at parse-time.
@@ -7767,8 +7766,10 @@ bool parse_sql(THD *thd,
 
   thd->m_parser_state= parser_state;
 
+#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
   /* Start Digest */
   thd->m_parser_state->m_lip.m_digest_psi= MYSQL_DIGEST_START(thd->m_statement_psi);
+#endif
 
   /* Parse the query. */
 
