@@ -45,6 +45,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "row0types.h" /* sel_node_t */
 #include "srv0mon.h"
 #include "ut0vec.h"
+#include "btr0btr.h"
 
 /* Restricts the length of search we will do in the waits-for
 graph of transactions */
@@ -1670,7 +1671,7 @@ lock_sec_rec_some_has_impl(
 
 	} else if (!lock_check_trx_id_sanity(max_trx_id, rec, index, offsets)) {
 
-		buf_page_print(page, 0);
+		buf_page_print(page, 0, 0);
 
 		/* The page is corrupt: try to avoid a crash by returning 0 */
 		trx_id = 0;

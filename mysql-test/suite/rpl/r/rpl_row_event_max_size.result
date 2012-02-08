@@ -59,6 +59,7 @@ call mtr.add_suppression("Found invalid event in binary log");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 drop table t1;
 include/wait_for_slave_io_error.inc [errno=1236]
+Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master; the first event '' at XXX, the last event read from './master-bin.000001' at XXX, the last byte read from './master-bin.000001' at XXX.''
 ==== clean up ====
 include/stop_slave_sql.inc
 RESET SLAVE;

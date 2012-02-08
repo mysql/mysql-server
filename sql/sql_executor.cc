@@ -145,12 +145,6 @@ JOIN::exec()
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
-    if (result->send_result_set_metadata(*columns_list,
-                                         Protocol::SEND_NUM_ROWS |
-                                         Protocol::SEND_EOF))
-    {
-      DBUG_VOID_RETURN;
-    }
     /*
       We have to test for 'conds' here as the WHERE may not be constant
       even if we don't have any tables for prepared statements or if
@@ -165,6 +159,12 @@ JOIN::exec()
         (!conds || conds->val_int()) &&
         (!having || having->val_int()))
     {
+      if (result->send_result_set_metadata(*columns_list,
+                                           Protocol::SEND_NUM_ROWS |
+                                           Protocol::SEND_EOF))
+      {
+        DBUG_VOID_RETURN;
+      }
       if (do_send_rows &&
           (procedure ? (procedure->send_row(procedure_fields_list) ||
            procedure->end_of_records()) : result->send_data(fields_list)))
@@ -175,15 +175,15 @@ JOIN::exec()
         send_records= ((select_options & OPTION_FOUND_ROWS) ? 1 :
                        thd->get_sent_row_count());
       }
+      /* Query block (without union) always returns 0 or 1 row */
+      thd->limit_found_rows= send_records;
+      thd->set_examined_row_count(0);
     }
     else
     {
-      error=(int) result->send_eof();
-      send_records= 0;
+      tables= 0;
+      return_zero_rows(this, *columns_list);
     }
-    /* Single select (without union) always returns 0 or 1 row */
-    thd->limit_found_rows= send_records;
-    thd->set_examined_row_count(0);
     DBUG_VOID_RETURN;
   }
   /*
@@ -2564,9 +2564,9 @@ test_if_quick_select(JOIN_TAB *tab)
    Reads content of constant table
    @param tab  table
    @param pos  position of table in query plan
-   @retval 0   ok
-   @retval >0  error
-   @retval <0  ??
+   @retval 0   ok, one row was found or one NULL-complemented row was created
+   @retval -1  ok, no row was found and no NULL-complemented row was created
+   @retval 1   error
 */
 
 int
@@ -2687,6 +2687,16 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 }
 
 
+/**
+  Read a constant table when there is at most one matching row, using a table
+  scan.
+
+  @param tab			Table to read
+
+  @retval  0  Row was found
+  @retval  -1 Row was not found
+  @retval  1  Got an error (other than row not found) during read
+*/
 static int
 join_read_system(JOIN_TAB *tab)
 {
@@ -2713,16 +2723,14 @@ join_read_system(JOIN_TAB *tab)
 
 
 /**
-  Read a [constant] table when there is at most one matching row.
+  Read a constant table when there is at most one matching row, using an
+  index lookup.
 
   @param tab			Table to read
 
-  @retval
-    0	Row was found
-  @retval
-    -1   Row was not found
-  @retval
-    1   Got an error (other than row not found) during read
+  @retval 0  Row was found
+  @retval -1 Row was not found
+  @retval 1  Got an error (other than row not found) during read
 */
 
 static int

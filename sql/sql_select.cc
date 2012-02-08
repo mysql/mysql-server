@@ -1224,11 +1224,6 @@ bool JOIN::get_best_combination()
 
   set_semijoin_info();
 
-  if (set_access_methods())
-    DBUG_RETURN(true);
-
-  update_depend_map(this);
-
   DBUG_RETURN(false);
 }
 
@@ -1242,6 +1237,11 @@ bool JOIN::get_best_combination()
      - There is no key selected (use JT_ALL)
      - Loose scan semi-join strategy is selected (use JT_ALL)
      - A ref key can be used (use JT_REF, JT_REF_OR_NULL, JT_EQ_REF or JT_FT)
+
+  @note We cannot setup fields used for ref access before we have sorted
+        the items within multiple equalities according to the final order of
+        the tables involved in the join operation. Currently, this occurs in
+        @see substitute_for_best_equal_field().
 */
 bool JOIN::set_access_methods()
 {
@@ -1360,8 +1360,14 @@ void JOIN::set_semijoin_info()
   @details
     This function will set up a ref access using the best key found
     during access path analysis and cost analysis.
-*/
 
+  @note We cannot setup fields used for ref access before we have sorted
+        the items within multiple equalities according to the final order of
+        the tables involved in the join operation. Currently, this occurs in
+        @see substitute_for_best_equal_field().
+        The exception is ref access for const tables, which are fixed
+        before the greedy search planner is invoked.  
+*/
 
 bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
                         table_map used_tables)
@@ -1452,6 +1458,14 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
         keyuse++;                               // Skip other parts
 
       uint maybe_null= test(keyinfo->key_part[part_no].null_bit);
+
+      if (keyuse->val->type() == Item::FIELD_ITEM)
+      {
+        // Look up the most appropriate field to base the ref access on.
+        keyuse->val= get_best_field(static_cast<Item_field *>(keyuse->val),
+                                    join->cond_equal);
+        keyuse->used_tables= keyuse->val->used_tables();
+      }
       j->ref.items[part_no]=keyuse->val;        // Save for cond removal
       j->ref.cond_guards[part_no]= keyuse->cond_guard;
       if (keyuse->null_rejecting) 
@@ -2579,14 +2593,11 @@ bool setup_sj_materialization(JOIN_TAB *tab)
     it.rewind();
     for (uint i=0; i < sjm->table_cols.elements; i++)
     {
-      bool dummy;
-      Item_equal *item_eq;
       Item *item= (it++)->real_item();
       DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
-      Field *copy_to= ((Item_field*)item)->field;
       /*
-        Tricks with Item_equal are due to the following: suppose we have a
-        query:
+        The trick with get_best_field() is due to the following;
+        suppose we have a query:
         
         ... WHERE cond(ot.col) AND ot.col IN (SELECT it2.col FROM it1,it2
                                                WHERE it1.col= it2.col)
@@ -2609,21 +2620,8 @@ bool setup_sj_materialization(JOIN_TAB *tab)
          element equality propagation member that refers to table that is
          within the subquery.
       */
-      item_eq= find_item_equal(tab->join->cond_equal, copy_to, &dummy);
-
-      if (item_eq)
-      {
-        List_iterator<Item_field> it(item_eq->fields);
-        Item_field *item;
-        while ((item= it++))
-        {
-          if (!(item->used_tables() & ~emb_sj_nest->sj_inner_tables))
-          {
-            copy_to= item->field;
-            break;
-          }
-        }
-      }
+      Field *copy_to= get_best_field(static_cast<Item_field *>(item),
+                                     tab->join->cond_equal)->field;
       sjm->copy_field[i].set(copy_to, sjm->table->field[i], FALSE);
       /* The write_set for source tables must be set up to allow the copying */
       bitmap_set_bit(copy_to->table->write_set, copy_to->field_index);
@@ -2632,8 +2630,6 @@ bool setup_sj_materialization(JOIN_TAB *tab)
 
   DBUG_RETURN(FALSE);
 }
-
-
 
 
 /**
@@ -4688,7 +4684,7 @@ bool JOIN::change_result(select_result *res)
   @param          ref_key             
                 * 0 <= key < MAX_KEY   - key number (hint) to start the search
                 * -1                   - no key number provided
-  @param          select_limit        LIMIT value
+  @param          select_limit        LIMIT value, or HA_POS_ERROR if no limit
   @param [out]    new_key             Key number if success, otherwise undefined
   @param [out]    new_key_direction   Return -1 (reverse) or +1 if success,
                                       otherwise undefined
@@ -4736,6 +4732,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   ha_rows table_records= table->file->stats.records;
   bool group= join && join->group && order == join->group_list;
   ha_rows ref_key_quick_rows= HA_POS_ERROR;
+  const bool has_limit= (select_limit != HA_POS_ERROR);
 
   /*
     If not used with LIMIT, only use keys if the whole query can be
@@ -4828,7 +4825,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
             be included into the result set.
           */  
           if (select_limit > table_records/rec_per_key)
-              select_limit= table_records;
+            select_limit= table_records;
           else
             select_limit= (ha_rows) (select_limit*rec_per_key);
         }
@@ -4909,7 +4906,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   
   *new_key= best_key;
   *new_key_direction= best_key_direction;
-  *new_select_limit= best_select_limit;
+  *new_select_limit= has_limit ? best_select_limit : table_records;
   if (new_used_key_parts != NULL)
     *new_used_key_parts= best_key_parts;
 

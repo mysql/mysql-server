@@ -2611,14 +2611,13 @@ case SQLCOM_PREPARE:
     /* Might have been updated in create_table_precheck */
     create_info.alias= create_table->alias;
 
-#ifdef HAVE_READLINK
-    /* Fix names if symlinked tables */
+    /* Fix names if symlinked or relocated tables */
     if (append_file_to_dir(thd, &create_info.data_file_name,
 			   create_table->table_name) ||
 	append_file_to_dir(thd, &create_info.index_file_name,
 			   create_table->table_name))
       goto end_with_restore_list;
-#endif
+
     /*
       If no engine type was given, work out the default now
       rather than at parse-time.
@@ -3239,6 +3238,7 @@ end_with_restore_list:
       res= mysql_insert_select_prepare(thd);
       if (!res && (sel_result= new select_insert(first_table,
                                                  first_table->table,
+                                                 &lex->field_list,
                                                  &lex->field_list,
                                                  &lex->update_list,
                                                  &lex->value_list,
@@ -4213,6 +4213,13 @@ create_sp_error:
   case SQLCOM_CALL:
     {
       sp_head *sp;
+
+      /* Here we check for the execute privilege on stored procedure. */
+      if (check_routine_access(thd, EXECUTE_ACL, lex->spname->m_db.str,
+                               lex->spname->m_name.str,
+                               lex->sql_command == SQLCOM_CALL, 0))
+        goto error;
+
       /*
         This will cache all SP and SF and open and lock all tables
         required for execution.
@@ -6040,14 +6047,15 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     /* 
       Default value should be literal => basic constants =>
       no need fix_fields()
-      
-      We allow only one function as part of default value - 
-      NOW() as default for TIMESTAMP type.
+
+      We allow only CURRENT_TIMESTAMP as function default for the TIMESTAMP or
+      DATETIME types.
     */
     if (default_value->type() == Item::FUNC_ITEM && 
-        !(((Item_func*)default_value)->functype() == Item_func::NOW_FUNC &&
-         real_type_with_now_as_default(type) &&
-         default_value->decimals == datetime_precision))
+        (static_cast<Item_func*>(default_value)->functype() !=
+         Item_func::NOW_FUNC ||
+         (!real_type_with_now_as_default(type)) ||
+         default_value->decimals != datetime_precision))
     {
       my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
       DBUG_RETURN(1);

@@ -1997,4 +1997,20 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
 1	SIMPLE	t6b	ALL	NULL	NULL	NULL	NULL	1	Using where
 drop table t1,t2,t3,t4,t5,t6;
+#
+# Bug#13464334 SAME QUERY PRODUCES DIFFERENT RESULTS WHEN USED WITH AND
+# WITHOUT UNION ALL
+#
+CREATE TABLE t1 (p1 INT PRIMARY KEY, a CHAR(1));
+CREATE TABLE t2 (p2 INT PRIMARY KEY, b CHAR(1));
+INSERT INTO t1 VALUES (1,'a'),(2,'b'),(3,'c');
+INSERT INTO t2 VALUES (1,'h'),(2,'i'),(3,'j'),(4,'k');
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM t2;
+(SELECT p1 FROM v2 LEFT JOIN v1 ON b = a WHERE p2 = 1 GROUP BY p1 ORDER BY p1)
+UNION (SELECT NULL LIMIT 0);
+p1
+NULL
+DROP VIEW v1, v2;
+DROP TABLE t1, t2;
 set optimizer_switch=default;

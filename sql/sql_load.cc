@@ -271,7 +271,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     for (field=table->field; *field ; field++)
       fields_vars.push_back(new Item_field(*field));
     bitmap_set_all(table->write_set);
-    table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     /*
       Let us also prepare SET clause, altough it is probably empty
       in this case.
@@ -290,25 +289,35 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                      set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
         check_that_all_fields_are_given_values(thd, table, table_list))
       DBUG_RETURN(TRUE);
-    /*
-      Check whenever TIMESTAMP field with auto-set feature specified
-      explicitly.
-    */
-    if (table->get_timestamp_field())
-    {
-      if (bitmap_is_set(table->write_set,
-                        table->get_timestamp_field()->field_index))
-        table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
-      else
-      {
-        bitmap_set_bit(table->write_set,
-                       table->get_timestamp_field()->field_index);
-      }
-    }
     /* Fix the expressions in SET clause */
     if (setup_fields(thd, Ref_ptr_array(), set_values, MARK_COLUMNS_READ, 0, 0))
       DBUG_RETURN(TRUE);
   }
+
+  const int escape_char= (escaped->length() && (ex->escaped_given() ||
+                          !(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)))
+                          ? (*escaped)[0] : INT_MAX;
+
+  /* We can't give an error in the middle when using LOCAL files */
+  if (read_file_from_client && handle_duplicates == DUP_ERROR)
+    ignore= 1;
+
+  /*
+    (1):
+    * LOAD DATA INFILE fff INTO TABLE xxx SET columns2
+    sets all columns, except if file's row lacks some: in that case,
+    defaults are set by read_fixed_length() and read_sep_field(),
+    not by COPY_INFO.
+    * LOAD DATA INFILE fff INTO TABLE xxx (columns1) SET columns2=
+    may need a default for columns other than columns1 and columns2.
+  */
+  COPY_INFO info(COPY_INFO::INSERT_OPERATION,
+                 &fields_vars, &set_fields,
+                 fields_vars.elements != 0, //(1)
+                 handle_duplicates, ignore, escape_char);
+
+  if (info.add_function_default_columns(table, table->write_set))
+    DBUG_RETURN(TRUE);
 
   prepare_triggers_for_insert_stmt(table);
 
@@ -346,10 +355,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     my_error(ER_LOAD_FROM_FIXED_SIZE_ROWS_TO_VAR, MYF(0));
     DBUG_RETURN(TRUE);
   }
-
-  /* We can't give an error in the middle when using LOCAL files */
-  if (read_file_from_client && handle_duplicates == DUP_ERROR)
-    ignore= 1;
 
 #ifndef EMBEDDED_LIBRARY
   if (read_file_from_client)
@@ -428,14 +433,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
       DBUG_RETURN(TRUE);
   }
-
-  COPY_INFO info;
-  memset(&info, 0, sizeof(info));
-  info.ignore= ignore;
-  info.handle_duplicates=handle_duplicates;
-  info.escape_char= (escaped->length() && (ex->escaped_given() ||
-                    !(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)))
-                    ? (*escaped)[0] : INT_MAX;
 
   READ_INFO read_info(file,tot_length,
                       ex->cs ? ex->cs : thd->variables.collation_database,
@@ -599,9 +596,12 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     error= -1;				// Error on read
     goto err;
   }
-  sprintf(name, ER(ER_LOAD_INFO), (ulong) info.records, (ulong) info.deleted,
-	  (ulong) (info.records - info.copied),
-          (ulong) thd->get_stmt_da()->current_statement_warn_count());
+
+  my_snprintf(name, sizeof(name),
+              ER(ER_LOAD_INFO),
+              (long) info.stats.records, (long) info.stats.deleted,
+              (long) (info.stats.records - info.stats.copied),
+              (long) thd->get_stmt_da()->current_statement_warn_count());
 
 #ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
@@ -648,9 +648,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #endif /*!EMBEDDED_LIBRARY*/
 
   /* ok to client sent only after binlog write and engine commit */
-  my_ok(thd, info.copied + info.deleted, 0L, name);
+  my_ok(thd, info.stats.copied + info.stats.deleted, 0L, name);
 err:
-  DBUG_ASSERT(transactional_table || !(info.copied || info.deleted) ||
+  DBUG_ASSERT(transactional_table ||
+              !(info.stats.copied || info.stats.deleted) ||
               thd->transaction.stmt.cannot_safely_rollback());
   table->file->ha_release_auto_increment();
   table->auto_increment_field_not_null= FALSE;
@@ -845,8 +846,11 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                             ER_WARN_TOO_FEW_RECORDS,
                             ER(ER_WARN_TOO_FEW_RECORDS),
                             thd->get_stmt_da()->current_row_for_warning());
-        if (!field->maybe_null() && field->type() == FIELD_TYPE_TIMESTAMP)
-            field->set_time();
+        if (field->type() == FIELD_TYPE_TIMESTAMP && !field->maybe_null())
+        {
+          // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
+          Item_func_now_local::store_in(field);
+        }
       }
       else
       {
@@ -887,7 +891,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       DBUG_RETURN(-1);
     }
 
-    err= write_record(thd, table, &info);
+    err= write_record(thd, table, &info, NULL);
     table->auto_increment_field_not_null= FALSE;
     if (err)
       DBUG_RETURN(1);
@@ -967,17 +971,21 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         if (real_item->type() == Item::FIELD_ITEM)
         {
           Field *field= ((Item_field *)real_item)->field;
-          if (field->reset())
+          if (field->reset())                   // Set to 0
           {
             my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0), field->field_name,
                      thd->get_stmt_da()->current_row_for_warning());
             DBUG_RETURN(1);
           }
+          // Try to set to NULL; if it fails, field remains at 0.
           field->set_null();
           if (!field->maybe_null())
           {
-            if (field->type() == MYSQL_TYPE_TIMESTAMP)
-              field->set_time();
+            if (field->type() == FIELD_TYPE_TIMESTAMP)
+            {
+              // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
+              Item_func_now_local::store_in(field);
+            }
             else if (field != table->next_number_field)
               field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                  ER_WARN_NULL_TO_NOTNULL, 1);
@@ -1039,14 +1047,19 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         if (real_item->type() == Item::FIELD_ITEM)
         {
           Field *field= ((Item_field *)real_item)->field;
+          /*
+            We set to 0. But if the field is DEFAULT NULL, the "null bit"
+            turned on by restore_record() above remains so field will be NULL.
+          */
           if (field->reset())
           {
             my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0),field->field_name,
                      thd->get_stmt_da()->current_row_for_warning());
             DBUG_RETURN(1);
           }
-          if (!field->maybe_null() && field->type() == FIELD_TYPE_TIMESTAMP)
-              field->set_time();
+          if (field->type() == FIELD_TYPE_TIMESTAMP && !field->maybe_null())
+            // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
+            Item_func_now_local::store_in(field);
           /*
             QQ: We probably should not throw warning for each field.
             But how about intention to always have the same number
@@ -1088,7 +1101,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       DBUG_RETURN(-1);
     }
 
-    err= write_record(thd, table, &info);
+    err= write_record(thd, table, &info, NULL);
     table->auto_increment_field_not_null= FALSE;
     if (err)
       DBUG_RETURN(1);
@@ -1183,7 +1196,8 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           if (!field->maybe_null())
           {
             if (field->type() == FIELD_TYPE_TIMESTAMP)
-              field->set_time();
+              // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
+              Item_func_now_local::store_in(field);
             else if (field != table->next_number_field)
               field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                  ER_WARN_NULL_TO_NOTNULL, 1);
@@ -1261,7 +1275,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       DBUG_RETURN(-1);
     }
     
-    if (write_record(thd, table, &info))
+    if (write_record(thd, table, &info, NULL))
       DBUG_RETURN(1);
     
     /*

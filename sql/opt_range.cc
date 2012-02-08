@@ -213,7 +213,7 @@ class RANGE_OPT_PARAM;
         +---+       +---+   +---+       +---+
 
   In this tree,
-    * node0->prev == node7->next == NULL
+    * node1->prev == node7->next == NULL
     * node1->left == node1->right ==
       node3->left == ... node7->right == &null_element
 
@@ -789,6 +789,12 @@ public:
   /* Number of SEL_ARG objects allocated by SEL_ARG::clone_tree operations */
   uint alloced_sel_args; 
   bool force_default_mrr;
+  /** 
+    Whether index statistics or index dives should be used when
+    estimating the number of rows in an equality range. If true, index
+    statistics is used for these indexes.
+  */
+  bool use_index_statistics;
 };
 
 class PARAM : public RANGE_OPT_PARAM
@@ -897,6 +903,8 @@ bool get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
                     SEL_ARG *key_tree, uchar *min_key,uint min_key_flag,
                     uchar *max_key,uint max_key_flag);
 static bool eq_tree(SEL_ARG* a,SEL_ARG *b);
+static bool eq_ranges_exceeds_limit(SEL_ARG *keypart_root, uint* count, 
+                                    uint limit);
 
 static SEL_ARG null_element(SEL_ARG::IMPOSSIBLE);
 static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
@@ -2570,6 +2578,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.remove_jump_scans= TRUE;
     param.force_default_mrr= (interesting_order == ORDER::ORDER_DESC);
     param.order_direction= interesting_order;
+    param.use_index_statistics= false;
 
     thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
@@ -4645,21 +4654,25 @@ void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
 
 
 /*
-  Get selectivity of a ROR scan wrt ROR-intersection.
+  Get selectivity of adding a ROR scan to the ROR-intersection.
 
   SYNOPSIS
     ror_scan_selectivity()
-      info  ROR-interection 
-      scan  ROR scan
+      info  ROR-interection, an intersection of ROR index scans 
+      scan  ROR scan that may or may not improve the selectivity
+            of 'info'
       
   NOTES
-    Suppose we have a condition on several keys
-    cond=k_11=c_11 AND k_12=c_12 AND ...  // parts of first key
-         k_21=c_21 AND k_22=c_22 AND ...  // parts of second key
+    Suppose we have conditions on several keys
+    cond=k_11=c_11 AND k_12=c_12 AND ...  // key_parts of first key in 'info'
+         k_21=c_21 AND k_22=c_22 AND ...  // key_parts of second key in 'info'
           ...
-         k_n1=c_n1 AND k_n3=c_n3 AND ...  (1) //parts of the key used by *scan
+         k_n1=c_n1 AND k_n3=c_n3 AND ...  (1) //key_parts of 'scan'
 
     where k_ij may be the same as any k_pq (i.e. keys may have common parts).
+
+    Note that for ROR retrieval, only equality conditions are usable so there
+    are no open ranges (e.g., k_ij > c_ij) in 'scan' or 'info'
 
     A full row is retrieved if entire condition holds.
 
@@ -4727,19 +4740,30 @@ void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
 
     where i1,i2, .. are key parts that were already marked as fixed.
 
-    In order to minimize number of expensive records_in_range calls we group
-    and reduce adjacent fractions.
+    In order to minimize number of expensive records_in_range calls we
+    group and reduce adjacent fractions. Note that on the optimizer's
+    request, index statistics may be used instead of records_in_range
+    @see RANGE_OPT_PARAM::use_index_statistics.
 
   RETURN
-    Selectivity of given ROR scan.
+    Selectivity of given ROR scan, a number between 0 and 1. 1 means that
+    adding 'scan' to the intersection does not improve the selectivity.
 */
 
 static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info, 
                                    const ROR_SCAN_INFO *scan)
 {
   double selectivity_mult= 1.0;
-  KEY_PART_INFO *key_part= info->param->table->key_info[scan->keynr].key_part;
-  uchar key_val[MAX_KEY_LENGTH+MAX_FIELD_WIDTH]; /* key values tuple */
+  const TABLE * const table= info->param->table;
+  const KEY_PART_INFO * const key_part= table->key_info[scan->keynr].key_part;
+  /**
+    key values tuple, used to store both min_range.key and
+    max_range.key. This function is only called for equality ranges;
+    open ranges (e.g. "min_value < X < max_value") cannot be used for
+    rowid ordered retrieval, so in this function we know that
+    min_range.key == max_range.key
+  */
+  uchar key_val[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
   uchar *key_ptr= key_val;
   SEL_ARG *sel_arg, *tuple_arg= NULL;
   key_part_map keypart_map= 0;
@@ -4752,7 +4776,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   min_range.flag= HA_READ_KEY_EXACT;
   max_range.key= key_val;
   max_range.flag= HA_READ_AFTER_KEY;
-  ha_rows prev_records= info->param->table->file->stats.records;
+  ha_rows prev_records= table->file->stats.records;
   DBUG_ENTER("ror_scan_selectivity");
 
   for (sel_arg= scan->sel_arg; sel_arg;
@@ -4764,12 +4788,14 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
     if (cur_covered != prev_covered)
     {
       /* create (part1val, ..., part{n-1}val) tuple. */
+      bool is_null_range= false;
       ha_rows records;
       if (!tuple_arg)
       {
         tuple_arg= scan->sel_arg;
         /* Here we use the length of the first key part */
-        tuple_arg->store_min(key_part->store_length, &key_ptr, 0);
+        tuple_arg->store_min(key_part[0].store_length, &key_ptr, 0);
+        is_null_range|= tuple_arg->is_null_interval();
         keypart_map= 1;
       }
       while (tuple_arg->next_key_part != sel_arg)
@@ -4777,12 +4803,33 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
         tuple_arg= tuple_arg->next_key_part;
         tuple_arg->store_min(key_part[tuple_arg->part].store_length,
                              &key_ptr, 0);
+        is_null_range|= tuple_arg->is_null_interval();
         keypart_map= (keypart_map << 1) | 1;
       }
       min_range.length= max_range.length= (size_t) (key_ptr - key_val);
       min_range.keypart_map= max_range.keypart_map= keypart_map;
-      records= (info->param->table->file->
-                records_in_range(scan->keynr, &min_range, &max_range));
+
+      /* 
+        Get the number of rows in this range. This is done by calling
+        records_in_range() unless all these are true:
+          1) The user has requested that index statistics should be used
+             for equality ranges to avoid the incurred overhead of 
+             index dives in records_in_range()
+          2) The range is not on the form "x IS NULL". The reason is
+             that the number of rows with this value are likely to be
+             very different than the values in the index statistics
+          3) Index statistics is available.
+        @see key_val
+      */
+      if (!info->param->use_index_statistics ||        // (1)
+          is_null_range ||                             // (2)
+          !(records= table->key_info[scan->keynr].
+                     rec_per_key[tuple_arg->part]))    // (3)
+      {
+        DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
+        records= (table->file->
+                  records_in_range(scan->keynr, &min_range, &max_range));
+      }
       if (cur_covered)
       {
         /* uncovered -> covered */
@@ -4801,11 +4848,13 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   }
   if (!prev_covered)
   {
-    double tmp= rows2double(info->param->table->quick_rows[scan->keynr]) /
+    double tmp= rows2double(table->quick_rows[scan->keynr]) /
                 rows2double(prev_records);
     DBUG_PRINT("info", ("Selectivity multiplier: %g", tmp));
     selectivity_mult *= tmp;
   }
+  // Todo: This assert fires in PB sysqa RQG tests.
+  // DBUG_ASSERT(selectivity_mult <= 1.0);
   DBUG_PRINT("info", ("Returning multiplier: %g", selectivity_mult));
   DBUG_RETURN(selectivity_mult);
 }
@@ -5445,6 +5494,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       if (found_records != HA_POS_ERROR &&
           param->thd->opt_trace.is_started())
       {
+        trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics);
         Opt_trace_array trace_range(&param->thd->opt_trace, "ranges");
 
         const KEY &cur_key= param->table->key_info[keynr];
@@ -8372,6 +8422,12 @@ typedef struct st_range_seq_entry
   
   /* Number of key parts */
   uint min_key_parts, max_key_parts;
+  /**
+    Pointer into the R-B tree for this keypart. It points to the
+    currently active range for the keypart, so calling next on it will
+    get to the next range. sel_arg_range_seq_next() uses this to avoid
+    reparsing the R-B range trees each time a new range is fetched.
+  */
   SEL_ARG *key_tree;
 } RANGE_SEQ_ENTRY;
 
@@ -8386,9 +8442,50 @@ typedef struct st_sel_arg_range_seq
   PARAM *param;
   SEL_ARG *start; /* Root node of the traversed SEL_ARG* graph */
   
+  /**
+    Stack of ranges for the curr_kp first keyparts. Used by
+    sel_arg_range_seq_next() so that if the next range is equal to the
+    previous one for the first x keyparts, stack[x-1] can be
+    accumulated with the new range in keyparts > x to quickly form
+    the next range to return.
+
+    Notation used below: "x:y" means a range where
+    "column_in_keypart_0=x" and "column_in_keypart_1=y". For
+    simplicity, only equality (no BETWEEN, < etc) is considered in the
+    example but the same principle applies to other range predicate
+    operators too.
+
+    Consider a query with these range predicates: 
+      (kp0=1 and kp1=2 and kp2=3) or
+      (kp0=1 and kp1=2 and kp2=4) or
+      (kp0=1 and kp1=3 and kp2=5) or
+      (kp0=1 and kp1=3 and kp2=6)
+
+    1) sel_arg_range_seq_next() is called the first time
+       - traverse the R-B tree (see SEL_ARG) to find the first range
+       - returns range "1:2:3"
+       - values in stack after this: stack[1, 1:2, 1:2:3]
+    2) sel_arg_range_seq_next() is called second time
+       - keypart 2 has another range, so the next range in 
+         keypart 2 is appended to stack[1] and saved 
+         in stack[2]
+       - returns range "1:2:4"
+       - values in stack after this: stack[1, 1:2, 1:2:4]
+    3) sel_arg_range_seq_next() is called the third time
+       - no more ranges in keypart 2, but keypart 1 has 
+         another range, so the next range in keypart 1 is
+         appended to stack[0] and saved in stack[1]. The first
+         range in keypart 2 is then appended to stack[1] and
+         saved in stack[2]
+       - returns range "1:3:5"
+       - values in stack after this: stack[1, 1:3, 1:3:5]
+    4) sel_arg_range_seq_next() is called the fourth time
+       - keypart 2 has another range, see 2)
+       - returns range "1:3:6"
+       - values in stack after this: stack[1, 1:3, 1:3:6]
+   */
   RANGE_SEQ_ENTRY stack[MAX_REF_PARTS];
-  int i; /* Index of last used element in the above array */
-  
+  int curr_kp; /* Index of last used element in the above array */
   bool at_start; /* TRUE <=> The traversal has just started */
 } SEL_ARG_RANGE_SEQ;
 
@@ -8418,16 +8515,16 @@ range_seq_t sel_arg_range_seq_init(void *init_param, uint n_ranges, uint flags)
   seq->stack[0].max_key= (uchar*)seq->param->max_key;
   seq->stack[0].max_key_flag= 0;
   seq->stack[0].max_key_parts= 0;
-  seq->i= 0;
+  seq->curr_kp= 0;
   return init_param;
 }
 
 
-static void step_down_to(SEL_ARG_RANGE_SEQ *arg, SEL_ARG *key_tree)
+static void push_range_to_stack(SEL_ARG_RANGE_SEQ *arg, SEL_ARG *key_tree)
 {
 
-  RANGE_SEQ_ENTRY *cur= &arg->stack[arg->i+1];
-  RANGE_SEQ_ENTRY *prev= &arg->stack[arg->i];
+  RANGE_SEQ_ENTRY *cur= &arg->stack[arg->curr_kp+1];
+  RANGE_SEQ_ENTRY *prev= &arg->stack[arg->curr_kp];
   
   cur->key_tree= key_tree;
   cur->min_key= prev->min_key;
@@ -8451,12 +8548,13 @@ static void step_down_to(SEL_ARG_RANGE_SEQ *arg, SEL_ARG *key_tree)
 
   if (key_tree->is_null_interval())
     cur->min_key_flag |= NULL_RANGE;
-  (arg->i)++;
+  (arg->curr_kp)++;
 }
 
 
 /*
   Range sequence interface, SEL_ARG* implementation: get the next interval
+  in the R-B tree
   
   SYNOPSIS
     sel_arg_range_seq_next()
@@ -8486,67 +8584,118 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 
   if (seq->at_start)
   {
+    /*
+      This is the first time sel_arg_range_seq_next is called.
+      seq->start points to the root of the R-B tree for the first
+      keypart
+    */
     key_tree= seq->start;
     seq->at_start= FALSE;
-    goto walk_up_n_right;
+
+    /*
+      Move to the first range for the first keypart. Save this range
+      in seq->stack[0] and carry on to ranges in the next keypart if
+      any
+    */
+    key_tree= key_tree->first();
+    push_range_to_stack(seq, key_tree);
   }
-
-  key_tree= seq->stack[seq->i].key_tree;
-  /* Ok, we're at some "full tuple" position in the tree */
- 
-  /* Step down if we can */
-  if (key_tree->next)
+  else
   {
-    DBUG_ASSERT(key_tree->next != &null_element);
-    //step down; (update the tuple, we'll step right and stay there)
-    seq->i--;
-    step_down_to(seq, key_tree->next);
-    key_tree= key_tree->next;
-    seq->param->is_ror_scan= FALSE;
-    goto walk_right_n_up;
-  }
+    /*
+      This is not the first time sel_arg_range_seq_next is called, so
+      seq->stack is populated with the range the last call to this
+      function found. seq->stack[current_keypart].key_tree points to a
+      leaf in the R-B tree of the last keypart that was part of the
+      former range. This is the starting point for finding the next
+      range. @see SEL_ARG_RANGE_SEQ::stack
+    */
+    key_tree= seq->stack[seq->curr_kp].key_tree;
 
-  /* Ok, can't step down, walk left until we can step down */
-  while (1)
-  {
-    if (seq->i == 1) // can't step left
-      return 1;
-
-    /* Step left */
-    seq->i--;
-    key_tree= seq->stack[seq->i].key_tree;
-
-    /* Step down if we can */
-    if (key_tree->next)
+    // See if there are more ranges in this or any of the previous keyparts
+    while (true)
     {
-      DBUG_ASSERT(key_tree->next != &null_element);
-      // Step down; update the tuple
-      seq->i--;
-      step_down_to(seq, key_tree->next);
-      key_tree= key_tree->next;
-      seq->param->is_ror_scan= FALSE;
-      break;
+      if (key_tree->next)
+      {
+        /* This keypart has more ranges */
+        DBUG_ASSERT(key_tree->next != &null_element);
+        key_tree= key_tree->next;
+
+        seq->curr_kp--;
+        /*
+          save the next range for this keypart and carry on to ranges in
+          the next keypart if any
+        */
+        push_range_to_stack(seq, key_tree);
+        seq->param->is_ror_scan= FALSE;
+        break;
+      }
+
+      if (seq->curr_kp == 1) 
+      {
+        // There are no more ranges for the first keypart: we're done
+        return 1;
+      }
+
+      /* 
+         No more ranges for the current keypart. Step back to the
+         previous keypart
+      */
+      seq->curr_kp--;
+      key_tree= seq->stack[seq->curr_kp].key_tree;
     }
   }
 
   /*
-    Ok, we've stepped down from the path to previous tuple.
-    Walk right-up while we can
+    Add range info for the next keypart if
+      1) there is a range predicate for a later keypart
+      2) the range predicate is for the next keypart in the index: a
+         range predicate on keypartX+1 can only be used if there is a
+         range predicate on keypartX.
+      3) the range predicate on the next keypart is usable
   */
-walk_right_n_up:
-  while (key_tree->next_key_part && key_tree->next_key_part != &null_element && 
-         key_tree->next_key_part->part == key_tree->part + 1 &&
-         key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
+  while (key_tree->next_key_part &&                              // 1)
+         key_tree->next_key_part != &null_element &&             // 1)
+         key_tree->next_key_part->part == key_tree->part + 1 &&  // 2)
+         key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)    // 3)
   {
     {
-      RANGE_SEQ_ENTRY *cur= &seq->stack[seq->i];
-      uint min_key_length= cur->min_key - seq->param->min_key;
-      uint max_key_length= cur->max_key - seq->param->max_key;
-      uint len= cur->min_key - cur[-1].min_key;
-      if (!(min_key_length == max_key_length &&
-            !memcmp(cur[-1].min_key, cur[-1].max_key, len) &&
-            !key_tree->min_flag && !key_tree->max_flag))
+      RANGE_SEQ_ENTRY *cur= &seq->stack[seq->curr_kp];
+      const uint min_key_length= cur->min_key - seq->param->min_key;
+      const uint max_key_length= cur->max_key - seq->param->max_key;
+      const uint len= cur->min_key - cur[-1].min_key;
+      
+      if ((min_key_length != max_key_length ||
+           memcmp(cur[-1].min_key, cur[-1].max_key, len) ||
+           key_tree->min_flag || key_tree->max_flag))
       {
+        /* 
+          The range predicate up to and including the one in key_tree
+          is usable by range access but does not allow subranges made
+          up from predicates in later keyparts. This may e.g. be
+          because the predicate operator is "<". Since there are range
+          predicates on more keyparts, we use those to more closely
+          specify the start and stop locations for the range. Example:
+
+                "SELECT * FROM t1 WHERE a >= 2 AND b >= 3":
+
+                t1 content:
+                -----------
+                1 1
+                2 1     <- 1)
+                2 2
+                2 3     <- 2)
+                2 4
+                3 1
+                3 2
+                3 3
+
+          The predicate cannot be translated into something like
+             "(a=2 and b>=3) or (a=3 and b>=3) or ..."
+          I.e., it cannot be divided into subranges, but by storing
+          min/max key below we can at least start the scan from 2)
+          instead of 1)
+        */
         SEL_ARG *store_key_part= key_tree->next_key_part;
         seq->param->is_ror_scan= FALSE;
         if (!key_tree->min_flag)
@@ -8566,31 +8715,27 @@ walk_right_n_up:
     }
   
     /*
-      Ok, current atomic interval is in form "t.field=const" and there is
-      next_key_part interval. Step right, and walk up from there.
+      There are usable range predicates for the next keypart and the
+      range predicate for the current keypart allows us to make use of
+      them. Move to the first range predicate for the next keypart.
+      Push this range predicate to seq->stack and move on to the next
+      keypart (if any). @see SEL_ARG_RANGE_SEQ::stack
     */
-    key_tree= key_tree->next_key_part;
-
-walk_up_n_right:
-    while (key_tree->prev)
-    {
-      DBUG_ASSERT(key_tree->prev != &null_element);
-      /* Step up */
-      key_tree= key_tree->prev;
-    }
-    step_down_to(seq, key_tree);
+    key_tree= key_tree->next_key_part->first();
+    push_range_to_stack(seq, key_tree);
   }
 
-  /* Ok got a tuple */
-  RANGE_SEQ_ENTRY *cur= &seq->stack[seq->i];
-  uint min_key_length= cur->min_key - seq->param->min_key;
+  // We now have a full range predicate in seq->stack[seq->curr_kp]
+  RANGE_SEQ_ENTRY *cur= &seq->stack[seq->curr_kp];
+  PARAM *param= seq->param;
+  uint min_key_length= cur->min_key - param->min_key;
 
   if (cur->min_key_flag & GEOM_FLAG)
   {
     range->range_flag= cur->min_key_flag;
 
     /* Here minimum contains also function code bits, and maximum is +inf */
-    range->start_key.key=    seq->param->min_key;
+    range->start_key.key=    param->min_key;
     range->start_key.length= min_key_length;
     range->start_key.flag=  (ha_rkey_function) (cur->min_key_flag ^ GEOM_FLAG);
   }
@@ -8598,27 +8743,51 @@ walk_up_n_right:
   {
     range->range_flag= cur->min_key_flag | cur->max_key_flag;
     
-    range->start_key.key=    seq->param->min_key;
-    range->start_key.length= cur->min_key - seq->param->min_key;
+    range->start_key.key=    param->min_key;
+    range->start_key.length= cur->min_key - param->min_key;
     range->start_key.keypart_map= make_prev_keypart_map(cur->min_key_parts);
     range->start_key.flag= (cur->min_key_flag & NEAR_MIN ? HA_READ_AFTER_KEY : 
                                                            HA_READ_KEY_EXACT);
 
-    range->end_key.key=    seq->param->max_key;
-    range->end_key.length= cur->max_key - seq->param->max_key;
+    range->end_key.key=    param->max_key;
+    range->end_key.length= cur->max_key - param->max_key;
     range->end_key.keypart_map= make_prev_keypart_map(cur->max_key_parts);
     range->end_key.flag= (cur->max_key_flag & NEAR_MAX ? HA_READ_BEFORE_KEY : 
                                                          HA_READ_AFTER_KEY);
 
-    if (!(cur->min_key_flag & ~NULL_RANGE) && !cur->max_key_flag &&
-        (uint)key_tree->part+1 == seq->param->table->key_info[seq->real_keyno].key_parts &&
-        (seq->param->table->key_info[seq->real_keyno].flags & HA_NOSAME) ==
-        HA_NOSAME &&
-        range->start_key.length == range->end_key.length &&
-        !memcmp(seq->param->min_key,seq->param->max_key,range->start_key.length))
-      range->range_flag= UNIQUE_RANGE | (cur->min_key_flag & NULL_RANGE);
-      
-    if (seq->param->is_ror_scan)
+    /* 
+      This is an equality range (keypart_0=X and ... and keypart_n=Z) if 
+        1) There are no flags indicating open range (e.g., 
+           "keypart_x > y") or GIS.
+        2) The lower bound and the upper bound of the range has the
+           same value (min_key == max_key).
+     */
+    if (!(cur->min_key_flag & (NO_MIN_RANGE | NO_MAX_RANGE | 
+                               NEAR_MIN | NEAR_MAX | GEOM_FLAG)) &&       // 1)
+        !(cur->max_key_flag & (NO_MIN_RANGE | NO_MAX_RANGE | 
+                               NEAR_MIN | NEAR_MAX | GEOM_FLAG)) &&       // 1)
+        range->start_key.length == range->end_key.length &&               // 2)
+        !memcmp(param->min_key, param->max_key, range->start_key.length)) // 2)
+    {
+      range->range_flag= EQ_RANGE;
+      /*
+        Use statistics instead of index dives for estimates of rows in
+        this range if the user requested it
+      */
+      if (param->use_index_statistics)
+        range->range_flag|= USE_INDEX_STATISTICS;
+
+      /* 
+        An equality range is a unique range (0 or 1 rows in the range)
+        if the index is unique (1) and all keyparts are used (2).
+      */
+      if (param->table->key_info[seq->real_keyno].flags & HA_NOSAME &&    // 1)
+          (uint)key_tree->part+1 == param->table->
+                                    key_info[seq->real_keyno].key_parts)  // 2)
+        range->range_flag|= UNIQUE_RANGE | (cur->min_key_flag & NULL_RANGE);
+    }
+
+    if (param->is_ror_scan)
     {
       /*
         If we get here, the condition on the key was converted to form
@@ -8629,11 +8798,15 @@ walk_up_n_right:
           uncovered "tail" of KeyX parts is either empty or is identical to
           first members of clustered primary key.
       */
-      if (!(!(cur->min_key_flag & ~NULL_RANGE) && !cur->max_key_flag &&
+      if (!(!(cur->min_key_flag & (NO_MIN_RANGE | NO_MAX_RANGE | 
+                                   NEAR_MIN | NEAR_MAX | GEOM_FLAG)) && 
+            !(cur->max_key_flag & (NO_MIN_RANGE | NO_MAX_RANGE | 
+                                   NEAR_MIN | NEAR_MAX | GEOM_FLAG)) && 
             (range->start_key.length == range->end_key.length) &&
-            !memcmp(range->start_key.key, range->end_key.key, range->start_key.length) &&
-            is_key_scan_ror(seq->param, seq->real_keyno, key_tree->part + 1)))
-        seq->param->is_ror_scan= FALSE;
+            !memcmp(range->start_key.key, range->end_key.key, 
+                    range->start_key.length) &&
+            is_key_scan_ror(param, seq->real_keyno, key_tree->part + 1)))
+        param->is_ror_scan= FALSE;
     }
   }
 
@@ -8699,6 +8872,16 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
 
   param->range_count=0;
   param->max_key_part=0;
+
+  /* 
+    If there are more equality ranges than specified by the
+    eq_range_index_dive_limit variable we switches from using index
+    dives to use statistics.
+  */ 
+  uint range_count= 0;
+  param->use_index_statistics= 
+    eq_ranges_exceeds_limit(tree, &range_count, 
+                            param->thd->variables.eq_range_index_dive_limit);
 
   param->is_ror_scan= TRUE;
   if (file->index_flags(keynr, 0, TRUE) & HA_KEY_SCAN_NOT_ROR)
@@ -10938,10 +11121,10 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
                                                    cur_index_tree, TRUE,
                                                    &mrr_flags, &mrr_bufsize,
                                                    &dummy_cost);
-
 #ifdef OPTIMIZER_TRACE
       if (unlikely(cur_index_tree && trace->is_started()))
       {
+        trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics);
         Opt_trace_array trace_range(trace, "ranges");
 
         const KEY_PART_INFO *key_part= cur_index_info->key_part;
@@ -12674,6 +12857,63 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths(String *key_names,
   used_lengths->append(buf, length);
 }
 
+
+
+/**
+  Traverse the R-B range tree for this and later keyparts to see if
+  there are at least as many equality ranges as defined by the limit.
+
+  @param keypart_root   The root of a R-B tree of ranges for a given keypart.
+  @param count[in,out]  The number of equality ranges found so far
+  @param limit          The number of ranges 
+
+  @retval true if 'limit' or more equality ranges have been found in the 
+          range R-B trees
+  @retval false otherwise         
+
+*/
+static bool eq_ranges_exceeds_limit(SEL_ARG *keypart_root, uint* count, uint limit)
+{
+  if (limit == UINT_MAX32)
+    return false;
+  if (limit == 0)
+    return true;
+  
+  for(SEL_ARG *keypart_range= keypart_root->first(); 
+      keypart_range; keypart_range= keypart_range->next)
+  {
+    /*
+      This is an equality range predicate and should be counted if:
+      1) the range for this keypart does not have a min/max flag 
+         (which indicates <, <= etc), and
+      2) the lower and upper range boundaries have the same value
+         (it's not a "x BETWEEN a AND b")
+      
+      Note, however, that if this is an "x IS NULL" condition we don't
+      count it because the number of NULL-values is likely to be off
+      the index statistics we plan to use.
+    */
+    if (!keypart_range->min_flag && !keypart_range->max_flag && // 1)
+        !keypart_range->cmp_max_to_min(keypart_range) &&        // 2)
+        !keypart_range->is_null_interval())                     // "x IS NULL"
+    {
+      /* 
+         Count predicates in the next keypart, but only if that keypart
+         is the next in the index. 
+      */
+      if (keypart_range->next_key_part && 
+          keypart_range->next_key_part->part == keypart_range->part + 1)
+        eq_ranges_exceeds_limit(keypart_range->next_key_part, count, limit);
+      else
+        // We've found a path of equlity predicates down to a keypart leaf
+        (*count)++; 
+
+      if (*count >= limit)
+        return true;
+    }
+  }
+  return false;
+}
 
 #ifndef DBUG_OFF
 

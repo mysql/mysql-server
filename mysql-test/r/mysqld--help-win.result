@@ -157,6 +157,11 @@ The following options may be given as the first argument:
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
+ --eq-range-index-dive-limit=# 
+ The optimizer will use existing index statistics instead
+ of doing index dives for equality ranges if the number of
+ equality ranges for the index is larger than or equal to
+ this number.
  --event-scheduler[=name] 
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
@@ -451,8 +456,9 @@ The following options may be given as the first argument:
  is one of {index_merge, index_merge_union,
  index_merge_sort_union, index_merge_intersection,
  engine_condition_pushdown, index_condition_pushdown, mrr,
- mrr_cost_based, block_nested_loop, batched_key_access}
- and val is one of {on, off, default}
+ mrr_cost_based, materialization, semijoin, loosescan,
+ firstmatch, block_nested_loop, batched_key_access} and
+ val is one of {on, off, default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
@@ -722,6 +728,7 @@ The following options may be given as the first argument:
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
  (pre-4.1) passwords
+ (Defaults to on; use --skip-secure-auth to disable.)
  --secure-file-priv=name 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
  files within specified directory
@@ -927,6 +934,7 @@ delayed-queue-size 1000
 disable-gtid-unsafe-statements FALSE
 disconnect-slave-event-count 0
 div-precision-increment 4
+eq-range-index-dive-limit 10
 event-scheduler OFF
 expire-logs-days 0
 external-locking FALSE
@@ -1027,7 +1035,7 @@ old-passwords FALSE
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on
 optimizer-trace 
 optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
 optimizer-trace-limit 1
@@ -1102,7 +1110,7 @@ report-password (No default value)
 report-port 3306
 report-user (No default value)
 safe-user-create FALSE
-secure-auth FALSE
+secure-auth TRUE
 secure-file-priv (No default value)
 server-id 0
 shared-memory FALSE

@@ -4,6 +4,7 @@
 --source include/have_debug_sync.inc
 --source include/have_innodb.inc
 --source include/have_materialization.inc
+--source include/not_embedded.inc
 
 --echo
 --echo BUG#11763382 Assertion 'inited==INDEX' on SELECT MAX(...)
@@ -54,12 +55,14 @@ SET DEBUG_SYNC='RESET';
 --connection con3
 --reap
 
+--connection default
 DROP TABLE t;
+--disconnect con1
+--disconnect con2
+--disconnect con3
 
---exit
 
 --echo # End of BUG#56080
-
 --echo #
 --echo # Bug #13536661: VALGRIND: DEFINITELY LOST: 552 BYTES IN 1 BLOCKS IN
 --echo # CREATE_TMP_TABLE AND HIGHER
@@ -86,3 +89,6 @@ reap;
 SET GLOBAL debug = '';
 
 DROP TABLE t1;
+--disconnect con1
+--connection default
+

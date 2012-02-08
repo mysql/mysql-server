@@ -165,6 +165,7 @@ my_bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
   else
   {
     DBUG_ASSERT(thread_safe == 0);
+    map->mutex= NULL;
   }
 
 

@@ -1203,6 +1203,15 @@ public:
   virtual bool cleanup_processor(uchar *arg);
   virtual bool collect_item_field_processor(uchar * arg) { return 0; }
   virtual bool add_field_to_set_processor(uchar * arg) { return 0; }
+
+  /**
+     Visitor interface for removing all column expressions (Item_field) in
+     this expression tree from a bitmap. @See walk()
+
+     @param arg  A MY_BITMAP* cast to unsigned char*, where the bits represent
+                 Field::field_index values.
+   */
+  virtual bool remove_column_from_bitmap(uchar *arg) { return false; }
   virtual bool find_item_in_field_list_processor(uchar *arg) { return 0; }
   virtual bool change_context_processor(uchar *context) { return 0; }
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
@@ -2006,6 +2015,7 @@ public:
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
   bool add_field_to_set_processor(uchar * arg);
+  bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
@@ -2024,7 +2034,8 @@ public:
   bool is_outer_field() const
   {
     DBUG_ASSERT(fixed);
-    return field->table->pos_in_table_list->outer_join;
+    return field->table->pos_in_table_list->outer_join ||
+           field->table->pos_in_table_list->in_outer_join_nest();
   }
   Field::geometry_type get_geometry_type() const
   {
@@ -2912,7 +2923,16 @@ public:
       (*ref)->update_used_tables(); 
   }
   virtual table_map resolved_used_tables() const;
-  table_map not_null_tables() const { return (*ref)->not_null_tables(); }
+  table_map not_null_tables() const
+  {
+    /*
+      It can happen that our 'depended_from' member is set but the
+      'depended_from' member of the referenced item is not (example: if a
+      field in a subquery belongs to an outer merged view), so we first test
+      ours:
+    */
+    return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->not_null_tables();
+  }
   void set_result_field(Field *field)	{ result_field= field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)
