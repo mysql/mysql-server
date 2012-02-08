@@ -148,7 +148,6 @@ typedef enum {
 #define DB_IS_RESETTING_OP 0x01000000
 #define DB_PRELOCKED 0x00800000
 #define DB_PRELOCKED_WRITE 0x00400000
-#define DB_PRELOCKED_FILE_READ 0x00200000
 #define DB_IS_HOT_INDEX 0x00100000
 #define DBC_DISABLE_PREFETCHING 0x20000000
 #define DB_DBT_APPMALLOC 1
@@ -300,7 +299,6 @@ struct __toku_db {
   DB_ENV *dbenv;
   int (*pre_acquire_table_lock)(DB*, DB_TXN*);
   int (*pre_acquire_fileops_lock)(DB*, DB_TXN*);
-  int (*pre_acquire_fileops_shared_lock)(DB*, DB_TXN*);
   const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
   void (*get_max_row_size) (DB*, u_int32_t *max_key_size, u_int32_t *max_row_size);

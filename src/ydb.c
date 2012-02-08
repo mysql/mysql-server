@@ -458,7 +458,7 @@ static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t f
 static int toku_db_update(DB *db, DB_TXN *txn, const DBT *key, const DBT *update_function_extra, u_int32_t flags);
 static int toku_db_update_broadcast(DB *db, DB_TXN *txn, const DBT *update_function_extra, u_int32_t flags);
 static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags);
-static int toku_db_cursor_internal(DB *db, DB_TXN * txn, DBC **c, u_int32_t flags, int is_temporary_cursor, bool holds_ydb_lock);
+static int toku_db_cursor_internal(DB *db, DB_TXN * txn, DBC **c, u_int32_t flags, int is_temporary_cursor);
 
 /* lightweight cursor methods. */
 static int toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
@@ -3322,13 +3322,13 @@ typedef struct {
 
 static inline u_int32_t 
 get_prelocked_flags(u_int32_t flags) {
-    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE | DB_PRELOCKED_FILE_READ);
+    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
     return lock_flags;
 }
 
 static inline u_int32_t 
 get_cursor_prelocked_flags(u_int32_t flags, DBC* dbc) {
-    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE | DB_PRELOCKED_FILE_READ);
+    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
 
     //DB_READ_UNCOMMITTED and DB_READ_COMMITTED transactions 'own' all read locks for user-data dictionaries.
     if (dbc_struct_i(dbc)->iso != TOKU_ISO_SERIALIZABLE) {
@@ -3490,24 +3490,6 @@ start_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT *right_key,
 static int 
 get_point_write_lock(DB *db, DB_TXN *txn, const DBT *key) {
     int r = get_range_lock(db, txn, key, key, LOCK_REQUEST_WRITE);
-    return r;
-}
-
-// assume ydb is locked
-int
-toku_grab_read_lock_on_directory (DB* db, DB_TXN * txn) {
-    // bad hack because some environment dictionaries do not have a dname
-    char *dname = db->i->dname;
-    if (!dname || (db->dbenv->i->directory->i->lt == NULL))
-        return 0;
-
-    //Left end of range == right end of range (point lock)
-    DBT key_in_directory = { .data = dname, .size = strlen(dname)+1 };
-    int r = get_range_lock(db->dbenv->i->directory, txn, &key_in_directory, &key_in_directory, LOCK_REQUEST_READ);
-    if (r == 0)
-	STATUS_VALUE(YDB_LAYER_DIRECTORY_READ_LOCKS)++;
-    else
-	STATUS_VALUE(YDB_LAYER_DIRECTORY_READ_LOCKS_FAIL)++;
     return r;
 }
 
@@ -4151,7 +4133,7 @@ toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
     //   lock_flags |= DB_PRELOCKED
     //}
     
-    r = toku_db_cursor_internal(cursor->dbp, dbc_struct_i(cursor)->txn, &count_cursor, DBC_DISABLE_PREFETCHING, 0, true);
+    r = toku_db_cursor_internal(cursor->dbp, dbc_struct_i(cursor)->txn, &count_cursor, DBC_DISABLE_PREFETCHING, 0);
     if (r != 0) goto finish;
 
     r = toku_c_getf_set(count_cursor, lock_flags, &currentkey, ydb_getf_do_nothing, NULL);
@@ -4180,7 +4162,7 @@ db_getf_set(DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTIO
     DBC *c;
     uint32_t create_flags = flags & (DB_ISOLATION_FLAGS | DB_RMW);
     flags &= ~DB_ISOLATION_FLAGS;
-    int r = toku_db_cursor_internal(db, txn, &c, create_flags | DBC_DISABLE_PREFETCHING, 1, true);
+    int r = toku_db_cursor_internal(db, txn, &c, create_flags | DBC_DISABLE_PREFETCHING, 1);
     if (r==0) {
         r = toku_c_getf_set(c, flags, key, f, extra);
         int r2 = toku_c_close(c);
@@ -4201,15 +4183,12 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     u_int32_t lock_flags = get_prelocked_flags(flags);
     unchecked_flags &= ~lock_flags;
     BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
-    BOOL do_dir_locking = !(lock_flags&DB_PRELOCKED_FILE_READ);
 
     int r = 0;
-    if (unchecked_flags!=0) 
+    if (unchecked_flags!=0) {
         r = EINVAL;
-
-    if (r == 0 && do_dir_locking) {
-        r = toku_grab_read_lock_on_directory(db, txn);
     }
+
     if (r == 0 && error_if_missing) {
         //Check if the key exists in the db.
         r = db_getf_set(db, txn, lock_flags|DB_SERIALIZABLE|DB_RMW, key, ydb_getf_do_nothing, NULL);
@@ -4343,11 +4322,6 @@ env_del_multiple(
         lock_flags[which_db] = get_prelocked_flags(flags_array[which_db]);
         remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
 
-        //Do locking if necessary.
-        if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
-            r = toku_grab_read_lock_on_directory(db, txn);
-            if (r != 0) goto cleanup;
-        }
         if (db == src_db) {
             del_keys[which_db] = *src_key;
         }
@@ -4415,7 +4389,7 @@ locked_c_del(DBC * c, u_int32_t flags) {
 static int locked_c_pre_acquire_range_lock(DBC *dbc, const DBT *key_left, const DBT *key_right);
 
 static int 
-toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporary_cursor, bool holds_ydb_lock) {
+toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporary_cursor) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     DB_ENV* env = db->dbenv;
@@ -4429,14 +4403,7 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is
     }
 
     int r = 0;
-    if (1) {
-        if (!holds_ydb_lock) toku_ydb_lock();
-        r = toku_grab_read_lock_on_directory(db, txn);
-        if (!holds_ydb_lock) toku_ydb_unlock();
-        if (r != 0) 
-            return r;
-    }
-
+    
     struct __toku_dbc_external *XMALLOC(eresult); // so the internal stuff is stuck on the end
     memset(eresult, 0, sizeof(*eresult));
     DBC *result = &eresult->external_part;
@@ -4522,7 +4489,7 @@ toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     if ((db->i->open_flags & DB_THREAD) && db_thread_need_flags(data))
         return EINVAL;
 
-    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE | DB_PRELOCKED_FILE_READ);
+    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
     flags &= ~lock_flags;
     flags &= ~DB_ISOLATION_FLAGS;
     // And DB_GET_BOTH is no longer supported. #2862.
@@ -4530,7 +4497,7 @@ toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
 
 
     DBC *dbc;
-    r = toku_db_cursor_internal(db, txn, &dbc, iso_flags | DBC_DISABLE_PREFETCHING, 1, true);
+    r = toku_db_cursor_internal(db, txn, &dbc, iso_flags | DBC_DISABLE_PREFETCHING, 1);
     if (r!=0) return r;
     u_int32_t c_get_flags = DB_SET;
     r = toku_c_get(dbc, key, data, c_get_flags | lock_flags);
@@ -4925,12 +4892,7 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     u_int32_t lock_flags = get_prelocked_flags(flags);
     flags &= ~lock_flags;
 
-    if (!(lock_flags & DB_PRELOCKED_FILE_READ)) {
-        r = toku_grab_read_lock_on_directory(db, txn);
-    }
-    
-    if (r == 0)
-        r = db_put_check_size_constraints(db, key, val);
+    r = db_put_check_size_constraints(db, key, val);
     if (r == 0) {
         //Do any checking required by the flags.
         r = db_put_check_overwrite_constraint(db, txn, key, lock_flags, flags);
@@ -4985,11 +4947,6 @@ toku_db_update(DB *db, DB_TXN *txn,
     u_int32_t lock_flags = get_prelocked_flags(flags);
     flags &= ~lock_flags;
 
-    if (!(lock_flags & DB_PRELOCKED_FILE_READ)) {
-        r = toku_grab_read_lock_on_directory(db, txn);
-        if (r != 0) { goto cleanup; }
-    }
-
     r = db_put_check_size_constraints(db, key, update_function_extra);
     if (r != 0) { goto cleanup; }
 
@@ -5039,11 +4996,6 @@ toku_db_update_broadcast(DB *db, DB_TXN *txn,
         r = toku_db_pre_acquire_fileops_lock(db, txn);
         if (r != 0) { goto cleanup; }
     }
-    else if (!(lock_flags & DB_PRELOCKED_FILE_READ)) {
-        r = toku_grab_read_lock_on_directory(db, txn);
-        if (r != 0) { goto cleanup; }
-    }
-
     {
         DBT null_key;
         toku_init_dbt(&null_key);
@@ -5159,12 +5111,6 @@ env_put_multiple(
         lock_flags[which_db] = get_prelocked_flags(flags_array[which_db]);
         remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
 
-        //Do locking if necessary.
-        if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
-            r = toku_grab_read_lock_on_directory(db, txn);
-            if (r != 0) goto cleanup;
-        }
-
         //Generate the row
         if (db == src_db) {
             put_keys[which_db] = *src_key;
@@ -5263,10 +5209,6 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
             lock_flags[which_db] = get_prelocked_flags(flags_array[which_db]);
             remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
 
-            if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
-                r = toku_grab_read_lock_on_directory(db, txn);
-                if (r != 0) goto cleanup;
-            }
             // keys[0..num_dbs-1] are the new keys
             // keys[num_dbs..2*num_dbs-1] are the old keys
             // vals[0..num_dbs-1] are the new vals
@@ -5632,17 +5574,7 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t 
         r = EINVAL; // cannot have a parent if you are a resetting op
         goto cleanup;
     }
-    //
-    // If the DB is created for the purpose of being a hot index, 
-    // then do not grab a write lock on the directory when setting the
-    // descriptor, because the hot index DB must not have a write
-    // lock grabbed in order to work
-    //
-    if (is_db_hot_index) {
-        r = toku_grab_read_lock_on_directory(db, txn);
-        if (r != 0) { goto cleanup; }    
-    }
-    else {
+    if (!is_db_hot_index) {
         r = toku_db_pre_acquire_fileops_lock(db, txn);
         if (r != 0) { goto cleanup; }    
     }
@@ -5876,7 +5808,7 @@ autotxn_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
         return toku_ydb_do_error(db->dbenv, EINVAL,
               "Cursors in a transaction environment must have transactions.\n");
     }
-    return toku_db_cursor_internal(db, txn, c, flags, 0, false);
+    return toku_db_cursor_internal(db, txn, c, flags, 0);
 }
 
 // Create a cursor on a db.
@@ -5948,13 +5880,6 @@ locked_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
 static int locked_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
     toku_ydb_lock();
     int r = toku_db_pre_acquire_fileops_lock(db, txn);
-    toku_ydb_unlock();
-    return r;
-}
-
-static int locked_db_pre_acquire_fileops_shared_lock(DB *db, DB_TXN *txn) {
-    toku_ydb_lock();
-    int r = toku_grab_read_lock_on_directory(db, txn);
     toku_ydb_unlock();
     return r;
 }
@@ -6203,32 +6128,11 @@ toku_db_hot_optimize(DB *db,
     HANDLE_PANICKED_DB(db);
     int r = 0;
 
-    // #4356 Take directory read lock around hot optimize to prevent
-    // race condition of another thread deleting the dictionary during
-    // the hot optimize.  Create a long-lived transaction to hold the
-    // lock, but the transaction does nothing else so the rollback log
-    // is tiny and the txnid does not appear in any dictionary.
-    int using_txns = db->dbenv->i->open_flags & DB_INIT_TXN;
-    DB_TXN *txn;
-    if (using_txns) {
-        toku_ydb_lock();
-        int rx = toku_txn_begin(db->dbenv, NULL, &txn, DB_TXN_NOSYNC, 1);
-        invariant_zero(rx);
-        r = toku_grab_read_lock_on_directory(db, txn);
-        toku_ydb_unlock();
-    }
 
     // If we areunable to get a directory read lock, do nothing.
-    if (r == 0) {
-        r = toku_brt_hot_optimize(db->i->brt,
-                                  progress_callback,
-                                  progress_extra);
-    }
-
-    if (using_txns) {
-        int rx = locked_txn_commit(txn, 0);
-        invariant_zero(rx);
-    }
+    r = toku_brt_hot_optimize(db->i->brt,
+                              progress_callback,
+                              progress_extra);
 
     return r;
 }
@@ -6382,7 +6286,6 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(fd);
     SDB(pre_acquire_table_lock);
     SDB(pre_acquire_fileops_lock);
-    SDB(pre_acquire_fileops_shared_lock);
     SDB(truncate);
     SDB(get_max_row_size);
     SDB(getf_set);

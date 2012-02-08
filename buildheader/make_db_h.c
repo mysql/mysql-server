@@ -158,7 +158,7 @@ static void print_defines (void) {
     printf("#define DB_IS_RESETTING_OP 0x01000000\n"); // private tokudb
     printf("#define DB_PRELOCKED 0x00800000\n"); // private tokudb
     printf("#define DB_PRELOCKED_WRITE 0x00400000\n"); // private tokudb
-    printf("#define DB_PRELOCKED_FILE_READ 0x00200000\n"); // private tokudb
+    //printf("#define DB_PRELOCKED_FILE_READ 0x00200000\n"); // private tokudb. No longer supported in #4472
     printf("#define DB_IS_HOT_INDEX 0x00100000\n"); // private tokudb
     printf("#define DBC_DISABLE_PREFETCHING 0x20000000\n"); // private tokudb
 
@@ -585,7 +585,6 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 			     "int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *)",
 			     "int (*pre_acquire_table_lock)(DB*, DB_TXN*)",
 			     "int (*pre_acquire_fileops_lock)(DB*, DB_TXN*)",
-                 "int (*pre_acquire_fileops_shared_lock)(DB*, DB_TXN*)",
 			     "const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/",
 			     "const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/",
                              "void (*get_max_row_size) (DB*, u_int32_t *max_key_size, u_int32_t *max_row_size)",

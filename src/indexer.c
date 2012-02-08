@@ -161,53 +161,50 @@ toku_indexer_create_indexer(DB_ENV *env,
     DB_INDEXER *indexer = 0;   // set later when created
 
     *indexerp = NULL;
-	
-    rval = toku_grab_read_lock_on_directory (src_db, txn);
-    if (rval == 0) {
-	XCALLOC(indexer);      // init to all zeroes (thus initializing the error_callback and poll_func)
-	if ( !indexer )    { rval = ENOMEM; goto create_exit; }
-	XCALLOC(indexer->i);   // init to all zeroes (thus initializing all pointers to NULL)
-	if ( !indexer->i ) { rval = ENOMEM; goto create_exit; }
-	
-	indexer->i->env                = env;
-	indexer->i->txn                = txn;
-	indexer->i->src_db             = src_db;
-	indexer->i->N                  = N;
-	indexer->i->dest_dbs           = dest_dbs;
-	indexer->i->indexer_flags      = indexer_flags;
-	indexer->i->loop_mod           = 1000; // call poll_func every 1000 rows
-	indexer->i->estimated_rows     = 0; 
-        indexer->i->undo_do            = indexer_undo_do; // TEST export the undo do function
-	
-	XCALLOC_N(N, indexer->i->fnums);
-	if ( !indexer->i->fnums ) { rval = ENOMEM; goto create_exit; }
-	for(int i=0;i<indexer->i->N;i++) {
-	    indexer->i->fnums[i]       = toku_cachefile_filenum(db_struct_i(dest_dbs[i])->brt->cf);
-	}
-	indexer->i->filenums.num       = N;
-	indexer->i->filenums.filenums  = indexer->i->fnums;
-        indexer->i->test_only_flags    = 0;  // for test use only
-	
-	indexer->set_error_callback    = toku_indexer_set_error_callback;
-	indexer->set_poll_function     = toku_indexer_set_poll_function;
-	indexer->build                 = build_index;
-	indexer->close                 = close_indexer;
-	indexer->abort                 = abort_indexer;
-	
-	// create and initialize the leafentry cursor
-	rval = le_cursor_create(&indexer->i->lec, db_struct_i(src_db)->brt, db_txn_struct_i(txn)->tokutxn);
-	if ( !indexer->i->lec ) { goto create_exit; }
-	
-	// 2954: add recovery and rollback entries
-	LSN hot_index_lsn; // not used (yet)
-	TOKUTXN      ttxn = db_txn_struct_i(txn)->tokutxn;
-	FILENUMS filenums = indexer->i->filenums;
-	rval = toku_brt_hot_index(NULL, ttxn, filenums, 1, &hot_index_lsn);
+    
+    XCALLOC(indexer);      // init to all zeroes (thus initializing the error_callback and poll_func)
+    if ( !indexer )    { rval = ENOMEM; goto create_exit; }
+    XCALLOC(indexer->i);   // init to all zeroes (thus initializing all pointers to NULL)
+    if ( !indexer->i ) { rval = ENOMEM; goto create_exit; }
+    
+    indexer->i->env                = env;
+    indexer->i->txn                = txn;
+    indexer->i->src_db             = src_db;
+    indexer->i->N                  = N;
+    indexer->i->dest_dbs           = dest_dbs;
+    indexer->i->indexer_flags      = indexer_flags;
+    indexer->i->loop_mod           = 1000; // call poll_func every 1000 rows
+    indexer->i->estimated_rows     = 0; 
+    indexer->i->undo_do            = indexer_undo_do; // TEST export the undo do function
+    
+    XCALLOC_N(N, indexer->i->fnums);
+    if ( !indexer->i->fnums ) { rval = ENOMEM; goto create_exit; }
+    for(int i=0;i<indexer->i->N;i++) {
+        indexer->i->fnums[i]       = toku_cachefile_filenum(db_struct_i(dest_dbs[i])->brt->cf);
     }
+    indexer->i->filenums.num       = N;
+    indexer->i->filenums.filenums  = indexer->i->fnums;
+    indexer->i->test_only_flags    = 0;  // for test use only
+    
+    indexer->set_error_callback    = toku_indexer_set_error_callback;
+    indexer->set_poll_function     = toku_indexer_set_poll_function;
+    indexer->build                 = build_index;
+    indexer->close                 = close_indexer;
+    indexer->abort                 = abort_indexer;
+    
+    // create and initialize the leafentry cursor
+    rval = le_cursor_create(&indexer->i->lec, db_struct_i(src_db)->brt, db_txn_struct_i(txn)->tokutxn);
+    if ( !indexer->i->lec ) { goto create_exit; }
+    
+    // 2954: add recovery and rollback entries
+    LSN hot_index_lsn; // not used (yet)
+    TOKUTXN      ttxn = db_txn_struct_i(txn)->tokutxn;
+    FILENUMS filenums = indexer->i->filenums;
+    rval = toku_brt_hot_index(NULL, ttxn, filenums, 1, &hot_index_lsn);
 
-    if (rval == 0)
-	rval = associate_indexer_with_hot_dbs(indexer, dest_dbs, N);
-
+    if (rval == 0) {
+        rval = associate_indexer_with_hot_dbs(indexer, dest_dbs, N);
+    }
 create_exit:
     if ( rval == 0 ) {
 

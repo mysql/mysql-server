@@ -245,8 +245,6 @@ int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock);
 
 int toku_grab_write_lock(DB *db, DBT *key, TOKUTXN tokutxn);
 
-int toku_grab_read_lock_on_directory(DB *db, DB_TXN *txn);
-
 #if defined(__cplusplus)
 }
 #endif
