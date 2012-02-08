@@ -741,7 +741,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
   int error=0;
   struct timespec abstime; // for timeout checking
   PSI_stage_info old_stage;
-  DBUG_ENTER("Relay_log_info::wait_for_gtid");
+  DBUG_ENTER("Relay_log_info::wait_for_gtid_set");
 
   if (!inited)
     DBUG_RETURN(-2);

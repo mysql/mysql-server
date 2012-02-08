@@ -4053,7 +4053,7 @@ err:
 bool MYSQL_BIN_LOG::append_buffer(const char* buf, uint len)
 {
   bool error= 0;
-  DBUG_ENTER("MYSQL_BIN_LOG::appendv");
+  DBUG_ENTER("MYSQL_BIN_LOG::append_buffer");
 
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
 
