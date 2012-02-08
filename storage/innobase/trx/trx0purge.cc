@@ -1320,8 +1320,7 @@ trx_purge_stop(void)
 	state = purge_sys->state;
 
 	if (state == PURGE_STATE_RUN) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Stopping purge\n");
+		ib_logf("Stopping purge");
 
 		/* We need to wakeup the purge thread in case it is suspended,
 		so that it can acknowledge the state change. */
@@ -1359,8 +1358,7 @@ trx_purge_run(void)
 
 		if (purge_sys->n_stop == 0) {
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Resuming purge\n");
+			ib_logf("Resuming purge");
 
 			ut_a(purge_sys->state == PURGE_STATE_STOP);
 			purge_sys->state = PURGE_STATE_RUN;

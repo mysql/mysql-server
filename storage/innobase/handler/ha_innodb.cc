@@ -11216,7 +11216,7 @@ ha_innobase::external_lock(
 		if (thd_sql_command(thd) == SQLCOM_FLUSH
 		    && lock_type == F_RDLCK) {
 
-			row_quiesce_table_start(prebuilt->table);
+			row_quiesce_table_start(prebuilt->table, thd);
 		}
 
 	} else if (prebuilt->table->quiesce == QUIESCE_COMPLETE) {
@@ -11224,7 +11224,7 @@ ha_innobase::external_lock(
 		if (thd_sql_command(thd) == SQLCOM_UNLOCK_TABLES
 		    && lock_type == F_UNLCK) {
 
-			row_quiesce_table_complete(prebuilt->table);
+			row_quiesce_table_complete(prebuilt->table, thd);
 		}
 	} else {
 		ut_a(prebuilt->table->quiesce == QUIESCE_NONE);
@@ -11923,7 +11923,7 @@ ha_innobase::store_lock(
 	/* Check for LOCK TABLE t1,...,tn WITH SHARED LOCKS */
 	if (sql_command == SQLCOM_FLUSH && lock_type == TL_READ_NO_INSERT) {
 
-		row_quiesce_set_state(prebuilt->table, QUIESCE_START);
+		row_quiesce_set_state(prebuilt->table, QUIESCE_START, thd);
 
 	} else if (sql_command == SQLCOM_DROP_TABLE) {
 
@@ -15408,16 +15408,16 @@ ib_pushf(
 	if (thd == NULL) {
 		switch(level) {
 		case IB_LOG_LEVEL_INFO:
-			sql_print_information(format, str);
+			sql_print_information("InnoDB: %s", str);
 			break;
 		case IB_LOG_LEVEL_WARN:
-			sql_print_warning(format, str);
+			sql_print_warning("InnoDB: %s", str);
 			break;
 		case IB_LOG_LEVEL_ERROR:
-			sql_print_error(format, str);
+			sql_print_error("InnoDB: %s", str);
 			break;
 		case IB_LOG_LEVEL_FATAL:
-			sql_print_error(format, str);
+			sql_print_error("InnoDB: %s", str);
 			break;
 		}
 	} else {
@@ -15439,7 +15439,7 @@ ib_pushf(
 			break;
 		}
 
-		push_warning_printf((THD*) thd, l, code, "%s", str);
+		push_warning_printf((THD*) thd, l, code, "InnoDB: %s", str);
 	}
 
 	va_end(args);
