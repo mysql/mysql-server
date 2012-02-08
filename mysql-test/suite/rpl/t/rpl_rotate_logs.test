@@ -27,7 +27,6 @@ EOF
 chmod 0000 $MYSQLD_SLAVE_DATADIR/master.info;
 connection slave;
 
-CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
 # START SLAVE will fail because it can't read the file (mode 000)
 # (system error 13)
 --replace_result $MYSQL_TEST_DIR TESTDIR
