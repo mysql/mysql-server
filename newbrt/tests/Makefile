@@ -250,7 +250,11 @@ clean:
 	rm -f test_oexcl.c.tmp
 	rm -f *.brt *.clean *.dirty *.tdb *.dat *.data *.out *.check.valgrind *.fastlog
 
+ifeq ($(PROF),1)
+$(BINS): LDFLAGS=$(TOKUROOT)lib/libnewbrt.$(AEXT) $(LIBPORTABILITY_A) $(ALWAYS_LINK)
+else
 $(BINS): LDFLAGS=-L../../lib -l$(LIBTOKUPORTABILITY) -lnewbrt $(ALWAYS_LINK) -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib
+endif
 $(BINS): test.h
 
 foo:
