@@ -4865,6 +4865,14 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "--gdb");
   }
 
+  # Enable the debug sync facility, set default wait timeout.
+  # Facility stays disabled if timeout value is zero.
+  mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
+              $opt_debug_sync_timeout) unless $opt_user_args;
+
+  # Options specified in .opt files should be added last so they can
+  # override defaults above.
+
   my $found_skip_core= 0;
   foreach my $arg ( @$extra_opts )
   {
@@ -4900,11 +4908,6 @@ sub mysqld_arguments ($$$) {
   {
     mtr_add_arg($args, "%s", "--core-file");
   }
-
-  # Enable the debug sync facility, set default wait timeout.
-  # Facility stays disabled if timeout value is zero.
-  mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
-              $opt_debug_sync_timeout) unless $opt_user_args;
 
   return $args;
 }
