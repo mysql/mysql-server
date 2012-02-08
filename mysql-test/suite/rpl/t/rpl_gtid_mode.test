@@ -124,6 +124,7 @@ INSERT INTO t1 VALUES (1);
 
 --let $binlog_file= LAST
 --let $binlog_limit= 1
+--let $keep_gtid_events= 1
 --source include/show_binlog_events.inc
 
 --sync_slave_with_master
@@ -240,6 +241,7 @@ INSERT INTO t1 VALUES (2);
 
 --let $binlog_file= LAST
 --let $binlog_limit= 1
+--let $keep_gtid_events= 1
 --source include/show_binlog_events.inc
 
 --sync_slave_with_master

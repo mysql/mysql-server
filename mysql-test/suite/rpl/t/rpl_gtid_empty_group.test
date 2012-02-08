@@ -31,6 +31,7 @@ CREATE TABLE t_ignore(id INTEGER) ENGINE= Innodb /* group three */;
 --sync_slave_with_master
 
 --echo must be *three* groups logged, where the two last empty:
+--let $keep_gtid_events= 1
 source include/show_binlog_events.inc;
 
 # todo: add c.

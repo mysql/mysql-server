@@ -233,7 +233,17 @@ DELETE FROM user WHERE host='localhost' AND user='@#@';
 --enable_warnings
 
 use test;
+
+# Show binlog events on a different connection because it calls
+# `SELECT UUID()` internally, which is marked unsafe. Since there is
+# an open temporary table, this causes the current connection to log
+# subsequent statements in row format.
+connect (other,localhost,root,,test);
+connection other;
 source include/show_binlog_events.inc;
+connection default;
+disconnect other;
+
 drop table t1,t2,t3,tt1;
 
 -- source extra/binlog_tests/binlog_insert_delayed.test

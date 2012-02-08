@@ -7,6 +7,9 @@
 #
 # See include/show_binlog_events.inc
 
+--let $include_filename= show_events.inc
+--source include/begin_include_file.inc
+
 if (!$binlog_start)
 {
   # If $binlog_start is not set, we will set it as the second event's
@@ -16,10 +19,12 @@ if (!$binlog_start)
   --let $binlog_start= query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
 }
 
---let $_statement=show binlog events
+--let $_se_old_statement= $statement
+
+--let $statement=show BINLOG events
 if ($is_relay_log)
 {
-  --let $_statement=show relaylog events
+  --let $statement=show relaylog events
 }
 
 if ($binlog_file)
@@ -36,20 +41,61 @@ if ($binlog_file)
       --let $_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
     }
   }
-  --let $_statement= $_statement in '$_binlog_file'
+  --let $statement= $statement in '$_binlog_file'
 }
 
---let $_statement= $_statement from $binlog_start
+--let $statement= $statement from $binlog_start
 
-# Cannot use if($binlog_limit) since the variable may begin with a 0
-
-if (`SELECT '$binlog_limit' <> ''`)
+if ($binlog_limit != '')
 {
-  --let $_statement= $_statement limit $binlog_limit
+  --let $statement= $statement limit $binlog_limit
 }
 
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $binlog_start <binlog_start>
---replace_column 2 # 4 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/ /Server ver:.*$/SERVER_VERSION, BINLOG_VERSION/ /SQL_LOAD-[a-z,0-9,-]*.[a-z]*/SQL_LOAD-<SERVER UUID>-<MASTER server-id>-<file-id>.<extension>/ /rand_seed1=[0-9]*,rand_seed2=[0-9]*/rand_seed1=<seed 1>,rand_seed2=<seed 2>/ /SET @@SESSION.GTID_NEXT=.*$/SET @@SESSION.GTID_NEXT= 'GTID';/ /([0-9A-F\-]{36})\:[0-9]+\-[0-9]+/GTID:#-#/ /((master|slave-relay)-bin\.[0-9]{6};pos=)[0-9]+$/\1POS/
+# Execute the statement and write to $output_file
+--let $output_file= GENERATE
+--source include/write_result_to_file.inc
 
---eval $_statement
+# Filter the file through the following script.
+--delimiter ||
+let $script=
+  # todo: use select_columns instead (requires updating all result files)
+  s{([^\t]*\t)[^\t]*(\t[^\t]*\t)[^\t]*\t[^\t]*(\t[^\t]*)}{DOLLAR1#DOLLAR2#\t#DOLLAR3};
+  s{/\* xid=.* \*/}{/\* XID \*/};
+  s{table_id: [0-9]+}{table_id: #};
+  s{file_id=[0-9]+}{file_id=#};
+  s{block_len=[0-9]+}{block_len=#};
+  s{Server ver:.*DOLLAR}{SERVER_VERSION, BINLOG_VERSION};
+  s{SQL_LOAD-[a-z,0-9,-]*.[a-z]*}{SQL_LOAD-<SERVER UUID>-<MASTER server-id>-<file-id>.<extension>};
+  s{rand_seed1=[0-9]*,rand_seed2=[0-9]*}{rand_seed1=<seed 1>,rand_seed2=<seed 2>};
+  s{((?:master|slave|slave-relay)-bin\.[0-9]{6};pos=)[0-9]+DOLLAR}{DOLLAR1POS};
+  s{DOLLARmysqltest_vardir}{MYSQLTEST_VARDIR}g;
+||
+--let $pre_script= my DOLLARmysqltest_vardir = DOLLARENV{'MYSQLTEST_VARDIR'};
+if (!$keep_gtid_events)
+{
+  --let $script= $script DOLLAR_ = '' if (m{\t(?:Gtid|Previous_gtids)\t});
+}
+if ($keep_gtid_events)
+{
+  let $pre_script= $pre_script
+    my DOLLARuuid_regex = '[0-9A-F]{8}-(?:[0-9A-F]{4}-){3}[0-9A-F]{12}';
+    my DOLLARuuid_sidno_regex = DOLLARuuid_regex.'(?::[0-9]+(?:-[0-9]+)?)+';
+  ||
+  --let $script= $script s{DOLLARuuid_sidno_regex(?:,DOLLARuuid_sidno_regex)*}{Gtid_set};
+}
+--delimiter ;
+
+#--let $select_columns= 1 3 6
+--let $input_file= $output_file
+--source include/filter_file.inc
+
+# Write to result file
+--cat_file $output_file
+
+# Remove the file
+--remove_file $output_file
+
+--let $statement= $_se_old_statement
+
+--let $include_filename= show_events.inc
+--source include/end_include_file.inc

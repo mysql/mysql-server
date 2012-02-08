@@ -142,8 +142,7 @@ include/wait_for_slave_sql_error.inc [errno=1534,1197]
 SELECT count(*) FROM t1;
 count(*)
 0
-show binlog events in 'slave-bin.000001' from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 SET GLOBAL max_binlog_cache_size= ORIGINAL_VALUE;
 SET GLOBAL binlog_cache_size= ORIGINAL_VALUE;
 SET GLOBAL max_binlog_stmt_cache_size= ORIGINAL_VALUE;
