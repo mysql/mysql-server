@@ -48,6 +48,7 @@
 
 --source include/have_innodb.inc
 --source include/have_gtid.inc
+--source include/not_valgrind.inc
 --let $rpl_extra_connections_per_server= 3
 --source include/master-slave.inc
 --source include/have_debug.inc
