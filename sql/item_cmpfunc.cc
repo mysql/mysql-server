@@ -4722,8 +4722,7 @@ longlong Item_func_bit_and::val_int()
 
 Item_cond::Item_cond(THD *thd, Item_cond *item)
   :Item_bool_func(thd, item),
-   abort_on_null(item->abort_on_null),
-   and_tables_cache(item->and_tables_cache)
+   abort_on_null(item->abort_on_null)
 {
   /*
     item->list will be copied by copy_andor_arguments() call
@@ -4748,16 +4747,16 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   st_select_lex::Resolve_place save_resolve=
     thd->lex->current_select->resolve_place;
   uchar buff[sizeof(char*)];			// Max local vars in function
-  not_null_tables_cache= used_tables_cache= 0;
-  const_item_cache= 1;
+  used_tables_cache= 0;
+  const_item_cache= true;
 
   if (functype() != COND_AND_FUNC)
     thd->lex->current_select->resolve_place= st_select_lex::RESOLVE_NONE;
-  /*
-    and_table_cache is the value that Item_cond_or() returns for
-    not_null_tables()
-  */
-  and_tables_cache= ~(table_map) 0;
+
+  if (functype() == COND_AND_FUNC && abort_on_null)
+    not_null_tables_cache= 0;
+  else
+    not_null_tables_cache= ~(table_map) 0;
 
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     return TRUE;				// Fatal error flag is set!
@@ -4778,7 +4777,6 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   */
   while ((item=li++))
   {
-    table_map tmp_table_map;
     while (item->type() == Item::COND_ITEM &&
 	   ((Item_cond*) item)->functype() == functype() &&
            !((Item_cond*) item)->list.is_empty())
@@ -4795,26 +4793,26 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 	 item->fix_fields(thd, li.ref())) ||
 	(item= *li.ref())->check_cols(1))
       return TRUE; /* purecov: inspected */
-    used_tables_cache|=     item->used_tables();
-    if (item->const_item())
-      and_tables_cache= (table_map) 0;
+    used_tables_cache|= item->used_tables();
+    const_item_cache&=  item->const_item();
+
+    // Old code assumed that not_null_tables() was 0 when const_item() was true
+    DBUG_ASSERT(!item->const_item() || !item->not_null_tables());
+
+    if (functype() == COND_AND_FUNC && abort_on_null)
+      not_null_tables_cache|= item->not_null_tables();
     else
-    {
-      tmp_table_map= item->not_null_tables();
-      not_null_tables_cache|= tmp_table_map;
-      and_tables_cache&= tmp_table_map;
-      const_item_cache= FALSE;
-    }  
-    with_sum_func=	    with_sum_func || item->with_sum_func;
-    with_subselect|=        item->has_subquery();
+      not_null_tables_cache&= item->not_null_tables();
+    with_sum_func|=  item->with_sum_func;
+    with_subselect|= item->has_subquery();
     if (item->maybe_null)
-      maybe_null=1;
+      maybe_null= true;
   }
   thd->lex->current_select->cond_count+= list.elements;
   thd->lex->current_select->resolve_place= save_resolve;
   fix_length_and_dec();
-  fixed= 1;
-  return FALSE;
+  fixed= true;
+  return false;
 }
 
 
@@ -4825,29 +4823,24 @@ void Item_cond::fix_after_pullout(st_select_lex *parent_select,
   List_iterator<Item> li(list);
   Item *item;
 
-  used_tables_cache=0;
-  const_item_cache=1;
+  used_tables_cache= 0;
+  const_item_cache= true;
 
-  and_tables_cache= ~(table_map) 0; // Here and below we do as fix_fields does
-  not_null_tables_cache= 0;
+  if (functype() == COND_AND_FUNC && abort_on_null)
+    not_null_tables_cache= 0;
+  else
+    not_null_tables_cache= ~(table_map) 0;
 
   while ((item=li++))
   {
-    table_map tmp_table_map;
     item->fix_after_pullout(parent_select, removed_select, li.ref());
     item= *li.ref();
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
-
-    if (item->const_item())
-      and_tables_cache= (table_map) 0;
+    if (functype() == COND_AND_FUNC && abort_on_null)
+      not_null_tables_cache|= item->not_null_tables();
     else
-    {
-      tmp_table_map= item->not_null_tables();
-      not_null_tables_cache|= tmp_table_map;
-      and_tables_cache&= tmp_table_map;
-      const_item_cache= FALSE;
-    }  
+      not_null_tables_cache&= item->not_null_tables();
   }
 }
 
@@ -5000,13 +4993,6 @@ void Item_cond::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
   Item *item;
   while ((item= li++))
     item->split_sum_func2(thd, ref_pointer_array, fields, li.ref(), TRUE);
-}
-
-
-table_map
-Item_cond::used_tables() const
-{						// This caches used_tables
-  return used_tables_cache;
 }
 
 
