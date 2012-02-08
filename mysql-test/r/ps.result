@@ -1,4 +1,3 @@
-call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 drop table if exists t1,t2,t3,t4;
 drop database if exists client_test_db;
 create table t1
