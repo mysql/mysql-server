@@ -4431,7 +4431,6 @@ bool mysql_create_table_no_lock(THD *thd,
 
   THD_STAGE_INFO(thd, stage_creating_table);
 
-#ifdef HAVE_READLINK
   {
     size_t dirlen;
     char   dirpath[FN_REFLEN];
@@ -4478,8 +4477,7 @@ bool mysql_create_table_no_lock(THD *thd,
   }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
-  if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
-#endif /* HAVE_READLINK */
+  if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
   {
     if (create_info->data_file_name)
       push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
@@ -6208,8 +6206,26 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       else
       {
+        MDL_request_list mdl_requests;
+        MDL_request target_db_mdl_request;
+
         target_mdl_request.init(MDL_key::TABLE, new_db, new_name,
                                 MDL_EXCLUSIVE, MDL_TRANSACTION);
+        mdl_requests.push_front(&target_mdl_request);
+
+        /*
+          If we are moving the table to a different database, we also
+          need IX lock on the database name so that the target database
+          is protected by MDL while the table is moved.
+        */
+        if (new_db != db)
+        {
+          target_db_mdl_request.init(MDL_key::SCHEMA, new_db, "",
+                                     MDL_INTENTION_EXCLUSIVE,
+                                     MDL_TRANSACTION);
+          mdl_requests.push_front(&target_db_mdl_request);
+        }
+
         /*
           Global intention exclusive lock must have been already acquired when
           table to be altered was open, so there is no need to do it here.
@@ -6218,14 +6234,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                                    "", "",
                                                    MDL_INTENTION_EXCLUSIVE));
 
-        if (thd->mdl_context.try_acquire_lock(&target_mdl_request))
+        if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                           thd->variables.lock_wait_timeout))
           DBUG_RETURN(TRUE);
-        if (target_mdl_request.ticket == NULL)
-        {
-          /* Table exists and is locked by some thread. */
-	  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
-	  DBUG_RETURN(TRUE);
-        }
+
         DEBUG_SYNC(thd, "locked_table_name");
         /*
           Table maybe does not exist, but we got an exclusive lock
