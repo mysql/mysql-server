@@ -5050,6 +5050,7 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       rows= table->key_info[keyno].rec_per_key[keyparts_used-1];
     else
     {
+      DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
       if (HA_POS_ERROR == (rows= this->records_in_range(keyno, min_endp, 
                                                         max_endp)))
       {

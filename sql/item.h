@@ -1045,6 +1045,8 @@ public:
   /* 
     Returns true if this is constant (during query execution, i.e. its value
     will not change until next fix_fields) and its value is known.
+    When the default implementation of used_tables() is effective, this
+    function will always return true (because used_tables() is empty).
   */
   virtual bool const_item() const { return used_tables() == 0; }
   /* 
@@ -1548,10 +1550,7 @@ public:
   bool is_null();
 
 public:
-  inline void make_field(Send_field *field);
-  
-  inline bool const_item() const;
-  
+  inline void make_field(Send_field *field);  
   inline int save_in_field(Field *field, bool no_conversions);
   inline bool send(Protocol *protocol, String *str);
 }; 
@@ -1569,11 +1568,6 @@ inline void Item_sp_variable::make_field(Send_field *field)
   else
     it->set_name(m_name.str, (uint) m_name.length, system_charset_info);
   it->make_field(field);
-}
-
-inline bool Item_sp_variable::const_item() const
-{
-  return TRUE;
 }
 
 inline int Item_sp_variable::save_in_field(Field *field, bool no_conversions)
@@ -1765,11 +1759,6 @@ public:
   Item_result result_type() const
   {
     return value_item->result_type();
-  }
-
-  bool const_item() const
-  {
-    return TRUE;
   }
 
   int save_in_field(Field *field, bool no_conversions)
@@ -2034,7 +2023,8 @@ public:
   bool is_outer_field() const
   {
     DBUG_ASSERT(fixed);
-    return field->table->pos_in_table_list->outer_join;
+    return field->table->pos_in_table_list->outer_join ||
+           field->table->pos_in_table_list->in_outer_join_nest();
   }
   Field::geometry_type get_geometry_type() const
   {
@@ -2922,7 +2912,16 @@ public:
       (*ref)->update_used_tables(); 
   }
   virtual table_map resolved_used_tables() const;
-  table_map not_null_tables() const { return (*ref)->not_null_tables(); }
+  table_map not_null_tables() const
+  {
+    /*
+      It can happen that our 'depended_from' member is set but the
+      'depended_from' member of the referenced item is not (example: if a
+      field in a subquery belongs to an outer merged view), so we first test
+      ours:
+    */
+    return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->not_null_tables();
+  }
   void set_result_field(Field *field)	{ result_field= field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)

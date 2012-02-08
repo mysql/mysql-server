@@ -294,6 +294,15 @@ err:
   DBUG_RETURN(1);
 }
 
+static void save_auto_increment(TABLE *table, ulonglong *value)
+{
+  Field *field= table->found_next_number_field;
+  ulonglong auto_value=
+    (ulonglong) field->val_int(table->record[0] +
+                               field->offset(table->record[0]));
+  if (*value <= auto_value)
+    *value= auto_value + 1;
+}
 
 /**
   @brief Read version 1 meta file (5.0 compatibility routine).
@@ -476,6 +485,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
     share->table_name= tmp_name;
     share->crashed= FALSE;
     share->archive_write_open= FALSE;
+    share->in_optimize= false;
     fn_format(share->data_file_name, table_name, "",
               ARZ, MY_REPLACE_EXT | MY_UNPACK_FILENAME);
     strmov(share->table_name, table_name);
@@ -727,12 +737,12 @@ void ha_archive::frm_load(const char *name, azio_stream *dst)
   {
     if (!mysql_file_fstat(frm_file, &file_stat, MYF(MY_WME)))
     {
-      frm_ptr= (uchar *) my_malloc(sizeof(uchar) * file_stat.st_size, MYF(0));
+      frm_ptr= (uchar *) my_malloc(sizeof(uchar) * (size_t) file_stat.st_size, MYF(0));
       if (frm_ptr)
       {
-        if (my_read(frm_file, frm_ptr, file_stat.st_size, MYF(0)) ==
+        if (my_read(frm_file, frm_ptr, (size_t) file_stat.st_size, MYF(0)) ==
             (size_t) file_stat.st_size)
-          azwrite_frm(dst, (char *) frm_ptr, file_stat.st_size);
+          azwrite_frm(dst, (char *) frm_ptr, (size_t) file_stat.st_size);
         my_free(frm_ptr);
       }
     }
@@ -821,7 +831,10 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   /* 
     We reuse name_buff since it is available.
   */
-  if (create_info->data_file_name && create_info->data_file_name[0] != '#')
+#ifdef HAVE_READLINK
+  if (my_use_symdir &&
+      create_info->data_file_name &&
+      create_info->data_file_name[0] != '#')
   {
     DBUG_PRINT("ha_archive", ("archive will create stream file %s", 
                         create_info->data_file_name));
@@ -832,10 +845,27 @@ int ha_archive::create(const char *name, TABLE *table_arg,
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
   }
   else
+#endif /* HAVE_READLINK */
   {
+    if (create_info->data_file_name)
+    {
+      push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED,
+                          ER_DEFAULT(WARN_OPTION_IGNORED),
+                          "DATA DIRECTORY");
+    }
     fn_format(name_buff, name, "", ARZ,
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
     linkname[0]= 0;
+  }
+
+  /* Archive engine never uses INDEX DIRECTORY. */
+  if (create_info->index_file_name)
+  {
+    push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+                        WARN_OPTION_IGNORED,
+                        ER_DEFAULT(WARN_OPTION_IGNORED),
+                        "INDEX DIRECTORY");
   }
 
   /*
@@ -1506,34 +1536,45 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 {
   int rc= 0;
   azio_stream writer;
+  ha_rows count;
+  my_bitmap_map *org_bitmap;
   char writer_filename[FN_REFLEN];
   DBUG_ENTER("ha_archive::optimize");
 
-  init_archive_reader();
-
-  // now we close both our writer and our reader for the rename
-  if (share->archive_write_open)
+  mysql_mutex_lock(&share->mutex);
+  if (share->in_optimize)
   {
-    if (share->archive_write.version == 1)
-      write_v1_metafile();
-    azclose(&(share->archive_write));
-    share->archive_write_open= FALSE;
+    mysql_mutex_unlock(&share->mutex);
+    DBUG_RETURN(HA_ADMIN_FAILED);
   }
+  share->in_optimize= true;
+  /* remember the number of rows */
+  count= share->rows_recorded;
+  if (share->archive_write_open)
+    azflush(&share->archive_write, Z_SYNC_FLUSH);
+  mysql_mutex_unlock(&share->mutex);
+
+  init_archive_reader();
 
   /* Lets create a file to contain the new data */
   fn_format(writer_filename, share->table_name, "", ARN, 
             MY_REPLACE_EXT | MY_UNPACK_FILENAME);
 
   if (!(azopen(&writer, writer_filename, O_CREAT|O_RDWR|O_BINARY)))
-    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE); 
+  {
+    share->in_optimize= false;
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+  }
 
   /*
     Transfer the embedded FRM so that the file can be discoverable.
     Write file offset is set to the end of the file.
   */
   if ((rc= frm_copy(&archive, &writer)))
+  {
+    share->in_optimize= false;
     goto error;
-
+  }
   /* 
     An extended rebuild is a lot more effort. We open up each row and re-record it. 
     Any dead rows are removed (aka rows that may have been partially recorded). 
@@ -1541,75 +1582,85 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     As of Archive format 3, this is the only type that is performed, before this
     version it was just done on T_EXTEND
   */
-  if (1)
+
+  DBUG_PRINT("ha_archive", ("archive extended rebuild"));
+
+  /*
+    Now we will rewind the archive file so that we are positioned at the 
+    start of the file.
+  */
+  if ((rc= read_data_header(&archive)))
   {
-    DBUG_PRINT("ha_archive", ("archive extended rebuild"));
+    share->in_optimize= false;
+    goto error;
+  }
 
-    /*
-      Now we will rewind the archive file so that we are positioned at the 
-      start of the file.
-    */
-    rc= read_data_header(&archive);
+  stats.auto_increment_value= 1;
+  org_bitmap= tmp_use_all_columns(table, table->read_set);
+  /* read rows upto the remembered rows */ 
+  for (ha_rows cur_count= count; cur_count; cur_count--)
+  {
+    if ((rc= get_row(&archive, table->record[0])))
+      break;
+    real_write_row(table->record[0], &writer);
+    if (table->found_next_number_field)
+      save_auto_increment(table, &stats.auto_increment_value);
+  }
 
-    /* 
-      On success of writing out the new header, we now fetch each row and
-      insert it into the new archive file. 
-    */
-    if (!rc)
+  mysql_mutex_lock(&share->mutex);
+
+  if (share->archive_write_open)
+  {
+    if (share->archive_write.version == 1)
+      write_v1_metafile();
+    azclose(&share->archive_write);
+    share->archive_write_open= FALSE;
+  }
+  if (!rc)
+  {
+    /* read the remaining rows */
+    for (count= share->rows_recorded - count; count; count--)
     {
-      share->rows_recorded= 0;
-      stats.auto_increment_value= 1;
-      share->archive_write.auto_increment= 0;
-      my_bitmap_map *org_bitmap= tmp_use_all_columns(table, table->read_set);
-
-      while (!(rc= get_row(&archive, table->record[0])))
-      {
-        real_write_row(table->record[0], &writer);
-        /*
-          Long term it should be possible to optimize this so that
-          it is not called on each row.
-        */
-        if (table->found_next_number_field)
-        {
-          Field *field= table->found_next_number_field;
-          ulonglong auto_value=
-            (ulonglong) field->val_int(table->record[0] +
-                                       field->offset(table->record[0]));
-          if (share->archive_write.auto_increment < auto_value)
-            stats.auto_increment_value=
-              (share->archive_write.auto_increment= auto_value) + 1;
-        }
-      }
-
-      tmp_restore_column_map(table->read_set, org_bitmap);
-      share->rows_recorded= (ha_rows)writer.rows;
+      if ((rc= get_row(&archive, table->record[0])))
+        break;
+      real_write_row(table->record[0], &writer);
+      if (table->found_next_number_field)
+        save_auto_increment(table, &stats.auto_increment_value);
     }
+  }
 
-    DBUG_PRINT("info", ("recovered %llu archive rows", 
-                        (unsigned long long)share->rows_recorded));
+  tmp_restore_column_map(table->read_set, org_bitmap);
+  share->rows_recorded= (ha_rows) writer.rows;
+  share->archive_write.auto_increment= stats.auto_increment_value - 1;
+  DBUG_PRINT("info", ("recovered %llu archive rows", 
+                      (unsigned long long)share->rows_recorded));
 
-    DBUG_PRINT("ha_archive", ("recovered %llu archive rows", 
-                        (unsigned long long)share->rows_recorded));
+  DBUG_PRINT("ha_archive", ("recovered %llu archive rows", 
+                      (unsigned long long)share->rows_recorded));
 
-    /*
-      If REPAIR ... EXTENDED is requested, try to recover as much data
-      from data file as possible. In this case if we failed to read a
-      record, we assume EOF. This allows massive data loss, but we can
-      hardly do more with broken zlib stream. And this is the only way
-      to restore at least what is still recoverable.
-    */
-    if (rc && rc != HA_ERR_END_OF_FILE && !(check_opt->flags & T_EXTEND))
-      goto error;
-  } 
+  /*
+    If REPAIR ... EXTENDED is requested, try to recover as much data
+    from data file as possible. In this case if we failed to read a
+    record, we assume EOF. This allows massive data loss, but we can
+    hardly do more with broken zlib stream. And this is the only way
+    to restore at least what is still recoverable.
+  */
+  if (rc && rc != HA_ERR_END_OF_FILE && !(check_opt->flags & T_EXTEND))
+  {
+    share->in_optimize= false;
+    mysql_mutex_unlock(&share->mutex);
+    goto error;
+  }
 
   azclose(&writer);
   share->dirty= FALSE;
-  
   azclose(&archive);
+  archive_reader_open= FALSE;
 
   // make the file we just wrote be our data file
   rc= my_rename(writer_filename, share->data_file_name, MYF(0));
-
+  share->in_optimize= false;
+  mysql_mutex_unlock(&share->mutex);
 
   DBUG_RETURN(rc);
 error:

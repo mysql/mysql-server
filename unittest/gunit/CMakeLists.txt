@@ -233,6 +233,7 @@ SET(TESTS
   decimal
   dynarray
   filesort_buffer
+  filesort_compare
   mdl
   mdl_mytap
   my_bitmap
