@@ -41,7 +41,8 @@ row_quiesce_write_meta_data_header(
 /*===============================*/
 	const dict_table_t*	table,	/*!< in: write the meta data for
 					this table */
-	FILE*			file)	/*!< in: file to write to */
+	FILE*			file,	/*!< in: file to write to */
+	void*			thd)	/*!< in/out: session */
 {
 	byte*			ptr;
 	byte			row[sizeof(ib_uint32_t) * 3];
@@ -60,9 +61,8 @@ row_quiesce_write_meta_data_header(
 	mach_write_to_4(ptr, UT_LIST_GET_LEN(table->indexes));
 
 	if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: IO error (%lu), writing meta-data "
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_EXCEPTIONS_WRITE_ERROR,
+			"IO error (%lu), writing meta-data "
 			"header.\n", (ulint) errno);
 
 		return(DB_IO_ERROR);
@@ -79,7 +79,8 @@ row_quiesce_write_meta_data_indexes(
 /*================================*/
 	const dict_table_t*	table,	/*!< in: write the meta data for
 					this table */
-	FILE*			file)	/*!< in: file to write to */
+	FILE*			file,	/*!< in: file to write to */
+	void*			thd)	/*!< in/out: session */
 {
 	const dict_index_t*	index;
 
@@ -105,20 +106,20 @@ row_quiesce_write_meta_data_indexes(
 
 		if (fwrite(row, 1, sizeof(row), file) != sizeof(row)) {
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: IO error (%lu), writing "
-				"index meta-data\n", (ulint) errno);
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_EXCEPTIONS_WRITE_ERROR,
+				 "IO error (%lu), writing index "
+				 "meta-data\n", (ulint) errno);
 
 			return(DB_IO_ERROR);
 		}
 
 		/* Write out the NUL byte too. */
 		if (fwrite(index->name, 1, len + 1, file) != len + 1) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: IO error (%lu), writing index "
-				"name\n", (ulint) errno);
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_EXCEPTIONS_WRITE_ERROR,
+				 "IO error (%lu), writing index name\n",
+				 (ulint) errno);
 
 			return(DB_IO_ERROR);
 		}
@@ -133,31 +134,30 @@ static
 db_err
 row_quiesce_write_meta_data(
 /*========================*/
-	const dict_table_t*	table)	/*!< in: write the meta data for
+	const dict_table_t*	table,	/*!< in: write the meta data for
 					this table */
+	void*			thd)	/*!< in/out: session */
 {
 	db_err		err;
 	char		name[OS_FILE_MAX_PATH];
 
 	srv_get_meta_data_filename(table, name, sizeof(name));
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: Writing table metadata to '%s'\n", name);
+	ib_logf("Writing table metadata to '%s'", name);
 
 	FILE*	file = fopen(name, "w+");
 
 	if (file == NULL) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error (%lu) creating: %s\n",
-			(ulint) errno, name);
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_CANT_CREATE_FILE,
+			 "Error (%lu) creating: %s", (ulint) errno, name);
 
 		err = DB_IO_ERROR;
 	} else {
-		err = row_quiesce_write_meta_data_header(table, file);
+		err = row_quiesce_write_meta_data_header(table, file, thd);
 
 		if (err == DB_SUCCESS) {
 			err = row_quiesce_write_meta_data_indexes(
-				table, file);
+				table, file, thd);
 		}
 
 		fclose(file);
@@ -171,13 +171,13 @@ Quiesce the tablespace that the table resides in. */
 UNIV_INTERN
 void
 row_quiesce_table_start(
-/*==========================*/
-	dict_table_t*	table)		/*!< in: quiesce this table */
+/*====================*/
+	dict_table_t*	table,		/*!< in: quiesce this table */
+	void*		thd)		/*!< in/out: session */
 {
 	ut_a(srv_n_purge_threads > 0);
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: Sync to disk of %s started.\n", table->name);
+	ib_logf("Sync to disk of %s started.", table->name);
 
 	trx_purge_stop();
 
@@ -188,19 +188,16 @@ row_quiesce_table_start(
 
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: Quiesce pages flushed: %lu\n", n_pages);
+	ib_logf("Quiesce pages flushed: %lu", n_pages);
 
-	if (row_quiesce_write_meta_data(table) != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: There was an error writing to the "
-			"meta data file.\n");
+	if (row_quiesce_write_meta_data(table, thd) != DB_SUCCESS) {
+		ib_logf("There was an error writing to the "
+			"meta data file");
 	} else {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: %s flushed to disk.\n", table->name);
+		ib_logf("%s flushed to disk", table->name);
 	}
 
-	row_quiesce_set_state(table, QUIESCE_COMPLETE);
+	row_quiesce_set_state(table, QUIESCE_COMPLETE, thd);
 }
 
 /*********************************************************************//**
@@ -209,11 +206,12 @@ UNIV_INTERN
 void
 row_quiesce_table_complete(
 /*=======================*/
-	dict_table_t*	table)		/*!< in: quiesce this table */
+	dict_table_t*	table,		/*!< in: quiesce this table */
+	void*		thd)		/*!< in/out: session */
 {
 	trx_purge_run();
 
-	row_quiesce_set_state(table, QUIESCE_NONE);
+	row_quiesce_set_state(table, QUIESCE_NONE, thd);
 }
 
 /*********************************************************************//**
@@ -223,7 +221,8 @@ void
 row_quiesce_set_state(
 /*==================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
-	ib_quiesce_t	state)		/*!< in: quiesce state to set */
+	ib_quiesce_t	state,		/*!< in: quiesce state to set */
+	void*		thd)		/*!< in/out: session */
 {
 	dict_index_t*	index;
 
@@ -234,9 +233,11 @@ row_quiesce_set_state(
 		rw_lock_x_lock(&index->lock);
 	}
 
-	// FIXME: Only if we have separate purge threads
-
-	if (srv_n_purge_threads > 0 && table->space != TRX_SYS_SPACE) {
+	if (srv_n_purge_threads == 0) {
+		ib_logf("Needs --innodb-purge-threads > 0");
+	} else if (table->space == TRX_SYS_SPACE) {
+		ib_logf("Can't quiesce system tablespace");
+	} else {
 
 		switch (state) {
 		case QUIESCE_START:

@@ -39,7 +39,8 @@ UNIV_INTERN
 void
 row_quiesce_table_start(
 /*====================*/
-	dict_table_t*	table);		/*!< in: quiesce this table */
+	dict_table_t*	table,		/*!< in: quiesce this table */
+	void*		thd);		/*!< in/out: session */
 
 /*********************************************************************//**
 Set a table's quiesce state. */
@@ -48,7 +49,8 @@ void
 row_quiesce_set_state(
 /*==================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
-	ib_quiesce_t	state);		/*!< in: quiesce state to set */
+	ib_quiesce_t	state,		/*!< in: quiesce state to set */
+	void*		thd);		/*!< in/out: session */
 
 /*********************************************************************//**
 Cleanup after table quiesce. */
@@ -56,7 +58,8 @@ UNIV_INTERN
 void
 row_quiesce_table_complete(
 /*=======================*/
-	dict_table_t*	table);		/*!< in: quiesce this table */
+	dict_table_t*	table,		/*!< in: quiesce this table */
+	void*		thd);		/*!< in/out: session */
 
 #ifndef UNIV_NONINL
 #include "row0quiesce.ic"

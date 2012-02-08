@@ -220,17 +220,17 @@ private:
 
 		if (len <= BTR_EXTERN_FIELD_REF_SIZE) {
 
-			/* TODO: push an error to the connection. */
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: externally stored"
-				" column has  a reference length "
-				"of %lu\n", len);
+			char index_name[MAX_FULL_NAME_LEN + 1];
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "InnoDB: in index ");
-			dict_index_name_print(stderr, m_trx, m_index);
-			fprintf(stderr, "\n");
+			innobase_format_name(
+				index_name, sizeof(index_name),
+				m_index->name, TRUE);
+
+			ib_pushf(m_trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				 ER_INDEX_CORRUPT,
+				"externally stored column has a reference "
+				"length of %lu\n in index",
+				len, index_name);
 
 			return(DB_CORRUPTION);
 		}
@@ -446,11 +446,14 @@ row_import_error(
 	db_err		err)		/*!< in: error code */
 {
 	if (!trx_is_interrupted(trx)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: ALTER TABLE ");
-		ut_print_name(stderr, trx, TRUE, prebuilt->table->name);
-		fprintf(stderr, " IMPORT TABLESPACE failed: %lu\n",
-			(ulint) err);
+		char table_name[MAX_FULL_NAME_LEN + 1];
+
+		innobase_format_name(
+			table_name, sizeof(table_name),
+			prebuilt->table->name, FALSE);
+
+		ib_logf("ALTER TABLE %s IMPORT TABLESPACE failed: %lu",
+			table_name, (ulint) err);
 	}
 
 	return(row_import_cleanup(prebuilt, trx, err));
@@ -512,8 +515,8 @@ row_import_adjust_root_pages(
 			ib_pushf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
 				ER_INDEX_CORRUPT,
-				"InnoDB: Index %s contains %lu "
-				"entries, should be %lu.\n",
+				"Index %s contains %lu entries, should be "
+				"%lu",
 				index_name,
 				(ulint) n_rows,
 				(ulint) n_rows_in_table);
@@ -668,7 +671,9 @@ row_import_set_index_root_v1(
 
 	/* Read the tablespace page size. */
 	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-		ib_logf("IO error (%lu), reading page size.\n", (ulint) errno);
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			 "IO error (%lu), reading page size",
+			 (ulint) errno);
 
 		return(DB_IO_ERROR);
 	}
@@ -681,9 +686,9 @@ row_import_set_index_root_v1(
 	if (page_size != UNIV_PAGE_SIZE) {
 
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-			" InnoDB: Tablespace to be imported has different "
+			"Tablespace to be imported has different "
 			"page size than this server. Server page size "
-			"is: %lu, whereas tablespace page size is %lu.\n",
+			"is: %lu, whereas tablespace page size is %lu",
 			UNIV_PAGE_SIZE, page_size);
 
 		return(DB_ERROR);
@@ -703,10 +708,8 @@ row_import_set_index_root_v1(
 
 		/* Read the root page number of the index. */
 		if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: IO error (%lu), reading "
-				"index meta-data.\n",
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+				"IO error (%lu), reading index meta-data",
 				(ulint) errno);
 
 			return(DB_IO_ERROR);
@@ -719,10 +722,9 @@ row_import_set_index_root_v1(
 		ulint	len = mach_read_from_4(ptr);
 
 		if (len > OS_FILE_MAX_PATH) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Index name length (%lu) too long "
-				"the meta-data is corrupt.\n", len);
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+				"Index name length (%lu) too long "
+				"the meta-data is corrupt", len);
 
 			return(DB_CORRUPTION);
 		}
@@ -754,7 +756,7 @@ row_import_set_index_root_v1(
 				table->name, FALSE);
 
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-				 "InnoDB: Index %s not in table %s",
+				 "Index %s not in table %s",
 				 index_name, table_name);
 
 			/* TODO: If the table schema matches, it would
@@ -785,7 +787,7 @@ row_import_set_index_root(
 
 	if (fread(&value, sizeof(value), 1, file) != 1) {
 		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_INDEX_CORRUPT,
-			"InnoDB: IO error (%lu), reading version\n",
+			"IO error (%lu), reading version",
 			(ulint) errno);
 
 		return(DB_IO_ERROR);
@@ -799,8 +801,8 @@ row_import_set_index_root(
 		return(row_import_set_index_root_v1(table, file, thd));
 	default:
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-			"InnoDB: Unsupported meta-data version number (%lu). "
-			"File ignored.\n", (ulint) value);
+			"Unsupported meta-data version number (%lu), "
+			"file ignored", (ulint) value);
 
 		return(DB_ERROR);
 	}
@@ -827,7 +829,7 @@ row_import_set_index_root(
 
 	if (file == NULL) {
 		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_INDEX_CORRUPT,
-			 "InnoDB: Error opening: %s\n", name);
+			 "Error opening: %s", name);
 		err = DB_IO_ERROR;
 	} else {
 		err = row_import_set_index_root(table, file, thd);
@@ -852,6 +854,10 @@ row_import_for_mysql(
 	trx_t*		trx;
 	lsn_t		current_lsn;
 	ulint		n_rows_in_table;
+	char 		table_name[MAX_FULL_NAME_LEN + 1];
+
+	innobase_format_name(
+		table_name, sizeof(table_name), table->name, FALSE);
 
 	ut_a(table->space);
 	ut_ad(prebuilt->trx);
@@ -936,10 +942,10 @@ row_import_for_mysql(
 
 	if (!fil_reset_space_and_lsn(table, current_lsn)) {
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error: cannot reset LSN's in table ");
-		ut_print_name(stderr, prebuilt->trx, TRUE, table->name);
-		fprintf(stderr, "\n");
+		ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			 ER_INDEX_CORRUPT,
+			 "Error: cannot reset LSN's in table %s",
+			 table_name);
 
 		return(row_import_cleanup(prebuilt, trx, DB_ERROR));
 	}
@@ -955,14 +961,11 @@ row_import_for_mysql(
 		    table->name)) {
 
 		if (table->ibd_file_missing) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: cannot find or open in the "
-				"database directory the .ibd file of\n");
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: table ");
-			ut_print_name(stderr, prebuilt->trx, TRUE, table->name);
-			fprintf(stderr, "\n");
+			ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				 ER_FILE_NOT_FOUND,
+				"Cannot find or open in the "
+				"database directory the .ibd file of %s",
+				table_name);
 		}
 
 		return(row_import_cleanup(prebuilt, trx, DB_ERROR));
