@@ -1942,9 +1942,26 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
                                (ulonglong) 0);
   create_info.data_file_length= ((ulonglong) share->max_rows *
                                  share->avg_row_length);
-  create_info.data_file_name= ha_create_info->data_file_name;
-  create_info.index_file_name= ha_create_info->index_file_name;
   create_info.language= share->table_charset->number;
+
+#ifdef HAVE_READLINK
+  if (my_use_symdir)
+  {
+    create_info.data_file_name= ha_create_info->data_file_name;
+    create_info.index_file_name= ha_create_info->index_file_name;
+  }
+  else
+#endif /* HAVE_READLINK */
+  {
+    if (ha_create_info->data_file_name)
+      push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          "DATA DIRECTORY");
+    if (ha_create_info->index_file_name)
+      push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          "INDEX DIRECTORY");
+  }
 
   if (ha_create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= HA_CREATE_TMP_TABLE;

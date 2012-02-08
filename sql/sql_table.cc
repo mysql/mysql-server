@@ -4431,7 +4431,6 @@ bool mysql_create_table_no_lock(THD *thd,
 
   THD_STAGE_INFO(thd, stage_creating_table);
 
-#ifdef HAVE_READLINK
   {
     size_t dirlen;
     char   dirpath[FN_REFLEN];
@@ -4478,8 +4477,7 @@ bool mysql_create_table_no_lock(THD *thd,
   }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
-  if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
-#endif /* HAVE_READLINK */
+  if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
   {
     if (create_info->data_file_name)
       push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
