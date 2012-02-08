@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -694,6 +694,13 @@ buf_print(void);
 /*============*/
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
+enum buf_page_print_flags {
+	/** Do not crash at the end of buf_page_print(). */
+	BUF_PAGE_PRINT_NO_CRASH	= 1,
+	/** Do not print the full page dump. */
+	BUF_PAGE_PRINT_NO_FULL = 2
+};
+
 /********************************************************************//**
 Prints a page to stderr. */
 UNIV_INTERN
@@ -701,8 +708,11 @@ void
 buf_page_print(
 /*===========*/
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size)	/*!< in: compressed page size, or
+	ulint		zip_size,	/*!< in: compressed page size, or
 					0 for uncompressed pages */
+	ulint		flags)		/*!< in: 0 or
+					BUF_PAGE_PRINT_NO_CRASH or
+					BUF_PAGE_PRINT_NO_FULL */
 	UNIV_COLD __attribute__((nonnull));
 /********************************************************************//**
 Decompress a block.

@@ -55,7 +55,7 @@ static Item *optimize_cond(JOIN *join, Item *conds,
                            List<TABLE_LIST> *join_list,
 			   bool build_equalities,
                            Item::cond_result *cond_value);
-static bool list_contains_unique_index(TABLE *table,
+static bool list_contains_unique_index(JOIN_TAB *tab,
                           bool (*find_func) (Field *, void *), void *data);
 static bool find_field_in_item_list (Field *field, void *data);
 static bool find_field_in_order_list (Field *field, void *data);
@@ -362,8 +362,6 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
 
-  drop_unused_derived_keys();
-
   if (rollup.state != ROLLUP::STATE_NONE)
   {
     if (rollup_process_const_fields())
@@ -378,18 +376,10 @@ JOIN::optimize()
     select_distinct= select_distinct && (const_tables != tables);
   }
 
-  THD_STAGE_INFO(thd, stage_preparing);
-  if (result->initialize_tables(this))
-  {
-    DBUG_PRINT("error",("Error: initialize_tables() failed"));
-    DBUG_RETURN(1);				// error == -1
-  }
   if (const_table_map != found_const_table_map &&
-      !(select_options & SELECT_DESCRIBE) &&
-      (!conds ||
-       !(conds->used_tables() & RAND_TABLE_BIT) ||
-       select_lex->master_unit() == &thd->lex->unit)) // upper level SELECT
+      !(select_options & SELECT_DESCRIBE))
   {
+    // There is at least one empty const table
     zero_result_cause= "no matching row in const table";
     DBUG_PRINT("error",("Error: %s", zero_result_cause));
     goto setup_subq_exit;
@@ -438,8 +428,7 @@ JOIN::optimize()
   }
 
   /*
-    Permorm the the optimization on fields evaluation mentioned above
-    for all on expressions.
+    Perform the same optimization on field evaluation for all join conditions.
   */ 
   for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables ; tab++)
   {
@@ -462,6 +451,26 @@ JOIN::optimize()
       (select_options & SELECT_DESCRIBE))
   {
     conds=new Item_int((longlong) 0,1);	// Always false
+  }
+
+  if (set_access_methods())
+  {
+    error= 1;
+    DBUG_PRINT("error",("Error from set_access_methods"));
+    DBUG_RETURN(1);
+  }
+
+  // We need all derived keys until access methods have been set.
+  drop_unused_derived_keys();
+
+  // Update table dependencies after assigning ref access fields
+  update_depend_map(this);
+
+  THD_STAGE_INFO(thd, stage_preparing);
+  if (result->initialize_tables(this))
+  {
+    DBUG_PRINT("error",("Error: initialize_tables() failed"));
+    DBUG_RETURN(1);				// error == -1
   }
 
   if (make_join_select(this, conds))
@@ -511,7 +520,7 @@ JOIN::optimize()
        QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
   {
     if (group_list && rollup.state == ROLLUP::STATE_NONE &&
-       list_contains_unique_index(join_tab[const_tables].table,
+       list_contains_unique_index(&join_tab[const_tables],
                                  find_field_in_order_list,
                                  (void *) group_list))
     {
@@ -549,7 +558,7 @@ JOIN::optimize()
       group= 0;
     }
     if (select_distinct &&
-       list_contains_unique_index(join_tab[const_tables].table,
+       list_contains_unique_index(&join_tab[const_tables],
                                  find_field_in_item_list,
                                  (void *) &fields_list))
     {
@@ -984,7 +993,33 @@ finish:
   return item;
 }
 
-  
+
+/**
+  Get the best field substitution for a given field.
+
+  If the field is member of a multiple equality, look up that equality
+  and return the most appropriate field. Usually this is the equivalenced
+  field belonging to the outer-most table in the join order, but
+  @see Item_field::get_subst_item() for details.
+  Otherwise, return the same field.
+
+  @param item_field The field that we are seeking a substitution for.
+  @param cond_equal multiple equalities to search in
+
+  @return The substituted field.
+*/
+
+Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal)
+{
+  bool dummy;
+  Item_equal *item_eq= find_item_equal(cond_equal, item_field->field, &dummy);
+  if (!item_eq)
+    return item_field;
+
+  return item_eq->get_subst_item(item_field);
+}
+
+
 /**
   Check whether an equality can be used to build multiple equalities.
 
@@ -2593,8 +2628,8 @@ void update_depend_map(JOIN *join)
     uint i;
     for (i=0 ; i < ref->key_parts ; i++,item++)
       depend_map|=(*item)->used_tables();
-    ref->depend_map=depend_map & ~OUTER_REF_TABLE_BIT;
-    depend_map&= ~OUTER_REF_TABLE_BIT;
+    depend_map&= ~PSEUDO_TABLE_BITS;
+    ref->depend_map= depend_map;
     for (JOIN_TAB **tab=join->map2table;
 	 depend_map ;
 	 tab++,depend_map>>=1 )
@@ -3028,7 +3063,7 @@ const_table_extraction_done:
           Mark a dependent table as constant if
            1. it has exactly zero or one rows (it is a system table), and
            2. it is not within a nested outer join, and
-           3. it does not have an expensive join condition.
+           3. it does not have an expensive outer join condition.
               This is because we have to determine whether an outer-joined table
               has a real row or a null-extended row in the optimizer phase.
               We have no possibility to evaluate its join condition at
@@ -3084,12 +3119,15 @@ const_table_extraction_done:
             Exclude tables that
              1. are full-text searched, or
              2. are part of nested outer join, or
-             3. are part of semi-join
+             3. are part of semi-join, or
+             4. have an expensive outer join condition.
+                DontEvaluateMaterializedSubqueryTooEarly
           */
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
               !table->fulltext_searched &&                           // 1
               !tl->in_outer_join_nest() &&                           // 2
-              !(tl->embedding && tl->embedding->sj_on_expr))         // 3
+              !(tl->embedding && tl->embedding->sj_on_expr) &&       // 3
+              !(*s->on_expr_ref && (*s->on_expr_ref)->is_expensive())) // 4
 	  {
             if (table->key_info[key].flags & HA_NOSAME)
             {
@@ -8029,7 +8067,7 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
         if (!eq_cond)
           return cond;
 
-        if (field->table->pos_in_table_list->outer_join)
+        if (args[0]->is_outer_field())
         {
           // outer join: transform "col IS NULL" to "col IS NULL or col=0"
           Item *or_cond= new(thd->mem_root) Item_cond_or(eq_cond, cond);
@@ -8183,7 +8221,7 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
     can safely remove the GROUP BY/DISTINCT,
     as no result set can be more distinct than an unique key.
 
-  @param table                The table to operate on.
+  @param tab                  The join table to operate on.
   @param find_func            function to iterate over the list and search
                               for a field
 
@@ -8191,13 +8229,19 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
     1                    found
   @retval
     0                    not found.
+
+  @note
+    The function assumes that make_outerjoin_info() has been called in
+    order for the check for outer tables to work.
 */
 
 static bool
-list_contains_unique_index(TABLE *table,
+list_contains_unique_index(JOIN_TAB *tab,
                           bool (*find_func) (Field *, void *), void *data)
 {
-  if (table->pos_in_table_list->outer_join)
+  TABLE *table= tab->table;
+
+  if (tab->is_inner_table_of_outer_join())
     return 0;
   for (uint keynr= 0; keynr < table->s->keys; keynr++)
   {

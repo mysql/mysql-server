@@ -99,10 +99,11 @@ my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs);
 */
 
 int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
-			  ulong sortbuff_size)
+			  ulonglong sortbuff_size)
 {
   int error,maxbuffer,skr;
-  uint memavl,old_memavl,keys,sort_length;
+  uint sort_length, keys;
+  ulonglong memavl, old_memavl;
   DYNAMIC_ARRAY buffpek;
   ha_rows records;
   uchar **sort_keys;
@@ -133,6 +134,9 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   records=	info->sort_info->max_records;
   sort_length=	info->key_length;
   LINT_INIT(keys);
+
+  if ((memavl - sizeof(BUFFPEK)) / (sort_length + sizeof(char *)) > UINT_MAX32)
+    memavl= sizeof(BUFFPEK) + UINT_MAX32 * (sort_length + sizeof(char *));
 
   while (memavl >= MIN_SORT_BUFFER)
   {
@@ -308,7 +312,8 @@ pthread_handler_t thr_find_all_keys(void *arg)
 {
   MI_SORT_PARAM *sort_param= (MI_SORT_PARAM*) arg;
   int error;
-  uint memavl,old_memavl,keys,sort_length;
+  ulonglong memavl, old_memavl;
+  uint keys, sort_length;
   uint idx, maxbuffer;
   uchar **sort_keys=0;
 
@@ -348,6 +353,10 @@ pthread_handler_t thr_find_all_keys(void *arg)
     idx=          (uint)sort_param->sort_info->max_records;
     sort_length=  sort_param->key_length;
     maxbuffer=    1;
+
+    if ((memavl - sizeof(BUFFPEK)) / (sort_length +
+                                      sizeof(char *)) > UINT_MAX32)
+      memavl= sizeof(BUFFPEK) + UINT_MAX32 * (sort_length + sizeof(char *));    
 
     while (memavl >= MIN_SORT_BUFFER)
     {

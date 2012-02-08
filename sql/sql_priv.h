@@ -178,7 +178,7 @@
    If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
    optimizer features (semijoin) will be available.
  */
-#undef OPTIMIZER_SWITCH_ALL
+#define OPTIMIZER_SWITCH_ALL 1
 
 /* 
   The following must be kept in sync with optimizer_switch string in 

@@ -148,7 +148,7 @@ void generate_test_data(Key_use *keys, TABLE *tables, int n)
 
 // Play around with these constants to see std::sort speedup vs. my_qsort.
 const int num_elements= 200;
-const int num_iterations= 10;
+const int num_iterations= 1000;
 
 /*
   This class is used for comparing performance of

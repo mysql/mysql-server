@@ -156,6 +156,74 @@ eval INSERT INTO mysql.plugin VALUES ('wonky', '$DAEMONEXAMPLE');
 --replace_regex /\.dll/.so/
 SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
 
+# MTR will remove this file later, but this might be too late.
+--error 0,1
+--remove_file $expect_file
+--write_file $expect_file
+wait
+EOF
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+#
+# Disable the plugin - to remove winky, wonky entries
+#
+--exec $MYSQL_PLUGIN_CMD DISABLE daemon_example
+
+#
+# Enable the plugin again
+#
+--exec $MYSQL_PLUGIN_CMD ENABLE daemon_example
+
+#
+# Restart the server
+#
+--append_file $expect_file
+restart
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo #
+--echo # Ensure the plugin is loaded.
+--echo #
+--replace_regex /\.dll/.so/
+SELECT * FROM mysql.plugin WHERE dl like '%libdaemon%' ORDER BY name;
+
+# MTR will remove this file later, but this might be too late.
+--error 0,1
+--remove_file $expect_file
+--write_file $expect_file
+wait
+EOF
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+# To test the case where the same plugin is reloaded with a different soname,
+# we must copy the example daemon to a new location renaming it.
+
+let $DAEMON_RELOAD = lib$DAEMONEXAMPLE;
+--copy_file $PLUGIN_DIR/$DAEMONEXAMPLE $PLUGIN_DIR/$DAEMON_RELOAD
+--copy_file include/libdaemon_example.ini $PLUGIN_DIR/libdaemon_example.ini
+
+# Now reload it and see that it is a different name.
+--exec $MYSQL_PLUGIN_CMD ENABLE libdaemon_example 
+
+#
+# Restart the server
+#
+--append_file $expect_file
+restart
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo #
+--echo # Ensure the plugin is replaced.
+--echo #
+--replace_regex /\.dll/.so/
+SELECT * FROM mysql.plugin WHERE dl like '%libdaemon%' ORDER BY name;
+
 --echo #
 --echo # Disable the plugin...
 --echo #
@@ -171,7 +239,12 @@ EOF
 #
 # Disable the plugin
 #
---exec $MYSQL_PLUGIN_CMD DISABLE daemon_example
+--exec $MYSQL_PLUGIN_CMD DISABLE libdaemon_example
+
+# Remove files for last test case.
+
+--remove_file $PLUGIN_DIR/$DAEMON_RELOAD
+--remove_file $DAEMONEXAMPLE_DIR/libdaemon_example.ini
 
 #
 # Restart the server
@@ -185,7 +258,7 @@ EOF
 --echo #
 --echo # Ensure the plugin isn't loaded.
 --echo #
-SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
+SELECT * FROM mysql.plugin WHERE dl like '%libdaemon%' ORDER BY name;
 
 #
 # Stop the server for error conditions
