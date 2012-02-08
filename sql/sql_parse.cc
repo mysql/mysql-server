@@ -2603,14 +2603,13 @@ case SQLCOM_PREPARE:
     /* Might have been updated in create_table_precheck */
     create_info.alias= create_table->alias;
 
-#ifdef HAVE_READLINK
-    /* Fix names if symlinked tables */
+    /* Fix names if symlinked or relocated tables */
     if (append_file_to_dir(thd, &create_info.data_file_name,
 			   create_table->table_name) ||
 	append_file_to_dir(thd, &create_info.index_file_name,
 			   create_table->table_name))
       goto end_with_restore_list;
-#endif
+
     /*
       If no engine type was given, work out the default now
       rather than at parse-time.
@@ -2649,12 +2648,9 @@ case SQLCOM_PREPARE:
       select_result *result;
 
       /*
-         - CREATE TABLE...IGNORE
-         - REPLACE SELECT...
-         - CREATE TABLE [with auto inc. column]...SELECT
-        can be unsafe, unless ORDER BY PRIMARY KEY clause is used in SELECT
-        statement. We therefore use row based logging if mixed or row based
-        logging is available.
+        CREATE TABLE...IGNORE/REPLACE SELECT... can be unsafe, unless
+        ORDER BY PRIMARY KEY clause is used in SELECT statement. We therefore
+        use row based logging if mixed or row based logging is available.
         TODO: Check if the order of the output of the select statement is
         deterministic. Waiting for BUG#42415
       */
@@ -2663,9 +2659,6 @@ case SQLCOM_PREPARE:
       
       if(lex->duplicates == DUP_REPLACE)
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_REPLACE_SELECT);
-
-      if (lex->type & AUTO_INCREMENT_FLAG)
-        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_SELECT_AUTOINC);
 
       /*
         If:
