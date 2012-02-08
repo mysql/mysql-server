@@ -573,7 +573,7 @@ static bool check_top_level_stmt(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_sub_stmt)
   {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name.str);
     return true;
   }
   return false;
@@ -589,7 +589,7 @@ static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
   {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->var->name);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->var->name.str);
     return true;
   }
   return false;
