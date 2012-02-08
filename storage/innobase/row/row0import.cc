@@ -490,7 +490,7 @@ Adjust the root on the table's indexes.
 static
 db_err
 row_import_adjust_root_pages(
-/*====================================*/
+/*=========================*/
 	row_prebuilt_t*		prebuilt,	/*!< in/out: prebuilt from
 						handler */
 	trx_t*			trx,		/*!< in: transaction used for
@@ -503,19 +503,27 @@ row_import_adjust_root_pages(
 	dict_index_t*		index;
 	db_err			err = DB_SUCCESS;
 
+	/* Skip the cluster index. */
 	index = dict_table_get_first_index(table);
 
+	/* Adjust the root pages of the secondary indexes only. */
 	while ((index = dict_table_get_next_index(index)) != NULL) {
 		ulint		n_rows;
+		char		index_name[MAX_FULL_NAME_LEN + 1];
+
+		innobase_format_name(
+			index_name, sizeof(index_name), index->name, TRUE);
+
+		ut_a(!dict_index_is_clust(index));
 
 		err = (db_err) btr_root_adjust_on_import(index);
 
-		/* We have already validated the cluster index, skip it here. */
-
-		if (err != DB_SUCCESS
-		    || (!dict_index_is_clust(index)
-			&& !btr_validate_index(index, trx, TRUE))) {
-
+		if (err != DB_SUCCESS) {
+			ib_pushf(trx->mysql_thd,
+				IB_LOG_LEVEL_WARN,
+				ER_INDEX_CORRUPT,
+				"Index %s import failed. Corruption detected "
+				"during root page update", index_name);
 			break;
 		}
 
@@ -531,17 +539,11 @@ row_import_adjust_root_pages(
 			break;
 		} else if (importer.get_n_recs() != n_rows_in_table) {
 
-			char index_name[MAX_FULL_NAME_LEN + 1];
-
-			innobase_format_name(
-				index_name, sizeof(index_name),
-				index->name, TRUE);
-
 			ib_pushf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
 				ER_INDEX_CORRUPT,
 				"Index %s contains %lu entries, should be "
-				"%lu",
+				"%lu, you should recreate this index.",
 				index_name,
 				(ulint) n_rows,
 				(ulint) n_rows_in_table);
@@ -626,8 +628,24 @@ row_import_set_sys_max_row_id(
 	mtr_commit(&mtr);
 
 	if (err != DB_SUCCESS) {
+		char		index_name[MAX_FULL_NAME_LEN + 1];
+
+		innobase_format_name(
+			index_name, sizeof(index_name), index->name, TRUE);
+
+		ib_pushf(prebuilt->trx->mysql_thd,
+			IB_LOG_LEVEL_WARN,
+			ER_INDEX_CORRUPT,
+			"Index %s corruption detected, invalid row id "
+			"in index.", index_name);
+
 		return(err);
-	} else if (row_id) {
+
+	} else if (row_id > 0) {
+
+		/* Update the system row id if the imported index row id is
+		greater than the max system row id. */
+
 		mutex_enter(&dict_sys->mutex);
 
 		if (row_id >= dict_sys->row_id) {
@@ -892,6 +910,9 @@ row_import_for_mysql(
 
 	trx = trx_allocate_for_mysql();
 
+	++trx->will_lock;
+
+	/* So that we can send error messages to the user. */
 	trx->mysql_thd = prebuilt->trx->mysql_thd;
 
 	trx_start_if_not_started(trx);
