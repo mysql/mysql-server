@@ -22,7 +22,11 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached
 		    ${CMAKE_SOURCE_DIR}/sql
 		    ${CMAKE_SOURCE_DIR}/bld/include
 		    ${CMAKE_SOURCE_DIR}/regex
-		    ${CMAKE_SOURCE_DIR}/include/mysql)
+		    ${CMAKE_SOURCE_DIR}/include/mysql
+IF(ENABLE_MEMCACHED_SASL)
+		    ${CMAKE_C_IMPLICIT_LINK_DIRECTORIES}
+ENDIF()
+		)
 
 SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities")
 
@@ -56,6 +60,7 @@ SET(MEMCACHED_SOURCES
 		daemon/hash.h
 		daemon/memcached.c
 		daemon/memcached.h
+		daemon/sasl_defs.c
 		daemon/sasl_defs.h
 		daemon/stats.c
 		daemon/stats.h
@@ -69,3 +74,7 @@ MYSQL_ADD_PLUGIN(libmemcached ${MEMCACHED_SOURCES}
 
 TARGET_LINK_LIBRARIES(libmemcached ${LIBEVENT_LIBRARY})
 TARGET_LINK_LIBRARIES(libmemcached memcached_utilities)
+
+IF(ENABLE_MEMCACHED_SASL)
+  TARGET_LINK_LIBRARIES(libmemcached sasl2)
+ENDIF()

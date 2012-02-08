@@ -41,11 +41,13 @@ Extracted and modified from NDB memcached project
 
 /** InnoDB Memcached engine configuration info */
 typedef struct eng_config_info {
-	char*		option_string;
-	void*		cb_ptr;
-	unsigned int	eng_r_batch_size;
-	unsigned int	eng_w_batch_size;
-	bool		enable_binlog;
+	char*		option_string;		/*!< memcached config option
+						string */
+	void*		cb_ptr;			/*!< call back function ptr */
+	unsigned int	eng_r_batch_size;	/*!< read batch size */
+	unsigned int	eng_w_batch_size;	/*!< write batch size */
+	bool		enable_binlog;		/*!< whether binlog is
+						enabled */
 } eng_config_info_t;
 
 /*******************************************************************//**
@@ -383,9 +385,9 @@ innodb_allocate(
 
 	/* We use default engine's memory allocator to allocate memory
 	for item */
-	return def_eng->engine.allocate(innodb_eng->m_default_engine,
+	return(def_eng->engine.allocate(innodb_eng->m_default_engine,
 					cookie, item, key, nkey, nbytes,
-					flags, exptime);
+					flags, exptime));
 }
 
 /*******************************************************************//**
@@ -397,7 +399,7 @@ static
 innodb_conn_data_t*
 innodb_conn_init(
 /*=============*/
-	innodb_engine_t*	engine,		/*!< in: InnoDB memcached
+	innodb_engine_t*	engine,		/*!< in/out: InnoDB memcached
 						engine */
 	const void*		cookie,		/*!< in: This connection's
 						cookie */
@@ -606,7 +608,7 @@ innodb_remove(
 	innodb_conn_data_t*	conn_data;
 	meta_info_t*		meta_info = &innodb_eng->meta_info;
 
-	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT 
+	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT
 	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
 		hash_item*	item = item_get(def_eng, key, nkey);
 
@@ -819,8 +821,8 @@ innodb_get_stats(
 {
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
-	return def_eng->engine.get_stats(innodb_eng->m_default_engine, cookie,
-					 stat_key, nkey, add_stat);
+	return(def_eng->engine.get_stats(innodb_eng->m_default_engine, cookie,
+					 stat_key, nkey, add_stat));
 }
 
 /*******************************************************************//**
@@ -949,7 +951,7 @@ innodb_arithmetic(
 
 	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_WRITE);
 
-	return ENGINE_SUCCESS;
+	return(ENGINE_SUCCESS);
 }
 
 /*******************************************************************//**
@@ -971,7 +973,7 @@ innodb_flush(
 	ib_err_t		ib_err = DB_SUCCESS;
 	innodb_conn_data_t*	conn_data;
 
-	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT 
+	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT
 	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
 		/* default engine flush */
 		err = def_eng->engine.flush(innodb_eng->m_default_engine,
@@ -1030,8 +1032,8 @@ innodb_unknown_command(
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
 
-	return def_eng->engine.unknown_command(innodb_eng->m_default_engine,
-					       cookie, request, response);
+	return(def_eng->engine.unknown_command(innodb_eng->m_default_engine,
+					       cookie, request, response));
 }
 
 /*******************************************************************//**
@@ -1050,7 +1052,7 @@ innodb_get_item_info(
 	hash_item*	it;
 
 	if (item_info->nvalue < 1) {
-		return false;
+		return(false);
 	}
 
 	/* Use a hash item */
@@ -1065,5 +1067,5 @@ innodb_get_item_info(
 	item_info->key = hash_item_get_key(it);
 	item_info->value[0].iov_base = hash_item_get_data(it);
 	item_info->value[0].iov_len = it->nbytes;
-	return true;
+	return(true);
 }
