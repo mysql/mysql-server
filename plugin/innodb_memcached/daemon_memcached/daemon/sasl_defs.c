@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef ENABLE_MEMCACHED_SASL
 #ifdef HAVE_SASL_CB_GETCONF
 /* The locations we may search for a SASL config file if the user didn't
  * specify one in the environment variable SASL_CONF_PATH
@@ -39,9 +40,10 @@ static int sasl_server_userdb_checkpass(sasl_conn_t *conn,
     FILE *pwfile = fopen(memcached_sasl_pwdb, "r");
     if (pwfile == NULL) {
         if (settings.verbose) {
-            settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+            /* "errno" not always defined
+	    settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
                      "WARNING: Failed to open sasl database <%s>: %s",
-                     memcached_sasl_pwdb, strerror(errno));
+                     memcached_sasl_pwdb, strerror(errno)); */
         }
         return SASL_NOAUTHZ;
     }
@@ -173,9 +175,21 @@ void init_sasl(void) {
                                         "Error initializing sasl.");
         exit(EXIT_FAILURE);
     } else {
+#ifdef SASL_TESTING
+	conn c;
+	int result=sasl_server_new("memcached",
+				   NULL, NULL, NULL, NULL,	
+                                   NULL, 0, &c.sasl_conn);
+	if (!result) {
+		sasl_dispose(&c.sasl_conn);
+	}
+#endif /* SASL_TESTING */
+
         if (settings.verbose) {
             settings.extensions.logger->log(EXTENSION_LOG_INFO, NULL,
                                             "Initialized SASL.");
         }
+
     }
 }
+#endif /* ENABLE_MEMCACHED_SASL */

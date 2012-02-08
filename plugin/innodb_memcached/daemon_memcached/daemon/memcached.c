@@ -6989,6 +6989,15 @@ int main (int argc, char **argv) {
     }
 
 #ifdef INNODB_MEMCACHED
+# ifdef ENABLE_MEMCACHED_SASL
+#  ifndef SASL_ENABLED
+    settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                    "This server is not built with SASL support.\n");
+    exit(EX_USAGE);
+#  endif /* !SASL_ENABLED */
+    settings.require_sasl = true;
+# endif /* ENABLE_MEMCACHED_SASL */
+
     if (option_argc > 0 && option_argv) {
 	    while (-1 != (c = getopt(option_argc, option_argv,
 		  "a:"  /* access mask for unix socket */

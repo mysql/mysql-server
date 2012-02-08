@@ -1543,7 +1543,7 @@ Start a transaction
 ib_trx_t
 innodb_cb_trx_begin(
 /*================*/
-	ib_trx_level_t	ib_trx_level)	/*!< in:  trx isolation level */
+	ib_trx_level_t	ib_trx_level)	/*!< in: trx isolation level */
 {
 	return(ib_cb_trx_begin(ib_trx_level));
 }

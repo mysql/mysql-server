@@ -524,6 +524,13 @@
 #define NOMINMAX
 #endif
 
+/*
+   Memcached config options
+*/
+#cmakedefine ENABLE_INNODB_MEMCACHED 1
+#cmakedefine ENABLE_MEMCACHED_SASL 1
+#cmakedefine ENABLE_MEMCACHED_SASL_PWDB 1
+#cmakedefine HAVE_SASL_SASL_H 1
 
 /*
   MySQL features

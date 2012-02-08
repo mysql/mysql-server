@@ -311,9 +311,9 @@ handler_unlock_table(
 	return(result);
 }
 
-/********************************************************************** 
-Following APIs  can perform DMLs through MySQL handler interface. They 
-are currently disabled and under HANDLER_API_MEMCACHED define 
+/**********************************************************************
+Following APIs can perform DMLs through MySQL handler interface. They
+are currently disabled and under HANDLER_API_MEMCACHED define
 **********************************************************************/
 
 #ifdef HANDLER_API_MEMCACHED
@@ -381,6 +381,7 @@ handler_select_rec(
 
 	return(NULL);
 }
+
 /**********************************************************************//**
 Insert a record to the table
 return 0 if successfully inserted */

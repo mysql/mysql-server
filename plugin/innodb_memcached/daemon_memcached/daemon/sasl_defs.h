@@ -4,6 +4,15 @@
 // Longest one I could find was ``9798-U-RSA-SHA1-ENC''
 #define MAX_SASL_MECH_LEN 32
 
+#if defined(ENABLE_MEMCACHED_SASL)
+#define ENABLE_SASL 1
+#define SASL_ENABLED 1
+# if defined(ENABLE_MEMCACHED_SASL_PWDB)
+# define ENABLE_SASL_PWDB
+# endif /* ENABLE_MEMCACHED_SASL_PWDB */
+#endif /* ENABLE_MEMCACHED_SASL */
+
+
 #if defined(HAVE_SASL_SASL_H) || defined(ENABLE_ISASL)
 #define HAVE_SASL_HDR 1
 #else
