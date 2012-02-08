@@ -32,6 +32,7 @@
 #include "sql_select.h"                // JOIN
 #include "sql_optimizer.h"             // JOIN
 
+#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
 #define PASS_TOKEN_TO_PS(_token)                                             \
   /*
     Passing token to PS function to calculate statement digest
@@ -55,6 +56,7 @@
     lip->m_digest_psi= PSI_CALL(digest_add_token)(lip->m_digest_psi,        \
                                                   _token, yychar, yylen);   \
   }
+#endif
 
 static int lex_one_token(void *arg, void *yythd);
 
@@ -906,7 +908,9 @@ int MYSQLlex(void *arg, void *yythd)
     lip->lookahead_token= -1;
     *yylval= *(lip->lookahead_yylval);
     lip->lookahead_yylval= NULL;
+#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
     PASS_TOKEN_TO_PS(token);
+#endif
     return token;
   }
 
@@ -924,10 +928,14 @@ int MYSQLlex(void *arg, void *yythd)
     token= lex_one_token(arg, yythd);
     switch(token) {
     case CUBE_SYM:
+#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
       PASS_TOKEN_TO_PS(WITH_CUBE_SYM);
+#endif
       return WITH_CUBE_SYM;
     case ROLLUP_SYM:
+#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
       PASS_TOKEN_TO_PS(WITH_ROLLUP_SYM);
+#endif
       return WITH_ROLLUP_SYM;
     default:
       /*
@@ -936,7 +944,9 @@ int MYSQLlex(void *arg, void *yythd)
       lip->lookahead_yylval= lip->yylval;
       lip->yylval= NULL;
       lip->lookahead_token= token;
+#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
       PASS_TOKEN_TO_PS(WITH);
+#endif
       return WITH;
     }
     break;
@@ -944,7 +954,9 @@ int MYSQLlex(void *arg, void *yythd)
     break;
   }
 
+#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
   PASS_TOKEN_TO_PS(token);
+#endif
   return token;
 }
 
