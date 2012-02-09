@@ -4648,7 +4648,7 @@ bnc_apply_messages_to_basement_node(
     u_int32_t fresh_lbi, fresh_ube;
     find_bounds_within_message_tree(&t->h->descriptor, t->compare_fun, bnc->fresh_message_tree, bnc->buffer, bounds, &fresh_lbi, &fresh_ube);
 
-    TOKULOGGER logger = toku_cachefile_logger(t->cf);
+    // TOKULOGGER logger = toku_cachefile_logger(t->cf);
     // Experimentally setting these to NULL to disable garbage collection
     // on the query path, to let us remove the ydb lock from queries
     // (ticket 4462).  We will need to find another solution in order to
