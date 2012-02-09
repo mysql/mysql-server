@@ -3334,6 +3334,15 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_RETURN(TRUE);
   }
 
+  /*
+   CREATE TABLE[with auto_increment column] SELECT is unsafe as the rows
+   inserted in the created table depends on the order of the rows fetched
+   from the select tables. This order may differ on master and slave. We
+   therefore mark it as unsafe.
+  */
+  if (select_field_count > 0 && auto_increment)
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_SELECT_AUTOINC);
+
   /* Create keys */
 
   List_iterator<Key> key_iterator(alter_info->key_list);
