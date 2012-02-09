@@ -187,8 +187,6 @@ row_quiesce_table_start(
 
 	n_flushed = buf_flush_list(table->space);
 
-	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-
 	ib_logf("Quiesce pages flushed: %lu", n_flushed);
 
 	if (row_quiesce_write_meta_data(table, thd) != DB_SUCCESS) {
