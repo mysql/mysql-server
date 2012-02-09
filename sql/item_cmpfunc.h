@@ -255,7 +255,7 @@ class Item_cache;
 
 class Item_in_optimizer: public Item_bool_func
 {
-protected:
+private:
   Item_cache *cache;
   bool save_cache;
   /* 
@@ -1481,7 +1481,8 @@ class Item_in_subselect;
 
 /* 
   This is like IS NOT NULL but it also remembers if it ever has
-  encountered a NULL.
+  encountered a NULL; it remembers this in the "was_null" property of the
+  "owner" item.
 */
 class Item_is_not_null_test :public Item_func_isnull
 {
