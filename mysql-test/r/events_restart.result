@@ -65,3 +65,26 @@ select @@event_scheduler;
 ON
 drop table execution_log;
 drop database events_test;
+#
+# Test for bug#11748899 -- EVENT SET TO DISABLED AND ON COMPLETION
+#                          NOT PRESERVE IS DELETED AT SERVER
+#
+SELECT @@event_scheduler;
+@@event_scheduler
+ON
+USE test;
+DROP EVENT IF EXISTS e1;
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DISABLE DO SELECT 1;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	e1	root@localhost	SYSTEM	RECURRING	#	1	SECOND	#	#	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+"Now we restart the server"
+USE test;
+SELECT @@event_scheduler;
+@@event_scheduler
+ON
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	e1	root@localhost	SYSTEM	RECURRING	#	1	SECOND	#	#	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP EVENT e1;
+# end test for bug#11748899
