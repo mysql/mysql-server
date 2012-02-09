@@ -429,10 +429,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -477,10 +473,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -541,10 +533,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -573,10 +561,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -621,10 +605,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -685,10 +665,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -733,10 +709,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -813,10 +785,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -925,10 +893,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -973,10 +937,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -1053,10 +1013,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -1165,10 +1121,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -1229,10 +1181,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -1341,10 +1289,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -1501,10 +1445,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -1565,10 +1505,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -1677,10 +1613,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -1837,10 +1769,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 1;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -1885,10 +1813,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -1949,10 +1873,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -1997,10 +1917,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -2061,10 +1977,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -2109,10 +2021,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -2173,10 +2081,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -2253,10 +2157,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -2365,10 +2265,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -2445,10 +2341,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -2557,10 +2449,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -2637,10 +2525,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -2749,10 +2633,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -2861,10 +2741,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -3021,10 +2897,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -3133,10 +3005,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -3293,10 +3161,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -3405,10 +3269,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -3565,10 +3425,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 2;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -3629,10 +3485,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 3;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -3693,10 +3545,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 3;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -3757,10 +3605,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 3;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -3821,10 +3665,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 3;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -3933,10 +3773,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 3;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -4045,10 +3881,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 3;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -4157,10 +3989,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 3;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -4269,10 +4097,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 3;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -4429,10 +4253,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 3;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -4589,10 +4409,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 3;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -4749,10 +4565,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 3;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc
@@ -4909,10 +4721,6 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ----Executing----
 include/start_slave_io.inc
-SET @@global.slave_checkpoint_group= 3;
-SET GLOBAL debug="d,check_slave_debug_group";
-SET GLOBAL debug="+d,mts_distribute_round_robin";
-START SLAVE SQL_THREAD;
 include/rpl_reconnect.inc
 include/start_slave_io.inc
 include/start_slave_sql.inc

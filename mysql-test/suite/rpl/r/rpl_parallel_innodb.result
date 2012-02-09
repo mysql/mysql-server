@@ -7,6 +7,8 @@ call mtr.add_suppression('Slave: Error dropping database');
 include/stop_slave.inc
 start slave;
 stop slave sql_thread;
+insert into test0.benchmark set state='slave is processing load';
+start slave sql_thread;
 use test0;
 insert into benchmark set state='slave ends load';
 use test;
