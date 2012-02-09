@@ -23,9 +23,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached
 		    ${CMAKE_SOURCE_DIR}/bld/include
 		    ${CMAKE_SOURCE_DIR}/regex
 		    ${CMAKE_SOURCE_DIR}/include/mysql
-IF(ENABLE_MEMCACHED_SASL)
 		    ${CMAKE_C_IMPLICIT_LINK_DIRECTORIES}
-ENDIF()
 		)
 
 SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities")
