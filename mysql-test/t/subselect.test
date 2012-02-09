@@ -5078,6 +5078,17 @@ SELECT ( SELECT b FROM t2 WHERE b = a OR rand() * 0) FROM t1;
 
 drop table t1,t2,t3;
 
+--echo #
+--echo # LP BUG#905353 Wrong non-empty result with a constant table,
+--echo # aggregate function in subquery, MyISAM or Aria
+--echo #
+
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+
+SELECT a FROM t1 WHERE ( SELECT MIN(a) = 100 );
+
+drop table t1;
 
 --echo # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;
