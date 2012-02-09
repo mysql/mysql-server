@@ -33,6 +33,7 @@ struct fieldinfo db_env_fields32[] = {
   {"int  (*set_cachesize) (DB_ENV *, u_int32_t, u_int32_t, int)", 452, 4},
   {"int  (*txn_begin) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t)", 540, 4},
   {"int  (*txn_checkpoint) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t)", 544, 4},
+  {"int  (*txn_recover) (DB_ENV *, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags)", 552, 4},
   {"int  (*txn_stat) (DB_ENV *, DB_TXN_STAT **, u_int32_t)", 556, 4},
   {0, 576, 576} /* size of whole struct */
 };
@@ -79,6 +80,7 @@ struct fieldinfo db_txn_fields32[] = {
   {"int (*abort) (DB_TXN *)", 76, 4},
   {"int (*commit) (DB_TXN*, u_int32_t)", 80, 4},
   {"u_int32_t (*id) (DB_TXN *)", 88, 4},
+  {"int (*prepare) (DB_TXN*, u_int8_t gid[DB_GID_SIZE])", 92, 4},
   {0, 104, 104} /* size of whole struct */
 };
 struct fieldinfo db_txn_stat_fields32[] = {

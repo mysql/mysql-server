@@ -14,8 +14,8 @@ struct fieldinfo db_env_fields64[] = {
   {"int  (*dbremove) (DB_ENV *, DB_TXN *, const char *, const char *, u_int32_t)", 648, 8},
   {"int  (*dbrename) (DB_ENV *, DB_TXN *, const char *, const char *, const char *, u_int32_t)", 656, 8},
   {"void (*err) (const DB_ENV *, int, const char *, ...)", 664, 8},
-  {"int (*get_cachesize) (DB_ENV *, u_int32_t *, u_int32_t *, int *)", 696, 8},
-  {"int (*get_flags) (DB_ENV *, u_int32_t *)", 744, 8},
+  {"int  (*get_cachesize) (DB_ENV *, u_int32_t *, u_int32_t *, int *)", 696, 8},
+  {"int  (*get_flags) (DB_ENV *, u_int32_t *)", 744, 8},
   {"int  (*get_lg_max) (DB_ENV *, u_int32_t*)", 784, 8},
   {"int  (*get_lk_max_locks) (DB_ENV *, u_int32_t *)", 824, 8},
   {"int  (*log_archive) (DB_ENV *, char **[], u_int32_t)", 1008, 8},
@@ -36,6 +36,7 @@ struct fieldinfo db_env_fields64[] = {
   {"int  (*set_verbose) (DB_ENV *, u_int32_t, int)", 1792, 8},
   {"int  (*txn_begin) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t)", 1808, 8},
   {"int  (*txn_checkpoint) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t)", 1816, 8},
+  {"int  (*txn_recover) (DB_ENV *, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags)", 1824, 8},
   {"int  (*txn_stat) (DB_ENV *, DB_TXN_STAT **, u_int32_t)", 1832, 8},
   {0, 1872, 1872} /* size of whole struct */
 };
@@ -84,6 +85,7 @@ struct fieldinfo db_txn_fields64[] = {
   {"int (*abort) (DB_TXN *)", 192, 8},
   {"int (*commit) (DB_TXN*, u_int32_t)", 200, 8},
   {"u_int32_t (*id) (DB_TXN *)", 224, 8},
+  {"int (*prepare) (DB_TXN*, u_int8_t gid[DB_GID_SIZE])", 232, 8},
   {0, 272, 272} /* size of whole struct */
 };
 struct fieldinfo db_txn_stat_fields64[] = {

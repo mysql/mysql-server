@@ -1,5 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
+#ident "$Id$"
 /* LICENSE:  This file is licensed under the GPL or from Tokutek. */
 
 /* Make a db.h that will be link-time compatible with Sleepycat's Berkeley DB. */
@@ -11,16 +12,16 @@
 // Don't include toku_assert.h.   Just use assert.h
 #include <assert.h>
 
-#define DECL_LIMIT 100
+#define DECL_LIMIT 200
 #define FIELD_LIMIT 100
 struct fieldinfo {
     char decl[DECL_LIMIT];
     unsigned int off;
     unsigned int size;
 } fields[FIELD_LIMIT];
-int field_counter=0;
+static int field_counter=0;
 
-int compare_fields (const void *av, const void *bv) {
+static int compare_fields (const void *av, const void *bv) {
     const struct fieldinfo *a = av;
     const struct fieldinfo *b = bv;
     if (a->off < b->off) return -1;
@@ -28,14 +29,16 @@ int compare_fields (const void *av, const void *bv) {
     return 0;
 }				      
 
-#define STRUCT_SETUP(typ, name, fstring) ({ snprintf(fields[field_counter].decl, DECL_LIMIT, fstring, #name); \
-	    fields[field_counter].off = __builtin_offsetof(typ, name);       \
-            { typ dummy;                                           \
-		fields[field_counter].size = sizeof(dummy.name); } \
+#define STRUCT_SETUP(typ, name, fstring) ({                                           \
+            int len=snprintf(fields[field_counter].decl, DECL_LIMIT, fstring, #name); \
+            assert(len<DECL_LIMIT);                                                   \
+	    fields[field_counter].off = __builtin_offsetof(typ, name);                \
+            { typ dummy;                                                              \
+		fields[field_counter].size = sizeof(dummy.name); }                    \
 	    field_counter++; })
 
-FILE *outf;
-void open_file (void) {
+static FILE *outf;
+static void open_file (void) {
     char fname[100];
 #ifdef LOCAL
     snprintf(fname, 100, "sample_offsets_local.h");
@@ -47,32 +50,32 @@ void open_file (void) {
 
 }
 
-void sort_and_dump_fields (const char *structname, unsigned int sizeofstruct) {
+static void sort_and_dump_fields (const char *structname, unsigned int sizeofstruct) {
     int i;
     qsort(fields, field_counter, sizeof(fields[0]), compare_fields);
     fprintf(outf, "struct fieldinfo %s_fields%d[] = {\n", structname, __WORDSIZE);
     for (i=0; i<field_counter; i++) {
-	fprintf(outf, "  {\"%s\", %d, %d},\n", fields[i].decl, fields[i].off, fields[i].size);
+	fprintf(outf, "  {\"%s\", %u, %u},\n", fields[i].decl, fields[i].off, fields[i].size);
     }
-    fprintf(outf, "  {0, %d, %d} /* size of whole struct */\n", sizeofstruct, sizeofstruct);
+    fprintf(outf, "  {0, %u, %u} /* size of whole struct */\n", sizeofstruct, sizeofstruct);
     fprintf(outf, "};\n");
 }
 
-void sample_db_btree_stat_offsets (void) {
+static void sample_db_btree_stat_offsets (void) {
     field_counter=0;
     STRUCT_SETUP(DB_BTREE_STAT, bt_ndata, "u_int32_t %s");
     STRUCT_SETUP(DB_BTREE_STAT, bt_nkeys, "u_int32_t %s");
     sort_and_dump_fields("db_btree_stat", sizeof(DB_BTREE_STAT));
 }
 
-void sample_db_env_offsets (void) {
+static void sample_db_env_offsets (void) {
     field_counter=0;
     STRUCT_SETUP(DB_ENV, api1_internal,   "void *%s"); /* Used for C++ hacking. */
     STRUCT_SETUP(DB_ENV, app_private, "void *%s");
     STRUCT_SETUP(DB_ENV, close, "int  (*%s) (DB_ENV *, u_int32_t)");
     STRUCT_SETUP(DB_ENV, err, "void (*%s) (const DB_ENV *, int, const char *, ...)");
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
-    STRUCT_SETUP(DB_ENV, get_cachesize, "int (*%s) (DB_ENV *, u_int32_t *, u_int32_t *, int *)");
+    STRUCT_SETUP(DB_ENV, get_cachesize, "int  (*%s) (DB_ENV *, u_int32_t *, u_int32_t *, int *)");
     STRUCT_SETUP(DB_ENV, get_flags, "int (*%s) (DB_ENV *, u_int32_t *)");
     STRUCT_SETUP(DB_ENV, get_lk_max_locks, "int  (*%s) (DB_ENV *, u_int32_t *)");    
     STRUCT_SETUP(DB_ENV, get_lg_max, "int  (*%s) (DB_ENV *, u_int32_t*)");
@@ -103,14 +106,15 @@ void sample_db_env_offsets (void) {
     STRUCT_SETUP(DB_ENV, set_tmp_dir, "int  (*%s) (DB_ENV *, const char *)");
     STRUCT_SETUP(DB_ENV, set_verbose, "int  (*%s) (DB_ENV *, u_int32_t, int)");
     STRUCT_SETUP(DB_ENV, txn_checkpoint, "int  (*%s) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t)");
-    STRUCT_SETUP(DB_ENV, txn_stat, "int  (*%s) (DB_ENV *, DB_TXN_STAT **, u_int32_t)");
-    STRUCT_SETUP(DB_ENV, txn_begin, "int  (*%s) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t)");
-    STRUCT_SETUP(DB_ENV, dbremove, "int  (*%s) (DB_ENV *, DB_TXN *, const char *, const char *, u_int32_t)");
-    STRUCT_SETUP(DB_ENV, dbrename, "int  (*%s) (DB_ENV *, DB_TXN *, const char *, const char *, const char *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, txn_stat,    "int  (*%s) (DB_ENV *, DB_TXN_STAT **, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, txn_begin,   "int  (*%s) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, txn_recover, "int  (*%s) (DB_ENV *, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags)");
+    STRUCT_SETUP(DB_ENV, dbremove,    "int  (*%s) (DB_ENV *, DB_TXN *, const char *, const char *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, dbrename,    "int  (*%s) (DB_ENV *, DB_TXN *, const char *, const char *, const char *, u_int32_t)");
     sort_and_dump_fields("db_env", sizeof(DB_ENV));
 }
 
-void sample_db_key_range_offsets (void) {
+static void sample_db_key_range_offsets (void) {
     field_counter=0;
     STRUCT_SETUP(DB_KEY_RANGE, less, "double %s");
     STRUCT_SETUP(DB_KEY_RANGE, equal, "double %s");
@@ -118,12 +122,12 @@ void sample_db_key_range_offsets (void) {
     sort_and_dump_fields("db_key_range", sizeof(DB_ENV));
 }
 
-void sample_db_lsn_offsets (void) {
+static void sample_db_lsn_offsets (void) {
     field_counter=0;
     sort_and_dump_fields("db_lsn", sizeof(DB_LSN));
 }
 
-void sample_db_offsets (void) {
+static void sample_db_offsets (void) {
     /* Do these in alphabetical order. */
     field_counter=0;
     STRUCT_SETUP(DB, api_internal,   "void *%s"); /* Used for C++ hacking. */
@@ -152,32 +156,33 @@ void sample_db_offsets (void) {
     sort_and_dump_fields("db", sizeof(DB));
 }
 
-void sample_db_txn_active_offsets (void) {
+static void sample_db_txn_active_offsets (void) {
     field_counter=0;
     STRUCT_SETUP(DB_TXN_ACTIVE, lsn, "DB_LSN %s");
     STRUCT_SETUP(DB_TXN_ACTIVE, txnid, "u_int32_t %s");
     sort_and_dump_fields("db_txn_active", sizeof(DB_TXN_ACTIVE));
 }
 
-void sample_db_txn_offsets (void) {
+static void sample_db_txn_offsets (void) {
     field_counter=0;
     STRUCT_SETUP(DB_TXN, abort,       "int (*%s) (DB_TXN *)");
     STRUCT_SETUP(DB_TXN, api_internal,"void *%s");
     STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, u_int32_t)");
+    STRUCT_SETUP(DB_TXN, prepare,     "int (*%s) (DB_TXN*, u_int8_t gid[DB_GID_SIZE])");
     STRUCT_SETUP(DB_TXN, id,          "u_int32_t (*%s) (DB_TXN *)");
     STRUCT_SETUP(DB_TXN, mgrp,        "DB_ENV *%s /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/");
     STRUCT_SETUP(DB_TXN, parent,      "DB_TXN *%s");
     sort_and_dump_fields("db_txn", sizeof(DB_TXN));
 }
 
-void sample_db_txn_stat_offsets (void) {
+static void sample_db_txn_stat_offsets (void) {
     field_counter=0;
     STRUCT_SETUP(DB_TXN_STAT, st_nactive, "u_int32_t %s");
     STRUCT_SETUP(DB_TXN_STAT, st_txnarray, "DB_TXN_ACTIVE *%s");
     sort_and_dump_fields("db_txn_stat", sizeof(DB_TXN_STAT));
 }
 
-void sample_dbc_offsets (void) {
+static void sample_dbc_offsets (void) {
     field_counter=0;
     STRUCT_SETUP(DBC, c_close, "int (*%s) (DBC *)");
     STRUCT_SETUP(DBC, c_count, "int (*%s) (DBC *, db_recno_t *, u_int32_t)");
@@ -187,7 +192,7 @@ void sample_dbc_offsets (void) {
     sort_and_dump_fields("dbc", sizeof(DBC));
 }
 
-void sample_dbt_offsets (void) {
+static void sample_dbt_offsets (void) {
     field_counter=0;
 #if 0 && DB_VERSION_MAJOR==4 && DB_VERSION_MINOR==1
     STRUCT_SETUP(DBT, app_private, "void*%s");

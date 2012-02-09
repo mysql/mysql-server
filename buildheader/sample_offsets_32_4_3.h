@@ -19,7 +19,7 @@ struct fieldinfo db_env_fields32[] = {
   {"void (*set_errcall) (DB_ENV *, void (*)(const DB_ENV *, const char *, const char *))", 348, 4},
   {"void (*set_errfile) (DB_ENV *, FILE*)", 356, 4},
   {"void (*set_errpfx) (DB_ENV *, const char *)", 364, 4},
-  {"int (*get_flags) (DB_ENV *, u_int32_t *)", 372, 4},
+  {"int  (*get_flags) (DB_ENV *, u_int32_t *)", 372, 4},
   {"int  (*set_flags) (DB_ENV *, u_int32_t, int)", 376, 4},
   {"int  (*set_tmp_dir) (DB_ENV *, const char *)", 432, 4},
   {"int  (*set_verbose) (DB_ENV *, u_int32_t, int)", 440, 4},
@@ -33,10 +33,11 @@ struct fieldinfo db_env_fields32[] = {
   {"int  (*set_lk_max) (DB_ENV *, u_int32_t)", 528, 4},
   {"int  (*get_lk_max_locks) (DB_ENV *, u_int32_t *)", 532, 4},
   {"int  (*set_lk_max_locks) (DB_ENV *, u_int32_t)", 536, 4},
-  {"int (*get_cachesize) (DB_ENV *, u_int32_t *, u_int32_t *, int *)", 592, 4},
+  {"int  (*get_cachesize) (DB_ENV *, u_int32_t *, u_int32_t *, int *)", 592, 4},
   {"int  (*set_cachesize) (DB_ENV *, u_int32_t, u_int32_t, int)", 596, 4},
   {"int  (*txn_begin) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t)", 712, 4},
   {"int  (*txn_checkpoint) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t)", 716, 4},
+  {"int  (*txn_recover) (DB_ENV *, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags)", 720, 4},
   {"int  (*txn_stat) (DB_ENV *, DB_TXN_STAT **, u_int32_t)", 724, 4},
   {0, 756, 756} /* size of whole struct */
 };
@@ -85,6 +86,7 @@ struct fieldinfo db_txn_fields32[] = {
   {"int (*abort) (DB_TXN *)", 100, 4},
   {"int (*commit) (DB_TXN*, u_int32_t)", 104, 4},
   {"u_int32_t (*id) (DB_TXN *)", 112, 4},
+  {"int (*prepare) (DB_TXN*, u_int8_t gid[DB_GID_SIZE])", 116, 4},
   {0, 132, 132} /* size of whole struct */
 };
 struct fieldinfo db_txn_stat_fields32[] = {
