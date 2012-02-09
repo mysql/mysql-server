@@ -1900,7 +1900,7 @@ buf_flush_list(
 
 	memset(flushed, 0x0, sizeof(*flushed) * srv_buf_pool_instances);
 
-	/* Flush to lsn_limit in all buffer pool instances */
+	/* Ensure that all buffer pools are flushed. */
 	do {
 		skipped = false;
 
@@ -1935,7 +1935,6 @@ buf_flush_list(
 #endif /* UNIV_DEBUG */
 
 	delete [] flushed;
-
 
 	/* If a quiesce is in progress then we can't skip flushing of a
 	buffer pool. The operation must complete for all buffer pools. */
