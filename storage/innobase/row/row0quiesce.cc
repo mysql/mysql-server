@@ -185,20 +185,11 @@ row_quiesce_table_start(
 
 	ulint		n_flushed;	
 
-	do {
+	n_flushed = buf_flush_list(table->space);
 
-		/* We need to ensure that no buffer pool was skipped during
-		the flush. A successful flush will return the number of pages
-		that were flushed to disk. */
+	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
-		n_flushed = buf_flush_list(table->space, ULINT_MAX, LSN_MAX);
-
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-
-	} while (n_flushed == ULINT_UNDEFINED);
-
-
-	ib_logf("Quiesce pages flushed.");
+	ib_logf("Quiesce pages flushed: %lu", n_flushed);
 
 	if (row_quiesce_write_meta_data(table, thd) != DB_SUCCESS) {
 		ib_logf("There was an error writing to the "

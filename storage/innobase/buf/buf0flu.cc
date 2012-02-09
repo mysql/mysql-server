@@ -1824,6 +1824,122 @@ buf_flush_LRU(
 
 /*******************************************************************//**
 This utility flushes dirty blocks from the end of the flush list of
+all one buffer pool.
+@return number of blocks for which the write request was queued or
+	ULINT_UNDEFINED if the flush was skipped. */
+static
+ulint
+buf_flush_buffer_pool(
+/*==================*/
+	buf_pool_t*	buf_pool,	/*!< in/out: Buffer pool instance to
+					flush */
+	ulint           space,          /*!< in: Flush pages only from this
+					tablespace or ULINT_UNDEFINED for all
+					tablespaces */
+	ulint		min_n,		/*!< in: desired minimum mumber of
+					blocks flushed (it is not guaranteed
+					that the actual number is that big) */
+	lsn_t		lsn_limit)	/*!< in the case BUF_FLUSH_LIST all
+					blocks whose oldest_modification is
+					smaller than this should be flushed
+					(if their number does not exceed
+					min_n), otherwise ignored */
+{
+	if (!buf_flush_start(buf_pool, BUF_FLUSH_LIST)) {
+
+		/* We have two choices here. If lsn_limit was
+		specified then skipping an instance of buffer
+		pool means we cannot guarantee that all pages
+		up to lsn_limit has been flushed. We can
+		return right now with failure or we can try
+		to flush remaining buffer pools up to the
+		lsn_limit. We attempt to flush other buffer
+		pools based on the assumption that it will
+		help in the retry which will follow the
+		failure. */
+
+		return(ULINT_UNDEFINED);
+	}
+
+	ulint	n_pages = buf_flush_batch(
+		buf_pool, space, BUF_FLUSH_LIST, min_n, lsn_limit);
+
+	buf_flush_end(buf_pool, BUF_FLUSH_LIST);
+
+	buf_flush_common(BUF_FLUSH_LIST, n_pages);
+
+	if (n_pages > 0) {
+		MONITOR_INC_VALUE_CUMULATIVE(
+			MONITOR_FLUSH_BATCH_TOTAL_PAGE,
+			MONITOR_FLUSH_BATCH_COUNT,
+			MONITOR_FLUSH_BATCH_PAGES,
+			n_pages);
+	}
+
+	return(n_pages);
+}
+
+/*******************************************************************//**
+This utility flushes all dirty blocks that belong to space from all
+buffer pool instances.
+NOTE: The calling thread is not allowed to own any latches on pages!
+@return number of blocks for which the write request was queued */
+UNIV_INTERN
+ulint
+buf_flush_list(
+/*===========*/
+	ulint           space)          /*!< in: Flush pages only from this
+					tablespace. */
+{
+	bool*		flushed;
+	bool		skipped;
+	ulint		n_total_pages = 0;
+
+	flushed = new(std::nothrow) bool[srv_buf_pool_instances];
+
+	memset(flushed, 0x0, sizeof(*flushed) * srv_buf_pool_instances);
+
+	/* Flush to lsn_limit in all buffer pool instances */
+	do {
+		skipped = false;
+
+		for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+
+			if (!flushed[i]) {
+				buf_pool_t*	buf_pool;
+
+				buf_pool = buf_pool_from_array(i);
+
+				ulint	n_pages = buf_flush_buffer_pool(
+					buf_pool, space, ULINT_MAX, LSN_MAX);
+
+				if (n_pages == ULINT_UNDEFINED) {
+					skipped = true;
+				} else {
+					flushed[i] = true;
+					n_total_pages += n_pages;
+				}
+			}
+		}
+
+	} while (skipped);
+
+#ifdef UNIV_DEBUG
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+		ut_a(flushed[i]);
+	}
+#endif /* UNIV_DEBUG */
+
+	delete [] flushed;
+
+	/* If a quiesce is in progress then we can't skip flushing of a
+	buffer pool. The operation must complete for all buffer pools. */
+
+	return(n_total_pages);
+}
+
+/*******************************************************************//**
+This utility flushes dirty blocks from the end of the flush list of
 all buffer pool instances.
 NOTE: The calling thread is not allowed to own any latches on pages!
 @return number of blocks for which the write request was queued;
@@ -1832,9 +1948,6 @@ UNIV_INTERN
 ulint
 buf_flush_list(
 /*===========*/
-	ulint           space,          /*!< in: Flush pages only from this
-					tablespace, ULINT_UNDEFINED for all
-					tablespaces. */
 	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
@@ -1844,9 +1957,8 @@ buf_flush_list(
 					(if their number does not exceed
 					min_n), otherwise ignored */
 {
-	ulint		i;
-	ulint		total_page_count = 0;
-	ibool		skipped = FALSE;
+	bool		skipped = false;
+	ulint		n_total_pages = 0;
 
 	if (min_n != ULINT_MAX) {
 		/* Ensure that flushing is spread evenly amongst the
@@ -1858,13 +1970,14 @@ buf_flush_list(
 	}
 
 	/* Flush to lsn_limit in all buffer pool instances */
-	for (i = 0; i < srv_buf_pool_instances; i++) {
-		buf_pool_t*	buf_pool;
-		ulint		page_count = 0;
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 
-		buf_pool = buf_pool_from_array(i);
+		buf_pool_t*	buf_pool = buf_pool_from_array(i);
 
-		if (!buf_flush_start(buf_pool, BUF_FLUSH_LIST)) {
+		ulint	n_pages = buf_flush_buffer_pool(
+			buf_pool, ULINT_UNDEFINED, min_n, lsn_limit);
+
+		if (n_pages == ULINT_UNDEFINED) {
 
 			/* We have two choices here. If lsn_limit was
 			specified then skipping an instance of buffer
@@ -1876,35 +1989,17 @@ buf_flush_list(
 			pools based on the assumption that it will
 			help in the retry which will follow the
 			failure. */
-			skipped = TRUE;
-
-			continue;
-		}
-
-		page_count = buf_flush_batch(
-			buf_pool, space, BUF_FLUSH_LIST,
-			min_n, lsn_limit);
-
-		buf_flush_end(buf_pool, BUF_FLUSH_LIST);
-
-		buf_flush_common(BUF_FLUSH_LIST, page_count);
-
-		total_page_count += page_count;
-
-		if (page_count) {
-			MONITOR_INC_VALUE_CUMULATIVE(
-				MONITOR_FLUSH_BATCH_TOTAL_PAGE,
-				MONITOR_FLUSH_BATCH_COUNT,
-				MONITOR_FLUSH_BATCH_PAGES,
-				page_count);
+			skipped = true;
+		} else {
+			n_total_pages += n_pages;
 		}
 	}
 
 	/* If a quiesce is in progress then we can't skip flushing of a
 	buffer pool. The operation must complete for all buffer pools. */
 
-	return((lsn_limit != LSN_MAX || space != ULINT_UNDEFINED) && skipped
-	       ? ULINT_UNDEFINED : total_page_count);
+	return(lsn_limit != LSN_MAX && skipped
+	       ? ULINT_UNDEFINED : n_total_pages);
 }
 
 /******************************************************************//**
@@ -2220,7 +2315,7 @@ page_cleaner_do_flush_batch(
 
 	ut_ad(n_to_flush == ULINT_MAX || lsn_limit == LSN_MAX);
 
-	n_flushed = buf_flush_list(ULINT_UNDEFINED, n_to_flush, lsn_limit);
+	n_flushed = buf_flush_list(n_to_flush, lsn_limit);
 
 	if (n_flushed == ULINT_UNDEFINED) {
 		n_flushed = 0;
@@ -2443,8 +2538,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 
 	do {
 
-		n_flushed = buf_flush_list(
-			ULINT_UNDEFINED, PCT_IO(100), LSN_MAX);
+		n_flushed = buf_flush_list(PCT_IO(100), LSN_MAX);
 
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 

@@ -1845,7 +1845,7 @@ loop:
 		mutex_exit(&(recv_sys->mutex));
 		mutex_exit(&(log_sys->mutex));
 
-		n_pages = buf_flush_list(ULINT_UNDEFINED, ULINT_MAX, LSN_MAX);
+		n_pages = buf_flush_list(ULINT_MAX, LSN_MAX);
 		ut_a(n_pages != ULINT_UNDEFINED);
 
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
