@@ -300,10 +300,12 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         Table storeTable = domainTypeHandler.getStoreTable();
         // perform a primary key operation
         final Operation op = clusterTransaction.getSelectOperation(storeTable);
+        op.beginDefinition();
         // set the keys into the operation
         domainTypeHandler.operationSetKeys(instanceHandler, op);
         // set the expected columns into the operation
         domainTypeHandler.operationGetValues(op);
+        op.endDefinition();
         final ResultData rs = op.resultData(false);
         final SessionImpl cacheManager = this;
         // defer execution of the key operation until the next find, flush, or query
@@ -465,7 +467,9 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         Operation op = null;
         try {
             op = clusterTransaction.getDeleteOperation(storeTable);
+            op.beginDefinition();
             domainTypeHandler.operationSetKeys(valueHandler, op);
+            op.endDefinition();
         } catch (ClusterJException ex) {
             failAutoTransaction();
             throw new ClusterJException(
@@ -576,10 +580,12 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         Table storeTable = domainTypeHandler.getStoreTable();
         // perform a single select by key operation
         Operation op = clusterTransaction.getSelectOperation(storeTable);
+        op.beginDefinition();
         // set the keys into the operation
         domainTypeHandler.operationSetKeys(keyHandler, op);
         // set the expected columns into the operation
         domainTypeHandler.operationGetValues(op);
+        op.endDefinition();
         // execute the select and get results
         ResultData rs = op.resultData();
         return rs;
@@ -1405,6 +1411,9 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         }
     }
 
+    /** Unload the schema associated with the domain class. This allows schema changes to work.
+     * @param cls the class for which to unload the schema
+     */
     public String unloadSchema(Class<?> cls) {
         return factory.unloadSchema(cls, dictionary);
     }
