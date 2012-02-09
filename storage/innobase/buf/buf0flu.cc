@@ -1471,7 +1471,8 @@ buf_do_flush_list_batch(
 /*====================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	ulint           space,          /*!< in: flush pages from only this
-					tablespace */
+					tablespace, ULINT_UNDEFINED for
+					all spaces */
 	ulint		min_n,		/*!< in: wished minimum mumber
 					of blocks flushed (it is not
 					guaranteed that the actual
@@ -1486,14 +1487,12 @@ buf_do_flush_list_batch(
 	buf_page_t*	bpage = 0;
 	ulint		count = 0;
 	ulint		scanned = 0;
-	ibool		restart = true;
+	bool		restart = true;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	if (space != ULINT_UNDEFINED) {
-		lsn_limit = LSN_MAX;
-		min_n = ULINT_UNDEFINED;
-	}
+	ut_a(space == ULINT_UNDEFINED
+	     || (lsn_limit == LSN_MAX && min_n == ULINT_MAX));
 
 	/* If we have flushed enough, leave the loop */
 	do {
@@ -1578,6 +1577,13 @@ buf_do_flush_list_batch(
 			ut_ad(!bpage || bpage->in_flush_list);
 
 			buf_flush_list_mutex_exit(buf_pool);
+
+			if (bpage
+			    && space != ULINT_UNDEFINED
+			    && bpage->space != space) {
+
+				break;
+			}
 
 			--len;
 		}
@@ -1894,7 +1900,10 @@ buf_flush_list(
 		}
 	}
 
-	return(lsn_limit != LSN_MAX && skipped
+	/* If a quiesce is in progress then we can't skip flushing of a
+	buffer pool. The operation must complete for all buffer pools. */
+
+	return((lsn_limit != LSN_MAX || space != ULINT_UNDEFINED) && skipped
 	       ? ULINT_UNDEFINED : total_page_count);
 }
 
