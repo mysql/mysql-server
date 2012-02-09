@@ -104,9 +104,6 @@ UNIV_INTERN
 ulint
 buf_flush_list(
 /*============*/
-        ulint           space,          /*!< in: Flush pages only from this
-                                        tablespace, ULINT_UNDEFINED for all
-                                        tablespaces. */
 	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
@@ -115,6 +112,17 @@ buf_flush_list(
 					smaller than this should be flushed
 					(if their number does not exceed
 					min_n), otherwise ignored */
+/*******************************************************************//**
+This utility flushes all dirty blocks that belong to space from all
+buffer pool instances.
+NOTE: The calling thread is not allowed to own any latches on pages!
+@return number of blocks for which the write request was queued */
+UNIV_INTERN
+ulint
+buf_flush_list(
+/*===========*/
+	ulint           space);		/*!< in: Flush pages only from this
+					tablespace. */
 /******************************************************************//**
 This function picks up a single dirty page from the tail of the LRU
 list, flushes it, removes it from page_hash and LRU list and puts
