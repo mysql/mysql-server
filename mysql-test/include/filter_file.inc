@@ -112,6 +112,7 @@ perl;
   '.$pre_script.';
   while (<FILE>)
   {
+    s/[\r\n]+$/\n/s;
     if (!%column_names)
     {
       my $n = 1;
