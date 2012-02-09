@@ -98,8 +98,7 @@ extern PFS_statements_digest_stat *statements_digest_stat_array;
 struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker);
 PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
                                            uint token,
-                                           char *yytext,
-                                           int yylen);
+                                           OPAQUE_LEX_YYSTYPE *yylval);
 
 /** 
   Function to read a single token from token array.

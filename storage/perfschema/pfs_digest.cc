@@ -18,6 +18,10 @@
   Statement Digest data structures (implementation).
 */
 
+/*
+  This code needs extra visibility in the lexer structures
+*/
+
 #include "my_global.h"
 #include "my_sys.h"
 #include "pfs_instr.h"
@@ -25,12 +29,20 @@
 #include "pfs_global.h"
 #include "table_helper.h"
 #include "my_md5.h"
+#include "sql_lex.h"
+#include "sql_get_diagnostics.h"
 #include <string.h>
 
 /* Generated code */
-#define YYSTYPE_IS_DECLARED
 #include "sql_yacc.h"
 #include "pfs_lex_token.h"
+
+/* Name pollution from sql/sql_lex.h */
+#ifdef LEX_YYSTYPE
+#undef LEX_YYSTYPE
+#endif
+
+#define LEX_YYSTYPE YYSTYPE
 
 /**
   Token array : 
@@ -439,8 +451,7 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
 
 PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
                                            uint token,
-                                           char *yytext,
-                                           int yylen)
+                                           OPAQUE_LEX_YYSTYPE *yylval)
 {
   PSI_digest_locker_state *state= NULL;
   PFS_events_statements   *pfs= NULL;
@@ -588,12 +599,16 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
     case IDENT:
     case IDENT_QUOTED:
     {
+      LEX_YYSTYPE *lex_token= (LEX_YYSTYPE*) yylval;
+      char *yytext= lex_token->lex_str.str;
+      int yylen= lex_token->lex_str.length;
+
       /*
         Add this token to digest storage.
       */
       store_token(digest_storage, token);
       /*
-        Add this identifier's lenght and string to digest storage.
+        Add this identifier's length and string to digest storage.
       */
       store_identifier(digest_storage, yylen, yytext);
       /* 
