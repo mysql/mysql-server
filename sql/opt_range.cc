@@ -483,8 +483,7 @@ public:
     if (cmp_min_to_min(arg) > 0)
     {
       min_value=arg->min_value; min_flag=arg->min_flag;
-      if ((max_flag & (NO_MAX_RANGE | NO_MIN_RANGE)) ==
-	  (NO_MAX_RANGE | NO_MIN_RANGE))
+      if ((max_flag & NO_MAX_RANGE) && (min_flag & NO_MIN_RANGE))
 	return 1;				// Full range
     }
     maybe_flag|=arg->maybe_flag;
@@ -495,8 +494,7 @@ public:
     if (cmp_max_to_max(arg) <= 0)
     {
       max_value=arg->max_value; max_flag=arg->max_flag;
-      if ((max_flag & (NO_MAX_RANGE | NO_MIN_RANGE)) ==
-	  (NO_MAX_RANGE | NO_MIN_RANGE))
+      if ((max_flag & NO_MAX_RANGE) && (min_flag & NO_MIN_RANGE))
 	return 1;				// Full range
     }
     maybe_flag|=arg->maybe_flag;
@@ -7475,7 +7473,16 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
           cur_key2->next= next_key2;                 // New copy of cur_key2
         }
 
-        cur_key2->copy_min(cur_key1);
+        if (cur_key2->copy_min(cur_key1))
+        {
+          // cur_key2 is full range: [-inf <= cur_key2 <= +inf]
+          key1->free_tree();
+          key2->free_tree();
+          if (key1->maybe_flag)
+            return new SEL_ARG(SEL_ARG::MAYBE_KEY);
+          return 0;
+        }
+
         if (!(key1= key1->tree_delete(cur_key1)))
         {
           /*
