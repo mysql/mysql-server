@@ -167,8 +167,14 @@ explain select * from t0 where
 explain select * from t0 where
     ((key3 <5 or key5 < 4) and (key1 < 4 or key2 < 4))
   or
-    ((key3 >=5 or key5 < 2) and (key5 < 5 or key6 < 6));
+    ((key3 >5 or key5 < 2) and (key5 < 5 or key6 < 6));
 
+explain select * from t0 force index(i1, i2, i3, i4, i5, i6 ) where
+    ((key3 <5 or key5 < 4) and (key1 < 4 or key2 < 4))
+  or
+    ((key3 >5 or key5 < 2) and (key5 < 5 or key6 < 6));
+
+# Can't merge any indexes here (predicate on key3 is always true)
 explain select * from t0 force index(i1, i2, i3, i4, i5, i6 ) where
     ((key3 <5 or key5 < 4) and (key1 < 4 or key2 < 4))
   or
