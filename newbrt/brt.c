@@ -4649,8 +4649,13 @@ bnc_apply_messages_to_basement_node(
     find_bounds_within_message_tree(&t->h->descriptor, t->compare_fun, bnc->fresh_message_tree, bnc->buffer, bounds, &fresh_lbi, &fresh_ube);
 
     TOKULOGGER logger = toku_cachefile_logger(t->cf);
-    OMT snapshot_txnids = logger ? logger->snapshot_txnids : NULL;
-    OMT live_list_reverse = logger ? logger->live_list_reverse : NULL;
+    // Experimentally setting these to NULL to disable garbage collection
+    // on the query path, to let us remove the ydb lock from queries
+    // (ticket 4462).  We will need to find another solution in order to
+    // put this in production (probably either clone them or change when
+    // we do garbage collection, maybe on a background thread).
+    OMT snapshot_txnids = NULL;  //logger ? logger->snapshot_txnids : NULL;
+    OMT live_list_reverse = NULL;  //logger ? logger->live_list_reverse : NULL;
 
     // We now know where all the messages we must apply are, so one of the
     // following 4 cases will do the application, depending on which of
