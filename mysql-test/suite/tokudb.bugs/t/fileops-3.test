@@ -17,15 +17,11 @@ select * from foo;
 select sum(a) from foo;
 
 connection default;
-select * from foo;
---error ER_BAD_TABLE_ERROR
-drop table foo;
---error ER_ERROR_ON_RENAME
-rename table foo to bar;
---error ER_LOCK_WAIT_TIMEOUT
-truncate table foo;
---error ER_LOCK_WAIT_TIMEOUT
 alter table foo drop index a;
+select * from foo;
+truncate table foo;
+rename table foo to bar;
+drop table bar;
 
 connection conn1;
 commit;
@@ -35,4 +31,3 @@ disconnect conn1;
 
 connection default;
 # Final cleanup.
-DROP TABLE foo;
