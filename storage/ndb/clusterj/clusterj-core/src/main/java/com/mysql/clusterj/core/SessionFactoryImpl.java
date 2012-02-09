@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ import com.mysql.clusterj.SessionFactory;
 
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandlerFactory;
+
 import com.mysql.clusterj.core.metadata.DomainTypeHandlerFactoryImpl;
 
 import com.mysql.clusterj.core.store.Db;
@@ -497,8 +498,13 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                 // remove the ndb dictionary cached table definition
                 tableName = domainTypeHandler.getTableName();
                 if (tableName != null) {
+                    if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for table " + tableName
+                            + " for class " + cls.getName());
                     dictionary.removeCachedTable(tableName);
                 }
+            }
+            for (ClusterConnection clusterConnection: pooledConnections) {
+                clusterConnection.unloadSchema(tableName);
             }
             return tableName;
         }

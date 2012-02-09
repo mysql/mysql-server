@@ -204,6 +204,7 @@ public class ClusterConnectionImpl
         NdbRecordImpl result = ndbRecordImplMap.get(tableName);
         if (result != null) {
             // case 1
+            if (logger.isDebugEnabled())logger.debug("NdbRecordImpl found for " + tableName);
             return result;
         } else {
             NdbRecordImpl newNdbRecordImpl = new NdbRecordImpl(storeTable, dictionaryForNdbRecord);
@@ -219,6 +220,19 @@ public class ClusterConnectionImpl
                 return winner;
             }
         }
+    }
+
+    /** Remove the cached NdbRecord associated with this table. This allows schema change to work.
+     * @param tableName the name of the table
+     */
+    public void unloadSchema(String tableName) {
+        if (logger.isDebugEnabled())logger.debug("Removing cached NdbRecord for " + tableName);
+        NdbRecordImpl ndbRecordImpl = ndbRecordImplMap.remove(tableName);
+        if (ndbRecordImpl != null) {
+            ndbRecordImpl.releaseNdbRecord();
+        }
+        if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for cached table " + tableName);
+        dictionaryForNdbRecord.removeCachedTable(tableName);
     }
 
 }

@@ -90,7 +90,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         handleError(returnCode, ndb);
         ndbDictionary = ndb.getDictionary();
         handleError(ndbDictionary, ndb);
-        this.dictionary = new DictionaryImpl(ndbDictionary);
+        this.dictionary = new DictionaryImpl(ndbDictionary, clusterConnection);
     }
 
     public void close() {

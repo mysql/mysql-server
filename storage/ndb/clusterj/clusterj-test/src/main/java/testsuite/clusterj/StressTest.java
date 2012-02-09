@@ -17,6 +17,8 @@
 
 package testsuite.clusterj;
 
+import java.nio.ByteBuffer;
+
 import org.junit.Ignore;
 
 import com.mysql.clusterj.ClusterJFatalUserException;
@@ -33,13 +35,47 @@ public class StressTest extends AbstractClusterJModelTest {
 
     private static final int NUMBER_TO_INSERT = 4000;
 
-    private static final int ITERATIONS = 5;
+    private static final int ITERATIONS = 7;
 
-    private static final String tableName = "stress";
+    private static final int ITERATIONS_TO_DROP = 3;
+
+    private static String tableName;
+
+    private static final String STRESS_TEST_TABLE_PROPERTY_NAME = "com.mysql.clusterj.StressTestTable";
+
+    static {
+        String env = System.getenv(STRESS_TEST_TABLE_PROPERTY_NAME);
+        String def = (env == null)?"stress":env;
+        tableName = System.getProperty(STRESS_TEST_TABLE_PROPERTY_NAME, def);
+    }
 
     private ColumnMetadata[] columnMetadatas;
 
     private Timer timer = new Timer();
+
+    private static int BYTES_LENGTH = 12000;
+
+    private static ByteBuffer BYTES = ByteBuffer.allocate(BYTES_LENGTH);
+
+    static {
+        for (int i = 0; i < BYTES_LENGTH; ++i) {
+            // only printable bytes from ABC..^_`
+            BYTES.put((byte)((i % 32) + 65));
+        }
+    }
+
+    private static int STRING_LENGTH = 12000;
+
+    private static String STRING;
+
+    static {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < STRING_LENGTH; ++i) {
+            // only printable bytes from ABC..^_`
+            builder.append((byte)((i % 32) + 65));
+        }
+        STRING = builder.toString();
+    }
 
     @Override
     java.lang.Class<? extends IdBase> getModelClass() {
@@ -55,7 +91,25 @@ public class StressTest extends AbstractClusterJModelTest {
         columnMetadatas = session.newInstance(Stress.class).columnMetadata();
     }
 
-    public void testInsAattr_indy() {
+    public void testIndy() {
+        insAattr_indy();
+        getA_indy();
+        delA_indy();
+    }
+
+    public void testEach() {
+        insAattr_each();
+        getA_each();
+        delA_each();
+    }
+
+    public void testBulk() {
+        insAattr_bulk();
+        getA_bulk();
+        delA_bulk();
+    }
+
+    public void insAattr_indy() {
         long total = 0;
         for (int i = 0; i < ITERATIONS; ++i) {
             // garbage collect what we can before each test
@@ -67,13 +121,13 @@ public class StressTest extends AbstractClusterJModelTest {
             }
             // drop the first iteration
             timer.stop();
-            if (i > 0) total += timer.time();
-            System.out.println("testInsAattr_indy: " + timer.time());
+            if (i >= ITERATIONS_TO_DROP) total += timer.time();
+            System.out.println("insAattr_indy: " + timer.time());
         }
-        System.out.println("Average: " + total/(ITERATIONS - 1) + "\n");
+        System.out.println("Excluding " + ITERATIONS_TO_DROP + " Average: " + total/(ITERATIONS - ITERATIONS_TO_DROP) + "\n");
     }
 
-    public void testInsAattr_each() {
+    public void insAattr_each() {
         long total = 0;
         for (int i = 0; i < ITERATIONS; ++i) {
             // garbage collect what we can before each test
@@ -88,13 +142,13 @@ public class StressTest extends AbstractClusterJModelTest {
             session.currentTransaction().commit();
             // drop the first iteration
             timer.stop();
-            if (i > 0) total += timer.time();
-            System.out.println("testInsAattr_each: " + timer.time());
+            if (i >= ITERATIONS_TO_DROP) total += timer.time();
+            System.out.println("insAattr_each: " + timer.time());
         }
-        System.out.println("Average: " + total/(ITERATIONS - 1) + "\n");
+        System.out.println("Excluding " + ITERATIONS_TO_DROP + " Average: " + total/(ITERATIONS - ITERATIONS_TO_DROP) + "\n");
     }
 
-    public void testInsAattr_bulk() {
+    public void insAattr_bulk() {
         long total = 0;
         for (int i = 0; i < ITERATIONS; ++i) {
             // garbage collect what we can before each test
@@ -108,10 +162,122 @@ public class StressTest extends AbstractClusterJModelTest {
             session.currentTransaction().commit();
             // drop the first iteration
             timer.stop();
-            if (i > 0) total += timer.time();
-            System.out.println("testInsAattr_bulk: " + timer.time());
+            if (i >= ITERATIONS_TO_DROP) total += timer.time();
+            System.out.println("insAattr_bulk: " + timer.time());
         }
-        System.out.println("Average: " + total/(ITERATIONS - 1) + "\n");
+        System.out.println("Excluding " + ITERATIONS_TO_DROP + " Average: " + total/(ITERATIONS - ITERATIONS_TO_DROP) + "\n");
+    }
+
+    public void getA_indy() {
+        long total = 0;
+        for (int i = 0; i < ITERATIONS; ++i) {
+            // garbage collect what we can before each test
+            gc();
+            timer.start();
+            for (int key = 0; key < NUMBER_TO_INSERT; ++key) {
+                session.find(Stress.class, key);
+            }
+            // drop the first iteration
+            timer.stop();
+            if (i >= ITERATIONS_TO_DROP) total += timer.time();
+            System.out.println("getA_indy: " + timer.time());
+        }
+        System.out.println("Excluding " + ITERATIONS_TO_DROP + " Average: " + total/(ITERATIONS - ITERATIONS_TO_DROP) + "\n");
+    }
+
+    public void getA_each() {
+        long total = 0;
+        for (int i = 0; i < ITERATIONS; ++i) {
+            // garbage collect what we can before each test
+            gc();
+            timer.start();
+            session.currentTransaction().begin();
+            for (int key = 0; key < NUMBER_TO_INSERT; ++key) {
+                session.find(Stress.class, key);
+            }
+            session.currentTransaction().commit();
+            // drop the first iteration
+            timer.stop();
+            if (i >= ITERATIONS_TO_DROP) total += timer.time();
+            System.out.println("getA_each: " + timer.time());
+        }
+        System.out.println("Excluding " + ITERATIONS_TO_DROP + " Average: " + total/(ITERATIONS - ITERATIONS_TO_DROP) + "\n");
+    }
+
+    public void getA_bulk() {
+        long total = 0;
+        for (int i = 0; i < ITERATIONS; ++i) {
+            // garbage collect what we can before each test
+            gc();
+            timer.start();
+            session.currentTransaction().begin();
+            for (int key = 0; key < NUMBER_TO_INSERT; ++key) {
+                Stress instance = createObject(key);
+                session.load(instance);
+            }
+            session.currentTransaction().commit();
+            // drop the first iteration
+            timer.stop();
+            if (i >= ITERATIONS_TO_DROP) total += timer.time();
+            System.out.println("getA_bulk: " + timer.time());
+        }
+        System.out.println("Excluding " + ITERATIONS_TO_DROP + " Average: " + total/(ITERATIONS - ITERATIONS_TO_DROP) + "\n");
+    }
+
+    public void delA_indy() {
+        long total = 0;
+        for (int i = 0; i < ITERATIONS; ++i) {
+            // garbage collect what we can before each test
+            gc();
+            timer.start();
+            for (int key = 0; key < NUMBER_TO_INSERT; ++key) {
+                session.deletePersistent(Stress.class, key);
+            }
+            // drop the first iteration
+            timer.stop();
+            if (i >= ITERATIONS_TO_DROP) total += timer.time();
+            System.out.println("delA_indy: " + timer.time());
+        }
+        System.out.println("Excluding " + ITERATIONS_TO_DROP + " Average: " + total/(ITERATIONS - ITERATIONS_TO_DROP) + "\n");
+    }
+
+    public void delA_each() {
+        long total = 0;
+        for (int i = 0; i < ITERATIONS; ++i) {
+            // garbage collect what we can before each test
+            gc();
+            timer.start();
+            session.currentTransaction().begin();
+            for (int key = 0; key < NUMBER_TO_INSERT; ++key) {
+                session.deletePersistent(Stress.class, key);
+                session.flush();
+            }
+            session.currentTransaction().commit();
+            // drop the first iteration
+            timer.stop();
+            if (i >= ITERATIONS_TO_DROP) total += timer.time();
+            System.out.println("delA_each: " + timer.time());
+        }
+        System.out.println("Excluding " + ITERATIONS_TO_DROP + " Average: " + total/(ITERATIONS - ITERATIONS_TO_DROP) + "\n");
+    }
+
+    public void delA_bulk() {
+        long total = 0;
+        for (int i = 0; i < ITERATIONS; ++i) {
+            // garbage collect what we can before each test
+            gc();
+            timer.start();
+            session.currentTransaction().begin();
+            for (int key = 0; key < NUMBER_TO_INSERT; ++key) {
+                session.deletePersistent(Stress.class, key);
+            }
+            session.currentTransaction().commit();
+            // drop the first iteration
+            timer.stop();
+            if (i >= ITERATIONS_TO_DROP) total += timer.time();
+            System.out.println("delA_bulk: " + timer.time());
+        }
+        System.out.println("Excluding " + ITERATIONS_TO_DROP + " Average: " + total/(ITERATIONS - ITERATIONS_TO_DROP) + "\n");
     }
 
     protected Stress createObject(int key) {
@@ -125,14 +291,39 @@ public class StressTest extends AbstractClusterJModelTest {
                 continue;
             }
             Class<?> cls = columnMetadata.javaType();
+            int length = columnMetadata.maximumLength();
             if (int.class == cls) {
-                value = key;
+                value = key + columnNumber;
             } else if (long.class == cls) {
-                value = (long)key;
+                value = (long)(key + columnNumber);
             } else if (float.class == cls) {
-                value = (float)key;
+                value = (float)(key + columnNumber);
             } else if (double.class == cls) {
-                value = (double)key;
+                value = (double)(key + columnNumber);
+            } else if (short.class == cls) {
+                value = (short)(key + columnNumber);
+            } else if (byte.class == cls) {
+                value = (byte)(key + columnNumber);
+            } else if (Integer.class == cls) {
+                value = (int)(key + columnNumber);
+            } else if (Long.class == cls) {
+                value = (long)(key + columnNumber);
+            } else if (Float.class == cls) {
+                value = (float)(key + columnNumber);
+            } else if (Double.class == cls) {
+                value = (double)(key + columnNumber);
+            } else if (Short.class == cls) {
+                value = (short)(key + columnNumber);
+            } else if (Byte.class == cls) {
+                value = (byte)(key + columnNumber);
+            } else if (String.class == cls) {
+                // take 'n' characters from the static String
+                value = STRING.substring(key + columnNumber, key + columnNumber + length);
+            } else if (byte[].class == cls) {
+                // take 'n' bytes from the static byte array
+                value = new byte[length];
+                BYTES.position((key + columnNumber));
+                BYTES.get((byte[])value);
             } else {
                 throw new ClusterJFatalUserException("Unsupported column type " + cls.getName()
                         + " for column " + columnMetadata.name());
@@ -146,6 +337,7 @@ public class StressTest extends AbstractClusterJModelTest {
         public Stress() {}
 
         public String table() {
+            System.out.println("Stress table being used: " + tableName);
             return tableName;
         }
 
