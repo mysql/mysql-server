@@ -768,8 +768,10 @@ JOIN::optimize()
         join_tab[0].type= JT_UNIQUE_SUBQUERY;
         error= 0;
         changed= TRUE;
-        engine= new subselect_uniquesubquery_engine(thd, join_tab, unit->item,
-                                                    where);
+        engine= new subselect_indexsubquery_engine(thd, join_tab, unit->item,
+                                                   where, NULL /* having */,
+                                                   false /* check_null */,
+                                                   true /* unique */);
       }
       else if (join_tab[0].type == JT_REF &&
 	       join_tab[0].ref.items[0]->name == in_left_expr_name)
@@ -780,7 +782,7 @@ JOIN::optimize()
         error= 0;
         changed= TRUE;
         engine= new subselect_indexsubquery_engine(thd, join_tab, unit->item,
-                                                   where, NULL, 0);
+                                                   where, NULL, false, false);
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
 	       join_tab[0].ref.items[0]->name == in_left_expr_name &&
@@ -792,7 +794,13 @@ JOIN::optimize()
       conds= remove_additional_cond(conds);
       save_index_subquery_explain_info(join_tab, conds);
       engine= new subselect_indexsubquery_engine(thd, join_tab, unit->item,
-                                                 conds, having, 1);
+                                                 conds, having, true, false);
+      /**
+         @todo Above we passed unique=false. But for this query:
+          (oe1, oe2) IN (SELECT primary_key, non_key_maybe_null_field FROM tbl)
+         we could use "unique=true" for the first index component and let
+         Item_is_not_null_test(non_key_maybe_null_field) handle the second.
+      */
     }
     if (changed)
       DBUG_RETURN(unit->item->change_engine(engine));
@@ -8591,8 +8599,7 @@ static Item *remove_additional_cond(Item* conds)
       where     Subquery's WHERE clause
 
   DESCRIPTION
-    For index lookup-based subquery (i.e. one executed with
-    subselect_uniquesubquery_engine or subselect_indexsubquery_engine),
+    For index lookup-based subquery (subselect_indexsubquery_engine),
     check its EXPLAIN output row should contain 
       "Using index" (TAB_INFO_FULL_SCAN_ON_NULL) 
       "Using Where" (TAB_INFO_USING_WHERE)
