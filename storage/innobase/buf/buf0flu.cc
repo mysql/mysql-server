@@ -1881,8 +1881,9 @@ buf_flush_buffer_pool(
 
 /*******************************************************************//**
 This utility flushes all dirty blocks that belong to space from all
-buffer pool instances.
-NOTE: The calling thread is not allowed to own any latches on pages!
+buffer pool instances. NOTE: The calling thread is not allowed to own
+any latches on pages! Also, this function will signal the flush batch
+end for a buffer after flushing that buffer pool.
 @return number of blocks for which the write request was queued */
 UNIV_INTERN
 ulint
@@ -1918,6 +1919,9 @@ buf_flush_list(
 				} else {
 					flushed[i] = true;
 					n_total_pages += n_pages;
+
+					buf_flush_wait_batch_end(
+						buf_pool, BUF_FLUSH_LIST);
 				}
 			}
 		}
@@ -1931,6 +1935,7 @@ buf_flush_list(
 #endif /* UNIV_DEBUG */
 
 	delete [] flushed;
+
 
 	/* If a quiesce is in progress then we can't skip flushing of a
 	buffer pool. The operation must complete for all buffer pools. */
