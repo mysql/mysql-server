@@ -2249,8 +2249,12 @@ INSERT INTO b12809202_db.t2 VALUES (1), (2), (3);
 --echo #        commit starting 5.5.
 --echo
 --echo #### Dump starts here ####
+# We only need to check the --verbose output to verify that "start transaction"
+# happens after "logs flushed". We redirect normal output, as otherwise the
+# mixing of normal (stdout) and --verbose (stderr) output will happen in random
+# order depending on stdio internal buffer size.
 --replace_regex /-- Server version.*// /-- MySQL dump .*// /-- Dump completed on .*/-- Dump completed/
---exec $MYSQL_DUMP --verbose --single-transaction --flush-log b12809202_db 2>&1
+--exec $MYSQL_DUMP --verbose --single-transaction --flush-log b12809202_db 2>&1 > $MYSQLTEST_VARDIR/tmp/bug61854.sql
 --echo
 --echo #### Dump ends here ####
 

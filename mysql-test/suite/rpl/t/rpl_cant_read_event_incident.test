@@ -20,9 +20,15 @@
 #
 --source include/not_windows.inc
 
-call mtr.add_suppression("Error in Log_event::read_log_event()");
+--connection slave
+# Make sure the slave is stopped while we are messing with master.
+# Otherwise we get occasional failures as the slave manages to re-connect
+# to the newly started master and we get extra events applied, causing
+# conflicts.
+--source include/stop_slave.inc
 
 --connection master
+call mtr.add_suppression("Error in Log_event::read_log_event()");
 --let $datadir= `SELECT @@datadir`
 
 --let $rpl_server_number= 1
@@ -42,7 +48,6 @@ show binlog events;
 
 --connection slave
 call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log");
-stop slave;
 reset slave;
 start slave;
 

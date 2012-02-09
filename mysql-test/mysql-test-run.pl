@@ -584,6 +584,7 @@ sub main {
     }
     mtr_report_test($tinfo);
     push @$completed, $tinfo;
+    ++$num_tests
   }
 
   mtr_print_line();
@@ -599,7 +600,8 @@ sub main {
 
   if ( @$completed != $num_tests)
   {
-    mtr_error("Not all tests completed");
+    mtr_error("Not all tests completed (only ". scalar(@$completed) .
+              " of $num_tests)");
   }
 
   remove_vardir_subs() if $opt_clean_vardir;

@@ -1,5 +1,8 @@
 use performance_schema;
-select name from mutex_instances where name not rlike '/(DEBUG_SYNC::mutex)$' group by name;
+select name from mutex_instances
+where name not rlike '/(DEBUG_SYNC::mutex)$'
+   and name != 'wait/synch/mutex/mysys/BITMAP::mutex'
+ group by name;
 name
 wait/synch/mutex/archive/archive_mutex
 wait/synch/mutex/aria/LOCK_trn_list
@@ -16,7 +19,6 @@ wait/synch/mutex/blackhole/blackhole
 wait/synch/mutex/csv/tina
 wait/synch/mutex/memory/HP_SHARE::intern_lock
 wait/synch/mutex/myisam/MYISAM_SHARE::intern_lock
-wait/synch/mutex/mysys/BITMAP::mutex
 wait/synch/mutex/mysys/KEY_CACHE::cache_lock
 wait/synch/mutex/mysys/LOCK_alarm
 wait/synch/mutex/mysys/LOCK_uuid_generator
