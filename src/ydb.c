@@ -2939,17 +2939,12 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, int i
     db_txn_struct_i(result)->iso = child_isolation;
     toku_list_init(&db_txn_struct_i(result)->dbs_that_must_close_before_abort);
 
-    int r;
-    if (env->i->open_flags & DB_INIT_LOCK && !stxn) {
-        r = toku_lth_create(&db_txn_struct_i(result)->lth);
-        if (r!=0) {
-#if !TOKUDB_NATIVE_H
-            toku_free(db_txn_struct_i(result));
-#endif
-            toku_free(result);
-            return r;
-        }
-    }
+    // we used to initialize the transaction's lth here.
+    // Now we initialize the lth only if the transaction needs the lth,
+    // in toku_txn_add_lt. If this transaction never does anything 
+    // that requires using a lock tree, then the lth is never 
+    // created.
+    int r = 0;
     
     //r = toku_logger_txn_begin(stxn ? db_txn_struct_i(stxn)->tokutxn : 0, &db_txn_struct_i(result)->tokutxn, env->i->logger);
     TXN_SNAPSHOT_TYPE snapshot_type;
@@ -4536,7 +4531,13 @@ toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt) {
     int r = ENOSYS;
     assert(txn && lt);
     toku_lth* lth = db_txn_struct_i(txn)->lth;
-    assert(lth);
+    // we used to initialize the transaction's lth during begin.
+    // Now we initialize the lth only if the transaction needs the lth, here
+    if (!lth) {
+        r = toku_lth_create(&db_txn_struct_i(txn)->lth);
+        assert_zero(r);
+        lth = db_txn_struct_i(txn)->lth;
+    }
 
     toku_lock_tree* find = toku_lth_find(lth, lt);
     if (find) {

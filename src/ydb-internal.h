@@ -209,7 +209,7 @@ typedef enum __toku_isolation_level {
 struct __toku_db_txn_internal {
     //TXNID txnid64; /* A sixty-four bit txn id. */
     struct tokutxn *tokutxn;
-    struct __toku_lth *lth;  //Hash table holding list of dictionaries this txn has touched
+    struct __toku_lth *lth;  //Hash table holding list of dictionaries this txn has touched, only initialized if txn touches a dictionary
     u_int32_t flags;
     TOKU_ISOLATION iso;
     DB_TXN *child;
