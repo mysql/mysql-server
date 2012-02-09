@@ -43,6 +43,18 @@
 C_MODE_START
 
 struct TABLE_SHARE;
+/*
+  There are 3 known bison parsers in the server:
+  - (1) the SQL parser itself, sql/sql_yacc.yy
+  - (2) storage/innobase/fts/fts0pars.y
+  - (3) storage/innobase/pars/pars0grm.y
+  What is instrumented here are the tokens from the SQL query text (1),
+  to make digests.
+  Now, to avoid name pollution and conflicts with different YYSTYPE definitions,
+  an opaque structure is used here.
+  The real type to use when invoking the digest api is LEX_YYSTYPE.
+*/
+struct OPAQUE_LEX_YYSTYPE;
 
 /**
   @file mysql/psi/psi.h
@@ -1836,7 +1848,7 @@ typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
 
 typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
-  (struct PSI_digest_locker *locker, uint token, char *yytext, int yylen);
+  (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
 
 /**
   Performance Schema Interface, version 1.
