@@ -112,19 +112,17 @@ perl;
   '.$pre_script.';
   while (<FILE>)
   {
-    s/[\r\n]+$/\n/s;
+    chomp;
     if (!%column_names)
     {
       my $n = 1;
-      chomp;
       %column_names = map { $_ => $n++ } split(/\t/, $_);
-      $_ .= "\n";
     }
     else
     {
       ' . $script . '
     }
-    $filtered_contents .= $_;
+    $filtered_contents .= $_."\n";
   }
   close FILE or die "Error closing $input_file: $!";
   open FILE, "> $output_file" or die "Error opening $output_file: $!";
