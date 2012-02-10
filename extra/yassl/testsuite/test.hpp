@@ -50,8 +50,7 @@
 #endif /* _WIN32 */
 
 
-#if !defined(_SOCKLEN_T) && \
- (defined(_WIN32) || defined(__NETWARE__) || defined(__APPLE__))
+#if !defined(_SOCKLEN_T) && (defined(_WIN32) || defined(__APPLE__))
     typedef int socklen_t;
 #endif
 
@@ -60,18 +59,14 @@
 #if defined(__hpux)
 // HPUX uses int* for third parameter to accept
     typedef int*       ACCEPT_THIRD_T;
-#elif defined(__NETWARE__)
-// NetWare uses size_t* for third parameter to accept
-    typedef size_t*       ACCEPT_THIRD_T;
 #else
     typedef socklen_t* ACCEPT_THIRD_T;
 #endif
 
 
 // Check if _POSIX_THREADS should be forced
-#if !defined(_POSIX_THREADS) && (defined(__NETWARE__) || defined(__hpux))
+#if !defined(_POSIX_THREADS) && defined(__hpux)
 // HPUX does not define _POSIX_THREADS as it's not _fully_ implemented
-// Netware supports pthreads but does not announce it
 #define _POSIX_THREADS
 #endif
 

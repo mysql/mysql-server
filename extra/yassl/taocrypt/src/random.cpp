@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +11,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   along with this program; see the file COPYING. If not, write to the
+   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA  02110-1301  USA.
 */
 
 
@@ -89,67 +89,6 @@ void OS_Seed::GenerateSeed(byte* output, word32 sz)
 {
     if (!CryptGenRandom(handle_, sz, output))
         error_.SetError(CRYPTGEN_E);
-}
-
-
-#elif defined(__NETWARE__)
-
-/* The OS_Seed implementation for Netware */
-
-#include <nks/thread.h>
-#include <nks/plat.h>
-
-// Loop on high resulution Read Time Stamp Counter
-static void NetwareSeed(byte* output, word32 sz)
-{
-    word32 tscResult;
-
-    for (word32 i = 0; i < sz; i += sizeof(tscResult)) {
-        #if defined(__GNUC__)
-            asm volatile("rdtsc" : "=A" (tscResult));
-        #else
-            #ifdef __MWERKS__
-                asm {
-            #else
-                __asm {
-            #endif
-                    rdtsc
-                    mov tscResult, eax
-            }
-        #endif
-
-        memcpy(output, &tscResult, sizeof(tscResult));
-        output += sizeof(tscResult);
-
-        NXThreadYield();   // induce more variance
-    }
-}
-
-
-OS_Seed::OS_Seed()
-{
-}
-
-
-OS_Seed::~OS_Seed()
-{
-}
-
-
-void OS_Seed::GenerateSeed(byte* output, word32 sz)
-{
-  /*
-    Try to use NXSeedRandom as it will generate a strong
-    seed using the onboard 82802 chip
-
-    As it's not always supported, fallback to default
-    implementation if an error is returned
-  */
-
-  if (NXSeedRandom(sz, output) != 0)
-  {
-    NetwareSeed(output, sz);
-  }
 }
 
 
