@@ -399,14 +399,13 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
 {
   PSI_statement_locker_state *statement_state= NULL;
   PSI_digest_locker_state    *state= NULL;
-  PFS_events_statements      *pfs= NULL;
   PFS_digest_storage         *digest_storage= NULL;
 
   /*
     If current statement is not instrumented
     or if statement_digest consumer is not enabled.
   */
-  if(!locker || !(flag_thread_instrumentation && flag_events_statements_current)
+  if(!locker || !(flag_thread_instrumentation)
              || (!flag_statements_digest)
              || (!statements_digest_stat_array))
   {
@@ -429,8 +428,7 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
     Take out thread specific statement record. And then digest
     storage information for this statement from it.
   */
-  pfs= reinterpret_cast<PFS_events_statements*>(statement_state->m_statement);
-  digest_storage= &pfs->m_digest_storage;
+  digest_storage= &state->m_digest_storage;
 
   /*
     Initialize token array and token count to 0.
@@ -441,11 +439,6 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
     digest_storage->m_token_array[--digest_storage->m_byte_count]= 0;
   digest_storage->m_full= false;
 
-  /*
-    Set digest_locker_state's statement info pointer.
-  */
-  state->m_statement= pfs;
-
   return reinterpret_cast<PSI_digest_locker*> (state);
 }
 
@@ -454,7 +447,6 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
                                            OPAQUE_LEX_YYSTYPE *yylval)
 {
   PSI_digest_locker_state *state= NULL;
-  PFS_events_statements   *pfs= NULL;
   PFS_digest_storage      *digest_storage= NULL;
 
   if(!locker)
@@ -463,8 +455,7 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
   state= reinterpret_cast<PSI_digest_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
-  pfs= reinterpret_cast<PFS_events_statements *>(state->m_statement);
-  digest_storage= &pfs->m_digest_storage;
+  digest_storage= &state->m_digest_storage;
 
   if( PFS_MAX_DIGEST_STORAGE_SIZE - digest_storage->m_byte_count <
       PFS_SIZE_OF_A_TOKEN)

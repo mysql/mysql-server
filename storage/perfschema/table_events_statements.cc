@@ -368,7 +368,7 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   /* 
     Filling up statement digest information.
   */
-  PFS_statements_digest_stat *pfs= statement->statement_digest_stat_ptr;
+  PFS_statements_digest_stat *pfs= statement->m_statement_digest_stat_ptr;
   if(pfs && pfs->m_digest_storage.m_byte_count != 0)
   {
     /*

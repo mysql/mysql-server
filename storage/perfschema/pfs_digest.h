@@ -40,16 +40,6 @@ struct {
          unsigned char m_md5[16];
        }typedef PFS_digest_hash;
 
-/**
-  Structure to store token count/array for a statement
-  on which digest is to be calculated.
-*/
-struct {
-         bool m_full;
-         int m_byte_count;
-         char m_token_array[PFS_MAX_DIGEST_STORAGE_SIZE];
-       } typedef PFS_digest_storage;
-
 /** A statement digest stat record. */
 struct PFS_statements_digest_stat
 {
