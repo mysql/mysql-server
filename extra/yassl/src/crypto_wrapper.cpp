@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -953,8 +953,9 @@ x509* PemToDer(FILE* file, CertType type, EncryptedInfo* info)
                     info->set = true;
                 }
             }
-            fgets(line,sizeof(line), file); // get blank line
-            begin = ftell(file);
+            // get blank line
+            if (fgets(line, sizeof(line), file))
+              begin = ftell(file);
         }
           
     }

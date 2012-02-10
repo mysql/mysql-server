@@ -1,5 +1,6 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005-2007 MySQL AB, 2010 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,7 +65,7 @@ enum YasslError {
 enum Library { yaSSL_Lib = 0, CryptoLib, SocketLib };
 enum { MAX_ERROR_SZ = 80 };
 
-void SetErrorString(YasslError, char*);
+void SetErrorString(unsigned long, char*);
 
 /* remove for now, if go back to exceptions use this wrapper
 // Base class for all yaSSL exceptions

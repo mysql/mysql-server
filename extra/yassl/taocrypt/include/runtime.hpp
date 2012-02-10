@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,10 +35,7 @@
 
 // Handler for pure virtual functions
 namespace __Crun {
-    static void pure_error(void)
-    {
-       assert("Pure virtual method called." == "Aborted");
-    }
+    void pure_error(void);
 } // namespace __Crun
 
 #endif // __sun
@@ -54,16 +51,7 @@ extern "C" {
 #else
     #include "kernelc.hpp"
 #endif
-
-/* Disallow inline __cxa_pure_virtual() */
-static int __cxa_pure_virtual() __attribute__((noinline, used));
-static int __cxa_pure_virtual()
-{
-    // oops, pure virtual called!
-    assert("Pure virtual method called." == "Aborted");
-    return 0;
-}
-
+    int __cxa_pure_virtual () __attribute__ ((weak));
 } // extern "C"
 
 #endif // __GNUC__ > 2
