@@ -15,11 +15,14 @@ Warning	1618	<INDEX DIRECTORY> option ignored
 INSERT INTO t1 VALUES (NULL, "blue");
 INSERT INTO t1 VALUES (NULL, "red");
 INSERT INTO t1 VALUES (NULL, "yellow");
-INSERT INTO t1 SELECT NULL, b FROM t1;
-INSERT INTO t1 SELECT NULL, b FROM t1;
-INSERT INTO t1 SELECT NULL, b FROM t1;
-INSERT INTO t1 SELECT NULL, b FROM t1;
-# Checking if archive file exists in DATA DIRECTORY
+# Checking if archive file exists where we specified in DATA DIRECTORY
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` char(30) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ARCHIVE AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/archive/'
 DROP TABLE t1;
 # 
 # Be sure SQL MODE "NO_DIR_IN_CREATE" prevents the use of DATA DIRECTORY
@@ -36,7 +39,7 @@ Warning	1618	<DATA DIRECTORY> option ignored
 INSERT INTO t1 VALUES (NULL, "blue");
 INSERT INTO t1 VALUES (NULL, "red");
 INSERT INTO t1 VALUES (NULL, "yellow");
-# Checking if archive file exists in --datadir
+# Checking if archive file exists in --datadir since DATA DIRECTORY was ignored.
 DROP TABLE t1;
 set @@sql_mode=@org_mode;
 # 
