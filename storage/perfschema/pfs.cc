@@ -966,7 +966,12 @@ static inline int mysql_mutex_lock(...)
   - [E] EVENTS_STAGES_SUMMARY_GLOBAL_BY_EVENT_NAME,
         @c table_esgs_global_by_event_name::make_row()
 
-  @section IMPL_STATEMENT Implementation for statements aggregates
+@section IMPL_STATEMENT Implementation for statements consumers
+
+  For statements, the tables that contains individual event data are:
+  - EVENTS_STATEMENTS_CURRENT
+  - EVENTS_STATEMENTS_HISTORY
+  - EVENTS_STATEMENTS_HISTORY_LONG
 
   For statements, the tables that contains aggregated data are:
   - EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
@@ -974,27 +979,30 @@ static inline int mysql_mutex_lock(...)
   - EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME
   - EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME
   - EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME
+  - EVENTS_STATEMENTS_SUMMARY_BY_DIGEST
 
 @verbatim
   statement_locker(T, S)
    |
    | [1]
    |
-1a |-> pfs_thread(T).event_name(S)            =====>> [A], [B], [C], [D], [E]
+1a |-> pfs_thread(T).event_name(S)            =====>> [A], [B], [C], [D], [E], [F]
    |    |
    |    | [2]
    |    |
-   | 2a |-> pfs_account(U, H).event_name(S)   =====>> [B], [C], [D], [E]
+   | 2a |-> pfs_account(U, H).event_name(S)   =====>> [C], [D], [E], [F]
    |    .    |
    |    .    | [3-RESET]
    |    .    |
-   | 2b .....+-> pfs_user(U).event_name(S)    =====>> [C]
+   | 2b .....+-> pfs_user(U).event_name(S)    =====>> [D]
    |    .    |
-   | 2c .....+-> pfs_host(H).event_name(S)    =====>> [D], [E]
+   | 2c .....+-> pfs_host(H).event_name(S)    =====>> [E], [F]
    |    .    .    |
    |    .    .    | [4-RESET]
    | 2d .    .    |
-1b |----+----+----+-> pfs_stage_class(S)      =====>> [E]
+1b |----+----+----+-> pfs_statement_class(S)  =====>> [F]
+   |
+1c |-> statement_digest(T, S)                 =====>> [A], [G]
 
 @endverbatim
 
@@ -1003,16 +1011,22 @@ static inline int mysql_mutex_lock(...)
   - [2] @c delete_thread_v1(), @c aggregate_thread_statements()
   - [3] @c PFS_account::aggregate_statements()
   - [4] @c PFS_host::aggregate_statements()
-  - [A] EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+  - [A] EVENTS_STATEMENTS_CURRENT, EVENTS_STATEMENTS_HISTORY,
+        EVENTS_STATEMENTS_HISTORY_LONG
+        @c table_events_statements_common::make_row()
+  - [B] EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
         @c table_esms_by_thread_by_event_name::make_row()
-  - [B] EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
+  - [C] EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
         @c table_esms_by_account_by_event_name::make_row()
-  - [C] EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME,
+  - [D] EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME,
         @c table_esms_by_user_by_event_name::make_row()
-  - [D] EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME,
+  - [E] EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME,
         @c table_esms_by_host_by_event_name::make_row()
-  - [E] EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+  - [F] EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME,
         @c table_esms_global_by_event_name::make_row()
+  - [G] EVENTS_STATEMENTS_SUMMARY_BY_DIGEST
+        @c table_esms_by_digest::make_row()
+
 */
 
 /**

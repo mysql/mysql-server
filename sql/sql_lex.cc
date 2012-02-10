@@ -31,27 +31,7 @@
 #include "sql_show.h"                  // append_identifier
 #include "sql_select.h"                // JOIN
 #include "sql_optimizer.h"             // JOIN
-
-#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-#define PSI_ADD_TOKEN(L, T, Y) inline_add_token(L, T, Y)
-
-static void inline_add_token(Lex_input_stream *lip,
-                             uint token,
-                             YYSTYPE *yylval)
-{
-  if (lip->m_digest_psi != NULL)
-  {
-    /*
-      Passing token to PS function to calculate statement digest
-      for this statement.
-    */
-    lip->m_digest_psi= PSI_CALL(digest_add_token)
-      (lip->m_digest_psi, token, (OPAQUE_LEX_YYSTYPE*) yylval);
-  }
-}
-#else
-#define PSI_ADD_TOKEN(L, T, Y) do {} while(0)
-#endif
+#include <mysql/psi/mysql_statement.h>
 
 static int lex_one_token(void *arg, void *yythd);
 
@@ -905,7 +885,7 @@ int MYSQLlex(void *arg, void *yythd)
     lip->lookahead_token= -1;
     *yylval= *(lip->lookahead_yylval);
     lip->lookahead_yylval= NULL;
-    PSI_ADD_TOKEN(lip, token, yylval);
+    lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
     return token;
   }
 
@@ -923,10 +903,12 @@ int MYSQLlex(void *arg, void *yythd)
     token= lex_one_token(arg, yythd);
     switch(token) {
     case CUBE_SYM:
-      PSI_ADD_TOKEN(lip, WITH_CUBE_SYM, yylval);
+      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_CUBE_SYM,
+                                         yylval);
       return WITH_CUBE_SYM;
     case ROLLUP_SYM:
-      PSI_ADD_TOKEN(lip, WITH_ROLLUP_SYM, yylval);
+      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_ROLLUP_SYM,
+                                         yylval);
       return WITH_ROLLUP_SYM;
     default:
       /*
@@ -935,7 +917,7 @@ int MYSQLlex(void *arg, void *yythd)
       lip->lookahead_yylval= lip->yylval;
       lip->yylval= NULL;
       lip->lookahead_token= token;
-      PSI_ADD_TOKEN(lip, WITH, yylval);
+      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH, yylval);
       return WITH;
     }
     break;
@@ -943,7 +925,7 @@ int MYSQLlex(void *arg, void *yythd)
     break;
   }
 
-  PSI_ADD_TOKEN(lip, token, yylval);
+  lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
   return token;
 }
 

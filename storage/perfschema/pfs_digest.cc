@@ -34,8 +34,8 @@
 #include <string.h>
 
 /* Generated code */
-#include "sql_yacc.h"
-#include "pfs_lex_token.h"
+#include "../sql/sql_yacc.h"
+#include "../storage/perfschema/pfs_lex_token.h"
 
 /* Name pollution from sql/sql_lex.h */
 #ifdef LEX_YYSTYPE
@@ -102,16 +102,14 @@ int init_digest(unsigned int statements_digest_sizing)
 /** Cleanup table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
 void cleanup_digest(void)
 {
-  /* 
-    Free memory allocated to statements_digest_stat_array. 
-  */
+  /*  Free memory allocated to statements_digest_stat_array. */
   pfs_free(statements_digest_stat_array);
   statements_digest_stat_array= NULL;
 }
 
 C_MODE_START
 static uchar *digest_hash_get_key(const uchar *entry, size_t *length,
-                                my_bool)
+                                  my_bool)
 {
   const PFS_statements_digest_stat * const *typed_entry;
   const PFS_statements_digest_stat *digest;
@@ -143,7 +141,6 @@ int init_digest_hash(void)
   return 0;
 }
 
-/** Cleanup the digest hash. */
 void cleanup_digest_hash(void)
 {
   if (digest_hash_inited)
@@ -165,9 +162,9 @@ static LF_PINS* get_digest_hash_pins(PFS_thread *thread)
 }
 
 PFS_statements_digest_stat* 
-find_or_create_digest(PFS_thread* thread, PFS_digest_hash d_hash, PFS_digest_storage* digest_storage)
+find_or_create_digest(PFS_thread* thread, PFS_digest_hash d_hash,
+                      PFS_digest_storage* digest_storage)
 {
-  /* get digest pin. */
   LF_PINS *pins= get_digest_hash_pins(thread);
   /* There shoulod be at least one token. */
   if(unlikely(pins == NULL) || 
@@ -190,28 +187,18 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_hash d_hash, PFS_digest_sto
 
   if(!entry)
   {
-    /* 
-      If statement digest entry doesn't exist.
-    */
     if(digest_index == 0)
     {
-      /*
-        digest_stat array is full. Add stat at index 0 and return.
-      */
+      /*  digest_stat array is full. Add stat at index 0 and return. */
       pfs= &statements_digest_stat_array[0];
-      /*
-         If this is the first entry at index 0, update
-         first seen information.
-      */
-      if(pfs->m_first_seen==0)
+
+      if(pfs->m_first_seen == 0)
         pfs->m_first_seen= now;
       pfs->m_last_seen= now;
       return pfs;
     }
 
-    /* 
-      Add a new record in digest stat array. 
-    */
+    /* Add a new record in digest stat array. */
     pfs= &statements_digest_stat_array[digest_index];
     
     /* 
@@ -230,7 +217,6 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_hash d_hash, PFS_digest_sto
     pfs->m_first_seen= now;
     pfs->m_last_seen= now;
     
-    /* Increment index. */
     digest_index++;
     
     if(digest_index%statements_digest_size == 0)
@@ -255,9 +241,7 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_hash d_hash, PFS_digest_sto
   }
   else if (entry && (entry != MY_ERRPTR))
   {
-    /* 
-      If stmt digest already exists, update stat and return. 
-    */
+    /* If digest already exists, update stats and return. */
     pfs= *entry;
     pfs->m_last_seen= now;
     lf_hash_search_unpin(pins);
@@ -269,7 +253,6 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_hash d_hash, PFS_digest_sto
  
 void purge_digest(PFS_thread* thread, unsigned char* hash_key)
 {
-  /* get digest pin. */
   LF_PINS *pins= get_digest_hash_pins(thread);
   if(unlikely(pins == NULL))
     return;
@@ -313,9 +296,7 @@ void reset_esms_by_digest()
   if(statements_digest_stat_array == NULL)
     return;
 
-  /*
-    Reset statements_digest_stat_array.
-  */
+  /* Reset statements_digest_stat_array. */
   for (index= 0; index < statements_digest_size; index++)
   {
     statements_digest_stat_array[index].reset();
@@ -329,7 +310,7 @@ void reset_esms_by_digest()
 }
 
 /*
-  This function, iterates token array and updates digest_text.
+  Iterate token array and updates digest_text.
 */
 void get_digest_text(char* digest_text, PFS_digest_storage* digest_storage)
 {
@@ -339,13 +320,14 @@ void get_digest_text(char* digest_text, PFS_digest_storage* digest_storage)
   lex_token_string *tok_data;
   char* token_array= digest_storage->m_token_array;
   int byte_count= digest_storage->m_byte_count;
+  
   /* -4 is to make sure extra space for ... and a '\0' at the end. */
-  int available_bytes_to_write= COL_DIGEST_TEXT_SIZE-4;
+  int available_bytes_to_write= COL_DIGEST_TEXT_SIZE - 4;
 
   DBUG_ASSERT(byte_count <= PFS_MAX_DIGEST_STORAGE_SIZE);
 
-  while(current_byte<byte_count &&
-        available_bytes_to_write>0)
+  while(current_byte < byte_count &&
+        available_bytes_to_write > 0)
   {
     read_token(&tok, &current_byte, token_array);
     tok_data= & lex_token_array[tok];
@@ -379,13 +361,11 @@ void get_digest_text(char* digest_text, PFS_digest_storage* digest_storage)
       digest_text++;
     }
 
-    available_bytes_to_write-= digest_text-digest_text_start;
+    available_bytes_to_write-= digest_text - digest_text_start;
     digest_text_start= digest_text;
   }
 
-  /* 
-    Truncate digest text in case of long queries.
-  */
+  /* Truncate digest text in case of long queries. */
   if(digest_storage->m_full)
   {
     strcpy(digest_text,"...");
@@ -412,27 +392,15 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
     return NULL;
   }
 
-  /*
-    Get statement locker state from statement locker
-  */
   statement_state= reinterpret_cast<PSI_statement_locker_state*> (locker);
   DBUG_ASSERT(statement_state != NULL);
 
-  /*
-    Get digest_locker_state from statement_locker_state.
-  */
   state= &statement_state->m_digest_state;
   DBUG_ASSERT(state != NULL);
 
-  /*
-    Take out thread specific statement record. And then digest
-    storage information for this statement from it.
-  */
   digest_storage= &state->m_digest_storage;
 
-  /*
-    Initialize token array and token count to 0.
-  */
+  /* Initialize token array and token count. */
   digest_storage->m_byte_count= PFS_MAX_DIGEST_STORAGE_SIZE;
   state->m_last_id_index= 0;
   while(digest_storage->m_byte_count)
@@ -460,9 +428,6 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
   if( PFS_MAX_DIGEST_STORAGE_SIZE - digest_storage->m_byte_count <
       PFS_SIZE_OF_A_TOKEN)
   {
-    /*
-      If digest storage record is full.
-    */
     digest_storage->m_full= true;
     return NULL;
   }
@@ -594,25 +559,19 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
       char *yytext= lex_token->lex_str.str;
       int yylen= lex_token->lex_str.length;
 
-      /*
-        Add this token to digest storage.
-      */
+      /* Add this token to digest storage. */
       store_token(digest_storage, token);
-      /*
-        Add this identifier's length and string to digest storage.
-      */
+
+      /* Add this identifier's length and string to digest storage. */
       store_identifier(digest_storage, yylen, yytext);
-      /* 
-        Update the index of last identifier found.
-      */
+
+      /* Update the index of last identifier found. */
       state->m_last_id_index= digest_storage->m_byte_count;
       break;
     }
     default:
     {
-      /*
-        Add this token to digest storage.
-      */
+      /* Add this token to digest storage. */
       store_token(digest_storage, token);
       break;
     }
