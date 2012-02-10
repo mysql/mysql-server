@@ -28,12 +28,10 @@ eval CREATE TABLE t1 (a int AUTO_INCREMENT KEY, b char(30))
 INSERT INTO t1 VALUES (NULL, "blue");
 INSERT INTO t1 VALUES (NULL, "red");
 INSERT INTO t1 VALUES (NULL, "yellow");
-INSERT INTO t1 SELECT NULL, b FROM t1;
-INSERT INTO t1 SELECT NULL, b FROM t1;
-INSERT INTO t1 SELECT NULL, b FROM t1;
-INSERT INTO t1 SELECT NULL, b FROM t1;
---echo # Checking if archive file exists in DATA DIRECTORY
+--echo # Checking if archive file exists where we specified in DATA DIRECTORY
 --file_exists $MYSQL_TMP_DIR/archive/t1.ARZ
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 --echo # 
@@ -48,7 +46,7 @@ eval CREATE TABLE t1 (a int AUTO_INCREMENT KEY, b char(30))
 INSERT INTO t1 VALUES (NULL, "blue");
 INSERT INTO t1 VALUES (NULL, "red");
 INSERT INTO t1 VALUES (NULL, "yellow");
---echo # Checking if archive file exists in --datadir
+--echo # Checking if archive file exists in --datadir since DATA DIRECTORY was ignored.
 --file_exists $MYSQLD_DATADIR/test/t1.ARZ
 DROP TABLE t1;
 set @@sql_mode=@org_mode;
