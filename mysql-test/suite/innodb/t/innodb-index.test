@@ -376,3 +376,18 @@ disconnect b;
 
 DROP TABLE t1,t2;
 
+#
+# Test for BUG# 12739098, check whether trx->error_status is reset on error.
+#
+CREATE TABLE t1(c1 INT NOT NULL, c2 INT, PRIMARY KEY(c1)) Engine=InnoDB;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
+
+# System variable 'debug' exists only in servers built with debug engabled.
+--error 0, ER_UNKNOWN_SYSTEM_VARIABLE
+SET SESSION DEBUG='+d,ib_build_indexes_too_many_concurrent_trxs, ib_rename_indexes_too_many_concurrent_trxs, ib_drop_index_too_many_concurrent_trxs';
+--error ER_TOO_MANY_CONCURRENT_TRXS
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
