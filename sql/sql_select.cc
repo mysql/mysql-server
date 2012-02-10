@@ -1510,7 +1510,10 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 	instead of JT_REF_OR_NULL in case if field can't be null
       */
       if ((keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL) && maybe_null)
-	null_ref_key= key_buff;
+      {
+        DBUG_ASSERT(null_ref_key == NULL); // or we would overwrite it below
+        null_ref_key= key_buff;
+      }
       key_buff+=keyinfo->key_part[part_no].store_length;
     }
   } /* not ftkey */

@@ -1713,6 +1713,15 @@ CREATE TABLE t3 (
 
 INSERT INTO t3 VALUES (NULL), (NULL);
 
+# Bug was specific of IN->EXISTS:
+set @old_opt_switch=@@optimizer_switch;
+--disable_query_log
+if (`select locate('materialization', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='materialization=off';
+}
+--enable_query_log
+
 --echo
 
 let query_in=
@@ -1752,6 +1761,7 @@ eval $query_in_toplevel;
 
 
 --echo
+set @@optimizer_switch=@old_opt_switch;
 DROP TABLE t1, t2, t3;
 
 set @@join_buffer_size=default;
