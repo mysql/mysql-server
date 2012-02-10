@@ -98,15 +98,21 @@ perl;
   my $file= $ENV{_BINLOG_FILE};
   $file=~ s/0*([1-9][0-9]*)$//;
   my $number= $1;
-  my $files= join ' ', map { sprintf("%s%06d", $file, $_) } 1 .. $number;
+  my @mysqlbinlog_commands=
+    map { sprintf("$ENV{MYSQL_BINLOG} %s%06d", $file, $_) } 1 .. $number;
   my $n_forks= $ENV{_N_FORKS};
   my $n= $n_forks;
-  my @cmds= ( "echo 'USE test; CALL show_slave_status();'",
-              "echo 'SELECT @@global.gtid_done, @@global.gtid_owned;'",
-              "$ENV{MYSQL_BINLOG} $files" );
+  my @cmd_lists= ( [ "echo 'USE test; CALL show_slave_status();'" ],
+                   [ "echo 'SELECT @@global.gtid_done, @@global.gtid_owned;'" ],
+                   \@mysqlbinlog_commands );
   $n-- while $n && fork;
-  my $cmd= $cmds[$n%@cmds].$mysql_pipe.'>/dev/null';
-  system($cmd) == 0 or die "Error executing running $cmd (n=$n): $!";
+  my $cmd_list= $cmd_lists[$n % @cmd_lists];
+  for my $cmd (@$cmd_list)
+  {
+    # discard stdout from $cmd (redirect to /dev/null is not portable)
+    `$cmd $mysql_pipe`;
+    $? == 0 or die "Error executing running $cmd (n=$n): $!";
+  }
 EOF
 
 --echo ==== Wait for load to finish ====
