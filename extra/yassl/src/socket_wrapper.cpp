@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
     #include <fcntl.h>
 #endif // _WIN32
 
-#if defined(__sun) || defined(__SCO_VERSION__) || defined(__NETWARE__)
+#if defined(__sun) || defined(__SCO_VERSION__)
     #include <sys/filio.h>
 #endif
 
