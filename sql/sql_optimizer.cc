@@ -768,8 +768,10 @@ JOIN::optimize()
         join_tab[0].type= JT_UNIQUE_SUBQUERY;
         error= 0;
         changed= TRUE;
-        engine= new subselect_uniquesubquery_engine(thd, join_tab, unit->item,
-                                                    where);
+        engine= new subselect_indexsubquery_engine(thd, join_tab, unit->item,
+                                                   where, NULL /* having */,
+                                                   false /* check_null */,
+                                                   true /* unique */);
       }
       else if (join_tab[0].type == JT_REF &&
 	       join_tab[0].ref.items[0]->name == in_left_expr_name)
@@ -780,7 +782,7 @@ JOIN::optimize()
         error= 0;
         changed= TRUE;
         engine= new subselect_indexsubquery_engine(thd, join_tab, unit->item,
-                                                   where, NULL, 0);
+                                                   where, NULL, false, false);
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
 	       join_tab[0].ref.items[0]->name == in_left_expr_name &&
@@ -792,7 +794,13 @@ JOIN::optimize()
       conds= remove_additional_cond(conds);
       save_index_subquery_explain_info(join_tab, conds);
       engine= new subselect_indexsubquery_engine(thd, join_tab, unit->item,
-                                                 conds, having, 1);
+                                                 conds, having, true, false);
+      /**
+         @todo Above we passed unique=false. But for this query:
+          (oe1, oe2) IN (SELECT primary_key, non_key_maybe_null_field FROM tbl)
+         we could use "unique=true" for the first index component and let
+         Item_is_not_null_test(non_key_maybe_null_field) handle the second.
+      */
     }
     if (changed)
       DBUG_RETURN(unit->item->change_engine(engine));
@@ -4559,10 +4567,23 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
             Can't optimize datetime_column=indexed_varchar_column,
             also can't use indexes if the effective collation
             of the operation differ from the field collation.
+            IndexedTimeComparedToDate: can't optimize
+            'indexed_time = temporal_expr_with_date_part' because:
+            - without index, a TIME column with value '48:00:00' is equal to a
+            DATETIME column with value 'CURDATE() + 2 days'
+            - with ref access into the TIME column, CURDATE() + 2 days becomes
+            "00:00:00" (Field_timef::store_internal() simply extracts the time
+            part from the datetime) which is a lookup key which does not match
+            "48:00:00"; so ref access is not be able to give the same result
+            as without index, so is disabled.
+            On the other hand, we can optimize indexed_datetime = time
+            because Field_temporal_with_date::store_time() will convert
+            48:00:00 to CURDATE() + 2 days which is the correct lookup key.
           */
           if ((!field->is_temporal() && value[0]->is_temporal()) ||
               (field->cmp_type() == STRING_RESULT &&
-               field->charset() != cond->compare_collation()))
+               field->charset() != cond->compare_collation()) ||
+              field_time_cmp_date(field, value[0]))
           {
             warn_index_not_applicable(stat->join->thd, field, possible_keys);
             return;
@@ -8591,8 +8612,7 @@ static Item *remove_additional_cond(Item* conds)
       where     Subquery's WHERE clause
 
   DESCRIPTION
-    For index lookup-based subquery (i.e. one executed with
-    subselect_uniquesubquery_engine or subselect_indexsubquery_engine),
+    For index lookup-based subquery (subselect_indexsubquery_engine),
     check its EXPLAIN output row should contain 
       "Using index" (TAB_INFO_FULL_SCAN_ON_NULL) 
       "Using Where" (TAB_INFO_USING_WHERE)

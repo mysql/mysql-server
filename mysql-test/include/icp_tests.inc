@@ -862,6 +862,15 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES (1,7,'f');
 
+# Bug was specific of IN->EXISTS:
+set @old_opt_switch=@@optimizer_switch;
+--disable_query_log
+if (`select locate('materialization', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='materialization=off';
+}
+--enable_query_log
+
 let query=
 SELECT t1.i1
 FROM t1
@@ -877,6 +886,7 @@ WHERE t1.i1 NOT IN
 eval EXPLAIN $query;
 eval $query;
 
+set @@optimizer_switch=@old_opt_switch;
 DROP TABLE t1,t2;
 
 --echo #
@@ -909,6 +919,15 @@ CREATE TABLE t3 (
 
 INSERT INTO t3 VALUES (NULL,'w'), (1,NULL), (2,'d');
 
+# Bug was specific of IN->EXISTS:
+set @old_opt_switch=@@optimizer_switch;
+--disable_query_log
+if (`select locate('materialization', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='materialization=off';
+}
+--enable_query_log
+
 let query=
 SELECT i1
 FROM t3
@@ -923,6 +942,7 @@ WHERE c1 IN
 eval EXPLAIN $query;
 eval $query;
 
+set @@optimizer_switch=@old_opt_switch;
 DROP TABLE t1, t2, t3;
 
 --echo #

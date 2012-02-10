@@ -86,9 +86,11 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_MIXED_STATEMENT,
   ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT,
   ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE,
+  ER_BINLOG_UNSAFE_WRITE_AUTOINC_SELECT,
   ER_BINLOG_UNSAFE_REPLACE_SELECT,
   ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT,
   ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC,
   ER_BINLOG_UNSAFE_UPDATE_IGNORE
 };
 
@@ -2520,6 +2522,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
         append_identifier(thd, str, table_name, table_name_length);
         cmp_name= table_name;
       }
+#ifdef WITH_PARTITION_STORAGE_ENGINE
       if (partition_names && partition_names->elements)
       {
         int i, num_parts= partition_names->elements;
@@ -2534,6 +2537,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
         }
         str->append(')');
       }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
     }
     if (my_strcasecmp(table_alias_charset, cmp_name, alias))
     {
