@@ -238,10 +238,15 @@ struct PSI_table_locker_state_v1
   void *m_wait;
   uint m_index;
 };
+typedef struct {
+                 my_bool m_full;
+                 int m_byte_count;
+                 char m_token_array[1024];
+               } PFS_digest_storage;
 struct PSI_digest_locker_state_v1
 {
   int m_last_id_index;
-  void *m_statement;
+  PFS_digest_storage m_digest_storage;
 };
 struct PSI_statement_locker_state_v1
 {
