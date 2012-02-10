@@ -8,12 +8,10 @@ create table t2(a int);
 create table t3(a int, b int);
 create table t4(a int, b int);
 create table t5(a int, b int, c int);
+truncate table performance_schema.events_statements_summary_by_digest;
 ####################################
 # EXECUTION
 ####################################
-update performance_schema.setup_consumers
-set enabled='YES' where name='statements_digest';
-truncate table performance_schema.events_statements_summary_by_digest;
 select 1 from t1;
 1
 select 1,2 from t1;
@@ -64,8 +62,7 @@ drop database statements_digest_temp;
 ####################################
 # QUERYING PS STATEMENT DIGEST
 ####################################
-use performance_schema;
-select DIGEST, DIGEST_TEXT, COUNT_STAR from events_statements_summary_by_digest;
+select DIGEST, DIGEST_TEXT, COUNT_STAR from performance_schema.events_statements_summary_by_digest;
 DIGEST	DIGEST_TEXT	COUNT_STAR
 NULL	NULL	0
 bb399912758e2135	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
@@ -85,11 +82,9 @@ edc61a0866ec47da	INSERT INTO t5 VALUES (...) /* , ... */  	1
 a68272fa2b30c2e3	SELECT ?  	1
 49d23ec9aebe975b	CREATE SCHEMA statements_digest_temp  	2
 d42c9738d3d96889	DROP SCHEMA statements_digest_temp  	2
-33c8d4d29d3c02f3	USE performance_schema  	1
 ####################################
 # CLEANUP
 ####################################
-use statements_digest;
 drop table if exists t1;
 drop table if exists t2;
 drop table if exists t3;

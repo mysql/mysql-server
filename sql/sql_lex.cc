@@ -33,21 +33,24 @@
 #include "sql_optimizer.h"             // JOIN
 
 #ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-#define PASS_TOKEN_TO_PS(_token, _yylval)                                   \
-  /*
-    Passing token to PS function to calculate statement digest
-    for this statement.
-  */                                                                        \
-  if(lip->m_digest_psi != NULL)                                             \
-  {                                                                         \
-    lip->m_digest_psi= PSI_CALL(digest_add_token)(lip->m_digest_psi,        \
-                                                  _token,                   \
-                                                  _yylval->lex_str.str,     \
-                                                  _yylval->lex_str.length); \
+#define PSI_ADD_TOKEN(L, T, Y) inline_add_token(L, T, Y)
+
+static void inline_add_token(Lex_input_stream *lip,
+                             uint token,
+                             YYSTYPE *yylval)
+{
+  if (lip->m_digest_psi != NULL)
+  {
+    /*
+      Passing token to PS function to calculate statement digest
+      for this statement.
+    */
+    lip->m_digest_psi= PSI_CALL(digest_add_token)
+      (lip->m_digest_psi, token, (OPAQUE_LEX_YYSTYPE*) yylval);
   }
+}
 #else
-#define PASS_TOKEN_TO_PS(_token, _yylval)                                   \
-  do{}while(0);
+#define PSI_ADD_TOKEN(L, T, Y) do {} while(0)
 #endif
 
 static int lex_one_token(void *arg, void *yythd);
@@ -900,7 +903,7 @@ int MYSQLlex(void *arg, void *yythd)
     lip->lookahead_token= -1;
     *yylval= *(lip->lookahead_yylval);
     lip->lookahead_yylval= NULL;
-    PASS_TOKEN_TO_PS(token, yylval);
+    PSI_ADD_TOKEN(lip, token, yylval);
     return token;
   }
 
@@ -918,10 +921,10 @@ int MYSQLlex(void *arg, void *yythd)
     token= lex_one_token(arg, yythd);
     switch(token) {
     case CUBE_SYM:
-      PASS_TOKEN_TO_PS(WITH_CUBE_SYM, yylval);
+      PSI_ADD_TOKEN(lip, WITH_CUBE_SYM, yylval);
       return WITH_CUBE_SYM;
     case ROLLUP_SYM:
-      PASS_TOKEN_TO_PS(WITH_ROLLUP_SYM, yylval);
+      PSI_ADD_TOKEN(lip, WITH_ROLLUP_SYM, yylval);
       return WITH_ROLLUP_SYM;
     default:
       /*
@@ -930,7 +933,7 @@ int MYSQLlex(void *arg, void *yythd)
       lip->lookahead_yylval= lip->yylval;
       lip->yylval= NULL;
       lip->lookahead_token= token;
-      PASS_TOKEN_TO_PS(WITH, yylval);
+      PSI_ADD_TOKEN(lip, WITH, yylval);
       return WITH;
     }
     break;
@@ -938,7 +941,7 @@ int MYSQLlex(void *arg, void *yythd)
     break;
   }
 
-  PASS_TOKEN_TO_PS(token, yylval);
+  PSI_ADD_TOKEN(lip, token, yylval);
   return token;
 }
 

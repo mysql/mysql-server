@@ -5,125 +5,18 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---echo ####################################
---echo # SETUP
---echo ####################################
-# Database setup
---disable_warnings
-create database statements_digest;
---enable_warnings
-use statements_digest;
-
-# Table set up for queries
---disable_warnings
-create table t1(a int);
-create table t2(a int);
-create table t3(a int, b int);
-create table t4(a int, b int);
-create table t5(a int, b int, c int);
---enable_warnings
-
---echo ####################################
---echo # EXECUTION
---echo ####################################
-# Enable statements_digest consumer
-update performance_schema.setup_consumers
-  set enabled='YES' where name='statements_digest';
+# Initial Setup for Digest
+--source include/digest_setup.inc
 
 truncate table performance_schema.events_statements_summary_by_digest;
-# -----------------------------------
-# SQL Queries to test normalizations.
-# -----------------------------------
-select 1 from t1;
-select 1,2 from t1;
-select 1, 2, 3, 4 from t1;
-select 1 from t2;
-select 1,2 from t2;
-select 1, 2, 3, 4 from t2;
 
-# (NUM) => (#)
-insert into t1 values (1);
-insert into t2 values (1);
-
-# (NUM,NUM) => (#,#)
-insert into t3 values (1, 2);
-insert into t4 values (1, 2);
-# (NUM,NUM,NUM) => (#,#)
-insert into t5 values (1, 2, 3);
-
-# (NUM),(NUM) => (#),(#)
-insert into t1 values (1), (2), (3);
-# (NUM),(NUM),(NUM) => (#),(#)
-insert into t1 values (1), (2), (3), (4);
-
-# (NUM,NUM),(NUM,NUM) => (#,#),(#,#)
-insert into t3 values (1, 2), (3, 4), (5, 6);
-# (NUM,NUM,NUM),(NUM,NUM,NUM),(NUM,NUM,NUM) => (#,#),(#,#)
-insert into t5 values (1, 2, 3), (4, 5, 6), (7, 8, 9);
-
-# -----------------------------------------------------------------------
-# Test case for handling spaces in statement.
-# -----------------------------------------------------------------------
-
-SELECT                                          1           +        1;
-
-# -----------------------------------------------------------------------
-# Test case for handling comments.
-# -----------------------------------------------------------------------
-
-# comment starting with "--"
-# TODO : SELECT 1; -- This comment continues to the end of line
-# comment starting from "#"
-SELECT 1; # This comment continues to the end of line
-
-# Inline comment
-SELECT 1 /* This is an inline comment */ + 1;
-
-# Multiple line comments
- SELECT 1+
- /*
- this is a
- multiple-line comment
- */
- 1;
-
-
-# -----------------------------------------------------------------------
-# Tests to show how the digest behaves with tokens that can have multiple
-# names (such as DATABASE = "DATABASE" or "SCHEMA", SUBSTRING, STD_SYM,
-# VARIANCE_SYM ... ) 
-# -----------------------------------------------------------------------
-
---disable_warnings
-create schema statements_digest_temp;
-drop schema statements_digest_temp;
-create database statements_digest_temp;
-drop database statements_digest_temp;
-# TODO : add more
---enable_warnings
-
-# -----------------------------------------------------------------------
-# Tests to show how the digest tables behaves when it is full (special NULL
-# entry) 
-# -----------------------------------------------------------------------
-# TODO:
+# Executing queries
+--source include/digest_execution.inc
 
 --echo ####################################
 --echo # QUERYING PS STATEMENT DIGEST
 --echo ####################################
+select DIGEST, DIGEST_TEXT, COUNT_STAR from performance_schema.events_statements_summary_by_digest;
 
-use performance_schema;
-select DIGEST, DIGEST_TEXT, COUNT_STAR from events_statements_summary_by_digest;
-
---echo ####################################
---echo # CLEANUP
---echo ####################################
-use statements_digest;
---disable_warnings
-drop table if exists t1;
-drop table if exists t2;
-drop table if exists t3;
-drop table if exists t4;
-drop table if exists t5;
-drop database if exists statements_digest;
---enable_warnings
+# Cleanup for Digest
+--source include/digest_cleanup.inc

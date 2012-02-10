@@ -4212,6 +4212,7 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       pfs->m_sort_scan= 0;
       pfs->m_no_index_used= 0;
       pfs->m_no_good_index_used= 0;
+      pfs->m_statement_digest_stat_ptr= NULL;
 
       /* New stages will have this statement as parent */
       PFS_events_stages *child_stage= & pfs_thread->m_stage_current;
@@ -4521,6 +4522,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   */
   PFS_digest_storage *digest_storage= NULL;
   PFS_statement_stat *digest_stat= NULL;
+  PFS_statements_digest_stat* digest_stat_ptr= NULL;
 
   if (flags & STATE_FLAG_THREAD)
   {
@@ -4530,11 +4532,8 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     stat= & event_name_array[index];
 
-    PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
-    DBUG_ASSERT(pfs != NULL);
-
     /* Set digest stat. */
-    digest_storage= &pfs->m_digest_storage;
+    digest_storage= &state->m_digest_state.m_digest_storage;
 
     /*
       Calculate MD5 Hash of the tokens received.
@@ -4547,15 +4546,17 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     /* 
       Populate PFS_statements_digest_stat with computed digest information.
     */
-    pfs->statement_digest_stat_ptr= 
-                       find_or_create_digest(thread, digest_hash, digest_storage);
-    if(pfs->statement_digest_stat_ptr)
+    digest_stat_ptr= find_or_create_digest(thread, digest_hash, digest_storage);
+    if(digest_stat_ptr)
     {
-      digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
+      digest_stat= &(digest_stat_ptr->m_stat);
     }
 
     if (flags & STATE_FLAG_EVENT)
     {
+      PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
+      DBUG_ASSERT(pfs != NULL);
+
       switch(da->status())
       {
         case Diagnostics_area::DA_EMPTY:
@@ -4582,6 +4583,8 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
       pfs->m_timer_end= timer_end;
       pfs->m_end_event_id= thread->m_event_id;
+
+      pfs->m_statement_digest_stat_ptr= digest_stat_ptr;
   
       if (flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
@@ -4597,11 +4600,8 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
     DBUG_ASSERT(thread != NULL);
 
-    PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
-    DBUG_ASSERT(pfs != NULL);
-
     /* Set digest stat. */
-    digest_storage= &pfs->m_digest_storage;
+    digest_storage= &state->m_digest_state.m_digest_storage;
 
     /*
       Calculate MD5 Hash of the tokens received.
@@ -4614,11 +4614,10 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     /*
        Populate PFS_statements_digest_stat with computed digest information.
     */
-    pfs->statement_digest_stat_ptr= 
-                       find_or_create_digest(thread, digest_hash, digest_storage);
-    if(pfs->statement_digest_stat_ptr)
+    digest_stat_ptr= find_or_create_digest(thread, digest_hash, digest_storage);
+    if(digest_stat_ptr)
     {
-      digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
+      digest_stat= &(digest_stat_ptr->m_stat);
     }
 
     event_name_array= global_instr_class_statements_array;

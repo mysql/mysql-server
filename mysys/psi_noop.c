@@ -616,9 +616,8 @@ digest_start_noop(PSI_statement_locker *locker NNN)
 }
 
 static PSI_digest_locker* digest_add_token_noop(PSI_digest_locker *locker NNN,
-                                uint token NNN,
-                                char *yytext NNN,
-                                int yylen NNN)
+                                                uint token NNN,
+                                                struct OPAQUE_LEX_YYSTYPE *yylval NNN)
 {
   return NULL;
 }
