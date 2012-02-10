@@ -2847,7 +2847,7 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
 
       DBUG_ASSERT(fix_fields_successful);
     }
-    val= fix_fields_successful ? item->val_uint() : HA_POS_ERROR;
+    val= fix_fields_successful ? item->val_uint() : 0;
   }
   else
     val= ULL(0);
