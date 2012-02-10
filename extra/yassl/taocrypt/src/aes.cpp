@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ void AES::Process(byte* out, const byte* in, word32 sz)
             out += BLOCK_SIZE;
             in  += BLOCK_SIZE;
         }
-    else if (mode_ == CBC)    
+    else if (mode_ == CBC) {
         if (dir_ == ENCRYPTION)
             while (blocks--) {
                 r_[0] ^= *(word32*)in;
@@ -78,6 +78,7 @@ void AES::Process(byte* out, const byte* in, word32 sz)
                 out += BLOCK_SIZE;
                 in  += BLOCK_SIZE;
             }
+    }
 }
 
 #endif // DO_AES_ASM

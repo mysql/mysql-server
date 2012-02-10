@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+   Copyright (c) 2005-2007 MySQL AB, 2008-2010 Sun Microsystems, Inc.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -246,6 +246,7 @@ YASSL_SOCKET_T SSL_get_fd(const SSL* ssl)
 }
 
 
+// if you get an error from connect see note at top of README
 int SSL_connect(SSL* ssl)
 {
     if (ssl->GetError() == YasslError(SSL_ERROR_WANT_READ))
@@ -448,6 +449,9 @@ long SSL_CTX_set_session_cache_mode(SSL_CTX* ctx, long mode)
     if (mode == SSL_SESS_CACHE_OFF)
         ctx->SetSessionCacheOff();
 
+    if (mode == SSL_SESS_CACHE_NO_AUTO_CLEAR)
+        ctx->SetSessionCacheFlushOff();
+
     return SSL_SUCCESS;
 }
 
@@ -491,6 +495,15 @@ long SSL_SESSION_set_timeout(SSL_SESSION* sess, long t)
 long SSL_get_default_timeout(SSL* /*ssl*/)
 {
     return DEFAULT_TIMEOUT;
+}
+
+
+void SSL_flush_sessions(SSL_CTX *ctx, long /* tm */)
+{
+    if (ctx->GetSessionCacheOff())
+        return;
+
+    GetSessions().Flush();
 }
 
 
@@ -561,7 +574,7 @@ int SSL_get_error(SSL* ssl, int /*previous*/)
    only need to turn on for client, becuase server on by default if built in
    but calling for server will tell you whether it's available or not
 */
-int SSL_set_compression(SSL* ssl)
+int SSL_set_compression(SSL* ssl)   /* Chad didn't rename to ya~ because it is prob. bug. */
 {
     return ssl->SetCompression();
 }
@@ -605,13 +618,13 @@ char* X509_NAME_oneline(X509_NAME* name, char* buffer, int sz)
 {
     if (!name->GetName()) return buffer;
 
-    size_t len= strlen(name->GetName()) + 1;
-    int copySz = min((int) len, sz);
+    int len    = (int)strlen(name->GetName()) + 1;
+    int copySz = min(len, sz);
 
     if (!buffer) {
         buffer = (char*)malloc(len);
         if (!buffer) return buffer;
-        copySz = (int) len;
+        copySz = len;
     }
 
     if (copySz == 0)
@@ -694,7 +707,7 @@ int SSL_CTX_use_PrivateKey_file(SSL_CTX* ctx, const char* file, int format)
 }
 
 
-void SSL_CTX_set_verify(SSL_CTX* ctx, int mode, VerifyCallback /*vc*/)
+void SSL_CTX_set_verify(SSL_CTX* ctx, int mode, VerifyCallback vc)
 {
     if (mode & SSL_VERIFY_PEER)
         ctx->setVerifyPeer();
@@ -704,6 +717,8 @@ void SSL_CTX_set_verify(SSL_CTX* ctx, int mode, VerifyCallback /*vc*/)
 
     if (mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
         ctx->setFailNoCert();
+
+    ctx->setVerifyCallback(vc);
 }
 
 
@@ -977,7 +992,7 @@ char* ERR_error_string(unsigned long errNumber, char* buffer)
   static char* msg = (char*)"Please supply a buffer for error string";
 
     if (buffer) {
-        SetErrorString(YasslError(errNumber), buffer);
+        SetErrorString(errNumber, buffer);
         return buffer;
     }
 
@@ -1451,6 +1466,8 @@ unsigned long err_helper(bool peek = false)
     default :
         return 0;
     }
+
+    return 0;  // shut up compiler
 }
 
 

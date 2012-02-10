@@ -1,5 +1,6 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005-2007 MySQL AB, 2008 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -667,10 +668,12 @@ struct Parameters {
     Cipher               suites_[MAX_SUITE_SZ];
     char                 cipher_name_[MAX_SUITE_NAME];
     char                 cipher_list_[MAX_CIPHERS][MAX_SUITE_NAME];
+    bool                 removeDH_;                   // for server's later use
 
     Parameters(ConnectionEnd, const Ciphers&, ProtocolVersion, bool haveDH);
 
-    void SetSuites(ProtocolVersion pv, bool removeDH = false);
+    void SetSuites(ProtocolVersion pv, bool removeDH = false,
+                   bool removeRSA = false, bool removeDSA = false);
     void SetCipherNames();
 private:
     Parameters(const Parameters&);              // hide copy
