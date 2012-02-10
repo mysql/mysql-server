@@ -8,6 +8,20 @@ create table t2(a int);
 create table t3(a int, b int);
 create table t4(a int, b int);
 create table t5(a int, b int, c int);
+select * from performance_schema.setup_consumers;
+NAME	ENABLED
+events_stages_current	YES
+events_stages_history	YES
+events_stages_history_long	YES
+events_statements_current	YES
+events_statements_history	YES
+events_statements_history_long	YES
+events_waits_current	YES
+events_waits_history	YES
+events_waits_history_long	YES
+global_instrumentation	YES
+thread_instrumentation	YES
+statements_digest	NO
 truncate table performance_schema.events_statements_summary_by_digest;
 ####################################
 # EXECUTION
@@ -64,6 +78,10 @@ drop database statements_digest_temp;
 ####################################
 select DIGEST, DIGEST_TEXT, COUNT_STAR from performance_schema.events_statements_summary_by_digest;
 DIGEST	DIGEST_TEXT	COUNT_STAR
+NULL	NULL	0
+select DIGEST, DIGEST_TEXT from performance_schema.events_statements_current;
+DIGEST	DIGEST_TEXT
+NULL	NULL
 ####################################
 # CLEANUP
 ####################################
@@ -73,9 +91,3 @@ drop table if exists t3;
 drop table if exists t4;
 drop table if exists t5;
 drop database if exists statements_digest;
-show variables like "performance_schema_digests_size";
-Variable_name	Value
-performance_schema_digests_size	0
-select count(*) from performance_schema.events_statements_summary_by_digest;
-count(*)
-0
