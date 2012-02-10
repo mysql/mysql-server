@@ -32,14 +32,6 @@ namespace yaSSL {
 
 
 
-// Checking Policy should implement a check function that tests whether the
-// index is within the size limit of the array
-
-void Check::check(uint i, uint limit) 
-{ 
-    assert(i < limit);
-}
-
 
 void NoCheck::check(uint, uint) 
 {
@@ -83,7 +75,6 @@ input_buffer::~input_buffer()
 // users can pass defualt zero length buffer and then allocate
 void input_buffer::allocate(uint s) 
 { 
-    assert(!buffer_);       // find realloc error
     buffer_ = NEW_YS byte[s];
     end_ = buffer_ + s; 
 }
@@ -141,7 +132,6 @@ void input_buffer::set_current(uint i)
 // user passes in AUTO index for ease of use
 const byte& input_buffer::operator[](uint i) 
 {
-    assert (i == AUTO);
     check(current_, size_);
     return buffer_[current_++];
 }
@@ -238,7 +228,6 @@ void output_buffer::set_current(uint c)
 // users can pass defualt zero length buffer and then allocate
 void output_buffer::allocate(uint s) 
 { 
-    assert(!buffer_);   // find realloc error
     buffer_ = NEW_YS byte[s]; end_ = buffer_ + s; 
 }
 
@@ -254,7 +243,6 @@ const byte* output_buffer::get_buffer() const
 // user passes in AUTO as index for ease of use
 byte& output_buffer::operator[](uint i) 
 {
-    assert(i == AUTO);
     check(current_, get_capacity());
     return buffer_[current_++];
 }
