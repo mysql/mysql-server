@@ -1,5 +1,6 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005-2007 MySQL AB, 2008 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +28,13 @@
 #include <stddef.h>
 #include <assert.h>
 #include "type_traits.hpp"
+
+
+#ifdef _MSC_VER
+    // disable conversion warning
+    // 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy
+    #pragma warning(disable:4244 4996)
+#endif
 
 
 namespace yaSSL {
@@ -163,7 +171,7 @@ const int RMD_LEN           =  20;  // RIPEMD-160 digest length
 const int PREFIX            =   3;  // up to 3 prefix letters for secret rounds
 const int KEY_PREFIX        =   7;  // up to 7 prefix letters for key rounds
 const int FORTEZZA_MAX      = 128;  // Maximum Fortezza Key length
-const int MAX_SUITE_SZ      =  64;  // 32 max suites * sizeof(suite)
+const int MAX_SUITE_SZ      = 128;  // 64 max suites * sizeof(suite)
 const int MAX_SUITE_NAME    =  48;  // max length of suite name
 const int MAX_CIPHERS       =  32;  // max supported ciphers for cipher list
 const int SIZEOF_ENUM       =   1;  // SSL considers an enum 1 byte, not 4
@@ -205,6 +213,7 @@ const int SEED_LEN          = RAN_LEN * 2; // TLS seed, client + server random
 const int DEFAULT_TIMEOUT   = 500;  // Default Session timeout in seconds
 const int MAX_RECORD_SIZE   = 16384; // 2^14, max size by standard
 const int COMPRESS_EXTRA    = 1024;  // extra compression possible addition
+const int SESSION_FLUSH_COUNT = 256;  // when to flush session cache
 
 
 typedef uint8 Cipher;             // first byte is always 0x00 for SSLv3 & TLS

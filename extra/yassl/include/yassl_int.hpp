@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,9 +34,8 @@
 #include "openssl/ssl.h"  // ASN1_STRING and DH
 
 // Check if _POSIX_THREADS should be forced
-#if !defined(_POSIX_THREADS) && (defined(__NETWARE__) || defined(__hpux))
+#if !defined(_POSIX_THREADS) && defined(__hpux)
 // HPUX does not define _POSIX_THREADS as it's not _fully_ implemented
-// Netware supports pthreads but does not announce it
 #define _POSIX_THREADS
 #endif
 
@@ -268,12 +267,14 @@ class Sessions {
     STL::list<SSL_SESSION*> list_;
     RandomPool random_;                 // for session cleaning
     Mutex      mutex_;                  // no-op for single threaded
+    int        count_;                  // flush counter
 
-    Sessions() {}                       // only GetSessions can create
+    Sessions() : count_(0) {}           // only GetSessions can create
 public: 
     SSL_SESSION* lookup(const opaque*, SSL_SESSION* copy = 0);
     void         add(const SSL&);
     void         remove(const opaque*);
+    void         Flush();
 
     ~Sessions();
 
@@ -425,8 +426,10 @@ private:
     pem_password_cb passwordCb_;
     void*           userData_;
     bool            sessionCacheOff_;
+    bool            sessionCacheFlushOff_;
     Stats       stats_;
     Mutex       mutex_;         // for Stats
+    VerifyCallback  verifyCallback_;
 public:
     explicit SSL_CTX(SSL_METHOD* meth);
     ~SSL_CTX();
@@ -437,18 +440,22 @@ public:
     const Ciphers&    GetCiphers()  const;
     const DH_Parms&   GetDH_Parms() const;
     const Stats&      GetStats()    const;
+    VerifyCallback    getVerifyCallback() const;
     pem_password_cb   GetPasswordCb() const;
           void*       GetUserData()   const;
           bool        GetSessionCacheOff() const;
+          bool        GetSessionCacheFlushOff() const;
 
     void setVerifyPeer();
     void setVerifyNone();
     void setFailNoCert();
+    void setVerifyCallback(VerifyCallback);
     bool SetCipherList(const char*);
     bool SetDH(const DH&);
     void SetPasswordCb(pem_password_cb cb);
     void SetUserData(void*);
     void SetSessionCacheOff();
+    void SetSessionCacheFlushOff();
    
     void            IncrementStats(StatsField);
     void            AddCA(x509* ca);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+   Copyright (c) 2005-2007 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -25,6 +25,7 @@
 #include "runtime.hpp"
 #include "cert_wrapper.hpp"
 #include "yassl_int.hpp"
+#include "error.hpp"
 
 #if defined(USE_CML_LIB)
     #include "cmapi_cpp.h"
@@ -91,7 +92,7 @@ opaque* x509::use_buffer()
 //CertManager
 CertManager::CertManager()
     : peerX509_(0), verifyPeer_(false), verifyNone_(false), failNoCert_(false),
-      sendVerify_(false)
+      sendVerify_(false), verifyCallback_(0)
 {}
 
 
@@ -152,6 +153,12 @@ void CertManager::setFailNoCert()
 void CertManager::setSendVerify()
 {
     sendVerify_ = true;
+}
+
+
+void CertManager::setVerifyCallback(VerifyCallback vc)
+{
+    verifyCallback_ = vc;
 }
 
 
@@ -237,7 +244,7 @@ uint CertManager::get_privateKeyLength() const
 int CertManager::Validate()
 {
     CertList::reverse_iterator last = peerList_.rbegin();
-    size_t count= peerList_.size();
+    size_t count = peerList_.size();
 
     while ( count > 1 ) {
         TaoCrypt::Source source((*last)->get_buffer(), (*last)->get_length());
@@ -258,7 +265,8 @@ int CertManager::Validate()
         TaoCrypt::Source source((*last)->get_buffer(), (*last)->get_length());
         TaoCrypt::CertDecoder cert(source, true, &signers_, verifyNone_);
 
-        if (int err = cert.GetError().What())
+        int err = cert.GetError().What();
+        if ( err )
             return err;
 
         uint sz = cert.GetPublicKey().size();
@@ -270,13 +278,25 @@ int CertManager::Validate()
         else
             peerKeyType_ = dsa_sa_algo;
 
-        size_t iSz= strlen(cert.GetIssuer()) + 1;
-        size_t sSz= strlen(cert.GetCommonName()) + 1;
-        size_t bSz= strlen(cert.GetBeforeDate()) + 1;
-        size_t aSz= strlen(cert.GetAfterDate()) + 1;
+        size_t iSz = strlen(cert.GetIssuer()) + 1;
+        size_t sSz = strlen(cert.GetCommonName()) + 1;
+        int bSz = (int)strlen(cert.GetBeforeDate()) + 1;
+        int aSz = (int)strlen(cert.GetAfterDate()) + 1;
         peerX509_ = NEW_YS X509(cert.GetIssuer(), iSz, cert.GetCommonName(),
-                                sSz, cert.GetBeforeDate(), (int) bSz,
-                                cert.GetAfterDate(), (int) aSz);
+                                sSz, cert.GetBeforeDate(), bSz,
+                                cert.GetAfterDate(), aSz);
+
+        if (err == TaoCrypt::SIG_OTHER_E && verifyCallback_) {
+            X509_STORE_CTX store;
+            store.error = err;
+            store.error_depth = static_cast<int>(count) - 1;
+            store.current_cert = peerX509_;
+
+            int ok = verifyCallback_(0, &store);
+            if (ok) return 0;
+        }
+
+        if (err == TaoCrypt::SIG_OTHER_E) return err;
     }
     return 0;
 }

@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -187,10 +186,10 @@ Integer AbstractGroup::CascadeScalarMultiply(const Element &x,
 
 struct WindowSlider
 {
-    WindowSlider(const Integer &exp, bool fastNegate,
+    WindowSlider(const Integer &expIn, bool fastNegateIn,
                  unsigned int windowSizeIn=0)
-        : exp(exp), windowModulus(Integer::One()), windowSize(windowSizeIn),
-          windowBegin(0), fastNegate(fastNegate), firstTime(true),
+        : exp(expIn), windowModulus(Integer::One()), windowSize(windowSizeIn),
+          windowBegin(0), fastNegate(fastNegateIn), firstTime(true),
           finished(false)
     {
         if (windowSize == 0)

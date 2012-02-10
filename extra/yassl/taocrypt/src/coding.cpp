@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -185,7 +185,7 @@ void Base64Decoder::Decode()
 {
     word32 bytes = coded_.size();
     word32 plainSz = bytes - ((bytes + (pemLineSz - 1)) / pemLineSz); 
-    plainSz = (plainSz * 3 + 3) / 4;
+    plainSz = ((plainSz * 3) / 4) + 3;
     decoded_.New(plainSz);
 
     word32 i = 0;
