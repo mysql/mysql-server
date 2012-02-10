@@ -413,7 +413,7 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
             .r = 0,
             .txn = txn,
         };
-        yield(log_xcommit, &info, yieldv);
+        log_xcommit(&info);
         r = info.r;
     }
     if (r==0) {
