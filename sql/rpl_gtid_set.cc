@@ -67,14 +67,6 @@ Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
 }
 
 
-/*
-Gtid_set::Gtid_set(Gtid_set *other, enum_return_status *status)
-{
-  init(other->sid_map, other->sid_lock);
-  *status= add_gtid_set(other);
-}
-*/
-
 void Gtid_set::init()
 {
   DBUG_ENTER("Gtid_set::init");
@@ -564,11 +556,11 @@ parse_error:
   RETURN_REPORTED_ERROR;
 }
 
-
 bool Gtid_set::is_valid(const char *text)
 {
   DBUG_ENTER("Gtid_set::is_valid(const char*)");
 
+#ifdef HAVE_NDB_BINLOG
   const char *s= text;
 
   SKIP_WHITESPACE();
@@ -612,6 +604,9 @@ bool Gtid_set::is_valid(const char *text)
   } while (*s == ',');
   if (*s != 0)
     DBUG_RETURN(false);
+#else
+  DBUG_ASSERT(0); /*NOTREACHED*/
+#endif
   DBUG_RETURN(true);
 }
 
@@ -670,6 +665,14 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
   }
   else
   {
+    /*
+      This code is not being used but we will keep it as it may be
+      useful to optimize gtids by avoiding sharing mappings from
+      sid to sidno. For instance, the IO Thread and the SQL Thread
+      may have different mappings in the future.
+    */
+    DBUG_ASSERT(0); /*NOTREACHED*/
+#ifdef NON_DISABLED_GTID
     Sid_map *other_sid_map= other->sid_map;
     for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
          other_sidno++)
@@ -686,6 +689,7 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
                                                    &lock));
       }
     }
+#endif
   }
   RETURN_OK;
 }
@@ -708,6 +712,14 @@ enum_return_status Gtid_set::remove_gtid_set(const Gtid_set *other)
   }
   else
   {
+    /*
+      This code is not being used but we will keep it as it may be
+      useful to optimize gtids by avoiding sharing mappings from
+      sid to sidno. For instance, the IO Thread and the SQL Thread
+      may have different mappings in the future.
+    */
+    DBUG_ASSERT(0); /*NOTREACHED*/
+#ifdef NON_DISABLED_GTID
     Sid_map *other_sid_map= other->sid_map;
     for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
          other_sidno++)
@@ -722,6 +734,7 @@ enum_return_status Gtid_set::remove_gtid_set(const Gtid_set *other)
             remove_gno_intervals(this_sidno, other_ivit, &lock));
       }
     }
+#endif
   }
   RETURN_OK;
 }

@@ -67,16 +67,10 @@ void Mutex_cond_array::enter_cond(THD *thd, int n, PSI_stage_info *stage,
 enum_return_status Mutex_cond_array::ensure_index(int n)
 {
   DBUG_ENTER("Mutex_cond_array::ensure_index");
-  global_lock->assert_some_lock();
+  global_lock->assert_some_wrlock();
   int max_index= get_max_index();
   if (n > max_index)
   {
-    bool is_wrlock= global_lock->is_wrlock();
-    if (!is_wrlock)
-    {
-      global_lock->unlock();
-      global_lock->wrlock();
-    }
     if (n > max_index)
     {
       if (allocate_dynamic(&array, n + 1))
@@ -92,16 +86,9 @@ enum_return_status Mutex_cond_array::ensure_index(int n)
         DBUG_ASSERT(&get_mutex_cond(i)->mutex == &mutex_cond->mutex);
       }
     }
-    if (!is_wrlock)
-    {
-      global_lock->unlock();
-      global_lock->rdlock();
-    }
   }
   RETURN_OK;
 error:
-  global_lock->unlock();
-  global_lock->rdlock();
   BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
   RETURN_REPORTED_ERROR;
 }

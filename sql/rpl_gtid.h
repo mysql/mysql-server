@@ -22,6 +22,7 @@
 
 #include <m_string.h>
 #include <mysqld_error.h>
+#include <my_global.h>
 
 
 /**
@@ -46,6 +47,13 @@
 #include "lf.h"
 #include "my_atomic.h"
 
+/*
+  This macro must be used to filter out parts of the code that
+  is not used now but may be useful in future. In other words,
+  we want to keep such code until we make up our minds on whether
+  it should be removed or not.
+*/
+#undef NON_DISABLED_GTID
 
 #ifndef MYSQL_CLIENT
 class String;
@@ -2039,6 +2047,7 @@ public:
   */
   void wait_for_gtid(THD *thd, const Gtid &gtid);
 #endif // ifndef MYSQL_CLIENT
+#ifdef HAVE_NDB_BINLOG
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at
     least one GTID.  Locks are acquired in order of increasing SIDNO.
@@ -2054,6 +2063,7 @@ public:
     Gtid_set has at least one GTID.
   */
   void broadcast_sidnos(const Gtid_set *set);
+#endif // ifdef HAVE_NDB_BINLOG
   /**
     Ensure that owned_gtids, logged_gtids, lost_gtids, and sid_locks
     have room for at least as many SIDNOs as sid_map.
@@ -2131,12 +2141,15 @@ public:
 #endif
   }
 private:
+#ifdef HAVE_NDB_BINLOG
   /// Lock all SIDNOs owned by the given THD.
   void lock_owned_sidnos(const THD *thd);
+#endif
   /// Unlock all SIDNOs owned by the given THD.
   void unlock_owned_sidnos(const THD *thd);
   /// Broadcast the condition for all SIDNOs owned by the given THD.
   void broadcast_owned_sidnos(const THD *thd);
+
 
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
@@ -2334,6 +2347,7 @@ public:
   enum_add_group_status
     add_logged_group(const THD *thd, my_off_t binlog_offset);
 #endif // ifndef MYSQL_CLIENT
+#ifdef NON_DISABLED_GTID
   /**
     Adds an empty group with the given (SIDNO, GNO) to this cache.
 
@@ -2342,6 +2356,7 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_add_group_status add_empty_group(const Gtid &gtid);
+#endif // ifdef NON_DISABLED_GTID
 #ifndef MYSQL_CLIENT
   /**
     Write all gtids in this cache to the global Gtid_state.
@@ -2561,7 +2576,9 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd);
 int gtid_rollback(THD *thd);
 
 int gtid_acquire_ownership_single(THD *thd);
+#ifdef HAVE_NDB_BINLOG
 int gtid_acquire_ownership_multiple(THD *thd);
+#endif
 
 #endif // ifndef MYSQL_CLIENT
 

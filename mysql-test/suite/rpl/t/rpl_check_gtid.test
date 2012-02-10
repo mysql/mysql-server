@@ -585,12 +585,13 @@ while ($i != 5)
   INSERT INTO t1 VALUES(2);
   COMMIT;
 
+  --let $wait_gtids= query_get_value(SHOW MASTER STATUS, Executed_Gtid_Set, 1)
+
   BEGIN;
   INSERT INTO t1 VALUES(1);
   INSERT INTO t1 VALUES(2);
   COMMIT;
 
-  --let $wait_gtids= query_get_value(SHOW MASTER STATUS, Executed_Gtid_Set, 1)
   --connection slave
   --replace_result $master_uuid MASTER_UUID $slave_uuid SLAVE_UUID
   --disable_result_log
