@@ -371,18 +371,12 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   PFS_statements_digest_stat *pfs= statement->m_statement_digest_stat_ptr;
   if(pfs && pfs->m_digest_storage.m_byte_count != 0)
   {
-    /*
-      Calculate digest from MD5 HASH collected to be shown as
-      DIGEST in this row.
-    */
+    /* Generate the DIGEST text string from the MD5 digest  */
     MD5_HASH_TO_STRING(pfs->m_digest_hash.m_md5,
                        m_row.m_digest.m_digest);
     m_row.m_digest.m_digest_length= 16;
 
-    /* 
-      Caclulate digest_text information from the token array collected
-      to be shown as DIGEST_TEXT column.
-    */ 
+    /* Generate the DIGEST_TEXT string from the token array */
     get_digest_text(m_row.m_digest.m_digest_text, &pfs->m_digest_storage);
     m_row.m_digest.m_digest_text_length= strlen(m_row.m_digest.m_digest_text);
   }

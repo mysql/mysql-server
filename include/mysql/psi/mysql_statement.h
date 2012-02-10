@@ -54,6 +54,14 @@
     NULL
 #endif
 
+#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
+  #define MYSQL_ADD_TOKEN(LOCKER, T, Y) \
+    inline_mysql_add_token(LOCKER, T, Y)
+#else
+  #define MYSQL_ADD_TOKEN(LOCKER, T, Y) \
+    NULL
+#endif
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   #define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN) \
     inline_mysql_start_statement(STATE, K, DB, DB_LEN, __FILE__, __LINE__)
@@ -126,6 +134,18 @@ inline_mysql_digest_start(PSI_statement_locker *locker)
   if (likely(locker != NULL))
     digest_locker= PSI_CALL(digest_start)(locker);
   return digest_locker;
+}
+#endif
+
+#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
+static inline struct PSI_digest_locker *
+inline_mysql_add_token(PSI_digest_locker *locker, uint token,
+                       void *yylval)
+{
+  if (likely(locker != NULL))
+    locker= PSI_CALL(digest_add_token)(locker, token,
+                                      (OPAQUE_LEX_YYSTYPE*)yylval);
+  return locker;
 }
 #endif
 
