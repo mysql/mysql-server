@@ -582,9 +582,16 @@ static int write_one_empty_group_to_cache(THD *thd,
 {
   DBUG_ENTER("write_one_empty_group_to_cache");
   Group_cache *group_cache= &cache_data->group_cache;
-  IO_CACHE *cache= &cache_data->cache_log;
   if (group_cache->contains_gtid(gtid))
     DBUG_RETURN(0);
+  /*
+    Apparently this code is not being called. We need to
+    investigate if this is a bug or this code is not
+    necessary. /Alfranio
+  */
+  DBUG_ASSERT(0); /*NOTREACHED*/
+#ifdef NON_DISABLED_GTID
+  IO_CACHE *cache= &cache_data->cache_log;
   Group_cache::enum_add_group_status status= group_cache->add_empty_group(gtid);
   if (status == Group_cache::ERROR)
     DBUG_RETURN(1);
@@ -593,6 +600,7 @@ static int write_one_empty_group_to_cache(THD *thd,
   Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache(), &spec);
   if (gtid_ev.write(cache) != 0)
     DBUG_RETURN(1);
+#endif
   DBUG_RETURN(0);
 }
 
@@ -608,6 +616,13 @@ static int write_empty_groups_to_cache(THD *thd, binlog_cache_data *cache_data)
   DBUG_ENTER("write_empty_groups_to_cache");
   if (thd->owned_gtid.sidno == -1)
   {
+    /*
+      Apparently this code is not being called. We need to
+      investigate if this is a bug or this code is not
+      necessary. /Alfranio
+    */
+    DBUG_ASSERT(0); /*NOTREACHED*/
+#ifdef NON_DISABLED_GTID
     Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
     Gtid gtid= git.get();
     while (gtid.sidno != 0)
@@ -617,6 +632,7 @@ static int write_empty_groups_to_cache(THD *thd, binlog_cache_data *cache_data)
       git.next();
       gtid= git.get();
     }
+#endif
   }
   else if (thd->owned_gtid.sidno > 0)
     if (write_one_empty_group_to_cache(thd, cache_data, thd->owned_gtid) != 0)

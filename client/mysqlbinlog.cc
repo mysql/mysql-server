@@ -1650,7 +1650,7 @@ static Exit_status dump_log_entries(const char* logname)
 {
   DBUG_ENTER("dump_log_entries");
 
-  Exit_status rc;
+  Exit_status rc= OK_CONTINUE;
   PRINT_EVENT_INFO print_event_info;
   if (!print_event_info.init_ok())
     DBUG_RETURN(ERROR_STOP);

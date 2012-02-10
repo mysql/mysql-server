@@ -87,6 +87,12 @@ bool Group_cache::contains_gtid(const Gtid &gtid) const
 }
 
 
+/*
+  Apparently this code is not being called. We need to
+  investigate if this is a bug or this code is not
+  necessary. /Alfranio
+*/
+#ifdef NON_DISABLED_GTID
 Group_cache::enum_add_group_status
 Group_cache::add_empty_group(const Gtid &gtid)
 {
@@ -115,6 +121,7 @@ Group_cache::add_empty_group(const Gtid &gtid)
   }
   DBUG_RETURN(APPEND_NEW_GROUP);
 }
+#endif
 
 
 enum_return_status Group_cache::generate_automatic_gno(THD *thd)

@@ -106,6 +106,7 @@ int gtid_acquire_ownership_single(THD *thd)
   Acquire ownership of all groups in a Gtid_set.  This is used to
   begin a commit-sequence when @@SESSION.GTID_NEXT_LIST != NULL.
 */
+#ifdef HAVE_NDB_BINLOG
 int gtid_acquire_ownership_multiple(THD *thd)
 {
   const Gtid_set *gtid_next_list= thd->get_gtid_next_list_const();
@@ -215,6 +216,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
 
   DBUG_RETURN(ret);
 }
+#endif
 
 
 enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
@@ -294,6 +296,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
   }
   else
   {
+#ifdef HAVE_NDB_BINLOG 
     switch (gtid_next->type)
     {
     case AUTOMATIC_GROUP:
@@ -327,6 +330,9 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
     case INVALID_GROUP:
       DBUG_ASSERT(0);/*NOTREACHED*/
     }
+#else
+    DBUG_ASSERT(0);/*NOTREACHED*/
+#endif
   }
   DBUG_ASSERT(0);/*NOTREACHED*/
   DBUG_RETURN(GTID_STATEMENT_CANCEL);

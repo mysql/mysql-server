@@ -1857,7 +1857,7 @@ public:
   { DBUG_ASSERT(FALSE); return NULL; }
 };
 
-
+#ifdef HAVE_NDB_BINLOG
 /**
   Class for variables that store values of type Gtid_set.
 
@@ -1978,6 +1978,7 @@ public:
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   { DBUG_ASSERT(FALSE); return NULL; }
 };
+#endif
 
 
 /**

@@ -3857,20 +3857,6 @@ static Sys_var_ulong Sys_sp_cache_size(
        VALID_RANGE(256, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
 
 #ifdef HAVE_REPLICATION
-
-static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
-{
-  DBUG_ENTER("check_gtid_next_list");
-  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_NEXT_LIST");
-  if (check_top_level_stmt_and_super(self, thd, var) ||
-      check_outside_transaction(self, thd, var))
-    DBUG_RETURN(true);
-  if (gtid_mode == 0 && var->save_result.string_value.str != NULL)
-    my_error(ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF,
-             MYF(0));
-  DBUG_RETURN(false);
-}
-
 static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_next");
@@ -3955,19 +3941,33 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
   DBUG_RETURN(false);
 }
 
-static bool update_gtid_next_list(sys_var *self, THD *thd, enum_var_type type)
-{
-  DBUG_ASSERT(type == OPT_SESSION);
-  if (thd->get_gtid_next_list() != NULL)
-    return gtid_acquire_ownership_multiple(thd) != 0 ? true : false;
-  return false;
-}
-
 static bool update_gtid_next(sys_var *self, THD *thd, enum_var_type type)
 {
   DBUG_ASSERT(type == OPT_SESSION);
   if (thd->variables.gtid_next.type == GTID_GROUP)
     return gtid_acquire_ownership_single(thd) != 0 ? true : false;
+  return false;
+}
+
+#ifdef HAVE_NDB_BINLOG
+static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
+{
+  DBUG_ENTER("check_gtid_next_list");
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_NEXT_LIST");
+  if (check_top_level_stmt_and_super(self, thd, var) ||
+      check_outside_transaction(self, thd, var))
+    DBUG_RETURN(true);
+  if (gtid_mode == 0 && var->save_result.string_value.str != NULL)
+    my_error(ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF,
+             MYF(0));
+  DBUG_RETURN(false);
+}
+
+static bool update_gtid_next_list(sys_var *self, THD *thd, enum_var_type type)
+{
+  DBUG_ASSERT(type == OPT_SESSION);
+  if (thd->get_gtid_next_list() != NULL)
+    return gtid_acquire_ownership_multiple(thd) != 0 ? true : false;
   return false;
 }
 
@@ -3982,6 +3982,7 @@ static Sys_var_gtid_set Sys_gtid_next_list(
        ON_UPDATE(update_gtid_next_list)
 );
 export sys_var *Sys_gtid_next_list_ptr= &Sys_gtid_next_list;
+#endif
 
 static Sys_var_gtid_specification Sys_gtid_next(
        "gtid_next",
