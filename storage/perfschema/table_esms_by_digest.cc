@@ -29,6 +29,7 @@
 #include "pfs_timer.h"
 #include "pfs_visitor.h"
 #include "table_esms_by_digest.h"
+#include "pfs_digest.h"
 
 THR_LOCK table_esms_by_digest::m_table_lock;
 
@@ -227,20 +228,17 @@ int table_esms_by_digest::rnd_next(void)
   if(statements_digest_stat_array == NULL)
     return HA_ERR_END_OF_FILE;
 
-  m_pos.set_at(&m_next_pos);
-  digest_stat= &statements_digest_stat_array[m_pos.m_index];
-
-  /* 
-    If byte_count is not 0 i.e. its a valid entry in stat array or
-    If it is a record at index 0 of statements_digest_stat_array,
-    make a new row.
-  */
-  if(digest_stat->m_digest_storage.m_byte_count != 0 ||
-     m_pos.m_index == 0)
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.m_index < digest_max;
+       m_pos.next())
   {
-    make_row(digest_stat);
-    m_next_pos.set_after(&m_pos);
-    return 0;
+    digest_stat= &statements_digest_stat_array[m_pos.m_index];
+    if(digest_stat->m_digest_storage.m_byte_count != 0)
+    {
+      make_row(digest_stat);
+      m_next_pos.set_after(&m_pos);
+      return 0;
+    }
   }
 
   return HA_ERR_END_OF_FILE;
