@@ -810,25 +810,12 @@ static int check_connection(THD *thd)
   thd->client_capabilities= uint2korr(net->read_pos);
   if (thd->client_capabilities & CLIENT_PROTOCOL_41)
   {
-    if (pkt_len < 32)
+    if (pkt_len < 4)
       goto error;
 
     thd->client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
-    thd->max_client_packet_length= uint4korr(net->read_pos+4);
-    DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
-    if (thd_init_client_charset(thd, (uint) net->read_pos[8]))
-      return 1;
-    thd->update_charset();
-    end= (char*) net->read_pos+32;
   }
-  else
-  {
-    if (pkt_len < 5)
-      goto error;
 
-    thd->max_client_packet_length= uint3korr(net->read_pos+2);
-    end= (char*) net->read_pos+5;
-  }
   /*
     Disable those bits which are not supported by the server.
     This is a precautionary measure, if the client lies. See Bug#27944.
@@ -861,6 +848,26 @@ static int check_connection(THD *thd)
     }
   }
 #endif /* HAVE_OPENSSL */
+  if (thd->client_capabilities & CLIENT_PROTOCOL_41)
+  {
+    if (pkt_len < 32)
+      goto error;
+
+    thd->max_client_packet_length= uint4korr(net->read_pos+4);
+    DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
+    if (thd_init_client_charset(thd, (uint) net->read_pos[8]))
+      return 1;
+    thd->update_charset();
+    end= (char*) net->read_pos+32;
+  }
+  else
+  {
+    if (pkt_len < 5)
+      goto error;
+
+    thd->max_client_packet_length= uint3korr(net->read_pos+2);
+    end= (char*) net->read_pos+5;
+  }
 
   if (end >= (char*) net->read_pos+ pkt_len +2)
     goto error;
