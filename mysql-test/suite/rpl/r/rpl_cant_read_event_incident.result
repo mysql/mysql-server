@@ -15,5 +15,5 @@ Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary 
 reset master;
 stop slave;
 reset slave;
-drop table t;
+drop table if exists t;
 End of the tests

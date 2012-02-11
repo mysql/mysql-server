@@ -69,6 +69,12 @@ reset master;
 --connection slave
 stop slave;
 reset slave;
-drop table t; # table was created from binlog. it does not exist on master.
+# The table t may have been created on the slave from binlog. It does not exist
+# on the master.
+# "May", as it depends on whether the SQL thread had time do do the CREATE
+# TABLE before we stopped.
+--disable_warnings
+drop table if exists t;
+--enable_warnings
 
 --echo End of the tests
