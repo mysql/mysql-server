@@ -31,6 +31,7 @@
 extern bool flag_statements_digest;
 extern unsigned int statements_digest_size;
 extern unsigned int digest_index;
+extern ulong digest_max;
 struct PFS_thread;
 
 /**
@@ -67,7 +68,7 @@ struct PFS_statements_digest_stat
   void reset();
 };
 
-int init_digest(unsigned int digest_sizing);
+int init_digest(const PFS_global_param *param);
 void cleanup_digest();
 
 int init_digest_hash(void);

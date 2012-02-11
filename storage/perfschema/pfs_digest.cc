@@ -56,7 +56,8 @@
   <SELECT_TOKEN><*><FROM_TOKEN><ID_TOKEN><2><T1>
 */
 
-unsigned int statements_digest_size= 0;
+ulong digest_max= 0;
+
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
 PFS_statements_digest_stat *statements_digest_stat_array= NULL;
 /** Consumer flag for table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
@@ -74,24 +75,26 @@ static bool digest_hash_inited= false;
   Initialize table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST.
   @param digest_sizing      
 */
-int init_digest(unsigned int statements_digest_sizing)
+int init_digest(const PFS_global_param *param)
 {
   unsigned int index;
+
+  digest_max= param->m_digest_sizing;
 
   /* 
     Allocate memory for statements_digest_stat_array based on 
     performance_schema_digests_size values
   */
-  statements_digest_size= statements_digest_sizing;
+  digest_max= param->m_digest_sizing;
  
-  if (statements_digest_size == 0)
+  if (digest_max == 0)
     return 0;
 
   statements_digest_stat_array=
-    PFS_MALLOC_ARRAY(statements_digest_size, PFS_statements_digest_stat,
+    PFS_MALLOC_ARRAY(digest_max, PFS_statements_digest_stat,
                      MYF(MY_ZEROFILL));
    
-  for (index= 0; index < statements_digest_size; index++)
+  for (index= 0; index < digest_max; index++)
   {
     statements_digest_stat_array[index].reset();
   }
@@ -219,7 +222,7 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_hash d_hash,
     
     digest_index++;
     
-    if(digest_index%statements_digest_size == 0)
+    if(digest_index % digest_max == 0)
     {
       /* 
         Digest stat array is full. Now stat for all further 
@@ -297,7 +300,7 @@ void reset_esms_by_digest()
     return;
 
   /* Reset statements_digest_stat_array. */
-  for (index= 0; index < statements_digest_size; index++)
+  for (index= 0; index < digest_max; index++)
   {
     statements_digest_stat_array[index].reset();
   }
