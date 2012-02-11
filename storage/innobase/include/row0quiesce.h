@@ -43,9 +43,10 @@ row_quiesce_table_start(
 	void*		thd);		/*!< in/out: session */
 
 /*********************************************************************//**
-Set a table's quiesce state. */
+Set a table's quiesce state.
+@return DB_SUCCESS or errro code. */
 UNIV_INTERN
-void
+db_err
 row_quiesce_set_state(
 /*==================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */

@@ -214,9 +214,10 @@ row_quiesce_table_complete(
 }
 
 /*********************************************************************//**
-Set a table's quiesce state. */
+Set a table's quiesce state.
+@return DB_SUCCESS or error code. */
 UNIV_INTERN
-void
+db_err
 row_quiesce_set_state(
 /*==================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
@@ -225,6 +226,31 @@ row_quiesce_set_state(
 {
 	dict_index_t*	index;
 
+	if (srv_n_purge_threads == 0) {
+
+		ib_pushf(thd,
+			 IB_LOG_LEVEL_WARN,
+			 ER_NOT_SUPPORTED_YET,
+			 "Requires with --innodb-purge-threads > 0");
+
+		return(DB_UNSUPPORTED);
+
+	} else if (table->space == TRX_SYS_SPACE) {
+
+		char 	table_name[MAX_FULL_NAME_LEN + 1];
+
+		innobase_format_name(
+			table_name, sizeof(table_name), table->name, FALSE);
+
+		ib_pushf(thd,
+			 IB_LOG_LEVEL_WARN,
+			 ER_NOT_SUPPORTED_YET,
+			"Can't quiesce table '%s' it is in the system "
+			"tablespace", table->name);
+
+		return(DB_UNSUPPORTED);
+	}
+
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
@@ -232,28 +258,21 @@ row_quiesce_set_state(
 		rw_lock_x_lock(&index->lock);
 	}
 
-	if (srv_n_purge_threads == 0) {
-		ib_logf("Needs --innodb-purge-threads > 0");
-	} else if (table->space == TRX_SYS_SPACE) {
-		ib_logf("Can't quiesce system tablespace");
-	} else {
+	switch (state) {
+	case QUIESCE_START:
+		ut_a(table->quiesce == QUIESCE_NONE);
+		break;
 
-		switch (state) {
-		case QUIESCE_START:
-			ut_a(table->quiesce == QUIESCE_NONE);
-			break;
+	case QUIESCE_COMPLETE:
+		ut_a(table->quiesce == QUIESCE_START);
+		break;
 
-		case QUIESCE_COMPLETE:
-			ut_a(table->quiesce == QUIESCE_START);
-			break;
-
-		case QUIESCE_NONE:
-			ut_a(table->quiesce == QUIESCE_COMPLETE);
-			break;
-		}
-
-		table->quiesce = state;
+	case QUIESCE_NONE:
+		ut_a(table->quiesce == QUIESCE_COMPLETE);
+		break;
 	}
+
+	table->quiesce = state;
 
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
@@ -261,5 +280,7 @@ row_quiesce_set_state(
 
 		rw_lock_x_unlock(&index->lock);
 	}
+
+	return(DB_SUCCESS);
 }
 

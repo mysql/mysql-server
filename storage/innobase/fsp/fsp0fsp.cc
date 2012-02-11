@@ -783,8 +783,6 @@ fsp_header_init_fields(
 {
 	fsp_flags_validate(flags);
 
-	fprintf(stderr, "flags: %lu\n", flags);
-
 	mach_write_to_4(FSP_HEADER_OFFSET + FSP_SPACE_ID + page,
 			space_id);
 	mach_write_to_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page,
