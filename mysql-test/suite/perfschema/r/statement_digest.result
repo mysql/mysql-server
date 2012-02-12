@@ -1,38 +1,38 @@
 ####################################
 # SETUP
 ####################################
-create database statements_digest;
-use statements_digest;
-create table t1(a int);
-create table t2(a int);
-create table t3(a int, b int);
-create table t4(a int, b int);
-create table t5(a int, b int, c int);
-truncate table performance_schema.events_statements_summary_by_digest;
+CREATE DATABASE statements_digest;
+USE statements_digest;
+CREATE TABLE t1(a int);
+CREATE TABLE t2(a int);
+CREATE TABLE t3(a int, b int);
+CREATE TABLE t4(a int, b int);
+CREATE TABLE t5(a int, b int, c int);
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 ####################################
 # EXECUTION
 ####################################
-select 1 from t1;
+SELECT 1 FROM t1;
 1
-select 1,2 from t1;
+SELECT 1,2 FROM t1;
 1	2
-select 1, 2, 3, 4 from t1;
+SELECT 1, 2, 3, 4 FROM t1;
 1	2	3	4
-select 1 from t2;
+SELECT 1 FROM t2;
 1
-select 1,2 from t2;
+SELECT 1,2 FROM t2;
 1	2
-select 1, 2, 3, 4 from t2;
+SELECT 1, 2, 3, 4 FROM t2;
 1	2	3	4
-insert into t1 values (1);
-insert into t2 values (1);
-insert into t3 values (1, 2);
-insert into t4 values (1, 2);
-insert into t5 values (1, 2, 3);
-insert into t1 values (1), (2), (3);
-insert into t1 values (1), (2), (3), (4);
-insert into t3 values (1, 2), (3, 4), (5, 6);
-insert into t5 values (1, 2, 3), (4, 5, 6), (7, 8, 9);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1, 2);
+INSERT INTO t4 VALUES (1, 2);
+INSERT INTO t5 VALUES (1, 2, 3);
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t3 VALUES (1, 2), (3, 4), (5, 6);
+INSERT INTO t5 VALUES (1, 2, 3), (4, 5, 6), (7, 8, 9);
 SELECT                                          1           +        1;
 1           +        1
 2
@@ -55,16 +55,15 @@ multiple-line comment
 */
 1
 2
-create schema statements_digest_temp;
-drop schema statements_digest_temp;
-create database statements_digest_temp;
-drop database statements_digest_temp;
+CREATE SCHEMA statements_digest_temp;
+DROP SCHEMA statements_digest_temp;
+CREATE DATABASE statements_digest_temp;
+DROP DATABASE statements_digest_temp;
 ####################################
 # QUERYING PS STATEMENT DIGEST
 ####################################
-select DIGEST, DIGEST_TEXT, COUNT_STAR from performance_schema.events_statements_summary_by_digest;
-DIGEST	DIGEST_TEXT	COUNT_STAR
-NULL	NULL	0
+SELECT digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
+digest	digest_text	count_star
 bb399912758e2135	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
 c4cdaf6f814e367d	SELECT ? FROM t1  	1
 58681943ba1f6965	SELECT ?, ... FROM t1  	2
@@ -85,9 +84,9 @@ d42c9738d3d96889	DROP SCHEMA statements_digest_temp  	2
 ####################################
 # CLEANUP
 ####################################
-drop table if exists t1;
-drop table if exists t2;
-drop table if exists t3;
-drop table if exists t4;
-drop table if exists t5;
-drop database if exists statements_digest;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+DROP TABLE IF EXISTS t4;
+DROP TABLE IF EXISTS t5;
+DROP DATABASE IF EXISTS statements_digest;
