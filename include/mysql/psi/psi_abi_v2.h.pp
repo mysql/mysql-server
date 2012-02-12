@@ -40,6 +40,7 @@ typedef struct PSI_file_locker PSI_file_locker;
 struct PSI_socket_locker;
 typedef struct PSI_socket_locker PSI_socket_locker;
 struct PSI_digest_locker;
+typedef struct PSI_digest_locker PSI_digest_locker;
 enum PSI_mutex_operation
 {
   PSI_MUTEX_LOCK= 0,
