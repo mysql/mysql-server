@@ -25,8 +25,6 @@
 #include "my_sys.h"
 #include "mysql/psi/psi.h"
 
-typedef struct PSI_digest_locker PSI_digest_locker;
-
 C_MODE_START
 
 #define NNN __attribute__((unused))
@@ -441,7 +439,7 @@ static void start_stage_noop(PSI_stage_key key NNN,
   return;
 }
 
-static void end_stage_noop()
+static void end_stage_noop(void)
 {
   return;
 }
@@ -615,9 +613,10 @@ digest_start_noop(PSI_statement_locker *locker NNN)
   return NULL;
 }
 
-static PSI_digest_locker* digest_add_token_noop(PSI_digest_locker *locker NNN,
-                                                uint token NNN,
-                                                struct OPAQUE_LEX_YYSTYPE *yylval NNN)
+static PSI_digest_locker*
+digest_add_token_noop(PSI_digest_locker *locker NNN,
+                      uint token NNN,
+                      struct OPAQUE_LEX_YYSTYPE *yylval NNN)
 {
   return NULL;
 }
