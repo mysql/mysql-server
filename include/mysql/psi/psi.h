@@ -352,6 +352,7 @@ typedef struct PSI_socket_locker PSI_socket_locker;
   This is an opaque structure.
 */
 struct PSI_digest_locker;
+typedef struct PSI_digest_locker PSI_digest_locker;
 
 /** Operation performed on an instrumented mutex. */
 enum PSI_mutex_operation
