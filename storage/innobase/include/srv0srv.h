@@ -705,20 +705,6 @@ const char*
 srv_any_background_threads_are_active(void);
 /*=======================================*/
 
-/*************************************************************//**
-Copy the file path component of the physical file to parameter. It will
-copy up to and including the terminating path separator.
-@return number of bytes copied or ULINT_UNDEFINED if destination buffer
-	is smaller than the path to be copied. */
-UNIV_INTERN
-ulint
-srv_path_copy(
-/*==========*/
-	char*		dest,		/*!< out: destination buffer */
-	ulint		dest_len,	/*!< in: max bytes to copy */
-	const char*	basedir,	/*!< in: base directory */
-	const char*	table_name);	/*!< in: source table name */
-
 /**********************************************************************//**
 Wakeup the purge threads. */
 UNIV_INTERN
