@@ -5,12 +5,12 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
-use performance_schema;
+USE performance_schema;
 truncate table events_statements_summary_by_digest;
 
 # -----------------------------------------------------------------------
 # Test to show how the digest behaves with long queries, when the token
-# stream is truncated (digest text should end with "...") 
+# stream is truncated (digest text should end with "...")
 # NOTE: For this test case to run, we need to start mysql server
 # with bigger stack using "--thread_stack=#" option.
 # -----------------------------------------------------------------------
@@ -19,4 +19,4 @@ SELECT 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1
 --echo ####################################
 --echo # QUERYING PS STATEMENT DIGEST
 --echo ####################################
-select DIGEST, DIGEST_TEXT, COUNT_STAR from events_statements_summary_by_digest;
+SELECT digest, digest_text, count_star FROM events_statements_summary_by_digest;
