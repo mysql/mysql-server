@@ -30,13 +30,13 @@ Created 03/15/2011      Jimmy Yang
 
 /* Database name and table name for our metadata "system" tables for
 InnoDB memcache. The table names are the same as those for the
-NDB memcache, so to make the memcache setup compatible between the two.
+NDB memcache, to make the memcache setup compatible between the two.
 There are 3 "system tables":
 1) containers - main configure table contains row describing which InnoDB
 		table is used to store/retrieve Memcached key/value if InnoDB
 		Memcached engine is used
-2) cache_policies - decide whether to use Memcached Default Engine or InnoDB
-		    Memcached Engine to handler the requests
+2) cache_policies - decide whether to use "Memcached Default Engine" or "InnoDB
+		    Memcached Engine" to handler the requests
 3) config_options - for miscellaneous configuration options */
 #define MCI_CFG_DB_NAME			"innodb_memcache"
 #define MCI_CFG_CONTAINER_TABLE		"containers"
@@ -48,8 +48,11 @@ There are 3 "system tables":
 #define FALSE   0
 #endif
 
+/** Max table name length as defined in univ.i */
 #define MAX_TABLE_NAME_LEN      192
 #define MAX_DATABASE_NAME_LEN   MAX_TABLE_NAME_LEN
+#define MAX_FULL_NAME_LEN                               \
+        (MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 14)
 
 /** structure describes each column's basic info (name, field_id etc.) */
 typedef struct meta_columns {
@@ -65,7 +68,7 @@ system tables */
 
 /** Columns in the "containers" system table, this maps the Memcached
 operation to a consistent InnoDB table */
-enum container_cols {
+enum container {
 	CONTAINER_NAME,		/*!< name for this mapping */
 	CONTAINER_DB,		/*!< database name */
 	CONTAINER_TABLE,	/*!< table name */
@@ -83,7 +86,7 @@ enum container_cols {
 };
 
 /** columns in the "cache_policy" table */
-enum cache_policy_cols {
+enum cache_policy {
 	CACHE_POLICY_NAME,	/*!< "name" column, for the "cache_policy"
 				name */
 	CACHE_POLICY_GET,	/*!< "get" column, specifies the cache policy
@@ -98,7 +101,7 @@ enum cache_policy_cols {
 };
 
 /** columns in the "config_options" table */
-enum config_option_cols {
+enum config_opt {
 	CONFIG_OPT_KEY,		/*!< key column in the "config_option" table */
 	CONFIG_OPT_VALUE,	/*!< value column */
 	CONFIG_OPT_NUM_COLS	/*!< number of columns (currently 2) in table */
@@ -130,17 +133,17 @@ typedef struct meta_index {
 
 /** Cache options, tells if we will used Memcached default engine or InnoDB
 Memcached engine to handle the request */
-typedef enum meta_cache_option {
+typedef enum meta_cache_opt {
 	META_CACHE_OPT_INNODB = 1,	/*!< Use InnoDB Memcached Engine only */
 	META_CACHE_OPT_DEFAULT,		/*!< Use Default Memcached Engine
 					only */
 	META_CACHE_OPT_MIX		/*!< Use both, first use default
 					memcached engine */
-} meta_cache_option_t;
+} meta_cache_opt_t;
 
 /** In memory structure contains most necessary metadata info
 to configure an InnoDB Memcached engine */
-typedef struct meta_container_info {
+typedef struct meta_cfg_info {
 	meta_column_t	m_item[CONTAINER_NUM_COLS]; /*!< column info */
 	meta_column_t*	m_add_item;		/*!< additional columns
 						specified for the value field */
@@ -154,38 +157,39 @@ typedef struct meta_container_info {
 						incoming "value" string for
 						multiple columns */
 	int		m_sep_len;		/*!< separator length */
-	meta_cache_option_t m_set_option;	/*!< cache option for "set" */
-	meta_cache_option_t m_get_option;	/*!< cache option for "get" */
-	meta_cache_option_t m_del_option;	/*!< cache option for
+	meta_cache_opt_t m_set_option;		/*!< cache option for "set" */
+	meta_cache_opt_t m_get_option;		/*!< cache option for "get" */
+	meta_cache_opt_t m_del_option;		/*!< cache option for
 						"delete" */
-	meta_cache_option_t m_flush_option;	/*!< cache option for
+	meta_cache_opt_t m_flush_option;	/*!< cache option for
 						"delete" */
-} meta_info_t;
+} meta_cfg_info_t;
 
 /**********************************************************************//**
 This function opens the default configuration table, and find the
 table and column info that used for InnoDB Memcached, and set up
-InnoDB Memcached's meta_info_t structure
-@return TRUE if everything works out fine */
+InnoDB Memcached's meta_cfg_info_t structure
+@return true if everything works out fine */
 bool
 innodb_config(
 /*==========*/
-	meta_info_t*	item);		/*!< out: meta info structure */
+	meta_cfg_info_t*	item);		/*!< out: meta info structure */
 
 /**********************************************************************//**
 This function verifies the table configuration information, and fills
 in columns used for memcached functionalities (cas, exp etc.)
-@return TRUE if everything works out fine */
+@return true if everything works out fine */
 bool
 innodb_verify(
 /*==========*/
-	meta_info_t*	info);		/*!< in: meta info structure */
+	meta_cfg_info_t*	info);		/*!< in: meta info structure */
 
 /**********************************************************************//**
 This function frees meta info structure */
 void
 innodb_config_free(
 /*===============*/
-        meta_info_t*	item);		/*!< in: meta info structure */
+        meta_cfg_info_t*	item);		/*!< in/own: meta info
+						structure */
 
 #endif

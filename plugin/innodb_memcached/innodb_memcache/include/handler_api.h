@@ -148,32 +148,32 @@ are currently disabled and under HANDLER_API_MEMCACHED define
 
 /** structure holds the search field(s) */
 typedef struct field_arg {
-	unsigned int	num_arg;
-	int*		len;
-	char**		value;
+	unsigned int	num_arg;	/*!< number of values */
+	int*		len;		/*!< length array for each value */
+	char**		value;		/*!< ptr array for field values */
 } field_arg_t;
 
 /** Macros to create and instantiate fields */
-#define MCI_FIELD_ADD(m_args, m_fld, m_value, m_len)			\
+#define MCI_FIELD_ADD(M_ARGS, M_FLD, M_VALUE, M_LEN)			\
 	do {								\
-		(m_args)->len[m_fld] = m_len;				\
-		(m_args)->value[m_fld] = (char*)(m_value);		\
+		(M_ARGS)->len[M_FLD] = M_LEN;				\
+		(M_ARGS)->value[M_FLD] = (char*)(M_VALUE);		\
 	} while(0)
 
-#define MCI_FIELD_CREATE(field, num_fld)				\
+#define MCI_FIELD_ALLOC(FIELD, NUM_FLD)					\
 	do {								\
-		field->len = (int*)malloc(num_fld * sizeof(*(field->len)));\
-		memset(field->len, 0, num_fld * sizeof(*(field->len)));	\
-		field->value = (char**)malloc(num_fld			\
-					      * sizeof(*(field->value)));\
-		field->num_arg = num_fld;				\
+		FIELD->len = (int*)malloc((NUM_FLD) * sizeof(*(FIELD->len)));\
+		memset(FIELD->len, 0, (NUM_FLD) * sizeof(*(FIELD->len)));\
+		FIELD->value = (char**)malloc((NUM_FLD)			\
+					      * sizeof(*(FIELD->value)));\
+		FIELD->num_arg = NUM_FLD;				\
 	} while(0)
 
-#define MCI_FIELD_FREE(field)						\
+#define MCI_FIELD_FREE(FIELD)						\
 	do {								\
-		free(field->len);					\
-		free(field->value);					\
-		field->num_arg = 0;					\
+		free(FIELD->len);					\
+		free(FIELD->value);					\
+		FIELD->num_arg = 0;					\
 	} while(0)
 
 /**********************************************************************//**

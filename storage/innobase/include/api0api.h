@@ -1785,7 +1785,13 @@ ib_err_t
 ib_table_name_check(
 /*================*/
 	const char*	name);		/*!< in: table name to check */
+/*****************************************************************//**
+Return isolation configuration set by "innodb_api_trx_level"
+@return trx isolation level*/
 
+ulong
+ib_cfg_trx_level();
+/*==============*/
 
 /* API_END_INCLUDE */
 

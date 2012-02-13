@@ -44,11 +44,22 @@ typedef struct eng_config_info {
 	char*		option_string;		/*!< memcached config option
 						string */
 	void*		cb_ptr;			/*!< call back function ptr */
-	unsigned int	eng_r_batch_size;	/*!< read batch size */
-	unsigned int	eng_w_batch_size;	/*!< write batch size */
+	unsigned int	eng_read_batch_size;	/*!< read batch size */
+	unsigned int	eng_write_batch_size;	/*!< write batch size */
 	bool		enable_binlog;		/*!< whether binlog is
 						enabled */
 } eng_config_info_t;
+
+/**********************************************************************//**
+Unlock a table and commit the transaction
+return 0 if fail to commit the transaction */
+extern
+int
+handler_unlock_table(
+/*=================*/
+	void*	my_thd,			/*!< in: thread */
+	void*	my_table,		/*!< in: Table metadata */
+	int	my_lock_mode);		/*!< in: lock mode */
 
 /*******************************************************************//**
 Get InnoDB Memcached engine handle
@@ -71,7 +82,7 @@ default_handle(
 /*===========*/
 	struct innodb_engine*	eng)
 {
-	return((struct default_engine*) eng->m_default_engine);
+	return((struct default_engine*) eng->default_engine);
 }
 
 /****** Gateway to the default_engine's create_instance() function */
@@ -144,7 +155,7 @@ create_instance(
 
 	/* Now call create_instace() for the default engine */
 	err = create_my_default_instance(interface, get_server_api,
-				       &(innodb_eng->m_default_engine));
+				       &(innodb_eng->default_engine));
 
 	if(err != ENGINE_SUCCESS) {
 		free(innodb_eng);
@@ -192,11 +203,11 @@ innodb_initialize(
 	/* Register the call back function */
 	register_innodb_cb((void*) my_eng_config->cb_ptr);
 
-	innodb_eng->r_batch_size = (my_eng_config->eng_r_batch_size
-					? my_eng_config->eng_r_batch_size
+	innodb_eng->read_batch_size = (my_eng_config->eng_read_batch_size
+					? my_eng_config->eng_read_batch_size
 					: CONN_NUM_READ_COMMIT);
-	innodb_eng->w_batch_size = (my_eng_config->eng_w_batch_size
-					? my_eng_config->eng_w_batch_size
+	innodb_eng->write_batch_size = (my_eng_config->eng_write_batch_size
+					? my_eng_config->eng_write_batch_size
 					: CONN_NUM_WRITE_COMMIT);
 
 	innodb_eng->enable_binlog = my_eng_config->enable_binlog;
@@ -210,9 +221,7 @@ innodb_initialize(
 	/* MEMCACHED_RESOLVE: Set the default write batch size to 1
 	if binlog is turned on */
 	if (innodb_eng->enable_binlog) {
-		innodb_eng->w_batch_size = (innodb_eng->w_batch_size == 32)
-						? 1
-						: innodb_eng->w_batch_size;
+		innodb_eng->write_batch_size = 1;
 	}
 
 	UT_LIST_INIT(innodb_eng->conn_data);
@@ -223,9 +232,9 @@ innodb_initialize(
 		return(ENGINE_TMPFAIL);
 	}
 
-	if (innodb_eng->m_default_engine) {
+	if (innodb_eng->default_engine) {
 		return_status = def_eng->engine.initialize(
-			innodb_eng->m_default_engine,
+			innodb_eng->default_engine,
 			my_eng_config->option_string);
 	}
 
@@ -235,8 +244,8 @@ innodb_initialize(
 extern void handler_close_thd(void*);
 
 /*******************************************************************//**
-Cleanup idle connections if "clear_all" is FALSE, and clean up all
-connections if "clear_all" is TRUE.
+Cleanup idle connections if "clear_all" is false, and clean up all
+connections if "clear_all" is true.
 @return number of connection cleaned */
 static
 int
@@ -255,11 +264,11 @@ innodb_conn_clean(
 	conn_data = UT_LIST_GET_FIRST(engine->conn_data);
 
 	while (conn_data) {
-		bool	stale_data = FALSE;
-		void*	cookie = conn_data->c_cookie;
-		next_conn_data = UT_LIST_GET_NEXT(c_list, conn_data);
+		bool	stale_data = false;
+		void*	cookie = conn_data->conn_cookie;
+		next_conn_data = UT_LIST_GET_NEXT(conn_list, conn_data);
 
-		if (!clear_all && !conn_data->c_in_use) {
+		if (!clear_all && !conn_data->in_use) {
 			innodb_conn_data_t*	check_data;
 			check_data = engine->server.cookie->get_engine_specific(
 				cookie);
@@ -270,37 +279,37 @@ innodb_conn_clean(
 			closed and reopened. So verify and see if our
 			current conn_data is stale */
 			if (!check_data || check_data != conn_data) {
-				stale_data = TRUE;
+				stale_data = true;
 			}
 		}
 
 		/* Either we are clearing all conn_data or this conn_data is
 		not in use */
 		if (clear_all || stale_data) {
-			UT_LIST_REMOVE(c_list, engine->conn_data, conn_data);
+			UT_LIST_REMOVE(conn_list, engine->conn_data, conn_data);
 
-			if (conn_data->c_idx_crsr) {
-				innodb_cb_cursor_close(conn_data->c_idx_crsr);
+			if (conn_data->idx_crsr) {
+				innodb_cb_cursor_close(conn_data->idx_crsr);
 			}
 
-			if (conn_data->c_ro_idx_crsr) {
-				innodb_cb_cursor_close(conn_data->c_ro_idx_crsr);
+			if (conn_data->idx_read_crsr) {
+				innodb_cb_cursor_close(conn_data->idx_read_crsr);
 			}
 
-			if (conn_data->c_crsr) {
-				innodb_cb_cursor_close(conn_data->c_crsr);
+			if (conn_data->crsr) {
+				innodb_cb_cursor_close(conn_data->crsr);
 			}
 
-			if (conn_data->c_ro_crsr) {
-				innodb_cb_cursor_close(conn_data->c_ro_crsr);
+			if (conn_data->read_crsr) {
+				innodb_cb_cursor_close(conn_data->read_crsr);
 			}
 
-			if (conn_data->c_ro_crsr_trx) {
-				innodb_cb_trx_commit(conn_data->c_ro_crsr_trx);
+			if (conn_data->read_crsr_trx) {
+				innodb_cb_trx_commit(conn_data->read_crsr_trx);
 			}
 
-			if (conn_data->c_crsr_trx) {
-				innodb_cb_trx_commit(conn_data->c_crsr_trx);
+			if (conn_data->crsr_trx) {
+				innodb_cb_trx_commit(conn_data->crsr_trx);
 			}
 
 			if (conn_data->mysql_tbl) {
@@ -347,12 +356,12 @@ innodb_destroy(
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
 
-	innodb_conn_clean(innodb_eng, TRUE, FALSE);
+	innodb_conn_clean(innodb_eng, true, false);
 
 	pthread_mutex_destroy(&innodb_eng->conn_mutex);
 
-	if (innodb_eng->m_default_engine) {
-		def_eng->engine.destroy(innodb_eng->m_default_engine, force);
+	if (innodb_eng->default_engine) {
+		def_eng->engine.destroy(innodb_eng->default_engine, force);
 	}
 
 	innodb_config_free(&innodb_eng->meta_info);
@@ -385,7 +394,7 @@ innodb_allocate(
 
 	/* We use default engine's memory allocator to allocate memory
 	for item */
-	return(def_eng->engine.allocate(innodb_eng->m_default_engine,
+	return(def_eng->engine.allocate(innodb_eng->default_engine,
 					cookie, item, key, nkey, nbytes,
 					flags, exptime));
 }
@@ -408,7 +417,7 @@ innodb_conn_init(
 	bool			has_lock)	/*!< in: Has engine mutex */
 {
 	innodb_conn_data_t*	conn_data;
-	meta_info_t*		meta_info = &engine->meta_info;
+	meta_cfg_info_t*	meta_info = &engine->meta_info;
 	meta_index_t*		meta_index = &meta_info->m_index;
 	ib_err_t		err = DB_SUCCESS;
 
@@ -417,32 +426,32 @@ innodb_conn_init(
 	/* Get this connection's conn_data */
 	conn_data = engine->server.cookie->get_engine_specific(cookie);
 
-	assert(!conn_data || !conn_data->c_in_use);
+	assert(!conn_data || !conn_data->in_use);
 
 	if (!conn_data) {
 		if (UT_LIST_GET_LEN(engine->conn_data) > 2048) {
 			/* Some of conn_data can be stale, recycle them */
-			innodb_conn_clean(engine, FALSE, TRUE);
+			innodb_conn_clean(engine, false, true);
 		}
 
 		conn_data = malloc(sizeof(*conn_data));
 		memset(conn_data, 0, sizeof(*conn_data));
-		conn_data->c_cookie = (void*) cookie;
-		UT_LIST_ADD_LAST(c_list, engine->conn_data, conn_data);
+		conn_data->conn_cookie = (void*) cookie;
+		UT_LIST_ADD_LAST(conn_list, engine->conn_data, conn_data);
 		engine->server.cookie->store_engine_specific(
 			cookie, conn_data);
 	}
 
 	assert(engine->conn_data.count > 0);
-	conn_data->c_in_use = TRUE;
+	conn_data->in_use = true;
 
 	UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
 
 	/* Each connection comes with a read cursor and write cursor,
 	and a read transaction and write transaction committed
 	intermittently */
-	if (!conn_data->c_ro_crsr_trx) {
-		conn_data->c_ro_crsr_trx = innodb_cb_trx_begin(
+	if (!conn_data->read_crsr_trx) {
+		conn_data->read_crsr_trx = innodb_cb_trx_begin(
 			IB_TRX_READ_UNCOMMITTED);
 
 		err = innodb_api_begin(
@@ -450,19 +459,19 @@ innodb_conn_init(
 			meta_info->m_item[CONTAINER_DB].m_str,
 			meta_info->m_item[CONTAINER_TABLE].m_str,
 			conn_data,
-			conn_data->c_ro_crsr_trx,
-			&conn_data->c_ro_crsr,
-			&conn_data->c_ro_idx_crsr,
+			conn_data->read_crsr_trx,
+			&conn_data->read_crsr,
+			&conn_data->idx_read_crsr,
 			(lock_mode == IB_LOCK_X)
 				? IB_LOCK_X
 				: IB_LOCK_IS);
 
 		if (err != DB_SUCCESS) {
-			innodb_cb_cursor_close(conn_data->c_ro_crsr);
-			innodb_cb_trx_commit(conn_data->c_ro_crsr_trx);
-			conn_data->c_ro_crsr_trx = NULL;
-			conn_data->c_ro_crsr = NULL;
-			conn_data->c_in_use = FALSE;
+			innodb_cb_cursor_close(conn_data->read_crsr);
+			innodb_cb_trx_commit(conn_data->read_crsr_trx);
+			conn_data->read_crsr_trx = NULL;
+			conn_data->read_crsr = NULL;
+			conn_data->in_use = false;
 
 			return(NULL);
 		} else if (lock_mode == IB_LOCK_X) {
@@ -475,7 +484,7 @@ innodb_conn_init(
 
 		/* If not a read only query, initialize a write cursor */
 		if (!is_select) {
-			conn_data->c_crsr_trx = innodb_cb_trx_begin(
+			conn_data->crsr_trx = innodb_cb_trx_begin(
 				IB_TRX_READ_UNCOMMITTED);
 
 			err = innodb_api_begin(
@@ -483,19 +492,19 @@ innodb_conn_init(
 				meta_info->m_item[CONTAINER_DB].m_str,
 				meta_info->m_item[CONTAINER_TABLE].m_str,
 				conn_data,
-				conn_data->c_crsr_trx, &conn_data->c_crsr,
-				&conn_data->c_idx_crsr, lock_mode);
+				conn_data->crsr_trx, &conn_data->crsr,
+				&conn_data->idx_crsr, lock_mode);
 
 			if (err != DB_SUCCESS) {
-				innodb_cb_cursor_close(conn_data->c_crsr);
-				conn_data->c_crsr = NULL;
-				if (conn_data->c_ro_crsr) {
+				innodb_cb_cursor_close(conn_data->crsr);
+				conn_data->crsr = NULL;
+				if (conn_data->read_crsr) {
 					innodb_cb_cursor_close(
-						conn_data->c_ro_crsr);
-					conn_data->c_ro_crsr = NULL;
-					conn_data->c_ro_crsr_trx = NULL;
+						conn_data->read_crsr);
+					conn_data->read_crsr = NULL;
+					conn_data->read_crsr_trx = NULL;
 				}
-				conn_data->c_in_use = FALSE;
+				conn_data->in_use = false;
 				return(NULL);
 			}
 		}
@@ -503,11 +512,11 @@ innodb_conn_init(
 		ib_crsr_t	crsr;
 		ib_crsr_t	idx_crsr;
 
-		crsr = conn_data->c_crsr;
+		crsr = conn_data->crsr;
 
 		if (!is_select) {
 			if (!crsr) {
-				conn_data->c_crsr_trx = innodb_cb_trx_begin(
+				conn_data->crsr_trx = innodb_cb_trx_begin(
 					IB_TRX_READ_UNCOMMITTED);
 
 				err = innodb_api_begin(
@@ -515,67 +524,67 @@ innodb_conn_init(
 					meta_info->m_item[CONTAINER_DB].m_str,
 					meta_info->m_item[CONTAINER_TABLE].m_str,
 					conn_data,
-					conn_data->c_crsr_trx,
-					&conn_data->c_crsr,
-					&conn_data->c_idx_crsr,
+					conn_data->crsr_trx,
+					&conn_data->crsr,
+					&conn_data->idx_crsr,
 					lock_mode);
 
 				if (err != DB_SUCCESS) {
 					innodb_cb_cursor_close(
-						conn_data->c_crsr);
-					conn_data->c_crsr = NULL;
-					conn_data->c_crsr_trx = NULL;
-					conn_data->c_in_use = FALSE;
+						conn_data->crsr);
+					conn_data->crsr = NULL;
+					conn_data->crsr_trx = NULL;
+					conn_data->in_use = false;
 					return(NULL);
 				}
-			}  else if (!conn_data->c_crsr_trx) {
+			}  else if (!conn_data->crsr_trx) {
 
 				/* There exists a cursor, just need update
 				with a new transaction */
-				conn_data->c_crsr_trx = innodb_cb_trx_begin(
+				conn_data->crsr_trx = innodb_cb_trx_begin(
 					IB_TRX_READ_UNCOMMITTED);
 
-				innodb_cb_cursor_new_trx(crsr, conn_data->c_crsr_trx);
+				innodb_cb_cursor_new_trx(crsr, conn_data->crsr_trx);
 				err = innodb_cb_cursor_lock(crsr, lock_mode);
 
 				if (err != DB_SUCCESS) {
 					innodb_cb_cursor_close(
-						conn_data->c_crsr);
-					conn_data->c_crsr = NULL;
-					conn_data->c_crsr_trx = NULL;
-					conn_data->c_in_use = FALSE;
+						conn_data->crsr);
+					conn_data->crsr = NULL;
+					conn_data->crsr_trx = NULL;
+					conn_data->in_use = false;
 					return(NULL);
 				}
 
 				if (meta_index->m_use_idx == META_SECONDARY) {
 
-					idx_crsr = conn_data->c_idx_crsr;
+					idx_crsr = conn_data->idx_crsr;
 					innodb_cb_cursor_new_trx(
 						idx_crsr,
-						conn_data->c_crsr_trx);
+						conn_data->crsr_trx);
 					innodb_cb_cursor_lock(
 						idx_crsr, lock_mode);
 				}
 			}
 		} else {
-			if (!conn_data->c_ro_crsr_trx) {
-				conn_data->c_ro_crsr_trx = innodb_cb_trx_begin(
+			if (!conn_data->read_crsr_trx) {
+				conn_data->read_crsr_trx = innodb_cb_trx_begin(
 					IB_TRX_READ_UNCOMMITTED);
 
 				innodb_cb_cursor_new_trx(
-					conn_data->c_ro_crsr,
-					conn_data->c_ro_crsr_trx);
+					conn_data->read_crsr,
+					conn_data->read_crsr_trx);
 
                                 innodb_cb_cursor_lock(
-					conn_data->c_ro_crsr,
+					conn_data->read_crsr,
 					lock_mode);
 
                                 if (meta_index->m_use_idx == META_SECONDARY) {
-                                        idx_crsr = conn_data->c_ro_idx_crsr;
+                                        idx_crsr = conn_data->idx_read_crsr;
 
                                         innodb_cb_cursor_new_trx(
                                                 idx_crsr,
-						conn_data->c_ro_crsr_trx);
+						conn_data->read_crsr_trx);
                                         innodb_cb_cursor_lock(
 						idx_crsr, lock_mode);
                                 }
@@ -606,7 +615,7 @@ innodb_remove(
 	struct default_engine*	def_eng = default_handle(innodb_eng);
 	ENGINE_ERROR_CODE	err = ENGINE_SUCCESS;
 	innodb_conn_data_t*	conn_data;
-	meta_info_t*		meta_info = &innodb_eng->meta_info;
+	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
 
 	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT
 	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
@@ -623,7 +632,7 @@ innodb_remove(
 	}
 
 	conn_data = innodb_conn_init(innodb_eng, cookie,
-				     FALSE, IB_LOCK_IX, FALSE);
+				     false, IB_LOCK_IX, false);
 
 	if (!conn_data) {
 		return(ENGINE_TMPFAIL);
@@ -690,7 +699,7 @@ innodb_get(
 	uint64_t		flags = 0;
 	innodb_conn_data_t*	conn_data;
 	int			total_len = 0;
-	meta_info_t*		meta_info = &innodb_eng->meta_info;
+	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
 
 	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT
 	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
@@ -705,15 +714,15 @@ innodb_get(
 		}
 	}
 
-	conn_data = innodb_conn_init(innodb_eng, cookie, TRUE,
-				     IB_LOCK_IX, FALSE);
+	conn_data = innodb_conn_init(innodb_eng, cookie, true,
+				     IB_LOCK_IX, false);
 
 	if (!conn_data) {
 		return(ENGINE_TMPFAIL);
 	}
 
 	err = innodb_api_search(innodb_eng, conn_data, &crsr, key,
-				nkey, &result, NULL, TRUE);
+				nkey, &result, NULL, true);
 
 	if (err != DB_SUCCESS) {
 		err_ret = ENGINE_KEY_ENOENT;
@@ -821,7 +830,7 @@ innodb_get_stats(
 {
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
-	return(def_eng->engine.get_stats(innodb_eng->m_default_engine, cookie,
+	return(def_eng->engine.get_stats(innodb_eng->default_engine, cookie,
 					 stat_key, nkey, add_stat));
 }
 
@@ -837,7 +846,7 @@ innodb_reset_stats(
 {
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
-	def_eng->engine.reset_stats(innodb_eng->m_default_engine, cookie);
+	def_eng->engine.reset_stats(innodb_eng->default_engine, cookie);
 }
 
 /*******************************************************************//**
@@ -864,7 +873,7 @@ innodb_store(
 	ENGINE_ERROR_CODE	result;
 	uint64_t		input_cas;
 	innodb_conn_data_t*	conn_data;
-	meta_info_t*		meta_info = &innodb_eng->meta_info;
+	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
 	uint32_t		val_len = ((hash_item*)item)->nbytes;
 
 	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT 
@@ -877,8 +886,8 @@ innodb_store(
 		}
 	}
 
-	conn_data = innodb_conn_init(innodb_eng, cookie, FALSE,
-				     IB_LOCK_IX, FALSE);
+	conn_data = innodb_conn_init(innodb_eng, cookie, false,
+				     IB_LOCK_IX, false);
 
 	if (!conn_data) {
 		return(ENGINE_NOT_STORED);
@@ -921,7 +930,7 @@ innodb_arithmetic(
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
 	innodb_conn_data_t*	conn_data;
-	meta_info_t*		meta_info = &innodb_eng->meta_info;
+	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
 	ENGINE_ERROR_CODE	err;
 
 	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT 
@@ -929,7 +938,7 @@ innodb_arithmetic(
 		/* For cache-only, forward this to the
 		default engine */
 		err = def_eng->engine.arithmetic(
-			innodb_eng->m_default_engine, cookie, key, nkey,
+			innodb_eng->default_engine, cookie, key, nkey,
 			increment, create, delta, initial, exptime, cas,
 			result, vbucket);
 
@@ -938,8 +947,8 @@ innodb_arithmetic(
 		}
 	}
 
-	conn_data = innodb_conn_init(innodb_eng, cookie, FALSE,
-				     IB_LOCK_IX, FALSE);
+	conn_data = innodb_conn_init(innodb_eng, cookie, false,
+				     IB_LOCK_IX, false);
 
 	if (!conn_data) {
 		return(ENGINE_NOT_STORED);
@@ -969,14 +978,14 @@ innodb_flush(
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
 	ENGINE_ERROR_CODE	err = ENGINE_SUCCESS;
-	meta_info_t*		meta_info = &innodb_eng->meta_info;
+	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
 	ib_err_t		ib_err = DB_SUCCESS;
 	innodb_conn_data_t*	conn_data;
 
 	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT
 	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
 		/* default engine flush */
-		err = def_eng->engine.flush(innodb_eng->m_default_engine,
+		err = def_eng->engine.flush(innodb_eng->default_engine,
 					    cookie, when);
 
 		if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT) {
@@ -993,10 +1002,10 @@ innodb_flush(
 					CONN_OP_FLUSH);
 	}
 
-	innodb_conn_clean(innodb_eng, FALSE, TRUE);
+	innodb_conn_clean(innodb_eng, false, true);
 
-        conn_data = innodb_conn_init(innodb_eng, cookie, FALSE,
-				     IB_LOCK_X, TRUE);
+        conn_data = innodb_conn_init(innodb_eng, cookie, false,
+				     IB_LOCK_X, true);
 
 
 	if (!conn_data) {
@@ -1006,7 +1015,7 @@ innodb_flush(
 
 	/* Clean up sessions before doing flush. Table needs to be
 	re-opened */
-	innodb_conn_clean(innodb_eng, TRUE, TRUE);
+	innodb_conn_clean(innodb_eng, true, true);
 
 	ib_err = innodb_api_flush(innodb_eng,
 				  meta_info->m_item[CONTAINER_DB].m_str,
@@ -1032,14 +1041,14 @@ innodb_unknown_command(
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
 
-	return(def_eng->engine.unknown_command(innodb_eng->m_default_engine,
+	return(def_eng->engine.unknown_command(innodb_eng->default_engine,
 					       cookie, request, response));
 }
 
 /*******************************************************************//**
 Callback functions used by Memcached's process_command() function
 to get the result key/value information
-@return TRUE if info fetched */
+@return true if info fetched */
 static
 bool
 innodb_get_item_info(

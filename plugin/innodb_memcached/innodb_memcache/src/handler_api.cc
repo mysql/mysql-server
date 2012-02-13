@@ -45,12 +45,13 @@ Created 3/14/2011 Jimmy Yang
 #include "handler.h"
 
 #include "log_event.h"
+#include "innodb_config.h"
 
 /** Some handler functions defined in sql/sql_table.cc and sql/handler.cc etc.
 and being used here */
 extern int write_bin_log(THD *thd, bool clear_error,
 			 char const *query, ulong query_length,
-			 bool is_trans= FALSE);
+			 bool is_trans= false);
 
 /** function to close a connection and thd, defined in sql/handler.cc */
 extern void ha_close_connection(THD* thd);
@@ -60,8 +61,6 @@ extern int binlog_log_row(TABLE*          table,
 			  const uchar     *before_record,
 			  const uchar     *after_record,
 			  Log_func*       log_func);
-
-
 
 /**********************************************************************//**
 Create a THD object.
@@ -99,19 +98,18 @@ void*
 handler_open_table(
 /*===============*/
 	void*		my_thd,		/*!< in: THD* */
-	const char*	db_name,	/*!< in: database name */
-	const char*	table_name,	/*!< in: table name */
+	const char*	db_name,	/*!< in: NUL terminated database name */
+	const char*	table_name,	/*!< in: NUL terminated table name */
 	int		lock_type)	/*!< in: lock mode */
 {
 	TABLE_LIST              tables;
-        TABLE*                  table = 0;
 	THD*			thd = (THD*) my_thd;
-	Open_table_context	ot_act(thd, 0);
-	enum thr_lock_type	lock_mode;
+	Open_table_context	table_ctx(thd, 0);
+	thr_lock_type		lock_mode;
 
 	lock_mode = (lock_type < TL_IGNORE)
-			? TL_READ
-			: (enum thr_lock_type) lock_type;
+		     ? TL_READ
+		     : (thr_lock_type) lock_type;
 
 	tables.init_one_table(db_name, strlen(db_name), table_name,
 			      strlen(table_name), table_name, lock_mode);
@@ -121,8 +119,8 @@ handler_open_table(
 				? MDL_SHARED_WRITE
 				: MDL_SHARED_READ, MDL_TRANSACTION);
 
-	if (!open_table(thd, &tables, thd->mem_root, &ot_act)) {
-		table = tables.table;
+	if (!open_table(thd, &tables, thd->mem_root, &table_ctx)) {
+		TABLE*	table = tables.table;
 		table->use_all_columns();
 		return(table);
 	}
@@ -139,20 +137,25 @@ handler_binlog_row(
 	int		mode)		/*!< in: type of DML */
 {
 	TABLE*		table = (TABLE*) my_table;
-	Log_func	*log_func;
+	Log_func*	log_func;
 
-
-	if (mode == HDL_UPDATE) {
+	switch (mode) {
+	case HDL_UPDATE:
 		assert(table->record[1]);
 		log_func = Update_rows_log_event::binlog_row_logging_function;
 		binlog_log_row(table, table->record[1], table->record[0],
 			       log_func);
-	} else if (mode == HDL_INSERT) {
+		break;
+	case HDL_INSERT:
 		log_func = Write_rows_log_event::binlog_row_logging_function;
 		binlog_log_row(table, 0, table->record[0], log_func);
-	} else if (mode == HDL_DELETE) {
+		break;
+	case HDL_DELETE:
 		log_func = Delete_rows_log_event::binlog_row_logging_function;
 		binlog_log_row(table, table->record[0], 0, log_func);
+		break;
+	default:
+		assert(0);
 	}
 }
 
@@ -167,7 +170,7 @@ handler_binlog_flush(
 	THD*		thd = (THD*) my_thd;
 	int		ret;
 
-	thd->binlog_write_table_map((TABLE*) my_table, 1, 0);
+	thd->binlog_write_table_map(static_cast<TABLE*>(my_table), 1, 0);
 	ret = tc_log->log_xid(thd, 0);
 
 	if (ret) {
@@ -177,7 +180,7 @@ handler_binlog_flush(
 }
 
 /**********************************************************************//**
-binlog a truncate table statement */
+Binlog a truncate table statement */
 void
 handler_binlog_truncate(
 /*====================*/
@@ -185,12 +188,15 @@ handler_binlog_truncate(
 	char*		table_name)	/*!< in: table name */
 {
 	THD*		thd = (THD*) my_thd;
-	char		query_str[NAME_LEN * 2 + 16];
+	char		query_str[MAX_FULL_NAME_LEN + 16];
 	int		len;
 
 	memset(query_str, 0, sizeof(query_str));
 
 	strcpy(query_str,"truncate table ");
+
+	assert(strlen(table_name) < MAX_FULL_NAME_LEN);
+
 	strcat(query_str, table_name);
 
 	len = strlen(query_str);
@@ -254,7 +260,7 @@ handler_rec_setup_int(
 	}
 }
 /**********************************************************************//**
-copy an record */
+Copy an record */
 void
 handler_store_record(
 /*=================*/
@@ -263,7 +269,7 @@ handler_store_record(
 	store_record((TABLE*) my_table, record[1]);
 }
 /**********************************************************************//**
-close an handler */
+Close an handler */
 void
 handler_close_thd(
 /*==============*/
@@ -271,7 +277,7 @@ handler_close_thd(
 {
 	delete ((THD*) my_thd);
 
-	/* don't have a THD anymore */
+	/* Don't have a THD anymore */
 	my_pthread_setspecific_ptr(THR_THD,  0);
 }
 
@@ -288,7 +294,7 @@ handler_unlock_table(
 	int			result;
 	THD*			thd = (THD*) my_thd;
 	TABLE*			table = (TABLE*) my_table;
-	enum thr_lock_type	lock_mode;
+	thr_lock_type		lock_mode;
 
 	lock_mode = (mode & HDL_READ)
 			? TL_READ
@@ -328,26 +334,24 @@ handler_select_rec(
 	field_arg_t*	srch_args,	/*!< in: field to search */
 	int		idx_to_use)	/*!< in: index to use */
 {
-	KEY*		key_info = &(my_table->key_info[0]);
-	uchar*		srch_buf = (uchar*) malloc(
-					key_info->key_length);
+	KEY*		key_info = &my_table->key_info[0];
+	uchar*		srch_buf = static_cast<uchar*>(malloc(
+					key_info->key_length));
 	size_t		total_key_len = 0;
 	key_part_map	part_map;
 	int		result;
 	handler*	handle = my_table->file;
 
-	assert(srch_args->num_arg <=  key_info->key_parts);
+	assert(srch_args->num_arg <= key_info->key_parts);
 
-	for (unsigned int i = 0; i < key_info->key_parts; i ++) {
+	for (unsigned int i = 0; i < key_info->key_parts; i++) {
 		KEY_PART_INFO*	key_part;
-		int		srch_len;
-		char*		srch_value;
 
 		key_part = &key_info->key_part[i];
 
 		if (i < srch_args->num_arg) {
-			srch_value = srch_args->value[i];
-			srch_len = srch_args->len[i];
+			char*	srch_value = srch_args->value[i];
+			int	srch_len = srch_args->len[i];
 
 			if (!srch_len) {
 				key_part->field->set_null();
@@ -434,10 +438,9 @@ handler_update_rec(
 	TABLE*		my_table,	/*!< in: TABLE structure */
 	field_arg_t*	store_args)	/*!< in: update row data */
 {
-	int		result;
         uchar*		buf = my_table->record[0];
 	handler*	handle = my_table->file;
-	KEY*		key_info = &(my_table->key_info[0]);
+	KEY*		key_info = &my_table->key_info[0];
 
         store_record(my_table, record[1]);
 
@@ -450,9 +453,7 @@ handler_update_rec(
 		fld->set_notnull();
 	}
 
-        result = handle->ha_update_row(my_table->record[1], buf);
-
-	return(result);
+	return(handle->ha_update_row(my_table->record[1], buf));
 }
 
 /**********************************************************************//**
@@ -464,12 +465,7 @@ handler_delete_rec(
 	THD*		my_thd,		/*!< in: thread */
 	TABLE*		my_table)	/*!< in: TABLE structure */
 {
-	int		result;
-	handler*	handle = my_table->file;
-
-	result = handle->ha_delete_row(my_table->record[0]);
-
-	return(result);
+	return(my_table->file->ha_delete_row(my_table->record[0]));
 }
 
 /**********************************************************************//**
@@ -480,7 +476,7 @@ handler_lock_table(
 /*===============*/
 	THD*		my_thd,		/*!< in: thread */
 	TABLE*		my_table,	/*!< in: Table metadata */
-	enum thr_lock_type lock_mode)	/*!< in: lock mode */
+	thr_lock_type	lock_mode)	/*!< in: lock mode */
 {
 
 	my_table->reginfo.lock_type = lock_mode;
@@ -489,4 +485,3 @@ handler_lock_table(
 	return(my_thd->lock);
 }
 #endif /* HANDLER_API_MEMCACHED */
-

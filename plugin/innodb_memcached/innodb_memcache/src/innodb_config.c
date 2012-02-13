@@ -52,7 +52,7 @@ This function frees meta info structures */
 void
 innodb_config_free(
 /*===============*/
-	meta_info_t*	item)		/*!< in: meta info structure */
+	meta_cfg_info_t*	item)	/*!< in: meta info structure */
 {
 	int	i;
 
@@ -84,12 +84,12 @@ innodb_config_free(
 /**********************************************************************//**
 This function parses possible multiple column name separated by ",", ";"
 or " " in the input "str" for the memcached "value" field.
-@return TRUE if everything works out fine */
+@return true if everything works out fine */
 static
 bool
 innodb_config_parse_value_col(
 /*==========================*/
-	meta_info_t*	item,		/*!< in: meta info structure */
+	meta_cfg_info_t*item,		/*!< in: meta info structure */
 	char*		str,		/*!< in: column name(s) string */
 	int		len)		/*!< in: length of above string */
 {
@@ -129,18 +129,18 @@ innodb_config_parse_value_col(
 		item->m_num_add = 0;
 	}
 
-	return(TRUE);
+	return(true);
 }
 
 /**********************************************************************//**
 This function opens the cache_policy configuration table, and find the
 table and column info that used for memcached data
-@return TRUE if everything works out fine */
+@return true if everything works out fine */
 static
 bool
 innodb_read_cache_policy(
 /*=====================*/
-	meta_info_t*	item)	/*!< in: meta info structure */
+	meta_cfg_info_t*	item)	/*!< in: meta info structure */
 {
 	ib_trx_t		ib_trx;
 	ib_crsr_t		crsr = NULL;
@@ -188,7 +188,7 @@ innodb_read_cache_policy(
 
 	for (i = 0; i < CACHE_POLICY_NUM_COLS; ++i) {
 		char			opt_name;
-		meta_cache_option_t	opt_val;
+		meta_cache_opt_t	opt_val;
 
 		/* Skip cache policy name for now, We could have
 		different cache policy stored, and switch dynamically */
@@ -203,7 +203,7 @@ innodb_read_cache_policy(
 		} else {
 			opt_name = *(char*)innodb_cb_col_get_value(tpl, i);
 
-			opt_val = (meta_cache_option_t) opt_name;
+			opt_val = (meta_cache_opt_t) opt_name;
 		}
 
 		switch (i) {
@@ -242,12 +242,12 @@ func_exit:
 /**********************************************************************//**
 This function opens the config_options configuration table, and find the
 table and column info that used for memcached data
-@return TRUE if everything works out fine */
+@return true if everything works out fine */
 static
 bool
 innodb_read_config_option(
 /*======================*/
-	meta_info_t*	item)	/*!< in: meta info structure */
+	meta_cfg_info_t*	item)	/*!< in: meta info structure */
 {
 	ib_trx_t		ib_trx;
 	ib_crsr_t		crsr = NULL;
@@ -303,7 +303,7 @@ innodb_read_config_option(
 			/* Currently, we only support one configure option,
 			that is the string "separator" */
 			if (strncmp(key, "separator", 9)) {
-				return(FALSE);
+				return(false);
 			}
 		}
 
@@ -332,12 +332,12 @@ func_exit:
 /**********************************************************************//**
 This function opens the "containers" configuration table, and find the
 table and column info that used for memcached data
-@return TRUE if everything works out fine */
+@return true if everything works out fine */
 static
 bool
 innodb_config_container(
 /*====================*/
-	meta_info_t*	item)	/*!< in: meta info structure */
+	meta_cfg_info_t*	item)	/*!< in: meta info structure */
 {
 	ib_trx_t		ib_trx;
 	ib_crsr_t		crsr = NULL;
@@ -461,13 +461,13 @@ func_exit:
 /**********************************************************************//**
 This function verifies "value" column(s) specified by configure table are of
 the correct type
-@return TRUE if everything is verified */
+@return DB_SUCCESS if everything is verified */
 static
 ib_err_t
 innodb_config_value_col_verify(
 /*===========================*/
 	char*		name,		/*!< in: column name */
-	meta_info_t*	meta_info,	/*!< in: meta info structure */
+	meta_cfg_info_t*meta_info,	/*!< in: meta info structure */
 	ib_col_meta_t*	col_meta,	/*!< in: column metadata */
 	int		col_id)		/*!< in: column ID */
 {
@@ -519,11 +519,11 @@ innodb_config_value_col_verify(
 /**********************************************************************//**
 This function verifies the table configuration information, and fills
 in columns used for memcached functionalities (cas, exp etc.)
-@return TRUE if everything works out fine */
+@return true if everything works out fine */
 bool
 innodb_verify(
 /*==========*/
-	meta_info_t*       info)	/*!< in: meta info structure */
+	meta_cfg_info_t*       info)	/*!< in: meta info structure */
 {
 	ib_crsr_t	crsr = NULL;
 	ib_crsr_t	idx_crsr = NULL;
@@ -535,16 +535,16 @@ innodb_verify(
 	int		n_cols;
 	int		i;
 	ib_err_t	err = DB_SUCCESS;
-	bool		is_key_col = FALSE;
-	bool		is_value_col = FALSE;
+	bool		is_key_col = false;
+	bool		is_value_col = false;
 	int		index_type;
 	ib_id_u64_t	index_id;
 
 	dbname = info->m_item[CONTAINER_DB].m_str;
 	name = info->m_item[CONTAINER_TABLE].m_str;
-	info->m_flag_enabled = FALSE;
-	info->m_cas_enabled = FALSE;
-	info->m_exp_enabled = FALSE;
+	info->m_flag_enabled = false;
+	info->m_cas_enabled = false;
+	info->m_exp_enabled = false;
 
 #ifdef __WIN__
 	sprintf(table_name, "%s\%s", dbname, name);
@@ -578,7 +578,7 @@ innodb_verify(
 			name, info, &col_meta, i);
 
 		if (result == DB_SUCCESS) {
-			is_value_col = TRUE;
+			is_value_col = true;
 			continue;
 		} else if (result == DB_DATA_MISMATCH) {
 			err = DB_DATA_MISMATCH;
@@ -594,7 +594,7 @@ innodb_verify(
 			}
 			cinfo[CONTAINER_KEY].m_field_id = i;
 			cinfo[CONTAINER_KEY].m_col = col_meta;
-			is_key_col = TRUE;
+			is_key_col = true;
 		} else if (strcmp(name, cinfo[CONTAINER_FLAG].m_str) == 0) {
 			/* Flag column must be integer type */
 			if (col_meta.type != IB_INT) {
@@ -603,7 +603,7 @@ innodb_verify(
 			}
 			cinfo[CONTAINER_FLAG].m_field_id = i;
 			cinfo[CONTAINER_FLAG].m_col = col_meta;
-			info->m_flag_enabled = TRUE;
+			info->m_flag_enabled = true;
 		} else if (strcmp(name, cinfo[CONTAINER_CAS].m_str) == 0) {
 			/* CAS column must be integer type */
 			if (col_meta.type != IB_INT) {
@@ -612,7 +612,7 @@ innodb_verify(
 			}
 			cinfo[CONTAINER_CAS].m_field_id = i;
 			cinfo[CONTAINER_CAS].m_col = col_meta;
-			info->m_cas_enabled = TRUE;
+			info->m_cas_enabled = true;
 		} else if (strcmp(name, cinfo[CONTAINER_EXP].m_str) == 0) {
 			/* EXP column must be integer type */
 			if (col_meta.type != IB_INT) {
@@ -621,7 +621,7 @@ innodb_verify(
 			}
 			cinfo[CONTAINER_EXP].m_field_id = i;
 			cinfo[CONTAINER_EXP].m_col = col_meta;
-			info->m_exp_enabled = TRUE;
+			info->m_exp_enabled = true;
 		}
 	}
 
@@ -672,19 +672,19 @@ func_exit:
 /**********************************************************************//**
 This function opens the default configuration table, and find the
 table and column info that used for InnoDB Memcached, and set up
-InnoDB Memcached's meta_info_t structure
-@return TRUE if everything works out fine */
+InnoDB Memcached's meta_cfg_info_t structure
+@return true if everything works out fine */
 bool
 innodb_config(
 /*==========*/
-	meta_info_t*	item)		/*!< out: meta info structure */
+	meta_cfg_info_t*	item)		/*!< out: meta info structure */
 {
 	if (!innodb_config_container(item)) {
-		return(FALSE);
+		return(false);
 	}
 
 	if (!innodb_verify(item)) {
-		return(FALSE);
+		return(false);
 	}
 
 	/* Following two configure operations are optional, and can be
@@ -693,5 +693,5 @@ innodb_config(
 
         innodb_read_config_option(item);
 
-	return(TRUE);
+	return(true);
 }
