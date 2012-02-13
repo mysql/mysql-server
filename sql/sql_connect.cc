@@ -584,8 +584,23 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
 }
 
 
-void thd_init_client_charset(THD *thd, uint cs_number)
+/**
+  Set thread character set variables from the given ID
+
+  @param  thd         thread handle
+  @param  cs_number   character set and collation ID
+
+  @retval  0  OK; character_set_client, collation_connection and
+              character_set_results are set to the new value,
+              or to the default global values.
+
+  @retval  1  error, e.g. the given ID is not supported by parser.
+              Corresponding SQL error is sent.
+*/
+
+bool thd_init_client_charset(THD *thd, uint cs_number)
 {
+  CHARSET_INFO *cs;
   /*
    Use server character set and collation if
    - opt_character_set_client_handshake is not set
@@ -594,10 +609,10 @@ void thd_init_client_charset(THD *thd, uint cs_number)
    - client character set doesn't exists in server
   */
   if (!opt_character_set_client_handshake ||
-      !(thd->variables.character_set_client= get_charset(cs_number, MYF(0))) ||
+      !(cs= get_charset(cs_number, MYF(0))) ||
       !my_strcasecmp(&my_charset_latin1,
                      global_system_variables.character_set_client->name,
-                     thd->variables.character_set_client->name))
+                     cs->name))
   {
     thd->variables.character_set_client=
       global_system_variables.character_set_client;
@@ -608,10 +623,18 @@ void thd_init_client_charset(THD *thd, uint cs_number)
   }
   else
   {
+    if (!is_supported_parser_charset(cs))
+    {
+      /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+               cs->csname);
+      return true;
+    }
     thd->variables.character_set_results=
       thd->variables.collation_connection= 
-      thd->variables.character_set_client;
+      thd->variables.character_set_client= cs;
   }
+  return false;
 }
 
 
@@ -632,6 +655,94 @@ bool init_new_connection_handler_thread()
   return 0;
 }
 
+#ifndef EMBEDDED_LIBRARY
+/**
+  Get a null character terminated string from a user-supplied buffer.
+
+  @param buffer[in, out]    Pointer to the buffer to be scanned.
+  @param max_bytes_available[in, out]  Limit the bytes to scan.
+  @param string_length[out] The number of characters scanned not including
+                            the null character.
+
+  @remark The string_length does not include the terminating null character.
+          However, after the call, the buffer is increased by string_length+1
+          bytes, beyond the null character if there still available bytes to
+          scan.
+
+  @return pointer to beginning of the string scanned.
+    @retval NULL The buffer content is malformed
+*/
+
+static
+char *get_null_terminated_string(char **buffer,
+                                 size_t *max_bytes_available,
+                                 size_t *string_length)
+{
+  char *str= (char *)memchr(*buffer, '\0', *max_bytes_available);
+
+  if (str == NULL)
+    return NULL;
+
+  *string_length= (size_t)(str - *buffer);
+  *max_bytes_available-= *string_length + 1;
+  str= *buffer;
+  *buffer += *string_length + 1;  
+
+  return str;
+}
+
+
+/**
+  Get a length encoded string from a user-supplied buffer.
+
+  @param buffer[in, out] The buffer to scan; updates position after scan.
+  @param max_bytes_available[in, out] Limit the number of bytes to scan
+  @param string_length[out] Number of characters scanned
+  
+  @remark In case the length is zero, then the total size of the string is
+    considered to be 1 byte; the size byte.
+
+  @return pointer to first byte after the header in buffer.
+    @retval NULL The buffer content is malformed
+*/
+
+static
+char *get_length_encoded_string(char **buffer,
+                                size_t *max_bytes_available,
+                                size_t *string_length)
+{
+  if (*max_bytes_available == 0)
+    return NULL;
+
+  /* Do double cast to prevent overflow from signed / unsigned conversion */
+  size_t str_len= (size_t)(unsigned char)**buffer;
+
+  /*
+    If the length encoded string has the length 0
+    the total size of the string is only one byte long (the size byte)
+  */
+  if (str_len == 0)
+  {
+    ++*buffer;
+    *string_length= 0;
+    /*
+      Return a pointer to the 0 character so the return value will be
+      an empty string.
+    */
+    return *buffer-1;
+  }
+
+  if (str_len >= *max_bytes_available)
+    return NULL;
+
+  char *str= *buffer+1;
+  *string_length= str_len;
+  *max_bytes_available-= *string_length + 1;
+  *buffer+= *string_length + 1;
+  return str;
+}
+
+
 /*
   Perform handshake, authorize client and update thd ACL variables.
 
@@ -645,7 +756,6 @@ bool init_new_connection_handler_thread()
    > 0  error code (not sent to user)
 */
 
-#ifndef EMBEDDED_LIBRARY
 static int check_connection(THD *thd)
 {
   uint connect_errors= 0;
@@ -784,7 +894,8 @@ static int check_connection(THD *thd)
     thd->client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
     thd->max_client_packet_length= uint4korr(net->read_pos+4);
     DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
-    thd_init_client_charset(thd, (uint) net->read_pos[8]);
+    if (thd_init_client_charset(thd, (uint) net->read_pos[8]))
+      return 1;
     thd->update_charset();
     end= (char*) net->read_pos+32;
   }
@@ -833,7 +944,7 @@ static int check_connection(THD *thd)
   }
 #endif /* HAVE_OPENSSL */
 
-  if (end >= (char*) net->read_pos+ pkt_len +2)
+  if (end > (char *)net->read_pos + pkt_len)
   {
     inc_host_errors(&thd->remote.sin_addr);
     my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
@@ -845,38 +956,74 @@ static int check_connection(THD *thd)
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
     net->return_status= &thd->server_status;
-
-  char *user= end;
-  char *passwd= strend(user)+1;
-  uint user_len= passwd - user - 1;
-  char *db= passwd;
-  char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
-  char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
-  uint dummy_errors;
-
+ 
   /*
-    Old clients send null-terminated string as password; new clients send
-    the size (1 byte) + string (not null-terminated). Hence in case of empty
-    password both send '\0'.
-
-    This strlen() can't be easily deleted without changing protocol.
-
-    Cast *passwd to an unsigned char, so that it doesn't extend the sign for
-    *passwd > 127 and become 2**32-127+ after casting to uint.
+    In order to safely scan a head for '\0' string terminators
+    we must keep track of how many bytes remain in the allocated
+    buffer or we might read past the end of the buffer.
   */
-  uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
-    (uchar)(*passwd++) : strlen(passwd);
-  db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
-    db + passwd_len + 1 : 0;
-  /* strlen() can't be easily deleted without changing protocol */
-  uint db_len= db ? strlen(db) : 0;
+  size_t bytes_remaining_in_packet= pkt_len - (end - (char *)net->read_pos);
 
-  if (passwd + passwd_len + db_len > (char *)net->read_pos + pkt_len)
+  size_t user_len;
+  char *user= get_null_terminated_string(&end, &bytes_remaining_in_packet,
+                                         &user_len);
+  if (user == NULL)
   {
     inc_host_errors(&thd->remote.sin_addr);
     my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
     return 1;
   }
+
+  /*
+    Old clients send a null-terminated string as password; new clients send
+    the size (1 byte) + string (not null-terminated). Hence in case of empty
+    password both send '\0'.
+  */
+  size_t passwd_len= 0;
+  char *passwd= NULL;
+
+  if (thd->client_capabilities & CLIENT_SECURE_CONNECTION)
+  {
+    /*
+      4.1+ password. First byte is password length.
+    */
+    passwd= get_length_encoded_string(&end, &bytes_remaining_in_packet,
+                                      &passwd_len);
+  }
+  else
+  {
+    /*
+      Old passwords are zero terminated strings.
+    */
+    passwd= get_null_terminated_string(&end, &bytes_remaining_in_packet,
+                                       &passwd_len);
+  }
+
+  if (passwd == NULL)
+  {
+    inc_host_errors(&thd->remote.sin_addr);
+    my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+    return 1;
+  }
+
+  size_t db_len= 0;
+  char *db= NULL;
+
+  if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
+  {
+    db= get_null_terminated_string(&end, &bytes_remaining_in_packet,
+                                   &db_len);
+    if (db == NULL)
+    {
+      inc_host_errors(&thd->remote.sin_addr);
+      my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      return 1;
+    }
+  }
+
+  char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
+  char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
+  uint dummy_errors;
 
   /* Since 4.1 all database names are stored in utf8 */
   if (db)

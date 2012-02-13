@@ -1124,4 +1124,12 @@ Warning	1525	Incorrect XML value: 'parse error at line 1 pos 2: END-OF-INPUT une
 SELECT UPDATEXML(CONVERT(_latin1'<!--' USING utf8),'1','1');
 UPDATEXML(CONVERT(_latin1'<!--' USING utf8),'1','1')
 NULL
+#
+# Bug#11766725 (bug#59901): EXTRACTVALUE STILL BROKEN AFTER FIX FOR BUG #44332
+#
+SELECT ExtractValue(CONVERT('<\"', BINARY(10)), 1);
+ExtractValue(CONVERT('<\"', BINARY(10)), 1)
+NULL
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 11: STRING unexpected (ident or '/' wanted)'
 End of 5.1 tests
