@@ -275,15 +275,6 @@ buf_page_peek_block(
 	ulint	space,	/* in: space id */
 	ulint	offset);/* in: page number */
 /************************************************************************
-Resets the check_index_page_at_flush field of a page if found in the buffer
-pool. */
-
-void
-buf_reset_check_index_page_at_flush(
-/*================================*/
-	ulint	space,	/* in: space id */
-	ulint	offset);/* in: page number */
-/************************************************************************
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
 This function should be called when we free a file page and want the
 debug version to check that it is not accessed any more unless
@@ -663,25 +654,6 @@ buf_page_address_fold(
 			/* out: the folded value */
 	ulint	space,	/* in: space id */
 	ulint	offset);/* in: offset of the page within space */
-#ifdef UNIV_SYNC_DEBUG
-/***********************************************************************
-Increments the bufferfix count. */
-UNIV_INLINE
-void
-buf_block_buf_fix_inc_debug(
-/*========================*/
-	buf_block_t*	block,	/* in: block to bufferfix */
-	const char*	file __attribute__ ((unused)),	/* in: file name */
-	ulint		line __attribute__ ((unused)));	/* in: line */
-#else /* UNIV_SYNC_DEBUG */
-/***********************************************************************
-Increments the bufferfix count. */
-UNIV_INLINE
-void
-buf_block_buf_fix_inc(
-/*==================*/
-	buf_block_t*	block);	/* in: block to bufferfix */
-#endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************
 Returns the control block of a file page, NULL if not found. */
 UNIV_INLINE

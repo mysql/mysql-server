@@ -222,8 +222,11 @@ sub collect_test_cases ($$$) {
 sub split_testname {
   my ($test_name)= @_;
 
-  # Get rid of directory part and split name on .'s
-  my @parts= split(/\./, basename($test_name));
+  # If .test file name is used, get rid of directory part
+  $test_name= basename($test_name) if $test_name =~ /\.test$/;
+
+  # Now split name on .'s
+  my @parts= split(/\./, $test_name);
 
   if (@parts == 1){
     # Only testname given, ex: alias
@@ -317,10 +320,30 @@ sub collect_one_suite($)
   my %disabled;
   if ( open(DISABLED, "$testdir/disabled.def" ) )
   {
+    # $^O on Windows considered not generic enough
+    my $plat= (IS_WINDOWS) ? 'windows' : $^O;
+
     while ( <DISABLED> )
       {
         chomp;
-        if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+        #diasble the test case if platform matches
+        if ( /\@/ )
+          {
+             if ( /\@$plat/ )
+               {
+        	  /^\s*(\S+)\s*\@$plat.*:\s*(.*?)\s*$/ ;
+                  $disabled{$1}= $2;
+               }
+             elsif ( /\@!(\S*)/ )
+               {
+                  if ( $1 ne $plat)
+                    {
+        	       /^\s*(\S+)\s*\@!.*:\s*(.*?)\s*$/ ;
+                       $disabled{$1}= $2;
+                    }
+               }
+          }
+       elsif ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
           {
             $disabled{$1}= $2;
           }

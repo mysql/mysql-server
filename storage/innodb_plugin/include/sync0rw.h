@@ -564,7 +564,8 @@ struct rw_lock_struct {
 };
 
 #ifdef UNIV_SYNC_DEBUG
-/** The structure for storing debug info of an rw-lock */
+/** The structure for storing debug info of an rw-lock.  All access to this
+structure must be protected by rw_lock_debug_mutex_enter(). */
 struct	rw_lock_debug_struct {
 
 	os_thread_id_t thread_id;  /*!< The thread id of the thread which

@@ -1,3 +1,64 @@
+2011-10-25	The InnoDB Team
+
+	* handler/ha_innodb.cc, row/row0ins.c:
+	Fix Bug#13002783 PARTIALLY UNINITIALIZED CASCADE UPDATE VECTOR
+
+2011-10-20	The InnoDB Team
+
+	* btr/btr0cur.c:
+	Fix Bug#13116045 Compilation failure using GCC 4.6.1 in btr/btr0cur.c
+
+2011-10-12	The InnoDB Team
+
+	* btr/btr0cur.c, btr/btr0sea.c, buf/buf0buf.c, buf/buf0lru.c,
+	ha/ha0ha.c, handler/ha_innodb.cc, ibuf/ibuf0ibuf.c, include/btr0sea.h,
+	include/btr0types.h, include/buf0buf.h, include/ha0ha.h,
+	include/ha0ha.ic, include/row0upd.ic, include/sync0sync.h,
+	page/page0page.c, sync/sync0sync.c:
+	Fix Bug#13006367 62487: innodb takes 3 minutes to clean up
+	the adaptive hash index at shutdown
+
+2011-10-04	The InnoDB Team
+
+	* include/sync0rw.h, sync/sync0rw.c:
+	Fix Bug#13034534 RQG TESTS FAIL ON WINDOWS WITH CRASH NEAR
+	RW_LOCK_DEBUG_PRINT
+
+2011-09-20	The InnoDB Team
+
+	* row/row0purge.c:
+	Fix Bug#12963823 CRASH IN PURGE THREAD UNDER UNUSUAL CIRCUMSTANCES
+
+2011-09-12	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#12601439 CONSISTENT READ FAILURE IN COLUMN PREFIX INDEX
+
+2011-09-08	The InnoDB Team
+
+	* btr/btr0cur.c, include/page0page.h, include/row0upd.ic:
+	Fix Bug#12948130 UNNECESSARY X-LOCKING OF ADAPTIVE HASH INDEX
+
+2011-09-06	The InnoDB Team
+
+	* buf/buf0buddy.c:
+	Fix Bug#12950803 62294: BUF_BUDDY_RELOCATE CALLS GETTIMEOFDAY
+	WHILE HOLDING BUFFER POOL MUTEX
+
+2011-09-06	The InnoDB Team
+
+	* include/trx0undo.h, trx/trx0rec.c, trx/trx0undo.c:
+	Fix Bug#12547647 UPDATE LOGGING COULD EXCEED LOG PAGE SIZE
+
+2011-08-15	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, btr/btr0pcur.c, btr/btr0sea.c,
+	dict/dict0crea.c, dict/dict0dict.c, ibuf/ibuf0ibuf.c,
+	include/btr0btr.h, include/btr0btr.ic, include/sync0sync.h,
+	sync/sync0sync.c:
+	Fix Bug#11766591 59733: Possible deadlock when buffered changes
+	are to be discarded in buf_page_create()
+
 2011-08-08	The InnoDB Team
 
 	* row/row0sel.c:
@@ -39,16 +100,6 @@
 
 	* page/page0zip.c, rem/rem0rec.c:
 	Fix Bug#61191 question about page_zip_available()
-
-2011-06-16	The InnoDB Team
-
-	* btr/btr0btr.c, btr/btr0cur.c, include/btr0btr.h, include/btr0cur.h,
-	include/btr0cur.ic, include/buf0buf.h, include/buf0buf.ic,
-	include/page0cur.ic, include/page0page.h, include/page0page.ic,
-	include/sync0rw.ic, include/sync0sync.h, page/page0cur.c,
-	page/page0page.c, row/row0ins.c, row/row0upd.c,
-	sync/sync0rw.c, sync/sync0sync.c:
-	Fix Bug#12612184 Race condition after btr_cur_pessimistic_update()
 
 2011-06-09	The InnoDB Team
 	* btr/btr0cur.c, include/rem0rec.h, include/rem0rec.ic,

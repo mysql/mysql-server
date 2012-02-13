@@ -345,9 +345,9 @@ row_ins_clust_index_entry_by_modify(
 			return(DB_LOCK_TABLE_FULL);
 
 		}
-		err = btr_cur_pessimistic_update(
-			BTR_KEEP_POS_FLAG, cursor, heap, big_rec, update,
-			0, thr, mtr);
+		err = btr_cur_pessimistic_update(0, cursor,
+						 heap, big_rec, update,
+						 0, thr, mtr);
 	}
 
 	return(err);
@@ -434,11 +434,9 @@ row_ins_cascade_calc_update_vec(
 	dict_table_t*	table		= foreign->foreign_table;
 	dict_index_t*	index		= foreign->foreign_index;
 	upd_t*		update;
-	upd_field_t*	ufield;
 	dict_table_t*	parent_table;
 	dict_index_t*	parent_index;
 	upd_t*		parent_update;
-	upd_field_t*	parent_ufield;
 	ulint		n_fields_updated;
 	ulint		parent_field_no;
 	ulint		i;
@@ -474,13 +472,15 @@ row_ins_cascade_calc_update_vec(
 			dict_index_get_nth_col_no(parent_index, i));
 
 		for (j = 0; j < parent_update->n_fields; j++) {
-			parent_ufield = parent_update->fields + j;
+			const upd_field_t*	parent_ufield
+				= &parent_update->fields[j];
 
 			if (parent_ufield->field_no == parent_field_no) {
 
 				ulint			min_size;
 				const dict_col_t*	col;
 				ulint			ufield_len;
+				upd_field_t*		ufield;
 
 				col = dict_index_get_nth_col(index, i);
 
@@ -493,6 +493,8 @@ row_ins_cascade_calc_update_vec(
 				ufield->field_no
 					= dict_table_get_nth_col_pos(
 					table, dict_col_get_no(col));
+
+				ufield->orig_len = 0;
 				ufield->exp = NULL;
 
 				ufield->new_val = parent_ufield->new_val;
@@ -993,10 +995,9 @@ row_ins_foreign_check_on_constraint(
 		goto nonstandard_exit_func;
 	}
 
-	if ((node->is_delete
-	     && (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL))
-	    || (!node->is_delete
-		&& (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL))) {
+	if (node->is_delete
+	    ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
+	    : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
 
 		/* Build the appropriate update vector which sets
 		foreign->n_fields first fields in rec to SQL NULL */
@@ -1005,6 +1006,8 @@ row_ins_foreign_check_on_constraint(
 
 		update->info_bits = 0;
 		update->n_fields = foreign->n_fields;
+		UNIV_MEM_INVALID(update->fields,
+				 update->n_fields * sizeof *update->fields);
 
 		for (i = 0; i < foreign->n_fields; i++) {
 			upd_field_t*	ufield = &update->fields[i];
@@ -1986,7 +1989,6 @@ row_ins_index_entry_low(
 	ulint		modify = 0; /* remove warning */
 	rec_t*		insert_rec;
 	rec_t*		rec;
-	ulint*		offsets;
 	ulint		err;
 	ulint		n_unique;
 	big_rec_t*	big_rec			= NULL;
@@ -2090,42 +2092,6 @@ row_ins_index_entry_low(
 			err = row_ins_clust_index_entry_by_modify(
 				mode, &cursor, &heap, &big_rec, entry,
 				thr, &mtr);
-
-			if (big_rec) {
-				ut_a(err == DB_SUCCESS);
-				/* Write out the externally stored
-				columns while still x-latching
-				index->lock and block->lock. We have
-				to mtr_commit(mtr) first, so that the
-				redo log will be written in the
-				correct order. Otherwise, we would run
-				into trouble on crash recovery if mtr
-				freed B-tree pages on which some of
-				the big_rec fields will be written. */
-				btr_cur_mtr_commit_and_start(&cursor, &mtr);
-
-				rec = btr_cur_get_rec(&cursor);
-				offsets = rec_get_offsets(
-					rec, index, NULL,
-					ULINT_UNDEFINED, &heap);
-
-				err = btr_store_big_rec_extern_fields(
-					index, btr_cur_get_block(&cursor),
-					rec, offsets, &mtr, FALSE, big_rec);
-				/* If writing big_rec fails (for
-				example, because of DB_OUT_OF_FILE_SPACE),
-				the record will be corrupted. Even if
-				we did not update any externally
-				stored columns, our update could cause
-				the record to grow so that a
-				non-updated column was selected for
-				external storage. This non-update
-				would not have been written to the
-				undo log, and thus the record cannot
-				be rolled back. */
-				ut_a(err == DB_SUCCESS);
-				goto stored_big_rec;
-			}
 		} else {
 			ut_ad(!n_ext);
 			err = row_ins_sec_index_entry_by_modify(
@@ -2154,6 +2120,8 @@ function_exit:
 	mtr_commit(&mtr);
 
 	if (UNIV_LIKELY_NULL(big_rec)) {
+		rec_t*	rec;
+		ulint*	offsets;
 		mtr_start(&mtr);
 
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
@@ -2167,7 +2135,6 @@ function_exit:
 			index, btr_cur_get_block(&cursor),
 			rec, offsets, &mtr, FALSE, big_rec);
 
-stored_big_rec:
 		if (modify) {
 			dtuple_big_rec_free(big_rec);
 		} else {

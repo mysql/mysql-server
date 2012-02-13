@@ -420,37 +420,7 @@ page_rec_is_infimum(
 	return(page_rec_is_infimum_low(page_offset(rec)));
 }
 
-/************************************************************//**
-Returns the nth record of the record list.
-This is the inverse function of page_rec_get_n_recs_before().
-@return	nth record */
-UNIV_INLINE
-rec_t*
-page_rec_get_nth(
-/*=============*/
-	page_t*	page,	/*!< in: page */
-	ulint	nth)	/*!< in: nth record */
-{
-	return((rec_t*) page_rec_get_nth_const(page, nth));
-}
-
 #ifndef UNIV_HOTBACKUP
-/************************************************************//**
-Returns the middle record of the records on the page. If there is an
-even number of records in the list, returns the first record of the
-upper half-list.
-@return	middle record */
-UNIV_INLINE
-rec_t*
-page_get_middle_rec(
-/*================*/
-	page_t*	page)	/*!< in: page */
-{
-	ulint	middle = (page_get_n_recs(page) + PAGE_HEAP_NO_USER_LOW) / 2;
-
-	return(page_rec_get_nth(page, middle));
-}
-
 /*************************************************************//**
 Compares a data tuple to a physical record. Differs from the function
 cmp_dtuple_rec_with_match in the way that the record must reside on an

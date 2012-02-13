@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.22 2005/05/29 04:58:15 lukem Exp $	*/
+/*	$NetBSD: parse.c,v 1.26 2011/08/16 16:25:15 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -57,17 +57,17 @@ static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/4/93";
 #include <stdlib.h>
 
 private const struct {
-	const char *name;
-	int (*func)(EditLine *, int, const char **);
+	const Char *name;
+	int (*func)(EditLine *, int, const Char **);
 } cmds[] = {
-	{ "bind",	map_bind	},
-	{ "echotc",	term_echotc	},
-	{ "edit",	el_editmode	},
-	{ "history",	hist_command	},
-	{ "telltc",	term_telltc	},
-	{ "settc",	term_settc	},
-	{ "setty",	tty_stty	},
-	{ NULL,		NULL		}
+	{ STR("bind"),  	map_bind	},
+	{ STR("echotc"),	terminal_echotc	},
+	{ STR("edit"),  	el_editmode	},
+	{ STR("history"),	hist_command	},
+	{ STR("telltc"),	terminal_telltc	},
+	{ STR("settc"),	        terminal_settc	},
+	{ STR("setty"),	        tty_stty	},
+	{ NULL,		        NULL		}
 };
 
 
@@ -75,17 +75,17 @@ private const struct {
  *	Parse a line and dispatch it
  */
 protected int
-parse_line(EditLine *el, const char *line)
+parse_line(EditLine *el, const Char *line)
 {
-	const char **argv;
+	const Char **argv;
 	int argc;
-	Tokenizer *tok;
+	TYPE(Tokenizer) *tok;
 
-	tok = tok_init(NULL);
-	tok_str(tok, line, &argc, &argv);
-	argc = el_parse(el, argc, argv);
-	tok_end(tok);
-	return (argc);
+	tok = FUN(tok,init)(NULL);
+	FUN(tok,str)(tok, line, &argc, &argv);
+	argc = FUN(el,parse)(el, argc, argv);
+	FUN(tok,end)(tok);
+	return argc;
 }
 
 
@@ -93,57 +93,57 @@ parse_line(EditLine *el, const char *line)
  *	Command dispatcher
  */
 public int
-el_parse(EditLine *el, int argc, const char *argv[])
+FUN(el,parse)(EditLine *el, int argc, const Char *argv[])
 {
-	const char *ptr;
+	const Char *ptr;
 	int i;
 
 	if (argc < 1)
-		return (-1);
-	ptr = strchr(argv[0], ':');
+		return -1;
+	ptr = Strchr(argv[0], ':');
 	if (ptr != NULL) {
-		char *tprog;
+		Char *tprog;
 		size_t l;
 
 		if (ptr == argv[0])
-			return (0);
-		l = ptr - argv[0] - 1;
-		tprog = (char *) el_malloc(l + 1);
+			return 0;
+		l = (size_t)(ptr - argv[0] - 1);
+		tprog = el_malloc((l + 1) * sizeof(*tprog));
 		if (tprog == NULL)
-			return (0);
-		(void) strncpy(tprog, argv[0], l);
+			return 0;
+		(void) Strncpy(tprog, argv[0], l);
 		tprog[l] = '\0';
 		ptr++;
-		l = el_match(el->el_prog, tprog);
+		l = (size_t)el_match(el->el_prog, tprog);
 		el_free(tprog);
 		if (!l)
-			return (0);
+			return 0;
 	} else
 		ptr = argv[0];
 
 	for (i = 0; cmds[i].name != NULL; i++)
-		if (strcmp(cmds[i].name, ptr) == 0) {
+		if (Strcmp(cmds[i].name, ptr) == 0) {
 			i = (*cmds[i].func) (el, argc, argv);
-			return (-i);
+			return -i;
 		}
-	return (-1);
+	return -1;
 }
 
 
 /* parse__escape():
- *	Parse a string of the form ^<char> \<odigit> \<char> and return
+ *	Parse a string of the form ^<char> \<odigit> \<char> \U+xxxx and return
  *	the appropriate character or -1 if the escape is not valid
  */
 protected int
-parse__escape(const char **ptr)
+parse__escape(const Char **ptr)
 {
-	const char *p;
-	int c;
+	const Char *p;
+	Int c;
 
 	p = *ptr;
 
 	if (p[1] == 0)
-		return (-1);
+		return -1;
 
 	if (*p == '\\') {
 		p++;
@@ -172,6 +172,28 @@ parse__escape(const char **ptr)
 		case 'e':
 			c = '\033';	/* Escape */
 			break;
+                case 'U':               /* Unicode \U+xxxx or \U+xxxxx format */
+                {
+                        int i;
+                        const Char hex[] = STR("0123456789ABCDEF");
+                        const Char *h;
+                        ++p;
+                        if (*p++ != '+')
+                                return -1;
+			c = 0;
+                        for (i = 0; i < 5; ++i) {
+                                h = Strchr(hex, *p++);
+                                if (!h && i < 4)
+                                        return -1;
+                                else if (h)
+                                        c = (c << 4) | ((int)(h - hex));
+                                else
+                                        --p;
+                        }
+                        if (c > 0x10FFFF) /* outside valid character range */
+                                return -1;
+                        break;
+                }
 		case '0':
 		case '1':
 		case '2':
@@ -191,8 +213,8 @@ parse__escape(const char **ptr)
 				}
 				c = (c << 3) | (ch - '0');
 			}
-			if ((c & 0xffffff00) != 0)
-				return (-1);
+			if ((c & (wint_t)0xffffff00) != (wint_t)0)
+				return -1;
 			--p;
 			break;
 		}
@@ -206,28 +228,28 @@ parse__escape(const char **ptr)
 	} else
 		c = *p;
 	*ptr = ++p;
-	return (c);
+	return c;
 }
 
 /* parse__string():
  *	Parse the escapes from in and put the raw string out
  */
-protected char *
-parse__string(char *out, const char *in)
+protected Char *
+parse__string(Char *out, const Char *in)
 {
-	char *rv = out;
+	Char *rv = out;
 	int n;
 
 	for (;;)
 		switch (*in) {
 		case '\0':
 			*out = '\0';
-			return (rv);
+			return rv;
 
 		case '\\':
 		case '^':
 			if ((n = parse__escape(&in)) == -1)
-				return (NULL);
+				return NULL;
 			*out++ = n;
 			break;
 
@@ -251,12 +273,12 @@ parse__string(char *out, const char *in)
  *	or -1 if one is not found
  */
 protected int
-parse_cmd(EditLine *el, const char *cmd)
+parse_cmd(EditLine *el, const Char *cmd)
 {
 	el_bindings_t *b;
 
 	for (b = el->el_map.help; b->name != NULL; b++)
-		if (strcmp(b->name, cmd) == 0)
-			return (b->func);
-	return (-1);
+		if (Strcmp(b->name, cmd) == 0)
+			return b->func;
+	return -1;
 }

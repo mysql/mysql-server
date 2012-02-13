@@ -2704,7 +2704,13 @@ void handler::print_error(int error, myf errflag)
       char key[MAX_KEY_LENGTH];
       String str(key,sizeof(key),system_charset_info);
       /* Table is opened and defined at this point */
-      key_unpack(&str,table,(uint) key_nr);
+      key_unpack(&str,table,0 /* Use 0 instead of key_nr because key_nr
+                 is a key number in the child FK table, not in our 'table'. See
+		 Bug#12661768 UPDATE IGNORE CRASHES SERVER IF TABLE IS INNODB
+		 AND IT IS PARENT FOR OTHER ONE
+		 This bug gets a better fix in MySQL 5.6, but it is too risky
+		 to get that in 5.1 and 5.5 (extending the handler interface
+		 and adding new error message codes */);
       max_length= (MYSQL_ERRMSG_SIZE-
                    (uint) strlen(ER(ER_FOREIGN_DUPLICATE_KEY)));
       if (str.length() >= max_length)

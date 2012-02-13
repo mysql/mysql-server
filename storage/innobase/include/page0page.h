@@ -234,21 +234,10 @@ page_get_supremum_rec(
 /*==================*/
 			/* out: the last record in record list */
 	page_t*	page);	/* in: page which must have record(s) */
-/************************************************************//**
-Returns the nth record of the record list.
-This is the inverse function of page_rec_get_n_recs_before(). */
+/****************************************************************
+Returns the middle record of record list. If there are an even number
+of records in the list, returns the first record of upper half-list. */
 
-rec_t*
-page_rec_get_nth(
-/*=============*/
-			/* out: nth record */
-	page_t*	page,	/* in: page */
-	ulint	nth);	/* in: nth record */
-/*****************************************************************
-Returns the middle record of the records on the page. If there is an
-even number of records in the list, returns the first record of the
-upper half-list. */
-UNIV_INLINE
 rec_t*
 page_get_middle_rec(
 /*================*/
@@ -291,8 +280,7 @@ page_get_n_recs(
 	page_t*	page);	/* in: index page */
 /*******************************************************************
 Returns the number of records before the given record in chain.
-The number includes infimum and supremum records.
-This is the inverse function of page_rec_get_nth(). */
+The number includes infimum and supremum records. */
 
 ulint
 page_rec_get_n_recs_before(

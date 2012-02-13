@@ -39,6 +39,81 @@ DELETE FROM t1_purge;
 DELETE FROM t2_purge;
 DELETE FROM t3_purge;
 DELETE FROM t4_purge;
+SET @r=REPEAT('a',500);
+CREATE TABLE t12637786(a INT,
+v1 VARCHAR(500), v2 VARCHAR(500), v3 VARCHAR(500),
+v4 VARCHAR(500), v5 VARCHAR(500), v6 VARCHAR(500),
+v7 VARCHAR(500), v8 VARCHAR(500), v9 VARCHAR(500),
+v10 VARCHAR(500), v11 VARCHAR(500), v12 VARCHAR(500),
+v13 VARCHAR(500), v14 VARCHAR(500), v15 VARCHAR(500),
+v16 VARCHAR(500), v17 VARCHAR(500), v18 VARCHAR(500)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+CREATE INDEX idx1 ON t12637786(a,v1);
+INSERT INTO t12637786 VALUES(9,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
+UPDATE t12637786 SET a=1000;
+DELETE FROM t12637786;
+create table t12963823(a blob,b blob,c blob,d blob,e blob,f blob,g blob,h blob,
+i blob,j blob,k blob,l blob,m blob,n blob,o blob,p blob)
+engine=innodb row_format=dynamic;
+SET @r = repeat('a', 767);
+insert into t12963823 values (@r,@r,@r,@r, @r,@r,@r,@r, @r,@r,@r,@r, @r,@r,@r,@r);
+create index ndx_a on t12963823 (a(500));
+create index ndx_b on t12963823 (b(500));
+create index ndx_c on t12963823 (c(500));
+create index ndx_d on t12963823 (d(500));
+create index ndx_e on t12963823 (e(500));
+create index ndx_f on t12963823 (f(500));
+create index ndx_k on t12963823 (k(500));
+create index ndx_l on t12963823 (l(500));
+SET @r = repeat('b', 500);
+update t12963823 set a=@r,b=@r,c=@r,d=@r;
+update t12963823 set e=@r,f=@r,g=@r,h=@r;
+update t12963823 set i=@r,j=@r,k=@r,l=@r;
+update t12963823 set m=@r,n=@r,o=@r,p=@r;
+alter table t12963823 drop index ndx_a;
+alter table t12963823 drop index ndx_b;
+create index ndx_g on t12963823 (g(500));
+create index ndx_h on t12963823 (h(500));
+create index ndx_i on t12963823 (i(500));
+create index ndx_j on t12963823 (j(500));
+create index ndx_m on t12963823 (m(500));
+create index ndx_n on t12963823 (n(500));
+create index ndx_o on t12963823 (o(500));
+create index ndx_p on t12963823 (p(500));
+show create table t12963823;
+Table	Create Table
+t12963823	CREATE TABLE `t12963823` (
+  `a` blob,
+  `b` blob,
+  `c` blob,
+  `d` blob,
+  `e` blob,
+  `f` blob,
+  `g` blob,
+  `h` blob,
+  `i` blob,
+  `j` blob,
+  `k` blob,
+  `l` blob,
+  `m` blob,
+  `n` blob,
+  `o` blob,
+  `p` blob,
+  KEY `ndx_c` (`c`(500)),
+  KEY `ndx_d` (`d`(500)),
+  KEY `ndx_e` (`e`(500)),
+  KEY `ndx_f` (`f`(500)),
+  KEY `ndx_k` (`k`(500)),
+  KEY `ndx_l` (`l`(500)),
+  KEY `ndx_g` (`g`(500)),
+  KEY `ndx_h` (`h`(500)),
+  KEY `ndx_i` (`i`(500)),
+  KEY `ndx_j` (`j`(500)),
+  KEY `ndx_m` (`m`(500)),
+  KEY `ndx_n` (`n`(500)),
+  KEY `ndx_o` (`o`(500)),
+  KEY `ndx_p` (`p`(500))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
@@ -1009,6 +1084,15 @@ ERROR HY000: Too big row
 alter table t1 row_format=compact;
 create index t1u on t1 (u(1));
 drop table t1;
+CREATE TABLE bug12547647(
+a INT NOT NULL, b BLOB NOT NULL, c TEXT,
+PRIMARY KEY (b(10), a), INDEX (c(10))
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+INSERT INTO bug12547647 VALUES (5,repeat('khdfo5AlOq',1900),repeat('g',7731));
+COMMIT;
+UPDATE bug12547647 SET c = REPEAT('b',16928);
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+DROP TABLE bug12547647;
 SET @r=REPEAT('a',500);
 CREATE TABLE t1(a INT,
 v1 VARCHAR(500), v2 VARCHAR(500), v3 VARCHAR(500),
@@ -1227,3 +1311,5 @@ a	b
 3	b
 DROP TABLE t1;
 DROP TABLE t1_purge, t2_purge, t3_purge, t4_purge;
+DROP TABLE t12637786;
+DROP TABLE t12963823;

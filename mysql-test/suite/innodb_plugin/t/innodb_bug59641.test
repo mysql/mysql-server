@@ -3,8 +3,6 @@
 -- source include/not_embedded.inc
 -- source include/have_innodb_plugin.inc
 
-let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
-
 CREATE TABLE t(a INT PRIMARY KEY, b INT)ENGINE=InnoDB;
 INSERT INTO t VALUES(2,2),(4,4),(8,8),(16,16),(32,32);
 COMMIT;
@@ -66,5 +64,3 @@ XA COMMIT '789';
 SELECT * FROM t;
 
 DROP TABLE t;
---disable_query_log
-eval set global innodb_file_format_check=$innodb_file_format_check_orig;

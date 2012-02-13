@@ -215,12 +215,6 @@ page_set_max_trx_id(
 {
 	page_t*		page		= buf_block_get_frame(block);
 #ifndef UNIV_HOTBACKUP
-	const ibool	is_hashed	= block->is_hashed;
-
-	if (is_hashed) {
-		rw_lock_x_lock(&btr_search_latch);
-	}
-
 	ut_ad(!mtr || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #endif /* !UNIV_HOTBACKUP */
 
@@ -241,12 +235,6 @@ page_set_max_trx_id(
 	} else {
 		mach_write_to_8(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), trx_id);
 	}
-
-#ifndef UNIV_HOTBACKUP
-	if (is_hashed) {
-		rw_lock_x_unlock(&btr_search_latch);
-	}
-#endif /* !UNIV_HOTBACKUP */
 }
 
 /************************************************************//**
@@ -1487,54 +1475,55 @@ page_dir_balance_slot(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************//**
-Returns the nth record of the record list.
-This is the inverse function of page_rec_get_n_recs_before().
-@return	nth record */
+Returns the middle record of the record list. If there are an even number
+of records in the list, returns the first record of the upper half-list.
+@return	middle record */
 UNIV_INTERN
-const rec_t*
-page_rec_get_nth_const(
-/*===================*/
-	const page_t*	page,	/*!< in: page */
-	ulint		nth)	/*!< in: nth record */
+rec_t*
+page_get_middle_rec(
+/*================*/
+	page_t*	page)	/*!< in: page */
 {
-	const page_dir_slot_t*	slot;
+	page_dir_slot_t*	slot;
+	ulint			middle;
 	ulint			i;
 	ulint			n_owned;
-	const rec_t*		rec;
+	ulint			count;
+	rec_t*			rec;
 
-	ut_ad(nth < UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
+	/* This many records we must leave behind */
+	middle = (page_get_n_recs(page) + PAGE_HEAP_NO_USER_LOW) / 2;
+
+	count = 0;
 
 	for (i = 0;; i++) {
 
 		slot = page_dir_get_nth_slot(page, i);
 		n_owned = page_dir_slot_get_n_owned(slot);
 
-		if (n_owned > nth) {
+		if (count + n_owned > middle) {
 			break;
 		} else {
-			nth -= n_owned;
+			count += n_owned;
 		}
 	}
 
 	ut_ad(i > 0);
 	slot = page_dir_get_nth_slot(page, i - 1);
-	rec = page_dir_slot_get_rec(slot);
+	rec = (rec_t*) page_dir_slot_get_rec(slot);
+	rec = page_rec_get_next(rec);
 
-	if (page_is_comp(page)) {
-		do {
-			rec = page_rec_get_next_low(rec, TRUE);
-			ut_ad(rec);
-		} while (nth--);
-	} else {
-		do {
-			rec = page_rec_get_next_low(rec, FALSE);
-			ut_ad(rec);
-		} while (nth--);
+	/* There are now count records behind rec */
+
+	for (i = 0; i < middle - count; i++) {
+		rec = page_rec_get_next(rec);
 	}
 
 	return(rec);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************//**
 Returns the number of records before the given record in chain.
@@ -1596,7 +1585,6 @@ page_rec_get_n_recs_before(
 	n--;
 
 	ut_ad(n >= 0);
-	ut_ad(n < UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
 
 	return((ulint) n);
 }

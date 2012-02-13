@@ -1,6 +1,8 @@
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3;
 --enable_warnings
+# Set Correct timezone to match result
+SET TIME_ZONE="+03:00";
 CREATE TABLE t1(c1 DATE NOT NULL);
 SET TIMESTAMP=1171346973; # 2007-02-13 15:09:33
 INSERT INTO t1 (c1) VALUES(NOW());
@@ -53,4 +55,5 @@ UPDATE t1 SET c1 = NOW() WHERE c1 >= ADDTIME(NOW(),'2 02:01:01');
 --sorted_result
 SELECT * FROM t1 ORDER BY c1;
 DROP TABLE t1;
-
+# Restore timezone to default
+SET TIME_ZONE= @@global.time_zone;
