@@ -1022,6 +1022,13 @@ trx_commit(
 		ut_ad(!trx->in_ro_trx_list);
 		ut_ad(!trx->in_rw_trx_list);
 
+		/* Note: We are asserting without holding the lock mutex. But
+		that is OK because this transaction is not waiting and cannot
+		be rolled back and no new locks can (or should not) be added
+		becuase it is flagged as a non-locking read-only transaction. */
+
+		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+
 		/* This state change is not protected by any mutex, therefore
 		there is an inherent race here around state transition during
 		printouts. We ignore this race for the sake of efficiency.
