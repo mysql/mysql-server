@@ -188,7 +188,8 @@ end:
 #else
 #ifdef HAVE_SNPRINTF
   buff[sizeof(buff)-1]=0;			// Safety
-  int num_chars= snprintf(buff, sizeof(buff)-1, "%.*f",(int) decimals, num);
+  IF_DBUG(int num_chars= )
+    snprintf(buff, sizeof(buff)-1, "%.*f",(int) decimals, num);
   DBUG_ASSERT(num_chars > 0);
   DBUG_ASSERT(num_chars < (int) sizeof(buff));
 #else
