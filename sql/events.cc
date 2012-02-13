@@ -825,7 +825,16 @@ Events::init(my_bool opt_noacl_or_bootstrap)
   */
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
-
+  /*
+    Set current time for the thread that handles events.
+    Current time is stored in data member start_time of THD class.
+    Subsequently, this value is used to check whether event was expired
+    when make loading events from storage. Check for event expiration time
+    is done at Event_queue_element::compute_next_execution_time() where
+    event's status set to Event_parse_data::DISABLED and dropped flag set
+    to true if event was expired.
+  */
+  thd->set_time();
   /*
     We will need Event_db_repository anyway, even if the scheduler is
     disabled - to perform events DDL.
@@ -1109,7 +1118,6 @@ Events::load_events_from_db(THD *thd)
   {
     Event_queue_element *et;
     bool created;
-    bool drop_on_completion;
 
     if (!(et= new Event_queue_element))
       goto end;
@@ -1124,9 +1132,6 @@ Events::load_events_from_db(THD *thd)
       delete et;
       goto end;
     }
-    drop_on_completion= (et->on_completion ==
-                         Event_parse_data::ON_COMPLETION_DROP);
-
 
     if (event_queue->create_event(thd, et, &created))
     {
@@ -1136,7 +1141,7 @@ Events::load_events_from_db(THD *thd)
     }
     if (created)
       count++;
-    else if (drop_on_completion)
+    else if (et->dropped)
     {
       /*
         If not created, a stale event - drop if immediately if

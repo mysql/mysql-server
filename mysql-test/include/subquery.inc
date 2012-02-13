@@ -3223,7 +3223,7 @@ INSERT INTO t1 VALUES (10,1), (14,1);
 CREATE TABLE t2 (pk int PRIMARY KEY, int_key int);
 INSERT INTO t2 VALUES (3,3), (5,NULL), (7,3);
 
---echo # should have eq_ref for t1
+--echo # should have eq_ref for t1, unless subquery materialization is used
 --replace_column 1 x 2 x 5 x 6 x 7 x 8 x 9 x 10 x
 EXPLAIN
 SELECT * FROM t2 outr
@@ -5804,3 +5804,21 @@ eval EXPLAIN SELECT * FROM ( $subq ) AS alias3;
 eval SELECT * FROM ( $subq ) AS alias3;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Test that indexsubquery_engine only does one lookup if
+--echo # the technique is unique_subquery: does not try to read the
+--echo # next row if the first row failed the subquery's WHERE
+--echo # condition (here: b=3).
+--echo #
+
+create table t1(a int);
+insert into t1 values(1),(2);
+create table t2(a int primary key, b int);
+insert into t2 values(1,10),(2,10);
+let $query=select * from t1 where a in (select a from t2 where b=3);
+eval explain $query;
+flush status;
+eval $query;
+show status like "handler_read%";
+drop table t1,t2;

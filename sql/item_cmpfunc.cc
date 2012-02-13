@@ -449,7 +449,9 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
                                (STATUS_GARBAGE | STATUS_NOT_FOUND))));
     if (save_field_value)
       orig_field_val= field->val_int();
-    if (!(*item)->is_null() && !(*item)->save_in_field(field, 1)) // TS-TODO
+    int rc;
+    if (!(*item)->is_null() &&
+        (((rc= (*item)->save_in_field(field, 1)) == 0) || rc == 3)) // TS-TODO
     {
       int field_cmp= 0;
       /*
@@ -1943,8 +1945,11 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
 
 /**
    The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>
-   predicates. The implementation works as follows.
+   predicates. It applies to predicates which have gone through the IN->EXISTS
+   transformation in in_to_exists_transformer functions; not to subquery
+   materialization (which has no triggered conditions).
 
+   The implementation works as follows.
    For the current value of the outer expression
    
    - If it contains only NULL values, the original (before rewrite by the
@@ -2021,12 +2026,14 @@ longlong Item_in_optimizer::val_int()
   
   if (cache->null_value)
   {
+    Item_in_subselect * const item_subs=
+      static_cast<Item_in_subselect *>(args[1]);
     /*
       We're evaluating 
       "<outer_value_list> [NOT] IN (SELECT <inner_value_list>...)" 
       where one or more of the outer values is NULL. 
     */
-    if (((Item_in_subselect*)args[1])->is_top_level_item())
+    if (item_subs->is_top_level_item())
     {
       /*
         We're evaluating a top level item, e.g. 
@@ -2049,7 +2056,6 @@ longlong Item_in_optimizer::val_int()
         SELECT evaluated over the non-NULL values produces at least
         one row, FALSE otherwise
       */
-      Item_in_subselect *item_subs=(Item_in_subselect*)args[1]; 
       bool all_left_cols_null= true;
       const uint ncols= cache->cols();
 
@@ -2080,7 +2086,7 @@ longlong Item_in_optimizer::val_int()
       {
         /* The subquery has to be evaluated */
         (void) item_subs->val_bool_result();
-        if (item_subs->engine->no_rows())
+        if (!item_subs->value)
           null_value= item_subs->null_value;
         else
           null_value= TRUE;
