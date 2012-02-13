@@ -113,6 +113,7 @@ perl;
   while (<FILE>)
   {
     chomp;
+    s/\r//g;
     if (!%column_names)
     {
       my $n = 1;
@@ -126,6 +127,7 @@ perl;
   }
   close FILE or die "Error closing $input_file: $!";
   open FILE, "> $output_file" or die "Error opening $output_file: $!";
+  binmode FILE;
   print FILE $filtered_contents or die "Error writing filtered contents to $output_file: $!";
   close FILE or die "Error closing $output_file: $!";
   return 0;
