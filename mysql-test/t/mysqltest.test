@@ -335,6 +335,14 @@ eval select $mysql_errno as "after_!errno_masked_error" ;
 EOF
 
 # ----------------------------------------------------------------------------
+# Check backtick and query_get_value, result should be empty
+# ----------------------------------------------------------------------------
+let $empty= `garbage`;
+echo $empty is empty;
+let $empty= query_get_value(nonsense, blabla, 1);
+echo $empty is empty;
+
+# ----------------------------------------------------------------------------
 # Switch the abort on error on and check the effect on $mysql_errno
 # ----------------------------------------------------------------------------
 --error ER_PARSE_ERROR
@@ -363,6 +371,23 @@ select 3 from t1 ;
 --error 1
 --exec echo "disable_abort_on_error; enable_abort_on_error; error 1064; select 3 from t1; select 3 from t1;" | $MYSQL_TEST  2>&1
 
+
+# ----------------------------------------------------------------------------
+# Test --error with backtick operator or query_get_value
+# ----------------------------------------------------------------------------
+
+--error 0,ER_NO_SUCH_TABLE
+let $empty= `SELECT foo from bar`;
+echo $empty is empty;
+
+--error 0,ER_BAD_FIELD_ERROR
+let $empty= query_get_value(SELECT bar as foo, baz, 1);
+echo $empty is empty;
+
+--error 0,ER_NO_SUCH_TABLE
+if (!`SELECT foo from bar`) {
+  echo "Yes it's empty";
+}
 
 # ----------------------------------------------------------------------------
 # Test comments

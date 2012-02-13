@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$NetBSD: makelist,v 1.11 2005/10/22 16:45:03 christos Exp $
+#	$NetBSD: makelist,v 1.16 2010/04/18 21:17:05 christos Exp $
 #
 # Copyright (c) 1992, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -36,7 +36,7 @@
 # makelist.sh: Automatically generate header files...
 
 AWK=@AWK@
-USAGE="Usage: $0 -h|-e|-fc|-fh|-bc|-bh|-m <filenames>"
+USAGE="Usage: $0 -n|-h|-e|-fc|-fh|-bc|-bh|-m <filenames>"
 
 if [ "x$1" = "x" ]
 then
@@ -53,6 +53,14 @@ case $FLAG in
 
 #	generate foo.h file from foo.c
 #
+-n)
+    cat << _EOF
+#undef WIDECHAR
+#define NARROWCHAR
+#include "${FILES}"
+_EOF
+    ;;
+    
 -h)
     set - `echo $FILES | sed -e 's/\\./_/g'`
     hdr="_h_`basename $1`"
@@ -70,7 +78,7 @@ case $FLAG in
 # XXX:	need a space between name and prototype so that -fc and -fh
 #	parsing is much easier
 #
-		printf("protected el_action_t\t%s (EditLine *, int);\n", name);
+		printf("protected el_action_t\t%s (EditLine *, Int);\n", name);
 	    }
 	}
 	END {
@@ -85,6 +93,7 @@ case $FLAG in
 	BEGIN {
 	    printf("/* Automatically generated file, do not edit */\n");
 	    printf("#include \"config.h\"\n#include \"el.h\"\n");
+	    printf("#include \"chartype.h\"\n");
 	    printf("private const struct el_bindings_t el_func_help[] = {\n");
 	    low = "abcdefghijklmnopqrstuvwxyz_";
 	    high = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_";
@@ -106,18 +115,18 @@ case $FLAG in
 		    fname = fname s;
 		}
 
-		printf("    { %-30.30s %-30.30s\n","\"" fname "\",", uname ",");
+		printf("    { %-30.30s %-30.30s\n","STR(\"" fname "\"),", uname ",");
 		ok = 1;
 	    }
 	}
 	/^ \*/ {
 	    if (ok) {
-		printf("      \"");
+		printf("      STR(\"");
 		for (i = 2; i < NF; i++)
 		    printf("%s ", $i);
-		# XXXMYSQL: support CRLF
+        # XXXMYSQL: support CRLF
 		sub("\r", "", $i);
-		printf("%s\" },\n", $i);
+		printf("%s\") },\n", $i);
 		ok = 0;
 	    }
 	}
@@ -157,7 +166,7 @@ case $FLAG in
 	END {
 	    printf("#define\t%-30.30s\t%3d\n", "EL_NUM_FCNS", count);
 
-	    printf("typedef el_action_t (*el_func_t)(EditLine *, int);");
+	    printf("typedef el_action_t (*el_func_t)(EditLine *, Int);");
 	    printf("\nprotected const el_func_t* func__get(void);\n");
 	    printf("#endif /* _h_fcns_c */\n");
 	}'
