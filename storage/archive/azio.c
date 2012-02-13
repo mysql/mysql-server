@@ -114,6 +114,15 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
 
   errno = 0;
   s->file = fd < 0 ? my_open(path, Flags, MYF(0)) : fd;
+  DBUG_EXECUTE_IF("simulate_archive_open_failure",
+  {
+    if (s->file >= 0)
+    {
+      my_close(s->file, MYF(0));
+      s->file= -1;
+      my_errno= EMFILE;
+    }
+  });
 
   if (s->file < 0 ) 
   {

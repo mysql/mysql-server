@@ -478,7 +478,13 @@ el_source(EditLine *el, const char *fname)
 
 	fp = NULL;
 	if (fname == NULL) {
-#ifdef HAVE_ISSETUGID
+/* XXXMYSQL: Bug#49967 */
+#if defined(HAVE_GETUID) && defined(HAVE_GETEUID) && \
+    defined(HAVE_GETGID) && defined(HAVE_GETEGID)
+#define HAVE_IDENTITY_FUNCS 1
+#endif
+
+#if (defined(HAVE_ISSETUGID) || defined(HAVE_IDENTITY_FUNCS))
 		static const char elpath[] = "/.editrc";
 /* XXXMYSQL: Portability fix (for which platforms?) */
 #ifdef MAXPATHLEN
@@ -486,9 +492,13 @@ el_source(EditLine *el, const char *fname)
 #else
 		char path[4096];
 #endif
-
+#ifdef HAVE_ISSETUGID
 		if (issetugid())
 			return (-1);
+#elif defined(HAVE_IDENTITY_FUNCS)
+                if (getuid() != geteuid() || getgid() != getegid())
+                  return (-1);
+#endif
 		if ((ptr = getenv("HOME")) == NULL)
 			return (-1);
 		if (strlcpy(path, ptr, sizeof(path)) >= sizeof(path))
@@ -498,9 +508,10 @@ el_source(EditLine *el, const char *fname)
 		fname = path;
 #else
 		/*
-		 * If issetugid() is missing, always return an error, in order
-		 * to keep from inadvertently opening up the user to a security
-		 * hole.
+		 * If issetugid() or the above mentioned get[e][u|g]id()
+		 * functions are missing, always return an error, in order
+		 * to keep from inadvertently opening up the user to a
+		 * security hole.
 		 */
 		return (-1);
 #endif

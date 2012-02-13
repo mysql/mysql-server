@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -1062,7 +1060,7 @@ void sp_head::recursion_level_error(THD *thd)
   if (m_type == TYPE_ENUM_PROCEDURE)
   {
     my_error(ER_SP_RECURSION_LIMIT, MYF(0),
-             thd->variables.max_sp_recursion_depth,
+             static_cast<int>(thd->variables.max_sp_recursion_depth),
              m_name.str);
   }
   else
@@ -2390,7 +2388,8 @@ bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
   bzero((char*) &tables,sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
-  *full_access= (!check_table_access(thd, SELECT_ACL, &tables, 1, TRUE) ||
+  *full_access= ((!check_table_access(thd, SELECT_ACL, &tables, 1, TRUE) &&
+                  (tables.grant.privilege & SELECT_ACL) != 0) ||
                  (!strcmp(sp->m_definer_user.str,
                           thd->security_ctx->priv_user) &&
                   !strcmp(sp->m_definer_host.str,

@@ -11,9 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -2626,7 +2624,7 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
   DBUG_ENTER("Field_new_decimal::store_value");
 #ifndef DBUG_OFF
   {
-    char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+    char dbug_buff[DECIMAL_MAX_STR_LENGTH+2];
     DBUG_PRINT("enter", ("value: %s", dbug_decimal_as_string(dbug_buff, decimal_value)));
   }
 #endif
@@ -2641,7 +2639,7 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
   }
 #ifndef DBUG_OFF
   {
-    char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+    char dbug_buff[DECIMAL_MAX_STR_LENGTH+2];
     DBUG_PRINT("info", ("saving with precision %d  scale: %d  value %s",
                         (int)precision, (int)dec,
                         dbug_decimal_as_string(dbug_buff, decimal_value)));
@@ -2716,7 +2714,7 @@ int Field_new_decimal::store(const char *from, uint length,
   }
 
 #ifndef DBUG_OFF
-  char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+  char dbug_buff[DECIMAL_MAX_STR_LENGTH+2];
   DBUG_PRINT("enter", ("value: %s",
                        dbug_decimal_as_string(dbug_buff, &decimal_value)));
 #endif
@@ -5505,6 +5503,7 @@ double Field_year::val_real(void)
 longlong Field_year::val_int(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  DBUG_ASSERT(field_length == 2 || field_length == 4);
   int tmp= (int) ptr[0];
   if (field_length != 4)
     tmp%=100;					// Return last 2 char
@@ -5517,6 +5516,7 @@ longlong Field_year::val_int(void)
 String *Field_year::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
+  DBUG_ASSERT(field_length < 5);
   val_buffer->alloc(5);
   val_buffer->length(field_length);
   char *to=(char*) val_buffer->ptr();
@@ -9794,7 +9794,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   if (decimals >= NOT_FIXED_DEC)
   {
     my_error(ER_TOO_BIG_SCALE, MYF(0), decimals, fld_name,
-             NOT_FIXED_DEC-1);
+             static_cast<ulong>(NOT_FIXED_DEC - 1));
     DBUG_RETURN(TRUE);
   }
 
@@ -9864,8 +9864,8 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     my_decimal_trim(&length, &decimals);
     if (length > DECIMAL_MAX_PRECISION)
     {
-      my_error(ER_TOO_BIG_PRECISION, MYF(0), length, fld_name,
-               DECIMAL_MAX_PRECISION);
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), static_cast<int>(length),
+               fld_name, static_cast<ulong>(DECIMAL_MAX_PRECISION));
       DBUG_RETURN(TRUE);
     }
     if (length < decimals)
@@ -10090,7 +10090,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       if (length > MAX_BIT_FIELD_LENGTH)
       {
         my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name,
-                 MAX_BIT_FIELD_LENGTH);
+                 static_cast<ulong>(MAX_BIT_FIELD_LENGTH));
         DBUG_RETURN(TRUE);
       }
       pack_length= (length + 7) / 8;
