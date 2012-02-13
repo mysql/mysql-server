@@ -160,7 +160,7 @@ dict_stats_update_transient(
 	if (index == NULL) {
 		/* Table definition is corrupt */
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "InnoDB: table %s has no indexes. "
+		fprintf(stderr, " InnoDB: table %s has no indexes. "
 			"Cannot calculate statistics.\n", table->name);
 		return;
 	}
@@ -1549,6 +1549,8 @@ dict_stats_save_index_stat(
 			"stat name %s: %s\n",
 			index->table->name, index->name,
 			stat_name, ut_strerr(ret));
+
+		trx->error_state = DB_SUCCESS;
 	}
 
 	return(ret);
@@ -1910,10 +1912,8 @@ dict_stats_fetch_index_stats_step(
 			     index != NULL;
 			     index = dict_table_get_next_index(index)) {
 
-				// FIXME: Can we use a better cast operator
-				if (strncasecmp(index->name,
-						(const char*) data,
-						len) == 0) {
+				if (strlen(index->name) == len
+				    && memcmp(index->name, data, len) == 0) {
 					/* the corresponding index was found */
 					break;
 				}
@@ -1999,26 +1999,29 @@ dict_stats_fetch_index_stats_step(
 	/* sample_size could be UINT64_UNDEFINED here, if it is NULL */
 
 #define PFX	"n_diff_pfx"
+#define PFX_LEN	10
 
-	if (strncasecmp("size", stat_name, stat_name_len) == 0) {
+	if (stat_name_len == 4 /* strlen("size") */
+	    && strncasecmp("size", stat_name, stat_name_len) == 0) {
 		index->stat_index_size = (ulint) stat_value;
 		arg->stats_were_modified = TRUE;
-	} else if (strncasecmp("n_leaf_pages", stat_name, stat_name_len)
+	} else if (stat_name_len == 12 /* strlen("n_leaf_pages") */
+		   && strncasecmp("n_leaf_pages", stat_name, stat_name_len)
 		   == 0) {
 		index->stat_n_leaf_pages = (ulint) stat_value;
 		arg->stats_were_modified = TRUE;
-	} else if (strncasecmp(PFX, stat_name,
-			       ut_min(strlen(PFX), stat_name_len)) == 0) {
+	} else if (stat_name_len > PFX_LEN /* e.g. stat_name=="n_diff_pfx01" */
+		   && strncasecmp(PFX, stat_name, PFX_LEN) == 0) {
 
 		const char*	num_ptr;
 		unsigned long	n_pfx;
 
 		/* point num_ptr into "1" from "n_diff_pfx12..." */
-		num_ptr = stat_name + strlen(PFX);
+		num_ptr = stat_name + PFX_LEN;
 
 		/* stat_name should have exactly 2 chars appended to PFX
 		and they should be digits */
-		if (stat_name_len != strlen(PFX) + 2
+		if (stat_name_len != PFX_LEN + 2
 		    || num_ptr[0] < '0' || num_ptr[0] > '9'
 		    || num_ptr[1] < '0' || num_ptr[1] > '9') {
 
@@ -2251,10 +2254,9 @@ dict_stats_update(
 	if (table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: cannot calculate statistics for table %s\n"
-			"InnoDB: because the .ibd file is missing.  For help,"
-			" please refer to\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting.html\n",
+			" InnoDB: cannot calculate statistics for table %s "
+			"because the .ibd file is missing. For help, please "
+			"refer to " REFMAN "innodb-troubleshooting.html\n",
 			table->name);
 
 		return(DB_TABLESPACE_DELETED);
@@ -2593,6 +2595,8 @@ dict_stats_delete_index_stats(
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: %s\n", errstr);
+
+		trx->error_state = DB_SUCCESS;
 	}
 
 	dict_stats_close(dict_stats);

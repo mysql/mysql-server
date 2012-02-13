@@ -190,7 +190,10 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "materialization",
-                    "chosen": false
+                    "has_nullable_expressions": true,
+                    "treat_UNKNOWN_as_FALSE": false,
+                    "chosen": false,
+                    "cause": "cannot_handle_partial_matches"
                   } /* transformation */
                 },
                 {
@@ -750,9 +753,9 @@ field1	( SELECT COUNT( col_int_key )
 FROM t1
 )
 0	4
-8	4
-8	4
 1	4
+8	4
+8	4
 8	4
 8	4
 select * from information_schema.optimizer_trace;
@@ -2178,6 +2181,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                 "range_scan_alternatives": [
                                   {
                                     "index": "a",
+                                    "index_dives_for_eq_ranges": true,
                                     "ranges": [
                                       "1 <= a <= 1"
                                     ] /* ranges */,
@@ -2190,6 +2194,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                   },
                                   {
                                     "index": "a_2",
+                                    "index_dives_for_eq_ranges": true,
                                     "ranges": [
                                       "1 <= a <= 1"
                                     ] /* ranges */,

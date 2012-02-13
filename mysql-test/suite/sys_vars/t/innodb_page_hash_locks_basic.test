@@ -1,0 +1,22 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+#
+# exists as global only
+#
+select @@global.innodb_page_hash_locks between 1 and 1024;
+select @@global.innodb_page_hash_locks;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_page_hash_locks;
+show global variables like 'innodb_page_hash_locks';
+show session variables like 'innodb_page_hash_locks';
+select * from information_schema.global_variables where variable_name='innodb_page_hash_locks';
+select * from information_schema.session_variables where variable_name='innodb_page_hash_locks';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_page_hash_locks=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@session.innodb_page_hash_locks='some';

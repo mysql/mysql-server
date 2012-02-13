@@ -13,6 +13,9 @@ SELECT @orig;
 # 'Buffer pool(s) dump completed at ' left from previous runs because if
 # it is then the following wait condition may be satisfied without the
 # dump actually being complete and file_exists may fail.
+let $status_var = innodb_buffer_pool_dump_status;
+let $status_var_value = not started;
+-- source include/wait_for_status_var.inc
 SELECT variable_value
 FROM information_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';

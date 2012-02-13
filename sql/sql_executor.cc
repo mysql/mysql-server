@@ -43,10 +43,9 @@ using std::max;
 using std::min;
 
 static void disable_sorted_access(JOIN_TAB* join_tab);
-static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
-                            List<Item> &fields, bool send_row,
-                            ulonglong select_options, const char *info,
-                            Item *having);
+static void return_zero_rows(JOIN *join, List<Item> &fields);
+static void save_const_null_info(JOIN *join, table_map *save_nullinfo);
+static void restore_const_null_info(JOIN *join, table_map save_nullinfo);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 
@@ -146,12 +145,6 @@ JOIN::exec()
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
-    if (result->send_result_set_metadata(*columns_list,
-                                         Protocol::SEND_NUM_ROWS |
-                                         Protocol::SEND_EOF))
-    {
-      DBUG_VOID_RETURN;
-    }
     /*
       We have to test for 'conds' here as the WHERE may not be constant
       even if we don't have any tables for prepared statements or if
@@ -166,6 +159,12 @@ JOIN::exec()
         (!conds || conds->val_int()) &&
         (!having || having->val_int()))
     {
+      if (result->send_result_set_metadata(*columns_list,
+                                           Protocol::SEND_NUM_ROWS |
+                                           Protocol::SEND_EOF))
+      {
+        DBUG_VOID_RETURN;
+      }
       if (do_send_rows &&
           (procedure ? (procedure->send_row(procedure_fields_list) ||
            procedure->end_of_records()) : result->send_data(fields_list)))
@@ -176,15 +175,15 @@ JOIN::exec()
         send_records= ((select_options & OPTION_FOUND_ROWS) ? 1 :
                        thd->get_sent_row_count());
       }
+      /* Query block (without union) always returns 0 or 1 row */
+      thd->limit_found_rows= send_records;
+      thd->set_examined_row_count(0);
     }
     else
     {
-      error=(int) result->send_eof();
-      send_records= 0;
+      tables= 0;
+      return_zero_rows(this, *columns_list);
     }
-    /* Single select (without union) always returns 0 or 1 row */
-    thd->limit_found_rows= send_records;
-    thd->set_examined_row_count(0);
     DBUG_VOID_RETURN;
   }
   /*
@@ -197,12 +196,7 @@ JOIN::exec()
 
   if (zero_result_cause)
   {
-    (void) return_zero_rows(this, result, select_lex->leaf_tables,
-                            *columns_list,
-			    send_row_on_empty_set(),
-			    select_options,
-			    zero_result_cause,
-			    having);
+    return_zero_rows(this, *columns_list);
     DBUG_VOID_RETURN;
   }
   
@@ -804,9 +798,7 @@ JOIN::create_intermediate_table(List<Item> *tmp_table_fields,
         prepare_sum_aggregators(sum_funcs,
                                 !join_tab->is_using_agg_loose_index_scan()) ||
         setup_sum_funcs(thd, sum_funcs))
-    {
-      DBUG_RETURN(NULL);
-    }
+      goto err;
     group_list= NULL;
   }
   else
@@ -815,9 +807,7 @@ JOIN::create_intermediate_table(List<Item> *tmp_table_fields,
         prepare_sum_aggregators(sum_funcs,
                                 !join_tab->is_using_agg_loose_index_scan()) ||
         setup_sum_funcs(thd, sum_funcs))
-    {
-      DBUG_RETURN(NULL);
-    }
+      goto err;
 
     if (!group_list && !tab->distinct && order && simple_order)
     {
@@ -825,13 +815,16 @@ JOIN::create_intermediate_table(List<Item> *tmp_table_fields,
       THD_STAGE_INFO(thd, stage_sorting_for_order);
       if (create_sort_index(thd, this, order,
                             HA_POS_ERROR, HA_POS_ERROR, true))
-      {
-        DBUG_RETURN(NULL);
-      }
+        goto err;
       order= NULL;
     }
   }
   DBUG_RETURN(tab);
+
+err:
+  if (tab != NULL)
+    free_tmp_table(thd, tab);
+  DBUG_RETURN(NULL);
 }
 
 
@@ -1354,42 +1347,51 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
   }
 }
 
+/**
+  For some reason (impossible WHERE clause etc), the tables cannot
+  possibly contain any rows that will be in the result. This function
+  is used to return with a result based on no matching rows (i.e., an
+  empty result or one row with aggregates calculated without using
+  rows in the case of implicit grouping) before the execution of
+  nested loop join.
 
-static int
-return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
-		 List<Item> &fields, bool send_row, ulonglong select_options,
-		 const char *info, Item *having)
+  @param join    The join that does not produce a row
+  @param fields  Fields in result
+*/
+static void
+return_zero_rows(JOIN *join, List<Item> &fields)
 {
   DBUG_ENTER("return_zero_rows");
 
   join->join_free();
 
-  if (send_row)
-  {
-    for (TABLE_LIST *table= tables; table; table= table->next_leaf)
-      mark_as_null_row(table->table);		// All fields are NULL
-    if (having && having->val_int() == 0)
-      send_row=0;
-  }
-  if (!(result->send_result_set_metadata(fields,
-                              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)))
+  if (!(join->result->send_result_set_metadata(fields,
+                                               Protocol::SEND_NUM_ROWS | 
+                                               Protocol::SEND_EOF)))
   {
     bool send_error= FALSE;
-    if (send_row)
+    if (join->send_row_on_empty_set())
     {
+      // Mark tables as containing only NULL values
+      for (uint tableno= 0; tableno < join->tables; tableno++)
+        mark_as_null_row((join->join_tab+tableno)->table);
+
+      // Calculate aggregate functions for no rows
       List_iterator_fast<Item> it(fields);
       Item *item;
       while ((item= it++))
-	item->no_rows_in_result();
-      send_error= result->send_data(fields);
+        item->no_rows_in_result();
+
+      if (!join->having || join->having->val_int())
+        send_error= join->result->send_data(fields);
     }
     if (!send_error)
-      result->send_eof();				// Should be safe
+      join->result->send_eof();                 // Should be safe
   }
   /* Update results for FOUND_ROWS */
   join->thd->set_examined_row_count(0);
   join->thd->limit_found_rows= 0;
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1542,12 +1544,33 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     }
     else if (join->send_row_on_empty_set())
     {
+      table_map save_nullinfo= 0;
+      /*
+        If this is a subquery, we need to save and later restore
+        the const table NULL info before clearing the tables
+        because the following executions of the subquery do not
+        reevaluate constant fields. @see save_const_null_info
+        and restore_const_null_info
+      */
+      if (join->select_lex->master_unit()->item && join->const_tables)
+        save_const_null_info(join, &save_nullinfo);
+
+      // Mark tables as containing only NULL values
+      join->clear();
+
+      // Calculate aggregate functions for no rows
+      List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
+                                 fields);
+      List_iterator_fast<Item> it(*columns_list);
+      Item *item;
+      while ((item= it++))
+        item->no_rows_in_result();
+
       if (!join->having || join->having->val_int())
-      {
-        List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
-                                   fields);
         rc= join->result->send_data(*columns_list);
-      }
+
+      if (save_nullinfo)
+        restore_const_null_info(join, save_nullinfo);
     }
     /*
       An error can happen when evaluating the conds 
@@ -1727,6 +1750,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     // Save contents of join tab for possible repeated materializations:
     const READ_RECORD saved_access= last_tab->read_record;
     const READ_RECORD::Setup_func saved_rfr= last_tab->read_first_record;
+    st_join_table *const saved_last_inner= last_tab->last_inner;
 
     // Initialize full scan
     if (init_read_record(&last_tab->read_record, join->thd,
@@ -1753,6 +1777,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     last_tab->set_condition(save_cond, __LINE__);
     last_tab->read_record= saved_access;
     last_tab->read_first_record= saved_rfr;
+    last_tab->last_inner= saved_last_inner;
   }
   else
   {
@@ -1760,7 +1785,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     if ((res= join_read_key2(join_tab, sjm->table, sjm->tab_ref)) == 1)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if (res || !sjm->in_equality->val_int())
-      DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+      DBUG_RETURN(NESTED_LOOP_OK);
     rc= (*last_tab->next_select)
       (join, join_tab + sjm->table_count, end_of_records);
   }
@@ -1852,6 +1877,8 @@ sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   /*
      TODO: Check whether we really need the call below and we can't do
            without it. If it's not the case remove it.
+     @note This branch is currently dead because setup_join_buffering()
+     disables join buffering if QS_DYNAMIC_RANGE is enabled.
   */
   rc= cache->join_records(TRUE);
   if (rc == NESTED_LOOP_OK || rc == NESTED_LOOP_NO_MORE_ROWS)
@@ -2022,6 +2049,15 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     /* Set first_unmatched for the last inner table of this group */
     join_tab->last_inner->first_unmatched= join_tab;
   }
+  if (join_tab->loosescan_match_tab)
+  {
+    /*
+      join_tab is the first table of a LooseScan range. Reset the LooseScan
+      matching for this round of execution.
+    */
+    join_tab->loosescan_match_tab->found_match= false;
+  }
+
   join->thd->get_stmt_da()->reset_current_row_for_warning();
 
   /* Materialize table prior reading it */
@@ -2206,8 +2242,9 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
   DBUG_ENTER("evaluate_join_record");
 
   DBUG_PRINT("enter",
-             ("evaluate_join_record join: %p join_tab: %p"
-              " cond: %p error: %d", join, join_tab, condition, error));
+             ("join: %p join_tab index: %d table: %s cond: %p error: %d",
+              join, static_cast<int>(join_tab - join_tab->join->join_tab),
+              join_tab->table->alias, condition, error));
   if (error > 0 || (join->thd->is_error()))     // Fatal error
     DBUG_RETURN(NESTED_LOOP_ERROR);
   if (error < 0)
@@ -2527,9 +2564,9 @@ test_if_quick_select(JOIN_TAB *tab)
    Reads content of constant table
    @param tab  table
    @param pos  position of table in query plan
-   @retval 0   ok
-   @retval >0  error
-   @retval <0  ??
+   @retval 0   ok, one row was found or one NULL-complemented row was created
+   @retval -1  ok, no row was found and no NULL-complemented row was created
+   @retval 1   error
 */
 
 int
@@ -2613,16 +2650,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       }
     }
   }
-  /* We will evaluate on-expressions here only if it is not considered
-     expensive.  This also prevents executing materialized subqueries
-     in optimization phase.  This is necessary since proper setup for
-     such execution has not been done at this stage.  
-     (See comment in internal_remove_eq_conds() tagged 
-     DontEvaluateMaterializedSubqueryTooEarly).
-  */
-  if (*tab->on_expr_ref && !table->null_row && 
-      !(*tab->on_expr_ref)->is_expensive())
+
+  if (*tab->on_expr_ref && !table->null_row)
   {
+    // We cannot handle outer-joined tables with expensive join conditions here:
+    DBUG_ASSERT(!(*tab->on_expr_ref)->is_expensive());
     if ((table->null_row= test((*tab->on_expr_ref)->val_int() == 0)))
       mark_as_null_row(table);  
   }
@@ -2641,8 +2673,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     do
     {
       embedded= embedding;
-      if (embedded->on_expr)
-         update_const_equal_items(embedded->on_expr, tab);
+      if (embedded->join_cond())
+        update_const_equal_items(embedded->join_cond(), tab);
       embedding= embedded->embedding;
     }
     while (embedding &&
@@ -2655,6 +2687,16 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 }
 
 
+/**
+  Read a constant table when there is at most one matching row, using a table
+  scan.
+
+  @param tab			Table to read
+
+  @retval  0  Row was found
+  @retval  -1 Row was not found
+  @retval  1  Got an error (other than row not found) during read
+*/
 static int
 join_read_system(JOIN_TAB *tab)
 {
@@ -2681,16 +2723,14 @@ join_read_system(JOIN_TAB *tab)
 
 
 /**
-  Read a [constant] table when there is at most one matching row.
+  Read a constant table when there is at most one matching row, using an
+  index lookup.
 
   @param tab			Table to read
 
-  @retval
-    0	Row was found
-  @retval
-    -1   Row was not found
-  @retval
-    1   Got an error (other than row not found) during read
+  @retval 0  Row was found
+  @retval -1 Row was not found
+  @retval 1  Got an error (other than row not found) during read
 */
 
 static int
@@ -3395,12 +3435,25 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	}
 	else
 	{
-	  if (!join->first_record)
-	  {
+          table_map save_nullinfo= 0;
+          if (!join->first_record)
+          {
+            /*
+              If this is a subquery, we need to save and later restore
+              the const table NULL info before clearing the tables
+              because the following executions of the subquery do not
+              reevaluate constant fields. @see save_const_null_info
+              and restore_const_null_info
+            */
+            if (join->select_lex->master_unit()->item && join->const_tables)
+              save_const_null_info(join, &save_nullinfo);
+
+            // Mark tables as containing only NULL values
+            join->clear();
+
+            // Calculate aggregate functions for no rows
             List_iterator_fast<Item> it(*join->fields);
             Item *item;
-	    /* No matching rows for group function */
-	    join->clear();
 
             while ((item= it++))
               item->no_rows_in_result();
@@ -3418,6 +3471,9 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	    if (join->rollup_send_data((uint) (idx+1)))
 	      error= 1;
 	  }
+          if (save_nullinfo)
+            restore_const_null_info(join, save_nullinfo);
+
 	}
 	if (error > 0)
           DBUG_RETURN(NESTED_LOOP_ERROR);        /* purecov: inspected */
@@ -3676,11 +3732,34 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       int send_group_parts= join->send_group_parts;
       if (idx < send_group_parts)
       {
-	if (!join->first_record)
-	{
-	  /* No matching rows for group function */
-	  join->clear();
-	}
+        table_map save_nullinfo= 0;
+        if (!join->first_record)
+        {
+          // Dead code or we need a test case for this branch
+          DBUG_ASSERT(false);
+          /*
+            If this is a subquery, we need to save and later restore
+            the const table NULL info before clearing the tables
+            because the following executions of the subquery do not
+            reevaluate constant fields. @see save_const_null_info
+            and restore_const_null_info
+          */
+          if (join->select_lex->master_unit()->item && join->const_tables)
+            save_const_null_info(join, &save_nullinfo);
+
+          // Mark tables as containing only NULL values
+          join->clear();
+
+          // Calculate aggregate functions for no rows
+          List<Item> *columns_list= (join->procedure ?
+                                     &join->procedure_fields_list :
+                                     join->fields);
+          List_iterator_fast<Item> it(*columns_list);
+          Item *item;
+          while ((item= it++))
+            item->no_rows_in_result();
+
+        }
         copy_sum_funcs(join->sum_funcs,
                        join->sum_funcs_end[send_group_parts]);
 	if (!join->having || join->having->val_int())
@@ -3698,6 +3777,9 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  if (join->rollup_write_data((uint) (idx+1), table))
 	    DBUG_RETURN(NESTED_LOOP_ERROR);
 	}
+        if (save_nullinfo)
+          restore_const_null_info(join, save_nullinfo);
+
 	if (end_of_records)
 	  DBUG_RETURN(NESTED_LOOP_OK);
       }
@@ -3851,7 +3933,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   if (table->s->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
   filesort_retval= filesort(thd, table, join->sortorder, length,
-                            select, filesort_limit, 0,
+                            select, filesort_limit, tab->keep_current_rowid,
                             &examined_rows, &found_rows);
   table->sort.found_records= filesort_retval;
   tab->records= found_rows;                     // For SQL_CALC_ROWS
@@ -4605,64 +4687,88 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
   res_selected_fields.empty();
   res_all_fields.empty();
 
-  uint i, border= all_fields.elements - elements;
-  for (i= 0; (item= it++); i++)
+  uint border= all_fields.elements - elements;
+  for (uint i= 0; (item= it++); i++)
   {
     Field *field;
-
-    if ((item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM) ||
-        (item->type() == Item::FUNC_ITEM &&
-         ((Item_func*)item)->functype() == Item_func::SUSERVAR_FUNC))
+    if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
       item_field= item;
-    else
+    else if (item->type() == Item::FIELD_ITEM)
+      item_field= item->get_tmp_table_item(thd);
+    else if (item->type() == Item::FUNC_ITEM &&
+             ((Item_func*)item)->functype() == Item_func::SUSERVAR_FUNC)
     {
-      if (item->type() == Item::FIELD_ITEM)
+      field= item->get_tmp_table_field();
+      if (field != NULL)
       {
-	item_field= item->get_tmp_table_item(thd);
-      }
-      else if ((field= item->get_tmp_table_field()))
-      {
-	if (item->type() == Item::SUM_FUNC_ITEM && field->table->group)
-	  item_field= ((Item_sum*) item)->result_item(field);
-	else
-	  item_field= (Item*) new Item_field(field);
-	if (!item_field)
-	  DBUG_RETURN(TRUE);                    // Fatal error
-
-        if (item->real_item()->type() != Item::FIELD_ITEM)
-          field->orig_table= 0;
-	item_field->name= item->name;
-        if (item->type() == Item::REF_ITEM)
-        {
-          Item_field *ifield= (Item_field *) item_field;
-          Item_ref *iref= (Item_ref *) item;
-          ifield->table_name= iref->table_name;
-          ifield->db_name= iref->db_name;
-        }
-#ifndef DBUG_OFF
-	if (!item_field->name)
-	{
-	  char buff[256];
-	  String str(buff,sizeof(buff),&my_charset_bin);
-	  str.length(0);
-	  item->print(&str, QT_ORDINARY);
-	  item_field->name= sql_strmake(str.ptr(),str.length());
-	}
-#endif
+        /*
+          Replace "@:=<expression>" with "@:=<tmp table column>". Otherwise, we
+          would re-evaluate <expression>, and if expression were a subquery, this
+          would access already-unlocked tables.
+        */
+        Item_func_set_user_var* suv=
+          new Item_func_set_user_var(thd, (Item_func_set_user_var*) item);
+        Item_field *new_field= new Item_field(field);
+        if (!suv || !new_field)
+          DBUG_RETURN(true);                  // Fatal error
+        /*
+          We are replacing the argument of Item_func_set_user_var after its value
+          has been read. The argument's null_value should be set by now, so we
+          must set it explicitly for the replacement argument since the
+          null_value may be read without any preceeding call to val_*().
+        */
+        new_field->update_null_value();
+        List<Item> list;
+        list.push_back(new_field);
+        suv->set_arguments(list);
+        item_field= suv;
       }
       else
-	item_field= item;
+        item_field= item;
     }
+    else if ((field= item->get_tmp_table_field()))
+    {
+      if (item->type() == Item::SUM_FUNC_ITEM && field->table->group)
+        item_field= ((Item_sum*) item)->result_item(field);
+      else
+        item_field= (Item*) new Item_field(field);
+      if (!item_field)
+        DBUG_RETURN(true);                    // Fatal error
+
+      if (item->real_item()->type() != Item::FIELD_ITEM)
+        field->orig_table= 0;
+      item_field->name= item->name;
+      if (item->type() == Item::REF_ITEM)
+      {
+        Item_field *ifield= (Item_field *) item_field;
+        Item_ref *iref= (Item_ref *) item;
+        ifield->table_name= iref->table_name;
+        ifield->db_name= iref->db_name;
+      }
+#ifndef DBUG_OFF
+      if (!item_field->name)
+      {
+        char buff[256];
+        String str(buff,sizeof(buff),&my_charset_bin);
+        str.length(0);
+        item->print(&str, QT_ORDINARY);
+        item_field->name= sql_strmake(str.ptr(),str.length());
+      }
+#endif
+    }
+    else
+      item_field= item;
+
     res_all_fields.push_back(item_field);
     ref_pointer_array[((i < border)? all_fields.elements-i-1 : i-border)]=
       item_field;
   }
 
   List_iterator_fast<Item> itr(res_all_fields);
-  for (i= 0; i < border; i++)
+  for (uint i= 0; i < border; i++)
     itr++;
   itr.sublist(res_selected_fields, elements);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -4708,6 +4814,79 @@ change_refs_to_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
   itr.sublist(res_selected_fields, elements);
 
   return thd->is_fatal_error;
+}
+
+
+/**
+  Save NULL-row info for constant tables. Used in conjunction with
+  restore_const_null_info() to restore constant table null_row and
+  status values after temporarily marking rows as NULL. This is only
+  done for const tables in subqueries because these values are not
+  recalculated on next execution of the subquery.
+
+  @param join               The join for which const tables are about to be
+                            marked as containing only NULL values
+  @param[out] save_nullinfo Const tables that have null_row=false and
+                            STATUS_NULL_ROW set are tagged in this
+                            table_map so that the value can be
+                            restored by restore_const_null_info()
+
+  @see mark_as_null_row
+  @see restore_const_null_info
+*/
+static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
+{
+  DBUG_ASSERT(join->const_tables);
+
+  for (uint tableno= 0; tableno < join->const_tables; tableno++)
+  {
+    TABLE *tbl= (join->join_tab+tableno)->table;
+    /*
+      tbl->status and tbl->null_row must be in sync: either both set
+      or none set. Otherwise, an additional table_map parameter is
+      needed to save/restore_const_null_info() these separately
+    */
+    DBUG_ASSERT(tbl->null_row ? (tbl->status & STATUS_NULL_ROW) :
+                               !(tbl->status & STATUS_NULL_ROW));
+
+    if (!tbl->null_row)
+      *save_nullinfo|= tbl->map;
+  }
+}
+
+/**
+  Restore NULL-row info for constant tables. Used in conjunction with
+  save_const_null_info() to restore constant table null_row and status
+  values after temporarily marking rows as NULL. This is only done for
+  const tables in subqueries because these values are not recalculated
+  on next execution of the subquery.
+
+  @param join            The join for which const tables have been
+                         marked as containing only NULL values
+  @param save_nullinfo   Const tables that had null_row=false and
+                         STATUS_NULL_ROW set when
+                         save_const_null_info() was called
+
+  @see mark_as_null_row
+  @see save_const_null_info
+*/
+static void restore_const_null_info(JOIN *join, table_map save_nullinfo)
+{
+  DBUG_ASSERT(join->const_tables && save_nullinfo);
+
+  for (uint tableno= 0; tableno < join->const_tables; tableno++)
+  {
+    TABLE *tbl= (join->join_tab+tableno)->table;
+    if ((save_nullinfo & tbl->map))
+    {
+      /*
+        The table had null_row=false and STATUS_NULL_ROW set when
+        save_const_null_info was called
+      */
+      tbl->null_row= false;
+      tbl->status&= ~STATUS_NULL_ROW;
+    }
+  }
 }
 
 

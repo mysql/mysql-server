@@ -20,6 +20,7 @@
 #include "sql_executor.h"
 #include "sql_base.h"
 #include "opt_trace.h"
+#include "debug_sync.h"
 
 #include <algorithm>
 using std::max;
@@ -209,9 +210,12 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
       field= new Field_blob(item->max_length, item->maybe_null,
                             item->name, item->collation.collation);
     else
+    {
       field= new Field_varstring(item->max_length, item->maybe_null,
                                  item->name,
                                  table->s, item->collation.collation);
+      table->s->db_create_options|= HA_OPTION_PACK_RECORD;
+    }
     if (field)
       field->init(table);
     return field;
@@ -464,8 +468,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   uint  temp_pool_slot=MY_BIT_NONE;
   uint fieldnr= 0;
   ulong reclength, string_total_length;
-  bool  using_unique_constraint= 0;
-  bool  use_packed_rows= 0;
+  bool  using_unique_constraint= false;
+  bool  use_packed_rows= false;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
   char  *tmpname,path[FN_REFLEN];
   uchar	*pos, *group_buff, *bitmaps;
@@ -527,10 +531,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       */
       (*tmp->item)->marker= 4;
       if ((*tmp->item)->max_length >= CONVERT_IF_BIGGER_TO_BLOB)
-	using_unique_constraint=1;
+        using_unique_constraint= true;
     }
     if (param->group_length >= MAX_BLOB_WIDTH)
-      using_unique_constraint=1;
+      using_unique_constraint= true;
     if (group)
       distinct=0;				// Can't use distinct
   }
@@ -750,6 +754,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         *blob_field++= fieldnr;
 	blob_count++;
       }
+
+      if (new_field->real_type() == MYSQL_TYPE_STRING ||
+          new_field->real_type() == MYSQL_TYPE_VARCHAR)
+      {
+        string_count++;
+        string_total_length+= new_field->pack_length();
+      }
+
       if (item->marker == 4 && item->maybe_null)
       {
 	group_null_items++;
@@ -800,7 +812,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     if (group &&
 	(param->group_parts > table->file->max_key_parts() ||
 	 param->group_length > table->file->max_key_length()))
-      using_unique_constraint=1;
+      using_unique_constraint= true;
   }
   else
   {
@@ -836,7 +848,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       (string_total_length >= STRING_TOTAL_LENGTH_TO_PACK_ROWS &&
       (reclength / string_total_length <= RATIO_TO_PACK_ROWS ||
        string_total_length / string_count >= AVG_STRING_LENGTH_TO_PACK_ROWS)))
-    use_packed_rows= 1;
+    use_packed_rows= true;
 
   if (!use_packed_rows)
     share->db_create_options&= ~HA_OPTION_PACK_RECORD;
@@ -956,6 +968,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
              field->real_type() == MYSQL_TYPE_STRING &&
 	     length >= MIN_STRING_LENGTH_TO_PACK_ROWS)
       recinfo->type=FIELD_SKIP_ENDSPACE;
+    else if (use_packed_rows && 
+             field->real_type() == MYSQL_TYPE_VARCHAR &&
+             length >= MIN_STRING_LENGTH_TO_PACK_ROWS)
+      recinfo->type= FIELD_VARCHAR;
     else
       recinfo->type=FIELD_NORMAL;
     if (!--hidden_field_count)
@@ -1121,6 +1137,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   thd->mem_root= mem_root_save;
 
+  DEBUG_SYNC(thd, "tmp_table_created");
+
   DBUG_RETURN(table);
 
 err:
@@ -1182,12 +1200,11 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   uchar *bitmaps;
   uint *blob_field;
   MI_COLUMNDEF *recinfo, *start_recinfo;
-  bool using_unique_constraint=FALSE;
-  bool use_packed_rows= FALSE;
+  bool using_unique_constraint=false;
   Field *field, *key_field;
   uint null_pack_length, null_count;
   uchar *null_flags;
-  uchar *pos;
+
   DBUG_ENTER("create_duplicate_weedout_tmp_table");
   DBUG_ASSERT(!sjtbl->is_confluent);
   /*
@@ -1210,7 +1227,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
 
   /* STEP 2: Figure if we'll be using a key or blob+constraint */
   if (uniq_tuple_length_arg >= CONVERT_IF_BIGGER_TO_BLOB)
-    using_unique_constraint= TRUE;
+    using_unique_constraint= true;
 
   /* STEP 3: Allocate memory for temptable description */
   init_sql_alloc(&own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
@@ -1329,12 +1346,12 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
 
   recinfo= start_recinfo;
   null_flags=(uchar*) table->record[0];
-  pos=table->record[0]+ null_pack_length;
-  if (null_pack_length)
+
   {
+    /* Table description for the NULL bits */
     memset(recinfo, 0, sizeof(*recinfo));
-    recinfo->type=FIELD_NORMAL;
-    recinfo->length=null_pack_length;
+    recinfo->type= FIELD_NORMAL;
+    recinfo->length= null_pack_length;
     recinfo++;
     memset(null_flags, 255, null_pack_length);	// Set null fields
 
@@ -1345,38 +1362,20 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   null_count=1;
 
   {
-    //Field *field= *reg_field;
-    uint length;
+    /* Table description for the concatenated rowid column */
     memset(recinfo, 0, sizeof(*recinfo));
-    field->move_field(pos,(uchar*) 0,0);
-
-    field->reset();
-    /*
-      Test if there is a default field value. The test for ->ptr is to skip
-      'offset' fields generated by initalize_tables
+    /* 
+       Don't care about packing the VARCHAR since it's only a
+       concatenation of rowids. @see create_tmp_table() for how
+       packed VARCHARs can be achieved
     */
-    // Initialize the table field:
-    memset(field->ptr, 0, field->pack_length());
+    recinfo->type= FIELD_NORMAL;
+    recinfo->length= field->pack_length();
 
-    length=field->pack_length();
-    pos+= length;
-
-    /* Make entry for create table */
-    recinfo->length=length;
-    if (field->flags & BLOB_FLAG)
-      recinfo->type= (int) FIELD_BLOB;
-    else if (use_packed_rows &&
-             field->real_type() == MYSQL_TYPE_STRING &&
-	     length >= MIN_STRING_LENGTH_TO_PACK_ROWS)
-      recinfo->type=FIELD_SKIP_ENDSPACE;
-    else
-      recinfo->type=FIELD_NORMAL;
-
+    field->move_field(table->record[0] + null_pack_length, 0, 0);
+    field->reset();
     field->table_name= &table->alias;
   }
-
-  //param->recinfo=recinfo;
-  //store_record(table,s->default_values);        // Make empty default record
 
   if (thd->variables.tmp_table_size == ~ (ulonglong) 0)		// No limit
     share->max_rows= ~(ha_rows) 0;
@@ -1389,7 +1388,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   set_if_bigger(share->max_rows,1);		// For dummy start options
 
 
-  //// keyinfo= param->keyinfo;
   if (TRUE)
   {
     DBUG_PRINT("info",("Creating group key in temporary table"));
@@ -1732,7 +1730,10 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
                        start_recinfo,
                        share->uniques, &uniquedef,
                        &create_info,
-                       HA_CREATE_TMP_TABLE)))
+                       HA_CREATE_TMP_TABLE | 
+                       ((share->db_create_options & HA_OPTION_PACK_RECORD) ?
+                        HA_PACK_RECORD : 0)
+                       )))
   {
     table->file->print_error(error,MYF(0));	/* purecov: inspected */
     table->db_stat=0;

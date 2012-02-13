@@ -425,6 +425,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "c <= ÁÂÃÄ"
                         ] /* ranges */,
@@ -628,6 +629,7 @@ select `col
                     "range_scan_alternatives": [
                       {
                         "index": "index\n1\ta",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "NULL < col\n1\ta < 6"
                         ] /* ranges */,

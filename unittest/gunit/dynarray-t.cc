@@ -13,8 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines,
-// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
+// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
 
@@ -149,7 +148,7 @@ void generate_test_data(Key_use *keys, TABLE *tables, int n)
 
 // Play around with these constants to see std::sort speedup vs. my_qsort.
 const int num_elements= 200;
-const int num_iterations= 10;
+const int num_iterations= 1000;
 
 /*
   This class is used for comparing performance of

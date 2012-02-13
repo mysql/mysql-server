@@ -4701,14 +4701,14 @@ ER_NOT_SUPPORTED_YET 42000
         spa "Esta versión de MySQL no soporta todavia '%s'"
         swe "Denna version av MySQL kan ännu inte utföra '%s'"
 ER_MASTER_FATAL_ERROR_READING_BINLOG  
-        nla "Kreeg fatale fout %d: '%-.256s' van master tijdens lezen van data uit binaire log"
-        eng "Got fatal error %d from master when reading data from binary log: '%-.256s'"
-        ger "Schwerer Fehler %d: '%-.256s vom Master beim Lesen des binären Logs"
-        ita "Errore fatale %d: '%-.256s' dal master leggendo i dati dal log binario"
-        por "Obteve fatal erro %d: '%-.256s' do master quando lendo dados do binary log"
-        rus "Получена неисправимая ошибка %d: '%-.256s' от головного сервера в процессе выборки данных из двоичного журнала"
-        spa "Recibió fatal error %d: '%-.256s' del master cuando leyendo datos del binary log"
-        swe "Fick fatalt fel %d: '%-.256s' från master vid läsning av binärloggen"
+        nla "Kreeg fatale fout %d: '%-.320s' van master tijdens lezen van data uit binaire log"
+        eng "Got fatal error %d from master when reading data from binary log: '%-.320s'"
+        ger "Schwerer Fehler %d: '%-.320s vom Master beim Lesen des binären Logs"
+        ita "Errore fatale %d: '%-.320s' dal master leggendo i dati dal log binario"
+        por "Obteve fatal erro %d: '%-.320s' do master quando lendo dados do binary log"
+        rus "Получена неисправимая ошибка %d: '%-.320s' от головного сервера в процессе выборки данных из двоичного журнала"
+        spa "Recibió fatal error %d: '%-.320s' del master cuando leyendo datos del binary log"
+        swe "Fick fatalt fel %d: '%-.320s' från master vid läsning av binärloggen"
 ER_SLAVE_IGNORED_TABLE  
         eng "Slave SQL thread ignored the query because of replicate-*-table rules"
         ger "Slave-SQL-Thread hat die Abfrage aufgrund von replicate-*-table-Regeln ignoriert"
@@ -6624,3 +6624,11 @@ ER_INNODB_FT_LIMIT
 
 ER_INNODB_NO_FT_TEMP_TABLE
   eng "Cannot create FULLTEXT index on temporary InnoDB table"
+
+ER_BINLOG_UNSAFE_WRITE_AUTOINC_SELECT
+  eng "Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC
+  eng "CREATE TABLE... SELECT...  on a table with an auto-increment column is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are inserted. This order cannot be predicted and may differ on master and the slave."
+
+

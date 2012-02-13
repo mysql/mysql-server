@@ -377,42 +377,136 @@ err:
 
 
 /**
-  @brief Check if subquery predicate's compared types allow materialization.
+  Check if the subquery predicate can be executed via materialization.
 
-  @param predicate subquery predicate
+  @param predicate IN subquery predicate
+  @param thd       THD
+  @param select_lex SELECT_LEX of the subquery
+  @param outer      Parent SELECT_LEX (outer to subquery)
 
-  @return TRUE if subquery types allow materialization, FALSE otherwise.
-
-  @details
-    This is a temporary fix for BUG#36752.
-    See bug report for description of restrictions we need to put on the
-    compared expressions.
+  @return TRUE if subquery allows materialization, FALSE otherwise.
 */
 
-static 
-bool subquery_types_allow_materialization(Item_in_subselect *predicate)
+static
+bool subquery_allows_materialization(Item_in_subselect *predicate,
+                                     THD *thd,
+                                     SELECT_LEX *select_lex,
+                                     const SELECT_LEX *outer)
 {
-  DBUG_ENTER("subquery_types_allow_materialization");
+  bool has_nullables= false;
+  const uint elements= predicate->unit->first_select()->item_list.elements;
+  DBUG_ENTER("subquery_allows_materialization");
+  DBUG_ASSERT(elements >= 1);
+  DBUG_ASSERT(predicate->left_expr->cols() == elements);
 
-  DBUG_ASSERT(predicate->left_expr->fixed);
-  DBUG_ASSERT(predicate->left_expr->cols() ==
-              predicate->unit->first_select()->item_list.elements);
+  OPT_TRACE_TRANSFORM(&thd->opt_trace, trace_wrapper, trace_mat,
+                      select_lex->select_number,
+                      "IN (SELECT)", "materialization");
 
-  List_iterator<Item> it(predicate->unit->first_select()->item_list);
-  uint elements= predicate->unit->first_select()->item_list.elements;
-  
-  for (uint i= 0; i < elements; i++)
+  const char *cause= NULL;
+  if (select_lex->is_part_of_union())
   {
-    Item *inner= it++;
-    if (!types_allow_materialization(predicate->left_expr->element_index(i),
-                                     inner))
-      DBUG_RETURN(FALSE);
-    if (inner->is_blob_field())
-      DBUG_RETURN(FALSE);
+    // Subquery must be a single query specification clause (not a UNION)
+    cause= "in UNION";
   }
+  else if (!select_lex->master_unit()->first_select()->leaf_tables)
+  {
+    // Subquery has no tables, hence no point in materializing.
+    cause= "no inner tables";
+  }
+  else if (!outer->join)
+  {
+    /*
+      Maybe this is a subquery of a single table UPDATE/DELETE (TODO:
+      handle this by switching to multi-table UPDATE/DELETE).
+    */
+    cause= "parent query has no JOIN";
+  }
+  else if (!outer->leaf_tables)
+  {
+    /*
+      The upper query is SELECT ... FROM DUAL. We can't do materialization for
+      SELECT .. FROM DUAL because it does not call
+      setup_subquery_materialization(). We could fix it but it's not worth it.
+    */
+    cause= "no tables in outer query";
+  }
+  else if (predicate->is_correlated)
+  {
+    /*
+      Subquery should not be correlated.
+      TODO:
+      This is an overly restrictive condition. It can be extended to:
+         (Subquery is non-correlated ||
+          Subquery is correlated to any query outer to IN predicate ||
+          (Subquery is correlated to the immediate outer query &&
+           Subquery !contains {GROUP BY, ORDER BY [LIMIT],
+           aggregate functions}) && subquery predicate is not under "NOT IN"))
+    */
+    cause= "correlated";
+  }
+  else if (predicate->exec_method !=
+           Item_exists_subselect::EXEC_UNSPECIFIED)
+  {
+    // An execution method was already chosen (by a prepared statement).
+    cause= "already have strategy";
+  }
+  else
+  {
+    /*
+      Check that involved expression types allow materialization.
+      This is a temporary fix for BUG#36752; see bug report for
+      description of restrictions we need to put on the compared expressions.
+    */
+    DBUG_ASSERT(predicate->left_expr->fixed);
+    List_iterator<Item> it(predicate->unit->first_select()->item_list);
 
-  DBUG_PRINT("info",("subquery_types_allow_materialization: ok, allowed"));
-  DBUG_RETURN(TRUE);
+    for (uint i= 0; i < elements; i++)
+    {
+      Item * const inner= it++;
+      Item * const outer= predicate->left_expr->element_index(i);
+      if (!types_allow_materialization(outer, inner))
+      {
+        cause= "type mismatch";
+        break;
+      }
+      if (inner->is_blob_field())                 // 6
+      {
+        cause= "inner blob";
+        break;
+      }
+      has_nullables|= outer->maybe_null | inner->maybe_null;
+    }
+
+    if (!cause)
+    {
+      trace_mat.add("has_nullable_expressions", has_nullables);
+      /*
+        Subquery materialization cannot handle NULLs partial matching
+        properly, yet. If the outer or inner values are NULL, the
+        subselect_hash_sj_engine may reply FALSE when it should reply UNKNOWN.
+        So, we must limit it to those three cases:
+        - when FALSE and UNKNOWN are equivalent answers. I.e. this is a a
+        top-level predicate (this implies it is not negated).
+        - when outer and inner values cannot be NULL.
+        - when there is a single inner column (because for this we have a
+        limited implementation of NULLs partial matching).
+      */
+      const bool is_top_level= predicate->is_top_level_item();
+      trace_mat.add("treat_UNKNOWN_as_FALSE", is_top_level);
+
+      if (!is_top_level && has_nullables && (elements > 1))
+        cause= "cannot_handle_partial_matches";
+      else
+      {
+        trace_mat.add("chosen", true);
+        DBUG_RETURN(TRUE);
+      }
+    }
+  }
+  DBUG_ASSERT(cause != NULL);
+  trace_mat.add("chosen", false).add_alnum("cause", cause);
+  DBUG_RETURN(false);
 }
 
 
@@ -437,13 +531,11 @@ bool subquery_types_allow_materialization(Item_in_subselect *predicate)
 
 */
 
-static
-bool resolve_subquery(THD *thd, JOIN *join)
+static bool resolve_subquery(THD *thd, JOIN *join)
 {
   DBUG_ENTER("resolve_subquery");
 
-  enum {SQ_NONE, SQ_SEMIJOIN, SQ_MATERIALIZATION} sq_choice= SQ_NONE;
-  bool types_problem= false; // if types prevented subq materialization
+  bool chose_semijoin= false;
   SELECT_LEX *const select_lex= join->select_lex;
   SELECT_LEX *const outer= select_lex->outer_select();
 
@@ -548,93 +640,37 @@ bool resolve_subquery(THD *thd, JOIN *join)
 
     /* Register the subquery for further processing in flatten_subqueries() */
     outer->join->sj_subselects.push_back(in_exists_predicate);
-    sq_choice= SQ_SEMIJOIN;
+    chose_semijoin= true;
   }
-  else
+
+  if (subq_predicate_substype == Item_subselect::IN_SUBS)
   {
-    DBUG_PRINT("info", ("Subquery can't be converted to semi-join"));
+    Opt_trace_context * const trace= &join->thd->opt_trace;
+    OPT_TRACE_TRANSFORM(trace, oto0, oto1,
+                        select_lex->select_number, "IN (SELECT)", "semijoin");
+    oto1.add("chosen", chose_semijoin);
+  }
+
+  if (!chose_semijoin &&
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION) &&
+      (subq_predicate_substype == Item_subselect::IN_SUBS))
+  {
     /*
       Check if the subquery predicate can be executed via materialization.
-      The required conditions are:
-      1. Subquery predicate is an IN/=ANY subquery predicate
-      2. Subquery is a single SELECT (not a UNION)
-      3. Subquery is not a table-less query. In this case there is no
-         point in materializing.
-        3A The upper query is not a confluent SELECT ... FROM DUAL. We
-           can't do materialization for SELECT .. FROM DUAL because it
-           does not call setup_subquery_materialization(). We could make 
-           SELECT ... FROM DUAL call that function but that doesn't seem
-           to be the case that is worth handling.
-      4. Subquery predicate is a top-level predicate
-         (this implies it is not negated)
-         TODO: this is a limitation that should be lifted once we
-         implement correct NULL semantics (WL#3830)
-      5. Subquery is non-correlated
-         TODO:
-         This is an overly restrictive condition. It can be extended to:
-         (Subquery is non-correlated ||
-          Subquery is correlated to any query outer to IN predicate ||
-          (Subquery is correlated to the immediate outer query &&
-           Subquery !contains {GROUP BY, ORDER BY [LIMIT],
-           aggregate functions}) && subquery predicate is not under "NOT IN"))
-      6. No execution method was already chosen (by a prepared statement).
-      7. Involved expression types allow materialization (temporary only)
-
-      (*) The subquery must be part of a SELECT or CREATE SELECT statement. We
-           should relax this and allow it in multi/single-table UPDATE/DELETE,
-           INSERT SELECT (after studying potential problems when the
-           inserts/updates/deletes are done to a table which is itself part of
-           the subquery).
 
       We have to determine whether we will perform subquery materialization
       before calling the IN=>EXISTS transformation, so that we know whether to
       perform the whole transformation or only that part of it which wraps
       Item_in_subselect in an Item_in_optimizer.
     */
-    Item_in_subselect *in_predicate= (Item_in_subselect *)subq_predicate;
-
-    if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION)  && 
-        subq_predicate_substype == Item_subselect::IN_SUBS &&        // 1
-        !select_lex->is_part_of_union() &&                              // 2
-        select_lex->master_unit()->first_select()->leaf_tables &&       // 3
-        (thd->lex->sql_command == SQLCOM_SELECT ||
-         thd->lex->sql_command == SQLCOM_CREATE_TABLE) &&               // *
-        outer->leaf_tables &&                                           // 3A
-        in_predicate->is_top_level_item() &&                            // 4
-        !in_predicate->is_correlated &&                                 // 5
-        in_predicate->exec_method ==
-        Item_exists_subselect::EXEC_UNSPECIFIED)        // 6
-    {
-      if (subquery_types_allow_materialization(in_predicate))             // 7
-      {
-        in_predicate->exec_method=
-          Item_exists_subselect::EXEC_MATERIALIZATION;
-        sq_choice= SQ_MATERIALIZATION;
-      }
-      else
-        types_problem= true;
-    }
+    Item_in_subselect *in_predicate= static_cast<Item_in_subselect *>
+      (subq_predicate);
+    if (subquery_allows_materialization(in_predicate, thd, select_lex, outer))
+      in_predicate->exec_method=
+        Item_exists_subselect::EXEC_MATERIALIZATION;
   }
 
-  Opt_trace_context * const trace= &join->thd->opt_trace;
-  if (subq_predicate_substype == Item_subselect::IN_SUBS)
-  {
-    {
-      OPT_TRACE_TRANSFORM(trace, oto, oto1, select_lex->select_number,
-                          "IN (SELECT)", "semijoin");
-      oto1.add("chosen", sq_choice == SQ_SEMIJOIN);
-    }
-    if (sq_choice != SQ_SEMIJOIN)
-    {
-      OPT_TRACE_TRANSFORM(trace, oto0, oto1, select_lex->select_number,
-                          "IN (SELECT)", "materialization");
-      oto1.add("chosen", sq_choice == SQ_MATERIALIZATION);
-      if (types_problem)
-        oto1.add_alnum("cause", "field_types");
-    }
-  }
-
-  if (sq_choice != SQ_SEMIJOIN &&
+  if (!chose_semijoin &&
       subq_predicate->select_transformer(join) == Item_subselect::RES_ERROR)
     DBUG_RETURN(TRUE);
 
@@ -1036,6 +1072,8 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
       */
       order->item= &ref_pointer_array[counter];
       order->in_field_list=1;
+      if (resolution == RESOLVED_AGAINST_ALIAS)
+        order->used_alias= true;
       return FALSE;
     }
     else

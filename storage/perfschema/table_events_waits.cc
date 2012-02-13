@@ -442,8 +442,8 @@ void table_events_waits_common::make_row(bool thread_own_wait,
   m_row.m_nesting_event_id= wait->m_nesting_event_id;
   m_row.m_nesting_event_type= wait->m_nesting_event_type;
 
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  normalizer->to_pico(wait->m_timer_start, wait->m_timer_end,
+  get_normalizer(safe_class);
+  m_normalizer->to_pico(wait->m_timer_start, wait->m_timer_end,
                       & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
 
   m_row.m_name= safe_class->m_name;
@@ -761,9 +761,13 @@ int table_events_waits_current::rnd_next(void)
     if (m_pos.m_index_2 >= 1)
       continue;
 #else
-    uint safe_events_waits_count= pfs_thread->m_events_waits_count - WAIT_STACK_BOTTOM;
+    /* m_events_waits_stack[0] is a dummy record */
+    PFS_events_waits *top_wait = &pfs_thread->m_events_waits_stack[WAIT_STACK_BOTTOM];
+    wait= &pfs_thread->m_events_waits_stack[m_pos.m_index_2 + WAIT_STACK_BOTTOM];
 
-    if (safe_events_waits_count == 0)
+    PFS_events_waits *safe_current = pfs_thread->m_events_waits_current;
+
+    if (safe_current == top_wait)
     {
       /* Display the last top level wait, when completed */
       if (m_pos.m_index_2 >= 1)
@@ -772,13 +776,10 @@ int table_events_waits_current::rnd_next(void)
     else
     {
       /* Display all pending waits, when in progress */
-      if (m_pos.m_index_2 >= safe_events_waits_count)
+      if (wait >= safe_current)
         continue;
     }
 #endif
-
-    /* m_events_waits_stack[0] is a dummy record */
-    wait= &pfs_thread->m_events_waits_stack[m_pos.m_index_2 + WAIT_STACK_BOTTOM];
 
     if (wait->m_wait_class == NO_WAIT_CLASS)
     {
@@ -814,9 +815,13 @@ int table_events_waits_current::rnd_pos(const void *pos)
   if (m_pos.m_index_2 >= 1)
     return HA_ERR_RECORD_DELETED;
 #else
-  uint safe_events_waits_count= pfs_thread->m_events_waits_count - WAIT_STACK_BOTTOM;
+  /* m_events_waits_stack[0] is a dummy record */
+  PFS_events_waits *top_wait = &pfs_thread->m_events_waits_stack[WAIT_STACK_BOTTOM];
+  wait= &pfs_thread->m_events_waits_stack[m_pos.m_index_2 + WAIT_STACK_BOTTOM];
 
-  if (safe_events_waits_count == 0)
+  PFS_events_waits *safe_current = pfs_thread->m_events_waits_current;
+
+  if (safe_current == top_wait)
   {
     /* Display the last top level wait, when completed */
     if (m_pos.m_index_2 >= 1)
@@ -825,14 +830,12 @@ int table_events_waits_current::rnd_pos(const void *pos)
   else
   {
     /* Display all pending waits, when in progress */
-    if (m_pos.m_index_2 >= safe_events_waits_count)
+    if (wait >= safe_current)
       return HA_ERR_RECORD_DELETED;
   }
 #endif
 
   DBUG_ASSERT(m_pos.m_index_2 < WAIT_STACK_LOGICAL_SIZE);
-
-  wait= &pfs_thread->m_events_waits_stack[m_pos.m_index_2 + WAIT_STACK_BOTTOM];
 
   if (wait->m_wait_class == NO_WAIT_CLASS)
     return HA_ERR_RECORD_DELETED;

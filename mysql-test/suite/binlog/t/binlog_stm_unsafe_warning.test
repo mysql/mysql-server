@@ -102,16 +102,24 @@ eval USE $old_db;
 --echo # Bug#46265: Can not disable warning about unsafe statements for binary logging
 --echo #
 
+let BINLOG_COUNTER1= `select CONVERT(NOW(),UNSIGNED) as timestmap from dual`;
+
 SET @old_log_warnings = @@log_warnings;
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
-CREATE TABLE t1 (a VARCHAR(36), b VARCHAR(10));
+CREATE TABLE t1 (a VARCHAR(36), b VARCHAR(15));
+
 SET GLOBAL LOG_WARNINGS = 0;
-INSERT INTO t1 VALUES(UUID(), 'Bug#46265');
+# Replacing the result file content here.
+# Instead of writing $BINLOG_COUNTER1 value to result file, 
+# writing a fixed string timestamp to it.
+--replace_result $BINLOG_COUNTER1 timestamp
+eval INSERT INTO t1 VALUES(UUID(), '$BINLOG_COUNTER1');
 SET GLOBAL LOG_WARNINGS = 1;
-INSERT INTO t1 VALUES(UUID(), 'Bug#46265');
+--replace_result $BINLOG_COUNTER1 timestamp
+eval INSERT INTO t1 VALUES(UUID(), '$BINLOG_COUNTER1');
 DROP TABLE t1;
 
 SET GLOBAL log_warnings = @old_log_warnings;
@@ -133,13 +141,14 @@ perl;
   use strict;
   my $log_error= $ENV{'LOG_ERROR'} or die "LOG_ERROR not set";
   open(FILE, "$log_error") or die("Unable to open $log_error: $!\n");
-  my $count = () = grep(/Bug#46265/g,<FILE>);
+  my $binlog_counter= $ENV{'BINLOG_COUNTER1'} or die "BINLOG_COUNTER1 not set";
+  my $count = () = grep(/$binlog_counter/g,<FILE>); 
+  # Grep the timestamp value from the error file.
   print "Occurrences: $count\n";
   close(FILE);
 EOF
 
 # bug#50192: diplaying the unsafe warning comes out to the user warning stack
-
 -- disable_warnings
 DROP TABLE IF EXISTS t1, t2;
 -- enable_warnings

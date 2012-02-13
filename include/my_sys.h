@@ -719,6 +719,7 @@ extern int flush_write_cache(RECORD_CACHE *info);
 extern void handle_recived_signals(void);
 
 extern sig_handler my_set_alarm_variable(int signo);
+extern my_bool radixsort_is_appliccable(uint n_items, size_t size_of_element);
 extern void my_string_ptr_sort(uchar *base,uint items,size_t size);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
 				  size_t size_of_element,uchar *buffer[]);

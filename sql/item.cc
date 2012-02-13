@@ -670,6 +670,32 @@ void Item::print_item_w_name(String *str, enum_query_type query_type)
 }
 
 
+/**
+   @details
+   "SELECT (subq) GROUP BY (same_subq)" confuses ONLY_FULL_GROUP_BY (it does
+   not see that both subqueries are the same, raises an error).
+   To avoid hitting this problem, if the original query was:
+   "SELECT expression AS x GROUP BY x", we print "GROUP BY x", not
+   "GROUP BY expression". Same for ORDER BY.
+   This has practical importance for views created as
+   "CREATE VIEW v SELECT (subq) AS x GROUP BY x"
+   (print_order() is used to write the view's definition in the frm file).
+*/
+void Item::print_for_order(String *str,
+                           enum_query_type query_type,
+                           bool used_alias)
+{
+  if (used_alias)
+  {
+    DBUG_ASSERT(name != NULL);
+    // In the clause, user has referenced expression using an alias; we use it
+    append_identifier(current_thd, str, name, (uint) strlen(name));
+  }
+  else
+    print(str,query_type);
+}
+
+
 void Item::cleanup()
 {
   DBUG_ENTER("Item::cleanup");
@@ -854,6 +880,14 @@ bool Item_field::add_field_to_set_processor(uchar *arg)
   if (field->table == table)
     bitmap_set_bit(&table->tmp_set, field->field_index);
   DBUG_RETURN(FALSE);
+}
+
+
+bool Item_field::remove_column_from_bitmap(uchar *argument)
+{
+  MY_BITMAP *bitmap= reinterpret_cast<MY_BITMAP*>(argument);
+  bitmap_clear_bit(bitmap, field->field_index);
+  return false;
 }
 
 /**
@@ -1378,12 +1412,27 @@ bool Item::get_time_from_non_temporal(MYSQL_TIME *ltime)
 }
 
 
+/*
+- Return NULL if argument is NULL.
+- Return zero if argument is not NULL, but we could not convert it to DATETIME.
+- Return zero if argument is not NULL and represents a valid DATETIME value,
+  but the value is out of the supported Unix timestamp range.
+*/
 bool Item::get_timeval(struct timeval *tm, int *warnings)
 {
   MYSQL_TIME ltime;
-  return (null_value=
-          (get_date(&ltime, TIME_FUZZY_DATE) ||
-           datetime_to_timeval(current_thd, &ltime, tm, warnings)));
+  if (get_date(&ltime, TIME_FUZZY_DATE))
+  {
+    if (null_value)
+      return true; /* Value is NULL */
+    goto zero; /* Could not extract date from the value */
+  }
+  if (datetime_to_timeval(current_thd, &ltime, tm, warnings))
+    goto zero; /* Value is out of the supported range */
+  return false; /* Value is a good Unix timestamp */
+zero:
+  tm->tv_sec= tm->tv_usec= 0;
+  return false;
 }
 
 
@@ -1403,6 +1452,7 @@ const CHARSET_INFO *Item::default_charset()
 
 int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
 {
+  DBUG_ENTER("Item::save_in_field_no_warnings");
   int res;
   TABLE *table= field->table;
   THD *thd= table->in_use;
@@ -1417,7 +1467,7 @@ int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
   thd->count_cuted_fields= tmp;
   dbug_tmp_restore_column_map(table->write_set, old_map);
   thd->variables.sql_mode= sql_mode;
-  return res;
+  DBUG_RETURN(res);
 }
 
 
@@ -2670,8 +2720,11 @@ bool Item_field::get_time(MYSQL_TIME *ltime)
 
 bool Item_field::get_timeval(struct timeval *tm, int *warnings)
 {
-  return (null_value= (field->is_null() ||
-                       field->get_timestamp(tm, warnings)));
+  if ((null_value= field->is_null()))
+    return true;
+  if (field->get_timestamp(tm, warnings))
+    tm->tv_sec= tm->tv_usec= 0;
+  return false;
 }
 
 double Item_field::val_result()
@@ -7524,7 +7577,9 @@ bool Item_direct_ref::is_null()
 
 bool Item_direct_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
-  return (null_value=(*ref)->get_date(ltime,fuzzydate));
+  bool tmp= (*ref)->get_date(ltime, fuzzydate);
+  null_value= (*ref)->null_value;
+  return tmp;
 }
 
 
@@ -8140,9 +8195,13 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
           or less than the original Item. A 0 may also be returned if 
           out of memory.          
 
-  @note We only use this on the range optimizer/partition pruning,
+  @note We use this in the range optimizer/partition pruning,
         because in some cases we can't store the value in the field
         without some precision/character loss.
+
+        We similarly use it to verify that expressions like
+        BIGINT_FIELD <cmp> <literal value>
+        is done correctly (as int/decimal/float according to literal type).
 */
 
 int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
@@ -8196,7 +8255,7 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
 
       return my_time_compare(&field_time, &item_time);
     }
-    return stringcmp(field_result, item_result);
+    return sortcmp(field_result, item_result, field->charset());
   }
   if (res_type == INT_RESULT)
     return 0;					// Both are of type int
@@ -8208,12 +8267,17 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
     if (item->null_value)
       return 0;
     field_val= field->val_decimal(&field_buf);
-    return my_decimal_cmp(item_val, field_val);
+    return my_decimal_cmp(field_val, item_val);
   }
-  double result= item->val_real();
+  /*
+    The patch for Bug#13463415 started using this function for comparing
+    BIGINTs. That uncovered a bug in Visual Studio 32bit optimized mode.
+    Prefixing the auto variables with volatile fixes the problem....
+  */
+  volatile double result= item->val_real();
   if (item->null_value)
     return 0;
-  double field_result= field->val_real();
+  volatile double field_result= field->val_real();
   if (field_result < result)
     return -1;
   else if (field_result > result)
@@ -8461,12 +8525,18 @@ bool Item_cache_datetime::get_date(MYSQL_TIME *ltime, uint fuzzydate)
       return false;
     }
   case MYSQL_TYPE_DATE:
-    TIME_from_longlong_date_packed(ltime, int_value);
-    return false;
+    {
+      int warnings= 0;
+      TIME_from_longlong_date_packed(ltime, int_value);
+      return check_date(ltime, non_zero_date(ltime), fuzzydate, &warnings);
+    }
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_TIMESTAMP:
-    TIME_from_longlong_datetime_packed(ltime, int_value);
-    return false;
+    {
+      int warnings= 0;
+      TIME_from_longlong_datetime_packed(ltime, int_value);
+      return check_date(ltime, non_zero_date(ltime), fuzzydate, &warnings);
+    }
   default:
     DBUG_ASSERT(0);
   }

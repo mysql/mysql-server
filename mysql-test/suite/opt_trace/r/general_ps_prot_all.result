@@ -1005,7 +1005,8 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "materialization",
-                    "chosen": false
+                    "chosen": false,
+                    "cause": "in UNION"
                   } /* transformation */
                 }
               ] /* steps */
@@ -1031,7 +1032,8 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                     "select#": 3,
                     "from": "IN (SELECT)",
                     "to": "materialization",
-                    "chosen": false
+                    "chosen": false,
+                    "cause": "in UNION"
                   } /* transformation */
                 }
               ] /* steps */
@@ -1210,7 +1212,8 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                           "select#": "fake",
                           "from": "IN (SELECT)",
                           "to": "materialization",
-                          "chosen": false
+                          "chosen": false,
+                          "cause": "in UNION"
                         } /* transformation */
                       }
                     ] /* steps */
@@ -1321,8 +1324,8 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 NULL	NULL
 select length(@trace);
 length(@trace)
-13765
-set optimizer_trace_max_mem_size=13900;
+13894
+set optimizer_trace_max_mem_size=14100;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 length(@query)+length(@trace) > @@optimizer_trace_max_mem_size
 0
@@ -1338,7 +1341,7 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-13765	1	1
+13894	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
@@ -1516,6 +1519,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "NULL <= d <= NULL"
                         ] /* ranges */,
@@ -1700,6 +1704,8 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "materialization",
+                    "has_nullable_expressions": true,
+                    "treat_UNKNOWN_as_FALSE": true,
                     "chosen": true
                   } /* transformation */
                 }
@@ -1891,6 +1897,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                           "range_scan_alternatives": [
                             {
                               "index": "d",
+                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "NULL <= d <= NULL"
                               ] /* ranges */,
@@ -2482,14 +2489,6 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
                   "transformation": {
                     "select#": 2,
                     "from": "IN (SELECT)",
-                    "to": "materialization",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
                     "to": "EXISTS (CORRELATED SELECT)",
                     "chosen": true,
                     "evaluating_constant_where_conditions": [
@@ -2751,14 +2750,6 @@ explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
                     "chosen": false
                   } /* transformation */
                 },
@@ -3373,7 +3364,7 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
                     "from": "IN (SELECT)",
                     "to": "materialization",
                     "chosen": false,
-                    "cause": "field_types"
+                    "cause": "inner blob"
                   } /* transformation */
                 },
                 {
@@ -4398,6 +4389,8 @@ concat(c1,'y') IN
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "materialization",
+                    "has_nullable_expressions": true,
+                    "treat_UNKNOWN_as_FALSE": true,
                     "chosen": true
                   } /* transformation */
                 }
@@ -4424,6 +4417,8 @@ concat(c1,'y') IN
                     "select#": 3,
                     "from": "IN (SELECT)",
                     "to": "materialization",
+                    "has_nullable_expressions": true,
+                    "treat_UNKNOWN_as_FALSE": true,
                     "chosen": true
                   } /* transformation */
                 }
@@ -6079,7 +6074,8 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0)	{
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "materialization",
-                    "chosen": false
+                    "chosen": false,
+                    "cause": "already have strategy"
                   } /* transformation */
                 }
               ] /* steps */
@@ -6708,6 +6704,7 @@ update t6 set d=5 where d is NULL	{
           "range_scan_alternatives": [
             {
               "index": "d",
+              "index_dives_for_eq_ranges": true,
               "ranges": [
                 "NULL <= d <= NULL"
               ] /* ranges */,
@@ -6772,6 +6769,7 @@ delete from t6 where d=5	{
           "range_scan_alternatives": [
             {
               "index": "d",
+              "index_dives_for_eq_ranges": true,
               "ranges": [
                 "5 <= d <= 5"
               ] /* ranges */,
@@ -6896,6 +6894,7 @@ insert into t6 select * from t6 where d>7	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "7 < d"
                         ] /* ranges */,
@@ -7083,6 +7082,7 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "7000 < d"
                         ] /* ranges */,
@@ -7287,6 +7287,7 @@ delete t6 from t5, t6 where d>7000	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "7000 < d"
                         ] /* ranges */,
@@ -7715,6 +7716,7 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "3 <= d <= 3"
                         ] /* ranges */,
@@ -8398,6 +8400,7 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "3 <= d <= 3"
                         ] /* ranges */,
@@ -9128,6 +9131,7 @@ insert into t2 select d,100,200 from t6 where d is not null	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "NULL < d"
                         ] /* ranges */,
@@ -10021,6 +10025,7 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                     "range_scan_alternatives": [
                       {
                         "index": "d",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "3 <= d <= 3"
                         ] /* ranges */,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -449,37 +449,58 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
                                (STATUS_GARBAGE | STATUS_NOT_FOUND))));
     if (save_field_value)
       orig_field_val= field->val_int();
-    if (!(*item)->is_null() && !(*item)->save_in_field(field, 1)) // TS-TODO
+    int rc;
+    if (!(*item)->is_null() &&
+        (((rc= (*item)->save_in_field(field, 1)) == 0) || rc == 3)) // TS-TODO
     {
-      Item *tmp= field->type() == MYSQL_TYPE_TIME ?
+      int field_cmp= 0;
+      /*
+        If item is a decimal value, we must reject it if it was truncated.
+        TODO: consider doing the same for MYSQL_TYPE_YEAR,.
+        However: we have tests which assume that things '1999' and
+        '1991-01-01 01:01:01' can be converted to year.
+        Testing for MYSQL_TYPE_YEAR here, would treat such literals
+        as 'incorrect DOUBLE value'.
+        See Bug#13580652 YEAR COLUMN CAN BE EQUAL TO 1999.1
+      */
+      if (field->type() == MYSQL_TYPE_LONGLONG)
+      {
+        field_cmp= stored_field_cmp_to_item(thd, field, *item);
+        DBUG_PRINT("info", ("convert_constant_item %d", field_cmp));
+      }
+
+      if (0 == field_cmp)
+      {
+        Item *tmp= field->type() == MYSQL_TYPE_TIME ?
 #define OLD_CMP
 #ifdef OLD_CMP
-                   new Item_time_with_ref(field->decimals(),
-                                          field->val_time_temporal(), *item) :
+          new Item_time_with_ref(field->decimals(),
+                                 field->val_time_temporal(), *item) :
 #else
-                   new Item_time_with_ref(max((*item)->time_precision(),
-                                              field->decimals()),
-                                          (*item)->val_time_temporal(),
-                                          *item) :
+          new Item_time_with_ref(max((*item)->time_precision(),
+                                     field->decimals()),
+                                 (*item)->val_time_temporal(),
+                                 *item) :
 #endif
-                 field->is_temporal_with_date() ?
+          field->is_temporal_with_date() ?
 #ifdef OLD_CMP
-                   new Item_datetime_with_ref(field->type(),
-                                               field->decimals(),
-                                               field->val_date_temporal(),
-                                               *item) :
+          new Item_datetime_with_ref(field->type(),
+                                     field->decimals(),
+                                     field->val_date_temporal(),
+                                     *item) :
 #else
-                   new Item_datetime_with_ref(field->type(),
-                                              max((*item)->datetime_precision(),
-                                                  field->decimals()),
-                                              (*item)->val_date_temporal(),
-                                              *item) :
+          new Item_datetime_with_ref(field->type(),
+                                     max((*item)->datetime_precision(),
+                                         field->decimals()),
+                                     (*item)->val_date_temporal(),
+                                     *item) :
 #endif
-                   new Item_int_with_ref(field->val_int(), *item,
-                                         test(field->flags & UNSIGNED_FLAG));
-      if (tmp)
-        thd->change_item_tree(item, tmp);
-      result= 1;					// Item was replaced
+          new Item_int_with_ref(field->val_int(), *item,
+                                test(field->flags & UNSIGNED_FLAG));
+        if (tmp)
+          thd->change_item_tree(item, tmp);
+        result= 1;                              // Item was replaced
+      }
     }
     /* Restore the original field value. */
     if (save_field_value)
@@ -509,6 +530,8 @@ void Item_bool_func2::fix_length_and_dec()
   if (!args[0] || !args[1])
     return;
 
+  DBUG_ENTER("Item_bool_func2::fix_length_and_dec");
+
   /* 
     We allow to convert to Unicode character sets in some cases.
     The conditions when conversion is possible are:
@@ -526,7 +549,7 @@ void Item_bool_func2::fix_length_and_dec()
   if (args[0]->result_type() == STRING_RESULT &&
       args[1]->result_type() == STRING_RESULT &&
       agg_arg_charsets_for_comparison(coll, args, 2))
-    return;
+    DBUG_VOID_RETURN;
     
   args[0]->cmp_context= args[1]->cmp_context=
     item_cmp_type(args[0]->result_type(), args[1]->result_type());
@@ -535,7 +558,7 @@ void Item_bool_func2::fix_length_and_dec()
   if (functype() == LIKE_FUNC)  // Disable conversion in case of LIKE function.
   {
     set_cmp_func();
-    return;
+    DBUG_VOID_RETURN;
   }
 
   thd= current_thd;
@@ -553,7 +576,7 @@ void Item_bool_func2::fix_length_and_dec()
           cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
                            INT_RESULT);		// Works for all types.
           args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
-          return;
+          DBUG_VOID_RETURN;
         }
       }
     }
@@ -569,12 +592,13 @@ void Item_bool_func2::fix_length_and_dec()
           cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
                            INT_RESULT); // Works for all types.
           args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
-          return;
+          DBUG_VOID_RETURN;
         }
       }
     }
   }
   set_cmp_func();
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1921,8 +1945,11 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
 
 /**
    The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>
-   predicates. The implementation works as follows.
+   predicates. It applies to predicates which have gone through the IN->EXISTS
+   transformation in in_to_exists_transformer functions; not to subquery
+   materialization (which has no triggered conditions).
 
+   The implementation works as follows.
    For the current value of the outer expression
    
    - If it contains only NULL values, the original (before rewrite by the
@@ -1999,12 +2026,14 @@ longlong Item_in_optimizer::val_int()
   
   if (cache->null_value)
   {
+    Item_in_subselect * const item_subs=
+      static_cast<Item_in_subselect *>(args[1]);
     /*
       We're evaluating 
       "<outer_value_list> [NOT] IN (SELECT <inner_value_list>...)" 
       where one or more of the outer values is NULL. 
     */
-    if (((Item_in_subselect*)args[1])->is_top_level_item())
+    if (item_subs->is_top_level_item())
     {
       /*
         We're evaluating a top level item, e.g. 
@@ -2027,7 +2056,6 @@ longlong Item_in_optimizer::val_int()
         SELECT evaluated over the non-NULL values produces at least
         one row, FALSE otherwise
       */
-      Item_in_subselect *item_subs=(Item_in_subselect*)args[1]; 
       bool all_left_cols_null= true;
       const uint ncols= cache->cols();
 
@@ -2058,7 +2086,7 @@ longlong Item_in_optimizer::val_int()
       {
         /* The subquery has to be evaluated */
         (void) item_subs->val_bool_result();
-        if (item_subs->engine->no_rows())
+        if (!item_subs->value)
           null_value= item_subs->null_value;
         else
           null_value= TRUE;
@@ -2546,10 +2574,19 @@ void Item_func_between::fix_length_and_dec()
         The following can't be recoded with || as convert_constant_item
         changes the argument
       */
-      if (convert_constant_item(thd, field_item, &args[1]))
-        cmp_type=INT_RESULT;			// Works for all types.
-      if (convert_constant_item(thd, field_item, &args[2]))
-        cmp_type=INT_RESULT;			// Works for all types.
+      const bool cvt_arg1= convert_constant_item(thd, field_item, &args[1]);
+      const bool cvt_arg2= convert_constant_item(thd, field_item, &args[2]);
+      if (args[0]->is_temporal())
+      { // special handling of date/time etc.
+        if (cvt_arg1 || cvt_arg2)
+          cmp_type=INT_RESULT;
+      }
+      else
+      {
+        if (cvt_arg1 && cvt_arg2)
+          cmp_type=INT_RESULT;
+      }
+
       if (args[0]->is_temporal() &&
           args[1]->is_temporal() &&
           args[2]->is_temporal())
@@ -4691,8 +4728,7 @@ longlong Item_func_bit_and::val_int()
 
 Item_cond::Item_cond(THD *thd, Item_cond *item)
   :Item_bool_func(thd, item),
-   abort_on_null(item->abort_on_null),
-   and_tables_cache(item->and_tables_cache)
+   abort_on_null(item->abort_on_null)
 {
   /*
     item->list will be copied by copy_andor_arguments() call
@@ -4717,16 +4753,16 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   st_select_lex::Resolve_place save_resolve=
     thd->lex->current_select->resolve_place;
   uchar buff[sizeof(char*)];			// Max local vars in function
-  not_null_tables_cache= used_tables_cache= 0;
-  const_item_cache= 1;
+  used_tables_cache= 0;
+  const_item_cache= true;
 
   if (functype() != COND_AND_FUNC)
     thd->lex->current_select->resolve_place= st_select_lex::RESOLVE_NONE;
-  /*
-    and_table_cache is the value that Item_cond_or() returns for
-    not_null_tables()
-  */
-  and_tables_cache= ~(table_map) 0;
+
+  if (functype() == COND_AND_FUNC && abort_on_null)
+    not_null_tables_cache= 0;
+  else
+    not_null_tables_cache= ~(table_map) 0;
 
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     return TRUE;				// Fatal error flag is set!
@@ -4747,7 +4783,6 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   */
   while ((item=li++))
   {
-    table_map tmp_table_map;
     while (item->type() == Item::COND_ITEM &&
 	   ((Item_cond*) item)->functype() == functype() &&
            !((Item_cond*) item)->list.is_empty())
@@ -4764,26 +4799,26 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 	 item->fix_fields(thd, li.ref())) ||
 	(item= *li.ref())->check_cols(1))
       return TRUE; /* purecov: inspected */
-    used_tables_cache|=     item->used_tables();
-    if (item->const_item())
-      and_tables_cache= (table_map) 0;
+    used_tables_cache|= item->used_tables();
+    const_item_cache&=  item->const_item();
+
+    // Old code assumed that not_null_tables() was 0 when const_item() was true
+    DBUG_ASSERT(!item->const_item() || !item->not_null_tables());
+
+    if (functype() == COND_AND_FUNC && abort_on_null)
+      not_null_tables_cache|= item->not_null_tables();
     else
-    {
-      tmp_table_map= item->not_null_tables();
-      not_null_tables_cache|= tmp_table_map;
-      and_tables_cache&= tmp_table_map;
-      const_item_cache= FALSE;
-    }  
-    with_sum_func=	    with_sum_func || item->with_sum_func;
-    with_subselect|=        item->has_subquery();
+      not_null_tables_cache&= item->not_null_tables();
+    with_sum_func|=  item->with_sum_func;
+    with_subselect|= item->has_subquery();
     if (item->maybe_null)
-      maybe_null=1;
+      maybe_null= true;
   }
   thd->lex->current_select->cond_count+= list.elements;
   thd->lex->current_select->resolve_place= save_resolve;
   fix_length_and_dec();
-  fixed= 1;
-  return FALSE;
+  fixed= true;
+  return false;
 }
 
 
@@ -4794,29 +4829,24 @@ void Item_cond::fix_after_pullout(st_select_lex *parent_select,
   List_iterator<Item> li(list);
   Item *item;
 
-  used_tables_cache=0;
-  const_item_cache=1;
+  used_tables_cache= 0;
+  const_item_cache= true;
 
-  and_tables_cache= ~(table_map) 0; // Here and below we do as fix_fields does
-  not_null_tables_cache= 0;
+  if (functype() == COND_AND_FUNC && abort_on_null)
+    not_null_tables_cache= 0;
+  else
+    not_null_tables_cache= ~(table_map) 0;
 
   while ((item=li++))
   {
-    table_map tmp_table_map;
     item->fix_after_pullout(parent_select, removed_select, li.ref());
     item= *li.ref();
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
-
-    if (item->const_item())
-      and_tables_cache= (table_map) 0;
+    if (functype() == COND_AND_FUNC && abort_on_null)
+      not_null_tables_cache|= item->not_null_tables();
     else
-    {
-      tmp_table_map= item->not_null_tables();
-      not_null_tables_cache|= tmp_table_map;
-      and_tables_cache&= tmp_table_map;
-      const_item_cache= FALSE;
-    }  
+      not_null_tables_cache&= item->not_null_tables();
   }
 }
 
@@ -4969,13 +4999,6 @@ void Item_cond::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
   Item *item;
   while ((item= li++))
     item->split_sum_func2(thd, ref_pointer_array, fields, li.ref(), TRUE);
-}
-
-
-table_map
-Item_cond::used_tables() const
-{						// This caches used_tables
-  return used_tables_cache;
 }
 
 
@@ -5987,7 +6010,8 @@ void Item_equal::compare_const(Item *c)
   else
   {
     Item_func_eq *func= new Item_func_eq(c, const_item);
-    func->set_cmp_func();
+    if(func->set_cmp_func())
+      return;
     func->quick_fix_field();
     cond_false= !func->val_int();
   }

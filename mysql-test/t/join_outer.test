@@ -1408,3 +1408,100 @@ FROM t1;
 
 --echo
 drop table t1,t2,t3;
+
+--echo # Bug#11766384 - 59487: WRONG RESULT WITH STRAIGHT_JOIN AND RIGHT JOIN
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL,
+  col_varchar_10_latin1_key varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1,'1');
+CREATE TABLE t2 (
+  pk int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (1);
+CREATE TABLE t3 (
+  pk int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t3 VALUES (1);
+CREATE TABLE t4 (
+  pk int(11) NOT NULL,
+  col_int int(11) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t4 VALUES (1,1,1,'1');
+CREATE TABLE t5 (
+  col_int int(11) DEFAULT NULL,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t5 VALUES (1,'1');
+CREATE TABLE t6 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+  pk int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t6 VALUES (1,'1',1);
+
+# EXPLAIN of query above (t2 is before t5 in plan)
+
+let $rest_of_query=t6a.pk, t2.pk
+FROM
+  t6 AS t6a
+  LEFT JOIN
+  (
+    t2
+    RIGHT JOIN
+    (
+      (
+        t1
+        LEFT JOIN
+        (
+          t4
+          JOIN
+          t3
+          ON t4.col_int
+        )
+        ON t4.col_int_key = t1.pk
+      )
+      LEFT JOIN
+      (
+        t5
+        JOIN
+        t6 AS t6b
+        ON t5.col_varchar_10_utf8_key = t6b.col_varchar_10_latin1_key
+      )
+      ON t1.pk = t5.col_int
+    )
+    ON t4.col_varchar_10_latin1_key = t1.col_varchar_10_latin1_key
+       AND t5.col_varchar_10_utf8_key = 0
+  )
+  ON t6a.pk IS TRUE
+WHERE t6b.col_int_key IS TRUE
+;
+
+eval SELECT STRAIGHT_JOIN $rest_of_query;
+eval EXPLAIN SELECT STRAIGHT_JOIN $rest_of_query;
+
+# right result (same query, just remove STRAIGHT_JOIN):
+
+eval SELECT $rest_of_query;
+eval EXPLAIN SELECT $rest_of_query;
+
+drop table t1,t2,t3,t4,t5,t6;
+
+--echo #
+--echo # Bug#13464334 SAME QUERY PRODUCES DIFFERENT RESULTS WHEN USED WITH AND
+--echo # WITHOUT UNION ALL
+--echo #
+
+CREATE TABLE t1 (p1 INT PRIMARY KEY, a CHAR(1));
+CREATE TABLE t2 (p2 INT PRIMARY KEY, b CHAR(1));
+INSERT INTO t1 VALUES (1,'a'),(2,'b'),(3,'c');
+INSERT INTO t2 VALUES (1,'h'),(2,'i'),(3,'j'),(4,'k');
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM t2;
+(SELECT p1 FROM v2 LEFT JOIN v1 ON b = a WHERE p2 = 1 GROUP BY p1 ORDER BY p1)
+UNION (SELECT NULL LIMIT 0);
+DROP VIEW v1, v2;
+DROP TABLE t1, t2;

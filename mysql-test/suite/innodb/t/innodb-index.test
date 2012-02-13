@@ -7,6 +7,12 @@ let $format=`select @@innodb_file_format`;
 set global innodb_file_per_table=on;
 set global innodb_file_format='Barracuda';
 
+# Bug#13654923 BOGUS DEBUG ASSERTION IN INDEX CREATION FOR ZERO-LENGTH RECORD
+create table t1(a varchar(2) primary key) engine=innodb;
+insert into t1 values('');
+create index t1a1 on t1(a(1));
+drop table t1;
+
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
 insert into t1 values (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
 commit;
@@ -369,4 +375,3 @@ disconnect a;
 disconnect b;
 
 DROP TABLE t1,t2;
-

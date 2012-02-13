@@ -174,14 +174,6 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                         "transformation": {
                           "select#": 4,
                           "from": "IN (SELECT)",
-                          "to": "materialization",
-                          "chosen": false
-                        } /* transformation */
-                      },
-                      {
-                        "transformation": {
-                          "select#": 4,
-                          "from": "IN (SELECT)",
                           "to": "EXISTS (CORRELATED SELECT)",
                           "chosen": true,
                           "evaluating_constant_where_conditions": [
@@ -199,14 +191,6 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
                     "chosen": false
                   } /* transformation */
                 },
@@ -376,14 +360,6 @@ FROM t1
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
                     "chosen": false
                   } /* transformation */
                 }
@@ -806,14 +782,6 @@ ON table2 .col_int_key = table1 .col_int_key
                     "select#": 3,
                     "from": "IN (SELECT)",
                     "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 3,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
                     "chosen": false
                   } /* transformation */
                 }
@@ -1659,6 +1627,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                 "range_scan_alternatives": [
                                   {
                                     "index": "a",
+                                    "index_dives_for_eq_ranges": true,
                                     "ranges": [
                                       "1 <= a <= 1"
                                     ] /* ranges */,
@@ -1671,6 +1640,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                   },
                                   {
                                     "index": "a_2",
+                                    "index_dives_for_eq_ranges": true,
                                     "ranges": [
                                       "1 <= a <= 1"
                                     ] /* ranges */,

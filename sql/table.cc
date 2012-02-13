@@ -1578,8 +1578,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
     if (reg_field->unireg_check == Field::NEXT_NUMBER)
       share->found_next_number_field= field_ptr;
-    if (share->timestamp_field == reg_field)
-      share->timestamp_field_offset= i;
 
     if (use_hash)
       if (my_hash_insert(&share->name_hash, (uchar*) field_ptr) )
@@ -2018,9 +2016,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (share->found_next_number_field)
     outparam->found_next_number_field=
       outparam->field[(uint) (share->found_next_number_field - share->field)];
-  if (share->timestamp_field)
-    outparam->set_timestamp_field(outparam->
-                                  field[share->timestamp_field_offset]);
 
   /* Fix key->name and key_part->field */
   if (share->key_parts)
@@ -3457,9 +3452,6 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   DBUG_ASSERT(!auto_increment_field_not_null);
   auto_increment_field_not_null= FALSE;
 
-  if (timestamp_field)
-    timestamp_field_type= timestamp_field->get_auto_set_type();
-
   pos_in_table_list= tl;
 
   clear_column_bitmaps();
@@ -3741,8 +3733,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
             this expression will not be moved to WHERE condition (i.e. will
             be clean correctly for PS/SP)
           */
-          tbl->on_expr= and_conds(tbl->on_expr,
-                                  where->copy_andor_structure(thd));
+          tbl->set_join_cond(and_conds(tbl->join_cond(),
+                                       where->copy_andor_structure(thd)));
           break;
         }
       }
@@ -3784,8 +3776,8 @@ merge_on_conds(THD *thd, TABLE_LIST *table, bool is_cascaded)
 
   Item *cond= NULL;
   DBUG_PRINT("info", ("alias: %s", table->alias));
-  if (table->on_expr)
-    cond= table->on_expr->copy_andor_structure(thd);
+  if (table->join_cond())
+    cond= table->join_cond()->copy_andor_structure(thd);
   if (!table->nested_join)
     DBUG_RETURN(cond);
   List_iterator<TABLE_LIST> li(table->nested_join->join_list);
@@ -3992,11 +3984,11 @@ void TABLE_LIST::cleanup_items()
     VIEW_CHECK_SKIP   FAILED, but continue
 */
 
-int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure)
+int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure) const
 {
   if (check_option && check_option->val_int() == 0)
   {
-    TABLE_LIST *main_view= top_table();
+    const TABLE_LIST *main_view= top_table();
     if (ignore_failure)
     {
       push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
@@ -5446,8 +5438,9 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   do
   {
     embedded= parent_embedding;
-    if (embedded->prep_on_expr)
-      embedded->on_expr= embedded->prep_on_expr->copy_andor_structure(thd);
+    if (embedded->prep_join_cond)
+      embedded->
+        set_join_cond(embedded->prep_join_cond->copy_andor_structure(thd));
     parent_embedding= embedded->embedding;
   }
   while (parent_embedding &&

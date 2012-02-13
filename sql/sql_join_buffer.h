@@ -277,7 +277,7 @@ protected:
   void create_flag_fields();
   void create_remaining_fields(bool all_read_fields);
   void set_constants();
-  int alloc_buffer();
+  bool alloc_buffer();
 
   uint get_size_of_rec_offset() { return size_of_rec_ofs; }
   uint get_size_of_rec_length() { return size_of_rec_len; }
@@ -323,8 +323,7 @@ protected:
   /* Shall calculate how much space is remaining in the join buffer */ 
   virtual ulong rem_space() 
   { 
-    using std::max;
-    return max(buff_size-(end_pos-buff)-aux_buff_size, 0UL);
+    return std::max<ulong>(buff_size-(end_pos-buff)-aux_buff_size, 0UL);
   }
 
   /* Shall skip record from the join buffer if its match flag is on */
@@ -808,8 +807,7 @@ protected:
   */ 
   ulong rem_space() 
   { 
-    using std::max;
-    return max(last_key_entry-end_pos-aux_buff_size, 0UL);
+    return std::max<ulong>(last_key_entry-end_pos-aux_buff_size, 0UL);
   }
 
   /* 
