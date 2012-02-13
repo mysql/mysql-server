@@ -140,8 +140,6 @@ inline word32 Twofish::h(word32 x, const word32* key, unsigned int kLen)
 
 void Twofish::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
 {
-	assert(keylen >= 16 && keylen <= 32);
-
 	unsigned int len = (keylen <= 16 ? 2 : (keylen <= 24 ? 3 : 4));
     word32 key[8];
 	GetUserKey(LittleEndianOrder, key, len*2, userKey, keylen);
