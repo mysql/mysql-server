@@ -2572,6 +2572,7 @@ btr_cur_del_mark_set_clust_rec(
 
 	page_zip = buf_block_get_page_zip(block);
 
+	btr_blob_dbg_set_deleted_flag(rec, index, offsets, val);
 	btr_rec_set_deleted_flag(rec, page_zip, val);
 
 	trx = thr_get_trx(thr);
@@ -3595,6 +3596,8 @@ btr_cur_set_ownership_of_extern_field(
 	} else {
 		mach_write_to_1(data + local_len + BTR_EXTERN_LEN, byte_val);
 	}
+
+	btr_blob_dbg_owner(rec, index, offsets, i, val);
 }
 
 /*******************************************************************//**
@@ -4094,6 +4097,11 @@ btr_store_big_rec_extern_fields_func(
 				}
 
 				if (prev_page_no == FIL_NULL) {
+					btr_blob_dbg_add_blob(
+						rec, big_rec_vec->fields[i]
+						.field_no, page_no, index,
+						"store");
+
 					mach_write_to_4(field_ref
 							+ BTR_EXTERN_SPACE_ID,
 							space_id);
@@ -4169,6 +4177,11 @@ next_zip_page:
 						 MLOG_4BYTES, &mtr);
 
 				if (prev_page_no == FIL_NULL) {
+					btr_blob_dbg_add_blob(
+						rec, big_rec_vec->fields[i]
+						.field_no, page_no, index,
+						"store");
+
 					mlog_write_ulint(field_ref
 							 + BTR_EXTERN_SPACE_ID,
 							 space_id,
@@ -4336,6 +4349,37 @@ btr_free_externally_stored_field(
 		ut_ad(!page_zip);
 		rec_zip_size = 0;
 	}
+
+#ifdef UNIV_BLOB_DEBUG
+	if (!(field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG)
+	    && !((field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_INHERITED_FLAG)
+		 && (rb_ctx == RB_NORMAL || rb_ctx == RB_RECOVERY))) {
+		/* This off-page column will be freed.
+		Check that no references remain. */
+
+		btr_blob_dbg_t	b;
+
+		b.blob_page_no = mach_read_from_4(
+			field_ref + BTR_EXTERN_PAGE_NO);
+
+		if (rec) {
+			/* Remove the reference from the record to the
+			BLOB. If the BLOB were not freed, the
+			reference would be removed when the record is
+			removed. Freeing the BLOB will overwrite the
+			BTR_EXTERN_PAGE_NO in the field_ref of the
+			record with FIL_NULL, which would make the
+			btr_blob_dbg information inconsistent with the
+			record. */
+			b.ref_page_no = page_get_page_no(page_align(rec));
+			b.ref_heap_no = page_rec_get_heap_no(rec);
+			b.ref_field_no = i;
+			btr_blob_dbg_rbt_delete(index, &b, "free");
+		}
+
+		btr_blob_dbg_assert_empty(index, b.blob_page_no);
+	}
+#endif /* UNIV_BLOB_DEBUG */
 
 	for (;;) {
 #ifdef UNIV_SYNC_DEBUG
@@ -4583,27 +4627,45 @@ btr_copy_blob_prefix(
 
 /*******************************************************************//**
 Copies the prefix of a compressed BLOB.  The clustered index record
-that points to this BLOB must be protected by a lock or a page latch. */
+that points to this BLOB must be protected by a lock or a page latch.
+@return	number of bytes written to buf */
 static
-void
+ulint
 btr_copy_zblob_prefix(
 /*==================*/
-	z_stream*	d_stream,/*!< in/out: the decompressing stream */
+	byte*		buf,	/*!< out: the externally stored part of
+				the field, or a prefix of it */
+	ulint		len,	/*!< in: length of buf, in bytes */
 	ulint		zip_size,/*!< in: compressed BLOB page size */
 	ulint		space_id,/*!< in: space id of the BLOB pages */
 	ulint		page_no,/*!< in: page number of the first BLOB page */
 	ulint		offset)	/*!< in: offset on the first BLOB page */
 {
-	ulint	page_type = FIL_PAGE_TYPE_ZBLOB;
+	ulint		page_type = FIL_PAGE_TYPE_ZBLOB;
+	mem_heap_t*	heap;
+	int		err;
+	z_stream	d_stream;
+
+	d_stream.next_out = buf;
+	d_stream.avail_out = len;
+	d_stream.next_in = Z_NULL;
+	d_stream.avail_in = 0;
+
+	/* Zlib inflate needs 32 kilobytes for the default
+	window size, plus a few kilobytes for small objects. */
+	heap = mem_heap_create(40000);
+	page_zip_set_alloc(&d_stream, heap);
 
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(zip_size >= PAGE_ZIP_MIN_SIZE);
 	ut_ad(zip_size <= UNIV_PAGE_SIZE);
 	ut_ad(space_id);
 
+	err = inflateInit(&d_stream);
+	ut_a(err == Z_OK);
+
 	for (;;) {
 		buf_page_t*	bpage;
-		int		err;
 		ulint		next_page_no;
 
 		/* There is no latch on bpage directly.  Instead,
@@ -4619,7 +4681,7 @@ btr_copy_zblob_prefix(
 				" compressed BLOB"
 				" page %lu space %lu\n",
 				(ulong) page_no, (ulong) space_id);
-			return;
+			goto func_exit;
 		}
 
 		if (UNIV_UNLIKELY
@@ -4645,13 +4707,13 @@ btr_copy_zblob_prefix(
 			offset += 4;
 		}
 
-		d_stream->next_in = bpage->zip.data + offset;
-		d_stream->avail_in = zip_size - offset;
+		d_stream.next_in = bpage->zip.data + offset;
+		d_stream.avail_in = zip_size - offset;
 
-		err = inflate(d_stream, Z_NO_FLUSH);
+		err = inflate(&d_stream, Z_NO_FLUSH);
 		switch (err) {
 		case Z_OK:
-			if (!d_stream->avail_out) {
+			if (!d_stream.avail_out) {
 				goto end_of_blob;
 			}
 			break;
@@ -4668,13 +4730,13 @@ inflate_error:
 				" compressed BLOB"
 				" page %lu space %lu returned %d (%s)\n",
 				(ulong) page_no, (ulong) space_id,
-				err, d_stream->msg);
+				err, d_stream.msg);
 		case Z_BUF_ERROR:
 			goto end_of_blob;
 		}
 
 		if (next_page_no == FIL_NULL) {
-			if (!d_stream->avail_in) {
+			if (!d_stream.avail_in) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
 					"  InnoDB: unexpected end of"
@@ -4683,7 +4745,7 @@ inflate_error:
 					(ulong) page_no,
 					(ulong) space_id);
 			} else {
-				err = inflate(d_stream, Z_FINISH);
+				err = inflate(&d_stream, Z_FINISH);
 				switch (err) {
 				case Z_STREAM_END:
 				case Z_BUF_ERROR:
@@ -4695,7 +4757,7 @@ inflate_error:
 
 end_of_blob:
 			buf_page_release_zip(bpage);
-			return;
+			goto func_exit;
 		}
 
 		buf_page_release_zip(bpage);
@@ -4707,6 +4769,12 @@ end_of_blob:
 		offset = FIL_PAGE_NEXT;
 		page_type = FIL_PAGE_TYPE_ZBLOB2;
 	}
+
+func_exit:
+	inflateEnd(&d_stream);
+	mem_heap_free(heap);
+	UNIV_MEM_ASSERT_RW(buf, d_stream.total_out);
+	return(d_stream.total_out);
 }
 
 /*******************************************************************//**
@@ -4732,28 +4800,8 @@ btr_copy_externally_stored_field_prefix_low(
 	}
 
 	if (UNIV_UNLIKELY(zip_size)) {
-		int		err;
-		z_stream	d_stream;
-		mem_heap_t*	heap;
-
-		/* Zlib inflate needs 32 kilobytes for the default
-		window size, plus a few kilobytes for small objects. */
-		heap = mem_heap_create(40000);
-		page_zip_set_alloc(&d_stream, heap);
-
-		err = inflateInit(&d_stream);
-		ut_a(err == Z_OK);
-
-		d_stream.next_out = buf;
-		d_stream.avail_out = len;
-		d_stream.avail_in = 0;
-
-		btr_copy_zblob_prefix(&d_stream, zip_size,
-				      space_id, page_no, offset);
-		inflateEnd(&d_stream);
-		mem_heap_free(heap);
-		UNIV_MEM_ASSERT_RW(buf, d_stream.total_out);
-		return(d_stream.total_out);
+		return(btr_copy_zblob_prefix(buf, len, zip_size,
+					     space_id, page_no, offset));
 	} else {
 		return(btr_copy_blob_prefix(buf, len, space_id,
 					    page_no, offset));

@@ -296,8 +296,8 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   for (; ptr != end && val != val_end; ptr++)
   {
     /* Skip pre-space between each argument */
-    while (val != val_end && my_isspace(cs, *val))
-      val++;
+    if ((val+= cs->cset->scan(cs, val, val_end, MY_SEQ_SPACES)) >= val_end)
+      break;
 
     if (*ptr == '%' && ptr+1 != end)
     {
@@ -2446,6 +2446,19 @@ String *Item_char_typecast::val_str(String *str)
   String *res;
   uint32 length;
 
+  if (cast_length >= 0 &&
+      ((unsigned) cast_length) > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			cast_cs == &my_charset_bin ?
+                        "cast_as_binary" : func_name(),
+                        current_thd->variables.max_allowed_packet);
+    null_value= 1;
+    return 0;
+  }
+
   if (!charset_conversion)
   {
     if (!(res= args[0]->val_str(str)))
@@ -3295,6 +3308,7 @@ void Item_func_str_to_date::fix_length_and_dec()
 {
   maybe_null= 1;
   decimals=0;
+  cached_format_type= DATE_TIME;
   cached_field_type= MYSQL_TYPE_DATETIME;
   max_length= MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   cached_timestamp_type= MYSQL_TIMESTAMP_NONE;

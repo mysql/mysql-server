@@ -1,5 +1,6 @@
 include/master-slave.inc
 [connection master]
+call mtr.add_suppression("Slave SQL: The incident LOST_EVENTS occured on the master. Message: mysqld startup, Error_code: 1590");
 create table t1(pk int not null primary key, i int) engine = ndb;
 select count(*) from t1;
 count(*)

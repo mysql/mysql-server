@@ -629,3 +629,30 @@ drop procedure p1;
 drop procedure p2;
 drop table t1, t2, t3, t4, t5, te;
 set @@global.concurrent_insert= @old_concurrent_insert;
+#
+# Bug#11763784 56541: ASSERTION TABLE->DB_STAT FAILED IN
+#                     SQL_BASE.CC::OPEN_TABLE() DURING I_S Q
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+# Connection con2
+SET DEBUG_SYNC= 'before_open_in_get_all_tables SIGNAL is_waits WAIT_FOR is_cont';
+# Sending:
+SELECT * FROM information_schema.table_constraints JOIN t1 ON table_name = a;
+# Connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR is_waits';
+# Sending:
+DROP TRIGGER t1_bi;
+# Connection default
+# Wait until DROP TRIGGER is blocked, waiting for t1
+SET DEBUG_SYNC= 'now SIGNAL is_cont';
+# Connection con2
+# Reaping SELECT * FROM information_schema.table_constraints JOIN t1...
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	a
+# Connection con1
+# Reaping DROP TRIGGER t1_bi
+# Connection default
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';

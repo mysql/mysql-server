@@ -1,5 +1,4 @@
-/* Copyright (c) 2007 MySQL AB
-   Use is subject to license terms.
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,9 +57,12 @@ STATIC_INLINE uint my_count_bits(ulonglong v)
 #endif
 }
 
-STATIC_INLINE uint my_count_bits_ushort(ushort v)
+STATIC_INLINE uint my_count_bits_uint32(uint32 v)
 {
-  return _my_bits_nbits[v];
+  return (uint) (uchar) (_my_bits_nbits[(uchar)  v] +
+                         _my_bits_nbits[(uchar) (v >> 8)] +
+                         _my_bits_nbits[(uchar) (v >> 16)] +
+                         _my_bits_nbits[(uchar) (v >> 24)]);
 }
 
 
@@ -120,6 +122,6 @@ extern uint32 my_round_up_to_next_power(uint32 v);
 uint32 my_clear_highest_bit(uint32 v);
 uint32 my_reverse_bits(uint32 key);
 extern uint my_count_bits(ulonglong v);
-extern uint my_count_bits_ushort(ushort v);
+extern uint my_count_bits_uint32(uint32 v);
 #endif /* HAVE_INLINE */
 C_MODE_END

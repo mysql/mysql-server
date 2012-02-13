@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright 2000-2011, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,  
+   MA 02110-1301  USA */
 
 /* drop and alter of tables */
 
@@ -3195,11 +3194,20 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	column->length*= sql_field->charset->mbmaxlen;
 
-        if (key->type == Key::SPATIAL && column->length)
+        if (key->type == Key::SPATIAL)
         {
-          my_error(ER_WRONG_SUB_KEY, MYF(0));
-	  DBUG_RETURN(TRUE);
-	}
+          if (column->length)
+          {
+            my_error(ER_WRONG_SUB_KEY, MYF(0));
+            DBUG_RETURN(TRUE);
+          }
+
+          if (!f_is_geom(sql_field->pack_flag))
+          {
+            my_error(ER_WRONG_ARGUMENTS, MYF(0), "SPATIAL INDEX");
+            DBUG_RETURN(TRUE);
+          }
+        }
 
 	if (f_is_blob(sql_field->pack_flag) ||
             (f_is_geom(sql_field->pack_flag) && key->type != Key::SPATIAL))
