@@ -126,8 +126,6 @@ ID	ParId	tst	tst1
 2	2	NULL	NULL
 3	3	NULL	NULL
 UPDATE t2, t1 SET t2.tst = t1.tst, t2.tst1 = t1.tst1 WHERE t2.ParId = t1.Id;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 select * from t2;
 ID	ParId	tst	tst1
 1	1	MySQL	MySQL AB
@@ -352,8 +350,6 @@ drop table t1,t2;
 create table t1 (a int not null auto_increment primary key, b int not null);
 insert into t1 (b) values (1),(2),(3),(4);
 update t1, t1 as t2 set t1.b=t2.b+1 where t1.a=t2.a;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 select * from t1;
 a	b
 1	2
