@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2006-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -229,9 +228,16 @@ mysql_event_fill_row(THD *thd,
   if (fields[f_num= ET_FIELD_NAME]->store(et->name.str, et->name.length, scs))
     goto err_truncate;
 
-  /* both ON_COMPLETION and STATUS are NOT NULL thus not calling set_notnull()*/
+  /* ON_COMPLETION field is NOT NULL thus not calling set_notnull()*/
   rs|= fields[ET_FIELD_ON_COMPLETION]->store((longlong)et->on_completion, TRUE);
-  rs|= fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
+
+  /*
+    Set STATUS value unconditionally in case of CREATE EVENT.
+    For ALTER EVENT set it only if value of this field was changed.
+    Since STATUS field is NOT NULL call to set_notnull() is not needed.
+  */
+  if (!is_update || et->status_changed)
+    rs|= fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
   rs|= fields[ET_FIELD_ORIGINATOR]->store((longlong)et->originator, TRUE);
 
   /*
@@ -696,8 +702,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   */
   if (mysql_event_fill_row(thd, table, parse_data, sp, saved_mode, FALSE))
     goto end;
-
-  table->field[ET_FIELD_STATUS]->store((longlong)parse_data->status, TRUE);
 
   if ((ret= table->file->ha_write_row(table->record[0])))
   {

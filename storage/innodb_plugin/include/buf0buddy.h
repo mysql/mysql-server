@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2006, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,24 +37,19 @@ Created December 2006 by Marko Makela
 /**********************************************************************//**
 Allocate a block.  The thread calling this function must hold
 buf_pool_mutex and must not hold buf_pool_zip_mutex or any
-block->mutex.  The buf_pool_mutex may only be released and reacquired
-if lru != NULL.  This function should only be used for allocating
-compressed page frames or control blocks (buf_page_t).  Allocated
-control blocks must be properly initialized immediately after
-buf_buddy_alloc() has returned the memory, before releasing
-buf_pool_mutex.
-@return	allocated block, possibly NULL if lru == NULL */
+block->mutex.  The buf_pool_mutex may be released and reacquired.
+This function should only be used for allocating compressed page frames.
+@return	allocated block, never NULL */
 UNIV_INLINE
 void*
 buf_buddy_alloc(
 /*============*/
-	ulint	size,	/*!< in: block size, up to UNIV_PAGE_SIZE */
+	ulint	size,	/*!< in: compressed page size
+			(between PAGE_ZIP_MIN_SIZE and UNIV_PAGE_SIZE) */
 	ibool*	lru)	/*!< in: pointer to a variable that will be assigned
 			TRUE if storage was allocated from the LRU list
-			and buf_pool_mutex was temporarily released,
-			or NULL if the LRU list should not be used */
-	__attribute__((malloc));
-
+			and buf_pool_mutex was temporarily released */
+	__attribute__((malloc, nonnull));
 /**********************************************************************//**
 Release a block. */
 UNIV_INLINE

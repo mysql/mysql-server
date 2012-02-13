@@ -1986,8 +1986,6 @@ trx_undo_free_prepared(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: PREPARED transaction */
 {
-	mutex_enter(&trx->rseg->mutex);
-
 	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
 	if (trx->update_undo) {
@@ -2002,6 +2000,5 @@ trx_undo_free_prepared(
 			       trx->insert_undo);
 		trx_undo_mem_free(trx->insert_undo);
 	}
-	mutex_exit(&trx->rseg->mutex);
 }
 #endif /* !UNIV_HOTBACKUP */

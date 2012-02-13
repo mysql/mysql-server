@@ -62,42 +62,42 @@ row_format=compressed;
 create table t14(a int primary key) engine=innodb key_block_size=9;
 Warnings:
 Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=9.
-SELECT table_schema, table_name, row_format
+SELECT table_schema, table_name, row_format, data_length, index_length
 FROM information_schema.tables WHERE engine='innodb';
-table_schema	table_name	row_format
-test	t0	Compact
-test	t00	Compact
-test	t1	Compact
-test	t10	Dynamic
-test	t11	Compressed
-test	t12	Compressed
-test	t13	Compressed
-test	t14	Compact
-test	t2	Redundant
-test	t3	Compact
-test	t4	Compact
-test	t5	Redundant
-test	t6	Redundant
-test	t7	Redundant
-test	t8	Compact
-test	t9	Compact
+table_schema	table_name	row_format	data_length	index_length
+test	t0	Compact	16384	0
+test	t00	Compact	16384	0
+test	t1	Compact	16384	0
+test	t10	Dynamic	16384	0
+test	t11	Compressed	1024	0
+test	t12	Compressed	1024	0
+test	t13	Compressed	8192	0
+test	t14	Compact	16384	0
+test	t2	Redundant	16384	0
+test	t3	Compact	16384	0
+test	t4	Compact	16384	0
+test	t5	Redundant	16384	0
+test	t6	Redundant	16384	0
+test	t7	Redundant	16384	0
+test	t8	Compact	16384	0
+test	t9	Compact	16384	0
 drop table t0,t00,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14;
 alter table t1 key_block_size=0;
 alter table t1 row_format=dynamic;
-SELECT table_schema, table_name, row_format
+SELECT table_schema, table_name, row_format, data_length, index_length
 FROM information_schema.tables WHERE engine='innodb';
-table_schema	table_name	row_format
-test	t1	Dynamic
+table_schema	table_name	row_format	data_length	index_length
+test	t1	Dynamic	16384	0
 alter table t1 row_format=compact;
-SELECT table_schema, table_name, row_format
+SELECT table_schema, table_name, row_format, data_length, index_length
 FROM information_schema.tables WHERE engine='innodb';
-table_schema	table_name	row_format
-test	t1	Compact
+table_schema	table_name	row_format	data_length	index_length
+test	t1	Compact	16384	0
 alter table t1 row_format=redundant;
-SELECT table_schema, table_name, row_format
+SELECT table_schema, table_name, row_format, data_length, index_length
 FROM information_schema.tables WHERE engine='innodb';
-table_schema	table_name	row_format
-test	t1	Redundant
+table_schema	table_name	row_format	data_length	index_length
+test	t1	Redundant	16384	0
 drop table t1;
 create table t1(a int not null, b text, index(b(10))) engine=innodb
 key_block_size=1;
@@ -114,11 +114,11 @@ rollback;
 select a,left(b,40) from t1 natural join t2;
 a	left(b,40)
 1	1abcdefghijklmnopqrstuvwxyzAAAAAAAAAAAAA
-SELECT table_schema, table_name, row_format
+SELECT table_schema, table_name, row_format, data_length, index_length
 FROM information_schema.tables WHERE engine='innodb';
-table_schema	table_name	row_format
-test	t1	Compressed
-test	t2	Compact
+table_schema	table_name	row_format	data_length	index_length
+test	t1	Compressed	2048	1024
+test	t2	Compact	16384	0
 drop table t1,t2;
 SET SESSION innodb_strict_mode = off;
 CREATE TABLE t1(
@@ -206,19 +206,19 @@ create table t8 (id int primary key) engine = innodb row_format = compressed;
 create table t9 (id int primary key) engine = innodb row_format = dynamic;
 create table t10(id int primary key) engine = innodb row_format = compact;
 create table t11(id int primary key) engine = innodb row_format = redundant;
-SELECT table_schema, table_name, row_format
+SELECT table_schema, table_name, row_format, data_length, index_length
 FROM information_schema.tables WHERE engine='innodb';
-table_schema	table_name	row_format
-test	t1	Compact
-test	t10	Compact
-test	t11	Redundant
-test	t3	Compressed
-test	t4	Compressed
-test	t5	Compressed
-test	t6	Compressed
-test	t7	Compressed
-test	t8	Compressed
-test	t9	Dynamic
+table_schema	table_name	row_format	data_length	index_length
+test	t1	Compact	16384	0
+test	t10	Compact	16384	0
+test	t11	Redundant	16384	0
+test	t3	Compressed	1024	0
+test	t4	Compressed	2048	0
+test	t5	Compressed	4096	0
+test	t6	Compressed	8192	0
+test	t7	Compressed	16384	0
+test	t8	Compressed	8192	0
+test	t9	Dynamic	16384	0
 drop table t1, t3, t4, t5, t6, t7, t8, t9, t10, t11;
 create table t1 (id int primary key) engine = innodb
 key_block_size = 8 row_format = compressed;
@@ -245,11 +245,11 @@ Warning	1478	InnoDB: cannot specify ROW_FORMAT = DYNAMIC with KEY_BLOCK_SIZE.
 Error	1005	Can't create table 'test.t4' (errno: 1478)
 create table t5 (id int primary key) engine = innodb
 key_block_size = 8 row_format = default;
-SELECT table_schema, table_name, row_format
+SELECT table_schema, table_name, row_format, data_length, index_length
 FROM information_schema.tables WHERE engine='innodb';
-table_schema	table_name	row_format
-test	t1	Compressed
-test	t5	Compressed
+table_schema	table_name	row_format	data_length	index_length
+test	t1	Compressed	8192	0
+test	t5	Compressed	8192	0
 drop table t1, t5;
 create table t1 (id int primary key) engine = innodb
 key_block_size = 9 row_format = redundant;
@@ -275,9 +275,9 @@ Level	Code	Message
 Warning	1478	InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
 Warning	1478	InnoDB: cannot specify ROW_FORMAT = DYNAMIC with KEY_BLOCK_SIZE.
 Error	1005	Can't create table 'test.t2' (errno: 1478)
-SELECT table_schema, table_name, row_format
+SELECT table_schema, table_name, row_format, data_length, index_length
 FROM information_schema.tables WHERE engine='innodb';
-table_schema	table_name	row_format
+table_schema	table_name	row_format	data_length	index_length
 set global innodb_file_per_table = off;
 create table t1 (id int primary key) engine = innodb key_block_size = 1;
 ERROR HY000: Can't create table 'test.t1' (errno: 1478)
@@ -323,11 +323,11 @@ Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_per_table.
 Error	1005	Can't create table 'test.t7' (errno: 1478)
 create table t8 (id int primary key) engine = innodb row_format = compact;
 create table t9 (id int primary key) engine = innodb row_format = redundant;
-SELECT table_schema, table_name, row_format
+SELECT table_schema, table_name, row_format, data_length, index_length
 FROM information_schema.tables WHERE engine='innodb';
-table_schema	table_name	row_format
-test	t8	Compact
-test	t9	Redundant
+table_schema	table_name	row_format	data_length	index_length
+test	t8	Compact	16384	0
+test	t9	Redundant	16384	0
 drop table t8, t9;
 set global innodb_file_per_table = on;
 set global innodb_file_format = `0`;
@@ -375,11 +375,11 @@ Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_format > Antelope.
 Error	1005	Can't create table 'test.t7' (errno: 1478)
 create table t8 (id int primary key) engine = innodb row_format = compact;
 create table t9 (id int primary key) engine = innodb row_format = redundant;
-SELECT table_schema, table_name, row_format
+SELECT table_schema, table_name, row_format, data_length, index_length
 FROM information_schema.tables WHERE engine='innodb';
-table_schema	table_name	row_format
-test	t8	Compact
-test	t9	Redundant
+table_schema	table_name	row_format	data_length	index_length
+test	t8	Compact	16384	0
+test	t9	Redundant	16384	0
 drop table t8, t9;
 set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;

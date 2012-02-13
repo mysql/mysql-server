@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -39,7 +39,7 @@ noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			my_aes.h my_tree.h my_trie.h hash.h thr_alarm.h \
 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
 			my_compare.h my_time.h my_vle.h my_user.h \
-			my_libwrap.h my_stacktrace.h
+			my_libwrap.h my_stacktrace.h welcome_copyright_notice.h
 
 EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp
 

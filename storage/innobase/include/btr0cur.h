@@ -23,6 +23,9 @@ Created 10/16/1994 Heikki Tuuri
 #define BTR_NO_LOCKING_FLAG	2	/* do no record lock checking */
 #define BTR_KEEP_SYS_FLAG	4	/* sys fields will be found from the
 					update vector or inserted entry */
+#define BTR_KEEP_POS_FLAG	8	/* btr_cur_pessimistic_update()
+					must keep cursor position when
+					moving columns to big_rec */
 
 #define BTR_CUR_ADAPT
 #define BTR_CUR_HASH_ADAPT
@@ -237,7 +240,9 @@ btr_cur_pessimistic_update(
 				/* out: DB_SUCCESS or error code */
 	ulint		flags,	/* in: undo logging, locking, and rollback
 				flags */
-	btr_cur_t*	cursor,	/* in: cursor on the record to update */
+	btr_cur_t*	cursor,	/* in/out: cursor on the record to update;
+				cursor may become invalid if *big_rec == NULL
+				|| !(flags & BTR_KEEP_POS_FLAG) */
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
 	upd_t*		update,	/* in: update vector; this is allowed also
@@ -247,6 +252,15 @@ btr_cur_pessimistic_update(
 				updates */
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr);	/* in: mtr */
+/*****************************************************************
+Commits and restarts a mini-transaction so that it will retain an
+x-lock on index->lock and the cursor page. */
+
+void
+btr_cur_mtr_commit_and_start(
+/*=========================*/
+	btr_cur_t*	cursor,	/* in: cursor */
+	mtr_t*		mtr);	/* in/out: mini-transaction */
 /***************************************************************
 Marks a clustered index record deleted. Writes an undo log record to
 undo log on this delete marking. Writes in the trx id field the id
@@ -286,19 +300,6 @@ btr_cur_del_unmark_for_ibuf(
 	rec_t*		rec,	/* in: record to delete unmark */
 	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
-Tries to compress a page of the tree on the leaf level. It is assumed
-that mtr holds an x-latch on the tree and on the cursor page. To avoid
-deadlocks, mtr must also own x-latches to brothers of page, if those
-brothers exist. NOTE: it is assumed that the caller has reserved enough
-free extents so that the compression will always succeed if done! */
-
-void
-btr_cur_compress(
-/*=============*/
-	btr_cur_t*	cursor,	/* in: cursor on the page to compress;
-				cursor does not stay valid */
-	mtr_t*		mtr);	/* in: mtr */
-/*****************************************************************
 Tries to compress a page of the tree if it seems useful. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. To avoid
 deadlocks, mtr must also own x-latches to brothers of page, if those
@@ -309,10 +310,12 @@ ibool
 btr_cur_compress_if_useful(
 /*=======================*/
 				/* out: TRUE if compression occurred */
-	btr_cur_t*	cursor,	/* in: cursor on the page to compress;
-				cursor does not stay valid if compression
-				occurs */
-	mtr_t*		mtr);	/* in: mtr */
+	btr_cur_t*	cursor,	/* in/out: cursor on the page to compress;
+				cursor does not stay valid if !adjust and
+				compression occurs */
+	ibool		adjust,	/* in: TRUE if should adjust the
+				cursor position even if compression occurs */
+	mtr_t*		mtr);	/* in/out: mini-transaction */
 /***********************************************************
 Removes the record on which the tree cursor is positioned. It is assumed
 that the mtr has an x-latch on the page where the cursor is positioned,
