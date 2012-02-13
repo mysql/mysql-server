@@ -1693,3 +1693,17 @@ INSERT INTO t1 SELECT t1.* FROM t1,t1 t2,t1 t3,t1 t4,t1 t5,t1 t6;
 SELECT * FROM t1 ORDER BY f LIMIT 1;
 DROP TABLE t1;
 SET sort_buffer_size=DEFAULT;
+
+--echo #
+--echo # BUG#11758979 - 51252: ARCHIVE TABLES CAUSE 100% CPU USAGE
+--echo #                       AND HANG IN SHOW TABLE STATUS
+--echo # (to be executed with valgrind)
+CREATE TABLE t1(a BLOB, b VARCHAR(200)) ENGINE=ARCHIVE;
+INSERT INTO t1 VALUES(NULL, '');
+FLUSH TABLE t1;
+--echo # we need this select to workaround BUG#11764364
+SELECT * FROM t1;
+CHECKSUM TABLE t1 EXTENDED;
+FLUSH TABLE t1;
+OPTIMIZE TABLE t1;
+DROP TABLE t1;

@@ -10648,6 +10648,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (open_tmp_table(table))
     goto err;
 
+  // Make empty record so random data is not written to disk
+  empty_record(table);
+
   thd->mem_root= mem_root_save;
 
   DBUG_RETURN(table);
