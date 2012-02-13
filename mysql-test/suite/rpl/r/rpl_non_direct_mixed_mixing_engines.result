@@ -7,8 +7,6 @@ Note	1757	Storing MySQL user name or password information in the master.info rep
 #                            CONFIGURATION
 #########################################################################
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-SET @verbose= 'Y';
-SET @commands= 'configure';
 CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
 CREATE TABLE nt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
 CREATE TABLE nt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
@@ -99,7 +97,6 @@ SELECT COALESCE(greatest(in_stmt_id + 1, NEW.stmt_id), 1) INTO in_stmt_id;
 INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
 INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
 END|
-SET @commands= '';
 #########################################################################
 #         1 - MIXING TRANSACTIONAL and NON-TRANSACTIONAL TABLES
 #########################################################################
@@ -113,7 +110,6 @@ SET @commands= '';
 #      --> ROW   "B T C" entries, format R.
 #      --> MIXED "B T C" entries, format S.
 #
-SET @commands= 'T';
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 1);
 include/show_binlog_events.inc
@@ -12773,5 +12769,4 @@ DROP PROCEDURE pc_i_tt_5_suc;
 DROP PROCEDURE pc_i_nt_5_suc;
 DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
-SET @commands= '';
 include/rpl_end.inc
