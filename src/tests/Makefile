@@ -121,6 +121,7 @@ BDB_DONTRUN_TESTS = \
 	cursor-isolation \
 	cursor-set-del-rmw \
 	cursor-set-range-rmw \
+	db-put-simple-deadlock \
 	del-simple \
 	del-multiple \
 	del-multiple-huge-primary-row \
@@ -149,7 +150,7 @@ BDB_DONTRUN_TESTS = \
 	hotindexer-simple-abort \
 	hotindexer-undo-do-test \
 	hotindexer-with-queries \
-        hot-optimize-table-tests \
+	hot-optimize-table-tests \
 	insert-dup-prelock \
         isolation \
         isolation-read-committed \
@@ -292,10 +293,10 @@ BDB_DONTRUN_TESTS = \
         test_dbremove_old \
         test_dupsort_get_both_range_reverse \
         test_dupsort_set_range_reverse \
-		test_get_max_row_size \
+	test_get_max_row_size \
 	test_large_update_broadcast_small_cachetable \
         test_logflush \
-        test_multiple_checkpoints_block_commit \
+	test_multiple_checkpoints_block_commit \
 	test_query \
 	test_rand_insert_mult_db \
 	test_redirect_func \

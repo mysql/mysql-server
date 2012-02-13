@@ -113,9 +113,9 @@ parse_args (int argc, char * const argv[]) {
     }
 }
 
+#ifdef USE_TDB
 static __attribute__((__unused__)) void 
 print_engine_status(DB_ENV * UU(env)) {
-#ifdef USE_TDB
     if (verbose) {  // verbose declared statically in this file
         uint64_t nrows;
         env->get_engine_status_num_rows(env, &nrows);
@@ -125,13 +125,14 @@ print_engine_status(DB_ENV * UU(env)) {
         printf("Engine status:\n");
         printf("%s", buff);
     }
-#endif
 }
+#endif
 
+
+#ifdef USE_TDB
 static __attribute__((__unused__)) uint64_t
 get_engine_status_val(DB_ENV * UU(env), char * keyname) {
     uint64_t rval = 0;
-#ifdef USE_TDB
     uint64_t nrows;
     env->get_engine_status_num_rows(env, &nrows);
     TOKU_ENGINE_STATUS_ROW_S mystat[nrows];
@@ -149,11 +150,9 @@ get_engine_status_val(DB_ENV * UU(env), char * keyname) {
         }
     }
     CKERR2(found, 1);
-#endif
     return rval;
 }
-
-
+#endif
 
 static __attribute__((__unused__)) DBT *
 dbt_init(DBT *dbt, const void *data, u_int32_t size) {
