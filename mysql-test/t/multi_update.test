@@ -6,6 +6,8 @@
 source include/not_embedded.inc;
 source include/have_log_bin.inc;
 
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+
 --disable_warnings
 drop table if exists t1,t2,t3;
 drop database if exists mysqltest;
@@ -138,6 +140,7 @@ INSERT INTO t2(ParId) VALUES(1), (2), (3);
 
 select * from t2;
 
+--disable_warnings ONCE
 UPDATE t2, t1 SET t2.tst = t1.tst, t2.tst1 = t1.tst1 WHERE t2.ParId = t1.Id;
 
 select * from t2;
@@ -295,6 +298,7 @@ drop table t1,t2;
 
 create table t1 (a int not null auto_increment primary key, b int not null);
 insert into t1 (b) values (1),(2),(3),(4);
+--disable_warnings ONCE
 update t1, t1 as t2 set t1.b=t2.b+1 where t1.a=t2.a;
 select * from t1;
 drop table t1;

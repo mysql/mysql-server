@@ -9264,11 +9264,18 @@ ha_innobase::delete_table(
 
 	ut_a(name_len < 1000);
 
+	/* Either the transaction is already flagged as a locking transaction
+	or it hasn't been started yet. */
+
+	ut_a(!trx_is_started(trx) || trx->will_lock > 0);
+
+	/* We are doing a DDL operation. */
+	++trx->will_lock;
+
 	/* Drop the table in InnoDB */
 
 	error = row_drop_table_for_mysql(
 		norm_name, trx, thd_sql_command(thd) == SQLCOM_DROP_DB);
-
 
 	if (error == DB_TABLE_NOT_FOUND
 	    && innobase_get_lower_case_table_names() == 1) {
@@ -9373,6 +9380,15 @@ innobase_drop_database(
 	innobase_casedn_str(namebuf);
 #endif
 	trx = innobase_trx_allocate(thd);
+
+	/* Either the transaction is already flagged as a locking transaction
+	or it hasn't been started yet. */
+
+	ut_a(!trx_is_started(trx) || trx->will_lock > 0);
+
+	/* We are doing a DDL operation. */
+	++trx->will_lock;
+
 	row_drop_database_for_mysql(namebuf, trx);
 	my_free(namebuf);
 
@@ -9421,6 +9437,11 @@ innobase_rename_table(
 	if (lock_and_commit) {
 		row_mysql_lock_data_dictionary(trx);
 	}
+
+	/* Transaction must be flagged as a locking transaction or it hasn't
+	been started yet. */
+
+	ut_a(trx->will_lock > 0);
 
 	error = row_rename_table_for_mysql(
 		norm_from, norm_to, trx, lock_and_commit);
@@ -9533,6 +9554,14 @@ ha_innobase::rename_table(
 	trx_search_latch_release_if_reserved(parent_trx);
 
 	trx = innobase_trx_allocate(thd);
+
+	/* Either the transaction is already flagged as a locking transaction
+	or it hasn't been started yet. */
+
+	ut_a(!trx_is_started(trx) || trx->will_lock > 0);
+
+	/* We are doing a DDL operation. */
+	++trx->will_lock;
 
 	error = innobase_rename_table(trx, from, to, TRUE);
 
