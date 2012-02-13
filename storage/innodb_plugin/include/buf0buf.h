@@ -120,13 +120,11 @@ buf_pool_free(void);
 /*===============*/
 
 /********************************************************************//**
-Drops the adaptive hash index.  To prevent a livelock, this function
-is only to be called while holding btr_search_latch and while
-btr_search_enabled == FALSE. */
+Clears the adaptive hash index on all pages in the buffer pool. */
 UNIV_INTERN
 void
-buf_pool_drop_hash_index(void);
-/*==========================*/
+buf_pool_clear_hash_index(void);
+/*===========================*/
 
 /********************************************************************//**
 Relocate a buffer control block.  Relocates the block on the LRU list
@@ -372,15 +370,6 @@ buf_page_peek(
 /*==========*/
 	ulint	space,	/*!< in: space id */
 	ulint	offset);/*!< in: page number */
-/********************************************************************//**
-Resets the check_index_page_at_flush field of a page if found in the buffer
-pool. */
-UNIV_INTERN
-void
-buf_reset_check_index_page_at_flush(
-/*================================*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset);/*!< in: page number */
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 /********************************************************************//**
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
@@ -449,17 +438,6 @@ buf_page_peek_if_too_old(
 /*=====================*/
 	const buf_page_t*	bpage);	/*!< in: block to make younger */
 /********************************************************************//**
-Returns the current state of is_hashed of a page. FALSE if the page is
-not in the pool. NOTE that this operation does not fix the page in the
-pool if it is found there.
-@return	TRUE if page hash index is built in search system */
-UNIV_INTERN
-ibool
-buf_page_peek_if_search_hashed(
-/*===========================*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset);/*!< in: page number */
-/********************************************************************//**
 Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet.
 @return	newest modification to page */
@@ -490,31 +468,6 @@ buf_block_get_modify_clock(
 #else /* !UNIV_HOTBACKUP */
 # define buf_block_modify_clock_inc(block) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
-/*******************************************************************//**
-Increments the bufferfix count. */
-UNIV_INLINE
-void
-buf_block_buf_fix_inc_func(
-/*=======================*/
-#ifdef UNIV_SYNC_DEBUG
-	const char*	file,	/*!< in: file name */
-	ulint		line,	/*!< in: line */
-#endif /* UNIV_SYNC_DEBUG */
-	buf_block_t*	block)	/*!< in/out: block to bufferfix */
-	__attribute__((nonnull));
-#ifdef UNIV_SYNC_DEBUG
-/** Increments the bufferfix count.
-@param b	in/out: block to bufferfix
-@param f	in: file name where requested
-@param l	in: line number where requested */
-# define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(f,l,b)
-#else /* UNIV_SYNC_DEBUG */
-/** Increments the bufferfix count.
-@param b	in/out: block to bufferfix
-@param f	in: file name where requested
-@param l	in: line number where requested */
-# define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(b)
-#endif /* UNIV_SYNC_DEBUG */
 /********************************************************************//**
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value
@@ -1276,13 +1229,16 @@ struct buf_block_struct{
 	/* @} */
 
 	/** @name Hash search fields
-	These 6 fields may only be modified when we have
+	These 5 fields may only be modified when we have
 	an x-latch on btr_search_latch AND
 	- we are holding an s-latch or x-latch on buf_block_struct::lock or
 	- we know that buf_block_struct::buf_fix_count == 0.
 
 	An exception to this is when we init or create a page
-	in the buffer pool in buf0buf.c. */
+	in the buffer pool in buf0buf.c.
+
+	Another exception is that assigning block->index = NULL
+	is allowed whenever holding an x-latch on btr_search_latch. */
 
 	/* @{ */
 
@@ -1291,20 +1247,20 @@ struct buf_block_struct{
 					pointers in the adaptive hash index
 					pointing to this frame */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	unsigned	is_hashed:1;	/*!< TRUE if hash index has
-					already been built on this
-					page; note that it does not
-					guarantee that the index is
-					complete, though: there may
-					have been hash collisions,
-					record deletions, etc. */
 	unsigned	curr_n_fields:10;/*!< prefix length for hash indexing:
 					number of full fields */
 	unsigned	curr_n_bytes:15;/*!< number of bytes in hash
 					indexing */
 	unsigned	curr_left_side:1;/*!< TRUE or FALSE in hash indexing */
-	dict_index_t*	index;		/*!< Index for which the adaptive
-					hash index has been created. */
+	dict_index_t*	index;		/*!< Index for which the
+					adaptive hash index has been
+					created, or NULL if the page
+					does not exist in the
+					index. Note that it does not
+					guarantee that the index is
+					complete, though: there may
+					have been hash collisions,
+					record deletions, etc. */
 	/* @} */
 # ifdef UNIV_SYNC_DEBUG
 	/** @name Debug fields */

@@ -464,6 +464,16 @@ btr_page_free_low(
 	page_no = buf_frame_get_page_no(page);
 
 	fseg_free_page(seg_header, space, page_no, mtr);
+
+	/* The page was marked free in the allocation bitmap, but it
+	should remain buffer-fixed until mtr_commit(mtr) or until it
+	is explicitly freed from the mini-transaction. */
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
+				MTR_MEMO_PAGE_X_FIX));
+	/* TODO: Discard any operations on the page from the redo log
+	and remove the block from the flush list and the buffer pool.
+	This would free up buffer pool earlier and reduce writes to
+	both the tablespace and the redo log. */
 }
 
 /******************************************************************
@@ -479,6 +489,7 @@ btr_page_free(
 {
 	ulint		level;
 
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
 	level = btr_page_get_level(page, mtr);
@@ -1937,7 +1948,7 @@ btr_node_ptr_delete(
 	ut_a(err == DB_SUCCESS);
 
 	if (!compressed) {
-		btr_cur_compress_if_useful(&cursor, FALSE, mtr);
+		btr_cur_compress_if_useful(&cursor, mtr);
 	}
 }
 
@@ -1945,10 +1956,9 @@ btr_node_ptr_delete(
 If page is the only on its level, this function moves its records to the
 father page, thus reducing the tree height. */
 static
-page_t*
+void
 btr_lift_page_up(
 /*=============*/
-				/* out: father page */
 	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: page which is the only on its level;
 				must not be empty: use
@@ -2024,8 +2034,6 @@ btr_lift_page_up(
 	ibuf_reset_free_bits(index, father_page);
 	ut_ad(page_validate(father_page, index));
 	ut_ad(btr_check_node_ptr(index, father_page, mtr));
-
-	return(father_page);
 }
 
 /*****************************************************************
@@ -2042,13 +2050,11 @@ enough free extents so that the compression will always succeed if done! */
 void
 btr_compress(
 /*=========*/
-	btr_cur_t*	cursor,	/* in/out: cursor on the page to merge
-				or lift; the page must not be empty:
-				when deleting records, use btr_discard_page()
-				if the page would become empty */
-	ibool		adjust,	/* in: TRUE if should adjust the
-				cursor position even if compression occurs */
-	mtr_t*		mtr)	/* in/out: mini-transaction */
+	btr_cur_t*	cursor,	/* in: cursor on the page to merge or lift;
+				the page must not be empty: in record delete
+				use btr_discard_page if the page would become
+				empty */
+	mtr_t*		mtr)	/* in: mtr */
 {
 	dict_index_t*	index;
 	ulint		space;
@@ -2063,7 +2069,6 @@ btr_compress(
 	rec_t*		node_ptr;
 	ulint		data_size;
 	ulint		n_recs;
-	ulint		nth_rec = 0; /* remove bogus warning */
 	ulint		max_ins_size;
 	ulint		max_ins_size_reorg;
 	ulint		comp;
@@ -2071,7 +2076,6 @@ btr_compress(
 	page = btr_cur_get_page(cursor);
 	index = btr_cur_get_index(cursor);
 	comp = page_is_comp(page);
-
 	ut_a((ibool)!!comp == dict_table_is_comp(index->table));
 
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
@@ -2092,10 +2096,6 @@ btr_compress(
 	ut_ad(!comp || rec_get_status(node_ptr) == REC_STATUS_NODE_PTR);
 	father_page = buf_frame_align(node_ptr);
 	ut_a(comp == page_is_comp(father_page));
-
-	if (adjust) {
-		nth_rec = page_rec_get_n_recs_before(btr_cur_get_rec(cursor));
-	}
 
 	/* Decide the page to which we try to merge and which will inherit
 	the locks */
@@ -2121,8 +2121,9 @@ btr_compress(
 	} else {
 		/* The page is the only one on the level, lift the records
 		to the father */
-		merge_page = btr_lift_page_up(index, page, mtr);
-		goto func_exit;
+		btr_lift_page_up(index, page, mtr);
+
+		return;
 	}
 
 	n_recs = page_get_n_recs(page);
@@ -2198,10 +2199,6 @@ btr_compress(
 					 index, mtr);
 
 		lock_update_merge_left(merge_page, orig_pred, page);
-
-		if (adjust) {
-			nth_rec += page_rec_get_n_recs_before(orig_pred);
-		}
 	} else {
 		orig_succ = page_rec_get_next(
 			page_get_infimum_rec(merge_page));
@@ -2222,12 +2219,6 @@ btr_compress(
 	btr_page_free(index, page, mtr);
 
 	ut_ad(btr_check_node_ptr(index, merge_page, mtr));
-
-func_exit:
-	if (adjust) {
-		btr_cur_position(index, page_rec_get_nth(merge_page, nth_rec),
-				 cursor);
-	}
 }
 
 /*****************************************************************

@@ -4264,14 +4264,16 @@ calc_row_difference(
 			/* The field has changed */
 
 			ufield = uvect->fields + n_changed;
+			UNIV_MEM_INVALID(ufield, sizeof *ufield);
 
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
-			dict_col_copy_type_noninline(prebuilt->table->cols + i,
-						     &dfield.type);
-
 			if (n_len != UNIV_SQL_NULL) {
+				dict_col_copy_type_noninline(
+					prebuilt->table->cols + i,
+					&dfield.type);
+
 				buf = row_mysql_store_col_in_innobase_format(
 					&dfield,
 					(byte*)buf,
@@ -4282,11 +4284,13 @@ calc_row_difference(
 							prebuilt->table));
 				ufield->new_val.data = dfield.data;
 				ufield->new_val.len = dfield.len;
+				ufield->new_val.type = dfield.type;
 			} else {
 				ufield->new_val.data = NULL;
 				ufield->new_val.len = UNIV_SQL_NULL;
 			}
 
+			ufield->extern_storage = FALSE;
 			ufield->exp = NULL;
 			ufield->field_no = dict_col_get_clust_pos_noninline(
 				&prebuilt->table->cols[i], clust_index);

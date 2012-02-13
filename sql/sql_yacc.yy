@@ -1941,7 +1941,6 @@ create:
 	  lex->change=NullS;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
-	  lex->create_info.db_type= ha_default_handlerton(thd);
 	  lex->create_info.default_table_charset= NULL;
 	  lex->name.str= 0;
           lex->name.length= 0;
@@ -1950,7 +1949,8 @@ create:
 	{
 	  LEX *lex= YYTHD->lex;
           lex->current_select= &lex->select_lex; 
-          if (!lex->create_info.db_type)
+          if ((lex->create_info.used_fields & HA_CREATE_USED_ENGINE) &&
+               !lex->create_info.db_type)
           {
             lex->create_info.db_type= ha_default_handlerton(YYTHD);
             push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,

@@ -1,7 +1,6 @@
 -- source include/have_innodb_plugin.inc
 
 let $file_format=`select @@innodb_file_format`;
-let $file_format_check=`select @@innodb_file_format_check`;
 let $file_per_table=`select @@innodb_file_per_table`;
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=on;
@@ -105,5 +104,4 @@ SHOW WARNINGS;
 DROP TABLE bug52745;
 
 EVAL SET GLOBAL innodb_file_format=$file_format;
-EVAL SET GLOBAL innodb_file_format_check=$file_format_check;
 EVAL SET GLOBAL innodb_file_per_table=$file_per_table;

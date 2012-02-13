@@ -464,6 +464,7 @@ TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names, 0};
 
 DYNAMIC_STRING ds_res;
+struct st_command *curr_command= 0;
 
 char builtin_echo[FN_REFLEN];
 
@@ -2225,9 +2226,16 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
   init_dynamic_string(&ds_query, 0, (end - query) + 32, 256);
   do_eval(&ds_query, query, end, FALSE);
 
-  if (mysql_real_query(mysql, ds_query.str, ds_query.length))
-    die("Error running query '%s': %d %s", ds_query.str,
-	mysql_errno(mysql), mysql_error(mysql));
+  if (mysql_real_query(mysql, ds_query.str, ds_query.length)) 
+  {
+    handle_error (curr_command, mysql_errno(mysql), mysql_error(mysql),
+                  mysql_sqlstate(mysql), &ds_res);
+    /* If error was acceptable, return empty string */
+    dynstr_free(&ds_query);
+    eval_expr(var, "", 0);
+    DBUG_VOID_RETURN;
+  }
+  
   if (!(res= mysql_store_result(mysql)))
     die("Query '%s' didn't return a result set", ds_query.str);
   dynstr_free(&ds_query);
@@ -2382,8 +2390,15 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
 
   /* Run the query */
   if (mysql_real_query(mysql, ds_query.str, ds_query.length))
-    die("Error running query '%s': %d %s", ds_query.str,
-	mysql_errno(mysql), mysql_error(mysql));
+  {
+    handle_error (curr_command, mysql_errno(mysql), mysql_error(mysql),
+                  mysql_sqlstate(mysql), &ds_res);
+    /* If error was acceptable, return empty string */
+    dynstr_free(&ds_query);
+    eval_expr(var, "", 0);
+    DBUG_VOID_RETURN;
+  }
+
   if (!(res= mysql_store_result(mysql)))
     die("Query '%s' didn't return a result set", ds_query.str);
 
@@ -8264,6 +8279,8 @@ int main(int argc, char **argv)
     {
       command->last_argument= command->first_argument;
       processed = 1;
+      /* Need to remember this for handle_error() */
+      curr_command= command;
       switch (command->type) {
       case Q_CONNECT:
         do_connect(command);

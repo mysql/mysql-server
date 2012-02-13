@@ -25,12 +25,7 @@
   Published with a permission.
 */
 
-/* needed to have access to 64 bit file functions */
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
-
-#define _XOPEN_SOURCE 500 /* needed to include getopt.h on some platforms. */
-
+#include <my_global.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -53,7 +48,6 @@
 /* another argument to specify page ranges... seek to right spot and go from there */
 
 typedef unsigned long int ulint;
-typedef unsigned char uchar;
 
 /* innodb function in name; modified slightly to not have the ASM version (lots of #ifs that didn't apply) */
 ulint mach_read_from_4(uchar *b)

@@ -139,7 +139,7 @@ btr_cur_compress_recommendation(
 	btr_cur_t*	cursor,	/*!< in: btr cursor */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	const page_t*		page;
+	page_t*		page;
 
 	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
