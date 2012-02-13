@@ -13815,7 +13815,11 @@ table_lock:
 lock_option:
           READ_SYM               { $$= TL_READ_NO_INSERT; }
         | WRITE_SYM              { $$= TL_WRITE_DEFAULT; }
-        | LOW_PRIORITY WRITE_SYM { $$= TL_WRITE_LOW_PRIORITY; }
+        | LOW_PRIORITY WRITE_SYM 
+          { 
+            $$= TL_WRITE_LOW_PRIORITY; 
+            WARN_DEPRECATED(YYTHD, "LOW_PRIORITY WRITE", "WRITE");
+          }
         | READ_SYM LOCAL_SYM     { $$= TL_READ; }
         ;
 
