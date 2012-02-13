@@ -416,38 +416,6 @@ btr_pcur_commit_specify_mtr(
 }
 
 /**************************************************************//**
-Sets the pcur latch mode to BTR_NO_LATCHES. */
-UNIV_INLINE
-void
-btr_pcur_detach(
-/*============*/
-	btr_pcur_t*	pcur)	/*!< in: persistent cursor */
-{
-	ut_a(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
-
-	pcur->latch_mode = BTR_NO_LATCHES;
-
-	pcur->pos_state = BTR_PCUR_WAS_POSITIONED;
-}
-
-/**************************************************************//**
-Tests if a cursor is detached: that is the latch mode is BTR_NO_LATCHES.
-@return	TRUE if detached */
-UNIV_INLINE
-ibool
-btr_pcur_is_detached(
-/*=================*/
-	btr_pcur_t*	pcur)	/*!< in: persistent cursor */
-{
-	if (pcur->latch_mode == BTR_NO_LATCHES) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
-}
-
-/**************************************************************//**
 Sets the old_rec_buf field to NULL. */
 UNIV_INLINE
 void
