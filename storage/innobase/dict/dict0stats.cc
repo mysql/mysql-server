@@ -1567,6 +1567,8 @@ dict_stats_save_index_stat(
 			"stat name %s: %s\n",
 			index->table->name, index->name,
 			stat_name, ut_strerr(ret));
+
+		trx->error_state = DB_SUCCESS;
 	}
 
 	return(ret);
@@ -2720,6 +2722,8 @@ dict_stats_delete_index_stats(
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: %s\n", errstr);
+
+		trx->error_state = DB_SUCCESS;
 	}
 
 	dict_stats_close(dict_stats);

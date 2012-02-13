@@ -791,6 +791,7 @@ PRIMARY KEY (pk),
 KEY col_int_key (i1)
 );
 INSERT INTO t2 VALUES (1,7,'f');
+set @old_opt_switch=@@optimizer_switch;
 EXPLAIN SELECT t1.i1
 FROM t1
 WHERE t1.i1 NOT IN
@@ -818,6 +819,7 @@ OR SUBQUERY_t2.c1 = 'a'
 i1
 NULL
 133
+set @@optimizer_switch=@old_opt_switch;
 DROP TABLE t1,t2;
 #
 # Bug#11876420 "MISSING ROW IN RESULT WITH SUBQUERY + IN + XOR + 
@@ -842,6 +844,7 @@ c1 VARCHAR(1),
 KEY col_varchar_key (c1)
 ) ENGINE=InnoDB;
 INSERT INTO t3 VALUES (NULL,'w'), (1,NULL), (2,'d');
+set @old_opt_switch=@@optimizer_switch;
 EXPLAIN SELECT i1
 FROM t3
 WHERE c1 IN
@@ -866,6 +869,7 @@ XOR i1;
 i1
 1
 2
+set @@optimizer_switch=@old_opt_switch;
 DROP TABLE t1, t2, t3;
 #
 # Bug#12355958 "FAILING ASSERTION: TRX->LOCK.N_ACTIVE_THRS == 1"

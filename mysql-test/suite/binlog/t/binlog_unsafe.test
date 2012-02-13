@@ -233,7 +233,7 @@ while ($unsafe_type < 9) {
     --let $value_0=
     --let $sel_sidef_0=
     --let $sel_retval_0=
-    --let $CRC_ARG_expected_number_of_warnings= 6
+    --let $CRC_ARG_expected_number_of_warnings= 7
   }
 
   if ($unsafe_type == 8) {

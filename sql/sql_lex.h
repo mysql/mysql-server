@@ -1144,6 +1144,13 @@ public:
     BINLOG_STMT_UNSAFE_INSERT_SELECT_UPDATE,
 
     /**
+     Query that writes to a table with auto_inc column after selecting from 
+     other tables are unsafe as the order in which the rows are retrieved by
+     select may differ on master and slave.
+    */
+    BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT,
+
+    /**
       INSERT...REPLACE SELECT is unsafe because which rows are replaced depends
       on the order that rows are retrieved by SELECT. This order cannot be
       predicted and may differ on master and the slave.
@@ -1163,6 +1170,14 @@ public:
       cannot be predicted and may differ on master and the slave
     */
     BINLOG_STMT_UNSAFE_CREATE_REPLACE_SELECT,
+
+    /**
+      CREATE TABLE...SELECT on a table with auto-increment column is unsafe
+      because which rows are replaced depends on the order that rows are
+      retrieved from SELECT. This order cannot be predicted and may differ on
+      master and the slave
+    */
+    BINLOG_STMT_UNSAFE_CREATE_SELECT_AUTOINC,
 
     /**
       UPDATE...IGNORE is unsafe because which rows are ignored depends on the

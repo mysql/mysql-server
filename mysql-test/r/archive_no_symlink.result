@@ -1,0 +1,26 @@
+#
+# This test shows that DATA DIRECTORY and INDEX DIRECTORY are
+# ignored where symbolic links are not supported such as Windows.
+#
+CREATE TABLE t1 (
+c1 int(10) unsigned NOT NULL AUTO_INCREMENT,
+c2 varchar(30) NOT NULL,
+c3 smallint(5) unsigned DEFAULT NULL,
+PRIMARY KEY (c1))
+ENGINE = archive
+DATA DIRECTORY = 'MYSQL_TMP_DIR/archive' INDEX DIRECTORY = 'MYSQL_TMP_DIR/archive';
+Warnings:
+Warning	1618	<DATA DIRECTORY> option ignored
+Warning	1618	<INDEX DIRECTORY> option ignored
+INSERT INTO t1 VALUES (NULL, "first", 1);
+INSERT INTO t1 VALUES (NULL, "second", 2);
+INSERT INTO t1 VALUES (NULL, "third", 3);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `c2` varchar(30) NOT NULL,
+  `c3` smallint(5) unsigned DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=ARCHIVE AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+DROP TABLE t1;
