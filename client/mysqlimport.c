@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,14 +18,8 @@
 /*
 **	   mysqlimport.c  - Imports all given files
 **			    into a table(s).
-**
-**			   *************************
-**			   *			   *
-**			   * AUTHOR: Monty & Jani  *
-**			   * DATE:   June 24, 1997 *
-**			   *			   *
-**			   *************************
 */
+
 #define IMPORT_VERSION "3.7"
 
 #include "client_priv.h"
@@ -41,6 +35,8 @@ uint counter;
 pthread_mutex_t counter_mutex;
 pthread_cond_t count_threshhold;
 #endif
+
+#include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 static void db_error_with_table(MYSQL *mysql, char *table);
 static void db_error(MYSQL *mysql);
@@ -208,8 +204,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license.\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
   printf("\
 Loads tables from text files in various formats.  The base name of the\n\
 text file must be the name of the table that should be used.\n\

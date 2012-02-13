@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -81,6 +81,91 @@ UNIQUE definition on secondary indexes when we decide if we can use
 the insert buffer to speed up inserts */
 #define BTR_IGNORE_SEC_UNIQUE	2048
 
+#ifdef UNIV_BLOB_DEBUG
+# include "ut0rbt.h"
+/** An index->blobs entry for keeping track of off-page column references */
+struct btr_blob_dbg_struct
+{
+	unsigned	blob_page_no:32;	/*!< first BLOB page number */
+	unsigned	ref_page_no:32;		/*!< referring page number */
+	unsigned	ref_heap_no:16;		/*!< referring heap number */
+	unsigned	ref_field_no:10;	/*!< referring field number */
+	unsigned	owner:1;		/*!< TRUE if BLOB owner */
+	unsigned	always_owner:1;		/*!< TRUE if always
+						has been the BLOB owner;
+						reset to TRUE on B-tree
+						page splits and merges */
+	unsigned	del:1;			/*!< TRUE if currently
+						delete-marked */
+};
+
+/**************************************************************//**
+Add a reference to an off-page column to the index->blobs map. */
+UNIV_INTERN
+void
+btr_blob_dbg_add_blob(
+/*==================*/
+	const rec_t*	rec,		/*!< in: clustered index record */
+	ulint		field_no,	/*!< in: number of off-page column */
+	ulint		page_no,	/*!< in: start page of the column */
+	dict_index_t*	index,		/*!< in/out: index tree */
+	const char*	ctx)		/*!< in: context (for logging) */
+	__attribute__((nonnull));
+/**************************************************************//**
+Display the references to off-page columns.
+This function is to be called from a debugger,
+for example when a breakpoint on ut_dbg_assertion_failed is hit. */
+UNIV_INTERN
+void
+btr_blob_dbg_print(
+/*===============*/
+	const dict_index_t*	index)	/*!< in: index tree */
+	__attribute__((nonnull));
+/**************************************************************//**
+Check that there are no references to off-page columns from or to
+the given page. Invoked when freeing or clearing a page.
+@return TRUE when no orphan references exist */
+UNIV_INTERN
+ibool
+btr_blob_dbg_is_empty(
+/*==================*/
+	dict_index_t*	index,		/*!< in: index */
+	ulint		page_no)	/*!< in: page number */
+	__attribute__((nonnull, warn_unused_result));
+
+/**************************************************************//**
+Modify the 'deleted' flag of a record. */
+UNIV_INTERN
+void
+btr_blob_dbg_set_deleted_flag(
+/*==========================*/
+	const rec_t*		rec,	/*!< in: record */
+	dict_index_t*		index,	/*!< in/out: index */
+	const ulint*		offsets,/*!< in: rec_get_offs(rec, index) */
+	ibool			del)	/*!< in: TRUE=deleted, FALSE=exists */
+	__attribute__((nonnull));
+/**************************************************************//**
+Change the ownership of an off-page column. */
+UNIV_INTERN
+void
+btr_blob_dbg_owner(
+/*===============*/
+	const rec_t*		rec,	/*!< in: record */
+	dict_index_t*		index,	/*!< in/out: index */
+	const ulint*		offsets,/*!< in: rec_get_offs(rec, index) */
+	ulint			i,	/*!< in: ith field in rec */
+	ibool			own)	/*!< in: TRUE=owned, FALSE=disowned */
+	__attribute__((nonnull));
+/** Assert that there are no BLOB references to or from the given page. */
+# define btr_blob_dbg_assert_empty(index, page_no)	\
+	ut_a(btr_blob_dbg_is_empty(index, page_no))
+#else /* UNIV_BLOB_DEBUG */
+# define btr_blob_dbg_add_blob(rec, field_no, page, index, ctx)	((void) 0)
+# define btr_blob_dbg_set_deleted_flag(rec, index, offsets, del)((void) 0)
+# define btr_blob_dbg_owner(rec, index, offsets, i, val)	((void) 0)
+# define btr_blob_dbg_assert_empty(index, page_no)		((void) 0)
+#endif /* UNIV_BLOB_DEBUG */
+
 /**************************************************************//**
 Gets the root node of a tree and x-latches it.
 @return	root page, x-latched */
@@ -103,26 +188,45 @@ btr_block_get_func(
 	ulint		mode,		/*!< in: latch mode */
 	const char*	file,		/*!< in: file name */
 	ulint		line,		/*!< in: line where called */
-	mtr_t*		mtr)		/*!< in/out: mtr */
-	__attribute__((nonnull));
+# ifdef UNIV_SYNC_DEBUG
+	const dict_index_t*	index,	/*!< in: index tree, may be NULL
+					if it is not an insert buffer tree */
+# endif /* UNIV_SYNC_DEBUG */
+	mtr_t*		mtr);		/*!< in/out: mini-transaction */
+# ifdef UNIV_SYNC_DEBUG
 /** Gets a buffer page and declares its latching order level.
 @param space	tablespace identifier
 @param zip_size	compressed page size in bytes or 0 for uncompressed pages
 @param page_no	page number
 @param mode	latch mode
+@param index	index tree, may be NULL if not the insert buffer tree
 @param mtr	mini-transaction handle
 @return the block descriptor */
-# define btr_block_get(space,zip_size,page_no,mode,mtr) \
-	btr_block_get_func(space,zip_size,page_no,mode,__FILE__,__LINE__,mtr)
+#  define btr_block_get(space,zip_size,page_no,mode,index,mtr)	\
+	btr_block_get_func(space,zip_size,page_no,mode,		\
+			   __FILE__,__LINE__,index,mtr)
+# else /* UNIV_SYNC_DEBUG */
 /** Gets a buffer page and declares its latching order level.
 @param space	tablespace identifier
 @param zip_size	compressed page size in bytes or 0 for uncompressed pages
 @param page_no	page number
 @param mode	latch mode
+@param idx	index tree, may be NULL if not the insert buffer tree
+@param mtr	mini-transaction handle
+@return the block descriptor */
+#  define btr_block_get(space,zip_size,page_no,mode,idx,mtr)		\
+	btr_block_get_func(space,zip_size,page_no,mode,__FILE__,__LINE__,mtr)
+# endif /* UNIV_SYNC_DEBUG */
+/** Gets a buffer page and declares its latching order level.
+@param space	tablespace identifier
+@param zip_size	compressed page size in bytes or 0 for uncompressed pages
+@param page_no	page number
+@param mode	latch mode
+@param idx	index tree, may be NULL if not the insert buffer tree
 @param mtr	mini-transaction handle
 @return the uncompressed page frame */
-# define btr_page_get(space,zip_size,page_no,mode,mtr) \
-	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,mtr))
+# define btr_page_get(space,zip_size,page_no,mode,idx,mtr)		\
+	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,idx,mtr))
 #endif /* !UNIV_HOTBACKUP */
 /**************************************************************//**
 Gets the index id field of a page.
@@ -248,8 +352,7 @@ btr_free_root(
 	ulint	zip_size,	/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
 	ulint	root_page_no,	/*!< in: root page number */
-	mtr_t*	mtr);		/*!< in: a mini-transaction which has already
-				been started */
+	mtr_t*	mtr);		/*!< in/out: mini-transaction */
 /*************************************************************//**
 Makes tree one level higher by splitting the root, and inserts
 the tuple. It is assumed that mtr contains an x-latch on the tree.

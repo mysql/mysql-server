@@ -556,3 +556,49 @@ f1	bug13575(f1)
 3	ccc
 drop function bug13575|
 drop table t3|
+SELECT @@GLOBAL.storage_engine INTO @old_engine|
+SET @@GLOBAL.storage_engine=InnoDB|
+SET @@SESSION.storage_engine=InnoDB|
+SHOW GLOBAL VARIABLES LIKE 'storage_engine'|
+Variable_name	Value
+storage_engine	InnoDB
+SHOW SESSION VARIABLES LIKE 'storage_engine'|
+Variable_name	Value
+storage_engine	InnoDB
+CREATE PROCEDURE bug11758414()
+BEGIN
+SET @@GLOBAL.storage_engine="MyISAM";
+SET @@SESSION.storage_engine="MyISAM"; 
+# show defaults at execution time / that setting them worked
+SHOW GLOBAL VARIABLES LIKE 'storage_engine';
+SHOW SESSION VARIABLES LIKE 'storage_engine';
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int) ENGINE=InnoDB;
+# show we're heeding the default (at run-time, not parse-time!)
+ SHOW CREATE TABLE t1;
+ # show that we didn't break explicit override with ENGINE=...
+SHOW CREATE TABLE t2;
+END;
+|
+CALL bug11758414|
+Variable_name	Value
+storage_engine	MyISAM
+Variable_name	Value
+storage_engine	MyISAM
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW GLOBAL VARIABLES LIKE 'storage_engine'|
+Variable_name	Value
+storage_engine	MyISAM
+SHOW SESSION VARIABLES LIKE 'storage_engine'|
+Variable_name	Value
+storage_engine	MyISAM
+DROP PROCEDURE bug11758414|
+DROP TABLE t1, t2|
+SET @@GLOBAL.storage_engine=@old_engine|

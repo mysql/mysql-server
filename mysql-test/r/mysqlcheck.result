@@ -147,6 +147,7 @@ DROP TABLE `@`;
 CREATE TABLE `я` (a INT);
 SET NAMES DEFAULT;
 mysqlcheck --default-character-set="latin1" --databases test
+call mtr.add_suppression("Can't find file: '..test.@003f.frm'");
 test.?
 Error    : Table doesn't exist
 status   : Operation failed

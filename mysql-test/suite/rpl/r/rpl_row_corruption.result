@@ -1,0 +1,49 @@
+include/master-slave.inc
+[connection master]
+CREATE TABLE t1_11753004 (c1 INT);
+CREATE TABLE t2_11753004 (c1 INT);
+INSERT INTO t1_11753004 VALUES (1);
+INSERT INTO t2_11753004 VALUES (2);
+call mtr.add_suppression(".*Found table map event mapping table id 0 which was already mapped but with different settings.*");
+include/stop_slave.inc
+SET @save_debug= @@global.debug;
+SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
+include/start_slave.inc
+UPDATE t1_11753004, t2_11753004 SET t1_11753004.c1=3, t2_11753004.c1=4 WHERE t1_11753004.c1=1 OR t2_11753004.c1=2;
+include/wait_for_slave_sql_error.inc [errno=1593 ]
+include/stop_slave.inc
+SET GLOBAL debug="-d,inject_tblmap_same_id_maps_diff_table";
+include/start_slave.inc
+include/rpl_reset.inc
+DROP TABLE t1_11753004, t2_11753004;
+include/stop_slave.inc
+SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
+include/start_slave.inc
+include/rpl_reset.inc
+CREATE TABLE t1_11753004 (c1 INT);
+CREATE TABLE t2_11753004_ign (c1 INT);
+INSERT INTO t1_11753004 VALUES (1);
+INSERT INTO t2_11753004_ign VALUES (2);
+UPDATE t1_11753004, t2_11753004_ign SET t1_11753004.c1=3, t2_11753004_ign.c1=4 WHERE t1_11753004.c1=1 OR t2_11753004_ign.c1=2;
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+BINLOG '
+SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=
+'/*!*/;
+SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
+BINLOG '
+SOgWThMBAAAAKQAAAAYDAAAAAEIAAAAAAAEABHRlc3QAAnQxAAEDAAE=
+SOgWThMBAAAAKQAAAC8DAAAAAEMAAAAAAAEABHRlc3QAAnQyAAEDAAE=
+SOgWThgBAAAAKAAAAFcDAAAAAEIAAAAAAAAAAf///gEAAAD+AwAAAA==
+SOgWThgBAAAAKAAAAH8DAAAAAEMAAAAAAAEAAf///gEAAAD+BAAAAA==
+'/*!*/;
+ERROR HY000: Fatal error: Found table map event mapping table id 0 which was already mapped but with different settings.
+DROP TABLE t1,t2;
+SET GLOBAL debug="-d,inject_tblmap_same_id_maps_diff_table";
+DROP TABLE t1_11753004;
+DROP TABLE t2_11753004_ign;
+SET GLOBAL debug= @save_debug;
+include/rpl_end.inc

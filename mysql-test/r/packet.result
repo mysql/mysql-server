@@ -3,6 +3,7 @@ set @net_buffer_length=@@global.net_buffer_length;
 set global max_allowed_packet=100;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '100'
+Warning	1105	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 set global net_buffer_length=100;
 Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '100'

@@ -31,6 +31,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "btr0sea.h"
 #include "row0upd.h"
 #include "trx0rec.h"
+#include "trx0roll.h" /* trx_roll_crash_recv_trx */
 #include "que0que.h"
 #include "row0row.h"
 #include "srv0srv.h"
@@ -72,6 +73,13 @@ this many index pages */
 	  + BTR_KEY_VAL_ESTIMATE_N_PAGES - 1 + ext_size			\
 	  + not_empty)							\
 	 / (BTR_KEY_VAL_ESTIMATE_N_PAGES + ext_size))
+
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+/* A BLOB field reference full of zero, for use in assertions and tests.
+Initially, BLOB field references are set to zero, in
+dtuple_convert_big_rec(). */
+const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 /***********************************************************************
 Marks all extern fields in a record as owned by the record. This function
@@ -1572,7 +1580,6 @@ btr_cur_optimistic_update(
 	ulint		old_rec_size;
 	dtuple_t*	new_entry;
 	dulint		roll_ptr;
-	trx_t*		trx;
 	mem_heap_t*	heap;
 	ibool		reorganized	= FALSE;
 	ulint		i;
@@ -1585,6 +1592,10 @@ btr_cur_optimistic_update(
 
 	heap = mem_heap_create(1024);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	ut_a(!rec_offs_any_null_extern(rec, offsets)
+	     || thr_get_trx(thr) == trx_roll_crash_recv_trx);
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 #ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {
@@ -1691,13 +1702,11 @@ btr_cur_optimistic_update(
 
 	page_cur_move_to_prev(page_cursor);
 
-	trx = thr_get_trx(thr);
-
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
-					      trx->id);
+					      thr_get_trx(thr)->id);
 	}
 
 	rec = btr_cur_insert_if_possible(cursor, new_entry, &reorganized, mtr);
@@ -2850,7 +2859,6 @@ static
 void
 btr_record_not_null_field_in_rec(
 /*=============================*/
-	rec_t*		rec,		/* in: physical record */
 	ulint		n_unique,	/* in: dict_index_get_n_unique(index),
 					number of columns uniquely determine
 					an index entry */
@@ -2869,17 +2877,11 @@ btr_record_not_null_field_in_rec(
 	}
 
 	for (i = 0; i < n_unique; i++) {
-		ulint	rec_len;
-		byte*	field;
-
-		field = rec_get_nth_field(rec, offsets, i, &rec_len);
-
-		if (rec_len != UNIV_SQL_NULL) {
-			n_not_null[i]++;
-		} else {
-			/* Break if we hit the first NULL value */
+		if (rec_offs_nth_sql_null(offsets, i)) {
 			break;
 		}
+
+		n_not_null[i]++;
 	}
 }
 
@@ -2974,7 +2976,7 @@ btr_estimate_number_of_different_key_vals(
 
 			if (n_not_null) {
 				btr_record_not_null_field_in_rec(
-					rec, n_cols, offsets_rec, n_not_null);
+					n_cols, offsets_rec, n_not_null);
 			}
 		}
 
@@ -3009,8 +3011,7 @@ btr_estimate_number_of_different_key_vals(
 
 			if (n_not_null) {
 				btr_record_not_null_field_in_rec(
-					next_rec, n_cols, offsets_next_rec,
-					n_not_null);
+					n_cols, offsets_next_rec, n_not_null);
 			}
 
 			total_external_size

@@ -41,6 +41,9 @@ sess_t*		trx_dummy_sess = NULL;
 /* Number of transactions currently allocated for MySQL: protected by
 the kernel mutex */
 ulint	trx_n_mysql_transactions = 0;
+/* Number of transactions currently in the XA PREPARED state: protected by
+the kernel mutex */
+ulint	trx_n_prepared = 0;
 
 /*****************************************************************
 Starts the transaction if it is not yet started. */
@@ -480,6 +483,7 @@ trx_lists_init_at_db_start(void)
 					if (srv_force_recovery == 0) {
 
 						trx->conc_state = TRX_PREPARED;
+						trx_n_prepared++;
 					} else {
 						fprintf(stderr,
 							"InnoDB: Since"
@@ -558,6 +562,7 @@ trx_lists_init_at_db_start(void)
 
 							trx->conc_state
 								= TRX_PREPARED;
+							trx_n_prepared++;
 						} else {
 							fprintf(stderr,
 								"InnoDB: Since"
@@ -831,6 +836,11 @@ trx_commit_off_kernel(
 	ut_ad(trx->conc_state == TRX_ACTIVE
 	      || trx->conc_state == TRX_PREPARED);
 	ut_ad(mutex_own(&kernel_mutex));
+
+	if (UNIV_UNLIKELY(trx->conc_state == TRX_PREPARED)) {
+		ut_a(trx_n_prepared > 0);
+		trx_n_prepared--;
+	}
 
 	/* The following assignment makes the transaction committed in memory
 	and makes its changes to data visible to other transactions.
@@ -1882,6 +1892,7 @@ trx_prepare_off_kernel(
 
 	/*--------------------------------------*/
 	trx->conc_state = TRX_PREPARED;
+	trx_n_prepared++;
 	/*--------------------------------------*/
 
 	if (must_flush_log) {

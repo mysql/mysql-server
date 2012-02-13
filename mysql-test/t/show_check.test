@@ -230,7 +230,7 @@ DROP TABLE """a";
 #set names latin1;
 #create database `ä`;
 #create table `ä`.`ä` (a int) engine=heap;
-#--replace_column 7 # 8 # 9 #
+#--replace_column 7 # 8 # 9 # 12 #
 #show table status from `ä` LIKE 'ä';
 #drop database `ä`;
 
@@ -276,37 +276,37 @@ CREATE TABLE t3 (
 insert into t1 values (1),(2);
 insert into t2 values (1),(2);
 insert into t3 values (1,1),(2,2);
---replace_column 6 # 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 insert into t1 values (3),(4);
 insert into t2 values (3),(4);
 insert into t3 values (3,3),(4,4);
---replace_column 6 # 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
---replace_column 6 # 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 delete from t1 where a=3;
 delete from t2 where b=3;
 delete from t3 where a=3;
---replace_column 6 # 7 # 8 # 9 # 10 #
+--replace_column 6 # 7 # 8 # 9 # 10 # 12 #
 show table status;
 truncate table t1;
 truncate table t2;
 truncate table t3;
---replace_column 6 # 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
---replace_column 6 # 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 delete from t1 where a=5;
 delete from t2 where b=5;
 delete from t3 where a=5;
---replace_column 6 # 7 # 8 # 9 # 10 #
+--replace_column 6 # 7 # 8 # 9 # 10 # 12 #
 show table status;
 
 drop table t1, t2, t3;
@@ -367,7 +367,7 @@ flush privileges;
 #set names latin1;
 #create database `ä`;
 #create table `ä`.`ä` (a int) engine=heap;
-#--replace_column 7 # 8 # 9 #
+#--replace_column 7 # 8 # 9 # 12 #
 #show table status from `ä` LIKE 'ä';
 #drop database `ä`;
 
@@ -430,7 +430,7 @@ flush tables;
 # Create a junk frm file on disk
 let $MYSQLD_DATADIR= `select @@datadir`;
 system echo "this is a junk file for test" >> $MYSQLD_DATADIR/test/t1.frm ;
---replace_column 6 # 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 # 12 #
 SHOW TABLE STATUS like 't1';
 --error ER_NOT_FORM_FILE
 show create table t1;
@@ -1064,6 +1064,7 @@ set names latin1;
 #
 --error ER_NO_SUCH_TABLE,ER_FILE_NOT_FOUND
 show columns from `#mysql50#????????`;
+call mtr.add_suppression("Can.t find file: '.\\\\test\\\\\\?{8}.frm'");
 
 #
 # SHOW CREATE TRIGGER test.

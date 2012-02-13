@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2000-2006 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -207,21 +206,16 @@ void scramble_323(char *to, const char *message, const char *password)
 }
 
 
-/*
-    Check scrambled message
-    Used in pre 4.1 password handling
-  SYNOPSIS
-    check_scramble_323()
-    scrambled  scrambled message to check.
-    message    original random message which was used for scrambling; must
-               be exactly SCRAMBLED_LENGTH_323 bytes long and
-               NULL-terminated.
-    hash_pass  password which should be used for scrambling
-    All params are IN.
+/**
+  Check scrambled message. Used in pre 4.1 password handling.
 
-  RETURN VALUE
-    0 - password correct
-   !0 - password invalid
+  @param scrambled  Scrambled message to check.
+  @param message    Original random message which was used for scrambling.
+  @param hash_pass  Password which should be used for scrambling.
+
+  @remark scrambled and message must be SCRAMBLED_LENGTH_323 bytes long.
+
+  @return FALSE if password is correct, TRUE otherwise.
 */
 
 my_bool
@@ -230,8 +224,15 @@ check_scramble_323(const char *scrambled, const char *message,
 {
   struct rand_struct rand_st;
   ulong hash_message[2];
-  char buff[16],*to,extra;                      /* Big enough for check */
+  /* Big enough for checks. */
+  char buff[16], scrambled_buff[SCRAMBLE_LENGTH_323 + 1];
+  char *to, extra;
   const char *pos;
+
+  /* Ensure that the scrambled message is null-terminated. */
+  memcpy(scrambled_buff, scrambled, SCRAMBLE_LENGTH_323);
+  scrambled_buff[SCRAMBLE_LENGTH_323]= '\0';
+  scrambled= scrambled_buff;
 
   hash_password(hash_message, message, SCRAMBLE_LENGTH_323);
   randominit(&rand_st,hash_pass[0] ^ hash_message[0],

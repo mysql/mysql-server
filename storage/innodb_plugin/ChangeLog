@@ -1,3 +1,203 @@
+2011-12-13	The InnoDB Team
+
+	* handler/ha_innodb.cc, innodb.test, innodb.result:
+	Fix Bug#13117023: InnoDB was incrementing the handler_read_key, 
+	also the SSV::ha_read_key_count, at the wrong place.   
+
+2011-12-10	The InnoDB Team
+
+	* include/page0page.h, page/page0page.c:
+	Fix Bug#13418887 ERROR IN DIAGNOSTIC FUNCTION PAGE_REC_PRINT()
+
+2011-11-10	The InnoDB Team
+
+	* handler/ha_innodb.cc, row/row0ins.c, innodb_replace.test:
+	Fix Bug#11759688 52020: InnoDB can still deadlock
+	on just INSERT...ON DUPLICATE KEY a.k.a. the reintroduction of
+	Bug#7975 deadlock without any locking, simple select and update
+
+2011-11-08	The InnoDB Team
+
+	* btr/btr0pcur.c, include/btr0pcur.h, include/btr0pcur.ic:
+	Fix Bug#13358468 ASSERTION FAILURE IN BTR_PCUR_GET_BLOCK
+
+2011-10-27	The InnoDB Team
+
+	* row/row0mysql.c:
+	Fix Bug #12884631 62146: TABLES ARE LOST FOR DDL
+
+2011-10-25	The InnoDB Team
+
+	* handler/ha_innodb.cc, row/row0ins.c:
+	Fix Bug#13002783 PARTIALLY UNINITIALIZED CASCADE UPDATE VECTOR
+
+2011-10-20	The InnoDB Team
+
+	* btr/btr0cur.c:
+	Fix Bug#13116045 Compilation failure using GCC 4.6.1 in btr/btr0cur.c
+
+2011-10-12	The InnoDB Team
+
+	* btr/btr0cur.c, btr/btr0sea.c, buf/buf0buf.c, buf/buf0lru.c,
+	ha/ha0ha.c, handler/ha_innodb.cc, ibuf/ibuf0ibuf.c, include/btr0sea.h,
+	include/btr0types.h, include/buf0buf.h, include/ha0ha.h,
+	include/ha0ha.ic, include/row0upd.ic, include/sync0sync.h,
+	page/page0page.c, sync/sync0sync.c:
+	Fix Bug#13006367 62487: innodb takes 3 minutes to clean up
+	the adaptive hash index at shutdown
+
+2011-10-04	The InnoDB Team
+
+	* include/sync0rw.h, sync/sync0rw.c:
+	Fix Bug#13034534 RQG TESTS FAIL ON WINDOWS WITH CRASH NEAR
+	RW_LOCK_DEBUG_PRINT
+
+2011-09-20	The InnoDB Team
+
+	* row/row0purge.c:
+	Fix Bug#12963823 CRASH IN PURGE THREAD UNDER UNUSUAL CIRCUMSTANCES
+
+2011-09-12	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#12601439 CONSISTENT READ FAILURE IN COLUMN PREFIX INDEX
+
+2011-09-08	The InnoDB Team
+
+	* btr/btr0cur.c, include/page0page.h, include/row0upd.ic:
+	Fix Bug#12948130 UNNECESSARY X-LOCKING OF ADAPTIVE HASH INDEX
+
+2011-09-06	The InnoDB Team
+
+	* buf/buf0buddy.c:
+	Fix Bug#12950803 62294: BUF_BUDDY_RELOCATE CALLS GETTIMEOFDAY
+	WHILE HOLDING BUFFER POOL MUTEX
+
+2011-09-06	The InnoDB Team
+
+	* include/trx0undo.h, trx/trx0rec.c, trx/trx0undo.c:
+	Fix Bug#12547647 UPDATE LOGGING COULD EXCEED LOG PAGE SIZE
+
+2011-08-29	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, fsp/fsp0fsp.c,
+	include/btr0btr.h, include/btr0cur.h, include/fsp0fsp.h,
+	include/mtr0mtr.h, include/mtr0mtr.ic, mtr/mtr0mtr.c,
+	row/row0ins.c, row/row0row.c, row/row0upd.c, trx/trx0undo.c:
+	Fix Bug#12704861 Corruption after a crash during BLOB update
+	and other regressions from the fix of Bug#12612184
+
+2011-08-15	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, btr/btr0pcur.c, btr/btr0sea.c,
+	dict/dict0crea.c, dict/dict0dict.c, ibuf/ibuf0ibuf.c,
+	include/btr0btr.h, include/btr0btr.ic, include/sync0sync.h,
+	sync/sync0sync.c:
+	Fix Bug#11766591 59733: Possible deadlock when buffered changes
+	are to be discarded in buf_page_create()
+
+2011-08-08	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#12835650 VARCHAR maximum length performance impact
+
+2011-08-08	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#12770537 I_S.TABLES.DATA_LENGTH DOES NOT SHOW ON-DISK SIZE
+	FOR COMPRESSED INNODB
+
+2011-07-19	The InnoDB Team
+
+	* buf/buf0buf.c, buf/buf0rea.c, handler/ha_innodb.cc,
+	include/buf0buf.h, include/buf0buf.ic, include/srv0srv.h,
+	srv/srv0srv.c:
+	Fix Bug#12356373 by reintroducing random readahead
+
+2011-06-30	The InnoDB Team
+
+	* row/row0row.c:
+	Fix Bug#12637786 Wrong secondary index entries on CHAR and VARCHAR
+	columns in ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED
+
+2011-06-16	The InnoDB Team
+
+	* btr/btr0cur.c, buf/buf0buddy.c, buf/buf0buf.c, buf/buf0lru.c,
+	include/buf0buddy.h, include/buf0buddy.ic, include/buf0buf.h,
+	include/buf0buf.ic, include/buf0lru.h, include/buf0types.h:
+	Fix Bug#61188 DROP TABLE extremely slow
+
+2011-06-16	The InnoDB Team
+
+	* buf/buf0buddy.c, buf/buf0buf.c, buf/buf0flu.c, buf/buf0lru.c,
+	include/buf0buf.h, include/buf0lru.h:
+	Fix Bug#61341 buf_LRU_insert_zip_clean can be O(N) on LRU length
+
+2011-06-16	The InnoDB Team
+
+	* page/page0zip.c, rem/rem0rec.c:
+	Fix Bug#61191 question about page_zip_available()
+
+2011-06-16	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, include/btr0btr.h, include/btr0cur.h,
+	include/btr0cur.ic, include/buf0buf.h, include/buf0buf.ic,
+	include/page0cur.ic, include/page0page.h, include/page0page.ic,
+	include/sync0rw.ic, include/sync0sync.h, page/page0cur.c,
+	page/page0page.c, row/row0ins.c, row/row0upd.c,
+	sync/sync0rw.c, sync/sync0sync.c:
+	Fix Bug#12612184 Race condition after btr_cur_pessimistic_update()
+
+2011-06-09	The InnoDB Team
+	* btr/btr0cur.c, include/rem0rec.h, include/rem0rec.ic,
+	* row/row0row.c, row/row0vers.c, trx/trx0rec.c:
+	Instrumentation for Bug#12612184 Race condition in row_upd_clust_rec()
+
+2011-05-19	The InnoDB Team
+
+	* row/row0row.c:
+	Fix Bug#12429576 Assertion failure on purge of column prefix index
+
+2011-04-07	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/ha_innodb.h, handler/handler0alter.cc:
+	Fix Bug #52409 Assertion failure: long semaphore wait
+
+2011-04-07	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/trx0trx.h, include/trx0undo.h,
+	log/log0log.c, trx/trx0sys.c, trx/trx0trx.c, trx/trx0undo.c:
+	Fix Bug #59641 Prepared XA transaction in system after hard crash
+	causes future shutdown hang
+
+2011-03-30	The InnoDB Team
+
+	* srv/srv0srv.c, sync/sync0arr.h, sync/sync0arr.c:
+	Fix Bug#11877216 InnoDB too eager to commit suicide on a busy server
+
+2011-03-15	The InnoDB Team
+
+	* btr/btr0cur.c, page/page0zip.c:
+	Fix Bug#11849231 inflateInit() invoked without initializing all memory
+
+2011-02-28	The InnoDB Team
+
+	* btr/btr0sea.c, buf/buf0buf.c, buf/buf0lru.c:
+	Fix Bug#58549 Race condition in buf_LRU_drop_page_hash_for_tablespace()
+	and compressed tables
+
+2011-02-15	The InnoDB Team
+
+	* sync/sync0rw.c, innodb_bug59307.test:
+	Bug#59307 Valgrind: uninitialized value in
+	rw_lock_set_writer_id_and_recursion_flag()
+
+2011-02-14	The InnoDB Team
+
+	* handler/handler0alter.cc:
+	Bug#59749 Enabling concurrent reads while creating non-primary
+	unique index gives failures
+
 2011-01-31	The InnoDB Team
 
 	* btr/btr0cur.c, include/row0upd.h,

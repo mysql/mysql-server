@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -204,17 +204,51 @@ trx_undo_add_page(
 	mtr_t*		mtr);	/*!< in: mtr which does not have a latch to any
 				undo log page; the caller must have reserved
 				the rollback segment mutex */
+/********************************************************************//**
+Frees the last undo log page.
+The caller must hold the rollback segment mutex. */
+UNIV_INTERN
+void
+trx_undo_free_last_page_func(
+/*==========================*/
+#ifdef UNIV_DEBUG
+	const trx_t*	trx,	/*!< in: transaction */
+#endif /* UNIV_DEBUG */
+	trx_undo_t*	undo,	/*!< in/out: undo log memory copy */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction which does not
+				have a latch to any undo log page or which
+				has allocated the undo log page */
+	__attribute__((nonnull));
+#ifdef UNIV_DEBUG
+# define trx_undo_free_last_page(trx,undo,mtr)	\
+	trx_undo_free_last_page_func(trx,undo,mtr)
+#else /* UNIV_DEBUG */
+# define trx_undo_free_last_page(trx,undo,mtr)	\
+	trx_undo_free_last_page_func(undo,mtr)
+#endif /* UNIV_DEBUG */
+
 /***********************************************************************//**
 Truncates an undo log from the end. This function is used during a rollback
 to free space from an undo log. */
 UNIV_INTERN
 void
-trx_undo_truncate_end(
-/*==================*/
-	trx_t*		trx,	/*!< in: transaction whose undo log it is */
-	trx_undo_t*	undo,	/*!< in: undo log */
-	undo_no_t	limit);	/*!< in: all undo records with undo number
+trx_undo_truncate_end_func(
+/*=======================*/
+#ifdef UNIV_DEBUG
+	const trx_t*	trx,	/*!< in: transaction whose undo log it is */
+#endif /* UNIV_DEBUG */
+	trx_undo_t*	undo,	/*!< in/out: undo log */
+	undo_no_t	limit)	/*!< in: all undo records with undo number
 				>= this value should be truncated */
+	__attribute__((nonnull));
+#ifdef UNIV_DEBUG
+# define trx_undo_truncate_end(trx,undo,limit)		\
+	trx_undo_truncate_end_func(trx,undo,limit)
+#else /* UNIV_DEBUG */
+# define trx_undo_truncate_end(trx,undo,limit)		\
+	trx_undo_truncate_end_func(undo,limit)
+#endif /* UNIV_DEBUG */
+
 /***********************************************************************//**
 Truncates an undo log from the start. This function is used during a purge
 operation. */
@@ -298,6 +332,15 @@ void
 trx_undo_insert_cleanup(
 /*====================*/
 	trx_t*	trx);	/*!< in: transaction handle */
+
+/********************************************************************//**
+At shutdown, frees the undo logs of a PREPARED transaction. */
+UNIV_INTERN
+void
+trx_undo_free_prepared(
+/*===================*/
+	trx_t*	trx)	/*!< in/out: PREPARED transaction */
+	__attribute__((nonnull));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses the redo log entry of an undo log page initialization.

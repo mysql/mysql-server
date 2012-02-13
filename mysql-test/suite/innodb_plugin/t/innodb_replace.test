@@ -1,0 +1,186 @@
+--source include/have_innodb_plugin.inc
+--source include/have_debug_sync.inc
+
+--echo #
+--echo #Bug#11759688 52020: InnoDB can still deadlock
+--echo #on just INSERT...ON DUPLICATE KEY
+--echo #a.k.a. Bug#7975 deadlock without any locking, simple select and update
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT NOT NULL) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES(3,1);
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection con1;
+
+BEGIN;
+# normal INSERT of a duplicate should only S-lock the existing record (3,1)
+SET DEBUG_SYNC='write_row_noreplace SIGNAL insert1 WAIT_FOR select1';
+--send
+INSERT INTO t1 VALUES(3,2);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR insert1';
+# this should S-lock (3,1); no conflict
+SELECT * FROM t1 LOCK IN SHARE MODE;
+# this should X-lock (3,1), conflicting with con1
+--send
+SELECT * FROM t1 FOR UPDATE;
+
+connection con2;
+# Check that the above SELECT is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = 'Sending data' and
+        info = 'SELECT * FROM t1 FOR UPDATE';
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now SIGNAL select1';
+
+connection con1;
+--error ER_DUP_ENTRY
+reap;
+# We are still holding an S-lock on (3,1) after the failed INSERT.
+# The following will upgrade it to an X-lock, causing a deadlock.
+# InnoDB should resolve the deadlock by aborting the blocked SELECT.
+INSERT INTO t1 VALUES(3,3) ON DUPLICATE KEY UPDATE b=b+10;
+
+connection default;
+--error ER_LOCK_DEADLOCK
+reap;
+connection con1;
+COMMIT;
+
+SET DEBUG_SYNC='write_row_replace SIGNAL insert2 WAIT_FOR select2';
+--send
+REPLACE INTO t1 VALUES(3,4);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR insert2';
+SELECT * FROM t1;
+--send
+SELECT * FROM t1 LOCK IN SHARE MODE;
+
+connection con2;
+# Check that the above SELECT is blocked because of X lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = 'Sending data' and
+        info = 'SELECT * FROM t1 LOCK IN SHARE MODE';
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now SIGNAL select2';
+
+connection con1;
+reap;
+
+SET DEBUG_SYNC='write_row_replace SIGNAL insert3 WAIT_FOR select3';
+--send
+INSERT INTO t1 VALUES(3,5) ON DUPLICATE KEY UPDATE b=b+20;
+
+connection default;
+reap;
+SET DEBUG_SYNC='now WAIT_FOR insert3';
+--send
+SELECT b FROM t1 LOCK IN SHARE MODE;
+
+connection con2;
+# Check that the above SELECT is blocked because of X lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = 'Sending data' and
+        info = 'SELECT b FROM t1 LOCK IN SHARE MODE';
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now SIGNAL select3';
+
+connection default;
+reap;
+
+connection con1;
+reap;
+SET DEBUG_SYNC='write_row_noreplace SIGNAL insert4 WAIT_FOR select4';
+--send
+LOAD DATA INFILE '../../std_data/loaddata5.dat' INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (a, b);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR insert4';
+# this should S-lock (3,1); no conflict
+SELECT b FROM t1 WHERE a=3 LOCK IN SHARE MODE;
+# this should X-lock (3,1), conflicting with con1
+--send
+SELECT b FROM t1 WHERE a=3 FOR UPDATE;
+
+connection con2;
+# Check that the above SELECT is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = 'statistics' and
+        info = 'SELECT b FROM t1 WHERE a=3 FOR UPDATE';
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now SIGNAL select4';
+
+connection default;
+reap;
+
+connection con1;
+--error ER_DUP_ENTRY
+reap;
+SET DEBUG_SYNC='write_row_noreplace SIGNAL insert5 WAIT_FOR select5';
+--send
+LOAD DATA INFILE '../../std_data/loaddata5.dat' IGNORE INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (a, b);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR insert5';
+SELECT * FROM t1;
+# this should S-lock; no conflict
+SELECT * FROM t1 WHERE a=3 LOCK IN SHARE MODE;
+# this should X-lock, conflicting with the S-lock of the IGNORE in con1
+--send
+SELECT * FROM t1 WHERE a=3 FOR UPDATE;
+
+connection con2;
+# Check that the above SELECT is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = 'statistics' and
+        info = 'SELECT * FROM t1 WHERE a=3 FOR UPDATE';
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now SIGNAL select5';
+
+connection con1;
+reap;
+connection default;
+reap;
+
+connection con1;
+SET DEBUG_SYNC='write_row_replace SIGNAL insert6 WAIT_FOR select6';
+--send
+LOAD DATA INFILE '../../std_data/loaddata5.dat' REPLACE INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (a, b);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR insert6';
+SELECT * FROM t1;
+# this should conflict with the X-lock acquired by the REPLACE
+--send
+SELECT a,b FROM t1 LOCK IN SHARE MODE;
+
+connection con2;
+# Check that the above SELECT is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = 'Sending data' and
+        info = 'SELECT a,b FROM t1 LOCK IN SHARE MODE';
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now SIGNAL select6';
+
+connection con1;
+reap;
+connection default;
+reap;
+
+disconnect con1;
+disconnect con2;
+
+connection default;
+SET DEBUG_SYNC='RESET';
+DROP TABLE t1;

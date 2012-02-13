@@ -1,4 +1,4 @@
-Tests of syncronization of stored procedure execution.
+Tests of synchronization of stored procedure execution.
 #
 # Bug#48157: crash in Item_field::used_tables
 #
@@ -20,4 +20,16 @@ SET DEBUG_SYNC = 'now SIGNAL go';
 # code, this test statement will hang.
 DROP TABLE t1, t2;
 DROP PROCEDURE p1;
+#
+# test for bug#11756013
+#
+DROP SCHEMA IF EXISTS s1;
+CREATE SCHEMA s1;
+CREATE PROCEDURE s1.p1() BEGIN END;
+SET DEBUG_SYNC='before_db_dir_check SIGNAL check_db WAIT_FOR dropped_schema';
+CALL s1.p1;
+SET DEBUG_SYNC='now WAIT_FOR check_db';
+DROP SCHEMA s1;
+SET DEBUG_SYNC='now SIGNAL dropped_schema';
+ERROR 42000: Unknown database 's1'
 SET DEBUG_SYNC = 'RESET';

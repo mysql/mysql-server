@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,6 @@ Created 12/27/1996 Heikki Tuuri
 # include "trx0trx.h"
 # include "trx0undo.h"
 # include "row0row.h"
-# include "btr0sea.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "page0zip.h"
 
@@ -157,11 +156,6 @@ row_upd_rec_sys_fields(
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
-#ifdef UNIV_SYNC_DEBUG
-	if (!rw_lock_own(&btr_search_latch, RW_LOCK_EX)) {
-		ut_ad(!buf_block_align(rec)->is_hashed);
-	}
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		ulint	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
@@ -171,7 +165,7 @@ row_upd_rec_sys_fields(
 		ulint	offset = index->trx_id_offset;
 
 		if (!offset) {
-			offset = row_get_trx_id_offset(rec, index, offsets);
+			offset = row_get_trx_id_offset(index, offsets);
 		}
 
 #if DATA_TRX_ID + 1 != DATA_ROLL_PTR

@@ -387,6 +387,11 @@ INSERT INTO t3 VALUES (2, repeat(_utf8'a', 128), 2);
 
 connection slave;
 # 1642 = ER_SLAVE_CONVERSION_FAILED
+call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t1.* Error_code: 1032");
+call mtr.add_suppression("Slave SQL.*Column 1.*cannot be converted.* Error_code: 1642");
+--disable_query_log
+call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows.* event on table test.t1.* Error_code: 1032");
+--enable_query_log
 --let $slave_sql_errno= 1642
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
