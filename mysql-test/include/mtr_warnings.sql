@@ -143,7 +143,7 @@ INSERT INTO global_suppressions VALUES
    server coredump
  */
 
- ("Error in Log_event::read_log_event\\\(\\\): 'read error', data_len: 66123, event_type: 116"),
+ ("Error in Log_event::read_log_event\\\(\\\): 'read error', data_len: 66127, event_type: 116"),
 
  ("Statement may not be safe to log in statement format"),
 
