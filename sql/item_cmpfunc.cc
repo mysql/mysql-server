@@ -449,7 +449,9 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
                                (STATUS_GARBAGE | STATUS_NOT_FOUND))));
     if (save_field_value)
       orig_field_val= field->val_int();
-    if (!(*item)->is_null() && !(*item)->save_in_field(field, 1)) // TS-TODO
+    int rc;
+    if (!(*item)->is_null() &&
+        (((rc= (*item)->save_in_field(field, 1)) == 0) || rc == 3)) // TS-TODO
     {
       int field_cmp= 0;
       /*
