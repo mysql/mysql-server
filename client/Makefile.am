@@ -1,5 +1,4 @@
-# Copyright (c) 2000-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-# Use is subject to license terms.
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -119,10 +118,10 @@ link_sources:
 	  @LN_CP_F@ $(top_srcdir)/sql/$$f $$f; \
 	done; \
 	for f in $(strings_src) ; do \
-	  rm -f $(srcdir)/$$f; \
+	  rm -f $$f; \
 	  @LN_CP_F@ $(top_srcdir)/strings/$$f $$f; \
 	done; \
-	rm -f $(srcdir)/my_user.c; \
+	rm -f my_user.c; \
 	@LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c;
 	echo timestamp > link_sources;
 

@@ -27,6 +27,8 @@ drop table t3;
 create table t1(a int, b int, unique(b));
 insert into t1 values(1,10);
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .10. for key .b.. on query.* Error_code: 1062");
+call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.*error code=1062.*Error on slave:.*Error_code: 0");
 include/wait_for_slave_sql_error_and_skip.inc [errno=1062]
 include/check_slave_no_error.inc
 set sql_log_bin=0;

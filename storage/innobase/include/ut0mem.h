@@ -145,43 +145,6 @@ ut_strlcpy_rev(
 	ulint		size);	/* in: size of destination buffer */
 
 /**************************************************************************
-Compute strlen(ut_strcpyq(str, q)). */
-UNIV_INLINE
-ulint
-ut_strlenq(
-/*=======*/
-				/* out: length of the string when quoted */
-	const char*	str,	/* in: null-terminated string */
-	char		q);	/* in: the quote character */
-
-/**************************************************************************
-Make a quoted copy of a NUL-terminated string.	Leading and trailing
-quotes will not be included; only embedded quotes will be escaped.
-See also ut_strlenq() and ut_memcpyq(). */
-
-char*
-ut_strcpyq(
-/*=======*/
-				/* out: pointer to end of dest */
-	char*		dest,	/* in: output buffer */
-	char		q,	/* in: the quote character */
-	const char*	src);	/* in: null-terminated string */
-
-/**************************************************************************
-Make a quoted copy of a fixed-length string.  Leading and trailing
-quotes will not be included; only embedded quotes will be escaped.
-See also ut_strlenq() and ut_strcpyq(). */
-
-char*
-ut_memcpyq(
-/*=======*/
-				/* out: pointer to end of dest */
-	char*		dest,	/* in: output buffer */
-	char		q,	/* in: the quote character */
-	const char*	src,	/* in: string to be quoted */
-	ulint		len);	/* in: length of src */
-
-/**************************************************************************
 Return the number of times s2 occurs in s1. Overlapping instances of s2
 are only counted once. */
 

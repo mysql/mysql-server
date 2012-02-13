@@ -741,4 +741,10 @@ WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
 DROP VIEW v1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#59648 my_strtoll10_mb2: Assertion `(*endptr - s) % 2 == 0' failed.
+--echo #
+SELECT HEX(CHAR(COALESCE(NULL, CHAR(COUNT('%s') USING ucs2), 1, @@global.license, NULL) USING cp850));
+SELECT CONVERT(QUOTE(CHAR(0xf5 using ucs2)), SIGNED);
+
 --echo End of 5.0 tests

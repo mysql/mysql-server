@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 #include "fulltext.h"
 #include "rt_index.h"
+#include "my_compare.h"
 
 #define MAX_POINTER_LENGTH 8
 
@@ -212,7 +213,7 @@ err:
         else
 	{
 	  uint key_length=_mi_make_key(info,i,buff,record,filepos);
-	  if (_mi_ck_delete(info,i,buff,key_length))
+	  if (share->keyinfo[i].ck_delete(info, i, buff, key_length))
 	  {
 	    if (local_lock_tree)
 	      rw_unlock(&share->key_root_lock[i]);
@@ -527,7 +528,7 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   {
     if (keyinfo->block_length - a_length < 32 &&
         keyinfo->flag & HA_FULLTEXT && key_pos == endpos &&
-        info->s->base.key_reflength <= info->s->base.rec_reflength &&
+        info->s->base.key_reflength <= info->s->rec_reflength &&
         info->s->options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD))
     {
       /*

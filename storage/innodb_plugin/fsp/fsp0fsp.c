@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -326,14 +326,14 @@ fseg_alloc_free_page_low(
 	ulint		space,	/*!< in: space */
 	ulint		zip_size,/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
-	fseg_inode_t*	seg_inode, /*!< in: segment inode */
+	fseg_inode_t*	seg_inode, /*!< in/out: segment inode */
 	ulint		hint,	/*!< in: hint of which page would be desirable */
 	byte		direction, /*!< in: if the new page is needed because
 				of an index page split, and records are
 				inserted there in order, into which
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
-	mtr_t*		mtr);	/*!< in: mtr handle */
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
@@ -1548,7 +1548,7 @@ fsp_alloc_free_page(
 	ulint	zip_size,/*!< in: compressed page size in bytes
 			or 0 for uncompressed pages */
 	ulint	hint,	/*!< in: hint of which page would be desirable */
-	mtr_t*	mtr)	/*!< in: mtr handle */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
 	fsp_header_t*	header;
 	fil_addr_t	first;
@@ -2572,14 +2572,14 @@ fseg_alloc_free_page_low(
 	ulint		space,	/*!< in: space */
 	ulint		zip_size,/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
-	fseg_inode_t*	seg_inode, /*!< in: segment inode */
+	fseg_inode_t*	seg_inode, /*!< in/out: segment inode */
 	ulint		hint,	/*!< in: hint of which page would be desirable */
 	byte		direction, /*!< in: if the new page is needed because
 				of an index page split, and records are
 				inserted there in order, into which
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
-	mtr_t*		mtr)	/*!< in: mtr handle */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	fsp_header_t*	space_header;
 	ulint		space_size;
@@ -2803,8 +2803,6 @@ fseg_alloc_free_page_low(
 		fseg_mark_page_used(seg_inode, space, zip_size, ret_page, mtr);
 	}
 
-	buf_reset_check_index_page_at_flush(space, ret_page);
-
 	return(ret_page);
 }
 
@@ -2817,7 +2815,7 @@ UNIV_INTERN
 ulint
 fseg_alloc_free_page_general(
 /*=========================*/
-	fseg_header_t*	seg_header,/*!< in: segment header */
+	fseg_header_t*	seg_header,/*!< in/out: segment header */
 	ulint		hint,	/*!< in: hint of which page would be desirable */
 	byte		direction,/*!< in: if the new page is needed because
 				of an index page split, and records are
@@ -2829,7 +2827,7 @@ fseg_alloc_free_page_general(
 				with fsp_reserve_free_extents, then there
 				is no need to do the check for this individual
 				page */
-	mtr_t*		mtr)	/*!< in: mtr handle */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	fseg_inode_t*	inode;
 	ulint		space;

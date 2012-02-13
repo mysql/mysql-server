@@ -1,0 +1,66 @@
+# Bug #59641 Prepared XA transaction causes shutdown hang after a crash
+
+-- source include/not_embedded.inc
+-- source include/have_innodb_plugin.inc
+
+CREATE TABLE t(a INT PRIMARY KEY, b INT)ENGINE=InnoDB;
+INSERT INTO t VALUES(2,2),(4,4),(8,8),(16,16),(32,32);
+COMMIT;
+XA START '123';
+INSERT INTO t VALUES(1,1);
+XA END '123';
+XA PREPARE '123';
+
+CONNECT (con1,localhost,root,,);
+CONNECTION con1;
+
+XA START '456';
+INSERT INTO t VALUES(3,47),(5,67);
+UPDATE t SET b=2*b WHERE a BETWEEN 5 AND 8;
+XA END '456';
+XA PREPARE '456';
+
+CONNECT (con2,localhost,root,,);
+CONNECTION con2;
+
+XA START '789';
+UPDATE t SET b=4*a WHERE a=32;
+XA END '789';
+XA PREPARE '789';
+
+# The server would issue this warning on restart.
+call mtr.add_suppression("Found 3 prepared XA transactions");
+
+# Kill the server without sending a shutdown command
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- shutdown_server 0
+-- source include/wait_until_disconnected.inc
+
+# Restart the server.
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SELECT * FROM t;
+COMMIT;
+
+# Shut down the server. This would hang because of the bug.
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- shutdown_server
+-- source include/wait_until_disconnected.inc
+
+# Restart the server.
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SELECT * FROM t;
+COMMIT;
+XA RECOVER;
+XA ROLLBACK '123';
+XA ROLLBACK '456';
+XA COMMIT '789';
+SELECT * FROM t;
+
+DROP TABLE t;

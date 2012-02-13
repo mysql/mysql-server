@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 /**
   @file
@@ -1376,14 +1375,14 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(select_send));
+    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(select_send)));
     goto error;
   }
 
   if (open_normal_and_derived_tables(thd, tables, 0))
     goto error;
 
-  thd->used_tables= 0;                        // Updated by setup_fields
+  thd->lex->used_tables= 0;                        // Updated by setup_fields
 
   /*
     JOIN::prepare calls
@@ -1552,7 +1551,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   if (specific_prepare && (*specific_prepare)(thd))
     DBUG_RETURN(TRUE);
 
-  thd->used_tables= 0;                        // Updated by setup_fields
+  thd->lex->used_tables= 0;                        // Updated by setup_fields
 
   /* Calls JOIN::prepare */
   DBUG_RETURN(lex->unit.prepare(thd, 0, setup_tables_done_option));
@@ -2479,7 +2478,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_execute");
     DBUG_VOID_RETURN;
   }
@@ -2537,7 +2536,7 @@ void mysql_sql_stmt_execute(THD *thd)
   if (!(stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
-             name->length, name->str, "EXECUTE");
+             static_cast<int>(name->length), name->str, "EXECUTE");
     DBUG_VOID_RETURN;
   }
 
@@ -2579,7 +2578,7 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_fetch");
     DBUG_VOID_RETURN;
   }
@@ -2646,7 +2645,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_reset");
     DBUG_VOID_RETURN;
   }
@@ -2721,7 +2720,7 @@ void mysql_sql_stmt_close(THD *thd)
 
   if (! (stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
-             name->length, name->str, "DEALLOCATE PREPARE");
+             static_cast<int>(name->length), name->str, "DEALLOCATE PREPARE");
   else if (stmt->is_in_use())
     my_error(ER_PS_NO_RECURSION, MYF(0));
   else
@@ -2730,6 +2729,32 @@ void mysql_sql_stmt_close(THD *thd)
     my_ok(thd);
   }
 }
+
+
+class Set_longdata_error_handler : public Internal_error_handler
+{
+public:
+  Set_longdata_error_handler(Prepared_statement *statement)
+    : stmt(statement)
+  { }
+
+public:
+  bool handle_error(uint sql_errno,
+                    const char *message,
+                    MYSQL_ERROR::enum_warning_level level,
+                    THD *)
+  {
+    stmt->state= Query_arena::ERROR;
+    stmt->last_errno= sql_errno;
+    strncpy(stmt->last_error, message, MYSQL_ERRMSG_SIZE);
+
+    return TRUE;
+  }
+
+private:
+  Prepared_statement *stmt;
+};
+
 
 /**
   Handle long data in pieces from client.
@@ -2787,16 +2812,19 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
   param= stmt->param_array[param_number];
 
+  Set_longdata_error_handler err_handler(stmt);
+  /*
+    Install handler that will catch any errors that can be generated
+    during execution of Item_param::set_longdata() and propagate
+    them to Statement::last_error.
+  */
+  thd->push_internal_handler(&err_handler);
 #ifndef EMBEDDED_LIBRARY
-  if (param->set_longdata(packet, (ulong) (packet_end - packet)))
+  param->set_longdata(packet, (ulong) (packet_end - packet));
 #else
-  if (param->set_longdata(thd->extra_data, thd->extra_length))
+  param->set_longdata(thd->extra_data, thd->extra_length);
 #endif
-  {
-    stmt->state= Query_arena::ERROR;
-    stmt->last_errno= ER_OUTOFMEMORY;
-    sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
-  }
+  thd->pop_internal_handler();
 
   general_log_print(thd, thd->command, NullS);
 
@@ -3258,6 +3286,13 @@ Prepared_statement::execute_loop(String *expanded_query,
   bool error;
   int reprepare_attempt= 0;
 
+  /* Check if we got an error when sending long data */
+  if (state == Query_arena::ERROR)
+  {
+    my_message(last_errno, last_error, MYF(0));
+    return TRUE;
+  }
+
   if (set_parameters(expanded_query, packet, packet_end))
     return TRUE;
 
@@ -3498,12 +3533,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   status_var_increment(thd->status_var.com_stmt_execute);
 
-  /* Check if we got an error when sending long data */
-  if (state == Query_arena::ERROR)
-  {
-    my_message(last_errno, last_error, MYF(0));
-    return TRUE;
-  }
   if (flags & (uint) IS_IN_USE)
   {
     my_error(ER_PS_NO_RECURSION, MYF(0));

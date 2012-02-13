@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -403,15 +402,27 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 	  fake_select_lex->table_list.empty();
 	  DBUG_RETURN(TRUE);
 	}
+
+        /*
+          Fake st_select_lex should have item list for correct ref_array
+          allocation.
+        */
 	fake_select_lex->item_list= item_list;
 
 	thd_arg->lex->current_select= fake_select_lex;
+
+        /*
+          We need to add up n_sum_items in order to make the correct
+          allocation in setup_ref_array().
+        */
+        fake_select_lex->n_child_sum_items+= global_parameters->n_sum_items;
+
 	saved_error= fake_select_lex->join->
 	  prepare(&fake_select_lex->ref_pointer_array,
 		  fake_select_lex->table_list.first,
 		  0, 0,
-		  fake_select_lex->order_list.elements,
-		  fake_select_lex->order_list.first,
+                  global_parameters->order_list.elements, // og_num
+                  global_parameters->order_list.first,    // order
 		  NULL, NULL, NULL,
 		  fake_select_lex, this);
 	fake_select_lex->table_list.empty();
@@ -579,11 +590,21 @@ bool st_select_lex_unit::exec()
 	}
         fake_select_lex->join->no_const_tables= TRUE;
 
-	/*
-	  Fake st_select_lex should have item list for correctref_array
-	  allocation.
-	*/
-	fake_select_lex->item_list= item_list;
+        /*
+          Fake st_select_lex should have item list for correct ref_array
+          allocation.
+        */
+        fake_select_lex->item_list= item_list;
+
+        /*
+          We need to add up n_sum_items in order to make the correct
+          allocation in setup_ref_array().
+          Don't add more sum_items if we have already done JOIN::prepare
+          for this (with a different join object)
+        */
+        if (!fake_select_lex->ref_pointer_array)
+          fake_select_lex->n_child_sum_items+= global_parameters->n_sum_items;
+
         saved_error= mysql_select(thd, &fake_select_lex->ref_pointer_array,
                               &result_table_list,
                               0, item_list, NULL,

@@ -93,10 +93,13 @@ sync_arr_wake_threads_if_sema_free(void);
 Prints warnings of long semaphore waits to stderr. */
 
 ibool
-sync_array_print_long_waits(void);
-/*=============================*/
-			/* out: TRUE if fatal semaphore wait threshold
-			was exceeded */
+sync_array_print_long_waits(
+/*========================*/
+				/* out: TRUE if fatal semaphore wait threshold
+				was exceeded */
+	os_thread_id_t*	waiter,	/* out: longest waiting thread */
+	const void**	sema)	/* out: longest-waited-for semaphore */
+	__attribute__((nonnull));
 /************************************************************************
 Validates the integrity of the wait array. Checks
 that the number of reserved cells equals the count variable. */

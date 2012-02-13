@@ -1,0 +1,30 @@
+#
+# BUG#36391 and BUG#38731
+#
+# The fix for BUG#20103 "Escaping with backslash does not work as expected"
+# was implemented too greedy though in that it not only changes the behavior
+# of backslashes within strings but in general, so disabling command shortcuts
+# like \G or \C (which in turn leads to BUG#36391: "mysqlbinlog creates invalid charset statements".
+#
+# The test executes simple commands that are stored in the binary log and
+# re-execute them through the mysql client which should have to process 
+# some command shortcuts. The backslashes within strings is disabled in the file
+# rpl_bug36391-master.opt by the option --sql_mode=NO_BACKSLASH_ESCAPES.
+#
+# 
+
+--source include/have_log_bin.inc
+--source include/have_binlog_format_mixed.inc
+
+CREATE TABLE t1(id INT);
+let $binlog= query_get_value(SHOW MASTER STATUS, File, 1);
+let $binlog_path= `SELECT CONCAT(@@DATADIR, '$binlog')`;
+SHOW TABLES;
+FLUSH LOGS;
+DROP TABLE t1;
+
+--exec $MYSQL_BINLOG $binlog_path | $MYSQL test
+SHOW TABLES;
+
+# Clean up
+DROP TABLE t1;

@@ -12756,3 +12756,38 @@ a
 1
 2
 DROP TABLE t1;
+#
+# BUG#57162 - valgrind errors, random data when returning
+#             ordered data from archive tables
+#
+SET sort_buffer_size=32804;
+CREATE TABLE t1(a INT, b CHAR(255), c CHAR(255), d CHAR(255),
+e CHAR(255), f INT) ENGINE=ARCHIVE DEFAULT CHARSET utf8;
+INSERT INTO t1 VALUES(-1,'b','c','d','e',1);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT t1.* FROM t1,t1 t2,t1 t3,t1 t4,t1 t5,t1 t6;
+SELECT * FROM t1 ORDER BY f LIMIT 1;
+a	b	c	d	e	f
+-1	b	c	d	e	1
+DROP TABLE t1;
+SET sort_buffer_size=DEFAULT;
+#
+# BUG#11758979 - 51252: ARCHIVE TABLES CAUSE 100% CPU USAGE
+#                       AND HANG IN SHOW TABLE STATUS
+# (to be executed with valgrind)
+CREATE TABLE t1(a BLOB, b VARCHAR(200)) ENGINE=ARCHIVE;
+INSERT INTO t1 VALUES(NULL, '');
+FLUSH TABLE t1;
+# we need this select to workaround BUG#11764364
+SELECT * FROM t1;
+a	b
+NULL	
+CHECKSUM TABLE t1 EXTENDED;
+Table	Checksum
+test.t1	286155052
+FLUSH TABLE t1;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+DROP TABLE t1;

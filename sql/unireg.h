@@ -213,7 +213,6 @@
 */
 
 #define BIN_LOG_HEADER_SIZE    4 
-#define FLOATING_POINT_BUFFER 331
 
 #define DEFAULT_KEY_CACHE_NAME "default"
 

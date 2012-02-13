@@ -611,5 +611,33 @@ DROP TABLE t1;
 let $MYSQLD_DATADIR= `select @@datadir`;
 remove_file $MYSQLD_DATADIR/test/tmpp2.txt;
 
+--echo #
+--echo # Bug#11765139  58069: LOAD DATA INFILE: VALGRIND REPORTS INVALID MEMORY READS AND WRITES WITH U
+--echo #
+
+CREATE TABLE t1(f1 INT);
+EVAL SELECT 0xE1BB30 INTO OUTFILE 't1.dat';
+--disable_warnings
+LOAD DATA INFILE 't1.dat' IGNORE INTO TABLE t1 CHARACTER SET utf8;
+--enable_warnings
+
+DROP TABLE t1;
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test/t1.dat;
+
+--echo #
+--echo # Bug#11765141 - 58072: LOAD DATA INFILE: LEAKS IO CACHE MEMORY
+--echo # WHEN ERROR OCCURS
+--echo #
+
+--let $file=$MYSQLTEST_VARDIR/tmp/bug11735141.txt
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT '1\n' INTO DUMPFILE '$file'
+
+create table t1(a point);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+--eval LOAD DATA INFILE '$file' INTO TABLE t1
+drop table t1;
 
 --echo End of 5.1 tests

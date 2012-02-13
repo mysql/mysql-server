@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5084,8 +5085,8 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
       decoded_size= strtoul(c_len, NULL, 10);
       if (errno != 0)
       {
-        my_error(ER_TOO_BIG_PRECISION, MYF(0), c_len, a->name,
-                 DECIMAL_MAX_PRECISION);
+        my_error(ER_TOO_BIG_PRECISION, MYF(0), INT_MAX, a->name,
+                 static_cast<ulong>(DECIMAL_MAX_PRECISION));
         return NULL;
       }
       len= decoded_size;
@@ -5098,8 +5099,8 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
       decoded_size= strtoul(c_dec, NULL, 10);
       if ((errno != 0) || (decoded_size > UINT_MAX))
       {
-        my_error(ER_TOO_BIG_SCALE, MYF(0), c_dec, a->name,
-                 DECIMAL_MAX_SCALE);
+        my_error(ER_TOO_BIG_SCALE, MYF(0), INT_MAX, a->name,
+                 static_cast<ulong>(DECIMAL_MAX_SCALE));
         return NULL;
       }
       dec= decoded_size;
@@ -5112,14 +5113,14 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     }
     if (len > DECIMAL_MAX_PRECISION)
     {
-      my_error(ER_TOO_BIG_PRECISION, MYF(0), len, a->name,
-               DECIMAL_MAX_PRECISION);
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), static_cast<int>(len), a->name,
+               static_cast<ulong>(DECIMAL_MAX_PRECISION));
       return 0;
     }
     if (dec > DECIMAL_MAX_SCALE)
     {
       my_error(ER_TOO_BIG_SCALE, MYF(0), dec, a->name,
-               DECIMAL_MAX_SCALE);
+               static_cast<ulong>(DECIMAL_MAX_SCALE));
       return 0;
     }
     res= new (thd->mem_root) Item_decimal_typecast(a, len, dec);

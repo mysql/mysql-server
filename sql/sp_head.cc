@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1029,12 +1029,22 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
   /*
     Allocate additional space at the end of the new query string for the
     query_cache_send_result_to_client function.
+
+    The query buffer layout is:
+       buffer :==
+            <statement>   The input statement(s)
+            '\0'          Terminating null char
+            <length>      Length of following current database name (size_t)
+            <db_name>     Name of current database
+            <flags>       Flags struct
   */
-  buf_len= qbuf.length() + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE + 1;
+  buf_len= qbuf.length() + 1 + sizeof(size_t) + thd->db_length + 
+           QUERY_CACHE_FLAGS_SIZE + 1;
   if ((pbuf= (char *) alloc_root(thd->mem_root, buf_len)))
   {
     memcpy(pbuf, qbuf.ptr(), qbuf.length());
     pbuf[qbuf.length()]= 0;
+    memcpy(pbuf+qbuf.length()+1, (char *) &thd->db_length, sizeof(size_t));
   }
   else
     DBUG_RETURN(TRUE);
@@ -1062,7 +1072,7 @@ void sp_head::recursion_level_error(THD *thd)
   if (m_type == TYPE_ENUM_PROCEDURE)
   {
     my_error(ER_SP_RECURSION_LIMIT, MYF(0),
-             thd->variables.max_sp_recursion_depth,
+             static_cast<int>(thd->variables.max_sp_recursion_depth),
              m_name.str);
   }
   else
@@ -2358,6 +2368,21 @@ void
 sp_head::restore_thd_mem_root(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_thd_mem_root");
+
+  /*
+   In some cases our parser detects a syntax error and calls
+   LEX::cleanup_lex_after_parse_error() method only after
+   finishing parsing the whole routine. In such a situation
+   sp_head::restore_thd_mem_root() will be called twice - the
+   first time as part of normal parsing process and the second
+   time by cleanup_lex_after_parse_error().
+   To avoid ruining active arena/mem_root state in this case we
+   skip restoration of old arena/mem_root if this method has been
+   already called for this routine.
+  */
+  if (!m_thd)
+    DBUG_VOID_RETURN;
+
   Item *flist= free_list;	// The old list
   set_query_arena(thd);         // Get new free_list and mem_root
   state= INITIALIZED_FOR_SP;
@@ -2390,7 +2415,8 @@ bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
   bzero((char*) &tables,sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
-  *full_access= (!check_table_access(thd, SELECT_ACL, &tables, 1, TRUE) ||
+  *full_access= ((!check_table_access(thd, SELECT_ACL, &tables, 1, TRUE) &&
+                  (tables.grant.privilege & SELECT_ACL) != 0) ||
                  (!strcmp(sp->m_definer_user.str,
                           thd->security_ctx->priv_user) &&
                   !strcmp(sp->m_definer_host.str,

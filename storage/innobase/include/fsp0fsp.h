@@ -167,7 +167,7 @@ fseg_alloc_free_page_general(
 /*=========================*/
 				/* out: allocated page offset, FIL_NULL if no
 				page could be allocated */
-	fseg_header_t*	seg_header,/* in: segment header */
+	fseg_header_t*	seg_header,/* in/out: segment header */
 	ulint		hint,	/* in: hint of which page would be desirable */
 	byte		direction,/* in: if the new page is needed because
 				of an index page split, and records are
@@ -179,7 +179,7 @@ fseg_alloc_free_page_general(
 				with fsp_reserve_free_extents, then there
 				is no need to do the check for this individual
 				page */
-	mtr_t*		mtr);	/* in: mtr handle */
+	mtr_t*		mtr);	/* in/out: mini-transaction */
 /**************************************************************************
 Reserves free pages from a tablespace. All mini-transactions which may
 use several pages from the tablespace should call this function beforehand

@@ -276,7 +276,7 @@ handler *get_ha_partition(partition_info *part_info)
   }
   else
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(ha_partition));
+    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(ha_partition)));
   }
   DBUG_RETURN(((handler*) partition));
 }
@@ -1605,7 +1605,8 @@ int ha_recover(HASH *commit_list)
   }
   if (!info.list)
   {
-    sql_print_error(ER(ER_OUTOFMEMORY), info.len*sizeof(XID));
+    sql_print_error(ER(ER_OUTOFMEMORY),
+                    static_cast<int>(info.len*sizeof(XID)));
     DBUG_RETURN(1);
   }
 
@@ -2038,22 +2039,29 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 /****************************************************************************
 ** General handler functions
 ****************************************************************************/
-handler *handler::clone(MEM_ROOT *mem_root)
+handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
+  handler *new_handler= get_new_handler(table->s, mem_root, ht);
   /*
     Allocate handler->ref here because otherwise ha_open will allocate it
     on this->table->mem_root and we will not be able to reclaim that memory 
     when the clone handler object is destroyed.
   */
-  if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
-    return NULL;
-  if (new_handler && !new_handler->ha_open(table,
-                                           table->s->normalized_path.str,
-                                           table->db_stat,
-                                           HA_OPEN_IGNORE_IF_LOCKED))
-    return new_handler;
-  return NULL;
+  if (new_handler &&
+     !(new_handler->ref= (uchar*) alloc_root(mem_root,
+                                             ALIGN_SIZE(ref_length)*2)))
+    new_handler= NULL;
+  /*
+    TODO: Implement a more efficient way to have more than one index open for
+    the same table instance. The ha_open call is not cachable for clone.
+  */
+  if (new_handler && new_handler->ha_open(table,
+                                          name,
+                                          table->db_stat,
+                                          HA_OPEN_IGNORE_IF_LOCKED))
+    new_handler= NULL;
+
+  return new_handler;
 }
 
 
@@ -2696,7 +2704,13 @@ void handler::print_error(int error, myf errflag)
       char key[MAX_KEY_LENGTH];
       String str(key,sizeof(key),system_charset_info);
       /* Table is opened and defined at this point */
-      key_unpack(&str,table,(uint) key_nr);
+      key_unpack(&str,table,0 /* Use 0 instead of key_nr because key_nr
+                 is a key number in the child FK table, not in our 'table'. See
+		 Bug#12661768 UPDATE IGNORE CRASHES SERVER IF TABLE IS INNODB
+		 AND IT IS PARENT FOR OTHER ONE
+		 This bug gets a better fix in MySQL 5.6, but it is too risky
+		 to get that in 5.1 and 5.5 (extending the handler interface
+		 and adding new error message codes */);
       max_length= (MYSQL_ERRMSG_SIZE-
                    (uint) strlen(ER(ER_FOREIGN_DUPLICATE_KEY)));
       if (str.length() >= max_length)

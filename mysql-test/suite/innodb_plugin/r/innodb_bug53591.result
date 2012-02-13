@@ -12,5 +12,4 @@ Error	1118	Row size too large. The maximum row size for the used table type, not
 Error	1030	Got error 139 from storage engine
 DROP TABLE bug53591;
 SET GLOBAL innodb_file_format=Antelope;
-SET GLOBAL innodb_file_format_check=Antelope;
 SET GLOBAL innodb_file_per_table=0;
