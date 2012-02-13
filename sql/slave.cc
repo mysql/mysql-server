@@ -2683,9 +2683,8 @@ pthread_handler_t handle_slave_io(void *arg)
   if (init_slave_thread(thd, SLAVE_THD_IO))
   {
     pthread_cond_broadcast(&mi->start_cond);
-    pthread_mutex_unlock(&mi->run_lock);
     sql_print_error("Failed during slave I/O thread initialization");
-    goto err;
+    goto err_during_init;
   }
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
@@ -2953,6 +2952,7 @@ err:
   thd_proc_info(thd, "Waiting for slave mutex on exit");
   pthread_mutex_lock(&mi->run_lock);
 
+err_during_init:
   /* Forget the relay log's format */
   delete mi->rli.relay_log.description_event_for_queue;
   mi->rli.relay_log.description_event_for_queue= 0;
@@ -3076,10 +3076,9 @@ pthread_handler_t handle_slave_sql(void *arg)
       will be stuck if we fail here
     */
     pthread_cond_broadcast(&rli->start_cond);
-    pthread_mutex_unlock(&rli->run_lock);
     rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
                 "Failed during slave thread initialization");
-    goto err;
+    goto err_during_init;
   }
   thd->init_for_queries();
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
@@ -3332,6 +3331,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   thd->reset_db(NULL, 0);
   thd_proc_info(thd, "Waiting for slave mutex on exit");
   pthread_mutex_lock(&rli->run_lock);
+err_during_init:
   /* We need data_lock, at least to wake up any waiting master_pos_wait() */
   pthread_mutex_lock(&rli->data_lock);
   DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun
