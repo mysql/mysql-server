@@ -407,7 +407,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
 
     if (!ref->fixed && ref->fix_fields(thd, 0))
       return TRUE;
-    thd->used_tables|= item->used_tables();
+    thd->lex->used_tables|= item->used_tables();
   }
   return false;
 }
@@ -427,19 +427,18 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
   int res;
   nesting_map save_allow_sum_func=thd->lex->allow_sum_func ;
   /* 
-    Need to save the value, so we can turn off only the new NON_AGG_FIELD
+    Need to save the value, so we can turn off only any new non_agg_field_used
     additions coming from the WHERE
   */
-  uint8 saved_flag= thd->lex->current_select->full_group_by_flag;
+  const bool saved_non_agg_field_used=
+    thd->lex->current_select->non_agg_field_used();
   DBUG_ENTER("setup_without_group");
 
   thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
   res= setup_conds(thd, tables, leaves, conds);
 
   /* it's not wrong to have non-aggregated columns in a WHERE */
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-    thd->lex->current_select->full_group_by_flag= saved_flag |
-      (thd->lex->current_select->full_group_by_flag & ~NON_AGG_FIELD_USED);
+  thd->lex->current_select->set_non_agg_field_used(saved_non_agg_field_used);
 
   thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
@@ -645,7 +644,8 @@ JOIN::prepare(Item ***rref_pointer_array,
     aggregate functions with implicit grouping (there is no GROUP BY).
   */
   if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY && !group_list &&
-      select_lex->full_group_by_flag == (NON_AGG_FIELD_USED | SUM_FUNC_USED))
+      select_lex->non_agg_field_used() &&
+      select_lex->agg_func_used())
   {
     my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
                ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
@@ -962,7 +962,7 @@ JOIN::optimize()
       If all items were resolved by opt_sum_query, there is no need to
       open any tables.
     */
-    if ((res=opt_sum_query(select_lex->leaf_tables, all_fields, conds)))
+    if ((res=opt_sum_query(thd, select_lex->leaf_tables, all_fields, conds)))
     {
       if (res == HA_ERR_KEY_NOT_FOUND)
       {
@@ -1633,7 +1633,7 @@ JOIN::optimize()
 
     if (exec_tmp_table1->distinct)
     {
-      table_map used_tables= thd->used_tables;
+      table_map used_tables= thd->lex->used_tables;
       JOIN_TAB *last_join_tab= join_tab+tables-1;
       do
       {
@@ -1947,7 +1947,11 @@ JOIN::exec()
 #else
       disable_sorted_access(&curr_join->join_tab[curr_join->const_tables]);
 #endif
-    if ((tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0)))
+
+    Procedure *save_proc= curr_join->procedure;
+    tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0);
+    curr_join->procedure= save_proc;
+    if (tmp_error)
     {
       error= tmp_error;
       DBUG_VOID_RETURN;
@@ -2233,7 +2237,7 @@ JOIN::exec()
 
       Item* sort_table_cond= make_cond_for_table(curr_join->tmp_having,
 						 used_tables,
-						 used_tables);
+						 (table_map) 0);
       if (sort_table_cond)
       {
 	if (!curr_table->select)
@@ -2544,7 +2548,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     if (!(join= new JOIN(thd, fields, select_options, result)))
 	DBUG_RETURN(TRUE);
     thd_proc_info(thd, "init");
-    thd->used_tables=0;                         // Updated by setup_fields
+    thd->lex->used_tables=0;                         // Updated by setup_fields
     err= join->prepare(rref_pointer_array, tables, wild_num,
                        conds, og_num, order, group, having, proc_param,
                        select_lex, unit);
@@ -12622,10 +12626,14 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     int error;
     if (join->having && join->having->val_int() == 0)
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
-    error=0;
     if (join->procedure)
-      error=join->procedure->send_row(join->procedure_fields_list);
-    else if (join->do_send_rows)
+    {
+      if (join->procedure->send_row(join->procedure_fields_list))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+      DBUG_RETURN(NESTED_LOOP_OK);
+    }
+    error=0;
+    if (join->do_send_rows)
       error=join->result->send_data(*join->fields);
     if (error)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
@@ -13112,6 +13120,42 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
   return 0;					// keep test
 }
 
+/**
+   Extract a condition that can be checked after reading given table
+
+   @param cond       Condition to analyze
+   @param tables     Tables for which "current field values" are available
+   @param used_table Table that we're extracting the condition for (may
+                     also include PSEUDO_TABLE_BITS, and may be zero)
+   @param exclude_expensive_cond  Do not push expensive conditions
+
+   @retval <>NULL Generated condition
+   @retval =NULL  Already checked, OR error
+
+   @details
+     Extract the condition that can be checked after reading the table
+     specified in 'used_table', given that current-field values for tables
+     specified in 'tables' bitmap are available.
+     If 'used_table' is 0
+     - extract conditions for all tables in 'tables'.
+     - extract conditions are unrelated to any tables
+       in the same query block/level(i.e. conditions
+       which have used_tables == 0).
+
+     The function assumes that
+     - Constant parts of the condition has already been checked.
+     - Condition that could be checked for tables in 'tables' has already
+     been checked.
+
+     The function takes into account that some parts of the condition are
+     guaranteed to be true by employed 'ref' access methods (the code that
+     does this is located at the end, search down for "EQ_FUNC").
+
+   @note
+     Make sure to keep the implementations of make_cond_for_table() and
+     make_cond_after_sjm() synchronized.
+     make_cond_for_info_schema() uses similar algorithm as well.
+*/ 
 
 static COND *
 make_cond_for_table(COND *cond, table_map tables, table_map used_table)
@@ -17190,7 +17234,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	  need_order=0;
 	  extra.append(STRING_WITH_LEN("; Using filesort"));
 	}
-	if (distinct & test_all_bits(used_tables,thd->used_tables))
+	if (distinct & test_all_bits(used_tables, thd->lex->used_tables))
 	  extra.append(STRING_WITH_LEN("; Distinct"));
 
         for (uint part= 0; part < tab->ref.key_parts; part++)

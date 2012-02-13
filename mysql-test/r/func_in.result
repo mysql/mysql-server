@@ -770,6 +770,12 @@ CASE a WHEN a THEN a END
 NULL
 DROP TABLE t1;
 #
+# Bug #11766212  59270: NOT IN (YEAR( ... ), ... ) PRODUCES MANY VALGRIND WARNINGS
+#
+SELECT 1 IN (YEAR(FROM_UNIXTIME(NULL)) ,1);
+1 IN (YEAR(FROM_UNIXTIME(NULL)) ,1)
+1
+#
 # Bug#58628: Incorrect result for 'WHERE NULL NOT IN (<subquery>)
 #
 CREATE TABLE t1 (pk INT NOT NULL, i INT);
@@ -805,5 +811,4 @@ WHERE 1+NULL NOT IN
 (SELECT i FROM subq WHERE subq.pk = t1.pk);
 pk	i
 DROP TABLE t1,subq;
-#
 End of 5.1 tests

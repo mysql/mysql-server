@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -213,16 +213,6 @@ ulint
 mtr_set_savepoint(
 /*==============*/
 	mtr_t*	mtr);	/*!< in: mtr */
-/**********************************************************//**
-Releases the latches stored in an mtr memo down to a savepoint.
-NOTE! The mtr must not have made changes to buffer pages after the
-savepoint, as these can be handled only by mtr_commit. */
-UNIV_INTERN
-void
-mtr_rollback_to_savepoint(
-/*======================*/
-	mtr_t*	mtr,		/*!< in: mtr */
-	ulint	savepoint);	/*!< in: savepoint */
 #ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Releases the (index tree) s-latch stored in an mtr memo after a

@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2000-2007 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -145,11 +144,11 @@ int ha_heap::close(void)
   DESCRIPTION
     Do same as default implementation but use file->s->name instead of 
     table->s->path. This is needed by Windows where the clone() call sees
-    '/'-delimited path in table->s->path, while ha_peap::open() was called 
+    '/'-delimited path in table->s->path, while ha_heap::open() was called 
     with '\'-delimited path.
 */
 
-handler *ha_heap::clone(MEM_ROOT *mem_root)
+handler *ha_heap::clone(const char *name, MEM_ROOT *mem_root)
 {
   handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
   if (new_handler && !new_handler->ha_open(table, file->s->name, table->db_stat,

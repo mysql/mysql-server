@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3993,8 +3994,7 @@ end_with_restore_list:
             hostname_requires_resolving(user->host.str))
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_WARN_HOSTNAME_WONT_WORK,
-                              ER(ER_WARN_HOSTNAME_WONT_WORK),
-                              user->host.str);
+                              ER(ER_WARN_HOSTNAME_WONT_WORK));
         // Are we trying to change a password of another user
         DBUG_ASSERT(user->host.str != 0);
         if (strcmp(thd->security_ctx->user, user->user.str) ||
@@ -5901,7 +5901,7 @@ mysql_new_select(LEX *lex, bool move_down)
   lex->nest_level++;
   if (lex->nest_level > (int) MAX_SELECT_NESTING)
   {
-    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT,MYF(0),MAX_SELECT_NESTING);
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
     DBUG_RETURN(1);
   }
   select_lex->nest_level= lex->nest_level;
@@ -6951,7 +6951,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
           When an error is returned, my_message may have not been called and
           the client will hang waiting for a response.
         */
-        my_error(ER_UNKNOWN_ERROR, MYF(0), "FLUSH PRIVILEGES failed");
+        my_error(ER_UNKNOWN_ERROR, MYF(0));
       }
     }
 
@@ -7999,10 +7999,14 @@ bool parse_sql(THD *thd,
 
   bool mysql_parse_status= MYSQLparse(thd) != 0;
 
-  /* Check that if MYSQLparse() failed, thd->is_error() is set. */
+  /*
+    Check that if MYSQLparse() failed, thd->is_error() is set (unless
+    we have an error handler installed, which might have silenced error).
+  */
 
   DBUG_ASSERT(!mysql_parse_status ||
-              (mysql_parse_status && thd->is_error()));
+              (mysql_parse_status && thd->is_error()) ||
+              (mysql_parse_status && thd->get_internal_handler()));
 
   /* Reset parser state. */
 

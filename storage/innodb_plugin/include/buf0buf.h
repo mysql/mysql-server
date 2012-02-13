@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -141,12 +141,6 @@ buf_relocate(
 				BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE */
 	buf_page_t*	dpage)	/*!< in/out: destination control block */
 	__attribute__((nonnull));
-/********************************************************************//**
-Resizes the buffer pool. */
-UNIV_INTERN
-void
-buf_pool_resize(void);
-/*=================*/
 /*********************************************************************//**
 Gets the current size of buffer buf_pool in bytes.
 @return	size in bytes */
@@ -162,6 +156,23 @@ UNIV_INLINE
 ib_uint64_t
 buf_pool_get_oldest_modification(void);
 /*==================================*/
+/********************************************************************//**
+Allocates a buf_page_t descriptor. This function must succeed. In case
+of failure we assert in this function. */
+UNIV_INLINE
+buf_page_t*
+buf_page_alloc_descriptor(void)
+/*===========================*/
+	__attribute__((malloc));
+/********************************************************************//**
+Free a buf_page_t descriptor. */
+UNIV_INLINE
+void
+buf_page_free_descriptor(
+/*=====================*/
+	buf_page_t*	bpage)	/*!< in: bpage descriptor to free. */
+	__attribute__((nonnull));
+
 /********************************************************************//**
 Allocates a buffer block.
 @return	own: the allocated block, in state BUF_BLOCK_MEMORY */
@@ -416,6 +427,18 @@ buf_block_get_freed_page_clock(
 	__attribute__((pure));
 
 /********************************************************************//**
+Tells if a block is still close enough to the MRU end of the LRU list
+meaning that it is not in danger of getting evicted and also implying
+that it has been accessed recently.
+Note that this is for heuristics only and does not reserve buffer pool
+mutex.
+@return	TRUE if block is close to MRU end of LRU */
+UNIV_INLINE
+ibool
+buf_page_peek_if_young(
+/*===================*/
+	const buf_page_t*	bpage);	/*!< in: block */
+/********************************************************************//**
 Recommends a move of a block to the start of the LRU list if there is danger
 of dropping from the buffer pool. NOTE: does not reserve the buffer pool
 mutex.
@@ -467,6 +490,31 @@ buf_block_get_modify_clock(
 #else /* !UNIV_HOTBACKUP */
 # define buf_block_modify_clock_inc(block) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
+/*******************************************************************//**
+Increments the bufferfix count. */
+UNIV_INLINE
+void
+buf_block_buf_fix_inc_func(
+/*=======================*/
+#ifdef UNIV_SYNC_DEBUG
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line */
+#endif /* UNIV_SYNC_DEBUG */
+	buf_block_t*	block)	/*!< in/out: block to bufferfix */
+	__attribute__((nonnull));
+#ifdef UNIV_SYNC_DEBUG
+/** Increments the bufferfix count.
+@param b	in/out: block to bufferfix
+@param f	in: file name where requested
+@param l	in: line number where requested */
+# define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(f,l,b)
+#else /* UNIV_SYNC_DEBUG */
+/** Increments the bufferfix count.
+@param b	in/out: block to bufferfix
+@param f	in: file name where requested
+@param l	in: line number where requested */
+# define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(b)
+#endif /* UNIV_SYNC_DEBUG */
 /********************************************************************//**
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value
@@ -1298,6 +1346,8 @@ struct buf_pool_stat_struct{
 	ulint	n_pages_written;/*!< number write operations */
 	ulint	n_pages_created;/*!< number of pages created
 				in the pool with no read */
+	ulint	n_ra_pages_read_rnd;/*!< number of pages read in
+				as part of random read ahead */
 	ulint	n_ra_pages_read;/*!< number of pages read in
 				as part of read ahead */
 	ulint	n_ra_pages_evicted;/*!< number of read ahead
@@ -1421,8 +1471,10 @@ struct buf_pool_struct{
 	frames and buf_page_t descriptors of blocks that exist
 	in the buffer pool only in compressed form. */
 	/* @{ */
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
 					/*!< unmodified compressed pages */
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
 					/*!< buddy free lists */
 #if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
