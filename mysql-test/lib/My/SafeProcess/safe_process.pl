@@ -110,7 +110,7 @@ eval {
   local $SIG{INT}=  \&handle_signal;
   local $SIG{CHLD}= sub {
     message("Got signal @_");
-    kill(9, -$child_pid);
+    kill('KILL', -$child_pid);
     my $ret= waitpid($child_pid, 0);
     if ($? & 127){
       exit(65); # Killed by signal
@@ -150,7 +150,7 @@ if ( $@ ) {
 # Use negative pid in order to kill the whole
 # process group
 #
-my $ret= kill(9, -$child_pid);
+my $ret= kill('KILL', -$child_pid);
 message("Killed child: $child_pid, ret: $ret");
 if ($ret > 0) {
   message("Killed child: $child_pid");

@@ -3393,6 +3393,39 @@ ORDER BY outr.pk;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug#12329653 
+--echo # EXPLAIN, UNION, PREPARED STATEMENT, CRASH, SQL_FULL_GROUP_BY
+--echo #
+
+CREATE TABLE t1(a1 int);
+INSERT INTO t1 VALUES (1),(2);
+
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+
+## First a simpler query, illustrating the transformation
+## '1 < some (...)' => '1 < max(...)'
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
+
+## The query which made the server crash.
+PREPARE stmt FROM 
+'SELECT 1 UNION ALL 
+SELECT 1 FROM t1
+ORDER BY
+(SELECT 1 FROM t1 AS t1_0  
+  WHERE 1 < SOME (SELECT a1 FROM t1)
+)' ;
+
+--error ER_SUBQUERY_NO_1_ROW
+EXECUTE stmt ;
+--error ER_SUBQUERY_NO_1_ROW
+EXECUTE stmt ;
+
+SET SESSION sql_mode=@old_sql_mode;
+
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
 
 --echo End of 5.0 tests.
 
@@ -3726,3 +3759,25 @@ DROP TABLE t1,t2;
 --enable_result_log
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug #11765713 58705:
+--echo # OPTIMIZER LET ENGINE DEPEND ON UNINITIALIZED VALUES
+--echo # CREATED BY OPT_SUM_QUERY
+--echo #
+
+CREATE TABLE t1(a INT NOT NULL, KEY (a));
+INSERT INTO t1 VALUES (0), (1);
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1)
+  );
+
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1 where a is null)
+  ); 
+
+DROP TABLE t1;

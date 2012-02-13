@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql_priv.h"
 #include "events.h"
@@ -372,6 +370,7 @@ create_query_string(THD *thd, String *buf)
   return 0;
 }
 
+
 /**
   Create a new event.
 
@@ -392,8 +391,8 @@ bool
 Events::create_event(THD *thd, Event_parse_data *parse_data,
                      bool if_not_exists)
 {
-  int ret;
-  bool save_binlog_row_based;
+  bool ret;
+  bool save_binlog_row_based, event_already_exists;
   DBUG_ENTER("Events::create_event");
 
   /*
@@ -442,28 +441,32 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   pthread_mutex_lock(&LOCK_event_metadata);
 
   /* On error conditions my_error() is called so no need to handle here */
-  if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists)))
+  if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists,
+                                         &event_already_exists)))
   {
     Event_queue_element *new_element;
     bool dropped= 0;
 
-    if (!(new_element= new Event_queue_element()))
-      ret= TRUE;                                // OOM
-    else if ((ret= db_repository->load_named_event(thd, parse_data->dbname,
-                                                   parse_data->name,
-                                                   new_element)))
+    if (!event_already_exists)
     {
-      if (!db_repository->drop_event(thd, parse_data->dbname, parse_data->name,
-                                     TRUE))
-        dropped= 1;
-      delete new_element;
-    }
-    else
-    {
-      /* TODO: do not ignore the out parameter and a possible OOM error! */
-      bool created;
-      if (event_queue)
-        event_queue->create_event(thd, new_element, &created);
+      if (!(new_element= new Event_queue_element()))
+        ret= TRUE;                                // OOM
+      else if ((ret= db_repository->load_named_event(thd, parse_data->dbname,
+                                                     parse_data->name,
+                                                     new_element)))
+      {
+        if (!db_repository->drop_event(thd, parse_data->dbname, parse_data->name,
+                                       TRUE))
+          dropped= 1;
+        delete new_element;
+      }
+      else
+      {
+        /* TODO: do not ignore the out parameter and a possible OOM error! */
+        bool created;
+        if (event_queue)
+          event_queue->create_event(thd, new_element, &created);
+      }
     }
     /*
       binlog the create event unless it's been successfully dropped
@@ -477,13 +480,14 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       {
         sql_print_error("Event Error: An error occurred while creating query string, "
                         "before writing it into binary log.");
-        /* Restore the state of binlog format */
-        thd->current_stmt_binlog_row_based= save_binlog_row_based;
-        DBUG_RETURN(TRUE);
+        ret= true;
       }
-      /* If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER 
-         will be written into the binary log as the definer for the SQL thread. */
-      ret= write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
+      else
+        /*
+          If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER
+          will be written into the binary log as the definer for the SQL thread.
+        */
+        ret= write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
@@ -549,7 +553,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
          !sortcmp_lex_string(parse_data->name, *new_name,
                              system_charset_info))
     {
-      my_error(ER_EVENT_SAME_NAME, MYF(0), parse_data->name.str);
+      my_error(ER_EVENT_SAME_NAME, MYF(0));
       DBUG_RETURN(TRUE);
     }
 
@@ -1152,7 +1156,7 @@ Events::switch_event_scheduler_state(enum_opt_event_scheduler new_state)
 
   if (ret)
   {
-    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0));
+    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0), 0);
     goto end;
   }
 

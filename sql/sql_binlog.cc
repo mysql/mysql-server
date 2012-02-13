@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -234,7 +233,7 @@ void mysql_client_binlog_statement(THD* thd)
           TODO: Maybe a better error message since the BINLOG statement
           now contains several events.
         */
-        my_error(ER_UNKNOWN_ERROR, MYF(0), "Error executing BINLOG statement");
+        my_error(ER_UNKNOWN_ERROR, MYF(0));
         goto end;
       }
     }

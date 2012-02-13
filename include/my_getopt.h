@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _my_getopt_h
 #define _my_getopt_h
@@ -61,7 +59,9 @@ struct my_option
 };
 
 typedef my_bool (*my_get_one_option)(int, const struct my_option *, char *);
-typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...);
+typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
+  ATTRIBUTE_FORMAT_FPTR(printf, 2, 3);
+
 /**
   Used to retrieve a reference to the object (variable) that holds the value
   for the given option. For example, if var_type is GET_UINT, the function
