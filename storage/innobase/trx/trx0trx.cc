@@ -696,7 +696,7 @@ trx_start_low(
 
 	if (!trx->read_only) {
 		trx->rseg = trx_assign_rseg(
-			srv_undo_logs, srv_undo_tablespaces);
+			srv_available_undo_logs, srv_undo_tablespaces);
 	}
 
 	/* Avoid making an unnecessary system call, for non-locking
