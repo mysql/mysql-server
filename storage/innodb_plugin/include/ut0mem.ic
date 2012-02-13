@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -96,27 +96,6 @@ int
 ut_strcmp(const char* str1, const char* str2)
 {
 	return(strcmp(str1, str2));
-}
-
-/**********************************************************************//**
-Compute strlen(ut_strcpyq(str, q)).
-@return	length of the string when quoted */
-UNIV_INLINE
-ulint
-ut_strlenq(
-/*=======*/
-	const char*	str,	/*!< in: null-terminated string */
-	char		q)	/*!< in: the quote character */
-{
-	ulint len;
-
-	for (len = 0; *str; len++, str++) {
-		if (*str == q) {
-			len++;
-		}
-	}
-
-	return(len);
 }
 
 /**********************************************************************//**

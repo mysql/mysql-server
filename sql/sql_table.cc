@@ -1,4 +1,5 @@
-/* Copyright 2000-2011, Oracle and/or its affiliates. All rights reserved. 
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,  
-   MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* drop and alter of tables */
 
@@ -2461,7 +2462,8 @@ int prepare_create_field(Create_field *sql_field,
           MAX_FIELD_CHARLENGTH)
       {
         my_printf_error(ER_TOO_BIG_FIELDLENGTH, ER(ER_TOO_BIG_FIELDLENGTH),
-                        MYF(0), sql_field->field_name, MAX_FIELD_CHARLENGTH);
+                        MYF(0), sql_field->field_name,
+                        static_cast<ulong>(MAX_FIELD_CHARLENGTH));
         DBUG_RETURN(1);
       }
     }
@@ -3513,7 +3515,8 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
                                                       MODE_STRICT_ALL_TABLES)))
     {
       my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
-               MAX_FIELD_VARCHARLENGTH / sql_field->charset->mbmaxlen);
+               static_cast<ulong>(MAX_FIELD_VARCHARLENGTH /
+                                  sql_field->charset->mbmaxlen));
       DBUG_RETURN(1);
     }
     sql_field->sql_type= MYSQL_TYPE_BLOB;
@@ -6615,6 +6618,18 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     if (drop)
     {
       drop_it.remove();
+      /*
+        ALTER TABLE DROP COLUMN always changes table data even in cases
+        when new version of the table has the same structure as the old
+        one.
+      */
+      if (alter_info->build_method == HA_BUILD_ONLINE)
+      {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+        goto err;
+      }
+
+      alter_info->build_method = HA_BUILD_OFFLINE;
       continue;
     }
     /* Check if field is changed */
@@ -6692,7 +6707,19 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     if (!def->after)
       new_create_list.push_back(def);
     else if (def->after == first_keyword)
+    {
       new_create_list.push_front(def);
+      /*
+        Re-ordering columns in table can't be done using in-place algorithm
+        as it always changes table data.
+      */
+      if (alter_info->build_method == HA_BUILD_ONLINE)
+      {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+        goto err;
+      }
+      alter_info->build_method= HA_BUILD_OFFLINE;
+    }
     else
     {
       Create_field *find;
@@ -6709,14 +6736,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
       find_it.after(def);			// Put element after this
       /*
-        XXX: hack for Bug#28427.
-        If column order has changed, force OFFLINE ALTER TABLE
-        without querying engine capabilities.  If we ever have an
-        engine that supports online ALTER TABLE CHANGE COLUMN
-        <name> AFTER <name1> (Falcon?), this fix will effectively
-        disable the capability.
-        TODO: detect the situation in compare_tables, behave based
-        on engine capabilities.
+        Re-ordering columns in table can't be done using in-place algorithm
+        as it always changes table data.
       */
       if (alter_info->build_method == HA_BUILD_ONLINE)
       {

@@ -9,5 +9,5 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-sys_vars.max_binlog_cache_size_basic_64 : bug#56408 2010-08-31 Horst
-sys_vars.max_binlog_cache_size_basic_32 : bug#56408 2010-08-31 Horst
+sys_vars.max_binlog_cache_size_basic_64 : bug#11763668  2010-08-31 Horst
+sys_vars.max_binlog_cache_size_basic_32 : bug#11763668  2010-08-31 Horst

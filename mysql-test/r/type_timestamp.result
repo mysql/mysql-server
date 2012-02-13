@@ -547,4 +547,67 @@ a
 2000-01-01 00:00:01
 2000-01-01 00:00:01
 DROP TABLE t1;
+#
+# Bug#50774: failed to get the correct resultset when timestamp values 
+# are appended with .0
+#
+CREATE TABLE t1 ( a TIMESTAMP, KEY ( a ) );
+INSERT INTO t1 VALUES( '2010-02-01 09:31:01' );
+INSERT INTO t1 VALUES( '2010-02-01 09:31:02' );
+INSERT INTO t1 VALUES( '2010-02-01 09:31:03' );
+INSERT INTO t1 VALUES( '2010-02-01 09:31:04' );
+SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
+a
+2010-02-01 09:31:02
+2010-02-01 09:31:03
+2010-02-01 09:31:04
+SELECT * FROM t1 WHERE '2010-02-01 09:31:02.0' <= a;
+a
+2010-02-01 09:31:02
+2010-02-01 09:31:03
+2010-02-01 09:31:04
+SELECT * FROM t1 WHERE a <= '2010-02-01 09:31:02.0';
+a
+2010-02-01 09:31:01
+2010-02-01 09:31:02
+SELECT * FROM t1 WHERE '2010-02-01 09:31:02.0' >= a;
+a
+2010-02-01 09:31:01
+2010-02-01 09:31:02
+EXPLAIN
+SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	range	x	x	x	x	x	x
+SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
+a
+2010-02-01 09:31:02
+2010-02-01 09:31:03
+2010-02-01 09:31:04
+CREATE TABLE t2 ( a TIMESTAMP, KEY ( a DESC ) );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:01' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:02' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:03' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:04' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:05' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:06' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:07' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:08' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:09' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:10' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:11' );
+# The bug would cause the range optimizer's comparison to use an open
+# interval here. This reveals itself only in the number of reads 
+# performed.
+FLUSH STATUS;
+EXPLAIN
+SELECT * FROM t2 WHERE a < '2010-02-01 09:31:02.0';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	range	x	x	x	x	x	x
+SELECT * FROM t2 WHERE a < '2010-02-01 09:31:02.0';
+a
+2010-02-01 09:31:01
+SHOW STATUS LIKE 'Handler_read_next';
+Variable_name	Value
+Handler_read_next	1
+DROP TABLE t1, t2;
 End of 5.1 tests

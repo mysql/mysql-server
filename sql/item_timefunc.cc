@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -650,7 +650,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
                     system_charset_info);
         break;
       case 'W':
-        if (type == MYSQL_TIMESTAMP_TIME)
+        if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
           return 1;
         weekday= calc_weekday(calc_daynr(l_time->year,l_time->month,
                               l_time->day),0);
@@ -659,7 +659,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
                     system_charset_info);
         break;
       case 'a':
-        if (type == MYSQL_TIMESTAMP_TIME)
+        if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
           return 1;
         weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
                              l_time->day),0);
@@ -818,7 +818,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
       }
       break;
       case 'w':
-	if (type == MYSQL_TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
 	  return 1;
 	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
 					l_time->day),1);
@@ -1521,6 +1521,11 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
     return 1;
   bzero(ltime, sizeof(MYSQL_TIME));
   get_date_from_daynr((long) value, &ltime->year, &ltime->month, &ltime->day);
+
+  if ((null_value= (fuzzy_date & TIME_NO_ZERO_DATE) &&
+       (ltime->year == 0 || ltime->month == 0 || ltime->day == 0)))
+    return TRUE;
+
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return 0;
 }
@@ -2641,7 +2646,7 @@ String *Item_time_typecast::val_str(String *str)
 
 bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
-  bool res= get_arg0_date(ltime, TIME_FUZZY_DATE);
+  bool res= get_arg0_date(ltime, fuzzy_date);
   ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return res;
@@ -2699,7 +2704,7 @@ String *Item_func_makedate::val_str(String *str)
   long days;
 
   if (args[0]->null_value || args[1]->null_value ||
-      year < 0 || daynr <= 0)
+      year < 0 || year > 9999 || daynr <= 0)
     goto err;
 
   if (year < 100)
@@ -2742,7 +2747,7 @@ longlong Item_func_makedate::val_int()
   long days;
 
   if (args[0]->null_value || args[1]->null_value ||
-      year < 0 || daynr <= 0)
+      year < 0 || year > 9999 || daynr <= 0)
     goto err;
 
   if (year < 100)

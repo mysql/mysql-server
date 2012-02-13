@@ -10,7 +10,7 @@
 #
 ##############################################################################
 
-ndb_partition_error2 : Bug#40989 ndb_partition_error2 needs maintenance
+ndb_partition_error2 : Bug#11750448 ndb_partition_error2 needs maintenance
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 ndb_cache_trans           : Bug#42197 Query cache and autocommit

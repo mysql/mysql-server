@@ -163,12 +163,12 @@ static void getvolumeID(BYTE *volumeName);
 int initgroups(const char *,unsigned int);
 #endif
 
-#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
+#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
 #include <ieeefp.h>
 #ifdef HAVE_FP_EXCEPT				// Fix type conflict
 typedef fp_except fp_except_t;
 #endif
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H && !HAVE_FEDISABLEEXCEPT */
 #ifdef HAVE_SYS_FPU_H
 /* for IRIX to use set_fpc_csr() */
 #include <sys/fpu.h>
@@ -194,19 +194,24 @@ extern "C" my_bool reopen_fstreams(const char *filename,
 
 inline void setup_fpu()
 {
-#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
+#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
   /* We can't handle floating point exceptions with threads, so disable
      this on freebsd
-     Don't fall for overflow, underflow,divide-by-zero or loss of precision
+     Don't fall for overflow, underflow,divide-by-zero or loss of precision.
+     fpsetmask() is deprecated in favor of fedisableexcept() in C99.
   */
-#if defined(__i386__)
+#if defined(FP_X_DNML)
   fpsetmask(~(FP_X_INV | FP_X_DNML | FP_X_OFL | FP_X_UFL | FP_X_DZ |
 	      FP_X_IMP));
 #else
   fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
               FP_X_IMP));
-#endif /* __i386__ */
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+#endif /* FP_X_DNML */
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H && !HAVE_FEDISABLEEXCEPT */
+
+#ifdef HAVE_FEDISABLEEXCEPT
+  fedisableexcept(FE_ALL_EXCEPT);
+#endif
 
 #ifdef HAVE_FESETROUND
     /* Set FPU rounding mode to "round-to-nearest" */
@@ -264,6 +269,8 @@ extern "C" sig_handler handle_segfault(int sig);
 #endif
 
 /* Constants */
+
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 /*
@@ -1931,6 +1938,12 @@ void unlink_thd(THD *thd)
   pthread_mutex_unlock(&LOCK_connection_count);
 
   (void) pthread_mutex_lock(&LOCK_thread_count);
+  /*
+    Used by binlog_reset_master.  It would be cleaner to use
+    DEBUG_SYNC here, but that's not possible because the THD's debug
+    sync feature has been shut down at this point.
+  */
+  DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
   thread_count--;
   delete thd;
   DBUG_VOID_RETURN;
@@ -7813,13 +7826,8 @@ static void usage(void)
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
-  puts("\
-Copyright (C) 2000-2008 MySQL AB, by Monty and others.\n\
-Copyright (C) 2008 Sun Microsystems, Inc.\n\
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license\n\n\
-Starts the MySQL database server.\n");
-
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts("Starts the MySQL database server.\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)
     puts("\nFor more help options (several pages), use mysqld --verbose --help.");
@@ -8965,11 +8973,14 @@ fn_format_relative_to_data_home(char * to, const char *name,
 bool is_secure_file_path(char *path)
 {
   char buff1[FN_REFLEN], buff2[FN_REFLEN];
+  size_t opt_secure_file_priv_len;
   /*
     All paths are secure if opt_secure_file_path is 0
   */
   if (!opt_secure_file_priv)
     return TRUE;
+
+  opt_secure_file_priv_len= strlen(opt_secure_file_priv);
 
   if (strlen(path) >= FN_REFLEN)
     return FALSE;
@@ -8988,10 +8999,23 @@ bool is_secure_file_path(char *path)
       return FALSE;
   }
   convert_dirname(buff2, buff1, NullS);
-  if (strncmp(opt_secure_file_priv, buff2, strlen(opt_secure_file_priv)))
-    return FALSE;
+  if (!lower_case_file_system)
+  {
+    if (strncmp(opt_secure_file_priv, buff2, opt_secure_file_priv_len))
+      return FALSE;
+  }
+  else
+  {
+    if (files_charset_info->coll->strnncoll(files_charset_info,
+                                            (uchar *) buff2, strlen(buff2),
+                                            (uchar *) opt_secure_file_priv,
+                                            opt_secure_file_priv_len,
+                                            TRUE))
+      return FALSE;
+  }
   return TRUE;
 }
+
 
 static int fix_paths(void)
 {
@@ -9056,6 +9080,7 @@ static int fix_paths(void)
   {
     if (*opt_secure_file_priv == 0)
     {
+      my_free(opt_secure_file_priv, MYF(0));
       opt_secure_file_priv= 0;
     }
     else

@@ -1,0 +1,26 @@
+# ==== Purpose ====
+#
+# Test bugs in RESET MASTER.
+
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+
+#######################################################################
+# BUG#12574820: binlog.binlog_tmp_table timing out in daily and weekly trunk run
+# Problem: MYSQL_BIN_LOG::reset_logs acquired LOCK_thread_count and
+# LOCK_log in the wrong order. This could cause a deadlock when
+# RESET MASTER was run concurrently with a disconnecting thread.
+#######################################################################
+
+# We use sleep, not debug_sync, because the sync point needs to be in
+# the thread shut down code after the debug sync facility has been
+# shut down.
+--let $write_var= SET DEBUG="+d,sleep_after_lock_thread_count_before_delete_thd"; CREATE TEMPORARY TABLE test.t1 (a INT);
+--let $write_to_file= GENERATE
+--disable_query_log
+--source include/write_var_to_file.inc
+--enable_query_log
+
+--exec $MYSQL < $write_to_file
+RESET MASTER;
+--remove_file $write_to_file

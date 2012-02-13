@@ -8350,6 +8350,53 @@ SET @@GLOBAL.init_connect= @old_init_connect;
 DROP PROCEDURE p2;
 DROP PROCEDURE p5;
 
+
+--echo #
+--echo # Bug#11840395 (formerly known as bug#60347):
+--echo # The string "versiondata" seems
+--echo # to be 'leaking' into the schema name space
+--echo #
+--disable_warnings
+DROP DATABASE IF EXISTS mixedCaseDbName;
+--enable_warnings
+CREATE DATABASE mixedCaseDbName;
+DELIMITER |;
+CREATE PROCEDURE mixedCaseDbName.tryMyProc() begin end|
+CREATE FUNCTION mixedCaseDbName.tryMyFunc() returns text begin return 'IT WORKS'; end
+|
+DELIMITER ;|
+call mixedCaseDbName.tryMyProc();
+select mixedCaseDbName.tryMyFunc();
+DROP DATABASE mixedCaseDbName;
+
+
+--echo #
+--echo # Bug#11766594  59736: SELECT DISTINCT.. INCORRECT RESULT WITH DETERMINISTIC FUNCTION IN WHERE C
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, KEY(b));
+CREATE TABLE t2 (c INT, d INT, KEY(c));
+INSERT INTO t1 VALUES (1,1),(1,1),(1,2);
+INSERT INTO t2 VALUES (1,1),(1,2);
+
+DELIMITER $;
+
+CREATE FUNCTION f1() RETURNS INT DETERMINISTIC
+BEGIN
+  DECLARE a int;
+  -- SQL statement inside
+  SELECT 1 INTO a;
+  RETURN a;
+END $
+
+DELIMITER ;$
+
+SELECT COUNT(DISTINCT d) FROM t1, t2  WHERE a = c AND b = f1();
+
+DROP FUNCTION f1;
+DROP TABLE t1, t2;
+
+
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------

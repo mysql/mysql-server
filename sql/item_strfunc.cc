@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 /**
   @file
 
@@ -3467,7 +3466,8 @@ String *Item_func_uncompress::val_str(String *str)
     push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
 			ER_TOO_BIG_FOR_UNCOMPRESS,
 			ER(ER_TOO_BIG_FOR_UNCOMPRESS),
-                        current_thd->variables.max_allowed_packet);
+                        static_cast<int>(current_thd->variables.
+                                         max_allowed_packet));
     goto err;
   }
   if (buffer.realloc((uint32)new_size))

@@ -58,6 +58,11 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD* thd);
 
 static const char *HA_ERR(int i)
 {
+  /* 
+    This function should only be called in case of an error
+    was detected 
+   */
+  DBUG_ASSERT(i != 0);
   switch (i) {
   case HA_ERR_KEY_NOT_FOUND: return "HA_ERR_KEY_NOT_FOUND";
   case HA_ERR_FOUND_DUPP_KEY: return "HA_ERR_FOUND_DUPP_KEY";
@@ -110,7 +115,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
   case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
   }
-  return 0;
+  return "No Error!";
 }
 
 /**
@@ -131,7 +136,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                                            TABLE *table, const char * type,
                                            const char *log_name, ulong pos)
 {
-  const char *handler_error= HA_ERR(ha_error);
+  const char *handler_error= (ha_error ? HA_ERR(ha_error) : NULL);
   char buff[MAX_SLAVE_ERRMSG], *slider;
   const char *buff_end= buff + sizeof(buff);
   uint len;
@@ -7996,7 +8001,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       error= do_exec_row(rli);
 
-      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+      if (error)
+        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
 
       table->in_use = old_thd;
@@ -8683,6 +8689,97 @@ Table_map_log_event::~Table_map_log_event()
  */
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+
+enum enum_tbl_map_status
+{
+  /* no duplicate identifier found */
+  OK_TO_PROCESS= 0,
+
+  /* this table map must be filtered out */
+  FILTERED_OUT= 1,
+
+  /* identifier mapping table with different properties */
+  SAME_ID_MAPPING_DIFFERENT_TABLE= 2,
+  
+  /* a duplicate identifier was found mapping the same table */
+  SAME_ID_MAPPING_SAME_TABLE= 3
+};
+
+/*
+  Checks if this table map event should be processed or not. First
+  it checks the filtering rules, and then looks for duplicate identifiers
+  in the existing list of rli->tables_to_lock.
+
+  It checks that there hasn't been any corruption by verifying that there
+  are no duplicate entries with different properties.
+
+  In some cases, some binary logs could get corrupted, showing several
+  tables mapped to the same table_id, 0 (see: BUG#56226). Thus we do this
+  early sanity check for such cases and avoid that the server crashes 
+  later.
+
+  In some corner cases, the master logs duplicate table map events, i.e.,
+  same id, same database name, same table name (see: BUG#37137). This is
+  different from the above as it's the same table that is mapped again 
+  to the same identifier. Thus we cannot just check for same ids and 
+  assume that the event is corrupted we need to check every property. 
+
+  NOTE: in the event that BUG#37137 ever gets fixed, this extra check 
+        will still be valid because we would need to support old binary 
+        logs anyway.
+
+  @param rli The relay log info reference.
+  @param table_list A list element containing the table to check against.
+  @return OK_TO_PROCESS 
+            if there was no identifier already in rli->tables_to_lock 
+            
+          FILTERED_OUT
+            if the event is filtered according to the filtering rules
+
+          SAME_ID_MAPPING_DIFFERENT_TABLE 
+            if the same identifier already maps a different table in 
+            rli->tables_to_lock
+
+          SAME_ID_MAPPING_SAME_TABLE 
+            if the same identifier already maps the same table in 
+            rli->tables_to_lock.
+*/
+static enum_tbl_map_status
+check_table_map(Relay_log_info const *rli, RPL_TABLE_LIST *table_list)
+{
+  DBUG_ENTER("check_table_map");
+  enum_tbl_map_status res= OK_TO_PROCESS;
+
+  if (rli->sql_thd->slave_thread /* filtering is for slave only */ &&
+      (!rpl_filter->db_ok(table_list->db) ||
+       (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list))))
+    res= FILTERED_OUT;
+  else
+  {
+    for(RPL_TABLE_LIST *ptr= static_cast<RPL_TABLE_LIST*>(rli->tables_to_lock);
+        ptr; 
+        ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_local))
+    {
+      if (ptr->table_id == table_list->table_id)
+      {
+
+        if (strcmp(ptr->db, table_list->db) || 
+            strcmp(ptr->alias, table_list->table_name) || 
+            ptr->lock_type != TL_WRITE) // the ::do_apply_event always sets TL_WRITE
+          res= SAME_ID_MAPPING_DIFFERENT_TABLE;
+        else
+          res= SAME_ID_MAPPING_SAME_TABLE;
+
+        break;
+      }
+    }
+  }
+
+  DBUG_PRINT("debug", ("check of table map ended up with: %u", res));
+
+  DBUG_RETURN(res);
+}
+
 int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 {
   RPL_TABLE_LIST *table_list;
@@ -8709,20 +8806,13 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   table_list->alias= table_list->table_name = tname_mem;
   table_list->lock_type= TL_WRITE;
   table_list->next_global= table_list->next_local= 0;
-  table_list->table_id= m_table_id;
+  table_list->table_id= DBUG_EVALUATE_IF("inject_tblmap_same_id_maps_diff_table", 0, m_table_id);
   table_list->updating= 1;
   strmov(table_list->db, rpl_filter->get_rewrite_db(m_dbnam, &dummy_len));
   strmov(table_list->table_name, m_tblnam);
-
-  int error= 0;
-
-  if (rli->sql_thd->slave_thread /* filtering is for slave only */ &&
-      (!rpl_filter->db_ok(table_list->db) ||
-       (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list))))
-  {
-    my_free(memory, MYF(MY_WME));
-  }
-  else
+  DBUG_PRINT("debug", ("table: %s is mapped to %u", table_list->table_name, table_list->table_id));
+  enum_tbl_map_status tblmap_status= check_table_map(rli, table_list);
+  if (tblmap_status == OK_TO_PROCESS)
   {
     DBUG_ASSERT(thd->lex->query_tables != table_list);
 
@@ -8751,8 +8841,48 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
     const_cast<Relay_log_info*>(rli)->tables_to_lock_count++;
     /* 'memory' is freed in clear_tables_to_lock */
   }
+  else  // FILTERED_OUT, SAME_ID_MAPPING_*
+  {
+    /*
+      If mapped already but with different properties, we raise an
+      error.
+      If mapped already but with same properties we skip the event.
+      If filtered out we skip the event.
 
-  DBUG_RETURN(error);
+      In all three cases, we need to free the memory previously 
+      allocated.
+     */
+    if (tblmap_status == SAME_ID_MAPPING_DIFFERENT_TABLE)
+    {
+      /*
+        Something bad has happened. We need to stop the slave as strange things
+        could happen if we proceed: slave crash, wrong table being updated, ...
+        As a consequence we push an error in this case.
+       */
+
+      char buf[256];
+
+      my_snprintf(buf, sizeof(buf), 
+                  "Found table map event mapping table id %u which "
+                  "was already mapped but with different settings.",
+                  table_list->table_id);
+
+      if (thd->slave_thread)
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
+                    ER(ER_SLAVE_FATAL_ERROR), buf);
+      else
+        /* 
+          For the cases in which a 'BINLOG' statement is set to 
+          execute in a user session 
+         */
+        my_printf_error(ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR), 
+                        MYF(0), buf);
+    } 
+    
+    my_free(memory, MYF(0));
+  }
+
+  DBUG_RETURN(tblmap_status == SAME_ID_MAPPING_DIFFERENT_TABLE);
 }
 
 Log_event::enum_skip_reason
@@ -9719,7 +9849,8 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   restart_rnd_next:
       error= table->file->rnd_next(table->record[0]);
 
-      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+      if (error)
+        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       switch (error) {
 
       case 0:
