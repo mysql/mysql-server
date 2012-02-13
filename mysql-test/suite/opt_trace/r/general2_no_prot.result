@@ -704,7 +704,10 @@ TRACE
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "materialization",
-                    "chosen": false
+                    "has_nullable_expressions": true,
+                    "treat_UNKNOWN_as_FALSE": false,
+                    "chosen": false,
+                    "cause": "cannot_handle_partial_matches"
                   } /* transformation */
                 },
                 {
@@ -2646,14 +2649,6 @@ from t0 where a in
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
                     "chosen": false
                   } /* transformation */
                 },

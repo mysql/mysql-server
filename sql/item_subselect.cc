@@ -151,7 +151,7 @@ void Item_in_subselect::cleanup()
     delete left_expr_cache;
     left_expr_cache= NULL;
   }
-  first_execution= TRUE;
+  left_expr_cache_filled= false;
   need_expr_cache= TRUE;
   Item_subselect::cleanup();
   DBUG_VOID_RETURN;
@@ -452,20 +452,22 @@ bool Item_in_subselect::exec()
       init_left_expr_cache())
     DBUG_RETURN(TRUE);
 
-  /* If the new left operand is already in the cache, reuse the old result. */
-  if (left_expr_cache && test_if_item_cache_changed(*left_expr_cache) < 0)
+  if (left_expr_cache != NULL)
   {
-    /* Always compute IN for the first row as the cache is not valid for it. */
-    if (!first_execution)
-      DBUG_RETURN(FALSE);
-    first_execution= FALSE;
+    const int result= test_if_item_cache_changed(*left_expr_cache);
+    if (left_expr_cache_filled &&               // cache was previously filled
+        result < 0)         // new value is identical to previous cached value
+    {
+      /*
+        We needn't do a full execution, can just reuse "value", "was_null",
+        "null_value" of the previous execution.
+      */
+      DBUG_RETURN(false);
+    }
+    left_expr_cache_filled= true;
   }
 
-  /*
-    The exec() method below updates item::value, and item::null_value, thus if
-    we don't call it, the next call to item::val_int() will return whatever
-    result was computed by its previous call.
-  */
+  null_value= was_null= false;
   const bool retval= Item_subselect::exec();
   DBUG_RETURN(retval);
 }
@@ -888,7 +890,7 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
   Item_exists_subselect(), left_expr(left_exp), left_expr_cache(NULL),
-  first_execution(TRUE), need_expr_cache(TRUE), expr(NULL),
+  left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
   optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
   pushed_cond_guards(NULL), upper_item(NULL)
 {
@@ -1019,7 +1021,6 @@ double Item_in_subselect::val_real()
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
-  null_value= was_null= FALSE;
   if (exec())
   {
     reset();
@@ -1039,7 +1040,6 @@ longlong Item_in_subselect::val_int()
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
-  null_value= was_null= FALSE;
   if (exec())
   {
     reset();
@@ -1059,7 +1059,6 @@ String *Item_in_subselect::val_str(String *str)
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
-  null_value= was_null= FALSE;
   if (exec())
   {
     reset();
@@ -1078,7 +1077,6 @@ String *Item_in_subselect::val_str(String *str)
 bool Item_in_subselect::val_bool()
 {
   DBUG_ASSERT(fixed == 1);
-  null_value= was_null= FALSE;
   if (exec())
   {
     reset();
@@ -1096,7 +1094,6 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
     method should not be used
   */
   DBUG_ASSERT(0);
-  null_value= was_null= FALSE;
   DBUG_ASSERT(fixed == 1);
   if (exec())
   {
@@ -2230,28 +2227,6 @@ bool subselect_union_engine::is_executed() const
 }
 
 
-/*
-  Check if last execution of the subquery engine produced any rows
-
-  SYNOPSIS
-    subselect_union_engine::no_rows()
-
-  DESCRIPTION
-    Check if last execution of the subquery engine produced any rows. The
-    return value is undefined if last execution ended in an error.
-
-  RETURN
-    TRUE  - Last subselect execution has produced no rows
-    FALSE - Otherwise
-*/
-
-bool subselect_union_engine::no_rows() const
-{
-  /* Check if we got any rows when reading UNION result from temp. table: */
-  return test(!unit->fake_select_lex->join->send_records);
-}
-
-
 subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
 					       select_result_interceptor *result_arg,
 					       Item_subselect *item_arg)
@@ -2325,32 +2300,11 @@ bool subselect_union_engine::prepare()
 }
 
 
-bool subselect_uniquesubquery_engine::prepare()
+bool subselect_indexsubquery_engine::prepare()
 {
   /* Should never be called. */
   DBUG_ASSERT(FALSE);
   return 1;
-}
-
-
-/*
-  Check if last execution of the subquery engine produced any rows
-
-  SYNOPSIS
-    subselect_single_select_engine::no_rows()
-
-  DESCRIPTION
-    Check if last execution of the subquery engine produced any rows. The
-    return value is undefined if last execution ended in an error.
-
-  RETURN
-    TRUE  - Last subselect execution has produced no rows
-    FALSE - Otherwise
-*/
-
-bool subselect_single_select_engine::no_rows() const
-{ 
-  return !item->assigned();
 }
 
 
@@ -2407,7 +2361,7 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
   }
 }
 
-void subselect_uniquesubquery_engine::fix_length_and_dec(Item_cache **row)
+void subselect_indexsubquery_engine::fix_length_and_dec(Item_cache **row)
 {
   //this never should be called
   DBUG_ASSERT(0);
@@ -2548,29 +2502,23 @@ bool subselect_union_engine::exec()
 }
 
 
-/*
-  Search for at least one row satisfying select condition
- 
-  SYNOPSIS
-    subselect_uniquesubquery_engine::scan_table()
+/**
+  Search, using a table scan, for at least one row satisfying select
+  condition.
 
-  DESCRIPTION
-    Scan the table using sequential access until we find at least one row
-    satisfying select condition.
-    
-    The caller must set this->empty_result_set=FALSE before calling this
-    function. This function will set it to TRUE if it finds a matching row.
+  The caller must set item's 'value' to 'false' before calling this
+  function. This function will set it to 'true' if it finds a matching row.
 
-  RETURN
-    FALSE - OK
-    TRUE  - Error
+  @returns false if ok, true if read error.
 */
-
-bool subselect_uniquesubquery_engine::scan_table()
+bool subselect_indexsubquery_engine::scan_table()
 {
   int error;
   TABLE *table= tab->table;
-  DBUG_ENTER("subselect_uniquesubquery_engine::scan_table");
+  DBUG_ENTER("subselect_indexsubquery_engine::scan_table");
+
+  // We never need to do a table scan of the materialized table.
+  DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
 
   if (table->file->inited)
     table->file->ha_index_end();
@@ -2594,7 +2542,6 @@ bool subselect_uniquesubquery_engine::scan_table()
     if (!cond || cond->val_int())
     {
       static_cast<Item_in_subselect*>(item)->value= true;
-      empty_result_set= FALSE;
       break;
     }
   }
@@ -2640,7 +2587,7 @@ bool subselect_uniquesubquery_engine::scan_table()
      value of NULL, not rows that match if the "inner_col IS NULL"
      condition is disabled. Index lookup can be used for this.
 
-  @see subselect_uniquesubquery_engine::exec()
+  @see subselect_indexsubquery_engine::exec()
   @see Item_in_optimizer::val_int()
 
   @param[out] require_scan   true if a NULL value is found that falls 
@@ -2651,10 +2598,10 @@ bool subselect_uniquesubquery_engine::scan_table()
                              otherwise.
   
 */
-void subselect_uniquesubquery_engine::copy_ref_key(bool *require_scan, 
-                                                   bool *convert_error)
+void subselect_indexsubquery_engine::copy_ref_key(bool *require_scan,
+                                                  bool *convert_error)
 {
-  DBUG_ENTER("subselect_uniquesubquery_engine::copy_ref_key");
+  DBUG_ENTER("subselect_indexsubquery_engine::copy_ref_key");
 
   *require_scan= false;
   *convert_error= false;
@@ -2669,6 +2616,15 @@ void subselect_uniquesubquery_engine::copy_ref_key(bool *require_scan,
 
     if (s_key->null_key)
     {
+      /*
+        If we have materialized the subquery:
+        - this NULL ref item cannot be local to the subquery (any such
+        conditions was handled during materialization)
+        - neither can it be outer, because this case is
+        separately managed in subselect_hash_sj_engine::exec().
+      */
+      DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
+
       const bool *cond_guard= tab->ref.cond_guards[part_no];
 
       /*
@@ -2711,100 +2667,6 @@ void subselect_uniquesubquery_engine::copy_ref_key(bool *require_scan,
 
 
 /*
-  Execute subselect
-
-  SYNOPSIS
-    subselect_uniquesubquery_engine::exec()
-
-  DESCRIPTION
-    Find rows corresponding to the ref key using index access.
-    If some part of the lookup key is NULL, then we're evaluating
-      NULL IN (SELECT ... )
-    This is a special case, we don't need to search for NULL in the table,
-    instead, the result value is 
-      - NULL  if select produces empty row set
-      - FALSE otherwise.
-
-    In some cases (IN subselect is a top level item, i.e. abort_on_null==TRUE)
-    the caller doesn't distinguish between NULL and FALSE result and we just
-    return FALSE. 
-    Otherwise we make a full table scan to see if there is at least one 
-    matching row.
-    
-    The result of this function (info about whether a row was found) is
-    stored in this->empty_result_set.
-  NOTE
-    
-  RETURN
-    FALSE - ok
-    TRUE  - an error occured while scanning
-*/
-
-bool subselect_uniquesubquery_engine::exec()
-{
-  DBUG_ENTER("subselect_uniquesubquery_engine::exec");
-  int error;
-  TABLE *table= tab->table;
-  TABLE_LIST *tl= table->pos_in_table_list;
-  empty_result_set= TRUE;
-  table->status= 0;
- 
-  if (engine_type() == UNIQUESUBQUERY_ENGINE &&
-      tl->uses_materialization() && !tl->materialized)
-  {
-    bool err= mysql_handle_single_derived(table->in_use->lex, tl,
-                                          mysql_derived_create) ||
-              mysql_handle_single_derived(table->in_use->lex, tl,
-                                          mysql_derived_materialize);
-    if (!tab->table->in_use->lex->describe)
-      mysql_handle_single_derived(table->in_use->lex, tl,
-                                  mysql_derived_cleanup);
-    if (err)
-      DBUG_RETURN(1);
-  }
-
-  /* Copy the ref key and check for nulls... */
-  bool require_scan, convert_error;
-  copy_ref_key(&require_scan, &convert_error);
-  if (convert_error)
-  {
-    ((Item_in_subselect *) item)->value= 0;
-    DBUG_RETURN(0);
-  }
-
-  if (require_scan)
-  {
-    const bool scan_result= scan_table();
-    DBUG_RETURN(scan_result);
-  }
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, 0);
-  error= table->file->ha_index_read_map(table->record[0],
-                                        tab->ref.key_buff,
-                                        make_prev_keypart_map(tab->ref.key_parts),
-                                        HA_READ_KEY_EXACT);
-  DBUG_PRINT("info", ("lookup result: %i", error));
-  if (error &&
-      error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    error= report_error(table, error);
-  else
-  {
-    error= 0;
-    table->null_row= 0;
-    if (!table->status && (!cond || cond->val_int()))
-    {
-      ((Item_in_subselect *) item)->value= 1;
-      empty_result_set= FALSE;
-    }
-    else
-      ((Item_in_subselect *) item)->value= 0;
-  }
-
-  DBUG_RETURN(error != 0);
-}
-
-
-/*
   Index-lookup subselect 'engine' - run the subquery
 
   SYNOPSIS
@@ -2825,6 +2687,8 @@ bool subselect_uniquesubquery_engine::exec()
     3. If check_null==TRUE, make another lookup via key=NULL, search for a 
        row that satisfies subq_where. If found, return NULL, otherwise
        return FALSE.
+    4. If unique==true, there can be only one row with key=oe and only one row
+       with key=NULL, we use that fact to shorten the search process.
 
   TODO
     The step #1 can be optimized further when the index has several key
@@ -2862,13 +2726,13 @@ bool subselect_indexsubquery_engine::exec()
   int error;
   bool null_finding= 0;
   TABLE *table= tab->table;
+  // 'tl' is NULL if this is a tmp table created by subselect_hash_sj_engine.
   TABLE_LIST *tl= table->pos_in_table_list;
-
-  ((Item_in_subselect *) item)->value= 0;
-  empty_result_set= TRUE;
+  Item_in_subselect *const item_in= static_cast<Item_in_subselect*>(item);
+  item_in->value= false;
   table->status= 0;
 
-  if (tl->uses_materialization() && !tl->materialized)
+  if (tl && tl->uses_materialization() && !tl->materialized)
   {
     bool err= mysql_handle_single_derived(table->in_use->lex, tl,
                                           mysql_derived_create) ||
@@ -2885,17 +2749,14 @@ bool subselect_indexsubquery_engine::exec()
   {
     /* We need to check for NULL if there wasn't a matching value */
     *tab->ref.null_ref_key= 0;			// Search first for not null
-    ((Item_in_subselect *) item)->was_null= 0;
+    item_in->was_null= false;
   }
 
   /* Copy the ref key and check for nulls... */
   bool require_scan, convert_error;
   copy_ref_key(&require_scan, &convert_error);
   if (convert_error)
-  {
-    ((Item_in_subselect *) item)->value= 0;
     DBUG_RETURN(0);
-  }
 
   if (require_scan)
   {
@@ -2904,7 +2765,7 @@ bool subselect_indexsubquery_engine::exec()
   }
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, 1);
+    table->file->ha_index_init(tab->ref.key, !unique /* sorted */);
   error= table->file->ha_index_read_map(table->record[0],
                                         tab->ref.key_buff,
                                         make_prev_keypart_map(tab->ref.key_parts),
@@ -2922,13 +2783,21 @@ bool subselect_indexsubquery_engine::exec()
       {
         if ((!cond || cond->val_int()) && (!having || having->val_int()))
         {
-          empty_result_set= FALSE;
+          item_in->value= true;
           if (null_finding)
-            ((Item_in_subselect *) item)->was_null= 1;
-          else
-            ((Item_in_subselect *) item)->value= 1;
+          {
+            /*
+              This is dead code; subqueries with check_null==true are always
+              transformed with IN-to-EXISTS and thus their artificial HAVING
+              rejects NULL values...
+            */
+            DBUG_ASSERT(false);
+            item_in->was_null= true;
+          }
           break;
         }
+        if (unique)
+          break;
         error= table->file->ha_index_next_same(table->record[0],
                                               tab->ref.key_buff,
                                               tab->ref.key_length);
@@ -2942,9 +2811,14 @@ bool subselect_indexsubquery_engine::exec()
       {
         if (!check_null || null_finding)
           break;			/* We don't need to check nulls */
+        /*
+          Check if there exists a row with a null value in the index. We come
+          here only if ref_or_null, and ref_or_null is always on a single
+          column (first keypart of the index). So we have only one NULL bit to
+          turn on:
+        */
         *tab->ref.null_ref_key= 1;
         null_finding= 1;
-        /* Check if there exists a row with a null value in the index */
         if ((error= (safe_index_read(tab) == 1)))
           break;
       }
@@ -2990,7 +2864,7 @@ void subselect_union_engine::exclude()
 }
 
 
-void subselect_uniquesubquery_engine::exclude()
+void subselect_indexsubquery_engine::exclude()
 {
   //this never should be called
   DBUG_ASSERT(0);
@@ -3085,41 +2959,12 @@ void subselect_union_engine::print(String *str, enum_query_type query_type)
 }
 
 
-void subselect_uniquesubquery_engine::print(String *str,
-                                            enum_query_type query_type)
-{
-  char *table_name= tab->table->s->table_name.str;
-  str->append(STRING_WITH_LEN("<primary_index_lookup>("));
-  tab->ref.items[0]->print(str, query_type);
-  str->append(STRING_WITH_LEN(" in "));
-  if (tab->table->s->table_category == TABLE_CATEGORY_TEMPORARY)
-  {
-    /*
-      Temporary tables' names change across runs, so they can't be used for
-      EXPLAIN EXTENDED.
-    */
-    str->append(STRING_WITH_LEN("<temporary table>"));
-  }
-  else
-    str->append(table_name, tab->table->s->table_name.length);
-  KEY *key_info= tab->table->key_info+ tab->ref.key;
-  str->append(STRING_WITH_LEN(" on "));
-  str->append(key_info->name);
-  if (cond)
-  {
-    str->append(STRING_WITH_LEN(" where "));
-    cond->print(str, query_type);
-  }
-  str->append(')');
-}
-
-
 /*
 TODO:
-The above ::print method should be changed as below. Do it after
+The ::print method below should be changed as follows. Do it after
 all other tests pass.
 
-void subselect_uniquesubquery_engine::print(String *str)
+void subselect_indexsubquery_engine::print(String *str)
 {
   KEY *key_info= tab->table->key_info + tab->ref.key;
   str->append(STRING_WITH_LEN("<primary_index_lookup>("));
@@ -3141,17 +2986,27 @@ void subselect_uniquesubquery_engine::print(String *str)
 void subselect_indexsubquery_engine::print(String *str,
                                            enum_query_type query_type)
 {
-  str->append(STRING_WITH_LEN("<index_lookup>("));
+  if (unique)
+    str->append(STRING_WITH_LEN("<primary_index_lookup>("));
+  else
+    str->append(STRING_WITH_LEN("<index_lookup>("));
   tab->ref.items[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" in "));
-  /*
-    For materialized derived tables/views use table/view alias instead of
-    temporary table name, as it changes on each run and not acceptable for
-    EXPLAIN EXTENDED.
-  */
   if (tab->table->pos_in_table_list &&
-      tab->table->pos_in_table_list->uses_materialization())
+           tab->table->pos_in_table_list->uses_materialization())
+  {
+    /*
+      For materialized derived tables/views use table/view alias instead of
+      temporary table name, as it changes on each run and not acceptable for
+      EXPLAIN EXTENDED.
+    */
     str->append(tab->table->alias, strlen(tab->table->alias));
+  }
+  else if (tab->table->s->table_category == TABLE_CATEGORY_TEMPORARY)
+  {
+    // Could be from subselect_hash_sj_engine.
+    str->append(STRING_WITH_LEN("<temporary table>"));
+  }
   else
     str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
@@ -3227,8 +3082,8 @@ bool subselect_union_engine::change_result(Item_subselect *si,
     TRUE  error
 */
 
-bool subselect_uniquesubquery_engine::change_result(Item_subselect *si,
-                                                    select_result_interceptor *res)
+bool subselect_indexsubquery_engine::change_result(Item_subselect *si,
+                                                   select_result_interceptor *res)
 {
   DBUG_ASSERT(0);
   return TRUE;
@@ -3293,7 +3148,7 @@ bool subselect_union_engine::no_tables() const
     FALSE there are some tables in subquery
 */
 
-bool subselect_uniquesubquery_engine::no_tables() const
+bool subselect_indexsubquery_engine::no_tables() const
 {
   /* returning value is correct, but this method should never be called */
   return 0;
@@ -3310,7 +3165,8 @@ bool subselect_uniquesubquery_engine::no_tables() const
 
   @detail
   - Create a temporary table to store the result of the IN subquery. The
-    temporary table has one hash index on all its columns.
+    temporary table has one hash index on all its columns. If single-column,
+    the index allows at most one NULL row.
   - Create a new result sink that sends the result stream of the subquery to
     the temporary table,
   - Create and initialize a new JOIN_TAB, and TABLE_REF objects to perform
@@ -3393,7 +3249,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     plan operator into the materialized subquery result. Notice that:
     - this JOIN_TAB has no corresponding JOIN (and doesn't need one), and
     - here we initialize only those members that are used by
-      subselect_uniquesubquery_engine, so these objects are incomplete.
+      subselect_indexsubquery_engine, so these objects are incomplete.
   */ 
   JOIN_TAB * const tmp_tab= new (thd->mem_root) JOIN_TAB;
   if (tmp_tab == NULL)
@@ -3414,11 +3270,14 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   /*
     Create an artificial condition to post-filter those rows matched by index
     lookups that cannot be distinguished by the index lookup procedure, e.g.
-    because of truncation. Prepared statements execution requires that
-    fix_fields is called for every execution. In order to call fix_fields we
-    need to create a Name_resolution_context and a corresponding TABLE_LIST
-    for the temporary table for the subquery, so that all column references
-    to the materialized subquery table can be resolved correctly.
+    because of truncation (if the outer column type's length is bigger than
+    the inner column type's, index lookup will use a truncated outer
+    value as search key, yielding false positives).
+    Prepared statements execution requires that fix_fields is called
+    for every execution. In order to call fix_fields we need to create a
+    Name_resolution_context and a corresponding TABLE_LIST for the temporary
+    table for the subquery, so that all column references to the materialized
+    subquery table can be resolved correctly.
   */
   DBUG_ASSERT(cond == NULL);
   if (!(cond= new Item_cond_and))
@@ -3448,7 +3307,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     Item_func_eq *eq_cond; 
     /* Item for the corresponding field from the materialized temp table. */
     Item_field *right_col_item;
-    int null_count= test(key_parts[part_no].field->real_maybe_null());
+    const bool nullable= key_parts[part_no].field->real_maybe_null();
     tmp_tab->ref.items[part_no]= item_in->left_expr->element_index(part_no);
 
     if (!(right_col_item= new Item_field(thd, context, 
@@ -3470,10 +3329,26 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
                             cur_ref_buff + test(maybe_null), we could
                             use that information instead.
                          */
-                         cur_ref_buff + null_count,
-                         null_count ? cur_ref_buff : 0,
+                         cur_ref_buff + (nullable ? 1 : 0),
+                         nullable ? cur_ref_buff : 0,
                          key_parts[part_no].length,
                          tmp_tab->ref.items[part_no]);
+    if (nullable &&          // nullable column in tmp table,
+        // and UNKNOWN should not be interpreted as FALSE
+        !item_in->is_top_level_item())
+    {
+      // It must be the single column, or we wouldn't be here
+      DBUG_ASSERT(tmp_key_parts == 1);
+      // Be ready to search for NULL into inner column:
+      tmp_tab->ref.null_ref_key= cur_ref_buff;
+      mat_table_has_nulls= NEX_UNKNOWN;
+    }
+    else
+    {
+      tmp_tab->ref.null_ref_key= NULL;
+      mat_table_has_nulls= NEX_IRRELEVANT_OR_FALSE;
+    }
+
     cur_ref_buff+= key_parts[part_no].store_length;
   }
   tmp_tab->ref.key_err= 1;
@@ -3543,7 +3418,7 @@ void subselect_hash_sj_engine::cleanup()
 bool subselect_hash_sj_engine::exec()
 {
   Item_in_subselect *item_in= (Item_in_subselect *) item;
-
+  TABLE *const table= tab->table;
   DBUG_ENTER("subselect_hash_sj_engine::exec");
 
   /*
@@ -3552,7 +3427,7 @@ bool subselect_hash_sj_engine::exec()
   */
   if (!is_materialized)
   {
-    bool res= false;
+    bool res;
     THD * const thd= item->unit->thd;
     SELECT_LEX *save_select= thd->lex->current_select;
     thd->lex->current_select= materialize_engine->select_lex;
@@ -3576,21 +3451,10 @@ bool subselect_hash_sj_engine::exec()
         unlocking).
      */
     is_materialized= TRUE;
-    /*
-      If the subquery returned no rows, the temporary table is empty, so we know
-      directly that the result of IN is FALSE. We first update the table
-      statistics, then we test if the temporary table for the query result is
-      empty.
-    */
-    tab->table->file->info(HA_STATUS_VARIABLE);
-    if (!tab->table->file->stats.records)
-    {
-      empty_result_set= TRUE;
-      item_in->value= FALSE;
-      /* TODO: check we need this: item_in->null_value= FALSE; */
-      thd->lex->current_select= save_select;
-      DBUG_RETURN(FALSE);
-    }
+
+    // Calculate row count:
+    table->file->info(HA_STATUS_VARIABLE);
+
     /* Set tmp_param only if its usable, i.e. tmp_param->copy_field != NULL. */
     tmp_param= &(item_in->unit->outer_select()->join->tmp_table_param);
     if (tmp_param && !tmp_param->copy_field)
@@ -3600,12 +3464,71 @@ err:
     thd->lex->current_select= save_select;
     if (res)
       DBUG_RETURN(res);
+  } // if (!is_materialized)
+
+  if (table->file->stats.records == 0)
+  {
+    // The correct answer is FALSE.
+    item_in->value= false;
+    DBUG_RETURN(false);
+  }
+  /*
+    Here we could be brutal and set item_in->null_value. But we prefer to be
+    well-behaved and rather set the properties which
+    Item_in_subselect::val_bool() and Item_in_optimizer::val_int() expect,
+    and then those functions will set null_value based on those properties.
+  */
+  if (item_in->left_expr->element_index(0)->null_value)
+  {
+    /*
+      The first outer expression oe1 is NULL. It is the single outer
+      expression because if there would be more ((oe1,oe2,...)IN(...)) then
+      either they would be non-nullable (so we wouldn't be here) or the
+      predicate would be top-level (so we wouldn't be here,
+      Item_in_optimizer::val_int() would have short-cut). The correct answer
+      is UNKNOWN. Do as if searching with all triggered conditions disabled:
+      this would surely find a row. The caller will translate this to UNKNOWN.
+    */
+    DBUG_ASSERT(item_in->left_expr->cols() == 1);
+    item_in->value= true;
+    DBUG_RETURN(false);
   }
 
-  /*
-    Lookup the left IN operand in the hash index of the materialized subquery.
-  */
-  DBUG_RETURN(subselect_uniquesubquery_engine::exec());
+  if (subselect_indexsubquery_engine::exec())  // Search with index
+    DBUG_RETURN(true);
+
+  if (!item_in->value && // no exact match
+      mat_table_has_nulls != NEX_IRRELEVANT_OR_FALSE)
+  {
+    /*
+      There is only one outer expression. It's not NULL. exec() above has set
+      the answer to FALSE, but if there exists an inner NULL in the temporary
+      table, then the correct answer is UNKNOWN, so let's find out.
+    */
+    if (mat_table_has_nulls == NEX_UNKNOWN)   // We do not know yet
+    {
+      // Search for NULL inside tmp table, and remember the outcome.
+      DBUG_ASSERT(table->file->inited);
+      *tab->ref.null_ref_key= 1;
+      if (safe_index_read(tab) == 1)
+        DBUG_RETURN(true);
+      *tab->ref.null_ref_key= 0; // prepare for next searches of non-NULL
+      mat_table_has_nulls=
+        (table->status == 0) ? NEX_TRUE : NEX_IRRELEVANT_OR_FALSE;
+    }
+    if (mat_table_has_nulls == NEX_TRUE)
+    {
+      /*
+        There exists an inner NULL. The correct answer is UNKNOWN.
+        Do as if searching with all triggered conditions enabled; that
+        would not find any match, but Item_is_not_null_test would notice a
+        NULL:
+      */
+      item_in->value= false;
+      item_in->was_null= true;
+    }
+  }
+  DBUG_RETURN(false);
 }
 
 
@@ -3619,7 +3542,7 @@ void subselect_hash_sj_engine::print(String *str, enum_query_type query_type)
   materialize_engine->print(str, query_type);
   str->append(STRING_WITH_LEN(" ), "));
   if (tab)
-    subselect_uniquesubquery_engine::print(str, query_type);
+    subselect_indexsubquery_engine::print(str, query_type);
   else
     str->append(STRING_WITH_LEN(
            "<the access method for lookups is not yet created>"

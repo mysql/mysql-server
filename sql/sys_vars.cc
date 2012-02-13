@@ -2034,14 +2034,15 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   }
 
   /*
-    Perform a 'FLUSH TABLES WITH READ LOCK'.
-    This is a 3 step process:
-    - [1] lock_global_read_lock()
-    - [2] close_cached_tables()
-    - [3] make_global_read_lock_block_commit()
-    [1] prevents new connections from obtaining tables locked for write.
-    [2] waits until all existing connections close their tables.
-    [3] prevents transactions from being committed.
+    READ_ONLY=1 prevents write locks from being taken on tables and
+    blocks transactions from committing. We therefore should make sure
+    that no such events occur while setting the read_only variable.
+    This is a 2 step process:
+    [1] lock_global_read_lock()
+      Prevents connections from obtaining new write locks on
+      tables. Note that we can still have active rw transactions.
+    [2] make_global_read_lock_block_commit()
+      Prevents transactions from committing.
   */
 
   read_only= opt_readonly;
@@ -2049,19 +2050,6 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
 
   if (thd->global_read_lock.lock_global_read_lock(thd))
     goto end_with_mutex_unlock;
-
-  /*
-    This call will be blocked by any connection holding a READ or WRITE lock.
-    Ideally, we want to wait only for pending WRITE locks, but since:
-    con 1> LOCK TABLE T FOR READ;
-    con 2> LOCK TABLE T FOR WRITE; (blocked by con 1)
-    con 3> SET GLOBAL READ ONLY=1; (blocked by con 2)
-    can cause to wait on a read lock, it's required for the client application
-    to unlock everything, and acceptable for the server to wait on all locks.
-  */
-  if ((result= close_cached_tables(thd, NULL, TRUE,
-                                   thd->variables.lock_wait_timeout)))
-    goto end_with_read_lock;
 
   if ((result= thd->global_read_lock.make_global_read_lock_block_commit(thd)))
     goto end_with_read_lock;

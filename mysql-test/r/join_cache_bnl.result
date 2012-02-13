@@ -2381,6 +2381,7 @@ c1 INTEGER,
 KEY k1 (c1)
 ) ENGINE=InnoDB;
 INSERT INTO t3 VALUES (NULL), (NULL);
+set @old_opt_switch=@@optimizer_switch;
 
 explain SELECT t3.c1 FROM t3
 WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
@@ -2412,9 +2413,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain SELECT t3.c1 FROM t3
 WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	PRIMARY	PRIMARY	4	NULL	1	Using index; Start materialize; Scan
-1	PRIMARY	t1	ALL	col_int_key	NULL	NULL	NULL	1	Using where; End materialize; Using join buffer (Block Nested Loop)
-1	PRIMARY	t3	ref	k1	k1	5	test.t1.c2_key	1	Using index
+1	PRIMARY	t2	index	PRIMARY	PRIMARY	4	NULL	1	Using index; Start temporary
+1	PRIMARY	t1	ALL	col_int_key	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t3	ref	k1	k1	5	test.t1.c2_key	1	Using index; End temporary
 SELECT t3.c1 FROM t3
 WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
 XOR TRUE;
@@ -2434,6 +2435,7 @@ SELECT t3.c1 FROM t3
 WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
 c1
 
+set @@optimizer_switch=@old_opt_switch;
 DROP TABLE t1, t2, t3;
 set @@join_buffer_size=default;
 
