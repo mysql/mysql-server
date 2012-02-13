@@ -38,6 +38,7 @@
 #include "opt_trace.h"
 
 #include <algorithm>
+#include <utility>
 using std::max;
 using std::min;
 
@@ -51,7 +52,7 @@ static ha_rows find_all_keys(Sort_param *param,SQL_SELECT *select,
                              IO_CACHE *tempfile,
                              Bounded_queue<uchar, uchar> *pq,
                              ha_rows *found_rows);
-static int write_keys(Sort_param *param,uchar * *sort_keys,
+static int write_keys(Sort_param *param, Filesort_info *fs_info,
                       uint count, IO_CACHE *buffer_file, IO_CACHE *tempfile);
 static void make_sortkey(Sort_param *param,uchar *to, uchar *ref_pos);
 static void register_used_fields(Sort_param *param);
@@ -59,7 +60,7 @@ static int merge_index(Sort_param *param,uchar *sort_buffer,
                        BUFFPEK *buffpek,
                        uint maxbuffer,IO_CACHE *tempfile,
                        IO_CACHE *outfile);
-static bool save_index(Sort_param *param,uchar **sort_keys, uint count, 
+static bool save_index(Sort_param *param, uint count,
                        Filesort_info *table_sort);
 static uint suffix_length(ulong string_length);
 static uint sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
@@ -154,7 +155,8 @@ static void trace_filesort_information(Opt_trace_context *trace,
   @param      select         Condition to apply to the rows
   @param      max_rows       Return only this many rows
   @param      sort_positions Set to TRUE if we want to force sorting by position
-                             (Needed by UPDATE/INSERT or ALTER TABLE)
+                             (Needed by UPDATE/INSERT or ALTER TABLE or
+                              when rowids are required by executor)
   @param[out] examined_rows  Store number of examined rows here
   @param[out] found_rows     Store the number of found rows here.
 
@@ -283,6 +285,19 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     {
       ha_rows keys= memory_available / (param.rec_length + sizeof(char*));
       param.max_keys_per_buffer= (uint) min(num_rows, keys);
+      if (table_sort.get_sort_keys())
+      {
+        // If we have already allocated a buffer, it better have same size!
+        if (std::make_pair(param.max_keys_per_buffer, param.rec_length) !=
+            table_sort.sort_buffer_properties())
+        {
+          /*
+            table->sort will still have a pointer to the same buffer,
+            but that will be overwritten by the assignment below.
+          */
+          table_sort.free_sort_buffer();
+        }
+      }
       table_sort.alloc_sort_buffer(param.max_keys_per_buffer, param.rec_length);
       if (table_sort.get_sort_keys())
         break;
@@ -331,8 +346,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
   if (maxbuffer == 0)			// The whole set is in memory
   {
-    if (save_index(&param, table_sort.get_sort_keys(),
-                   (uint) num_rows, &table_sort))
+    if (save_index(&param, (uint) num_rows, &table_sort))
       goto err;
   }
   else
@@ -443,7 +457,10 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */
 #endif
+
+  // Assign the copy back!
   table->sort= table_sort;
+
   DBUG_PRINT("exit",
              ("num_rows: %ld examined_rows: %ld found_rows: %ld",
               (long) num_rows, (long) *examined_rows, (long) *found_rows));
@@ -724,8 +741,7 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
       {
         if (idx == param->max_keys_per_buffer)
         {
-          if (write_keys(param, fs_info->get_sort_keys(),
-                         idx, buffpek_pointers, tempfile))
+          if (write_keys(param, fs_info, idx, buffpek_pointers, tempfile))
              DBUG_RETURN(HA_POS_ERROR);
           idx= 0;
           indexpos++;
@@ -759,8 +775,7 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
     DBUG_RETURN(HA_POS_ERROR);			/* purecov: inspected */
   }
   if (indexpos && idx &&
-      write_keys(param, fs_info->get_sort_keys(),
-                 idx, buffpek_pointers, tempfile))
+      write_keys(param, fs_info, idx, buffpek_pointers, tempfile))
     DBUG_RETURN(HA_POS_ERROR);			/* purecov: inspected */
   const ha_rows retval= 
     my_b_inited(tempfile) ?
@@ -793,21 +808,19 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
 */
 
 static int
-write_keys(Sort_param *param, register uchar **sort_keys, uint count,
+write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
            IO_CACHE *buffpek_pointers, IO_CACHE *tempfile)
 {
-  size_t sort_length, rec_length;
+  size_t rec_length;
   uchar **end;
   BUFFPEK buffpek;
   DBUG_ENTER("write_keys");
 
-  sort_length= param->sort_length;
   rec_length= param->rec_length;
-#ifdef MC68000
-  quicksort(sort_keys,count,sort_length);
-#else
-  my_string_ptr_sort((uchar*) sort_keys, (uint) count, sort_length);
-#endif
+  uchar **sort_keys= fs_info->get_sort_keys();
+
+  fs_info->sort_buffer(param, count);
+
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
                        MYF(MY_WME)))
@@ -1139,20 +1152,19 @@ static void register_used_fields(Sort_param *param)
   }
 }
 
-
-static bool save_index(Sort_param *param, uchar **sort_keys, uint count, 
-                       Filesort_info *table_sort)
+static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort)
 {
   uint offset,res_length;
   uchar *to;
   DBUG_ENTER("save_index");
 
-  my_string_ptr_sort((uchar*) sort_keys, count, param->sort_length);
+  table_sort->sort_buffer(param, count);
   res_length= param->res_length;
   offset= param->rec_length-res_length;
   if (!(to= table_sort->record_pointers= 
         (uchar*) my_malloc(res_length*count, MYF(MY_WME))))
     DBUG_RETURN(1);                 /* purecov: inspected */
+  uchar **sort_keys= table_sort->get_sort_keys();
   for (uchar **end= sort_keys+count ; sort_keys != end ; sort_keys++)
   {
     memcpy(to, *sort_keys+offset, res_length);

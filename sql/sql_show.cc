@@ -1301,13 +1301,11 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
   @bool  lcase             Whether to print in lower case.
   @return                  false on success, true on error.
 */
-static bool get_field_on_update_clause(Field *timestamp_field,
-                                       Field *field, String *val, bool lcase)
+static bool print_on_update_clause(Field *field, String *val, bool lcase)
 {
   DBUG_ASSERT(val->charset()->mbminlen == 1);
   val->length(0);
-  if (timestamp_field == field &&
-      field->unireg_check != Field::TIMESTAMP_DN_FIELD)
+  if (field->has_update_default_function())
   {
     if (lcase)
       val->copy(STRING_WITH_LEN("on update "), val->charset());
@@ -1322,31 +1320,27 @@ static bool get_field_on_update_clause(Field *timestamp_field,
 }
 
 
-static bool get_field_default_value(THD *thd, Field *timestamp_field,
-                                    Field *field, String *def_value,
-                                    bool quoted)
+static bool print_default_clause(THD *thd, Field *field, String *def_value,
+                                 bool quoted)
 {
-  bool has_default;
-  bool has_now_default;
   enum enum_field_types field_type= field->type();
 
-  /*
-     We are using CURRENT_TIMESTAMP instead of NOW because it is
-     more standard
-  */
-  has_now_default= (timestamp_field == field &&
-                    field->unireg_check != Field::TIMESTAMP_UN_FIELD);
-
-  has_default= (field_type != FIELD_TYPE_BLOB &&
-                !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
-                field->unireg_check != Field::NEXT_NUMBER &&
-                !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
-                  && has_now_default));
+  const bool has_now_default= field->has_insert_default_function();
+  const bool has_default=
+    (field_type != FIELD_TYPE_BLOB &&
+     !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
+     field->unireg_check != Field::NEXT_NUMBER &&
+     !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
+       && has_now_default));
 
   def_value->length(0);
   if (has_default)
   {
     if (has_now_default)
+      /*
+        We are using CURRENT_TIMESTAMP instead of NOW because it is the SQL
+        standard.
+      */
     {
       def_value->append(STRING_WITH_LEN("CURRENT_TIMESTAMP"));
       if (field->decimals() > 0)
@@ -1432,7 +1426,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   handler *file= table->file;
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   bool show_table_options= FALSE;
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                      MODE_ORACLE |
                                                      MODE_MSSQL |
@@ -1543,17 +1539,14 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
-    if (get_field_default_value(thd, table->get_timestamp_field(),
-                                field, &def_value, 1))
+    if (print_default_clause(thd, field, &def_value, true))
     {
       packet->append(STRING_WITH_LEN(" DEFAULT "));
       packet->append(def_value.ptr(), def_value.length(), system_charset_info);
     }
 
     if (!limited_mysql_mode &&
-        get_field_on_update_clause(table->get_timestamp_field(),
-                                   field, &def_value, false))
-    
+        print_on_update_clause(field, &def_value, false))
     {
       packet->append(STRING_WITH_LEN(" "));
       packet->append(def_value);
@@ -1648,7 +1641,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   packet->append(STRING_WITH_LEN("\n)"));
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
     show_table_options= TRUE;
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
     /* TABLESPACE and STORAGE */
     if (share->tablespace ||
@@ -4569,7 +4564,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   CHARSET_INFO *cs= system_charset_info;
   TABLE *show_table;
-  Field **ptr, *field, *timestamp_field;
+  Field **ptr, *field;
   int count;
   DBUG_ENTER("get_schema_column_record");
 
@@ -4593,7 +4588,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
   show_table= tables->table;
   count= 0;
   ptr= show_table->field;
-  timestamp_field= show_table->get_timestamp_field();
   show_table->use_all_columns();               // Required for default
   restore_record(show_table, s->default_values);
 
@@ -4647,7 +4641,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     field->sql_type(type);
     table->field[IS_COLUMNS_COLUMN_TYPE]->store(type.ptr(), type.length(), cs);
 
-    if (get_field_default_value(thd, timestamp_field, field, &type, 0))
+    if (print_default_clause(thd, field, &type, false))
     {
       table->field[IS_COLUMNS_COLUMN_DEFAULT]->store(type.ptr(), type.length(),
                                                     cs);
@@ -4666,7 +4660,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     if (field->unireg_check == Field::NEXT_NUMBER)
       table->field[IS_COLUMNS_EXTRA]->store(STRING_WITH_LEN("auto_increment"),
                                             cs);
-    if (get_field_on_update_clause(timestamp_field, field, &type, true))
+    if (print_on_update_clause(field, &type, true))
       table->field[IS_COLUMNS_EXTRA]->store(type.ptr(), type.length(), cs);
     table->field[IS_COLUMNS_COLUMN_COMMENT]->store(field->comment.str,
                                                    field->comment.length, cs);

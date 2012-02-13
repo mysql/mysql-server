@@ -1737,7 +1737,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
     if (action->wait_for.length())
     {
       mysql_mutex_t *old_mutex;
-      mysql_cond_t  *old_cond;
+      mysql_cond_t  *old_cond= 0;
       int             error= 0;
       struct timespec abstime;
 
@@ -1788,8 +1788,12 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
                         sig_wait, sig_glob, error));});
         if (error == ETIMEDOUT || error == ETIME)
         {
+          // We should not make the statement fail, even if in strict mode.
+          const bool save_abort_on_warning= thd->abort_on_warning;
+          thd->abort_on_warning= false;
           push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                        ER_DEBUG_SYNC_TIMEOUT, ER(ER_DEBUG_SYNC_TIMEOUT));
+          thd->abort_on_warning= save_abort_on_warning;
           break;
         }
         error= 0;

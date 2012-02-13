@@ -3223,7 +3223,7 @@ INSERT INTO t1 VALUES (10,1), (14,1);
 CREATE TABLE t2 (pk int PRIMARY KEY, int_key int);
 INSERT INTO t2 VALUES (3,3), (5,NULL), (7,3);
 
---echo # should have eq_ref for t1
+--echo # should have eq_ref for t1, unless subquery materialization is used
 --replace_column 1 x 2 x 5 x 6 x 7 x 8 x 9 x 10 x
 EXPLAIN
 SELECT * FROM t2 outr
@@ -5643,3 +5643,182 @@ WHERE (col_varchar_nokey, 'x') IN
 
 --echo
 DROP TABLE it, ot;
+
+--echo #
+--echo # Bug #11829691: Pure virtual method called in Item_bool_func2::fix...()
+--echo #
+
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(b INTEGER);
+
+PREPARE stmt FROM "
+SELECT SUM(b) FROM t2 GROUP BY b HAVING b IN (SELECT b FROM t1)";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #13595212 EXTRA ROWS RETURNED ON RIGHT JOIN WITH VIEW AND
+--echo # IN-SUBQUERY IN WHERE
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_key int(11) NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (1,0,'j','j'),(2,8,'v','v'),
+(3,1,'c','c'),(4,8,'m','m'),(5,9,'d','d');
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+# RIGHT JOIN
+
+let $query=
+SELECT alias2.col_varchar_nokey
+FROM v1 AS alias1
+  RIGHT JOIN t1 AS alias2 ON 1
+WHERE alias2.col_varchar_key IN (
+  SELECT sq2_alias1.col_varchar_nokey
+  FROM v1 AS sq2_alias1
+    LEFT JOIN t1 AS sq2_alias2
+    ON (sq2_alias2.col_int_key = sq2_alias1.pk)
+  WHERE sq2_alias1.pk != alias1.col_int_key
+    AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
+)
+;
+
+eval EXPLAIN EXTENDED $query;
+--sorted_result
+eval $query;
+
+# Same, but in view:
+
+eval CREATE VIEW v2 AS $query;
+
+EXPLAIN EXTENDED SELECT * FROM v2;
+--sorted_result
+SELECT * FROM v2;
+
+# Same, with LEFT JOIN
+
+let $query=SELECT alias2.col_varchar_nokey
+FROM t1 AS alias2
+  LEFT JOIN v1 AS alias1 ON 1
+WHERE alias2.col_varchar_key IN (
+  SELECT sq2_alias1.col_varchar_nokey
+  FROM v1 AS sq2_alias1
+    LEFT JOIN t1 AS sq2_alias2
+    ON (sq2_alias2.col_int_key = sq2_alias1.pk)
+  WHERE sq2_alias1.pk != alias1.col_int_key
+    AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
+);
+
+eval EXPLAIN EXTENDED $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1;
+DROP VIEW v1,v2;
+
+--echo #
+--echo # Bug#13651009 WRONG RESULT FROM DERIVED TABLE IF THE SUBQUERY
+--echo # HAS AN EMPTY RESULT
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  col_time_key time NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_time_key (col_time_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  pk int NOT NULL AUTO_INCREMENT,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  col_time_key time NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_time_key (col_time_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (1,4,4,'00:00:00','b','b');
+
+SET @var2:=4, @var3:=8;
+
+--echo
+--echo Testcase without inner subquery
+
+let $subq=
+SELECT @var3:=12, sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
+      sq4_alias1.col_varchar_key = @var3;
+
+eval EXPLAIN $subq;
+eval $subq;
+SELECT @var3;
+
+# Now as derived table:
+eval EXPLAIN SELECT * FROM ( $subq ) AS alias3;
+eval SELECT * FROM ( $subq ) AS alias3;
+SELECT @var3;
+
+--echo
+--echo Testcase with inner subquery; crashed WL#6095
+SET @var3=8;
+let $subq=
+SELECT sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key , sq4_alias1.col_varchar_nokey)
+      NOT IN
+      (SELECT c_sq1_alias1.col_varchar_key AS c_sq1_field1,
+              c_sq1_alias1.col_varchar_nokey AS c_sq1_field2
+       FROM t2 AS c_sq1_alias1
+       WHERE (c_sq1_alias1.col_int_nokey != @var2
+              OR c_sq1_alias1.pk != @var3));
+
+eval EXPLAIN $subq;
+eval $subq;
+# Now as derived table:
+eval EXPLAIN SELECT * FROM ( $subq ) AS alias3;
+eval SELECT * FROM ( $subq ) AS alias3;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Test that indexsubquery_engine only does one lookup if
+--echo # the technique is unique_subquery: does not try to read the
+--echo # next row if the first row failed the subquery's WHERE
+--echo # condition (here: b=3).
+--echo #
+
+create table t1(a int);
+insert into t1 values(1),(2);
+create table t2(a int primary key, b int);
+insert into t2 values(1,10),(2,10);
+let $query=select * from t1 where a in (select a from t2 where b=3);
+eval explain $query;
+flush status;
+eval $query;
+show status like "handler_read%";
+drop table t1,t2;

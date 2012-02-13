@@ -757,21 +757,18 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           !((Query_log_event*) ev)->is_trans_keyword() &&
            shall_skip_database(((Query_log_event*) ev)->db);
            
-      for (uint dynamic_array_index= 0; dynamic_array_index < buff_ev.elements; 
-           dynamic_array_index++)
+      for (uint i= 0; i < buff_ev.elements; i++) 
       {
-        buff_event_info pop_event_array= *dynamic_element(&buff_ev, dynamic_array_index, buff_event_info *);
+        buff_event_info pop_event_array= *dynamic_element(&buff_ev, i, buff_event_info *);
         Log_event *temp_event= pop_event_array.event;
         my_off_t temp_log_pos= pop_event_array.event_pos;
-        (!opt_hexdump) ? print_event_info->hexdump_from= 0 : print_event_info->hexdump_from= temp_log_pos;
-
+        print_event_info->hexdump_from= (opt_hexdump ? temp_log_pos : 0); 
         if (!parent_query_skips)
           temp_event->print(result_file, print_event_info);
         delete temp_event;
       }
       
-      (!opt_hexdump) ? print_event_info->hexdump_from= 0 : print_event_info->hexdump_from= pos;      
-
+      print_event_info->hexdump_from= (opt_hexdump ? pos : 0);
       reset_dynamic(&buff_ev);
 
       if (parent_query_skips)
@@ -1150,7 +1147,7 @@ static struct my_option my_long_options[] =
   {"offset", 'o', "Skip the first N entries.", &offset, &offset,
    0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p', "Password to connect to remote server.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
     &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1344,6 +1341,14 @@ static void cleanup()
   my_free(host);
   my_free(user);
   my_free(dirname_for_local_load);
+  
+  for (uint i= 0; i < buff_ev.elements; i++)
+  {
+    buff_event_info pop_event_array= *dynamic_element(&buff_ev, i, buff_event_info *);
+    delete (pop_event_array.event);
+  }
+  delete_dynamic(&buff_ev);
+  
   delete glob_description_event;
   if (mysql)
     mysql_close(mysql);
@@ -2290,8 +2295,10 @@ int main(int argc, char** argv)
                             INTVAR_DYNAMIC_INIT, INTVAR_DYNAMIC_INCR)))
     exit(1);
 
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my", load_default_groups, &argc, &argv))
     exit(1);
+  my_getopt_use_args_separator= FALSE;
   defaults_argv= argv;
 
   parse_args(&argc, &argv);
@@ -2390,16 +2397,6 @@ int main(int argc, char** argv)
   if (result_file && (result_file != stdout))
     my_fclose(result_file, MYF(0));
   cleanup();
-
-  if(buff_ev.elements)
-  {
-    for (uint i= 0; i < buff_ev.elements; i++)
-      {
-        buff_event_info pop_event_array= *dynamic_element(&buff_ev, i, buff_event_info *);
-        delete (pop_event_array.event);
-      }
-    delete_dynamic(&buff_ev);
-  }
 
   if (defaults_argv)
     free_defaults(defaults_argv);

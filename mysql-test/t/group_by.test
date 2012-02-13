@@ -390,7 +390,7 @@ drop table t1,t2,t3;
 create table t1 (a blob null);
 insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(""),(""),(""),("b");
 select a,count(*) from t1 group by a;
-set option big_tables=1;
+set big_tables=1;
 select a,count(*) from t1 group by a;
 drop table t1;
 
@@ -1537,4 +1537,269 @@ GROUP BY field1, field2
 LIMIT 3;
 
 DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#13422961: WRONG RESULTS FROM SELECT WITH AGGREGATES AND
+--echo #               IMPLICIT GROUPING + MYISAM OR MEM
+--echo #
+
+CREATE TABLE it (
+  pk INT NOT NULL,
+  col_int_nokey INT NOT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+CREATE TABLE ot (
+  pk int(11) NOT NULL,
+  col_int_nokey int(11) NOT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+INSERT INTO ot VALUES (10,8);
+
+--echo
+SELECT col_int_nokey, MAX( pk ) 
+FROM ot 
+WHERE (8, 1) IN ( SELECT pk, COUNT( col_int_nokey ) FROM it );
+
+--echo
+DROP TABLE it,ot;
+
+--echo #
+--echo # Bug#13430588: WRONG RESULT FROM IMPLICITLY GROUPED QUERY WITH
+--echo #               CONST TABLE AND NO MATCHING ROWS
+--echo #
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (j INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1),(2);
+
+--echo
+SELECT i, j, COUNT(i) FROM t1 JOIN t2 WHERE j=3;
+
+--echo
+DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#13541761: WRONG RESULTS ON CORRELATED SUBQUERY + 
+--echo #               AGGREGATE FUNCTION + MYISAM OR MEMORY
+--echo #
+
+CREATE TABLE t1 (
+  a varchar(1)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES ('a'), ('b');
+
+CREATE TABLE t2 (
+  a varchar(1),
+  b int(11)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES ('a',1);
+
+let $query= 
+SELECT (SELECT MAX(b) FROM t2 WHERE t2.a != t1.a) as MAX 
+FROM t1;
+
+--echo
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
+
+--echo # Bug 11923239 - ERROR WITH CORRELATED SUBQUERY IN VIEW WITH
+--echo # ONLY_FULL_GROUP_BY SQL MODE
+CREATE TABLE t1 (
+  pk INT,
+  col_int_key INT,
+  col_int_nokey INT,
+  col_varchar_key VARCHAR(10),
+  col_varchar_nokey VARCHAR(10),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t1 VALUES (), ();
+
+let $query_with_alias_in_group_by=
+SELECT alias1.col_int_nokey AS field1,
+  (SELECT alias2.col_int_key
+   FROM t1 AS alias2
+   WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+  ) AS field2
+FROM t1 AS alias1
+GROUP BY field1, field2;
+
+let $query_with_no_alias_in_group_by=
+SELECT alias1.col_int_nokey AS field1,
+  (SELECT alias2.col_int_key
+   FROM t1 AS alias2
+   WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+  ) AS field2
+FROM t1 AS alias1
+GROUP BY field1,
+  (SELECT alias2.col_int_key
+   FROM t1 AS alias2
+   WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+  );
+
+--echo # In GROUP BY, aliases are printed as aliases.
+
+eval EXPLAIN EXTENDED $query_with_alias_in_group_by;
+
+--echo # In GROUP BY, expressions are printed as expressions.
+
+eval EXPLAIN EXTENDED $query_with_no_alias_in_group_by;
+
+--echo # Aliased expression in GROUP BY in a view.
+
+eval CREATE VIEW v1 AS $query_with_alias_in_group_by;
+
+--echo # In GROUP BY, aliases are printed as aliases.
+
+SHOW CREATE VIEW v1;
+
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode='ONLY_FULL_GROUP_BY';
+
+eval $query_with_alias_in_group_by;
+
+--echo # The SELECT above has been accepted, and v1 was created
+--echo # using the same SELECT as above, so SELECTing from v1
+--echo # should be accepted.
+SELECT * FROM v1;
+
+--echo # Here is why in GROUP BY we print aliases of subqueries as
+--echo # aliases: below, "GROUP BY (subquery)" confuses
+--echo # ONLY_FULL_GROUP_BY, it causes an error though the subquery of
+--echo # GROUP BY and of SELECT list are the same. Fixing this would
+--echo # require implementing Item_subselect::eq(). It's not worth
+--echo # the effort because:
+--echo # a) GROUP BY (subquery) is non-SQL-standard so is likely of
+--echo # very little interest to users of ONLY_FULL_GROUP_BY
+--echo # b) as the user uses ONLY_FULL_GROUP_BY, he wants to have the
+--echo # same subquery in GROUP BY and SELECT list, so can give the
+--echo # subquery an alias in the SELECT list and use this alias in
+--echo # GROUP BY, thus avoiding the problem.
+
+--error ER_WRONG_FIELD_WITH_GROUP
+eval $query_with_no_alias_in_group_by;
+
+DROP VIEW v1;
+SET @@sql_mode = @old_sql_mode;
+
+--echo # Verify that if an alias is used in GROUP BY/ORDER BY it
+--echo # is printed as an alias, not as the expression.
+
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES(3),(4);
+
+EXPLAIN EXTENDED SELECT
+pk AS foo, col_int_key AS bar, (SELECT a FROM t2 WHERE a=t1.pk) AS baz
+FROM t1
+GROUP BY foo, col_int_key, baz ORDER BY pk, bar, (SELECT a FROM t2 WHERE a=t1.pk);
+
+# Printing the alias in GROUP/ORDER BY would introduce an ambiguity.
+EXPLAIN EXTENDED SELECT
+pk AS foo, col_int_key AS foo, (SELECT a FROM t2 WHERE a=t1.pk) AS foo
+FROM t1
+GROUP BY pk, col_int_key, (SELECT a FROM t2 WHERE a=t1.pk)
+ORDER BY pk, col_int_key, (SELECT a FROM t2 WHERE a=t1.pk);
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#13591138 - ASSERTION NAME && !IS_AUTOGENERATED_NAME IN
+--echo # ITEM::PRINT_FOR_ORDER ON EXPLAIN EXT
+--echo #
+
+# There was a bug with Item_direct_view_ref
+
+CREATE TABLE t1 (  
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_datetime_key datetime NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+CREATE TABLE t2 (  
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk)
+);
+
+CREATE TABLE t3 (  
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+CREATE VIEW view1 AS SELECT * FROM t1;
+
+EXPLAIN EXTENDED
+SELECT
+    alias1.col_datetime_key AS field1
+FROM (
+        view1 AS alias1,
+        t3 AS alias2
+    )
+WHERE (
+    (SELECT MIN(SQ1_alias1.pk)
+     FROM t2 AS SQ1_alias1
+    )
+) OR (alias1.col_varchar_key = alias2.col_varchar_key
+  AND alias1.col_varchar_key = 'j'
+) AND alias1.pk IS NULL
+GROUP BY
+    field1;
+
+DROP TABLE t1,t2,t3;
+DROP VIEW view1;
+
+# Another one with Item_direct_view_ref:
+
+CREATE TABLE t1 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+CREATE TABLE t2 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+CREATE ALGORITHM=MERGE VIEW view1 AS
+  SELECT CONCAT( table1.col_varchar_nokey , table2.col_varchar_key ) AS
+field1
+  FROM
+    t2 AS table1 JOIN t1 AS table2
+    ON table2.col_varchar_nokey = table1.col_varchar_key 
+       AND
+       table2.col_varchar_key >= table1.col_varchar_nokey 
+ORDER BY field1
+;
+
+EXPLAIN EXTENDED SELECT * FROM view1;
+
+DROP TABLE t1,t2;
+DROP VIEW view1;
+
+# And a bug with Item_singlerow_subselect:
+
+CREATE TABLE t1 (col_varchar_nokey varchar(1) DEFAULT NULL);
+INSERT INTO t1 VALUES ('v'),('c');
+
+EXPLAIN EXTENDED SELECT (SELECT 150) AS field5
+FROM (SELECT * FROM t1) AS alias1
+GROUP BY field5;
+
 DROP TABLE t1;

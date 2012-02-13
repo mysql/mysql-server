@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1216,7 +1216,7 @@ cleanup:
 			index->name, (ulong) block->n_pointers);
 		rw_lock_x_unlock(&btr_search_latch);
 
-		btr_search_validate();
+		ut_ad(btr_search_validate());
 	} else {
 		rw_lock_x_unlock(&btr_search_latch);
 	}
@@ -1959,7 +1959,9 @@ btr_search_validate(void)
 					(ulong) block->curr_left_side);
 
 				if (n_page_dumps < 20) {
-					buf_page_print(page, 0);
+					buf_page_print(
+						page, 0,
+						BUF_PAGE_PRINT_NO_CRASH);
 					n_page_dumps++;
 				}
 			}

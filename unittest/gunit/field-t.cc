@@ -13,8 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines,
-// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
+// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
 
@@ -69,6 +68,17 @@ static void compareMysqlTime(const MYSQL_TIME& first, const MYSQL_TIME& second)
   EXPECT_EQ(first.neg, second.neg);
   EXPECT_EQ(first.time_type, second.time_type);
 }
+
+class Mock_table : public TABLE
+{
+public:
+  Mock_table(THD *thd)
+  {
+    null_row= false;
+    read_set= 0;
+    in_use= thd;
+  }
+};
 
 // A mock Protocol class to be able to test Field::send_binary
 // It just verifies that store_time has been passed what is expected
@@ -257,6 +267,8 @@ TEST_F(FieldTest, FieldTimef)
   // Not testing store(const char, uint, const CHARSET_INFO *, enum_check_fields)
   // it requires a mock table
   
+  Mock_table m_table(thd());
+  f->table= &m_table;
   struct timeval tv;
   int warnings= 0;
   EXPECT_EQ(0, f->get_timestamp(&tv, &warnings));

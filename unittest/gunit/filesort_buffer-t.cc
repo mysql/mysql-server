@@ -13,14 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines,
-// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
+// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
+#include <utility>
 
 #include "filesort_utils.h"
 #include "table.h"
-
 
 namespace {
 
@@ -30,6 +29,10 @@ protected:
   virtual void TearDown()
   {
     fs_info.free_sort_buffer();
+    std::pair<uint, uint> buffer_properties= fs_info.sort_buffer_properties();
+    EXPECT_EQ(0U, buffer_properties.first);
+    EXPECT_EQ(0U, buffer_properties.second);
+    EXPECT_TRUE(NULL == fs_info.get_sort_keys());
   }
 
   Filesort_info fs_info;
@@ -39,9 +42,18 @@ protected:
 TEST_F(FileSortBufferTest, FileSortBuffer)
 {
   const char letters[10]= "abcdefghi";
+  std::pair<uint, uint> buffer_properties= fs_info.sort_buffer_properties();
+  EXPECT_EQ(0U, buffer_properties.first);
+  EXPECT_EQ(0U, buffer_properties.second);
+
   uchar **sort_keys= fs_info.alloc_sort_buffer(10, sizeof(char));
+  buffer_properties= fs_info.sort_buffer_properties();
+  EXPECT_EQ(10U, buffer_properties.first);
+  EXPECT_EQ(sizeof(char), buffer_properties.second);
+
   uchar **null_sort_keys= NULL;
   EXPECT_NE(null_sort_keys, sort_keys);
+  EXPECT_NE(null_sort_keys, fs_info.get_sort_keys());
   for (uint ix= 0; ix < 10; ++ix)
   {
     uchar *ptr= fs_info.get_record_buffer(ix);

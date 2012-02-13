@@ -273,6 +273,12 @@ void table_tiws_by_index_usage::reset_position(void)
   m_next_pos.reset();
 }
 
+int table_tiws_by_index_usage::rnd_init(bool scan)
+{
+  m_normalizer= time_normalizer::get(wait_timer);
+  return 0;
+}
+
 int table_tiws_by_index_usage::rnd_next(void)
 {
   PFS_table_share *table_share;
@@ -346,9 +352,7 @@ void table_tiws_by_index_usage::make_row(PFS_table_share *share, uint index)
     return;
 
   m_row_exists= true;
-
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, & visitor.m_stat);
+  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
 }
 
 int table_tiws_by_index_usage::read_row_values(TABLE *table,

@@ -1057,7 +1057,7 @@ void Aggregator_distinct::endup()
   {
     /*
       We don't have a tree only if 'setup()' hasn't been called;
-      this is the case of sql_select.cc:return_zero_rows.
+      this is the case of sql_executor.cc:return_zero_rows.
     */
     if (tree)
       table->field[0]->set_notnull();

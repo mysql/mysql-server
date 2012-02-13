@@ -105,7 +105,7 @@ static struct my_option my_long_options[]=
   {"password", 'p',
    "Password to use when connecting to server. If password is not given,"
    " it's solicited on the tty.", &opt_password,&opt_password,
-   0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -220,6 +220,7 @@ static void add_one_option(DYNAMIC_STRING* ds,
     eq= "=";
     switch (opt->var_type & GET_TYPE_MASK) {
     case GET_STR:
+    case GET_PASSWORD:
       arg= argument;
       break;
     case GET_BOOL:
@@ -860,8 +861,10 @@ int main(int argc, char **argv)
       init_dynamic_string(&conn_args, "", 512, 256))
     die("Out of memory");
 
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my", load_default_groups, &argc, &argv))
     die(NULL);
+  my_getopt_use_args_separator= FALSE;
   defaults_argv= argv; /* Must be freed by 'free_defaults' */
 
   if (handle_options(&argc, &argv, my_long_options, get_one_option))

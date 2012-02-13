@@ -1509,7 +1509,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     length= my_snprintf(buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
-                        "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
+                        "Slow queries: %llu  Opens: %llu  Flush tables: %lu  "
                         "Open tables: %u  Queries per second avg: %u.%03u",
                         uptime,
                         (int) thread_count, (ulong) thd->query_id,
@@ -2603,14 +2603,13 @@ case SQLCOM_PREPARE:
     /* Might have been updated in create_table_precheck */
     create_info.alias= create_table->alias;
 
-#ifdef HAVE_READLINK
-    /* Fix names if symlinked tables */
+    /* Fix names if symlinked or relocated tables */
     if (append_file_to_dir(thd, &create_info.data_file_name,
 			   create_table->table_name) ||
 	append_file_to_dir(thd, &create_info.index_file_name,
 			   create_table->table_name))
       goto end_with_restore_list;
-#endif
+
     /*
       If no engine type was given, work out the default now
       rather than at parse-time.
@@ -3231,6 +3230,7 @@ end_with_restore_list:
       res= mysql_insert_select_prepare(thd);
       if (!res && (sel_result= new select_insert(first_table,
                                                  first_table->table,
+                                                 &lex->field_list,
                                                  &lex->field_list,
                                                  &lex->update_list,
                                                  &lex->value_list,
@@ -4205,6 +4205,13 @@ create_sp_error:
   case SQLCOM_CALL:
     {
       sp_head *sp;
+
+      /* Here we check for the execute privilege on stored procedure. */
+      if (check_routine_access(thd, EXECUTE_ACL, lex->spname->m_db.str,
+                               lex->spname->m_name.str,
+                               lex->sql_command == SQLCOM_CALL, 0))
+        goto error;
+
       /*
         This will cache all SP and SF and open and lock all tables
         required for execution.
@@ -5904,6 +5911,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
       query_cache_abort(&thd->query_cache_tls);
     }
     THD_STAGE_INFO(thd, stage_freeing_items);
+    sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
+    sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
     thd->end_statement();
     thd->cleanup_after_query();
     DBUG_ASSERT(thd->change_list.is_empty());
@@ -6018,14 +6027,15 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     /* 
       Default value should be literal => basic constants =>
       no need fix_fields()
-      
-      We allow only one function as part of default value - 
-      NOW() as default for TIMESTAMP type.
+
+      We allow only CURRENT_TIMESTAMP as function default for the TIMESTAMP or
+      DATETIME types.
     */
     if (default_value->type() == Item::FUNC_ITEM && 
-        !(((Item_func*)default_value)->functype() == Item_func::NOW_FUNC &&
-         real_type_with_now_as_default(type) &&
-         default_value->decimals == datetime_precision))
+        (static_cast<Item_func*>(default_value)->functype() !=
+         Item_func::NOW_FUNC ||
+         (!real_type_with_now_as_default(type)) ||
+         default_value->decimals != datetime_precision))
     {
       my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
       DBUG_RETURN(1);
@@ -6085,7 +6095,7 @@ add_proc_to_list(THD* thd, Item *item)
   item_ptr = (Item**) (order+1);
   *item_ptr= item;
   order->item=item_ptr;
-  order->free_me=0;
+  order->used_alias= false;
   thd->lex->proc_list.link_in_list(order, &order->next);
   return 0;
 }
@@ -6104,7 +6114,7 @@ bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *item,bool asc)
   order->item_ptr= item;
   order->item= &order->item_ptr;
   order->direction= (asc ? ORDER::ORDER_ASC : ORDER::ORDER_DESC);
-  order->free_me=0;
+  order->used_alias= false;
   order->used=0;
   order->counter_used= 0;
   list.link_in_list(order, &order->next);
@@ -6644,19 +6654,14 @@ push_new_name_resolution_context(THD *thd,
 
   @param b     the second operand of a JOIN ... ON
   @param expr  the condition to be added to the ON clause
-
-  @retval
-    FALSE  if there was some error
-  @retval
-    TRUE   if all is OK
 */
 
 void add_join_on(TABLE_LIST *b, Item *expr)
 {
   if (expr)
   {
-    if (!b->on_expr)
-      b->on_expr= expr;
+    if (!b->join_cond())
+      b->set_join_cond(expr);
     else
     {
       /*
@@ -6664,9 +6669,9 @@ void add_join_on(TABLE_LIST *b, Item *expr)
         right and left join. If called later, it happens if we add more
         than one condition to the ON clause.
       */
-      b->on_expr= new Item_cond_and(b->on_expr,expr);
+      b->set_join_cond(new Item_cond_and(b->join_cond(), expr));
     }
-    b->on_expr->top_level_item();
+    b->join_cond()->top_level_item();
   }
 }
 
@@ -6681,7 +6686,7 @@ void add_join_on(TABLE_LIST *b, Item *expr)
     setup_conds() creates a list of equal condition between all fields
     of the same name for NATURAL JOIN or the fields in 'using_fields'
     for JOIN ... USING. The list of equality conditions is stored
-    either in b->on_expr, or in JOIN::conds, depending on whether there
+    either in b->join_cond(), or in JOIN::conds, depending on whether there
     was an outer join.
 
   EXAMPLE

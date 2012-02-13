@@ -1227,7 +1227,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  OFFSET_SYM
 %token  OLD_PASSWORD
 %token  ON                            /* SQL-2003-R */
-%token  ONE_SHOT_SYM
 %token  ONE_SYM
 %token  OPEN_SYM                      /* SQL-2003-R */
 %token  OPTIMIZE
@@ -1504,7 +1503,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
         NCHAR_STRING opt_component key_cache_name
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
-        opt_constraint constraint opt_ident
+        opt_constraint constraint opt_ident TEXT_STRING_sys_nonewline
 
 %type <lex_str_ptr>
         opt_table_alias
@@ -1526,7 +1525,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
         start_transaction_opts
-        union_opt select_derived_init option_type2
+        union_opt select_derived_init
         opt_natural_language_mode opt_query_expansion
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
@@ -1661,7 +1660,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         ref_list opt_match_clause opt_on_update_delete use
         opt_delete_options opt_delete_option varchar nchar nvarchar
         opt_outer table_list table_name table_alias_ref_list table_alias_ref
-        opt_option opt_place
+        opt_place
         opt_attribute opt_attribute_list attribute column_list column_list_id
         opt_column_list grant_privileges grant_ident grant_list grant_option
         object_privilege object_privilege_list user_list rename_list
@@ -1983,19 +1982,19 @@ master_defs:
         ;
 
 master_def:
-          MASTER_HOST_SYM EQ TEXT_STRING_sys
+          MASTER_HOST_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.host = $3.str;
           }
-        | MASTER_BIND_SYM EQ TEXT_STRING_sys
+        | MASTER_BIND_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.bind_addr = $3.str;
           }
-        | MASTER_USER_SYM EQ TEXT_STRING_sys
+        | MASTER_USER_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.user = $3.str;
           }
-        | MASTER_PASSWORD_SYM EQ TEXT_STRING_sys
+        | MASTER_PASSWORD_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.password = $3.str;
           }
@@ -2027,23 +2026,23 @@ master_def:
             Lex->mi.ssl= $3 ? 
               LEX_MASTER_INFO::LEX_MI_ENABLE : LEX_MASTER_INFO::LEX_MI_DISABLE;
           }
-        | MASTER_SSL_CA_SYM EQ TEXT_STRING_sys
+        | MASTER_SSL_CA_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_ca= $3.str;
           }
-        | MASTER_SSL_CAPATH_SYM EQ TEXT_STRING_sys
+        | MASTER_SSL_CAPATH_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_capath= $3.str;
           }
-        | MASTER_SSL_CERT_SYM EQ TEXT_STRING_sys
+        | MASTER_SSL_CERT_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_cert= $3.str;
           }
-        | MASTER_SSL_CIPHER_SYM EQ TEXT_STRING_sys
+        | MASTER_SSL_CIPHER_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_cipher= $3.str;
           }
-        | MASTER_SSL_KEY_SYM EQ TEXT_STRING_sys
+        | MASTER_SSL_KEY_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_key= $3.str;
           }
@@ -2052,11 +2051,11 @@ master_def:
             Lex->mi.ssl_verify_server_cert= $3 ?
               LEX_MASTER_INFO::LEX_MI_ENABLE : LEX_MASTER_INFO::LEX_MI_DISABLE;
           }
-        | MASTER_SSL_CRL_SYM EQ TEXT_STRING_sys
+        | MASTER_SSL_CRL_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_crl= $3.str;
           }
-        | MASTER_SSL_CRLPATH_SYM EQ TEXT_STRING_sys
+        | MASTER_SSL_CRLPATH_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_crlpath= $3.str;
           }
@@ -2121,7 +2120,7 @@ ignore_server_id:
           }
 
 master_file_def:
-          MASTER_LOG_FILE_SYM EQ TEXT_STRING_sys
+          MASTER_LOG_FILE_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.log_file_name = $3.str;
           }
@@ -2141,7 +2140,7 @@ master_file_def:
             */
             Lex->mi.pos = max<ulonglong>(BIN_LOG_HEADER_SIZE, Lex->mi.pos);
           }
-        | RELAY_LOG_FILE_SYM EQ TEXT_STRING_sys
+        | RELAY_LOG_FILE_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.relay_log_name = $3.str;
           }
@@ -12815,6 +12814,19 @@ IDENT_sys:
           }
         ;
 
+TEXT_STRING_sys_nonewline:
+          TEXT_STRING_sys
+          {
+            if (!strcont($1.str, "\n"))
+              $$= $1;
+            else
+            {
+              my_error(ER_WRONG_VALUE, MYF(0), "argument contains not-allowed LF", $1.str);
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
 TEXT_STRING_sys:
           TEXT_STRING
           {
@@ -13307,7 +13319,7 @@ keyword_sp:
 /* Option functions */
 
 set:
-          SET opt_option
+          SET
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_SET_OPTION;
@@ -13319,11 +13331,6 @@ set:
           }
           option_value_list
           {}
-        ;
-
-opt_option:
-          /* empty */ {}
-        | OPTION {}
         ;
 
 option_value_list:
@@ -13359,7 +13366,15 @@ option_type_value:
               lex->var_list.empty();
               lex->one_shot_set= 0;
               lex->autocommit= 0;
-              lex->sphead->m_tmp_query= lip->get_tok_start();
+              /*
+                Extract the query statement from the tokenizer.  The
+                start is either lip->ptr, if there was no lookahead,
+                lip->tok_start otherwise.
+              */
+              if (yychar == YYEMPTY)
+                lex->sphead->m_tmp_query= lip->get_ptr();
+              else
+                lex->sphead->m_tmp_query= lip->get_tok_start();
             }
           }
           ext_option_value
@@ -13414,14 +13429,10 @@ option_type_value:
         ;
 
 option_type:
-          option_type2    {}
+          /* empty */ { $$= OPT_DEFAULT; }
         | GLOBAL_SYM  { $$=OPT_GLOBAL; }
         | LOCAL_SYM   { $$=OPT_SESSION; }
         | SESSION_SYM { $$=OPT_SESSION; }
-        ;
-
-option_type2:
-          /* empty */ { $$= OPT_DEFAULT; }
         ;
 
 opt_var_type:
@@ -13440,7 +13451,7 @@ opt_var_ident_type:
 
 ext_option_value:
           sys_option_value
-        | option_type2 option_value
+        | option_value
         ;
 
 sys_option_value:
@@ -13802,7 +13813,11 @@ table_lock:
 lock_option:
           READ_SYM               { $$= TL_READ_NO_INSERT; }
         | WRITE_SYM              { $$= TL_WRITE_DEFAULT; }
-        | LOW_PRIORITY WRITE_SYM { $$= TL_WRITE_LOW_PRIORITY; }
+        | LOW_PRIORITY WRITE_SYM 
+          { 
+            $$= TL_WRITE_LOW_PRIORITY; 
+            WARN_DEPRECATED(YYTHD, "LOW_PRIORITY WRITE", "WRITE");
+          }
         | READ_SYM LOCAL_SYM     { $$= TL_READ; }
         ;
 

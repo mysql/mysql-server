@@ -995,6 +995,47 @@ disconnect con2;
 DROP USER user2@localhost;
 DROP DATABASE db1;
 
+--echo #
+--echo # Test for bug#12602983 - User without privilege on routine can discover
+--echo # its existence by executing "select non_existing_func();" or by 
+--echo # "call non_existing_proc()";
+--echo #
+--disable_warnings
+drop database if exists mysqltest_db;
+--enable_warnings
+create database mysqltest_db;
+create function mysqltest_db.f1() returns int return 0;
+create procedure mysqltest_db.p1() begin end;
+
+--echo # Create user with no privileges on mysqltest_db database.
+create user bug12602983_user@localhost;
+
+--echo # Connect as user 'bug12602983_user@localhost'
+connect (conn1, localhost, bug12602983_user,,);
+
+--echo # Attempt to execute routine on which user doesn't have privileges
+--echo # should result in the same 'access denied' error whether
+--echo # routine exists or not.
+--error ER_PROCACCESS_DENIED_ERROR
+select mysqltest_db.f_does_not_exist();
+--error ER_PROCACCESS_DENIED_ERROR
+call mysqltest_db.p_does_not_exist();
+
+--error ER_PROCACCESS_DENIED_ERROR
+select mysqltest_db.f1();
+--error ER_PROCACCESS_DENIED_ERROR
+call mysqltest_db.p1();
+
+--error ER_PROCACCESS_DENIED_ERROR
+create view bug12602983_v1 as select mysqltest_db.f_does_not_exist();
+--error ER_PROCACCESS_DENIED_ERROR
+create view bug12602983_v1 as select mysqltest_db.f1();
+
+--echo # Connection 'default'.
+connection default;
+disconnect conn1;
+drop user bug12602983_user@localhost;
+drop database mysqltest_db;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

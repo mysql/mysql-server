@@ -268,7 +268,7 @@ int opt_sum_query(THD *thd,
     TABLE_LIST *embedded;
     for (embedded= tl ; embedded; embedded= embedded->embedding)
     {
-      if (embedded->on_expr)
+      if (embedded->join_cond())
         break;
     }
     if (embedded)

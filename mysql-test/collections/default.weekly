@@ -80,12 +80,12 @@ perl mysql-test-run.pl --timer --force --parallel=auto --comment=eits-rpl-binlog
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix-MTS --vardir=var-mts-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --unit-tests --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0
 
 # Run with 4K page size
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --unit-tests --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix_4k_size --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --unit-tests --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_ps_row_4k_size --vardir=var-main-ps_row --suite=main --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_embedded_4k_size --vardir=var-main_emebbed  --suite=main --embedded --experimental=collections/default.experimental --skip-ndb --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
 
 # Run with 8K page size
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --unit-tests --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix_8k_size --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --unit-tests --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_ps_row_8k_size --vardir=var-main-ps_row --suite=main --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_embedded_8k_size --vardir=var-main_emebbed  --suite=main --embedded --experimental=collections/default.experimental --skip-ndb --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
 

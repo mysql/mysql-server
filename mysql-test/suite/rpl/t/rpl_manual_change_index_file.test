@@ -61,12 +61,9 @@ call mtr.add_suppression('Got fatal error 1236 from master when reading data fro
 connection slave;
 # 1236 = ER_MASTER_FATAL_ERROR_READING_BINLOG
 --let $slave_io_errno= 1236
-#
-# Win and Unix path is printed differently: BUG#13055685. So
-# show_slave_io_error is made 0 until the bug fixes provide necessary
-# facilities
-#
---let $show_slave_io_error= 0
+--let $show_slave_io_error= 1
+# Mask line numbers
+--let $slave_io_error_replace= / at [0-9]*/ at XXX/
 --source include/wait_for_slave_io_error.inc
 
 connection master;
@@ -146,14 +143,9 @@ CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000001';
 START SLAVE IO_THREAD;
 --echo # Instead of EE_FILENOTFOUND, ER_MASTER_FATAL_ERROR_READING_BINLOG
 --echo # and the specific information are sent to slave.
-let $slave_io_errno= 1236;
-#
-# Win and Unix path is printed differently: BUG#13055685. So
-# show_slave_io_error is made 0 until the bug fixes provide necessary
-# facilities
-#
-let $show_slave_io_error= 0;
-source include/wait_for_slave_io_error.inc;
+--let $slave_io_errno= 1236
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
 
 connection master;
 --echo [ on master ]

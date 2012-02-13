@@ -5534,7 +5534,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       event_len += BINLOG_CHECKSUM_LEN;
       memcpy(rot_buf, buf, event_len - BINLOG_CHECKSUM_LEN);
       int4store(&rot_buf[EVENT_LEN_OFFSET],
-                uint4korr(&rot_buf[EVENT_LEN_OFFSET]) + BINLOG_CHECKSUM_LEN);
+                uint4korr(rot_buf + EVENT_LEN_OFFSET) + BINLOG_CHECKSUM_LEN);
       rot_crc= my_checksum(rot_crc, (const uchar *) rot_buf,
                            event_len - BINLOG_CHECKSUM_LEN);
       int4store(&rot_buf[event_len - BINLOG_CHECKSUM_LEN], rot_crc);
@@ -5557,7 +5557,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         event_len -= BINLOG_CHECKSUM_LEN;
         memcpy(rot_buf, buf, event_len);
         int4store(&rot_buf[EVENT_LEN_OFFSET],
-                  uint4korr(&rot_buf[EVENT_LEN_OFFSET]) - BINLOG_CHECKSUM_LEN);
+                  uint4korr(rot_buf + EVENT_LEN_OFFSET) - BINLOG_CHECKSUM_LEN);
         DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
         DBUG_ASSERT(mi->rli->relay_log.description_event_for_queue->checksum_alg ==
                     mi->rli->relay_log.relay_log_checksum_alg);
@@ -7454,10 +7454,10 @@ bool change_master(THD* thd, Master_info* mi)
   mi->rli->clear_until_condition();
 
   sql_print_information("'CHANGE MASTER TO executed'. "
-    "Previous state master_host='%s', master_port='%u', master_log_file='%s', "
-    "master_log_pos='%ld', master_bind='%s'. "
-    "New state master_host='%s', master_port='%u', master_log_file='%s', "
-    "master_log_pos='%ld', master_bind='%s'.", 
+    "Previous state master_host='%s', master_port= %u, master_log_file='%s', "
+    "master_log_pos= %ld, master_bind='%s'. "
+    "New state master_host='%s', master_port= %u, master_log_file='%s', "
+    "master_log_pos= %ld, master_bind='%s'.", 
     saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
     saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
     (ulong) mi->get_master_log_pos(), mi->bind_addr);

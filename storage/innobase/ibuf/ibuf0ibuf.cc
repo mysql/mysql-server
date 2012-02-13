@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2415,7 +2415,16 @@ ibuf_get_merge_page_nos_func(
 		} else {
 			rec_page_no = ibuf_rec_get_page_no(mtr, rec);
 			rec_space_id = ibuf_rec_get_space(mtr, rec);
-			ut_ad(rec_page_no > IBUF_TREE_ROOT_PAGE_NO);
+			/* In the system tablespace, the smallest
+			possible secondary index leaf page number is
+			bigger than IBUF_TREE_ROOT_PAGE_NO (4). In
+			other tablespaces, the clustered index tree is
+			created at page 3, which makes page 4 the
+			smallest possible secondary index leaf page
+			(and that only after DROP INDEX). */
+			ut_ad(rec_page_no
+			      > (ulint) IBUF_TREE_ROOT_PAGE_NO
+			      - (rec_space_id != 0));
 		}
 
 #ifdef UNIV_IBUF_DEBUG
@@ -3745,6 +3754,7 @@ ibuf_insert_to_index_page_low(
 
 	fputs("InnoDB: Submit a detailed bug report"
 	      " to http://bugs.mysql.com\n", stderr);
+	ut_ad(0);
 }
 
 /************************************************************************
@@ -3795,9 +3805,10 @@ ibuf_insert_to_index_page(
 		      "InnoDB: but the number of fields does not match!\n",
 		      stderr);
 dump:
-		buf_page_print(page, 0);
+		buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
 		dtuple_print(stderr, entry);
+		ut_ad(0);
 
 		fputs("InnoDB: The table where where"
 		      " this index record belongs\n"
@@ -3938,6 +3949,11 @@ ibuf_set_del_mark(
 							  TRUE, mtr);
 		}
 	} else {
+		const page_t*		page
+			= page_cur_get_page(&page_cur);
+		const buf_block_t*	block
+			= page_cur_get_block(&page_cur);
+
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: unable to find a record to delete-mark\n",
 		      stderr);
@@ -3946,10 +3962,14 @@ ibuf_set_del_mark(
 		fputs("\n"
 		      "InnoDB: record ", stderr);
 		rec_print(stderr, page_cur_get_rec(&page_cur), index);
-		putc('\n', stderr);
-		fputs("\n"
-		      "InnoDB: Submit a detailed bug report"
-		      " to http://bugs.mysql.com\n", stderr);
+		fprintf(stderr, "\nspace %u offset %u"
+			" (%u records, index id %llu)\n"
+			"InnoDB: Submit a detailed bug report"
+			" to http://bugs.mysql.com\n",
+			(unsigned) buf_block_get_space(block),
+			(unsigned) buf_block_get_page_no(block),
+			(unsigned) page_get_n_recs(page),
+			(ulonglong) btr_page_get_index_id(page));
 		ut_ad(0);
 	}
 }
@@ -3993,12 +4013,31 @@ ibuf_delete(
 		offsets = rec_get_offsets(
 			rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-		/* Refuse to delete the last record. */
-		ut_a(page_get_n_recs(page) > 1);
+		if (page_get_n_recs(page) <= 1
+		    || !(REC_INFO_DELETED_FLAG
+			 & rec_get_info_bits(rec, page_is_comp(page)))) {
+			/* Refuse to purge the last record or a
+			record that has not been marked for deletion. */
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: unable to purge a record\n",
+			      stderr);
+			fputs("InnoDB: tuple ", stderr);
+			dtuple_print(stderr, entry);
+			fputs("\n"
+			      "InnoDB: record ", stderr);
+			rec_print_new(stderr, rec, offsets);
+			fprintf(stderr, "\nspace %u offset %u"
+				" (%u records, index id %llu)\n"
+				"InnoDB: Submit a detailed bug report"
+				" to http://bugs.mysql.com\n",
+				(unsigned) buf_block_get_space(block),
+				(unsigned) buf_block_get_page_no(block),
+				(unsigned) page_get_n_recs(page),
+				(ulonglong) btr_page_get_index_id(page));
 
-		/* The record should have been marked for deletion. */
-		ut_ad(REC_INFO_DELETED_FLAG
-		      & rec_get_info_bits(rec, page_is_comp(page)));
+			ut_ad(0);
+			return;
+		}
 
 		lock_update_delete(block, rec);
 
@@ -4084,6 +4123,7 @@ ibuf_restore_pos(
 
 		fprintf(stderr, "InnoDB: ibuf tree ok\n");
 		fflush(stderr);
+		ut_ad(0);
 	}
 
 	return(FALSE);
@@ -4335,12 +4375,14 @@ ibuf_merge_or_delete_for_page(
 
 			bitmap_page = ibuf_bitmap_get_map_page(space, page_no,
 							       zip_size, &mtr);
-			buf_page_print(bitmap_page, 0);
+			buf_page_print(bitmap_page, 0,
+				       BUF_PAGE_PRINT_NO_CRASH);
 			ibuf_mtr_commit(&mtr);
 
 			fputs("\nInnoDB: Dump of the page:\n", stderr);
 
-			buf_page_print(block->frame, 0);
+			buf_page_print(block->frame, 0,
+				       BUF_PAGE_PRINT_NO_CRASH);
 
 			fprintf(stderr,
 				"InnoDB: Error: corruption in the tablespace."
@@ -4360,6 +4402,7 @@ ibuf_merge_or_delete_for_page(
 				(ulong) page_no,
 				(ulong)
 				fil_page_get_type(block->frame));
+			ut_ad(0);
 		}
 	}
 

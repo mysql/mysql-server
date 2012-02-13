@@ -539,7 +539,7 @@ WHERE t2.i1 > 5
 AND t2.pk IS  NULL
 ORDER BY i1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	1	Using filesort
+1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	1	
 1	SIMPLE	t2	const	PRIMARY,k1	PRIMARY	4	const	1	Using where
 SELECT i1
 FROM t1 LEFT JOIN t2 ON t1.pk = t2.i2
@@ -567,7 +567,7 @@ FROM t1 RIGHT OUTER JOIN t2 ON t1.c1 = t2.c1
 WHERE t1.pk > 176;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using where
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using where
 SELECT STRAIGHT_JOIN t1.c1
 FROM t1 RIGHT OUTER JOIN t2 ON t1.c1 = t2.c1
 WHERE t1.pk > 176;
