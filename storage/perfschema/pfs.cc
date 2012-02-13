@@ -4273,6 +4273,11 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
   state->m_no_index_used= 0;
   state->m_no_good_index_used= 0;
 
+  state->m_digest_state.m_last_id_index= 0;
+  state->m_digest_state.m_digest_storage.m_byte_count= 0;
+  state->m_digest_state.m_digest_storage.m_token_array[0]= '\0';
+  state->m_digest_state.m_digest_storage.m_full= false;
+
   return reinterpret_cast<PSI_statement_locker*> (state);
 }
 
