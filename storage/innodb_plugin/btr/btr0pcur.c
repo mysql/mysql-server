@@ -266,8 +266,10 @@ btr_pcur_restore_position_func(
 					file, line, mtr))) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
-			buf_block_dbg_add_level(btr_pcur_get_block(cursor),
-						SYNC_TREE_NODE);
+			buf_block_dbg_add_level(
+				btr_pcur_get_block(cursor),
+				dict_index_is_ibuf(index)
+				? SYNC_IBUF_TREE_NODE : SYNC_TREE_NODE);
 
 			if (cursor->rel_pos == BTR_PCUR_ON) {
 #ifdef UNIV_DEBUG
@@ -390,7 +392,8 @@ btr_pcur_move_to_next_page(
 	ut_ad(next_page_no != FIL_NULL);
 
 	next_block = btr_block_get(space, zip_size, next_page_no,
-				   cursor->latch_mode, mtr);
+				   cursor->latch_mode,
+				   btr_pcur_get_btr_cur(cursor)->index, mtr);
 	next_page = buf_block_get_frame(next_block);
 #ifdef UNIV_BTR_DEBUG
 	ut_a(page_is_comp(next_page) == page_is_comp(page));

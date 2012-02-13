@@ -74,7 +74,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   uchar        *keybuff=aio->keybuff;
   MI_KEYDEF    *keyinfo=info->s->keyinfo+aio->keynr;
   my_off_t     key_root=info->s->state.key_root[aio->keynr];
-  uint         extra=HA_FT_WLEN+info->s->base.rec_reflength;
+  uint         extra= HA_FT_WLEN + info->s->rec_reflength;
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
   float tmp_weight;
 #else

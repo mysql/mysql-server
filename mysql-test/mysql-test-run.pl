@@ -2006,6 +2006,24 @@ sub environment_setup {
     $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".$plugin_filename;
   }
 
+  # --------------------------------------------------------------------------
+  # Add the path where mysqld will find ha_federated.so
+  # --------------------------------------------------------------------------
+  my $fedplug_filename;
+  if (IS_WINDOWS) {
+    $fedplug_filename = "ha_federated.dll";
+  } else {
+    $fedplug_filename = "ha_federated.so";
+  }
+  my $lib_fed_plugin=
+    mtr_file_exists(vs_config_dirs('storage/federated',$fedplug_filename),
+		    "$basedir/storage/federated/.libs/".$fedplug_filename,
+		    "$basedir/lib/mysql/plugin/".$fedplug_filename);
+
+  $ENV{'FEDERATED_PLUGIN'}= $fedplug_filename;
+  $ENV{'FEDERATED_PLUGIN_DIR'}=
+    ($lib_fed_plugin ? dirname($lib_fed_plugin) : "");
+
   # ----------------------------------------------------
   # Add the path where mysqld will find mypluglib.so
   # ----------------------------------------------------
@@ -2143,6 +2161,12 @@ sub environment_setup {
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  mysql_fix_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
+
+  my $exe_mysqld= find_mysqld($basedir);
+  $ENV{'MYSQLD'}= $exe_mysqld;
+  my $extra_opts= join (" ", @opt_extra_mysqld_opt);
+  $ENV{'MYSQLD_CMD'}= "$exe_mysqld --defaults-group-suffix=.1 ".
+    "--defaults-file=$path_config_file $extra_opts";
 
   # ----------------------------------------------------
   # bug25714 executable may _not_ exist in
@@ -3912,6 +3936,11 @@ sub extract_server_log ($$) {
       else
       {
 	push(@lines, $line);
+	if (scalar(@lines) > 1000000) {
+	  $Ferr = undef;
+	  mtr_warning("Too much log from test, bailing out from extracting");
+	  return ();
+	}
       }
     }
     else

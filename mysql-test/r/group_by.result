@@ -1891,4 +1891,36 @@ a	AVG(t1.b)	t11c	t12c
 1	4.0000	6	6
 2	2.0000	7	7
 DROP TABLE t1;
+#
+# Bug#11765254 (58200): Assertion failed: param.sort_length when grouping
+# by functions
+#
+SET SQL_BIG_TABLES=1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0),(0);
+SELECT 1 FROM t1 GROUP BY IF(`a`,'','');
+1
+1
+SELECT 1 FROM t1 GROUP BY TRIM(LEADING RAND() FROM '');
+1
+1
+SELECT 1 FROM t1 GROUP BY SUBSTRING('',SLEEP(0),'');
+1
+1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT 1 FROM t1 GROUP BY SUBSTRING(SYSDATE() FROM 'K' FOR 'jxW<');
+1
+1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'K'
+Warning	1292	Truncated incorrect INTEGER value: 'jxW<'
+Warning	1292	Truncated incorrect INTEGER value: 'K'
+Warning	1292	Truncated incorrect INTEGER value: 'jxW<'
+Warning	1292	Truncated incorrect INTEGER value: 'K'
+Warning	1292	Truncated incorrect INTEGER value: 'jxW<'
+DROP TABLE t1;
+SET SQL_BIG_TABLES=0;
 # End of 5.1 tests

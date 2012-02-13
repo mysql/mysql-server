@@ -1283,5 +1283,19 @@ FROM t1 GROUP BY a;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#11765254 (58200): Assertion failed: param.sort_length when grouping
+--echo # by functions
+--echo #
+
+SET SQL_BIG_TABLES=1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0),(0);
+SELECT 1 FROM t1 GROUP BY IF(`a`,'','');
+SELECT 1 FROM t1 GROUP BY TRIM(LEADING RAND() FROM '');
+SELECT 1 FROM t1 GROUP BY SUBSTRING('',SLEEP(0),'');
+SELECT 1 FROM t1 GROUP BY SUBSTRING(SYSDATE() FROM 'K' FOR 'jxW<');
+DROP TABLE t1;
+SET SQL_BIG_TABLES=0;
 
 --echo # End of 5.1 tests

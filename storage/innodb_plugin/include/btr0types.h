@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,7 @@ Created 2/17/1996 Heikki Tuuri
 
 #include "rem0types.h"
 #include "page0types.h"
+#include "sync0rw.h"
 
 /** Persistent cursor */
 typedef struct btr_pcur_struct		btr_pcur_t;
@@ -37,6 +38,28 @@ typedef struct btr_pcur_struct		btr_pcur_t;
 typedef struct btr_cur_struct		btr_cur_t;
 /** B-tree search information for the adaptive hash index */
 typedef struct btr_search_struct	btr_search_t;
+
+/** @brief The latch protecting the adaptive search system
+
+This latch protects the
+(1) hash index;
+(2) columns of a record to which we have a pointer in the hash index;
+
+but does NOT protect:
+
+(3) next record offset field in a record;
+(4) next or previous records on the same page.
+
+Bear in mind (3) and (4) when using the hash index.
+*/
+extern rw_lock_t*	btr_search_latch_temp;
+
+/** The latch protecting the adaptive search system */
+#define btr_search_latch	(*btr_search_latch_temp)
+
+/** Flag: has the search system been enabled?
+Protected by btr_search_latch. */
+extern char	btr_search_enabled;
 
 #ifdef UNIV_BLOB_DEBUG
 # include "buf0types.h"
