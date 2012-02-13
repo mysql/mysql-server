@@ -5854,19 +5854,19 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
 	*(ptr++)= table->table;
     }
 
+    /*
+    DML statements that modify a table with an auto_increment column based on
+    rows selected from a table are unsafe as the order in which the rows are
+    fetched fron the select tables cannot be determined and may differ on
+    master and slave.
+    */
+    if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables &&
+        has_write_table_with_auto_increment_and_select(tables))
+      thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT);
+
     /* We have to emulate LOCK TABLES if we are statement needs prelocking. */
     if (thd->lex->requires_prelocking())
     {
-
-    /*
-      DML statements that modify a table with an auto_increment column based on
-      rows selected from a table are unsafe as the order in which the rows are
-      fetched fron the select tables cannot be determined and may differ on
-      master and slave.
-    */
-      if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables &&
-          has_write_table_with_auto_increment_and_select(tables))
-        thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT);
 
       /*
         A query that modifies autoinc column in sub-statement can make the 
@@ -9362,7 +9362,7 @@ has_write_table_with_auto_increment(TABLE_LIST *tables)
 }
 
 /*
-   checks if the tables have select tables in the table list and write tables
+   checks if we have select tables in the table list and write tables
    with auto-increment column.
 
   SYNOPSIS
