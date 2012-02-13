@@ -123,3 +123,16 @@ CREATE TABLE t2 SELECT 1 FROM t1, t1 t3 GROUP BY t3.a PROCEDURE ANALYSE();
 ERROR HY000: Incorrect usage of PROCEDURE and non-SELECT
 DROP TABLE t1;
 End of 5.0 tests
+#
+# Bug#11765202: Dbug_violation_helper::~Dbug_violation_helper(): Assertion `!_entered' failed.
+#
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE t1 (a VARCHAR(2) CHARSET UTF8 NOT NULL);
+INSERT INTO t1 VALUES ('e'),('e'),('e-');
+SELECT * FROM t1 PROCEDURE ANALYSE();
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+test.t1.a	e	e-	1	2	0	0	1.3333	NULL	ENUM('e','e-') NOT NULL
+DROP TABLE t1;
+End of 5.1 tests

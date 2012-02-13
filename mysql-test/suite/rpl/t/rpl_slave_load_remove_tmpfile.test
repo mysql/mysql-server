@@ -49,5 +49,6 @@ RESET SLAVE;
 drop table t1;
 
 call mtr.add_suppression("Slave: Error writing file 'UNKNOWN' .Errcode: 9. Error_code: 3");
+call mtr.add_suppression("Slave SQL.*Error in Begin_load_query event: write to.* failed, Error_code: 9");
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

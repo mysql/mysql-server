@@ -19,6 +19,7 @@
 
 #include "fulltext.h"
 #include "rt_index.h"
+#include "my_compare.h"
 
 #define MAX_POINTER_LENGTH 8
 

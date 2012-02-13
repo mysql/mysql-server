@@ -1,1 +1,1 @@
---max_allowed_packet=8K
+--max_allowed_packet=8K --net-buffer-length=8K
