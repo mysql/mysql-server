@@ -12772,3 +12772,22 @@ a	b	c	d	e	f
 -1	b	c	d	e	1
 DROP TABLE t1;
 SET sort_buffer_size=DEFAULT;
+#
+# BUG#11758979 - 51252: ARCHIVE TABLES CAUSE 100% CPU USAGE
+#                       AND HANG IN SHOW TABLE STATUS
+# (to be executed with valgrind)
+CREATE TABLE t1(a BLOB, b VARCHAR(200)) ENGINE=ARCHIVE;
+INSERT INTO t1 VALUES(NULL, '');
+FLUSH TABLE t1;
+# we need this select to workaround BUG#11764364
+SELECT * FROM t1;
+a	b
+NULL	
+CHECKSUM TABLE t1 EXTENDED;
+Table	Checksum
+test.t1	286155052
+FLUSH TABLE t1;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+DROP TABLE t1;
