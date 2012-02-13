@@ -996,7 +996,8 @@ field4,field5,field6	{
                     "select#": 6,
                     "from": "IN (SELECT)",
                     "to": "materialization",
-                    "chosen": false
+                    "chosen": false,
+                    "cause": "correlated"
                   } /* transformation */
                 },
                 {

@@ -17027,6 +17027,9 @@ INSERT INTO t1 VALUES
 (SEC_TO_TIME(46),'20030628121312.000376','20020323065409.039577'),            
 (SEC_TO_TIME(48),'20071219173306.048009',NULL),            
 (SEC_TO_TIME(50),'0000-00-00',NULL);
+Warnings:
+Note	1265	Data truncated for column 'c_time' at row 2
+Note	1265	Data truncated for column 'c_time' at row 3
 SELECT c_time FROM t1;
 c_time
 00:00:00

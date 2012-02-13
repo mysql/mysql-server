@@ -199,7 +199,7 @@ have been locked exclusively by the caller, because the transaction
 will not be committed.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+db_err
 row_merge_rename_tables(
 /*====================*/
 	dict_table_t*	old_table,	/*!< in/out: old table, renamed to
@@ -228,7 +228,7 @@ dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
 @return	DB_SUCCESS if all OK */
 UNIV_INTERN
-ulint
+db_err
 row_merge_rename_index_to_add(
 /*==========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
@@ -241,7 +241,7 @@ dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
 @return	DB_SUCCESS if all OK */
 UNIV_INTERN
-ulint
+db_err
 row_merge_rename_index_to_drop(
 /*===========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
@@ -273,7 +273,7 @@ If there are views that refer to the old table name then we "attach" to
 the new instance of the table else we drop it immediately.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+db_err
 row_merge_drop_table(
 /*=================*/
 	trx_t*		trx,		/*!< in: transaction */
@@ -284,7 +284,7 @@ creating a temporary file containing index entries, merge sorting
 these index entries and inserting sorted index entries to indexes.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+db_err
 row_merge_build_indexes(
 /*====================*/
 	trx_t*		trx,		/*!< in: transaction */
@@ -353,7 +353,7 @@ row_merge_file_create(
 Merge disk files.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+db_err
 row_merge_sort(
 /*===========*/
 	trx_t*			trx,	/*!< in: transaction */

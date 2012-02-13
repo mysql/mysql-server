@@ -6619,6 +6619,12 @@ ER_SQLTHREAD_WITH_SECURE_SLAVE
 ER_TABLE_HAS_NO_FT
   eng "The table does not have FULLTEXT index to support this query"
 
+ER_BINLOG_UNSAFE_WRITE_AUTOINC_SELECT
+  eng "Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC
+  eng "CREATE TABLE... SELECT...  on a table with an auto-increment column is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are inserted. This order cannot be predicted and may differ on master and the slave."
+
 ER_INNODB_FT_LIMIT
   eng "InnoDB presently supports one FULLTEXT index creation at a time"
 
