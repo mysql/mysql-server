@@ -783,7 +783,8 @@ bool JOIN::prepare_result(List<Item> **columns_list)
 
   error= 0;
   /* Create result tables for materialized views. */
-  if (select_lex->handle_derived(thd->lex, &mysql_derived_create))
+  if (!zero_result_cause &&
+      select_lex->handle_derived(thd->lex, &mysql_derived_create))
     goto err;
 
   (void) result->prepare2(); // Currently, this cannot fail.
