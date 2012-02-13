@@ -14,6 +14,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "my_compare.h"   /* for clr_rec_bits */
+
 /*
   Because of the function new_field() all field classes that have static
   variables must declare the size_of() member function.

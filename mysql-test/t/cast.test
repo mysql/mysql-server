@@ -282,5 +282,19 @@ SELECT 1 FROM
 ) AS s LIMIT 1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #11765023: 57934: DOS POSSIBLE SINCE BINARY CASTING 
+--echo #   DOESN'T ADHERE TO MAX_ALLOWED_PACKET
+
+SET @@GLOBAL.max_allowed_packet=2048;
+# reconnect to make the new max packet size take effect
+--connect (newconn, localhost, root,,)
+
+SELECT CONVERT('a', BINARY(2049));  
+SELECT CONVERT('a', CHAR(2049));  
+
+connection default;
+disconnect newconn;
+SET @@GLOBAL.max_allowed_packet=default;
 
 --echo End of 5.1 tests

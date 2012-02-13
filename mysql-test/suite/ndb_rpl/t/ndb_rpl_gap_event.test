@@ -2,6 +2,8 @@
 --source include/have_binlog_format_mixed_or_row.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 
+call mtr.add_suppression("Slave SQL: The incident LOST_EVENTS occured on the master. Message: mysqld startup, Error_code: 1590");
+
 --connection master
 create table t1(pk int not null primary key, i int) engine = ndb;
 

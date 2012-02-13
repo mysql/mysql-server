@@ -1,6 +1,8 @@
 -- source include/not_embedded.inc
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
 
 # Binary must be compiled with debug for crash to occur
 --source include/have_debug.inc
