@@ -1746,13 +1746,6 @@ public:
   */
   ha_rows    examined_row_count;
 
-  /*
-    The set of those tables whose fields are referenced in all subqueries
-    of the query.
-    TODO: possibly this it is incorrect to have used tables in THD because
-    with more than one subquery, it is not clear what does the field mean.
-  */
-  table_map  used_tables;
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;
   /*

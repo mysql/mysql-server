@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -36,6 +36,9 @@ Created 10/16/1994 Heikki Tuuri
 #define BTR_NO_LOCKING_FLAG	2	/* do no record lock checking */
 #define BTR_KEEP_SYS_FLAG	4	/* sys fields will be found from the
 					update vector or inserted entry */
+#define BTR_KEEP_POS_FLAG	8	/* btr_cur_pessimistic_update()
+					must keep cursor position when
+					moving columns to big_rec */
 
 #ifndef UNIV_HOTBACKUP
 #include "que0types.h"
@@ -309,7 +312,9 @@ btr_cur_pessimistic_update(
 /*=======================*/
 	ulint		flags,	/*!< in: undo logging, locking, and rollback
 				flags */
-	btr_cur_t*	cursor,	/*!< in: cursor on the record to update */
+	btr_cur_t*	cursor,	/*!< in/out: cursor on the record to update;
+				cursor may become invalid if *big_rec == NULL
+				|| !(flags & BTR_KEEP_POS_FLAG) */
 	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	big_rec_t**	big_rec,/*!< out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
@@ -321,6 +326,16 @@ btr_cur_pessimistic_update(
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr);	/*!< in: mtr; must be committed before
 				latching any further pages */
+/*****************************************************************
+Commits and restarts a mini-transaction so that it will retain an
+x-lock on index->lock and the cursor page. */
+UNIV_INTERN
+void
+btr_cur_mtr_commit_and_start(
+/*=========================*/
+	btr_cur_t*	cursor,	/*!< in: cursor */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 /***********************************************************//**
 Marks a clustered index record deleted. Writes an undo log record to
 undo log on this delete marking. Writes in the trx id field the id
@@ -376,10 +391,13 @@ UNIV_INTERN
 ibool
 btr_cur_compress_if_useful(
 /*=======================*/
-	btr_cur_t*	cursor,	/*!< in: cursor on the page to compress;
+	btr_cur_t*	cursor,	/*!< in/out: cursor on the page to compress;
 				cursor does not stay valid if compression
 				occurs */
-	mtr_t*		mtr);	/*!< in: mtr */
+	ibool		adjust,	/*!< in: TRUE if should adjust the
+				cursor position even if compression occurs */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 /*******************************************************//**
 Removes the record on which the tree cursor is positioned. It is assumed
 that the mtr has an x-latch on the page where the cursor is positioned,

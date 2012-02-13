@@ -257,6 +257,27 @@ trx_get_on_id(
 	return(NULL);
 }
 
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+/********************************************************
+Assert that a transaction is active. */
+UNIV_INLINE
+ibool
+trx_assert_active(
+/*==============*/
+				/* out: TRUE */
+	dulint	trx_id)		/* in: transaction identifier */
+{
+	trx_t*	trx;
+
+	mutex_enter(&kernel_mutex);
+	trx = trx_get_on_id(trx_id);
+	ut_a(trx);
+	mutex_exit(&kernel_mutex);
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+
 /********************************************************************
 Returns the minumum trx id in trx list. This is the smallest id for which
 the trx can possibly be active. (But, you must look at the trx->conc_state to

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2646,7 +2646,7 @@ String *Item_time_typecast::val_str(String *str)
 
 bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
-  bool res= get_arg0_date(ltime, TIME_FUZZY_DATE);
+  bool res= get_arg0_date(ltime, fuzzy_date);
   ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return res;

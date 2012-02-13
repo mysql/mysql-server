@@ -14,6 +14,7 @@ main.query_cache_28249                   # Bug#12584161 2009-03-25 main.query_ca
 
 
 rpl.rpl_innodb_bug28430   @solaris       # Bug#11754425
+rpl.rpl_insert                           # Sven: BUG#12764817
 rpl.rpl_row_sp011         @solaris       # Joro : Bug #11753919
 rpl.rpl_stop_slave                       # Sven : BUG#12345981
 

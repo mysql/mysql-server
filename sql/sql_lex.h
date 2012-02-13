@@ -1849,6 +1849,16 @@ typedef struct st_lex : public Query_tables_list
   uint create_select_pos;
   bool create_select_in_comment;
 
+  /*
+    The set of those tables whose fields are referenced in all subqueries
+    of the query.
+    TODO: possibly this it is incorrect to have used tables in LEX because
+    with subquery, it is not clear what does the field mean. To fix this
+    we should aggregate used tables information for selected expressions
+    into the select_lex.
+  */
+  table_map  used_tables;
+
   st_lex();
 
   virtual ~st_lex()

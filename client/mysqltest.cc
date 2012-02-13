@@ -22,13 +22,6 @@
   http://dev.mysql.com/doc/mysqltest/en/index.html
 
   Please keep the test framework tools identical in all versions!
-
-  Written by:
-  Sasha Pachev <sasha@mysql.com>
-  Matt Wagner  <matt@mysql.com>
-  Monty
-  Jani
-  Holyfoot
 */
 
 #define MTEST_VERSION "3.3"
@@ -50,6 +43,8 @@
 #endif
 #include <signal.h>
 #include <my_stacktrace.h>
+
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #ifdef __WIN__
 #include <crtdbg.h>
@@ -6202,8 +6197,7 @@ void print_version(void)
 void usage()
 {
   print_version();
-  printf("MySQL AB, by Sasha, Matt, Monty & Jani\n");
-  printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
   printf("Runs a test against the mysql server and compares output with a results file.\n\n");
   printf("Usage: %s [OPTIONS] [database] < test_file\n", my_progname);
   my_print_help(my_long_options);
