@@ -946,6 +946,24 @@ buf_pool_free(void)
 {
 	buf_chunk_t*	chunk;
 	buf_chunk_t*	chunks;
+	buf_page_t*	bpage;
+
+	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	while (bpage != NULL) {
+		buf_page_t*	prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
+		enum buf_page_state	state = buf_page_get_state(bpage);
+
+		ut_ad(buf_page_in_file(bpage));
+		ut_ad(bpage->in_LRU_list);
+
+		if (state != BUF_BLOCK_FILE_PAGE) {
+			/* We must not have any dirty block. */
+			ut_ad(state == BUF_BLOCK_ZIP_PAGE);
+			buf_page_free_descriptor(bpage);
+		}
+
+		bpage = prev_bpage;
+	}
 
 	chunks = buf_pool->chunks;
 	chunk = chunks + buf_pool->n_chunks;
