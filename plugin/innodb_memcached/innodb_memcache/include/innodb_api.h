@@ -33,12 +33,12 @@ Created 03/15/2011      Jimmy Yang
 /** Macros to lock/unlock the engine connection mutex */
 #define LOCK_CONN_IF_NOT_LOCKED(has_lock, engine)	\
 	if (!(has_lock)) {				\
-		pthread_mutex_lock(&engine->conn_mutex);\
+		pthread_mutex_lock(&(engine)->conn_mutex);\
 	}
 
 #define UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine)	\
 	if (!(has_lock)) {				\
-		pthread_mutex_unlock(&engine->conn_mutex);\
+		pthread_mutex_unlock(&(engine)->conn_mutex);\
 	}
 
 /** We would need to fetch 5 column values from each key value rows if they
@@ -59,7 +59,7 @@ type or integer type (see above "enum mci_col" for columns
 supporting memcached) */
 typedef struct mci_column {
 	char*		m_str;		/*!< char value of the column */
-	int		m_len;		/*!< char value length */
+	int		m_len;		/*!< char value length in bytes */
 	uint64_t	m_digit;	/*!< integer value */
 	bool		m_is_str;	/*!< whether the value is char or int */
 	bool		m_enabled;	/*!< valid column value */
@@ -98,11 +98,12 @@ Open a table and return a cursor for the table. */
 ib_err_t
 innodb_api_begin(
 /*=============*/
-	innodb_engine_t*engine,		/*!< in: InnoDB Memcached engine */
+	innodb_engine_t*
+			engine,		/*!< in: InnoDB Memcached engine */
 	const char*	dbname,		/*!< in: database name */
 	const char*	name,		/*!< in: table name */
-	innodb_conn_data_t* conn_data,
-					/*!< in: connnection specific data */
+	innodb_conn_data_t* conn_data,	/*!< in/out: connnection specific
+					data */
 	ib_trx_t	ib_trx,		/*!< in: transaction */
 	ib_crsr_t*	crsr,		/*!< out: innodb cursor */
 	ib_crsr_t*	idx_crsr,	/*!< out: innodb index cursor */
@@ -115,7 +116,7 @@ ib_err_t
 innodb_api_search(
 /*==============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
-	innodb_conn_data_t*	cursor_data,/*!< in: cursor info */
+	innodb_conn_data_t*	cursor_data,/*!< in/out: cursor info */
 	ib_crsr_t*		crsr,	/*!< in/out: cursor used to seacrh */
 	const char*		key,	/*!< in: key to search */
 	int			len,	/*!< in: key length */
@@ -130,7 +131,7 @@ ib_err_t
 innodb_api_insert(
 /*==============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
-	innodb_conn_data_t*	cursor_data,/*!< in: cursor info */
+	innodb_conn_data_t*	cursor_data,/*!< in/out: cursor info */
 	const char*		key,	/*!< in: value to insert */
 	int			len,	/*!< in: value length */
 	uint32_t		val_len,/*!< in: value length */
@@ -145,7 +146,7 @@ ENGINE_ERROR_CODE
 innodb_api_delete(
 /*==============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
-	innodb_conn_data_t*	cursor_data,/*!< in: cursor info */
+	innodb_conn_data_t*	cursor_data,/*!< in/out: cursor info */
 	const char*		key,	/*!< in: value to insert */
 	int			len);	/*!< in: value length */
 
@@ -156,7 +157,7 @@ ENGINE_ERROR_CODE
 innodb_api_arithmetic(
 /*==================*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
-	innodb_conn_data_t*	cursor_data,/*!< in: cursor info */
+	innodb_conn_data_t*	cursor_data,/*!< in/out: cursor info */
 	const char*		key,	/*!< in: key values */
 	int			len,	/*!< in: key length */
 	int			delta,	/*!< in: value to add or subtract */
@@ -181,7 +182,7 @@ ENGINE_ERROR_CODE
 innodb_api_store(
 /*=============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
-	innodb_conn_data_t*	cursor_data,/*!< in: cursor info */
+	innodb_conn_data_t*	cursor_data,/*!< in/out: cursor info */
 	const char*		key,	/*!< in: key value */
 	int			len,	/*!< in: key length */
 	uint32_t		val_len,/*!< in: value length */
@@ -209,10 +210,10 @@ mci_get_time(void);
 
 /** types of operations performed */
 typedef enum conn_op_type {
-	CONN_OP_READ,
-	CONN_OP_WRITE,
-	CONN_OP_DELETE,
-	CONN_OP_FLUSH
+	CONN_OP_READ,		/*!< read operation */
+	CONN_OP_WRITE,		/*!< write operation */
+	CONN_OP_DELETE,		/*!< delete operation */
+	CONN_OP_FLUSH		/*!< flush operation */
 } op_type_t;
 
 /*************************************************************//**
@@ -372,7 +373,7 @@ innodb_cb_cursor_open_index_using_name(
 /*****************************************************************//**
 Check whether the binlog option is turned on
 (innodb_direct_access_enable_binlog)
-@return TRUE if on */
+@return true if on */
 bool
 innodb_cb_binlog_enabled();
 /*======================*/

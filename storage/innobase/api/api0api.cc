@@ -63,6 +63,9 @@ Created by Sunny Bains */
 /** configure variable for binlog option with InnoDB APIs */
 my_bool ib_binlog_enabled = FALSE;
 
+/** configure variable for Transaction isolation levels */
+ulong ib_trx_level_setting = IB_TRX_READ_UNCOMMITTED;
+
 /** InnoDB tuple types. */
 enum ib_tuple_type_t{
 	TPL_TYPE_ROW,			/*!< Data row tuple */
@@ -3693,4 +3696,14 @@ ib_is_binlog_enabled()
 /*==================*/
 {
 	return(static_cast<int>(ib_binlog_enabled));
+}
+/*****************************************************************//**
+Return isolation configuration set by "innodb_api_trx_level"
+@return trx isolation level*/
+UNIV_INTERN
+ulong
+ib_cfg_trx_level()
+/*==============*/
+{
+	return(ib_trx_level_setting);
 }

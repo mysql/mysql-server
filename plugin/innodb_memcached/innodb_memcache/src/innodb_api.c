@@ -85,7 +85,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_close_thd,
 	(ib_cb_t*) &ib_cb_binlog_enabled,
 	(ib_cb_t*) &ib_cb_cursor_set_cluster_access,
-	(ib_cb_t*) &ib_cb_cursor_commit_trx
+	(ib_cb_t*) &ib_cb_cursor_commit_trx,
+	(ib_cb_t*) &ib_cb_cfg_trx_level
 };
 
 /*************************************************************//**
@@ -113,13 +114,15 @@ Open a table and return a cursor for the table.
 ib_err_t
 innodb_api_begin(
 /*=============*/
-	innodb_engine_t*engine,		/*!< in: InnoDB Memcached engine */
+	innodb_engine_t*
+			engine,		/*!< in: InnoDB Memcached engine */
 	const char*	dbname,		/*!< in: database name */
 	const char*	name,		/*!< in: table name */
-	innodb_conn_data_t* conn_data,	/*!< in: connnection specific data */
+	innodb_conn_data_t* conn_data,	/*!< in/out: connnection specific
+					data */
 	ib_trx_t	ib_trx,		/*!< in: transaction */
-	ib_crsr_t*	crsr,		/*!< in/out: innodb cursor */
-	ib_crsr_t*	idx_crsr,	/*!< in/out: innodb index cursor */
+	ib_crsr_t*	crsr,		/*!< out: innodb cursor */
+	ib_crsr_t*	idx_crsr,	/*!< out: innodb index cursor */
 	ib_lck_mode_t	lock_mode)	/*!< in:  lock mode */
 {
 	ib_err_t	err = DB_SUCCESS;
@@ -150,7 +153,7 @@ innodb_api_begin(
 		}
 
 		if (engine) {
-			meta_info_t*	meta_info = &engine->meta_info;
+			meta_cfg_info_t* meta_info = &engine->meta_info;
 			meta_index_t*	meta_index = &meta_info->m_index;
 
 			/* Open the cursor */
@@ -183,7 +186,7 @@ innodb_api_begin(
 		}
 
 		if (engine) {
-			meta_info_t*	meta_info = &engine->meta_info;
+			meta_cfg_info_t* meta_info = &engine->meta_info;
 			meta_index_t*	meta_index = &meta_info->m_index;
 
 			/* set up secondary index cursor */
@@ -204,7 +207,8 @@ static
 uint64_t
 innodb_api_read_int(
 /*================*/
-	ib_col_meta_t*	m_col,		/*!< in: column info */
+	const ib_col_meta_t*
+			m_col,		/*!< in: column info */
 	ib_tpl_t        read_tpl,	/*!< in: tuple to read */
 	int		i)		/*!< in: column number */
 {
@@ -265,7 +269,7 @@ innodb_api_write_int(
 			TABLE->record[0] field for replication */
 			if (table) {
 				handler_rec_setup_int(
-					table, field, value, TRUE, FALSE);
+					table, field, value, true, false);
 			}
 		} else if (m_col->type_len == 4) {
 			uint32_t	value32;
@@ -274,7 +278,7 @@ innodb_api_write_int(
 			ib_cb_tuple_write_u32(tpl, field, value32);
 			if (table) {
 				handler_rec_setup_int(
-					table, field, value32, TRUE, FALSE);
+					table, field, value32, true, false);
 			}
 		}
 
@@ -286,7 +290,7 @@ innodb_api_write_int(
 			ib_cb_tuple_write_i64(tpl, field, value64);
 			if (table) {
 				handler_rec_setup_int(
-					table, field, value64, FALSE, FALSE);
+					table, field, value64, false, false);
 			}
 		} else if (m_col->type_len == 4) {
 			int32_t		value32;
@@ -294,7 +298,7 @@ innodb_api_write_int(
 			ib_cb_tuple_write_i32(tpl, field, value32);
 			if (table) {
 				handler_rec_setup_int(
-					table, field, value32, FALSE, FALSE);
+					table, field, value32, false, false);
 			}
 		}
 	}
@@ -304,7 +308,7 @@ innodb_api_write_int(
 
 /*************************************************************//**
 Fetch data from a read tuple and instantiate a "mci_column_t" structure
-@return TRUE if successful */
+@return true if successful */
 static
 bool
 innodb_api_fill_mci(
@@ -327,16 +331,16 @@ innodb_api_fill_mci(
 		mci_item->m_len = data_len;
 	}
 
-	mci_item->m_is_str = TRUE;
-	mci_item->m_enabled = TRUE;
-	mci_item->m_allocated = FALSE;
+	mci_item->m_is_str = true;
+	mci_item->m_enabled = true;
+	mci_item->m_allocated = false;
 
-	return(TRUE);
+	return(true);
 }
 
 /*************************************************************//**
 Copy data from a read tuple and instantiate a "mci_column_t" structure
-@return TRUE if successful */
+@return true if successful */
 static
 bool
 innodb_api_copy_mci(
@@ -354,19 +358,19 @@ innodb_api_copy_mci(
 	if (data_len == IB_SQL_NULL) {
 		mci_item->m_str = NULL;
 		mci_item->m_len = 0;
-		mci_item->m_allocated = FALSE;
+		mci_item->m_allocated = false;
 	} else {
 		mci_item->m_str = malloc(data_len);
-		mci_item->m_allocated = TRUE;
+		mci_item->m_allocated = true;
 		memcpy(mci_item->m_str, ib_cb_col_get_value(read_tpl, col_id),
 		       data_len);
 		mci_item->m_len = data_len;
 	}
 
-	mci_item->m_is_str = TRUE;
-	mci_item->m_enabled = TRUE;
+	mci_item->m_is_str = true;
+	mci_item->m_enabled = true;
 
-	return(TRUE);
+	return(true);
 }
 
 /*************************************************************//**
@@ -376,8 +380,9 @@ static
 ib_err_t
 innodb_api_fill_value(
 /*==================*/
-	meta_info_t*	meta_info,	/*!< in: Metadata */
-	mci_item_t*	item,		/*!< out: result */
+	meta_cfg_info_t*
+			meta_info,	/*!< in: Metadata */
+	mci_item_t*	item,		/*!< out: item to fill */
 	ib_tpl_t	read_tpl,	/*!< in: read tuple */
 	int		col_id,		/*!< in: column Id */
 	bool		alloc_mem)	/*!< in: allocate memory */
@@ -433,8 +438,8 @@ ib_err_t
 innodb_api_search(
 /*==============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
-	innodb_conn_data_t*	cursor_data,/*!< in: cursor info */
-	ib_crsr_t*		crsr,	/*!< in/out: cursor used to seacrh */
+	innodb_conn_data_t*	cursor_data,/*!< in/out: cursor info */
+	ib_crsr_t*		crsr,	/*!< in/out: cursor used to search */
 	const char*		key,	/*!< in: key to search */
 	int			len,	/*!< in: key length */
 	mci_item_t*		item,	/*!< in: result */
@@ -443,7 +448,7 @@ innodb_api_search(
 	bool			sel_only) /*!< in: for select only */
 {
 	ib_err_t	err = DB_SUCCESS;
-	meta_info_t*	meta_info = &engine->meta_info;
+	meta_cfg_info_t* meta_info = &engine->meta_info;
 	meta_column_t*	col_info = meta_info->m_item;
 	meta_index_t*	meta_index = &meta_info->m_index;
 	ib_tpl_t	key_tpl;
@@ -455,9 +460,9 @@ innodb_api_search(
 		ib_crsr_t	idx_crsr;
 
 		if (sel_only) {
-			idx_crsr = cursor_data->c_ro_idx_crsr;
+			idx_crsr = cursor_data->idx_read_crsr;
 		} else {
-			idx_crsr = cursor_data->c_idx_crsr;
+			idx_crsr = cursor_data->idx_crsr;
 		}
 
 		ib_cb_cursor_set_cluster_access(idx_crsr);
@@ -467,15 +472,15 @@ innodb_api_search(
 		srch_crsr = idx_crsr;
 
 	} else {
-		ib_crsr_t	c_crsr;
+		ib_crsr_t	crsr;
 		if (sel_only) {
-			c_crsr = cursor_data->c_ro_crsr;
+			crsr = cursor_data->read_crsr;
 		} else {
-			c_crsr = cursor_data->c_crsr;
+			crsr = cursor_data->crsr;
 		}
 
-		key_tpl = ib_cb_search_tuple_create(c_crsr);
-		srch_crsr = c_crsr;
+		key_tpl = ib_cb_search_tuple_create(crsr);
+		srch_crsr = crsr;
 	}
 
 	err = ib_cb_col_set_value(key_tpl, 0, (char*) key, len);
@@ -501,8 +506,8 @@ innodb_api_search(
 		memset(item, 0, sizeof(*item));
 
 		read_tpl = ib_cb_read_tuple_create(
-				sel_only ? cursor_data->c_ro_crsr
-					 : cursor_data->c_crsr);
+				sel_only ? cursor_data->read_crsr
+					 : cursor_data->crsr);
 
 		err = ib_cb_read_row(srch_crsr, read_tpl);
 
@@ -535,8 +540,8 @@ innodb_api_search(
 				item->m_value[MCI_COL_KEY].m_str =
 					(char*)ib_cb_col_get_value(read_tpl, i);
 				item->m_value[MCI_COL_KEY].m_len = data_len;
-				item->m_value[MCI_COL_KEY].m_is_str = TRUE;
-				item->m_value[MCI_COL_KEY].m_enabled = TRUE;
+				item->m_value[MCI_COL_KEY].m_is_str = true;
+				item->m_value[MCI_COL_KEY].m_enabled = true;
 			} else if (meta_info->m_flag_enabled
 				   && i == col_info[CONTAINER_FLAG].m_field_id) {
 
@@ -549,11 +554,11 @@ innodb_api_search(
 						&col_info[CONTAINER_FLAG].m_col,
 						read_tpl, i);
 					item->m_value[MCI_COL_FLAG].m_is_str
-						 = FALSE;
+						 = false;
 					item->m_value[MCI_COL_FLAG].m_len
 						 = data_len;
 					item->m_value[MCI_COL_FLAG].m_enabled
-						 = TRUE;
+						 = true;
 				}
 			} else if (meta_info->m_cas_enabled
 				   && i == col_info[CONTAINER_CAS].m_field_id) {
@@ -565,9 +570,9 @@ innodb_api_search(
 					 innodb_api_read_int(
 						&col_info[CONTAINER_CAS].m_col,
 						read_tpl, i);
-				item->m_value[MCI_COL_CAS].m_is_str = FALSE;
+				item->m_value[MCI_COL_CAS].m_is_str = false;
 				item->m_value[MCI_COL_CAS].m_len = data_len;
-				item->m_value[MCI_COL_CAS].m_enabled = TRUE;
+				item->m_value[MCI_COL_CAS].m_enabled = true;
 			} else if (meta_info->m_exp_enabled
 				   && i == col_info[CONTAINER_EXP].m_field_id) {
 				if (data_len == IB_SQL_NULL) {
@@ -579,9 +584,9 @@ innodb_api_search(
 					 innodb_api_read_int(
 						&col_info[CONTAINER_EXP].m_col,
 						read_tpl, i);
-				item->m_value[MCI_COL_EXP].m_is_str = FALSE;
+				item->m_value[MCI_COL_EXP].m_is_str = false;
 				item->m_value[MCI_COL_EXP].m_len = data_len;
-				item->m_value[MCI_COL_EXP].m_enabled = TRUE;
+				item->m_value[MCI_COL_EXP].m_enabled = true;
 			} else {
 				innodb_api_fill_value(meta_info, item,
 						      read_tpl, i,
@@ -644,7 +649,7 @@ ib_err_t
 innodb_api_set_multi_cols(
 /*======================*/
 	ib_tpl_t	tpl,		/*!< in: tuple for insert */
-	meta_info_t*	meta_info,	/*!< in: metadata info */
+	meta_cfg_info_t* meta_info,	/*!< in: metadata info */
 	char*		value,		/*!< in: value to insert */
 	int		value_len)	/*!< in: value length */
 {
@@ -652,25 +657,56 @@ innodb_api_set_multi_cols(
 	meta_column_t*	col_info;
 	char*		last;
 	char*		col_val;
-	char*		end = value + value_len;
+	char*		end;
 	int		i = 0;
 	char*		sep = meta_info->m_separator;
+	char*		my_value;
+
+	if (!value_len) {
+		return(DB_SUCCESS);
+	}
 
 	col_info = meta_info->m_add_item;
+	my_value = malloc(value_len + 1);
+	memcpy(my_value, value, value_len);
+	my_value[value_len] = 0;
+	value = my_value;
+	end = value + value_len;
+
+	if (value[0] == *sep) {
+		err = ib_cb_col_set_value(
+			tpl, col_info[i].m_field_id,
+			NULL, IB_SQL_NULL);
+		i++;
+
+		if (err != DB_SUCCESS) {
+			free(my_value);
+			return(err);
+		}
+		value++;
+	}
 
 	/* Input values are separated with "sep" */
 	for (col_val = strtok_r(value, sep, &last);
-	     col_val && last <= end && i < meta_info->m_num_add;
+	     last <= end && i < meta_info->m_num_add;
 	     col_val = strtok_r(NULL, sep, &last), i++) {
 
-		err = ib_cb_col_set_value(tpl, col_info[i].m_field_id,
-					  col_val, strlen(col_val));
+		if (!col_val) {
+			err = ib_cb_col_set_value(
+				tpl, col_info[i].m_field_id,
+				NULL, IB_SQL_NULL);
+		} else {
+			err = ib_cb_col_set_value(
+				tpl, col_info[i].m_field_id,
+				col_val, strlen(col_val));
+		}
 
 		if (err != DB_SUCCESS) {
 			break;
 		}
 	}
-
+ 
+	free(my_value);
 	return(err);
 }
 
@@ -696,7 +732,7 @@ innodb_api_setup_hdl_rec(
 		} else {
 			handler_rec_setup_int(
 				table, col_info[CONTAINER_KEY + i].m_field_id,
-				item->m_value[i].m_digit, TRUE,
+				item->m_value[i].m_digit, true,
 				item->m_value[i].m_is_null);
 		}
 	}
@@ -711,7 +747,7 @@ innodb_api_set_tpl(
 /*===============*/
 	ib_tpl_t	tpl,		/*!< in/out: tuple for insert */
 	ib_tpl_t	old_tpl,	/*!< in: old tuple */
-	meta_info_t*	meta_info,	/*!< in: metadata info */
+	meta_cfg_info_t* meta_info,	/*!< in: metadata info */
 	meta_column_t*	col_info,	/*!< in: insert col info */
 	const char*	key,		/*!< in: key */
 	int		key_len,	/*!< in: key length */
@@ -795,7 +831,7 @@ ib_err_t
 innodb_api_insert(
 /*==============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
-	innodb_conn_data_t*     cursor_data,/*!< in: cursor info */
+	innodb_conn_data_t*     cursor_data,/*!< in/out: cursor info */
 	const char*		key,	/*!< in: key and value to insert */
 	int			len,	/*!< in: key length */
 	uint32_t		val_len,/*!< in: value length */
@@ -806,12 +842,12 @@ innodb_api_insert(
 	uint64_t	new_cas;
 	ib_err_t	err = DB_ERROR;
 	ib_tpl_t	tpl = NULL;
-	meta_info_t*	meta_info = &engine->meta_info;
+	meta_cfg_info_t* meta_info = &engine->meta_info;
 	meta_column_t*	col_info = meta_info->m_item;
 
 	new_cas = mci_get_cas();
 
-	tpl = ib_cb_read_tuple_create(cursor_data->c_crsr);
+	tpl = ib_cb_read_tuple_create(cursor_data->crsr);
 	assert(tpl != NULL);
 
 	/* Set expiration time */
@@ -826,7 +862,7 @@ innodb_api_insert(
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
 				 cursor_data->mysql_tbl);
 
-	err = ib_cb_insert_row(cursor_data->c_crsr, tpl);
+	err = ib_cb_insert_row(cursor_data->crsr, tpl);
 
 	if (err == DB_SUCCESS) {
 		*cas = new_cas;
@@ -839,8 +875,8 @@ innodb_api_insert(
 		}
 
 	} else {
-		ib_cb_trx_rollback(cursor_data->c_crsr_trx);
-		cursor_data->c_crsr_trx = NULL;
+		ib_cb_trx_rollback(cursor_data->crsr_trx);
+		cursor_data->crsr_trx = NULL;
 	}
 
 	ib_cb_tuple_delete(tpl);
@@ -856,7 +892,7 @@ ib_err_t
 innodb_api_update(
 /*==============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
-	innodb_conn_data_t*     cursor_data,/*!< in: cursor info */
+	innodb_conn_data_t*     cursor_data,/*!< in/out: cursor info */
 	ib_crsr_t		srch_crsr,/*!< in: cursor to use for write */
 	const char*		key,	/*!< in: key and value to insert */
 	int			len,	/*!< in: key length */
@@ -870,13 +906,13 @@ innodb_api_update(
 {
 	uint64_t	new_cas;
 	ib_tpl_t	new_tpl;
-	meta_info_t*	meta_info = &engine->meta_info;
+	meta_cfg_info_t* meta_info = &engine->meta_info;
 	meta_column_t*	col_info = meta_info->m_item;
 	ib_err_t	err = DB_SUCCESS;
 
 	assert(old_tpl != NULL);
 
-	new_tpl = ib_cb_read_tuple_create(cursor_data->c_crsr);
+	new_tpl = ib_cb_read_tuple_create(cursor_data->crsr);
 	assert(new_tpl != NULL);
 
 	/* cas will be updated for each update */
@@ -915,8 +951,8 @@ innodb_api_update(
 		}
 
 	} else {
-		ib_cb_trx_rollback(cursor_data->c_crsr_trx);
-		cursor_data->c_crsr_trx = NULL;
+		ib_cb_trx_rollback(cursor_data->crsr_trx);
+		cursor_data->crsr_trx = NULL;
 	}
 
 	ib_cb_tuple_delete(new_tpl);
@@ -931,17 +967,17 @@ ENGINE_ERROR_CODE
 innodb_api_delete(
 /*==============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
-	innodb_conn_data_t*     cursor_data,/*!< in: cursor info */
+	innodb_conn_data_t*     cursor_data,/*!< in/out: cursor info */
 	const char*		key,	/*!< in: value to insert */
 	int			len)	/*!< in: value length */
 {
 	ib_err_t	err = DB_SUCCESS;
-	ib_crsr_t	srch_crsr = cursor_data->c_crsr;
+	ib_crsr_t	srch_crsr = cursor_data->crsr;
 	mci_item_t	result;
 
 	/* First look for the record, and check whether it exists */
 	err = innodb_api_search(engine, cursor_data, &srch_crsr, key, len,
-				&result, NULL, FALSE);
+				&result, NULL, false);
 
 	if (err != DB_SUCCESS) {
 		return(ENGINE_KEY_ENOENT);
@@ -951,7 +987,7 @@ innodb_api_delete(
 	when returning from innodb_api_search(), so store the delete row info
 	before calling ib_cb_delete_row() */
 	if (engine->enable_binlog) {
-		meta_info_t*	meta_info = &engine->meta_info;
+		meta_cfg_info_t* meta_info = &engine->meta_info;
 		meta_column_t*	col_info = meta_info->m_item;
 
 		if (!cursor_data->mysql_tbl) {
@@ -994,7 +1030,7 @@ ib_err_t
 innodb_api_link(
 /*============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
-	innodb_conn_data_t*     cursor_data,/*!< in: cursor info */
+	innodb_conn_data_t*     cursor_data,/*!< in/out: cursor info */
 	ib_crsr_t		srch_crsr,/*!< in: cursor to use for write */
 	const char*		key,	/*!< in: key value */
 	int			len,	/*!< in: key length */
@@ -1014,7 +1050,7 @@ innodb_api_link(
 	int		total_len;
 	ib_tpl_t	new_tpl;
 	uint64_t	new_cas;
-	meta_info_t*	meta_info = &engine->meta_info;
+	meta_cfg_info_t* meta_info = &engine->meta_info;
 	meta_column_t*	col_info = meta_info->m_item;
 	char*		before_val;
 	int		column_used;
@@ -1058,7 +1094,7 @@ innodb_api_link(
 		memcpy(append_buf + val_len, before_val, before_len);
 	}
 
-	new_tpl = ib_cb_read_tuple_create(cursor_data->c_crsr);
+	new_tpl = ib_cb_read_tuple_create(cursor_data->crsr);
 	new_cas = mci_get_cas();
 
 	if (exp) {
@@ -1099,7 +1135,7 @@ ENGINE_ERROR_CODE
 innodb_api_arithmetic(
 /*==================*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
-	innodb_conn_data_t*     cursor_data,/*!< in: cursor info */
+	innodb_conn_data_t*     cursor_data,/*!< in/out: cursor info */
 	const char*		key,	/*!< in: key value */
 	int			len,	/*!< in: key length */
 	int			delta,	/*!< in: value to add or subtract */
@@ -1118,18 +1154,18 @@ innodb_api_arithmetic(
 	ib_tpl_t	old_tpl;
 	ib_tpl_t	new_tpl;
 	uint64_t	value = 0;
-	bool		create_new = FALSE;
+	bool		create_new = false;
 	char*		end_ptr;
-	meta_info_t*	meta_info = &engine->meta_info;
+	meta_cfg_info_t* meta_info = &engine->meta_info;
 	meta_column_t*	col_info = meta_info->m_item;
-	ib_crsr_t       srch_crsr = cursor_data->c_crsr;
+	ib_crsr_t       srch_crsr = cursor_data->crsr;
 	char*		before_val;
 	unsigned int	before_len;
 	int		column_used = 0;
 	ENGINE_ERROR_CODE ret = ENGINE_SUCCESS;
 
 	err = innodb_api_search(engine, cursor_data, &srch_crsr, key, len,
-				&result, &old_tpl, FALSE);
+				&result, &old_tpl, false);
 
 	if (engine->enable_binlog && !cursor_data->mysql_tbl
 	    && (err == DB_SUCCESS || create)) {
@@ -1145,7 +1181,7 @@ innodb_api_arithmetic(
 		/* If create is true, insert a new row */
 		if (create) {
 			snprintf(value_buf, sizeof(value_buf), "%llu", initial);
-			create_new = TRUE;
+			create_new = true;
 			goto create_new_value;
 		} else {
 			return(DB_RECORD_NOT_FOUND);
@@ -1213,7 +1249,7 @@ innodb_api_arithmetic(
 create_new_value:
 	*cas = mci_get_cas();
 
-	new_tpl = ib_cb_read_tuple_create(cursor_data->c_crsr);
+	new_tpl = ib_cb_read_tuple_create(cursor_data->crsr);
 
 	/* The cas, exp and flags field are not changing, so use the
 	data from result */
@@ -1227,7 +1263,7 @@ create_new_value:
 	assert(err == DB_SUCCESS);
 
 	if (create_new) {
-		err = ib_cb_insert_row(cursor_data->c_crsr, new_tpl);
+		err = ib_cb_insert_row(cursor_data->crsr, new_tpl);
 		*out_result = initial;
 
 		if (engine->enable_binlog) {
@@ -1276,7 +1312,7 @@ ENGINE_ERROR_CODE
 innodb_api_store(
 /*=============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
-	innodb_conn_data_t*	cursor_data,/*!< in: cursor info */
+	innodb_conn_data_t*	cursor_data,/*!< in/out: cursor info */
 	const char*		key,	/*!< in: key value */
 	int			len,	/*!< in: key length */
 	uint32_t		val_len,/*!< in: value length */
@@ -1290,14 +1326,14 @@ innodb_api_store(
 	mci_item_t	result;
 	ib_tpl_t	old_tpl = NULL;
 	ENGINE_ERROR_CODE stored = ENGINE_NOT_STORED;
-	ib_crsr_t	srch_crsr = cursor_data->c_crsr;
+	ib_crsr_t	srch_crsr = cursor_data->crsr;
 
 	/* First check whether record with the key value exists */
 	err = innodb_api_search(engine, cursor_data, &srch_crsr,
-				key, len, &result, &old_tpl, FALSE);
+				key, len, &result, &old_tpl, false);
 
 	if (engine->enable_binlog && !cursor_data->mysql_tbl) {
-		meta_info_t*            meta_info = &engine->meta_info;
+		meta_cfg_info_t*	meta_info = &engine->meta_info;
 
 		cursor_data->mysql_tbl = handler_open_table(
 			cursor_data->thd, meta_info->m_item[CONTAINER_DB].m_str,
@@ -1426,75 +1462,75 @@ innodb_api_cursor_reset(
 						with a connection */
 	op_type_t		op_type)	/*!< in: type of DML performed */
 {
-	bool		commit_trx = FALSE;
+	bool		commit_trx = false;
 
 	switch (op_type) {
 	case CONN_OP_READ:
-		conn_data->c_r_count++;
-		conn_data->c_r_count_commit++;
+		conn_data->n_total_reads++;
+		conn_data->n_reads_since_commit++;
 		break;
 	case CONN_OP_DELETE:
 	case CONN_OP_WRITE:
-		conn_data->c_w_count++;
-		conn_data->c_w_count_commit++;
+		conn_data->n_total_writes++;
+		conn_data->n_writes_since_commit++;
 		break;
 	case CONN_OP_FLUSH:
 		break;
 	}
 
-	if (conn_data->c_crsr
-	    && (conn_data->c_w_count_commit >= engine->w_batch_size
+	if (conn_data->crsr
+	    && (conn_data->n_writes_since_commit >= engine->write_batch_size
 	        || (op_type == CONN_OP_FLUSH))) {
-		ib_cb_cursor_reset(conn_data->c_crsr);
+		ib_cb_cursor_reset(conn_data->crsr);
 
-		if (conn_data->c_idx_crsr) {
-			ib_cb_cursor_reset(conn_data->c_idx_crsr);
+		if (conn_data->idx_crsr) {
+			ib_cb_cursor_reset(conn_data->idx_crsr);
 		}
 
-		if (conn_data->c_crsr_trx) {
+		if (conn_data->crsr_trx) {
 			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						engine);
 			ib_cb_cursor_commit_trx(
-				conn_data->c_crsr, conn_data->c_crsr_trx);
-			conn_data->c_crsr_trx = NULL;
-			commit_trx = TRUE;
-			conn_data->c_in_use = FALSE;
+				conn_data->crsr, conn_data->crsr_trx);
+			conn_data->crsr_trx = NULL;
+			commit_trx = true;
+			conn_data->in_use = false;
 
 			UNLOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						  engine);
 		}
 
-		conn_data->c_w_count_commit = 0;
+		conn_data->n_writes_since_commit = 0;
 	}
 
-	if (conn_data->c_ro_crsr
-	    && (conn_data->c_r_count_commit > engine->r_batch_size
+	if (conn_data->read_crsr
+	    && (conn_data->n_reads_since_commit > engine->read_batch_size
 	        || (op_type == CONN_OP_FLUSH))) {
-		ib_cb_cursor_reset(conn_data->c_ro_crsr);
+		ib_cb_cursor_reset(conn_data->read_crsr);
 
-		if (conn_data->c_ro_idx_crsr) {
-			ib_cb_cursor_reset(conn_data->c_ro_idx_crsr);
+		if (conn_data->idx_read_crsr) {
+			ib_cb_cursor_reset(conn_data->idx_read_crsr);
 		}
 
-		if (conn_data->c_ro_crsr_trx) {
+		if (conn_data->read_crsr_trx) {
 			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						engine);
 			ib_cb_cursor_commit_trx(
-				conn_data->c_ro_crsr,
-				conn_data->c_ro_crsr_trx);
-			conn_data->c_ro_crsr_trx = NULL;
-			commit_trx = TRUE;
-			conn_data->c_in_use = FALSE;
+				conn_data->read_crsr,
+				conn_data->read_crsr_trx);
+			conn_data->read_crsr_trx = NULL;
+			commit_trx = true;
+			conn_data->in_use = false;
 			UNLOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						  engine);
 		}
-		conn_data->c_r_count_commit = 0;
+		conn_data->n_reads_since_commit = 0;
 	}
 
 	if (!commit_trx) {
 		pthread_mutex_lock(&engine->conn_mutex);
-		assert(conn_data->c_in_use);
-		conn_data->c_in_use = FALSE;
+		assert(conn_data->in_use);
+		conn_data->in_use = false;
 		pthread_mutex_unlock(&engine->conn_mutex);
 	}
 
@@ -1510,7 +1546,7 @@ Close a cursor
 ib_err_t
 innodb_cb_cursor_close(
 /*===================*/
-	ib_crsr_t	ib_crsr)	/*!< in: cursor to close */
+	ib_crsr_t	ib_crsr)	/*!< in/out: cursor to close */
 {
 	return(ib_cb_cursor_close(ib_crsr));
 }
@@ -1521,7 +1557,7 @@ Commit the transaction
 ib_err_t
 innodb_cb_trx_commit(
 /*=================*/
-	ib_trx_t	ib_trx)		/*!< in: transaction to commit */
+	ib_trx_t	ib_trx)		/*!< in/out: transaction to commit */
 {
 	return(ib_cb_trx_commit(ib_trx));
 }
@@ -1698,7 +1734,7 @@ innodb_cb_cursor_open_index_using_name(
 /*****************************************************************//**
 Check whether the binlog option is turned on
 (innodb_direct_access_enable_binlog)
-@return TRUE if on */
+@return true if on */
 bool
 innodb_cb_binlog_enabled()
 /*======================*/

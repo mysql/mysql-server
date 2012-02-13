@@ -65,13 +65,13 @@ C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
 Here the memcached results after set:
-Essen
+Essen|Ost
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
-E	Essen	NULL
+E	Essen	Ost
 H	Hamburg	Norderstedt
 Here the memcached results after add:
 Frankfurt|Sachsenhause
@@ -80,7 +80,7 @@ c1	c2	c21
 B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
-E	Essen	NULL
+E	Essen	Ost
 F	Frankfurt	Sachsenhause
 H	Hamburg	Norderstedt
 Here the memcached results after replace:
@@ -90,7 +90,7 @@ c1	c2	c21
 B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
-E	Essen	NULL
+E	Essen	Ost
 F	Frankfurt a. M.	Sachsenhausen
 H	Hamburg	Norderstedt
 Here the memcached results after delete:
@@ -99,7 +99,31 @@ c1	c2	c21
 B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
-E	Essen	NULL
+E	Essen	Ost
+H	Hamburg	Norderstedt
+Here the memcached results after add Frankfurt|:
+Frankfurt
+Here the memcached results after add |Airport:
+Frankfurt
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+E	Essen	Ost
+F	Frankfurt	NULL
+H	Hamburg	Norderstedt
+Here the memcached results after replace Frankfurt a.M.:
+Frankfurt a. M.
+Here the memcached results after replace Sachsenhausen:
+Sachsenhausen
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+E	Essen	Ost
+F	NULL	Sachsenhausen
 H	Hamburg	Norderstedt
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;

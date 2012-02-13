@@ -35,6 +35,9 @@ InnoDB Native API
 /** Whether binlog is enabled for applications using InnoDB APIs */
 extern my_bool                  ib_binlog_enabled;
 
+/** configure value for transaction isolation level */
+extern ulong			ib_trx_level_setting;
+
 /********************************************************************
 Handles user errors and lock waits detected by the database engine.
 @return	TRUE if it was a lock wait and we should continue running

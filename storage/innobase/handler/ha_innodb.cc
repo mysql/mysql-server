@@ -437,7 +437,8 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_close_thd,
 	(ib_cb_t) ib_is_binlog_enabled,
 	(ib_cb_t) ib_cursor_set_cluster_access,
-	(ib_cb_t) ib_cursor_commit_trx
+	(ib_cb_t) ib_cursor_commit_trx,
+	(ib_cb_t) ib_cfg_trx_level
 };
 
 /*************************************************************//**
@@ -14783,6 +14784,14 @@ static MYSQL_SYSVAR_BOOL(direct_access_enable_binlog, ib_binlog_enabled,
   "Enable binlog for applications direct access InnoDB through InnoDB APIs",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_ULONG(api_trx_level, ib_trx_level_setting,
+  PLUGIN_VAR_OPCMDARG,
+  "Number of undo logs to use.",
+  NULL, NULL,
+  0,		/* Default setting */
+  0,		/* Minimum value */
+  4, 0);	/* Maximum value */
+
 static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   PLUGIN_VAR_RQCMDARG,
   "Buffer changes to reduce random access: "
@@ -14861,6 +14870,7 @@ static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
+  MYSQL_SYSVAR(api_trx_level),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(buffer_pool_instances),
