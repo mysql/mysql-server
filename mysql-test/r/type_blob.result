@@ -232,7 +232,7 @@ HELLO
 HELLO MY
 a
 hello
-set option big_tables=1;
+set big_tables=1;
 select distinct t from t1;
 t
 NULL
@@ -313,7 +313,7 @@ HELLO
 HELLO MY
 a
 hello
-set option big_tables=0;
+set big_tables=0;
 select distinct * from t1;
 t	c	b	d
 NULL	NULL	NULL	NULL
