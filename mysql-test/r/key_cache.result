@@ -817,3 +817,19 @@ set global keycache1.key_buffer_size=0;
 set global keycache2.key_buffer_size=0;
 set global key_buffer_size=@save_key_buffer_size;
 set global key_cache_segments=@save_key_cache_segments;
+#
+# Bug#12361113: crash when load index into cache
+#
+# Note that this creates an empty disabled key cache!
+SET GLOBAL key_cache_none.key_cache_block_size = 1024;
+CREATE TABLE t1 (a INT, b INTEGER NOT NULL, KEY (b) ) ENGINE = MYISAM;
+INSERT INTO t1 VALUES (1, 1);
+CACHE INDEX t1 in key_cache_none;
+ERROR HY000: Unknown key cache 'key_cache_none'
+# The bug crashed the server at LOAD INDEX below. Now it will succeed 
+# since the default cache is used due to CACHE INDEX failed for
+# key_cache_none.
+LOAD INDEX INTO CACHE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+DROP TABLE t1;
