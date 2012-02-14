@@ -1942,11 +1942,3 @@ bool Relay_log_info::write_info(Rpl_info_handler *to)
 
   DBUG_RETURN(FALSE);
 }
-
-
-THD* mts_get_coordinator_thd()
-{
-  return (!active_mi || !active_mi->rli || !active_mi->rli->is_parallel_exec()) ?
-    NULL : active_mi->rli->info_thd;
-}
-

@@ -616,13 +616,7 @@ static int write_empty_groups_to_cache(THD *thd, binlog_cache_data *cache_data)
   DBUG_ENTER("write_empty_groups_to_cache");
   if (thd->owned_gtid.sidno == -1)
   {
-    /*
-      Apparently this code is not being called. We need to
-      investigate if this is a bug or this code is not
-      necessary. /Alfranio
-    */
-    DBUG_ASSERT(0); /*NOTREACHED*/
-#ifdef NON_DISABLED_GTID
+#ifdef HAVE_NDB_BINLOG
     Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
     Gtid gtid= git.get();
     while (gtid.sidno != 0)
@@ -632,6 +626,8 @@ static int write_empty_groups_to_cache(THD *thd, binlog_cache_data *cache_data)
       git.next();
       gtid= git.get();
     }
+#else
+    DBUG_ASSERT(0);
 #endif
   }
   else if (thd->owned_gtid.sidno > 0)

@@ -881,8 +881,6 @@ private:
 
 bool mysql_show_relaylog_events(THD* thd);
 
-THD* mts_get_coordinator_thd();
-
 /**
    @param  thd a reference to THD
    @return TRUE if thd belongs to a Worker thread and FALSE otherwise.

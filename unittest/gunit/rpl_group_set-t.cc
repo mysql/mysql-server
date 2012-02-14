@@ -20,16 +20,12 @@
 #define FRIEND_OF_GTID_SET class GroupTest_Group_containers_Test
 #define FRIEND_OF_GROUP_CACHE class GroupTest_Group_containers_Test
 #define FRIEND_OF_GROUP_LOG_STATE class GroupTest_Group_containers_Test
+#define NON_DISABLED_UNITTEST_GTID 1
 
 #include "sql_class.h"
 #include "my_pthread.h"
 #include "binlog.h"
-
-#include "zgroups.h"
-
-
-#ifdef HAVE_GTID
-
+#include "rpl_gtid.h"
 
 #define N_SIDS 16
 
@@ -73,8 +69,8 @@ public:
 
 
   /*
-    Test that different, equivalent ways to construct a GTID_set give
-    the same resulting GTID_set.  This is used to test GTID_set,
+    Test that different, equivalent ways to construct a Gtid_set give
+    the same resulting Gtid_set.  This is used to test Gtid_set,
     Sid_map, Group_cache, Group_log_state, and Owned_groups.
 
     We will generate sets of groups in *stages*.  Each stage is
@@ -133,14 +129,14 @@ public:
     int n_substages;
 
     // Set of groups added in the present stage.
-    GTID_set set;
+    Gtid_set set;
     int str_len;
     char *str;
 
     // The subset of groups that can be added as automatic groups.
-    GTID_set automatic_groups;
+    Gtid_set automatic_groups;
     // The subset of groups that cannot be added as automatic groups.
-    GTID_set non_automatic_groups;
+    Gtid_set non_automatic_groups;
 
     Stage(class GroupTest *gt, Sid_map *sm)
       : group_test(gt), sid_map(sm),
@@ -178,7 +174,7 @@ public:
       stages.
       @param other_sm Sid_map to which groups should be added.
     */
-    void new_stage(const GTID_set *done_groups, Sid_map *other_sm)
+    void new_stage(const Gtid_set *done_groups, Sid_map *other_sm)
     {
       set.clear();
       automatic_groups.clear();
@@ -203,8 +199,8 @@ public:
           << group_test->errtext;
 
         // check if this group could be added as an 'automatic' group
-        GTID_set::Const_interval_iterator ivit(done_groups, substage.sidno);
-        const GTID_set::Interval *iv= ivit.get();
+        Gtid_set::Const_interval_iterator ivit(done_groups, substage.sidno);
+        const Gtid_set::Interval *iv= ivit.get();
         substage.is_auto=
           !set.contains_group(substage.sidno, substage.gno) &&
           ((iv == NULL || iv->start > 1) ? substage.gno == 1 :
@@ -274,7 +270,7 @@ public:
   }
 
 
-  void group_subset(GTID_set *sub, GTID_set *super, bool outcome,
+  void group_subset(Gtid_set *sub, Gtid_set *super, bool outcome,
                     int line, const char *desc)
   {
     append_errtext(line, "%s", desc);
@@ -282,7 +278,7 @@ public:
     EXPECT_EQ(outcome, sub->is_subset(super)) << errtext;
     // check using set subtraction
     enum_return_status status;
-    GTID_set sub_minus_super(sub, &status);
+    Gtid_set sub_minus_super(sub, &status);
     ASSERT_OK(status) << errtext;
     ASSERT_OK(sub_minus_super.remove(super)) << errtext;
     ASSERT_EQ(outcome, sub_minus_super.is_empty()) << errtext;
@@ -369,15 +365,15 @@ TEST_F(GroupTest, Sid_map)
 TEST_F(GroupTest, Group_containers)
 {
   /*
-    In this test, we maintain 298 GTID_sets.  We add groups to these
-    GTID_sets in stages, as described above.  We add the groups to
-    each of the 298 GTID_sets in different ways, as described below.
+    In this test, we maintain 298 Gtid_sets.  We add groups to these
+    Gtid_sets in stages, as described above.  We add the groups to
+    each of the 298 Gtid_sets in different ways, as described below.
     At the end of each stage, we check that all the 298 resulting
-    GTID_sets are mutually equal.
+    Gtid_sets are mutually equal.
 
     We add groups in the two ways:
 
-    A. Test GTID_sets and Sid_maps.  We vary two parameters:
+    A. Test Gtid_sets and Sid_maps.  We vary two parameters:
 
        Parameter 1: vary the way that groups are added:
         0. Add one group at a time, using add(sidno, gno).
@@ -386,14 +382,14 @@ TEST_F(GroupTest, Group_containers)
         3. add all new groups at once, using add(gs_new.to_string()).
         4. Maintain a string that contains the concatenation of all
            gs_new.to_string(). in each stage, we set gs[4] to a new
-           GTID_set created from this string.
+           Gtid_set created from this string.
 
        Parameter 2: vary the Sid_map object:
         0. Use a Sid_map that has all the SIDs in order.
         1. Use a Sid_map where SIDs are added in the order they appear.
 
        We vary these parameters in all combinations; thus we construct
-       10 GTID_sets.
+       10 Gtid_sets.
   */
   enum enum_sets_method {
     METHOD_SIDNO_GNO= 0, METHOD_GROUP_TEXT,
@@ -408,7 +404,7 @@ TEST_F(GroupTest, Group_containers)
     B. Test Group_cache, Group_log_state, and Owned_groups.  All
        sub-groups for the stage are added to the Group_cache, the
        Group_cache is flushed to the Group_log_state, and the
-       GTID_set is extracted from the Group_log_state.  We vary the
+       Gtid_set is extracted from the Group_log_state.  We vary the
        following parameters.
 
        Parameter 1: type of statement:
@@ -450,7 +446,7 @@ TEST_F(GroupTest, Group_containers)
            50% chance.
 
        We vary these parameters in all combinations; thus we construct
-       4*3*4*2=96 GTID_sets.
+       4*3*4*2=96 Gtid_sets.
   */
   enum enum_caches_type
   {
@@ -476,7 +472,7 @@ TEST_F(GroupTest, Group_containers)
   push_errtext();                                                       \
   for (int method_i= 0, combination_i= 0; method_i < MAX_METHOD; method_i++) { \
     for (int sid_map_i= 0; sid_map_i < MAX_SID_MAP; sid_map_i++, combination_i++) { \
-      GTID_set &gtid_set __attribute__((unused))=                       \
+      Gtid_set &gtid_set __attribute__((unused))=                       \
         containers[combination_i]->gtid_set;                            \
       Sid_map *&sid_map __attribute__((unused))=                        \
         sid_maps[sid_map_i];                                            \
@@ -493,7 +489,7 @@ TEST_F(GroupTest, Group_containers)
     for (int end_i= 0; end_i < MAX_END; end_i++) {                      \
       for (int empty_i= 0; empty_i < MAX_EMPTY; empty_i++) {            \
         for (int anon_i= 0; anon_i < MAX_ANON; anon_i++, combination_i++) { \
-          GTID_set &gtid_set __attribute__((unused))=                   \
+          Gtid_set &gtid_set __attribute__((unused))=                   \
             containers[combination_i]->gtid_set;                        \
           Group_cache &stmt_cache __attribute__((unused))=              \
             containers[combination_i]->stmt_cache;                      \
@@ -528,7 +524,7 @@ TEST_F(GroupTest, Group_containers)
   /*
     Make sid_maps[0] and sid_maps[1] different: sid_maps[0] is
     generated in order; sid_maps[1] is generated in the order that
-    SIDS are inserted in the GTID_set.
+    SIDS are inserted in the Gtid_set.
   */
   for (int i= 0; i < N_SIDS; i++)
     ASSERT_LE(1, sid_maps[0]->add_permanent(&sids[i])) << errtext;
@@ -537,7 +533,7 @@ TEST_F(GroupTest, Group_containers)
   // test.
   struct Containers
   {
-    GTID_set gtid_set;
+    Gtid_set gtid_set;
     Group_cache stmt_cache;
     Group_cache trx_cache;
     Group_log_state group_log_state;
@@ -557,7 +553,7 @@ TEST_F(GroupTest, Group_containers)
   } END_LOOP_B;
 
   /*
-    Construct a GTID_set that contains the set of all groups from
+    Construct a Gtid_set that contains the set of all groups from
     which we sample.
   */
   static char all_groups_str[100*100];
@@ -566,11 +562,11 @@ TEST_F(GroupTest, Group_containers)
   for (rpl_sidno sidno= 2; sidno <= N_SIDS; sidno++)
     s += sprintf(s, ",\n%s:1-%d", uuids[sidno - 1], sidno * sidno);
   enum_return_status status;
-  GTID_set all_groups(sid_maps[0], all_groups_str, &status);
+  Gtid_set all_groups(sid_maps[0], all_groups_str, &status);
   ASSERT_OK(status) << errtext;
 
   // The set of groups that were added in some previous stage.
-  GTID_set done_groups(sid_maps[0]);
+  Gtid_set done_groups(sid_maps[0]);
   ASSERT_OK(done_groups.ensure_sidno(sid_maps[0]->get_max_sidno()));
 
   /*
@@ -623,7 +619,7 @@ TEST_F(GroupTest, Group_containers)
     ASSERT_NE((char *)NULL, done_str) << errtext;
     done_str_len += sprintf(done_str + done_str_len, ",%s", stage.str);
 
-    // Add groups to GTID_sets.
+    // Add groups to Gtid_sets.
     BEGIN_LOOP_A
     {
       switch (method_i)
@@ -674,7 +670,7 @@ TEST_F(GroupTest, Group_containers)
 #endif // ifdef DBUG_OFF
       }
       
-      GTID_set ended_groups(sid_maps[0]);
+      Gtid_set ended_groups(sid_maps[0]);
       bool trx_contains_logged_subgroup= false;
       bool stmt_contains_logged_subgroup= false;
       BEGIN_SUBSTAGE_LOOP(this, &stage, true)
@@ -701,7 +697,7 @@ TEST_F(GroupTest, Group_containers)
           In EMPTY_RANDOMIZE mode, we have to determine once *per
           group* (not substage) if we use EMPTY_END or not. So we
           determine this for the first subgroup of the group, and then
-          we memoize which groups use EMPTY_END using the GTID_set
+          we memoize which groups use EMPTY_END using the Gtid_set
           empty_end.
         */
         int empty_j;
@@ -859,15 +855,15 @@ TEST_F(GroupTest, Group_containers)
     } END_LOOP_B;
 
     // add stage.set to done_groups
-    GTID_set old_done_groups(&done_groups, &status);
+    Gtid_set old_done_groups(&done_groups, &status);
     ASSERT_OK(status);
     ASSERT_OK(done_groups.add(&stage.set));
 
-    // check the GTID_set::remove and GTID_set::is_subset functions
-    GTID_set diff(&done_groups, &status);
+    // check the Gtid_set::remove and Gtid_set::is_subset functions
+    Gtid_set diff(&done_groups, &status);
     ASSERT_OK(status);
     ASSERT_OK(diff.remove(&old_done_groups));
-    GTID_set not_new(&stage.set, &status);
+    Gtid_set not_new(&stage.set, &status);
     ASSERT_OK(status);
     ASSERT_OK(not_new.remove(&diff));
 
@@ -908,8 +904,8 @@ TEST_F(GroupTest, Group_containers)
     /*
       Verify that all group sets are equal.  We test both a.equals(b)
       and b.equals(a) and a.equals(a), because we want to verify that
-      GTID_set::equals is correct too.  We compare both the sets
-      using GTID_set::equals, and the output of to_string() using
+      Gtid_set::equals is correct too.  We compare both the sets
+      using Gtid_set::equals, and the output of to_string() using
       EXPECT_STREQ.
     */
     BEGIN_LOOP_A
@@ -918,7 +914,7 @@ TEST_F(GroupTest, Group_containers)
       gtid_set.to_string(buf1);
       for (int i= 0; i < N_COMBINATIONS_SETS; i++)
       {
-        GTID_set &gtid_set_2= containers[i]->gtid_set;
+        Gtid_set &gtid_set_2= containers[i]->gtid_set;
         if (combination_i < i)
         {
           char *buf2= new char[gtid_set_2.get_string_length() + 1];
@@ -956,6 +952,3 @@ TEST_F(GroupTest, Group_containers)
 
   mysql_bin_log.sid_lock.assert_no_lock();
 }
-
-
-#endif

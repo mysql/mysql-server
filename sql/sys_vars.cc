@@ -569,6 +569,7 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
+#if defined(HAVE_NDB_BINLOG) || defined(NON_DISABLED_GTID) || defined(HAVE_REPLICATION)
 static bool check_top_level_stmt(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_sub_stmt)
@@ -584,7 +585,9 @@ static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var
   return (check_has_super(self, thd, var) ||
           check_top_level_stmt(self, thd, var));
 }
+#endif
 
+#if defined(HAVE_NDB_BINLOG) || defined(NON_DISABLED_GTID)
 static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
@@ -594,6 +597,7 @@ static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
+#endif
 
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {
@@ -3818,6 +3822,11 @@ static Sys_var_charptr Sys_ignore_db_dirs(
        NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
 
+/*
+  This code is not being used but we will keep it as it may be
+  useful if we decide to keeep disable_gtid_unsafe_statements.
+*/
+#ifdef NON_DISABLED_GTID
 static bool check_disable_gtid_unsafe_statements(
   sys_var *self, THD *thd, set_var *var)
 {
@@ -3837,6 +3846,7 @@ static bool check_disable_gtid_unsafe_statements(
   }
   DBUG_RETURN(false);
 }
+#endif
 
 static Sys_var_mybool Sys_disable_gtid_unsafe_statements(
        "disable_gtid_unsafe_statements",
@@ -3846,8 +3856,12 @@ static Sys_var_mybool Sys_disable_gtid_unsafe_statements(
        "all updates to non-transactional tables, and CREATE TABLE ... SELECT.",
        READ_ONLY GLOBAL_VAR(disable_gtid_unsafe_statements),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_disable_gtid_unsafe_statements));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG
+#ifdef NON_DISABLED_GTID
+       , ON_CHECK(check_disable_gtid_unsafe_statements));
+#else
+       );
+#endif
 
 static Sys_var_ulong Sys_sp_cache_size(
        "stored_program_cache",
@@ -3901,6 +3915,7 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 
   if (gtid_next_list != NULL)
   {
+#ifdef HAVE_NDB_BINLOG
     // If GTID_NEXT==SID:GNO, then SID:GNO must be listed in GTID_NEXT_LIST
     if (spec.type == GTID_GROUP && !gtid_next_list->contains_gtid(spec.gtid))
     {
@@ -3919,6 +3934,9 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
                MYF(0));
       DBUG_RETURN(true);
     }
+#else
+    DBUG_ASSERT(0);
+#endif
   }
   // check that we don't own a GTID
   else if(thd->owned_gtid.sidno != 0)
@@ -4008,6 +4026,11 @@ static Sys_var_gtid_owned Sys_gtid_owned(
        "The global variable lists all GTIDs owned by all threads. "
        "The session variable lists all GTIDs owned by the current thread.");
 
+/*
+  This code is not being used but we will keep it as it may be
+  useful when we improve the code around Sys_gtid_mode.
+*/
+#ifdef NON_DISABLED_GTID
 static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_mode");
@@ -4064,6 +4087,7 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
   }
   DBUG_RETURN(false);
 }
+#endif
 
 static Sys_var_enum Sys_gtid_mode(
        "gtid_mode",
@@ -4076,6 +4100,11 @@ static Sys_var_enum Sys_gtid_mode(
        "be re-executed on all servers, and finally set all servers to ON.",
        READ_ONLY GLOBAL_VAR(gtid_mode), CMD_LINE(REQUIRED_ARG),
        gtid_mode_names, DEFAULT(GTID_MODE_OFF),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_gtid_mode));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG
+#ifdef NON_DISABLED_GTID
+       , ON_CHECK(check_gtid_mode));
+#else
+       );
+#endif
 
 #endif // HAVE_REPLICATION
