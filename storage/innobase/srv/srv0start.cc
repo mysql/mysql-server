@@ -2492,13 +2492,6 @@ innobase_shutdown_for_mysql(void)
 			srv_conc_get_active_threads());
 	}
 
-	if (trx_purge_state() == PURGE_STATE_STOP) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Purge was stopped, resuming purge.\n");
-		trx_purge_run();
-	}
-
 	/* 2. Make all threads created by InnoDB to exit */
 
 	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
