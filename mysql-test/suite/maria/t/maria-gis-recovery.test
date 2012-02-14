@@ -1,0 +1,64 @@
+--source include/not_embedded.inc
+# Don't test this under valgrind, memory leaks will occur as we crash
+--source include/not_valgrind.inc
+# Binary must be compiled with debug for crash to occur
+--source include/have_debug.inc
+--source include/have_maria.inc
+--source include/have_geometry.inc
+
+set global aria_log_file_size=4294967295;
+let $MARIA_LOG=../../tmp;
+
+--disable_warnings
+drop database if exists mysqltest;
+--enable_warnings
+create database mysqltest;
+let $mms_tname=t;
+
+# Include scripts can perform SQL. For it to not influence the main test
+# they use a separate connection. This way if they use a DDL it would
+# not autocommit in the main test.
+connect (admin, localhost, root,,mysqltest,,);
+--enable_reconnect
+
+connection default;
+use mysqltest;
+--enable_reconnect
+
+-- source include/maria_empty_logs.inc
+let $mms_tables=1;
+CREATE TABLE t1 (
+  i int,
+  shape GEOMETRY NOT NULL,
+  SPATIAL (shape)
+) ENGINE=ARIA;
+insert into t1 values(1,POINT(1, 1));
+-- source include/maria_make_snapshot_for_feeding_recovery.inc
+insert into t1 values(2,POINT(2, 2)), (3,POINT(3, 3)), (4,POINT(4, 4));
+-- source include/maria_make_snapshot_for_comparison.inc
+let $mvr_restore_old_snapshot=1;
+let $mms_compare_physically=0;
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
+-- source include/maria_verify_recovery.inc
+show create table t1;
+
+# Test that UPDATE's effect on auto-increment is recovered
+--echo * TEST of UPDATE vs state.auto_increment
+-- source include/maria_make_snapshot_for_feeding_recovery.inc
+update t1 set shape=POINT(5, 5) where i=2;
+-- source include/maria_make_snapshot_for_comparison.inc
+let $mvr_restore_old_snapshot=1;
+let $mms_compare_physically=0;
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
+-- source include/maria_verify_recovery.inc
+show create table t1;
+drop table t1;
+
+# clean up everything
+let $mms_purpose=feeding_recovery;
+eval drop database mysqltest_for_$mms_purpose;
+let $mms_purpose=comparison;
+eval drop database mysqltest_for_$mms_purpose;
+drop database mysqltest;
