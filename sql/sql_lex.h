@@ -295,6 +295,7 @@ typedef struct st_lex_master_info
 #ifndef MCP_WL3127
   char *bind_addr;
 #endif
+  ulong server_ids_buffer[2];
 } LEX_MASTER_INFO;
 
 typedef struct st_lex_reset_slave

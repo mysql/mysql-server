@@ -49,12 +49,85 @@
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
+
 /*
   This forward declaration is needed because including sql_base.h
   causes further includes.  [TODO] Eliminate this forward declaration
   and include a file with the prototype instead.
 */
 extern void close_thread_tables(THD *thd);
+
+
+static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
+                               ptrdiff_t offset, ulonglong new_value)
+{
+  bool error= false;
+  DBUG_ASSERT(offset == offsetof(KEY_CACHE, param_buff_size));
+
+  if (new_value == 0)
+  {
+    if (key_cache == dflt_key_cache)
+    {
+      my_error(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE, MYF(0));
+      return true;
+    }
+
+    if (key_cache->key_cache_inited)            // If initied
+    {
+      /*
+        Move tables using this key cache to the default key cache
+        and clear the old key cache.
+      */
+      key_cache->in_init= 1;
+      mysql_mutex_unlock(&LOCK_global_system_variables);
+      key_cache->param_buff_size= 0;
+      ha_resize_key_cache(key_cache);
+      ha_change_key_cache(key_cache, dflt_key_cache);
+      /*
+        We don't delete the key cache as some running threads my still be in
+        the key cache code with a pointer to the deleted (empty) key cache
+      */
+      mysql_mutex_lock(&LOCK_global_system_variables);
+      key_cache->in_init= 0;
+    }
+    return error;
+  }
+
+  key_cache->param_buff_size= new_value;
+
+  /* If key cache didn't exist initialize it, else resize it */
+  key_cache->in_init= 1;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  if (!key_cache->key_cache_inited)
+    error= ha_init_key_cache(0, key_cache);
+  else
+    error= ha_resize_key_cache(key_cache);
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  key_cache->in_init= 0;
+
+  return error;
+}
+
+static bool update_keycache_param(THD *thd, KEY_CACHE *key_cache,
+                                  ptrdiff_t offset, ulonglong new_value)
+{
+  bool error= false;
+  DBUG_ASSERT(offset != offsetof(KEY_CACHE, param_buff_size));
+
+  keycache_var(key_cache, offset)= new_value;
+
+  key_cache->in_init= 1;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+  error= ha_resize_key_cache(key_cache);
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  key_cache->in_init= 0;
+
+  return error;
+}
 
 /*
   The rule for this file: everything should be 'static'. When a sys_var
@@ -3203,4 +3276,18 @@ static Sys_var_tz Sys_time_zone(
        "time_zone", "time_zone",
        SESSION_VAR(time_zone), NO_CMD_LINE,
        DEFAULT(&default_tz), NO_MUTEX_GUARD, IN_BINLOG);
+
+
+/****************************************************************************
+  Used templates
+****************************************************************************/
+
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
+template class List<set_var_base>;
+template class List_iterator_fast<set_var_base>;
+template class Sys_var_unsigned<uint, GET_UINT, SHOW_INT>;
+template class Sys_var_unsigned<ulong, GET_ULONG, SHOW_LONG>;
+template class Sys_var_unsigned<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS>;
+template class Sys_var_unsigned<ulonglong, GET_ULL, SHOW_LONGLONG>;
+#endif
 

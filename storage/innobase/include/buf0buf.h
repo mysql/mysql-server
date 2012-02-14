@@ -910,7 +910,27 @@ buf_block_set_io_fix(
 /*=================*/
 	buf_block_t*	block,	/*!< in/out: control block */
 	enum buf_io_fix	io_fix);/*!< in: io_fix state */
-
+/*********************************************************************//**
+Makes a block sticky. A sticky block implies that even after we release
+the buf_pool->mutex and the block->mutex:
+* it cannot be removed from the flush_list
+* the block descriptor cannot be relocated
+* it cannot be removed from the LRU list
+Note that:
+* the block can still change its position in the LRU list
+* the next and previous pointers can change. */
+UNIV_INLINE
+void
+buf_page_set_sticky(
+/*================*/
+	buf_page_t*	bpage);	/*!< in/out: control block */
+/*********************************************************************//**
+Removes stickiness of a block. */
+UNIV_INLINE
+void
+buf_page_unset_sticky(
+/*==================*/
+	buf_page_t*	bpage);	/*!< in/out: control block */
 /********************************************************************//**
 Determine if a buffer block can be relocated in memory.  The block
 can be dirty, but it must not be I/O-fixed or bufferfixed. */

@@ -1,0 +1,24 @@
+--source include/not_embedded.inc
+--source include/master-slave.inc
+--source include/have_binlog_format_mixed.inc
+
+#
+# BUG#13427949: CHANGE MASTER TO USER='' (EMPTY USER) CAUSES ERRORS ON VALGRING 
+#
+
+--connection slave
+call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
+
+
+# Assert that we disallow empty users and that no problem
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= '', MASTER_PASSWORD= '';
+START SLAVE;
+--let $slave_io_errno= 1045, 1593
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave.inc
+
+CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD= '';
+START SLAVE;
+
+--source include/rpl_end.inc 

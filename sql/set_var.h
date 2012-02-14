@@ -34,6 +34,7 @@ class Item_func_set_user_var;
 
 // This include needs to be here since item.h requires enum_var_type :-P
 #include "item.h"                          /* Item */
+#include "sql_class.h"                     /* THD  */
 
 extern TYPELIB bool_typelib;
 

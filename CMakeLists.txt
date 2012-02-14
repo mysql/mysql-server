@@ -387,4 +387,3 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
     PATTERN "sp-imp-spec.txt" EXCLUDE
   )
 ENDIF()
-
