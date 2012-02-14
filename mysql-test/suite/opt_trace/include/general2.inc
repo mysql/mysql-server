@@ -617,3 +617,14 @@ eval $query;
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Trace of "condition on constant tables"
+--echo #
+create table t1(a int) engine=myisam;
+insert into t1 values(26);
+create table t2(b int primary key, c int) engine=myisam;
+insert into t2 values(1,100),(2,200),(3,300);
+select * from t1,t2 where t1.a+t2.c=cos(10) and t2.b=2;
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+drop table t1,t2;
