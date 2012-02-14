@@ -14,16 +14,18 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 # Common defines and includes
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include
-		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include/memcached
-		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached
-		    ${LIBEVENT_INCLUDE_DIR}
+INCLUDE_DIRECTORIES(${LIBEVENT_INCLUDE_DIR}
 		    ${CMAKE_SOURCE_DIR}/include
 		    ${CMAKE_SOURCE_DIR}/sql
 		    ${CMAKE_SOURCE_DIR}/bld/include
 		    ${CMAKE_SOURCE_DIR}/regex
+		    ${CMAKE_SOURCE_DIR}/libevent
 		    ${CMAKE_SOURCE_DIR}/include/mysql
 		    ${CMAKE_C_IMPLICIT_LINK_DIRECTORIES}
+		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include
+		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include/memcached
+		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached
+
 		)
 
 SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities")

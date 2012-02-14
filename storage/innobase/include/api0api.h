@@ -1789,7 +1789,7 @@ ib_table_name_check(
 Return isolation configuration set by "innodb_api_trx_level"
 @return trx isolation level*/
 
-ulong
+ib_trx_state_t
 ib_cfg_trx_level();
 /*==============*/
 
