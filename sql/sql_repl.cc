@@ -1693,7 +1693,6 @@ err:
   thd_proc_info(thd, 0);
   if (ret == FALSE)
     my_ok(thd);
-  delete_dynamic(&lex_mi->repl_ignore_server_ids); //freeing of parser-time alloc
   DBUG_RETURN(ret);
 }
 

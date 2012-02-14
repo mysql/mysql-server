@@ -2354,6 +2354,7 @@ LEX::LEX()
                          plugins_static_buffer,
                          INITIAL_LEX_PLUGIN_LIST_SIZE, 
                          INITIAL_LEX_PLUGIN_LIST_SIZE);
+  memset(&mi, 0, sizeof(LEX_MASTER_INFO));
   reset_query_tables_list(TRUE);
 }
 

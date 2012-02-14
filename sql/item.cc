@@ -7924,8 +7924,8 @@ my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val)
 
 int Item_cache_str::save_in_field(Field *field, bool no_conversions)
 {
-  if (!has_value())
-    return 0;
+  if (!value_cached && !cache_value())
+    return -1;                      // Fatal: couldn't cache the value
   int res= Item_cache::save_in_field(field, no_conversions);
   return (is_varbinary && field->type() == MYSQL_TYPE_STRING &&
           value->length() < field->field_length) ? 1 : res;

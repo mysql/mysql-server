@@ -357,7 +357,8 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 			MYSQL_TYPE_BLOB=252,
 			MYSQL_TYPE_VAR_STRING=253,
 			MYSQL_TYPE_STRING=254,
-                        MYSQL_TYPE_GEOMETRY=255
+			MYSQL_TYPE_GEOMETRY=255
+
 };
 
 /* For backward compatibility */

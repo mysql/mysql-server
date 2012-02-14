@@ -72,7 +72,6 @@
 enum charset_enum {IN_SYSTEM_CHARSET, IN_FS_CHARSET};
 
 static const char *bool_values[3]= {"OFF", "ON", 0};
-TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 
 /**
   A small wrapper class to pass getopt arguments as a pair
@@ -709,76 +708,6 @@ public:
     return keycache_var_ptr(key_cache, offset);
   }
 };
-
-static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
-                               ptrdiff_t offset, ulonglong new_value)
-{
-  bool error= false;
-  DBUG_ASSERT(offset == offsetof(KEY_CACHE, param_buff_size));
-
-  if (new_value == 0)
-  {
-    if (key_cache == dflt_key_cache)
-    {
-      my_error(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE, MYF(0));
-      return true;
-    }
-
-    if (key_cache->key_cache_inited)            // If initied
-    {
-      /*
-        Move tables using this key cache to the default key cache
-        and clear the old key cache.
-      */
-      key_cache->in_init= 1;
-      mysql_mutex_unlock(&LOCK_global_system_variables);
-      key_cache->param_buff_size= 0;
-      ha_resize_key_cache(key_cache);
-      ha_change_key_cache(key_cache, dflt_key_cache);
-      /*
-        We don't delete the key cache as some running threads my still be in
-        the key cache code with a pointer to the deleted (empty) key cache
-      */
-      mysql_mutex_lock(&LOCK_global_system_variables);
-      key_cache->in_init= 0;
-    }
-    return error;
-  }
-
-  key_cache->param_buff_size= new_value;
-
-  /* If key cache didn't exist initialize it, else resize it */
-  key_cache->in_init= 1;
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-
-  if (!key_cache->key_cache_inited)
-    error= ha_init_key_cache(0, key_cache);
-  else
-    error= ha_resize_key_cache(key_cache);
-
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  key_cache->in_init= 0;
-
-  return error;
-}
-
-static bool update_keycache_param(THD *thd, KEY_CACHE *key_cache,
-                                  ptrdiff_t offset, ulonglong new_value)
-{
-  bool error= false;
-  DBUG_ASSERT(offset != offsetof(KEY_CACHE, param_buff_size));
-
-  keycache_var(key_cache, offset)= new_value;
-
-  key_cache->in_init= 1;
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-  error= ha_resize_key_cache(key_cache);
-
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  key_cache->in_init= 0;
-
-  return error;
-}
 
 /**
   The class for floating point variables
@@ -1677,17 +1606,3 @@ public:
   {}
   virtual bool session_update(THD *thd, set_var *var);
 };
-
-/****************************************************************************
-  Used templates
-****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<set_var_base>;
-template class List_iterator_fast<set_var_base>;
-template class Sys_var_unsigned<uint, GET_UINT, SHOW_INT>;
-template class Sys_var_unsigned<ulong, GET_ULONG, SHOW_LONG>;
-template class Sys_var_unsigned<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS>;
-template class Sys_var_unsigned<ulonglong, GET_ULL, SHOW_LONGLONG>;
-#endif
-
