@@ -729,6 +729,8 @@ srv_reserve_slot(
 		break;
 
 	case SRV_NONE:
+		/* Compiler warning about an uninitialised variable.*/
+		slot = 0;
 		ut_error;
 	}
 
