@@ -633,10 +633,10 @@ SET @cmd="CREATE TABLE performance_schema.host_cache("
   "COUNT_INIT_CONNECT_ERRORS BIGINT not null,"
   "COUNT_LOCAL_ERRORS BIGINT not null,"
   "COUNT_UNKNOWN_ERRORS BIGINT not null,"
-  "FIRST_SEEN TIMESTAMP(6) default 0,"
-  "LAST_SEEN TIMESTAMP(6) default 0,"
-  "FIRST_ERROR_SEEN TIMESTAMP(6) null default 0,"
-  "LAST_ERROR_SEEN TIMESTAMP(6) null default 0"
+  "FIRST_SEEN TIMESTAMP(0) default 0,"
+  "LAST_SEEN TIMESTAMP(0) default 0,"
+  "FIRST_ERROR_SEEN TIMESTAMP(0) null default 0,"
+  "LAST_ERROR_SEEN TIMESTAMP(0) null default 0"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
