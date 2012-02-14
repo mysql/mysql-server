@@ -173,30 +173,47 @@ void
 row_quiesce_table_start(
 /*====================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
-	void*		thd)		/*!< in/out: session */
+	trx_t*		trx)		/*!< in/out: transaction/session */
 {
+	ut_a(trx->mysql_thd != 0);
 	ut_a(srv_n_purge_threads > 0);
 
-	ib_logf("Sync to disk of %s started.", table->name);
+	char 		table_name[MAX_FULL_NAME_LEN + 1];
+
+	ut_a(trx->mysql_thd != 0);
+
+	innobase_format_name(
+		table_name, sizeof(table_name), table->name, FALSE);
+
+	ib_logf("Sync to disk of %s started.", table_name);
 
 	trx_purge_stop();
 
 	ibuf_contract_in_background(table->id, TRUE);
 
-	ulint		n_flushed;	
+	if (!trx_is_interrupted(trx)) {
+		ulint		n_flushed;	
 
-	n_flushed = buf_flush_list(table->space);
+		n_flushed = buf_flush_list(trx, table->space);
 
-	ib_logf("Quiesce pages flushed: %lu", n_flushed);
+		ib_logf("Flushed %lu pages of %s", n_flushed, table_name);
 
-	if (row_quiesce_write_meta_data(table, thd) != DB_SUCCESS) {
-		ib_logf("There was an error writing to the "
-			"meta data file");
+		if (trx_is_interrupted(trx)) {
+			ib_logf(IB_LOG_LEVEL_WARN, "Quiesce aborted!");
+		} else if (row_quiesce_write_meta_data(table, trx->mysql_thd)
+			   != DB_SUCCESS) {
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"There was an error writing to the "
+				"meta data file");
+		} else {
+			ib_logf("Table %s flushed to disk", table_name);
+		}
 	} else {
-		ib_logf("%s flushed to disk", table->name);
+		ib_logf(IB_LOG_LEVEL_WARN, "Quiesce aborted!");
 	}
 
-	row_quiesce_set_state(table, QUIESCE_COMPLETE, thd);
+	row_quiesce_set_state(table, QUIESCE_COMPLETE, trx->mysql_thd);
 }
 
 /*********************************************************************//**
@@ -206,11 +223,37 @@ void
 row_quiesce_table_complete(
 /*=======================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
-	void*		thd)		/*!< in/out: session */
+	trx_t*		trx)		/*!< in/out: transaction/session */
 {
+	ulint		count = 0;
+	char 		table_name[MAX_FULL_NAME_LEN + 1];
+
+	ut_a(trx->mysql_thd != 0);
+
+	innobase_format_name(
+		table_name, sizeof(table_name), table->name, FALSE);
+
+	/* We need to wait for the operation to complete if the
+	transaction has been killed. */
+
+	while (table->quiesce != QUIESCE_COMPLETE) {
+
+		/* Print a warning after every minute. */
+		if (!(count % 60)) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Waiting for quiesce of '%s' to complete",
+				table_name);
+		}
+
+		/* Sleep for a second. */
+		os_thread_sleep(10000000);
+
+		++count;
+	}
+
 	trx_purge_run();
 
-	row_quiesce_set_state(table, QUIESCE_NONE, thd);
+	row_quiesce_set_state(table, QUIESCE_NONE, trx->mysql_thd);
 }
 
 /*********************************************************************//**
