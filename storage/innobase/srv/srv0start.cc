@@ -2493,7 +2493,9 @@ innobase_shutdown_for_mysql(void)
 	}
 
 	/* This functionality will be used by WL#5522. */
-	ut_a(trx_purge_state() == PURGE_STATE_RUN);
+	ut_a(trx_purge_state() == PURGE_STATE_RUN
+	     || trx_purge_state() == PURGE_STATE_EXIT
+	     || srv_force_recovery >= SRV_FORCE_NO_BACKGROUND);
 
 	/* 2. Make all threads created by InnoDB to exit */
 
