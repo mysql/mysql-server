@@ -5071,7 +5071,11 @@ lock_print_info_summary(
 		purge_sys->iter.trx_no,
 		purge_sys->iter.undo_no);
 
-	switch (trx_purge_state()) {
+	/* Note: We are reading the state without the latch. One because it
+	will violate the latching order and two because we are merely querying
+	the state of the variable for display. */
+
+	switch (purge_sys->state){
 	case PURGE_STATE_EXIT:
 	case PURGE_STATE_INIT:
 		/* Should never be in this state while the system is running. */
