@@ -631,7 +631,7 @@ trx_assign_rseg(
 	trx_rseg_t*	rseg;
 	static ulint	latest_rseg = 0;
 
-	if (srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
+	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
 		ut_a(max_undo_logs == ULINT_UNDEFINED);
 		return(NULL);
 	}
@@ -738,7 +738,10 @@ trx_start_low(
 			ut_d(trx->in_ro_trx_list = TRUE);
 		}
 	} else {
-		ut_ad(trx->rseg != NULL);
+
+		ut_ad(trx->rseg != NULL
+		      || srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
+
 		ut_ad(!trx_is_autocommit_non_locking(trx));
 		UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
 		ut_d(trx->in_rw_trx_list = TRUE);
@@ -1021,6 +1024,13 @@ trx_commit(
 		ut_ad(trx->rseg == NULL);
 		ut_ad(!trx->in_ro_trx_list);
 		ut_ad(!trx->in_rw_trx_list);
+
+		/* Note: We are asserting without holding the lock mutex. But
+		that is OK because this transaction is not waiting and cannot
+		be rolled back and no new locks can (or should not) be added
+		becuase it is flagged as a non-locking read-only transaction. */
+
+		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
 		/* This state change is not protected by any mutex, therefore
 		there is an inherent race here around state transition during

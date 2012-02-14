@@ -1669,7 +1669,7 @@ insert into t1 values(3)	{
   "steps": [
   ] /* steps */
 }	0	0
-SET @a=(select count(a) from t1 where a>0)	{
+SET  @a=(select count(a) from t1 where a>0)	{
   "steps": [
     {
       "join_preparation": {
@@ -1927,7 +1927,7 @@ jump_if_not 11(15) (case_expr@0 = 2)	{
   "steps": [
   ] /* steps */
 }	0	0
-SET @b=2	{
+SET  @b=2	{
   "steps": [
   ] /* steps */
 }	0	0

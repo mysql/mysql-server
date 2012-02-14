@@ -2177,6 +2177,12 @@ innobase_start_or_create_for_mysql(void)
 	srv_available_undo_logs = trx_sys_create_rsegs(
 		srv_undo_tablespaces, srv_undo_logs);
 
+	if (srv_available_undo_logs == ULINT_UNDEFINED) {
+		/* Can only happen if force recovery is set. */
+		ut_a(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
+		srv_undo_logs = ULINT_UNDEFINED;
+	}
+
 	/* Create the thread which watches the timeouts for lock waits */
 	os_thread_create(
 		lock_wait_timeout_thread,
@@ -2201,6 +2207,8 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	srv_is_being_started = FALSE;
+
+	ut_a(trx_purge_state() == PURGE_STATE_INIT);
 
 	/* Create the master thread which does purge and other utility
 	operations */
@@ -2228,27 +2236,32 @@ innobase_start_or_create_for_mysql(void)
 		}
 	}
 
-
-	os_thread_create(
-		buf_flush_page_cleaner_thread, NULL, NULL);
+	os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
 
 	/* Wait for the purge coordinator and master thread to startup. */
 
+	purge_state_t	state = trx_purge_state();
+
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE
-	       && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
+	       && srv_force_recovery < SRV_FORCE_NO_BACKGROUND
+	       && state == PURGE_STATE_INIT) {
 
-		if (srv_thread_has_reserved_slot(SRV_MASTER) == ULINT_UNDEFINED
-		    || (srv_n_purge_threads > 0
-			&& srv_thread_has_reserved_slot(SRV_PURGE)
-			== ULINT_UNDEFINED)) {
+		switch (state = trx_purge_state()) {
+		case PURGE_STATE_RUN:
+		case PURGE_STATE_STOP:
+			break;
 
+		case PURGE_STATE_INIT:
 			ut_print_timestamp(stderr);
 			fprintf(stderr, " InnoDB: "
 				"Waiting for the background threads to "
 				"start\n");
-			os_thread_sleep(1000000);
-		} else {
+
+			os_thread_sleep(50000);
 			break;
+
+		case PURGE_STATE_EXIT:
+			ut_error;
 		}
 	}
 
@@ -2479,6 +2492,11 @@ innobase_shutdown_for_mysql(void)
 			srv_conc_get_active_threads());
 	}
 
+	/* This functionality will be used by WL#5522. */
+	ut_a(trx_purge_state() == PURGE_STATE_RUN
+	     || trx_purge_state() == PURGE_STATE_EXIT
+	     || srv_force_recovery >= SRV_FORCE_NO_BACKGROUND);
+
 	/* 2. Make all threads created by InnoDB to exit */
 
 	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
@@ -2500,11 +2518,8 @@ innobase_shutdown_for_mysql(void)
 		/* c. We wake the master thread so that it exits */
 		srv_wake_master_thread();
 
-		/* d. We wake the purge thread(s) so that they exit */
-		if (srv_n_purge_threads > 0) {
-			srv_wake_purge_thread();
-			srv_wake_worker_threads(srv_n_purge_threads - 1);
-		}
+		/* d. Wakeup purge threads. */
+		srv_purge_wakeup();
 
 		/* e. Exit the i/o threads */
 

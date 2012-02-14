@@ -53,8 +53,8 @@ set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 create table t1 select 1 as i;;
 set debug_sync='now WAIT_FOR parked';
 alter table t3 rename to t1;
-ERROR 42S01: Table 't1' already exists
 set debug_sync='now SIGNAL go';
+ERROR 42S01: Table 't1' already exists
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -65,8 +65,8 @@ set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 create table t1 select 1 as i;;
 set debug_sync='now WAIT_FOR parked';
 alter table t3 rename to t1, add k int;
-ERROR 42S01: Table 't1' already exists
 set debug_sync='now SIGNAL go';
+ERROR 42S01: Table 't1' already exists
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
