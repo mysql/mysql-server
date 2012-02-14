@@ -43,11 +43,6 @@ There are 3 "system tables":
 #define MCI_CFG_CACHE_POLICIES		"cache_policies"
 #define MCI_CFG_CONFIG_OPTIONS		"config_options"
 
-#ifndef TRUE
-#define TRUE    1
-#define FALSE   0
-#endif
-
 /** Max table name length as defined in univ.i */
 #define MAX_TABLE_NAME_LEN      192
 #define MAX_DATABASE_NAME_LEN   MAX_TABLE_NAME_LEN
@@ -56,11 +51,11 @@ There are 3 "system tables":
 
 /** structure describes each column's basic info (name, field_id etc.) */
 typedef struct meta_columns {
-	char*		m_str;			/*!< column name */
-	int		m_len;			/*!< column name length */
-	int		m_field_id;		/*!< column field id in
+	char*		col_name;		/*!< column name */
+	int		col_name_len;		/*!< column name length */
+	int		field_id;		/*!< column field id in
 						the table */
-	ib_col_meta_t	m_col;			/*!< column  meta info */
+	ib_col_meta_t	col_meta;		/*!< column  meta info */
 } meta_column_t;
 
 /** Following are enums defining column IDs indexing into each of three
@@ -125,10 +120,10 @@ typedef enum meta_use_idx {
 
 /** Describes the index's name and ID of the index on the "key" column */
 typedef struct meta_index {
-	char*		m_name;		/*!< index name */
-	int		m_id;		/*!< index id */
-	meta_use_idx_t	m_use_idx;	/*!< has cluster or secondary
-					index on the key column */
+	char*		idx_name;	/*!< index name */
+	int		idx_id;		/*!< index id */
+	meta_use_idx_t	srch_use_idx;	/*!< use cluster or secondary
+					index for the search */
 } meta_index_t;
 
 /** Cache options, tells if we will used Memcached default engine or InnoDB
@@ -144,24 +139,24 @@ typedef enum meta_cache_opt {
 /** In memory structure contains most necessary metadata info
 to configure an InnoDB Memcached engine */
 typedef struct meta_cfg_info {
-	meta_column_t	m_item[CONTAINER_NUM_COLS]; /*!< column info */
-	meta_column_t*	m_add_item;		/*!< additional columns
+	meta_column_t	col_info[CONTAINER_NUM_COLS]; /*!< column info */
+	meta_column_t*	add_col_info;		/*!< additional columns
 						specified for the value field */
-	int		m_num_add;		/*!< number of additional
+	int		n_add_col;		/*!< number of additional
 						value columns */
-	meta_index_t	m_index;		/*!< Index info */
-	bool		m_flag_enabled;		/*!< whether flag is enabled */
-	bool		m_cas_enabled;		/*!< whether cas is enabled */
-	bool		m_exp_enabled;		/*!< whether exp is enabled */
-	char*		m_separator;		/*!< separator that separates
+	meta_index_t	index_info;		/*!< Index info */
+	bool		flag_enabled;		/*!< whether flag is enabled */
+	bool		cas_enabled;		/*!< whether cas is enabled */
+	bool		exp_enabled;		/*!< whether exp is enabled */
+	char*		separator;		/*!< separator that separates
 						incoming "value" string for
 						multiple columns */
-	int		m_sep_len;		/*!< separator length */
-	meta_cache_opt_t m_set_option;		/*!< cache option for "set" */
-	meta_cache_opt_t m_get_option;		/*!< cache option for "get" */
-	meta_cache_opt_t m_del_option;		/*!< cache option for
+	int		sep_len;		/*!< separator length */
+	meta_cache_opt_t set_option;		/*!< cache option for "set" */
+	meta_cache_opt_t get_option;		/*!< cache option for "get" */
+	meta_cache_opt_t del_option;		/*!< cache option for
 						"delete" */
-	meta_cache_opt_t m_flush_option;	/*!< cache option for
+	meta_cache_opt_t flush_option;		/*!< cache option for
 						"delete" */
 } meta_cfg_info_t;
 

@@ -57,25 +57,25 @@ innodb_config_free(
 	int	i;
 
 	for (i = 0; i < CONTAINER_NUM_COLS; i++) {
-		if (item->m_item[i].m_str) {
-			free(item->m_item[i].m_str);
+		if (item->col_info[i].col_name) {
+			free(item->col_info[i].col_name);
 		}
 	}
 
-	if (item->m_index.m_name) {
-		free(item->m_index.m_name);
+	if (item->index_info.idx_name) {
+		free(item->index_info.idx_name);
 	}
 
-	if (item->m_add_item) {
-		for (i = 0; i < item->m_num_add; i++) {
-			free(item->m_add_item[i].m_str);
+	if (item->add_col_info) {
+		for (i = 0; i < item->add_col_info; i++) {
+			free(item->add_col_info[i].col_name);
 		}
 
-		free(item->m_add_item);
+		free(item->add_col_info);
 	}
 
-	if (item->m_separator) {
-		free(item->m_separator);
+	if (item->separator) {
+		free(item->separator);
 	}
 
 	return;
@@ -112,21 +112,22 @@ innodb_config_parse_value_col(
 
 	if (num_cols > 1) {
 		int	i = 0;
-		item->m_add_item = malloc(num_cols * sizeof(*item->m_add_item));
+		item->add_col_info = malloc(
+			num_cols * sizeof(*item->add_col_info));
 
 		for (column_str = strtok_r(my_str, sep, &last);
 		     column_str;
 		     column_str = strtok_r(NULL, sep, &last)) {
-			item->m_add_item[i].m_len = strlen(column_str);
-			item->m_add_item[i].m_str = my_strdupl(
-				column_str, item->m_add_item[i].m_len);
+			item->add_col_info[i].col_name_len = strlen(column_str);
+			item->add_col_info[i].col_name = my_strdupl(
+				column_str, item->add_col_info[i].col_name_len);
 			i++;
 		}
 
-		item->m_num_add = num_cols;
+		item->add_col_info = num_cols;
 	} else {
-		item->m_add_item = NULL;
-		item->m_num_add = 0;
+		item->add_col_info = NULL;
+		item->add_col_info = 0;
 	}
 
 	return(true);
@@ -208,16 +209,16 @@ innodb_read_cache_policy(
 
 		switch (i) {
 		case CACHE_POLICY_GET:
-			item->m_get_option = opt_val;
+			item->get_option = opt_val;
 			break;
 		case CACHE_POLICY_SET:
-			item->m_set_option = opt_val;
+			item->set_option = opt_val;
 			break;
 		case CACHE_POLICY_DEL:
-			item->m_del_option = opt_val;
+			item->del_option = opt_val;
 			break;
 		case CACHE_POLICY_FLUSH:
-			item->m_flush_option = opt_val;
+			item->flush_option = opt_val;
 			break;
 		default:
 			assert(0);
@@ -308,9 +309,9 @@ innodb_read_config_option(
 		}
 
 		if (i == CONFIG_OPT_VALUE) {
-			item->m_separator = my_strdupl(
+			item->separator = my_strdupl(
 				(char*)innodb_cb_col_get_value(tpl, i), data_len);
-			item->m_sep_len = strlen(item->m_separator);
+			item->sep_len = strlen(item->separator);
 		}
 	}
 
@@ -419,14 +420,14 @@ innodb_config_container(
 
 		}
 
-		item->m_item[i].m_len = data_len;
+		item->col_info[i].col_name_len = data_len;
 
-		item->m_item[i].m_str = my_strdupl(
+		item->col_info[i].col_name = my_strdupl(
 			(char*)innodb_cb_col_get_value(tpl, i), data_len);
 
 		if (i == CONTAINER_VALUE) {
 			innodb_config_parse_value_col(
-				item, item->m_item[i].m_str, data_len);
+				item, item->col_info[i].col_name, data_len);
 		}
 	}
 
@@ -440,7 +441,7 @@ innodb_config_container(
 		goto func_exit;
 	}
 
-	item->m_index.m_name = my_strdupl((char*)innodb_cb_col_get_value(
+	item->index_info.idx_name = my_strdupl((char*)innodb_cb_col_get_value(
 						tpl, i), data_len);
 
 func_exit:
@@ -473,38 +474,38 @@ innodb_config_value_col_verify(
 {
 	ib_err_t	err = DB_NOT_FOUND;
 
-	if (!meta_info->m_add_item) {
-		meta_column_t*	cinfo = meta_info->m_item;
+	if (!meta_info->add_col_info) {
+		meta_column_t*	cinfo = meta_info->col_info;
 
 		/* "value" column must be of CHAR, VARCHAR or BLOB type */
-		if (strcmp(name, cinfo[CONTAINER_VALUE].m_str) == 0) {
+		if (strcmp(name, cinfo[CONTAINER_VALUE].col_name) == 0) {
 			if (col_meta->type != IB_VARCHAR
 			    && col_meta->type != IB_CHAR
 			    && col_meta->type != IB_BLOB) {
 				err = DB_DATA_MISMATCH;
 			}
 
-			cinfo[CONTAINER_VALUE].m_field_id = col_id;
-			cinfo[CONTAINER_VALUE].m_col = *col_meta;
+			cinfo[CONTAINER_VALUE].field_id = col_id;
+			cinfo[CONTAINER_VALUE].col_meta = *col_meta;
 			err = DB_SUCCESS;
 		}
 	} else {
 		int	i;
 
-		for (i = 0; i < meta_info->m_num_add; i++) {
-			if (strcmp(name, meta_info->m_add_item[i].m_str) == 0) {
+		for (i = 0; i < meta_info->add_col_info; i++) {
+			if (strcmp(name, meta_info->add_col_info[i].col_name) == 0) {
 				if (col_meta->type != IB_VARCHAR
 				    && col_meta->type != IB_CHAR
 				    && col_meta->type != IB_BLOB) {
 					err = DB_DATA_MISMATCH;
 				}
 
-				meta_info->m_add_item[i].m_field_id = col_id;
-				meta_info->m_add_item[i].m_col = *col_meta;
+				meta_info->add_col_info[i].field_id = col_id;
+				meta_info->add_col_info[i].col_meta = *col_meta;
 
-				meta_info->m_item[CONTAINER_VALUE].m_field_id
+				meta_info->col_info[CONTAINER_VALUE].field_id
 					= col_id;
-				meta_info->m_item[CONTAINER_VALUE].m_col
+				meta_info->col_info[CONTAINER_VALUE].col_meta
 					= *col_meta;
 				err = DB_SUCCESS;
 			}
@@ -540,11 +541,11 @@ innodb_verify(
 	int		index_type;
 	ib_id_u64_t	index_id;
 
-	dbname = info->m_item[CONTAINER_DB].m_str;
-	name = info->m_item[CONTAINER_TABLE].m_str;
-	info->m_flag_enabled = false;
-	info->m_cas_enabled = false;
-	info->m_exp_enabled = false;
+	dbname = info->col_info[CONTAINER_DB].col_name;
+	name = info->col_info[CONTAINER_TABLE].col_name;
+	info->flag_enabled = false;
+	info->cas_enabled = false;
+	info->exp_enabled = false;
 
 #ifdef __WIN__
 	sprintf(table_name, "%s\%s", dbname, name);
@@ -569,7 +570,7 @@ innodb_verify(
 	/* Verify each mapped column */
 	for (i = 0; i < n_cols; i++) {
 		ib_err_t	result = DB_SUCCESS;
-		meta_column_t*	cinfo = info->m_item;
+		meta_column_t*	cinfo = info->col_info;
 
 		name = innodb_cb_col_get_name(crsr, i);
 		innodb_cb_col_get_meta(tpl, i, &col_meta);
@@ -585,43 +586,43 @@ innodb_verify(
 			goto func_exit;
 		}
 
-		if (strcmp(name, cinfo[CONTAINER_KEY].m_str) == 0) {
+		if (strcmp(name, cinfo[CONTAINER_KEY].col_name) == 0) {
 			/* Key column must be CHAR or VARCHAR type */
 			if (col_meta.type != IB_VARCHAR
 			    && col_meta.type != IB_CHAR) {
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
-			cinfo[CONTAINER_KEY].m_field_id = i;
-			cinfo[CONTAINER_KEY].m_col = col_meta;
+			cinfo[CONTAINER_KEY].field_id = i;
+			cinfo[CONTAINER_KEY].col_meta = col_meta;
 			is_key_col = true;
-		} else if (strcmp(name, cinfo[CONTAINER_FLAG].m_str) == 0) {
+		} else if (strcmp(name, cinfo[CONTAINER_FLAG].col_name) == 0) {
 			/* Flag column must be integer type */
 			if (col_meta.type != IB_INT) {
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
-			cinfo[CONTAINER_FLAG].m_field_id = i;
-			cinfo[CONTAINER_FLAG].m_col = col_meta;
-			info->m_flag_enabled = true;
-		} else if (strcmp(name, cinfo[CONTAINER_CAS].m_str) == 0) {
+			cinfo[CONTAINER_FLAG].field_id = i;
+			cinfo[CONTAINER_FLAG].col_meta = col_meta;
+			info->flag_enabled = true;
+		} else if (strcmp(name, cinfo[CONTAINER_CAS].col_name) == 0) {
 			/* CAS column must be integer type */
 			if (col_meta.type != IB_INT) {
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
-			cinfo[CONTAINER_CAS].m_field_id = i;
-			cinfo[CONTAINER_CAS].m_col = col_meta;
-			info->m_cas_enabled = true;
-		} else if (strcmp(name, cinfo[CONTAINER_EXP].m_str) == 0) {
+			cinfo[CONTAINER_CAS].field_id = i;
+			cinfo[CONTAINER_CAS].col_meta = col_meta;
+			info->cas_enabled = true;
+		} else if (strcmp(name, cinfo[CONTAINER_EXP].col_name) == 0) {
 			/* EXP column must be integer type */
 			if (col_meta.type != IB_INT) {
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
-			cinfo[CONTAINER_EXP].m_field_id = i;
-			cinfo[CONTAINER_EXP].m_col = col_meta;
-			info->m_exp_enabled = true;
+			cinfo[CONTAINER_EXP].field_id = i;
+			cinfo[CONTAINER_EXP].col_meta = col_meta;
+			info->exp_enabled = true;
 		}
 	}
 
@@ -637,20 +638,20 @@ innodb_verify(
 	}
 
 	/* Test the specified index */
-	innodb_cb_cursor_open_index_using_name(crsr, info->m_index.m_name,
+	innodb_cb_cursor_open_index_using_name(crsr, info->index_info.idx_name,
 					       &idx_crsr, &index_type,
 					       &index_id);
 
 	if (index_type & IB_CLUSTERED) {
-		info->m_index.m_use_idx = META_CLUSTER;
+		info->index_info.srch_use_idx = META_CLUSTER;
 	} else if (!idx_crsr || !(index_type & IB_UNIQUE)) {
 		fprintf(stderr, "  InnoDB_Memcached: Index on key column"
 				" must be a Unique index\n");
-		info->m_index.m_use_idx = META_NO_INDEX;
+		info->index_info.srch_use_idx = META_NO_INDEX;
 		err = DB_ERROR;
 	} else {
-		info->m_index.m_id = index_id;
-		info->m_index.m_use_idx = META_SECONDARY;
+		info->index_info.idx_id = index_id;
+		info->index_info.srch_use_idx = META_SECONDARY;
 	}
 
 	if (idx_crsr) {
