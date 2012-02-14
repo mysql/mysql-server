@@ -1040,5 +1040,29 @@ i2
 20
 DROP PROCEDURE proc1;
 DROP TABLE t1, t2;
+#
+# Bug#13655397 "CRASH IN SYNC_THREAD_LEVELS_NONEMPTY_TRX"
+#
+CREATE TABLE t1 (
+i1 INTEGER NOT NULL,
+i2 INTEGER NOT NULL,
+KEY (i1)
+);
+INSERT INTO t1 VALUES (4,4), (5,5);
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES (1);
+CREATE FUNCTION f1() RETURNS INTEGER
+RETURN (SELECT MOD(COUNT(DISTINCT pk), 10) FROM t2);
+EXPLAIN SELECT i1, i2 FROM t1 WHERE f1() = 1 AND i1 = 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	i1	i1	4	const	1	Using where
+SELECT i1, i2 FROM t1 WHERE f1() = 1 AND i1 = 5;
+i1	i2
+5	5
+DROP FUNCTION f1;
+DROP TABLE t1, t2;
 set default_storage_engine= @save_storage_engine;
 set optimizer_switch=default;

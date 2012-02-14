@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3739,24 +3739,31 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
 
   const Item::Type item_type= item->type();
 
-  /* 
-    Don't push down the triggered conditions. Nested outer joins execution 
-    code may need to evaluate a condition several times (both triggered and
-    untriggered), and there is no way to put thi
-    TODO: Consider cloning the triggered condition and using the copies for:
-      1. push the first copy down, to have most restrictive index condition
-         possible
-      2. Put the second copy into tab->m_condition. 
-  */
-  if (item_type == Item::FUNC_ITEM && 
-      ((Item_func*)item)->functype() == Item_func::TRIG_COND_FUNC)
-    return FALSE;
-
   switch (item_type) {
   case Item::FUNC_ITEM:
     {
-      /* This is a function, apply condition recursively to arguments */
       Item_func *item_func= (Item_func*)item;
+      const Item_func::Functype func_type= item_func->functype();
+
+      /*
+        Avoid some function types from being pushed down to storage engine:
+        - Don't push down the triggered conditions. Nested outer joins
+          execution code may need to evaluate a condition several times
+          (both triggered and untriggered).
+          TODO: Consider cloning the triggered condition and using the
+                copies for: 
+                 1. push the first copy down, to have most restrictive
+                    index condition possible.
+                 2. Put the second copy into tab->m_condition.
+        - Stored functions contain a statement that might start new operations
+          against the storage engine. This does not work against all storage
+          engines.
+      */
+      if (func_type == Item_func::TRIG_COND_FUNC ||
+          func_type == Item_func::FUNC_SP)
+        return false;
+
+      /* This is a function, apply condition recursively to arguments */
       if (item_func->argument_count() > 0)
       {        
         Item **item_end= (item_func->arguments()) + item_func->argument_count();
