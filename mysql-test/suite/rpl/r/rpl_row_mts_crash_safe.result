@@ -7,8 +7,12 @@ call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .*");
 call mtr.add_suppression(".*  InnoDB: Warning: allocated tablespace .*, old maximum was .*");
 call mtr.add_suppression(".*int __cxa_pure_virtual().*");
-SET @commands= 'configure';
-SET @commands= 'configure';
+########################################################################
+#                               SET UP
+########################################################################
+==== begin rpl_mts_crash_safe.inc:configure ====
+---- begin configure database test_1 ----
+rpl_mixing_engines.inc [commands=configure]
 CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
 CREATE TABLE nt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
 CREATE TABLE nt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
@@ -99,8 +103,9 @@ SELECT COALESCE(greatest(in_stmt_id + 1, NEW.stmt_id), 1) INTO in_stmt_id;
 INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
 INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
 END|
-SET @commands= '';
-SET @commands= 'configure';
+---- end configure database test_1 ----
+---- begin configure database test_2 ----
+rpl_mixing_engines.inc [commands=configure]
 CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
 CREATE TABLE nt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
 CREATE TABLE nt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
@@ -191,8 +196,9 @@ SELECT COALESCE(greatest(in_stmt_id + 1, NEW.stmt_id), 1) INTO in_stmt_id;
 INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
 INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
 END|
-SET @commands= '';
-SET @commands= 'configure';
+---- end configure database test_2 ----
+---- begin configure database test_3 ----
+rpl_mixing_engines.inc [commands=configure]
 CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
 CREATE TABLE nt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
 CREATE TABLE nt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
@@ -283,7 +289,7 @@ SELECT COALESCE(greatest(in_stmt_id + 1, NEW.stmt_id), 1) INTO in_stmt_id;
 INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
 INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
 END|
-SET @commands= '';
+---- end configure database test_3 ----
 include/stop_slave.inc
 SHOW CREATE TABLE mysql.slave_master_info;
 Table	Create Table
@@ -408,10 +414,15 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_group_bitmap` blob NOT NULL,
   PRIMARY KEY (`Master_id`,`Worker_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Worker Information'
+==== end rpl_mts_crash_safe.inc:configure ====
+########################################################################
+#                                TEST 
+########################################################################
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 1 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 4);
@@ -427,7 +438,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -435,11 +448,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (8, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (8, 4);
@@ -455,7 +469,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (9, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (9, 4);
@@ -471,7 +488,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -479,11 +498,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (10, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (10, 4);
@@ -499,7 +519,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 4);
@@ -515,7 +538,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 4);
@@ -531,7 +557,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -539,11 +567,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 1 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 4);
@@ -559,7 +588,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -567,11 +598,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 4);
@@ -587,7 +619,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 4);
@@ -603,7 +638,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -611,11 +648,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 4);
@@ -631,7 +669,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 4);
@@ -647,7 +688,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 4);
@@ -663,7 +707,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -671,11 +717,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 2 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (19, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (19, 4);
@@ -691,7 +738,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (20, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (20, 4);
@@ -707,7 +757,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -715,11 +767,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 4);
@@ -735,7 +788,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 4);
@@ -751,7 +807,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 4);
@@ -767,7 +826,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 4);
@@ -783,7 +845,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -791,11 +855,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 4);
@@ -811,7 +876,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (26, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (26, 4);
@@ -827,7 +895,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 4);
@@ -843,7 +914,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (28, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (28, 4);
@@ -859,7 +933,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (29, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (29, 4);
@@ -875,7 +952,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (30, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (30, 4);
@@ -891,7 +971,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -899,11 +981,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 2 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (31, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (31, 4);
@@ -919,7 +1002,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (32, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (32, 4);
@@ -935,7 +1021,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -943,11 +1031,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 4);
@@ -963,7 +1052,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 4);
@@ -979,7 +1071,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 4);
@@ -995,7 +1090,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (36, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (36, 4);
@@ -1011,7 +1109,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -1019,11 +1119,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (37, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (37, 4);
@@ -1039,7 +1140,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (38, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (38, 4);
@@ -1055,7 +1159,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (39, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (39, 4);
@@ -1071,7 +1178,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (40, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (40, 4);
@@ -1087,7 +1197,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (41, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (41, 4);
@@ -1103,7 +1216,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (42, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (42, 4);
@@ -1119,7 +1235,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -1127,11 +1245,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 3 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (43, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (43, 4);
@@ -1147,7 +1266,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (44, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (44, 4);
@@ -1163,7 +1285,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (45, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (45, 4);
@@ -1179,7 +1304,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -1187,11 +1314,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (46, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (46, 4);
@@ -1207,7 +1335,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (47, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (47, 4);
@@ -1223,7 +1354,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (48, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (48, 4);
@@ -1239,7 +1373,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (49, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (49, 4);
@@ -1255,7 +1392,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (50, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (50, 4);
@@ -1271,7 +1411,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (51, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (51, 4);
@@ -1287,7 +1430,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -1295,11 +1440,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (52, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (52, 4);
@@ -1315,7 +1461,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (53, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (53, 4);
@@ -1331,7 +1480,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (54, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (54, 4);
@@ -1347,7 +1499,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (55, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (55, 4);
@@ -1363,7 +1518,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (56, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (56, 4);
@@ -1379,7 +1537,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (57, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (57, 4);
@@ -1395,7 +1556,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (58, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (58, 4);
@@ -1411,7 +1575,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (59, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (59, 4);
@@ -1427,7 +1594,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (60, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (60, 4);
@@ -1443,7 +1613,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -1451,11 +1623,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 3 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (61, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (61, 4);
@@ -1471,7 +1644,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (62, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (62, 4);
@@ -1487,7 +1663,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (63, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (63, 4);
@@ -1503,7 +1682,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -1511,11 +1692,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (64, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (64, 4);
@@ -1531,7 +1713,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (65, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (65, 4);
@@ -1547,7 +1732,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (66, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (66, 4);
@@ -1563,7 +1751,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (67, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (67, 4);
@@ -1579,7 +1770,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (68, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (68, 4);
@@ -1595,7 +1789,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (69, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (69, 4);
@@ -1611,7 +1808,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -1619,11 +1818,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (70, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (70, 4);
@@ -1639,7 +1839,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (71, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (71, 4);
@@ -1655,7 +1858,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (72, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (72, 4);
@@ -1671,7 +1877,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (73, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (73, 4);
@@ -1687,7 +1896,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (74, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (74, 4);
@@ -1703,7 +1915,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (75, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (75, 4);
@@ -1719,7 +1934,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (76, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (76, 4);
@@ -1735,7 +1953,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (77, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (77, 4);
@@ -1751,7 +1972,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 1 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (78, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (78, 4);
@@ -1767,7 +1991,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -1775,11 +2001,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (79, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (79, 4);
@@ -1795,7 +2022,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (80, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (80, 4);
@@ -1811,7 +2041,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -1819,11 +2051,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (81, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (81, 4);
@@ -1839,7 +2072,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (82, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (82, 4);
@@ -1855,7 +2091,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (83, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (83, 4);
@@ -1871,7 +2110,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -1879,11 +2120,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (84, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (84, 4);
@@ -1899,7 +2141,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (85, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (85, 4);
@@ -1915,7 +2160,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -1923,11 +2170,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (86, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (86, 4);
@@ -1943,7 +2191,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (87, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (87, 4);
@@ -1959,7 +2210,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (88, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (88, 4);
@@ -1975,7 +2229,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -1983,11 +2239,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 2;
 Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (89, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (89, 4);
@@ -2003,7 +2260,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (90, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (90, 4);
@@ -2019,7 +2279,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -2027,11 +2289,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 2;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 2;
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (91, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (91, 4);
@@ -2047,7 +2310,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (92, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (92, 4);
@@ -2063,7 +2329,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (93, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (93, 4);
@@ -2079,7 +2348,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -2087,11 +2358,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 2;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (94, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (94, 4);
@@ -2107,7 +2379,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (95, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (95, 4);
@@ -2123,7 +2398,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (96, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (96, 4);
@@ -2139,7 +2417,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (97, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (97, 4);
@@ -2155,7 +2436,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -2163,11 +2446,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (98, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (98, 4);
@@ -2183,7 +2467,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (99, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (99, 4);
@@ -2199,7 +2486,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (100, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (100, 4);
@@ -2215,7 +2505,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (101, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (101, 4);
@@ -2231,7 +2524,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (102, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (102, 4);
@@ -2247,7 +2543,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (103, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (103, 4);
@@ -2263,7 +2562,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -2271,11 +2572,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (104, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (104, 4);
@@ -2291,7 +2593,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (105, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (105, 4);
@@ -2307,7 +2612,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (106, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (106, 4);
@@ -2323,7 +2631,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (107, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (107, 4);
@@ -2339,7 +2650,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -2347,11 +2660,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (108, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (108, 4);
@@ -2367,7 +2681,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (109, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (109, 4);
@@ -2383,7 +2700,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (110, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (110, 4);
@@ -2399,7 +2719,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (111, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (111, 4);
@@ -2415,7 +2738,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (112, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (112, 4);
@@ -2431,7 +2757,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (113, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (113, 4);
@@ -2447,7 +2776,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -2455,11 +2786,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 2;
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (114, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (114, 4);
@@ -2475,7 +2807,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (115, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (115, 4);
@@ -2491,7 +2826,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (116, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (116, 4);
@@ -2507,7 +2845,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (117, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (117, 4);
@@ -2523,7 +2864,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -2531,11 +2874,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 2;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 2;
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (118, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (118, 4);
@@ -2551,7 +2895,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (119, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (119, 4);
@@ -2567,7 +2914,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (120, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (120, 4);
@@ -2583,7 +2933,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (121, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (121, 4);
@@ -2599,7 +2952,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (122, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (122, 4);
@@ -2615,7 +2971,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (123, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (123, 4);
@@ -2631,7 +2990,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -2639,11 +3000,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 2;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (124, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (124, 4);
@@ -2659,7 +3021,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (125, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (125, 4);
@@ -2675,7 +3040,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (126, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (126, 4);
@@ -2691,7 +3059,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (127, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (127, 4);
@@ -2707,7 +3078,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (128, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (128, 4);
@@ -2723,7 +3097,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (129, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (129, 4);
@@ -2739,7 +3116,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -2747,11 +3126,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (130, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (130, 4);
@@ -2767,7 +3147,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (131, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (131, 4);
@@ -2783,7 +3166,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (132, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (132, 4);
@@ -2799,7 +3185,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (133, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (133, 4);
@@ -2815,7 +3204,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (134, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (134, 4);
@@ -2831,7 +3223,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (135, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (135, 4);
@@ -2847,7 +3242,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (136, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (136, 4);
@@ -2863,7 +3261,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (137, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (137, 4);
@@ -2879,7 +3280,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (138, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (138, 4);
@@ -2895,7 +3299,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -2903,11 +3309,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (139, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (139, 4);
@@ -2923,7 +3330,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (140, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (140, 4);
@@ -2939,7 +3349,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (141, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (141, 4);
@@ -2955,7 +3368,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (142, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (142, 4);
@@ -2971,7 +3387,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (143, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (143, 4);
@@ -2987,7 +3406,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (144, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (144, 4);
@@ -3003,7 +3425,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -3011,11 +3435,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (145, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (145, 4);
@@ -3031,7 +3456,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (146, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (146, 4);
@@ -3047,7 +3475,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (147, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (147, 4);
@@ -3063,7 +3494,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (148, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (148, 4);
@@ -3079,7 +3513,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (149, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (149, 4);
@@ -3095,7 +3532,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (150, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (150, 4);
@@ -3111,7 +3551,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (151, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (151, 4);
@@ -3127,7 +3570,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (152, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (152, 4);
@@ -3143,7 +3589,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (153, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (153, 4);
@@ -3159,7 +3608,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -3167,11 +3618,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 2;
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (154, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (154, 4);
@@ -3187,7 +3639,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (155, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (155, 4);
@@ -3203,7 +3658,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (156, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (156, 4);
@@ -3219,7 +3677,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (157, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (157, 4);
@@ -3235,7 +3696,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (158, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (158, 4);
@@ -3251,7 +3715,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (159, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (159, 4);
@@ -3267,7 +3734,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -3275,11 +3744,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 2;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 2;
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (160, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (160, 4);
@@ -3295,7 +3765,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (161, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (161, 4);
@@ -3311,7 +3784,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (162, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (162, 4);
@@ -3327,7 +3803,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (163, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (163, 4);
@@ -3343,7 +3822,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (164, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (164, 4);
@@ -3359,7 +3841,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (165, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (165, 4);
@@ -3375,7 +3860,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (166, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (166, 4);
@@ -3391,7 +3879,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (167, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (167, 4);
@@ -3407,7 +3898,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 2 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (168, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (168, 4);
@@ -3423,7 +3917,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -3431,11 +3927,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 2;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (169, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (169, 4);
@@ -3451,7 +3948,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (170, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (170, 4);
@@ -3467,7 +3967,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (171, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (171, 4);
@@ -3483,7 +3986,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -3491,11 +3996,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (172, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (172, 4);
@@ -3511,7 +4017,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (173, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (173, 4);
@@ -3527,7 +4036,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (174, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (174, 4);
@@ -3543,7 +4055,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -3551,11 +4065,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 2;
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (175, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (175, 4);
@@ -3571,7 +4086,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (176, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (176, 4);
@@ -3587,7 +4105,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (177, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (177, 4);
@@ -3603,7 +4124,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -3611,11 +4134,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 2;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 3;
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (178, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (178, 4);
@@ -3631,7 +4155,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (179, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (179, 4);
@@ -3647,7 +4174,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 1 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (180, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (180, 4);
@@ -3663,7 +4193,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -3671,11 +4203,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 3;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (181, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (181, 4);
@@ -3691,7 +4224,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (182, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (182, 4);
@@ -3707,7 +4243,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (183, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (183, 4);
@@ -3723,7 +4262,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (184, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (184, 4);
@@ -3739,7 +4281,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (185, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (185, 4);
@@ -3755,7 +4300,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (186, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (186, 4);
@@ -3771,7 +4319,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -3779,11 +4329,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (187, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (187, 4);
@@ -3799,7 +4350,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (188, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (188, 4);
@@ -3815,7 +4369,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (189, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (189, 4);
@@ -3831,7 +4388,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (190, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (190, 4);
@@ -3847,7 +4407,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (191, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (191, 4);
@@ -3863,7 +4426,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (192, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (192, 4);
@@ -3879,7 +4445,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -3887,11 +4455,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 2;
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (193, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (193, 4);
@@ -3907,7 +4476,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (194, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (194, 4);
@@ -3923,7 +4495,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (195, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (195, 4);
@@ -3939,7 +4514,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (196, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (196, 4);
@@ -3955,7 +4533,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (197, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (197, 4);
@@ -3971,7 +4552,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (198, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (198, 4);
@@ -3987,7 +4571,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -3995,11 +4581,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 2;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 3;
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (199, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (199, 4);
@@ -4015,7 +4602,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (200, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (200, 4);
@@ -4031,7 +4621,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (201, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (201, 4);
@@ -4047,7 +4640,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (202, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (202, 4);
@@ -4063,7 +4659,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (203, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (203, 4);
@@ -4079,7 +4678,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 2 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (204, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (204, 4);
@@ -4095,7 +4697,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -4103,11 +4707,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 2;
 SET @@global.slave_checkpoint_period= 3;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 0;
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (205, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (205, 4);
@@ -4123,7 +4728,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (206, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (206, 4);
@@ -4139,7 +4747,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (207, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (207, 4);
@@ -4155,7 +4766,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (208, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (208, 4);
@@ -4171,7 +4785,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (209, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (209, 4);
@@ -4187,7 +4804,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (210, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (210, 4);
@@ -4203,7 +4823,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (211, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (211, 4);
@@ -4219,7 +4842,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (212, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (212, 4);
@@ -4235,7 +4861,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (213, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (213, 4);
@@ -4251,7 +4880,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -4259,11 +4890,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 0;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 1;
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (214, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (214, 4);
@@ -4279,7 +4911,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (215, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (215, 4);
@@ -4295,7 +4930,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (216, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (216, 4);
@@ -4311,7 +4949,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (217, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (217, 4);
@@ -4327,7 +4968,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (218, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (218, 4);
@@ -4343,7 +4987,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (219, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (219, 4);
@@ -4359,7 +5006,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (220, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (220, 4);
@@ -4375,7 +5025,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (221, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (221, 4);
@@ -4391,7 +5044,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (222, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (222, 4);
@@ -4407,7 +5063,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -4415,11 +5073,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 1;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 2;
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (223, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (223, 4);
@@ -4435,7 +5094,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (224, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (224, 4);
@@ -4451,7 +5113,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (225, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (225, 4);
@@ -4467,7 +5132,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (226, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (226, 4);
@@ -4483,7 +5151,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (227, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (227, 4);
@@ -4499,7 +5170,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (228, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (228, 4);
@@ -4515,7 +5189,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (229, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (229, 4);
@@ -4531,7 +5208,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (230, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (230, 4);
@@ -4547,7 +5227,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (231, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (231, 4);
@@ -4563,7 +5246,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -4571,11 +5256,12 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 2;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 3;
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
-SET @commands='B T T C';
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (232, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (232, 4);
@@ -4591,7 +5277,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (233, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (233, 4);
@@ -4607,7 +5296,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (234, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (234, 4);
@@ -4623,7 +5315,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (235, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (235, 4);
@@ -4639,7 +5334,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (236, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (236, 4);
@@ -4655,7 +5353,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (237, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (237, 4);
@@ -4671,7 +5372,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_1
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (238, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (238, 4);
@@ -4687,7 +5391,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_2
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (239, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (239, 4);
@@ -4703,7 +5410,10 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 Generating Number of Workers 3 --- Number of Groups per worker 3 --- Debugging Groups 3 --- Database test_3
+==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
+rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (240, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (240, 4);
@@ -4719,7 +5429,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 ----Executing----
+==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 include/rpl_reconnect.inc
 include/start_slave_io.inc
@@ -4727,12 +5439,19 @@ include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.slave_parallel_workers= 3;
 SET @@global.slave_checkpoint_period= 3;
-SET @command= '';
+==== end rpl_mts_crash_safe.inc:recovery ====
+########################################################################
+#                          CHECK CONSISTENCY
+########################################################################
 include/start_slave.inc
-SET @commands= 'clean';
+########################################################################
+#                             CLEAN UP
+########################################################################
+==== begin rpl_mts_crash_safe.inc:clean ====
 include/stop_slave.inc
 include/start_slave.inc
-SET @commands= 'clean';
+---- begin clean database test_1 ----
+rpl_mixing_engines.inc [commands=clean]
 DROP TABLE tt_1;
 DROP TABLE tt_2;
 DROP TABLE tt_3;
@@ -4749,8 +5468,9 @@ DROP PROCEDURE pc_i_tt_5_suc;
 DROP PROCEDURE pc_i_nt_5_suc;
 DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
-SET @commands= '';
-SET @commands= 'clean';
+---- end clean database test_1 ----
+---- begin clean database test_2 ----
+rpl_mixing_engines.inc [commands=clean]
 DROP TABLE tt_1;
 DROP TABLE tt_2;
 DROP TABLE tt_3;
@@ -4767,8 +5487,9 @@ DROP PROCEDURE pc_i_tt_5_suc;
 DROP PROCEDURE pc_i_nt_5_suc;
 DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
-SET @commands= '';
-SET @commands= 'clean';
+---- end clean database test_2 ----
+---- begin clean database test_3 ----
+rpl_mixing_engines.inc [commands=clean]
 DROP TABLE tt_1;
 DROP TABLE tt_2;
 DROP TABLE tt_3;
@@ -4785,5 +5506,6 @@ DROP PROCEDURE pc_i_tt_5_suc;
 DROP PROCEDURE pc_i_nt_5_suc;
 DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
-SET @commands= '';
+---- end clean database test_3 ----
+==== end rpl_mts_crash_safe.inc:clean ====
 include/rpl_end.inc

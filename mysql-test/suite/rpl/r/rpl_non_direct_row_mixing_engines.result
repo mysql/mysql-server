@@ -7,6 +7,7 @@ Note	1757	Storing MySQL user name or password information in the master.info rep
 #                            CONFIGURATION
 #########################################################################
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+rpl_mixing_engines.inc [commands=configure]
 CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
 CREATE TABLE nt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
 CREATE TABLE nt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
@@ -110,6 +111,7 @@ END|
 #      --> ROW   "B T C" entries, format R.
 #      --> MIXED "B T C" entries, format S.
 #
+rpl_mixing_engines.inc [commands=T]
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 1);
 include/show_binlog_events.inc
@@ -128,6 +130,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=T-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (8, 1);
 include/show_binlog_events.inc
@@ -150,6 +153,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=T-func]
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 SELECT fc_i_tt_5_suc (9, 1);
 fc_i_tt_5_suc (9, 1)
@@ -178,6 +182,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=T-proc]
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (10, 1);
 include/show_binlog_events.inc
@@ -222,6 +227,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #        --> ROW   empty.
 #        --> MIXED empty.
 #
+rpl_mixing_engines.inc [commands=eT]
 -b-b-b-b-b-b-b-b-b-b-b- >> eT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 1);
 Got one of the listed errors
@@ -231,6 +237,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> eT << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=Te]
 -b-b-b-b-b-b-b-b-b-b-b- >> Te << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 1), (7, 1);
 Got one of the listed errors
@@ -240,6 +247,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> Te << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=Te-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> Te-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (13, 1), (10, 2);
 Got one of the listed errors
@@ -249,6 +257,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> Te-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=Te-func]
 -b-b-b-b-b-b-b-b-b-b-b- >> Te-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) VALUES (14, 1, ''), (7, 1, fc_i_tt_5_suc (14, 1));
 Got one of the listed errors
@@ -268,6 +277,7 @@ include/show_binlog_events.inc
 #      --> ROW   "B N C" entry, format R.
 #      --> MIXED "B N C" entry, format S.
 #
+rpl_mixing_engines.inc [commands=N]
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (15, 1);
 include/show_binlog_events.inc
@@ -286,6 +296,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=N-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (16, 1);
 include/show_binlog_events.inc
@@ -308,6 +319,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=N-func]
 -b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
 SELECT fc_i_nt_5_suc (17, 1);
 fc_i_nt_5_suc (17, 1)
@@ -336,6 +348,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=N-proc]
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (18, 1);
 include/show_binlog_events.inc
@@ -380,6 +393,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #        --> ROW   "B N C" entry, format R.
 #        --> MIXED "B N C" entry, format S.
 #
+rpl_mixing_engines.inc [commands=eN]
 -b-b-b-b-b-b-b-b-b-b-b- >> eN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (15, 1);
 Got one of the listed errors
@@ -389,6 +403,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> eN << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=Ne]
 -b-b-b-b-b-b-b-b-b-b-b- >> Ne << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (20, 1), (15, 1);
 Got one of the listed errors
@@ -408,6 +423,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> Ne << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=Ne-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> Ne-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (21, 1), (18, 2);
 Got one of the listed errors
@@ -431,6 +447,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> Ne-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=Ne-func]
 -b-b-b-b-b-b-b-b-b-b-b- >> Ne-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) VALUES (22, 1, ''), (20, 1, fc_i_nt_5_suc (22, 1));
 Got one of the listed errors
@@ -473,6 +490,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #      --> ROW   "B N T B T C" entries, format R.
 #      --> MIXED "B N T B T C" entries, format R.
 #
+rpl_mixing_engines.inc [commands=tN]
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 23, 1, COUNT(*) FROM tt_1;
 include/show_binlog_events.inc
@@ -491,6 +509,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> tN << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=nT]
 -b-b-b-b-b-b-b-b-b-b-b- >> nT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 24, 1, COUNT(*) FROM nt_1;
 include/show_binlog_events.inc
@@ -509,6 +528,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> nT << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=NT]
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 25 --> 1", tt_3.info= "new text 25 --> 1" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 include/show_binlog_events.inc
@@ -535,6 +555,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=NT-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_4(trans_id, stmt_id) VALUES (26, 1);
 include/show_binlog_events.inc
@@ -561,6 +582,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=NT-func]
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (27, 1, fc_i_tt_5_suc(27, 1));
 include/show_binlog_events.inc
@@ -599,6 +621,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-func << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=TN]
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 28 --> 1", nt_4.info= "new text 28 --> 1" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 include/show_binlog_events.inc
@@ -625,6 +648,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=TN-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_3(trans_id, stmt_id) VALUES (29, 1);
 include/show_binlog_events.inc
@@ -651,6 +675,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=TN-func]
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (30, 1, fc_i_nt_5_suc(30, 1));
 include/show_binlog_events.inc
@@ -699,6 +724,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #      --> STMT  "B M R" entries, format S.
 #      --> ROW   "B N C" entry, format R.
 #      --> MIXED "B N C" entry, format R.
+rpl_mixing_engines.inc [commands=tNe]
 -b-b-b-b-b-b-b-b-b-b-b- >> tNe << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 31, 1, COUNT(*) FROM tt_1 UNION SELECT 23, 1, COUNT(*) FROM tt_1;
 Got one of the listed errors
@@ -718,6 +744,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> tNe << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=nTe]
 -b-b-b-b-b-b-b-b-b-b-b- >> nTe << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 32, 1, COUNT(*) FROM nt_1 UNION SELECT 24, 1, COUNT(*) FROM nt_1;
 Got one of the listed errors
@@ -727,6 +754,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> nTe << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=NeT-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> NeT-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_4(trans_id, stmt_id) VALUES (33, 1), (26, 1);
 Got one of the listed errors
@@ -746,6 +774,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> NeT-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=NeT-func]
 -b-b-b-b-b-b-b-b-b-b-b- >> NeT-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (34, 1, ''), (30, 2, fc_i_tt_5_suc (34, 1));
 Got one of the listed errors
@@ -769,6 +798,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> NeT-func << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=TeN-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> TeN-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_3(trans_id, stmt_id) VALUES (35, 1), (29, 1);
 Got one of the listed errors
@@ -788,6 +818,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> TeN-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=TeN-func]
 -b-b-b-b-b-b-b-b-b-b-b- >> TeN-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (36, 1, ''), (30, 1, fc_i_nt_5_suc (36, 1));
 Got one of the listed errors
@@ -825,6 +856,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #     --> ROW   "B T T C" entries, format R.
 #     --> MIXED "B T T C" entries, format S
 #
+rpl_mixing_engines.inc [commands=B T T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -859,6 +891,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T T-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -897,6 +930,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T T-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -941,6 +975,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T T-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -987,6 +1022,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1025,6 +1061,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig T-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1067,6 +1104,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig T-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1115,6 +1153,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig T-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1165,6 +1204,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1209,6 +1249,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func T-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1257,6 +1298,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func T-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1311,6 +1353,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func T-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1367,6 +1410,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1413,6 +1457,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc T-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1463,6 +1508,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc T-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1519,6 +1565,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc T-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1587,6 +1634,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #       --> ROW   "B T C" entries, format R.
 #       --> MIXED "B T C" entries, format S.
 #
+rpl_mixing_engines.inc [commands=B T eT C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1618,6 +1666,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T eT C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T Te C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1649,6 +1698,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T Te C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T Te-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1680,6 +1730,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T Te-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T Te-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1711,6 +1762,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T Te-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B eT T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1742,6 +1794,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B eT T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Te T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1773,6 +1826,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B Te T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Te-trig T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1804,6 +1858,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B Te-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Te-func T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1845,6 +1900,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #     --> ROW   empty.
 #     --> MIXED empty.
 #
+rpl_mixing_engines.inc [commands=B T T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1865,6 +1921,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T T-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1885,6 +1942,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T T-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1907,6 +1965,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T T-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1927,6 +1986,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1947,6 +2007,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig T-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1967,6 +2028,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig T-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -1989,6 +2051,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig T-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2009,6 +2072,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2031,6 +2095,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func T-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2053,6 +2118,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func T-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2077,6 +2143,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func T-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2099,6 +2166,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2119,6 +2187,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc T-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2139,6 +2208,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc T-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2161,6 +2231,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc T-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2191,6 +2262,7 @@ include/show_binlog_events.inc
 #       --> ROW   empty.
 #       --> MIXED empty.
 #
+rpl_mixing_engines.inc [commands=B T eT R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2212,6 +2284,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T eT R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T Te R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2233,6 +2306,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T Te R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T Te-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2254,6 +2328,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T Te-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T Te-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2275,6 +2350,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T Te-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B eT T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2296,6 +2372,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B eT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Te T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2317,6 +2394,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B Te T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Te-trig T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2338,6 +2416,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B Te-trig T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Te-func T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2369,6 +2448,7 @@ include/show_binlog_events.inc
 #     --> ROW   "B N C B N C" entries, format R.
 #     --> MIXED "B N C B N C" entries, format S.
 #
+rpl_mixing_engines.inc [commands=B N N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2408,6 +2488,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N N-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2451,6 +2532,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N N-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2500,6 +2582,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N N-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N N-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2555,6 +2638,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N N-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2598,6 +2682,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig N-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2645,6 +2730,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig N-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2698,6 +2784,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig N-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig N-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2757,6 +2844,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig N-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2806,6 +2894,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func N-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2859,6 +2948,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func N-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2918,6 +3008,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func N-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func N-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -2983,6 +3074,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func N-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3038,6 +3130,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-proc N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc N-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3097,6 +3190,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-proc N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc N-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3162,6 +3256,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-proc N-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc N-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3243,6 +3338,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #     --> ROW   "B N C B N C" entries, format R.
 #     --> MIXED "B N C B N C" entries, format S.
 #
+rpl_mixing_engines.inc [commands=B N eN C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3274,6 +3370,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N eN C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N Ne C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3314,6 +3411,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N Ne C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N Ne-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3358,6 +3456,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N Ne-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N Ne-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3410,6 +3509,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N Ne-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B eN N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3441,6 +3541,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B eN N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Ne N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3481,6 +3582,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B Ne N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Ne-trig N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3525,6 +3627,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B Ne-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Ne-func N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3587,6 +3690,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #      --> ROW   "B N C B N C" entries, format R.
 #      --> MIXED "B N C B N C" entries, format S.
 #
+rpl_mixing_engines.inc [commands=B N N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3628,6 +3732,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N N-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3673,6 +3778,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N N-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N N-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3724,6 +3830,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N N-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N N-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3781,6 +3888,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N N-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3826,6 +3934,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig N-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3875,6 +3984,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig N-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig N-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3930,6 +4040,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig N-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig N-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -3991,6 +4102,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig N-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4042,6 +4154,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func N-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4097,6 +4210,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func N-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func N-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4158,6 +4272,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func N-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func N-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4225,6 +4340,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func N-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4282,6 +4398,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-proc N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc N-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4343,6 +4460,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-proc N-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc N-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4410,6 +4528,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-proc N-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc N-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4493,6 +4612,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #     --> ROW   "B N C B N C" entries, format R.
 #     --> MIXED "B N C B N C" entries, format S.
 #
+rpl_mixing_engines.inc [commands=B N eN R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4526,6 +4646,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N eN R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N Ne R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4568,6 +4689,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N Ne R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N Ne-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4614,6 +4736,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N Ne-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N Ne-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4668,6 +4791,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N Ne-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B eN N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4701,6 +4825,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B eN N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Ne N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4743,6 +4868,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B Ne N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Ne-trig N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4789,6 +4915,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B Ne-trig N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Ne-func N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4853,6 +4980,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #       --> ROW   "B N C B T C" entries, format R.
 #       --> MIXED "B N C B T C" entries, format R in N and S in T.
 #
+rpl_mixing_engines.inc [commands=B T N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4892,6 +5020,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T N-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4935,6 +5064,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T N-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -4984,6 +5114,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T N-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5039,6 +5170,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5082,6 +5214,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig N-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5129,6 +5262,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig N-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5182,6 +5316,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig N-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5241,6 +5376,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5290,6 +5426,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func N-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5343,6 +5480,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func N-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5402,6 +5540,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func N-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5467,6 +5606,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5518,6 +5658,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc N-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5573,6 +5714,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc N-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5634,6 +5776,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc N-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5715,6 +5858,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #       --> ROW   "B N C B T C" entries, format R.
 #       --> MIXED "B N C B T C" entries, format R in N and S in T.
 #
+rpl_mixing_engines.inc [commands=B eT N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5746,6 +5890,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B eT N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Te N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5777,6 +5922,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B Te N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T eN C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5808,6 +5954,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T eN C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T Ne C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5858,6 +6005,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #     --> ROW   "B N C" entry, format R.
 #     --> MIXED "B N C" entry, format R.
 #
+rpl_mixing_engines.inc [commands=B T N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5890,6 +6038,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T N-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5926,6 +6075,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T N-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -5968,6 +6118,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T N-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6016,6 +6167,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6048,6 +6200,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig N-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6084,6 +6237,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig N-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6126,6 +6280,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-trig N-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6174,6 +6329,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6208,6 +6364,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func N-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6246,6 +6403,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func N-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6290,6 +6448,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-func N-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6340,6 +6499,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6372,6 +6532,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc N-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6408,6 +6569,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc N-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6450,6 +6612,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T-proc N-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6512,6 +6675,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #       --> ROW   "B N C" entry, format R.
 #       --> MIXED "B N C" entry, format R.
 #
+rpl_mixing_engines.inc [commands=B eT N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6545,6 +6709,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B eT N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B Te N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6578,6 +6743,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B Te N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T eN R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6599,6 +6765,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T eN R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T Ne R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6642,6 +6809,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #     --> ROW   "B N C B T C" entries, format R.
 #     --> MIXED "B N C B T C" entries, format S.
 #
+rpl_mixing_engines.inc [commands=B N T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6681,6 +6849,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N T-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6724,6 +6893,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N T-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6773,6 +6943,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N T-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6824,6 +6995,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6867,6 +7039,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig T-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6914,6 +7087,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig T-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -6967,6 +7141,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig T-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7022,6 +7197,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7071,6 +7247,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func T-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7124,6 +7301,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func T-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7183,6 +7361,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func T-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7244,6 +7423,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7299,6 +7479,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc T-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7358,6 +7539,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-proc T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc T-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7423,6 +7605,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-proc T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc T-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7500,6 +7683,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #     --> ROW   "B N C" entries, format R.
 #     --> MIXED "B N C" entries, format S.
 #
+rpl_mixing_engines.inc [commands=B N T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7532,6 +7716,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N T-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7564,6 +7749,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N T-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N T-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7596,6 +7782,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N T-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N T-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7630,6 +7817,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N T-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7666,6 +7854,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig T-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7702,6 +7891,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig T-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7740,6 +7930,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-trig T-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7776,6 +7967,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7818,6 +8010,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func T-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7860,6 +8053,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func T-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func T-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7904,6 +8098,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func T-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-func T-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7946,6 +8141,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-func T-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -7994,6 +8190,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-proc T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc T-proc R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8042,6 +8239,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-proc T-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc T-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8090,6 +8288,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N-proc T-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N-proc T-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8151,6 +8350,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #      --> ROW   "B N C B T T C" entries, format R.
 #      --> MIXED "B N C B T T C" entries, format R in N/T and format S in T.
 #
+rpl_mixing_engines.inc [commands=B tN T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8190,6 +8390,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B tN T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B nT T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8224,6 +8425,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B nT T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NT T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8267,6 +8469,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NT-trig T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8310,6 +8513,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NT-func T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8365,6 +8569,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TN T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8408,6 +8613,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TN-trig T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8451,6 +8657,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TN-func T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8517,6 +8724,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #        --> ROW   "B N C B T T C" entries, format R.
 #        --> MIXED "B N C B T T C" entries, format R in N/T and format S in T.
 #  
+rpl_mixing_engines.inc [commands=B tNe T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8557,6 +8765,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B tNe T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B nTe T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8588,6 +8797,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B nTe T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NeT-trig T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8628,6 +8838,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B NeT-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NeT-func T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8672,6 +8883,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B NeT-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TeN-trig T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8712,6 +8924,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B TeN-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TeN-func T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8771,6 +8984,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #      --> ROW   "B N C" entry, format R.
 #      --> MIXED "B N C" entry, format R.
 #
+rpl_mixing_engines.inc [commands=B tN T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8803,6 +9017,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B tN T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B nT T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8823,6 +9038,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B nT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NT T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8855,6 +9071,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NT-trig T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8887,6 +9104,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT-trig T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NT-func T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8923,6 +9141,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT-func T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TN T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8955,6 +9174,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TN-trig T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -8987,6 +9207,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN-trig T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TN-func T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9038,6 +9259,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #        --> ROW   "B N C" entry, format R.
 #        --> MIXED "B N C" entry, format R.
 #
+rpl_mixing_engines.inc [commands=B tNe T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9071,6 +9293,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B tNe T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B nTe T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9092,6 +9315,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B nTe T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NeT-trig T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9125,6 +9349,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NeT-trig T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NeT-func T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9162,6 +9387,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NeT-func T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TeN-trig T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9195,6 +9421,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B TeN-trig T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TeN-func T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9246,6 +9473,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #      --> ROW   "B N C B T T C" entries, format R.
 #      --> MIXED "B N C B T T C" entries, format R in N/T and format S in T.
 #
+rpl_mixing_engines.inc [commands=B T tN C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9285,6 +9513,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T tN C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T nT C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9319,6 +9548,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T nT C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T NT C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9362,6 +9592,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T NT C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T NT-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9405,6 +9636,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T NT-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T NT-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9460,6 +9692,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T NT-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T TN C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9503,6 +9736,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T TN C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T TN-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9546,6 +9780,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T TN-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T TN-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9611,6 +9846,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #        --> ROW   "B N C B T C" entry, format R.
 #        --> MIXED "B N C B T C" entry, format R.
 #
+rpl_mixing_engines.inc [commands=B T tNe C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9651,6 +9887,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T tNe C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T nTe C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9682,6 +9919,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T nTe C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T NeT-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9722,6 +9960,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T NeT-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T NeT-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9766,6 +10005,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T NeT-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T TeN-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9806,6 +10046,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T TeN-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T TeN-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9864,6 +10105,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #        --> ROW   "B N C" entry, format R.
 #        --> MIXED "B N C" entry, format R.
 #
+rpl_mixing_engines.inc [commands=B T tN R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9896,6 +10138,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T tN R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T nT R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9916,6 +10159,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T nT R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T NT R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9948,6 +10192,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T NT R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T NT-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -9980,6 +10225,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T NT-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T NT-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10016,6 +10262,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T NT-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T TN R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10048,6 +10295,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T TN R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T TN-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10080,6 +10328,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T TN-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T TN-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10130,6 +10379,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #        --> ROW   "B N C" entry, format R.
 #        --> MIXED "B N C" entry, format R.
 #
+rpl_mixing_engines.inc [commands=B T tNe R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10163,6 +10413,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T tNe R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T nTe R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10184,6 +10435,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T nTe R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T NeT-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10217,6 +10469,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T NeT-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T NeT-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10254,6 +10507,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T NeT-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T TeN-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10287,6 +10541,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B T TeN-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T TeN-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10340,6 +10595,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #      --> MIXED "B M C B N C" entries if in M only N-Table is changed, format S.
 #      --> MIXED "B N C B N C B T C" entries, format R.
 #
+rpl_mixing_engines.inc [commands=B tN N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10379,6 +10635,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B tN N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B nT N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10418,6 +10675,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B nT N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NT N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10466,6 +10724,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NT-trig N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10514,6 +10773,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NT-func N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10574,6 +10834,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT-func N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TN N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10622,6 +10883,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TN-trig N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10670,6 +10932,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TN-func N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10742,6 +11005,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #      --> MIXED "B M C B N C" entries if in M only N-Table is changed, format S.
 #      --> MIXED "B N C B N C B T C" entries, format R.
 #
+rpl_mixing_engines.inc [commands=B tNe N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10782,6 +11046,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B tNe N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B nTe N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10813,6 +11078,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B nTe N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NeT-trig N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10853,6 +11119,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NeT-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NeT-func N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10897,6 +11164,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NeT-func N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TeN-trig N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10937,6 +11205,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B TeN-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TeN-func N C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -10997,6 +11266,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #    --> MIXED "B M C B N C" entries if in M only N-Table is changed, format S.
 #    --> MIXED "B N C B N C" entries, format R.
 #
+rpl_mixing_engines.inc [commands=B tN N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11038,6 +11308,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B tN N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B nT N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11070,6 +11341,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B nT N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NT N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11111,6 +11383,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NT-trig N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11152,6 +11425,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT-trig N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NT-func N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11197,6 +11471,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT-func N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TN N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11238,6 +11513,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TN-trig N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11279,6 +11555,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN-trig N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TN-func N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11340,6 +11617,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #      --> MIXED "B M C B N C" entries if in M only N-Table is changed, format S.
 #      --> MIXED "B N C B N C" entries, format R.
 #
+rpl_mixing_engines.inc [commands=B tNe N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11382,6 +11660,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B tNe N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B nTe N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11415,6 +11694,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B nTe N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NeT-trig N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11457,6 +11737,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NeT-trig N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B NeT-func N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11503,6 +11784,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NeT-func N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TeN-trig N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11545,6 +11827,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B TeN-trig N R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B TeN-func N R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11606,6 +11889,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #    --> ROW   "B N C B N C B T C" entries, format R.
 #    --> MIXED "B N C B N C B T C" entries, format S in first N and format R in the other.
 #
+rpl_mixing_engines.inc [commands=B N tN C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11645,6 +11929,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N tN C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N nT C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11684,6 +11969,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N nT C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N NT C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11732,6 +12018,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N NT C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N NT-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11780,6 +12067,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N NT-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N NT-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11840,6 +12128,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N NT-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N TN C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11888,6 +12177,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N TN C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N TN-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -11936,6 +12226,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N TN-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N TN-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12007,6 +12298,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #      --> ROW   "B N C B N C" entries, format R.
 #      --> MIXED "B N C B N C" entries, format S in first N and format R in the other.
 #
+rpl_mixing_engines.inc [commands=B N tNe C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12047,6 +12339,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N tNe C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N nTe C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12078,6 +12371,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N nTe C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N NeT-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12118,6 +12412,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N NeT-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N NeT-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12162,6 +12457,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N NeT-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N TeN-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12202,6 +12498,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N TeN-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N TeN-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12261,6 +12558,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #    --> ROW   "B N C B N C" entries, format R.
 #    --> MIXED "B N C B N C" entries, format S in first N and format R in the other.
 #
+rpl_mixing_engines.inc [commands=B N tN R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12302,6 +12600,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N tN R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N nT R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12334,6 +12633,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N nT R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N NT R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12375,6 +12675,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N NT R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N NT-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12416,6 +12717,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N NT-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N NT-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12461,6 +12763,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N NT-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N TN R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12502,6 +12805,7 @@ master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N TN R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N TN-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12543,6 +12847,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N TN-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N TN-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12603,6 +12908,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 #      --> ROW   "B N C B N C" entries, format R.
 #      --> MIXED "B N C B N C" entries, format S in first N and format R in the other.
 #
+rpl_mixing_engines.inc [commands=B N tNe R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12645,6 +12951,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N tNe R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N nTe R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12678,6 +12985,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N nTe R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N NeT-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12720,6 +13028,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N NeT-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N NeT-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12766,6 +13075,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N NeT-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N TeN-trig R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12808,6 +13118,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N TeN-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N TeN-func R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12861,6 +13172,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 ###################################################################################
 #                               2 - SAVEPOINT
 ###################################################################################
+rpl_mixing_engines.inc [commands=B T Sn T Rn C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12901,6 +13213,7 @@ master-bin.000001	#	Query	#	#	SAVEPOINT `S_0`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T Sn T Rn C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N T Sn T Rn C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -12956,6 +13269,7 @@ master-bin.000001	#	Query	#	#	SAVEPOINT `S_0`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N T Sn T Rn C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T N Sn T Rn C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -13011,6 +13325,7 @@ master-bin.000001	#	Query	#	#	SAVEPOINT `S_0`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N Sn T Rn C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T Sn N T Rn C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -13069,6 +13384,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ###################################################################################
 #                            3 - CREATE TABLE...SELECT
 ###################################################################################
+rpl_mixing_engines.inc [commands=CSe-T->T CS-T->T drop-CS]
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-T->T << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE tt_xx_1 (PRIMARY KEY (stmt_id)) engine=Innodb SELECT stmt_id FROM tt_1;;
 Got one of the listed errors
@@ -13111,6 +13427,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_1`,`nt_xx_1` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-T->T CS-T->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=CSe-N->N CS-N->N drop-CS]
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->N << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE nt_xx_2 (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM nt_1;;
 Got one of the listed errors
@@ -13155,6 +13472,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_2`,`nt_xx_2` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->N CS-N->N drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=CSe-T->N CS-T->N drop-CS]
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-T->N << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE tt_xx_3 (PRIMARY KEY (stmt_id)) engine=Innodb SELECT stmt_id FROM nt_1;;
 Got one of the listed errors
@@ -13199,6 +13517,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_3`,`nt_xx_3` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-T->N CS-T->N drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=CSe-N->T CS-N->T drop-CS]
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE nt_xx_4 (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM tt_1;;
 Got one of the listed errors
@@ -13241,6 +13560,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_4`,`nt_xx_4` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T CS-N->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=CSe-N->T CS-N->T drop-CS]
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE nt_xx_5 (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM tt_1;;
 Got one of the listed errors
@@ -13283,6 +13603,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_5`,`nt_xx_5` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T CS-N->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=CSe-N->T CS-N->T drop-CS]
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE nt_xx_6 (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM tt_1;;
 Got one of the listed errors
@@ -13328,6 +13649,7 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_6`,`nt_xx_
 ###################################################################################
 #                            4 - INSERT TABLE...SELECT
 ###################################################################################
+rpl_mixing_engines.inc [commands=CS-T->T]
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-T->T << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE tt_xx_7 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM tt_1;;
 include/show_binlog_events.inc
@@ -13358,6 +13680,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-T->T << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-T B T IS-T<-N T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE tt_xx_7;
 include/show_binlog_events.inc
@@ -13413,6 +13736,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B T IS-T<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-T B T ISe-T<-N T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE tt_xx_7;
 include/show_binlog_events.inc
@@ -13459,6 +13783,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B T ISe-T<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-T B IS-T<-N T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE tt_xx_7;
 include/show_binlog_events.inc
@@ -13506,6 +13831,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B IS-T<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-T B ISe-T<-N T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE tt_xx_7;
 include/show_binlog_events.inc
@@ -13544,6 +13870,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B ISe-T<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=drop-CS]
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_7, nt_xx_7;
 include/show_binlog_events.inc
@@ -13556,6 +13883,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_7`,`nt_xx_7` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=CS-T->T]
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-T->T << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE tt_xx_8 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM tt_1;;
 include/show_binlog_events.inc
@@ -13586,6 +13914,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-T->T << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-T B T IS-T<-T T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE tt_xx_8;
 include/show_binlog_events.inc
@@ -13637,6 +13966,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B T IS-T<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-T B T ISe-T<-T T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE tt_xx_8;
 include/show_binlog_events.inc
@@ -13683,6 +14013,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B T ISe-T<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-T B IS-T<-T T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE tt_xx_8;
 include/show_binlog_events.inc
@@ -13726,6 +14057,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B IS-T<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-T B ISe-T<-T T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE tt_xx_8;
 include/show_binlog_events.inc
@@ -13764,6 +14096,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B ISe-T<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=drop-CS]
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_8, nt_xx_8;
 include/show_binlog_events.inc
@@ -13776,6 +14109,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_8`,`nt_xx_8` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=CS-N->N]
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-N->N << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE nt_xx_9 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM nt_1;;
 include/show_binlog_events.inc
@@ -13808,6 +14142,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-N->N << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-N B T IS-N<-T T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE nt_xx_9;
 include/show_binlog_events.inc
@@ -13864,6 +14199,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B T IS-N<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-N B T ISe-N<-T T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE nt_xx_9;
 include/show_binlog_events.inc
@@ -13919,6 +14255,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B T ISe-N<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-N B IS-N<-T T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE nt_xx_9;
 include/show_binlog_events.inc
@@ -13967,6 +14304,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B IS-N<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-N B ISe-N<-T T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE nt_xx_9;
 include/show_binlog_events.inc
@@ -14014,6 +14352,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B ISe-N<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=drop-CS]
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_9, nt_xx_9;
 include/show_binlog_events.inc
@@ -14026,6 +14365,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_9`,`nt_xx_9` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=CS-N->N]
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-N->N << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE nt_xx_10 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM nt_1;;
 include/show_binlog_events.inc
@@ -14058,6 +14398,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-N->N << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-N B T IS-N<-N T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE nt_xx_10;
 include/show_binlog_events.inc
@@ -14118,6 +14459,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B T IS-N<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-N B T ISe-N<-N T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE nt_xx_10;
 include/show_binlog_events.inc
@@ -14173,6 +14515,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B T ISe-N<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-N B IS-N<-N T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE nt_xx_10;
 include/show_binlog_events.inc
@@ -14225,6 +14568,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B IS-N<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=trunc-CS-N B ISe-N<-N T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
 TRUNCATE TABLE nt_xx_10;
 include/show_binlog_events.inc
@@ -14272,6 +14616,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B ISe-N<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=drop-CS]
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_10, nt_xx_10;
 include/show_binlog_events.inc
@@ -14287,6 +14632,7 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_10`,`nt_xx
 ###################################################################################
 #                         5 - ROLLBACK TEMPORARY TABLE
 ###################################################################################
+rpl_mixing_engines.inc [commands=B T CT R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -14309,6 +14655,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=drop-CT]
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TEMPORARY TABLE IF EXISTS tt_xx_11;
 include/show_binlog_events.inc
@@ -14321,6 +14668,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_11` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T Sn T CT Rn R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -14357,6 +14705,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T Sn T CT Rn R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=drop-CT]
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TEMPORARY TABLE IF EXISTS tt_xx_12;
 include/show_binlog_events.inc
@@ -14369,6 +14718,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_12` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B T CT T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -14395,6 +14745,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=drop-CT]
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TEMPORARY TABLE IF EXISTS tt_xx_13;
 include/show_binlog_events.inc
@@ -14407,6 +14758,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_13` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B tN CT T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -14444,6 +14796,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B tN CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=drop-CT]
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TEMPORARY TABLE IF EXISTS tt_xx_14;
 include/show_binlog_events.inc
@@ -14456,6 +14809,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_14` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B CT T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -14478,6 +14832,7 @@ include/show_binlog_events.inc
 include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=drop-CT]
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TEMPORARY TABLE IF EXISTS tt_xx_15;
 include/show_binlog_events.inc
@@ -14490,6 +14845,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_15` /* generated by server */
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=B N CT T R]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 include/show_binlog_events.inc
@@ -14527,6 +14883,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+rpl_mixing_engines.inc [commands=drop-CT]
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TEMPORARY TABLE IF EXISTS tt_xx_16;
 include/show_binlog_events.inc
@@ -14545,6 +14902,7 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_
 ###################################################################################
 #                                        CLEAN
 ###################################################################################
+rpl_mixing_engines.inc [commands=clean]
 DROP TABLE tt_1;
 DROP TABLE tt_2;
 DROP TABLE tt_3;

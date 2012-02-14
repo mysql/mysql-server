@@ -1,9 +1,38 @@
-################################################################################
-# This is an auxiliary file used by rpl_mixing_engines.test, and that it
+# ==== Purpose ====
+#
+# This is an auxiliary file used by rpl_mixing_engines.test. It
 # executes SQL statements according to a format string, as specified in
 # rpl_mixing_engines.test. In addition, it accepts the special format
 # strings 'configure' and 'clean', used before and after everything else.
-################################################################################
+#
+# ==== Usage ====
+#
+# --let $commands= command1 command2 ...
+# --let $database_name= name
+# [--let $verbose= 1]
+# --source include/rpl_mixing_engines.inc
+#
+#   Parameters:
+#
+#     $commands
+#       Space-separated list of commands. See rpl_mixing_engines.test
+#       for a list of all commands.
+#
+#     $database_name
+#       Name of database to use. If $commands is 'configure' or
+#       'clean', and the database name is not 'test', then the
+#       database is created or dropped, respectively.
+#
+#     $verbose
+#       By default, show_binlog_events.inc is sourced after all
+#       commands have been processed, showing the result of all
+#       commands.  If this flag is set, then show_binlog_events.inc is
+#       also sourced once after each command, showing only the result
+#       of that command.
+
+--echo rpl_mixing_engines.inc [commands=$commands]
+
+--let $rme_initial_commands= $commands
 
 if ($commands == 'configure')
 {
@@ -170,7 +199,6 @@ if ($commands == 'clean')
   --let $commands=
 }
 
---let $all_commands= $commands
 while ($commands != '')
 {
   --disable_query_log
@@ -179,7 +207,7 @@ while ($commands != '')
 
   --disable_query_log
   --let $command= `SELECT SUBSTRING_INDEX('$commands', ' ', 1)`
-  if ($verbose != 'N')
+  if ($verbose)
   {
     --echo -b-b-b-b-b-b-b-b-b-b-b- >> $command << -b-b-b-b-b-b-b-b-b-b-b-
     let $pos_command= query_get_value("SHOW MASTER STATUS", Position, 1);
@@ -551,7 +579,7 @@ while ($commands != '')
   inc $stmt_id;
 
   let $binlog_start= $pos_command;
-  if ($verbose != 'N')
+  if ($verbose)
   {
     # Use other connection because include/show_binlog_events.inc
     # executes SELECT UUID(), which switches to row-logging when
@@ -565,14 +593,16 @@ while ($commands != '')
   if ($commands == '')
   {
     let $binlog_start= $pos_trans_command;
-    --echo -b-b-b-b-b-b-b-b-b-b-b- >> $all_commands << -b-b-b-b-b-b-b-b-b-b-b-
+    --echo -b-b-b-b-b-b-b-b-b-b-b- >> $rme_initial_commands << -b-b-b-b-b-b-b-b-b-b-b-
     --connection server_1
     --source include/show_binlog_events.inc
     --connection master
-    --echo -e-e-e-e-e-e-e-e-e-e-e- >> $all_commands << -e-e-e-e-e-e-e-e-e-e-e-
+    --echo -e-e-e-e-e-e-e-e-e-e-e- >> $rme_initial_commands << -e-e-e-e-e-e-e-e-e-e-e-
     --echo
     let $pos_trans_command= query_get_value("SHOW MASTER STATUS", Position, 1);
     let $stmt_id= 1;
     inc $trans_id;
   }
 }
+
+--let $commands= $rme_initial_commands

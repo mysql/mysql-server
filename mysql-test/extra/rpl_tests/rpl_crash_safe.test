@@ -80,141 +80,129 @@
 --echo #                               PREPARE EXECUTION
 --echo ###################################################################################
 connection master;
-SET @verbose= 'Y';
-SET @commands= 'configure';
+--let $verbose= 1
+--let $commands= configure
 --source extra/rpl_tests/rpl_crash_safe.inc
 
 --echo ###################################################################################
 --echo #                         EXECUTE CASES CRASHING THE XID
 --echo ###################################################################################
 connection master;
-SET @failures= 'd,crash_after_apply d,crash_before_update_pos d,crash_after_update_pos_before_apply';
+--let $failures= d,crash_after_apply d,crash_before_update_pos d,crash_after_update_pos_before_apply
 #
-# Executes a set of tests while there are crash points in @failures.
+# Executes a set of tests while there are crash points in $failures.
 #
-while (`SELECT HEX(@failures) != HEX('')`)
+while ($failures != '')
 {
   #
-  # Gets a crash point from the set of crash points in @failures and
-  # stores it into @failure.
+  # Gets a crash point from the set of crash points in $failures and
+  # stores it into $failure.
   #
-  --disable_query_log
-  SET @failure= SUBSTRING_INDEX(@failures, ' ', 1);
-  let $failure= `SELECT @failure`;
-  --enable_query_log
+  --let $failure= `SELECT SUBSTRING_INDEX('$failures', ' ', 1)`
 
   --echo
   --echo
   --echo
-  SET @commands= 'T';
+  --let $commands= T
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
   --echo
   --echo
-  SET @commands= 'T-trig';
+  --let $commands= T-trig
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
   --echo
   --echo
-  SET @commands= 'T-func';
+  --let $commands= T-func
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
   --echo
   --echo
-  SET @commands= 'T-proc';
+  --let $commands= T-proc
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
   --echo
   --echo
-  SET @commands= 'B T T-trig C';
+  --let $commands= B T T-trig C
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
   --echo
   --echo
-   SET @commands= 'B T T-func C';
+   --let $commands= B T T-func C
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
   --echo
   --echo
-  SET @commands= 'B T T-proc C';
+  --let $commands= B T T-proc C
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
   --echo
   --echo
-  SET @commands= 'B T-trig T C';
+  --let $commands= B T-trig T C
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
   --echo
   --echo
-  SET @commands= 'B T-func T C';
+  --let $commands= B T-func T C
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
   --echo
   --echo
-  SET @commands= 'B T-proc T C';
+  --let $commands= B T-proc T C
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   #
-  # Removes @failure from the set of crash points in @failures.
+  # Removes $failure from the set of crash points in $failures.
   #
-  --disable_query_log
-  --eval  SET @failure= '$failure';
-  SET @failures= LTRIM(SUBSTRING(@failures, LENGTH(@failure) + 1));
-  --enable_query_log
+  --let $failures= `SELECT LTRIM(SUBSTRING('$failures', LENGTH('$failure') + 1))`
 }
 
 --echo ###################################################################################
 --echo #                      EXECUTE CASES CRASHING THE BEGIN/COMMIT
 --echo ###################################################################################
-SET @failures= 'd,crash_after_commit_and_update_pos';
+--let $failures= d,crash_after_commit_and_update_pos
 #
-# Executes a set of tests while there are crash points in @failures.
+# Executes a set of tests while there are crash points in $failures.
 #
-while (`SELECT HEX(@failures) != HEX('')`)
+while ($failures != '')
 {
   #
-  # Gets a crash point from the set of crash points in @failures and
-  # stores it into @failure.
+  # Gets a crash point from the set of crash points in $failures and
+  # stores it into $failure.
   #
-  --disable_query_log
-  SET @failure= SUBSTRING_INDEX(@failures, ' ', 1);
-  let $failure= `SELECT @failure`;
-  --enable_query_log
+  --let $failure= `SELECT SUBSTRING_INDEX('$failures', ' ', 1)`
 
   --echo
   --echo
   --echo
-  SET @commands= 'N';
+  --let $commands= N
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
   --echo
   --echo
-  SET @commands= 'N-trig';
+  --let $commands= N-trig
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
   --echo
   --echo
-  SET @commands= 'N-func';
+  --let $commands= N-func
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   #
-  # Removes @failure from the set of crash points in @failures.
+  # Removes $failure from the set of crash points in $failures.
   #
-  --disable_query_log
-  --eval  SET @failure= '$failure';
-  SET @failures= LTRIM(SUBSTRING(@failures, LENGTH(@failure) + 1));
-  --enable_query_log
+  --let $failures= `SELECT LTRIM(SUBSTRING('$failures', LENGTH('$failure') + 1))`
 }
 
 --echo ###################################################################################
@@ -234,5 +222,5 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 --echo #                                        CLEAN
 --echo ###################################################################################
 connection master;
-SET @commands= 'clean';
+--let $commands= clean
 --source extra/rpl_tests/rpl_crash_safe.inc
