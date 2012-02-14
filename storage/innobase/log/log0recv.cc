@@ -3297,7 +3297,9 @@ recv_recovery_from_checkpoint_finish(void)
 	that the data dictionary tables will be free of any locks.
 	The data dictionary latch should guarantee that there is at
 	most one data dictionary transaction active at a time. */
-	trx_rollback_or_clean_recovered(FALSE);
+	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
+		trx_rollback_or_clean_recovered(FALSE);
+	}
 }
 
 /********************************************************//**
@@ -3317,18 +3319,21 @@ recv_recovery_rollback_active(void)
 	/* Switch latching order checks on in sync0sync.cc */
 	sync_order_checks_on = TRUE;
 #endif
-	/* Drop partially created indexes. */
-	row_merge_drop_temp_indexes();
-	/* Drop temporary tables. */
-	row_mysql_drop_temp_tables();
-
-	/* Drop any auxiliary tables that were not dropped when the
-	parent table was dropped. This can happen if the parent table
-	was dropped but the server crashed before the auxiliary tables
-	were dropped. */
-	fts_drop_orphaned_tables();
-
+	/* We can't start any (DDL) transactions if UNDO logging
+	has been disabled, additionally disable ROLLBACK of recovered
+	user transactions. */
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
+		/* Drop partially created indexes. */
+		row_merge_drop_temp_indexes();
+		/* Drop temporary tables. */
+		row_mysql_drop_temp_tables();
+
+		/* Drop any auxiliary tables that were not dropped when the
+		parent table was dropped. This can happen if the parent table
+		was dropped but the server crashed before the auxiliary tables
+		were dropped. */
+		fts_drop_orphaned_tables();
+
 		/* Rollback the uncommitted transactions which have no user
 		session */
 

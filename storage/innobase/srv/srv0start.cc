@@ -2177,6 +2177,12 @@ innobase_start_or_create_for_mysql(void)
 	srv_available_undo_logs = trx_sys_create_rsegs(
 		srv_undo_tablespaces, srv_undo_logs);
 
+	if (srv_available_undo_logs == ULINT_UNDEFINED) {
+		/* Can only happen if force recovery is set. */
+		ut_a(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
+		srv_undo_logs = ULINT_UNDEFINED;
+	}
+
 	/* Create the thread which watches the timeouts for lock waits */
 	os_thread_create(
 		lock_wait_timeout_thread,
