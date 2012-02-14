@@ -119,6 +119,26 @@ ERROR 42000: Variable 'gtid_next' can't be set to the value of 'aaaaaaaa-aaaa-aa
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
 AUTOMATIC
+SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:-33';
+ERROR 42000: Variable 'gtid_next' can't be set to the value of 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:-33'
+SELECT @@SESSION.GTID_NEXT;
+@@SESSION.GTID_NEXT
+AUTOMATIC
+SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:66-33';
+ERROR 42000: Variable 'gtid_next' can't be set to the value of 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:66-33'
+SELECT @@SESSION.GTID_NEXT;
+@@SESSION.GTID_NEXT
+AUTOMATIC
+SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:33 33';
+ERROR 42000: Variable 'gtid_next' can't be set to the value of 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:33 33'
+SELECT @@SESSION.GTID_NEXT;
+@@SESSION.GTID_NEXT
+AUTOMATIC
+SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa-33';
+ERROR 42000: Variable 'gtid_next' can't be set to the value of 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa-33'
+SELECT @@SESSION.GTID_NEXT;
+@@SESSION.GTID_NEXT
+AUTOMATIC
 ==== Conditions for gtid_next ====
 # Initialize
 CREATE FUNCTION f() RETURNS INT BEGIN RETURN 1; END;

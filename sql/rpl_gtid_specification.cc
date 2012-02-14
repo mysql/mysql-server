@@ -53,7 +53,7 @@ enum_return_status Gtid_specification::parse(Sid_map *sid_map, const char *text)
 
 enum_group_type Gtid_specification::get_type(const char *text)
 {
-  DBUG_ENTER("Gtid_specification::is_valid");
+  DBUG_ENTER("Gtid_specification::get_type");
   DBUG_ASSERT(text != NULL);
   if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0)
     DBUG_RETURN(AUTOMATIC_GROUP);

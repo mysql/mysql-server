@@ -92,7 +92,7 @@ bool Group_cache::contains_gtid(const Gtid &gtid) const
   investigate if this is a bug or this code is not
   necessary. /Alfranio
 */
-#ifdef NON_DISABLED_GTID
+#ifdef NON_ERROR_GTID
 Group_cache::enum_add_group_status
 Group_cache::add_empty_group(const Gtid &gtid)
 {

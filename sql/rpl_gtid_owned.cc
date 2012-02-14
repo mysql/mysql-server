@@ -55,23 +55,10 @@ Owned_gtids::~Owned_gtids()
 enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno)
 {
   DBUG_ENTER("Owned_gtids::ensure_sidno");
-  sid_lock->assert_some_lock();
+  sid_lock->assert_some_wrlock();
   rpl_sidno max_sidno= get_max_sidno();
-  bool is_wrlock= false;
   if (sidno > max_sidno || get_hash(sidno) == NULL)
   {
-    is_wrlock= sid_lock->is_wrlock();
-    if (!is_wrlock)
-    {
-      sid_lock->unlock();
-      sid_lock->wrlock();
-      if (sidno <= max_sidno && get_hash(sidno) != NULL)
-      {
-        sid_lock->unlock();
-        sid_lock->rdlock();
-        RETURN_OK;
-      }
-    }
     if (allocate_dynamic(&sidno_to_hash, sidno))
       goto error;
     for (int i= max_sidno; i < sidno; i++)
@@ -84,19 +71,9 @@ enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno)
                    my_free, 0);
       set_dynamic(&sidno_to_hash, &hash, i);
     }
-    if (!is_wrlock)
-    {
-      sid_lock->unlock();
-      sid_lock->rdlock();
-    }
   }
   RETURN_OK;
 error:
-  if (!is_wrlock)
-  {
-    sid_lock->unlock();
-    sid_lock->rdlock();
-  }
   BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
   RETURN_REPORTED_ERROR;
 }

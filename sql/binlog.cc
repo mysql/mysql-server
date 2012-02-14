@@ -590,7 +590,7 @@ static int write_one_empty_group_to_cache(THD *thd,
     necessary. /Alfranio
   */
   DBUG_ASSERT(0); /*NOTREACHED*/
-#ifdef NON_DISABLED_GTID
+#ifdef NON_ERROR_GTID
   IO_CACHE *cache= &cache_data->cache_log;
   Group_cache::enum_add_group_status status= group_cache->add_empty_group(gtid);
   if (status == Group_cache::ERROR)
@@ -646,12 +646,7 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 
   Group_cache* group_cache= &cache_data->group_cache;
 
-  // in dbug mode, take wrlock so that we can call gtid_state.dbug_print
-#ifdef DBUG_OFF  
   global_sid_lock.rdlock();
-#else
-  global_sid_lock.wrlock();
-#endif
 
   if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
   {
@@ -4894,18 +4889,12 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
         goto err;
       }
 
-      // in dbug mode, take wrlock so that we can call gtid_state.dbug_print
-#ifdef DBUG_OFF  
       global_sid_lock.rdlock();
-#else
-      global_sid_lock.wrlock();
-#endif
       if (gtid_state.update(thd, true) != RETURN_STATUS_OK)
       {
         global_sid_lock.unlock();
         goto err;
       }
-      gtid_state.dbug_print();
       global_sid_lock.unlock();
 
       if (RUN_HOOK(binlog_storage, after_flush,
