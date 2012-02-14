@@ -55,6 +55,14 @@
 */
 #undef NON_DISABLED_GTID
 
+/*
+  This macro must be used to filter out parts of the code that
+  is not used now but we are not sure if there is a bug around
+  them. In other words, we want to keep such code until we have
+  time to investigate it.
+*/
+#undef NON_ERROR_GTID
+
 #ifndef MYSQL_CLIENT
 class String;
 class THD;
@@ -458,12 +466,14 @@ public:
   Sid_map(Checkable_rwlock *sid_lock);
   /// Destroy this Sid_map.
   ~Sid_map();
+#ifdef NON_DISABLED_GTID
   /**
     Clears this Sid_map (for RESET MASTER)
 
     @return RETURN_STATUS_OK or RETURN_STAUTS_REPORTED_ERROR
   */
   enum_return_status clear();
+#endif
   /**
     Add the given SID to this map if it does not already exist.
 

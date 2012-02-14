@@ -44,6 +44,13 @@ Sid_map::~Sid_map()
 }
 
 
+/*
+  This code is not being used but we will keep it as it may be
+  useful to optimize gtids by avoiding sharing mappings from
+  sid to sidno. For instance, the IO Thread and the SQL Thread
+  may have different mappings in the future.
+*/
+#ifdef NON_DISABLED_GTID
 enum_return_status Sid_map::clear()
 {
   DBUG_ENTER("Sid_map::clear");
@@ -55,6 +62,8 @@ enum_return_status Sid_map::clear()
   reset_dynamic(&_sorted);
   RETURN_OK;
 }
+#endif
+
 
 rpl_sidno Sid_map::add_sid(const rpl_sid &sid)
 {
