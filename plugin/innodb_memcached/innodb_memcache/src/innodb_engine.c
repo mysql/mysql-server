@@ -418,7 +418,7 @@ innodb_conn_init(
 {
 	innodb_conn_data_t*	conn_data;
 	meta_cfg_info_t*	meta_info = &engine->meta_info;
-	meta_index_t*		meta_index = &meta_info->m_index;
+	meta_index_t*		meta_index = &meta_info->index_info;
 	ib_err_t		err = DB_SUCCESS;
 
 	LOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
@@ -456,8 +456,8 @@ innodb_conn_init(
 
 		err = innodb_api_begin(
 			engine,
-			meta_info->m_item[CONTAINER_DB].m_str,
-			meta_info->m_item[CONTAINER_TABLE].m_str,
+			meta_info->col_info[CONTAINER_DB].col_name,
+			meta_info->col_info[CONTAINER_TABLE].col_name,
 			conn_data,
 			conn_data->read_crsr_trx,
 			&conn_data->read_crsr,
@@ -489,8 +489,8 @@ innodb_conn_init(
 
 			err = innodb_api_begin(
 				engine,
-				meta_info->m_item[CONTAINER_DB].m_str,
-				meta_info->m_item[CONTAINER_TABLE].m_str,
+				meta_info->col_info[CONTAINER_DB].col_name,
+				meta_info->col_info[CONTAINER_TABLE].col_name,
 				conn_data,
 				conn_data->crsr_trx, &conn_data->crsr,
 				&conn_data->idx_crsr, lock_mode);
@@ -521,8 +521,8 @@ innodb_conn_init(
 
 				err = innodb_api_begin(
 					engine,
-					meta_info->m_item[CONTAINER_DB].m_str,
-					meta_info->m_item[CONTAINER_TABLE].m_str,
+					meta_info->col_info[CONTAINER_DB].col_name,
+					meta_info->col_info[CONTAINER_TABLE].col_name,
 					conn_data,
 					conn_data->crsr_trx,
 					&conn_data->crsr,
@@ -556,7 +556,7 @@ innodb_conn_init(
 					return(NULL);
 				}
 
-				if (meta_index->m_use_idx == META_SECONDARY) {
+				if (meta_index->srch_use_idx == META_SECONDARY) {
 
 					idx_crsr = conn_data->idx_crsr;
 					innodb_cb_cursor_new_trx(
@@ -579,7 +579,7 @@ innodb_conn_init(
 					conn_data->read_crsr,
 					lock_mode);
 
-                                if (meta_index->m_use_idx == META_SECONDARY) {
+                                if (meta_index->srch_use_idx == META_SECONDARY) {
                                         idx_crsr = conn_data->idx_read_crsr;
 
                                         innodb_cb_cursor_new_trx(
@@ -617,8 +617,8 @@ innodb_remove(
 	innodb_conn_data_t*	conn_data;
 	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
 
-	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT
-	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
+	if (meta_info->set_option == META_CACHE_OPT_DEFAULT
+	    || meta_info->set_option == META_CACHE_OPT_MIX) {
 		hash_item*	item = item_get(def_eng, key, nkey);
 
 		if (item != NULL) {
@@ -626,7 +626,7 @@ innodb_remove(
 			item_release(def_eng, item);
 		}
 
-		if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT) {
+		if (meta_info->set_option == META_CACHE_OPT_DEFAULT) {
 			return(ENGINE_SUCCESS);
 		}
 	}
@@ -701,15 +701,15 @@ innodb_get(
 	int			total_len = 0;
 	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
 
-	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT
-	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
+	if (meta_info->set_option == META_CACHE_OPT_DEFAULT
+	    || meta_info->set_option == META_CACHE_OPT_MIX) {
 		*item = item_get(default_handle(innodb_eng), key, nkey);
 
 		if (*item != NULL) {
 			return(ENGINE_SUCCESS);
 		}
 
-		if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT) {
+		if (meta_info->set_option == META_CACHE_OPT_DEFAULT) {
 			return(ENGINE_KEY_ENOENT);
 		}
 	}
@@ -731,45 +731,45 @@ innodb_get(
 
 	/* Only if expiration field is enabled, and the value is not zero,
 	we will check whether the item is expired */
-	if (result.m_value[MCI_COL_EXP].m_enabled
-	    && result.m_value[MCI_COL_EXP].m_digit) {
+	if (result.col_value[MCI_COL_EXP].is_valid
+	    && result.col_value[MCI_COL_EXP].value_int) {
 		uint64_t		time;
 		time = mci_get_time();
 
-		if (time > result.m_value[MCI_COL_EXP].m_digit) {
+		if (time > result.col_value[MCI_COL_EXP].value_int) {
 			err_ret = ENGINE_KEY_ENOENT;
 			goto func_exit;
 		}
 	}
 
-	if (result.m_value[MCI_COL_FLAG].m_enabled) {
-		flags = ntohl(result.m_value[MCI_COL_FLAG].m_digit);
+	if (result.col_value[MCI_COL_FLAG].is_valid) {
+		flags = ntohl(result.col_value[MCI_COL_FLAG].value_int);
 	}
 
-	if (result.m_value[MCI_COL_CAS].m_enabled) {
-		cas = result.m_value[MCI_COL_CAS].m_digit;
+	if (result.col_value[MCI_COL_CAS].is_valid) {
+		cas = result.col_value[MCI_COL_CAS].value_int;
 	}
 
-	if (result.m_value[MCI_COL_EXP].m_enabled) {
-		exp = result.m_value[MCI_COL_EXP].m_digit;
+	if (result.col_value[MCI_COL_EXP].is_valid) {
+		exp = result.col_value[MCI_COL_EXP].value_int;
 	}
 
-	if (result.m_add_value) {
+	if (result.add_col_value) {
 		int	i;
-		for (i = 0; i < result.m_add_num; i++) {
+		for (i = 0; i < result.n_add_col; i++) {
 
-			if (result.m_add_value[i].m_len == 0) {
+			if (result.add_col_value[i].value_len == 0) {
 				continue;
 			}
 
-			total_len += (result.m_add_value[i].m_len
-				      + meta_info->m_sep_len);
+			total_len += (result.add_col_value[i].value_len
+				      + meta_info->sep_len);
 		}
 
 		/* No need to add the last separator */
-		total_len -= meta_info->m_sep_len;
+		total_len -= meta_info->sep_len;
 	} else {
-		total_len = result.m_value[MCI_COL_VALUE].m_len;
+		total_len = result.col_value[MCI_COL_VALUE].value_len;
 	}
 
 	innodb_allocate(handle, cookie, item, key, nkey, total_len, flags, exp);
@@ -780,31 +780,31 @@ innodb_get(
 		hash_item_set_cas(it, cas);
 	}
 
-	if (result.m_add_value) {
+	if (result.add_col_value) {
 		int	i;
 		char*	c_value = hash_item_get_data(it);
 
-		for (i = 0; i < result.m_add_num; i++) {
+		for (i = 0; i < result.n_add_col; i++) {
 
-			if (result.m_add_value[i].m_len == 0) {
+			if (result.add_col_value[i].value_len == 0) {
 				continue;
 			}
 
 			memcpy(c_value,
-			       result.m_add_value[i].m_str,
-			       result.m_add_value[i].m_len);
+			       result.add_col_value[i].value_str,
+			       result.add_col_value[i].value_len);
 
-			c_value += result.m_add_value[i].m_len;
-			memcpy(c_value, meta_info->m_separator,
-			       meta_info->m_sep_len);
-			c_value += meta_info->m_sep_len;
+			c_value += result.add_col_value[i].value_len;
+			memcpy(c_value, meta_info->separator,
+			       meta_info->sep_len);
+			c_value += meta_info->sep_len;
 		}
 	} else {
 		memcpy(hash_item_get_data(it),
-		       result.m_value[MCI_COL_VALUE].m_str, it->nbytes);
+		       result.col_value[MCI_COL_VALUE].value_str, it->nbytes);
 
-		if (result.m_value[MCI_COL_VALUE].m_allocated) {
-			free(result.m_value[MCI_COL_VALUE].m_str);
+		if (result.col_value[MCI_COL_VALUE].allocated) {
+			free(result.col_value[MCI_COL_VALUE].value_str);
 		}
 	}
 
@@ -876,12 +876,12 @@ innodb_store(
 	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
 	uint32_t		val_len = ((hash_item*)item)->nbytes;
 
-	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT 
-	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
+	if (meta_info->set_option == META_CACHE_OPT_DEFAULT 
+	    || meta_info->set_option == META_CACHE_OPT_MIX) {
 		result = store_item(default_handle(innodb_eng), item, cas,
 				    op, cookie);
 
-		if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT) {
+		if (meta_info->set_option == META_CACHE_OPT_DEFAULT) {
 			return(result);
 		}
 	}
@@ -933,8 +933,8 @@ innodb_arithmetic(
 	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
 	ENGINE_ERROR_CODE	err;
 
-	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT 
-	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
+	if (meta_info->set_option == META_CACHE_OPT_DEFAULT 
+	    || meta_info->set_option == META_CACHE_OPT_MIX) {
 		/* For cache-only, forward this to the
 		default engine */
 		err = def_eng->engine.arithmetic(
@@ -942,7 +942,7 @@ innodb_arithmetic(
 			increment, create, delta, initial, exptime, cas,
 			result, vbucket);
 
-		if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT) {
+		if (meta_info->set_option == META_CACHE_OPT_DEFAULT) {
 			return(err);
 		}
 	}
@@ -982,13 +982,13 @@ innodb_flush(
 	ib_err_t		ib_err = DB_SUCCESS;
 	innodb_conn_data_t*	conn_data;
 
-	if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT
-	    || meta_info->m_set_option == META_CACHE_OPT_MIX) {
+	if (meta_info->set_option == META_CACHE_OPT_DEFAULT
+	    || meta_info->set_option == META_CACHE_OPT_MIX) {
 		/* default engine flush */
 		err = def_eng->engine.flush(innodb_eng->default_engine,
 					    cookie, when);
 
-		if (meta_info->m_set_option == META_CACHE_OPT_DEFAULT) {
+		if (meta_info->set_option == META_CACHE_OPT_DEFAULT) {
 			return(err);
 		}
 	}
@@ -1018,8 +1018,8 @@ innodb_flush(
 	innodb_conn_clean(innodb_eng, true, true);
 
 	ib_err = innodb_api_flush(innodb_eng,
-				  meta_info->m_item[CONTAINER_DB].m_str,
-			          meta_info->m_item[CONTAINER_TABLE].m_str);
+				  meta_info->col_info[CONTAINER_DB].col_name,
+			          meta_info->col_info[CONTAINER_TABLE].col_name);
 
         pthread_mutex_unlock(&innodb_eng->conn_mutex);
 

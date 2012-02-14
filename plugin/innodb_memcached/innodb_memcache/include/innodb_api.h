@@ -58,13 +58,14 @@ in InnoDB Memcached. The supported column types are either character
 type or integer type (see above "enum mci_col" for columns
 supporting memcached) */
 typedef struct mci_column {
-	char*		m_str;		/*!< char value of the column */
-	int		m_len;		/*!< char value length in bytes */
-	uint64_t	m_digit;	/*!< integer value */
-	bool		m_is_str;	/*!< whether the value is char or int */
-	bool		m_enabled;	/*!< valid column value */
-	bool		m_is_null;	/*!< whether it is a NULL value */
-	bool		m_allocated;	/*!< whether memory allocated to store
+	char*		value_str;	/*!< char value of the column */
+	int		value_len;	/*!< char value length in bytes */
+	uint64_t	value_int;	/*!< integer value */
+	bool		is_str;		/*!< whether the value is char or int */
+	bool		is_valid;	/*!< this structure contains valid
+					or stale column value */
+	bool		is_null;	/*!< whether it is a NULL value */
+	bool		allocated;	/*!< whether memory allocated to store
 					the value */
 } mci_column_t;
 
@@ -78,12 +79,12 @@ table. And we will assemble and disassemble the memcached value from these
 column values.  And "m_add_value" and "m_add_num" is used to support multiple
 value columns */
 typedef struct mci_items {
-	mci_column_t	m_value[MCI_COL_TO_GET]; /*!< columns in a row */
-	mci_column_t*	m_add_value;		/*!< whether there will be
-						additional/multiple values
+	mci_column_t	col_value[MCI_COL_TO_GET]; /*!< columns in a row */
+	mci_column_t*	add_col_value;		/*!< whether there will be
+						additional/multiple "values"
 						to be stored */
-	int		m_add_num;		/*!< number of additional
-						value columns */
+	int		n_add_col;		/*!< number of additional
+						"value" columns */
 } mci_item_t;
 
 /*************************************************************//**
