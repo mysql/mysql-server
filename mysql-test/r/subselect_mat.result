@@ -1831,6 +1831,23 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 3	MATERIALIZED	alias3	ALL	NULL	NULL	NULL	NULL	2	
 3	MATERIALIZED	alias4	index	c	c	11	NULL	2	Using where; Using index; Using join buffer (flat, BNL join)
 DROP TABLE t1,t2;
+#
+# BUG#928048: Query containing IN subquery with OR in the where clause returns a wrong result
+#
+create table t1 (a int, b int);
+insert into t1 values (7,5), (3,3), (5,4), (9,3);
+create table t2 (a int, b int, index i_a(a));
+insert into t2 values
+(4,2), (7,9), (7,4), (3,1), (5,3), (3,1), (9,4), (8,1);
+explain select * from t1 where t1.a in (select a from t2 where t2.a=7 or t2.b<=1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	MATERIALIZED	t2	ALL	i_a	NULL	NULL	NULL	8	Using where
+select * from t1 where t1.a in (select a from t2 where t2.a=7 or t2.b<=1);
+a	b
+7	5
+3	3
+drop table t1,t2;
 # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;
