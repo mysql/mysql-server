@@ -193,13 +193,12 @@ int archive_db_init(void *p)
   archive_hton->flags= HTON_NO_FLAGS;
   archive_hton->discover= archive_discover;
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(0);
 }
 
 
 Archive_share::Archive_share()
 {
-  use_count= 0;
   crashed= false;
   archive_write_open= false;
   dirty= false;
@@ -215,7 +214,7 @@ Archive_share::Archive_share()
 
 
 ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
-  :handler(hton, table_arg), delayed_insert(0), bulk_insert(0)
+  :handler(hton, table_arg), share(NULL), delayed_insert(0), bulk_insert(0)
 {
   /* Set our original buffer from pre-allocated memory */
   buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
@@ -275,14 +274,14 @@ err:
     @retval !0 Failure
 */
 
-int ha_archive::read_v1_metafile()
+int Archive_share::read_v1_metafile()
 {
   char file_name[FN_REFLEN];
   uchar buf[META_V1_LENGTH];
   File fd;
-  DBUG_ENTER("ha_archive::read_v1_metafile");
+  DBUG_ENTER("Archive_share::read_v1_metafile");
 
-  fn_format(file_name, share->data_file_name, "", ARM, MY_REPLACE_EXT);
+  fn_format(file_name, data_file_name, "", ARM, MY_REPLACE_EXT);
   if ((fd= my_open(file_name, O_RDONLY, MYF(0))) == -1)
     DBUG_RETURN(-1);
 
@@ -292,8 +291,8 @@ int ha_archive::read_v1_metafile()
     DBUG_RETURN(-1);
   }
   
-  share->rows_recorded= uint8korr(buf + META_V1_OFFSET_ROWS_RECORDED);
-  share->crashed= buf[META_V1_OFFSET_CRASHED];
+  rows_recorded= uint8korr(buf + META_V1_OFFSET_ROWS_RECORDED);
+  crashed= buf[META_V1_OFFSET_CRASHED];
   my_close(fd, MYF(0));
   DBUG_RETURN(0);
 }
@@ -420,14 +419,11 @@ int ha_archive::read_data_header(azio_stream *file_to_read)
 */
 Archive_share *ha_archive::get_share(const char *table_name, int *rc)
 {
-  Handler_share *tmp_ha_share;
   Archive_share *tmp_share;
 
   DBUG_ENTER("ha_archive::get_share");
 
-  if ((tmp_ha_share= get_ha_share_ptr()))
-    tmp_share= static_cast<Archive_share*>(tmp_ha_share);
-  else
+  if (!(tmp_share= static_cast<Archive_share*>(get_ha_share_ptr())))
   {
     azio_stream archive_tmp;
 
@@ -464,19 +460,13 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc)
     tmp_share->crashed= archive_tmp.dirty;
     share= tmp_share;
     if (archive_tmp.version == 1)
-      read_v1_metafile();
+      share->read_v1_metafile();
     azclose(&archive_tmp);
 
     set_ha_share_ptr(static_cast<Handler_share*>(tmp_share));
   }
-  mysql_mutex_lock(&tmp_share->mutex);
-  tmp_share->use_count++;
-  DBUG_PRINT("ha_archive", ("archive table %s has %d open handles now",
-                      tmp_share->table_name,
-                      tmp_share->use_count));
   if (tmp_share->crashed)
     *rc= HA_ERR_CRASHED_ON_USAGE;
-  mysql_mutex_unlock(&tmp_share->mutex);
 
   DBUG_RETURN(tmp_share);
 
@@ -501,10 +491,10 @@ int Archive_share::init_archive_writer()
                O_RDWR|O_BINARY)))
   {
     DBUG_PRINT("ha_archive", ("Could not open archive write file"));
-    crashed= TRUE;
+    crashed= true;
     DBUG_RETURN(1);
   }
-  archive_write_open= TRUE;
+  archive_write_open= true;
 
   DBUG_RETURN(0);
 }
@@ -592,7 +582,6 @@ int ha_archive::open(const char *name, int mode, uint open_options)
       break;
     /* fall through */
   default:
-    close();
     DBUG_RETURN(rc);
   }
 
@@ -602,10 +591,7 @@ int ha_archive::open(const char *name, int mode, uint open_options)
                                       ARCHIVE_ROW_HEADER_SIZE);
 
   if (!record_buffer)
-  {
-    close();
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-  }
 
   thr_lock_data_init(&share->lock, &lock, NULL);
 
@@ -642,24 +628,13 @@ int ha_archive::close(void)
   int rc= 0;
   DBUG_ENTER("ha_archive::close");
 
-  destroy_record_buffer();
+  destroy_record_buffer(record_buffer);
 
-  /* First close stream */
   if (archive_reader_open)
   {
     if (azclose(&archive))
       rc= 1;
   }
-
-  /* then also close archive writer */
-  mysql_mutex_lock(&share->mutex);
-  if (!--share->use_count)
-  {
-    /* We cannot have any files open if no table are open. */
-    share->close_archive_writer();
-  }
-  DBUG_PRINT("info", ("use_count: %d", share->use_count));
-  mysql_mutex_unlock(&share->mutex);
 
   DBUG_RETURN(rc);
 }
@@ -1710,6 +1685,45 @@ int ha_archive::info(uint flag)
 }
 
 
+/**
+  Handler hints.
+
+  @param operation  Operation to prepare for.
+
+  @return Operation status
+    @return 0    Success
+    @return != 0 Error
+*/
+
+int ha_archive::extra(enum ha_extra_function operation)
+{
+  int ret= 0;
+  DBUG_ENTER("ha_archive::extra");
+  /* On windows we need to close all files before rename/delete. */
+#ifdef __WIN__
+  switch (operation) {
+
+  case HA_EXTRA_PREPARE_FOR_RENAME:
+  case HA_EXTRA_FORCE_REOPEN:
+    /* Close both reader and writer so we don't have the file open. */
+    if (archive_reader_open)
+    {
+      ret= azclose(&archive);
+      archive_reader_open= false;
+    }
+    mysql_mutex_lock(&share->mutex);
+    share->close_archive_writer();
+    mysql_mutex_unlock(&share->mutex);
+    break;
+  default:
+    /* Nothing to do. */
+    ;
+  }
+#endif
+  DBUG_RETURN(ret);
+}
+
+
 /*
   This method tells us that a bulk insert operation is about to occur. We set
   a flag which will keep write_row from saying that its data is dirty. This in
@@ -1871,15 +1885,11 @@ archive_record_buffer *ha_archive::create_record_buffer(unsigned int length)
   DBUG_RETURN(r);
 }
 
-void ha_archive::destroy_record_buffer()
+void ha_archive::destroy_record_buffer(archive_record_buffer *r)
 {
   DBUG_ENTER("ha_archive::destroy_record_buffer");
-  if (record_buffer)
-  {
-    my_free(record_buffer->buffer);
-    my_free(record_buffer);
-    record_buffer= NULL;
-  }
+  my_free(r->buffer);
+  my_free(r);
   DBUG_VOID_RETURN;
 }
 
