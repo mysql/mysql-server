@@ -2148,6 +2148,7 @@ public:
     char *buf;
     if (thd->owned_gtid.sidno == -1)
     {
+#ifdef HAVE_NDB_BINLOG
       buf= (char *)thd->alloc(thd->owned_gtid_set.get_string_length() + 1);
       if (buf)
       {
@@ -2157,6 +2158,9 @@ public:
       }
       else
         my_error(ER_OUT_OF_RESOURCES, MYF(0));
+#else
+     DBUG_ASSERT(0); 
+#endif
     }
     else
     {

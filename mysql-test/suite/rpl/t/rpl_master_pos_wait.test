@@ -1,12 +1,21 @@
-# See if master_pos_wait(,,timeout)
-# Terminates with "timeout expired" (-1)
+#
+# Check what happens when there is an error with parameters provided
+# to either MASTER_POS_WAIT or SQL_THREAD_WAIT_AFTER_GTIDS, or they
+# timeout.
+#
 source include/master-slave.inc;
 sync_slave_with_master;
-# Ask for a master log that has certainly not been reached yet
-# timeout= 2 seconds
+
+#
+# MASTER_POS_WAIT: Check if time-out is correctly handled.
+#
 select master_pos_wait('master-bin.999999',0,2);
 explain extended select master_pos_wait('master-bin.999999',0,2);
-# Testcase for bug 651 (master_pos_wait() hangs if slave idle and STOP SLAVE).
+
+#
+# MASTER_POS_WAIT (BUG#651): Check if it hangs when slave is 
+# idle and STOP SLAVE is issued.
+#
 send select master_pos_wait('master-bin.999999',0);
 connection slave1;
 stop slave sql_thread;
@@ -14,15 +23,41 @@ connection slave;
 reap;
 
 #
-# bug#26622 MASTER_POS_WAIT does not work as documented
+#  MASTER_POS_WAIT (BUG#26622): it does not work as documented
 #
-
 connection master;
 echo "*** must be empty ***";
 query_vertical show slave status;
 
 echo "*** must be NULL ***";
 select master_pos_wait('foo', 98);
+
+#
+# SQL_THREAD_WAIT_AFTER_GTIDS: Check if time-out is correctly handled.
+#
+--connection slave
+--source include/start_slave_sql.inc
+SELECT SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 2);
+EXPLAIN EXTENDED SELECT SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 2);
+
+#
+# SQL_THREAD_WAIT_AFTER_GTIDS: Check wrong parameters.
+#
+#SELECT SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', -2);
+#SELECT SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', NULL);
+SELECT SQL_THREAD_WAIT_AFTER_GTIDS('', 2);
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+SELECT SQL_THREAD_WAIT_AFTER_GTIDS('error-gtid', 2);
+
+#
+# SQL_THREAD_WAIT_AFTER_GTIDS: Check if it hangs when slave is 
+# idle and STOP SLAVE is issued.
+#
+send SELECT SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 2);
+--connection slave1
+STOP SLAVE SQL_THREAD;
+--connection slave
+reap;
 
 # End of 4.1 tests
 --let $rpl_only_running_threads= 1

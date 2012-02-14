@@ -26,9 +26,6 @@
 using std::min;
 using std::max;
 
-//const int Gtid_set::CHUNK_GROW_SIZE;
-
-
 const Gtid_set::String_format Gtid_set::default_string_format=
 {
   "", "", ":", "-", ":", ",\n", "",
@@ -928,7 +925,10 @@ int Gtid_set::get_string_length(const Gtid_set::String_format *sf) const
   return cached_string_length;
 }
 
-
+/*
+  Functions sidno_equals() and equals() are only used by unitests
+*/
+#ifdef NON_DISABLED_UNITTEST_GTID
 bool Gtid_set::sidno_equals(rpl_sidno sidno, const Gtid_set *other,
                             rpl_sidno other_sidno) const
 {
@@ -1020,6 +1020,7 @@ bool Gtid_set::equals(const Gtid_set *other) const
   DBUG_ASSERT(0); // not reached
   DBUG_RETURN(true);
 }
+#endif
 
 
 bool Gtid_set::is_subset(const Gtid_set *super) const

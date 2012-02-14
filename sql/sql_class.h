@@ -3582,7 +3582,13 @@ public:
   void clear_owned_gtids()
   {
     if (owned_gtid.sidno == -1)
+    {
+#ifdef HAVE_NDB_BINLOG
       owned_gtid_set.clear();
+#else
+      DBUG_ASSERT(0);
+#endif
+    }
     owned_gtid.sidno= 0;
   }
 

@@ -1426,9 +1426,13 @@ THD::~THD()
 
   if (variables.gtid_next_list.gtid_set != NULL)
   {
+#ifdef HAVE_NDB_BINLOG
     delete variables.gtid_next_list.gtid_set;
     variables.gtid_next_list.gtid_set= NULL;
     variables.gtid_next_list.is_non_null= false;
+#else
+    DBUG_ASSERT(0);
+#endif
   }
   
   mysql_audit_free_thd(this);

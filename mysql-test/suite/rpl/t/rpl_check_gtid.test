@@ -67,7 +67,6 @@
 --source include/not_embedded.inc
 --source include/not_windows.inc
 --source include/have_debug.inc
-#--source include/have_gtid.inc
 
 call mtr.add_suppression("Recovery from master pos .*");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
@@ -592,11 +591,23 @@ while ($i != 5)
   INSERT INTO t1 VALUES(2);
   COMMIT;
 
-  --connection slave
-  --replace_result $master_uuid MASTER_UUID $slave_uuid SLAVE_UUID
-  --disable_result_log
-  --eval SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$wait_gtids', 300)
-  --enable_result_log
+  if (`SELECT ($i % 2) = 0`)
+  {
+    --connection slave
+    --replace_result $master_uuid MASTER_UUID $slave_uuid SLAVE_UUID
+    --disable_result_log
+    --eval SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$wait_gtids', 300)
+    --enable_result_log
+  }
+
+  if (`SELECT ($i % 2) = 1`)
+  {
+    --connection slave
+    --replace_result $master_uuid MASTER_UUID $slave_uuid SLAVE_UUID
+    --disable_result_log
+    --eval SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$wait_gtids')
+    --enable_result_log
+  }
 
   # Check property 4.1
   --let $binlog= relaylog

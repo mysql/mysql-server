@@ -991,8 +991,6 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status ensure_sidno(rpl_sidno sidno);
-  /// Returns true if this Gtid_set is equal to the other Gtid_set.
-  bool equals(const Gtid_set *other) const;
   /// Returns true if this Gtid_set is a subset of the other Gtid_set.
   bool is_subset(const Gtid_set *super) const;
   /// Returns true if this Gtid_set is empty.
@@ -1383,6 +1381,10 @@ private:
   /// The default number of intervals in an Interval_chunk.
   static const int CHUNK_GROW_SIZE= 8;
 
+/*
+  Functions sidno_equals() and equals() are only used by unitests
+*/
+#ifdef NON_DISABLED_UNITTEST_GTID
   /**
     Return true if the given sidno of this Gtid_set contains the same
     intervals as the given sidno of the other Gtid_set.
@@ -1394,6 +1396,10 @@ private:
   */
   bool sidno_equals(rpl_sidno sidno,
                     const Gtid_set *other, rpl_sidno other_sidno) const;
+  /// Returns true if this Gtid_set is equal to the other Gtid_set.
+  bool equals(const Gtid_set *other) const;
+#endif
+
   /// Return the number of intervals for the given sidno.
   int get_n_intervals(rpl_sidno sidno) const
   {
