@@ -1469,6 +1469,8 @@ static
 ulint
 buf_do_flush_list_batch(
 /*====================*/
+	const trx_t*	trx,		/*!< in: transaction, to check if the
+					operation should be aborted or NULL */
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	ulint           space,          /*!< in: flush pages from only this
 					tablespace, ULINT_UNDEFINED for
@@ -1511,12 +1513,22 @@ buf_do_flush_list_batch(
 		if (space == ULINT_UNDEFINED) {
 			bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 		} else {
-			if (restart) {
+			/* After we exit the while loop below and before we
+			get here, bpage could have been flushed by some other
+			thread and its oldest modification reset. */
+
+			if (restart || bpage->oldest_modification == 0) {
+
+				ut_ad(bpage == 0
+				      || bpage->oldest_modification > 0
+				      || !bpage->in_flush_list);
+
 				bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 			}
 
+
 			while (bpage != 0
-			       && space != buf_page_get_space(bpage)) {
+				&& space != buf_page_get_space(bpage)) {
 
 				ut_ad(bpage->in_flush_list);
 				bpage = UT_LIST_GET_PREV(list, bpage);
@@ -1588,7 +1600,11 @@ buf_do_flush_list_batch(
 			--len;
 		}
 
-	} while (count < min_n && bpage != NULL && len > 0);
+		if (trx != 0 && trx_is_interrupted(trx)) {
+			break;
+		}
+
+	} while (count < min_n&& bpage != NULL && len > 0);
 
 	MONITOR_INC_VALUE_CUMULATIVE(
 		MONITOR_FLUSH_BATCH_SCANNED,
@@ -1613,6 +1629,8 @@ static
 ulint
 buf_flush_batch(
 /*============*/
+	const trx_t*	trx,		/*!< in: transaction, to check if the
+					operation should be aborted or NULL */
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	ulint           space,          /*!< in: flush pages from only this
 					tablespace, ULINT_UNDEFINED for all
@@ -1648,7 +1666,7 @@ buf_flush_batch(
 		break;
 	case BUF_FLUSH_LIST:
 		count = buf_do_flush_list_batch(
-			buf_pool, space, min_n, lsn_limit);
+			trx, buf_pool, space, min_n, lsn_limit);
 		break;
 	default:
 		ut_error;
@@ -1812,8 +1830,10 @@ buf_flush_LRU(
 		return(ULINT_UNDEFINED);
 	}
 
+	/* Pass 0 for trx because this flush is not session specific. */
+
 	page_count = buf_flush_batch(
-		buf_pool, ULINT_UNDEFINED, BUF_FLUSH_LRU, min_n, 0);
+		0, buf_pool, ULINT_UNDEFINED, BUF_FLUSH_LRU, min_n, 0);
 
 	buf_flush_end(buf_pool, BUF_FLUSH_LRU);
 
@@ -1831,6 +1851,8 @@ static
 ulint
 buf_flush_buffer_pool(
 /*==================*/
+	const trx_t*	trx,		/*!< in: transaction, to check if the
+					operation should be aborted or NULL */
 	buf_pool_t*	buf_pool,	/*!< in/out: Buffer pool instance to
 					flush */
 	ulint           space,          /*!< in: Flush pages only from this
@@ -1862,7 +1884,7 @@ buf_flush_buffer_pool(
 	}
 
 	ulint	n_pages = buf_flush_batch(
-		buf_pool, space, BUF_FLUSH_LIST, min_n, lsn_limit);
+		trx, buf_pool, space, BUF_FLUSH_LIST, min_n, lsn_limit);
 
 	buf_flush_end(buf_pool, BUF_FLUSH_LIST);
 
@@ -1883,12 +1905,17 @@ buf_flush_buffer_pool(
 This utility flushes all dirty blocks that belong to space from all
 buffer pool instances. NOTE: The calling thread is not allowed to own
 any latches on pages! Also, this function will signal the flush batch
-end for a buffer after flushing that buffer pool.
-@return number of blocks for which the write request was queued */
+end for a buffer after flushing that buffer pool. The operation will be
+aborted if the transaction is interrupted and a warning message written
+to the error log file.
+@return number of blocks for which the write request was queued or
+	ULINT_UNDEFINED if the operation was aborted. */
 UNIV_INTERN
 ulint
 buf_flush_list(
 /*===========*/
+	const trx_t*	trx,		/*!< in: transaction, to detect if
+					the operation should be interrupted */
 	ulint           space)          /*!< in: Flush pages only from this
 					tablespace. */
 {
@@ -1900,7 +1927,8 @@ buf_flush_list(
 
 	memset(flushed, 0x0, sizeof(*flushed) * srv_buf_pool_instances);
 
-	/* Ensure that all buffer pools are flushed. */
+	/* Ensure that all buffer pools are flushed, or quit if the
+	transaction/session was killed. */
 	do {
 		skipped = false;
 
@@ -1912,10 +1940,20 @@ buf_flush_list(
 				buf_pool = buf_pool_from_array(i);
 
 				ulint	n_pages = buf_flush_buffer_pool(
+					trx,
 					buf_pool, space, ULINT_MAX, LSN_MAX);
 
-				if (n_pages == ULINT_UNDEFINED) {
+				/* Check if the operation should be aborted. */
+				if (trx_is_interrupted(trx)) {
+
+					buf_flush_wait_batch_end(
+						buf_pool, BUF_FLUSH_LIST);
+					break;
+
+				} else if (n_pages == ULINT_UNDEFINED) {
+
 					skipped = true;
+
 				} else {
 					flushed[i] = true;
 					n_total_pages += n_pages;
@@ -1923,6 +1961,10 @@ buf_flush_list(
 					buf_flush_wait_batch_end(
 						buf_pool, BUF_FLUSH_LIST);
 				}
+			}
+
+			if (trx_is_interrupted(trx)) {
+				return(ULINT_UNDEFINED);
 			}
 		}
 
@@ -1978,8 +2020,11 @@ buf_flush_list(
 
 		buf_pool_t*	buf_pool = buf_pool_from_array(i);
 
+		/* Pass in a 0 transaction instance, this function is not
+		session specific. */
+
 		ulint	n_pages = buf_flush_buffer_pool(
-			buf_pool, ULINT_UNDEFINED, min_n, lsn_limit);
+			0, buf_pool, ULINT_UNDEFINED, min_n, lsn_limit);
 
 		if (n_pages == ULINT_UNDEFINED) {
 

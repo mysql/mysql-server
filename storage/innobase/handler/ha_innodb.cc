@@ -11248,15 +11248,16 @@ ha_innobase::external_lock(
 		if (thd_sql_command(thd) == SQLCOM_FLUSH
 		    && lock_type == F_RDLCK) {
 
-			row_quiesce_table_start(prebuilt->table, thd);
+			row_quiesce_table_start(prebuilt->table, trx);
 		}
 
 	} else if (prebuilt->table->quiesce == QUIESCE_COMPLETE) {
-		/* Check for UNLOCK TABLES; */
-		if (thd_sql_command(thd) == SQLCOM_UNLOCK_TABLES
+		/* Check for UNLOCK TABLES; or trx interruption. */
+		if ((thd_sql_command(thd) == SQLCOM_UNLOCK_TABLES
+		     || trx_is_interrupted(trx))
 		    && lock_type == F_UNLCK) {
 
-			row_quiesce_table_complete(prebuilt->table, thd);
+			row_quiesce_table_complete(prebuilt->table, trx);
 		}
 	} else {
 		ut_a(prebuilt->table->quiesce == QUIESCE_NONE);

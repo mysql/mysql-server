@@ -33,6 +33,9 @@ Created 11/5/1995 Heikki Tuuri
 #include "mtr0types.h"
 #include "buf0types.h"
 
+// Forward declaration
+struct trx_struct;
+
 /** Flag indicating if the page_cleaner is in active state. */
 extern ibool buf_page_cleaner_is_active;
 
@@ -114,13 +117,20 @@ buf_flush_list(
 					min_n), otherwise ignored */
 /*******************************************************************//**
 This utility flushes all dirty blocks that belong to space from all
-buffer pool instances.
-NOTE: The calling thread is not allowed to own any latches on pages!
-@return number of blocks for which the write request was queued */
+buffer pool instances. NOTE: The calling thread is not allowed to own
+any latches on pages! Also, this function will signal the flush batch
+end for a buffer after flushing that buffer pool. The operation will be
+aborted if the transaction is interrupted and a warning message written
+to the error log file.
+@return number of blocks for which the write request was queued or
+	ULINT_UNDEFINED if the operation was aborted. */
 UNIV_INTERN
 ulint
 buf_flush_list(
 /*===========*/
+	const trx_struct*
+			trx,		/*!< in: transaction, to detect if
+					the operation should be interrupted */
 	ulint           space);		/*!< in: Flush pages only from this
 					tablespace. */
 /******************************************************************//**
