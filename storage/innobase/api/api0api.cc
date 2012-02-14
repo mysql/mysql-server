@@ -3701,9 +3701,9 @@ ib_is_binlog_enabled()
 Return isolation configuration set by "innodb_api_trx_level"
 @return trx isolation level*/
 UNIV_INTERN
-ulong
+ib_trx_state_t
 ib_cfg_trx_level()
 /*==============*/
 {
-	return(ib_trx_level_setting);
+	return(static_cast<ib_trx_state_t>(ib_trx_level_setting));
 }
