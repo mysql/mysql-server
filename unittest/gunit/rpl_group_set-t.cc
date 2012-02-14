@@ -20,7 +20,7 @@
 #define FRIEND_OF_GTID_SET class GroupTest_Group_containers_Test
 #define FRIEND_OF_GROUP_CACHE class GroupTest_Group_containers_Test
 #define FRIEND_OF_GROUP_LOG_STATE class GroupTest_Group_containers_Test
-#define NON_DISABLED_UNITTEST_GTID 1
+#define NON_DISABLED_UNITTEST_GTID
 
 #include "sql_class.h"
 #include "my_pthread.h"
