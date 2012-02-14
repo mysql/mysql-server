@@ -524,21 +524,6 @@ void
 srv_general_init(void);
 /*==================*/
 /*********************************************************************//**
-Gets the number of threads in the system.
-@return	sum of srv_n_threads[] */
-UNIV_INTERN
-ulint
-srv_get_n_threads(void);
-/*===================*/
-/*********************************************************************//**
-Check whether thread type has reserved a slot.
-@return	slot number or UNDEFINED if not found*/
-UNIV_INTERN
-ulint
-srv_thread_has_reserved_slot(
-/*=========================*/
-	enum srv_thread_type	type);	/*!< in: thread type to check */
-/*********************************************************************//**
 Sets the info describing an i/o thread current state. */
 UNIV_INTERN
 void
@@ -557,12 +542,6 @@ UNIV_INTERN
 void
 srv_wake_purge_thread_if_not_active(void);
 /*=====================================*/
-/*******************************************************************//**
-Wakes up the purge thread if it's not already awake. */
-UNIV_INTERN
-void
-srv_wake_purge_thread(void);
-/*=======================*/
 /*******************************************************************//**
 Tells the Innobase server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used
@@ -697,15 +676,6 @@ DECLARE_THREAD(srv_worker_thread)(
 						required by os_thread_create */
 } /* extern "C" */
 
-/*******************************************************************//**
-Wakes up the worker threads. */
-UNIV_INTERN
-void
-srv_wake_worker_threads(
-/*====================*/
-	ulint	n_workers);			/*!< number or workers to
-						wake up */
-
 /**********************************************************************//**
 Get count of tasks in the queue.
 @return number of tasks in queue  */
@@ -734,6 +704,13 @@ UNIV_INTERN
 const char*
 srv_any_background_threads_are_active(void);
 /*=======================================*/
+
+/**********************************************************************//**
+Wakeup the purge threads. */
+UNIV_INTERN
+void
+srv_purge_wakeup(void);
+/*==================*/
 
 /** Status variables to be passed to MySQL */
 struct export_var_struct{
@@ -797,13 +774,13 @@ struct export_var_struct{
 
 /** Thread slot in the thread table.  */
 struct srv_slot_struct{
-	enum srv_thread_type
-			type;			/*!< thread type: user,
+	srv_thread_type type;			/*!< thread type: user,
 						utility etc. */
 	ibool		in_use;			/*!< TRUE if this slot
 						is in use */
-	ibool		suspended;		/*!< TRUE if the thread is waiting for the
-						event of this slot */
+	ibool		suspended;		/*!< TRUE if the thread is
+						waiting for the event of this
+						slot */
 	ib_time_t	suspend_time;		/*!< time when the thread was
 						suspended. Initialized by
 						lock_wait_table_reserve_slot()
@@ -813,9 +790,9 @@ struct srv_slot_struct{
 						Initialized by
 						lock_wait_table_reserve_slot()
 						for lock wait */
-	os_event_t	event;			/*!< event used in suspending the
-						thread when it has nothing to
-						do */
+	os_event_t	event;			/*!< event used in suspending
+						the thread when it has nothing
+						to do */
 	que_thr_t*	thr;			/*!< suspended query thread
 						(only used for user threads) */
 };
