@@ -4378,6 +4378,36 @@ bool TABLE_LIST::prepare_security(THD *thd)
   DBUG_RETURN(FALSE);
 }
 
+#ifndef DBUG_OFF
+void TABLE_LIST::set_check_merged()
+{
+  DBUG_ASSERT(derived);
+  /*
+    It is not simple to check all, but at least this should be checked:
+    this select is not excluded or the exclusion came from above.
+  */
+  DBUG_ASSERT(!derived->first_select()->exclude_from_table_unique_test ||
+              derived->outer_select()->
+              exclude_from_table_unique_test);
+}
+#endif
+
+void TABLE_LIST::set_check_materialized()
+{
+  DBUG_ASSERT(derived);
+  if (!derived->first_select()->exclude_from_table_unique_test)
+    derived->set_unique_exclude();
+  else
+  {
+    /*
+      The subtree should be already excluded
+    */
+    DBUG_ASSERT(!derived->first_select()->first_inner_unit() ||
+                derived->first_select()->first_inner_unit()->first_select()->
+                exclude_from_table_unique_test);
+  }
+}
+
 
 Natural_join_column::Natural_join_column(Field_translator *field_param,
                                          TABLE_LIST *tab)
@@ -5919,8 +5949,9 @@ bool TABLE_LIST::init_derived(THD *thd, bool init_view)
   */
   if (is_materialized_derived())
   {
-    unit->master_unit()->set_unique_exclude();
+    set_check_materialized();
   }
+
   /*
     Create field translation for mergeable derived tables/views.
     For derived tables field translation can be created only after

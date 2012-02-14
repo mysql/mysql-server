@@ -1707,11 +1707,12 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
   t_name= table->table_name;
   t_alias= table->alias;
 
+retry:
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
-  for (;;)
+  for (TABLE_LIST *tl= table_list;;)
   {
-    if (((! (res= find_table_in_global_list(table_list, d_name, t_name))) &&
-         (! (res= mysql_lock_have_duplicate(thd, table, table_list)))) ||
+    if (((! (res= find_table_in_global_list(tl, d_name, t_name))) &&
+         (! (res= mysql_lock_have_duplicate(thd, table, tl)))) ||
         ((!res->table || res->table != table->table) &&
          (!check_alias || !(lower_case_table_names ?
           my_strcasecmp(files_charset_info, t_alias, res->alias) :
@@ -1724,9 +1725,22 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
       processed in derived table or top select of multi-update/multi-delete
       (exclude_from_table_unique_test) or prelocking placeholder.
     */
-    table_list= res->next_global;
+    tl= res->next_global;
     DBUG_PRINT("info",
                ("found same copy of table or table which we should skip"));
+  }
+  if (res && res->belong_to_derived)
+  {
+    /* Try to fix */
+    TABLE_LIST *derived=  res->belong_to_derived;
+    if (derived->is_merged_derived())
+    {
+      DBUG_PRINT("info",
+                 ("convert merged to materialization to resolve the conflict"));
+      derived->change_refs_to_fields();
+      derived->set_materialized_derived();
+    }
+    goto retry;
   }
   DBUG_RETURN(res);
 }

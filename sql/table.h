@@ -1747,16 +1747,18 @@ struct TABLE_LIST
   inline void set_merged_derived()
   {
     derived_type= ((derived_type & DTYPE_MASK) |
-                    DTYPE_TABLE | DTYPE_MERGE);
+                   DTYPE_TABLE | DTYPE_MERGE);
+    set_check_merged();
   }
   inline bool is_materialized_derived()
   {
     return (derived_type & DTYPE_MATERIALIZE);
   }
-  inline void set_materialized_derived()
+  void set_materialized_derived()
   {
     derived_type= ((derived_type & DTYPE_MASK) |
-                    DTYPE_TABLE | DTYPE_MATERIALIZE);
+                   DTYPE_TABLE | DTYPE_MATERIALIZE);
+    set_check_materialized();
   }
   inline bool is_multitable()
   {
@@ -1802,6 +1804,12 @@ struct TABLE_LIST
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
+  void set_check_materialized();
+#ifndef DBUG_OFF
+  void set_check_merged();
+#else
+  inline void set_check_merged() {}
+#endif
   /*
     Cleanup for re-execution in a prepared statement or a stored
     procedure.
