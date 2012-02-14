@@ -1529,6 +1529,23 @@ WHERE b = a AND a IN (
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # BUG#928048: Query containing IN subquery with OR in the where clause returns a wrong result
+--echo #
+create table t1 (a int, b int);
+insert into t1 values (7,5), (3,3), (5,4), (9,3);
+
+create table t2 (a int, b int, index i_a(a));
+
+insert into t2 values
+  (4,2), (7,9), (7,4), (3,1), (5,3), (3,1), (9,4), (8,1);
+
+explain select * from t1 where t1.a in (select a from t2 where t2.a=7 or t2.b<=1);
+select * from t1 where t1.a in (select a from t2 where t2.a=7 or t2.b<=1);
+
+drop table t1,t2;
+
+
 --echo # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;

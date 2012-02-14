@@ -11490,7 +11490,7 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
     }      
 
     /* 
-      Check if "item_field=head" equality is already guaranteed to be true 
+      Check if "field_item=head" equality is already guaranteed to be true 
       on upper AND-levels.
     */
     if (upper)
@@ -11502,7 +11502,8 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
         Item_equal_fields_iterator li(*item_equal);
         while ((item= li++) != field_item)
         {
-          if (item->find_item_equal(upper_levels) == upper)
+          if (embedding_sjm(item) == field_sjm && 
+              item->find_item_equal(upper_levels) == upper)
             break;
         }
       }
@@ -11646,7 +11647,7 @@ static COND* substitute_for_best_equal_field(JOIN_TAB *context_tab,
     if (and_level)
     {
       cond_equal= &((Item_cond_and *) cond)->cond_equal;
-      cond_list->disjoin((List<Item> *) &cond_equal->current_level);
+      cond_list->disjoin((List<Item> *) &cond_equal->current_level);/* remove Item_equal objects from the AND. */
 
       List_iterator_fast<Item_equal> it(cond_equal->current_level);      
       while ((item_equal= it++))
