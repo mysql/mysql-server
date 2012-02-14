@@ -1335,6 +1335,8 @@ trx_purge_stop(void)
 		is suspended. */
 		os_event_wait_low(purge_sys->event, sig_count);
 	}
+
+	MONITOR_INC_VALUE(MONITOR_PURGE_STOP_COUNT, 1);
 }
 
 /*******************************************************************//**
@@ -1351,15 +1353,18 @@ trx_purge_run(void)
 
 	if (purge_sys->n_stop > 0) {
 
+		ut_a(purge_sys->state == PURGE_STATE_STOP);
+
 		--purge_sys->n_stop;
 
 		if (purge_sys->n_stop == 0) {
 
 			ib_logf("Resuming purge");
 
-			ut_a(purge_sys->state == PURGE_STATE_STOP);
 			purge_sys->state = PURGE_STATE_RUN;
 		}
+
+		MONITOR_INC_VALUE(MONITOR_PURGE_RESUME_COUNT, 1);
 	} else {
 		ut_a(purge_sys->state == PURGE_STATE_RUN);
 	}

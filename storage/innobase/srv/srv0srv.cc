@@ -457,9 +457,6 @@ static ulint   srv_main_shutdown_loops		= 0;
 /* Log writes involving flush. */
 static ulint   srv_log_writes_and_flush		= 0;
 
-/** Maximum wait time on the purge event. */
-static const ulint SRV_PURGE_MAX_TIMEOUT	= 1000000;
-
 /* This is only ever touched by the master thread. It records the
 time when the last flush of log file has happened. The master
 thread ensures that we flush the log files at least once per
@@ -706,7 +703,6 @@ srv_reserve_slot(
 	srv_thread_type	type)	/*!< in: type of the thread */
 {
 	srv_slot_t*	slot;
-	ulint		i = 2;	/* First two slots are reserved, see below. */
 
 	srv_sys_mutex_enter();
 
@@ -727,8 +723,8 @@ srv_reserve_slot(
 		     slot->in_use;
 		     ++slot) {
 
-			ut_a(i < srv_sys->n_sys_threads);
-			++i;
+			ut_a(slot < &srv_sys->sys_threads[
+			     srv_sys->n_sys_threads]);
 		}
 		break;
 
@@ -2367,8 +2363,8 @@ Check if purge should stop.
 @return true if it should shutdown. */
 static
 bool
-srv_purge_exit(
-/*===========*/
+srv_purge_should_exit(
+/*==============*/
 	ulint		n_purged)	/*!< in: pages purged in last batch */
 {
 	switch (srv_shutdown_state) {
@@ -2436,7 +2432,6 @@ DECLARE_THREAD(srv_worker_thread)(
 						required by os_thread_create */
 {
 	srv_slot_t*	slot;
-	bool		purged;
 
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
@@ -2465,7 +2460,7 @@ DECLARE_THREAD(srv_worker_thread)(
 
 		os_event_wait(slot->event);
 
-		if ((purged = srv_task_execute())) {
+		if (srv_task_execute()) {
 
 			/* If there are tasks in the queue, wakeup
 			the purge coordinator thread. */
@@ -2483,6 +2478,7 @@ DECLARE_THREAD(srv_worker_thread)(
 
 	ut_a(!purge_sys->running);
 	ut_a(purge_sys->state == PURGE_STATE_EXIT);
+	ut_a(srv_shutdown_state > SRV_SHUTDOWN_NONE);
 
 	rw_lock_x_unlock(&purge_sys->latch);
 
@@ -2563,7 +2559,7 @@ srv_do_purge(
 
 		*n_total_purged += n_pages_purged;
 
-	} while (!srv_purge_exit(n_pages_purged) && n_pages_purged > 0);
+	} while (!srv_purge_should_exit(n_pages_purged) && n_pages_purged > 0);
 
 	return(rseg_history_len);
 }
@@ -2588,7 +2584,9 @@ srv_purge_coordinator_suspend(
 	rw_lock_x_unlock(&purge_sys->latch);
 
 	bool		stop = false;
-	static ulint	timeout = 10000;
+
+	/** Maximum wait time on the purge event, in micro-seconds. */
+	static const ulint SRV_PURGE_MAX_TIMEOUT = 10000;
 
 	do {
 		ulint		ret;
@@ -2602,7 +2600,7 @@ srv_purge_coordinator_suspend(
 			ret = 0;
 		} else if (rseg_history_len <= trx_sys->rseg_history_len) {
 			ret = os_event_wait_time_low(
-				slot->event, timeout, sig_count);
+				slot->event, SRV_PURGE_MAX_TIMEOUT, sig_count);
 		} else {
 			/* We don't want to waste time waiting if the
 			history list has increased by the time we get here
@@ -2707,7 +2705,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 			srv_purge_coordinator_suspend(slot, rseg_history_len);
 		}
 
-		if (srv_purge_exit(n_total_purged)) {
+		if (srv_purge_should_exit(n_total_purged)) {
 			ut_a(!slot->suspended);
 			break;
 		}
@@ -2719,7 +2717,12 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 				srv_n_purge_threads, &n_total_purged);
 		}
 
-	} while (!srv_purge_exit(n_total_purged));
+	} while (!srv_purge_should_exit(n_total_purged));
+
+	/* Ensure that we don't jump out of the loop unless the
+	exit condition is satisfied. */
+
+	ut_a(srv_purge_should_exit(n_total_purged));
 
 	/* The task queue should always be empty, independent of fast
 	shutdown state. */
