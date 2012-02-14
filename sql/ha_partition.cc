@@ -77,6 +77,23 @@ static handler *partition_create_handler(handlerton *hton,
 static uint partition_flags();
 static uint alter_table_flags(uint flags);
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_mutex_key key_partition_auto_inc_mutex;
+
+static PSI_mutex_info all_partition_mutexes[]=
+{
+  { &key_partition_auto_inc_mutex, "Partition_share::auto_inc_mutex", 0}
+};
+
+static void init_partition_psi_keys(void)
+{
+  const char* category= "partition";
+  int count;
+
+  count= array_elements(all_partition_mutexes);
+  mysql_mutex_register(category, all_partition_mutexes, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
 
 static int partition_initialize(void *p)
 {
@@ -92,9 +109,38 @@ static int partition_initialize(void *p)
   partition_hton->flags= HTON_NOT_USER_SELECTABLE |
                          HTON_HIDDEN |
                          HTON_TEMPORARY_NOT_SUPPORTED;
-
+#ifdef HAVE_PSI_INTERFACE
+  init_partition_psi_keys();
+#endif
   return 0;
 }
+
+
+/**
+  Initialize and allocate space for partitions shares.
+
+  @param num_parts  Number of partitions to allocate storage for.
+
+  @return Operation status.
+    @retval true  Failure (out of memory).
+    @retval false Success.
+*/
+
+bool Partition_share::init(uint num_parts)
+{
+  DBUG_ENTER("Partition_share::init");
+  mysql_mutex_init(key_partition_auto_inc_mutex,
+                   &auto_inc_mutex,
+                   MY_MUTEX_INIT_FAST);
+  auto_inc_initialized= false;
+  partition_name_hash_initialized= false;
+  next_auto_inc_val= 0;
+  partitions_shares= new Parts_share_storage(num_parts);
+  if (!partitions_shares)
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
+}
+
 
 /*
   Create new partition handler
@@ -5956,6 +6002,14 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
     Indication to flush tables to disk, is supposed to be used to
     ensure disk based tables are flushed at end of query execution.
     Currently is never used.
+  HA_EXTRA_PREPARE_FOR_RENAME:
+    Informs the handler we are about to attempt a rename of the table.
+    For handlers that have share open files (MyISAM key-file and
+    Archive writer) they must close the files before rename is possible
+    on Windows.
+  HA_EXTRA_FORCE_REOPEN:
+    Only used by MyISAM and Archive, called when altering table,
+    closing tables to enforce a reopen of the table files.
 
   2) Operations used by some non-MyISAM handlers
   ----------------------------------------------
@@ -6079,9 +6133,6 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
     It's used mostly by Windows that cannot handle dropping an open file.
     On other platforms it has the same effect as HA_EXTRA_FORCE_REOPEN.
 
-  HA_EXTRA_PREPARE_FOR_RENAME:
-    Informs the handler we are about to attempt a rename of the table.
-
   HA_EXTRA_READCHECK:
   HA_EXTRA_NO_READCHECK:
     Only one call to HA_EXTRA_NO_READCHECK from ha_open where it says that
@@ -6101,9 +6152,6 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
      HA_EXTRA_NO_READCHECK=5                 No readcheck on update
      HA_EXTRA_READCHECK=6                    Use readcheck (def)
 
-  HA_EXTRA_FORCE_REOPEN:
-    Only used by MyISAM, called when altering table, closing tables to
-    enforce a reopen of the table files.
 
   4) Operations only used by temporary tables for query processing
   ----------------------------------------------------------------
@@ -6212,6 +6260,10 @@ int ha_partition::extra(enum ha_extra_function operation)
   case HA_EXTRA_NO_KEYREAD:
   case HA_EXTRA_FLUSH:
     DBUG_RETURN(loop_extra(operation));
+  case HA_EXTRA_PREPARE_FOR_RENAME:
+  case HA_EXTRA_FORCE_REOPEN:
+    DBUG_RETURN(loop_extra_alter(operation));
+    break;
 
     /* Category 2), used by non-MyISAM handlers */
   case HA_EXTRA_IGNORE_DUP_KEY:
@@ -6224,9 +6276,6 @@ int ha_partition::extra(enum ha_extra_function operation)
   }
 
   /* Category 3), used by MyISAM handlers */
-  case HA_EXTRA_PREPARE_FOR_RENAME:
-    DBUG_RETURN(prepare_for_rename());
-    break;
   case HA_EXTRA_PREPARE_FOR_UPDATE:
     /*
       Needs to be run on the first partition in the range now, and 
@@ -6243,7 +6292,6 @@ int ha_partition::extra(enum ha_extra_function operation)
     break;
   case HA_EXTRA_NORMAL:
   case HA_EXTRA_QUICK:
-  case HA_EXTRA_FORCE_REOPEN:
   case HA_EXTRA_PREPARE_FOR_DROP:
   case HA_EXTRA_FLUSH_CACHE:
   {
@@ -6443,35 +6491,43 @@ void ha_partition::prepare_extra_cache(uint cachesize)
 }
 
 
-/*
-  Prepares our new and reorged handlers for rename or delete
+/**
+  Prepares our new and reorged handlers for rename or delete.
 
-  SYNOPSIS
-    prepare_for_delete()
+  @param operation Operation to forward
 
-  RETURN VALUE
-    >0                    Error code
-    0                     Success
+  @return Operation status
+    @retval 0  Success
+    @retval !0 Error
 */
 
-int ha_partition::prepare_for_rename()
+int ha_partition::loop_extra_alter(enum ha_extra_function operation)
 {
   int result= 0, tmp;
   handler **file;
-  DBUG_ENTER("ha_partition::prepare_for_rename()");
+  DBUG_ENTER("ha_partition::loop_extra_alter()");
+  DBUG_ASSERT(operation == HA_EXTRA_PREPARE_FOR_RENAME ||
+              operation == HA_EXTRA_FORCE_REOPEN);
   
+  /* Optimization for InnoDB, since that handler does not use extra calls. */
+  if (m_innodb)
+    DBUG_RETURN(0);
+
   if (m_new_file != NULL)
   {
     for (file= m_new_file; *file; file++)
-      if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_RENAME)))
-        result= tmp;      
-    for (file= m_reorged_file; *file; file++)
-      if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_RENAME)))
-        result= tmp;   
-    DBUG_RETURN(result);   
+      if ((tmp= (*file)->extra(operation)))
+        result= tmp;
   }
-  
-  DBUG_RETURN(loop_extra(HA_EXTRA_PREPARE_FOR_RENAME));
+  if (m_reorged_file != NULL)
+  {
+    for (file= m_reorged_file; *file; file++)
+      if ((tmp= (*file)->extra(operation)))
+        result= tmp;
+  }
+  if ((tmp= loop_extra(operation)))
+    result= tmp;
+  DBUG_RETURN(result);
 }
 
 /*

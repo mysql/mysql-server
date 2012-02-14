@@ -105,20 +105,7 @@ public:
       delete partitions_shares;
     DBUG_VOID_RETURN;
   }
-  bool init(uint num_parts)
-  {
-    DBUG_ENTER("Partition_share::init");
-    mysql_mutex_init(key_PARTITION_LOCK_auto_inc,
-                     &auto_inc_mutex,
-                     MY_MUTEX_INIT_FAST);
-    auto_inc_initialized= false;
-    partition_name_hash_initialized= false;
-    next_auto_inc_val= 0;
-    partitions_shares= new Parts_share_storage(num_parts);
-    if (!partitions_shares)
-      DBUG_RETURN(true);
-    DBUG_RETURN(false);
-  }
+  bool init(uint num_parts);
   void lock_auto_inc()
   {
     mysql_mutex_lock(&auto_inc_mutex);
@@ -342,7 +329,6 @@ public:
   virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
                                           uint table_changes);
 private:
-  int prepare_for_rename();
   int copy_partitions(ulonglong * const copied, ulonglong * const deleted);
   void cleanup_new_partition(uint part_count);
   int prepare_new_partition(TABLE *table, HA_CREATE_INFO *create_info,
@@ -642,6 +628,7 @@ public:
 private:
   static const uint NO_CURRENT_PART_ID;
   int loop_extra(enum ha_extra_function operation);
+  int loop_extra_alter(enum ha_extra_function operations);
   void late_extra_cache(uint partition_id);
   void late_extra_no_cache(uint partition_id);
   void prepare_extra_cache(uint cachesize);

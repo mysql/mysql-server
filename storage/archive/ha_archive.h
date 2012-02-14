@@ -35,7 +35,6 @@ public:
   THR_LOCK lock;
   azio_stream archive_write;     /* Archive file we are working with */
   ha_rows rows_recorded;    /* Number of rows in tables */
-  uint use_count;
   char table_name[FN_REFLEN];
   char data_file_name[FN_REFLEN];
   bool archive_write_open;
@@ -44,13 +43,10 @@ public:
   Archive_share();
   ~Archive_share()
   {
-    DBUG_ASSERT(use_count == 0);
     DBUG_PRINT("ha_archive", ("~Archive_share: %p",
                               this));
     if (archive_write_open)
     {
-      /* This should be closed when closing the last opened handler. */
-      DBUG_ASSERT(0);
       mysql_mutex_lock(&mutex);
       (void) close_archive_writer();
       mysql_mutex_unlock(&mutex);
@@ -61,6 +57,7 @@ public:
   int init_archive_writer();
   void close_archive_writer();
   int write_v1_metafile();
+  int read_v1_metafile();
 };
 
 /*
@@ -90,7 +87,7 @@ class ha_archive: public handler
   bool archive_reader_open;
 
   archive_record_buffer *create_record_buffer(unsigned int length);
-  void destroy_record_buffer();
+  void destroy_record_buffer(archive_record_buffer *r);
   int frm_copy(azio_stream *src, azio_stream *dst);
   void frm_load(const char *name, azio_stream *dst);
   int read_v1_metafile();
@@ -147,6 +144,7 @@ public:
   int read_data_header(azio_stream *file_to_read);
   void position(const uchar *record);
   int info(uint);
+  int extra(enum ha_extra_function operation);
   void update_create_info(HA_CREATE_INFO *create_info);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
