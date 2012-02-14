@@ -25,15 +25,15 @@ INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 USE test;
 
 CREATE TABLE t1        (c1 VARCHAR(32),
-			c2 INT,
+			c2 int,
 			c21 VARCHAR(1024),
 			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
 
-INSERT INTO t1 VALUES ('D', '1', 'City', 0, 0, 0);
-INSERT INTO t1 VALUES ('B', '2', 'Mitte', 0, 0, 0);
-INSERT INTO t1 VALUES ('C', '3', 'West', 0, 0 ,0);
-INSERT INTO t1 VALUES ('H', '4', 'Norderstedt', 0, 0, 0);
+INSERT INTO t1 VALUES ('D', 1, 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 2, 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 3, 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 4, 'Norderstedt', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
@@ -70,10 +70,10 @@ use Cache::Memcached;
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11211" ]
 };
-#print "Here the memcached results after set:\n";
-#$val = $memd->set("E","5|Ost");
-#$val = $memd->get("E");
-#if ($val) { print "$val\n"; }
+print "Here the memcached results after set:\n";
+$val = $memd->set("E","5|Ost");
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
@@ -87,10 +87,10 @@ use Cache::Memcached;
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11211" ]
 };
-#print "Here the memcached results after add:\n";
-#$val = $memd->add("F","6|Sachsenhause");
-#$val = $memd->get("F");
-#if ($val) { print "$val\n"; }
+print "Here the memcached results after add:\n";
+$val = $memd->add("F","6|Sachsenhause");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
@@ -104,10 +104,10 @@ use Cache::Memcached;
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11211" ]
 };
-#print "Here the memcached results after replace:\n";
-#$val = $memd->replace("F","61|Sachsenhausen");
-#$val = $memd->get("F");
-#if ($val) { print "$val\n"; }
+print "Here the memcached results after replace:\n";
+$val = $memd->replace("F","61|Sachsenhausen");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
@@ -121,10 +121,10 @@ use Cache::Memcached;
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11211" ]
 };
-#print "Here the memcached results after delete:\n";
-#$val = $memd->delete("F");
-#$val = $memd->get("F");
-#if ($val) { print "$val\n"; }
+print "Here the memcached results after delete:\n";
+$val = $memd->delete("F");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
@@ -138,14 +138,14 @@ use Cache::Memcached;
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11211" ]
 };
-#print "Here the memcached results after add Frankfurt|:\n";
-#$val = $memd->add("F","6|a");
-#$val = $memd->get("F");
-#if ($val) { print "$val\n"; }
-#print "Here the memcached results after add |Airport:\n";
-#$val = $memd->add("F","|Airport");
-#$val = $memd->get("F");
-#if ($val) { print "$val\n"; }
+print "Here the memcached results after add Frankfurt|:\n";
+$val = $memd->add("F","6|a");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+print "Here the memcached results after add |Airport:\n";
+$val = $memd->add("F","|Airport");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
@@ -159,14 +159,14 @@ use Cache::Memcached;
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11211" ]
 };
-#print "Here the memcached results after replace Frankfurt a.M.:\n";
-#$val = $memd->replace("F","61|s");
-#$val = $memd->get("F");
-#if ($val) { print "$val\n"; }
-#print "Here the memcached results after replace Sachsenhausen:\n";
-#$val = $memd->replace("F","|Sachsenhausen");
-#$val = $memd->get("F");
-#if ($val) { print "$val\n"; }
+print "Here the memcached results after replace Frankfurt a.M.:\n";
+$val = $memd->replace("F","61|s");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+print "Here the memcached results after replace Sachsenhausen:\n";
+$val = $memd->replace("F","|Sachsenhausen");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
