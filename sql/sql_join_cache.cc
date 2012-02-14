@@ -898,6 +898,8 @@ int JOIN_CACHE::alloc_buffer()
       curr_buff_space_sz+= cache->get_join_buffer_size();
     }
   }
+  curr_min_buff_space_sz+= min_buff_size;
+  curr_buff_space_sz+= buff_size;
 
   if (curr_min_buff_space_sz > join_buff_space_limit ||
       (curr_buff_space_sz > join_buff_space_limit &&
