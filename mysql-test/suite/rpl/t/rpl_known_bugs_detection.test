@@ -48,6 +48,9 @@ start slave;
 
 # testcase with INSERT SELECT
 connection master;
+--disable_query_log
+call mtr.add_suppression(".*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT... SELECT.*");
+--enable_query_log
 CREATE TABLE t1 (
   id bigint(20) unsigned NOT NULL auto_increment,
   field_1 int(10) unsigned NOT NULL,
