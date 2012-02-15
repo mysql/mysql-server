@@ -190,7 +190,10 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "materialization",
-                    "chosen": false
+                    "has_nullable_expressions": true,
+                    "treat_UNKNOWN_as_FALSE": false,
+                    "chosen": false,
+                    "cause": "cannot_handle_partial_matches"
                   } /* transformation */
                 },
                 {

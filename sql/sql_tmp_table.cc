@@ -210,9 +210,12 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
       field= new Field_blob(item->max_length, item->maybe_null,
                             item->name, item->collation.collation);
     else
+    {
       field= new Field_varstring(item->max_length, item->maybe_null,
                                  item->name,
                                  table->s, item->collation.collation);
+      table->s->db_create_options|= HA_OPTION_PACK_RECORD;
+    }
     if (field)
       field->init(table);
     return field;
