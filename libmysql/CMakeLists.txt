@@ -146,6 +146,7 @@ SET(CLIENT_SOURCES
   ../sql/net_serv.cc
   ../sql-common/pack.c 
   ../sql/password.c
+  ../sql/my_rnd.cc
 )
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
 DTRACE_INSTRUMENT(clientlib)

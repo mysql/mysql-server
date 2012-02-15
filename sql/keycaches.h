@@ -24,7 +24,34 @@ extern "C"
   typedef int (*process_key_cache_t) (const char *, KEY_CACHE *);
 }
 
-class NAMED_ILINK;
+/**
+  ilink (intrusive list element) with a name
+*/
+class NAMED_ILINK :public ilink<NAMED_ILINK>
+{
+public:
+  const char *name;
+  uint name_length;
+  uchar* data;
+
+  NAMED_ILINK(I_List<NAMED_ILINK> *links, const char *name_arg,
+             uint name_length_arg, uchar* data_arg)
+    :name_length(name_length_arg), data(data_arg)
+  {
+    name= my_strndup(name_arg, name_length, MYF(MY_WME));
+    links->push_back(this);
+  }
+
+  bool cmp(const char *name_cmp, uint length)
+  {
+    return length == name_length && !memcmp(name, name_cmp, length);
+  }
+
+  ~NAMED_ILINK()
+  {
+    my_free((void *) name);
+  }
+};
 
 class NAMED_ILIST: public I_List<NAMED_ILINK>
 {
