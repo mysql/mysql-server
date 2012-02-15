@@ -140,10 +140,7 @@ trx_purge_sys_create(
 
 	purge_sys->heap = mem_heap_create(256);
 
-	/* Handle the case for the traditional mode. */
-	if (n_purge_threads == 0) {
-		n_purge_threads = 1;
-	}
+	ut_a(n_purge_threads > 0);
 
 	purge_sys->sess = sess_open();
 

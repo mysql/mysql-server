@@ -14362,8 +14362,8 @@ static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Purge threads can be from 0 to 32. Default is 0.",
   NULL, NULL,
-  0,			/* Default setting */
-  0,			/* Minimum value */
+  1,			/* Default setting */
+  1,			/* Minimum value */
   32, 0);		/* Maximum value */
 
 static MYSQL_SYSVAR_ULONG(sync_array_size, srv_sync_array_size,
