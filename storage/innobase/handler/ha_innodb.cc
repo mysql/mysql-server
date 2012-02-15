@@ -14482,7 +14482,7 @@ static MYSQL_SYSVAR_ULONG(max_purge_lag_delay, srv_max_purge_lag_delay,
    NULL, NULL, 
    0L,			/* Default seting */
    0L,			/* Minimum value */
-   100000000UL, 0);	/* Maximum value */
+   10000000UL, 0);	/* Maximum value */
  
 static MYSQL_SYSVAR_BOOL(rollback_on_timeout, innobase_rollback_on_timeout,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
