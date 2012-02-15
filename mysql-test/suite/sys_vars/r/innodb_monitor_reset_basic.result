@@ -138,6 +138,8 @@ purge_upd_exist_or_extern_records	disabled
 purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
+purge_stop_count	disabled
+purge_resume_count	disabled
 log_checkpoints	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
@@ -342,6 +344,8 @@ purge_upd_exist_or_extern_records	enabled
 purge_invoked	enabled
 purge_undo_log_pages	enabled
 purge_dml_delay_usec	enabled
+purge_stop_count	enabled
+purge_resume_count	enabled
 log_checkpoints	enabled
 log_lsn_last_flush	enabled
 log_lsn_last_checkpoint	enabled
@@ -548,6 +552,8 @@ purge_upd_exist_or_extern_records	disabled
 purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
+purge_stop_count	disabled
+purge_resume_count	disabled
 log_checkpoints	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
@@ -752,6 +758,8 @@ purge_upd_exist_or_extern_records	0	disabled
 purge_invoked	0	disabled
 purge_undo_log_pages	0	disabled
 purge_dml_delay_usec	0	disabled
+purge_stop_count	0	disabled
+purge_resume_count	0	disabled
 log_checkpoints	0	disabled
 log_lsn_last_flush	0	disabled
 log_lsn_last_checkpoint	0	disabled
@@ -1010,6 +1018,8 @@ purge_upd_exist_or_extern_records	enabled
 purge_invoked	enabled
 purge_undo_log_pages	enabled
 purge_dml_delay_usec	enabled
+purge_stop_count	enabled
+purge_resume_count	enabled
 log_checkpoints	enabled
 log_lsn_last_flush	enabled
 log_lsn_last_checkpoint	enabled
@@ -1214,6 +1224,8 @@ purge_upd_exist_or_extern_records	disabled
 purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
+purge_stop_count	disabled
+purge_resume_count	disabled
 log_checkpoints	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
@@ -1418,6 +1430,8 @@ purge_upd_exist_or_extern_records	enabled
 purge_invoked	enabled
 purge_undo_log_pages	enabled
 purge_dml_delay_usec	enabled
+purge_stop_count	enabled
+purge_resume_count	enabled
 log_checkpoints	enabled
 log_lsn_last_flush	enabled
 log_lsn_last_checkpoint	enabled
@@ -1622,6 +1636,8 @@ purge_upd_exist_or_extern_records	disabled
 purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
+purge_stop_count	disabled
+purge_resume_count	disabled
 log_checkpoints	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
@@ -1826,6 +1842,8 @@ purge_upd_exist_or_extern_records	disabled
 purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
+purge_stop_count	disabled
+purge_resume_count	disabled
 log_checkpoints	enabled
 log_lsn_last_flush	enabled
 log_lsn_last_checkpoint	enabled
