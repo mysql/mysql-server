@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,6 +57,7 @@
 #include "opt_trace.h"     // Optimizer trace information schema tables
 #include "sql_tmp_table.h" // Tmp tables
 #include "sql_optimizer.h" // JOIN
+#include "global_threads.h"
 
 #include <algorithm>
 using std::max;
@@ -1995,7 +1996,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   returns for each thread: thread id, user, host, db, command, info
 ****************************************************************************/
 
-class thread_info :public ilink {
+class thread_info :public ilink<thread_info> {
 public:
   static void *operator new(size_t size)
   {
