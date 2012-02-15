@@ -702,7 +702,7 @@ srv_reserve_slot(
 /*=============*/
 	srv_thread_type	type)	/*!< in: type of the thread */
 {
-	srv_slot_t*	slot;
+	srv_slot_t*	slot = 0;
 
 	srv_sys_mutex_enter();
 
@@ -729,8 +729,6 @@ srv_reserve_slot(
 		break;
 
 	case SRV_NONE:
-		/* Compiler warning about an uninitialised variable.*/
-		slot = 0;
 		ut_error;
 	}
 
