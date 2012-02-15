@@ -1185,7 +1185,7 @@ has been turned on/off. */
 UNIV_INTERN ulint		monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT
 						- 1) / NUM_BITS_ULINT];
 
-#ifndef HAVE_ATOMIC_BUILTINS
+#if !defined HAVE_ATOMIC_BUILTINS || defined _WIN32
 /** Mutex protecting atomic operations on platforms that lack
 built-in operations for atomic memory access */
 mutex_t	monitor_mutex;
@@ -1211,7 +1211,7 @@ srv_mon_free(void)
 {
 	mutex_free(&monitor_mutex);
 }
-#endif /* !HAVE_ATOMIC_BUILTINS */
+#endif /* !HAVE_ATOMIC_BUILTINS || _WIN32 */
 
 /****************************************************************//**
 Get a monitor's "monitor_info" by its monitor id (index into the
