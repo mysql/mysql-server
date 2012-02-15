@@ -4551,24 +4551,26 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     stat= & event_name_array[index];
 
-    /* Set digest stat. */
-    digest_storage= &state->m_digest_state.m_digest_storage;
-
-    /*
-      Calculate MD5 Hash of the tokens received.
-    */
-    PFS_digest_hash digest_hash;
-    MY_MD5_HASH(digest_hash.m_md5,
-                (unsigned char *)digest_storage->m_token_array,
-                (uint) sizeof(digest_storage->m_token_array));
-
-    /* 
-      Populate PFS_statements_digest_stat with computed digest information.
-    */
-    digest_stat_ptr= find_or_create_digest(thread, digest_hash, digest_storage);
-    if(digest_stat_ptr)
+    /* Do not calculate digest if statement is not successful. */
+    if(!da->is_error())
     {
-      digest_stat= &(digest_stat_ptr->m_stat);
+      /* Set digest stat. */
+      digest_storage= &state->m_digest_state.m_digest_storage;
+
+      /* Calculate MD5 Hash of the tokens received. */
+      PFS_digest_hash digest_hash;
+      MY_MD5_HASH(digest_hash.m_md5,
+                  (unsigned char *)digest_storage->m_token_array,
+                  (uint) sizeof(digest_storage->m_token_array));
+
+      /* 
+        Populate PFS_statements_digest_stat with computed digest information.
+      */
+      digest_stat_ptr= find_or_create_digest(thread, digest_hash, digest_storage);
+      if(digest_stat_ptr)
+      {
+        digest_stat= &(digest_stat_ptr->m_stat);
+      }
     }
 
     if (flags & STATE_FLAG_EVENT)
@@ -4619,24 +4621,27 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
     DBUG_ASSERT(thread != NULL);
 
-    /* Set digest stat. */
-    digest_storage= &state->m_digest_state.m_digest_storage;
-
-    /*
-      Calculate MD5 Hash of the tokens received.
-    */
-    PFS_digest_hash digest_hash;
-    MY_MD5_HASH(digest_hash.m_md5,
-                (unsigned char *)digest_storage->m_token_array,
-                (uint) sizeof(digest_storage->m_token_array));
-
-    /*
-       Populate PFS_statements_digest_stat with computed digest information.
-    */
-    digest_stat_ptr= find_or_create_digest(thread, digest_hash, digest_storage);
-    if(digest_stat_ptr)
+    /* Do not calculate digest if statement is not successful. */
+    if(!da->is_error())
     {
-      digest_stat= &(digest_stat_ptr->m_stat);
+      /* Set digest stat. */
+      digest_storage= &state->m_digest_state.m_digest_storage;
+
+      /* Calculate MD5 Hash of the tokens received. */
+      PFS_digest_hash digest_hash;
+      MY_MD5_HASH(digest_hash.m_md5,
+                  (unsigned char *)digest_storage->m_token_array,
+                  (uint) sizeof(digest_storage->m_token_array));
+
+      /* 
+        Populate PFS_statements_digest_stat with computed digest information.
+      */
+      digest_stat_ptr= find_or_create_digest(thread, digest_hash,
+                                             digest_storage);
+      if(digest_stat_ptr)
+      {
+        digest_stat= &(digest_stat_ptr->m_stat);
+      }
     }
 
     event_name_array= global_instr_class_statements_array;

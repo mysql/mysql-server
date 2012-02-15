@@ -1541,8 +1541,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_digest("
   "SUM_SORT_SCAN BIGINT unsigned not null,"
   "SUM_NO_INDEX_USED BIGINT unsigned not null,"
   "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,"
-  "FIRST_SEEN TIMESTAMP(6) default 0,"
-  "LAST_SEEN TIMESTAMP(6) default 0"
+  "FIRST_SEEN TIMESTAMP(0) default 0,"
+  "LAST_SEEN TIMESTAMP(0) default 0"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 
