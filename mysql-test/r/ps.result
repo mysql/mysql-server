@@ -3790,6 +3790,7 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	0
 flush status;
 execute st;
@@ -3803,6 +3804,7 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	0
 flush status;
 select * from t1 use index() where a=3;
@@ -3816,6 +3818,7 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	8
 flush status;
 execute st;
@@ -3829,6 +3832,7 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	0
 deallocate prepare st;
 drop table t1;

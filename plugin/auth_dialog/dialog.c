@@ -148,6 +148,8 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     if (res)
       return CR_ERROR;
 
+    first= 0;
+
     /* repeat unless it was the last question */
   } while ((cmd & 1) != 1);
 

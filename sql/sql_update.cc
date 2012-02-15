@@ -304,7 +304,7 @@ int mysql_update(THD *thd,
   thd_proc_info(thd, "init");
   table= table_list->table;
 
-  if (!table_list->updatable)
+  if (!table_list->single_table_updatable())
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
     DBUG_RETURN(1);
@@ -1246,7 +1246,7 @@ int mysql_multi_update_prepare(THD *thd)
     /* if table will be updated then check that it is unique */
     if (table->map & tables_for_update)
     {
-      if (!tl->updatable || check_key_in_view(thd, tl))
+      if (!tl->single_table_updatable() || check_key_in_view(thd, tl))
       {
         my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tl->alias, "UPDATE");
         DBUG_RETURN(TRUE);

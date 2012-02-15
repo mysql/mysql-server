@@ -1154,6 +1154,53 @@ drop table t1;
 --echo End of 5.1 tests
 
 --echo #
+--echo # Bug #904345: MIN/MAX optimization  with constant FALSE condition
+--echo #
+
+CREATE TABLE t1 (a int NOT NULL, KEY(a));
+INSERT INTO t1 VALUES (10), (8), (11), (7), (15), (12), (9);
+
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES
+  (8,2), (6,9), (8,4), (5,3), (9,1);
+
+EXPLAIN EXTENDED
+SELECT MAX(a) FROM t1 WHERE (1,2) IN (SELECT 3,4) AND a<10;
+SELECT MAX(a) FROM t1 WHERE (1,2) IN (SELECT 3,4) AND a<10;
+
+EXPLAIN EXTENDED
+SELECT MAX(a) FROM t1 WHERE (1,2) IN (SELECT a,b FROM t2 WHERE b<5) and a<10; 
+SELECT MAX(a) FROM t1 WHERE (1,2) IN (SELECT a,b FROM t2 WHERE b<5) and a<10; 
+
+EXPLAIN EXTENDED
+SELECT MAX(a) FROM t1 WHERE RAND()*0<>0 AND a<10;
+SELECT MAX(a) FROM t1 WHERE RAND()*0<>0 AND a<10;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #879860: MIN/MAX for subquery returning empty set 
+--echo #
+
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (a int NOT NULL);
+INSERT INTO t2 VALUES (10);
+
+CREATE TABLE t3 ( a int, b int);
+INSERT INTO t3 VALUES (19,1), (20,5);
+
+EXPLAIN EXTENDED
+SELECT (SELECT MIN(t1.a) FROM t1,t2 WHERE t2.a = t3.b) FROM t3;
+SELECT (SELECT MIN(t1.a) FROM t1,t2 WHERE t2.a = t3.b) FROM t3;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo End of 5.2 tests
+
+--echo #
 --echo # BUG#46680 - Assertion failed in file item_subselect.cc, 
 --echo #             line 305 crashing on HAVING subquery
 --echo #
