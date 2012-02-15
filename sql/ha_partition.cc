@@ -6508,10 +6508,6 @@ int ha_partition::loop_extra_alter(enum ha_extra_function operation)
   DBUG_ENTER("ha_partition::loop_extra_alter()");
   DBUG_ASSERT(operation == HA_EXTRA_PREPARE_FOR_RENAME ||
               operation == HA_EXTRA_FORCE_REOPEN);
-  
-  /* Optimization for InnoDB, since that handler does not use extra calls. */
-  if (m_innodb)
-    DBUG_RETURN(0);
 
   if (m_new_file != NULL)
   {
