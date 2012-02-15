@@ -1964,6 +1964,7 @@ buf_flush_list(
 			}
 
 			if (trx_is_interrupted(trx)) {
+				delete [] flushed;
 				return(ULINT_UNDEFINED);
 			}
 		}
