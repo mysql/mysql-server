@@ -311,7 +311,7 @@ select * from information_schema.OPTIMIZER_TRACE;
 # HAVING
 select t1.a,avg(t2.c) as moyenne from t1, t2 where t2.c>-1
   group by t1.a having moyenne<>0;
---replace_regex /("sort_buffer_size":) [0-9]+/\1 NNN/
+--replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/
 select trace from information_schema.OPTIMIZER_TRACE;
 # impossible HAVING
 select t1.a,avg(t2.c) as moyenne from t1, t2 where t2.c>-1

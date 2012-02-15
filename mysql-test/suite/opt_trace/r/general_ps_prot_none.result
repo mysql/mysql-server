@@ -5722,7 +5722,7 @@ trace
               "rows": 2,
               "examined_rows": 2,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": NNN,
+              "sort_buffer_size": "NNN",
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
