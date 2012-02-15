@@ -1307,3 +1307,14 @@ eval $query;
 
 DROP TABLE t1, t2, t3;
 
+--echo #
+--echo # Bug#13457552: Crash on instantiating a derived table in a query with
+--echo #               empty result.
+--echo #
+CREATE TABLE t1 ( pk INT, col_blob BLOB ) ENGINE = MyISAM;
+CREATE TABLE t2 ( pk INT, col_blob BLOB ) ENGINE = InnoDB;
+SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS A NATURAL JOIN t1;
+EXPLAIN SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS A NATURAL JOIN t1;
+DROP TABLE t1,t2;
+
+
