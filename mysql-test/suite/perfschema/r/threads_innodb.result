@@ -11,3 +11,4 @@ thread/innodb/srv_error_monitor_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	
 thread/innodb/srv_lock_timeout_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/srv_master_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/srv_monitor_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
+thread/innodb/srv_purge_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES

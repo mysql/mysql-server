@@ -390,7 +390,7 @@ drop table t1,t2,t3;
 create table t1 (a blob null);
 insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(""),(""),(""),("b");
 select a,count(*) from t1 group by a;
-set option big_tables=1;
+set big_tables=1;
 select a,count(*) from t1 group by a;
 drop table t1;
 
