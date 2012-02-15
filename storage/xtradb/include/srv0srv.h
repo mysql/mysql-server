@@ -288,6 +288,9 @@ extern	ibool	srv_print_lock_waits;
 extern	ibool	srv_print_buf_io;
 extern	ibool	srv_print_log_io;
 extern	ibool	srv_print_latch_waits;
+
+extern	ulint	srv_flush_checkpoint_debug;
+
 #else /* UNIV_DEBUG */
 # define srv_print_thread_releases	FALSE
 # define srv_print_lock_waits		FALSE

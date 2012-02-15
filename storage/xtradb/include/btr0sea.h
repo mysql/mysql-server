@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -137,11 +137,10 @@ UNIV_INTERN
 void
 btr_search_drop_page_hash_index(
 /*============================*/
-	buf_block_t*	block,	/*!< in: block containing index page,
+	buf_block_t*	block);	/*!< in: block containing index page,
 				s- or x-latched, or an index page
 				for which we know that
 				block->buf_fix_count == 0 */
-	dict_index_t*	index_in);
 /************************************************************************
 Drops a page hash index based on index */
 UNIV_INTERN
@@ -150,8 +149,8 @@ btr_search_drop_page_hash_index_on_index(
 /*=====================================*/
 	dict_index_t*	index);		/* in: record descriptor */
 /********************************************************************//**
-Drops a page hash index when a page is freed from a fseg to the file system.
-Drops possible hash index if the page happens to be in the buffer pool. */
+Drops a possible page hash index when a page is evicted from the buffer pool
+or freed in a file segment. */
 UNIV_INTERN
 void
 btr_search_drop_page_hash_when_freed(
@@ -235,19 +234,6 @@ void
 btr_search_s_unlock_all(void);
 /*==========================*/
 
-
-/** Flag: has the search system been enabled?
-Protected by btr_search_latch and btr_search_enabled_mutex. */
-extern char	btr_search_enabled;
-
-extern ulint	btr_search_index_num;
-
-/** Flag: whether the search system has completed its disabling process,
-It is set to TRUE right after buf_pool_drop_hash_index() in
-btr_search_disable(), indicating hash index entries are cleaned up.
-Protected by btr_search_latch and btr_search_enabled_mutex. */
-extern ibool	btr_search_fully_disabled;
-
 /** The search info struct in an index */
 struct btr_search_struct{
 	ulint	ref_count;	/*!< Number of blocks in this index tree
@@ -315,26 +301,6 @@ struct btr_search_sys_struct{
 
 /** The adaptive hash index */
 extern btr_search_sys_t*	btr_search_sys;
-
-/** @brief The latch protecting the adaptive search system
-
-This latch protects the
-(1) hash index;
-(2) columns of a record to which we have a pointer in the hash index;
-
-but does NOT protect:
-
-(3) next record offset field in a record;
-(4) next or previous records on the same page.
-
-Bear in mind (3) and (4) when using the hash index.
-*/
-//extern rw_lock_t*	btr_search_latch_temp;
-
-extern rw_lock_t**	btr_search_latch_part;
-
-/** The latch protecting the adaptive search system */
-//#define btr_search_latch	(*btr_search_latch_temp)
 
 #ifdef UNIV_SEARCH_PERF_STAT
 /** Number of successful adaptive hash index lookups */

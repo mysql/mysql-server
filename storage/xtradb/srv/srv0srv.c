@@ -446,7 +446,7 @@ UNIV_INTERN ulong	srv_ibuf_accel_rate = 100;
 #define PCT_IBUF_IO(pct) ((ulint) (srv_io_capacity * srv_ibuf_accel_rate * ((double) pct / 10000.0)))
 
 UNIV_INTERN ulint	srv_checkpoint_age_target = 0;
-UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable */
+UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:area 2:contiguous */
 
 UNIV_INTERN ulint	srv_deprecated_enable_unsafe_group_commit = 0;
 UNIV_INTERN ulong	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
@@ -471,6 +471,9 @@ UNIV_INTERN ibool	srv_print_lock_waits		= FALSE;
 UNIV_INTERN ibool	srv_print_buf_io		= FALSE;
 UNIV_INTERN ibool	srv_print_log_io		= FALSE;
 UNIV_INTERN ibool	srv_print_latch_waits		= FALSE;
+
+UNIV_INTERN ulong	srv_flush_checkpoint_debug = 0;
+
 #endif /* UNIV_DEBUG */
 
 UNIV_INTERN ulint		srv_n_rows_inserted		= 0;
@@ -1253,7 +1256,7 @@ retry:
 static void
 srv_conc_exit_innodb_timer_based(trx_t* trx)
 {
-        (void) os_atomic_increment_lint(&srv_conc_n_threads, -1);
+	(void) os_atomic_increment_lint(&srv_conc_n_threads, -1);
 	trx->declared_to_be_inside_innodb = FALSE;
 	trx->n_tickets_to_enter_innodb = 0;
 	return;
@@ -1475,7 +1478,7 @@ srv_conc_force_enter_innodb(
 	ut_ad(srv_conc_n_threads >= 0);
 #ifdef HAVE_ATOMIC_BUILTINS
 	if (srv_thread_concurrency_timer_based) {
-                (void) os_atomic_increment_lint(&srv_conc_n_threads, 1);
+		(void) os_atomic_increment_lint(&srv_conc_n_threads, 1);
 		trx->declared_to_be_inside_innodb = TRUE;
 		trx->n_tickets_to_enter_innodb = 1;
 		return;
@@ -3625,11 +3628,18 @@ retry_flush_batch:
 			  PCT_IO(10), IB_ULONGLONG_MAX);
 	}
 
-	srv_main_thread_op_info = "making checkpoint";
+#ifdef UNIV_DEBUG
+	if (srv_flush_checkpoint_debug != 1) {
+#endif
 
-	/* Make a new checkpoint about once in 10 seconds */
+		srv_main_thread_op_info = "making checkpoint";
 
-	log_checkpoint(TRUE, FALSE, TRUE);
+		/* Make a new checkpoint about once in 10 seconds */
+
+		log_checkpoint(TRUE, FALSE, TRUE);
+#ifdef UNIV_DEBUG
+	}
+#endif
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
@@ -3708,6 +3718,10 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 
+#ifdef UNIV_DEBUG
+	if (srv_flush_checkpoint_debug == 1)
+		goto skip_flush;
+#endif
 flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
 	srv_main_flush_loops++;
@@ -3748,6 +3762,9 @@ flush_loop:
 		goto flush_loop;
 	}
 
+#ifdef UNIV_DEBUG
+skip_flush:
+#endif
 	srv_main_thread_op_info = "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
