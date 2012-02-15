@@ -29,34 +29,26 @@ INSERT INTO t1 VALUES(1), (2), (3), (4);
 # Request a crash on next execution of commit.
 SET SESSION debug="+d,crash_commit_before";
 
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart:--innodb-force-recovery=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
 # Execute the statement that causes the crash.
 --error 2013
 COMMIT;
 
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart:--innodb-force-recovery=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
-# Turn on reconnect
 --enable_reconnect
-
-# Call script that will poll the server waiting for it to be back online again
 --source include/wait_until_connected_again.inc
+--disable_reconnect
 
 SELECT * FROM t1;
 
-# Turn off reconnect again
---disable_reconnect
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
 
-# Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart:--innodb-force-recovery=5" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
-# Turn on reconnect
 --enable_reconnect
-
-# Call script that will poll the server waiting for it to be back online again
 --source include/wait_until_connected_again.inc
-
-# Turn off reconnect again
 --disable_reconnect
 
 SELECT * FROM t1;
