@@ -3379,10 +3379,6 @@ renamed:
 	/* Write space_id to the file space header. */
 	mach_write_to_4(FIL_PAGE_DATA + page, table->space);
 
-	/* If space_flags==0, table->flags may be DICT_TF_COMPACT or 0.
-	It will be adjusted later, in btr_root_adjust_on_import(). */
-	table->flags = space_flags;
-
 	/* Update the flush_lsn stamp at the start of the file */
 	success = fil_reset_space_and_lsn_write(
 		current_lsn, tmpfilepath, file, table->space, 0,
@@ -3452,17 +3448,18 @@ fil_open_single_table_tablespace(
 
 	fsp_flags_validate(flags);
 
-	if (table) {
-		ulint	table_flags = table->flags & ~(~0UL << DICT_TF_BITS);
+	if (table != 0) {
+		space_flags = dict_tf_to_fsp_flags(table->flags);
 
 		ut_ad(table->name == name || !strcmp(table->name, name));
-		switch (table_flags) {
+
+		switch (space_flags) {
 		case 0:
 		case DICT_TF_COMPACT:
 			ut_a(flags == 0);
 			break;
 		default:
-			ut_a(flags == table_flags);
+			ut_a(flags == space_flags);
 			break;
 		}
 	}
