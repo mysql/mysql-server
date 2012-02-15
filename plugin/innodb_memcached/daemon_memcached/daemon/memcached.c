@@ -7696,7 +7696,12 @@ int main (int argc, char **argv) {
     }
 
     if(!init_engine(engine_handle,engine_config,settings.extensions.logger)) {
-        return false;
+#ifdef INNODB_MEMCACHED
+        shutdown_server();
+        goto func_exit;
+#else
+	return(false);
+#endif /* INNODB_MEMCACHED */
     }
 
     if(settings.verbose > 0) {
@@ -7770,7 +7775,12 @@ int main (int argc, char **argv) {
         if (settings.port && server_sockets(settings.port, tcp_transport,
                                             portnumber_file)) {
 		vperror("failed to listen on TCP port %d", settings.port);
+#ifdef INNODB_MEMCACHED
+		shutdown_server();
+		goto func_exit;
+#else
 		exit(EX_OSERR);
+#endif /* INNODB_MEMCACHED */
         }
 
         /*
@@ -7809,13 +7819,15 @@ int main (int argc, char **argv) {
                                         "Initiating shutdown\n");
     }
 
+func_exit:
     /* Clean up connections */
     while (listen_conn) {
 	conn_closing(listen_conn);
 	listen_conn = listen_conn->next;
     }
 
-    settings.engine.v1->destroy(settings.engine.v0, false);
+    if (settings.engine.v1)
+      settings.engine.v1->destroy(settings.engine.v0, false);
 
     threads_shutdown();
 

@@ -38,69 +38,93 @@ INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
 USE test;
 CREATE TABLE t1        (c1 VARCHAR(32),
-c2 VARCHAR(1024),
+c2 VARCHAR(5),
 c21 VARCHAR(1024),
 c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
-INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
-INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
-INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
-INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
+INSERT INTO t1 VALUES ('D', '1', 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', '2', 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', '3', 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', '4', 'Norderstedt', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
-B	Berlin	Mitte
-C	Cottbus	West
-D	Darmstadt	City
-H	Hamburg	Norderstedt
+B	2	Mitte
+C	3	West
+D	1	City
+H	4	Norderstedt
 Here the memcached results with D,B,H,C:
-Darmstadt|City
-Berlin|Mitte
-Hamburg|Norderstedt
-Cottbus|West
+1|City
+2|Mitte
+4|Norderstedt
+3|West
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
-B	Berlin	Mitte
-C	Cottbus	West
-D	Darmstadt	City
-H	Hamburg	Norderstedt
+B	2	Mitte
+C	3	West
+D	1	City
+H	4	Norderstedt
 Here the memcached results after set:
-Essen
+5|Ost
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
-B	Berlin	Mitte
-C	Cottbus	West
-D	Darmstadt	City
-E	Essen	NULL
-H	Hamburg	Norderstedt
+B	2	Mitte
+C	3	West
+D	1	City
+E	5	Ost
+H	4	Norderstedt
 Here the memcached results after add:
-Frankfurt|Sachsenhause
+6|Sachsenhause
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
-B	Berlin	Mitte
-C	Cottbus	West
-D	Darmstadt	City
-E	Essen	NULL
-F	Frankfurt	Sachsenhause
-H	Hamburg	Norderstedt
+B	2	Mitte
+C	3	West
+D	1	City
+E	5	Ost
+F	6	Sachsenhause
+H	4	Norderstedt
 Here the memcached results after replace:
-Frankfurt a. M.|Sachsenhausen
+61|Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
-B	Berlin	Mitte
-C	Cottbus	West
-D	Darmstadt	City
-E	Essen	NULL
-F	Frankfurt a. M.	Sachsenhausen
-H	Hamburg	Norderstedt
+B	2	Mitte
+C	3	West
+D	1	City
+E	5	Ost
+F	61	Sachsenhausen
+H	4	Norderstedt
 Here the memcached results after delete:
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
-B	Berlin	Mitte
-C	Cottbus	West
-D	Darmstadt	City
-E	Essen	NULL
-H	Hamburg	Norderstedt
+B	2	Mitte
+C	3	West
+D	1	City
+E	5	Ost
+H	4	Norderstedt
+Here the memcached results after add Frankfurt|:
+6|a
+Here the memcached results after add |Airport:
+6|a
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	2	Mitte
+C	3	West
+D	1	City
+E	5	Ost
+F	6	a
+H	4	Norderstedt
+Here the memcached results after replace Frankfurt a.M.:
+61|s
+Here the memcached results after replace Sachsenhausen:
+Sachsenhausen
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	2	Mitte
+C	3	West
+D	1	City
+E	5	Ost
+F	NULL	Sachsenhausen
+H	4	Norderstedt
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;
 SET @@global.tx_isolation= @tx_isolation;

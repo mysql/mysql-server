@@ -25,15 +25,15 @@ INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 USE test;
 
 CREATE TABLE t1        (c1 VARCHAR(32),
-			c2 int,
+			c2 VARCHAR(5),
 			c21 VARCHAR(1024),
 			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
 
-INSERT INTO t1 VALUES ('D', 1, 'City', 0, 0, 0);
-INSERT INTO t1 VALUES ('B', 2, 'Mitte', 0, 0, 0);
-INSERT INTO t1 VALUES ('C', 3, 'West', 0, 0 ,0);
-INSERT INTO t1 VALUES ('H', 4, 'Norderstedt', 0, 0, 0);
+INSERT INTO t1 VALUES ('D', '1', 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', '2', 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', '3', 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', '4', 'Norderstedt', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';

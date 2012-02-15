@@ -67,7 +67,7 @@ innodb_config_free(
 	}
 
 	if (item->add_col_info) {
-		for (i = 0; i < item->add_col_info; i++) {
+		for (i = 0; i < item->n_add_col; i++) {
 			free(item->add_col_info[i].col_name);
 		}
 
@@ -124,10 +124,10 @@ innodb_config_parse_value_col(
 			i++;
 		}
 
-		item->add_col_info = num_cols;
+		item->n_add_col = num_cols;
 	} else {
 		item->add_col_info = NULL;
-		item->add_col_info = 0;
+		item->n_add_col = 0;
 	}
 
 	return(true);
@@ -474,7 +474,7 @@ innodb_config_value_col_verify(
 {
 	ib_err_t	err = DB_NOT_FOUND;
 
-	if (!meta_info->add_col_info) {
+	if (!meta_info->n_add_col) {
 		meta_column_t*	cinfo = meta_info->col_info;
 
 		/* "value" column must be of CHAR, VARCHAR or BLOB type */
@@ -492,12 +492,13 @@ innodb_config_value_col_verify(
 	} else {
 		int	i;
 
-		for (i = 0; i < meta_info->add_col_info; i++) {
+		for (i = 0; i < meta_info->n_add_col; i++) {
 			if (strcmp(name, meta_info->add_col_info[i].col_name) == 0) {
 				if (col_meta->type != IB_VARCHAR
 				    && col_meta->type != IB_CHAR
 				    && col_meta->type != IB_BLOB) {
 					err = DB_DATA_MISMATCH;
+					break;
 				}
 
 				meta_info->add_col_info[i].field_id = col_id;
