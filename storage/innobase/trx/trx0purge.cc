@@ -49,6 +49,9 @@ Created 3/26/1996 Heikki Tuuri
 /** Maximum allowable purge history length.  <=0 means 'infinite'. */
 UNIV_INTERN ulong		srv_max_purge_lag = 0;
 
+/** Max DML user threads delay in micro-seconds. */
+UNIV_INTERN ulong		srv_max_purge_lag_delay = 0;
+
 /** The global data structure coordinating a purge */
 UNIV_INTERN trx_purge_t*	purge_sys = NULL;
 
@@ -1089,27 +1092,28 @@ trx_purge_dml_delay(void)
 	thread. */
 	ulint	delay = 0; /* in microseconds; default: no delay */
 
-	/* If we cannot advance the 'purge view' because of an old
-	'consistent read view', then the DML statements cannot be delayed.
-	Also, srv_max_purge_lag <= 0 means 'infinity'. Note: we do a dirty
-	read of the trx_sys_t data structure here, without holding
-	trx_sys->mutex. */
-	if (srv_max_purge_lag > 0
-	    && !UT_LIST_GET_LAST(trx_sys->view_list)) {
-		float	ratio = (float) trx_sys->rseg_history_len
-			/ srv_max_purge_lag;
-		if (ratio > ULINT_MAX / 10000) {
-			/* Avoid overflow: maximum delay is 4295 seconds */
-			delay = ULINT_MAX;
-		} else if (ratio > 1) {
+	/* If purge lag is set (ie. > 0) then calculate the new DML delay.
+	Note: we do a dirty read of the trx_sys_t data structure here,
+	without holding trx_sys->mutex. */
+
+	if (srv_max_purge_lag > 0) {
+		float	ratio;
+
+		ratio = float(trx_sys->rseg_history_len) / srv_max_purge_lag;
+
+		if (ratio > 1.0) {
 			/* If the history list length exceeds the
-			innodb_max_purge_lag, the
-			data manipulation statements are delayed
-			by at least 5000 microseconds. */
+			srv_max_purge_lag, the data manipulation
+			statements are delayed by at least 5000
+			microseconds. */
 			delay = (ulint) ((ratio - .5) * 10000);
 		}
 
-		MONITOR_SET(MONITOR_DML_PURGE_DELAY, srv_dml_needed_delay);
+		if (delay > srv_max_purge_lag_delay) {
+			delay = srv_max_purge_lag_delay;
+		}
+
+		MONITOR_SET(MONITOR_DML_PURGE_DELAY, delay);
 	}
 
 	return(delay);
