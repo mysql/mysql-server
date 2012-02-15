@@ -4316,11 +4316,11 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         nothing to do.
       */
       /*
-        We do not replicate IGNORE_DIR_IN_CREATE. That is, if the master is a
-        slave which runs with SQL_MODE=IGNORE_DIR_IN_CREATE, this should not
+        We do not replicate MODE_NO_DIR_IN_CREATE. That is, if the master is a
+        slave which runs with SQL_MODE=MODE_NO_DIR_IN_CREATE, this should not
         force us to ignore the dir too. Imagine you are a ring of machines, and
         one has a disk problem so that you temporarily need
-        IGNORE_DIR_IN_CREATE on this machine; you don't want it to propagate
+        MODE_NO_DIR_IN_CREATE on this machine; you don't want it to propagate
         elsewhere (you don't want all slaves to start ignoring the dirs).
       */
       if (sql_mode_inited)

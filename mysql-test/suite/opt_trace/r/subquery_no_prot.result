@@ -996,7 +996,8 @@ field4,field5,field6	{
                     "select#": 6,
                     "from": "IN (SELECT)",
                     "to": "materialization",
-                    "chosen": false
+                    "chosen": false,
+                    "cause": "correlated"
                   } /* transformation */
                 },
                 {
@@ -1780,7 +1781,7 @@ field4,field5,field6	{
               "rows": 0,
               "examined_rows": 0,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": NNN,
+              "sort_buffer_size": "NNN",
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
