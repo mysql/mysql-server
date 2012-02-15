@@ -2217,10 +2217,7 @@ innobase_start_or_create_for_mysql(void)
 		srv_master_thread,
 		NULL, thread_ids + (1 + SRV_MAX_N_IO_THREADS));
 
-	/* If the user has requested a separate purge thread then
-	start the purge thread. */
-	if (srv_n_purge_threads >= 1
-	    && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
+	if (srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
 
 		os_thread_create(
 			srv_purge_coordinator_thread,
@@ -2229,6 +2226,7 @@ innobase_start_or_create_for_mysql(void)
 		ut_a(UT_ARR_SIZE(thread_ids)
 		     > 5 + srv_n_purge_threads + SRV_MAX_N_IO_THREADS);
 
+		/* We've already created the purge coordinator thread above. */
 		for (i = 1; i < srv_n_purge_threads; ++i) {
 			os_thread_create(
 				srv_worker_thread, NULL,
