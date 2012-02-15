@@ -779,25 +779,27 @@ btr_root_fseg_adjust_on_import(
 Checks and adjusts the root node of a tree during IMPORT TABLESPACE.
 @return error code, or DB_SUCCESS */
 UNIV_INTERN
-ulint
+db_err
 btr_root_adjust_on_import(
 /*======================*/
 	dict_index_t*	index)	/*!< in: index tree */
 {
+	db_err		err;
 	mtr_t		mtr;
+	ulint		comp;
+	page_t*		page;
+	buf_block_t*	block;
+	page_zip_des_t*	page_zip;
 	dict_table_t*	table		= index->table;
 	ulint		space_id	= dict_index_get_space(index);
 	ulint		zip_size	= dict_table_zip_size(table);
 	ulint		root_page_no	= dict_index_get_page(index);
-	buf_block_t*	block;
-	page_t*		page;
-	page_zip_des_t*	page_zip;
-	ulint		comp;
 
 	mtr_start(&mtr);
 
-	block = btr_block_get(space_id, zip_size, root_page_no,
-			      RW_X_LATCH, index, &mtr);
+	block = btr_block_get(
+		space_id, zip_size, root_page_no, RW_X_LATCH, index, &mtr);
+
 	page = buf_block_get_frame(block);
 	page_zip = buf_block_get_page_zip(block);
 
@@ -810,49 +812,44 @@ btr_root_adjust_on_import(
 	    || fil_page_get_prev(page) != FIL_NULL
 	    || fil_page_get_next(page) != FIL_NULL) {
 
-		goto corrupted;
-	}
+		err = DB_CORRUPTION;
 
-	if (dict_index_is_clust(index)) {
-		ulint		space_flags;
-
+	} else if (dict_index_is_clust(index)) {
 		/* For the clustered index, if space_flags==0,
 		initialize table->flags from the "compact format" flag. */
 
-		space_flags = fil_space_get_flags(table->space);
+		ulint	space_flags = fil_space_get_flags(table->space);
 
 		if (space_flags) {
-			/* These should be guaranteed by
-			fil_reset_space_and_lsn_low(offset = 0). */
-			ut_a(space_flags == table->flags);
-			ut_a(space_flags & DICT_TF_COMPACT);
+			ut_a(space_flags == dict_tf_to_fsp_flags(table->flags));
+			ut_a(dict_table_is_comp(table));
 
-			if (!comp) {
-
-				goto corrupted;
-			}
+			err = comp ? DB_SUCCESS : DB_CORRUPTION;
 		} else {
 			table->flags = comp ? DICT_TF_COMPACT : 0;
+			err = DB_SUCCESS;
 		}
+
 	} else if (!!comp != dict_table_is_comp(table)) {
 
-		goto corrupted;
+		err = DB_CORRUPTION;
 	}
+	
+	/* Check and adjust the file segment headers, if all OK so far. */
+	if (err == DB_SUCCESS
+	    && (!btr_root_fseg_adjust_on_import(
+			FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
+			+ page, page_zip, space_id, &mtr)
+		|| !btr_root_fseg_adjust_on_import(
+			FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
+			+ page, page_zip, space_id, &mtr))) {
 
-	/* Check and adjust the file segment headers. */
-	if (!btr_root_fseg_adjust_on_import(
-		    FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
-		    + page, page_zip, space_id, &mtr)
-	    || !btr_root_fseg_adjust_on_import(
-		    FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
-		    + page, page_zip, space_id, &mtr)) {
-corrupted:
-		mtr_commit(&mtr);
-		return(DB_CORRUPTION);
+		err = DB_CORRUPTION;
 	}
 
 	mtr_commit(&mtr);
-	return(DB_SUCCESS);
+
+	return(err);
 }
 
 /*************************************************************//**

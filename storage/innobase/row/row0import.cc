@@ -516,7 +516,7 @@ row_import_adjust_root_pages(
 
 		ut_a(!dict_index_is_clust(index));
 
-		err = (db_err) btr_root_adjust_on_import(index);
+		err = btr_root_adjust_on_import(index);
 
 		if (err != DB_SUCCESS) {
 			ib_pushf(trx->mysql_thd,
@@ -697,50 +697,20 @@ row_import_cfg_read_index_name(
 }
 
 /*****************************************************************//**
-Set the index root page number for v1 format.
+Read the index names and root page numbers of the indexes and set the values.
+Row format [root_page_no, len of str, str ... ]
 @return DB_SUCCESS or error code. */
 static
 db_err
 row_import_set_index_root_v1(
 /*=========================*/
 	dict_table_t*	table,		/*!< in: table */
+	ulint		n_indexes,	/*!< in: number of indexes */
 	FILE*		file,		/*!< in: File to read from */
 	void*		thd)		/*!< in: session */
 {
 	byte*		ptr;
-	ulint		n_indexes;
-	ulint		page_size;
 	byte		row[sizeof(ib_uint32_t) * 2];
-
-	/* Read the tablespace page size. */
-	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-			 "IO error (%lu), reading page size",
-			 (ulint) errno);
-
-		return(DB_IO_ERROR);
-	}
-
-	ptr = row;
-
-	page_size = mach_read_from_4(ptr);
-	ptr += sizeof(ib_uint32_t);
-
-	if (page_size != UNIV_PAGE_SIZE) {
-
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-			"Tablespace to be imported has different "
-			"page size than this server. Server page size "
-			"is: %lu, whereas tablespace page size is %lu",
-			UNIV_PAGE_SIZE, page_size);
-
-		return(DB_ERROR);
-	}
-
-	n_indexes = mach_read_from_4(ptr);
-
-	/* Read the index names and root page numbers of the indexes
-	and set the values. */
 
 	for (ulint i = 0; i < n_indexes; ++i) {
 		db_err		err;
@@ -813,6 +783,59 @@ row_import_set_index_root_v1(
 	}
 
 	return(DB_SUCCESS);
+}
+
+/*****************************************************************//**
+Set the index root page number for v1 format.
+@return DB_SUCCESS or error code. */
+static
+db_err
+row_import_set_index_root_v1(
+/*=========================*/
+	dict_table_t*	table,		/*!< in: table */
+	FILE*		file,		/*!< in: File to read from */
+	void*		thd)		/*!< in: session */
+{
+	byte*		ptr;
+	ulint		n_indexes;
+	ulint		page_size;
+	byte		row[sizeof(ib_uint32_t) * 3];
+
+	/* Read the tablespace page size. */
+	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			 "IO error (%lu), reading page size",
+			 (ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	ptr = row;
+
+	page_size = mach_read_from_4(ptr);
+	ptr += sizeof(ib_uint32_t);
+
+	if (page_size != UNIV_PAGE_SIZE) {
+
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			"Tablespace to be imported has different "
+			"page size than this server. Server page size "
+			"is: %lu, whereas tablespace page size is %lu",
+			UNIV_PAGE_SIZE, page_size);
+
+		return(DB_ERROR);
+	}
+
+	table->flags = mach_read_from_4(ptr);
+	ptr += sizeof(ib_uint32_t);
+
+	// FIXME: This will crash and burn, it should return an error so
+	// that we can abort the IMPORT here.
+	dict_tf_validate(table->flags);
+
+	n_indexes = mach_read_from_4(ptr);
+
+	return(row_import_set_index_root_v1(table, n_indexes, file, thd));
 }
 
 /*****************************************************************//**
@@ -1034,7 +1057,7 @@ row_import_for_mysql(
 		return(row_import_error(prebuilt, trx, DB_CORRUPTION));
 	}
 
-	err = (db_err) btr_root_adjust_on_import(index);
+	err = btr_root_adjust_on_import(index);
 
 	if (err != DB_SUCCESS) {
 
