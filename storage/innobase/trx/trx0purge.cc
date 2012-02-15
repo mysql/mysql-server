@@ -49,6 +49,9 @@ Created 3/26/1996 Heikki Tuuri
 /** Maximum allowable purge history length.  <=0 means 'infinite'. */
 UNIV_INTERN ulong		srv_max_purge_lag = 0;
 
+/** Max DML user threads delay in micro-seconds. */
+UNIV_INTERN ulong		srv_max_purge_lag_delay = 0;
+
 /** The global data structure coordinating a purge */
 UNIV_INTERN trx_purge_t*	purge_sys = NULL;
 
@@ -125,6 +128,9 @@ trx_purge_sys_create(
 {
 	purge_sys = static_cast<trx_purge_t*>(mem_zalloc(sizeof(*purge_sys)));
 
+	purge_sys->state = PURGE_STATE_INIT;
+	purge_sys->event = os_event_create("purge");
+
 	/* Take ownership of ib_bh, we are responsible for freeing it. */
 	purge_sys->ib_bh = ib_bh;
 
@@ -137,10 +143,7 @@ trx_purge_sys_create(
 
 	purge_sys->heap = mem_heap_create(256);
 
-	/* Handle the case for the traditional mode. */
-	if (n_purge_threads == 0) {
-		n_purge_threads = 1;
-	}
+	ut_a(n_purge_threads > 0);
 
 	purge_sys->sess = sess_open();
 
@@ -188,6 +191,10 @@ trx_purge_sys_close(void)
 	mem_heap_free(purge_sys->heap);
 
 	ib_bh_free(purge_sys->ib_bh);
+
+	os_event_free(purge_sys->event);
+
+	purge_sys->event = NULL;
 
 	mem_free(purge_sys);
 
@@ -1085,27 +1092,28 @@ trx_purge_dml_delay(void)
 	thread. */
 	ulint	delay = 0; /* in microseconds; default: no delay */
 
-	/* If we cannot advance the 'purge view' because of an old
-	'consistent read view', then the DML statements cannot be delayed.
-	Also, srv_max_purge_lag <= 0 means 'infinity'. Note: we do a dirty
-	read of the trx_sys_t data structure here, without holding
-	trx_sys->mutex. */
-	if (srv_max_purge_lag > 0
-	    && !UT_LIST_GET_LAST(trx_sys->view_list)) {
-		float	ratio = (float) trx_sys->rseg_history_len
-			/ srv_max_purge_lag;
-		if (ratio > ULINT_MAX / 10000) {
-			/* Avoid overflow: maximum delay is 4295 seconds */
-			delay = ULINT_MAX;
-		} else if (ratio > 1) {
+	/* If purge lag is set (ie. > 0) then calculate the new DML delay.
+	Note: we do a dirty read of the trx_sys_t data structure here,
+	without holding trx_sys->mutex. */
+
+	if (srv_max_purge_lag > 0) {
+		float	ratio;
+
+		ratio = float(trx_sys->rseg_history_len) / srv_max_purge_lag;
+
+		if (ratio > 1.0) {
 			/* If the history list length exceeds the
-			innodb_max_purge_lag, the
-			data manipulation statements are delayed
-			by at least 5000 microseconds. */
+			srv_max_purge_lag, the data manipulation
+			statements are delayed by at least 5000
+			microseconds. */
 			delay = (ulint) ((ratio - .5) * 10000);
 		}
 
-		MONITOR_SET(MONITOR_DML_PURGE_DELAY, srv_dml_needed_delay);
+		if (delay > srv_max_purge_lag_delay) {
+			delay = srv_max_purge_lag_delay;
+		}
+
+		MONITOR_SET(MONITOR_DML_PURGE_DELAY, delay);
 	}
 
 	return(delay);
@@ -1239,15 +1247,11 @@ trx_purge(
 
 	/* Do it synchronously. */
 	} else {
-		thr = que_fork_start_command(purge_sys->query);
+		thr = que_fork_scheduler_round_robin(purge_sys->query, NULL);
 		ut_ad(thr);
 
 run_synchronously:
 		++purge_sys->n_submitted;
-
-		if (srv_print_thread_releases) {
-			fputs("Starting purge\n", stderr);
-		}
 
 		que_run_threads(thr);
 
@@ -1270,10 +1274,105 @@ run_synchronously:
 	MONITOR_INC_VALUE(MONITOR_PURGE_INVOKED, 1);
 	MONITOR_INC_VALUE(MONITOR_PURGE_N_PAGE_HANDLED, n_pages_handled);
 
-	if (srv_print_thread_releases) {
-		fprintf(stderr, "Purge ends; pages handled %lu\n",
-			n_pages_handled);
+	return(n_pages_handled);
+}
+
+/*******************************************************************//**
+Get the purge state.
+@return purge state. */
+UNIV_INTERN
+purge_state_t
+trx_purge_state(void)
+/*=================*/
+{
+	purge_state_t	state;
+
+	rw_lock_x_lock(&purge_sys->latch);
+
+	state = purge_sys->state;
+
+	rw_lock_x_unlock(&purge_sys->latch);
+
+	return(state);
+}
+
+/*******************************************************************//**
+Stop purge and wait for it to stop, move to PURGE_STATE_STOP. */
+UNIV_INTERN
+void
+trx_purge_stop(void)
+/*================*/
+{
+	purge_state_t	state;
+	ib_int64_t	sig_count = os_event_reset(purge_sys->event);
+
+	ut_a(srv_n_purge_threads > 0);
+
+	rw_lock_x_lock(&purge_sys->latch);
+
+	ut_a(purge_sys->state != PURGE_STATE_INIT);
+	ut_a(purge_sys->state != PURGE_STATE_EXIT);
+
+	++purge_sys->n_stop;
+
+	state = purge_sys->state;
+
+	if (state == PURGE_STATE_RUN) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Stopping purge.\n");
+
+		/* We need to wakeup the purge thread in case it is suspended,
+		so that it can acknowledge the state change. */
+
+		srv_wake_purge_thread_if_not_active();
 	}
 
-	return(n_pages_handled);
+	purge_sys->state = PURGE_STATE_STOP;
+
+	rw_lock_x_unlock(&purge_sys->latch);
+
+	if (state != PURGE_STATE_STOP) {
+
+		/* Wait for purge coordinator to signal that it
+		is suspended. */
+		os_event_wait_low(purge_sys->event, sig_count);
+	}
+
+	MONITOR_INC_VALUE(MONITOR_PURGE_STOP_COUNT, 1);
+}
+
+/*******************************************************************//**
+Resume purge, move to PURGE_STATE_RUN. */
+UNIV_INTERN
+void
+trx_purge_run(void)
+/*===============*/
+{
+	rw_lock_x_lock(&purge_sys->latch);
+
+	ut_a(purge_sys->state != PURGE_STATE_INIT);
+	ut_a(purge_sys->state != PURGE_STATE_EXIT);
+
+	if (purge_sys->n_stop > 0) {
+
+		ut_a(purge_sys->state == PURGE_STATE_STOP);
+
+		--purge_sys->n_stop;
+
+		if (purge_sys->n_stop == 0) {
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: Resuming purge.\n");
+
+			purge_sys->state = PURGE_STATE_RUN;
+		}
+
+		MONITOR_INC_VALUE(MONITOR_PURGE_RESUME_COUNT, 1);
+	} else {
+		ut_a(purge_sys->state == PURGE_STATE_RUN);
+	}
+
+	rw_lock_x_unlock(&purge_sys->latch);
+
+	srv_wake_purge_thread_if_not_active();
 }

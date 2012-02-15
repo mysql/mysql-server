@@ -138,6 +138,8 @@ purge_upd_exist_or_extern_records	disabled
 purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
+purge_stop_count	disabled
+purge_resume_count	disabled
 log_checkpoints	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
