@@ -1365,7 +1365,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   if (table_list->handle_derived(thd->lex, DT_PREPARE))
     goto error;
 
-  if (!table_list->updatable)
+  if (!table_list->single_table_updatable())
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
     goto error;
@@ -1439,7 +1439,7 @@ static bool mysql_test_delete(Prepared_statement *stmt,
   if (mysql_handle_derived(thd->lex, DT_PREPARE))
     goto error;
 
-  if (!table_list->updatable)
+  if (!table_list->single_table_updatable())
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
     goto error;

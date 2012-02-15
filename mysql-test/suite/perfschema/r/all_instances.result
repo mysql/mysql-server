@@ -53,7 +53,6 @@ wait/synch/mutex/sql/LOCK_global_index_stats
 wait/synch/mutex/sql/LOCK_global_system_variables
 wait/synch/mutex/sql/LOCK_global_table_stats
 wait/synch/mutex/sql/LOCK_global_user_client_stats
-wait/synch/mutex/sql/LOCK_manager
 wait/synch/mutex/sql/LOCK_open
 wait/synch/mutex/sql/LOCK_plugin
 wait/synch/mutex/sql/LOCK_prepared_stmt_count
@@ -114,7 +113,6 @@ wait/synch/cond/mysys/COND_alarm
 wait/synch/cond/mysys/my_thread_var::suspend
 wait/synch/cond/mysys/THR_COND_threads
 wait/synch/cond/sql/COND_flush_thread_cache
-wait/synch/cond/sql/COND_manager
 wait/synch/cond/sql/COND_queue_state
 wait/synch/cond/sql/COND_rpl_status
 wait/synch/cond/sql/COND_server_started

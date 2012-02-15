@@ -3167,6 +3167,7 @@ void LEX::cleanup_after_one_table_open()
   if (all_selects_list != &select_lex)
   {
     derived_tables= 0;
+    select_lex.exclude_from_table_unique_test= false;
     /* cleunup underlying units (units of VIEW) */
     for (SELECT_LEX_UNIT *un= select_lex.first_inner_unit();
          un;

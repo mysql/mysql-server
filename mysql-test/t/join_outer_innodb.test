@@ -61,3 +61,18 @@ ORDER BY pk;
 DROP TABLE t1,t2;
 
 --echo # End BUG#58456
+
+#
+# Bug #848652: crash with RIGHT JOIN and GROUP BY
+# 
+
+CREATE TABLE t1(a int, b int, KEY (a), PRIMARY KEY (b))  ENGINE=InnoDB;
+
+CREATE TABLE t2 (b int, PRIMARY KEY (b));
+INSERT INTO t2 VALUES (4),(9);
+
+SELECT STRAIGHT_JOIN t1.a FROM t1 RIGHT JOIN t2 ON t1.b = t2.b
+  WHERE (t1.b NOT BETWEEN 1 AND 7 OR t1.a IS NULL AND t1.b = t2.b) AND t2.b = 4
+GROUP BY 1;
+
+DROP TABLE t1,t2;

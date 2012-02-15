@@ -4018,6 +4018,59 @@ drop table t1,t2;
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.
 --echo # -----------------------------------------------------------------
+--echo #
+--echo # Bug #794005: crash in st_table::mark_virtual_columns_for_write
+--echo #
+
+CREATE TABLE t1 (a int);
+insert into t1 values (1);
+CREATE TABLE t2 (a int);
+insert into t2 values (1);
+
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE VIEW v1 AS SELECT * FROM v2;
+CREATE VIEW v3 AS SELECT t2.a,v1.a as b FROM t2,v1 where t2.a=v1.a;
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW v2 AS SELECT * FROM t1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE v1 SET a = 10;
+--error ER_NON_INSERTABLE_TABLE
+REPLACE v1 SET a = 10;
+--error ER_NON_INSERTABLE_TABLE
+INSERT into v1 values (20);
+--error ER_NON_UPDATABLE_TABLE
+DELETE from v1;
+--error ER_NON_UPDATABLE_TABLE
+UPDATE v3 SET b= 10;
+--error ER_NON_INSERTABLE_TABLE
+REPLACE v3 SET b= 10;
+--error ER_NON_INSERTABLE_TABLE
+INSERT into v3(b) values (20);
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE from v3 where b=20;
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE from v3 where a=20;
+--error ER_NON_UPDATABLE_TABLE
+DELETE v1 from v1,t1 where v1.a=t1.a;
+UPDATE v3 SET a = 10;
+REPLACE v3 SET a = 11;
+INSERT INTO v3(a) values (20);
+
+select * from t1;
+select * from t2;
+
+CREATE OR REPLACE ALGORITHM = MERGE VIEW v2 AS SELECT * FROM t2;
+DELETE from v1 where a=11;
+DELETE v1 from v1,t1 where v1.a=t1.a;
+select * from t1;
+select * from t2;
+
+DROP VIEW v1,v2,v3;
+DROP TABLE t1,t2;
+
+--echo # -----------------------------------------------------------------
+--echo # -- End of 5.2 tests.
+--echo # -----------------------------------------------------------------
 
 --echo #
 --echo # Bug #59696 Optimizer does not use equalities for conditions over view 
@@ -4492,5 +4545,9 @@ SELECT * FROM t1 RIGHT JOIN v2 ON ( v2.a = t1.a ) WHERE v2.b IN ( SELECT b FROM 
 
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;
+
+--echo # -----------------------------------------------------------------
+--echo # -- End of 5.3 tests.
+--echo # -----------------------------------------------------------------
 
 SET optimizer_switch=@save_optimizer_switch;

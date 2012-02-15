@@ -273,4 +273,13 @@ ON alias3.f4 != 0
 ) ON alias3.f4 != 0;
 f4	f4	f2	f4
 drop table t1,t2,t3,t4;
+#
+# LP BUG#910123 MariaDB 5.3.3 causes 1093 error on Drupal
+# Fix: force materialization in case of conflict
+#
+SET optimizer_switch='derived_merge=on';
+CREATE TABLE t1 ( i INT );
+INSERT INTO t1 VALUES ( (SELECT 1 FROM ( SELECT * FROM t1 ) as a) );
+drop table t1;
+set optimizer_switch=@save_optimizer_switch;
 set optimizer_switch=@exit_optimizer_switch;

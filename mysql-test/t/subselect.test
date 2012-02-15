@@ -3519,6 +3519,8 @@ SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
 
 ## First a simpler query, illustrating the transformation
 ## '1 < some (...)' => '1 < max(...)'
+EXPLAIN EXTENDED
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
 SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
 
 ## The query which made the server crash.
@@ -4431,8 +4433,6 @@ WHERE t1.a = d1.a;
 DROP TABLE t1;
 
 
---echo End of 5.1 tests.
-
 #
 # Bug #47904 Incorrect results w/ table subquery, derived SQs, and LEFT JOIN on index
 #
@@ -4879,11 +4879,141 @@ INSERT INTO t3 VALUES (0),(0);
 SELECT a1.f3 AS r FROM t2 AS a1 , t1 WHERE a1.f3 < ALL ( SELECT f3 FROM t3 WHERE f3 = 1 ) ;
 DROP TABLE t1, t2, t3;
 
+--echo #
+--echo # Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
+--echo #
+
+CREATE TABLE t1(a1 int);
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE TABLE t2(a1 int);
+INSERT INTO t2 VALUES (3);
+
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+
+## All these are subject to the transformation
+## '1 < some (...)' => '1 < max(...)'
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2 FROM t2);
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2.0 FROM t2);
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 'a' FROM t2);
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t2);
+
+SET SESSION sql_mode=@old_sql_mode;
+
+DROP TABLE t1, t2;
+
+create table t2(i int);
+insert into t2 values(0);
+
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+
+CREATE VIEW v1 AS  
+SELECT 'f' FROM t2 UNION SELECT 'x' FROM t2
+;
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+SELECT t1.pk
+FROM t1
+WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 )
+;
+
+SET SESSION sql_mode=@old_sql_mode;
+
+drop table t2, t1;
+drop view v1;
+
+--echo #
+--echo # BUG#50257: Missing info in REF column of the EXPLAIN 
+--echo #            lines for subselects
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, INDEX (a));
+INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
+
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
+--echo # (duplicate of LP bug #888456)
+--echo #
+
+CREATE TABLE t1 (f1 varchar(1));
+INSERT INTO t1 VALUES ('v'),('s');
+
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
+('d'),('y'),('t'),('d'),('s');
+
+EXPLAIN
+SELECT table1.f1, table2.f1_key FROM t1 AS table1, t2 AS table2
+  WHERE EXISTS (SELECT DISTINCT f1_key FROM t2 
+                  WHERE f1_key != table2.f1_key AND f1_key >= table1.f1);
+SELECT table1.f1, table2.f1_key FROM t1 AS table1, t2 AS table2
+  WHERE EXISTS (SELECT DISTINCT f1_key FROM t2 
+                  WHERE f1_key != table2.f1_key AND f1_key >= table1.f1);
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # LP bug 919427: EXPLAIN for a query over a single-row table 
+--echo #                with IN subquery in WHERE condition
+--echo # 
+
+CREATE TABLE ot (
+  col_int_nokey int(11), 
+  col_varchar_nokey varchar(1)
+) ;
+INSERT INTO ot VALUES (1,'x');
+
+CREATE TABLE it1(
+  col_int_key int(11), 
+  col_varchar_key varchar(1), 
+  KEY idx_cvk_cik (col_varchar_key,col_int_key)
+);
+INSERT INTO it1 VALUES (NULL,'x'), (NULL,'f');
+
+CREATE TABLE it2 (
+   col_int_key int(11),
+   col_varchar_key varchar(1),
+   col_varchar_key2 varchar(1),
+   KEY idx_cvk_cvk2_cik (col_varchar_key, col_varchar_key2, col_int_key),
+   KEY idx_cvk_cik (col_varchar_key, col_int_key)
+);
+INSERT INTO it2 VALUES (NULL,'x','x'), (NULL,'f','f');
+
+EXPLAIN
+SELECT col_int_nokey FROM ot 
+  WHERE col_varchar_nokey IN 
+        (SELECT col_varchar_key FROM it1 WHERE col_int_key IS NULL);
+SELECT col_int_nokey FROM ot 
+  WHERE col_varchar_nokey IN 
+        (SELECT col_varchar_key FROM it1 WHERE col_int_key IS NULL);
+
+EXPLAIN
+SELECT col_int_nokey FROM ot
+  WHERE (col_varchar_nokey, 'x') IN
+        (SELECT col_varchar_key, col_varchar_key2 FROM it2);
+SELECT col_int_nokey FROM ot
+  WHERE (col_varchar_nokey, 'x') IN
+        (SELECT col_varchar_key, col_varchar_key2 FROM it2);
+
+DROP TABLE ot,it1,it2;
+
 --echo End of 5.2 tests
 
 --echo #
 --echo # BUG#779885: Crash in eliminate_item_equal with materialization=on in
---echo # maria-5.3
 --echo #
 
 CREATE TABLE t1 ( f1 int );
@@ -4936,32 +5066,6 @@ SET optimizer_switch=@save_optimizer_switch;
 
 drop table t1, t2, t3;
 
---echo End of 5.3 tests
-
---echo #
---echo # Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
---echo #
-
-CREATE TABLE t1(a1 int);
-INSERT INTO t1 VALUES (1),(2);
-
-CREATE TABLE t2(a1 int);
-INSERT INTO t2 VALUES (3);
-
-SELECT @@session.sql_mode INTO @old_sql_mode;
-SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
-
-## All these are subject to the transformation
-## '1 < some (...)' => '1 < max(...)'
-SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2 FROM t2);
-SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2.0 FROM t2);
-SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 'a' FROM t2);
-SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t2);
-
-SET SESSION sql_mode=@old_sql_mode;
-
-DROP TABLE t1, t2;
-
 --echo #
 --echo # BUG#50257: Missing info in REF column of the EXPLAIN 
 --echo #            lines for subselects
@@ -4980,6 +5084,55 @@ EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
 
 --echo
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#11764086: Null left operand to NOT IN in WHERE clause
+--echo # behaves differently than real NULL
+--echo #
+
+CREATE TABLE parent (id int);
+INSERT INTO parent VALUES (1), (2);
+
+CREATE TABLE child (parent_id int, other int);
+INSERT INTO child VALUES (1,NULL);
+
+--echo # Offending query (c.parent_id is NULL for null-complemented rows only)
+
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id NOT IN (
+              SELECT parent_id 
+              FROM   child
+              WHERE  parent_id = 3
+          );
+
+--echo # Some syntactic variations with IS FALSE and IS NOT TRUE
+
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+              SELECT parent_id 
+              FROM   child
+              WHERE  parent_id = 3
+          ) IS NOT TRUE;
+
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+              SELECT parent_id 
+              FROM   child
+              WHERE  parent_id = 3
+          ) IS FALSE;
+
+DROP TABLE parent, child;
+
+--echo # End of test for bug#11764086.
 
 --echo #
 --echo # Bug 11765699 - 58690: !TABLE || (!TABLE->READ_SET || 
@@ -5279,6 +5432,17 @@ SELECT ( SELECT b FROM t2 WHERE b = a OR rand() * 0) FROM t1;
 
 drop table t1,t2,t3;
 
+--echo #
+--echo # LP BUG#905353 Wrong non-empty result with a constant table,
+--echo # aggregate function in subquery, MyISAM or Aria
+--echo #
+
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+
+SELECT a FROM t1 WHERE ( SELECT MIN(a) = 100 );
+
+drop table t1;
 
 --echo # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;

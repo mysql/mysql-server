@@ -8399,22 +8399,9 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   ulong client_capabilities= uint2korr(net->read_pos);
   if (client_capabilities & CLIENT_PROTOCOL_41)
   {
-    if (pkt_len < 32)
+    if (pkt_len < 4)
       return packet_error;
     client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
-    thd->max_client_packet_length= uint4korr(net->read_pos+4);
-    DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
-    if (thd_init_client_charset(thd, (uint) net->read_pos[8]))
-      return packet_error;
-    thd->update_charset();
-    end= (char*) net->read_pos + 32;
-  }
-  else
-  {
-    if (pkt_len < 5)
-      return packet_error;
-    thd->max_client_packet_length= uint3korr(net->read_pos+2);
-    end= (char*) net->read_pos+5;
   }
 
   /* Disable those bits which are not supported by the client. */
@@ -8445,6 +8432,28 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
       return packet_error;
     }
   }
+
+  if (client_capabilities & CLIENT_PROTOCOL_41)
+  {
+    if (pkt_len < 32)
+      return packet_error;
+    thd->max_client_packet_length= uint4korr(net->read_pos+4);
+    DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
+    if (thd_init_client_charset(thd, (uint) net->read_pos[8]))
+      return packet_error;
+    thd->update_charset();
+    end= (char*) net->read_pos+32;
+  }
+  else
+  {
+    if (pkt_len < 5)
+      return packet_error;
+    thd->max_client_packet_length= uint3korr(net->read_pos+2);
+    end= (char*) net->read_pos+5;
+  }
+
+  if (end >= (char*) net->read_pos+ pkt_len +2)
+    return packet_error;
 
   if (thd->client_capabilities & CLIENT_IGNORE_SPACE)
     thd->variables.sql_mode|= MODE_IGNORE_SPACE;

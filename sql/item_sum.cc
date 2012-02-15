@@ -1129,13 +1129,12 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
     return TRUE;
 
   decimals=0;
-  maybe_null=0;
+  maybe_null= sum_func() != COUNT_FUNC;
   for (uint i=0 ; i < arg_count ; i++)
   {
     if (args[i]->fix_fields(thd, args + i) || args[i]->check_cols(1))
       return TRUE;
     set_if_bigger(decimals, args[i]->decimals);
-    maybe_null |= args[i]->maybe_null;
   }
   result_field=0;
   max_length=float_length(decimals);

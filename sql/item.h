@@ -471,6 +471,16 @@ typedef enum monotonicity_info
 class sp_rcontext;
 
 
+class Item_equal;
+
+struct st_join_table* const NO_PARTICULAR_TAB= (struct st_join_table*)0x1;
+
+typedef struct replace_equal_field_arg 
+{
+  Item_equal *item_equal;
+  struct st_join_table *context_tab;
+} REPLACE_EQUAL_FIELD_ARG;
+
 class Settable_routine_parameter
 {
 public:
@@ -1283,6 +1293,7 @@ public:
 
   virtual Item *equal_fields_propagator(uchar * arg) { return this; }
   virtual bool set_no_const_sub(uchar *arg) { return FALSE; }
+  /* arg points to REPLACE_EQUAL_FIELD_ARG object */
   virtual Item *replace_equal_field(uchar * arg) { return this; }
   /*
     Check if an expression value has allowed arguments, like DATE/DATETIME
