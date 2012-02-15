@@ -243,7 +243,7 @@ extern long long	srv_ibuf_max_size;
 extern ulong	srv_ibuf_active_contract;
 extern ulong	srv_ibuf_accel_rate;
 extern ulint	srv_checkpoint_age_target;
-extern ulint	srv_flush_neighbor_pages;
+extern ulong	srv_flush_neighbor_pages;
 extern ulint	srv_deprecated_enable_unsafe_group_commit;
 extern ulong	srv_read_ahead;
 extern ulong	srv_adaptive_flushing_method;

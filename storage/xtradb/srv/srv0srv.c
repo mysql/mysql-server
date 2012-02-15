@@ -446,7 +446,7 @@ UNIV_INTERN ulong	srv_ibuf_accel_rate = 100;
 #define PCT_IBUF_IO(pct) ((ulint) (srv_io_capacity * srv_ibuf_accel_rate * ((double) pct / 10000.0)))
 
 UNIV_INTERN ulint	srv_checkpoint_age_target = 0;
-UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:area 2:contiguous */
+UNIV_INTERN ulong	srv_flush_neighbor_pages = 1; /* 0:disable 1:area 2:contiguous */
 
 UNIV_INTERN ulint	srv_deprecated_enable_unsafe_group_commit = 0;
 UNIV_INTERN ulong	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
