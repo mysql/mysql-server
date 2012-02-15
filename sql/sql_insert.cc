@@ -81,6 +81,7 @@
 #include "delayable_insert_operation.h"
 #include "sql_tmp_table.h"    // tmp tables
 #include "sql_optimizer.h"    // JOIN
+#include "global_threads.h"
 
 #include "debug_sync.h"
 
@@ -1838,7 +1839,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
 
    @note that custom operator new/delete are inherited from the ilink class.
 */
-class delayed_row :public ilink {
+class delayed_row :public ilink<delayed_row> {
 public:
   char *record;
   enum_duplicates dup;
@@ -1980,7 +1981,7 @@ bool delayed_row::copy_context(THD *thd, TABLE *client_table,
 
    @note that custom operator new/delete are inherited from the ilink class.
 */
-class Delayed_insert :public ilink {
+class Delayed_insert :public ilink<Delayed_insert> {
   uint locks_in_memory;
   thr_lock_type delayed_lock;
 public:
