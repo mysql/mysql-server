@@ -674,7 +674,6 @@ or row lock! */
 #define SYNC_LOG_FLUSH_ORDER	156
 #define SYNC_RECV		168
 #define	SYNC_WORK_QUEUE		162
-#define	SYNC_SEARCH_SYS_CONF	161	/* for assigning btr_search_enabled */
 #define	SYNC_SEARCH_SYS		160	/* NOTE that if we have a memory
 					heap that can be extended to the
 					buffer pool, its logical level is

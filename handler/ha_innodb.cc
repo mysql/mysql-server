@@ -375,6 +375,9 @@ static PSI_file_info	all_innodb_files[] = {
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
 static int innobase_close_connection(handlerton *hton, THD* thd);
+#ifdef EXTENDED_FOR_COMMIT_ORDERED
+static void innobase_commit_ordered(handlerton *hton, THD* thd, bool all);
+#endif
 static int innobase_commit(handlerton *hton, THD* thd, bool all);
 static int innobase_rollback(handlerton *hton, THD* thd, bool all);
 static int innobase_rollback_to_savepoint(handlerton *hton, THD* thd,
@@ -1699,7 +1702,10 @@ innobase_trx_init(
 	trx_t*	trx)	/*!< in/out: InnoDB transaction handle */
 {
 	DBUG_ENTER("innobase_trx_init");
+#ifndef EXTENDED_FOR_COMMIT_ORDERED
+	/* used by innobase_commit_ordered */
 	DBUG_ASSERT(EQ_CURRENT_THD(thd));
+#endif
 	DBUG_ASSERT(thd == trx->mysql_thd);
 
 	trx->check_foreigns = !thd_test_options(
@@ -1760,7 +1766,10 @@ check_trx_exists(
 {
 	trx_t*&	trx = thd_to_trx(thd);
 
+#ifndef EXTENDED_FOR_COMMIT_ORDERED
+	/* used by innobase_commit_ordered */
 	ut_ad(EQ_CURRENT_THD(thd));
+#endif
 
 	if (trx == NULL) {
 		trx = innobase_trx_allocate(thd);
@@ -1846,6 +1855,7 @@ trx_deregister_from_2pc(
 {
 	trx->is_registered = 0;
 	trx->owns_prepare_mutex = 0;
+	trx->called_commit_ordered = 0;
 }
 
 /*********************************************************************//**
@@ -1858,6 +1868,29 @@ trx_has_prepare_commit_mutex(
 	const trx_t*	trx)	/* in: transaction */
 {
 	return(trx->owns_prepare_mutex == 1);
+}
+
+/*********************************************************************//**
+*/
+static inline
+void
+trx_called_commit_ordered_set(
+/*==========================*/
+	trx_t*	trx)
+{
+	ut_a(trx_is_registered_for_2pc(trx));
+	trx->called_commit_ordered = 1;
+}
+
+/*********************************************************************//**
+*/
+static inline
+bool
+trx_called_commit_ordered(
+/*======================*/
+	const trx_t*	trx)
+{
+	return(trx->called_commit_ordered == 1);
 }
 
 /*********************************************************************//**
@@ -2435,6 +2468,9 @@ innobase_init(
         innobase_hton->savepoint_set=innobase_savepoint;
         innobase_hton->savepoint_rollback=innobase_rollback_to_savepoint;
         innobase_hton->savepoint_release=innobase_release_savepoint;
+#ifdef EXTENDED_FOR_COMMIT_ORDERED
+	innobase_hton->commit_ordered=innobase_commit_ordered;
+#endif
         innobase_hton->commit=innobase_commit;
         innobase_hton->rollback=innobase_rollback;
         innobase_hton->prepare=innobase_xa_prepare;
@@ -3031,7 +3067,6 @@ skip_overwrite:
 	/* Get the current high water mark format. */
 	innobase_file_format_max = (char*) trx_sys_file_format_max_get();
 
-	btr_search_fully_disabled = (!btr_search_enabled);
 	DBUG_RETURN(FALSE);
 error:
 	DBUG_RETURN(TRUE);
@@ -3188,6 +3223,126 @@ innobase_start_trx_and_assign_read_view(
 	DBUG_RETURN(0);
 }
 
+#ifdef EXTENDED_FOR_COMMIT_ORDERED
+/* MEMO:
+  InnoDB is coded with intention that always trx is accessed by the owner thd.
+  (not protected by any mutex/lock)
+  So, the caller of innobase_commit_ordered() should be conscious of
+  cache coherency between multi CPU about the trx, if called from another thd.
+
+  MariaDB's first implementation about it seems the cherency is protected by
+  the pthread_mutex LOCK_wakeup_ready. So, no problem for now.
+
+  But we should be aware the importance of the coherency.
+ */
+/*****************************************************************//**
+low function function innobase_commit_ordered().*/
+static
+void
+innobase_commit_ordered_low(
+/*========================*/
+	trx_t*	trx, 	/*!< in: Innodb transaction */
+	THD*	thd)	/*!< in: MySQL thread handle */
+{
+	ulonglong tmp_pos;
+	DBUG_ENTER("innobase_commit_ordered");
+
+	/* This part was from innobase_commit() */
+
+	/* We need current binlog position for ibbackup to work.
+	Note, the position is current because commit_ordered is guaranteed
+	to be called in same sequenece as writing to binlog. */
+retry:
+	if (innobase_commit_concurrency > 0) {
+		mysql_mutex_lock(&commit_cond_m);
+		commit_threads++;
+
+		if (commit_threads > innobase_commit_concurrency) {
+			commit_threads--;
+			mysql_cond_wait(&commit_cond,
+					  &commit_cond_m);
+			mysql_mutex_unlock(&commit_cond_m);
+			goto retry;
+		}
+		else {
+			mysql_mutex_unlock(&commit_cond_m);
+		}
+	}
+
+	mysql_bin_log_commit_pos(thd, &tmp_pos, &(trx->mysql_log_file_name));
+	trx->mysql_log_offset = (ib_int64_t) tmp_pos;
+
+	/* Don't do write + flush right now. For group commit
+	   to work we want to do the flush in the innobase_commit()
+	   method, which runs without holding any locks. */
+	trx->flush_log_later = TRUE;
+	innobase_commit_low(trx);
+	trx->flush_log_later = FALSE;
+
+	if (innobase_commit_concurrency > 0) {
+		mysql_mutex_lock(&commit_cond_m);
+		commit_threads--;
+		mysql_cond_signal(&commit_cond);
+		mysql_mutex_unlock(&commit_cond_m);
+	}
+
+	DBUG_VOID_RETURN;
+}
+
+/*****************************************************************//**
+Perform the first, fast part of InnoDB commit.
+
+Doing it in this call ensures that we get the same commit order here
+as in binlog and any other participating transactional storage engines.
+
+Note that we want to do as little as really needed here, as we run
+under a global mutex. The expensive fsync() is done later, in
+innobase_commit(), without a lock so group commit can take place.
+
+Note also that this method can be called from a different thread than
+the one handling the rest of the transaction. */
+static
+void
+innobase_commit_ordered(
+/*====================*/
+	handlerton *hton, /*!< in: Innodb handlerton */
+	THD*	thd,	/*!< in: MySQL thread handle of the user for whom
+			the transaction should be committed */
+	bool	all)	/*!< in:	TRUE - commit transaction
+				FALSE - the current SQL statement ended */
+{
+	trx_t*		trx;
+	DBUG_ENTER("innobase_commit_ordered");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	trx = check_trx_exists(thd);
+
+	/* Since we will reserve the kernel mutex, we have to release
+	the search system latch first to obey the latching order. */
+
+	if (trx->has_search_latch) {
+		trx_search_latch_release_if_reserved(trx);
+	}
+
+	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
+		/* We cannot throw error here; instead we will catch this error
+		again in innobase_commit() and report it from there. */
+		DBUG_VOID_RETURN;
+	}
+
+	/* commit_ordered is only called when committing the whole transaction
+	(or an SQL statement when autocommit is on). */
+	DBUG_ASSERT(all ||
+		(!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
+
+	innobase_commit_ordered_low(trx, thd);
+
+	trx_called_commit_ordered_set(trx);
+
+	DBUG_VOID_RETURN;
+}
+#endif /* EXTENDED_FOR_COMMIT_ORDERED */
+
 /*****************************************************************//**
 Commits a transaction in an InnoDB database or marks an SQL statement
 ended.
@@ -3238,6 +3393,16 @@ innobase_commit(
 
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
+
+#ifdef EXTENDED_FOR_COMMIT_ORDERED
+		ut_ad(!trx_has_prepare_commit_mutex(trx));
+
+		/* Run the fast part of commit if we did not already. */
+		if (!trx_called_commit_ordered(trx)) {
+			innobase_commit_ordered_low(trx, thd);
+		}
+#else
+		ut_ad(!trx_called_commit_ordered(trx));
 
 		/* We need current binlog position for ibbackup to work.
 		Note, the position is current because of
@@ -3293,6 +3458,7 @@ retry:
   
 			mysql_mutex_unlock(&prepare_commit_mutex);
   		}
+#endif /* EXTENDED_FOR_COMMIT_ORDERED */
   
 		trx_deregister_from_2pc(trx);
 
@@ -5563,8 +5729,7 @@ no_commit:
 
 			switch (sql_command) {
 			case SQLCOM_LOAD:
-				if ((trx->duplicates
-				    & (TRX_DUP_IGNORE | TRX_DUP_REPLACE))) {
+				if (trx->duplicates) {
 
 					goto set_max_autoinc;
 				}
@@ -5745,14 +5910,15 @@ calc_row_difference(
 			/* The field has changed */
 
 			ufield = uvect->fields + n_changed;
+			UNIV_MEM_INVALID(ufield, sizeof *ufield);
 
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
-			dict_col_copy_type(prebuilt->table->cols + i,
-					   dfield_get_type(&dfield));
-
 			if (n_len != UNIV_SQL_NULL) {
+				dict_col_copy_type(prebuilt->table->cols + i,
+						   dfield_get_type(&dfield));
+
 				buf = row_mysql_store_col_in_innobase_format(
 					&dfield,
 					(byte*)buf,
@@ -5760,7 +5926,7 @@ calc_row_difference(
 					new_mysql_row_col,
 					col_pack_len,
 					dict_table_is_comp(prebuilt->table));
-				dfield_copy_data(&ufield->new_val, &dfield);
+				dfield_copy(&ufield->new_val, &dfield);
 			} else {
 				dfield_set_null(&ufield->new_val);
 			}
@@ -5847,8 +6013,7 @@ ha_innobase::update_row(
 	    && table->next_number_field
 	    && new_row == table->record[0]
 	    && thd_sql_command(user_thd) == SQLCOM_INSERT
-	    && (trx->duplicates & (TRX_DUP_IGNORE | TRX_DUP_REPLACE))
-		== TRX_DUP_IGNORE)  {
+	    && trx->duplicates)  {
 
 		ulonglong	auto_inc;
 		ulonglong	col_max_value;
@@ -6232,6 +6397,7 @@ ha_innobase::index_read(
 			(byte*) key_ptr,
 			(ulint) key_len,
 			prebuilt->trx);
+		DBUG_ASSERT(prebuilt->search_tuple->n_fields > 0);
 	} else {
 		/* We position the cursor to the last or the first entry
 		in the index */
@@ -6333,7 +6499,6 @@ ha_innobase::innobase_get_index(
 	dict_index_t*	index = 0;
 
 	DBUG_ENTER("innobase_get_index");
-	ha_statistic_increment(&SSV::ha_read_key_count);
 
 	if (keynr != MAX_KEY && table->s->keys > 0) {
 		key = table->key_info + keynr;
@@ -6347,13 +6512,13 @@ ha_innobase::innobase_get_index(
 			table. Only print message if the index translation
 			table exists */
 			if (share->idx_trans_tbl.index_mapping) {
-				sql_print_error("InnoDB could not find "
-						"index %s key no %u for "
-						"table %s through its "
-						"index translation table",
-						key ? key->name : "NULL",
-						keynr,
-						prebuilt->table->name);
+				sql_print_warning("InnoDB could not find "
+						  "index %s key no %u for "
+						  "table %s through its "
+						  "index translation table",
+						  key ? key->name : "NULL",
+						  keynr,
+						  prebuilt->table->name);
 			}
 
 			index = dict_table_get_index_on_name(prebuilt->table,
@@ -8128,6 +8293,7 @@ ha_innobase::records_in_range(
 	mem_heap_t*	heap;
 
 	DBUG_ENTER("records_in_range");
+	DBUG_ASSERT(min_key || max_key);
 
 	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
@@ -8177,6 +8343,9 @@ ha_innobase::records_in_range(
 					 (const uchar*) 0),
 				(ulint) (min_key ? min_key->length : 0),
 				prebuilt->trx);
+	DBUG_ASSERT(min_key
+		    ? range_start->n_fields > 0
+		    : range_start->n_fields == 0);
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_end, (byte*) key_val_buff2,
@@ -8185,6 +8354,9 @@ ha_innobase::records_in_range(
 					 (const uchar*) 0),
 				(ulint) (max_key ? max_key->length : 0),
 				prebuilt->trx);
+	DBUG_ASSERT(max_key
+		    ? range_end->n_fields > 0
+		    : range_end->n_fields == 0);
 
 	mode1 = convert_search_mode_to_innobase(min_key ? min_key->flag :
 						HA_READ_KEY_EXACT);
@@ -8928,7 +9100,10 @@ ha_innobase::check(
 		putc('\n', stderr);
 #endif
 
-		if (!btr_validate_index(index, prebuilt->trx)) {
+		/* If this is an index being created, break */
+		if (*index->name == TEMP_INDEX_PREFIX) {
+			break;
+		}  else if (!btr_validate_index(index, prebuilt->trx)) {
 			is_ok = FALSE;
 
 			innobase_format_name(
@@ -9481,6 +9656,7 @@ ha_innobase::extra(
 			break;
 		case HA_EXTRA_RESET_STATE:
 			reset_template(prebuilt);
+			thd_to_trx(ha_thd())->duplicates = 0;
 			break;
 		case HA_EXTRA_NO_KEYREAD:
 			prebuilt->read_just_key = 0;
@@ -9498,18 +9674,17 @@ ha_innobase::extra(
 			parameters below.  We must not invoke update_thd()
 			either, because the calling threads may change.
 			CAREFUL HERE, OR MEMORY CORRUPTION MAY OCCUR! */
-		case HA_EXTRA_IGNORE_DUP_KEY:
+		case HA_EXTRA_INSERT_WITH_UPDATE:
 			thd_to_trx(ha_thd())->duplicates |= TRX_DUP_IGNORE;
+			break;
+		case HA_EXTRA_NO_IGNORE_DUP_KEY:
+			thd_to_trx(ha_thd())->duplicates &= ~TRX_DUP_IGNORE;
 			break;
 		case HA_EXTRA_WRITE_CAN_REPLACE:
 			thd_to_trx(ha_thd())->duplicates |= TRX_DUP_REPLACE;
 			break;
 		case HA_EXTRA_WRITE_CANNOT_REPLACE:
 			thd_to_trx(ha_thd())->duplicates &= ~TRX_DUP_REPLACE;
-			break;
-		case HA_EXTRA_NO_IGNORE_DUP_KEY:
-			thd_to_trx(ha_thd())->duplicates &=
-				~(TRX_DUP_IGNORE | TRX_DUP_REPLACE);
 			break;
 		default:/* Do nothing */
 			;
@@ -10973,6 +11148,7 @@ innobase_xa_prepare(
 
 	srv_active_wake_master_thread();
 
+#ifndef EXTENDED_FOR_COMMIT_ORDERED
 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE
 	    && (all
 		|| !thd_test_options(
@@ -10999,6 +11175,7 @@ innobase_xa_prepare(
 		mysql_mutex_lock(&prepare_commit_mutex);
 		trx_owns_prepare_commit_mutex_set(trx);
 	}
+#endif /* ifndef EXTENDED_FOR_COMMIT_ORDERED */
 
 	return(error);
 }
@@ -12269,10 +12446,42 @@ static MYSQL_SYSVAR_ULONG(checkpoint_age_target, srv_checkpoint_age_target,
   "Control soft limit of checkpoint age. (0 : not control)",
   NULL, NULL, 0, 0, ~0UL, 0);
 
-static MYSQL_SYSVAR_ULONG(flush_neighbor_pages, srv_flush_neighbor_pages,
-  PLUGIN_VAR_RQCMDARG,
-  "Enable/Disable flushing also neighbor pages. 0:disable 1:enable",
-  NULL, NULL, 1, 0, 1, 0);
+static
+void
+innodb_flush_neighbor_pages_update(
+  THD* thd,
+  struct st_mysql_sys_var* var,
+  void* var_ptr,
+  const void* save)
+{
+  *(long *)var_ptr = (*(long *)save) % 3;
+}
+
+const char *flush_neighbor_pages_names[]=
+{
+  "none", /* 0 */
+  "area",
+  "cont", /* 2 */
+  /* For compatibility with the older patch */
+  "0", /* "none" + 3 */
+  "1", /* "area" + 3 */
+  "2", /* "cont" + 3 */
+  NullS
+};
+
+TYPELIB flush_neighbor_pages_typelib=
+{
+  array_elements(flush_neighbor_pages_names) - 1,
+  "flush_neighbor_pages_typelib",
+  flush_neighbor_pages_names,
+  NULL
+};
+
+static MYSQL_SYSVAR_ENUM(flush_neighbor_pages, srv_flush_neighbor_pages,
+  PLUGIN_VAR_RQCMDARG, "Neighbor page flushing behaviour: none: do not flush, "
+                       "[area]: flush selected pages one-by-one, "
+                       "cont: flush a contiguous block of pages", NULL,
+  innodb_flush_neighbor_pages_update, 1, &flush_neighbor_pages_typelib);
 
 static
 void
@@ -12337,6 +12546,14 @@ static MYSQL_SYSVAR_ENUM(adaptive_flushing_method, srv_adaptive_flushing_method,
   PLUGIN_VAR_RQCMDARG,
   "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
   NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
+
+#ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_ULONG(flush_checkpoint_debug, srv_flush_checkpoint_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Debug flags for InnoDB flushing and checkpointing (0=none,"
+  "1=stop preflush and checkpointing)",
+  NULL, NULL, 0, 0, 1, 0);
+#endif
 
 static MYSQL_SYSVAR_ULONG(import_table_from_xtrabackup, srv_expand_import,
   PLUGIN_VAR_RQCMDARG,
@@ -12484,6 +12701,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
   MYSQL_SYSVAR(rollback_segments),
+#ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(flush_checkpoint_debug),
+#endif
   MYSQL_SYSVAR(corrupt_table_action),
   MYSQL_SYSVAR(lazy_drop_table),
   MYSQL_SYSVAR(fake_changes),

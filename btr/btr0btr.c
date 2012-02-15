@@ -1523,7 +1523,7 @@ btr_free_root(
 	}
 	ut_a(block);
 
-	btr_search_drop_page_hash_index(block, NULL);
+	btr_search_drop_page_hash_index(block);
 
 	header = buf_block_get_frame(block) + PAGE_HEADER + PAGE_BTR_SEG_TOP;
 #ifdef UNIV_BTR_DEBUG
@@ -1592,7 +1592,7 @@ btr_page_reorganize_low(
 
 #ifndef UNIV_HOTBACKUP
 	if (UNIV_LIKELY(!recovery)) {
-		btr_search_drop_page_hash_index(block, index);
+		btr_search_drop_page_hash_index(block);
 	}
 
 	block->check_index_page_at_flush = TRUE;
@@ -1760,7 +1760,7 @@ btr_page_empty(
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
-	btr_search_drop_page_hash_index(block, index);
+	btr_search_drop_page_hash_index(block);
 	btr_blob_dbg_remove(page, index, "btr_page_empty");
 
 	/* Recreate the page: note that global data on page (possible
@@ -3093,7 +3093,7 @@ btr_lift_page_up(
 		mem_heap_free(heap);
 	}
 
-	btr_search_drop_page_hash_index(block, index);
+	btr_search_drop_page_hash_index(block);
 
 	/* Make the father empty */
 	btr_page_empty(father_block, father_page_zip, index, page_level, mtr);
@@ -3317,7 +3317,7 @@ err_exit:
 			goto err_exit;
 		}
 
-		btr_search_drop_page_hash_index(block, index);
+		btr_search_drop_page_hash_index(block);
 
 		/* Remove the page from the level list */
 		btr_level_list_remove(space, zip_size, page, index, mtr);
@@ -3358,7 +3358,7 @@ err_exit:
 			goto err_exit;
 		}
 
-		btr_search_drop_page_hash_index(block, index);
+		btr_search_drop_page_hash_index(block);
 
 #ifdef UNIV_BTR_DEBUG
 		if (UNIV_LIKELY_NULL(merge_page_zip)) {
@@ -3473,7 +3473,7 @@ btr_discard_only_page_on_level(
 		ut_a(btr_page_get_next(page, mtr) == FIL_NULL);
 
 		ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-		btr_search_drop_page_hash_index(block, index);
+		btr_search_drop_page_hash_index(block);
 
 		btr_page_get_father(index, block, mtr, &cursor);
 		father = btr_cur_get_block(&cursor);
@@ -3578,7 +3578,7 @@ btr_discard_page(
 
 	page = buf_block_get_frame(block);
 	ut_a(page_is_comp(merge_page) == page_is_comp(page));
-	btr_search_drop_page_hash_index(block, index);
+	btr_search_drop_page_hash_index(block);
 
 	if (left_page_no == FIL_NULL && !page_is_leaf(page)) {
 

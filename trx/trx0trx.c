@@ -111,6 +111,7 @@ trx_create(
 
 	trx->is_registered = 0;
 	trx->owns_prepare_mutex = 0;
+	trx->called_commit_ordered = 0;
 
 	trx->start_time = ut_time();
 

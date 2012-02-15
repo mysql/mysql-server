@@ -916,6 +916,11 @@ dict_index_find_on_id_low(
 	dict_table_t*	table;
 	dict_index_t*	index;
 
+	/* This can happen if the system tablespace is the wrong page size */
+	if (dict_sys == NULL) {
+		return(NULL);
+	}
+
 	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 
 	while (table) {
@@ -3137,10 +3142,15 @@ dict_scan_table_name(
 		memcpy(ref, database_name, database_name_len);
 		ref[database_name_len] = '/';
 		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+
 	} else {
+#ifndef __WIN__
 		if (innobase_get_lower_case_table_names() == 1) {
 			innobase_casedn_str(ref);
 		}
+#else
+		innobase_casedn_str(ref);
+#endif /* !__WIN__ */
 		*table = dict_table_get_low(ref);
 	}
 

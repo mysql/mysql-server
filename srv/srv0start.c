@@ -735,6 +735,7 @@ open_or_create_data_files(
 	ibool	one_created	= FALSE;
 	ulint	size;
 	ulint	size_high;
+	ulint	flags;
 	ulint	rounded_size_pages;
 	char	name[10000];
 
@@ -917,12 +918,31 @@ open_or_create_data_files(
 				return(DB_ERROR);
 			}
 skip_size_check:
-			fil_read_flushed_lsn_and_arch_log_no(
-				files[i], one_opened,
+			fil_read_first_page(
+				files[i], one_opened, &flags,
 #ifdef UNIV_LOG_ARCHIVE
 				min_arch_log_no, max_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
 				min_flushed_lsn, max_flushed_lsn);
+
+			if (UNIV_PAGE_SIZE
+			    != fsp_flags_get_page_size(flags)) {
+
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					" InnoDB: Error: data file %s"
+					" uses page size %lu,\n",
+					name,
+					fsp_flags_get_page_size(flags));
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					" InnoDB: but the only supported"
+					" page size in this release is=%lu\n",
+					(ulong) UNIV_PAGE_SIZE);
+
+				return(DB_ERROR);
+			}
+
 			one_opened = TRUE;
 		} else {
 			/* We created the data file and now write it full of
@@ -1060,8 +1080,8 @@ skip_size_check:
 					(ulong) TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 9);
 			}
 
-			fil_read_flushed_lsn_and_arch_log_no(
-				files[i], one_opened,
+			fil_read_first_page(
+				files[i], one_opened, &flags,
 #ifdef UNIV_LOG_ARCHIVE
 				min_arch_log_no, max_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */

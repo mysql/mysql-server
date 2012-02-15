@@ -850,7 +850,7 @@ loop:
 			object and check that the .ibd file exists. */
 
 			fil_open_single_table_tablespace(FALSE, space_id,
-							 flags, name);
+							 flags, name, NULL);
 		}
 
 		mem_free(name);
@@ -1905,7 +1905,7 @@ err_exit:
 			if (!fil_open_single_table_tablespace(
 				TRUE, table->space,
 				table->flags == DICT_TF_COMPACT ? 0 :
-				table->flags & ~(~0 << DICT_TF_BITS), name)) {
+				table->flags & ~(~0 << DICT_TF_BITS), name, NULL)) {
 				/* We failed to find a sensible
 				tablespace file */
 

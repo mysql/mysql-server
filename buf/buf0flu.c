@@ -1399,6 +1399,7 @@ buf_flush_try_neighbors(
 	ulint		high;
 	ulint		count = 0;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
+	ibool		is_forward_scan;
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
@@ -1429,7 +1430,32 @@ buf_flush_try_neighbors(
 		high = fil_space_get_size(space);
 	}
 
-	for (i = low; i < high; i++) {
+	if (srv_flush_neighbor_pages == 2) {
+
+		/* In the case of contiguous flush where the requested page
+		does not fall at the start of flush area, first scan backward
+		from the page and later forward from it. */
+		is_forward_scan = (offset == low);
+	}
+	else {
+		is_forward_scan = TRUE;
+	}
+
+scan:
+	if (srv_flush_neighbor_pages == 2) {
+		if (is_forward_scan) {
+			i = offset;
+		}
+		else {
+			i = offset - 1;
+		}
+	}
+	else {
+		i = low;
+	}
+
+	for (; is_forward_scan ? (i < high) : (i >= low);
+	     is_forward_scan ? i++ : i--) {
 
 		buf_page_t*	bpage;
 
@@ -1460,6 +1486,12 @@ buf_flush_try_neighbors(
 
 			//buf_pool_mutex_exit(buf_pool);
 			rw_lock_s_unlock(&buf_pool->page_hash_latch);
+			if (srv_flush_neighbor_pages == 2) {
+
+				/* This is contiguous neighbor page flush and
+				the pages here are not contiguous. */
+				break;
+			}
 			continue;
 		}
 
@@ -1495,6 +1527,22 @@ buf_flush_try_neighbors(
 		}
 		//buf_pool_mutex_exit(buf_pool);
 		rw_lock_s_unlock(&buf_pool->page_hash_latch);
+
+		if (srv_flush_neighbor_pages == 2) {
+
+			/* We are trying to do the contiguous neighbor page
+			flush, but the last page we checked was unflushable,
+			making a "hole" in the flush, so stop this attempt. */
+			break;
+		}
+	}
+
+	if (!is_forward_scan) {
+
+		/* Backward scan done, now do the forward scan */
+		ut_a (srv_flush_neighbor_pages == 2);
+		is_forward_scan = TRUE;
+		goto scan;
 	}
 
 	return(count);
@@ -1987,6 +2035,22 @@ buf_flush_list(
 		ulint		page_count = 0;
 
 		buf_pool = buf_pool_from_array(i);
+
+		if (lsn_limit != IB_ULONGLONG_MAX) {
+			buf_page_t*	bpage;
+
+			buf_flush_list_mutex_enter(buf_pool);
+			bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+			if (!bpage
+			    || bpage->oldest_modification >= lsn_limit) {
+
+				buf_flush_list_mutex_exit(buf_pool);
+				continue;
+			} else {
+
+				buf_flush_list_mutex_exit(buf_pool);
+			}
+		}
 
 		if (!buf_flush_start(buf_pool, BUF_FLUSH_LIST)) {
 			/* We have two choices here. If lsn_limit was

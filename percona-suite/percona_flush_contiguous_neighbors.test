@@ -1,0 +1,36 @@
+# Test for innodb_flush_neighbor_pages=contiguous.
+# The test is very crude: we simply overflow the buffer pool with such a number of
+# new/modified pages that some flushing is bound to happen.
+
+--source include/have_innodb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (id INT AUTO_INCREMENT, foo CHAR(255), PRIMARY KEY (id)) ENGINE=InnoDB;
+
+INSERT INTO t1(foo) VALUES ('a'), ('b');
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+INSERT INTO t1(foo) SELECT foo FROM t1;
+
+# TODO: cannot record a stable value here.  A check of > 0 should be enough,
+# but the variable is not accessible through INFORMATION_SCHEMA currently.
+# SHOW GLOBAL STATUS LIKE 'Innodb_buffer_pool_pages_flushed';
+
+DROP TABLE t1;
