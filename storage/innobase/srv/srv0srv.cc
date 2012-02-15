@@ -265,8 +265,8 @@ that during a time of heavy update/insert activity. */
 
 UNIV_INTERN ulong	srv_max_buf_pool_modified_pct	= 75;
 
-/* the number of purge threads to use from the worker pool (currently 0 or 1).*/
-UNIV_INTERN ulong srv_n_purge_threads = 0;
+/* The number of purge threads to use.*/
+UNIV_INTERN ulong srv_n_purge_threads = 1;
 
 /* the number of pages to purge in one batch */
 UNIV_INTERN ulong srv_purge_batch_size = 20;
@@ -1719,7 +1719,6 @@ srv_get_active_thread_type(void)
 
 	/* Check only on shutdown. */
 	if (ret == SRV_NONE
-	    && srv_n_purge_threads > 0
 	    && srv_shutdown_state != SRV_SHUTDOWN_NONE
 	    && trx_purge_state() != PURGE_STATE_EXIT) {
 
@@ -1812,8 +1811,7 @@ srv_wake_purge_thread_if_not_active(void)
 {
 	ut_ad(!srv_sys_mutex_own());
 
-	if (srv_n_purge_threads > 0
-	    && purge_sys->state == PURGE_STATE_RUN
+	if (purge_sys->state == PURGE_STATE_RUN
 	    && srv_sys->n_threads_active[SRV_PURGE] == 0) {
 
 		srv_release_threads(SRV_PURGE, 1);
@@ -1879,41 +1877,6 @@ srv_sync_log_buffer_in_background(void)
 }
 
 /********************************************************************//**
-Do a full purge, reconfigure the purge sub-system if a dynamic
-change is detected.
-@return total pages purged */
-static
-ulint
-srv_master_do_purge(void)
-/*=====================*/
-{
-	ulint	n_pages_purged;
-	ulint	total_pages_purged = 0;
-
-	ut_a(srv_n_purge_threads == 0);
-
-	do {
-		srv_main_thread_op_info = "master purging";
-
-		/* Check for shutdown and change in purge config. */
-		if (srv_fast_shutdown
-		    && srv_shutdown_state > SRV_SHUTDOWN_NONE) {
-
-			/* Nothing to purge. */
-			n_pages_purged = 0;
-		} else {
-			n_pages_purged = trx_purge(1, srv_purge_batch_size);
-		}
-
-		total_pages_purged += n_pages_purged;
-		srv_sync_log_buffer_in_background();
-
-	} while (n_pages_purged > 0);
-
-	return(total_pages_purged);
-}
-
-/********************************************************************//**
 Make room in the table cache by evicting an unused table.
 @return number of tables evicted. */
 static
@@ -1949,8 +1912,6 @@ srv_shutdown_print_master_pending(
 						print the message */
 	ulint		n_tables_to_drop,	/*!< number of tables to
 						be dropped */
-	ulint		n_pages_purged,		/*!< number of pages just
-						purged */
 	ulint		n_bytes_merged)		/*!< number of change buffer
 						just merged */
 {
@@ -1969,18 +1930,6 @@ srv_shutdown_print_master_pending(
 				"%lu table(s) to be dropped\n",
 				(ulong) n_tables_to_drop);
 		}
-
-		/* Check undo log purge, we only wait for the purge
-		if it is a slow shutdown */
-		if (!srv_fast_shutdown && n_pages_purged) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Waiting for %lu "
-				"undo logs to be purged\n"
-				"  InnoDB: number of pages just "
-				"purged: %lu\n",
-					(ulong) trx_sys->rseg_history_len,
-					(ulong) n_pages_purged);
-			}
 
 		/* Check change buffer merge, we only wait for change buffer
 		merge if it is a slow shutdown */
@@ -2061,14 +2010,6 @@ srv_master_do_active_tasks(void)
 #endif
 	if (srv_shutdown_state > 0) {
 		return;
-	}
-
-	/* Do a purge if we don't have a dedicated purge thread */
-	if (srv_n_purge_threads == 0
-	    && cur_time % SRV_MASTER_PURGE_INTERVAL == 0) {
-		srv_master_do_purge();
-		MONITOR_INC_TIME_IN_MICRO_SECS(
-			MONITOR_SRV_PURGE_MICROSECOND, counter_time);
 	}
 
 	if (srv_shutdown_state > 0) {
@@ -2155,13 +2096,6 @@ srv_master_do_idle_tasks(void)
 	MONITOR_INC_TIME_IN_MICRO_SECS(
 		MONITOR_SRV_LOG_FLUSH_MICROSECOND, counter_time);
 
-	/* Do a purge if we don't have a dedicated purge thread */
-	if (srv_n_purge_threads == 0) {
-		srv_master_do_purge();
-		MONITOR_INC_TIME_IN_MICRO_SECS(
-			MONITOR_SRV_PURGE_MICROSECOND, counter_time);
-	}
-
 	if (srv_shutdown_state > 0) {
 		return;
 	}
@@ -2188,7 +2122,6 @@ srv_master_do_shutdown_tasks(
 	ib_time_t*	last_print_time)/*!< last time the function
 					print the message */
 {
-	ulint		n_pages_purged = 0;
 	ulint		n_bytes_merged = 0;
 	ulint		n_tables_to_drop = 0;
 
@@ -2224,11 +2157,6 @@ srv_master_do_shutdown_tasks(
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
 
-	/* Do a purge if we don't have a dedicated purge thread */
-	if (srv_n_purge_threads == 0) {
-		n_pages_purged = srv_master_do_purge();
-	}
-
 func_exit:
 	/* Make a new checkpoint about once in 10 seconds */
 	srv_main_thread_op_info = "making checkpoint";
@@ -2236,15 +2164,11 @@ func_exit:
 
 	/* Print progress message every 60 seconds during shutdown */
 	if (srv_shutdown_state > 0 && srv_print_verbose_log) {
-		srv_shutdown_print_master_pending(last_print_time,
-						  n_tables_to_drop,
-						  n_pages_purged,
-						  n_bytes_merged);
+		srv_shutdown_print_master_pending(
+			last_print_time, n_tables_to_drop, n_bytes_merged);
 	}
 
-	return(n_pages_purged
-	       || n_bytes_merged
-               || n_tables_to_drop);
+	return(n_bytes_merged || n_tables_to_drop);
 }
 
 /*********************************************************************//**
@@ -2275,15 +2199,6 @@ DECLARE_THREAD(srv_master_thread)(
 	srv_slot_t*	slot;
 	ulint		old_activity_count = srv_get_activity_count();
 	ib_time_t	last_print_time;
-
-	if (srv_n_purge_threads == 0) {
-		/* Note that we are shutting down. */
-		rw_lock_x_lock(&purge_sys->latch);
-
-		purge_sys->state = PURGE_STATE_RUN;
-
-		rw_lock_x_unlock(&purge_sys->latch);
-	}
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
@@ -2340,16 +2255,6 @@ suspend_thread:
 	os_event_wait(slot->event);
 
 	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-		if (srv_n_purge_threads == 0) {
-			/* Note that we are shutting down. */
-			rw_lock_x_lock(&purge_sys->latch);
-
-			purge_sys->state = PURGE_STATE_EXIT;
-
-			purge_sys->running = false;
-
-			rw_lock_x_unlock(&purge_sys->latch);
-		}
 		os_thread_exit(NULL);
 	}
 
@@ -2801,8 +2706,7 @@ void
 srv_purge_wakeup(void)
 /*==================*/
 {
-	if (srv_n_purge_threads > 0
-	    && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
+	if (srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
 
 		srv_release_threads(SRV_PURGE, 1);
 
