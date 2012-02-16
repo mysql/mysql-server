@@ -75,7 +75,13 @@ public:
   bool     do_send_rows;
   table_map all_table_map;   ///< Set of tables contained in query
   table_map const_table_map; ///< Set of tables found to be const
-  table_map found_const_table_map; ///< Tables that are const and non-empty
+  /**
+     Const tables which are either:
+     - not empty
+     - empty but inner to a LEFT JOIN, thus "considered" not empty for the
+     rest of execution (a NULL-complemented row will be used).
+  */
+  table_map found_const_table_map;
   table_map outer_join;      ///< Bitmap of all inner tables from outer joins
   /* Number of records produced after join + group operation */
   ha_rows  send_records;
