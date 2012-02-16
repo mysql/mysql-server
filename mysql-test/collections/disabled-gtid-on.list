@@ -1,12 +1,3 @@
-rpl_ignore_table : Skipped due to assertion problems.
-rpl_replicate_ignore_db: Skipped due to assertion problems.
-rpl_alter_repository: Skipped due to assertion problems.
-rpl_stm_lcase_tblnames: Skipped due to assertion problems.
-rpl_row_lcase_tblnames: Skipped due to assertion problems.
-rpl.rpl_multi_update4: Skipped due to assertion problems.
-
-
-
 rpl_loaddata_s : Skipped and the reason requires further analysis.
 rpl_server_id2 : Skipped and the reason requires furhter analysis.
 rpl_server_id_ignore : Skipped and the reason requires further analysis.
