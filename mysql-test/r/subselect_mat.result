@@ -1793,7 +1793,7 @@ SELECT * FROM t1
 WHERE a IN ( SELECT MIN(a) FROM t1 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
 Note	1003	select 8 AS `a` from dual where <expr_cache><8>(<in_optimizer>(8,<exists>(select min(`test`.`t1`.`a`) from `test`.`t1` having (<cache>(8) = <ref_null_helper>(min(`test`.`t1`.`a`))))))
 DROP TABLE t1;
@@ -1811,6 +1811,43 @@ a	b	c
 4	4	2
 4	4	4
 DROP TABLE t1,t2;
+#
+# BUG#922254: Assertion `0' failed at item_cmpfunc.cc:5899: Item* Item_equal::get_first(JOIN_TAB*, Item*)
+#
+CREATE TABLE t1 ( a VARCHAR(3) );
+CREATE TABLE t2 ( b VARCHAR(3), c VARCHAR(8), KEY(c) );
+INSERT INTO t2 VALUES ('USA','Abilene'),('USA','Akron');
+EXPLAIN
+SELECT * FROM
+( SELECT * FROM t1 ) AS alias1,
+t2 AS alias2
+WHERE b = a AND a IN (
+SELECT alias3.c
+FROM t2 AS alias3, t2 AS alias4
+WHERE alias4.c = alias3.b
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+3	MATERIALIZED	alias3	ALL	NULL	NULL	NULL	NULL	2	
+3	MATERIALIZED	alias4	index	c	c	11	NULL	2	Using where; Using index; Using join buffer (flat, BNL join)
+DROP TABLE t1,t2;
+#
+# BUG#928048: Query containing IN subquery with OR in the where clause returns a wrong result
+#
+create table t1 (a int, b int);
+insert into t1 values (7,5), (3,3), (5,4), (9,3);
+create table t2 (a int, b int, index i_a(a));
+insert into t2 values
+(4,2), (7,9), (7,4), (3,1), (5,3), (3,1), (9,4), (8,1);
+explain select * from t1 where t1.a in (select a from t2 where t2.a=7 or t2.b<=1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	MATERIALIZED	t2	ALL	i_a	NULL	NULL	NULL	8	Using where
+select * from t1 where t1.a in (select a from t2 where t2.a=7 or t2.b<=1);
+a	b
+7	5
+3	3
+drop table t1,t2;
 # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;

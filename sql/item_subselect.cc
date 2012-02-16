@@ -1271,7 +1271,8 @@ void Item_exists_subselect::fix_length_and_dec()
     We need only 1 row to determine existence (i.e. any EXISTS that is not
     an IN always requires LIMIT 1)
   */
-  unit->global_parameters->select_limit= new Item_int((int32) 1);
+  thd->change_item_tree(&unit->global_parameters->select_limit,
+                        new Item_int((int32) 1));
   DBUG_PRINT("info", ("Set limit to 1"));
   DBUG_VOID_RETURN;
 }
@@ -1597,7 +1598,6 @@ Item_in_subselect::single_value_transformer(JOIN *join)
                               (Item**)optimizer->get_cache(),
 			      (char *)"<no matter>",
 			      (char *)in_left_expr_name);
-
   }
 
   DBUG_RETURN(false);
@@ -1684,10 +1684,6 @@ bool Item_allany_subselect::transform_into_max_min(JOIN *join)
 
     DBUG_EXECUTE("where",
                  print_where(item, "rewrite with MIN/MAX", QT_ORDINARY););
-    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-    {
-      select_lex->set_non_agg_field_used(false);
-    }
 
     save_allow_sum_func= thd->lex->allow_sum_func;
     thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
@@ -2244,7 +2240,12 @@ bool Item_in_subselect::create_in_to_exists_cond(JOIN *join_arg)
   /*
     The IN=>EXISTS transformation makes non-correlated subqueries correlated.
   */
-  join_arg->select_lex->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
+  if (!left_expr->const_item() || left_expr->is_expensive())
+  {
+    join_arg->select_lex->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
+    join_arg->select_lex->master_unit()->uncacheable|= 
+                                         UNCACHEABLE_DEPENDENT_INJECTED;
+  }
   /*
     The uncacheable property controls a number of actions, e.g. whether to
     save/restore (via init_save_join_tab/restore_tmp) the original JOIN for
@@ -2510,6 +2511,7 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
       left_expr && !left_expr->fixed &&
       left_expr->fix_fields(thd_arg, &left_expr))
     return TRUE;
+  else
   if (Item_subselect::fix_fields(thd_arg, ref))
     return TRUE;
   fixed= TRUE;
@@ -3159,6 +3161,8 @@ bool subselect_uniquesubquery_engine::copy_ref_key()
 
   for (store_key **copy= tab->ref.key_copy ; *copy ; copy++)
   {
+    if ((*copy)->store_key_is_const())
+      continue;
     tab->ref.key_err= (*copy)->copy();
 
     /*

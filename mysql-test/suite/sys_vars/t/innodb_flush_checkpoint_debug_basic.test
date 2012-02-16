@@ -1,0 +1,12 @@
+--source include/have_debug.inc
+--source include/have_xtradb.inc
+
+SELECT @@global.innodb_flush_checkpoint_debug;
+SET @@global.innodb_flush_checkpoint_debug=1;
+SELECT @@global.innodb_flush_checkpoint_debug;
+SET @@global.innodb_flush_checkpoint_debug=0;
+SELECT @@global.innodb_flush_checkpoint_debug;
+--error ER_GLOBAL_VARIABLE
+SET @@session.innodb_flush_checkpoint_debug=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_flush_checkpoint_debug;

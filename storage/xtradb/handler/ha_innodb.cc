@@ -3035,7 +3035,6 @@ skip_overwrite:
 	/* Get the current high water mark format. */
 	innobase_file_format_max = (char*) trx_sys_file_format_max_get();
 
-	btr_search_fully_disabled = (!btr_search_enabled);
 	DBUG_RETURN(FALSE);
 error:
 	DBUG_RETURN(TRUE);
@@ -5839,8 +5838,7 @@ no_commit:
 
 			switch (sql_command) {
 			case SQLCOM_LOAD:
-				if ((trx->duplicates
-				    & (TRX_DUP_IGNORE | TRX_DUP_REPLACE))) {
+				if (trx->duplicates) {
 
 					goto set_max_autoinc;
 				}
@@ -6128,8 +6126,7 @@ ha_innobase::update_row(
 	    && table->next_number_field
 	    && new_row == table->record[0]
 	    && thd_sql_command(user_thd) == SQLCOM_INSERT
-	    && (trx->duplicates & (TRX_DUP_IGNORE | TRX_DUP_REPLACE))
-		== TRX_DUP_IGNORE)  {
+	    && trx->duplicates)  {
 
 		ulonglong	auto_inc;
 		ulonglong	col_max_value;
@@ -6515,6 +6512,7 @@ ha_innobase::index_read(
 			(byte*) key_ptr,
 			(ulint) key_len,
 			prebuilt->trx);
+		DBUG_ASSERT(prebuilt->search_tuple->n_fields > 0);
 	} else {
 		/* We position the cursor to the last or the first entry
 		in the index */
@@ -6616,7 +6614,6 @@ ha_innobase::innobase_get_index(
 	dict_index_t*	index = 0;
 
 	DBUG_ENTER("innobase_get_index");
-	ha_statistic_increment(&SSV::ha_read_key_count);
 
 	if (keynr != MAX_KEY && table->s->keys > 0) {
 		key = table->key_info + keynr;
@@ -6630,13 +6627,13 @@ ha_innobase::innobase_get_index(
 			table. Only print message if the index translation
 			table exists */
 			if (share->idx_trans_tbl.index_mapping) {
-				sql_print_error("InnoDB could not find "
-						"index %s key no %u for "
-						"table %s through its "
-						"index translation table",
-						key ? key->name : "NULL",
-						keynr,
-						prebuilt->table->name);
+				sql_print_warning("InnoDB could not find "
+						  "index %s key no %u for "
+						  "table %s through its "
+						  "index translation table",
+						  key ? key->name : "NULL",
+						  keynr,
+						  prebuilt->table->name);
 			}
 
 			index = dict_table_get_index_on_name(prebuilt->table,
@@ -8465,6 +8462,9 @@ ha_innobase::records_in_range(
 					 (const uchar*) 0),
 				(ulint) (min_key ? min_key->length : 0),
 				prebuilt->trx);
+	DBUG_ASSERT(min_key
+		    ? range_start->n_fields > 0
+		    : range_start->n_fields == 0);
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_end, (byte*) key_val_buff2,
@@ -8473,6 +8473,9 @@ ha_innobase::records_in_range(
 					 (const uchar*) 0),
 				(ulint) (max_key ? max_key->length : 0),
 				prebuilt->trx);
+	DBUG_ASSERT(max_key
+		    ? range_end->n_fields > 0
+		    : range_end->n_fields == 0);
 
 	mode1 = convert_search_mode_to_innobase(min_key ? min_key->flag :
 						HA_READ_KEY_EXACT);
@@ -9217,7 +9220,10 @@ ha_innobase::check(
 		putc('\n', stderr);
 #endif
 
-		if (!btr_validate_index(index, prebuilt->trx)) {
+		/* If this is an index being created, break */
+		if (*index->name == TEMP_INDEX_PREFIX) {
+			break;
+		}  else if (!btr_validate_index(index, prebuilt->trx)) {
 			is_ok = FALSE;
 
 			innobase_format_name(
@@ -9770,6 +9776,7 @@ ha_innobase::extra(
 			break;
 		case HA_EXTRA_RESET_STATE:
 			reset_template();
+			thd_to_trx(ha_thd())->duplicates = 0;
 			break;
 		case HA_EXTRA_NO_KEYREAD:
 			prebuilt->read_just_key = 0;
@@ -9787,18 +9794,17 @@ ha_innobase::extra(
 			parameters below.  We must not invoke update_thd()
 			either, because the calling threads may change.
 			CAREFUL HERE, OR MEMORY CORRUPTION MAY OCCUR! */
-		case HA_EXTRA_IGNORE_DUP_KEY:
+		case HA_EXTRA_INSERT_WITH_UPDATE:
 			thd_to_trx(ha_thd())->duplicates |= TRX_DUP_IGNORE;
+			break;
+		case HA_EXTRA_NO_IGNORE_DUP_KEY:
+			thd_to_trx(ha_thd())->duplicates &= ~TRX_DUP_IGNORE;
 			break;
 		case HA_EXTRA_WRITE_CAN_REPLACE:
 			thd_to_trx(ha_thd())->duplicates |= TRX_DUP_REPLACE;
 			break;
 		case HA_EXTRA_WRITE_CANNOT_REPLACE:
 			thd_to_trx(ha_thd())->duplicates &= ~TRX_DUP_REPLACE;
-			break;
-		case HA_EXTRA_NO_IGNORE_DUP_KEY:
-			thd_to_trx(ha_thd())->duplicates &=
-				~(TRX_DUP_IGNORE | TRX_DUP_REPLACE);
 			break;
 		default:/* Do nothing */
 			;
@@ -12549,10 +12555,42 @@ static MYSQL_SYSVAR_ULINT(checkpoint_age_target, srv_checkpoint_age_target,
   "Control soft limit of checkpoint age. (0 : not control)",
   NULL, NULL, 0, 0, ~0UL, 0);
 
-static MYSQL_SYSVAR_ULINT(flush_neighbor_pages, srv_flush_neighbor_pages,
-  PLUGIN_VAR_RQCMDARG,
-  "Enable/Disable flushing also neighbor pages. 0:disable 1:enable",
-  NULL, NULL, 1, 0, 1, 0);
+static
+void
+innodb_flush_neighbor_pages_update(
+  THD* thd,
+  struct st_mysql_sys_var* var,
+  void* var_ptr,
+  const void* save)
+{
+  *(long *)var_ptr = (*(long *)save) % 3;
+}
+
+const char *flush_neighbor_pages_names[]=
+{
+  "none", /* 0 */
+  "area",
+  "cont", /* 2 */
+  /* For compatibility with the older patch */
+  "0", /* "none" + 3 */
+  "1", /* "area" + 3 */
+  "2", /* "cont" + 3 */
+  NullS
+};
+
+TYPELIB flush_neighbor_pages_typelib=
+{
+  array_elements(flush_neighbor_pages_names) - 1,
+  "flush_neighbor_pages_typelib",
+  flush_neighbor_pages_names,
+  NULL
+};
+
+static MYSQL_SYSVAR_ENUM(flush_neighbor_pages, srv_flush_neighbor_pages,
+  PLUGIN_VAR_RQCMDARG, "Neighbor page flushing behaviour: none: do not flush, "
+                       "[area]: flush selected pages one-by-one, "
+                       "cont: flush a contiguous block of pages", NULL,
+  innodb_flush_neighbor_pages_update, 1, &flush_neighbor_pages_typelib);
 
 static
 void
@@ -12617,6 +12655,14 @@ static MYSQL_SYSVAR_ENUM(adaptive_flushing_method, srv_adaptive_flushing_method,
   PLUGIN_VAR_RQCMDARG,
   "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
   NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
+
+#ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_ULONG(flush_checkpoint_debug, srv_flush_checkpoint_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Debug flags for InnoDB flushing and checkpointing (0=none,"
+  "1=stop preflush and checkpointing)",
+  NULL, NULL, 0, 0, 1, 0);
+#endif
 
 static MYSQL_SYSVAR_ULONG(import_table_from_xtrabackup, srv_expand_import,
   PLUGIN_VAR_RQCMDARG,
@@ -12764,6 +12810,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
   MYSQL_SYSVAR(rollback_segments),
+#ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(flush_checkpoint_debug),
+#endif
   MYSQL_SYSVAR(corrupt_table_action),
   MYSQL_SYSVAR(lazy_drop_table),
   MYSQL_SYSVAR(fake_changes),

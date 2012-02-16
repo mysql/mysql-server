@@ -1693,10 +1693,13 @@ log_preflush_pool_modified_pages(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
+ retry:
 	n_pages = buf_flush_list(ULINT_MAX, new_oldest);
 
-	if (sync) {
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+	if (sync && n_pages != 0) {
+		//buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+		os_thread_sleep(100000);
+		goto retry;
 	}
 
 	if (n_pages == ULINT_UNDEFINED) {
@@ -2020,6 +2023,13 @@ log_checkpoint(
 {
 	ib_uint64_t	oldest_lsn;
 
+#ifdef UNIV_DEBUG
+	if (srv_flush_checkpoint_debug == 1) {
+
+		return TRUE;
+	}
+#endif
+
 	if (recv_recovery_is_on()) {
 		recv_apply_hashed_log_recs(TRUE);
 	}
@@ -2124,7 +2134,11 @@ log_make_checkpoint_at(
 					physical write will always be made to
 					log files */
 {
-	/* Preflush pages synchronously */
+#ifdef UNIV_DEBUG
+	if (srv_flush_checkpoint_debug == 1)
+		return;
+#endif
+/* Preflush pages synchronously */
 
 	while (!log_preflush_pool_modified_pages(lsn, TRUE));
 
@@ -2216,7 +2230,13 @@ log_checkpoint_margin(void)
 	ibool		checkpoint_sync;
 	ibool		do_checkpoint;
 	ibool		success;
-loop:
+
+#ifdef UNIV_DEBUG
+	if (srv_flush_checkpoint_debug == 1)
+		return;
+#endif
+
+ loop:
 	sync = FALSE;
 	checkpoint_sync = FALSE;
 	do_checkpoint = FALSE;
@@ -2239,13 +2259,15 @@ loop:
 		/* A flush is urgent: we have to do a synchronous preflush */
 
 		sync = TRUE;
-		advance = 2 * (age - log->max_modified_age_sync);
+		advance = age - log->max_modified_age_sync;
 	} else if (age > log_max_modified_age_async()) {
 
 		/* A flush is not urgent: we do an asynchronous preflush */
 		advance = age - log_max_modified_age_async();
+		log->check_flush_or_checkpoint = FALSE;
 	} else {
 		advance = 0;
+		log->check_flush_or_checkpoint = FALSE;
 	}
 
 	checkpoint_age = log->lsn - log->last_checkpoint_lsn;
@@ -2262,9 +2284,9 @@ loop:
 
 		do_checkpoint = TRUE;
 
-		log->check_flush_or_checkpoint = FALSE;
+		//log->check_flush_or_checkpoint = FALSE;
 	} else {
-		log->check_flush_or_checkpoint = FALSE;
+		//log->check_flush_or_checkpoint = FALSE;
 	}
 
 	mutex_exit(&(log->mutex));
@@ -2272,6 +2294,7 @@ loop:
 	if (advance) {
 		ib_uint64_t	new_oldest = oldest_lsn + advance;
 
+retry:
 		success = log_preflush_pool_modified_pages(new_oldest, sync);
 
 		/* If the flush succeeded, this thread has done its part
@@ -2286,7 +2309,7 @@ loop:
 			log->check_flush_or_checkpoint = TRUE;
 
 			mutex_exit(&(log->mutex));
-			goto loop;
+			goto retry;
 		}
 	}
 
@@ -3164,7 +3187,11 @@ void
 log_check_margins(void)
 /*===================*/
 {
-loop:
+#ifdef UNIV_DEBUG
+	if (srv_flush_checkpoint_debug == 1)
+		return;
+#endif
+ loop:
 	log_flush_margin();
 
 	log_checkpoint_margin();

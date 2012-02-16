@@ -1463,10 +1463,10 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       In case the wait time can't be determined there is an upper limit which
       causes try_lock() to abort with a time out.
 
-      The 'TRUE' parameter indicate that the lock is allowed to timeout
+      The 'TIMEOUT' parameter indicate that the lock is allowed to timeout
 
     */
-    if (try_lock(thd, Query_cache::WAIT))
+    if (try_lock(thd, Query_cache::TIMEOUT))
       DBUG_VOID_RETURN;
     if (query_cache_size == 0)
     {
@@ -1674,6 +1674,17 @@ Query_cache::send_result_to_client(THD *thd, char *org_sql, uint query_length)
   if (is_disabled() || thd->locked_tables_mode ||
       thd->variables.query_cache_type == 0)
     goto err;
+
+  /*
+    The following can only happen for prepared statements that was found
+    during parsing or later that the query was not cacheable.
+  */
+  if (!thd->lex->safe_to_cache_query)
+  {
+    DBUG_PRINT("qcache", ("SELECT is non-cacheable"));
+    goto err;
+  }
+
   DBUG_ASSERT(query_cache_size != 0);           // otherwise cache would be disabled
 
   thd->query_cache_is_applicable= 1;
@@ -1959,6 +1970,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
           faster.
         */
         thd->query_cache_is_applicable= 0;      // Query can't be cached
+        thd->lex->safe_to_cache_query= 0;       // For prepared statements
         BLOCK_UNLOCK_RD(query_block);
         DBUG_RETURN(-1);
       }
@@ -1975,6 +1987,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 		  table_list.db, table_list.alias));
       unlock();
       thd->query_cache_is_applicable= 0;        // Query can't be cached
+      thd->lex->safe_to_cache_query= 0;         // For prepared statements
       BLOCK_UNLOCK_RD(query_block);
       DBUG_RETURN(-1);				// Privilege error
     }
@@ -1984,6 +1997,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 			    table_list.db, table_list.alias));
       BLOCK_UNLOCK_RD(query_block);
       thd->query_cache_is_applicable= 0;        // Query can't be cached
+      thd->lex->safe_to_cache_query= 0;         // For prepared statements
       goto err_unlock;				// Parse query
     }
 #endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
@@ -2007,7 +2021,13 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                                   table->key_length());
       }
       else
+      {
+        /*
+          As this can change from call to call, don't reset set
+          thd->lex->safe_to_cache_query
+        */
         thd->query_cache_is_applicable= 0;      // Query can't be cached
+      }
       /* End the statement transaction potentially started by engine. */
       trans_rollback_stmt(thd);
       goto err_unlock;				// Parse query
@@ -3901,6 +3921,7 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
       DBUG_PRINT("qcache", ("Don't cache statement as it refers to "
                             "tables with column privileges."));
       thd->query_cache_is_applicable= 0;        // Query can't be cached
+      thd->lex->safe_to_cache_query= 0;         // For prepared statements
       DBUG_RETURN(0);
     }
 #endif
@@ -4037,6 +4058,10 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    tables_used->db, tables_used->alias));
+      /*
+        As this can change from call to call, don't reset set
+        thd->lex->safe_to_cache_query
+      */
       thd->query_cache_is_applicable= 0;        // Query can't be cached
       DBUG_RETURN(1);
     }

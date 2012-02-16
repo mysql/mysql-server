@@ -118,7 +118,8 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view);
 */
 
 bool check_view_single_update(List<Item> &fields, List<Item> *values,
-                              TABLE_LIST *view, table_map *map)
+                              TABLE_LIST *view, table_map *map,
+                              bool insert)
 {
   /* it is join view => we need to find the table for update */
   List_iterator_fast<Item> it(fields);
@@ -156,6 +157,14 @@ bool check_view_single_update(List<Item> &fields, List<Item> *values,
   */
   tbl->table->insert_values= view->table->insert_values;
   view->table= tbl->table;
+  if (!tbl->single_table_updatable())
+  {
+    if (insert)
+      my_error(ER_NON_INSERTABLE_TABLE, MYF(0), view->alias, "INSERT");
+    else
+      my_error(ER_NON_UPDATABLE_TABLE, MYF(0), view->alias, "UPDATE");
+    return TRUE;
+  }
   *map= tables;
 
   return FALSE;
@@ -200,7 +209,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 {
   TABLE *table= table_list->table;
 
-  if (!table_list->updatable)
+  if (!table_list->single_table_updatable())
   {
     my_error(ER_NON_INSERTABLE_TABLE, MYF(0), table_list->alias, "INSERT");
     return -1;
@@ -276,7 +285,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       if (check_view_single_update(fields,
                                    fields_and_values_from_different_maps ?
                                    (List<Item>*) 0 : &values,
-                                   table_list, map))
+                                   table_list, map, true))
         return -1;
       table= table_list->table;
     }
@@ -363,7 +372,7 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
   if (insert_table_list->is_view() &&
       insert_table_list->is_merged_derived() &&
       check_view_single_update(update_fields, &update_values,
-                               insert_table_list, map))
+                               insert_table_list, map, false))
     return -1;
 
   if (table->timestamp_field)
@@ -1255,7 +1264,7 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
   bool insert_into_view= (table_list->view != 0);
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
-  if (!table_list->updatable)
+  if (!table_list->single_table_updatable())
   {
     my_error(ER_NON_INSERTABLE_TABLE, MYF(0), table_list->alias, "INSERT");
     DBUG_RETURN(TRUE);

@@ -243,7 +243,7 @@ extern long long	srv_ibuf_max_size;
 extern ulong	srv_ibuf_active_contract;
 extern ulong	srv_ibuf_accel_rate;
 extern ulint	srv_checkpoint_age_target;
-extern ulint	srv_flush_neighbor_pages;
+extern ulong	srv_flush_neighbor_pages;
 extern ulint	srv_deprecated_enable_unsafe_group_commit;
 extern ulong	srv_read_ahead;
 extern ulong	srv_adaptive_flushing_method;
@@ -288,6 +288,9 @@ extern	ibool	srv_print_lock_waits;
 extern	ibool	srv_print_buf_io;
 extern	ibool	srv_print_log_io;
 extern	ibool	srv_print_latch_waits;
+
+extern	ulong	srv_flush_checkpoint_debug;
+
 #else /* UNIV_DEBUG */
 # define srv_print_thread_releases	FALSE
 # define srv_print_lock_waits		FALSE

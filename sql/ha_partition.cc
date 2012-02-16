@@ -4069,6 +4069,8 @@ int ha_partition::rnd_next(uchar *buf)
   int result= HA_ERR_END_OF_FILE;
   uint part_id= m_part_spec.start_part;
   DBUG_ENTER("ha_partition::rnd_next");
+
+  /* upper level will increment this once again at end of call */
   decrement_statistics(&SSV::ha_read_rnd_next_count);
 
   if (NO_CURRENT_PART_ID == part_id)

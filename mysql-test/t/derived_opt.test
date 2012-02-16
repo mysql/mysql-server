@@ -202,5 +202,15 @@ RIGHT JOIN (
 
 drop table t1,t2,t3,t4;
 
+--echo #
+--echo # LP BUG#910123 MariaDB 5.3.3 causes 1093 error on Drupal
+--echo # Fix: force materialization in case of conflict
+--echo #
+SET optimizer_switch='derived_merge=on';
+CREATE TABLE t1 ( i INT );
+INSERT INTO t1 VALUES ( (SELECT 1 FROM ( SELECT * FROM t1 ) as a) );
+drop table t1;
+set optimizer_switch=@save_optimizer_switch;
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;

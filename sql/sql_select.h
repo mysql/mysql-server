@@ -374,6 +374,12 @@ typedef struct st_join_table {
   /* Buffer to save index tuple to be able to skip duplicates */
   uchar *loosescan_buf;
   
+  /* 
+    Index used by LooseScan (we store it here separately because ref access
+    stores it in tab->ref.key, while range scan stores it in tab->index, etc)
+  */
+  uint loosescan_key;
+
   /* Length of key tuple (depends on #keyparts used) to store in the above */
   uint loosescan_key_len;
 
@@ -986,6 +992,13 @@ public:
   
   /* We also maintain a stack of join optimization states in * join->positions[] */
 /******* Join optimization state members end *******/
+
+  /*
+    Tables within complex firstmatch ranges (i.e. those where inner tables are
+    interleaved with outer tables). Join buffering cannot be used for these.
+  */
+  table_map complex_firstmatch_tables;
+
   /*
     The cost of best complete join plan found so far during optimization,
     after optimization phase - cost of picked join order (not taking into
@@ -1440,6 +1453,7 @@ public:
   virtual ~store_key() {}			/** Not actually needed */
   virtual enum Type type() const=0;
   virtual const char *name() const=0;
+  virtual bool store_key_is_const() { return false; }
 
   /**
     @brief sets ignore truncation warnings mode and calls the real copy method
@@ -1593,6 +1607,7 @@ public:
 
   enum Type type() const { return CONST_ITEM_STORE_KEY; }
   const char *name() const { return "const"; }
+  bool store_key_is_const() { return true; }
 
 protected:  
   enum store_key_result copy_inner()

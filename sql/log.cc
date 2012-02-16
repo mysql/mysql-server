@@ -5372,6 +5372,7 @@ void MYSQL_BIN_LOG::purge()
     {
       purge_logs_before_date(purge_time);
     }
+    DEBUG_SYNC(current_thd, "after_purge_logs_before_date");
   }
 #endif
 }

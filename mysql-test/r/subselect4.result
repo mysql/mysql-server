@@ -711,7 +711,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
 f1	f2
 SET @@optimizer_switch = 'materialization=off,in_to_exists=on,semijoin=off';
@@ -802,7 +802,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
 f1	f2
 INSERT INTO t1 VALUES (1, 2);
@@ -897,7 +897,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
 f1	f2
 SET @@optimizer_switch = 'materialization=off,in_to_exists=on,semijoin=off';
@@ -988,7 +988,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
 f1	f2
 set @@optimizer_switch=@save_optimizer_switch;
