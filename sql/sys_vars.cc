@@ -4091,13 +4091,17 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
 
 static Sys_var_enum Sys_gtid_mode(
        "gtid_mode",
-       "Whether Global Transaction IDentifiers are enabled: OFF, "
+       /*
+       "Whether Global Transaction Identifiers (GTIDs) are enabled: OFF, "
        "UPGRADE_STEP_1, UPGRADE_STEP_2, or ON. OFF means GTIDs are not "
        "supported at all, ON means GTIDs are supported by all servers in "
        "the replication topology. To safely switch from OFF to ON, first "
        "set all servers to UPGRADE_STEP_1, then set all servers to "
        "UPGRADE_STEP_2, then wait for all anonymous transactions to "
        "be re-executed on all servers, and finally set all servers to ON.",
+       */
+       "Whether Global Transaction Identifiers (GTIDs) are enabled. Can be "
+       "ON or OFF.",
        READ_ONLY GLOBAL_VAR(gtid_mode), CMD_LINE(REQUIRED_ARG),
        gtid_mode_names, DEFAULT(GTID_MODE_OFF),
        NO_MUTEX_GUARD, NOT_IN_BINLOG
