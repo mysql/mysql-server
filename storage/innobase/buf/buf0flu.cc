@@ -320,7 +320,7 @@ buf_flush_insert_into_flush_list(
 
 	/* If we are in the recovery then we need to update the flush
 	red-black tree as well. */
-	if (buf_pool->flush_rbt) {
+	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
 		buf_flush_list_mutex_exit(buf_pool);
 		buf_flush_insert_sorted_into_flush_list(buf_pool, block, lsn);
 		return;
@@ -463,7 +463,7 @@ buf_flush_ready_for_replace(
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(bpage->in_LRU_list);
 
-	if (buf_page_in_file(bpage)) {
+	if (UNIV_LIKELY(buf_page_in_file(bpage))) {
 
 		return(bpage->oldest_modification == 0
 		       && buf_page_get_io_fix(bpage) == BUF_IO_NONE
@@ -472,9 +472,10 @@ buf_flush_ready_for_replace(
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		" InnoDB: Error: buffer block state %lu in the LRU list!\n",
+		"  InnoDB: Error: buffer block state %lu"
+		" in the LRU list!\n",
 		(ulong) buf_page_get_state(bpage));
-	ut_print_buf(stderr, bpage, sizeof(*bpage));
+	ut_print_buf(stderr, bpage, sizeof(buf_page_t));
 	putc('\n', stderr);
 
 	return(FALSE);
@@ -566,7 +567,7 @@ buf_flush_remove(
 	}
 
 	/* If the flush_rbt is active then delete from there as well. */
-	if (buf_pool->flush_rbt) {
+	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
 		buf_flush_delete_from_flush_rbt(bpage);
 	}
 
@@ -627,7 +628,7 @@ buf_flush_relocate_on_flush_list(
 
 	/* If recovery is active we must swap the control blocks in
 	the flush_rbt as well. */
-	if (buf_pool->flush_rbt) {
+	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
 		buf_flush_delete_from_flush_rbt(bpage);
 		prev_b = buf_flush_insert_in_flush_rbt(dpage);
 	}
@@ -953,7 +954,7 @@ buf_flush_page(
 /*===========*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	buf_page_t*	bpage,		/*!< in: buffer control block */
-	buf_flush	flush_type)	/*!< in: type of flush */
+	enum buf_flush	flush_type)	/*!< in: type of flush */
 {
 	mutex_t*	block_mutex;
 	ibool		is_uncompressed;
@@ -1088,7 +1089,6 @@ buf_flush_page_try(
 	return(TRUE);
 }
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
-
 /***********************************************************//**
 Flushes to disk all flushable pages within the flush area.
 @return	number of pages flushed */
@@ -1144,8 +1144,7 @@ buf_flush_try_neighbors(
 
 		buf_page_t*	bpage;
 
-		if (n_to_flush != ULINT_UNDEFINED
-		    && (count + n_flushed) >= n_to_flush) {
+		if ((count + n_flushed) >= n_to_flush) {
 
 			/* We have already flushed enough pages and
 			should call it a day. There is, however, one
@@ -1210,10 +1209,10 @@ buf_flush_try_neighbors(
 
 	if (count > 0) {
 		MONITOR_INC_VALUE_CUMULATIVE(
-			MONITOR_FLUSH_NEIGHBOR_TOTAL_PAGE,
-			MONITOR_FLUSH_NEIGHBOR_COUNT,
-			MONITOR_FLUSH_NEIGHBOR_PAGES,
-			(count - 1));
+					MONITOR_FLUSH_NEIGHBOR_TOTAL_PAGE,
+					MONITOR_FLUSH_NEIGHBOR_COUNT,
+					MONITOR_FLUSH_NEIGHBOR_PAGES,
+					(count - 1));
 	}
 
 	return(count);
@@ -1236,8 +1235,7 @@ buf_flush_page_and_try_neighbors(
 	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
 	ulint		n_to_flush,	/*!< in: number of pages to
-					flush, or ULINT_UNDEFINED if there
-					is no upper limit */
+					flush */
 	ulint*		count)		/*!< in/out: number of pages
 					flushed */
 {
@@ -1271,8 +1269,11 @@ buf_flush_page_and_try_neighbors(
 		mutex_exit(block_mutex);
 
 		/* Try to flush also all the neighbors */
-		*count += buf_flush_try_neighbors(
-			space, offset, flush_type, *count, n_to_flush);
+		*count += buf_flush_try_neighbors(space,
+						  offset,
+						  flush_type,
+						  *count,
+						  n_to_flush);
 
 		buf_pool_mutex_enter(buf_pool);
 		flushed = TRUE;
@@ -1401,7 +1402,8 @@ buf_flush_LRU_list_batch(
 				bpage = UT_LIST_GET_PREV(LRU, bpage);
 			}
 		} else if (buf_flush_page_and_try_neighbors(
-				bpage, BUF_FLUSH_LRU, max, &count)) {
+				bpage,
+				BUF_FLUSH_LRU, max, &count)) {
 
 			/* buf_pool->mutex was released.
 			Restart the scan. */
@@ -1469,12 +1471,7 @@ static
 ulint
 buf_do_flush_list_batch(
 /*====================*/
-	const trx_t*	trx,		/*!< in: transaction, to check if the
-					operation should be aborted or NULL */
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	ulint           space,          /*!< in: flush pages from only this
-					tablespace, ULINT_UNDEFINED for
-					all spaces */
 	ulint		min_n,		/*!< in: wished minimum mumber
 					of blocks flushed (it is not
 					guaranteed that the actual
@@ -1486,15 +1483,11 @@ buf_do_flush_list_batch(
 					min_n) */
 {
 	ulint		len;
-	buf_page_t*	bpage = 0;
+	buf_page_t*	bpage;
 	ulint		count = 0;
 	ulint		scanned = 0;
-	bool		restart = true;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
-
-	ut_a(space == ULINT_UNDEFINED
-	     || (lsn_limit == LSN_MAX && min_n == ULINT_MAX));
 
 	/* If we have flushed enough, leave the loop */
 	do {
@@ -1509,34 +1502,9 @@ buf_do_flush_list_batch(
 		set a limit on how farther we are willing to traverse
 		the list. */
 		len = UT_LIST_GET_LEN(buf_pool->flush_list);
-
-		if (space == ULINT_UNDEFINED) {
-			bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
-		} else {
-			/* After we exit the while loop below and before we
-			get here, bpage could have been flushed by some other
-			thread and its oldest modification reset. */
-
-			if (restart || bpage->oldest_modification == 0) {
-
-				ut_ad(bpage == 0
-				      || bpage->oldest_modification > 0
-				      || !bpage->in_flush_list);
-
-				bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
-			}
-
-
-			while (bpage != 0
-				&& space != buf_page_get_space(bpage)) {
-
-				ut_ad(bpage->in_flush_list);
-				bpage = UT_LIST_GET_PREV(list, bpage);
-			}
-		}
+		bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 
 		if (bpage) {
-			ut_ad(bpage->in_flush_list);
 			ut_a(bpage->oldest_modification > 0);
 		}
 
@@ -1553,8 +1521,6 @@ buf_do_flush_list_batch(
 
 		buf_flush_list_mutex_exit(buf_pool);
 
-		restart = false;
-
 		/* The list may change during the flushing and we cannot
 		safely preserve within this function a pointer to a
 		block in the list! */
@@ -1564,11 +1530,10 @@ buf_do_flush_list_batch(
 				bpage, BUF_FLUSH_LIST, min_n, &count)) {
 
 			++scanned;
-
 			buf_flush_list_mutex_enter(buf_pool);
 
 			/* If we are here that means that buf_pool->mutex
-			was not released in buf_flush_page_and_try_neighbors()
+			 was not released in buf_flush_page_and_try_neighbors()
 			above and this guarantees that bpage didn't get
 			relocated since we released the flush_list
 			mutex above. There is a chance, however, that
@@ -1580,7 +1545,6 @@ buf_do_flush_list_batch(
 			we start all over again. */
 			if (bpage->oldest_modification == 0) {
 				buf_flush_list_mutex_exit(buf_pool);
-				restart = true;
 				break;
 			}
 
@@ -1590,27 +1554,15 @@ buf_do_flush_list_batch(
 
 			buf_flush_list_mutex_exit(buf_pool);
 
-			if (bpage
-			    && space != ULINT_UNDEFINED
-			    && bpage->space != space) {
-
-				break;
-			}
-
 			--len;
 		}
 
-		if (trx != 0 && trx_is_interrupted(trx)) {
-			break;
-		}
+	} while (count < min_n && bpage != NULL && len > 0);
 
-	} while (count < min_n&& bpage != NULL && len > 0);
-
-	MONITOR_INC_VALUE_CUMULATIVE(
-		MONITOR_FLUSH_BATCH_SCANNED,
-		MONITOR_FLUSH_BATCH_SCANNED_NUM_CALL,
-		MONITOR_FLUSH_BATCH_SCANNED_PER_CALL,
-		scanned);
+	MONITOR_INC_VALUE_CUMULATIVE(MONITOR_FLUSH_BATCH_SCANNED,
+				     MONITOR_FLUSH_BATCH_SCANNED_NUM_CALL,
+				     MONITOR_FLUSH_BATCH_SCANNED_PER_CALL,
+				     scanned);
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
@@ -1629,12 +1581,7 @@ static
 ulint
 buf_flush_batch(
 /*============*/
-	const trx_t*	trx,		/*!< in: transaction, to check if the
-					operation should be aborted or NULL */
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	ulint           space,          /*!< in: flush pages from only this
-					tablespace, ULINT_UNDEFINED for all
-					pages */
 	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST; if BUF_FLUSH_LIST,
 					then the caller must not own any
@@ -1665,8 +1612,7 @@ buf_flush_batch(
 		count = buf_do_LRU_batch(buf_pool, min_n);
 		break;
 	case BUF_FLUSH_LIST:
-		count = buf_do_flush_list_batch(
-			trx, buf_pool, space, min_n, lsn_limit);
+		count = buf_do_flush_list_batch(buf_pool, min_n, lsn_limit);
 		break;
 	default:
 		ut_error;
@@ -1830,158 +1776,13 @@ buf_flush_LRU(
 		return(ULINT_UNDEFINED);
 	}
 
-	/* Pass 0 for trx because this flush is not session specific. */
-
-	page_count = buf_flush_batch(
-		0, buf_pool, ULINT_UNDEFINED, BUF_FLUSH_LRU, min_n, 0);
+	page_count = buf_flush_batch(buf_pool, BUF_FLUSH_LRU, min_n, 0);
 
 	buf_flush_end(buf_pool, BUF_FLUSH_LRU);
 
 	buf_flush_common(BUF_FLUSH_LRU, page_count);
 
 	return(page_count);
-}
-
-/*******************************************************************//**
-This utility flushes dirty blocks from the end of the flush list.
-@retval number of blocks for which the write request was queued or
-@retval	ULINT_UNDEFINED if the flush was skipped. */
-static
-ulint
-buf_flush_buffer_pool(
-/*==================*/
-	buf_pool_t*	buf_pool,	/*!< in/out: Buffer pool instance to
-					flush */
-	ulint           space,          /*!< in: Flush pages only from this
-					tablespace or ULINT_UNDEFINED for all
-					tablespaces */
-	ulint		min_n,		/*!< in: desired minimum mumber of
-					blocks flushed (it is not guaranteed
-					that the actual number is that big) */
-	lsn_t		lsn_limit,	/*!< in the case BUF_FLUSH_LIST all
-					blocks whose oldest_modification is
-					smaller than this should be flushed
-					(if their number does not exceed
-					min_n), otherwise ignored */
-	const trx_t*	trx)		/*!< in: transaction, to check if the
-					operation should be aborted or NULL */
-{
-	if (!buf_flush_start(buf_pool, BUF_FLUSH_LIST)) {
-
-		/* We have two choices here. If lsn_limit was
-		specified then skipping an instance of buffer
-		pool means we cannot guarantee that all pages
-		up to lsn_limit has been flushed. We can
-		return right now with failure or we can try
-		to flush remaining buffer pools up to the
-		lsn_limit. We attempt to flush other buffer
-		pools based on the assumption that it will
-		help in the retry which will follow the
-		failure. */
-
-		return(ULINT_UNDEFINED);
-	}
-
-	ulint	n_pages = buf_flush_batch(
-		trx, buf_pool, space, BUF_FLUSH_LIST, min_n, lsn_limit);
-
-	buf_flush_end(buf_pool, BUF_FLUSH_LIST);
-
-	buf_flush_common(BUF_FLUSH_LIST, n_pages);
-
-	if (n_pages > 0) {
-		MONITOR_INC_VALUE_CUMULATIVE(
-			MONITOR_FLUSH_BATCH_TOTAL_PAGE,
-			MONITOR_FLUSH_BATCH_COUNT,
-			MONITOR_FLUSH_BATCH_PAGES,
-			n_pages);
-	}
-
-	return(n_pages);
-}
-
-/*******************************************************************//**
-This utility flushes all dirty blocks that belong to space from all
-buffer pool instances. NOTE: The calling thread is not allowed to own
-any latches on pages! Also, this function will signal the flush batch
-end for a buffer after flushing that buffer pool. The operation will be
-aborted if the transaction is interrupted and a warning message written
-to the error log file.
-@return number of blocks for which the write request was queued or
-	ULINT_UNDEFINED if the operation was aborted. */
-UNIV_INTERN
-ulint
-buf_flush_list(
-/*===========*/
-	const trx_t*	trx,		/*!< in: transaction, to detect if
-					the operation should be interrupted */
-	ulint           space)          /*!< in: Flush pages only from this
-					tablespace. */
-{
-	bool*		flushed;
-	bool		skipped;
-	ulint		n_total_pages = 0;
-
-	flushed = new(std::nothrow) bool[srv_buf_pool_instances];
-
-	memset(flushed, 0x0, sizeof(*flushed) * srv_buf_pool_instances);
-
-	/* Ensure that all buffer pools are flushed, or quit if the
-	transaction/session was killed. */
-	do {
-		skipped = false;
-
-		for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
-
-			if (!flushed[i]) {
-				buf_pool_t*	buf_pool;
-
-				buf_pool = buf_pool_from_array(i);
-
-				ulint	n_pages = buf_flush_buffer_pool(
-					buf_pool, space, ULINT_MAX, LSN_MAX,
-					trx);
-
-				/* Check if the operation should be aborted. */
-				if (trx_is_interrupted(trx)) {
-
-					buf_flush_wait_batch_end(
-						buf_pool, BUF_FLUSH_LIST);
-					break;
-
-				} else if (n_pages == ULINT_UNDEFINED) {
-
-					skipped = true;
-
-				} else {
-					flushed[i] = true;
-					n_total_pages += n_pages;
-
-					buf_flush_wait_batch_end(
-						buf_pool, BUF_FLUSH_LIST);
-				}
-			}
-
-			if (trx_is_interrupted(trx)) {
-				delete [] flushed;
-				return(ULINT_UNDEFINED);
-			}
-		}
-
-	} while (skipped);
-
-#ifdef UNIV_DEBUG
-	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
-		ut_a(flushed[i]);
-	}
-#endif /* UNIV_DEBUG */
-
-	delete [] flushed;
-
-	/* If a quiesce is in progress then we can't skip flushing of a
-	buffer pool. The operation must complete for all buffer pools. */
-
-	return(n_total_pages);
 }
 
 /*******************************************************************//**
@@ -2003,8 +1804,9 @@ buf_flush_list(
 					(if their number does not exceed
 					min_n), otherwise ignored */
 {
-	bool		skipped = false;
-	ulint		n_total_pages = 0;
+	ulint		i;
+	ulint		total_page_count = 0;
+	ibool		skipped = FALSE;
 
 	if (min_n != ULINT_MAX) {
 		/* Ensure that flushing is spread evenly amongst the
@@ -2016,18 +1818,13 @@ buf_flush_list(
 	}
 
 	/* Flush to lsn_limit in all buffer pool instances */
-	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+	for (i = 0; i < srv_buf_pool_instances; i++) {
+		buf_pool_t*	buf_pool;
+		ulint		page_count = 0;
 
-		buf_pool_t*	buf_pool = buf_pool_from_array(i);
+		buf_pool = buf_pool_from_array(i);
 
-		/* Pass in a 0 transaction instance, this function is not
-		session specific. */
-
-		ulint	n_pages = buf_flush_buffer_pool(
-			buf_pool, ULINT_UNDEFINED, min_n, lsn_limit, 0);
-
-		if (n_pages == ULINT_UNDEFINED) {
-
+		if (!buf_flush_start(buf_pool, BUF_FLUSH_LIST)) {
 			/* We have two choices here. If lsn_limit was
 			specified then skipping an instance of buffer
 			pool means we cannot guarantee that all pages
@@ -2038,17 +1835,31 @@ buf_flush_list(
 			pools based on the assumption that it will
 			help in the retry which will follow the
 			failure. */
-			skipped = true;
-		} else {
-			n_total_pages += n_pages;
+			skipped = TRUE;
+
+			continue;
+		}
+
+		page_count = buf_flush_batch(
+			buf_pool, BUF_FLUSH_LIST, min_n, lsn_limit);
+
+		buf_flush_end(buf_pool, BUF_FLUSH_LIST);
+
+		buf_flush_common(BUF_FLUSH_LIST, page_count);
+
+		total_page_count += page_count;
+
+		if (page_count) {
+			MONITOR_INC_VALUE_CUMULATIVE(
+				MONITOR_FLUSH_BATCH_TOTAL_PAGE,
+				MONITOR_FLUSH_BATCH_COUNT,
+				MONITOR_FLUSH_BATCH_PAGES,
+				page_count);
 		}
 	}
 
-	/* If a quiesce is in progress then we can't skip flushing of a
-	buffer pool. The operation must complete for all buffer pools. */
-
 	return(lsn_limit != LSN_MAX && skipped
-	       ? ULINT_UNDEFINED : n_total_pages);
+	       ? ULINT_UNDEFINED : total_page_count);
 }
 
 /******************************************************************//**
@@ -2365,7 +2176,6 @@ page_cleaner_do_flush_batch(
 	ut_ad(n_to_flush == ULINT_MAX || lsn_limit == LSN_MAX);
 
 	n_flushed = buf_flush_list(n_to_flush, lsn_limit);
-
 	if (n_flushed == ULINT_UNDEFINED) {
 		n_flushed = 0;
 	}
@@ -2418,8 +2228,9 @@ page_cleaner_flush_pages_if_needed(void)
 			n_pages_flushed);
 	}
 
-	if (n_pages_flushed < PCT_IO(100)
-	    && buf_get_modified_ratio_pct() > srv_max_buf_pool_modified_pct) {
+	if (UNIV_UNLIKELY(n_pages_flushed < PCT_IO(100)
+			  && buf_get_modified_ratio_pct()
+			     > srv_max_buf_pool_modified_pct)) {
 
 		/* Try to keep the number of modified pages in the
 		buffer pool under the limit wished by the user */
@@ -2491,17 +2302,17 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
-	ulint	n_flushed = 0;
 	ulint	next_loop_time = ut_time_ms() + 1000;
+	ulint	n_flushed = 0;
 	ulint	last_activity = srv_get_activity_count();
+	ulint	i;
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(buf_page_cleaner_thread_key);
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: page_cleaner thread running, id %lu\n",
+	fprintf(stderr, "InnoDB: page_cleaner thread running, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
@@ -2530,7 +2341,8 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 			n_flushed += page_cleaner_flush_pages_if_needed();
 		} else {
 			n_flushed = page_cleaner_do_flush_batch(
-				PCT_IO(100), LSN_MAX);
+							PCT_IO(100),
+							LSN_MAX);
 
 			if (n_flushed) {
 				MONITOR_INC_VALUE_CUMULATIVE(
@@ -2588,7 +2400,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	do {
 
 		n_flushed = buf_flush_list(PCT_IO(100), LSN_MAX);
-
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 	} while (n_flushed > 0);
@@ -2596,7 +2407,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	/* Some sanity checks */
 	ut_a(srv_get_active_thread_type() == SRV_NONE);
 	ut_a(srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE);
-	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+	for (i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t* buf_pool = buf_pool_from_array(i);
 		ut_a(UT_LIST_GET_LEN(buf_pool->flush_list) == 0);
 	}
@@ -2644,7 +2455,7 @@ buf_flush_validate_low(
 	/* If we are in recovery mode i.e.: flush_rbt != NULL
 	then each block in the flush_list must also be present
 	in the flush_rbt. */
-	if (buf_pool->flush_rbt) {
+	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
 		rnode = rbt_first(buf_pool->flush_rbt);
 	}
 
@@ -2665,7 +2476,7 @@ buf_flush_validate_low(
 		     || buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 		ut_a(om > 0);
 
-		if (buf_pool->flush_rbt) {
+		if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
 			buf_page_t** prpage;
 
 			ut_a(rnode);
