@@ -3753,7 +3753,6 @@ check_next_foreign:
 
 	switch (err) {
 		ibool		is_temp;
-		const char*	name_or_path;
 		mem_heap_t*	heap;
 
 	case DB_SUCCESS:
@@ -3766,14 +3765,8 @@ check_next_foreign:
 		name = mem_heap_strdup(heap, name);
 		space_id = table->space;
 
-		if (table->dir_path_of_temp_table != NULL) {
-			name_or_path = mem_heap_strdup(
-				heap, table->dir_path_of_temp_table);
-			is_temp = TRUE;
-		} else {
-			name_or_path = name;
-			is_temp = table->flags2 & DICT_TF2_TEMPORARY;
-		}
+		is_temp = table->flags2 & DICT_TF2_TEMPORARY;
+		ut_a(table->dir_path_of_temp_table == NULL || is_temp);
 
 		if (dict_table_has_fts_index(table)
 		    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
@@ -3809,10 +3802,8 @@ check_next_foreign:
 		wrong: we do not want to delete valuable data of the user */
 
 		if (err == DB_SUCCESS && space_id > 0) {
-			if (!fil_space_for_table_exists_in_mem(space_id,
-							       name_or_path,
-							       is_temp, FALSE,
-							       !is_temp)) {
+			if (!fil_space_for_table_exists_in_mem(
+					space_id, name, FALSE, !is_temp)) {
 				err = DB_SUCCESS;
 
 				fprintf(stderr,
