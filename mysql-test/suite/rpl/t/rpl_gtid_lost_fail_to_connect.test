@@ -18,8 +18,14 @@
 
 --source include/have_debug.inc
 --source include/have_gtid.inc
-
 --source include/master-slave.inc
+
+# Bug 13729084 
+#    Row format makes 
+#    the replicated `INSERT INTO t1 VALUES (2)' to be applied
+#    whereas it should not be that way so the assert fires.
+--source include/have_binlog_format_mixed_or_statement.inc
+
 call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log: 'The slave is connecting using CHANGE MASTER TO MASTER_AUTO_POSITION = 1, but the master has purged binary logs containing GTIDs that the slave requires.");
 --source include/gtid_utils.inc
 
@@ -32,15 +38,27 @@ CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 
 --connection master
 INSERT INTO t1 VALUES (1);
-FLUSH LOGS;
+
+#FLUSH LOGS;
+#--let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
+#--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+#INSERT INTO t1 VALUES (2);
+#eval PURGE BINARY LOGS TO '$master_file';
+# Bug 13727933 prevents using PURGE
+# Todo: restore PURGE and remove the following workaround 
+
+RESET MASTER;
 --let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 INSERT INTO t1 VALUES (2);
 --save_master_pos
-eval PURGE BINARY LOGS TO '$master_file';
 
 --connection slave
+
+INSERT INTO t1 VALUES (2); # Todo: remove as a part of Bug 13727933 workaround
+
 CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+
 START SLAVE;
 --let $slave_io_errno= 1236 # ER_MASTER_FATAL_ERROR_READING_BINLOG
 --source include/wait_for_slave_io_error.inc
@@ -52,6 +70,7 @@ eval CHANGE MASTER TO MASTER_LOG_FILE = '$master_file', MASTER_LOG_POS = $master
 
 --source include/start_slave.inc
 --sync_with_master
+
 --let $assert_text= t1 should contain only one row with the value 2
 --let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "1" AND "[SELECT * FROM t1]" = "2"
 --source include/assert.inc
@@ -59,5 +78,9 @@ eval CHANGE MASTER TO MASTER_LOG_FILE = '$master_file', MASTER_LOG_POS = $master
 --echo ######## Clean up ########
 --connection master
 DROP TABLE t1;
+
+--connection slave
+DROP TABLE t1;  #Todo: remove as a part of Bug 13727933 workaround
+
 --source include/gtid_utils_end.inc
 --source include/rpl_end.inc
