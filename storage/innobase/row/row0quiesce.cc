@@ -270,8 +270,6 @@ row_quiesce_set_state(
 	ib_quiesce_t	state,		/*!< in: quiesce state to set */
 	void*		thd)		/*!< in/out: session */
 {
-	dict_index_t*	index;
-
 	if (srv_n_purge_threads == 0) {
 
 		ib_pushf(thd,
@@ -297,12 +295,7 @@ row_quiesce_set_state(
 		return(DB_UNSUPPORTED);
 	}
 
-	for (index = dict_table_get_first_index(table);
-	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
-
-		rw_lock_x_lock(&index->lock);
-	}
+	dict_table_x_lock_indexes(table);
 
 	switch (state) {
 	case QUIESCE_START:
@@ -320,12 +313,7 @@ row_quiesce_set_state(
 
 	table->quiesce = state;
 
-	for (index = dict_table_get_first_index(table);
-	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
-
-		rw_lock_x_unlock(&index->lock);
-	}
+	dict_table_x_unlock_indexes(table);
 
 	return(DB_SUCCESS);
 }
