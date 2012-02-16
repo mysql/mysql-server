@@ -7,13 +7,6 @@ perl mysql-test-run.pl --timer  --force  --retry=0  --max-test-fail=0  --paralle
 # main_embedded
 perl mysql-test-run.pl --timer  --force  --parallel=auto  --comment=main_embedded  --vardir=var-main_emebbed   --suite=main  --embedded  --experimental=collections/default.experimental  --skip-ndb
 
-# Additional modes for rpl and binlog suites. Checksum and relay-log-info-repository
-perl mysql-test-run.pl --force  --retry=0  --max-test-fail=0  --timer  --debug-server  --parallel=auto  --experimental=collections/default.experimental  --comment=rpl_binlog_checksum-debug   --vardir=var-rpl_binlog_checksum-debug  --suite=rpl,binlog  --mysqld=--binlog-checksum=CRC32
-
-perl mysql-test-run.pl --force  --retry=0  --max-test-fail=0  --timer  --debug-server  --parallel=auto  --experimental=collections/default.experimental  --comment=rpl_crash_safe_relay-debug  --vardir=var-rpl_crash_safe_relay-debug  --suite=rpl  --mysqld=--relay-log-info-repository=TABLE
-
-perl mysql-test-run.pl --force  --retry=0  --max-test-fail=0  --timer  --debug-server  --parallel=auto  --experimental=collections/default.experimental  --comment=rpl_crash_safe_master-debug  --vardir=var-rpl_crash_safe_master-debug  --suite=rpl  --mysqld=--master-info-repository=TABLE
-
 # Additional modes for rpl. Multi-Threaded Slave
 perl mysql-test-run.pl --timer  --force  --retry=0  --max-test-fail=0  --parallel=auto  --comment=rpl_binlog_n_mix_MTS  --vardir=var-mts-rpl-binlog-n_mix  --mysqld=--binlog-format=mixed  --experimental=collections/default.experimental  --skip-ndb   --unit-tests  --mysqld=--slave-parallel-workers=4  --mysqld=--slave-transaction-retries=0  --suite=rpl 
 
