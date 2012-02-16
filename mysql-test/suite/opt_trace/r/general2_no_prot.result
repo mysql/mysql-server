@@ -2440,7 +2440,7 @@ table3.col_varchar_10_utf8_key	{
                 "rows": 1,
                 "cost": 1,
                 "table_type": "system",
-                "empty": false
+                "empty": true
               },
               {
                 "database": "test",
@@ -3475,7 +3475,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "rows": 1,
                       "cost": 1,
                       "table_type": "system",
-                      "empty": false
+                      "empty": true
                     },
                     {
                       "database": "test",

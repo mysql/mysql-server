@@ -3203,7 +3203,7 @@ const_table_extraction_done:
       {
         trace_table.add("rows", 1).add("cost", 1)
           .add_alnum("table_type", (s->type == JT_SYSTEM) ? "system": "const")
-          .add("empty", static_cast<bool>(table->null_row));
+          .add("empty", static_cast<bool>(s->table->null_row));
 
         /* Only one matching row */
         s->found_records= s->records= s->read_time=1; s->worst_seeks= 1.0;
