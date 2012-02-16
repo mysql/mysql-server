@@ -222,7 +222,6 @@ ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
   /* The size of the offset value we will use for position() */
   ref_length= sizeof(my_off_t);
   archive_reader_open= FALSE;
-  record_buffer= NULL;
 }
 
 int archive_discover(handlerton *hton, THD* thd, const char *db, 
@@ -452,7 +451,7 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc)
     if (!(azopen(&archive_tmp, tmp_share->data_file_name, O_RDONLY|O_BINARY)))
     {
       delete tmp_share;
-      *rc= my_errno ? my_errno : HA_ERR_CRASHED_ON_USAGE;
+      *rc= my_errno ? my_errno : HA_ERR_CRASHED;
       goto err;
     }
     stats.auto_increment_value= archive_tmp.auto_increment + 1;
@@ -584,8 +583,6 @@ int ha_archive::open(const char *name, int mode, uint open_options)
   default:
     DBUG_RETURN(rc);
   }
-
-  DBUG_ASSERT(share);
 
   record_buffer= create_record_buffer(table->s->reclength + 
                                       ARCHIVE_ROW_HEADER_SIZE);
@@ -1600,16 +1597,7 @@ void ha_archive::update_create_info(HA_CREATE_INFO *create_info)
   }
 
   if (!(my_readlink(tmp_real_path, share->data_file_name, MYF(0))))
-  {
-    char *real_path;
-    /* alloc a string needed for the returned real path. */
-    real_path= (char*) sql_alloc(FN_REFLEN);
-    if (real_path)
-    {
-      strmov(real_path, tmp_real_path);
-      create_info->data_file_name= real_path;
-    }
-  }
+    create_info->data_file_name= sql_strdup(tmp_real_path);
 
   DBUG_VOID_RETURN;
 }
@@ -1701,8 +1689,8 @@ int ha_archive::extra(enum ha_extra_function operation)
   DBUG_ENTER("ha_archive::extra");
   /* On windows we need to close all files before rename/delete. */
 #ifdef __WIN__
-  switch (operation) {
-
+  switch (operation)
+  {
   case HA_EXTRA_PREPARE_FOR_RENAME:
   case HA_EXTRA_FORCE_REOPEN:
     /* Close both reader and writer so we don't have the file open. */

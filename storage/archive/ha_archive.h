@@ -90,7 +90,6 @@ class ha_archive: public handler
   void destroy_record_buffer(archive_record_buffer *r);
   int frm_copy(azio_stream *src, azio_stream *dst);
   void frm_load(const char *name, azio_stream *dst);
-  int read_v1_metafile();
   unsigned int pack_row_v1(uchar *record);
 
 public:
