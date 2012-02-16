@@ -268,7 +268,8 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                 "table": "where_subselect_19379",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": true
               }
             ] /* rows_estimation */
           }
@@ -425,7 +426,8 @@ FROM t1
                 "table": "where_subselect_19033",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -486,7 +488,8 @@ FROM t1
                             "table": "t1",
                             "rows": 1,
                             "cost": 1,
-                            "table_type": "system"
+                            "table_type": "system",
+                            "empty": false
                           }
                         ] /* rows_estimation */
                       },
@@ -537,7 +540,8 @@ FROM t1
                                         "table": "t2",
                                         "rows": 1,
                                         "cost": 1,
-                                        "table_type": "system"
+                                        "table_type": "system",
+                                        "empty": false
                                       }
                                     ] /* rows_estimation */
                                   },
@@ -572,6 +576,10 @@ FROM t1
                 }
               ] /* steps */
             } /* subselect_execution */
+          },
+          {
+            "condition_on_constant_tables": "<in_optimizer>('7',<exists>(/* select#2 */ select 1 from dual where (<cache>('7') = (/* select#3 */ select '7' from dual))))",
+            "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {

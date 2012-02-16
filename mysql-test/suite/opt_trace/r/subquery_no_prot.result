@@ -147,7 +147,8 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
                             "table": "t1",
                             "rows": 1,
                             "cost": 1,
-                            "table_type": "system"
+                            "table_type": "system",
+                            "empty": false
                           }
                         ] /* rows_estimation */
                       },
@@ -340,7 +341,8 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
                             "table": "t1",
                             "rows": 1,
                             "cost": 1,
-                            "table_type": "system"
+                            "table_type": "system",
+                            "empty": false
                           }
                         ] /* rows_estimation */
                       },
@@ -462,7 +464,8 @@ t1.a= (SELECT a FROM t2 LIMIT 1)	{
                                       "table": "t2",
                                       "rows": 1,
                                       "cost": 1,
-                                      "table_type": "system"
+                                      "table_type": "system",
+                                      "empty": true
                                     }
                                   ] /* rows_estimation */
                                 }
@@ -630,7 +633,8 @@ WHERE NOT EXISTS
                                       "table": "t2",
                                       "rows": 1,
                                       "cost": 1,
-                                      "table_type": "system"
+                                      "table_type": "system",
+                                      "empty": true
                                     }
                                   ] /* rows_estimation */
                                 }
@@ -755,7 +759,8 @@ SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t1 GROUP BY a ORDER
                                       "table": "t1",
                                       "rows": 1,
                                       "cost": 1,
-                                      "table_type": "system"
+                                      "table_type": "system",
+                                      "empty": true
                                     }
                                   ] /* rows_estimation */
                                 }
@@ -1070,7 +1075,8 @@ field4,field5,field6	{
                       "table": "sq3_alias2",
                       "rows": 1,
                       "cost": 1,
-                      "table_type": "system"
+                      "table_type": "system",
+                      "empty": false
                     }
                   ] /* rows_estimation */
                 },
@@ -1299,7 +1305,8 @@ field4,field5,field6	{
                 "table": "alias3",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -1531,7 +1538,8 @@ field4,field5,field6	{
                                       "table": "sq1_alias1",
                                       "rows": 1,
                                       "cost": 1,
-                                      "table_type": "system"
+                                      "table_type": "system",
+                                      "empty": false
                                     },
                                     {
                                       "database": "test",
