@@ -73,9 +73,3 @@ CREATE DATABASE statements_digest_temp;
 DROP DATABASE statements_digest_temp;
 # TODO : add more
 --enable_warnings
-
-# -----------------------------------------------------------------------
-# Tests to show how the digest tables behaves when it is full (special NULL
-# entry)
-# -----------------------------------------------------------------------
-# TODO:
