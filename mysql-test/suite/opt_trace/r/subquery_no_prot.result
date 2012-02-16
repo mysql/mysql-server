@@ -1539,7 +1539,7 @@ field4,field5,field6	{
                                       "rows": 1,
                                       "cost": 1,
                                       "table_type": "system",
-                                      "empty": false
+                                      "empty": true
                                     },
                                     {
                                       "database": "test",

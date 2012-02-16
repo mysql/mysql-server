@@ -5057,7 +5057,7 @@ trace
                 "rows": 1,
                 "cost": 1,
                 "table_type": "system",
-                "empty": false
+                "empty": true
               },
               {
                 "database": "test",
@@ -5523,7 +5523,7 @@ trace
                 "rows": 1,
                 "cost": 1,
                 "table_type": "system",
-                "empty": false
+                "empty": true
               },
               {
                 "database": "test",
