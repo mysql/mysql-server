@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,6 +57,8 @@
 #include "sql_parse.h"                          // is_update_query
 #include "sql_callback.h"
 #include "lock.h"
+#include "global_threads.h"
+#include "mysqld.h"
 
 #include <mysql/psi/mysql_statement.h>
 
@@ -2067,17 +2069,6 @@ void THD::close_active_vio()
   DBUG_VOID_RETURN;
 }
 #endif
-
-
-struct Item_change_record: public ilink
-{
-  Item **place;
-  Item *old_value;
-  /* Placement new was hidden by `new' in ilink (TODO: check): */
-  static void *operator new(size_t size, void *mem) { return mem; }
-  static void operator delete(void *ptr, size_t size) {}
-  static void operator delete(void *ptr, void *mem) { /* never called */ }
-};
 
 
 /*
