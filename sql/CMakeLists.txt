@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -72,6 +72,7 @@ SET(SQL_SHARED_SOURCES
   mdl.cc
   mf_iocache.cc
   my_decimal.cc
+  my_rnd.cc
   net_serv.cc
   opt_explain.cc
   opt_range.cc

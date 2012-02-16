@@ -375,4 +375,3 @@ disconnect a;
 disconnect b;
 
 DROP TABLE t1,t2;
-

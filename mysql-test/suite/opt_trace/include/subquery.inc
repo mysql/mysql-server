@@ -175,7 +175,7 @@ sq4_alias3.`col_varchar_nokey` <> alias1.`col_varchar_key` ) ) and
 alias1.`col_int_key` not in (214) group by field1,field2,field3,
 field4,field5,field6; 
 
---replace_regex /("sort_buffer_size":) [0-9]+/\1 NNN/
+--replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/
 select * from information_schema.optimizer_trace;
 set optimizer_switch=@old_opt_switch;
 drop table t1,t2,t3,t4,t5;

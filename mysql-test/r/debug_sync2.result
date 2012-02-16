@@ -1,0 +1,13 @@
+#
+# Bug#13688248 CRASH IN DIAGNOSTICS_AREA::SET_OK_STATUS WHEN USING DEBUG_SYNC
+#
+SET SESSION DEBUG_SYNC= 'RESET';
+CREATE TABLE t1 (pk INT, PRIMARY KEY(pk));
+SET SESSION sql_mode=TRADITIONAL;
+SET SESSION autocommit=1;
+INSERT INTO t1 VALUES(1);
+SET SESSION debug_sync='write_row_replace SIGNAL go_ahead1 WAIT_FOR comes_never ';
+REPLACE INTO t1 ( pk ) VALUES ( 1 );
+Warnings:
+Warning	1639	debug sync point wait timed out
+DROP TABLE t1;

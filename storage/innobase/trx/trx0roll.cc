@@ -739,6 +739,8 @@ trx_rollback_or_clean_recovered(
 {
 	trx_t*	trx;
 
+	ut_a(srv_force_recovery < SRV_FORCE_NO_TRX_UNDO);
+
 	if (trx_sys_get_n_rw_trx() == 0) {
 
 		return;

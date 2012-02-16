@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -783,7 +783,8 @@ bool JOIN::prepare_result(List<Item> **columns_list)
 
   error= 0;
   /* Create result tables for materialized views. */
-  if (select_lex->handle_derived(thd->lex, &mysql_derived_create))
+  if (!zero_result_cause &&
+      select_lex->handle_derived(thd->lex, &mysql_derived_create))
     goto err;
 
   (void) result->prepare2(); // Currently, this cannot fail.
@@ -1510,7 +1511,10 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 	instead of JT_REF_OR_NULL in case if field can't be null
       */
       if ((keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL) && maybe_null)
-	null_ref_key= key_buff;
+      {
+        DBUG_ASSERT(null_ref_key == NULL); // or we would overwrite it below
+        null_ref_key= key_buff;
+      }
       key_buff+=keyinfo->key_part[part_no].store_length;
     }
   } /* not ftkey */
