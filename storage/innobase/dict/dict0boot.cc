@@ -447,6 +447,7 @@ dict_boot(void)
 	ut_a(error == DB_SUCCESS);
 
 	mtr_commit(&mtr);
+
 	/*-------------------------*/
 
 	/* Initialize the insert buffer table and index for each tablespace */
