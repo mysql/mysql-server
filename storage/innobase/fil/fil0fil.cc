@@ -2281,6 +2281,26 @@ fil_make_ibt_name(
 }
 
 /*******************************************************************//**
+Allocates a file name for the EXPORT/IMPORT config file name.  The
+string must be freed by caller with mem_free().
+@return own: file name */
+static
+char*
+fil_make_cfg_name(
+/*==============*/
+	const char*	filepath)	/*!< in: .ibd file name */
+{
+	char*	cfg_name;
+
+	/* Create a temporary file path by replacing the .ibd suffix
+	with .cfg. */
+
+	cfg_name = mem_strdup(filepath);
+	ut_snprintf(cfg_name + strlen(cfg_name) - 3, 4, "cfg");
+	return(cfg_name);
+}
+
+/*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache. If rename == TRUE we "free" all pages used by the tablespace.
 @return	DB_SUCCESS or error */
@@ -2431,6 +2451,23 @@ try_again:
 	}
 
 	mutex_exit(&fil_system->mutex);
+
+	/* If it is a delete then also delete any generated files, otherwise
+	when we drop the database the remove directory will fail. */
+
+	if (!rename) {
+		char*	cfg_name = fil_make_cfg_name(path);
+
+		os_file_delete_if_exists(cfg_name);
+
+		mem_free(cfg_name);
+
+		char*	ibt_name = fil_make_ibt_name(path);
+
+		os_file_delete_if_exists(ibt_name);
+
+		mem_free(ibt_name);
+	}
 
 	if (err != DB_SUCCESS) {
 		rw_lock_x_unlock(&space->latch);

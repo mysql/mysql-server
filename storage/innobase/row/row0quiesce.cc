@@ -255,6 +255,18 @@ row_quiesce_table_complete(
 		++count;
 	}
 
+	/* Remove the .cfg file now that the user has resumed
+	normal operations. Otherwise it will cause problems when
+	the user tries to drop the database (remove directory). */
+	char		cfg_name[OS_FILE_MAX_PATH];
+
+	srv_get_meta_data_filename(table, cfg_name, sizeof(cfg_name));
+
+	os_file_delete_if_exists(cfg_name);
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Deleting the meta-data file '%s'", cfg_name);
+
 	trx_purge_run();
 
 	row_quiesce_set_state(table, QUIESCE_NONE, trx);
