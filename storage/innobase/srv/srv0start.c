@@ -922,8 +922,9 @@ skip_size_check:
 #endif /* UNIV_LOG_ARCHIVE */
 				min_flushed_lsn, max_flushed_lsn);
 
-			if (UNIV_PAGE_SIZE
-			    != fsp_flags_get_page_size(flags)) {
+			if (!one_opened
+			    && UNIV_PAGE_SIZE
+			       != fsp_flags_get_page_size(flags)) {
 
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
