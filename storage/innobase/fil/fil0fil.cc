@@ -2298,7 +2298,7 @@ db_err
 fil_delete_tablespace(
 /*==================*/
 	ulint	id,	/*!< in: space id */
-	ibool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
+	bool	rename)	/*!< in: true=rename to .ibt; false=remove */
 {
 	fil_space_t*	space;
 	fil_node_t*	node;
@@ -2421,7 +2421,15 @@ try_again:
 	completely and permanently. The flag is_being_deleted also prevents
 	fil_flush() from being applied to this tablespace. */
 
-	buf_LRU_invalidate_tablespace(id, rename);
+	{
+		buf_remove_t	buf_remove;
+
+		buf_remove = rename
+			? BUF_REMOVE_ALL_NO_WRITE
+			: BUF_REMOVE_FLUSH_NO_WRITE;
+
+		buf_LRU_flush_or_remove_pages(id, buf_remove, 0);
+	}
 #endif
 	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
 

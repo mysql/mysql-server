@@ -31,6 +31,9 @@ Created 11/5/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "buf0types.h"
 
+// Forward declaration
+struct trx_struct;
+
 /******************************************************************//**
 Returns TRUE if less than 25 % of the buffer pool is available. This can be
 used in heuristics to prevent huge transactions eating up the whole buffer
@@ -49,17 +52,19 @@ These are low-level functions
 #define BUF_LRU_OLD_MIN_LEN	512	/* 8 megabytes of 16k pages */
 
 /******************************************************************//**
-Invalidates all pages belonging to a given tablespace when we are deleting
-the data file(s) of that tablespace. A PROBLEM: if readahead is being started,
-what guarantees that it will not try to read in pages after this operation has
-completed? */
+FLushes all dirty pages if flush == true or removes all pages belonging
+to a given tablespace. A PROBLEM: if readahead is being started, what
+guarantees that it will not try to read in pages after this operation
+has completed? */
 UNIV_INTERN
 void
-buf_LRU_invalidate_tablespace(
+buf_LRU_flush_or_remove_pages(
 /*==========================*/
-	ulint	id,		/*!< in: space id */
-	ibool	all);		/*!< in: all=TRUE, remove all
-				the pages used by the tablespace */
+	ulint		id,		/*!< in: space id */
+	buf_remove_t	buf_remove,	/*!< in: remove or flush strategy */
+	const trx_struct*
+			trx);		/*!< to check if the operation must
+					be interrupted */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /********************************************************************//**

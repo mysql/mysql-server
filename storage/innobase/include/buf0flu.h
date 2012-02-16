@@ -259,6 +259,22 @@ UNIV_INTERN
 void
 buf_flush_free_flush_rbt(void);
 /*==========================*/
+
+/********************************************************************//**
+Writes a flushable page asynchronously from the buffer pool to a file.
+NOTE: in simulated aio we must call
+os_aio_simulated_wake_handler_threads after we have posted a batch of
+writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
+held upon entering this function, and they will be released by this
+function. */
+UNIV_INTERN
+void
+buf_flush_page(
+/*===========*/
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	buf_page_t*	bpage,		/*!< in: buffer control block */
+	buf_flush	flush_type);	/*!< in: type of flush */
+
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL

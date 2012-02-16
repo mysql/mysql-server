@@ -947,13 +947,13 @@ os_aio_simulated_wake_handler_threads after we have posted a batch of
 writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
 held upon entering this function, and they will be released by this
 function. */
-static
+UNIV_INTERN
 void
 buf_flush_page(
 /*===========*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	buf_page_t*	bpage,		/*!< in: buffer control block */
-	enum buf_flush	flush_type)	/*!< in: type of flush */
+	buf_flush	flush_type)	/*!< in: type of flush */
 {
 	mutex_t*	block_mutex;
 	ibool		is_uncompressed;
