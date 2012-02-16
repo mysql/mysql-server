@@ -258,7 +258,7 @@ dict_getnext_system_low(
 }
 
 /********************************************************************//**
-This function opens a system table, and return the first record.
+This function opens a system table, and returns the first record.
 @return	first record of the system table */
 UNIV_INTERN
 const rec_t*
@@ -779,7 +779,7 @@ loop:
 			}
 
 			fil_space_for_table_exists_in_mem(
-				space_id, name, is_temp, TRUE, !is_temp);
+				space_id, name, TRUE, !is_temp);
 		} else {
 			db_err	err;
 
@@ -1866,9 +1866,7 @@ err_exit:
 		table->ibd_file_missing = TRUE;
 
 	} else if (!fil_space_for_table_exists_in_mem(
-			table->space, name,
-			table->flags2 & DICT_TF2_TEMPORARY,
-			FALSE, FALSE)) {
+			table->space, name, FALSE, FALSE)) {
 
 		if (table->flags2 & DICT_TF2_TEMPORARY) {
 			/* Do not bother to retry opening temporary tables. */

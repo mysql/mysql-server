@@ -2244,6 +2244,7 @@ fil_op_log_parse_or_replay(
 
 			if (fil_create_new_single_table_tablespace(
 				    space_id, name, FALSE, flags,
+				    DICT_TF2_USE_TABLESPACE,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
 				ut_error;
 			}
@@ -2381,7 +2382,10 @@ try_again:
 
 	space->is_being_deleted = TRUE;
 
+	/* TODO: The following code must change when InnoDB supports
+	multiple datafiles per tablespace. */
 	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
+
 	node = UT_LIST_GET_FIRST(space->chain);
 
 	if (space->n_pending_flushes > 0 || node->n_pending > 0
@@ -2408,7 +2412,7 @@ try_again:
 		goto try_again;
 	}
 
-	path = mem_strdup(space->name);
+	path = mem_strdup(node->name);
 
 	mutex_exit(&fil_system->mutex);
 
@@ -2612,7 +2616,8 @@ fil_rename_tablespace_in_mem(
 /*=========================*/
 	fil_space_t*	space,	/*!< in: tablespace memory object */
 	fil_node_t*	node,	/*!< in: file node of that tablespace */
-	const char*	path)	/*!< in: new name */
+	const char*	new_name,	/*!< in: new name */
+	const char*	new_path)	/*!< in: new file path */
 {
 	fil_space_t*	space2;
 	const char*	old_name	= space->name;
@@ -2628,10 +2633,10 @@ fil_rename_tablespace_in_mem(
 		return(FALSE);
 	}
 
-	space2 = fil_space_get_by_name(path);
+	space2 = fil_space_get_by_name(new_name);
 	if (space2 != NULL) {
 		fputs("InnoDB: Error: ", stderr);
-		ut_print_filename(stderr, path);
+		ut_print_filename(stderr, new_name);
 		fputs(" is already in tablespace memory cache\n", stderr);
 
 		return(FALSE);
@@ -2642,11 +2647,11 @@ fil_rename_tablespace_in_mem(
 	mem_free(space->name);
 	mem_free(node->name);
 
-	space->name = mem_strdup(path);
-	node->name = mem_strdup(path);
+	space->name = mem_strdup(new_name);
+	node->name = mem_strdup(new_path);
 
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
-		    ut_fold_string(path), space);
+		    ut_fold_string(new_name), space);
 	return(TRUE);
 }
 
@@ -2693,7 +2698,7 @@ UNIV_INTERN
 ibool
 fil_rename_tablespace(
 /*==================*/
-	const char*	old_name,	/*!< in: old table name in the standard
+	const char*	old_name_in,	/*!< in: old table name in the standard
 					databasename/tablename format of
 					InnoDB, or NULL if we do the rename
 					based on the space id only */
@@ -2706,23 +2711,21 @@ fil_rename_tablespace(
 	fil_space_t*	space;
 	fil_node_t*	node;
 	ulint		count		= 0;
-	char*		path;
-	ibool		old_name_was_specified		= TRUE;
+	char*		new_path;
+	char*		old_name;
 	char*		old_path;
+	const char*	not_given	= "(name not specified)";
 
 	ut_a(id != 0);
 
-	if (old_name == NULL) {
-		old_name = "(name not specified)";
-		old_name_was_specified = FALSE;
-	}
 retry:
 	count++;
 
 	if (!(count % 1000)) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Warning: problems renaming ", stderr);
-		ut_print_filename(stderr, old_name);
+		ut_print_filename(stderr,
+				  old_name_in ? old_name_in : not_given);
 		fputs(" to ", stderr);
 		ut_print_filename(stderr, new_name);
 		fprintf(stderr, ", %lu iterations\n", (ulong) count);
@@ -2737,7 +2740,8 @@ retry:
 			"InnoDB: Error: cannot find space id %lu"
 			" in the tablespace memory cache\n"
 			"InnoDB: though the table ", (ulong) id);
-		ut_print_filename(stderr, old_name);
+		ut_print_filename(stderr,
+				  old_name_in ? old_name_in : not_given);
 		fputs(" in a rename operation should have that id\n", stderr);
 		mutex_exit(&fil_system->mutex);
 
@@ -2791,33 +2795,34 @@ retry:
 
 	/* Check that the old name in the space is right */
 
-	if (old_name_was_specified) {
+	if (old_name_in) {
+		old_name = mem_strdup(old_name_in);
 		old_path = fil_make_ibd_name(old_name, FALSE);
 
-		ut_a(strcmp(space->name, old_path) == 0);
+		ut_a(strcmp(space->name, old_name) == 0);
 		ut_a(strcmp(node->name, old_path) == 0);
 	} else {
-		old_path = mem_strdup(space->name);
+		old_name = mem_strdup(space->name);
+		old_path = mem_strdup(node->name);
 	}
 
 	/* Rename the tablespace and the node in the memory cache */
-	path = fil_make_ibd_name(new_name, FALSE);
-	success = fil_rename_tablespace_in_mem(space, node, path);
+	new_path = fil_make_ibd_name(new_name, FALSE);
+	success = fil_rename_tablespace_in_mem(
+		space, node, new_name, new_path);
 
 	if (success) {
-		success = os_file_rename(innodb_file_data_key, old_path, path);
+		success = os_file_rename(
+			innodb_file_data_key, old_path, new_path);
 
 		if (!success) {
 			/* We have to revert the changes we made
 			to the tablespace memory cache */
 
-			ut_a(fil_rename_tablespace_in_mem(space, node,
-							  old_path));
+			ut_a(fil_rename_tablespace_in_mem(
+					space, node, old_name, old_path));
 		}
 	}
-
-	mem_free(path);
-	mem_free(old_path);
 
 	space->stop_ios = FALSE;
 
@@ -2834,6 +2839,11 @@ retry:
 		mtr_commit(&mtr);
 	}
 #endif
+
+	mem_free(new_path);
+	mem_free(old_path);
+	mem_free(old_name);
+
 	return(success);
 }
 
@@ -2856,6 +2866,7 @@ fil_create_new_single_table_tablespace(
 	ibool		is_temp,	/*!< in: TRUE if a table created with
 					CREATE TEMPORARY TABLE */
 	ulint		flags,		/*!< in: tablespace flags */
+	ulint		flags2,		/*!< in: table flags2 */
 	ulint		size)		/*!< in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
@@ -2867,7 +2878,6 @@ fil_create_new_single_table_tablespace(
 	byte*		page;
 	char*		path;
 	ibool		success;
-	ulint		create_mode;
 
 	ut_a(space_id > 0);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
@@ -2876,22 +2886,9 @@ fil_create_new_single_table_tablespace(
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
-	/* When srv_file_per_table is on, file creation failure may not
-	be critical to the whole instance. Do not crash the server in
-	case of unknown errors.
-
-	Note "srv_file_per_table" is a global variable with no explicit
-	synchronization protection. It could be changed during this execution
-	path. It might not have the same value as the one when building the
-	table definition */
-
-	create_mode = srv_file_per_table
-		    ? OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT
-		    : OS_FILE_CREATE;
-
 	file = os_file_create(
 		innodb_file_data_key, path,
-		create_mode,
+		OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT,
 		OS_FILE_NORMAL,
 		OS_DATA_FILE,
 		&ret);
@@ -3017,7 +3014,7 @@ error_exit2:
 
 	os_file_close(file);
 
-	success = fil_space_create(path, space_id, flags, FIL_TABLESPACE);
+	success = fil_space_create(tablename, space_id, flags, FIL_TABLESPACE);
 
 	if (!success) {
 		err = DB_ERROR;
@@ -3525,7 +3522,8 @@ fil_open_single_table_tablespace(
 		      " a temporary table #sql...,\n"
 		      "InnoDB: and MySQL removed the .ibd file for this.\n"
 		      "InnoDB: Please refer to\n"
-		      "InnoDB: " REFMAN "innodb-troubleshooting-datadict.html\n"
+		      "InnoDB: " REFMAN
+		      "innodb-troubleshooting-datadict.html\n"
 		      "InnoDB: for how to resolve the issue.\n", stderr);
 
 		mem_free(filepath);
@@ -3584,7 +3582,7 @@ fil_open_single_table_tablespace(
 	}
 
 skip_check:
-	success = fil_space_create(filepath, space_id, flags, FIL_TABLESPACE);
+	success = fil_space_create(name, space_id, flags, FIL_TABLESPACE);
 
 	if (!success) {
 		err = DB_ERROR;
@@ -3640,6 +3638,7 @@ fil_load_single_table_tablespace(
 {
 	os_file_t	file;
 	char*		filepath;
+	char*		tablename;
 	ibool		success;
 	byte*		buf2;
 	byte*		page;
@@ -3658,6 +3657,12 @@ fil_load_single_table_tablespace(
 	sprintf(filepath, "%s/%s/%s", fil_path_to_mysql_datadir, dbname,
 		filename);
 	srv_normalize_path_for_win(filepath);
+
+	tablename = static_cast<char*>(
+		mem_alloc(strlen(dbname) + strlen(filename) + 2));
+	sprintf(tablename, "%s/%s", dbname, filename);
+	tablename[strlen(tablename) - strlen(".ibd")] = 0;
+
 #ifdef __WIN__
 # ifndef UNIV_HOTBACKUP
 	/* If lower_case_table_names is 0 or 2, then MySQL allows database
@@ -3701,6 +3706,7 @@ fil_load_single_table_tablespace(
 			"InnoDB: and force InnoDB to continue crash"
 			" recovery here.\n", filepath);
 
+		mem_free(tablename);
 		mem_free(filepath);
 
 		if (srv_force_recovery > 0) {
@@ -3748,6 +3754,7 @@ fil_load_single_table_tablespace(
 			" crash recovery here.\n", filepath);
 
 		os_file_close(file);
+		mem_free(tablename);
 		mem_free(filepath);
 
 		if (srv_force_recovery > 0) {
@@ -3772,12 +3779,14 @@ fil_load_single_table_tablespace(
 #ifndef UNIV_HOTBACKUP
 	if (size < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 		fprintf(stderr,
-			"InnoDB: Error: the size of single-table tablespace"
-			" file %s\n"
-			"InnoDB: is only "UINT64PF", should be at least %lu!",
+			"InnoDB: Error: the size of single-table"
+			" tablespace file %s\n"
+			"InnoDB: is only " UINT64PF
+			", should be at least %lu!\n",
 			filepath,
 			size, (ulong) (4 * UNIV_PAGE_SIZE));
 		os_file_close(file);
+		mem_free(tablename);
 		mem_free(filepath);
 
 		return;
@@ -3830,6 +3839,7 @@ fil_load_single_table_tablespace(
 		ut_a(os_file_rename(innodb_file_data_key, filepath, new_path));
 
 		ut_free(buf2);
+		mem_free(tablename);
 		mem_free(filepath);
 		mem_free(new_path);
 
@@ -3868,6 +3878,7 @@ fil_load_single_table_tablespace(
 		ut_a(os_file_rename(innodb_file_data_key, filepath, new_path));
 
 		ut_free(buf2);
+		mem_free(tablename);
 		mem_free(filepath);
 		mem_free(new_path);
 
@@ -3875,7 +3886,7 @@ fil_load_single_table_tablespace(
 	}
 	mutex_exit(&fil_system->mutex);
 #endif
-	success = fil_space_create(filepath, space_id, flags, FIL_TABLESPACE);
+	success = fil_space_create(tablename, space_id, flags, FIL_TABLESPACE);
 
 	if (!success) {
 
@@ -3900,6 +3911,7 @@ fil_load_single_table_tablespace(
 func_exit:
 	os_file_close(file);
 	ut_free(buf2);
+	mem_free(tablename);
 	mem_free(filepath);
 }
 
@@ -4144,10 +4156,7 @@ fil_space_for_table_exists_in_mem(
 /*==============================*/
 	ulint		id,		/*!< in: space id */
 	const char*	name,		/*!< in: table name in the standard
-					'databasename/tablename' format or
-					the dir path to a temp table */
-	ibool		is_temp,	/*!< in: TRUE if created with CREATE
-					TEMPORARY TABLE */
+					'databasename/tablename' format */
 	ibool		mark_space,	/*!< in: in crash recovery, at database
 					startup we mark all spaces which have
 					an associated table in the InnoDB
@@ -4162,13 +4171,10 @@ fil_space_for_table_exists_in_mem(
 {
 	fil_space_t*	fnamespace;
 	fil_space_t*	space;
-	char*		path;
 
 	ut_ad(fil_system);
 
 	mutex_enter(&fil_system->mutex);
-
-	path = fil_make_ibd_name(name, is_temp);
 
 	/* Look if there is a space with the same id */
 
@@ -4177,7 +4183,7 @@ fil_space_for_table_exists_in_mem(
 	/* Look if there is a space with the same name; the name is the
 	directory path from the datadir to the file */
 
-	fnamespace = fil_space_get_by_name(path);
+	fnamespace = fil_space_get_by_name(name);
 	if (space && space == fnamespace) {
 		/* Found */
 
@@ -4185,7 +4191,6 @@ fil_space_for_table_exists_in_mem(
 			space->mark = TRUE;
 		}
 
-		mem_free(path);
 		mutex_exit(&fil_system->mutex);
 
 		return(TRUE);
@@ -4193,7 +4198,6 @@ fil_space_for_table_exists_in_mem(
 
 	if (!print_error_if_does_not_exist) {
 
-		mem_free(path);
 		mutex_exit(&fil_system->mutex);
 
 		return(FALSE);
@@ -4237,13 +4241,12 @@ error_exit:
 		      "InnoDB: " REFMAN "innodb-troubleshooting-datadict.html\n"
 		      "InnoDB: for how to resolve the issue.\n", stderr);
 
-		mem_free(path);
 		mutex_exit(&fil_system->mutex);
 
 		return(FALSE);
 	}
 
-	if (0 != strcmp(space->name, path)) {
+	if (0 != strcmp(space->name, name)) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: table ", stderr);
 		ut_print_filename(stderr, name);
@@ -4267,7 +4270,6 @@ error_exit:
 		goto error_exit;
 	}
 
-	mem_free(path);
 	mutex_exit(&fil_system->mutex);
 
 	return(FALSE);
@@ -4281,29 +4283,23 @@ static
 ulint
 fil_get_space_id_for_table(
 /*=======================*/
-	const char*	name)	/*!< in: table name in the standard
+	const char*	tablename)	/*!< in: table name in the standard
 				'databasename/tablename' format */
 {
 	fil_space_t*	fnamespace;
 	ulint		id		= ULINT_UNDEFINED;
-	char*		path;
 
 	ut_ad(fil_system);
 
 	mutex_enter(&fil_system->mutex);
 
-	path = fil_make_ibd_name(name, FALSE);
+	/* Look if there is a space with the same name. */
 
-	/* Look if there is a space with the same name; the name is the
-	directory path to the file */
-
-	fnamespace = fil_space_get_by_name(path);
+	fnamespace = fil_space_get_by_name(tablename);
 
 	if (fnamespace) {
 		id = fnamespace->id;
 	}
-
-	mem_free(path);
 
 	mutex_exit(&fil_system->mutex);
 

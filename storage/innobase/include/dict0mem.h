@@ -170,23 +170,28 @@ to cache the BLOB prefixes. */
 These flags will be stored in SYS_TABLES.MIX_LEN.  All unused flags
 will be written as 0.  The column may contain garbage for tables
 created with old versions of InnoDB that only implemented
-ROW_FORMAT=REDUNDANT. */
+ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
+for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			5
+#define DICT_TF2_BITS			6
 #define DICT_TF2_BIT_MASK		~(~0 << DICT_TF2_BITS)
 
-#define DICT_TF2_TEMPORARY		1	/*!< TRUE for tables from
-						CREATE TEMPORARY TABLE. */
-#define DICT_TF2_FTS_HAS_DOC_ID		2	/* Has internal defined
-						DOC ID column */
-#define DICT_TF2_FTS			4	/* has an FTS index */
-#define DICT_TF2_FTS_ADD_DOC_ID		8	/* Need to add Doc ID column
-						for FTS index build.
-						This is a transient bit
-						for index build */
-#define DICT_TF2_DISCARDED		16	/*!< Set when we discard/detach
-						 the tablespace */
+/** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
+#define DICT_TF2_TEMPORARY		1
+/** The table has an internal defined DOC ID column */
+#define DICT_TF2_FTS_HAS_DOC_ID		2
+/** The table has an FTS index */
+#define DICT_TF2_FTS			4
+/** Need to add Doc ID column for FTS index build.
+This is a transient bit for index build */
+#define DICT_TF2_FTS_ADD_DOC_ID		8
+/** This bit is used during table creation to indicate that it will
+use its own tablespace instead of the system tablespace. */
+#define DICT_TF2_USE_TABLESPACE		16
+
+/** Set when we discard/detach the tablespace */
+#define DICT_TF2_DISCARDED		32
 /* @} */
 
 #define DICT_TF2_FLAG_SET(table, flag)				\

@@ -4825,6 +4825,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
                      rec_per_key[tuple_arg->part]))    // (3)
       {
         DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
+        DBUG_ASSERT(min_range.length > 0);
         records= (table->file->
                   records_in_range(scan->keynr, &min_range, &max_range));
       }
