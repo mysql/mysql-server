@@ -477,9 +477,9 @@ NOTE that we assume this operation is used either at the database startup
 or under the protection of the dictionary mutex, so that two users cannot
 race here. This operation does not leave the file associated with the
 tablespace open, but closes it after we have looked at the space id in it.
-@return	TRUE if success */
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
-ibool
+db_err
 fil_open_single_table_tablespace(
 /*=============================*/
 	const dict_table_t*	table,	/*!< in: table handle for consistency

@@ -3418,9 +3418,9 @@ NOTE that we assume this operation is used either at the database startup
 or under the protection of the dictionary mutex, so that two users cannot
 race here. This operation does not leave the file associated with the
 tablespace open, but closes it after we have looked at the space id in it.
-@return	TRUE if success */
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
-ibool
+db_err
 fil_open_single_table_tablespace(
 /*=============================*/
 	const dict_table_t*	table,	/*!< in: table handle for consistency
@@ -3435,6 +3435,7 @@ fil_open_single_table_tablespace(
 	const char*		name)	/*!< in: table name in the
 					databasename/tablename format */
 {
+	db_err		err;
 	os_file_t	file;
 	char*		filepath;
 	ibool		success;
@@ -3455,7 +3456,9 @@ fil_open_single_table_tablespace(
 		switch (space_flags) {
 		case 0:
 		case DICT_TF_COMPACT:
-			ut_a(flags == 0);
+			if (flags != 0) {
+				return(DB_CORRUPTION);
+			}
 			break;
 		default:
 			ut_a(flags == space_flags);
@@ -3490,7 +3493,7 @@ fil_open_single_table_tablespace(
 
 		mem_free(filepath);
 
-		return(FALSE);
+		return(DB_TABLESPACE_NOT_FOUND);
 	}
 
 	if (!table) {
@@ -3507,14 +3510,20 @@ fil_open_single_table_tablespace(
 
 	success = os_file_read(file, page, 0, UNIV_PAGE_SIZE);
 
-	/* We have to read the tablespace id and flags from the file. */
+	if (!success) {
+		err = DB_IO_ERROR;
+	} else {
+		err = DB_SUCCESS;
 
-	space_id = fsp_header_get_space_id(page);
-	space_flags = fsp_header_get_flags(page);
+		/* We have to read the tablespace id and flags from the file. */
+
+		space_id = fsp_header_get_space_id(page);
+		space_flags = fsp_header_get_flags(page);
+	}
 
 	ut_free(buf2);
 
-	if (UNIV_UNLIKELY(space_id != id || space_flags != flags)) {
+	if (err == DB_SUCCESS && (space_id != id || space_flags != flags)) {
 		ut_print_timestamp(stderr);
 
 		fputs("  InnoDB: Error: tablespace id and flags in file ",
@@ -3532,7 +3541,7 @@ fil_open_single_table_tablespace(
 			(ulong) space_id, (ulong) space_flags,
 			(ulong) id, (ulong) flags);
 
-		success = FALSE;
+		err = DB_CORRUPTION;
 
 		goto func_exit;
 	}
@@ -3542,6 +3551,9 @@ skip_check:
 
 	if (!success) {
 		goto func_exit;
+	} else {
+		/* Generic unknown error. */
+		err = DB_ERROR;
 	}
 
 	/* We do not measure the size of the file, that is why we pass the 0
@@ -3552,7 +3564,7 @@ func_exit:
 	os_file_close(file);
 	mem_free(filepath);
 
-	return(success);
+	return(err);
 }
 #endif /* !UNIV_HOTBACKUP */
 
