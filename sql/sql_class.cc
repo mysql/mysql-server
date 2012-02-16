@@ -1523,7 +1523,7 @@ void THD::awake(killed_state state_to_set)
   if (state_to_set >= KILL_CONNECTION || state_to_set == NOT_KILLED)
   {
 #ifdef SIGNAL_WITH_VIO_CLOSE
-    if (this != current_thd) 
+    if (this != current_thd)
     {
       if(active_vio)
         vio_shutdown(active_vio, SHUT_RDWR);
@@ -3935,10 +3935,16 @@ extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
 */
 extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
-  if(!thd) 
-    thd= current_thd;
-  if (thd)
-    MYSQL_CALLBACK(thd->scheduler, thd_wait_begin, (thd, wait_type));
+
+  if (unlikely(!thread_scheduler) || !thread_scheduler->thd_wait_begin)
+   return;
+  if (thd == NULL)
+  {
+    thd=current_thd;
+    if(unlikely(thd == NULL))
+      return;
+  }
+  MYSQL_CALLBACK(thd->scheduler, thd_wait_begin, (thd, wait_type));
 }
 
 /**
@@ -3950,10 +3956,16 @@ extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 */
 extern "C" void thd_wait_end(MYSQL_THD thd)
 {
-  if(!thd) 
-    thd= current_thd;
-  if (thd)
-    MYSQL_CALLBACK(thd->scheduler, thd_wait_end, (thd));
+  if (unlikely(!thread_scheduler) || ! thread_scheduler->thd_wait_begin)
+   return;
+  if (thd == NULL)
+  {
+    thd=current_thd;
+    if(unlikely(thd == NULL))
+      return;
+  }
+  if(likely(thd->scheduler == thread_scheduler))
+    thread_scheduler->thd_wait_end(thd);
 }
 
 #endif // INNODB_COMPATIBILITY_HOOKS */

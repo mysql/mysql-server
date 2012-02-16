@@ -24,6 +24,11 @@ typedef struct kevent native_event;
 typedef port_event_t native_event;
 #endif
 
+/** Maximum number of native events a listener can read in one go */
+#define MAX_EVENTS 1024
+
+/** Indicates that threadpool was initialized*/
+static bool threadpool_started= false; 
 
 /* 
   Define PSI Keys for performance schema. 
@@ -130,7 +135,7 @@ static uint group_count;
  Used for printing "pool blocked" message, see
  print_pool_blocked_message();
 */
-static time_t pool_block_start;
+static ulonglong pool_block_start;
 
 /* Global timer for all groups  */
 struct pool_timer_t
@@ -144,11 +149,6 @@ struct pool_timer_t
 };
 
 static pool_timer_t pool_timer;
-
-
-/* Externals functions and variables  we use */
-extern void scheduler_init();
-extern pthread_attr_t *get_connection_attrib(void);
 
 static void queue_put(thread_group_t *thread_group, connection_t *connection);
 static int  wake_thread(thread_group_t *thread_group);
@@ -462,6 +462,9 @@ static void timeout_check(pool_timer_t *timer)
  
   Besides checking for stalls, timer thread is also responsible for terminating
   clients that have been idle for longer than wait_timeout seconds.
+
+  TODO: Let the timer sleep for long time if there is no work to be done.
+  Currently it wakes up rather often on and idle server.
 */
 
 static void* timer_thread(void *param)
@@ -491,7 +494,7 @@ static void* timer_thread(void *param)
     {
       timer->current_microtime= microsecond_interval_timer();
       
-      /* Check stallls in thread groups */
+      /* Check stalls in thread groups */
       for(i=0; i< array_elements(all_groups);i++)
       {
         if(all_groups[i].connection_count)
@@ -574,7 +577,6 @@ static void stop_timer(pool_timer_t *timer)
   DBUG_VOID_RETURN;
 }
 
-#define MAX_EVENTS 1024
 
 /**
   Poll for socket events and distribute them to worker threads
@@ -586,10 +588,8 @@ static connection_t * listener(worker_thread_t *current_thread,
                                thread_group_t *thread_group)
 {
   DBUG_ENTER("listener");
-  
   connection_t *retval= NULL;
-  
-  
+
   for(;;)
   {
     native_event ev[MAX_EVENTS];
@@ -767,7 +767,6 @@ static int create_worker(thread_group_t *thread_group)
   {
     my_errno= errno;
   }
-    
 
 end:
   if (err)
@@ -897,11 +896,10 @@ static int wake_thread(thread_group_t *thread_group)
   {
     thread->woken= true;
     thread_group->waiting_threads.remove(thread);
-    if (mysql_cond_signal(&thread->cond))
-     abort(); 
+    mysql_cond_signal(&thread->cond);
     DBUG_RETURN(0);
   }
-  DBUG_RETURN(-1); /* no thread- missed wakeup*/
+  DBUG_RETURN(1); /* no thread in waiter list => missed wakeup */
 }
 
 
@@ -1188,7 +1186,7 @@ void tp_add_connection(THD *thd)
       
     /* Assign connection to a group. */
     thread_group_t *group= 
-      &all_groups[connection->thd->thread_id%group_count];
+      &all_groups[thd->thread_id%group_count];
     
     connection->thread_group=group;
       
@@ -1416,12 +1414,13 @@ static void handle_event(connection_t *connection)
     err= threadpool_process_request(connection->thd);
   }
 
-  if (!err)
-  {
-    set_wait_timeout(connection);
-    err= start_io(connection);
-  }
+  if(err)
+    goto end;
 
+  set_wait_timeout(connection);
+  err= start_io(connection);
+
+end:
   if (err)
     connection_abort(connection);
 
@@ -1481,11 +1480,10 @@ static void *worker_main(void *param)
 }
 
 
-static bool started=false; 
 bool tp_init()
 {
   DBUG_ENTER("tp_init");
-  started = true;  
+  threadpool_started= true;
   scheduler_init();
 
   for(uint i=0; i < array_elements(all_groups); i++)
@@ -1493,7 +1491,12 @@ bool tp_init()
     thread_group_init(&all_groups[i], get_connection_attrib());  
   }
   tp_set_threadpool_size(threadpool_size);
- 
+  if(group_count == 0)
+  {
+    /* Something went wrong */
+    sql_print_error("Can't set threadpool size to %d",threadpool_size);
+    DBUG_RETURN(1);
+  }
   PSI_register(mutex);
   PSI_register(cond);
   PSI_register(thread);
@@ -1508,7 +1511,7 @@ void tp_end()
 {
   DBUG_ENTER("tp_end");
   
-  if (!started)
+  if (!threadpool_started)
     DBUG_VOID_RETURN;
 
   stop_timer(&pool_timer);
@@ -1516,18 +1519,18 @@ void tp_end()
   {
     thread_group_close(&all_groups[i]);
   }
-  started= false;
+  threadpool_started= false;
   DBUG_VOID_RETURN;
 }
 
 
 /** Ensure that poll descriptors are created when threadpool_size changes */
 
-int tp_set_threadpool_size(uint size)
+void tp_set_threadpool_size(uint size)
 {
   bool success= true;
-  if (!started)
-    return 0;
+  if (!threadpool_started)
+    return;
 
   for(uint i=0; i< size; i++)
   {
@@ -1537,21 +1540,25 @@ int tp_set_threadpool_size(uint size)
     {
       group->pollfd= io_poll_create();
       success= (group->pollfd >= 0);
+      if(!success)
+      {
+        sql_print_error("io_poll_create() failed, errno=%d\n", errno);
+        break;
+      }
     }  
     mysql_mutex_unlock(&all_groups[i].mutex);
     if (!success)
     {
-      group_count= i-1;
-      return -1;
+      group_count= i;
+      return;
     }
   }
   group_count= size;
-  return 0;
 }
 
 void tp_set_threadpool_stall_limit(uint limit)
 {
-  if (!started)
+  if (!threadpool_started)
     return;
   mysql_mutex_lock(&(pool_timer.mutex));
   pool_timer.tick_interval= limit;
@@ -1582,20 +1589,23 @@ int tp_get_idle_thread_count()
 
 /* Report threadpool problems */
 
-#define BLOCK_MSG_DELAY 30
+/** 
+   Delay in microseconds, after which "pool blocked" message is printed.
+   (30 sec == 30 Mio usec)
+*/
+#define BLOCK_MSG_DELAY 30*1000000
 
-static const char *max_threads_reached_msg=
-"Threadpool could not create additional thread to handle queries, because the "
-"number of allowed threads was reached. Increasing 'thread_pool_max_threads' "
-"parameter can help in this situation.\n"
-"If 'extra_port' parameter is set, you can still connect to the database with "
-"superuser account (it must be TCP connection using extra_port as TCP port) "
-"and troubleshoot the situation. "
-"A likely cause of pool blocks are clients that lock resources for long time. "
-"'show processlist' or 'show engine innodb status' can give additional hints.";
+#define MAX_THREADS_REACHED_MSG \
+"Threadpool could not create additional thread to handle queries, because the \
+number of allowed threads was reached. Increasing 'thread_pool_max_threads' \
+parameter can help in this situation.\n \
+If 'extra_port' parameter is set, you can still connect to the database with \
+superuser account (it must be TCP connection using extra_port as TCP port) \
+and troubleshoot the situation. \
+A likely cause of pool blocks are clients that lock resources for long time. \
+'show processlist' or 'show engine innodb status' can give additional hints."
 
-static const char *create_thread_error_msg=
-"Can't create threads in threadpool (errno=%d).";
+#define CREATE_THREAD_ERROR_MSG "Can't create threads in threadpool (errno=%d)."
 
 /**
  Write a message when blocking situation in threadpool occurs.
@@ -1606,10 +1616,10 @@ static const char *create_thread_error_msg=
 
 static void print_pool_blocked_message(bool max_threads_reached)
 {
-  time_t now;
+  ulonglong now;
   static bool msg_written;
   
-  now= time(NULL);
+  now= microsecond_interval_timer();
   if (pool_block_start == 0)
   {
     pool_block_start= now;
@@ -1620,12 +1630,12 @@ static void print_pool_blocked_message(bool max_threads_reached)
   if (now > pool_block_start + BLOCK_MSG_DELAY && !msg_written)
   {
     if (max_threads_reached)
-      sql_print_error(max_threads_reached_msg);
+      sql_print_error(MAX_THREADS_REACHED_MSG);
     else
-      sql_print_error(create_thread_error_msg, my_errno);
+      sql_print_error(CREATE_THREAD_ERROR_MSG, my_errno);
     
     sql_print_information("Threadpool has been blocked for %u seconds\n",
-      (uint)(now- pool_block_start));
+      (uint)((now- pool_block_start)/1000000));
     /* avoid reperated messages for the same blocking situation */
     msg_written= true;
   }

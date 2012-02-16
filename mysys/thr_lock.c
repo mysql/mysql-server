@@ -483,7 +483,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
   const char *old_proc_info;
-  my_bool use_wait_callbacks;
+  my_bool use_wait_callbacks= FALSE;
   DBUG_ENTER("wait_for_lock");
 
   /*
@@ -540,8 +540,6 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
     use_wait_callbacks= TRUE;
     (*before_lock_wait)();
   }
-  else
-    use_wait_callbacks= FALSE;
 
   set_timespec(wait_timeout, lock_wait_timeout);
   while (!thread_var->abort || in_wait_list)

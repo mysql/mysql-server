@@ -76,6 +76,7 @@ void one_thread_per_connection_scheduler(scheduler_functions *func,
     ulong *arg_max_connections, uint *arg_connection_count);
 void one_thread_scheduler(scheduler_functions *func);
 
+extern void scheduler_init();
 
 /*
  To be used for pool-of-threads (implemeneted differently on various OSs)

@@ -136,7 +136,7 @@ int threadpool_add_connection(THD *thd)
       {
         retval= 0;
         thd->net.reading_or_writing= 1;
-        thd->skip_wait_timeout= true;      
+        thd->skip_wait_timeout= true;
       }
     }
   }
@@ -185,9 +185,10 @@ int threadpool_process_request(THD *thd)
       killed flag was set by timeout handler 
       or KILL command. Return error.
     */
-    worker_context.restore();
-    return 1;
+    retval= 1;
+    goto end;
   }
+
 
   for(;;)
   {
@@ -196,12 +197,12 @@ int threadpool_process_request(THD *thd)
     mysql_audit_release(thd);
 
     if ((retval= do_command(thd)) != 0)
-      break ;
+      goto end;
 
     if (!thd_is_connection_alive(thd))
     {
       retval= 1;
-      break;
+      goto end;
     }
 
     vio= thd->net.vio;
@@ -210,10 +211,11 @@ int threadpool_process_request(THD *thd)
       /* More info on this debug sync is in sql_parse.cc*/
       DEBUG_SYNC(thd, "before_do_command_net_read");
       thd->net.reading_or_writing= 1;
-      break;
+      goto end;
     }
-  } 
+  }
 
+end:
   worker_context.restore();
   return retval;
 }
@@ -233,8 +235,6 @@ static scheduler_functions tp_scheduler_functions=
   NULL,                               // end_thread
   tp_end                              // end
 };
-
-extern void scheduler_init();
 
 void pool_of_threads_scheduler(struct scheduler_functions *func,
     ulong *arg_max_connections,
