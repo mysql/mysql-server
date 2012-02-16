@@ -2943,7 +2943,7 @@ run_again:
 
 	trx->error_state = static_cast<db_err>(err);
 
-	if (UNIV_LIKELY(err == DB_SUCCESS)) {
+	if (err == DB_SUCCESS) {
 		que_thr_stop_for_mysql_no_error(thr, trx);
 	} else {
 		que_thr_stop_for_mysql(thr);

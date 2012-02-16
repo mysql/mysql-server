@@ -1947,7 +1947,7 @@ check_trx_exists(
 
 	if (trx == NULL) {
 		trx = innobase_trx_allocate(thd);
-	} else if (trx->magic_n != TRX_MAGIC_N) {
+	} else if (UNIV_UNLIKELY(trx->magic_n != TRX_MAGIC_N)) {
 		mem_analyze_corruption(trx);
 		ut_error;
 	}
@@ -6171,7 +6171,7 @@ no_commit:
 			no need to re-acquire locks on it. */
 
 			/* Altering to InnoDB format */
-			innobase_commit(ht, user_thd, true);
+			innobase_commit(ht, user_thd, 1);
 			/* Note that this transaction is still active. */
 			trx_register_for_2pc(prebuilt->trx);
 			/* We will need an IX lock on the destination table. */
@@ -6187,7 +6187,7 @@ no_commit:
 
 			/* Commit the transaction.  This will release the table
 			locks, so they have to be acquired again. */
-			innobase_commit(ht, user_thd, true);
+			innobase_commit(ht, user_thd, 1);
 			/* Note that this transaction is still active. */
 			trx_register_for_2pc(prebuilt->trx);
 			/* Re-acquire the table lock on the source table. */
