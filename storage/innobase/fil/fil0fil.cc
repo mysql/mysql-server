@@ -2195,7 +2195,8 @@ fil_op_log_parse_or_replay(
 	switch (type) {
 	case MLOG_FILE_DELETE:
 		if (fil_tablespace_exists_in_mem(space_id)) {
-			ut_a(fil_delete_tablespace(space_id, false));
+			ut_a(fil_delete_tablespace(space_id, false)
+			     == DB_SUCCESS);
 		}
 
 		break;
