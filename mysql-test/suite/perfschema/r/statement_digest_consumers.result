@@ -78,21 +78,21 @@ DROP DATABASE statements_digest_temp;
 ####################################
 SELECT digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
 digest	digest_text	count_star
-bb399912758e2135	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
-c4cdaf6f814e367d	SELECT ? FROM t1  	1
-58681943ba1f6965	SELECT ?, ... FROM t1  	2
-dd87e085c2c5a2b6	SELECT ? FROM t2  	1
-fc7ca6a130fec1a4	SELECT ?, ... FROM t2  	2
-164f41cc7a0b2f31	INSERT INTO t1 VALUES (?)  	1
-06bd734b89c6f98f	INSERT INTO t2 VALUES (?)  	1
-3a4848d584923fd7	INSERT INTO t3 VALUES (...)  	1
-37c0599e49fd77fe	INSERT INTO t4 VALUES (...)  	1
-e63c7357e9f87f44	INSERT INTO t5 VALUES (...)  	1
-1cd783ad398f6755	INSERT INTO t1 VALUES (?) /* , ... */  	2
-f52370e9b5183696	INSERT INTO t3 VALUES (...) /* , ... */  	1
-edc61a0866ec47da	INSERT INTO t5 VALUES (...) /* , ... */  	1
-06ec53eb6a3e3d4c	SELECT ? + ?  	3
-a68272fa2b30c2e3	SELECT ?  	1
+29570e463ee5c23d	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
+043b89731c01112f	SELECT ? FROM t1  	1
+d7ee0ef93ad9fa8d	SELECT ?, ... FROM t1  	2
+a9a476e33c41ccf6	SELECT ? FROM t2  	1
+e0ec2ba9bfa25ce9	SELECT ?, ... FROM t2  	2
+9483370b7bfe3e5b	INSERT INTO t1 VALUES (?)  	1
+5a02f8af17096ad0	INSERT INTO t2 VALUES (?)  	1
+778782a1f7a22d3e	INSERT INTO t3 VALUES (...)  	1
+ba86d7d93b0f147d	INSERT INTO t4 VALUES (...)  	1
+d6451ffacc7e94dd	INSERT INTO t5 VALUES (...)  	1
+7fcb81b5cb6a8b88	INSERT INTO t1 VALUES (?) /* , ... */  	2
+0bac26f67845225a	INSERT INTO t3 VALUES (...) /* , ... */  	1
+ef74a0ff15482a27	INSERT INTO t5 VALUES (...) /* , ... */  	1
+21c8d94778536808	SELECT ? + ?  	3
+9b5972abc531b21c	SELECT ?  	1
 49d23ec9aebe975b	CREATE SCHEMA statements_digest_temp  	2
 d42c9738d3d96889	DROP SCHEMA statements_digest_temp  	2
 SELECT digest, digest_text FROM performance_schema.events_statements_current;
