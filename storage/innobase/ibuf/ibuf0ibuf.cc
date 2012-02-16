@@ -2601,10 +2601,10 @@ ibuf_merge_pages(
 		return(0);
 	}
 
-	sum_sizes = ibuf_get_merge_page_nos(
-		TRUE, btr_pcur_get_rec(&pcur), &mtr, space_ids,
-		space_versions, page_nos, n_pages);
-
+	sum_sizes = ibuf_get_merge_page_nos(TRUE,
+					    btr_pcur_get_rec(&pcur), &mtr,
+					    space_ids, space_versions,
+					    page_nos, n_pages);
 #if 0 /* defined UNIV_IBUF_DEBUG */
 	fprintf(stderr, "Ibuf contract sync %lu pages %lu volume %lu\n",
 		sync, *n_pages, sum_sizes);

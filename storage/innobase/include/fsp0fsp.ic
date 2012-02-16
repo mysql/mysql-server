@@ -211,7 +211,7 @@ fsp_flags_get_page_size(
 	ulint	ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
 
 	/* Convert from a 'log2 minus 9' to a page size in bytes. */
-	if (ssize) {
+	if (UNIV_UNLIKELY(ssize)) {
 		page_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
 
 		ut_ad(page_size <= UNIV_PAGE_SIZE_MAX);
