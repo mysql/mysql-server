@@ -2657,6 +2657,41 @@ register_pending_send(thr_data *selfptr, Uint32 nodeId)
   }
 }
 
+static void try_send(thr_data *, Uint32); // prototype
+
+/**
+ * pack send buffers for a specific node
+ */
+void
+pack_send_buffer(thr_data *selfptr, Uint32 node)
+{
+  thr_repository* rep = &g_thr_repository;
+  thr_repository::send_buffer* sb = rep->m_send_buffers+node;
+  thread_local_pool<thr_send_page>* pool = &selfptr->m_send_buffer_pool;
+
+  lock(&sb->m_send_lock);
+  int bytes = link_thread_send_buffers(sb, node);
+  if (bytes)
+  {
+    pack_sb_pages(pool, sb);
+  }
+  unlock(&sb->m_send_lock);
+
+  /**
+   * release buffers prior to checking m_force_send
+   */
+  pool->release_global(rep->m_mm, RG_TRANSPORTER_BUFFERS);
+
+  /**
+   * After having locked/unlock m_send_lock
+   *   "protocol" dictates that we must check the m_force_send
+   */
+  if (sb->m_force_send)
+  {
+    try_send(selfptr, node);
+  }
+}
+
 /**
  * publish thread-locally prepared send-buffer
  */
@@ -2683,9 +2718,7 @@ flush_send_buffer(thr_data* selfptr, Uint32 node)
 
   if (unlikely(next == ri))
   {
-    lock(&sb->m_send_lock);
-    link_thread_send_buffers(sb, node);
-    unlock(&sb->m_send_lock);
+    pack_send_buffer(selfptr, node);
   }
 
   dst->m_buffers[wi] = src->m_first_page;
