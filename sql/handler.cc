@@ -1180,9 +1180,7 @@ int ha_commit_trans(THD *thd, bool all)
     counterpart.
   */
   DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
-              trans == &thd->transaction.stmt ||
-              thd->get_gtid_next_list() != NULL ||
-              thd->variables.gtid_next.type == GTID_GROUP); // @todo: are the two extra clauses for gtids correct? /sven
+              trans == &thd->transaction.stmt);
 
   if (thd->in_sub_stmt)
   {
@@ -1408,9 +1406,7 @@ int ha_rollback_trans(THD *thd, bool all)
     transaction is pending.
   */
   DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
-              trans == &thd->transaction.stmt ||
-              thd->get_gtid_next_list() != NULL ||
-              thd->variables.gtid_next.type == GTID_GROUP); // @todo: are the two extra clauses for gtids correct? /sven
+              trans == &thd->transaction.stmt);
 
   if (thd->in_sub_stmt)
   {
