@@ -2890,7 +2890,15 @@ func_exit:
 		dict_table_close(table, TRUE);
 	}
 
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_discard_before_commit", DBUG_SUICIDE(););
+#endif /* UNIV_DEBUG */
+
 	trx_commit_for_mysql(trx);
+
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_discard_after_commit", DBUG_SUICIDE(););
+#endif /* UNIV_DEBUG */
 
 	row_mysql_unlock_data_dictionary(trx);
 

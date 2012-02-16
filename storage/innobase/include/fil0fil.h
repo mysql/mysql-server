@@ -503,9 +503,9 @@ after it performed these cleanup operations on the .ibd file, so that it at
 the shutdown stamped the latest lsn to the FIL_PAGE_FILE_FLUSH_LSN in the
 first page of the .ibd file, and we can determine whether we need to reset the
 lsn's just by looking at that flush lsn.
-@return	TRUE if success */
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
-ibool
+db_err
 fil_reset_space_and_lsn(
 /*====================*/
 	dict_table_t*	table,		/*!< in/out: table

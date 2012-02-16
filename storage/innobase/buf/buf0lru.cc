@@ -52,6 +52,8 @@ Created 11/5/1995 Heikki Tuuri
 #include "srv0srv.h"
 #include "srv0mon.h"
 
+#include "ha_prototypes.h"
+
 /** The number of blocks from the LRU_old pointer onward, including
 the block pointed to, must be buf_pool->LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
 of the whole LRU list length, except that the tolerance defined below
@@ -573,6 +575,13 @@ buf_flush_or_remove_pages(
 			handled = skip = 0;
 		}
 
+#ifdef UNIV_DEBUG
+		static ulint	n_pages;
+
+		DBUG_EXECUTE_IF(
+			"ib_buf0lru_flush_remove_crash",
+			if (++n_pages == 4) {DBUG_SUICIDE();});
+#endif /* UNIV_DEBUG */
 		if (handled == 0 && trx && trx_is_interrupted(trx)) {
 			return(DB_INTERRUPTED);
 		}

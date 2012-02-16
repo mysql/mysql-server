@@ -56,6 +56,7 @@ Created 7/19/1997 Heikki Tuuri
 #include "log0recv.h"
 #include "que0que.h"
 #include "srv0start.h" /* srv_shutdown_state */
+#include "ha_prototypes.h"
 
 /*	STRUCTURE OF AN INSERT BUFFER RECORD
 
@@ -5011,8 +5012,8 @@ ibuf_check_bitmap_on_import(
 	ulint	size;
 	ulint	page_no;
 
-	ut_ad(trx);
 	ut_ad(space_id);
+	ut_ad(trx->mysql_thd);
 
 	zip_size = fil_space_get_zip_size(space_id);
 
@@ -5057,13 +5058,14 @@ ibuf_check_bitmap_on_import(
 				ibuf_exit(&mtr);
 				mtr_commit(&mtr);
 
-				/* TODO: return this error to the client */
-				ut_print_timestamp(stderr);
-				fprintf(stderr, "  InnoDB: space %u page %u"
-					" is wrongly flagged to belong to the"
-					" insert buffer\n",
-					(unsigned) space_id,
-					(unsigned) offset);
+				ib_pushf(trx->mysql_thd,
+					 IB_LOG_LEVEL_ERROR,
+					 ER_INDEX_CORRUPT,
+					 "space %u page %u"
+					 " is wrongly flagged to belong to the"
+					 " insert buffer",
+					 (unsigned) space_id,
+					 (unsigned) offset);
 
 				return(DB_CORRUPTION);
 			}
@@ -5072,10 +5074,11 @@ ibuf_check_bitmap_on_import(
 				    bitmap_page, offset, zip_size,
 				    IBUF_BITMAP_BUFFERED, &mtr)) {
 
-				/* TODO: push_warning_printf() */
-				ut_print_timestamp(stderr);
-				fprintf(stderr, "  InnoDB: buffered changes"
-					" for space %u page %u are lost\n",
+				ib_pushf(trx->mysql_thd,
+					 IB_LOG_LEVEL_WARN,
+					 ER_INDEX_CORRUPT,
+					 "Buffered changes"
+					 " for space %u page %u are lost",
 					(unsigned) space_id,
 					(unsigned) offset);
 

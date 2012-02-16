@@ -505,6 +505,11 @@ row_import_adjust_root_pages(
 	dict_index_t*		index;
 	db_err			err = DB_SUCCESS;
 
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_import_sec_rec_count_mismatch_failure",
+			n_rows_in_table++;);
+#endif /* UNIV_DEBUG */
+
 	/* Skip the cluster index. */
 	index = dict_table_get_first_index(table);
 
@@ -628,6 +633,11 @@ row_import_set_sys_max_row_id(
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
+
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_import_set_max_rowid_failure",
+			err = DB_CORRUPTION;);
+#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 		char		index_name[MAX_FULL_NAME_LEN + 1];
@@ -959,6 +969,11 @@ row_import_for_mysql(
 
 	mutex_exit(&trx->undo_mutex);
 
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_import_undo_assign_failure",
+			err = DB_TOO_MANY_CONCURRENT_TRXS;);
+#endif /* UNIV_DEBUG */
+
 	if (err != DB_SUCCESS) {
 
 		return(row_import_cleanup(prebuilt, trx, err));
@@ -976,6 +991,11 @@ row_import_for_mysql(
 	the tablespace page size is the same as UNIV_PAGE_SIZE. */
 
 	err = row_import_set_index_root(table, trx->mysql_thd);
+
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_import_set_index_root_failure",
+			err = DB_TOO_MANY_CONCURRENT_TRXS;);
+#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));
@@ -1002,6 +1022,11 @@ row_import_for_mysql(
 
 	mutex_exit(&dict_sys->mutex);
 
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_import_table_id_reassign_failure",
+			err = DB_TOO_MANY_CONCURRENT_TRXS;);
+#endif /* UNIV_DEBUG */
+
 	if (err != DB_SUCCESS) {
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
@@ -1013,14 +1038,20 @@ row_import_for_mysql(
 	assume that mysqld stamped the latest lsn to the
 	FIL_PAGE_FILE_FLUSH_LSN in the first page of the .ibd file. */
 
-	if (!fil_reset_space_and_lsn(table, current_lsn)) {
+	err = fil_reset_space_and_lsn(table, current_lsn);
 
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_import_reset_space_and_lsn_failure",
+			err = DB_TOO_MANY_CONCURRENT_TRXS;);
+#endif /* UNIV_DEBUG */
+
+	if (err != DB_SUCCESS) {
 		ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			 ER_INDEX_CORRUPT,
 			 "Error: cannot reset LSN's in table %s",
 			 table_name);
 
-		return(row_import_cleanup(prebuilt, trx, DB_ERROR));
+		return(row_import_cleanup(prebuilt, trx, err));
 	}
 
 	/* Play it safe and remove all insert buffer entries for this
@@ -1032,6 +1063,11 @@ row_import_for_mysql(
 		    table, table->space,
 		    dict_tf_to_fsp_flags(table->flags),
 		    table->name);
+
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
+			err = DB_TOO_MANY_CONCURRENT_TRXS;);
+#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 
@@ -1046,7 +1082,12 @@ row_import_for_mysql(
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
 
-	err = (db_err) ibuf_check_bitmap_on_import(trx, table->space);
+	err = ibuf_check_bitmap_on_import(trx, table->space);
+
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_import_check_bitmap_failure",
+			err = DB_TABLE_NOT_FOUND;);
+#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 		return(row_import_cleanup(prebuilt, trx, err));
@@ -1064,6 +1105,11 @@ row_import_for_mysql(
 	}
 
 	err = btr_root_adjust_on_import(index);
+
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_import_cluster_root_adjust_failure",
+			err = DB_CORRUPTION;);
+#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 
@@ -1088,6 +1134,10 @@ row_import_for_mysql(
 		trx->op_info = "";
 	}
 
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_import_cluster_failure", err = DB_CORRUPTION;);
+#endif /* UNIV_DEBUG */
+
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));
 	}
@@ -1095,11 +1145,14 @@ row_import_for_mysql(
 	err = row_import_adjust_root_pages(
 		prebuilt, trx, table, n_rows_in_table);
 
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_import_sec_root_adjust_failure",
+			err = DB_CORRUPTION;);
+#endif /* UNIV_DEBUG */
+
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));
 	}
-
-	/* TODO: Copy table->flags to SYS_TABLES.TYPE and N_COLS */
 
 	table->ibd_file_missing = FALSE;
 
@@ -1116,11 +1169,23 @@ row_import_for_mysql(
 	{
 		SetIndexRoot	callback(table);
 
+		mutex_enter(&dict_sys->mutex);
+
 		row_mysql_sys_index_iterate(table->id, &callback);
+
+		mutex_exit(&dict_sys->mutex);
 	}
+
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_import_before_checkpoint", DBUG_SUICIDE(););
+#endif /* UNIV_DEBUG */
 
 	/* Flush dirty blocks to the file. */
 	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+
+#ifdef UNIV_DEBUG
+	DBUG_EXECUTE_IF("ib_import_after_checkpoint", DBUG_SUICIDE(););
+#endif /* UNIV_DEBUG */
 
 	ut_a(err == DB_SUCCESS);
 	return(row_import_cleanup(prebuilt, trx, err));

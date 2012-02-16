@@ -3139,9 +3139,9 @@ after it performed these cleanup operations on the .ibd file, so that it at
 the shutdown stamped the latest lsn to the FIL_PAGE_FILE_FLUSH_LSN in the
 first page of the .ibd file, and we can determine whether we need to reset the
 lsn's just by looking at that flush lsn.
-@return	TRUE if success */
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
-ibool
+db_err
 fil_reset_space_and_lsn(
 /*====================*/
 	dict_table_t*	table,		/*!< in/out: table
@@ -3150,6 +3150,7 @@ fil_reset_space_and_lsn(
 					to FIL_PAGE_FILE_FLUSH_LSN in the
 					first page is too high */
 {
+	db_err		err;
 	os_file_t	file;
 	char*		filepath;
 	char*		tmpfilepath;
@@ -3173,6 +3174,7 @@ fil_reset_space_and_lsn(
 
 	if (success) {
 
+		err = DB_SUCCESS;
 		goto renamed;
 	}
 
@@ -3197,26 +3199,29 @@ fil_reset_space_and_lsn(
 		mem_free(filepath);
 		mem_free(tmpfilepath);
 
-		return(FALSE);
+		return(DB_TABLESPACE_NOT_FOUND);
 	}
 
 	os_file_close(file);
 
-	/* Rename the tablespace from .ibd to .ibt for the duration of
-	the adjustment. */
-	success = os_file_rename(innodb_file_data_key, filepath, tmpfilepath);
 	buf2 = NULL;
 
-	if (!success) {
-
+	/* Rename the tablespace from .ibd to .ibt for the duration of
+	the adjustment. */
+	if (!os_file_rename(innodb_file_data_key, filepath, tmpfilepath)) {
+		err = DB_IO_ERROR;
 		goto func_exit;
 	}
 
-	file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key, tmpfilepath,
-		OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
+	err = DB_SUCCESS;
 
-	if (!success) {
+	if (!os_file_create_simple_no_error_handling(
+		innodb_file_data_key, tmpfilepath,
+		OS_FILE_OPEN, OS_FILE_READ_WRITE, &success)) {
+
+		/* We have no idea what the error is, unless we fix
+		os_file_create_simple_no_error_handling() to return db_err */
+		err = DB_ERROR;
 
 		goto func_exit;
 	}
@@ -3228,9 +3233,8 @@ renamed:
 	/* Align the memory for file i/o if we might have O_DIRECT set */
 	page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
 
-	success = os_file_read(file, page, 0, UNIV_PAGE_SIZE);
-	if (!success) {
-
+	if (!os_file_read(file, page, 0, UNIV_PAGE_SIZE)) {
+		err = DB_IO_ERROR;
 		goto func_exit;
 	}
 
@@ -3239,7 +3243,7 @@ renamed:
 	switch (fil_space_id) {
 	case 0:
 	case ULINT_UNDEFINED:
-		success = FALSE;
+		err = DB_ERROR;
 		goto func_exit;
 	}
 
@@ -3258,8 +3262,7 @@ renamed:
 	if (current_lsn >= flush_lsn && flush_lsn != 0
 	    && fil_space_id == table->space) {
 		/* Ok */
-		success = TRUE;
-
+		err = DB_SUCCESS;
 		goto rename_and_exit;
 	}
 
@@ -3324,13 +3327,12 @@ renamed:
 		switch (fil_reset_space_and_lsn_read(tmpfilepath, file, offset,
 						     page, zip_size)) {
 		case 0:
-			success = fil_reset_space_and_lsn_write(
+			if (!fil_reset_space_and_lsn_write(
 				current_lsn, tmpfilepath, file,
 				table->space, offset, page,
-				zip_size ? &page_zip : NULL);
+				zip_size ? &page_zip : NULL)) {
 
-			if (!success) {
-
+				err = DB_ERROR;
 				goto func_exit;
 			}
 
@@ -3340,17 +3342,15 @@ renamed:
 			/* The page is all zero: leave it as is. */
 			break;
 		default:
-			success = FALSE;
+			err = DB_ERROR;
 			goto func_exit;
 		}
 	}
 
 	/* Flush all but the first page, to be on the safe side after
 	a crash.  Then, adjust and flush the first page. */
-	success = os_file_flush(file);
-
-	if (!success) {
-
+	if (!os_file_flush(file)) {
+		err = DB_IO_ERROR;
 		goto func_exit;
 	}
 
@@ -3358,7 +3358,7 @@ renamed:
 					 page, zip_size)) {
 		/* The first page is corrupted.  Actually, it should
 		never be, as it has already been checked. */
-		success = FALSE;
+		err = DB_ERROR;
 		goto func_exit;
 	}
 
@@ -3369,7 +3369,8 @@ renamed:
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: unsupported tablespace format %lu\n",
 			(ulong) space_flags);
-		success = FALSE;
+
+		err = DB_UNSUPPORTED;
 		goto func_exit;
 	}
 
@@ -3379,24 +3380,23 @@ renamed:
 	mach_write_to_4(FIL_PAGE_DATA + page, table->space);
 
 	/* Update the flush_lsn stamp at the start of the file */
-	success = fil_reset_space_and_lsn_write(
+	if (!fil_reset_space_and_lsn_write(
 		current_lsn, tmpfilepath, file, table->space, 0,
-		page, zip_size ? &page_zip : NULL);
+		page, zip_size ? &page_zip : NULL)) {
 
-	if (!success) {
-
+		err = DB_ERROR;
 		goto func_exit;
 	}
 
 rename_and_exit:
-	success = os_file_flush(file);
-
-	if (!success) {
-
+	if (!os_file_flush(file)) {
+		err = DB_IO_ERROR;
 		goto func_exit;
 	}
 
-	success = os_file_rename(innodb_file_data_key, tmpfilepath, filepath);
+	if (!os_file_rename(innodb_file_data_key, tmpfilepath, filepath)) {
+		err = DB_ERROR;
+	}
 
 func_exit:
 	os_file_close(file);
@@ -3406,7 +3406,7 @@ func_exit:
 	mem_free(filepath);
 	mem_free(tmpfilepath);
 
-	return(success);
+	return(err);
 }
 
 /********************************************************************//**
