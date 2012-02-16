@@ -3201,9 +3201,9 @@ const_table_extraction_done:
       trace_table.add_utf8_table(s->table);
       if (s->type == JT_SYSTEM || s->type == JT_CONST)
       {
-        trace_table.add("rows", 1).add("cost", 1);
-        trace_table.add_alnum("table_type", (s->type == JT_SYSTEM) ?
-                              "system": "const");
+        trace_table.add("rows", 1).add("cost", 1)
+          .add_alnum("table_type", (s->type == JT_SYSTEM) ? "system": "const")
+          .add("empty", static_cast<bool>(table->null_row));
 
         /* Only one matching row */
         s->found_records= s->records= s->read_time=1; s->worst_seeks= 1.0;
@@ -7137,6 +7137,7 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
 static bool make_join_select(JOIN *join, Item *cond)
 {
   THD *thd= join->thd;
+  Opt_trace_context * const trace= &thd->opt_trace;
   DBUG_ENTER("make_join_select");
   {
     add_not_null_conds(join);
@@ -7197,10 +7198,17 @@ static bool make_join_select(JOIN *join, Item *cond)
               DBUG_RETURN(true);
           }       
         }
-        if (const_cond && !const_cond->val_int())
+        if (const_cond != NULL)
         {
-	  DBUG_PRINT("info",("Found impossible WHERE condition"));
-	  DBUG_RETURN(1);	 // Impossible const condition
+          const bool const_cond_is_true= const_cond->val_int() != 0;
+          Opt_trace_object trace_const_cond(trace);
+          trace_const_cond.add("condition_on_constant_tables", const_cond)
+            .add("condition_value", const_cond_is_true);
+          if (!const_cond_is_true)
+          {
+            DBUG_PRINT("info",("Found impossible WHERE condition"));
+            DBUG_RETURN(1);	 // Impossible const condition
+          }
         }
       }
     }
@@ -7210,7 +7218,6 @@ static bool make_join_select(JOIN *join, Item *cond)
     */
     table_map used_tables= 0;
     table_map save_used_tables= 0;
-    Opt_trace_context * const trace= &thd->opt_trace;
     Opt_trace_object trace_wrapper(trace);
     Opt_trace_object
       trace_conditions(trace, "attaching_conditions_to_tables");

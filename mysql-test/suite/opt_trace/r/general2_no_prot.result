@@ -2439,7 +2439,8 @@ table3.col_varchar_10_utf8_key	{
                 "table": "table2",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               },
               {
                 "database": "test",
@@ -2490,6 +2491,10 @@ table3.col_varchar_10_utf8_key	{
                 ] /* rest_of_plan */
               }
             ] /* considered_execution_plans */
+          },
+          {
+            "condition_on_constant_tables": "1",
+            "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {
@@ -3469,7 +3474,8 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "table": "t1",
                       "rows": 1,
                       "cost": 1,
-                      "table_type": "system"
+                      "table_type": "system",
+                      "empty": false
                     },
                     {
                       "database": "test",
@@ -4018,7 +4024,8 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                 "table": "t3",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "const"
+                "table_type": "const",
+                "empty": false
               },
               {
                 "database": "test",
@@ -4484,6 +4491,10 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                 ] /* rest_of_plan */
               }
             ] /* considered_execution_plans */
+          },
+          {
+            "condition_on_constant_tables": "1",
+            "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {
@@ -4960,3 +4971,121 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
   ] /* steps */
 }	0	0
 DROP TABLE t1,t2;
+#
+# Trace of "condition on constant tables"
+#
+create table t1(a int) engine=myisam;
+insert into t1 values(26);
+create table t2(b int primary key, c int) engine=myisam;
+insert into t2 values(1,100),(2,200),(3,300);
+select * from t1,t2 where t1.a+t2.c=cos(10) and t2.b=2;
+a	b	c
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+select * from t1,t2 where t1.a+t2.c=cos(10) and t2.b=2	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where (((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and (`test`.`t2`.`b` = 2))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and (`test`.`t2`.`b` = 2))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and multiple equal(2, `test`.`t2`.`b`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and multiple equal(2, `test`.`t2`.`b`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and multiple equal(2, `test`.`t2`.`b`))"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "row_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+              {
+                "database": "test",
+                "table": "t2",
+                "field": "b",
+                "equals": "2",
+                "null_rejecting": false
+              }
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "rows_estimation": [
+              {
+                "database": "test",
+                "table": "t1",
+                "rows": 1,
+                "cost": 1,
+                "table_type": "system",
+                "empty": false
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "rows": 1,
+                "cost": 1,
+                "table_type": "const",
+                "empty": false
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "condition_on_constant_tables": "(('26' + '200') = cos(10))",
+            "condition_value": false
+          }
+        ] /* steps */,
+        "empty_result": {
+          "cause": "Impossible WHERE noticed after reading const tables"
+        } /* empty_result */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+drop table t1,t2;
