@@ -1803,3 +1803,130 @@ FROM (SELECT * FROM t1) AS alias1
 GROUP BY field5;
 
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#12626418 "only_full_group_by wrongly allows column in order by"
+--echo #
+
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode='ONLY_FULL_GROUP_BY';
+
+create table t1(a int, b int);
+--error ER_WRONG_FIELD_WITH_GROUP
+select a from t1 group by b;
+select 1 from t1 group by b;
+--error ER_WRONG_FIELD_WITH_GROUP
+select 1 from t1 group by b order by a;
+--error ER_WRONG_FIELD_WITH_GROUP
+select a from t1 group by b order by b;
+       
+drop table t1;
+
+# A query from BUG#12844977
+
+CREATE TABLE t1 (pk int, i1 int,  v1 varchar(1), primary key (pk));
+INSERT INTO t1 VALUES (0,2,'b'),(1,4,'a'),(2,0,'a'),(3,7,'b'),(4,7,'c');
+
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT a1.v1,a2.v1 FROM t1 AS a1 JOIN t1 AS a2 ON a2.pk = a1.i1 group by
+a1.v1,a2.v1 ORDER BY a1.i1,a2.pk,a2.v1 ASC;
+
+SELECT a1.v1,a2.v1 FROM t1 AS a1 JOIN t1 AS a2 ON a2.pk = a1.i1 group by
+a1.v1,a2.v1 ORDER BY             a2.v1 ASC;
+
+DROP TABLE t1;
+
+# A query from BUG#12699645
+
+CREATE TABLE t1 (pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT
+NULL, col_varchar_key varchar(1) NOT NULL, col_varchar_nokey varchar(1) NOT
+NULL, PRIMARY KEY (pk), KEY col_int_key (col_int_key), KEY col_varchar_key
+(col_varchar_key,col_int_key));
+CREATE TABLE t2 (pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT
+NULL, col_varchar_key varchar(1) NOT NULL, col_varchar_nokey varchar(1) NOT
+NULL, PRIMARY KEY (pk), KEY col_int_key (col_int_key), KEY col_varchar_key
+(col_varchar_key,col_int_key));
+
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1
+STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
+group by field2 ORDER BY alias1.col_int_key,alias2.pk ;
+
+DROP TABLE t1,t2;
+
+# A query from BUG#12626418
+
+CREATE TABLE t1 (pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT
+NULL, col_datetime_key datetime NOT NULL, col_varchar_key varchar(1) NOT
+NULL, col_varchar_nokey varchar(1) NOT NULL, PRIMARY KEY (pk), KEY
+col_int_key (col_int_key), KEY col_datetime_key (col_datetime_key), KEY
+col_varchar_key (col_varchar_key,col_int_key));
+CREATE TABLE t2 (pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT
+NULL, col_datetime_key datetime NOT NULL, col_varchar_key varchar(1) NOT
+NULL, col_varchar_nokey varchar(1) NOT NULL, PRIMARY KEY (pk), KEY
+col_int_key (col_int_key), KEY col_datetime_key (col_datetime_key), KEY
+col_varchar_key (col_varchar_key,col_int_key));
+
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT alias2.col_varchar_key AS field1 ,
+COUNT(DISTINCT alias1.col_varchar_nokey), alias2.pk AS field4
+FROM t1 AS alias1
+RIGHT JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key
+GROUP BY field1 , field4
+ORDER BY alias1.col_datetime_key ;
+
+DROP TABLE t1,t2;
+
+# Particular situations met while fixing the bug
+
+create table t1 (a int, b int);
+# A field for COUNT(*) will be inserted in all_fields, between
+# 'fields' (which has the Item_func_gt) and elements of ORDER BY ('b').
+--error ER_WRONG_FIELD_WITH_GROUP
+select count(*) > 3 from t1 group by a order by b;
+
+create table t2 (a int, b int);
+# The subquery in ORDER BY has an outer query's column, which means
+# that the outer query's ORDER BY depends on a non-aggregated column,
+# which itself is not in GROUP BY.
+--error ER_WRONG_FIELD_WITH_GROUP
+select a from t2 group by a order by (select a from t1 order by t2.b);
+SET @@sql_mode = @old_sql_mode;
+DROP TABLE t1,t2;
+
+# From BUG#17282
+
+create table t1 (branch varchar(40), id int);
+
+select count(*) from t1 group by branch having
+branch<>'mumbai' order by id desc,branch desc limit 100;
+
+select branch, count(*)/max(id) from t1 group by branch
+having (branch<>'mumbai' OR count(*)<2)
+order by id desc,branch desc limit 100;
+
+SET @@sql_mode='ONLY_FULL_GROUP_BY';
+
+--error ER_WRONG_FIELD_WITH_GROUP
+select count(*) from t1 group by branch having
+branch<>'mumbai' order by id desc,branch desc limit 100;
+
+--error ER_WRONG_FIELD_WITH_GROUP
+select branch, count(*)/max(id) from t1 group by branch
+having (branch<>'mumbai' OR count(*)<2)
+order by id desc,branch desc limit 100;
+
+DROP TABLE t1;
+
+# From BUG#8510
+
+create table t1 (a int, b int);
+insert into t1 values (1, 2), (1, 3), (null, null);
+
+select sum(a), count(*) from t1 group by a;
+select round(sum(a)), count(*) from t1 group by a;
+select ifnull(a, 'xyz') from t1 group by a;
+
+DROP TABLE t1;
+
+SET @@sql_mode = @old_sql_mode;

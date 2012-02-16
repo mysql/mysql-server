@@ -193,7 +193,7 @@ public:
 
   Key_use_array keyuse;
 
-  List<Item> all_fields; ///< to store all fields that used in query
+  List<Item> all_fields; ///< to store all expressions used in query
   ///Above list changed to use temporary table
   List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
   ///Part, shared with list above, emulate following list
