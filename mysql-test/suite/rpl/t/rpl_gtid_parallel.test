@@ -25,7 +25,8 @@
 
 --echo ==== Configure ====
 
---let $n_transactions= 1000
+--let $max_transactions= 1000
+--let $max_seconds= 300
 --let $n_forks= 30
 --let $flush_probability= 0.05
 --let $rename_probability= 0.1
@@ -61,8 +62,10 @@ eval INSERT INTO t2_$t VALUES (0);
 
 --let $i= 1
 --let $last_i= 0
+--let $start_time= `SELECT UNIX_TIMESTAMP()`
+--let $done= 0
 --disable_query_log
-while ($i < $n_transactions)
+while (!$done)
 {
   if (`SELECT RAND() < $rename_probability`)
   {
@@ -82,6 +85,15 @@ while ($i < $n_transactions)
   }
   --let $last_i= $i
   --inc $i
+
+  if ($i >= $max_transactions)
+  {
+    --let $done= 1
+  }
+  if (`SELECT UNIX_TIMESTAMP() - $start_time > $max_seconds`)
+  {
+    --let $done= 1
+  }
 }
 --enable_query_log
 CREATE TABLE t_end (a INT);
@@ -102,8 +114,8 @@ perl;
     map { sprintf("$ENV{MYSQL_BINLOG} %s%06d", $file, $_) } 1 .. $number;
   my $n_forks= $ENV{_N_FORKS};
   my $n= $n_forks;
-  my @cmd_lists= ( [ "echo 'USE test; CALL show_slave_status();'" ],
-                   [ "echo 'SELECT @@global.gtid_done, @@global.gtid_owned;'" ],
+  my @cmd_lists= ( [ 'echo "USE test; CALL show_slave_status();"' ],
+                   [ 'echo "SELECT @@global.gtid_done, @@global.gtid_owned;"' ],
                    \@mysqlbinlog_commands );
   $n-- while $n && fork;
   my $cmd_list= $cmd_lists[$n % @cmd_lists];
