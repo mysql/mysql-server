@@ -23,6 +23,9 @@ Insert into a table
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
+#include "my_global.h" /* HAVE_* */
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "row0ins.h"
 
 #ifdef UNIV_NONINL
@@ -2294,8 +2297,13 @@ function_exit:
 	mtr_commit(&mtr);
 
 	if (UNIV_LIKELY_NULL(big_rec)) {
+		DBUG_EXECUTE_IF(
+			"row_ins_extern_checkpoint",
+			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE););
+
 		mtr_start(&mtr);
 
+		DEBUG_SYNC_C("before_row_ins_extern_latch");
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 					    BTR_MODIFY_TREE, &cursor, 0,
 					    __FILE__, __LINE__, &mtr);
@@ -2303,9 +2311,11 @@ function_exit:
 		offsets = rec_get_offsets(rec, index, NULL,
 					  ULINT_UNDEFINED, &heap);
 
+		DEBUG_SYNC_C("before_row_ins_upd_extern");
 		err = btr_store_big_rec_extern_fields(
 			index, btr_cur_get_block(&cursor),
 			rec, offsets, big_rec, &mtr, FALSE, NULL);
+		DEBUG_SYNC_C("after_row_ins_upd_extern");
 
 stored_big_rec:
 		if (modify) {
