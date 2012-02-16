@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,6 +64,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <sha1.h>
+#include <my_rnd.h>
 #include "mysql.h"
 
 /************ MySQL 3.23-4.0 authentication routines: untouched ***********/
@@ -321,7 +322,7 @@ void create_random_string(char *to, uint length, struct rand_struct *rand_st)
   char *end= to + length;
   /* Use pointer arithmetics as it is faster way to do so. */
   for (; to < end; to++)
-    *to= (char) (my_rnd(rand_st)*94+33);
+    *to= (char) (my_rnd_ssl(rand_st) * 94 + 33);
   *to= '\0';
 }
 
