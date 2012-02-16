@@ -1765,31 +1765,33 @@ fsp_alloc_seg_inode(
 	fsp_header_t*	space_header,	/*!< in: space header */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
-	ulint		n;
-	page_t*		page;
-	buf_block_t*	block;
-	fseg_inode_t*	inode;
 	ulint		page_no;
+	buf_block_t*	block;
+	page_t*		page;
+	fseg_inode_t*	inode;
+	ibool		success;
 	ulint		zip_size;
+	ulint		n;
 
 	ut_ad(page_offset(space_header) == FSP_HEADER_OFFSET);
 
-	if (flst_get_len(space_header + FSP_SEG_INODES_FREE, mtr) == 0
-	    && !fsp_alloc_seg_inode_page(space_header, mtr)) {
+	if (flst_get_len(space_header + FSP_SEG_INODES_FREE, mtr) == 0) {
+		/* Allocate a new segment inode page */
 
-		/* Allocation of new segment inode page failed. */
-		return(NULL);
+		success = fsp_alloc_seg_inode_page(space_header, mtr);
+
+		if (!success) {
+
+			return(NULL);
+		}
 	}
 
 	page_no = flst_get_first(space_header + FSP_SEG_INODES_FREE, mtr).page;
 
 	zip_size = fsp_flags_get_zip_size(
 		mach_read_from_4(FSP_SPACE_FLAGS + space_header));
-
-	block = buf_page_get(
-		page_get_space_id(page_align(space_header)),
-		zip_size, page_no, RW_X_LATCH, mtr);
-
+	block = buf_page_get(page_get_space_id(page_align(space_header)),
+			     zip_size, page_no, RW_X_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
 	page = buf_block_get_frame(block);
@@ -1802,7 +1804,6 @@ fsp_alloc_seg_inode(
 
 	if (ULINT_UNDEFINED == fsp_seg_inode_page_find_free(page, n + 1,
 							    zip_size, mtr)) {
-
 		/* There are no other unused headers left on the page: move it
 		to another list */
 
@@ -1815,7 +1816,6 @@ fsp_alloc_seg_inode(
 
 	ut_ad(!mach_read_from_8(inode + FSEG_ID)
 	      || mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
-
 	return(inode);
 }
 
@@ -1889,7 +1889,7 @@ fseg_inode_try_get(
 
 	inode = fut_get_ptr(space, zip_size, inode_addr, RW_X_LATCH, mtr);
 
-	if (!mach_read_from_8(inode + FSEG_ID)) {
+	if (UNIV_UNLIKELY(!mach_read_from_8(inode + FSEG_ID))) {
 
 		inode = NULL;
 	} else {
@@ -1913,11 +1913,9 @@ fseg_inode_get(
 				or 0 for uncompressed pages */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	fseg_inode_t*	inode;
-
-	inode = fseg_inode_try_get(header, space, zip_size, mtr);
-	ut_a(inode != NULL);
-
+	fseg_inode_t*	inode
+		= fseg_inode_try_get(header, space, zip_size, mtr);
+	ut_a(inode);
 	return(inode);
 }
 

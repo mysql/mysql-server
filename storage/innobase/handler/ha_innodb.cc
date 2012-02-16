@@ -2470,8 +2470,8 @@ innobase_format_name(
 {
 	const char*     bufend;
 
-	bufend = innobase_convert_name(
-		buf, buflen, name, strlen(name), NULL, !is_index_name);
+	bufend = innobase_convert_name(buf, buflen, name, strlen(name),
+				       NULL, !is_index_name);
 
 	ut_ad((ulint) (bufend - buf) < buflen);
 
@@ -7231,8 +7231,8 @@ ha_innobase::change_active_index(
 	prebuilt->index = innobase_get_index(keynr);
 
 	if (UNIV_UNLIKELY(!prebuilt->index)) {
-		sql_print_warning(
-			"InnoDB: change_active_index(%u) failed", keynr);
+		sql_print_warning("InnoDB: change_active_index(%u) failed",
+				  keynr);
 		prebuilt->index_usable = FALSE;
 		DBUG_RETURN(1);
 	}
@@ -9180,7 +9180,7 @@ int
 ha_innobase::truncate()
 /*===================*/
 {
-	ulint	err;
+	int		error;
 
 	DBUG_ENTER("ha_innobase::truncate");
 
@@ -9192,11 +9192,14 @@ ha_innobase::truncate()
 	if (!trx_is_started(prebuilt->trx)) {
 		++prebuilt->trx->will_lock;
 	}
+	/* Truncate the table in InnoDB */
 
-	err = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
+	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
 
-	DBUG_RETURN(convert_error_code_to_mysql(
-			err, prebuilt->table->flags, NULL));
+	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
+					    NULL);
+
+	DBUG_RETURN(error);
 }
 
 /*****************************************************************//**
@@ -9273,9 +9276,10 @@ ha_innobase::delete_table(
 	++trx->will_lock;
 
 	/* Drop the table in InnoDB */
+	error = row_drop_table_for_mysql(norm_name, trx,
+					 thd_sql_command(thd)
+					 == SQLCOM_DROP_DB);
 
-	error = row_drop_table_for_mysql(
-		norm_name, trx, thd_sql_command(thd) == SQLCOM_DROP_DB);
 
 	if (error == DB_TABLE_NOT_FOUND
 	    && innobase_get_lower_case_table_names() == 1) {
@@ -9303,9 +9307,9 @@ ha_innobase::delete_table(
 			not being normalized to lower case */
 			normalize_table_name_low(par_case_name, name, FALSE);
 #endif
-			error = row_drop_table_for_mysql(
-				par_case_name, trx,
-				thd_sql_command(thd) == SQLCOM_DROP_DB);
+			error = row_drop_table_for_mysql(par_case_name, trx,
+							 thd_sql_command(thd)
+							 == SQLCOM_DROP_DB);
 		}
 	}
 
@@ -9390,6 +9394,7 @@ innobase_drop_database(
 	++trx->will_lock;
 
 	row_drop_database_for_mysql(namebuf, trx);
+
 	my_free(namebuf);
 
 	/* Flush the log to reduce probability that the .frm files and
@@ -9406,7 +9411,6 @@ innobase_drop_database(
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
 }
-
 /*********************************************************************//**
 Renames an InnoDB table.
 @return	0 or error code */

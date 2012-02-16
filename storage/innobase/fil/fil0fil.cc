@@ -770,49 +770,47 @@ fil_node_open_file(
 
 		os_file_close(node->handle);
 
-		if (space_id != space->id) {
-			ut_print_timestamp(stderr);
+		if (UNIV_UNLIKELY(space_id != space->id)) {
 			fprintf(stderr,
-				" InnoDB: Error: tablespace id is %lu"
-				" in the data dictionary\n",
-				space->id);
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: but in file %s it is %lu!\n",
-				node->name, space_id);
+				"InnoDB: Error: tablespace id is %lu"
+				" in the data dictionary\n"
+				"InnoDB: but in file %s it is %lu!\n",
+				space->id, node->name, space_id);
+
+			ut_error;
 		}
 
-		if (space_id == ULINT_UNDEFINED || space_id == 0) {
-			ut_print_timestamp(stderr);
+		if (UNIV_UNLIKELY(space_id == ULINT_UNDEFINED
+				  || space_id == 0)) {
 			fprintf(stderr,
-				" InnoDB: Error: tablespace id %lu"
+				"InnoDB: Error: tablespace id %lu"
 				" in file %s is not sensible\n",
 				(ulong) space_id, node->name);
+
+			ut_error;
 		}
 
-		if (fsp_flags_get_page_size(space->flags) != page_size) {
-			ut_print_timestamp(stderr);
+		if (UNIV_UNLIKELY(fsp_flags_get_page_size(space->flags)
+				  != page_size)) {
 			fprintf(stderr,
-				" InnoDB: Error: tablespace file %s"
-				" has page size %lx\n",
-				node->name, flags);
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: but the data dictionary"
+				"InnoDB: Error: tablespace file %s"
+				" has page size %lx\n"
+				"InnoDB: but the data dictionary"
 				" expects page size %lx!\n",
+				node->name, flags,
 				fsp_flags_get_page_size(space->flags));
+
+			ut_error;
 		}
 
-		if (space->flags != flags) {
-			ut_print_timestamp(stderr);
+		if (UNIV_UNLIKELY(space->flags != flags)) {
 			fprintf(stderr,
-				" InnoDB: Error: table flags are %lx"
-				" in the data dictionary\n",
-				space->flags);
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: but the flags in file %s are %lx!\n",
-				node->name, flags);
+				"InnoDB: Error: table flags are %lx"
+				" in the data dictionary\n"
+				"InnoDB: but the flags in file %s are %lx!\n",
+				space->flags, node->name, flags);
+
+			ut_error;
 		}
 
 		if (size_bytes >= 1024 * 1024) {
@@ -1227,28 +1225,21 @@ try_again:
 
 	space = fil_space_get_by_name(name);
 
-	if (space) {
+	if (UNIV_LIKELY_NULL(space)) {
 		ibool	success;
 		ulint	namesake_id;
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Warning: trying to init to the"
-			" tablespace memory cache\n");
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: a tablespace %lu of name ", (ulong) id);
+			"  InnoDB: Warning: trying to init to the"
+			" tablespace memory cache\n"
+			"InnoDB: a tablespace %lu of name ", (ulong) id);
 		ut_print_filename(stderr, name);
-		fprintf(stderr, ",\n");
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: but a tablespace %lu of the same "
-			"name\n", (ulong) space->id);
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "InnoDB: already exists in the tablespace "
-			"memory cache!\n");
+		fprintf(stderr, ",\n"
+			"InnoDB: but a tablespace %lu of the same name\n"
+			"InnoDB: already exists in the"
+			" tablespace memory cache!\n",
+			(ulong) space->id);
 
 		if (id == 0 || purpose != FIL_TABLESPACE) {
 
@@ -2204,8 +2195,7 @@ fil_op_log_parse_or_replay(
 	switch (type) {
 	case MLOG_FILE_DELETE:
 		if (fil_tablespace_exists_in_mem(space_id)) {
-			ut_a(fil_delete_tablespace(space_id, FALSE)
-			     == DB_SUCCESS);
+			ut_a(fil_delete_tablespace(space_id));
 		}
 
 		break;
