@@ -11960,7 +11960,7 @@ ha_innobase::store_lock(
 	/* Check for FLUSH TABLES ... WITH READ LOCK */
 	if (sql_command == SQLCOM_FLUSH && lock_type == TL_READ_NO_INSERT) {
 
-		row_quiesce_set_state(prebuilt->table, QUIESCE_START, thd);
+		row_quiesce_set_state(prebuilt->table, QUIESCE_START, trx);
 
 	/* Check for DROP TABLE */
 	} else if (sql_command == SQLCOM_DROP_TABLE) {

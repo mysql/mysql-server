@@ -53,7 +53,7 @@ row_quiesce_set_state(
 /*==================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
 	ib_quiesce_t	state,		/*!< in: quiesce state to set */
-	void*		thd);		/*!< in/out: session */
+	trx_struct*	trx);		/*!< in/out: transaction */
 
 /*********************************************************************//**
 Cleanup after table quiesce. */

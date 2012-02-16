@@ -24,6 +24,7 @@ Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
 #include "row0quiesce.h"
+#include "row0mysql.h"
 
 #ifdef UNIV_NONINL
 #include "row0quiesce.ic"
@@ -216,7 +217,7 @@ row_quiesce_table_start(
 		ib_logf(IB_LOG_LEVEL_WARN, "Quiesce aborted!");
 	}
 
-	row_quiesce_set_state(table, QUIESCE_COMPLETE, trx->mysql_thd);
+	row_quiesce_set_state(table, QUIESCE_COMPLETE, trx);
 }
 
 /*********************************************************************//**
@@ -256,7 +257,7 @@ row_quiesce_table_complete(
 
 	trx_purge_run();
 
-	row_quiesce_set_state(table, QUIESCE_NONE, trx->mysql_thd);
+	row_quiesce_set_state(table, QUIESCE_NONE, trx);
 }
 
 /*********************************************************************//**
@@ -268,11 +269,11 @@ row_quiesce_set_state(
 /*==================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
 	ib_quiesce_t	state,		/*!< in: quiesce state to set */
-	void*		thd)		/*!< in/out: session */
+	trx_t*		trx)		/*!< in/out: transaction */
 {
 	if (srv_n_purge_threads == 0) {
 
-		ib_pushf(thd,
+		ib_pushf(trx->mysql_thd,
 			 IB_LOG_LEVEL_WARN,
 			 ER_NOT_SUPPORTED_YET,
 			 "Requires with --innodb-purge-threads > 0");
@@ -286,7 +287,7 @@ row_quiesce_set_state(
 		innobase_format_name(
 			table_name, sizeof(table_name), table->name, FALSE);
 
-		ib_pushf(thd,
+		ib_pushf(trx->mysql_thd,
 			 IB_LOG_LEVEL_WARN,
 			 ER_NOT_SUPPORTED_YET,
 			"Can't quiesce table '%s' it is in the system "
@@ -294,6 +295,8 @@ row_quiesce_set_state(
 
 		return(DB_UNSUPPORTED);
 	}
+
+	row_mysql_lock_data_dictionary(trx);
 
 	dict_table_x_lock_indexes(table);
 
@@ -314,6 +317,8 @@ row_quiesce_set_state(
 	table->quiesce = state;
 
 	dict_table_x_unlock_indexes(table);
+
+	row_mysql_unlock_data_dictionary(trx);
 
 	return(DB_SUCCESS);
 }
