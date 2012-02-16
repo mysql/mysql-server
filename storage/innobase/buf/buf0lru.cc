@@ -578,8 +578,7 @@ buf_flush_or_remove_pages(
 #ifdef UNIV_DEBUG
 		static ulint	n_pages;
 
-		DBUG_EXECUTE_IF(
-			"ib_buf0lru_flush_remove_crash",
+		DBUG_EXECUTE_IF("ib_buf0lru_flush_remove_crash",
 			if (++n_pages == 4) {DBUG_SUICIDE();});
 #endif /* UNIV_DEBUG */
 		if (handled == 0 && trx && trx_is_interrupted(trx)) {

@@ -2873,6 +2873,11 @@ row_discard_tablespace_for_mysql(
 
 		table->ibd_file_missing = TRUE;
 
+#ifdef UNIV_DEBUG
+		DBUG_EXECUTE_IF("ib_discard_before_root_reset_crash",
+				DBUG_SUICIDE(););
+#endif /* UNIV_DEBUG */
+
 		/* Scan SYS_INDEXES for all indexes of the table and
 		reset root <space, pageno>. */
 		{
@@ -2891,13 +2896,13 @@ func_exit:
 	}
 
 #ifdef UNIV_DEBUG
-	DBUG_EXECUTE_IF("ib_discard_before_commit", DBUG_SUICIDE(););
+	DBUG_EXECUTE_IF("ib_discard_before_commit_crash", DBUG_SUICIDE(););
 #endif /* UNIV_DEBUG */
 
 	trx_commit_for_mysql(trx);
 
 #ifdef UNIV_DEBUG
-	DBUG_EXECUTE_IF("ib_discard_after_commit", DBUG_SUICIDE(););
+	DBUG_EXECUTE_IF("ib_discard_after_commit_crash", DBUG_SUICIDE(););
 #endif /* UNIV_DEBUG */
 
 	row_mysql_unlock_data_dictionary(trx);

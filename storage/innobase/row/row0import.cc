@@ -1177,14 +1177,14 @@ row_import_for_mysql(
 	}
 
 #ifdef UNIV_DEBUG
-	DBUG_EXECUTE_IF("ib_import_before_checkpoint", DBUG_SUICIDE(););
+	DBUG_EXECUTE_IF("ib_import_before_checkpoint_crash", DBUG_SUICIDE(););
 #endif /* UNIV_DEBUG */
 
 	/* Flush dirty blocks to the file. */
 	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
 
 #ifdef UNIV_DEBUG
-	DBUG_EXECUTE_IF("ib_import_after_checkpoint", DBUG_SUICIDE(););
+	DBUG_EXECUTE_IF("ib_import_after_checkpoint_crash", DBUG_SUICIDE(););
 #endif /* UNIV_DEBUG */
 
 	ut_a(err == DB_SUCCESS);
