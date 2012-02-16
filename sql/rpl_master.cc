@@ -1129,19 +1129,19 @@ impossible position";
             ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
               p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
              BINLOG_CHECKSUM_LEN + ev_offset : ev_offset);
-          Gtid_log_event* gtid=
-            new Gtid_log_event(packet->ptr() + ev_offset,
-                               packet->length() - checksum_size,
-                               p_fdle);
-          skip_group= slave_gtid_done->contains_gtid(gtid->get_sidno(true),
-                                                     gtid->get_gno());
+          /**
+            @todo: use a local sid_map to avoid the lookup in the
+            global one here /Sven
+          */
+          Gtid_log_event gtid_ev(packet->ptr() + ev_offset,
+                                 packet->length() - checksum_size,
+                                 p_fdle);
+          skip_group= slave_gtid_done->contains_gtid(gtid_ev.get_sidno(true),
+                                                     gtid_ev.get_gno());
           searching_first_gtid= skip_group;
-#ifndef DBUG_OFF
           DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "
-                              "searching gtid(%d).", gtid->get_sidno(true), gtid->get_gno(),
+                              "searching gtid(%d).", gtid_ev.get_sidno(true), gtid_ev.get_gno(),
                               skip_group, searching_first_gtid));
-#endif
-          delete gtid;
         }
         break;
 
@@ -1400,19 +1400,17 @@ impossible position";
                 ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
                   p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
                  BINLOG_CHECKSUM_LEN + ev_offset : ev_offset);
-              Gtid_log_event* gtid=
-                new Gtid_log_event(packet->ptr() + ev_offset,
-                                   packet->length() - checksum_size,
-                                   p_fdle);
-              skip_group= slave_gtid_done->contains_gtid(gtid->get_sidno(true),
-                                                         gtid->get_gno());
+              Gtid_log_event gtid_ev(packet->ptr() + ev_offset,
+                                     packet->length() - checksum_size,
+                                     p_fdle);
+              skip_group=
+                slave_gtid_done->contains_gtid(gtid_ev.get_sidno(true),
+                                               gtid_ev.get_gno());
               searching_first_gtid= skip_group;
-#ifndef DBUG_OFF
-              DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "
-                                  "searching gtid(%d).", gtid->get_sidno(true), gtid->get_gno(),
+              DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) "
+                                  "skip group(%d) searching gtid(%d).",
+                                  gtid_ev.get_sidno(true), gtid_ev.get_gno(),
                                   skip_group, searching_first_gtid));
-#endif
-              delete gtid;
             }
             break;
 
