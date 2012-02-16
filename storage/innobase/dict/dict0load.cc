@@ -781,12 +781,16 @@ loop:
 			fil_space_for_table_exists_in_mem(
 				space_id, name, is_temp, TRUE, !is_temp);
 		} else {
+			db_err	err;
+
 			/* It is a normal database startup: create the space
 			object and check that the .ibd file exists. */
 
-			fil_open_single_table_tablespace(
+			err = fil_open_single_table_tablespace(
 				NULL, space_id,
 				dict_tf_to_fsp_flags(flags), name);
+
+			// FIXME: Why aren't we checking the return value?
 		}
 
 		mem_free(name);
@@ -1774,6 +1778,7 @@ dict_load_table(
 				/*!< in: error to be ignored when loading
 				table and its indexes' definition */
 {
+	db_err		err;
 	dict_table_t*	table;
 	dict_table_t*	sys_tables;
 	btr_pcur_t	pcur;
@@ -1882,9 +1887,11 @@ err_exit:
 				"with id %lu.\n", (ulong) table->space);
 
 			/* Try to open the tablespace */
-			if (!fil_open_single_table_tablespace(
+			err = fil_open_single_table_tablespace(
 				table, table->space,
-				dict_tf_to_fsp_flags(table->flags), name)) {
+				dict_tf_to_fsp_flags(table->flags), name);
+
+			if (err != DB_SUCCESS) {
 				/* We failed to find a sensible
 				tablespace file */
 
@@ -1905,8 +1912,6 @@ err_exit:
 	}
 
 	mem_heap_empty(heap);
-
-	db_err	err;
 
 	/* If there is no tablespace for the table then we only need to
 	load the index definitions. So that we can IMPORT the tablespace

@@ -1028,10 +1028,12 @@ row_import_for_mysql(
 
 	ibuf_delete_for_discarded_space(table->space);
 
-	if (!fil_open_single_table_tablespace(
+	err = fil_open_single_table_tablespace(
 		    table, table->space,
 		    dict_tf_to_fsp_flags(table->flags),
-		    table->name)) {
+		    table->name);
+
+	if (err != DB_SUCCESS) {
 
 		if (table->ibd_file_missing) {
 			ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
@@ -1041,7 +1043,7 @@ row_import_for_mysql(
 				table_name);
 		}
 
-		return(row_import_cleanup(prebuilt, trx, DB_ERROR));
+		return(row_import_cleanup(prebuilt, trx, err));
 	}
 
 	err = (db_err) ibuf_check_bitmap_on_import(trx, table->space);
