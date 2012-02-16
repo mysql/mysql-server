@@ -1,6 +1,5 @@
 /*****************************************************************************
 
-
 Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
