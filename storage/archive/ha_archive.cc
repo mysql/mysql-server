@@ -1580,14 +1580,12 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   share->in_optimize= false;
   mysql_mutex_unlock(&share->mutex);
 
-  mysql_mutex_unlock(&share->mutex);
   DBUG_RETURN(rc);
 error:
   DBUG_PRINT("ha_archive", ("Failed to recover, error was %d", rc));
   azclose(&writer);
-  mysql_mutex_unlock(&share->mutex);
 
-  DBUG_RETURN(rc); 
+  DBUG_RETURN(rc);
 }
 
 /* 
