@@ -131,9 +131,4 @@ toku_ydb_unlock_and_yield(unsigned long useconds) {
     ydb_unlock_internal(useconds);
 }
 
-toku_pthread_mutex_t *
-toku_ydb_mutex(void) {
-    return &ydb_big_lock.lock;
-}
-
 #undef STATUS_VALUE

@@ -47,7 +47,7 @@ struct test_arg {
     uint64_t iterations;
 };
 
-static void runtest(DB *db, TXNID txn, toku_ltm *ltm, toku_lock_tree *lt, uint64_t locks_per_txn, uint64_t nrows, uint64_t iterations) {
+static void runtest(DB *db, TXNID txn, toku_ltm *ltm UU(), toku_lock_tree *lt, uint64_t locks_per_txn, uint64_t nrows, uint64_t iterations) {
     int r;
 
     uint64_t notgranted = 0, deadlocked = 0;
@@ -60,9 +60,7 @@ static void runtest(DB *db, TXNID txn, toku_ltm *ltm, toku_lock_tree *lt, uint64
             DBT key = { .data = &keys[i], .size = sizeof keys[i] };
             toku_lock_request lr;
             toku_lock_request_init(&lr, db, txn, &key, &key, LOCK_REQUEST_WRITE);
-            toku_ltm_lock_mutex(ltm);
-            r = toku_lt_acquire_lock_request_with_default_timeout_locked(lt, &lr);
-            toku_ltm_unlock_mutex(ltm);
+            r = toku_lt_acquire_lock_request_with_default_timeout(lt, &lr);
             if (r == 0) {
                 get_lock(keys[i], txn);
                 continue;
@@ -80,9 +78,7 @@ static void runtest(DB *db, TXNID txn, toku_ltm *ltm, toku_lock_tree *lt, uint64
         // usleep(random() % 1000);
         release_locks(keys, i, txn);
 
-        toku_ltm_lock_mutex(ltm);
-        r = toku_lt_unlock(lt, txn);  assert(r == 0);
-        toku_ltm_unlock_mutex(ltm);
+        r = toku_lt_unlock_txn(lt, txn);  assert(r == 0);
 
         if ((iter % 10000) == 0)
             printf("%lu %lu %lu\n", (long unsigned) iter, (long unsigned) notgranted, (long unsigned) deadlocked);
@@ -143,11 +139,11 @@ int main(int argc, const char *argv[]) {
 
     // setup
     toku_ltm *ltm = NULL;
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     assert(r == 0 && ltm);
 
     toku_lock_tree *lt = NULL;
-    r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
+    r = toku_lt_create(&lt, ltm, dbcmp);
     assert(r == 0 && lt);
 
     DB *fake_db = (DB *) 1;

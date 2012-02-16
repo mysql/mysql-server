@@ -66,7 +66,7 @@ doit (BOOL committed_provdels) {
         r = dbc->c_get(dbc, &key, &data, DB_NEXT); CKERR(r);
         assert(*(int*)key.data == i);
         assert(*(int*)data.data == j);
-        r = dbc->c_del(dbc, 0); CKERR(r);
+        r = db->del(db, txn, &key, DB_DELETE_ANY); CKERR(r);
     }
     r = dbc->c_get(dbc, &key, &data, DB_NEXT); CKERR2(r, DB_NOTFOUND);
     r = dbc->c_get(dbc, &key, &data, DB_FIRST); CKERR2(r, DB_NOTFOUND);

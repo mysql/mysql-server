@@ -5276,13 +5276,6 @@ brt_search_node(
     return r;
 }
 
-// When this is called, the cachetable lock is held
-static void
-unlock_root_tree_lock (void *v) {
-    struct brt_header* h = v;
-    toku_brtheader_release_treelock(h);
-}
-
 static int
 toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, BRT_CURSOR brtcursor, BOOL can_bulk_fetch)
 // Effect: Perform a search.  Associate cursor with a leaf if possible.
@@ -5332,7 +5325,6 @@ try_again:
         u_int32_t fullhash;
         CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
 
-
         fill_bfe_for_subset_read(
             &bfe,
             brt->h,
@@ -5343,22 +5335,15 @@ try_again:
             brtcursor->right_is_pos_infty,
             brtcursor->disable_prefetching
             );
-        struct unlockers root_unlockers = {
-            .locked = TRUE,
-            .f = unlock_root_tree_lock,
-            .extra = brt->h,
-            .next = NULL
-        };
-        r = toku_pin_brtnode(brt, *rootp, fullhash,&root_unlockers,(ANCESTORS)NULL, &infinite_bounds, &bfe, TRUE, &node);
-        assert(r==0 || r== TOKUDB_TRY_AGAIN);
-        if (r == TOKUDB_TRY_AGAIN) {
-            // unlock_root_tree_lock will have released tree_lock of header
-            assert(!root_unlockers.locked);
-            root_tries++;
-            goto try_again;
-        }
-        assert(root_unlockers.locked);
-
+        toku_pin_brtnode_off_client_thread(
+            brt->h, 
+            *rootp, 
+            fullhash,
+            &bfe, 
+            0,
+            NULL,
+            &node
+            );
         toku_brtheader_release_treelock(brt->h);
     }
 
@@ -5498,31 +5483,6 @@ toku_brt_cursor_current(BRT_CURSOR cursor, int op, BRT_GET_CALLBACK_FUNCTION get
 	return r;
     }
     return getf(cursor->key.size, cursor->key.data, cursor->val.size, cursor->val.data, getf_v, false); // brt_cursor_copyout(cursor, outkey, outval);
-}
-
-static int
-brt_flatten_getf(ITEMLEN UU(keylen),	  bytevec UU(key),
-		 ITEMLEN UU(vallen),	  bytevec UU(val),
-		 void *UU(v), bool UU(lock_only)) {
-    return DB_NOTFOUND;
-}
-
-int
-toku_brt_flatten(BRT brt, TOKUTXN ttxn)
-{
-    BRT_CURSOR tmp_cursor;
-    int r = toku_brt_cursor(brt, &tmp_cursor, ttxn, FALSE, FALSE);
-    if (r!=0) return r;
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_one, BRT_SEARCH_LEFT, 0, tmp_cursor->brt);
-    r = brt_cursor_search(tmp_cursor, &search, brt_flatten_getf, NULL, FALSE);
-    brt_search_finish(&search);
-    if (r==DB_NOTFOUND) r = 0;
-    {
-	//Cleanup temporary cursor
-	int r2 = toku_brt_cursor_close(tmp_cursor);
-	if (r==0) r = r2;
-    }
-    return r;
 }
 
 int
@@ -5939,24 +5899,15 @@ toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p, u_i
 
             u_int32_t fullhash;
             CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
-
-
-            {
-                struct unlockers root_unlockers = {
-                    .locked = TRUE,
-                    .f = unlock_root_tree_lock,
-                    .extra = brt->h,
-                    .next = NULL
-                };
-                int r = toku_pin_brtnode(brt, *rootp, fullhash, &root_unlockers,(ANCESTORS)NULL, &infinite_bounds, &bfe, FALSE, &node);
-                assert(r == 0 || r == TOKUDB_TRY_AGAIN);
-                if (r == TOKUDB_TRY_AGAIN) {
-                    assert(!root_unlockers.locked);
-                    goto try_again;
-                }
-                assert(root_unlockers.locked);
-            }
-
+            toku_pin_brtnode_off_client_thread(
+                brt->h, 
+                *rootp, 
+                fullhash,
+                &bfe, 
+                0,
+                NULL,
+                &node
+                );
             toku_brtheader_release_treelock(brt->h);
         }
 

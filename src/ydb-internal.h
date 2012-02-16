@@ -67,10 +67,12 @@ struct __toku_db_env_internal {
     generate_row_for_put_func generate_row_for_put;
     generate_row_for_del_func generate_row_for_del;
     //void (*noticecall)(DB_ENV *, db_notices);
+
     unsigned long cachetable_size;
     CACHETABLE cachetable;
     TOKULOGGER logger;
     toku_ltm* ltm;
+
     int open_txns;                                      // Number of open transactions
     DB *directory;                                      // Maps dnames to inames
     DB *persistent_environment;                         // Stores environment settings, can be used for upgrade
@@ -127,7 +129,6 @@ int toku_ydb_lock_destroy(void);
 void toku_ydb_lock(void);
 void toku_ydb_unlock(void);
 void toku_ydb_unlock_and_yield(unsigned long useconds);
-toku_pthread_mutex_t *toku_ydb_mutex(void);
 
 void toku_ydb_lock_get_status(YDB_LOCK_STATUS statp);
 
@@ -240,10 +241,28 @@ struct __toku_dbc_external {
 	
 #define dbc_struct_i(x) (&((struct __toku_dbc_external *)x)->internal_part)
 
+// needed in ydb_db.c
+#define DB_ISOLATION_FLAGS (DB_READ_COMMITTED | DB_READ_UNCOMMITTED | DB_TXN_SNAPSHOT | DB_SERIALIZABLE | DB_INHERIT_ISOLATION)
 
-int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock);
 
-int toku_grab_write_lock(DB *db, DBT *key, TOKUTXN tokutxn);
+static inline int 
+env_opened(DB_ENV *env) {
+    return env->i->cachetable != 0;
+}
+void env_note_zombie_db(DB_ENV *env, DB *db);
+void env_panic(DB_ENV * env, int cause, char * msg);
+void env_note_db_opened(DB_ENV *env, DB *db);
+void env_note_db_closed(DB_ENV *env, DB *db);
+void env_note_zombie_db_closed(DB_ENV *env, DB *db);
+int toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags);
+int toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags);
+
+
+int toku_txn_begin_internal(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, bool internal, bool holds_ydb_lock);
+int toku_txn_commit(DB_TXN * txn, u_int32_t flags, TXN_PROGRESS_POLL_FUNCTION, void*, bool release_multi_operation_client_lock);
+int toku_txn_abort(DB_TXN * txn, TXN_PROGRESS_POLL_FUNCTION, void*, bool release_multi_operation_client_lock);
+int locked_txn_commit(DB_TXN *txn, u_int32_t flags);
+int locked_txn_abort(DB_TXN *txn);
 
 #if defined(__cplusplus)
 }

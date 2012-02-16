@@ -17,14 +17,14 @@ int  nums[10000];
 
 static void setup_ltm(void) {
     assert(!ltm);
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     CKERR(r);
     assert(ltm);
 }
 
 static void setup_tree(size_t index, DICTIONARY_ID dict_id) {
     assert(!lt[index] && ltm);
-    r = toku_ltm_get_lt(ltm, &lt[index], dict_id, NULL);
+    r = toku_ltm_get_lt(ltm, &lt[index], dict_id, NULL, intcmp);
     CKERR(r);
     assert(lt[index]);
 }
@@ -67,7 +67,6 @@ static void run_test(void) {
 
 int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
-    compare_fun = intcmp;
 
     r = system("rm -rf " TESTDIR);
     CKERR(r);

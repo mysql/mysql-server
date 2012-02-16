@@ -33,11 +33,11 @@ int main(int argc, const char *argv[]) {
 
     // setup
     toku_ltm *ltm = NULL;
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     assert(r == 0 && ltm);
 
     toku_lock_tree *lt = NULL;
-    r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
+    r = toku_lt_create(&lt, ltm, dbcmp);
     assert(r == 0 && lt);
 
     const TXNID txn_a = 1;
@@ -57,7 +57,7 @@ int main(int argc, const char *argv[]) {
     assert(a_w_l_2.state == LOCK_REQUEST_COMPLETE && a_w_l_2.complete_r == 0);
     toku_lock_request_destroy(&a_w_l_2);
 
-    r = toku_lt_unlock(lt, txn_a);  assert(r == 0);
+    r = toku_lt_unlock_txn(lt, txn_a);  assert(r == 0);
 
     // shutdown 
     r = toku_lt_close(lt); assert(r == 0);

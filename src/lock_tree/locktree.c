@@ -14,6 +14,7 @@
 #include <ydb-internal.h>
 #include <brt-internal.h>
 #include <toku_stdint.h>
+#include <valgrind/drd.h>
 
 /* TODO: Yoni should check that all asserts make sense instead of panic,
          and all early returns make sense instead of panic,
@@ -86,11 +87,16 @@ toku_ltm_get_status(toku_ltm* mgr, LTM_STATUS statp) {
     *statp = mgr->status;
 }
 
-
-
 static inline int lt_panic(toku_lock_tree *tree, int r) {
-    return tree->panic(tree->db, r);
+    return tree->mgr->panic(tree->db, r);
 }
+
+// forward defs of lock request tree functions
+static void toku_lock_request_tree_init(toku_lock_tree *tree);
+static void toku_lock_request_tree_destroy(toku_lock_tree *tree);
+static void toku_lock_request_tree_insert(toku_lock_tree *tree, toku_lock_request *lock_request);
+static void toku_lock_request_tree_delete(toku_lock_tree *tree, toku_lock_request *lock_request);
+static toku_lock_request *toku_lock_request_tree_find(toku_lock_tree *tree, TXNID id);
                 
 const uint32_t __toku_default_buflen = 2;
 
@@ -99,40 +105,6 @@ static const DBT __toku_lt_neg_infinity;
 
 const DBT* const toku_lt_infinity     = &__toku_lt_infinity;
 const DBT* const toku_lt_neg_infinity = &__toku_lt_neg_infinity;
-
-static toku_pthread_mutex_t *
-toku_ltm_get_mutex(toku_ltm *ltm) {
-    toku_pthread_mutex_t *lock = ltm->use_lock;
-    if (lock == NULL)
-        lock = &ltm->lock;
-    return lock;
-}
-
-void 
-toku_ltm_set_mutex(toku_ltm *ltm, toku_pthread_mutex_t *use_lock) {
-    ltm->use_lock = use_lock;
-}
-
-static void 
-toku_ltm_init_mutex(toku_ltm *ltm) {
-    int r = toku_pthread_mutex_init(&ltm->lock, NULL); assert_zero(r);
-    ltm->use_lock = NULL;
-}
-
-static void 
-toku_ltm_destroy_mutex(toku_ltm *ltm) {
-    int r = toku_pthread_mutex_destroy(&ltm->lock); assert_zero(r);
-}
-
-void 
-toku_ltm_lock_mutex(toku_ltm *ltm) {
-    int r = toku_pthread_mutex_lock(toku_ltm_get_mutex(ltm)); assert_zero(r);
-}
-
-void 
-toku_ltm_unlock_mutex(toku_ltm *ltm) {
-    int r = toku_pthread_mutex_unlock(toku_ltm_get_mutex(ltm)); assert_zero(r);
-}
 
 char* 
 toku_lt_strerror(TOKU_LT_ERROR r) {
@@ -143,6 +115,7 @@ toku_lt_strerror(TOKU_LT_ERROR r) {
     }
     return "Unknown error in locking data structures.\n";
 }
+
 /* Compare two payloads assuming that at least one of them is infinite */ 
 static inline int 
 infinite_compare(const DBT* a, const DBT* b) {
@@ -224,8 +197,8 @@ toku_lt_point_cmp(const toku_point* x, const toku_point* y) {
         return infinite_compare(x->key_payload, y->key_payload);
     }
     return x->lt->compare_fun(x->lt->db,
-			      recreate_DBT(&point_1, x->key_payload, x->key_len),
-			      recreate_DBT(&point_2, y->key_payload, y->key_len));
+                              recreate_DBT(&point_1, x->key_payload, x->key_len),
+                              recreate_DBT(&point_2, y->key_payload, y->key_len));
 }
 
 /* Lock tree manager functions begin here */
@@ -233,57 +206,67 @@ int
 toku_ltm_create(toku_ltm** pmgr,
                 uint32_t locks_limit,
                 uint64_t lock_memory_limit,
-                int   (*panic)(DB*, int), 
-                toku_dbt_cmp (*get_compare_fun_from_db)(DB*)) {
+                int   (*panic)(DB*, int)) {
     int r = ENOSYS;
-    toku_ltm* tmp_mgr = NULL;
+    toku_ltm* mgr = NULL;
 
     if (!pmgr || !locks_limit) {
         r = EINVAL; goto cleanup;
     }
-    assert(panic && get_compare_fun_from_db);
+    assert(panic);
 
-    tmp_mgr          = (toku_ltm*) toku_malloc(sizeof(*tmp_mgr));
-    if (!tmp_mgr) { 
+    mgr          = (toku_ltm*) toku_malloc(sizeof(*mgr));
+    if (!mgr) { 
         r = ENOMEM; goto cleanup; 
     }
-    memset(tmp_mgr, 0, sizeof(toku_ltm));
+    memset(mgr, 0, sizeof(toku_ltm));
 
-    r = toku_ltm_set_max_locks(tmp_mgr, locks_limit);
+    r = toku_ltm_set_max_locks(mgr, locks_limit);
     if (r != 0)
         goto cleanup;
-    r = toku_ltm_set_max_lock_memory(tmp_mgr, lock_memory_limit);
+    r = toku_ltm_set_max_lock_memory(mgr, lock_memory_limit);
     if (r != 0) 
         goto cleanup;
-    tmp_mgr->panic            = panic;
-    tmp_mgr->get_compare_fun_from_db = get_compare_fun_from_db;
+    mgr->panic            = panic;
 
-    r = toku_lth_create(&tmp_mgr->lth);
+    r = toku_lth_create(&mgr->lth);
     if (r != 0) 
         goto cleanup;
-    if (!tmp_mgr->lth) {
+    if (!mgr->lth) {
         r = ENOMEM; goto cleanup; 
     }
 
-    r = toku_idlth_create(&tmp_mgr->idlth);
+    r = toku_idlth_create(&mgr->idlth);
     if (r != 0) 
         goto cleanup;
-    if (!tmp_mgr->idlth) { 
+    if (!mgr->idlth) { 
         r = ENOMEM; goto cleanup; 
     }
-    toku_ltm_init_mutex(tmp_mgr);
+    toku_mutex_init(&mgr->mutex, NULL);
+    DRD_IGNORE_VAR(mgr->status);
     r = 0;
-    *pmgr = tmp_mgr;
+    *pmgr = mgr;
 cleanup:
     if (r != 0) {
-        if (tmp_mgr) {
-            if (tmp_mgr->lth)
-                toku_lth_close(tmp_mgr->lth);
-            if (tmp_mgr->idlth)
-                toku_idlth_close(tmp_mgr->idlth);
-            toku_free(tmp_mgr);
+        if (mgr) {
+            if (mgr->lth)
+                toku_lth_close(mgr->lth);
+            if (mgr->idlth)
+                toku_idlth_close(mgr->idlth);
+            toku_free(mgr);
         }
     }
+    return r;
+}
+
+// For now, ltm_open does nothing.
+int
+toku_ltm_open(toku_ltm *mgr) {
+    int r;
+    if (!mgr) 
+        r = EINVAL;
+    else
+        r = 0;
     return r;
 }
 
@@ -305,7 +288,8 @@ toku_ltm_close(toku_ltm* mgr) {
     }
     toku_lth_close(mgr->lth);
     toku_idlth_close(mgr->idlth);
-    toku_ltm_destroy_mutex(mgr);
+    toku_mutex_destroy(&mgr->mutex);
+    DRD_STOP_IGNORING_VAR(mgr->status);
     assert(mgr->curr_locks == 0 && mgr->curr_lock_memory == 0);
     toku_free(mgr);
 
@@ -313,7 +297,6 @@ toku_ltm_close(toku_ltm* mgr) {
 cleanup:
     return r;
 }
-
 
 int 
 toku_ltm_get_max_locks(toku_ltm* mgr, uint32_t* locks_limit) {
@@ -354,15 +337,15 @@ toku_ltm_set_max_lock_memory(toku_ltm* mgr, uint64_t lock_memory_limit) {
 static inline void 
 ltm_incr_locks(toku_ltm* tree_mgr, uint32_t replace_locks) {
     assert(replace_locks <= tree_mgr->curr_locks);
-    tree_mgr->curr_locks -= replace_locks;
-    tree_mgr->curr_locks += 1;
+    (void) __sync_fetch_and_sub(&tree_mgr->curr_locks, replace_locks);
+    (void) __sync_fetch_and_add(&tree_mgr->curr_locks, 1);
 }
 
 static inline void 
 ltm_decr_locks(toku_ltm* tree_mgr, uint32_t locks) {
     assert(tree_mgr);
     assert(tree_mgr->curr_locks >= locks);
-    tree_mgr->curr_locks -= locks;
+    (void) __sync_fetch_and_sub(&tree_mgr->curr_locks, locks);
 }
 
 static int 
@@ -375,7 +358,7 @@ ltm_out_of_locks(toku_ltm *mgr) {
 
 static void
 ltm_incr_lock_memory(toku_ltm *mgr, size_t s) {
-    mgr->curr_lock_memory += s;
+    (void) __sync_add_and_fetch(&mgr->curr_lock_memory, s);
 }
 
 void 
@@ -387,7 +370,7 @@ toku_ltm_incr_lock_memory(void *extra, size_t s) {
 static void 
 ltm_decr_lock_memory(toku_ltm *mgr, size_t s) {
     assert(mgr->curr_lock_memory >= s);
-    mgr->curr_lock_memory -= s;
+    (void) __sync_sub_and_fetch(&mgr->curr_lock_memory, s);
 }
 
 void 
@@ -468,21 +451,8 @@ toku_lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn) {
 
 static inline int 
 lt_add_locked_txn(toku_lock_tree* tree, TXNID txn) {
-    int r = ENOSYS;
-    bool half_done = FALSE;
-
     /* Neither selfread nor selfwrite exist. */
-    r = toku_rth_insert(tree->rth, txn);
-    if (r != 0)
-        goto cleanup;
-    r = toku_rth_insert(tree->txns_still_locked, txn);
-    if (r != 0) { 
-        half_done = TRUE; goto cleanup; 
-    }
-    r = 0;
-cleanup:
-    if (half_done)
-        toku_rth_delete(tree->rth, txn); 
+    int r = toku_rth_insert(tree->rth, txn);
     return r;
 }
 
@@ -1128,21 +1098,16 @@ r_backwards(toku_interval* range) {
                    (toku_lt_point_cmp(left, right) > 0));
 }
 
-static inline int lt_unlock_deferred_txns(toku_lock_tree* tree);
-
 static inline void 
 lt_set_comparison_functions(toku_lock_tree* tree, DB* db) {
-    assert(!tree->db && !tree->compare_fun);
+    assert(!tree->db);
     tree->db = db;
-    tree->compare_fun = tree->get_compare_fun_from_db(tree->db);
-    assert(tree->compare_fun);
 }
 
 static inline void 
 lt_clear_comparison_functions(toku_lock_tree* tree) {
     assert(tree);
     tree->db          = NULL;
-    tree->compare_fun = NULL; 
 }
 
 /* Preprocess step for acquire functions. */
@@ -1154,10 +1119,6 @@ lt_preprocess(toku_lock_tree* tree, DB* db,
               toku_point* left, toku_point* right,
               toku_interval* query) {
     int r = ENOSYS;
-
-    if (!tree || !db || !key_left || !key_right) {
-        r = EINVAL; goto cleanup; 
-    }
 
     /* Verify that NULL keys have payload and size that are mutually 
        consistent*/
@@ -1179,11 +1140,7 @@ lt_preprocess(toku_lock_tree* tree, DB* db,
     r = 0;
 cleanup:
     if (r == 0) {
-        assert(tree->db && tree->compare_fun);
-        /* Cleanup all existing deleted transactions */
-        if (!toku_rth_is_empty(tree->txns_to_unlock)) {
-            r = lt_unlock_deferred_txns(tree);
-        }
+        assert(tree->db);
     }
     return r;
 }
@@ -1359,22 +1316,19 @@ lt_borderwrite_insert(toku_lock_tree* tree, toku_interval* query, toku_range* to
 /* TODO: Investigate better way of passing comparison functions. */
 int 
 toku_lt_create(toku_lock_tree** ptree,
-               int   (*panic)(DB*, int), 
                toku_ltm* mgr,
-               toku_dbt_cmp (*get_compare_fun_from_db)(DB*)) {
+               toku_dbt_cmp compare_fun) {
     int r = ENOSYS;
     toku_lock_tree* tmp_tree = NULL;
-    if (!ptree || !mgr ||
-        !get_compare_fun_from_db || !panic) {
+    if (!ptree || !mgr || !compare_fun) {
         r = EINVAL; goto cleanup;
     }
 
     tmp_tree = (toku_lock_tree*)toku_malloc(sizeof(*tmp_tree));
     if (!tmp_tree) { r = ENOMEM; goto cleanup; }
     memset(tmp_tree, 0, sizeof(toku_lock_tree));
-    tmp_tree->panic            = panic;
     tmp_tree->mgr              = mgr;
-    tmp_tree->get_compare_fun_from_db = get_compare_fun_from_db;
+    tmp_tree->compare_fun = compare_fun;
     tmp_tree->lock_escalation_allowed = TRUE;
     r = toku_rt_create(&tmp_tree->borderwrite, toku_lt_point_cmp, lt_txn_cmp, FALSE,
                        toku_ltm_incr_lock_memory, toku_ltm_decr_lock_memory, mgr);
@@ -1384,12 +1338,7 @@ toku_lt_create(toku_lock_tree** ptree,
     r = toku_rth_create(&tmp_tree->rth);
     if (r != 0)
         goto cleanup;
-    r = toku_rth_create(&tmp_tree->txns_to_unlock);
-    if (r != 0) 
-        goto cleanup; 
-    r = toku_rth_create(&tmp_tree->txns_still_locked);
-    if (r != 0)
-        goto cleanup;
+
     tmp_tree->buflen = __toku_default_buflen;
     tmp_tree->buf    = (toku_range*)
                         toku_malloc(tmp_tree->buflen * sizeof(toku_range));
@@ -1404,7 +1353,7 @@ toku_lt_create(toku_lock_tree** ptree,
     if (r != 0) 
         goto cleanup;
     toku_lock_request_tree_init(tmp_tree);
-    
+    toku_mutex_init(&tmp_tree->mutex, NULL);
     tmp_tree->ref_count = 1;
     *ptree = tmp_tree;
     r = 0;
@@ -1415,8 +1364,6 @@ cleanup:
                 toku_rt_close(tmp_tree->borderwrite);
             if (tmp_tree->rth)
                 toku_rth_close(tmp_tree->rth);
-            if (tmp_tree->txns_to_unlock)
-                toku_rth_close(tmp_tree->txns_to_unlock);
             if (tmp_tree->buf)
                 toku_free(tmp_tree->buf);
             if (tmp_tree->bw_buf)
@@ -1433,12 +1380,13 @@ void
 toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id) {
     assert(mgr && dict_id.dictid != DICTIONARY_ID_NONE.dictid);
     toku_lt_map* map = NULL;
+    toku_mutex_lock(&mgr->mutex);
     map = toku_idlth_find(mgr->idlth, dict_id);
     if (map) { 
 	toku_idlth_delete(mgr->idlth, dict_id);
     }
+    toku_mutex_unlock(&mgr->mutex);
 }
-
 
 static inline void 
 toku_lt_set_dict_id(toku_lock_tree* lt, DICTIONARY_ID dict_id) {
@@ -1450,8 +1398,7 @@ static void lt_add_db(toku_lock_tree* tree, DB *db);
 static void lt_remove_db(toku_lock_tree* tree, DB *db);
 
 int 
-toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, 
-                DICTIONARY_ID dict_id, DB *db) {
+toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DB *db, toku_dbt_cmp compare_fun) {
     /* first look in hash table to see if lock tree exists for that db,
        if so return it */
     int r = ENOSYS;
@@ -1461,6 +1408,7 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree,
     bool added_to_idlth  = FALSE;
     bool added_extant_db  = FALSE;
     
+    toku_mutex_lock(&mgr->mutex);
     map = toku_idlth_find(mgr->idlth, dict_id);
     if (map != NULL) {
         /* Load already existing lock tree. */
@@ -1473,7 +1421,7 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree,
         goto cleanup;
     }
     /* Must create new lock tree for this dict_id*/
-    r = toku_lt_create(&tree, mgr->panic, mgr, mgr->get_compare_fun_from_db);
+    r = toku_lt_create(&tree, mgr, compare_fun);
     if (r != 0)
         goto cleanup;
     toku_lt_set_dict_id(tree, dict_id);
@@ -1500,6 +1448,7 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree,
     *ptree = tree;
     r = 0;
 cleanup:
+    toku_mutex_unlock(&mgr->mutex);
     if (r == 0) {
 	mgr->STATUS_VALUE(LTM_LT_CREATE)++;
 	mgr->STATUS_VALUE(LTM_LT_NUM)++;
@@ -1508,6 +1457,7 @@ cleanup:
     }
     else {
         if (tree != NULL) {
+            toku_mutex_lock(&mgr->mutex);
             if (added_to_ltm)
                 toku_ltm_remove_lt(mgr, tree);
             if (added_to_idlth)
@@ -1515,6 +1465,7 @@ cleanup:
             if (added_extant_db)
                 lt_remove_db(tree, db);
             toku_lt_close(tree); 
+            toku_mutex_unlock(&mgr->mutex);
         }
 	mgr->STATUS_VALUE(LTM_LT_CREATE_FAIL)++;
     }
@@ -1547,10 +1498,8 @@ toku_lt_close(toku_lock_tree* tree) {
             first_error = r;
     }
     toku_rth_close(tree->rth);
-    toku_rth_close(tree->txns_to_unlock);
-    toku_rth_close(tree->txns_still_locked);
     toku_omt_destroy(&tree->dbs);
-
+    toku_mutex_destroy(&tree->mutex);
     toku_free(tree->buf);
     toku_free(tree->bw_buf);
     toku_free(tree->verify_buf);
@@ -1559,13 +1508,6 @@ toku_lt_close(toku_lock_tree* tree) {
 cleanup:
     return r;
 }
-
-// toku_lt_acquire_read_lock() used only by test programs
-int 
-toku_lt_acquire_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key) {
-    return toku_lt_acquire_range_read_lock(tree, db, txn, key, key);
-}
-
 
 static int 
 lt_try_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right) {
@@ -1871,8 +1813,8 @@ cleanup:
     return r;
 }
 
-int 
-toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right) {
+static int 
+toku_lt_acquire_range_read_lock_internal(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right) {
     int r = ENOSYS;
 
     r = lt_try_acquire_range_read_lock(tree, db, txn, 
@@ -1902,6 +1844,24 @@ toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const D
 	}
     }
     return r;
+}
+
+int 
+toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT *key_right) {
+    int r = 0;
+    if (!tree || !db || !key_left || !key_right)
+        r = EINVAL;
+    if (r == 0) {
+        toku_mutex_lock(&tree->mutex);
+        r = toku_lt_acquire_range_read_lock_internal(tree, db, txn, key_left, key_right);
+        toku_mutex_unlock(&tree->mutex);
+    }
+    return r;
+}
+
+int 
+toku_lt_acquire_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key) {
+    return toku_lt_acquire_range_read_lock(tree, db, txn, key, key);
 }
 
 static int 
@@ -1990,8 +1950,8 @@ cleanup:
     return r;
 }
 
-int 
-toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right) {
+static int 
+toku_lt_acquire_range_write_lock_internal(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right) {
     int r = ENOSYS;
 
     r = lt_try_acquire_range_write_lock(tree, db, txn, key_left, key_right);
@@ -2017,6 +1977,19 @@ toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const 
 	    if (r == TOKUDB_OUT_OF_LOCKS) 
 		tree->mgr->STATUS_VALUE(LTM_OUT_OF_WRITE_LOCKS)++;
 	}
+    }
+    return r;
+}
+
+int
+toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right) {
+    int r = 0;
+    if (!tree || !db || !key_left || !key_right)
+        r = EINVAL;
+    if (r == 0) {
+        toku_mutex_lock(&tree->mutex);
+        r = toku_lt_acquire_range_write_lock_internal(tree, db, txn, key_left, key_right);
+        toku_mutex_unlock(&tree->mutex);
     }
     return r;
 }
@@ -2131,24 +2104,6 @@ lt_border_delete(toku_lock_tree* tree, toku_range_tree* rt) {
 }
 
 static inline int 
-lt_defer_unlocking_txn(toku_lock_tree* tree, TXNID txnid) {
-    int r = ENOSYS;
-
-    rt_forest* forest = toku_rth_find(tree->txns_to_unlock, txnid);
-    /* Should not be unlocking a transaction twice. */
-    assert(!forest);
-    r = toku_rth_insert(tree->txns_to_unlock, txnid);
-    if (r != 0) 
-        goto cleanup;
-    if (toku_rth_find(tree->txns_still_locked, txnid) != NULL) {
-        toku_rth_delete(tree->txns_still_locked, txnid);
-    }
-    r = 0;
-cleanup:
-    return r;
-}
-
-static inline int 
 lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
     if (!tree) 
         return EINVAL;
@@ -2169,7 +2124,17 @@ lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
     if (selfwrite) {
         uint32_t size = toku_rt_get_size(selfwrite);
         ranges += size;
+
+        DB *db = NULL;
+        if (toku_omt_size(tree->dbs) > 0) {
+            OMTVALUE dbv;
+            r = toku_omt_fetch(tree->dbs, 0, &dbv);
+            assert_zero(r);
+            db = dbv;
+        }
+        lt_set_comparison_functions(tree, db);
         r = lt_border_delete(tree, selfwrite);
+        lt_clear_comparison_functions(tree);
         if (r != 0) 
             return lt_panic(tree, r);
         r = lt_free_contents(tree, selfwrite);
@@ -2185,69 +2150,22 @@ lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
     return 0;
 }
 
-static inline int 
-lt_unlock_deferred_txns(toku_lock_tree* tree) {
-    int r = ENOSYS;
-    toku_rth_start_scan(tree->txns_to_unlock);
-    rt_forest* forest = NULL;
-    while ((forest = toku_rth_next(tree->txns_to_unlock)) != NULL) {
-        /* This can only fail with a panic so it is fine to quit immediately. */
-        r = lt_unlock_txn(tree, forest->hash_key);
-        if (r != 0) 
-            goto cleanup;
-    }
-    toku_rth_clear(tree->txns_to_unlock);
-    r = 0;
-cleanup:
-    return r;
-}
-
-static inline void 
-lt_clear(toku_lock_tree* tree) {
-    int r;
-
-    assert(tree);
-    toku_rt_clear(tree->borderwrite);
-
-    toku_rth_start_scan(tree->rth);
-    rt_forest* forest;
-    uint32_t ranges = 0;
-    while ((forest = toku_rth_next(tree->rth)) != NULL) {
-        if (forest->self_read) {
-            ranges += toku_rt_get_size(forest->self_read);
-            r = lt_free_contents(tree, forest->self_read);
-            assert_zero(r);
-        }
-        if (forest->self_write) {
-            ranges += toku_rt_get_size(forest->self_write);
-            r = lt_free_contents(tree, forest->self_write);
-            assert_zero(r);
-        }
-        
-    }
-    toku_rth_clear(tree->rth);
-    toku_rth_clear(tree->txns_to_unlock);
-    /* tree->txns_still_locked is already empty, so we do not clear it. */
-    ltm_decr_locks(tree->mgr, ranges);
-}
+static void lt_retry_lock_requests(toku_lock_tree *tree);
 
 int 
-toku_lt_unlock(toku_lock_tree* tree, TXNID txn) {
-    int r = ENOSYS;
-    if (!tree) { 
-        r = EINVAL; goto cleanup;
-    }
+toku_lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
 #if TOKU_LT_DEBUG
     if (toku_lt_debug) 
         printf("%s:%u %lu\n", __FUNCTION__, __LINE__, txn);
 #endif
-    r = lt_defer_unlocking_txn(tree, txn);
-    if (r != 0) 
-        goto cleanup;
-    if (toku_rth_is_empty(tree->txns_still_locked))
-        lt_clear(tree);
-    toku_lt_retry_lock_requests_locked(tree);
-    r = 0;
+    int r = 0;
+    if (!tree) { 
+        r = EINVAL; goto cleanup;
+    }
+    toku_mutex_lock(&tree->mutex);
+    lt_unlock_txn(tree, txn);
+    lt_retry_lock_requests(tree);
+    toku_mutex_unlock(&tree->mutex);
 cleanup:
     return r;
 }
@@ -2256,16 +2174,18 @@ void
 toku_lt_add_ref(toku_lock_tree* tree) {
     assert(tree);
     assert(tree->ref_count > 0);
-    tree->ref_count++;
+    (void) __sync_add_and_fetch(&tree->ref_count, 1);
 }
 
 static void 
 toku_ltm_stop_managing_lt(toku_ltm* mgr, toku_lock_tree* tree) {
+    toku_mutex_lock(&mgr->mutex);
     toku_ltm_remove_lt(mgr, tree);
     toku_lt_map* map = toku_idlth_find(mgr->idlth, tree->dict_id);
     if (map && map->tree == tree) {
         toku_idlth_delete(mgr->idlth, tree->dict_id);
     }
+    toku_mutex_unlock(&mgr->mutex);
 }
 
 int 
@@ -2273,8 +2193,8 @@ toku_lt_remove_ref(toku_lock_tree* tree) {
     int r = ENOSYS;
     assert(tree);
     assert(tree->ref_count > 0);
-    tree->ref_count--;
-    if (tree->ref_count > 0) { 
+    uint32_t ref_count = __sync_sub_and_fetch(&tree->ref_count, 1);
+    if (ref_count > 0) { 
         r = 0; goto cleanup; 
     }
     assert(tree->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
@@ -2302,6 +2222,7 @@ find_db (OMTVALUE v, void *dbv) {
 
 static void 
 lt_add_db(toku_lock_tree* tree, DB *db) {
+    toku_mutex_lock(&tree->mutex);
     if (db != NULL) {
         int r;
         OMTVALUE get_dbv = NULL;
@@ -2311,10 +2232,12 @@ lt_add_db(toku_lock_tree* tree, DB *db) {
         r = toku_omt_insert_at(tree->dbs, db, index);
         assert_zero(r);
     }
+    toku_mutex_unlock(&tree->mutex);
 }
 
 static void 
 lt_remove_db(toku_lock_tree* tree, DB *db) {
+    toku_mutex_lock(&tree->mutex);
     if (db != NULL) {
         int r;
         OMTVALUE get_dbv = NULL;
@@ -2325,13 +2248,13 @@ lt_remove_db(toku_lock_tree* tree, DB *db) {
         r = toku_omt_delete_at(tree->dbs, index);
         assert_zero(r);
     }
+    toku_mutex_unlock(&tree->mutex);
 }
 
 void 
 toku_lt_remove_db_ref(toku_lock_tree* tree, DB *db) {
-    int r;
     lt_remove_db(tree, db);
-    r = toku_lt_remove_ref(tree);
+    int r = toku_lt_remove_ref(tree);
     assert_zero(r);
 }
 
@@ -2384,8 +2307,12 @@ toku_lock_request_init(toku_lock_request *lock_request, DB *db, TXNID txnid, con
 
 void 
 toku_lock_request_destroy(toku_lock_request *lock_request) {
-    if (lock_request->state == LOCK_REQUEST_PENDING)
+    if (lock_request->state == LOCK_REQUEST_PENDING) {
+        toku_lock_tree *tree = lock_request->tree;
+        toku_mutex_lock(&tree->mutex);
         toku_lock_request_tree_delete(lock_request->tree, lock_request); 
+        toku_mutex_unlock(&tree->mutex);
+    }
     toku_lock_request_destroy_wait(lock_request);
     toku_free(lock_request->key_left_copy.data);
     toku_free(lock_request->key_right_copy.data);
@@ -2399,8 +2326,8 @@ toku_lock_request_complete(toku_lock_request *lock_request, int complete_r) {
 
 static const struct timeval max_timeval = { ~0, 0 };
 
-int
-toku_lock_request_wait(toku_lock_request *lock_request, toku_lock_tree *tree, struct timeval *wait_time) {
+static int
+toku_lock_request_wait_internal(toku_lock_request *lock_request, toku_lock_tree *tree, struct timeval *wait_time, bool tree_locked) {
 #if TOKU_LT_DEBUG
     if (toku_lt_debug)
         printf("%s:%u %lu\n", __FUNCTION__, __LINE__, lock_request->txnid);
@@ -2414,43 +2341,56 @@ toku_lock_request_wait(toku_lock_request *lock_request, toku_lock_tree *tree, st
         long int d_sec = usec / 1000000;
         long int d_usec = usec % 1000000;
         struct timespec ts = { sec + d_sec, d_usec * 1000 };
+        if (!tree_locked) toku_mutex_lock(&tree->mutex);
         while (lock_request->state == LOCK_REQUEST_PENDING) {
             toku_lock_request_init_wait(lock_request);
-            r = pthread_cond_timedwait(&lock_request->wait, toku_ltm_get_mutex(tree->mgr), &ts);
+            r = pthread_cond_timedwait(&lock_request->wait, &tree->mutex, &ts);
             assert(r == 0 || r == ETIMEDOUT);
             if (r == ETIMEDOUT && lock_request->state == LOCK_REQUEST_PENDING) {
                 toku_lock_request_tree_delete(tree, lock_request);
                 toku_lock_request_complete(lock_request, DB_LOCK_NOTGRANTED);
             }
         }
+        if (!tree_locked) toku_mutex_unlock(&tree->mutex);
     } else {
+        if (!tree_locked) toku_mutex_lock(&tree->mutex);
         while (lock_request->state == LOCK_REQUEST_PENDING) {
             toku_lock_request_init_wait(lock_request);
-            r = toku_pthread_cond_wait(&lock_request->wait, toku_ltm_get_mutex(tree->mgr)); assert_zero(r);
+            r = toku_pthread_cond_wait(&lock_request->wait, &tree->mutex); assert_zero(r);
         }
+        if (!tree_locked) toku_mutex_unlock(&tree->mutex);
     }
     assert(lock_request->state == LOCK_REQUEST_COMPLETE);
     return lock_request->complete_r;
 }
 
-int 
-toku_lock_request_wait_with_default_timeout(toku_lock_request *lock_request, toku_lock_tree *tree) {
-    return toku_lock_request_wait(lock_request, tree, &tree->mgr->lock_wait_time);
+int
+toku_lock_request_wait(toku_lock_request *lock_request, toku_lock_tree *tree, struct timeval *wait_time) {
+    return toku_lock_request_wait_internal(lock_request, tree, wait_time, false);
 }
 
-void 
+int
+toku_lock_request_wait_with_default_timeout(toku_lock_request *lock_request, toku_lock_tree *tree) {
+    return toku_lock_request_wait_internal(lock_request, tree, &tree->mgr->lock_wait_time, false);
+}
+
+void
 toku_lock_request_wakeup(toku_lock_request *lock_request, toku_lock_tree *tree UU()) {
     if (lock_request->wait_initialized) {
         int r = toku_pthread_cond_broadcast(&lock_request->wait); assert_zero(r);
     }
 }
 
-void 
+// a lock request tree contains pending lock requests. 
+// initialize a lock request tree.
+static void 
 toku_lock_request_tree_init(toku_lock_tree *tree) {
     int r = toku_omt_create(&tree->lock_requests); assert_zero(r);
 }
 
-void 
+// destroy a lock request tree.
+// the tree must be empty when destroyed.
+static void 
 toku_lock_request_tree_destroy(toku_lock_tree *tree) {
     assert(toku_omt_size(tree->lock_requests) == 0);
     toku_omt_destroy(&tree->lock_requests);
@@ -2467,7 +2407,8 @@ compare_lock_request(OMTVALUE a, void *b) {
     return 0;
 }
 
-void 
+// insert a lock request into the tree.
+static void 
 toku_lock_request_tree_insert(toku_lock_tree *tree, toku_lock_request *lock_request) {
     lock_request->tree = tree;
     int r;
@@ -2477,7 +2418,8 @@ toku_lock_request_tree_insert(toku_lock_tree *tree, toku_lock_request *lock_requ
     r = toku_omt_insert_at(tree->lock_requests, lock_request, idx); assert_zero(r);
 }
 
-void 
+// delete a lock request from the tree.
+static void 
 toku_lock_request_tree_delete(toku_lock_tree *tree, toku_lock_request *lock_request) {
     int r;
     OMTVALUE v;
@@ -2488,7 +2430,8 @@ toku_lock_request_tree_delete(toku_lock_tree *tree, toku_lock_request *lock_requ
     }
 }
 
-toku_lock_request *
+// find a lock request for a given transaction id.
+static toku_lock_request *
 toku_lock_request_tree_find(toku_lock_tree *tree, TXNID id) {
     int r;
     OMTVALUE v;
@@ -2531,14 +2474,16 @@ static void print_key(const char *sp, const DBT *k) {
 }
 #endif
 
-int 
+static void toku_lt_check_deadlock(toku_lock_tree *tree, toku_lock_request *a_lock_request);
+
+static int 
 toku_lock_request_start_locked(toku_lock_request *lock_request, toku_lock_tree *tree, bool copy_keys_if_not_granted) { 
     int r;
     assert(lock_request->state == LOCK_REQUEST_INIT);
     if (lock_request->type == LOCK_REQUEST_READ) {
-        r = toku_lt_acquire_range_read_lock(tree, lock_request->db, lock_request->txnid, lock_request->key_left, lock_request->key_right);
+        r = toku_lt_acquire_range_read_lock_internal(tree, lock_request->db, lock_request->txnid, lock_request->key_left, lock_request->key_right);
     } else if (lock_request->type == LOCK_REQUEST_WRITE) {
-        r = toku_lt_acquire_range_write_lock(tree, lock_request->db, lock_request->txnid, lock_request->key_left, lock_request->key_right);
+        r = toku_lt_acquire_range_write_lock_internal(tree, lock_request->db, lock_request->txnid, lock_request->key_left, lock_request->key_right);
     } else
         assert(0);
 #if TOKU_LT_DEBUG
@@ -2572,43 +2517,36 @@ toku_lock_request_start_locked(toku_lock_request *lock_request, toku_lock_tree *
 
 int 
 toku_lock_request_start(toku_lock_request *lock_request, toku_lock_tree *tree, bool copy_keys_if_not_granted) {
-    toku_ltm_lock_mutex(tree->mgr);
+    toku_mutex_lock(&tree->mutex);
     int r = toku_lock_request_start_locked(lock_request, tree, copy_keys_if_not_granted);
-    toku_ltm_unlock_mutex(tree->mgr);
+    toku_mutex_unlock(&tree->mutex);
     return r;
 }
 
-int 
+static int 
 toku_lt_acquire_lock_request_with_timeout_locked(toku_lock_tree *tree, toku_lock_request *lock_request, struct timeval *wait_time) {
     int r = toku_lock_request_start_locked(lock_request, tree, false);
     if (r == DB_LOCK_NOTGRANTED)
-        r = toku_lock_request_wait(lock_request, tree, wait_time);
+        r = toku_lock_request_wait_internal(lock_request, tree, wait_time, true);
     return r;
 }
 
 int 
 toku_lt_acquire_lock_request_with_timeout(toku_lock_tree *tree, toku_lock_request *lock_request, struct timeval *wait_time) {
-    toku_ltm_lock_mutex(tree->mgr);
+    toku_mutex_lock(&tree->mutex);
     int r = toku_lt_acquire_lock_request_with_timeout_locked(tree, lock_request, wait_time);
-    toku_ltm_unlock_mutex(tree->mgr);
+    toku_mutex_unlock(&tree->mutex);
     return r;
 }
 
-int
-toku_lt_acquire_lock_request_with_default_timeout_locked(toku_lock_tree *tree, toku_lock_request *lock_request) {
-    return toku_lt_acquire_lock_request_with_timeout_locked(tree, lock_request, &tree->mgr->lock_wait_time);
-}
-
-int
+int 
 toku_lt_acquire_lock_request_with_default_timeout(toku_lock_tree *tree, toku_lock_request *lock_request) {
-    toku_ltm_lock_mutex(tree->mgr);
-    int r = toku_lt_acquire_lock_request_with_timeout_locked(tree, lock_request, &tree->mgr->lock_wait_time);
-    toku_ltm_unlock_mutex(tree->mgr);
+    int r = toku_lt_acquire_lock_request_with_timeout(tree, lock_request, &tree->mgr->lock_wait_time);
     return r;
 }
 
-void 
-toku_lt_retry_lock_requests_locked(toku_lock_tree *tree) {
+static void 
+lt_retry_lock_requests(toku_lock_tree *tree) {
     int r;
     for (uint32_t i = 0; i < toku_omt_size(tree->lock_requests); ) {
         OMTVALUE v;
@@ -2625,6 +2563,13 @@ toku_lt_retry_lock_requests_locked(toku_lock_tree *tree) {
             i++;
         }
     }
+}
+
+void 
+toku_lt_retry_lock_requests(toku_lock_tree *tree) {
+    toku_mutex_lock(&tree->mutex);
+    lt_retry_lock_requests(tree);
+    toku_mutex_unlock(&tree->mutex);
 }
 
 #include <stdbool.h>
@@ -2653,7 +2598,7 @@ build_wfg_for_a_lock_request(toku_lock_tree *tree, struct wfg *wfg, toku_lock_re
 }
 
 // check if a given lock request could deadlock with any granted locks.
-void 
+static void 
 toku_lt_check_deadlock(toku_lock_tree *tree, toku_lock_request *a_lock_request) {
     // init the wfg
     struct wfg wfg_static; 
@@ -2821,9 +2766,11 @@ lt_verify(toku_lock_tree *lt) {
 
 void 
 toku_lt_verify(toku_lock_tree *lt, DB *db) {
+    toku_mutex_lock(&lt->mutex);
     lt_set_comparison_functions(lt, db);
     lt_verify(lt);
     lt_clear_comparison_functions(lt);
+    toku_mutex_unlock(&lt->mutex);
 }
 
 #undef STATUS_VALUE

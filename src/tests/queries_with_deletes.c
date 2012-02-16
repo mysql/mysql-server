@@ -18,7 +18,11 @@ int test_main (int argc, char * const argv[]) {
   env->set_errfile(env, stderr);
   // set a cachetable size of 10K
   u_int32_t cachesize = 10*1024;
-  r = env->set_cachesize(env, 0, cachesize, 1); CKERR(r);
+  // as part of #4503, arbitrarily increasing sizze of cachetable
+  // the idea is to make it small enough such that all data 
+  // cannot fit in the cachetable, but big enough such that 
+  // we don't have cachet pressure
+  r = env->set_cachesize(env, 0, 4*cachesize, 1); CKERR(r);
   r = env->set_default_bt_compare(env, int64_dbt_cmp); CKERR(r);
   r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
     

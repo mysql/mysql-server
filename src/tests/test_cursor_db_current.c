@@ -46,9 +46,6 @@ test_cursor_current (void) {
 
     DBT key, data; int kk, vv;
 
-    r = cursor->c_del(cursor, 0);
-    assert(r == EINVAL);
-
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&data), DB_CURRENT);
     assert(r == EINVAL);
 
@@ -70,15 +67,10 @@ test_cursor_current (void) {
     assert(data.size == sizeof vv);
     memcpy(&vv, data.data, data.size);
     assert(vv == v);
+    r = db->del(db, null_txn, &key, DB_DELETE_ANY);
     toku_free(key.data); toku_free(data.data);
 
-    r = cursor->c_del(cursor, 0); 
-    CKERR(r);
-
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&data), DB_CURRENT);
-    CKERR2(r,DB_KEYEMPTY);
-
-    r = cursor->c_del(cursor, 0); 
     CKERR2(r,DB_KEYEMPTY);
 
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&data), DB_CURRENT);

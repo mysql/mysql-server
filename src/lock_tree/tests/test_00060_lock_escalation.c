@@ -37,12 +37,12 @@ static void init_query(void) {
 
 static void setup_tree(void) {
     assert(!lt && !ltm);
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     CKERR(r);
     assert(ltm);
     //ask ltm for lock tree
     DICTIONARY_ID dict_id = {0x1234};
-    r = toku_ltm_get_lt(ltm, &lt, dict_id, db);
+    r = toku_ltm_get_lt(ltm, &lt, dict_id, db, intcmp);
 
     CKERR(r);
     assert(lt);
@@ -108,7 +108,7 @@ static void lt_insert_write(int r_expect, char txn, int key_l) {
 }
 
 static void lt_unlock(char ctxn) {
-    int retval = toku_lt_unlock(lt, (TXNID) (size_t) ctxn); CKERR(retval);
+    int retval = toku_lt_unlock_txn(lt, (TXNID) (size_t) ctxn); CKERR(retval);
 }
               
 static void run_escalation_test(void) {
@@ -370,7 +370,6 @@ static void init_test(void) {
 
     buflen = 64;
     buf = (toku_range*) toku_malloc(buflen*sizeof(toku_range));
-    compare_fun = intcmp;
 }
 
 static void close_test(void) {

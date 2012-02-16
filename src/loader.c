@@ -20,6 +20,7 @@
 #include "ydb_load.h"
 #include "checkpoint.h"
 #include "brt-internal.h"
+#include "ydb_db.h"
 
 
 #define lazy_assert(a) assert(a) // indicates code is incomplete 
@@ -239,7 +240,7 @@ int toku_loader_create_loader(DB_ENV *env,
 	}
 
 	// time to open the big kahuna
-	if ( loader->i->loader_flags & LOADER_USE_PUTS ) {
+	if ( FALSE && (loader->i->loader_flags & LOADER_USE_PUTS) ) {
 	    XCALLOC_N(loader->i->N, loader->i->ekeys);
 	    XCALLOC_N(loader->i->N, loader->i->evals);
 	    for (int i=0; i<N; i++) {
@@ -338,7 +339,7 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
 	goto cleanup;
     }
 
-    if ( loader->i->loader_flags & LOADER_USE_PUTS ) {
+    if ( FALSE && (loader->i->loader_flags & LOADER_USE_PUTS) ) {
         r = loader->i->env->put_multiple(loader->i->env,
                                          loader->i->src_db, // src_db
                                          loader->i->txn,
@@ -389,7 +390,7 @@ int toku_loader_close(DB_LOADER *loader)
         if ( loader->i->error_callback != NULL ) {
             loader->i->error_callback(loader->i->dbs[loader->i->err_i], loader->i->err_i, loader->i->err_errno, &loader->i->err_key, &loader->i->err_val, loader->i->error_extra);
         }
-        if ( !(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
+        if (TRUE || !(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
             r = toku_brt_loader_abort(loader->i->brt_loader, TRUE);
         }
         else {
@@ -397,7 +398,7 @@ int toku_loader_close(DB_LOADER *loader)
         }
     } 
     else { // no error outstanding 
-        if ( !(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
+        if (TRUE ||  !(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
             // use the bulk loader
             // in case you've been looking - here is where the real work is done!
             r = toku_brt_loader_close(loader->i->brt_loader,
@@ -436,7 +437,7 @@ int toku_loader_abort(DB_LOADER *loader)
         }
     }
 
-    if ( !(loader->i->loader_flags & LOADER_USE_PUTS) ) {
+    if (TRUE || !(loader->i->loader_flags & LOADER_USE_PUTS) ) {
         r = toku_brt_loader_abort(loader->i->brt_loader, TRUE);
     }
     toku_ydb_lock();

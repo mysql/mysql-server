@@ -86,7 +86,7 @@ test_789(void) {
         r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
         DBT key, val;
         r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_NEXT); assert(r == 0);
-        r = cursor->c_del(cursor, 0); assert(r == 0);
+        r = db->del(db, txn, &key, DB_DELETE_ANY); assert(r == 0);
         r = cursor->c_close(cursor); assert(r == 0);
         toku_free(key.data); toku_free(val.data);
         r = txn->commit(txn, 0); assert(r == 0);
@@ -121,7 +121,7 @@ test_789(void) {
         r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
         DBT key, val;
         r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_NEXT); assert(r == 0);
-        r = cursor->c_del(cursor, 0); assert(r == 0);
+        r = db->del(db, txn, &key, DB_DELETE_ANY); assert(r == 0);
         r = cursor->c_close(cursor); assert(r == 0);
         toku_free(key.data); toku_free(val.data);
         r = txn->commit(txn, 0); assert(r == 0);

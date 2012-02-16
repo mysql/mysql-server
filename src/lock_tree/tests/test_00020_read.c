@@ -42,17 +42,17 @@ static void init_query(void) {
 
 static void setup_tree(void) {
     assert(!lt && !ltm);
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     CKERR(r);
     assert(ltm);
-    r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
+    r = toku_lt_create(&lt, ltm, dbcmp);
     CKERR(r);
     assert(lt);
     init_query();
 }
 
 static void close_tree(void) {
-    r = toku_lt_unlock(lt, txn); CKERR(r);
+    r = toku_lt_unlock_txn(lt, txn); CKERR(r);
     assert(lt && ltm);
     r = toku_lt_close(lt); CKERR(r);
     r = toku_ltm_close(ltm); CKERR(r);
@@ -103,22 +103,9 @@ static void setup_payload_len(void** payload, uint32_t* len, int val) {
     }
 }
 
-static void temporarily_fake_comparison_functions(void) {
-    assert(!lt->db && !lt->compare_fun);
-    lt->db = db;
-    lt->compare_fun = get_compare_fun_from_db(db);
-}
-
-static void stop_fake_comparison_functions(void) {
-    assert(lt->db && lt->compare_fun);
-    lt->db = NULL;
-    lt->compare_fun = NULL;
-}
-
 static void lt_find(toku_range_tree* rt,
 		    unsigned k, int key_l, int key_r,
 		    TXNID find_txn) {
-temporarily_fake_comparison_functions();
     r = toku_rt_find(rt, &query, 0, &buf, &buflen, &numfound);
     CKERR(r);
     assert(numfound==k);
@@ -136,9 +123,8 @@ temporarily_fake_comparison_functions();
     }
     assert(false);  //Crash since we didn't find it.
 cleanup:
-    stop_fake_comparison_functions();
-}
-              
+    return;
+}   
 
 static void insert_1(int key_l, int key_r,
 		     const void* kl, const void* kr) {

@@ -308,7 +308,6 @@ struct __toku_db {
   DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
   int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, u_int32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */;
   int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */;
-  int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */;
   int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */;
   int (*hot_optimize)(DB*, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra);
   int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION);

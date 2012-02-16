@@ -43,11 +43,11 @@ int main(int argc, const char *argv[]) {
 
     // setup
     toku_ltm *ltm = NULL;
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     assert(r == 0 && ltm);
 
     toku_lock_tree *lt = NULL;
-    r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
+    r = toku_lt_create(&lt, ltm, dbcmp);
     assert(r == 0 && lt);
 
     DBT key_l; dbt_init(&key_l, "L", 1);
@@ -90,7 +90,7 @@ int main(int argc, const char *argv[]) {
     assert(txnid_set_get(&conflicts, 1) == txn_b);
     txnid_set_destroy(&conflicts);
 
-    r = toku_lt_unlock(lt, txn_a); assert(r == 0);
+    r = toku_lt_unlock_txn(lt, txn_a); assert(r == 0);
     assert(c_w_l.state == LOCK_REQUEST_PENDING);
     txnid_set_init(&conflicts);
     r = toku_lt_get_lock_request_conflicts(lt, &c_w_l, &conflicts);
@@ -99,10 +99,10 @@ int main(int argc, const char *argv[]) {
     assert(txnid_set_get(&conflicts, 0) == txn_b);
     txnid_set_destroy(&conflicts);
 
-    r = toku_lt_unlock(lt, txn_b); assert(r == 0);
+    r = toku_lt_unlock_txn(lt, txn_b); assert(r == 0);
     assert(c_w_l.state == LOCK_REQUEST_COMPLETE && c_w_l.complete_r == 0);
     toku_lock_request_destroy(&c_w_l);
-    r = toku_lt_unlock(lt, txn_c); assert(r == 0);
+    r = toku_lt_unlock_txn(lt, txn_c); assert(r == 0);
 
     // shutdown 
     r = toku_lt_close(lt); assert(r == 0);
