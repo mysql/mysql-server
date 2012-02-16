@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,6 +58,8 @@
 #include "sql_parse.h"                          // is_update_query
 #include "sql_callback.h"
 #include "lock.h"
+#include "global_threads.h"
+#include "mysqld.h"
 
 #include <mysql/psi/mysql_statement.h>
 
@@ -2085,17 +2087,6 @@ void THD::close_active_vio()
 #endif
 
 
-struct Item_change_record: public ilink
-{
-  Item **place;
-  Item *old_value;
-  /* Placement new was hidden by `new' in ilink (TODO: check): */
-  static void *operator new(size_t size, void *mem) { return mem; }
-  static void operator delete(void *ptr, size_t size) {}
-  static void operator delete(void *ptr, void *mem) { /* never called */ }
-};
-
-
 /*
   Register an item tree tree transformation, performed by the query
   optimizer. We need a pointer to runtime_memroot because it may be !=
@@ -2994,6 +2985,12 @@ bool select_exists_subselect::send_data(List<Item> &items)
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
+  /*
+    A subquery may be evaluated 1) by executing the JOIN 2) by optimized
+    functions (index_subquery, subquery materialization).
+    It's only in (1) that we get here when we find a row. In (2) "value" is
+    set elsewhere.
+  */
   it->value= 1;
   it->assigned(1);
   DBUG_RETURN(0);

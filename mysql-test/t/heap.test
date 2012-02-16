@@ -516,3 +516,19 @@ WHERE ('h', 0) NOT IN ( SELECT * FROM v1);
 
 DROP TABLE t1,t2,h1;
 DROP VIEW v1;
+
+#
+# BUG 11755870 - 47704: HASH INDEX ON VARCHAR PREFIX NOT WORKING CORRECTLY.
+#
+CREATE TABLE t1 (
+    c1 VARCHAR(10) NOT NULL,
+    KEY i1 (c1(3))
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('foo1'), ('bar2'), ('baz3');
+
+SELECT * FROM t1 WHERE c1='bar2';
+--echo #should show one tuple!
+
+SELECT * FROM t1 IGNORE INDEX (i1) WHERE c1='bar2';
+--echo #should show one tuple!
+DROP TABLE t1;

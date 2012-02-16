@@ -752,10 +752,23 @@ public:
   bool no_wrap_view_item;
   /* exclude this select from check of unique_table() */
   bool exclude_from_table_unique_test;
-  /* List of fields that aren't under an aggregate function */
+  /* List of table columns which are not under an aggregate function */
   List<Item_field> non_agg_fields;
-  /* index in the select list of the expression currently being fixed */
-  int cur_pos_in_select_list;
+
+  /// @See cur_pos_in_all_fields below
+  static const int ALL_FIELDS_UNDEF_POS= INT_MIN;
+
+  /**
+     Used only for ONLY_FULL_GROUP_BY.
+     When we call fix_fields(), this member should be set as follows:
+     - if the item should honour ONLY_FULL_GROUP_BY (i.e. is in the SELECT
+     list or is a hidden ORDER BY item), cur_pos_in_all_fields is the position
+     of the item in join->all_fields with this convention: position of the
+     first item of the SELECT list is 0; item before this (in direction of the
+     front) has position -1, whereas item after has position 1.
+     - otherwise, cur_pos_in_all_fields is ALL_FIELDS_UNDEF_POS.
+  */
+  int cur_pos_in_all_fields;
 
   List<udf_func>     udf_list;                  /* udf function calls stack */
 
@@ -848,7 +861,8 @@ public:
   bool test_limit();
 
   friend void lex_start(THD *thd);
-  st_select_lex() : group_list_ptrs(NULL), n_sum_items(0), n_child_sum_items(0)
+  st_select_lex() : group_list_ptrs(NULL), n_sum_items(0), n_child_sum_items(0),
+    cur_pos_in_all_fields(ALL_FIELDS_UNDEF_POS)
   {}
   void make_empty_select()
   {
@@ -1259,6 +1273,13 @@ public:
     BINLOG_STMT_UNSAFE_INSERT_SELECT_UPDATE,
 
     /**
+     Query that writes to a table with auto_inc column after selecting from 
+     other tables are unsafe as the order in which the rows are retrieved by
+     select may differ on master and slave.
+    */
+    BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT,
+
+    /**
       INSERT...REPLACE SELECT is unsafe because which rows are replaced depends
       on the order that rows are retrieved by SELECT. This order cannot be
       predicted and may differ on master and the slave.
@@ -1278,6 +1299,14 @@ public:
       cannot be predicted and may differ on master and the slave
     */
     BINLOG_STMT_UNSAFE_CREATE_REPLACE_SELECT,
+
+    /**
+      CREATE TABLE...SELECT on a table with auto-increment column is unsafe
+      because which rows are replaced depends on the order that rows are
+      retrieved from SELECT. This order cannot be predicted and may differ on
+      master and the slave
+    */
+    BINLOG_STMT_UNSAFE_CREATE_SELECT_AUTOINC,
 
     /**
       UPDATE...IGNORE is unsafe because which rows are ignored depends on the

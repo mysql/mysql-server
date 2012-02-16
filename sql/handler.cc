@@ -4626,6 +4626,7 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     else
     {
       DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
+      DBUG_ASSERT(min_endp || max_endp);
       if (HA_POS_ERROR == (rows= this->records_in_range(keyno, min_endp, 
                                                         max_endp)))
       {

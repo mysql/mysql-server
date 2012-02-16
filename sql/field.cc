@@ -4861,8 +4861,10 @@ Field_temporal::store(const char *str, uint len, const CHARSET_INFO *cs)
   }
   else
   {
-    error= test(status.warnings) |
-           store_internal_with_round(&ltime, &status.warnings);
+    error= test(status.warnings); // Test convert_str_to_TIME warnings
+    const int error2= store_internal_with_round(&ltime, &status.warnings);
+    if (!error)
+      error= error2; 
   }
   if (status.warnings)
     set_warnings(ErrConvString(str, len, cs), status.warnings);
@@ -5808,7 +5810,17 @@ longlong Field_timef::val_time_temporal()
 
 int Field_timef::store_internal(const MYSQL_TIME *ltime, int *warnings)
 {
-  return store_packed(TIME_to_longlong_time_packed(ltime));
+  int rc= store_packed(TIME_to_longlong_time_packed(ltime));
+  if (rc == 0 && non_zero_date(ltime))
+  {
+    /*
+      The DATE part got lost; we warn, like in Field_newdate::store_internal,
+      and trigger some code in get_mm_leaf() (see err==3 there).
+    */
+    *warnings|= MYSQL_TIME_NOTE_TRUNCATED;
+    rc= 3;
+  }
+  return rc;
 }
 
 

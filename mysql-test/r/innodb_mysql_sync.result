@@ -186,3 +186,29 @@ a	b
 1	12345
 2	23456
 DROP TABLE t1;
+#
+# Bug#13417754 ASSERT IN ROW_DROP_DATABASE_FOR_MYSQL DURING DROP SCHEMA
+#
+DROP TABLE IF EXISTS t1;
+DROP DATABASE IF EXISTS db1;
+CREATE TABLE t1(a int) engine=InnoDB;
+CREATE DATABASE db1;
+# Connection con1
+SET DEBUG_SYNC= 'after_innobase_rename_table SIGNAL locked WAIT_FOR continue';
+# Sending:
+ALTER TABLE t1 RENAME db1.t1;
+# Connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# DROP DATABASE db1 should now be blocked by ALTER TABLE
+# Sending:
+DROP DATABASE db1;
+# Connection default
+# Check that DROP DATABASE is blocked by IX lock on db1
+# Resume ALTER TABLE
+SET DEBUG_SYNC= 'now SIGNAL continue';
+# Connection con1
+# Reaping: ALTER TABLE t1 RENAME db1.t1;
+# Connection con2
+# Reaping: DROP DATABASE db1
+# Connection default;
+SET DEBUG_SYNC= 'RESET';
