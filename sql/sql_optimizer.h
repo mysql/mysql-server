@@ -75,7 +75,13 @@ public:
   bool     do_send_rows;
   table_map all_table_map;   ///< Set of tables contained in query
   table_map const_table_map; ///< Set of tables found to be const
-  table_map found_const_table_map; ///< Tables that are const and non-empty
+  /**
+     Const tables which are either:
+     - not empty
+     - empty but inner to a LEFT JOIN, thus "considered" not empty for the
+     rest of execution (a NULL-complemented row will be used).
+  */
+  table_map found_const_table_map;
   table_map outer_join;      ///< Bitmap of all inner tables from outer joins
   /* Number of records produced after join + group operation */
   ha_rows  send_records;
@@ -193,7 +199,7 @@ public:
 
   Key_use_array keyuse;
 
-  List<Item> all_fields; ///< to store all fields that used in query
+  List<Item> all_fields; ///< to store all expressions used in query
   ///Above list changed to use temporary table
   List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
   ///Part, shared with list above, emulate following list

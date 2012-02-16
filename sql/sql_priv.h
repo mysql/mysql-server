@@ -259,9 +259,6 @@
 #define UNCACHEABLE_UNITED     16
 #define UNCACHEABLE_CHECKOPTION 32
 
-/* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
-#define UNDEF_POS (-1)
-
 /* BINLOG_DUMP options */
 
 #define BINLOG_DUMP_NON_BLOCK   1
