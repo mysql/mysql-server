@@ -23,6 +23,9 @@ Update of a row
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
 
+#include "my_global.h" /* HAVE_* */
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "row0upd.h"
 
 #ifdef UNIV_NONINL
@@ -2010,15 +2013,20 @@ row_upd_clust_rec(
 		rec_t*		rec;
 		rec_offs_init(offsets_);
 
-		mtr_start(mtr);
+		DBUG_EXECUTE_IF(
+			"row_upd_extern_checkpoint",
+			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE););
 
+		mtr_start(mtr);
 		ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
 		rec = btr_cur_get_rec(btr_cur);
+		DEBUG_SYNC_C("before_row_upd_extern");
 		err = btr_store_big_rec_extern_fields(
 			index, btr_cur_get_block(btr_cur), rec,
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
 			mtr, TRUE, big_rec);
+		DEBUG_SYNC_C("after_row_upd_extern");
 		mtr_commit(mtr);
 	}
 
