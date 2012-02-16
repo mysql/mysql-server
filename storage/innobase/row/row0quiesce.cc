@@ -147,7 +147,7 @@ row_quiesce_write_meta_data(
 
 	srv_get_meta_data_filename(table, name, sizeof(name));
 
-	ib_logf("Writing table metadata to '%s'", name);
+	ib_logf(IB_LOG_LEVEL_INFO, "Writing table metadata to '%s'", name);
 
 	FILE*	file = fopen(name, "w+");
 
@@ -182,25 +182,27 @@ row_quiesce_table_start(
 	ut_a(trx->mysql_thd != 0);
 	ut_a(srv_n_purge_threads > 0);
 
-	char 		table_name[MAX_FULL_NAME_LEN + 1];
+	char		table_name[MAX_FULL_NAME_LEN + 1];
 
 	ut_a(trx->mysql_thd != 0);
 
 	innobase_format_name(
 		table_name, sizeof(table_name), table->name, FALSE);
 
-	ib_logf("Sync to disk of %s started.", table_name);
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Sync to disk of %s started.", table_name);
 
 	trx_purge_stop();
 
 	ibuf_contract_in_background(table->id, TRUE);
 
 	if (!trx_is_interrupted(trx)) {
-		ulint		n_flushed;	
+		ulint		n_flushed;
 
 		n_flushed = buf_flush_list(trx, table->space);
 
-		ib_logf("Flushed %lu pages of %s", n_flushed, table_name);
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Flushed %lu pages of %s", n_flushed, table_name);
 
 		if (trx_is_interrupted(trx)) {
 			ib_logf(IB_LOG_LEVEL_WARN, "Quiesce aborted!");
@@ -211,7 +213,8 @@ row_quiesce_table_start(
 				"There was an error writing to the "
 				"meta data file");
 		} else {
-			ib_logf("Table %s flushed to disk", table_name);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Table %s flushed to disk", table_name);
 		}
 	} else {
 		ib_logf(IB_LOG_LEVEL_WARN, "Quiesce aborted!");

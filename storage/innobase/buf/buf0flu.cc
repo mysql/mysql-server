@@ -1843,16 +1843,13 @@ buf_flush_LRU(
 }
 
 /*******************************************************************//**
-This utility flushes dirty blocks from the end of the flush list of
-all one buffer pool.
-@return number of blocks for which the write request was queued or
-	ULINT_UNDEFINED if the flush was skipped. */
+This utility flushes dirty blocks from the end of the flush list.
+@retval number of blocks for which the write request was queued or
+@retval	ULINT_UNDEFINED if the flush was skipped. */
 static
 ulint
 buf_flush_buffer_pool(
 /*==================*/
-	const trx_t*	trx,		/*!< in: transaction, to check if the
-					operation should be aborted or NULL */
 	buf_pool_t*	buf_pool,	/*!< in/out: Buffer pool instance to
 					flush */
 	ulint           space,          /*!< in: Flush pages only from this
@@ -1861,11 +1858,13 @@ buf_flush_buffer_pool(
 	ulint		min_n,		/*!< in: desired minimum mumber of
 					blocks flushed (it is not guaranteed
 					that the actual number is that big) */
-	lsn_t		lsn_limit)	/*!< in the case BUF_FLUSH_LIST all
+	lsn_t		lsn_limit,	/*!< in the case BUF_FLUSH_LIST all
 					blocks whose oldest_modification is
 					smaller than this should be flushed
 					(if their number does not exceed
 					min_n), otherwise ignored */
+	const trx_t*	trx)		/*!< in: transaction, to check if the
+					operation should be aborted or NULL */
 {
 	if (!buf_flush_start(buf_pool, BUF_FLUSH_LIST)) {
 
@@ -1940,8 +1939,8 @@ buf_flush_list(
 				buf_pool = buf_pool_from_array(i);
 
 				ulint	n_pages = buf_flush_buffer_pool(
-					trx,
-					buf_pool, space, ULINT_MAX, LSN_MAX);
+					buf_pool, space, ULINT_MAX, LSN_MAX,
+					trx);
 
 				/* Check if the operation should be aborted. */
 				if (trx_is_interrupted(trx)) {
@@ -2025,7 +2024,7 @@ buf_flush_list(
 		session specific. */
 
 		ulint	n_pages = buf_flush_buffer_pool(
-			0, buf_pool, ULINT_UNDEFINED, min_n, lsn_limit);
+			buf_pool, ULINT_UNDEFINED, min_n, lsn_limit, 0);
 
 		if (n_pages == ULINT_UNDEFINED) {
 

@@ -455,16 +455,6 @@ ib_pushf(
 	...);				/*!< Args */
 
 /******************************************************************//**
-Write a message to the log, prefixed with "InnoDB: ". For printing
-INFO messages. */
-UNIV_INTERN
-void
-ib_logf(
-/*====*/
-	const char*	format,		/*!< printf format */
-	...);				/*!< Args */
-
-/******************************************************************//**
 Write a message to the MySQL log, prefixed with "InnoDB: ".
 Wrapper around sql_print_information() */
 UNIV_INTERN

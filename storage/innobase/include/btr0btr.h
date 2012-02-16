@@ -214,7 +214,8 @@ UNIV_INTERN
 db_err
 btr_root_adjust_on_import(
 /*======================*/
-	dict_index_t*	index);	/*!< in: index tree */
+	dict_index_t*	index)	/*!< in: index tree */
+	__attribute__((nonnull, warn_unused_result));
 
 /**************************************************************//**
 Gets a buffer page and declares its latching order level. */
@@ -691,11 +692,13 @@ UNIV_INTERN
 ibool
 btr_validate_index(
 /*===============*/
-	dict_index_t*	index,	/*!< in: index */
-	trx_t*		trx,	/*!< in: transaction or NULL */
-	ibool		init_id);/*!< in: FALSE=check that PAGE_INDEX_ID
-				 equals index->id; TRUE=assign PAGE_INDEX_ID
-				 and PAGE_MAX_TRX_ID = trx->id  */
+	dict_index_t*	index,			/*!< in: index */
+	trx_t*		trx,			/*!< in: transaction or NULL */
+	bool		init_id)		/*!< in: FALSE=check that
+						PAGE_INDEX_ID equals index->id;
+						TRUE=assign PAGE_INDEX_ID
+						and PAGE_MAX_TRX_ID = trx->id */
+	__attribute__((nonnull(1), warn_unused_result));
 
 #define BTR_N_LEAF_PAGES	1
 #define BTR_TOTAL_SIZE		2

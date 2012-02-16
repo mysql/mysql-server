@@ -458,11 +458,10 @@ dict_table_has_fts_index(
 }
 
 /********************************************************************//**
-Validate and return the table flags.
-@return	Same as input after validating it as dict_table_t::flags.
-If there is an error, trigger assertion failure. */
+Validate the table flags.
+@return	DB_SUCCESS or DB_CORRUPTION. */
 UNIV_INLINE
-ulint
+db_err
 dict_tf_validate(
 /*=============*/
 	ulint	flags)		/*!< in: table flags */
@@ -473,31 +472,40 @@ dict_tf_validate(
 	ulint	unused = DICT_TF_GET_UNUSED(flags);
 
 	/* Make sure there are no bits that we do not know about. */
-	ut_a(unused == 0);
+	if (unused != 0) {
 
-	if (atomic_blobs) {
+		return(DB_CORRUPTION);
+
+	} else if (atomic_blobs) {
 		/* Barracuda row formats COMPRESSED and DYNAMIC build on
 		the page structure introduced for the COMPACT row format
 		by allowing keys in secondary indexes to be made from
 		data stored off-page in the clustered index. */
-		ut_a(compact);
-	} else {
+
+		if (!compact) {
+			return(DB_CORRUPTION);
+		}
+
+	} else if (zip_ssize) {
+
 		/* Antelope does not support COMPRESSED row format. */
-		ut_a(!zip_ssize);
+		return(DB_CORRUPTION);
 	}
 
 	if (zip_ssize) {
-		/* COMPRESSED row format must have compact and atomic_blobs
-		bits set. */
-		ut_a(compact);
-		ut_a(atomic_blobs);
 
-		/* Validate the number is within allowed range. */
-		ut_a(zip_ssize <= PAGE_ZIP_SSIZE_MAX);
+		/* COMPRESSED row format must have compact and atomic_blobs
+		bits set and validate the number is within allowed range. */
+
+		if (!compact
+		    || !atomic_blobs
+		    || zip_ssize > PAGE_ZIP_SSIZE_MAX) {
+
+			return(DB_CORRUPTION);
+		}
 	}
 
-	/* Return the flags sent if we did not crash. */
-	return(flags);
+	return(DB_SUCCESS);
 }
 
 /********************************************************************//**
@@ -584,7 +592,7 @@ dict_tf_get_rec_format(
 /*===================*/
 	ulint		flags)	/*!< in: dict_table_t::flags */
 {
-	dict_tf_validate(flags);
+	ut_a(dict_tf_validate(flags) == DB_SUCCESS);
 
 	if (!DICT_TF_GET_COMPACT(flags)) {
 		return(REC_FORMAT_REDUNDANT);
@@ -710,9 +718,11 @@ dict_tf_to_sys_tables_type(
 		ut_a(flags == DICT_TF_REDUNDANT
 		     || flags == DICT_TF_COMPACT);
 		return(SYS_TABLE_TYPE_ANTELOPE);
+	} else if (dict_tf_validate(flags) == DB_SUCCESS) {
+		return(flags);
 	}
 
-	return(dict_tf_validate(flags));
+	ut_error;
 }
 
 /********************************************************************//**

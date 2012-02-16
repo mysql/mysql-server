@@ -632,8 +632,9 @@ buf_page_is_corrupted(
 	bool		check_lsn,	/*!< in: true if we need to check the
 					and complain about the LSN */
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size);	/*!< in: size of compressed page;
+	ulint		zip_size)	/*!< in: size of compressed page;
 					0 for uncompressed pages */
+	__attribute__((nonnull, warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Gets the space id, page offset, and byte offset within page of a

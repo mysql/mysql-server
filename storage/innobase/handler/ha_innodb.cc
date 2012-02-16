@@ -11958,7 +11958,7 @@ ha_innobase::store_lock(
 
 		row_quiesce_set_state(prebuilt->table, QUIESCE_START, thd);
 
-	/* Check for DROP TABLE*/
+	/* Check for DROP TABLE */
 	} else if (sql_command == SQLCOM_DROP_TABLE) {
 
 		/* MySQL calls this function in DROP TABLE though this table
@@ -15421,7 +15421,7 @@ ha_innobase::idx_cond_push(
 
 /******************************************************************//**
 Push a warning message to the client, it is a wrapper around:
-								    
+
 void push_warning_printf(
 	THD *thd, Sql_condition::enum_warning_level level,
 	uint code, const char *format, ...);
@@ -15525,33 +15525,4 @@ ib_logf(
 	if (level == IB_LOG_LEVEL_FATAL) {
 		ut_error;
 	}
-}
-
-/******************************************************************//**
-Write a message to the log, prefixed with "InnoDB: ". For printing
-INFO messages. */
-UNIV_INTERN
-void
-ib_logf(
-/*====*/
-	const char*	format,		/*!< printf format */
-	...)				/*!< Args */
-{
-	char*		str;
-	va_list         args;
-
-	va_start(args, format);
-
-#ifdef __WIN__
-	int		size = _vscprintf(format, args);
-	str = static_cast<char*>(malloc(size));
-	vsnprintf(str, size, args);
-#else
-	vasprintf(&str, format, args);
-#endif /* __WIN__ */
-
-	sql_print_information("InnoDB: %s", str);
-
-	va_end(args);
-	free(str);
 }

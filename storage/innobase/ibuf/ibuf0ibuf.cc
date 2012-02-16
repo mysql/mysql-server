@@ -2560,8 +2560,8 @@ will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
 static
 ulint
-ibuf_contract_ext(
-/*==============*/
+ibuf_merge_pages(
+/*=============*/
 	ulint*	n_pages,	/*!< out: number of pages to which merged */
 	bool	sync)		/*!< in: TRUE if the caller wants to wait for
 				the issued read with the highest tablespace
@@ -2643,8 +2643,8 @@ will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
 static
 ulint
-ibuf_contract_ext(
-/*==============*/
+ibuf_merge_space(
+/*=============*/
 	ulint		space,	/*!< in: tablespace id to merge */
 	ulint*		n_pages)/*!< out: number of pages to which merged */
 {
@@ -2724,8 +2724,8 @@ will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
 static
 ulint
-ibuf_contract_ext(
-/*==============*/
+ibuf_merge(
+/*=======*/
 	ib_id_t	table_id,	/*!< in: if merge should be done only for
 				a specific table, for all tables this should
 				be IB_ID_UNDEFINED */
@@ -2746,13 +2746,13 @@ ibuf_contract_ext(
 	if (ibuf->empty && !srv_shutdown_state) {
 		return(0);
 	} else if (table_id == IB_ID_UNDEFINED) {
-		return(ibuf_contract_ext(n_pages, sync));
+		return(ibuf_merge_pages(n_pages, sync));
 	} else if ((table = ibuf_get_table(table_id)) == 0) {
 		/* Table has been dropped. */
 		return(0);
 	}
 
-	ulint	volume = ibuf_contract_ext(table->space, n_pages);
+	ulint	volume = ibuf_merge_space(table->space, n_pages);
 
 	dict_table_close(table, FALSE);
 
@@ -2774,7 +2774,7 @@ ibuf_contract(
 {
 	ulint	n_pages;
 
-	return(ibuf_contract_ext(IB_ID_UNDEFINED, &n_pages, sync));
+	return(ibuf_merge(IB_ID_UNDEFINED, &n_pages, sync));
 }
 
 /*********************************************************************//**
@@ -2823,7 +2823,7 @@ ibuf_contract_in_background(
 	while (sum_pages < n_pages) {
 		ulint	n_bytes;
 
-		n_bytes = ibuf_contract_ext(table_id, &n_pag2, FALSE);
+		n_bytes = ibuf_merge(table_id, &n_pag2, FALSE);
 
 		if (n_bytes == 0) {
 			return(sum_bytes);
@@ -4994,7 +4994,7 @@ ibuf_print(
 Checks the insert buffer bitmaps on IMPORT TABLESPACE.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+db_err
 ibuf_check_bitmap_on_import(
 /*========================*/
 	trx_t*	trx,		/*!< in: transaction */
@@ -5031,7 +5031,7 @@ ibuf_check_bitmap_on_import(
 
 		if (trx_is_interrupted(trx)) {
 			mutex_exit(&ibuf_mutex);
-			return(DB_ERROR);
+			return(DB_INTERRUPTED);
 		}
 
 		mtr_start(&mtr);

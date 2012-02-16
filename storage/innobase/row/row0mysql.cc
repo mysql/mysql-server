@@ -4780,7 +4780,7 @@ row_mysql_close(void)
 	row_mysql_drop_list_inited = FALSE;
 }
 
-/** Callback method
+/** Callback method for setting the index space and root page numbers.
 @param mtr - current mini transaction
 @param pcur - persistent cursor. */
 void
@@ -4791,17 +4791,18 @@ SetIndexRoot::operator()(mtr_t* mtr, btr_pcur_t* pcur) throw()
 	const byte*	field;
 	rec_t*		rec = btr_pcur_get_rec(pcur);
 
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_INDEXES__NAME, &len);
-
+	field = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__NAME, &len);
 	ut_a(len != UNIV_SQL_NULL);
 
-	name = mem_heap_strdupl(m_heap, (const char*) field, len);
+	name = mem_heap_strdupl(
+		m_heap, reinterpret_cast<const char*>(field), len);
 
 	dict_index_t*	index;
 
 	index = dict_table_get_index_on_name(m_table, name);
 	ut_a(index != NULL);
+
+	mem_heap_empty(m_heap);
 
 	page_rec_write_field(
 		rec, DICT_FLD__SYS_INDEXES__SPACE, index->space, mtr);

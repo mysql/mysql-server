@@ -744,10 +744,11 @@ btr_root_get(
 }
 
 /**************************************************************//**
-Checks a file segment header within a B-tree root page.
+Checks a file segment header within a B-tree root page and updates
+the segment header space id.
 @return	TRUE if valid */
 static
-ibool
+bool
 btr_root_fseg_adjust_on_import(
 /*===========================*/
 	fseg_header_t*	seg_header,	/*!< in/out: segment header */
@@ -810,7 +811,8 @@ btr_root_adjust_on_import(
 	siblings. */
 	if (fil_page_get_type(page) != FIL_PAGE_INDEX
 	    || fil_page_get_prev(page) != FIL_NULL
-	    || fil_page_get_next(page) != FIL_NULL) {
+	    || fil_page_get_next(page) != FIL_NULL
+	    || !!comp != dict_table_is_comp(table)) {
 
 		err = DB_CORRUPTION;
 
@@ -821,20 +823,23 @@ btr_root_adjust_on_import(
 		ulint	space_flags = fil_space_get_flags(table->space);
 
 		if (space_flags) {
-			ut_a(space_flags == dict_tf_to_fsp_flags(table->flags));
-			ut_a(dict_table_is_comp(table));
 
-			err = comp ? DB_SUCCESS : DB_CORRUPTION;
+			if (space_flags != dict_tf_to_fsp_flags(table->flags)
+			    || !dict_table_is_comp(table)) {
+
+				err = DB_CORRUPTION;
+			} else {
+				err = comp ? DB_SUCCESS : DB_CORRUPTION;
+			}
 		} else {
 			table->flags = comp ? DICT_TF_COMPACT : 0;
 			err = DB_SUCCESS;
 		}
 
-	} else if (!!comp != dict_table_is_comp(table)) {
-
-		err = DB_CORRUPTION;
+	} else {
+		err = DB_SUCCESS;
 	}
-	
+
 	/* Check and adjust the file segment headers, if all OK so far. */
 	if (err == DB_SUCCESS
 	    && (!btr_root_fseg_adjust_on_import(
@@ -4773,7 +4778,7 @@ btr_validate_index(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index */
 	trx_t*		trx,	/*!< in: transaction or NULL */
-	ibool		init_id)/*!< in: FALSE=check that PAGE_INDEX_ID
+	bool		init_id)/*!< in: FALSE=check that PAGE_INDEX_ID
 				 equals index->id; TRUE=assign PAGE_INDEX_ID
 				 and PAGE_MAX_TRX_ID = trx->id  */
 {
