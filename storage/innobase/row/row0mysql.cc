@@ -3119,7 +3119,8 @@ row_truncate_table_for_mysql(
 
 			if (space == ULINT_UNDEFINED
 			    || fil_create_new_single_table_tablespace(
-				    space, table->name, FALSE, flags,
+				    space, table->name, FALSE,
+				    flags, table->flags2,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
 				dict_table_x_unlock_indexes(table);
 				ut_print_timestamp(stderr);

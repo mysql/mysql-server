@@ -2243,6 +2243,7 @@ fil_op_log_parse_or_replay(
 
 			if (fil_create_new_single_table_tablespace(
 				    space_id, name, FALSE, flags,
+				    DICT_TF2_USE_TABLESPACE,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
 				ut_error;
 			}
@@ -2748,6 +2749,7 @@ fil_create_new_single_table_tablespace(
 	ibool		is_temp,	/*!< in: TRUE if a table created with
 					CREATE TEMPORARY TABLE */
 	ulint		flags,		/*!< in: tablespace flags */
+	ulint		flags2,		/*!< in: table flags2 */
 	ulint		size)		/*!< in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
@@ -2759,7 +2761,6 @@ fil_create_new_single_table_tablespace(
 	byte*		page;
 	char*		path;
 	ibool		success;
-	ulint		create_mode;
 
 	ut_a(space_id > 0);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
@@ -2768,22 +2769,9 @@ fil_create_new_single_table_tablespace(
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
-	/* When srv_file_per_table is on, file creation failure may not
-	be critical to the whole instance. Do not crash the server in
-	case of unknown errors.
-
-	Note "srv_file_per_table" is a global variable with no explicit
-	synchronization protection. It could be changed during this execution
-	path. It might not have the same value as the one when building the
-	table definition */
-
-	create_mode = srv_file_per_table
-		    ? OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT
-		    : OS_FILE_CREATE;
-
 	file = os_file_create(
 		innodb_file_data_key, path,
-		create_mode,
+		OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT,
 		OS_FILE_NORMAL,
 		OS_DATA_FILE,
 		&ret);
