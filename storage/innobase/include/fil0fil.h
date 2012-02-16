@@ -410,7 +410,7 @@ db_err
 fil_delete_tablespace(
 /*==================*/
 	ulint	id,	/*!< in: space id */
-	ibool	rename);/*!< in: TRUE=rename to .ibt; FALSE=remove */
+	bool	rename);/*!< in: true=rename to .ibt; false=remove */
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the

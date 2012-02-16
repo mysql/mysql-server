@@ -197,12 +197,8 @@ row_quiesce_table_start(
 	ibuf_contract_in_background(table->id, TRUE);
 
 	if (!trx_is_interrupted(trx)) {
-		ulint		n_flushed;
-
-		n_flushed = buf_flush_list(trx, table->space);
-
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Flushed %lu pages of %s", n_flushed, table_name);
+		buf_LRU_flush_or_remove_pages(
+			table->space, BUF_REMOVE_FLUSH_WRITE, trx);
 
 		if (trx_is_interrupted(trx)) {
 			ib_logf(IB_LOG_LEVEL_WARN, "Quiesce aborted!");
