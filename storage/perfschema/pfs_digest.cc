@@ -339,9 +339,19 @@ void get_digest_text(char* digest_text, PFS_digest_storage* digest_storage)
     {
     /* All identifiers are printed with their name. */
     case IDENT:
-    case IDENT_QUOTED:
       read_identifier(&digest_text, &current_byte,
-                      token_array, (uint)available_bytes_to_write);
+                      token_array, (uint)available_bytes_to_write,1);
+      *digest_text= ' ';
+      digest_text++;
+      break;
+    case IDENT_QUOTED:
+      *digest_text= '`';
+      digest_text++;
+      available_bytes_to_write--;
+      read_identifier(&digest_text, &current_byte,
+                      token_array, (uint)available_bytes_to_write,2);
+      *digest_text= '`';
+      digest_text++;
       *digest_text= ' ';
       digest_text++;
       break;

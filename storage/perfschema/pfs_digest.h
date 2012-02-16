@@ -135,7 +135,7 @@ inline void store_token(PFS_digest_storage* digest_storage, uint token)
   Function to read an identifier from token array.
 */
 inline void read_identifier(char **dest, int *index, char *src,
-                            uint available_bytes_to_write)
+                            uint available_bytes_to_write, uint offset)
 {
   uint length;
   int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE - *index;
@@ -144,17 +144,18 @@ inline void read_identifier(char **dest, int *index, char *src,
     Read ID's length.
     Make sure that space to read ID's length from, is available.
   */
-  if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)
+  if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN &&
+     available_bytes_to_write > offset)
   {
     read_token(&length, index, src);
     /*
       Make sure not to overflow digest_text buffer while writing
       identifier name.
-      +/-1 is to make sure extra space for ' '.
+      +/-offset is to make sure extra space for ''' and ' '.
     */
-    length= available_bytes_to_write >= length+1 ?
+    length= available_bytes_to_write >= length+offset ?
                                         length :
-                                        available_bytes_to_write-1;
+                                        available_bytes_to_write-offset;
     strncpy(*dest, src + *index, length);
     *index= *index + length;
     *dest= *dest + length;

@@ -6,6 +6,7 @@
 # SQL Queries to test normalizations.
 # -----------------------------------
 SELECT 1 FROM t1;
+SELECT 1 FROM `t1`;
 SELECT 1,2 FROM t1;
 SELECT 1, 2, 3, 4 FROM t1;
 SELECT 1 FROM t2;
