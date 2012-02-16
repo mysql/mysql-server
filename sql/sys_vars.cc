@@ -1814,6 +1814,14 @@ static const char *thread_handling_names[]=
 #endif
   0
 };
+
+#ifdef _WIN32
+/* Windows is using OS threadpool, so we're pretty sure it works well */
+#define DEFAULT_THREAD_HANDLING 2
+#else
+#define DEFAULT_THREAD_HANDLING 0
+#endif
+
 static Sys_var_enum Sys_thread_handling(
        "thread_handling",
        "Define threads usage for handling queries, one of "
@@ -1823,7 +1831,7 @@ static Sys_var_enum Sys_thread_handling(
 #endif
        , READ_ONLY GLOBAL_VAR(thread_handling), CMD_LINE(REQUIRED_ARG),
        thread_handling_names, 
-       DEFAULT(0)
+       DEFAULT(DEFAULT_THREAD_HANDLING)
  );
 
 #ifdef HAVE_QUERY_CACHE
