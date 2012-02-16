@@ -2248,12 +2248,18 @@ C_MODE_START
 ICP_RESULT index_cond_func_maria(void *arg)
 {
   ha_maria *h= (ha_maria*)arg;
+  THD *thd= ((TABLE*) h->file->external_ref)->in_use;
+  ICP_RESULT res;
   if (h->end_range)
   {
     if (h->compare_key2(h->end_range) > 0)
       return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
   }
-  return h->pushed_idx_cond->val_int() ? ICP_MATCH : ICP_NO_MATCH;
+  status_var_increment(thd->status_var.ha_pushed_index_cond_checks);
+  if ((res= h->pushed_idx_cond->val_int() ? ICP_MATCH : ICP_NO_MATCH) ==
+      ICP_NO_MATCH)
+    status_var_increment(thd->status_var.ha_pushed_index_cond_filtered);
+  return res;
 }
 
 C_MODE_END

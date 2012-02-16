@@ -2576,6 +2576,15 @@ void JOIN_CACHE::print_explain_comment(String *str)
   str->append(STRING_WITH_LEN(")"));
 }
 
+/**
+  get thread handle.
+*/
+
+THD *JOIN_CACHE::thd()
+{
+  return join->thd;
+}
+
 
 static void add_mrr_explain_info(String *str, uint mrr_mode, handler *file)
 {
@@ -4015,7 +4024,11 @@ bool bka_skip_index_tuple(range_seq_t rseq, range_id_t range_info)
 {
   DBUG_ENTER("bka_skip_index_tuple");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
-  bool res= cache->skip_index_tuple(range_info);
+  THD *thd= cache->thd();
+  bool res;
+  status_var_increment(thd->status_var.ha_pushed_index_cond_checks);
+  if ((res= cache->skip_index_tuple(range_info)))
+    status_var_increment(thd->status_var.ha_pushed_index_cond_filtered);
   DBUG_RETURN(res);
 }
 
@@ -4490,7 +4503,12 @@ bool bkah_skip_index_tuple(range_seq_t rseq, range_id_t range_info)
 {
   DBUG_ENTER("bka_unique_skip_index_tuple");
   JOIN_CACHE_BKAH *cache= (JOIN_CACHE_BKAH *) rseq;
-  DBUG_RETURN(cache->skip_index_tuple(range_info));
+  THD *thd= cache->thd();
+  bool res;
+  status_var_increment(thd->status_var.ha_pushed_index_cond_checks);
+  if ((res= cache->skip_index_tuple(range_info)))
+    status_var_increment(thd->status_var.ha_pushed_index_cond_filtered);
+  DBUG_RETURN(res);
 }
 
 

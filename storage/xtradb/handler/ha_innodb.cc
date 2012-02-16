@@ -12583,6 +12583,8 @@ innobase_index_cond(
 	void*	file)	/*!< in/out: pointer to ha_innobase */
 {
   ha_innobase *h= (ha_innobase*) file;
+  THD *thd= h->thd();
+  enum icp_result res;
 
   if (h->is_thd_killed())
     return ICP_ABORTED_BY_USER;
@@ -12592,7 +12594,11 @@ innobase_index_cond(
     if (h->compare_key2(h->end_range) > 0)
       return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
   }
-  return h->pushed_idx_cond->val_int()? ICP_MATCH : ICP_NO_MATCH;
+  status_var_increment(thd->status_var.ha_pushed_index_cond_checks);
+  if ((res= h->pushed_idx_cond->val_int()? ICP_MATCH : ICP_NO_MATCH) ==
+      ICP_NO_MATCH)
+    status_var_increment(thd->status_var.ha_pushed_index_cond_filtered);
+  return res;
 }
 
 /** Attempt to push down an index condition.

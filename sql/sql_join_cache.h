@@ -643,6 +643,8 @@ public:
   /* Add a comment on the join algorithm employed by the join cache */
   virtual void print_explain_comment(String *str);
 
+  THD *thd();
+
   virtual ~JOIN_CACHE() {}
   void reset_join(JOIN *j) { join= j; }
   void free()

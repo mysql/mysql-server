@@ -101,6 +101,8 @@ Handler_commit	19
 Handler_delete	1
 Handler_discover	0
 Handler_prepare	18
+Handler_pushed_index_cond_checks	0
+Handler_pushed_index_cond_filtered	0
 Handler_read_first	0
 Handler_read_key	3
 Handler_read_next	0

@@ -1526,12 +1526,14 @@ insert into t2 values (3,1, 'qwerty'),(3,4, 'qwerty');
 insert into t2 values (4,1, 'qwerty'),(4,2, 'qwerty'),(4,3, 'qwerty'),
                       (4,4, 'qwerty');
 
+flush status;
 set join_cache_level=5;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 
 explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
+show status like "Handler_pushed%";
 
 set join_cache_level=6;
 select t2.f1, t2.f2, t2.f3 from t1,t2
@@ -1539,6 +1541,7 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 
 explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
+show status like "Handler_pushed%";
 
 set join_cache_level=7;
 select t2.f1, t2.f2, t2.f3 from t1,t2
@@ -1546,6 +1549,7 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 
 explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
+show status like "Handler_pushed%";
 
 set join_cache_level=8;
 select t2.f1, t2.f2, t2.f3 from t1,t2
@@ -1553,6 +1557,7 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 
 explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
+show status like "Handler_pushed%";
 
 drop table t1,t2;
 set join_cache_level=default;
