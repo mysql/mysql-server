@@ -5295,12 +5295,12 @@ void
 dict_index_name_print(
 /*==================*/
 	FILE*			file,	/*!< in: output stream */
-	const trx_t*		trx,	/*!< in: transaction */
+	trx_t*			trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: index to print */
 {
-	fprintf(file, "index ");
+	fputs("index ", file);
 	ut_print_name(file, trx, FALSE, index->name);
-	fprintf(file, " of table ");
+	fputs(" of table ", file);
 	ut_print_name(file, trx, TRUE, index->table_name);
 }
 
