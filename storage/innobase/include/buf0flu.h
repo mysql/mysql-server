@@ -122,8 +122,8 @@ any latches on pages! Also, this function will signal the flush batch
 end for a buffer after flushing that buffer pool. The operation will be
 aborted if the transaction is interrupted and a warning message written
 to the error log file.
-@return number of blocks for which the write request was queued or
-	ULINT_UNDEFINED if the operation was aborted. */
+@retval number of blocks for which the write request was queued
+@retval ULINT_UNDEFINED if the operation was aborted. */
 UNIV_INTERN
 ulint
 buf_flush_list(

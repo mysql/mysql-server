@@ -1871,7 +1871,7 @@ err_exit:
 		} else {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				" InnoDB: Error: Failed to find tablesspace "
+				" InnoDB: Error: Failed to find tablespace "
 				"for table ");
 			ut_print_filename(stderr, name);
 			fprintf(stderr, " in memory.\n");
@@ -1975,15 +1975,13 @@ err_exit:
 			dict_table_remove_from_cache(table);
 			table = NULL;
 
-		} else if (dict_index_is_corrupted(index)) {
+		} else if (dict_index_is_corrupted(index)
+			   && !table->ibd_file_missing) {
 
-			if (!table->ibd_file_missing) {
-
-				/* It is possible we force to load a corrupted
-				clustered index if srv_load_corrupted is set.
-				Mark the table as corrupted in this case */
-				table->corrupted = TRUE;
-			}
+			/* It is possible we force to load a corrupted
+			clustered index if srv_load_corrupted is set.
+			Mark the table as corrupted in this case */
+			table->corrupted = TRUE;
 		}
 	}
 

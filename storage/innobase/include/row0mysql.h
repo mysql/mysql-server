@@ -861,9 +861,10 @@ struct SetIndexRoot : public SysIndexCallback {
 
 	SetIndexRoot(dict_table_t* table)
 		:
+		m_heap(mem_heap_create(256)),
 		m_table(table)
 	{
-		m_heap = mem_heap_create(256);
+		/* No op */
 	}
 
 	virtual ~SetIndexRoot()
@@ -871,7 +872,7 @@ struct SetIndexRoot : public SysIndexCallback {
 		mem_heap_free(m_heap);
 	}
 
-	/** Callback method
+	/** Callback method for setting the index space and root page numbers.
 	@param mtr - current mini transaction
 	@param pcur - persistent cursor. */
 	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) throw();

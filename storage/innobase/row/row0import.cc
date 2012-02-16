@@ -431,7 +431,8 @@ row_import_cleanup(
 			table_name, sizeof(table_name),
 			prebuilt->table->name, FALSE);
 
-		ib_logf("Discarding tablespace of table %s", table_name);
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Discarding tablespace of table %s", table_name);
 
 		row_mysql_lock_data_dictionary(trx);
 
@@ -471,13 +472,14 @@ row_import_error(
 	db_err		err)		/*!< in: error code */
 {
 	if (!trx_is_interrupted(trx)) {
-		char table_name[MAX_FULL_NAME_LEN + 1];
+		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
 			table_name, sizeof(table_name),
 			prebuilt->table->name, FALSE);
 
-		ib_logf("ALTER TABLE %s IMPORT TABLESPACE failed: %lu",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"ALTER TABLE %s IMPORT TABLESPACE failed: %lu",
 			table_name, (ulint) err);
 	}
 
@@ -826,12 +828,14 @@ row_import_set_index_root_v1(
 		return(DB_ERROR);
 	}
 
-	table->flags = mach_read_from_4(ptr);
+	ulint	flags = mach_read_from_4(ptr);
 	ptr += sizeof(ib_uint32_t);
 
-	// FIXME: This will crash and burn, it should return an error so
-	// that we can abort the IMPORT here.
-	dict_tf_validate(table->flags);
+	if (dict_tf_validate(flags) != DB_SUCCESS) {
+		return(DB_CORRUPTION);
+	}
+
+	table->flags = flags;
 
 	n_indexes = mach_read_from_4(ptr);
 

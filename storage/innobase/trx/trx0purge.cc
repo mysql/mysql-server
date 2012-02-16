@@ -1318,7 +1318,7 @@ trx_purge_stop(void)
 	state = purge_sys->state;
 
 	if (state == PURGE_STATE_RUN) {
-		ib_logf("Stopping purge");
+		ib_logf(IB_LOG_LEVEL_INFO, "Stopping purge");
 
 		/* We need to wakeup the purge thread in case it is suspended,
 		so that it can acknowledge the state change. */
@@ -1360,7 +1360,7 @@ trx_purge_run(void)
 
 		if (purge_sys->n_stop == 0) {
 
-			ib_logf("Resuming purge");
+			ib_logf(IB_LOG_LEVEL_INFO, "Resuming purge");
 
 			purge_sys->state = PURGE_STATE_RUN;
 		}

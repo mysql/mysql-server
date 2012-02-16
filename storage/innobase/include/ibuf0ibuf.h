@@ -456,7 +456,7 @@ ibuf_close(void);
 Checks the insert buffer bitmaps on IMPORT TABLESPACE.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+db_err
 ibuf_check_bitmap_on_import(
 /*========================*/
 	trx_t*	trx,		/*!< in: transaction */
