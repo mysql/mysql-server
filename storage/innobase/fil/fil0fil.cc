@@ -3587,10 +3587,8 @@ skip_check:
 	success = fil_space_create(filepath, space_id, flags, FIL_TABLESPACE);
 
 	if (!success) {
-		goto func_exit;
-	} else {
-		/* Generic unknown error. */
 		err = DB_ERROR;
+		goto func_exit;
 	}
 
 	/* We do not measure the size of the file, that is why we pass the 0

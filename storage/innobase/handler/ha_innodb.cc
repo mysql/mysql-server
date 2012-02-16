@@ -15468,14 +15468,16 @@ ib_pushf(
 		l = Sql_condition::WARN_LEVEL_WARN;
 		break;
 	case IB_LOG_LEVEL_ERROR:
-		l = Sql_condition::WARN_LEVEL_ERROR;
+		my_printf_error(code, "InnoDB: %s", MYF(0), str);
 		break;
 	case IB_LOG_LEVEL_FATAL:
 		l = Sql_condition::WARN_LEVEL_END;
 		break;
 	}
 
-	push_warning_printf((THD*) thd, l, code, "InnoDB: %s", str);
+	if (level != IB_LOG_LEVEL_ERROR) {
+		push_warning_printf((THD*) thd, l, code, "InnoDB: %s", str);
+	}
 
 	va_end(args);
 	free(str);
