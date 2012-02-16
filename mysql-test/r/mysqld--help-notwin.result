@@ -200,14 +200,8 @@ The following options may be given as the first argument:
  --group-concat-max-len=# 
  The maximum length of the result of function 
  GROUP_CONCAT()
- --gtid-mode=name    Whether Global Transaction IDentifiers are enabled: OFF,
- UPGRADE_STEP_1, UPGRADE_STEP_2, or ON. OFF means GTIDs
- are not supported at all, ON means GTIDs are supported by
- all servers in the replication topology. To safely switch
- from OFF to ON, first set all servers to UPGRADE_STEP_1,
- then set all servers to UPGRADE_STEP_2, then wait for all
- anonymous transactions to be re-executed on all servers,
- and finally set all servers to ON.
+ --gtid-mode=name    Whether Global Transaction Identifiers (GTIDs) are
+ enabled. Can be ON or OFF.
  -?, --help          Display this help and exit.
  --ignore-builtin-innodb 
  Disable initialization of builtin InnoDB plugin
