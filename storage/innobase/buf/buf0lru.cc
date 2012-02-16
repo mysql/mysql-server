@@ -355,8 +355,7 @@ void
 buf_flush_yield(
 /*============*/
 	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
-	buf_page_t*	bpage,		/*!< in/out: current page */
-	bool		flush)		/*!< in: if true then sync writes */
+	buf_page_t*	bpage)		/*!< in/out: current page */
 {
 	mutex_t*	block_mutex;
 
@@ -396,28 +395,24 @@ buf_flush_try_yield(
 /*================*/
 	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
 	buf_page_t*	bpage,		/*!< in/out: bpage to remove */
-	ulint		processed,	/*!< in: number of pages processed */
-	ulint		skipped,	/*!< in: number of pages skipped */
-	bool		flush)		/*!< in: if true then sync writes */
+	ulint		processed)	/*!< in: number of pages processed */
 {
 	/* Every BUF_LRU_DROP_SEARCH_SIZE iterations in the
 	loop we release buf_pool->mutex to let other threads
 	do their job but only if the block is not IO fixed. This
 	ensures that the block stays in its position in the
-	flush_list. Skipping is cheap. Each time we flush we
-	release the buffer pool mutex and the block mutex. */
+	flush_list. */
 
 	if (bpage != 0
-	    && !flush
-	    && processed >= BUF_LRU_DROP_SEARCH_SIZE + skipped
-	    && buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+	    && processed >= BUF_LRU_DROP_SEARCH_SIZE
+	    && buf_page_get_io_fix(bpage) == BUF_IO_NONE) {
 
 		buf_flush_list_mutex_exit(buf_pool);
 
 		/* Release the buffer pool and block mutex
 		to give the other threads a go. */
 
-		buf_flush_yield(buf_pool, bpage, flush);
+		buf_flush_yield(buf_pool, bpage);
 
 		buf_flush_list_mutex_enter(buf_pool);
 
@@ -429,7 +424,7 @@ buf_flush_try_yield(
 
 		return(true);
 	}
-	
+
 	return(false);
 }
 
@@ -496,9 +491,17 @@ buf_flush_or_remove_page(
 			
 			ut_ad(bpage->oldest_modification != 0);
 
-        		/* The following call will release the buffer pool
+			/* The following call will release the buffer pool
 			and block mutex. */
-        		buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE);
+			buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE);
+
+			/* Wake possible simulated aio thread to actually
+			post the writes to the operating system */
+			os_aio_simulated_wake_handler_threads();
+
+			/* Wait that all async writes to tablespaces have
+			been posted to the OS */
+			os_aio_wait_until_no_pending_writes();
 
 			buf_pool_mutex_enter(buf_pool);
 
@@ -507,6 +510,8 @@ buf_flush_or_remove_page(
 
 		buf_flush_list_mutex_enter(buf_pool);
 	}
+
+	ut_ad(!mutex_own(buf_page_get_mutex(bpage)));
 
 	return(processed);
 }
@@ -532,9 +537,10 @@ buf_flush_or_remove_pages(
 {
 	buf_page_t*	prev;
 	buf_page_t*	bpage;
-	ulint		skip = 0;
-	ulint		handled = 0;
+	ulint		processed = 0;
 	bool		all_freed = true;
+
+	buf_flush_list_mutex_enter(buf_pool);
 
 	for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 	     bpage != NULL;
@@ -552,27 +558,22 @@ buf_flush_or_remove_pages(
 			/* Skip this block, as it does not belong to
 			the target space. */
 
-			++skip;
-
 		} else if (!buf_flush_or_remove_page(buf_pool, bpage, flush)) {
 
 			/* Remove was unsuccessful, we have to try again
 			by scanning the entire list from the end. */
 
-			if (all_freed) {
-				all_freed = false;
-			}
-
-		} else {
-			++handled;
+			all_freed = false;
 		}
 
-		/* Yield if have hogged the CPU and mutexes for too long. */
-		if (buf_flush_try_yield(buf_pool, prev, handled, skip, flush)) {
+		++processed;
+
+		/* Yield if we have hogged the CPU and mutexes for too long. */
+		if (buf_flush_try_yield(buf_pool, prev, processed)) {
 
 			/* Reset the batch size counter if we had to yield. */
 
-			handled = skip = 0;
+			processed = 0;
 		}
 
 #ifdef UNIV_DEBUG
@@ -583,10 +584,16 @@ buf_flush_or_remove_pages(
 					if (++n_pages == 4) {DBUG_SUICIDE();});
 		}
 #endif /* UNIV_DEBUG */
-		if (handled == 0 && trx && trx_is_interrupted(trx)) {
+
+		/* The check for trx is interrupted is expensive, we want
+		to check every N iterations. */
+		if (flush && !processed && trx && trx_is_interrupted(trx)) {
+			buf_flush_list_mutex_exit(buf_pool);
 			return(DB_INTERRUPTED);
 		}
 	}
+
+	buf_flush_list_mutex_exit(buf_pool);
 
 	return(all_freed ? DB_SUCCESS : DB_FAIL);
 }
@@ -611,12 +618,10 @@ buf_flush_dirty_pages(
 
 	do {
 		buf_pool_mutex_enter(buf_pool);
-		buf_flush_list_mutex_enter(buf_pool);
 
 		err = buf_flush_or_remove_pages(buf_pool, id, flush, trx);
 
 		buf_pool_mutex_exit(buf_pool);
-		buf_flush_list_mutex_exit(buf_pool);
 
 		ut_ad(buf_flush_validate(buf_pool));
 
@@ -628,16 +633,11 @@ buf_flush_dirty_pages(
 		completed, needs to be retried. */
 
 	} while (err == DB_FAIL);
-
-	if (flush) {
-		buf_flush_sync_datafiles();
-	}
 }
 
 /******************************************************************//**
-Remove all pages belonging to a given tablespace inside a specific
-buffer pool instance when we are deleting the data file(s) of that
-tablespace. */
+Remove all pages that belong to a given tablespace inside a specific
+buffer pool instance when we are DISCARDing the tablespace. */
 static
 void
 buf_LRU_remove_all_pages(
@@ -788,7 +788,8 @@ next_page:
 Remove pages belonging to a given tablespace inside a specific
 buffer pool instance when we are deleting the data file(s) of that
 tablespace. The pages still remain a part of LRU and are evicted from
-the list as they age towards the tail of the LRU only if all=FALSE. */
+the list as they age towards the tail of the LRU only if buf_remove
+is BUF_REMOVE_FLUSH_NO_WRITE. */
 static
 void
 buf_LRU_remove_pages(
@@ -803,13 +804,15 @@ buf_LRU_remove_pages(
 	case BUF_REMOVE_ALL_NO_WRITE:
 		buf_LRU_remove_all_pages(buf_pool, id);
 		break;
-	
+
 	case BUF_REMOVE_FLUSH_NO_WRITE:
 		buf_flush_dirty_pages(buf_pool, id, false, trx);
 		break;
 
 	case BUF_REMOVE_FLUSH_WRITE:
+		ut_a(trx != 0);
 		buf_flush_dirty_pages(buf_pool, id, true, trx);
+		fil_flush(id);
 		break;
 	}
 }
