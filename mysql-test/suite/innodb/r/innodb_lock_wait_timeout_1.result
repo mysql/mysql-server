@@ -121,7 +121,7 @@ key	PRIMARY
 key_len	4
 ref	t2.a
 rows	1
-Extra	Using index condition; Using where
+Extra	Using where
 id	2
 select_type	DERIVED
 table	NULL
@@ -328,7 +328,7 @@ key	PRIMARY
 key_len	4
 ref	t2.a
 rows	1
-Extra	Using index condition; Using where
+Extra	Using where
 id	2
 select_type	DERIVED
 table	NULL
