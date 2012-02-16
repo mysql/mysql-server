@@ -1,0 +1,85 @@
+####################################
+# SETUP
+####################################
+CREATE DATABASE statements_digest;
+USE statements_digest;
+CREATE TABLE t1(a int);
+CREATE TABLE t2(a int);
+CREATE TABLE t3(a int, b int);
+CREATE TABLE t4(a int, b int);
+CREATE TABLE t5(a int, b int, c int);
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+####################################
+# EXECUTION
+####################################
+SELECT 1 FROM t1;
+1
+SELECT 1 FROM `t1`;
+1
+SELECT 1,2 FROM t1;
+1	2
+SELECT 1, 2, 3, 4 FROM t1;
+1	2	3	4
+SELECT 1 FROM t2;
+1
+SELECT 1,2 FROM t2;
+1	2
+SELECT 1, 2, 3, 4 FROM t2;
+1	2	3	4
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1, 2);
+INSERT INTO t4 VALUES (1, 2);
+INSERT INTO t5 VALUES (1, 2, 3);
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t3 VALUES (1, 2), (3, 4), (5, 6);
+INSERT INTO t5 VALUES (1, 2, 3), (4, 5, 6), (7, 8, 9);
+SELECT                                          1           +        1;
+1           +        1
+2
+SELECT 1;
+1
+1
+SELECT 1 /* This is an inline comment */ + 1;
+1 /* This is an inline comment */ + 1
+2
+SELECT 1+
+/*
+this is a
+multiple-line comment
+*/
+1;
+1+
+/*
+this is a
+multiple-line comment
+*/
+1
+2
+CREATE SCHEMA statements_digest_temp;
+DROP SCHEMA statements_digest_temp;
+CREATE DATABASE statements_digest_temp;
+DROP DATABASE statements_digest_temp;
+####################################
+# QUERYING PS STATEMENT DIGEST
+####################################
+SELECT digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
+digest	digest_text	count_star
+NULL	NULL	24
+29570e463ee5c23d	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
+SHOW VARIABLES LIKE "performance_schema_digests_size";
+Variable_name	Value
+performance_schema_digests_size	2
+SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest;
+COUNT(*)
+2
+####################################
+# CLEANUP
+####################################
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+DROP TABLE IF EXISTS t4;
+DROP TABLE IF EXISTS t5;
+DROP DATABASE IF EXISTS statements_digest;
