@@ -944,7 +944,7 @@ void reset_nj_counters(List<TABLE_LIST> *join_list)
   Return in cond_value FALSE if condition is impossible (1 = 2)
 *****************************************************************************/
 
-class COND_CMP :public ilink {
+class COND_CMP :public ilink<COND_CMP> {
 public:
   static void *operator new(size_t size)
   {
