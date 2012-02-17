@@ -701,6 +701,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
   pos= uint8korr(ptr_buffer);
   ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
 
+  DBUG_PRINT("info", ("master_slave_proto=%d", is_master_slave_proto(flags, BINLOG_THROUGH_GTID)));
   if (is_master_slave_proto(flags, BINLOG_THROUGH_GTID))
   {
     data_size= uint4korr(ptr_buffer);
@@ -715,11 +716,11 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
     }
   }
   DBUG_PRINT("info", ("Slave %d requested to read %s at position %llu gtid set "
-                      "%s.", thd->server_id, name, pos, gtid_string));
+                      "'%s'.", thd->server_id, name, pos, gtid_string));
 
   get_slave_uuid(thd, &slave_uuid);
   kill_zombie_dump_threads(&slave_uuid);
-  general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %llu GTIDs: %s",
+  general_log_print(thd, thd->get_command(), "Log: '%s' Pos: %llu GTIDs: '%s'",
                     name, pos, gtid_string);
   my_free(gtid_string);
   mysql_binlog_send(thd, name, (my_off_t) pos, flags, &slave_gtid_done);
@@ -750,6 +751,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   bool using_gtid_proto= is_master_slave_proto(flags, BINLOG_THROUGH_GTID);
   bool searching_first_gtid= using_gtid_proto;
   bool skip_group= false;
+  Sid_map *sid_map= slave_gtid_done->get_sid_map();
 
   IO_CACHE log;
   File file = -1;
@@ -1137,11 +1139,12 @@ impossible position";
           Gtid_log_event gtid_ev(packet->ptr() + ev_offset,
                                  packet->length() - checksum_size,
                                  p_fdle);
-          skip_group= slave_gtid_done->contains_gtid(gtid_ev.get_sidno(true),
+          skip_group= slave_gtid_done->contains_gtid(gtid_ev.get_sidno(sid_map),
                                                      gtid_ev.get_gno());
           searching_first_gtid= skip_group;
           DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "
-                              "searching gtid(%d).", gtid_ev.get_sidno(true), gtid_ev.get_gno(),
+                              "searching gtid(%d).",
+                              gtid_ev.get_sidno(sid_map), gtid_ev.get_gno(),
                               skip_group, searching_first_gtid));
         }
         break;
@@ -1405,12 +1408,12 @@ impossible position";
                                      packet->length() - checksum_size,
                                      p_fdle);
               skip_group=
-                slave_gtid_done->contains_gtid(gtid_ev.get_sidno(true),
+                slave_gtid_done->contains_gtid(gtid_ev.get_sidno(sid_map),
                                                gtid_ev.get_gno());
               searching_first_gtid= skip_group;
               DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) "
                                   "skip group(%d) searching gtid(%d).",
-                                  gtid_ev.get_sidno(true), gtid_ev.get_gno(),
+                                  gtid_ev.get_sidno(sid_map), gtid_ev.get_gno(),
                                   skip_group, searching_first_gtid));
             }
             break;

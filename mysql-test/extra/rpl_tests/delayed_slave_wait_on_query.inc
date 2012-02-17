@@ -41,7 +41,7 @@ connection master;
 --sleep $time1
 
 --echo # sync with master (with timeout 1*T)
---source include/sync_with_master.inc
+--source include/sync_slave_sql.inc
 
 --let $assert_text= Query $query_number should be executed
 --let $assert_cond= MAX(b) = $query_number FROM t1
