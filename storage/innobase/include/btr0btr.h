@@ -584,7 +584,10 @@ btr_get_size(
 /**************************************************************//**
 Allocates a new file page to be used in an index tree. NOTE: we assume
 that the caller has made the reservation for free extents!
-@return	new allocated block, x-latched; NULL if out of space */
+@retval NULL if no page could be allocated
+@retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
+(init_mtr == mtr, or the page was not previously freed in mtr)
+@retval block (not allocated or initialized) otherwise */
 UNIV_INTERN
 buf_block_t*
 btr_page_alloc(
@@ -623,33 +626,6 @@ btr_page_free_low(
 	buf_block_t*	block,	/*!< in: block to be freed, x-latched */
 	ulint		level,	/*!< in: page level */
 	mtr_t*		mtr);	/*!< in: mtr */
-/**************************************************************//**
-Marks all MTR_MEMO_FREE_CLUST_LEAF pages nonfree or free.
-For invoking btr_store_big_rec_extern_fields() after an update,
-we must temporarily mark freed clustered index pages allocated, so
-that off-page columns will not be allocated from them. Between the
-btr_store_big_rec_extern_fields() and mtr_commit() we have to
-mark the pages free again, so that no pages will be leaked. */
-UNIV_INTERN
-void
-btr_mark_freed_leaves(
-/*==================*/
-	dict_index_t*	index,	/*!< in/out: clustered index */
-	mtr_t*		mtr,	/*!< in/out: mini-transaction */
-	ibool		nonfree)/*!< in: TRUE=mark nonfree, FALSE=mark freed */
-	UNIV_COLD __attribute__((nonnull));
-#ifdef UNIV_DEBUG
-/**************************************************************//**
-Validates all pages marked MTR_MEMO_FREE_CLUST_LEAF.
-@see btr_mark_freed_leaves()
-@return TRUE */
-UNIV_INTERN
-ibool
-btr_freed_leaves_validate(
-/*======================*/
-	mtr_t*	mtr)	/*!< in: mini-transaction */
-	__attribute__((nonnull, warn_unused_result));
-#endif /* UNIV_DEBUG */
 #ifdef UNIV_BTR_PRINT
 /*************************************************************//**
 Prints size info of a B-tree. */

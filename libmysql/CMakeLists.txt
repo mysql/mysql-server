@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -146,6 +146,7 @@ SET(CLIENT_SOURCES
   ../sql/net_serv.cc
   ../sql-common/pack.c 
   ../sql/password.c
+  ../sql/my_rnd.cc
 )
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
 DTRACE_INSTRUMENT(clientlib)

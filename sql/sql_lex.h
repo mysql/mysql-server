@@ -743,10 +743,23 @@ public:
   bool no_wrap_view_item;
   /* exclude this select from check of unique_table() */
   bool exclude_from_table_unique_test;
-  /* List of fields that aren't under an aggregate function */
+  /* List of table columns which are not under an aggregate function */
   List<Item_field> non_agg_fields;
-  /* index in the select list of the expression currently being fixed */
-  int cur_pos_in_select_list;
+
+  /// @See cur_pos_in_all_fields below
+  static const int ALL_FIELDS_UNDEF_POS= INT_MIN;
+
+  /**
+     Used only for ONLY_FULL_GROUP_BY.
+     When we call fix_fields(), this member should be set as follows:
+     - if the item should honour ONLY_FULL_GROUP_BY (i.e. is in the SELECT
+     list or is a hidden ORDER BY item), cur_pos_in_all_fields is the position
+     of the item in join->all_fields with this convention: position of the
+     first item of the SELECT list is 0; item before this (in direction of the
+     front) has position -1, whereas item after has position 1.
+     - otherwise, cur_pos_in_all_fields is ALL_FIELDS_UNDEF_POS.
+  */
+  int cur_pos_in_all_fields;
 
   List<udf_func>     udf_list;                  /* udf function calls stack */
 
@@ -839,7 +852,8 @@ public:
   bool test_limit();
 
   friend void lex_start(THD *thd);
-  st_select_lex() : group_list_ptrs(NULL), n_sum_items(0), n_child_sum_items(0)
+  st_select_lex() : group_list_ptrs(NULL), n_sum_items(0), n_child_sum_items(0),
+    cur_pos_in_all_fields(ALL_FIELDS_UNDEF_POS)
   {}
   void make_empty_select()
   {

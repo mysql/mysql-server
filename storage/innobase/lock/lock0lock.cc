@@ -5089,19 +5089,19 @@ lock_print_info_summary(
 		ut_error;
 
 	case PURGE_STATE_RUN:
-		fprintf(stderr, "running");
+		fprintf(file, "running");
 		/* Check if it is waiting for more data to arrive. */
 		if (!purge_sys->running) {
-			fprintf(stderr, " but idle");
+			fprintf(file, " but idle");
 		}
 		break;
 
 	case PURGE_STATE_STOP:
-		fprintf(stderr, "stopped");
+		fprintf(file, "stopped");
 		break;
 	}
 
-	fprintf(stderr, "\n");
+	fprintf(file, "\n");
 
 	fprintf(file,
 		"History list length %lu\n",

@@ -2841,7 +2841,7 @@ row_merge_create_temporary_table(
 				       col->len);
 	}
 
-        /* Add the FTS doc_id hidden column */
+	/* Add the FTS doc_id hidden column */
 	if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
 		fts_add_doc_id_column(new_table);
 		new_table->fts->doc_col = n_cols;

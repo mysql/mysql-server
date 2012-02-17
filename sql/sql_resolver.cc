@@ -47,8 +47,13 @@ setup_new_fields(THD *thd, List<Item> &fields,
 		 List<Item> &all_fields, ORDER *new_field);
 static int
 setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
-	    List<Item> &fields, List<Item> &all_fields, ORDER *order,
-	    bool *hidden_group_fields);
+            List<Item> &fields, List<Item> &all_fields, ORDER *order);
+static bool
+match_exprs_for_only_full_group_by(THD *thd, List<Item> &all_fields,
+                                   int hidden_group_exprs_count,
+                                   int hidden_order_exprs_count,
+                                   int select_exprs_count,
+                                   ORDER *group_exprs);
 
 
 /**
@@ -910,7 +915,7 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
 /**
   Function to setup clauses without sum functions.
 */
-static inline int 
+static inline int
 setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
                     TABLE_LIST *tables,
                     TABLE_LIST *leaves,
@@ -937,11 +942,27 @@ setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
   thd->lex->current_select->set_non_agg_field_used(saved_non_agg_field_used);
 
   thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
+
+  int all_fields_count= all_fields.elements;
+
   res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
                           order);
+
+  const int hidden_order_fields_count= all_fields.elements - all_fields_count;
+  all_fields_count= all_fields.elements;
+
   thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
+
   res= res || setup_group(thd, ref_pointer_array, tables, fields, all_fields,
-                          group, hidden_group_fields);
+                          group);
+  const int hidden_group_fields_count= all_fields.elements - all_fields_count;
+  *hidden_group_fields= hidden_group_fields_count != 0;
+
+  res= res || match_exprs_for_only_full_group_by(thd, all_fields,
+                                                 hidden_group_fields_count,
+                                                 hidden_order_fields_count,
+                                                 fields.elements, group);
+
   thd->lex->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(res);
 }
@@ -1138,7 +1159,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
 /**
   Change order to point at item in select list.
 
-  If item isn't a number and doesn't exits in the select list, add it the
+  If item isn't a number and doesn't exists in the select list, add it to the
   the field list.
 */
 
@@ -1146,18 +1167,187 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List<Item> &all_fields, ORDER *order)
 {
   thd->where="order clause";
+  DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
+              SELECT_LEX::ALL_FIELDS_UNDEF_POS);
   for (; order; order=order->next)
   {
+    thd->lex->current_select->cur_pos_in_all_fields=
+      fields.elements - all_fields.elements - 1;
     if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
 			   all_fields, FALSE))
       return 1;
   }
+  thd->lex->current_select->cur_pos_in_all_fields=
+		SELECT_LEX::ALL_FIELDS_UNDEF_POS;
   return 0;
 }
 
 
 /**
-  Intitialize the GROUP BY list.
+   Scans the SELECT list and ORDER BY list: for each expression, if it is not
+   present in GROUP BY, examines the non-aggregated columns contained in the
+   expression; if those columns are not all in GROUP BY, raise an error.
+
+   Examples:
+   1) "SELECT a+1 FROM t GROUP BY a+1"
+   "a+1" in SELECT list was found, by setup_group() (exactly
+   find_order_in_list()), to be the same as "a+1" in GROUP BY; as it is a
+   GROUP BY expression, setup_group() has marked this expression with
+   ALL_FIELDS_UNDEF_POS (item->marker= ALL_FIELDS_UNDEF_POS).
+   2) "SELECT a+1 FROM t GROUP BY a"
+   "a+1" is not found in GROUP BY; its non-aggregated column is "a", "a" is
+   present in GROUP BY so it's ok.
+
+   A "hidden" GROUP BY / ORDER BY expression is a member of GROUP BY / ORDER
+   BY which was not found (by setup_order() or setup_group()) to be also
+   present in the SELECT list. setup_order() and setup_group() have thus added
+   the expression to the front of JOIN::all_fields.
+
+   @param  thd                     THD pointer
+   @param  all_fields              list of expressions, including SELECT list
+                                   and hidden ORDER BY expressions
+   @param  hidden_group_exprs_count the list starts with that many hidden
+                                   GROUP BY expressions
+   @param  hidden_order_exprs_count and continues with that many hidden ORDER
+                                   BY expressions
+   @param  select_exprs_cout       and ends with that many SELECT list
+                                   expressions (there may be a gap between
+                                   hidden ORDER BY expressions and SELECT list
+                                   expressions)
+   @param  group_exprs             GROUP BY expressions
+
+   @returns true if ONLY_FULL_GROUP_BY is violated.
+*/
+
+static bool
+match_exprs_for_only_full_group_by(THD *thd, List<Item> &all_fields,
+                                   int hidden_group_exprs_count,
+                                   int hidden_order_exprs_count,
+                                   int select_exprs_count,
+                                   ORDER *group_exprs)
+{
+  if (!group_exprs ||
+      !(thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY))
+    return false;
+
+  /*
+    For all expressions of the SELECT list and ORDER BY, a list of columns
+    which aren't under an aggregate function, 'select_lex->non_agg_fields',
+    has been created (see Item_field::fix_fields()). Each column in that list
+    keeps in Item::marker the position, in all_fields, of the (SELECT
+    list or ORDER BY) expression which it belongs to (see
+    st_select_lex::cur_pos_in_all_fields). all_fields looks like this:
+    (front) HIDDEN GROUP BY - HIDDEN ORDER BY - gap - SELECT LIST (back)
+    "Gap" may contain some aggregate expressions (see Item::split_sum_func2())
+    which are irrelevant to us.
+
+    We take an expressions of the SELECT list or a hidden ORDER BY expression
+    ('expr' variable).
+    - (1) If it also belongs to the GROUP BY list, it's ok.
+    - (2) If it is an aggregate function, it's ok.
+    - (3) If is is a constant, it's ok.
+    - (4) If it is a column resolved to an outer SELECT it's ok;
+    indeed, it is a constant from the point of view of one execution of the
+    inner SELECT - it does not introduce any randomness in the result.
+    - Otherwise we scan the list of non-aggregated columns and if we find at
+    least one column belonging to this expression and NOT occuring
+    in the GROUP BY list, we throw an error.
+  */
+  List_iterator<Item> exprs_it(all_fields);
+  /*
+    All "idx*" variables below are indices in all_fields, with "index of
+    front" = 0 and "index of back" = all_fields.elements - 1.
+  */
+  int idx= -1;
+  const int idx_of_first_hidden_order= hidden_group_exprs_count;
+  const int idx_of_last_hidden_order= idx_of_first_hidden_order +
+    hidden_order_exprs_count - 1;
+  const int idx_of_first_select= all_fields.elements - select_exprs_count;
+  /*
+    Also an index in all_fields, but with the same counting convention as
+    st_select_lex::cur_pos_in_all_fields.
+  */
+  int cur_pos_in_all_fields;
+  Item *expr;
+  Item_field *non_agg_field;
+  List_iterator<Item_field>
+    non_agg_fields_it(thd->lex->current_select->non_agg_fields);
+
+  non_agg_field= non_agg_fields_it++;
+  while (non_agg_field && (expr= exprs_it++))
+  {
+    idx++;
+    if (idx < idx_of_first_hidden_order ||      // In hidden GROUP BY.
+        (idx > idx_of_last_hidden_order &&      // After hidden ORDER BY,
+         idx < idx_of_first_select))            // but not yet in SELECT list
+      continue;
+    cur_pos_in_all_fields= idx - idx_of_first_select;
+
+    if ((expr->marker == SELECT_LEX::ALL_FIELDS_UNDEF_POS) ||  // (1)
+        expr->type() == Item::SUM_FUNC_ITEM ||                 // (2)
+        expr->const_item() ||                                  // (3)
+        (expr->real_item()->type() == Item::FIELD_ITEM &&
+         expr->used_tables() & OUTER_REF_TABLE_BIT))           // (4)
+      continue; // Ignore this expression.
+
+    while (non_agg_field)
+    {
+      /*
+        All non-aggregated columns contained in 'expr' have their
+        'marker' equal to 'cur_pos_in_all_fields' OR equal to
+        ALL_FIELDS_UNDEF_POS. The latter case happens in:
+        "SELECT a FROM t GROUP BY a"
+        when setup_group() finds that "a" in GROUP BY is also in the
+        SELECT list ('fields' list); setup_group() marks the "a" expression
+        with ALL_FIELDS_UNDEF_POS; at the same time, "a" is also a
+        non-aggregated column of the "a" expression; thus, non-aggregated
+        column "a" had its marker change from >=0 to
+        ALL_FIELDS_UNDEF_POS. Such non-aggregated column can be ignored (and
+        that is why ALL_FIELDS_UNDEF_POS is a very negative number).
+      */
+      if (non_agg_field->marker < cur_pos_in_all_fields)
+      {
+        /*
+          Ignorable column, or the owning expression was found to be
+          ignorable (cases 1-2-3-4 above); ignore it and switch to next
+          column.
+        */
+        goto next_non_agg_field;
+      }
+      if (non_agg_field->marker > cur_pos_in_all_fields)
+      {
+        /*
+          'expr' has been passed (we have scanned all its non-aggregated
+          columns and are seeing one which belongs to a next expression),
+          switch to next expression.
+        */
+        break;
+      }
+      // Check whether the non-aggregated column occurs in the GROUP BY list
+      for (ORDER *grp= group_exprs; grp; grp= grp->next)
+        if ((*grp->item)->eq(static_cast<Item *>(non_agg_field), false))
+        {
+          // column is in GROUP BY so is ok; check the next
+          goto next_non_agg_field;
+        }
+      /*
+        If we come here, one non-aggregated column belonging to 'expr' was
+        not found in GROUP BY, we raise an error.
+        TODO: change ER_WRONG_FIELD_WITH_GROUP to more detailed
+        ER_NON_GROUPING_FIELD_USED
+      */
+      my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0), non_agg_field->full_name());
+      return true;
+  next_non_agg_field:
+      non_agg_field= non_agg_fields_it++;
+    }
+  }
+  return false;
+}
+
+
+/**
+  Initialize the GROUP BY list.
 
   @param thd			Thread handler
   @param ref_pointer_array	We store references to all fields that was
@@ -1184,91 +1374,25 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 
 static int
 setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
-	    List<Item> &fields, List<Item> &all_fields, ORDER *order,
-	    bool *hidden_group_fields)
+            List<Item> &fields, List<Item> &all_fields, ORDER *order)
 {
-  *hidden_group_fields=0;
-  ORDER *ord;
-
   if (!order)
     return 0;				/* Everything is ok */
 
-  uint org_fields=all_fields.elements;
-
   thd->where="group statement";
-  for (ord= order; ord; ord= ord->next)
+  for (ORDER *ord= order; ord; ord= ord->next)
   {
     if (find_order_in_list(thd, ref_pointer_array, tables, ord, fields,
 			   all_fields, TRUE))
       return 1;
-    (*ord->item)->marker= UNDEF_POS;		/* Mark found */
+    // ONLY_FULL_GROUP_BY needn't verify this expression:
+    (*ord->item)->marker= SELECT_LEX::ALL_FIELDS_UNDEF_POS;
     if ((*ord->item)->with_sum_func)
     {
       my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*ord->item)->full_name());
       return 1;
     }
   }
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-  {
-    /*
-      Don't allow one to use fields that is not used in GROUP BY
-      For each select a list of field references that aren't under an
-      aggregate function is created. Each field in this list keeps the
-      position of the select list expression which it belongs to.
-
-      First we check an expression from the select list against the GROUP BY
-      list. If it's found there then it's ok. It's also ok if this expression
-      is a constant or an aggregate function. Otherwise we scan the list
-      of non-aggregated fields and if we'll find at least one field reference
-      that belongs to this expression and doesn't occur in the GROUP BY list
-      we throw an error. If there are no fields in the created list for a
-      select list expression this means that all fields in it are used under
-      aggregate functions.
-    */
-    Item *item;
-    Item_field *field;
-    int cur_pos_in_select_list= 0;
-    List_iterator<Item> li(fields);
-    List_iterator<Item_field> naf_it(thd->lex->current_select->non_agg_fields);
-
-    field= naf_it++;
-    while (field && (item=li++))
-    {
-      if (item->type() != Item::SUM_FUNC_ITEM && item->marker >= 0 &&
-          !item->const_item() &&
-          !(item->real_item()->type() == Item::FIELD_ITEM &&
-            item->used_tables() & OUTER_REF_TABLE_BIT))
-      {
-        while (field)
-        {
-          /* Skip fields from previous expressions. */
-          if (field->marker < cur_pos_in_select_list)
-            goto next_field;
-          /* Found a field from the next expression. */
-          if (field->marker > cur_pos_in_select_list)
-            break;
-          /*
-            Check whether the field occur in the GROUP BY list.
-            Throw the error later if the field isn't found.
-          */
-          for (ord= order; ord; ord= ord->next)
-            if ((*ord->item)->eq((Item*)field, 0))
-              goto next_field;
-          /*
-            TODO: change ER_WRONG_FIELD_WITH_GROUP to more detailed
-            ER_NON_GROUPING_FIELD_USED
-          */
-          my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0), field->full_name());
-          return 1;
-next_field:
-          field= naf_it++;
-        }
-      }
-      cur_pos_in_select_list++;
-    }
-  }
-  if (org_fields != all_fields.elements)
-    *hidden_group_fields=1;			// group fields is not used
   return 0;
 }
 

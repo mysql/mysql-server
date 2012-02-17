@@ -3970,7 +3970,7 @@ btr_cur_set_ownership_of_extern_field(
 	if (page_zip) {
 		mach_write_to_1(data + local_len + BTR_EXTERN_LEN, byte_val);
 		page_zip_write_blob_ptr(page_zip, rec, index, offsets, i, mtr);
-	} else if (UNIV_LIKELY(mtr != NULL)) {
+	} else if (mtr != NULL) {
 
 		mlog_write_ulint(data + local_len + BTR_EXTERN_LEN, byte_val,
 				 MLOG_1BYTE, mtr);
@@ -4202,9 +4202,9 @@ The fields are stored on pages allocated from leaf node
 file segment of the index tree.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
-ulint
-btr_store_big_rec_extern_fields_func(
-/*=================================*/
+enum db_err
+btr_store_big_rec_extern_fields(
+/*============================*/
 	dict_index_t*	index,		/*!< in: index of rec; the index tree
 					MUST be X-latched */
 	buf_block_t*	rec_block,	/*!< in/out: block containing rec */
@@ -4215,44 +4215,35 @@ btr_store_big_rec_extern_fields_func(
 					this function returns */
 	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
 					to be stored externally */
-
-#ifdef UNIV_DEBUG
-	mtr_t*		local_mtr,	/*!< in: mtr containing the
-					latch to rec and to the tree */
-#endif /* UNIV_DEBUG */
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-	ibool		update_in_place,/*! in: TRUE if the record is updated
-					in place (not delete+insert) */
-#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-	mtr_t*		alloc_mtr)	/*!< in/out: in an insert, NULL;
-					in an update, local_mtr for
-					allocating BLOB pages and
-					updating BLOB pointers; alloc_mtr
-					must not have freed any leaf pages */
+	mtr_t*		btr_mtr,	/*!< in: mtr containing the
+					latches to the clustered index */
+	enum blob_op	op)		/*! in: operation code */
 {
-	ulint	rec_page_no;
-	byte*	field_ref;
-	ulint	extern_len;
-	ulint	store_len;
-	ulint	page_no;
-	ulint	space_id;
-	ulint	zip_size;
-	ulint	prev_page_no;
-	ulint	hint_page_no;
-	ulint	i;
-	mtr_t	mtr;
-	mem_heap_t* heap = NULL;
+	ulint		rec_page_no;
+	byte*		field_ref;
+	ulint		extern_len;
+	ulint		store_len;
+	ulint		page_no;
+	ulint		space_id;
+	ulint		zip_size;
+	ulint		prev_page_no;
+	ulint		hint_page_no;
+	ulint		i;
+	mtr_t		mtr;
+	mtr_t*		alloc_mtr;
+	mem_heap_t*	heap = NULL;
 	page_zip_des_t*	page_zip;
-	z_stream c_stream;
+	z_stream	c_stream;
+	buf_block_t**	freed_pages	= NULL;
+	ulint		n_freed_pages	= 0;
+	enum db_err	error		= DB_SUCCESS;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_any_extern(offsets));
-	ut_ad(local_mtr);
-	ut_ad(!alloc_mtr || alloc_mtr == local_mtr);
-	ut_ad(!update_in_place || alloc_mtr);
-	ut_ad(mtr_memo_contains(local_mtr, dict_index_get_lock(index),
+	ut_ad(btr_mtr);
+	ut_ad(mtr_memo_contains(btr_mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(local_mtr, rec_block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains(btr_mtr, rec_block, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(buf_block_get_frame(rec_block) == page_align(rec));
 	ut_a(dict_index_is_clust(index));
 
@@ -4264,25 +4255,6 @@ btr_store_big_rec_extern_fields_func(
 	zip_size = buf_block_get_zip_size(rec_block);
 	rec_page_no = buf_block_get_page_no(rec_block);
 	ut_a(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
-
-	if (alloc_mtr) {
-		/* Because alloc_mtr will be committed after
-		mtr, it is possible that the tablespace has been
-		extended when the B-tree record was updated or
-		inserted, or it will be extended while allocating
-		pages for big_rec.
-
-		TODO: In mtr (not alloc_mtr), write a redo log record
-		about extending the tablespace to its current size,
-		and remember the current size. Whenever the tablespace
-		grows as pages are allocated, write further redo log
-		records to mtr. (Currently tablespace extension is not
-		covered by the redo log. If it were, the record would
-		only be written to alloc_mtr, which is committed after
-		mtr.) */
-	} else {
-		alloc_mtr = &mtr;
-	}
 
 	if (page_zip) {
 		int	err;
@@ -4300,6 +4272,43 @@ btr_store_big_rec_extern_fields_func(
 		ut_a(err == Z_OK);
 	}
 
+	if (btr_blob_op_is_update(op)) {
+		/* Avoid reusing pages that have been previously freed
+		in btr_mtr. */
+		if (btr_mtr->n_freed_pages) {
+			if (heap == NULL) {
+				heap = mem_heap_create(
+					btr_mtr->n_freed_pages
+					* sizeof *freed_pages);
+			}
+
+			freed_pages = static_cast<buf_block_t**>(
+				mem_heap_alloc(
+					heap,
+					btr_mtr->n_freed_pages
+					* sizeof *freed_pages));
+			n_freed_pages = 0;
+		}
+
+		/* Because btr_mtr will be committed after mtr, it is
+		possible that the tablespace has been extended when
+		the B-tree record was updated or inserted, or it will
+		be extended while allocating pages for big_rec.
+
+		TODO: In mtr (not btr_mtr), write a redo log record
+		about extending the tablespace to its current size,
+		and remember the current size. Whenever the tablespace
+		grows as pages are allocated, write further redo log
+		records to mtr. (Currently tablespace extension is not
+		covered by the redo log. If it were, the record would
+		only be written to btr_mtr, which is committed after
+		mtr.) */
+		alloc_mtr = btr_mtr;
+	} else {
+		/* Use the local mtr for allocations. */
+		alloc_mtr = &mtr;
+	}
+
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 	/* All pointers to externally stored columns in the record
 	must either be zero or they must be pointers to inherited
@@ -4314,7 +4323,7 @@ btr_store_big_rec_extern_fields_func(
 		/* Either this must be an update in place,
 		or the BLOB must be inherited, or the BLOB pointer
 		must be zero (will be written in this function). */
-		ut_a(update_in_place
+		ut_a(op == BTR_STORE_UPDATE
 		     || (field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_INHERITED_FLAG)
 		     || !memcmp(field_ref, field_ref_zero,
 				BTR_EXTERN_FIELD_REF_SIZE));
@@ -4343,7 +4352,8 @@ btr_store_big_rec_extern_fields_func(
 			int	err = deflateReset(&c_stream);
 			ut_a(err == Z_OK);
 
-			c_stream.next_in = (Bytef*) big_rec_vec->fields[i].data;
+			c_stream.next_in = (Bytef*)
+				big_rec_vec->fields[i].data;
 			c_stream.avail_in = extern_len;
 		}
 
@@ -4359,18 +4369,24 @@ btr_store_big_rec_extern_fields_func(
 				hint_page_no = prev_page_no + 1;
 			}
 
+alloc_another:
 			block = btr_page_alloc(index, hint_page_no,
 					       FSP_NO_DIR, 0, alloc_mtr, &mtr);
 			if (UNIV_UNLIKELY(block == NULL)) {
-
 				mtr_commit(&mtr);
+				error = DB_OUT_OF_FILE_SPACE;
+				goto func_exit;
+			}
 
-				if (page_zip) {
-					deflateEnd(&c_stream);
-					mem_heap_free(heap);
-				}
-
-				return(DB_OUT_OF_FILE_SPACE);
+			if (rw_lock_get_x_lock_count(&block->lock) > 1) {
+				/* This page must have been freed in
+				btr_mtr previously. Put it aside, and
+				allocate another page for the BLOB data. */
+				ut_ad(alloc_mtr == btr_mtr);
+				ut_ad(btr_blob_op_is_update(op));
+				ut_ad(n_freed_pages < btr_mtr->n_freed_pages);
+				freed_pages[n_freed_pages++] = block;
+				goto alloc_another;
 			}
 
 			page_no = buf_block_get_page_no(block);
@@ -4627,8 +4643,23 @@ next_zip_page:
 		}
 	}
 
+func_exit:
 	if (page_zip) {
 		deflateEnd(&c_stream);
+	}
+
+	if (n_freed_pages) {
+		ulint	i;
+
+		ut_ad(alloc_mtr == btr_mtr);
+		ut_ad(btr_blob_op_is_update(op));
+
+		for (i = 0; i < n_freed_pages; i++) {
+			btr_page_free_low(index, freed_pages[i], 0, alloc_mtr);
+		}
+	}
+
+	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 
@@ -4649,7 +4680,7 @@ next_zip_page:
 		ut_a(!(field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG));
 	}
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-	return(DB_SUCCESS);
+	return(error);
 }
 
 /*******************************************************************//**
