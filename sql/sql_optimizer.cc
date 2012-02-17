@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -944,7 +944,7 @@ void reset_nj_counters(List<TABLE_LIST> *join_list)
   Return in cond_value FALSE if condition is impossible (1 = 2)
 *****************************************************************************/
 
-class COND_CMP :public ilink {
+class COND_CMP :public ilink<COND_CMP> {
 public:
   static void *operator new(size_t size)
   {
@@ -3201,9 +3201,9 @@ const_table_extraction_done:
       trace_table.add_utf8_table(s->table);
       if (s->type == JT_SYSTEM || s->type == JT_CONST)
       {
-        trace_table.add("rows", 1).add("cost", 1);
-        trace_table.add_alnum("table_type", (s->type == JT_SYSTEM) ?
-                              "system": "const");
+        trace_table.add("rows", 1).add("cost", 1)
+          .add_alnum("table_type", (s->type == JT_SYSTEM) ? "system": "const")
+          .add("empty", static_cast<bool>(s->table->null_row));
 
         /* Only one matching row */
         s->found_records= s->records= s->read_time=1; s->worst_seeks= 1.0;
@@ -3739,24 +3739,31 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
 
   const Item::Type item_type= item->type();
 
-  /* 
-    Don't push down the triggered conditions. Nested outer joins execution 
-    code may need to evaluate a condition several times (both triggered and
-    untriggered), and there is no way to put thi
-    TODO: Consider cloning the triggered condition and using the copies for:
-      1. push the first copy down, to have most restrictive index condition
-         possible
-      2. Put the second copy into tab->m_condition. 
-  */
-  if (item_type == Item::FUNC_ITEM && 
-      ((Item_func*)item)->functype() == Item_func::TRIG_COND_FUNC)
-    return FALSE;
-
   switch (item_type) {
   case Item::FUNC_ITEM:
     {
-      /* This is a function, apply condition recursively to arguments */
       Item_func *item_func= (Item_func*)item;
+      const Item_func::Functype func_type= item_func->functype();
+
+      /*
+        Avoid some function types from being pushed down to storage engine:
+        - Don't push down the triggered conditions. Nested outer joins
+          execution code may need to evaluate a condition several times
+          (both triggered and untriggered).
+          TODO: Consider cloning the triggered condition and using the
+                copies for: 
+                 1. push the first copy down, to have most restrictive
+                    index condition possible.
+                 2. Put the second copy into tab->m_condition.
+        - Stored functions contain a statement that might start new operations
+          against the storage engine. This does not work against all storage
+          engines.
+      */
+      if (func_type == Item_func::TRIG_COND_FUNC ||
+          func_type == Item_func::FUNC_SP)
+        return false;
+
+      /* This is a function, apply condition recursively to arguments */
       if (item_func->argument_count() > 0)
       {        
         Item **item_end= (item_func->arguments()) + item_func->argument_count();
@@ -7130,6 +7137,7 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
 static bool make_join_select(JOIN *join, Item *cond)
 {
   THD *thd= join->thd;
+  Opt_trace_context * const trace= &thd->opt_trace;
   DBUG_ENTER("make_join_select");
   {
     add_not_null_conds(join);
@@ -7190,10 +7198,17 @@ static bool make_join_select(JOIN *join, Item *cond)
               DBUG_RETURN(true);
           }       
         }
-        if (const_cond && !const_cond->val_int())
+        if (const_cond != NULL)
         {
-	  DBUG_PRINT("info",("Found impossible WHERE condition"));
-	  DBUG_RETURN(1);	 // Impossible const condition
+          const bool const_cond_is_true= const_cond->val_int() != 0;
+          Opt_trace_object trace_const_cond(trace);
+          trace_const_cond.add("condition_on_constant_tables", const_cond)
+            .add("condition_value", const_cond_is_true);
+          if (!const_cond_is_true)
+          {
+            DBUG_PRINT("info",("Found impossible WHERE condition"));
+            DBUG_RETURN(1);	 // Impossible const condition
+          }
         }
       }
     }
@@ -7203,7 +7218,6 @@ static bool make_join_select(JOIN *join, Item *cond)
     */
     table_map used_tables= 0;
     table_map save_used_tables= 0;
-    Opt_trace_context * const trace= &thd->opt_trace;
     Opt_trace_object trace_wrapper(trace);
     Opt_trace_object
       trace_conditions(trace, "attaching_conditions_to_tables");
