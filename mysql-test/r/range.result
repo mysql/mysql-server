@@ -1768,3 +1768,18 @@ SELECT * FROM t1, t1 as t2 WHERE t1.i4 BETWEEN t2.pk AND t2.pk;
 pk	i4	pk	i4
 DROP TABLE t1;
 End of 5.1 tests
+#
+# LP Bug #533117: Wrong use_count in SEL_ARG trees
+#   (Bug #58731)
+#
+create table t1 (a int, b int, c int, key idx (a,b,c));
+insert into t1 values (0,0,0), (2,2,0), (1,1,1), (2,2,1);
+explain
+select * from t1 force index (idx) where a >=1 and c <= 1 and a=b and b > 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	idx	idx	5	NULL	3	Using where; Using index
+select * from t1 force index (idx) where a >=1 and c <= 1 and a=b and b > 1;
+a	b	c
+2	2	0
+2	2	1
+drop table t1;

@@ -498,6 +498,11 @@ public:
 	  pos->increment_use_count(count);
     }
   }
+  void incr_refs()
+  {
+    increment_use_count(1);
+    use_count++;
+  }
   void free_tree()
   {
     for (SEL_ARG *pos=first(); pos ; pos=pos->next)
@@ -6475,8 +6480,8 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
       continue;
     SEL_ARG *next=key_and(param, e1->next_key_part, e2->next_key_part,
                           clone_flag);
-    e1->increment_use_count(1);
-    e2->increment_use_count(1);
+    e1->incr_refs();
+    e2->incr_refs();
     if (!next || next->type != SEL_ARG::IMPOSSIBLE)
     {
       SEL_ARG *new_arg= e1->clone_and(e2);
