@@ -23,6 +23,8 @@ Insert into a table
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "row0ins.h"
 
 #ifdef UNIV_NONINL
@@ -2237,30 +2239,40 @@ row_ins_index_entry_low(
 			if (big_rec) {
 				ut_a(err == DB_SUCCESS);
 				/* Write out the externally stored
-				columns, but allocate the pages and
-				write the pointers using the
-				mini-transaction of the record update.
-				If any pages were freed in the update,
-				temporarily mark them allocated so
-				that off-page columns will not
-				overwrite them. We must do this,
-				because we will write the redo log for
-				the BLOB writes before writing the
-				redo log for the record update. Thus,
-				redo log application at crash recovery
-				will see BLOBs being written to free pages. */
+				columns while still x-latching
+				index->lock and block->lock. Allocate
+				pages for big_rec in the mtr that
+				modified the B-tree, but be sure to skip
+				any pages that were freed in mtr. We will
+				write out the big_rec pages before
+				committing the B-tree mini-transaction. If
+				the system crashes so that crash recovery
+				will not replay the mtr_commit(&mtr), the
+				big_rec pages will be left orphaned until
+				the pages are allocated for something else.
 
-				btr_mark_freed_leaves(index, &mtr, TRUE);
+				TODO: If the allocation extends the
+				tablespace, it will not be redo
+				logged, in either mini-transaction.
+				Tablespace extension should be
+				redo-logged in the big_rec
+				mini-transaction, so that recovery
+				will not fail when the big_rec was
+				written to the extended portion of the
+				file, in case the file was somehow
+				truncated in the crash. */
 
 				rec = btr_cur_get_rec(&cursor);
 				offsets = rec_get_offsets(
 					rec, index, NULL,
 					ULINT_UNDEFINED, &heap);
 
+				DEBUG_SYNC_C("before_row_ins_upd_extern");
 				err = btr_store_big_rec_extern_fields(
 					index, btr_cur_get_block(&cursor),
 					rec, offsets, big_rec, &mtr,
-					FALSE, &mtr);
+					BTR_STORE_INSERT_UPDATE);
+				DEBUG_SYNC_C("after_row_ins_upd_extern");
 				/* If writing big_rec fails (for
 				example, because of DB_OUT_OF_FILE_SPACE),
 				the record will be corrupted. Even if
@@ -2271,11 +2283,14 @@ row_ins_index_entry_low(
 				external storage. This non-update
 				would not have been written to the
 				undo log, and thus the record cannot
-				be rolled back. */
+				be rolled back.
+
+				However, because we have not executed
+				mtr_commit(mtr) yet, the update will
+				not be replayed in crash recovery, and
+				the following assertion failure will
+				effectively "roll back" the operation. */
 				ut_a(err == DB_SUCCESS);
-				/* Free the pages again
-				in order to avoid a leak. */
-				btr_mark_freed_leaves(index, &mtr, FALSE);
 				mtr_commit(&mtr);
 				goto stored_big_rec;
 			}
@@ -2307,6 +2322,9 @@ function_exit:
 	mtr_commit(&mtr);
 
 	if (UNIV_LIKELY_NULL(big_rec)) {
+		DBUG_EXECUTE_IF(
+			"row_ins_extern_checkpoint",
+			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE););
 		err = row_ins_index_entry_big_rec(
 			entry, big_rec, NULL, &heap, index,
 			__FILE__, __LINE__);
@@ -2347,6 +2365,8 @@ row_ins_index_entry_big_rec(
 
 	ut_ad(dict_index_is_clust(index));
 
+	DEBUG_SYNC_C("before_row_ins_extern_latch");
+
 	mtr_start(&mtr);
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 				    BTR_MODIFY_TREE, &cursor, 0,
@@ -2355,9 +2375,11 @@ row_ins_index_entry_big_rec(
 	offsets = rec_get_offsets(rec, index, offsets,
 				  ULINT_UNDEFINED, heap);
 
+	DEBUG_SYNC_C("before_row_ins_extern");
 	error = btr_store_big_rec_extern_fields(
 		index, btr_cur_get_block(&cursor),
-		rec, offsets, big_rec, &mtr, FALSE, &mtr);
+		rec, offsets, big_rec, &mtr, BTR_STORE_INSERT);
+	DEBUG_SYNC_C("after_row_ins_extern");
 
 	mtr_commit(&mtr);
 

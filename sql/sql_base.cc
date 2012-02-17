@@ -8097,7 +8097,11 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   */
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
-  thd->lex->current_select->cur_pos_in_select_list= 0;
+  // When we enter, we're "nowhere":
+  DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
+              SELECT_LEX::ALL_FIELDS_UNDEF_POS);
+  // Now we're in the SELECT list:
+  thd->lex->current_select->cur_pos_in_all_fields= 0;
   while (wild_num && (item= it++))
   {
     if (item->type() == Item::FIELD_ITEM &&
@@ -8140,9 +8144,12 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       wild_num--;
     }
     else
-      thd->lex->current_select->cur_pos_in_select_list++;
+      thd->lex->current_select->cur_pos_in_all_fields++;
   }
-  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
+  // We're nowhere again:
+  thd->lex->current_select->cur_pos_in_all_fields=
+    SELECT_LEX::ALL_FIELDS_UNDEF_POS;
+
   if (arena)
   {
     /* make * substituting permanent */
@@ -8218,7 +8225,9 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     var->set_entry(thd, FALSE);
 
   Ref_ptr_array ref= ref_pointer_array;
-  thd->lex->current_select->cur_pos_in_select_list= 0;
+  DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
+              SELECT_LEX::ALL_FIELDS_UNDEF_POS);
+  thd->lex->current_select->cur_pos_in_all_fields= 0;
   while ((item= it++))
   {
     if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
@@ -8240,10 +8249,11 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
     thd->lex->current_select->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();
-    thd->lex->current_select->cur_pos_in_select_list++;
+    thd->lex->current_select->cur_pos_in_all_fields++;
   }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
-  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
+  thd->lex->current_select->cur_pos_in_all_fields=
+    SELECT_LEX::ALL_FIELDS_UNDEF_POS;
 
   thd->lex->allow_sum_func= save_allow_sum_func;
   thd->mark_used_columns= save_mark_used_columns;
@@ -8653,7 +8663,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         thd->lex->current_select->select_list_tables|=
           item->used_tables();
       }
-      thd->lex->current_select->cur_pos_in_select_list++;
+      thd->lex->current_select->cur_pos_in_all_fields++;
     }
     /*
       In case of stored tables, all fields are considered as used,

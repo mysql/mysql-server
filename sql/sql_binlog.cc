@@ -159,7 +159,13 @@ void mysql_client_binlog_statement(THD* thd)
   Relay_log_info *rli= thd->rli_fake;
   if (!rli)
   {
-    if ((rli= Rpl_info_factory::create_rli(INFO_REPOSITORY_FILE, FALSE)))
+    /*
+      We create a Relay_log_info object with a INFO_REPOSITORY_DUMMY because
+      to process a BINLOG command a real repository is not necessary. In the
+      future, we need to improve the code around the BINLOG command as only a
+      small part of the object is required to execute it. / Alfranio
+    */
+    if ((rli= Rpl_info_factory::create_rli(INFO_REPOSITORY_DUMMY, FALSE)))
     {
       thd->rli_fake= rli;
       rli->info_thd= thd;
@@ -306,18 +312,20 @@ void mysql_client_binlog_statement(THD* thd)
     }
   }
 
-
   DBUG_PRINT("info",("binlog base64 execution finished successfully"));
   my_ok(thd);
 
 end:
-  if ((error || err) && rli->rows_query_ev)
+  if (rli)
   {
-    delete rli->rows_query_ev;
-    rli->rows_query_ev= NULL;
+    if ((error || err) && rli->rows_query_ev)
+    {
+      delete rli->rows_query_ev;
+      rli->rows_query_ev= NULL;
+    }
+    rli->slave_close_thread_tables(thd);
   }
   thd->variables.option_bits= thd_options;
-  rli->slave_close_thread_tables(thd);
   my_free(buf);
   DBUG_VOID_RETURN;
 }

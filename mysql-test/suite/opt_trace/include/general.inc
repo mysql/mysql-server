@@ -82,12 +82,13 @@ select * from information_schema.OPTIMIZER_TRACE;
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
 select length(@trace);
 # The concatenation of query and trace above has length:
-# - >14100 in normal mode
-# - <14100 in ps-protocol mode (because IN->EXISTS is done at PREPARE
+# - >@max_mem_size in normal mode
+# - <@max_mem_size in ps-protocol mode (because IN->EXISTS is done at PREPARE
 # and we trace only EXECUTE)
 # - So in normal mode, the lines below verify truncation,
 # whereas in ps-protocol mode they verify non-truncation.
-set optimizer_trace_max_mem_size=14100;
+set @max_mem_size=14300;
+set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d = ifnull(c,null));
 select (@missing_bytes:=missing_bytes_beyond_max_mem_size) from information_schema.OPTIMIZER_TRACE;
