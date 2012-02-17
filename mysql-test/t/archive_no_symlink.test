@@ -1,0 +1,26 @@
+# Test archive engine when symbolic links are not available.
+--source include/have_archive.inc
+
+--echo #
+--echo # This test shows that DATA DIRECTORY and INDEX DIRECTORY are
+--echo # ignored where symbolic links are not supported such as Windows.
+--echo #
+
+let $data_directory = DATA DIRECTORY = '$MYSQL_TMP_DIR/archive';
+let $index_directory = INDEX DIRECTORY = '$MYSQL_TMP_DIR/archive';
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (
+  c1 int(10) unsigned NOT NULL AUTO_INCREMENT,
+  c2 varchar(30) NOT NULL,
+  c3 smallint(5) unsigned DEFAULT NULL,
+  PRIMARY KEY (c1))
+ENGINE = archive
+$data_directory $index_directory;
+
+INSERT INTO t1 VALUES (NULL, "first", 1);
+INSERT INTO t1 VALUES (NULL, "second", 2);
+INSERT INTO t1 VALUES (NULL, "third", 3);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+

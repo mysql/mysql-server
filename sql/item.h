@@ -559,7 +559,24 @@ public:
     (see bug #11829681/60295 etc).
   */
   uint name_length;                     /* Length of name */
-  int8 marker;
+  /**
+     This member has several successive meanings, depending on the phase we're
+     in:
+     - during field resolution: it contains the index, in the "all_fields"
+     list, of the expression to which this field belongs; or a special
+     constant UNDEF_POS; see st_select_lex::cur_pos_in_all_fields and
+     match_exprs_for_only_full_group_by().
+     - when attaching conditions to tables: it says whether some condition
+     needs to be attached or can be omitted (for example because it is already
+     implemented by 'ref' access)
+     - when pushing index conditions: it says whether a condition uses only
+     indexed columns
+     - when creating an internal temporary table: it says how to store BIT
+     fields
+     - when we change DISTINCT to GROUP BY: it is used for book-keeping of
+     fields.
+  */
+  int marker;
   uint8 decimals;
   my_bool maybe_null;			/* If item may be null */
   my_bool null_value;			/* if item is null */
@@ -1045,6 +1062,8 @@ public:
   /* 
     Returns true if this is constant (during query execution, i.e. its value
     will not change until next fix_fields) and its value is known.
+    When the default implementation of used_tables() is effective, this
+    function will always return true (because used_tables() is empty).
   */
   virtual bool const_item() const { return used_tables() == 0; }
   /* 
@@ -1548,10 +1567,7 @@ public:
   bool is_null();
 
 public:
-  inline void make_field(Send_field *field);
-  
-  inline bool const_item() const;
-  
+  inline void make_field(Send_field *field);  
   inline int save_in_field(Field *field, bool no_conversions);
   inline bool send(Protocol *protocol, String *str);
 }; 
@@ -1569,11 +1585,6 @@ inline void Item_sp_variable::make_field(Send_field *field)
   else
     it->set_name(m_name.str, (uint) m_name.length, system_charset_info);
   it->make_field(field);
-}
-
-inline bool Item_sp_variable::const_item() const
-{
-  return TRUE;
 }
 
 inline int Item_sp_variable::save_in_field(Field *field, bool no_conversions)
@@ -1765,11 +1776,6 @@ public:
   Item_result result_type() const
   {
     return value_item->result_type();
-  }
-
-  bool const_item() const
-  {
-    return TRUE;
   }
 
   int save_in_field(Field *field, bool no_conversions)
@@ -2069,6 +2075,9 @@ public:
     fprintf(DBUG_FILE, ">\n");
   }
 #endif
+
+  /// Pushes the item to select_lex.non_agg_fields() and updates its marker.
+  bool push_to_non_agg_fields(st_select_lex *select_lex);
 
   friend class Item_default_value;
   friend class Item_insert_value;
@@ -2923,7 +2932,16 @@ public:
       (*ref)->update_used_tables(); 
   }
   virtual table_map resolved_used_tables() const;
-  table_map not_null_tables() const { return (*ref)->not_null_tables(); }
+  table_map not_null_tables() const
+  {
+    /*
+      It can happen that our 'depended_from' member is set but the
+      'depended_from' member of the referenced item is not (example: if a
+      field in a subquery belongs to an outer merged view), so we first test
+      ours:
+    */
+    return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->not_null_tables();
+  }
   void set_result_field(Field *field)	{ result_field= field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)

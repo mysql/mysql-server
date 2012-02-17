@@ -2222,7 +2222,7 @@ row_merge_drop_index(
 	dict_table_t*	table,	/*!< in: table */
 	trx_t*		trx)	/*!< in: transaction handle */
 {
-	ulint		err;
+	db_err		err;
 	pars_info_t*	info = pars_info_create();
 
 	/* We use the private SQL parser of Innobase to generate the
@@ -2230,7 +2230,7 @@ row_merge_drop_index(
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
 	frees the file segments of the B-tree associated with the index. */
 
-	static const char str1[] =
+	static const char sql[] =
 		"PROCEDURE DROP_INDEX_PROC () IS\n"
 		"BEGIN\n"
 		/* Rename the index, so that it will be dropped by
@@ -2254,22 +2254,39 @@ row_merge_drop_index(
 
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
-	err = que_eval_sql(info, str1, FALSE, trx);
+	err = static_cast<db_err>(que_eval_sql(info, sql, FALSE, trx));
 
-	ut_a(err == DB_SUCCESS);
+	DBUG_EXECUTE_IF(
+		"ib_drop_index_too_many_concurrent_trxs",
+		err = DB_TOO_MANY_CONCURRENT_TRXS;
+		trx->error_state = err;);
 
-	/* If it is FTS index, drop from table->fts and also drop
-	its auxiliary tables */
-	if (index->type & DICT_FTS) {
-		ut_a(table->fts);
-		fts_drop_index(table, index, trx);
+	if (err == DB_SUCCESS) {
+
+		/* If it is FTS index, drop from table->fts and also drop
+		its auxiliary tables */
+		if (index->type & DICT_FTS) {
+			ut_a(table->fts);
+			fts_drop_index(table, index, trx);
+		}
+
+		/* Replace this index with another equivalent index for all
+		foreign key constraints on this table where this index is
+		used */
+
+		dict_table_replace_index_in_foreign_list(table, index, trx);
+		dict_index_remove_from_cache(table, index);
+
+	} else {
+		/* Even though we ensure that DDL transactions are WAIT
+		and DEADLOCK free, we could encounter other errors e.g.,
+		DB_TOO_MANY_TRANSACTIONS. */
+		trx->error_state = DB_SUCCESS;
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error: row_merge_drop_index failed "
+			"with error code: %lu.\n", (ulint) err);
 	}
-
-	/* Replace this index with another equivalent index for all
-	foreign key constraints on this table where this index is used */
-
-	dict_table_replace_index_in_foreign_list(table, index, trx);
-	dict_index_remove_from_cache(table, index);
 
 	trx->op_info = "";
 }
@@ -2546,7 +2563,7 @@ row_merge_create_temporary_table(
 				       col->len);
 	}
 
-        /* Add the FTS doc_id hidden column */
+	/* Add the FTS doc_id hidden column */
 	if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
 		fts_add_doc_id_column(new_table);
 		new_table->fts->doc_col = n_cols;
@@ -2585,13 +2602,13 @@ row_merge_rename_indexes(
 	trx_t*		trx,		/*!< in/out: transaction */
 	dict_table_t*	table)		/*!< in/out: table with new indexes */
 {
-	ulint		err = DB_SUCCESS;
+	db_err		err = DB_SUCCESS;
 	pars_info_t*	info = pars_info_create();
 
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in renaming indexes. */
 
-	static const char rename_indexes[] =
+	static const char* sql =
 		"PROCEDURE RENAME_INDEXES_PROC () IS\n"
 		"BEGIN\n"
 		"UPDATE SYS_INDEXES SET NAME=SUBSTR(NAME,1,LENGTH(NAME)-1)\n"
@@ -2607,7 +2624,12 @@ row_merge_rename_indexes(
 
 	pars_info_add_ull_literal(info, "tableid", table->id);
 
-	err = que_eval_sql(info, rename_indexes, FALSE, trx);
+	err = static_cast<db_err>(que_eval_sql(info, sql, FALSE, trx));
+
+	DBUG_EXECUTE_IF(
+		"ib_rename_indexes_too_many_concurrent_trxs",
+		err = DB_TOO_MANY_CONCURRENT_TRXS;
+		trx->error_state = static_cast<db_err>(err););
 
 	if (err == DB_SUCCESS) {
 		dict_index_t*	index = dict_table_get_first_index(table);
@@ -2617,6 +2639,16 @@ row_merge_rename_indexes(
 			}
 			index = dict_table_get_next_index(index);
 		} while (index);
+	} else {
+		/* Even though we ensure that DDL transactions are WAIT
+		and DEADLOCK free, we could encounter other errors e.g.,
+		DB_TOO_MANY_TRANSACTIONS. */
+
+		trx->error_state = DB_SUCCESS;
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error: row_merge_rename_indexes "
+			"failed with error code: %lu.\n", (ulint) err);
 	}
 
 	trx->op_info = "";
@@ -2654,7 +2686,7 @@ row_merge_rename_tables(
 		memcpy(old_name, old_table->name, strlen(old_table->name) + 1);
 	} else {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "InnoDB: too long table name: '%s', "
+		fprintf(stderr, " InnoDB: too long table name: '%s', "
 			"max length is %d\n", old_table->name,
 			MAX_FULL_NAME_LEN);
 		ut_error;
@@ -2992,18 +3024,22 @@ wait_again:
 		if (indexes[i]->type & DICT_FTS && fts_enable_diag_print) {
 			char*	name = (char*) indexes[i]->name;
 
-			ut_print_timestamp(stderr);
-
 			if (*name == TEMP_INDEX_PREFIX)  {
 				name++;
 			}
 
-			fprintf(stderr, "  InnoDB_FTS: Finish building"
-				" Fulltext index %s\n", name);
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: Finished building "
+				"full-text index %s\n", name);
 		}
 	}
 
 func_exit:
+	DBUG_EXECUTE_IF(
+		"ib_build_indexes_too_many_concurrent_trxs",
+		error = DB_TOO_MANY_CONCURRENT_TRXS;
+		trx->error_state = static_cast<db_err>(error););
+
 	row_merge_file_destroy_low(tmpfd);
 
 	for (i = 0; i < n_indexes; i++) {

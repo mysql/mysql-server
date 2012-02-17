@@ -4074,7 +4074,8 @@ EXPLAIN SELECT 1 FROM
                 "table": "d2",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": true
               }
             ] /* rows_estimation */
           },
@@ -4391,7 +4392,8 @@ EXPLAIN SELECT 1 FROM
                 "table": "d2",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": true
               }
             ] /* rows_estimation */
           },

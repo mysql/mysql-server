@@ -23,6 +23,9 @@ Update of a row
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
 
+#include "my_global.h" /* HAVE_* */
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "row0upd.h"
 
 #ifdef UNIV_NONINL
@@ -2128,11 +2131,13 @@ row_upd_clust_rec(
 
 		btr_mark_freed_leaves(index, mtr, TRUE);
 		rec = btr_cur_get_rec(btr_cur);
+		DEBUG_SYNC_C("before_row_upd_extern");
 		err = btr_store_big_rec_extern_fields(
 			index, btr_cur_get_block(btr_cur), rec,
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
 			big_rec, mtr, TRUE, mtr);
+		DEBUG_SYNC_C("after_row_upd_extern");
 		/* If writing big_rec fails (for example, because of
 		DB_OUT_OF_FILE_SPACE), the record will be corrupted.
 		Even if we did not update any externally stored

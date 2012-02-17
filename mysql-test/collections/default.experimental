@@ -10,39 +10,7 @@ main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlsla
 main.signal_demo3 @solaris               # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 
-main.subquery_sj_all_bka_nixbnl @solaris         # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_all_bka @solaris                # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_all_bkaunique @solaris          # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_all @solaris                    # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_dupsweed_bka_nixbnl @solaris    # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_dupsweed_bka @solaris           # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_dupsweed_bkaunique @solaris     # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_dupsweed @solaris               # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_firstmatch_bka_nixbnl @solaris  # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_firstmatch_bka @solaris         # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_firstmatch_bkaunique @solaris   # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_firstmatch @solaris             # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_innodb_all_bka_nixbnl @solaris  # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_innodb_all_bka @solaris         # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_innodb_all_bkaunique @solaris   # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_innodb_all @solaris             # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_innodb_none_bka_nixbnl @solaris # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_innodb_none_bka @solaris        # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_innodb_none_bkaunique @solaris  # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_innodb_none @solaris            # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_loosescan_bka_nixbnl @solaris   # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_loosescan_bka @solaris          # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_loosescan_bkaunique @solaris    # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_loosescan @solaris              # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_mat_bka_nixbnl @solaris         # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_mat_bka @solaris                # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_mat_bkaunique @solaris          # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_mat_nosj @solaris               # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_mat @solaris                    # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_none_bka_nixbnl @solaris        # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_none_bka @solaris               # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_none_bkaunique @solaris         # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_none @solaris                   # Bug#11753919 2012-02-03 didrik Several test cases fail on Solaris with error Thread stack overrun
+main.bug33509 @solaris                   # Bug#11753919 2012-02-16 didrik Several test cases fail on Solaris with error Thread stack overrun
 
 main.kill @freebsd                       # Bug#12619719 2011-08-04 Occasional failure in PB2
 

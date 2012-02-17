@@ -115,7 +115,7 @@
 #include "sql_select.h"
 #include "opt_trace.h"
 #include "filesort.h"         // filesort_free_buffers
-#include "sql_optimizer.h"    // is_indexed_agg_distinct
+#include "sql_optimizer.h"    // is_indexed_agg_distinct,field_time_cmp_date
 
 using std::min;
 using std::max;
@@ -483,8 +483,7 @@ public:
     if (cmp_min_to_min(arg) > 0)
     {
       min_value=arg->min_value; min_flag=arg->min_flag;
-      if ((max_flag & (NO_MAX_RANGE | NO_MIN_RANGE)) ==
-	  (NO_MAX_RANGE | NO_MIN_RANGE))
+      if ((max_flag & NO_MAX_RANGE) && (min_flag & NO_MIN_RANGE))
 	return 1;				// Full range
     }
     maybe_flag|=arg->maybe_flag;
@@ -495,8 +494,7 @@ public:
     if (cmp_max_to_max(arg) <= 0)
     {
       max_value=arg->max_value; max_flag=arg->max_flag;
-      if ((max_flag & (NO_MAX_RANGE | NO_MIN_RANGE)) ==
-	  (NO_MAX_RANGE | NO_MIN_RANGE))
+      if ((max_flag & NO_MAX_RANGE) && (min_flag & NO_MIN_RANGE))
 	return 1;				// Full range
     }
     maybe_flag|=arg->maybe_flag;
@@ -4827,6 +4825,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
                      rec_per_key[tuple_arg->part]))    // (3)
       {
         DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
+        // Fails - reintroduce when fixed
+        // DBUG_ASSERT(min_range.length > 0);
         records= (table->file->
                   records_in_range(scan->keynr, &min_range, &max_range));
       }
@@ -6354,14 +6354,18 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
        WHERE latin1_swedish_ci_colimn = BINARY 'a '
 
+    3. Grep for IndexedTimeComparedToDate. If 'value' is a DATETIME part,
+       using the index on the TIME column would retain only the TIME part of
+       'value', giving false comparison results.
   */
-  if (field->result_type() == STRING_RESULT &&
-      field->match_collation_to_optimize_range() &&
-      value->result_type() == STRING_RESULT &&
-      key_part->image_type == Field::itRAW &&
-      field->charset() != conf_func->compare_collation() &&
-      !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
-        (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC)))
+  if ((field->result_type() == STRING_RESULT &&
+       field->match_collation_to_optimize_range() &&
+       value->result_type() == STRING_RESULT &&
+       key_part->image_type == Field::itRAW &&
+       field->charset() != conf_func->compare_collation() &&
+       !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
+         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC))) ||
+      field_time_cmp_date(field, value))
   {
     if (param->using_real_indexes &&
         param->thd->lex->describe & DESCRIBE_EXTENDED)
@@ -7307,9 +7311,13 @@ get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1)
    ( 1  <  kp1 <= 2 AND 1 < kp2 < 10 ) OR
    ( 2  <  kp1 < 10 AND 1 < kp2 < 20 ) OR
    ( 10 <= kp1 < 20 AND 4 < kp2 < 20 )
+
+   @param param    PARAM from SQL_SELECT::test_quick_select
+   @param key1     Root of RB-tree of SEL_ARGs to be ORed with key2
+   @param key2     Root of RB-tree of SEL_ARGs to be ORed with key1
 */
 static SEL_ARG *
-key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
+key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 {
   if (!key1)
   {
@@ -7362,8 +7370,8 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
   }
 
   // Add tree at key2 to tree at key1
-  bool key2_shared=key2->use_count != 0;
-  key1->maybe_flag|=key2->maybe_flag;
+  const bool key2_shared= (key2->use_count != 0);
+  key1->maybe_flag|= key2->maybe_flag;
 
   /*
     Notation for illustrations used in the rest of this function: 
@@ -7388,21 +7396,22 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
         b:      [----
    */
 
-  for (key2=key2->first(); key2; )
+  SEL_ARG *cur_key2= key2->first();
+  while (cur_key2)
   {
     /*
-      key1 consists of one or more ranges. tmp is the range currently
-      being handled.
+      key1 consists of one or more ranges. cur_key1 is the
+      range currently being handled.
 
-      initialize tmp to the latest range in key1 that starts the same
-      place or before the range in key2 starts
+      initialize cur_key1 to the latest range in key1 that starts the
+      same place or before the range in cur_key2 starts
 
-      key2:           [------]
-      key1: [---] [-----] [----]
-                  ^
-                  tmp
+      cur_key2:            [------]
+      key1:      [---] [-----] [----]
+                       ^
+                       cur_key1
     */
-    SEL_ARG *tmp=key1->find_range(key2);
+    SEL_ARG *cur_key1= key1->find_range(cur_key2);
 
     /*
       Used to describe how two key values are positioned compared to
@@ -7414,71 +7423,86 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
          1: key_value_a is bigger than key_value_b (not adjacent)
         -2: key_value_a is bigger than key_value_b, and they are adjacent
 
-      Example: "cmp= tmp->cmp_max_to_min(key2)"
+      Example: "cmp= cur_key1->cmp_max_to_min(cur_key2)"
 
-      key2:         [--------            (10 <= x ...)
-      tmp:    -----]                      (... x <  10) => cmp==-2
-      tmp:    ----]                       (... x <=  9) => cmp==-1
-      tmp:    ------]                     (... x  = 10) => cmp== 0
-      tmp:    --------]                   (... x <= 12) => cmp== 1
+      cur_key2:          [--------           (10 <= x ...  )
+      cur_key1:    -----]                    (  ... x <  10) => cmp==-2
+      cur_key1:    ----]                     (  ... x <   9) => cmp==-1
+      cur_key1:    ------]                   (  ... x <= 10) => cmp== 0
+      cur_key1:    --------]                 (  ... x <= 12) => cmp== 1
       (cmp == 2 does not make sense for cmp_max_to_min())
      */
     int cmp= 0;
 
-    if (!tmp)
+    if (!cur_key1)
     {
       /*
-        The range in key2 starts before the first range in key1. Use
-        the first range in key1 as tmp.
+        The range in cur_key2 starts before the first range in key1. Use
+        the first range in key1 as cur_key1.
 
-        key2:     [--------]
+        cur_key2: [--------]
         key1:            [****--] [----]   [-------]
                          ^
-                         tmp
+                         cur_key1
       */
-      tmp=key1->first();
+      cur_key1= key1->first();
       cmp= -1;
     }
-    else if ((cmp= tmp->cmp_max_to_min(key2)) < 0)
+    else if ((cmp= cur_key1->cmp_max_to_min(cur_key2)) < 0)
     {
       /*
         This is the case:
-        key2:          [-------]
-        tmp:   [----**]
+        cur_key2:           [-------]
+        cur_key1:   [----**]
        */
-      SEL_ARG *next=tmp->next;
-      if (cmp == -2 && eq_tree(tmp->next_key_part,key2->next_key_part))
+      SEL_ARG *next_key1= cur_key1->next;
+      if (cmp == -2 && 
+          eq_tree(cur_key1->next_key_part, cur_key2->next_key_part))
       {
         /*
           Adjacent (cmp==-2) and equal next_key_parts => ranges can be merged
 
           This is the case:
-          key2:          [-------]
-          tmp:     [----]
+          cur_key2:           [-------]
+          cur_key1:     [----]
 
           Result:
-          key2:    [-------------]     => inserted into key1 below
-          tmp:                         => deleted
+          cur_key2:     [-------------]     => inserted into key1 below
+          cur_key1:                         => deleted
         */
-        SEL_ARG *key2_next=key2->next;
+        SEL_ARG *next_key2= cur_key2->next;
         if (key2_shared)
         {
-          if (!(key2=new SEL_ARG(*key2)))
+          if (!(cur_key2= new SEL_ARG(*cur_key2)))
             return 0;           // out of memory
-          key2->increment_use_count(key1->use_count+1);
-          key2->next=key2_next;                 // New copy of key2
+          cur_key2->increment_use_count(key1->use_count+1);
+          cur_key2->next= next_key2;                 // New copy of cur_key2
         }
 
-        key2->copy_min(tmp);
-        if (!(key1=key1->tree_delete(tmp)))
-        {                                       // Only one key in tree
-          key1=key2;
+        if (cur_key2->copy_min(cur_key1))
+        {
+          // cur_key2 is full range: [-inf <= cur_key2 <= +inf]
+          key1->free_tree();
+          key2->free_tree();
+          if (key1->maybe_flag)
+            return new SEL_ARG(SEL_ARG::MAYBE_KEY);
+          return 0;
+        }
+
+        if (!(key1= key1->tree_delete(cur_key1)))
+        {
+          /*
+            cur_key1 was the last range in key1; move the cur_key2
+            range that was merged above to key1
+          */
+          key1= cur_key2;
           key1->make_root();
-          key2=key2_next;
+          cur_key2= next_key2;
           break;
         }
       }
-      if (!(tmp=next)) // Move to next range in key1. Now tmp.min > key2.min
+      // Move to next range in key1. Now cur_key1.min > cur_key2.min
+      if (!(cur_key1= next_key1)) 
         break;         // No more ranges in key1. Copy rest of key2
     }
 
@@ -7486,185 +7510,186 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
     {
       /*
         This is the case:
-        key2:  [--***]
-        tmp:       [----]
+        cur_key2:   [--***]
+        cur_key1:       [----]
       */
-      int tmp_cmp;
-      if ((tmp_cmp=tmp->cmp_min_to_max(key2)) > 0)
+      int cur_key1_cmp;
+      if ((cur_key1_cmp= cur_key1->cmp_min_to_max(cur_key2)) > 0)
       {
         /*
           This is the case:
-          key2:  [------**]
-          tmp:             [----]
+          cur_key2:  [------**]
+          cur_key1:            [----]
         */
-        if (tmp_cmp == 2 && eq_tree(tmp->next_key_part,key2->next_key_part))
+        if (cur_key1_cmp == 2 && 
+            eq_tree(cur_key1->next_key_part, cur_key2->next_key_part))
         {
           /*
             Adjacent ranges with equal next_key_part. Merge like this:
 
             This is the case:
-            key2:    [------]
-            tmp:             [-----]
+            cur_key2:    [------]
+            cur_key1:            [-----]
 
             Result:
-            key2:    [------]
-            tmp:     [-------------]
+            cur_key2:    [------]
+            cur_key1:    [-------------]
 
             Then move on to next key2 range.
           */
-          tmp->copy_min_to_min(key2);
-          key1->merge_flags(key2);
-          if (tmp->min_flag & NO_MIN_RANGE &&
-              tmp->max_flag & NO_MAX_RANGE)
+          cur_key1->copy_min_to_min(cur_key2);
+          key1->merge_flags(cur_key2); //should be cur_key1->merge...() ?
+          if (cur_key1->min_flag & NO_MIN_RANGE &&
+              cur_key1->max_flag & NO_MAX_RANGE)
           {
             if (key1->maybe_flag)
               return new SEL_ARG(SEL_ARG::MAYBE_KEY);
             return 0;
           }
-          key2->increment_use_count(-1);        // Free not used tree
-          key2=key2->next;
+          cur_key2->increment_use_count(-1);        // Free not used tree
+          cur_key2=cur_key2->next;
           continue;
         }
         else
         {
           /*
-            key2 not adjacent to tmp or has different next_key_part.
+            cur_key2 not adjacent to cur_key1 or has different next_key_part.
             Insert into key1 and move to next range in key2
             
             This is the case:
-            key2:  [------**]
-            tmp:             [----]
+            cur_key2:   [------**]
+            cur_key1:             [----]
 
             Result:
-            key1_  [------**][----]
-                   ^         ^
-                   insert    tmp
+            key1:       [------**][----]
+                        ^         ^
+                        insert    cur_key1
           */
-          SEL_ARG *next=key2->next;
+          SEL_ARG *next_key2= cur_key2->next;
           if (key2_shared)
           {
-            SEL_ARG *cpy= new SEL_ARG(*key2);   // Must make copy
+            SEL_ARG *cpy= new SEL_ARG(*cur_key2);   // Must make copy
             if (!cpy)
               return 0;                         // OOM
-            key1=key1->insert(cpy);
-            key2->increment_use_count(key1->use_count+1);
+            key1= key1->insert(cpy);
+            cur_key2->increment_use_count(key1->use_count+1);
           }
           else
-            key1=key1->insert(key2);            // Will destroy key2_root
-          key2=next;
+            key1= key1->insert(cur_key2); // Will destroy key2_root
+          cur_key2= next_key2;
           continue;
         }
       }
     }
 
     /*
-      The ranges in tmp and key2 are overlapping:
+      The ranges in cur_key1 and cur_key2 are overlapping:
 
-      key2:          [----------] 
-      tmp:        [*****-----*****]
+      cur_key2:       [----------] 
+      cur_key1:    [*****-----*****]
 
-      Corollary: tmp.min <= key2.max
+      Corollary: cur_key1.min <= cur_key2.max
     */
-    if (eq_tree(tmp->next_key_part,key2->next_key_part))
+    if (eq_tree(cur_key1->next_key_part, cur_key2->next_key_part))
     {
       // Merge overlapping ranges with equal next_key_part
-      if (tmp->is_same(key2))
+      if (cur_key1->is_same(cur_key2))
       {
         /*
-          Found exact match of key2 inside key1.
+          cur_key1 covers exactly the same range as cur_key2
           Use the relevant range in key1.
         */
-        tmp->merge_flags(key2);                 // Copy maybe flags
-        key2->increment_use_count(-1);          // Free not used tree
+        cur_key1->merge_flags(cur_key2);        // Copy maybe flags
+        cur_key2->increment_use_count(-1);      // Free not used tree
       }
       else
       {
-        SEL_ARG *last= tmp;
-        SEL_ARG *first= tmp;
+        SEL_ARG *last= cur_key1;
+        SEL_ARG *first= cur_key1;
 
         /*
-          Find the last range in key1 that overlaps key2 and
+          Find the last range in key1 that overlaps cur_key2 and
           where all ranges first...last have the same next_key_part as
-          key2.
+          cur_key2.
 
-          key2:  [****----------------------*******]
-          key1:     [--]  [----] [---]  [-----] [xxxx]
-                    ^                   ^       ^
-                    first               last    different next_key_part
+          cur_key2:  [****----------------------*******]
+          key1:         [--]  [----] [---]  [-----] [xxxx]
+                        ^                   ^       ^
+                        first               last    different next_key_part
 
-          Since key2 covers them, the ranges between first and last
+          Since cur_key2 covers them, the ranges between first and last
           are merged into one range by deleting first...last-1 from
           the key1 tree. In the figure, this applies to first and the
           two consecutive ranges. The range of last is then extended:
-            * last.min: Set to min(key2.min, first.min)
-            * last.max: If there is a last->next that overlaps key2 (i.e.,
-                        last->next has a different next_key_part):
+            * last.min: Set to min(cur_key2.min, first.min)
+            * last.max: If there is a last->next that overlaps cur_key2 
+                        (i.e., last->next has a different next_key_part):
                                         Set adjacent to last->next.min
-                        Otherwise:      Set to max(key2.max, last.max)
+                        Otherwise:      Set to max(cur_key2.max, last.max)
 
           Result:
-          key2:  [****----------------------*******]
-                    [--]  [----] [---]                   => deleted from key1
-          key1:  [**------------------------***][xxxx]
-                 ^                              ^
-                 tmp=last                       different next_key_part
+          cur_key2:  [****----------------------*******]
+                        [--]  [----] [---]                 => deleted from key1
+          key1:      [**------------------------***][xxxx]
+                     ^                              ^
+                     cur_key1=last                  different next_key_part
         */
-        while (last->next && last->next->cmp_min_to_max(key2) <= 0 &&
-               eq_tree(last->next->next_key_part,key2->next_key_part))
+        while (last->next && last->next->cmp_min_to_max(cur_key2) <= 0 &&
+               eq_tree(last->next->next_key_part, cur_key2->next_key_part))
         {
           /*
-            last->next is covered by key2 and has same next_key_part.
+            last->next is covered by cur_key2 and has same next_key_part.
             last can be deleted
           */
           SEL_ARG *save=last;
           last=last->next;
-          key1=key1->tree_delete(save);
+          key1= key1->tree_delete(save);
         }
-        // Redirect tmp to last which will cover the entire range
-        tmp= last;
+        // Redirect cur_key1 to last which will cover the entire range
+        cur_key1= last;
 
         /*
           We need the minimum endpoint of first so we can compare it
-          with the minimum endpoint of the enclosing key2 range.
+          with the minimum endpoint of the enclosing cur_key2 range.
         */
         last->copy_min(first);
-        bool full_range= last->copy_min(key2);
+        bool full_range= last->copy_min(cur_key2);
         if (!full_range)
         {
-          if (last->next && key2->cmp_max_to_min(last->next) >= 0)
+          if (last->next && cur_key2->cmp_max_to_min(last->next) >= 0)
           {
             /*
               This is the case:
-              key2:    [-------------]
-              key1:  [***------]  [xxxx]
-                     ^            ^
-                     last         different next_key_part
+              cur_key2:   [-------------]
+              key1:     [***------]  [xxxx]
+                        ^            ^
+                        last         different next_key_part
 
               Extend range of last up to last->next:
-              key2:    [-------------]
-              key1:  [***--------][xxxx]
+              cur_key2:   [-------------]
+              key1:     [***--------][xxxx]
             */
             last->copy_min_to_max(last->next);
           }
           else
             /*
               This is the case:
-              key2:    [--------*****]
-              key1:  [***---------]    [xxxx]
-                     ^                 ^
-                     last              different next_key_part
+              cur_key2:   [--------*****]
+              key1:     [***---------]    [xxxx]
+                        ^                 ^
+                        last              different next_key_part
 
-              Extend range of last up to max(last.max, key2.max):
-              key2:    [--------*****]
-              key1:  [***----------**] [xxxx]
+              Extend range of last up to max(last.max, cur_key2.max):
+              cur_key2:   [--------*****]
+              key1:     [***----------**] [xxxx]
              */
-            full_range= last->copy_max(key2);
+            full_range= last->copy_max(cur_key2);
         }
         if (full_range)
         {                                       // Full range
           key1->free_tree();
-          for (; key2 ; key2=key2->next)
-            key2->increment_use_count(-1);      // Free not used tree
+          for (; cur_key2 ; cur_key2= cur_key2->next)
+            cur_key2->increment_use_count(-1);  // Free not used tree
           if (key1->maybe_flag)
             return new SEL_ARG(SEL_ARG::MAYBE_KEY);
           return 0;
@@ -7672,161 +7697,164 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
       }
     }
 
-    if (cmp >= 0 && tmp->cmp_min_to_min(key2) < 0)
+    if (cmp >= 0 && cur_key1->cmp_min_to_min(cur_key2) < 0)
     {
       /*
-        This is the case ("cmp>=0" means that tmp.max >= key2.min):
-        key2:              [----]
-        tmp:     [------------*****]
+        This is the case ("cmp>=0" means that cur_key1.max >= cur_key2.min):
+        cur_key2:                [-------]
+        cur_key1:         [----------*******]
       */
 
-      if (!tmp->next_key_part)
+      if (!cur_key1->next_key_part)
       {
         /*
-          tmp->next_key_part is empty: cut the range that is covered
-          by tmp from key2. 
-          Reason: (key2->next_key_part OR tmp->next_key_part) will be
-          empty and therefore equal to tmp->next_key_part. Thus, this
-          part of the key2 range is completely covered by tmp.
+          cur_key1->next_key_part is empty: cut the range that
+          is covered by cur_key1 from cur_key2.
+          Reason: (cur_key2->next_key_part OR
+          cur_key1->next_key_part) will be empty and therefore
+          equal to cur_key1->next_key_part. Thus, this part of
+          the cur_key2 range is completely covered by cur_key1.
         */
-        if (tmp->cmp_max_to_max(key2) >= 0)
+        if (cur_key1->cmp_max_to_max(cur_key2) >= 0)
         {
           /*
-            tmp covers the entire range in key2. 
-            key2:              [----]
-            tmp:     [-----------------]
+            cur_key1 covers the entire range in cur_key2.
+            cur_key2:            [-------]
+            cur_key1:     [-----------------]
 
             Move on to next range in key2
           */
-          key2->increment_use_count(-1); // Free not used tree
-          key2=key2->next;
+          cur_key2->increment_use_count(-1); // Free not used tree
+          cur_key2= cur_key2->next;
           continue;
         }
         else
         {
           /*
             This is the case:
-            key2:           [-------]
-            tmp:     [---------]
+            cur_key2:            [-------]
+            cur_key1:     [---------]
 
             Result:
-            key2:               [---]
-            tmp:     [---------]
+            cur_key2:                [---]
+            cur_key1:     [---------]
           */
-          key2->copy_max_to_min(tmp);
+          cur_key2->copy_max_to_min(cur_key1);
           continue;
         }
       }
 
       /*
         The ranges are overlapping but have not been merged because
-        next_key_part of tmp and key2 differ. 
-        key2:              [----]
-        tmp:     [------------*****]
+        next_key_part of cur_key1 and cur_key2 differ. 
+        cur_key2:               [----]
+        cur_key1:     [------------*****]
 
-        Split tmp in two where key2 starts:
-        key2:              [----]
-        key1:    [--------][--*****]
-                 ^         ^
-                 insert    tmp
+        Split cur_key1 in two where cur_key2 starts:
+        cur_key2:               [----]
+        key1:         [--------][--*****]
+                      ^         ^
+                      insert    cur_key1
       */
-      SEL_ARG *new_arg=tmp->clone_first(key2);
+      SEL_ARG *new_arg= cur_key1->clone_first(cur_key2);
       if (!new_arg)
         return 0;                               // OOM
-      if ((new_arg->next_key_part= tmp->next_key_part))
+      if ((new_arg->next_key_part= cur_key1->next_key_part))
         new_arg->increment_use_count(key1->use_count+1);
-      tmp->copy_min_to_min(key2);
-      key1=key1->insert(new_arg);
-    } // tmp.min >= key2.min due to this if()
+      cur_key1->copy_min_to_min(cur_key2);
+      key1= key1->insert(new_arg);
+    } // cur_key1.min >= cur_key2.min due to this if()
 
     /*
-      Now key2.min <= tmp.min <= key2.max:
-      key2:   [---------]
-      tmp:    [****---*****]
+      Now cur_key2.min <= cur_key1.min <= cur_key2.max:
+      cur_key2:    [---------]
+      cur_key1:    [****---*****]
      */
-    SEL_ARG key2_cpy(*key2); // Get copy we can modify
+    SEL_ARG key2_cpy(*cur_key2); // Get copy we can modify
     for (;;)
     {
-      if (tmp->cmp_min_to_min(&key2_cpy) > 0)
+      if (cur_key1->cmp_min_to_min(&key2_cpy) > 0)
       {
         /*
           This is the case:
           key2_cpy:    [------------]
           key1:                 [-*****]
                                 ^
-                                tmp
+                                cur_key1
                              
           Result:
           key2_cpy:             [---]
           key1:        [-------][-*****]
                        ^        ^
-                       insert   tmp
+                       insert   cur_key1
          */
-        SEL_ARG *new_arg=key2_cpy.clone_first(tmp);
+        SEL_ARG *new_arg=key2_cpy.clone_first(cur_key1);
         if (!new_arg)
           return 0; // OOM
         if ((new_arg->next_key_part=key2_cpy.next_key_part))
           new_arg->increment_use_count(key1->use_count+1);
-        key1=key1->insert(new_arg);
-        key2_cpy.copy_min_to_min(tmp);
+        key1= key1->insert(new_arg);
+        key2_cpy.copy_min_to_min(cur_key1);
       } 
-      // Now key2_cpy.min == tmp.min
+      // Now key2_cpy.min == cur_key1.min
 
-      if ((cmp= tmp->cmp_max_to_max(&key2_cpy)) <= 0)
+      if ((cmp= cur_key1->cmp_max_to_max(&key2_cpy)) <= 0)
       {
         /*
-          tmp.max <= key2_cpy.max:
-          key2_cpy:   a)  [-------]    or b)     [----]
-          tmp:            [----]                 [----]
+          cur_key1.max <= key2_cpy.max:
+          key2_cpy:       a)  [-------]    or b)     [----]
+          cur_key1:           [----]                 [----]
 
           Steps:
-           1) Update next_key_part of tmp: OR it with key2_cpy->next_key_part.
-           2) If case a: Insert range [tmp.max, key2_cpy.max] into key1 using
-                         next_key_part of key2_cpy
+
+           1) Update next_key_part of cur_key1: OR it with
+              key2_cpy->next_key_part.
+           2) If case a: Insert range [cur_key1.max, key2_cpy.max] 
+              into key1 using next_key_part of key2_cpy
 
            Result:
-           key1:      a)  [----][-]    or b)     [----]
+           key1:          a)  [----][-]    or b)     [----]
          */
-        tmp->maybe_flag|= key2_cpy.maybe_flag;
+        cur_key1->maybe_flag|= key2_cpy.maybe_flag;
         key2_cpy.increment_use_count(key1->use_count+1);
-        tmp->next_key_part= key_or(param, tmp->next_key_part,
-                                   key2_cpy.next_key_part);
+        cur_key1->next_key_part= 
+          key_or(param, cur_key1->next_key_part, key2_cpy.next_key_part);
 
         if (!cmp)
           break;                     // case b: done with this key2 range
 
-        // Make key2_cpy the range [tmp.max, key2_cpy.max]
-        key2_cpy.copy_max_to_min(tmp);
-        if (!(tmp=tmp->next))
+        // Make key2_cpy the range [cur_key1.max, key2_cpy.max]
+        key2_cpy.copy_max_to_min(cur_key1);
+        if (!(cur_key1= cur_key1->next))
         {
           /*
             No more ranges in key1. Insert key2_cpy and go to "end"
             label to insert remaining ranges in key2 if any.
           */
-          SEL_ARG *tmp2= new SEL_ARG(key2_cpy);
-          if (!tmp2)
+          SEL_ARG *new_key1_range= new SEL_ARG(key2_cpy);
+          if (!new_key1_range)
             return 0; // OOM
-          key1=key1->insert(tmp2);
-          key2=key2->next;
+          key1= key1->insert(new_key1_range);
+          cur_key2= cur_key2->next;
           goto end;
         }
-        if (tmp->cmp_min_to_max(&key2_cpy) > 0)
+        if (cur_key1->cmp_min_to_max(&key2_cpy) > 0)
         {
           /*
             The next range in key1 does not overlap with key2_cpy.
             Insert this range into key1 and move on to the next range
             in key2.
           */
-          SEL_ARG *tmp2= new SEL_ARG(key2_cpy);
-          if (!tmp2)
+          SEL_ARG *new_key1_range= new SEL_ARG(key2_cpy);
+          if (!new_key1_range)
             return 0;                           // OOM
-          key1=key1->insert(tmp2);
+          key1= key1->insert(new_key1_range);
           break;
         }
         /*
           key2_cpy overlaps with the next range in key1 and the case
-          is now "key2.min <= tmp.min <= key2.max". Go back to for(;;)
-          to handle this situation.
+          is now "cur_key2.min <= cur_key1.min <= cur_key2.max". Go back
+          to for(;;) to handle this situation.
         */
         continue;
       }
@@ -7834,44 +7862,47 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
       {
         /*
           This is the case:
-          key2_cpy:   [-------]
-          tmp:        [------------]
+          key2_cpy:        [-------]
+          cur_key1:        [------------]
 
           Result:
-          key1:       [-------][---]
-                      ^        ^
-                      new_arg  tmp
+          key1:            [-------][---]
+                           ^        ^
+                           new_arg  cur_key1
           Steps:
-           0) If tmp->next_key_part is empty: do nothing. Reason:
-              (key2_cpy->next_key_part OR tmp->next_key_part) will be
-              empty and therefore equal to tmp->next_key_part. Thus,
-              the range in key2_cpy is completely covered by tmp
-           1) Make new_arg with range [tmp.min, key2_cpy.max].
-              new_arg->next_key_part is OR between next_key_part
-              of tmp and key2_cpy
-           2) Make tmp the range [key2.max, tmp.max]
+
+           0) If cur_key1->next_key_part is empty: do nothing.
+              Reason: (key2_cpy->next_key_part OR
+              cur_key1->next_key_part) will be empty and
+              therefore equal to cur_key1->next_key_part. Thus,
+              the range in key2_cpy is completely covered by
+              cur_key1
+           1) Make new_arg with range [cur_key1.min, key2_cpy.max]. 
+              new_arg->next_key_part is OR between next_key_part of 
+              cur_key1 and key2_cpy
+           2) Make cur_key1 the range [key2_cpy.max, cur_key1.max]
            3) Insert new_arg into key1
         */
-        if (!tmp->next_key_part) // Step 0
+        if (!cur_key1->next_key_part) // Step 0
         {
           key2_cpy.increment_use_count(-1);     // Free not used tree
           break;
         }
-        SEL_ARG *new_arg=tmp->clone_last(&key2_cpy);
+        SEL_ARG *new_arg= cur_key1->clone_last(&key2_cpy);
         if (!new_arg)
           return 0; // OOM
-        tmp->copy_max_to_min(&key2_cpy);
-        tmp->increment_use_count(key1->use_count+1);
+        cur_key1->copy_max_to_min(&key2_cpy);
+        cur_key1->increment_use_count(key1->use_count+1);
         /* Increment key count as it may be used for next loop */
         key2_cpy.increment_use_count(1);
-        new_arg->next_key_part= key_or(param, tmp->next_key_part,
+        new_arg->next_key_part= key_or(param, cur_key1->next_key_part,
                                        key2_cpy.next_key_part);
-        key1=key1->insert(new_arg);
+        key1= key1->insert(new_arg);
         break;
       }
     }
     // Move on to next range in key2
-    key2=key2->next;                            
+    cur_key2= cur_key2->next;                            
   }
 
 end:
@@ -7879,20 +7910,20 @@ end:
     Add key2 ranges that are non-overlapping with and higher than the
     highest range in key1.
   */
-  while (key2)
+  while (cur_key2)
   {
-    SEL_ARG *next=key2->next;
+    SEL_ARG *next= cur_key2->next;
     if (key2_shared)
     {
-      SEL_ARG *tmp=new SEL_ARG(*key2);          // Must make copy
-      if (!tmp)
+      SEL_ARG *key2_cpy=new SEL_ARG(*cur_key2);  // Must make copy
+      if (!key2_cpy)
         return 0;
-      key2->increment_use_count(key1->use_count+1);
-      key1=key1->insert(tmp);
+      cur_key2->increment_use_count(key1->use_count+1);
+      key1= key1->insert(key2_cpy);
     }
     else
-      key1=key1->insert(key2);                  // Will destroy key2_root
-    key2=next;
+      key1= key1->insert(cur_key2);   // Will destroy key2_root
+    cur_key2= next;
   }
   key1->use_count++;
 

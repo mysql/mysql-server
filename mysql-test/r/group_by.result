@@ -512,7 +512,7 @@ a	count(*)
 NULL	9
 	3
 b	1
-set option big_tables=1;
+set big_tables=1;
 select a,count(*) from t1 group by a;
 a	count(*)
 NULL	9
@@ -2492,3 +2492,102 @@ Warnings:
 Note	1249	Select 2 was reduced during optimization
 Note	1003	/* select#1 */ select 150 AS `field5` from (/* select#3 */ select `test`.`t1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1`) `alias1` group by `field5`
 DROP TABLE t1;
+#
+# BUG#12626418 "only_full_group_by wrongly allows column in order by"
+#
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode='ONLY_FULL_GROUP_BY';
+create table t1(a int, b int);
+select a from t1 group by b;
+ERROR 42000: 'test.t1.a' isn't in GROUP BY
+select 1 from t1 group by b;
+1
+select 1 from t1 group by b order by a;
+ERROR 42000: 'test.t1.a' isn't in GROUP BY
+select a from t1 group by b order by b;
+ERROR 42000: 'test.t1.a' isn't in GROUP BY
+drop table t1;
+CREATE TABLE t1 (pk int, i1 int,  v1 varchar(1), primary key (pk));
+INSERT INTO t1 VALUES (0,2,'b'),(1,4,'a'),(2,0,'a'),(3,7,'b'),(4,7,'c');
+SELECT a1.v1,a2.v1 FROM t1 AS a1 JOIN t1 AS a2 ON a2.pk = a1.i1 group by
+a1.v1,a2.v1 ORDER BY a1.i1,a2.pk,a2.v1 ASC;
+ERROR 42000: 'test.a2.pk' isn't in GROUP BY
+SELECT a1.v1,a2.v1 FROM t1 AS a1 JOIN t1 AS a2 ON a2.pk = a1.i1 group by
+a1.v1,a2.v1 ORDER BY             a2.v1 ASC;
+v1	v1
+b	a
+a	b
+a	c
+DROP TABLE t1;
+CREATE TABLE t1 (pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT
+NULL, col_varchar_key varchar(1) NOT NULL, col_varchar_nokey varchar(1) NOT
+NULL, PRIMARY KEY (pk), KEY col_int_key (col_int_key), KEY col_varchar_key
+(col_varchar_key,col_int_key));
+CREATE TABLE t2 (pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT
+NULL, col_varchar_key varchar(1) NOT NULL, col_varchar_nokey varchar(1) NOT
+NULL, PRIMARY KEY (pk), KEY col_int_key (col_int_key), KEY col_varchar_key
+(col_varchar_key,col_int_key));
+SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1
+STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
+group by field2 ORDER BY alias1.col_int_key,alias2.pk ;
+ERROR 42000: 'test.alias1.col_int_key' isn't in GROUP BY
+DROP TABLE t1,t2;
+CREATE TABLE t1 (pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT
+NULL, col_datetime_key datetime NOT NULL, col_varchar_key varchar(1) NOT
+NULL, col_varchar_nokey varchar(1) NOT NULL, PRIMARY KEY (pk), KEY
+col_int_key (col_int_key), KEY col_datetime_key (col_datetime_key), KEY
+col_varchar_key (col_varchar_key,col_int_key));
+CREATE TABLE t2 (pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT
+NULL, col_datetime_key datetime NOT NULL, col_varchar_key varchar(1) NOT
+NULL, col_varchar_nokey varchar(1) NOT NULL, PRIMARY KEY (pk), KEY
+col_int_key (col_int_key), KEY col_datetime_key (col_datetime_key), KEY
+col_varchar_key (col_varchar_key,col_int_key));
+SELECT alias2.col_varchar_key AS field1 ,
+COUNT(DISTINCT alias1.col_varchar_nokey), alias2.pk AS field4
+FROM t1 AS alias1
+RIGHT JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key
+GROUP BY field1 , field4
+ORDER BY alias1.col_datetime_key ;
+ERROR 42000: 'test.alias1.col_datetime_key' isn't in GROUP BY
+DROP TABLE t1,t2;
+create table t1 (a int, b int);
+select count(*) > 3 from t1 group by a order by b;
+ERROR 42000: 'test.t1.b' isn't in GROUP BY
+create table t2 (a int, b int);
+select a from t2 group by a order by (select a from t1 order by t2.b);
+ERROR 42000: 'test.t2.b' isn't in GROUP BY
+SET @@sql_mode = @old_sql_mode;
+DROP TABLE t1,t2;
+create table t1 (branch varchar(40), id int);
+select count(*) from t1 group by branch having
+branch<>'mumbai' order by id desc,branch desc limit 100;
+count(*)
+select branch, count(*)/max(id) from t1 group by branch
+having (branch<>'mumbai' OR count(*)<2)
+order by id desc,branch desc limit 100;
+branch	count(*)/max(id)
+SET @@sql_mode='ONLY_FULL_GROUP_BY';
+select count(*) from t1 group by branch having
+branch<>'mumbai' order by id desc,branch desc limit 100;
+ERROR 42000: 'test.t1.id' isn't in GROUP BY
+select branch, count(*)/max(id) from t1 group by branch
+having (branch<>'mumbai' OR count(*)<2)
+order by id desc,branch desc limit 100;
+ERROR 42000: 'test.t1.id' isn't in GROUP BY
+DROP TABLE t1;
+create table t1 (a int, b int);
+insert into t1 values (1, 2), (1, 3), (null, null);
+select sum(a), count(*) from t1 group by a;
+sum(a)	count(*)
+NULL	1
+2	2
+select round(sum(a)), count(*) from t1 group by a;
+round(sum(a))	count(*)
+NULL	1
+2	2
+select ifnull(a, 'xyz') from t1 group by a;
+ifnull(a, 'xyz')
+xyz
+1
+DROP TABLE t1;
+SET @@sql_mode = @old_sql_mode;

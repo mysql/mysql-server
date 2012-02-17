@@ -2080,7 +2080,7 @@ row_sel_step(
 			for (table_node = node->table_list;
 			     table_node != 0;
 			     table_node = static_cast<sym_node_t*>(
-				     	que_node_get_next(table_node))) {
+					que_node_get_next(table_node))) {
 
 				enum db_err	err;
 

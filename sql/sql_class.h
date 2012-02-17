@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1052,7 +1052,7 @@ class Server_side_cursor;
   be used explicitly.
 */
 
-class Statement: public ilink, public Query_arena
+class Statement: public Query_arena
 {
   Statement(const Statement &rhs);              /* not implemented: */
   Statement &operator=(const Statement &rhs);   /* non-copyable */
@@ -1205,6 +1205,7 @@ public:
     Close all cursors of this connection that use tables of a storage
     engine that has transaction-specific state and therefore can not
     survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
+    CURRENTLY NOT IMPLEMENTED!
   */
   void close_transient_cursors();
   void erase(Statement *statement);
@@ -1214,7 +1215,6 @@ public:
 private:
   HASH st_hash;
   HASH names_hash;
-  I_List<Statement> transient_cursor_list;
   Statement *last_found_statement;
 };
 
@@ -1655,7 +1655,12 @@ extern Log_throttle log_throttle_qni;
   yet another time.
 */
 
-struct Item_change_record;
+struct Item_change_record: public ilink<Item_change_record>
+{
+  Item **place;
+  Item *old_value;
+};
+
 typedef I_List<Item_change_record> Item_change_list;
 
 
@@ -2149,7 +2154,8 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
   a thread/connection descriptor
 */
 
-class THD :public Statement,
+class THD :public ilink<THD>,
+           public Statement,
            public Open_tables_state,
            public MDL_context_owner
 {
