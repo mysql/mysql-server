@@ -751,7 +751,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   bool using_gtid_proto= is_master_slave_proto(flags, BINLOG_THROUGH_GTID);
   bool searching_first_gtid= using_gtid_proto;
   bool skip_group= false;
-  Sid_map *sid_map= slave_gtid_done->get_sid_map();
+  Sid_map *sid_map= slave_gtid_done ? slave_gtid_done->get_sid_map() : NULL;
 
   IO_CACHE log;
   File file = -1;
