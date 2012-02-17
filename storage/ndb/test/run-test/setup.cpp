@@ -1075,6 +1075,12 @@ operator<<(NdbOut& out, const atrt_process& proc)
 char *
 find_bin_path(const char * exe)
 {
+  return find_bin_path(g_prefix, exe);
+}
+
+char *
+find_bin_path(const char * prefix, const char * exe)
+{
   if (exe == 0)
     return 0;
 
@@ -1089,7 +1095,7 @@ find_bin_path(const char * exe)
   for (int i = 0; g_search_path[i] != 0; i++)
   {
     BaseString p;
-    p.assfmt("%s/%s/%s", g_prefix, g_search_path[i], exe);
+    p.assfmt("%s/%s/%s", prefix, g_search_path[i], exe);
     if (File_class::exists(p.c_str()))
     {
       return strdup(p.c_str());
