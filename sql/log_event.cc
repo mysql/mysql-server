@@ -9141,8 +9141,10 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
   m_curr_row= m_curr_row_end;
   
   if (error == 0 && !m_table->file->has_transactions())
+  {
     thd->transaction.all.set_unsafe_rollback_flags(TRUE);
     thd->transaction.stmt.set_unsafe_rollback_flags(TRUE);
+  }
   
 }
 
