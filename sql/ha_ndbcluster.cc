@@ -8851,6 +8851,19 @@ int ha_ndbcluster::create(const char *name,
   DBUG_ASSERT(*fn_rext((char*)name) == 0);
   set_dbname(name);
   set_tabname(name);
+  
+  /*
+    Check that database name and table name will fit within limits
+  */
+  if (strlen(m_dbname) > NDB_MAX_DDL_NAME_BYTESIZE ||
+      strlen(m_tabname) > NDB_MAX_DDL_NAME_BYTESIZE)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                        ER_TOO_LONG_IDENT,
+                        "Ndb has an internal limit of %u bytes on the size of schema identifiers", NDB_MAX_DDL_NAME_BYTESIZE);
+    my_errno= ER_TOO_LONG_IDENT;
+    DBUG_RETURN(my_errno);
+  }
 
   if ((my_errno= check_ndb_connection(thd)))
     DBUG_RETURN(my_errno);
