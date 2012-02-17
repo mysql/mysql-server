@@ -32,7 +32,7 @@
 
 --let $max_iterations= 10000
 --let $max_seconds= 150
---let $n_forks= 30
+--let $n_forks= 16
 --let $flush_probability= 0.05
 --let $rename_probability= 0.1
 
@@ -139,6 +139,7 @@ perl;
   my $n= $n_forks;
   my @cmd_lists= ( [ 'echo "USE test; CALL show_slave_status();"' ],
                    [ 'echo "USE test; CALL read_gtid_done();"' ],
+                   \@mysqlbinlog_commands,
                    \@mysqlbinlog_commands );
   $n-- while $n && fork;
   my $cmd_list= $cmd_lists[$n % @cmd_lists];
