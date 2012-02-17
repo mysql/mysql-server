@@ -479,8 +479,8 @@ row_import_error(
 			prebuilt->table->name, FALSE);
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"ALTER TABLE %s IMPORT TABLESPACE failed: %lu",
-			table_name, (ulint) err);
+			"ALTER TABLE %s IMPORT TABLESPACE failed: %lu : %s",
+			table_name, (ulint) err, ut_strerr(err));
 	}
 
 	return(row_import_cleanup(prebuilt, trx, err));
@@ -1054,8 +1054,8 @@ row_import_for_mysql(
 	if (err != DB_SUCCESS) {
 		ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			 ER_INDEX_CORRUPT,
-			 "Error: cannot reset LSN's in table %s",
-			 table_name);
+			 "Cannot reset LSN's in table %s : %s",
+			 table_name, ut_strerr(err));
 
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
@@ -1081,8 +1081,8 @@ row_import_for_mysql(
 			ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 				 ER_FILE_NOT_FOUND,
 				"Cannot find or open in the "
-				"database directory the .ibd file of %s",
-				table_name);
+				"database directory the .ibd file of %s : %s",
+				table_name, ut_strerr(err));
 		}
 
 		return(row_import_cleanup(prebuilt, trx, err));
