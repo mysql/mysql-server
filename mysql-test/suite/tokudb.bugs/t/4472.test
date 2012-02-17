@@ -50,6 +50,7 @@ drop table foo;
 
 connection conn1;
 select * From foo;
+commit;
 
 connection default;
 disconnect conn1;
