@@ -282,6 +282,7 @@ SET(INNOBASE_SOURCES
 	os/os0proc.cc
 	os/os0sync.cc
 	os/os0thread.cc
+	os/os0vio.cc
 	page/page0cur.cc
 	page/page0page.cc
 	page/page0zip.cc
