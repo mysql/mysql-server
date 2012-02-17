@@ -525,6 +525,12 @@ row_import_adjust_root_pages(
 
 		err = btr_root_adjust_on_import(index);
 
+		if (err == DB_SUCCESS
+		    && btr_validate_index(index, trx, true)) {
+
+			err = DB_CORRUPTION;
+		}
+
 		if (err != DB_SUCCESS) {
 			ib_pushf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
@@ -1112,15 +1118,10 @@ row_import_for_mysql(
 #endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
-
 		return(row_import_error(prebuilt, trx, err));
-
-	} else if (!btr_validate_index(index, trx, TRUE)) {
-
+	} else if (!btr_validate_index(index, trx, true)) {
 		return(row_import_error(prebuilt, trx, DB_CORRUPTION));
-	}
-
-	{
+	} else {
 		IndexImporter	importer(trx, index, table->space);
 
 		trx->op_info = "importing cluster index";
