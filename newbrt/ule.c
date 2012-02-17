@@ -336,6 +336,8 @@ apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
 		       OMT omt, 
 		       struct mempool *mp, 
 		       void **maybe_free,
+                       OMT snapshot_xids,
+		       OMT live_list_reverse,
                        int64_t * numbytes_delta_p) {  // change in total size of key and val, not including any overhead
     ULE_S ule;
     int rval;
@@ -349,6 +351,9 @@ apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
 	oldnumbytes = ule_get_innermost_numbytes(&ule);
     }
     msg_modify_ule(&ule, msg);          // modify unpacked leafentry
+    if (snapshot_xids && live_list_reverse) {
+	garbage_collection(&ule, snapshot_xids, live_list_reverse);
+    }
     rval = le_pack(&ule,                // create packed leafentry
 		   new_leafentry_memorysize, 
 		   new_leafentry_p,

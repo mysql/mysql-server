@@ -59,6 +59,8 @@ int apply_msg_to_leafentry(BRT_MSG   msg,
 			   OMT omt, 
 			   struct mempool *mp, 
 			   void **maybe_free,
+			   OMT snapshot_xids,
+			   OMT live_list_reverse,
                            int64_t * numbytes_delta_p);
 
 int garbage_collect_leafentry(LEAFENTRY old_leaf_entry,
