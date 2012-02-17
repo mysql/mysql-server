@@ -562,4 +562,17 @@ SELECT 1 IN (YEAR(FROM_UNIXTIME(NULL)) ,1);
 
 --echo #
 
+--echo #
+--echo # Bug#13012483: EXPLAIN EXTENDED, PREPARED STATEMENT, CRASH IN CHECK_SIMPLE_EQUALITY
+--echo #
+
+CREATE TABLE t1 (a INT);
+PREPARE s FROM "SELECT 1 FROM t1 WHERE 1 < ALL (SELECT @:= (1 IN (SELECT 1 FROM t1)) FROM t1)";
+EXECUTE s;
+
+DROP TABLE t1;
+
+--echo # End of test  BUG#13012483
+
+--echo #
 --echo End of 5.1 tests
