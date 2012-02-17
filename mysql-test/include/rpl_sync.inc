@@ -107,7 +107,7 @@ while ($_rpl_i) {
       }
       if ($_rpl_slave_io_running == No)
       {
-        if ($_rpl_slave_sql_running)
+        if ($_rpl_slave_sql_running != No)
         {
           --source include/sync_slave_sql_with_io.inc
         }
