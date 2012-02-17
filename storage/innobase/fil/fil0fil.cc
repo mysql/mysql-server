@@ -4146,6 +4146,29 @@ fil_tablespace_exists_in_mem(
 }
 
 /*******************************************************************//**
+Report that a tablespace for a table was not found. */
+static
+void
+fil_report_missing_tablespace(
+/*===========================*/
+	const char*	name,			/*!< in: table name */
+	ulint		space_id)		/*!< in: table's space id */
+{
+	char index_name[MAX_FULL_NAME_LEN + 1];
+
+	innobase_format_name(index_name, sizeof(index_name), name, TRUE);
+
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"Table %s InnoDB data dictionary has tablespace id %lu, "
+		"but tablespace with that id or name does not exist. Have"
+		"you deleted or moved .ibd files? This may also be a table "
+		"created with CREATE TEMPORARY TABLE whose .ibd and .frm "
+		"files MySQL automatically removed, but the table still "
+		"exists in the InnoDB internal data dictionary.",
+		name, space_id);
+}
+
+/*******************************************************************//**
 Returns TRUE if a matching tablespace exists in the InnoDB tablespace memory
 cache. Note that if we have not done a crash recovery at the database startup,
 there may be many tablespaces which are not yet in the memory cache.
@@ -4205,22 +4228,9 @@ fil_space_for_table_exists_in_mem(
 
 	if (space == NULL) {
 		if (fnamespace == NULL) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Error: table ", stderr);
-			ut_print_filename(stderr, name);
-			fprintf(stderr, "\n"
-				"InnoDB: in InnoDB data dictionary"
-				" has tablespace id %lu,\n"
-				"InnoDB: but tablespace with that id"
-				" or name does not exist. Have\n"
-				"InnoDB: you deleted or moved .ibd files?\n"
-				"InnoDB: This may also be a table created with"
-				" CREATE TEMPORARY TABLE\n"
-				"InnoDB: whose .ibd and .frm files"
-				" MySQL automatically removed, but the\n"
-				"InnoDB: table still exists in the"
-				" InnoDB internal data dictionary.\n",
-				(ulong) id);
+			if (print_error_if_does_not_exist) {
+				fil_report_missing_tablespace(name, id);
+			}
 		} else {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: table ", stderr);
