@@ -60,6 +60,13 @@ extern ulint	os_n_pending_reads;
 /** Number of pending write operations */
 extern ulint	os_n_pending_writes;
 
+#ifndef UNIV_HOTBACKUP
+/* We use these mutexes to protect lseek + file i/o operation, if the
+OS does not provide an atomic pread or pwrite, or similar */
+# define OS_FILE_N_SEEK_MUTEXES	16
+extern os_mutex_t os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
+#endif /* UNIV_HOTBACKUP */
+
 #ifdef __WIN__
 
 /** We define always WIN_ASYNC_IO, and check at run-time whether
@@ -76,6 +83,8 @@ typedef ib_uint64_t os_offset_t;
 #ifdef __WIN__
 /** File handle */
 # define os_file_t	HANDLE
+
+# define OS_INVALID_FILE_HANDLE	INVALID_HANDLE_VALUE
 /** Convert a C file descriptor to a native file handle
 @param fd	file descriptor
 @return		native file handle */
@@ -83,6 +92,8 @@ typedef ib_uint64_t os_offset_t;
 #else
 /** File handle */
 typedef int	os_file_t;
+
+# define OS_INVALID_FILE_HANDLE	-1
 /** Convert a C file descriptor to a native file handle
 @param fd	file descriptor
 @return		native file handle */
@@ -155,6 +166,9 @@ typedef enum os_file_create_enum {
 /** Types for aio operations @{ */
 #define OS_FILE_READ	10
 #define OS_FILE_WRITE	11
+#define OS_FILE_READV	12
+#define OS_FILE_WRITEV	13
+
 
 #define OS_FILE_LOG	256	/* This can be ORed to type */
 /* @} */
@@ -565,6 +579,15 @@ os_file_close_func(
 /*===============*/
 	os_file_t	file);	/*!< in, own: handle to a file */
 
+/****************************************************************//**
+Does error handling when a file operation fails.
+@return	TRUE if we should retry the operation */
+UNIV_INTERN
+ibool
+os_file_handle_error(
+/*=================*/
+	const char*	name,		/*!< in: name of a file or NULL */
+	const char*	operation);	/*!< in: operation */
 #ifdef UNIV_PFS_IO
 /****************************************************************//**
 NOTE! Please use the corresponding macro os_file_create_simple(),

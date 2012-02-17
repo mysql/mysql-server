@@ -749,6 +749,14 @@ open_or_create_data_files(
 
 		strcpy(name + dirnamelen, srv_data_file_names[i]);
 
+		if (i == 0) {
+			/* Store the name of data file which
+			contains dblwr buffer so that we can open
+			separate file handles for dblwr IO. */
+			ut_ad(strlen(name) <= sizeof srv_dblwr_data_file_name);
+			strcpy(srv_dblwr_data_file_name, name);
+		}
+
 		if (srv_data_file_is_raw_partition[i] == 0) {
 
 			/* First we try to create the file: if it already
@@ -1328,6 +1336,9 @@ innobase_start_or_create_for_mysql(void)
 	ulint		io_limit;
 	mtr_t		mtr;
 	ib_bh_t*	ib_bh;
+#ifdef __WIN__
+	SYSTEM_INFO	system_info;
+#endif
 
 #ifdef HAVE_DARWIN_THREADS
 # ifdef F_FULLFSYNC
@@ -1500,6 +1511,13 @@ innobase_start_or_create_for_mysql(void)
 		srv_use_native_conditions = TRUE;
 		break;
 	}
+
+	/* On windows vectored IO happens in system page size units. */
+	GetSystemInfo(&system_info);
+	srv_win_sys_page_size = static_cast<ulint>(system_info.dwPageSize);
+
+	ut_ad(srv_win_page_size != 0);
+	ut_ad(ut_is_2pow(srv_win_sys_page_size));
 
 #elif defined(LINUX_NATIVE_AIO)
 

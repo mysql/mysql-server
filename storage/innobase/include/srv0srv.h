@@ -144,6 +144,7 @@ Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
 #ifdef __WIN__
 extern ibool	srv_use_native_conditions;
+extern ulint	srv_win_sys_page_size;
 #endif /* __WIN__ */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -163,6 +164,8 @@ extern ulint*	srv_data_file_is_raw_partition;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
+extern char	srv_dblwr_data_file_name[OS_FILE_MAX_PATH];
+
 extern char**	srv_log_group_home_dirs;
 #ifndef UNIV_HOTBACKUP
 extern ulong	srv_auto_extend_increment;

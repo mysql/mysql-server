@@ -29,8 +29,7 @@ Created 2011/12/19 Inaam Rana
 #include "univ.i"
 #include "ut0byte.h"
 #include "log0log.h"
-
-#ifndef UNIV_HOTBACKUP
+#include "os0vio.h"
 
 /** Doublewrite system */
 extern buf_dblwr_t*	buf_dblwr;
@@ -118,6 +117,9 @@ struct buf_dblwr_struct{
 	ulint	block1;		/*!< the page number of the first
 				doublewrite block (64 pages) */
 	ulint	block2;		/*!< page number of the second block */
+	os_file_t	fh;	/*!< file handle to perform IO. */
+	os_vio_t*	vio1;	/*!< vio struct for block1 */
+	os_vio_t*	vio2;	/*!< vio struct for block2 */
 	ulint	first_free;	/*!< first free position in write_buf measured
 				in units of UNIV_PAGE_SIZE */
 	ulint	s_reserved;	/*!< number of slots currently reserved
@@ -130,18 +132,9 @@ struct buf_dblwr_struct{
 	ibool	batch_running;	/*!< set to TRUE if currently a batch
 				is being written from the doublewrite
 				buffer. */
-	byte*	write_buf;	/*!< write buffer used in writing to the
-				doublewrite buffer, aligned to an
-				address divisible by UNIV_PAGE_SIZE
-				(which is required by Windows aio) */
-	byte*	write_buf_unaligned;
-				/*!< pointer to write_buf, but unaligned */
 	buf_page_t**
 		buf_block_arr;	/*!< array to store pointers to the buffer
 				blocks which have been cached to write_buf */
 };
-
-
-#endif /* UNIV_HOTBACKUP */
 
 #endif
