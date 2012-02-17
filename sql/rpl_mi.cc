@@ -473,7 +473,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   ssl= (my_bool) test(temp_ssl);
   ssl_verify_server_cert= (my_bool) test(temp_ssl_verify_server_cert);
   master_log_pos= (my_off_t) temp_master_log_pos;
-  auto_position= temp_auto_position;
+  auto_position= test(temp_auto_position);
 
   if (auto_position != 0 && gtid_mode != 3)
   {

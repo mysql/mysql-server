@@ -7780,6 +7780,15 @@ bool change_master(THD* thd, Master_info* mi)
                                            mi->rli->get_group_master_log_pos()));
      mi->set_master_log_name(mi->rli->get_group_master_log_name());
   }
+
+  /*
+    Sets if the slave should connect to the master and look for
+    GTIDs.
+  */
+  if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    mi->set_auto_position(
+      (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE));
+
   /*
     Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
     a slave before).
@@ -7819,14 +7828,6 @@ bool change_master(THD* thd, Master_info* mi)
       goto err;
     }
   }
-
-  /*
-    Sets if the slave should connect to the master and look for
-    GTIDs.
-  */
-  if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
-    mi->set_auto_position(
-      (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE));
 
   /*
     Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
