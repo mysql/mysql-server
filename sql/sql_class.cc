@@ -3935,13 +3935,10 @@ extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
 */
 extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
-
-  if (unlikely(!thread_scheduler) || !thread_scheduler->thd_wait_begin)
-   return;
-  if (thd == NULL)
+  if (!thd)
   {
-    thd=current_thd;
-    if(unlikely(thd == NULL))
+    thd= current_thd;
+    if (unlikely(!thd))
       return;
   }
   MYSQL_CALLBACK(thd->scheduler, thd_wait_begin, (thd, wait_type));
@@ -3956,16 +3953,13 @@ extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 */
 extern "C" void thd_wait_end(MYSQL_THD thd)
 {
-  if (unlikely(!thread_scheduler) || ! thread_scheduler->thd_wait_begin)
-   return;
-  if (thd == NULL)
+  if (!thd)
   {
-    thd=current_thd;
-    if(unlikely(thd == NULL))
+    thd= current_thd;
+    if (unlikely(!thd))
       return;
   }
-  if(likely(thd->scheduler == thread_scheduler))
-    thread_scheduler->thd_wait_end(thd);
+  MYSQL_CALLBACK(thd->scheduler, thd_wait_end, (thd));
 }
 
 #endif // INNODB_COMPATIBILITY_HOOKS */

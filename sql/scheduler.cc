@@ -46,28 +46,20 @@ static bool no_threads_end(THD *thd, bool put_in_cache)
 /**@{*/
 extern "C"
 {
-static void scheduler_wait_lock_begin(void) {
-  THD *thd=current_thd;
-  if(thd)
-    MYSQL_CALLBACK(thd->scheduler, thd_wait_begin, (thd, THD_WAIT_TABLE_LOCK));
+static void scheduler_wait_lock_begin(void) { 
+  thd_wait_begin(NULL, THD_WAIT_TABLE_LOCK);
 }
 
 static void scheduler_wait_lock_end(void) {
-  THD *thd=current_thd;
-  if(thd)
-    MYSQL_CALLBACK(thd->scheduler, thd_wait_end, (thd));
+  thd_wait_end(NULL);
 }
 
 static void scheduler_wait_sync_begin(void) {
-  THD *thd=current_thd;
-  if(thd)
-   MYSQL_CALLBACK(thd->scheduler, thd_wait_begin, (thd, THD_WAIT_TABLE_LOCK));
+  thd_wait_begin(NULL, THD_WAIT_SYNC);
 }
 
 static void scheduler_wait_sync_end(void) {
-  THD *thd=current_thd;
-  if(thd)
-    MYSQL_CALLBACK(thd->scheduler, thd_wait_end, (thd));
+  thd_wait_end(NULL);
 }
 };
 /**@}*/
