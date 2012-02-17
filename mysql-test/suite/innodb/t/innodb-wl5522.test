@@ -93,6 +93,129 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT COUNT(*) FROM t1;
 
 DROP TABLE t1;
+
+# Export/import on the same instance, with --innodb-file-per-table=1
+# Insert some more records to move the LSN forward and then drop the
+# table and restore, this time the table has a secondary index too.
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX(c2)) ENGINE=InnoDB;
+
+INSERT INTO t1(c2) VALUES(1);
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+
+FLUSH TABLES t1 WITH READ LOCK;
+SELECT COUNT(*) FROM t1 WHERE c2 = 1;
+perl;
+do 'include/innodb-util.inc';
+ib_backup_tablespaces("test", "t1");
+EOF
+UNLOCK TABLES;
+
+# Move the LSN forward
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX(c2)) ENGINE=InnoDB;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+SELECT COUNT(*) FROM t1 WHERE c2 = 1;
+
+DROP TABLE t1;
+
+# Export/import on the same instance, with --innodb-file-per-table=1
+# Insert some more records to move the LSN forward and then drop the
+# table and restore, this time the table has a secondary index too.
+# Rename the index on the create so that the IMPORT fails, drop index
+# Create with proper name and then do an IMPORT.
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB;
+
+INSERT INTO t1(c2) VALUES(1);
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+
+FLUSH TABLES t1 WITH READ LOCK;
+SELECT COUNT(*) FROM t1 WHERE c2 = 1;
+perl;
+do 'include/innodb-util.inc';
+ib_backup_tablespaces("test", "t1");
+EOF
+UNLOCK TABLES;
+
+# Move the LSN forward
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX x(c2)) ENGINE=InnoDB;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+# This is really a name mismatch error, need better error codes, the problem
+# now is that we can't do an ALTER TABLE and drop the index :-(, so we have
+# to recreate the table.
+-- error ER_INDEX_CORRUPT
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test", "t1");
+EOF
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+SELECT COUNT(*) FROM t1 WHERE c2 = 1;
+
+perl;
+do 'include/innodb-util.inc';
+ib_cleanup("test", "t1");
+EOF
+
+DROP TABLE t1;
+
 #
 # Export/import on the same instance, with --innodb-file-per-table=0
 # This should fail because it is not supported

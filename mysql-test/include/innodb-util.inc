@@ -17,7 +17,30 @@ sub ib_backup_tablespace {
 
     my @args = ("cp", "$datadir/$db/$cfg_file", "$tmpd/$cfg_file");
     system(@args) == 0 or die "system @args failed: $?";
+}
 
+sub ib_cleanup {
+    my ($db, $table) = @_;
+    my $datadir = $ENV{'MYSQLD_DATADIR'};
+    my $cfg_file = sprintf("%s.cfg", $table);
+    my $ibt_file = sprintf("%s.ibt", $table);
+
+    unlink("$datadir/$db/$cfg_file") == 1
+	or die "unlnk $datadir/$db/$cfg_file failed: $?";
+
+    # This may or may not exist
+    unlink("$datadir/$db/$ibt_file");
+}
+
+sub ib_unlink_tablespace {
+    my ($db, $table) = @_;
+    my $datadir = $ENV{'MYSQLD_DATADIR'};
+    my $ibd_file = sprintf("%s.ibd", $table);
+
+    unlink("$datadir/$db/$ibd_file") == 1
+	or die "unlnk $datadir/$db/$ibd_file failed: $?";
+
+    ib_cleanup($db, $table);
 }
 
 sub ib_backup_tablespaces {
