@@ -1,4 +1,6 @@
 /*
+  This code is in the public domain and has no copyright.
+
   Pam module to test pam authentication plugin. Used in pam.test.
   Linux only.
 
