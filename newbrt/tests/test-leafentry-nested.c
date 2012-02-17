@@ -398,7 +398,7 @@ test_le_apply(ULE ule_initial, BRT_MSG msg, ULE ule_expected) {
                                le_initial,
                                &result_memsize,
                                &le_result,
-                               NULL, NULL, NULL, 
+                               NULL, 
                                NULL, NULL, &ignoreme);
     CKERR(r);
 

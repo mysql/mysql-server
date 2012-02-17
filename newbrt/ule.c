@@ -336,8 +336,6 @@ apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
 		       OMT omt, 
 		       struct mempool *mp, 
 		       void **maybe_free,
-                       OMT snapshot_xids,
-                       OMT live_list_reverse,
                        int64_t * numbytes_delta_p) {  // change in total size of key and val, not including any overhead
     ULE_S ule;
     int rval;
@@ -351,9 +349,6 @@ apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
 	oldnumbytes = ule_get_innermost_numbytes(&ule);
     }
     msg_modify_ule(&ule, msg);          // modify unpacked leafentry
-    if (snapshot_xids && live_list_reverse) {
-        garbage_collection(&ule, snapshot_xids, live_list_reverse);
-    }
     rval = le_pack(&ule,                // create packed leafentry
 		   new_leafentry_memorysize, 
 		   new_leafentry_p,
@@ -368,6 +363,49 @@ apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
 }
 
 
+// Garbage collect one leaf entry, using the given OMT's.
+// Parameters:
+// -- old_leaf_entry : the leaf we intend to clean up through garbage
+// collecting.
+// -- new_leaf_entry (OUTPUT) : a pointer to the leaf entry after
+// garbage collection.
+// -- new_leaf_entry_memory_size : after this call, our leaf entry
+// should be empty or smaller.  This number represents that and is
+// used in a previous call to truncate the existing size.
+// -- omt : the memory where our leaf entry resides.
+// -- mp : our memory pool.
+// -- maybe_free (OUTPUT) : in a previous call, we may be able to free
+// the memory completely, if we removed the leaf entry.
+// -- snapshot_xids : we use these in memory transaction ids to
+// determine what to garbage collect.
+// -- live_list_reverse : list of in memory active transactions.
+// NOTE: it is not a good idea to garbage collect a leaf
+// entry with only one committed value.
+int
+garbage_collect_leafentry(LEAFENTRY old_leaf_entry,
+                          LEAFENTRY *new_leaf_entry,
+                          size_t *new_leaf_entry_memory_size,
+                          OMT omt,
+                          struct mempool *mp,
+                          void **maybe_free,
+                          OMT snapshot_xids,
+                          OMT live_list_reverse) {
+    int r = 0;
+    ULE_S ule;
+    le_unpack(&ule, old_leaf_entry);
+    assert(snapshot_xids);
+    assert(live_list_reverse);
+    garbage_collection(&ule, snapshot_xids, live_list_reverse);
+    r = le_pack(&ule,
+                new_leaf_entry_memory_size,
+                new_leaf_entry,
+                omt,
+                mp,
+                maybe_free);
+    assert(r == 0);
+    ule_cleanup(&ule);
+    return r;
+}
 
 /////////////////////////////////////////////////////////////////////////////////
 // This layer of abstraction (msg_xxx)
