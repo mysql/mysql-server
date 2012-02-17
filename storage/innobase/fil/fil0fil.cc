@@ -502,52 +502,6 @@ fil_space_get_by_name(
 	return(space);
 }
 
-/*******************************************************************//**
-Returns file handle for the first file i.e.: ibdata1.
-@return file handle or OS_INVALID_FILE_HANDLE if error */
-UNIV_INTERN
-os_file_t
-fil_get_sys_space_handle(void)
-/*==========================*/
-{
-	fil_space_t*	space;
-	fil_node_t*	node;
-	os_file_t	fh;
-#ifdef __WIN__
-	ibool		ok;
-#endif /* __WIN__ */
-
-	mutex_enter(&fil_system->mutex);
-
-	space = fil_space_get_by_id(0);
-
-	ut_ad(space);
-
-	ut_a(UT_LIST_GET_LEN(space->chain) > 0);
-
-	node = UT_LIST_GET_FIRST(space->chain);
-
-	ut_ad(node->open);
-
-#ifdef __WIN__
-	ok = DuplicateHandle(GetCurrentProcess(), node->handle,
-			     GetCurrentProcess(), &fh,
-			     0, FALSE, DUPLICATE_SAME_ACCESS);
-	if (!ok) {
-		fh = OS_INVALID_FILE_HANDLE;
-	}
-#else /* __WIN__ */
-
-	/* returns -1 == OS_INVALID_FILE_HANDLE on error. */
-	fh = dup(node->handle);
-#endif /* __WIN__ */
-
-	mutex_exit(&fil_system->mutex);
-
-	return(fh);
-}
-
-
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Returns the version number of a tablespace, -1 if not found.

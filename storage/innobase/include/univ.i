@@ -120,18 +120,7 @@ Sun Studio */
 #  define HAVE_PWRITE
 # endif
 
-# if defined(HAVE_READV) || defined(HAVE_PREADV)
-#  include <sys/uio.h>
-#  define HAVE_VECTORED_IO
-# endif
-
 #endif /* #if (defined(WIN32) || ... */
-
-#ifdef __WIN__
-/* On windows we currently disable scatter/gather IO. To enable it
-uncomment the following. */
-/*# define HAVE_WIN_SCATTER_GATHER_IO*/
-#endif /* __WIN__ */
 
 #ifndef __WIN__
 #define __STDC_FORMAT_MACROS    /* Enable C99 printf format macros */

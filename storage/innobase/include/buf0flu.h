@@ -87,6 +87,13 @@ buf_flush_page_try(
 	buf_block_t*	block)		/*!< in/out: buffer control block */
 	__attribute__((nonnull, warn_unused_result));
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+/********************************************************************//**
+Flush a batch of writes to the datafiles that have already been
+written by the OS. */
+UNIV_INTERN
+void
+buf_flush_sync_datafiles(void);
+/*==========================*/
 /*******************************************************************//**
 This utility flushes dirty blocks from the end of the flush_list of
 all buffer pool instances.
@@ -105,13 +112,6 @@ buf_flush_list(
 					smaller than this should be flushed
 					(if their number does not exceed
 					min_n), otherwise ignored */
-/********************************************************************//**
-Flush a batch of writes to the datafiles that have already been
-written by the OS. */
-UNIV_INTERN
-void
-buf_flush_sync_datafiles(void);
-/*==========================*/
 /******************************************************************//**
 This function picks up a single dirty page from the tail of the LRU
 list, flushes it, removes it from page_hash and LRU list and puts
