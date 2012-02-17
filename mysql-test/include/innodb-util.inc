@@ -1,0 +1,71 @@
+#
+# Utility functions to copy files for WL#5522
+#
+# All the tables must be in the same database, you can call it like so:
+# ib_backup_tablespaces("test", "t1", "blah", ...).
+
+perl;
+sub ib_backup_tablespace {
+    my ($db, $table) = @_;
+    my $datadir = $ENV{'MYSQLD_DATADIR'};
+    my $cfg_file = sprintf("%s.cfg", $table);
+    my $ibd_file = sprintf("%s.ibd", $table);
+    my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
+
+    my @args = ("cp", "$datadir/$db/$ibd_file", "$tmpd/$ibd_file");
+    system(@args) == 0 or die "system @args failed: $?";
+
+    my @args = ("cp", "$datadir/$db/$cfg_file", "$tmpd/$cfg_file");
+    system(@args) == 0 or die "system @args failed: $?";
+
+}
+
+sub ib_backup_tablespaces {
+    my ($db, @tables) = @_;
+
+    foreach my $table (@tables) {
+	print "backup: $table\n";
+	ib_backup_tablespace($db, $table);
+    }
+}
+
+sub ib_discard_tablespace {
+    my ($db, $table) = @_;
+    my $datadir = $ENV{'MYSQLD_DATADIR'};
+    my $ibt_file = sprintf("%s.ibt", $table);
+    my $path = "$datadir/$db/$ibt_file";
+
+    unlink($path) == 1 or die "unlink $path failed: $?"
+}
+
+sub ib_discard_tablespaces {
+    my ($db, @tables) = @_;
+
+    foreach my $table (@tables) {
+	ib_discard_tablespace($db, $table);
+    }
+}
+
+sub ib_restore_tablespace {
+    my ($db, $table) = @_;
+    my $datadir = $ENV{'MYSQLD_DATADIR'};
+    my $cfg_file = sprintf("%s.cfg", $table);
+    my $ibd_file = sprintf("%s.ibd", $table);
+    my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
+
+    my @args = ("cp", "$tmpd/$cfg_file", "$datadir/$db/$cfg_file");
+    system(@args) == 0 or die "system @args failed: $?";
+
+    my @args = ("cp", "$tmpd/$ibd_file", "$datadir/$db/$ibd_file");
+    system(@args) == 0 or die "system @args failed: $?";
+}
+
+sub ib_restore_tablespaces {
+    my ($db, @tables) = @_;
+
+    foreach my $table (@tables) {
+	print "restore: $table\n";
+	ib_restore_tablespace($db, $table);
+    }
+}
+EOF
