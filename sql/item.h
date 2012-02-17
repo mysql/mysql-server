@@ -666,6 +666,15 @@ public:
       return REAL_RESULT; 
     return result_type();
   }
+  /**
+    Similar to result_type() but makes DATE, DATETIME, TIMESTAMP
+    pretend to be numbers rather than strings.
+  */
+  inline enum Item_result temporal_with_date_as_number_result_type() const
+  {
+    return is_temporal_with_date() ? 
+           (decimals ? DECIMAL_RESULT : INT_RESULT) : result_type();
+  }
   virtual Item_result cast_to_int_type() const { return result_type(); }
   virtual enum_field_types string_field_type() const;
   virtual enum_field_types field_type() const;

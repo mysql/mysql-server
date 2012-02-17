@@ -2702,12 +2702,13 @@ double Item_func_units::val_real()
 
 void Item_func_min_max::fix_length_and_dec()
 {
+  uint string_arg_count= 0;
   int max_int_part=0;
   bool datetime_found= FALSE;
   decimals=0;
   max_length=0;
   maybe_null=0;
-  cmp_type=args[0]->result_type();
+  cmp_type= args[0]->temporal_with_date_as_number_result_type();
 
   for (uint i=0 ; i < arg_count ; i++)
   {
@@ -2716,7 +2717,10 @@ void Item_func_min_max::fix_length_and_dec()
     set_if_bigger(max_int_part, args[i]->decimal_int_part());
     if (args[i]->maybe_null)
       maybe_null=1;
-    cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
+    cmp_type= item_cmp_type(cmp_type,
+                            args[i]->temporal_with_date_as_number_result_type());
+    if (args[i]->result_type() == STRING_RESULT)
+     string_arg_count++;
     if (args[i]->result_type() != ROW_RESULT &&
         args[i]->is_temporal_with_date())
     {
@@ -2725,8 +2729,10 @@ void Item_func_min_max::fix_length_and_dec()
         datetime_item= args[i];
     }
   }
-  if (cmp_type == STRING_RESULT)
+  
+  if (string_arg_count == arg_count)
   {
+    // We compare as strings only if all arguments were strings.
     agg_arg_charsets_for_string_result_with_comparison(collation,
                                                        args, arg_count);
     if (datetime_found)
@@ -3104,6 +3110,15 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
       res= 0;
       break;
     }
+  }
+  
+  if (res)
+  {
+    /*
+      Need this to make val_str() always return fixed
+      number of fractional digits, according to "decimals".
+    */
+    my_decimal_round(E_DEC_FATAL_ERROR, res, decimals, false, res);
   }
   return res;
 }
