@@ -386,9 +386,10 @@ buf_flush_yield(
 }
 
 /******************************************************************//**
-Removes a single page from a given tablespace inside a specific
-buffer pool instance.
-@return true if page was removed or didn't belong to the tablespace */
+If we have hogged the resources for too long then release the buffer
+pool and flush list mutex and do a thread yield. Set the current page
+to "sticky" so that it is not relocated during the yield.
+@return true if yielded */
 static
 bool
 buf_flush_try_yield(
@@ -470,6 +471,8 @@ buf_flush_or_remove_page(
 
 		mutex_enter(block_mutex);
 
+		ut_ad(bpage->oldest_modification != 0);
+
 		if (bpage->buf_fix_count > 0) {
 
 			mutex_exit(block_mutex);
@@ -480,7 +483,6 @@ buf_flush_or_remove_page(
 			to the file */
 
 		} else if (!flush) {
-			ut_ad(bpage->oldest_modification != 0);
 
 			buf_flush_remove(bpage);
 
@@ -488,9 +490,6 @@ buf_flush_or_remove_page(
 
 			processed = true;
 		} else {
-			
-			ut_ad(bpage->oldest_modification != 0);
-
 			/* The following call will release the buffer pool
 			and block mutex. */
 			buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE);
@@ -498,10 +497,6 @@ buf_flush_or_remove_page(
 			/* Wake possible simulated aio thread to actually
 			post the writes to the operating system */
 			os_aio_simulated_wake_handler_threads();
-
-			/* Wait that all async writes to tablespaces have
-			been posted to the OS */
-			os_aio_wait_until_no_pending_writes();
 
 			buf_pool_mutex_enter(buf_pool);
 
@@ -587,7 +582,7 @@ buf_flush_or_remove_pages(
 
 		/* The check for trx is interrupted is expensive, we want
 		to check every N iterations. */
-		if (flush && !processed && trx && trx_is_interrupted(trx)) {
+		if (!processed && trx && trx_is_interrupted(trx)) {
 			buf_flush_list_mutex_exit(buf_pool);
 			return(DB_INTERRUPTED);
 		}
@@ -806,7 +801,8 @@ buf_LRU_remove_pages(
 		break;
 
 	case BUF_REMOVE_FLUSH_NO_WRITE:
-		buf_flush_dirty_pages(buf_pool, id, false, trx);
+		ut_a(trx == 0);
+		buf_flush_dirty_pages(buf_pool, id, false, NULL);
 		break;
 
 	case BUF_REMOVE_FLUSH_WRITE:
@@ -849,11 +845,11 @@ buf_LRU_flush_or_remove_pages(
 
 		switch (buf_remove) {
 		case BUF_REMOVE_ALL_NO_WRITE:
-		case BUF_REMOVE_FLUSH_NO_WRITE:
 			buf_LRU_drop_page_hash_for_tablespace(buf_pool, id);
 			break;
 
 		case BUF_REMOVE_FLUSH_WRITE:
+		case BUF_REMOVE_FLUSH_NO_WRITE:
 			break;
 		}
 
