@@ -35,4 +35,5 @@ select * From foo;
 a
 1
 2
+commit;
 drop table foo;
