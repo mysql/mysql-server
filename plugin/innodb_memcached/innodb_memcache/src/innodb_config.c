@@ -42,9 +42,15 @@ my_strdupl(
         const char*     str,    /*!< in: string to be copied */
         int             len)    /*!< in: length of str, in bytes */
 {
-        char*   s = (char*) malloc(len + 1);
-        s[len] = 0;
-        return((char*) memcpy(s, str, len));
+	char*   s = (char*) malloc(len + 1);
+
+	if (!s) {
+		return(NULL);
+	}
+
+	s[len] = 0;
+
+	return((char*) memcpy(s, str, len));
 }
 
 /**********************************************************************//**
@@ -59,26 +65,29 @@ innodb_config_free(
 	for (i = 0; i < CONTAINER_NUM_COLS; i++) {
 		if (item->col_info[i].col_name) {
 			free(item->col_info[i].col_name);
+			item->col_info[i].col_name = NULL;
 		}
 	}
 
 	if (item->index_info.idx_name) {
 		free(item->index_info.idx_name);
+		item->index_info.idx_name = NULL;
 	}
 
-	if (item->add_col_info) {
-		for (i = 0; i < item->n_add_col; i++) {
-			free(item->add_col_info[i].col_name);
+	if (item->extra_col_info) {
+		for (i = 0; i < item->n_extra_col; i++) {
+			free(item->extra_col_info[i].col_name);
+			item->extra_col_info[i].col_name = NULL;
 		}
 
-		free(item->add_col_info);
+		free(item->extra_col_info);
+		item->extra_col_info = NULL;
 	}
 
 	if (item->separator) {
 		free(item->separator);
+		item->separator = NULL;
 	}
-
-	return;
 }
 
 /**********************************************************************//**
@@ -112,22 +121,26 @@ innodb_config_parse_value_col(
 
 	if (num_cols > 1) {
 		int	i = 0;
-		item->add_col_info = malloc(
-			num_cols * sizeof(*item->add_col_info));
+		item->extra_col_info = malloc(
+			num_cols * sizeof(*item->extra_col_info));
+
+		if (!item->extra_col_info) {
+			return(false);
+		}
 
 		for (column_str = strtok_r(my_str, sep, &last);
 		     column_str;
 		     column_str = strtok_r(NULL, sep, &last)) {
-			item->add_col_info[i].col_name_len = strlen(column_str);
-			item->add_col_info[i].col_name = my_strdupl(
-				column_str, item->add_col_info[i].col_name_len);
+			item->extra_col_info[i].col_name_len = strlen(column_str);
+			item->extra_col_info[i].col_name = my_strdupl(
+				column_str, item->extra_col_info[i].col_name_len);
 			i++;
 		}
 
-		item->n_add_col = num_cols;
+		item->n_extra_col = num_cols;
 	} else {
-		item->add_col_info = NULL;
-		item->n_add_col = 0;
+		item->extra_col_info = NULL;
+		item->n_extra_col = 0;
 	}
 
 	return(true);
@@ -160,9 +173,10 @@ innodb_read_cache_policy(
 			       &crsr, &idx_crsr, IB_LOCK_IS);
 
 	if (err != DB_SUCCESS) {
-		fprintf(stderr, "  InnoDB_Memcached: Cannot open config table"
-				"'%s' in database '%s'\n",
-			MCI_CFG_CACHE_POLICIES, MCI_CFG_DB_NAME);
+		fprintf(stderr, " InnoDB_Memcached: Cannot open config table"
+				"'%s' in database '%s'. Error %lu\n",
+			MCI_CFG_CACHE_POLICIES, MCI_CFG_DB_NAME,
+			(ulong)err);
 		err = DB_ERROR;
 		goto func_exit;
 	}
@@ -174,7 +188,7 @@ innodb_read_cache_policy(
 	err = innodb_cb_cursor_first(crsr);
 
 	if (err != DB_SUCCESS) {
-		fprintf(stderr, "  InnoDB_Memcached: fail to locate entry in"
+		fprintf(stderr, " InnoDB_Memcached: fail to locate entry in"
 				" config table '%s' in database '%s' \n",
 			MCI_CFG_CACHE_POLICIES, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
@@ -266,7 +280,7 @@ innodb_read_config_option(
 			       &crsr, &idx_crsr, IB_LOCK_IS);
 
 	if (err != DB_SUCCESS) {
-		fprintf(stderr, "  InnoDB_Memcached: Cannot open config table"
+		fprintf(stderr, " InnoDB_Memcached: Cannot open config table"
 				"'%s' in database '%s'\n",
 			MCI_CFG_CONFIG_OPTIONS, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
@@ -278,7 +292,7 @@ innodb_read_config_option(
 	err = innodb_cb_cursor_first(crsr);
 
 	if (err != DB_SUCCESS) {
-		fprintf(stderr, "  InnoDB_Memcached: fail to locate entry in"
+		fprintf(stderr, " InnoDB_Memcached: fail to locate entry in"
 				" config table '%s' in database '%s' \n",
 			MCI_CFG_CONFIG_OPTIONS, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
@@ -286,6 +300,14 @@ innodb_read_config_option(
 	}
 
 	err = innodb_cb_read_row(crsr, tpl);
+
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, " InnoDB_Memcached: fail to read row from"
+				" config table '%s' in database '%s' \n",
+			MCI_CFG_CONFIG_OPTIONS, MCI_CFG_DB_NAME);
+		err = DB_ERROR;
+		goto func_exit;
+	}
 
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
@@ -358,10 +380,11 @@ innodb_config_container(
 			       &crsr, &idx_crsr, IB_LOCK_IS);
 
 	if (err != DB_SUCCESS) {
-		fprintf(stderr, "  InnoDB_Memcached: Please create config table"
+		fprintf(stderr, " InnoDB_Memcached: Please create config table"
 				"'%s' in database '%s' by running"
-				" 'scripts/innodb_config.sql'\n",
-			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
+				" 'scripts/innodb_config.sql. error %lu'\n",
+			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME,
+			(ulong) err);
 		err = DB_ERROR;
 		goto func_exit;
 	}
@@ -373,7 +396,7 @@ innodb_config_container(
 	err = innodb_cb_cursor_first(crsr);
 
 	if (err != DB_SUCCESS) {
-		fprintf(stderr, "  InnoDB_Memcached: fail to locate entry in"
+		fprintf(stderr, " InnoDB_Memcached: fail to locate entry in"
 				" config table '%s' in database '%s' \n",
 			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
@@ -383,7 +406,7 @@ innodb_config_container(
 	err = innodb_cb_read_row(crsr, tpl);
 
 	if (err != DB_SUCCESS) {
-		fprintf(stderr, "  InnoDB_Memcached: fail to read row from"
+		fprintf(stderr, " InnoDB_Memcached: fail to read row from"
 				" config table '%s' in database '%s' \n",
 			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
@@ -393,7 +416,7 @@ innodb_config_container(
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
 	if (n_cols < CONTAINER_NUM_COLS) {
-		fprintf(stderr, "  InnoDB_Memcached: config table '%s' in"
+		fprintf(stderr, " InnoDB_Memcached: config table '%s' in"
 				" database '%s' has only %d column(s),"
 				" server is expecting %d columns\n",
 			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME,
@@ -408,7 +431,7 @@ innodb_config_container(
 		data_len = innodb_cb_col_get_meta(tpl, i, &col_meta);
 
 		if (data_len == IB_SQL_NULL) {
-			fprintf(stderr, "  InnoDB_Memcached: column %d in"
+			fprintf(stderr, " InnoDB_Memcached: column %d in"
 					" the entry for config table '%s' in"
 					" database '%s' has an invalid"
 					" NULL value\n",
@@ -435,8 +458,8 @@ innodb_config_container(
 	data_len = innodb_cb_col_get_meta(tpl, i, &col_meta);
 
 	if (data_len == IB_SQL_NULL) {
-		fprintf(stderr, "  InnoDB_Memcached: There must be a unique"
-				" index on memcached table's key column \n");
+		fprintf(stderr, " InnoDB_Memcached: There must be a unique"
+				" index on memcached table's key column\n");
 		err = DB_ERROR;
 		goto func_exit;
 	}
@@ -474,7 +497,7 @@ innodb_config_value_col_verify(
 {
 	ib_err_t	err = DB_NOT_FOUND;
 
-	if (!meta_info->n_add_col) {
+	if (!meta_info->n_extra_col) {
 		meta_column_t*	cinfo = meta_info->col_info;
 
 		/* "value" column must be of CHAR, VARCHAR or BLOB type */
@@ -492,8 +515,8 @@ innodb_config_value_col_verify(
 	} else {
 		int	i;
 
-		for (i = 0; i < meta_info->n_add_col; i++) {
-			if (strcmp(name, meta_info->add_col_info[i].col_name) == 0) {
+		for (i = 0; i < meta_info->n_extra_col; i++) {
+			if (strcmp(name, meta_info->extra_col_info[i].col_name) == 0) {
 				if (col_meta->type != IB_VARCHAR
 				    && col_meta->type != IB_CHAR
 				    && col_meta->type != IB_BLOB) {
@@ -501,8 +524,8 @@ innodb_config_value_col_verify(
 					break;
 				}
 
-				meta_info->add_col_info[i].field_id = col_id;
-				meta_info->add_col_info[i].col_meta = *col_meta;
+				meta_info->extra_col_info[i].field_id = col_id;
+				meta_info->extra_col_info[i].col_meta = *col_meta;
 
 				meta_info->col_info[CONTAINER_VALUE].field_id
 					= col_id;
@@ -558,7 +581,7 @@ innodb_verify(
 
 	/* Mapped InnoDB table must be able to open */
 	if (err != DB_SUCCESS) {
-		fprintf(stderr, "  InnoDB_Memcached: fail to open table"
+		fprintf(stderr, " InnoDB_Memcached: fail to open table"
 				" '%s' \n", table_name);
 		err = DB_ERROR;
 		goto func_exit;
@@ -629,7 +652,7 @@ innodb_verify(
 
 	/* Key column and Value column must present */
 	if (!is_key_col || !is_value_col) {
-		fprintf(stderr, "  InnoDB_Memcached: fail to locate key"
+		fprintf(stderr, " InnoDB_Memcached: fail to locate key"
 				" column or value column in table"
 				" '%s' as specified by config table \n",
 			table_name);
@@ -644,15 +667,15 @@ innodb_verify(
 					       &index_id);
 
 	if (index_type & IB_CLUSTERED) {
-		info->index_info.srch_use_idx = META_CLUSTER;
+		info->index_info.srch_use_idx = META_USE_CLUSTER;
 	} else if (!idx_crsr || !(index_type & IB_UNIQUE)) {
-		fprintf(stderr, "  InnoDB_Memcached: Index on key column"
+		fprintf(stderr, " InnoDB_Memcached: Index on key column"
 				" must be a Unique index\n");
-		info->index_info.srch_use_idx = META_NO_INDEX;
+		info->index_info.srch_use_idx = META_USE_NO_INDEX;
 		err = DB_ERROR;
 	} else {
 		info->index_info.idx_id = index_id;
-		info->index_info.srch_use_idx = META_SECONDARY;
+		info->index_info.srch_use_idx = META_USE_SECONDARY;
 	}
 
 	if (idx_crsr) {

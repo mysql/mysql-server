@@ -2,6 +2,12 @@ create database innodb_memcache;
 
 use innodb_memcache;
 
+
+-- ------------------------------------------------------------------------
+-- Following are set of "configuration tables" that used to configure
+-- the InnoDB Memcached.
+-- ------------------------------------------------------------------------
+
 -- ------------------------------------------------------------------------
 -- Table `cache_policies`
 --
@@ -35,8 +41,8 @@ CREATE  TABLE IF NOT EXISTS `cache_policies` (
 -- There must be a unique index on the `key column`, and unique index name
 -- is specified in the `unique_idx_name_on_key` column of the table
 -- `value_columns` are comma-separated lists of the columns that make up
--- the memcache key and value.
---
+-- the memcache key and value. Each column width is defined such that they
+-- are in consistent with NDB memcached.
 -- ------------------------------------------------------------------------
 
 CREATE  TABLE IF NOT EXISTS `containers` (
@@ -78,6 +84,14 @@ INSERT INTO config_options VALUES("separator", "|");
 
 USE test
 
+-- ------------------------------------------------------------------------
+-- Key (c1) must be VARCHAR or CHAR type, memcached supports key up to 255
+-- Bytes
+-- Value (c2) must be VARCHAR or CHAR type
+-- Flag (c3) is a 32 bits integer
+-- CAS (c4) is a 64 bits integer, per memcached define
+-- Exp (c5) is again a 32 bits integer
+-- ------------------------------------------------------------------------
 CREATE TABLE demo_test (c1 VARCHAR(32),
 			c2 VARCHAR(1024),
 			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))

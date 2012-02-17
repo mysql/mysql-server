@@ -36,11 +36,6 @@ Created 04/12/2011 Jimmy Yang
 /** Whether to update all columns' value or a specific column value */
 #define UPDATE_ALL_VAL_COL	-1
 
-/** Defines for handler_binlog_row()'s mode field */
-#define HDL_UPDATE		1
-#define HDL_INSERT		2
-#define HDL_DELETE		3
-
 /** InnoDB API callback functions */
 static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_open_table,
@@ -89,18 +84,25 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cfg_trx_level
 };
 
+/** Set expiration time */
+#define SET_EXP_TIME(exp)		\
+if (exp) {				\
+	exp += mci_get_time();		\
+}
+
 /*************************************************************//**
 Register InnoDB Callback functions */
 void
 register_innodb_cb(
 /*===============*/
-	char*	p)		/*!<in: Pointer to callback function array */
+	void*	p)		/*!<in: Pointer to callback function array */
 {
 	int	i;
 	int	array_size;
 	ib_cb_t*func_ptr = (ib_cb_t*) p;
 
-	array_size = sizeof(innodb_memcached_api) / sizeof(ib_cb_t);
+	array_size = sizeof(innodb_memcached_api)
+		     / sizeof(*innodb_memcached_api);
 
 	for (i = 0; i < array_size; i++) {
 		*innodb_memcached_api[i] = *(ib_cb_t*)func_ptr;
@@ -116,8 +118,8 @@ innodb_api_begin(
 /*=============*/
 	innodb_engine_t*
 			engine,		/*!< in: InnoDB Memcached engine */
-	const char*	dbname,		/*!< in: database name */
-	const char*	name,		/*!< in: table name */
+	const char*	dbname,		/*!< in: NUL terminated database name */
+	const char*	name,		/*!< in: NUL terminated table name */
 	innodb_conn_data_t* conn_data,	/*!< in/out: connnection specific
 					data */
 	ib_trx_t	ib_trx,		/*!< in: transaction */
@@ -128,7 +130,7 @@ innodb_api_begin(
 	ib_err_t	err = DB_SUCCESS;
 	char		table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
 
-	if (!(*crsr)) {
+	if (!*crsr) {
 #ifdef __WIN__
 		sprintf(table_name, "%s\%s", dbname, name);
 #else
@@ -139,7 +141,7 @@ innodb_api_begin(
 		err  = ib_cb_open_table(table_name, ib_trx, crsr);
 
 		if (err != DB_SUCCESS) {
-			fprintf(stderr, "  InnoDB_Memcached: Unable to open"
+			fprintf(stderr, " InnoDB_Memcached: Unable to open"
 					" table '%s'\n", table_name);
 			return(err);
 		}
@@ -147,7 +149,7 @@ innodb_api_begin(
 		err = ib_cb_cursor_lock(*crsr, lock_mode);
 
 		if (err != DB_SUCCESS) {
-			fprintf(stderr, "  InnoDB_Memcached: Fail to lock"
+			fprintf(stderr, " InnoDB_Memcached: Fail to lock"
 					" table '%s'\n", table_name);
 			return(err);
 		}
@@ -157,7 +159,7 @@ innodb_api_begin(
 			meta_index_t*	meta_index = &meta_info->index_info;
 
 			/* Open the cursor */
-			if (meta_index->srch_use_idx == META_SECONDARY) {
+			if (meta_index->srch_use_idx == META_USE_SECONDARY) {
 				int		index_type;
 				ib_id_u64_t	index_id;
 
@@ -180,7 +182,7 @@ innodb_api_begin(
 		err = ib_cb_cursor_lock(*crsr, lock_mode);
 
 		if (err != DB_SUCCESS) {
-			fprintf(stderr, "  InnoDB_Memcached: Fail to lock"
+			fprintf(stderr, " InnoDB_Memcached: Fail to lock"
 					" table '%s'\n", name);
 			return(err);
 		}
@@ -190,7 +192,7 @@ innodb_api_begin(
 			meta_index_t*	meta_index = &meta_info->index_info;
 
 			/* set up secondary index cursor */
-			if (meta_index->srch_use_idx == META_SECONDARY) {
+			if (meta_index->srch_use_idx == META_USE_SECONDARY) {
 				ib_cb_cursor_new_trx(*idx_crsr, ib_trx);
 				ib_cb_cursor_lock(*idx_crsr, lock_mode);
 			}
@@ -215,23 +217,24 @@ innodb_api_read_int(
 	uint64_t	value = 0;
 
 	assert (m_col->type == IB_INT);
-	assert (m_col->type_len == 8 || m_col->type_len == 4);
+	assert (m_col->type_len == sizeof(uint64_t)
+		|| m_col->type_len == sizeof(uint32_t));
 
 	if (m_col->attr == IB_COL_UNSIGNED) {
-		if (m_col->type_len == 8) {
+		if (m_col->type_len == sizeof(uint64_t)) {
 			ib_cb_tuple_read_u64(read_tpl, i, &value);
-		} else if (m_col->type_len == 4) {
+		} else if (m_col->type_len == sizeof(uint32_t)) {
 			uint32_t	value32;
 			ib_cb_tuple_read_u32(read_tpl, i, &value32);
 			value = (uint64_t) value32;
 		}
 	} else {
-		if (m_col->type_len == 8) {
+		if (m_col->type_len == sizeof(int64_t)) {
 			int64_t		value64;
 			ib_cb_tuple_read_i64(read_tpl, i, &value64);
 			value = (uint64_t) value64;
-		} else if (m_col->type_len == 4) {
-			ib_i32_t	value32;
+		} else if (m_col->type_len == sizeof(int32_t)) {
+			int32_t		value32;
 			ib_cb_tuple_read_i32(read_tpl, i, &value32);
 			value = (uint64_t) value32;
 		}
@@ -361,6 +364,11 @@ innodb_api_copy_mci(
 		mci_item->allocated = false;
 	} else {
 		mci_item->value_str = malloc(data_len);
+
+		if (!mci_item->value_str) {
+			return(false);
+		}
+
 		mci_item->allocated = true;
 		memcpy(mci_item->value_str, ib_cb_col_get_value(read_tpl, col_id),
 		       data_len);
@@ -390,8 +398,8 @@ innodb_api_fill_value(
 	ib_err_t	err = DB_NOT_FOUND;
 
 	/* If just read a single "value", fill mci_item[MCI_COL_VALUE],
-	otherwise, fill multiple value in add_col_value[i] */
-	if (meta_info->n_add_col == 0) {
+	otherwise, fill multiple value in extra_col_value[i] */
+	if (meta_info->n_extra_col == 0) {
 		meta_column_t*	col_info = meta_info->col_info;
 
 		if (col_id == col_info[CONTAINER_VALUE].field_id) {
@@ -410,16 +418,17 @@ innodb_api_fill_value(
 		}
 	} else {
 		int	i;
-		for (i = 0; i < meta_info->n_add_col; i++) {
-			if (col_id == meta_info->add_col_info[i].field_id) {
+
+		for (i = 0; i < meta_info->n_extra_col; i++) {
+			if (col_id == meta_info->extra_col_info[i].field_id) {
 				if (alloc_mem) {
 					innodb_api_copy_mci(
 						read_tpl, col_id,
-						&item->add_col_value[i]);
+						&item->extra_col_value[i]);
 				} else {
 					innodb_api_fill_mci(
 						read_tpl, col_id,
-						&item->add_col_value[i]);
+						&item->extra_col_value[i]);
 				}
 
 				err = DB_SUCCESS;
@@ -454,9 +463,9 @@ innodb_api_search(
 	ib_tpl_t	key_tpl;
 	ib_crsr_t	srch_crsr;
 
-	/* If srch_use_idx is set to META_SECONDARY, we will use the
+	/* If srch_use_idx is set to META_USE_SECONDARY, we will use the
 	secondary index to find the record first */
-	if (meta_index->srch_use_idx == META_SECONDARY) {
+	if (meta_index->srch_use_idx == META_USE_SECONDARY) {
 		ib_crsr_t	idx_crsr;
 
 		if (sel_only) {
@@ -473,6 +482,7 @@ innodb_api_search(
 
 	} else {
 		ib_crsr_t	crsr;
+
 		if (sel_only) {
 			crsr = cursor_data->read_crsr;
 		} else {
@@ -513,16 +523,16 @@ innodb_api_search(
 
 		n_cols = ib_cb_tuple_get_n_cols(read_tpl);
 
-		if (meta_info->n_add_col > 0) {
+		if (meta_info->n_extra_col > 0) {
 			/* If there are multiple values to read,allocate
 			memory */
-			item->add_col_value = malloc(
-				meta_info->n_add_col
-				* sizeof(*item->add_col_value));
-			item->n_add_col = meta_info->n_add_col;
+			item->extra_col_value = malloc(
+				meta_info->n_extra_col
+				* sizeof(*item->extra_col_value));
+			item->n_extra_col = meta_info->n_extra_col;
 		} else {
-			item->add_col_value = NULL;
-			item->n_add_col = 0;
+			item->extra_col_value = NULL;
+			item->n_extra_col = 0;
 		}
 
 		/* The table must have at least MCI_COL_TO_GET(5) columns
@@ -614,16 +624,20 @@ Get montonically increasing cas (check and set) ID.
 @return new cas ID */
 static
 uint64_t
-mci_get_cas(void)
-/*=============*/
+mci_get_cas(
+/*========*/
+	innodb_engine_t*	eng)	/*!< in: InnoDB Memcached engine */
+	
 {
 	static uint64_t cas_id = 0;
 
 #if defined(HAVE_IB_GCC_ATOMIC_BUILTINS)
 	return(__sync_add_and_fetch(&cas_id, 1));
 #else
-	/* FIXME: need mutex protection */
-	return(++cas_id);
+	pthread_mutex_lock(&eng->cas_mutex);
+	cas_id++;
+	pthread_mutex_unlock(&eng->cas_mutex);
+	return(cas_id);
 #endif
 }
 
@@ -636,9 +650,11 @@ mci_get_time(void)
 {
 	struct timeval tv;
 
+	/* FIXME: need to address it different when port the project to
+	Windows. Please see ut_gettimeofday() */
 	gettimeofday(&tv,NULL);
 
-	return ((uint64_t)tv.tv_sec);
+	return((uint64_t)tv.tv_sec);
 }
 
 /*************************************************************//**
@@ -666,8 +682,13 @@ innodb_api_set_multi_cols(
 		return(DB_SUCCESS);
 	}
 
-	col_info = meta_info->add_col_info;
+	col_info = meta_info->extra_col_info;
 	my_value = malloc(value_len + 1);
+
+	if (!my_value) {
+		return(DB_ERROR);
+	}
+
 	memcpy(my_value, value, value_len);
 	my_value[value_len] = 0;
 	value = my_value;
@@ -688,7 +709,7 @@ innodb_api_set_multi_cols(
 
 	/* Input values are separated with "sep" */
 	for (col_val = strtok_r(value, sep, &last);
-	     last <= end && i < meta_info->n_add_col;
+	     last <= end && i < meta_info->n_extra_col;
 	     col_val = strtok_r(NULL, sep, &last), i++) {
 
 		if (!col_val) {
@@ -705,7 +726,7 @@ innodb_api_set_multi_cols(
 			break;
 		}
 	}
- 
+
 	free(my_value);
 	return(err);
 }
@@ -779,7 +800,7 @@ innodb_api_set_tpl(
 
 	assert(err == DB_SUCCESS);
 
-	if (meta_info->n_add_col > 0) {
+	if (meta_info->n_extra_col > 0) {
 		if (col_to_set == UPDATE_ALL_VAL_COL) {
 			err = innodb_api_set_multi_cols(tpl, meta_info,
 							(char*) value,
@@ -787,7 +808,7 @@ innodb_api_set_tpl(
 		} else {
 			err = ib_cb_col_set_value(
 				tpl,
-				meta_info->add_col_info[col_to_set].field_id,
+				meta_info->extra_col_info[col_to_set].field_id,
 				value, value_len);
 		}
 	} else {
@@ -801,6 +822,7 @@ innodb_api_set_tpl(
 		}
 	}
 
+	/* If ib_cb_col_set_value() is failed, something is terribly wrong */
 	assert(err == DB_SUCCESS);
 
 	if (meta_info->cas_enabled) {
@@ -845,17 +867,15 @@ innodb_api_insert(
 	meta_cfg_info_t* meta_info = &engine->meta_info;
 	meta_column_t*	col_info = meta_info->col_info;
 
-	new_cas = mci_get_cas();
+	new_cas = mci_get_cas(engine);
 
 	tpl = ib_cb_read_tuple_create(cursor_data->crsr);
 	assert(tpl != NULL);
 
 	/* Set expiration time */
-	if (exp) {
-		uint64_t	time;
-		time = mci_get_time();
-		exp += time;
-	}
+	SET_EXP_TIME(exp);
+
+	assert(!cursor_data->mysql_tbl || engine->enable_binlog);
 
 	err = innodb_api_set_tpl(tpl, NULL, meta_info, col_info, key, len,
 				 key + len, val_len,
@@ -916,14 +936,9 @@ innodb_api_update(
 	assert(new_tpl != NULL);
 
 	/* cas will be updated for each update */
-	new_cas = mci_get_cas();
+	new_cas = mci_get_cas(engine);
 
-	if (exp) {
-		uint64_t	time;
-
-		time = mci_get_time();
-		exp += time;
-	}
+	SET_EXP_TIME(exp);
 
 	if (engine->enable_binlog) {
 		innodb_api_setup_hdl_rec(result, col_info,
@@ -931,10 +946,14 @@ innodb_api_update(
 		handler_store_record(cursor_data->mysql_tbl);
 	}
 
+	assert(!cursor_data->mysql_tbl || engine->enable_binlog);
+
 	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info, key,
 				 len, key + len, val_len,
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
 				 cursor_data->mysql_tbl);
+
+	assert(err == DB_SUCCESS);
 
 	err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
 
@@ -1068,15 +1087,15 @@ innodb_api_link(
 	string needs to be defined. We will use user supplied flags
 	as an indication on which column to apply the operation. Otherwise,
 	the first column will be appended / prepended */
-	if (meta_info->n_add_col > 0) {
-		if (flags < (uint64_t) meta_info->n_add_col) {
+	if (meta_info->n_extra_col > 0) {
+		if (flags < (uint64_t) meta_info->n_extra_col) {
 			column_used = flags;
 		} else {
 			column_used = 0;
 		}
 
-		before_len = result->add_col_value[column_used].value_len;
-		before_val = result->add_col_value[column_used].value_str;
+		before_len = result->extra_col_value[column_used].value_len;
+		before_val = result->extra_col_value[column_used].value_str;
 	} else {
 		before_len = result->col_value[MCI_COL_VALUE].value_len;
 		before_val = result->col_value[MCI_COL_VALUE].value_str;
@@ -1085,7 +1104,7 @@ innodb_api_link(
 
 	total_len = before_len + val_len;
 
-	append_buf = (char*)malloc(total_len);
+	append_buf = (char*) malloc(total_len);
 
 	if (append) {
 		memcpy(append_buf, before_val, before_len);
@@ -1096,7 +1115,7 @@ innodb_api_link(
 	}
 
 	new_tpl = ib_cb_read_tuple_create(cursor_data->crsr);
-	new_cas = mci_get_cas();
+	new_cas = mci_get_cas(engine);
 
 	if (exp) {
 		uint64_t	time;
@@ -1104,6 +1123,7 @@ innodb_api_link(
 		exp += time;
 	}
 
+	assert(!cursor_data->mysql_tbl || engine->enable_binlog);
 	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info,
 				 key, len, append_buf, total_len,
 				 new_cas, exp, flags, column_used,
@@ -1114,6 +1134,7 @@ innodb_api_link(
 	ib_cb_tuple_delete(new_tpl);
 
 	free(append_buf);
+	append_buf = NULL;
 
 	if (err == DB_SUCCESS) {
 		*cas = new_cas;
@@ -1168,6 +1189,13 @@ innodb_api_arithmetic(
 	err = innodb_api_search(engine, cursor_data, &srch_crsr, key, len,
 				&result, &old_tpl, false);
 
+	/* If the return message is not success or record not found, just
+	exit */
+	if (err != DB_SUCCESS && err != DB_RECORD_NOT_FOUND) {
+		ib_cb_tuple_delete(old_tpl);
+		goto func_exit;
+	}
+
 	if (engine->enable_binlog && !cursor_data->mysql_tbl
 	    && (err == DB_SUCCESS || create)) {
 		cursor_data->mysql_tbl = handler_open_table(
@@ -1186,6 +1214,8 @@ innodb_api_arithmetic(
 			create_new = true;
 			goto create_new_value;
 		} else {
+			/* cursor_data->mysql_tbl can't be created.
+			So safe to return here */
 			return(DB_RECORD_NOT_FOUND);
 		}
 	}
@@ -1201,17 +1231,17 @@ innodb_api_arithmetic(
 	string needs to be defined. We will use user supplied flags
 	as an indication on which column to apply the operation. Otherwise,
 	the first column will be appended / prepended */
-	if (meta_info->n_add_col > 0) {
+	if (meta_info->n_extra_col > 0) {
 		uint64_t flags = result.col_value[MCI_COL_FLAG].value_int;
 
-		if (flags < (uint64_t) meta_info->n_add_col) {
+		if (flags < (uint64_t) meta_info->n_extra_col) {
 			column_used = flags;
 		} else {
 			column_used = 0;
 		}
 
-		before_len = result.add_col_value[column_used].value_len;
-		before_val = result.add_col_value[column_used].value_str;
+		before_len = result.extra_col_value[column_used].value_len;
+		before_val = result.extra_col_value[column_used].value_str;
 	} else {
 		before_len = result.col_value[MCI_COL_VALUE].value_len;
 		before_val = result.col_value[MCI_COL_VALUE].value_str;
@@ -1249,9 +1279,11 @@ innodb_api_arithmetic(
 
 	snprintf(value_buf, sizeof(value_buf), "%llu", value);
 create_new_value:
-	*cas = mci_get_cas();
+	*cas = mci_get_cas(engine);
 
 	new_tpl = ib_cb_read_tuple_create(cursor_data->crsr);
+
+	assert(!cursor_data->mysql_tbl || engine->enable_binlog);
 
 	/* The cas, exp and flags field are not changing, so use the
 	data from result */
@@ -1262,6 +1294,7 @@ create_new_value:
 				 result.col_value[MCI_COL_FLAG].value_int,
 				 column_used, cursor_data->mysql_tbl);
 
+	/* if innodb_api_set_tpl() fails, something terribly wrong */
 	assert(err == DB_SUCCESS);
 
 	if (create_new) {
@@ -1334,6 +1367,12 @@ innodb_api_store(
 	err = innodb_api_search(engine, cursor_data, &srch_crsr,
 				key, len, &result, &old_tpl, false);
 
+	/* If the return message is not success or record not found, just
+	exit */
+	if (err != DB_SUCCESS && err != DB_RECORD_NOT_FOUND) {
+		goto func_exit;
+	}
+
 	if (engine->enable_binlog && !cursor_data->mysql_tbl) {
 		meta_cfg_info_t*	meta_info = &engine->meta_info;
 
@@ -1403,6 +1442,7 @@ innodb_api_store(
 		break;
 	}
 
+func_exit:
 	ib_cb_tuple_delete(old_tpl);
 
 	if (engine->enable_binlog && cursor_data->mysql_tbl) {
@@ -1464,7 +1504,7 @@ innodb_api_cursor_reset(
 						engine */
 	innodb_conn_data_t*	conn_data,	/*!< in/out: cursor affiliated
 						with a connection */
-	op_type_t		op_type)	/*!< in: type of DML performed */
+	conn_op_type_t		op_type)	/*!< in: type of DML performed */
 {
 	bool		commit_trx = false;
 
@@ -1532,13 +1572,13 @@ innodb_api_cursor_reset(
 	}
 
 	if (!commit_trx) {
-		pthread_mutex_lock(&engine->conn_mutex);
+		LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
+					engine);
 		assert(conn_data->in_use);
 		conn_data->in_use = false;
-		pthread_mutex_unlock(&engine->conn_mutex);
+		UNLOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
+					  engine);
 	}
-
-	return;
 }
 
 /** Following are a set of InnoDB callback function wrappers for functions

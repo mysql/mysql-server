@@ -34,9 +34,11 @@ Created 3/14/2011 Jimmy Yang
 #define HDL_WRITE	0x2
 
 /** Defines for handler_binlog_row()'s mode field */
-#define HDL_UPDATE	1
-#define HDL_INSERT	2
-#define HDL_DELETE	3
+typedef enum hdl_op_type {
+        HDL_UPDATE,
+        HDL_INSERT,
+        HDL_DELETE
+} hdl_op_type_t;
 
 #ifdef __cplusplus
 extern "C" {
@@ -182,7 +184,6 @@ Search table for a record with particular search criteria
 uchar*
 handler_select_rec(
 /*===============*/
-	THD*		my_thd,		/*!< in: thread */
 	TABLE*		my_table,	/*!< in: TABLE structure */
 	field_arg_t*	srch_args,	/*!< in: field to search */
 	int		idx_to_use);	/*!< in: index to use */
@@ -193,7 +194,6 @@ return 0 if successfully inserted */
 int
 handler_insert_rec(
 /*===============*/
-	THD*		my_thd,		/*!< in: thread */
 	TABLE*		my_table,	/*!< in: TABLE structure */
 	field_arg_t*	store_args);	/*!< in: inserting row data */
 
@@ -203,7 +203,6 @@ return 0 if successfully inserted */
 int
 handler_update_rec(
 /*===============*/
-	THD*		my_thd,		/*!< in: thread */
 	TABLE*		my_table,	/*!< in: TABLE structure */
 	field_arg_t*	store_args);	/*!< in: update row data */
 
@@ -213,7 +212,6 @@ return 0 if successfully inserted */
 int
 handler_delete_rec(
 /*===============*/
-        THD*		my_thd,		/*!< in: thread */
         TABLE*		my_table);	/*!< in: TABLE structure */
 
 /**********************************************************************//**
