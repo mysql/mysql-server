@@ -20,12 +20,6 @@
 --source include/have_gtid.inc
 --source include/master-slave.inc
 
-# Bug 13729084 
-#    Row format makes 
-#    the replicated `INSERT INTO t1 VALUES (2)' to be applied
-#    whereas it should not be that way so the assert fires.
---source include/have_binlog_format_mixed_or_statement.inc
-
 call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log: 'The slave is connecting using CHANGE MASTER TO MASTER_AUTO_POSITION = 1, but the master has purged binary logs containing GTIDs that the slave requires.");
 --source include/gtid_utils.inc
 
@@ -76,11 +70,22 @@ eval CHANGE MASTER TO MASTER_LOG_FILE = '$master_file', MASTER_LOG_POS = $master
 --source include/assert.inc
 
 --echo ######## Clean up ########
+--echo === Stop and reset slave/master (connection slave) ====
+--connection slave
+--source include/stop_slave.inc
+RESET MASTER;
+RESET SLAVE;
+--echo === Stop and reset master (connection master) ====
+--connection master
+RESET MASTER;
+--echo === Start slave (connection slave) ====
+--connection slave
+--source include/start_slave.inc
+--echo === Sync slave with master (connection master/slave) ====
 --connection master
 DROP TABLE t1;
+--sync_slave_with_master
 
---connection slave
-DROP TABLE t1;  #Todo: remove as a part of Bug 13727933 workaround
-
+--connection master
 --source include/gtid_utils_end.inc
 --source include/rpl_end.inc

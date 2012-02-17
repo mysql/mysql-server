@@ -54,7 +54,7 @@ int gtid_acquire_ownership_single(THD *thd)
     {
       /*
         Don't skip the statement here, skip it in
-        gtid_before_statement_begin_group.
+        gtid_pre_statement_checks.
       */
       DBUG_ASSERT(gtid_state.get_owner(gtid_next) == 0);
       break;
