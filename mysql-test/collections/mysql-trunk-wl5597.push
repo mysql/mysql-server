@@ -1,0 +1,16 @@
+# collections from default.push
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-ndb --unit-tests
+
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_ps_row --vardir=var-main-ps_row --suite=main --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-ndb
+
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_embedded --vardir=var-main_emebbed  --suite=main --embedded --experimental=collections/default.experimental --skip-ndb
+
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_4k_size --vardir=var-innodb-4k --experimental=collections/default.experimental --skip-ndb --suite=innodb --mysqld=--innodb-page-size=4k
+
+# extra runs for ROW mode
+
+# checking for regressions
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row --vardir=var-binlog_rpl_row --mysqld=--binlog-format=row --suite=binlog,rpl
+
+# regression testing for the new feature
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row --vardir=var-binlog_rpl_row --mysqld=--binlog-format=row --suite=binlog,rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN
