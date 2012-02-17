@@ -701,8 +701,8 @@ static
 buf_block_t*
 btr_root_block_get(
 /*===============*/
-	dict_index_t*	index,	/*!< in: index tree */
-	mtr_t*		mtr)	/*!< in: mtr */
+	const dict_index_t*	index,	/*!< in: index tree */
+	mtr_t*			mtr)	/*!< in: mtr */
 {
 	ulint		space;
 	ulint		zip_size;
@@ -737,8 +737,8 @@ UNIV_INTERN
 page_t*
 btr_root_get(
 /*=========*/
-	dict_index_t*	index,	/*!< in: index tree */
-	mtr_t*		mtr)	/*!< in: mtr */
+	const dict_index_t*	index,	/*!< in: index tree */
+	mtr_t*			mtr)	/*!< in: mtr */
 {
 	return(buf_block_get_frame(btr_root_block_get(index, mtr)));
 }
@@ -783,7 +783,7 @@ UNIV_INTERN
 db_err
 btr_root_adjust_on_import(
 /*======================*/
-	dict_index_t*	index)	/*!< in: index tree */
+	const dict_index_t*	index)	/*!< in: index tree */
 {
 	db_err		err;
 	mtr_t		mtr;
@@ -4322,7 +4322,7 @@ ibool
 btr_validate_level(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index tree */
-	trx_t*		trx,	/*!< in: transaction or NULL */
+	const trx_t*	trx,	/*!< in: transaction or NULL */
 	ulint		level,	/*!< in: level number */
 	ibool		init_id)/*!< in: FALSE=check that PAGE_INDEX_ID
 				equals index->id; TRUE=assign PAGE_INDEX_ID
@@ -4738,14 +4738,15 @@ node_ptr_fails:
 }
 
 /**************************************************************//**
-Checks the consistency of an index tree.
+Checks the consistency of an index tree and updates the page fields
+if init_id is true.
 @return	TRUE if ok */
 UNIV_INTERN
-ibool
+bool
 btr_validate_index(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index */
-	trx_t*		trx,	/*!< in: transaction or NULL */
+	const trx_t*	trx,	/*!< in: transaction or NULL */
 	bool		init_id)/*!< in: FALSE=check that PAGE_INDEX_ID
 				 equals index->id; TRUE=assign PAGE_INDEX_ID
 				 and PAGE_MAX_TRX_ID = trx->id  */
