@@ -1,3 +1,18 @@
+/* Copyright (C) 2012 Monty Program Ab
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #ifdef _WIN32_WINNT
 #undef _WIN32_WINNT
 #endif
@@ -202,11 +217,12 @@ struct connection_t
   OVERLAPPED overlapped;
   /* absolute time for wait timeout (as Windows time) */
   volatile ulonglong timeout; 
-  PTP_CLEANUP_GROUP cleanup_group;
   TP_CALLBACK_ENVIRON callback_environ;
   PTP_IO  io;
   PTP_TIMER timer;
   PTP_WAIT shm_read;
+  /* Callback instance, used to inform treadpool about long callbacks */
+  PTP_CALLBACK_INSTANCE callback_instance;
   bool logged_in;
 };
 
@@ -220,6 +236,7 @@ void init_connection(connection_t *connection)
   connection->timer= 0;
   connection->logged_in = false;
   connection->timeout= ULONGLONG_MAX;
+  connection->callback_instance= 0;
   memset(&connection->overlapped, 0, sizeof(OVERLAPPED));
   InitializeThreadpoolEnvironment(&connection->callback_environ);
   SetThreadpoolCallbackPool(&connection->callback_environ, pool);
@@ -554,7 +571,7 @@ static VOID CALLBACK io_completion_callback(PTP_CALLBACK_INSTANCE instance,
   THD *thd= connection->thd;
   ulonglong old_timeout = connection->timeout;
   connection->timeout = ULONGLONG_MAX;
-
+  connection->callback_instance= instance;
   if (threadpool_process_request(connection->thd))
     goto error;
 
@@ -700,9 +717,24 @@ void tp_set_max_threads(uint val)
 
 void tp_wait_begin(THD *thd, int type)
 {
-  if (thd && thd->event_scheduler.data)
+  DBUG_ASSERT(thd);
+
+  /*
+    Signal to the threadpool whenever callback can run long. Currently, binlog
+    waits are a good candidate, its waits are really long
+  */
+  if (type == THD_WAIT_BINLOG)
   {
-    /* TODO: call CallbackMayRunLong() */
+    connection_t *connection= (connection_t *)thd->event_scheduler.data;
+    if(connection && connection->callback_instance)
+    {
+      CallbackMayRunLong(connection->callback_instance);
+      /* 
+        Reset instance, to avoid calling CallbackMayRunLong  twice within 
+        the same callback (it is an error according to docs).
+      */
+      connection->callback_instance= 0;
+    }
   }
 }
 
