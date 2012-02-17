@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1647,6 +1647,11 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
   if (share->keys)
   {						// Get keys for ni_create
     bool using_unique_constraint=0;
+    if (share->keys > 1)
+    {
+      DBUG_ASSERT(0); // This code can't handle more than 1 key
+      share->keys= 1;
+    }
     HA_KEYSEG *seg= (HA_KEYSEG*) alloc_root(&table->mem_root,
                                             sizeof(*seg) * keyinfo->key_parts);
     if (!seg)
