@@ -1815,7 +1815,7 @@ static const char *thread_handling_names[]=
   0
 };
 
-#ifdef _WIN32
+#if defined (_WIN32) && defined (HAVE_POOL_OF_THREADS)
 /* Windows is using OS threadpool, so we're pretty sure it works well */
 #define DEFAULT_THREAD_HANDLING 2
 #else
