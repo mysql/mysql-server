@@ -4649,6 +4649,7 @@ end:
   thd->catalog= 0;
   thd->set_db(NULL, 0);                 /* will free the current database */
   thd->reset_query();
+  thd->lex->sql_command= SQLCOM_END;
   DBUG_PRINT("info", ("end: query= 0"));
   /*
     As a disk space optimization, future masters will not log an event for

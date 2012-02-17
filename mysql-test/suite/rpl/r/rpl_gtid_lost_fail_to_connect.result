@@ -20,7 +20,15 @@ CHANGE MASTER TO MASTER_LOG_FILE = 'master-bin.000001', MASTER_LOG_POS = MASTER_
 include/start_slave.inc
 include/assert.inc [t1 should contain only one row with the value 2]
 ######## Clean up ########
-DROP TABLE t1;
+=== Stop and reset slave/master (connection slave) ====
+include/stop_slave.inc
+RESET MASTER;
+RESET SLAVE;
+=== Stop and reset master (connection master) ====
+RESET MASTER;
+=== Start slave (connection slave) ====
+include/start_slave.inc
+=== Sync slave with master (connection master/slave) ====
 DROP TABLE t1;
 include/gtid_utils_end.inc
 include/rpl_end.inc
