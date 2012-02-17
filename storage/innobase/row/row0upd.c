@@ -6,6 +6,9 @@ Update of a row
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
 
+#include "my_global.h" /* HAVE_* */
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "row0upd.h"
 
 #ifdef UNIV_NONINL
@@ -1591,15 +1594,20 @@ row_upd_clust_rec(
 		rec_t*		rec;
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-		mtr_start(mtr);
+		DBUG_EXECUTE_IF(
+			"row_upd_extern_checkpoint",
+			log_make_checkpoint_at(ut_dulint_max, TRUE););
 
+		mtr_start(mtr);
 		ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
 		rec = btr_cur_get_rec(btr_cur);
+		DEBUG_SYNC_C("before_row_upd_extern");
 		err = btr_store_big_rec_extern_fields(
 			index, rec,
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
 			 big_rec, mtr);
+		DEBUG_SYNC_C("after_row_upd_extern");
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
