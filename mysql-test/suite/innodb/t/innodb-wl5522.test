@@ -4,13 +4,57 @@
 drop table if exists t1;
 --enable_warnings
 
-let $MYSQLD_DATADIR =`SELECT @@datadir`;
+let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 
-# Basic export/import test
+# Export/import on the same instance, with --innodb-file-per-table=1
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT) ENGINE=InnoDB;
+
+INSERT INTO t1(c2) VALUES(1);
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+
+FLUSH TABLES t1 WITH READ LOCK;
+SELECT COUNT(*) FROM t1;
+perl;
+do 'include/innodb-util.inc';
+ib_backup_tablespaces("test", "t1");
+EOF
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT) ENGINE=InnoDB;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;
+eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
+
+#
+# Export/import on the same instance, with --innodb-file-per-table=0
+# This should fail because it is not supported
+SET GLOBAL innodb_file_per_table = 0;
+
 CREATE TABLE t1(
 	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	c2 INT) ENGINE=InnoDB;
@@ -23,54 +67,12 @@ INSERT INTO t1(c2) SELECT c2 FROM t1;
 
 SELECT COUNT(*) FROM t1;
 
+# This should fail, InnoDB should return a warning
 FLUSH TABLES t1 WITH READ LOCK;
-
-let TMPD=$MYSQLTEST_VARDIR/tmp;
-let T1_IBD=$MYSQLD_DATADIR/test/t1.ibd;
-let T1_IBT=$MYSQLD_DATADIR/test/t1.ibt;
-let T1_CFG=$MYSQLD_DATADIR/test/t1.cfg;
-
-# Copy t1.cfg to the tmp directory
-perl;
-my $cfg_file = $ENV{'T1_CFG'};
-my $ibd_file = $ENV{'T1_IBD'};
-my $tmpd = $ENV{'TMPD'};
-system("cp $cfg_file $tmpd/t1.cfg");
-system("cp $ibd_file $tmpd/t1.ibd");
-EOF
 
 UNLOCK TABLES;
 
 DROP TABLE t1;
 
-CREATE TABLE t1(
-	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-	c2 INT) ENGINE=InnoDB;
-
-ALTER TABLE t1 DISCARD TABLESPACE;
-
-# Copy t1.cfg and t1.ibd from the tmp directory database directory
-# Remove the .ibt file that DISCARD created.
-perl;
-my $cfg_file = $ENV{'T1_CFG'};
-my $ibd_file = $ENV{'T1_IBD'};
-my $ibt_file = $ENV{'T1_IBT'};
-my $tmpd = $ENV{'TMPD'};
-system("cp $tmpd/t1.cfg $cfg_file");
-system("cp $tmpd/t1.ibd $ibd_file");
-unlink("$ibt_file");
-EOF
-
-ALTER TABLE t1 IMPORT TABLESPACE;
-
-# Delete the t1.cfg file
-perl;
-my $cfg_file = $ENV{'T1_CFG'};
-unlink($cfg_file);
-EOF
-
-SELECT COUNT(*) FROM t1;
-
-DROP TABLE t1;
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
 
