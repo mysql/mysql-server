@@ -148,9 +148,6 @@ is preallocating large number (often millions) of os_events. With kernel event
 objects it takes a big chunk out of non-paged pool, which is better suited
 for tasks like IO than for storing idle event objects. */
 UNIV_INTERN ibool	srv_use_native_conditions = FALSE;
-
-/* We need this information to do scatter/gather IO. */
-UNIV_INTERN ulint	srv_win_sys_page_size;
 #endif /* __WIN__ */
 
 UNIV_INTERN ulint	srv_n_data_files = 0;
@@ -167,10 +164,6 @@ UNIV_INTERN ulint	srv_last_file_size_max	= 0;
 many pages to it at a time */
 UNIV_INTERN ulong	srv_auto_extend_increment = 8;
 UNIV_INTERN ulint*	srv_data_file_is_raw_partition = NULL;
-
-/** Store full normalized name of the first data file of the system
-tablespace where dblwr buffer resides. */
-UNIV_INTERN char	srv_dblwr_data_file_name[OS_FILE_MAX_PATH];
 
 /* If the following is TRUE we do not allow inserts etc. This protects
 the user from forgetting the 'newraw' keyword to my.cnf */

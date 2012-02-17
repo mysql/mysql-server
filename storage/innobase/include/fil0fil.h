@@ -200,14 +200,6 @@ fil_space_get_type(
 	ulint	id);	/*!< in: space id */
 #endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
-Returns file handle for the first file i.e.: ibdata1.
-@return file handle or OS_INVALID_FILE_HANDLE if error */
-UNIV_INTERN
-os_file_t
-fil_get_sys_space_handle(void)
-	__attribute__((warn_unused_result));
-/*==========================*/
-/*******************************************************************//**
 Appends a new file to the chain of files of a space. File must be closed. */
 UNIV_INTERN
 void

@@ -68,7 +68,6 @@ my_umask */
 /** Umask for creating files */
 UNIV_INTERN ulint	os_innodb_umask
 			= S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
-
 #else
 /** Umask for creating files */
 UNIV_INTERN ulint	os_innodb_umask		= 0;
@@ -77,6 +76,7 @@ UNIV_INTERN ulint	os_innodb_umask		= 0;
 #ifndef UNIV_HOTBACKUP
 /* We use these mutexes to protect lseek + file i/o operation, if the
 OS does not provide an atomic pread or pwrite, or similar */
+#define OS_FILE_N_SEEK_MUTEXES	16
 UNIV_INTERN os_mutex_t	os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
 
 /* In simulated aio, merge at most this many consecutive i/os */
@@ -439,9 +439,6 @@ os_file_get_last_error_low(
 				"InnoDB: because of either a thread exit"
 				" or an application request.\n"
 				"InnoDB: Retry attempt is made.\n");
-		} else if (err == ERROR_INVALID_PARAMETER) {
-			fprintf(stderr,
-				"InnoDB: The error means invalid parameter\n");
 		} else {
 			fprintf(stderr,
 				"InnoDB: Some operating system error numbers"
@@ -667,7 +664,7 @@ os_file_handle_error_cond_exit(
 /****************************************************************//**
 Does error handling when a file operation fails.
 @return	TRUE if we should retry the operation */
-UNIV_INTERN
+static
 ibool
 os_file_handle_error(
 /*=================*/
@@ -754,26 +751,6 @@ os_io_init_simple(void)
 	for (i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
 		os_file_seek_mutexes[i] = os_mutex_create();
 	}
-
-	ut_print_timestamp(stderr);
-#if defined(__WIN__) && defined(HAVE_WIN_SCATTER_GATHER_IO)
-	/* On windows vectored IO happens in system page size units. */
-	ut_a(ut_is_2pow(srv_win_sys_page_size));
-	/* Assuming UNIV_PAGE_SIZE is a multiple of system page size. */
-	ut_a(UNIV_PAGE_SIZE % srv_win_sys_page_size == 0);
-
-	fprintf(stderr, " InnoDB: Using Scatter/Gather IO on Windows\n");
-#elif defined(HAVE_VECTORED_IO)
-	fprintf(stderr, " InnoDB: Using Vectored IO "
-# if defined(HAVE_PREADV)
-	"preadv/pwritev"
-# else /* defined(HAVE_PREADV) */
-	"readv/writev"
-# endif /* defined(HAVE_PREADV) */
-	"\n");
-#else /* defined(__WIN__) */
-	fprintf(stderr, " InnoDB: Using Simulated Vectored IO\n");
-#endif /* defined(__WIN__) */
 }
 
 /***********************************************************************//**
@@ -5360,4 +5337,5 @@ os_aio_all_slots_free(void)
 	return(FALSE);
 }
 #endif /* UNIV_DEBUG */
+
 #endif /* !UNIV_HOTBACKUP */
