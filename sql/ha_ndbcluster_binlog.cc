@@ -1022,8 +1022,12 @@ ndb_schema_table__create(THD *thd)
                              STRING_WITH_LEN("mysql"),
                              STRING_WITH_LEN("ndb_schema"),
                              // table_definition
-                             "db VARBINARY(63) NOT NULL,"
-                             "name VARBINARY(63) NOT NULL,"
+                             "db VARBINARY("
+                             NDB_MAX_DDL_NAME_BYTESIZE_STR
+                             ") NOT NULL,"
+                             "name VARBINARY("
+                             NDB_MAX_DDL_NAME_BYTESIZE_STR
+                             ") NOT NULL,"
                              "slock BINARY(32) NOT NULL,"
                              "query BLOB NOT NULL,"
                              "node_id INT UNSIGNED NOT NULL,"
