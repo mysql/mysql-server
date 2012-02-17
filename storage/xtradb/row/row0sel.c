@@ -3443,7 +3443,7 @@ row_search_idx_cond_check(
 	index, if the case of the column has been updated in
 	the past, or a record has been deleted and a record
 	inserted in a different case. */
-	result = innobase_index_cond(prebuilt->idx_cond);
+	result = handler_index_cond_check(prebuilt->idx_cond);
 	switch (result) {
 	case ICP_MATCH:
 		/* Convert the remaining fields to MySQL format.

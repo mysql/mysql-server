@@ -4555,6 +4555,27 @@ int handler::compare_key2(key_range *range)
 }
 
 
+/**
+  ICP callback - to be called by an engine to check the pushed condition
+*/
+extern "C" enum icp_result handler_index_cond_check(void* h_arg)
+{
+  handler *h= (handler*)h_arg;
+  THD *thd= h->table->in_use;
+  enum icp_result res;
+
+  if (thd_killed(thd))
+    return ICP_ABORTED_BY_USER;
+
+  if (h->end_range && h->compare_key2(h->end_range) > 0)
+    return ICP_OUT_OF_RANGE;
+  h->increment_statistics(&SSV::ha_pushed_index_cond_checks);
+  if ((res= h->pushed_idx_cond->val_int()? ICP_MATCH : ICP_NO_MATCH) ==
+      ICP_NO_MATCH)
+    h->increment_statistics(&SSV::ha_pushed_index_cond_filtered);
+  return res;
+}
+
 int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                 key_part_map keypart_map,
                                 enum ha_rkey_function find_flag)

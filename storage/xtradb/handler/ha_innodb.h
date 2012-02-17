@@ -224,7 +224,6 @@ class ha_innobase: public handler
 					uint table_changes);
 	bool check_if_supported_virtual_columns(void) { return TRUE; }
 
-        THD *thd() { return user_thd; }
 private:
 	/** Builds a 'template' to the prebuilt struct.
 
