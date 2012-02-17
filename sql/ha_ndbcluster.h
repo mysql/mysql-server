@@ -21,6 +21,10 @@
 */
 
 
+/* DDL names have to fit in system table ndb_schema */
+#define NDB_MAX_DDL_NAME_BYTESIZE 63
+#define NDB_MAX_DDL_NAME_BYTESIZE_STR "63"
+
 /* Blob tables and events are internal to NDB and must never be accessed */
 #define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
 
