@@ -437,8 +437,9 @@ struct thr_safe_pool
     return ret;
   }
 
-  T* seize_list(Ndbd_mem_manager *mm, Uint32 rg,
-                Uint32 requested, Uint32 * received) {
+  Uint32 seize_list(Ndbd_mem_manager *mm, Uint32 rg,
+                    Uint32 requested, T** head, T** tail)
+  {
     lock(&m_lock);
     if (m_cnt == 0)
     {
@@ -450,14 +451,12 @@ struct thr_safe_pool
 
       if (ret == 0)
       {
-        * received = 0;
         return 0;
       }
       else
       {
-        ret->m_next = 0;
-        * received = 1;
-        return ret;
+        * head = * tail = ret;
+        return 1;
       }
     }
     else
@@ -475,8 +474,9 @@ struct thr_safe_pool
       m_free_list = last->m_next;
       unlock(&m_lock);
       last->m_next = 0;
-      * received = requested;
-      return first;
+      * head = first;
+      * tail = last;
+      return requested;
     }
   }
 
@@ -519,7 +519,8 @@ public:
     T *tmp = m_freelist;
     if (tmp == 0)
     {
-      tmp = m_global_pool->seize_list(mm, rg, m_alloc_size, &m_free);
+      T * tail;
+      m_free = m_global_pool->seize_list(mm, rg, m_alloc_size, &tmp, &tail);
     }
     if (tmp)
     {
@@ -631,6 +632,30 @@ public:
   void release_chunk(Ndbd_mem_manager *mm, Uint32 rg) {
     if (m_free > m_max_free)
       release_all(mm, rg);
+  }
+
+  /**
+   * prealloc up to <em>cnt</em> pages into this pool
+   */
+  bool fill(Ndbd_mem_manager *mm, Uint32 rg, Uint32 cnt)
+  {
+    if (m_free >= cnt)
+    {
+      return true;
+    }
+
+    T *head, *tail;
+    Uint32 allocated = m_global_pool->seize_list(mm, rg, m_alloc_size,
+                                                 &head, &tail);
+    if (allocated)
+    {
+      tail->m_next = m_freelist;
+      m_freelist = head;
+      m_free += allocated;
+      return m_free >= cnt;
+    }
+
+    return false;
   }
 
   void set_pool(thr_safe_pool<T> * pool) { m_global_pool = pool; }
@@ -813,10 +838,17 @@ struct thr_tq
 #define THR_SEND_BUFFER_ALLOC_SIZE 32
 
 /**
+ * THR_SEND_BUFFER_PRE_ALLOC is the amout of 32k pages that are
+ *   allocated before we start to run signals
+ */
+#define THR_SEND_BUFFER_PRE_ALLOC 32
+
+/**
  * Amount of pages that is allowed to linger in a
  * thread-local send-buffer pool
  */
-#define THR_SEND_BUFFER_MAX_FREE 32
+#define THR_SEND_BUFFER_MAX_FREE \
+  (THR_SEND_BUFFER_ALLOC_SIZE + THR_SEND_BUFFER_PRE_ALLOC - 1)
 
 /*
  * Max number of thread-local job buffers to keep before releasing to
@@ -2692,6 +2724,18 @@ pack_send_buffer(thr_data *selfptr, Uint32 node)
   }
 }
 
+static
+void
+pack_send_buffers(thr_data* selfptr)
+{
+  for (Uint32 i = 1; i < NDB_ARRAY_SIZE(selfptr->m_send_buffers); i++)
+  {
+    if (globalTransporterRegistry.get_transporter(i))
+      pack_send_buffer(selfptr, i);
+  }
+}
+
+
 /**
  * publish thread-locally prepared send-buffer
  */
@@ -3783,6 +3827,20 @@ mt_job_thread_main(void *thr_arg)
   while (globalData.theRestartFlag != perform_stop)
   { 
     loops++;
+
+    /**
+     * prefill our thread local send buffers
+     *   up to THR_MINIMUM_SEND_BUFFERS (1Mb)
+     *
+     * and if this doesnt work pack buffers before start to execute signals
+     */
+    watchDogCounter = 11;
+    if (!selfptr->m_send_buffer_pool.fill(g_thr_repository.m_mm,
+                                          RG_TRANSPORTER_BUFFERS,
+                                          THR_SEND_BUFFER_PRE_ALLOC))
+    {
+      pack_send_buffers(selfptr);
+    }
 
     watchDogCounter = 2;
     scan_time_queues(selfptr, now);
