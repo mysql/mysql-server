@@ -74,14 +74,13 @@ sync_with_master 0;
 --echo ==== Verify results on slave ====
 
 source include/stop_slave.inc;
-let $tmp= query_get_value("SHOW SLAVE STATUS", Slave_IO_State, 1);
-eval SELECT "$tmp" AS Slave_IO_State;
-let $tmp= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-eval SELECT "$tmp" AS Last_SQL_Error;
-let $tmp= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1);
-eval SELECT "$tmp" AS Last_IO_Error;
-SELECT * FROM tinnodb ORDER BY a;
 
+--let $status_items=Slave_IO_State,Last_SQL_Error,Last_IO_Error
+--source include/show_slave_status.inc
+
+--let $assert_text= Assert that the slave table has no rows
+--let $assert_cond= `SELECT COUNT(*) = 0 FROM tinnodb`
+--source include/assert.inc
 
 --echo ==== Clean up ====
 

@@ -22,17 +22,10 @@ a
 include/sync_slave_io_with_master.inc
 ==== Verify results on slave ====
 include/stop_slave.inc
-SELECT "" AS Slave_IO_State;
-Slave_IO_State
-
-SELECT "" AS Last_SQL_Error;
-Last_SQL_Error
-
-SELECT "" AS Last_IO_Error;
-Last_IO_Error
-
-SELECT * FROM tinnodb ORDER BY a;
-a
+Slave_IO_State = ''
+Last_SQL_Error = ''
+Last_IO_Error = ''
+include/assert.inc [Assert that the slave table has no rows]
 ==== Clean up ====
 [on master]
 DROP TABLE tinnodb;
