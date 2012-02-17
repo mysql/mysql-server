@@ -1,3 +1,18 @@
+/* Copyright (C) 2012 Monty Program Ab
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #include <my_global.h>
 #include <violite.h>
 #include <sql_priv.h>
@@ -171,6 +186,9 @@ void threadpool_remove_connection(THD *thd)
   worker_context.restore();
 }
 
+/**
+ Process a single client request or a single batch.
+*/
 int threadpool_process_request(THD *thd)
 {
   int retval= 0;
@@ -190,6 +208,15 @@ int threadpool_process_request(THD *thd)
   }
 
 
+  /*
+    In the loop below, the flow is essentially the copy of thead-per-connections
+    logic, see do_handle_one_connection() in sql_connect.c
+
+    The goal is to execute a single query, thus the loop is normally executed 
+    only once. However for SSL connections, it can be executed multiple times 
+    (SSL can preread and cache incoming data, and vio->has_data() checks if it 
+    was the case).
+  */
   for(;;)
   {
     Vio *vio;

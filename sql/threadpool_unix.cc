@@ -1,3 +1,18 @@
+/* Copyright (C) 2012 Monty Program Ab
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #include <my_global.h>
 #include <violite.h>
 #include <sql_priv.h>
@@ -541,6 +556,29 @@ void check_stall(thread_group_t *thread_group)
 
   /* 
     Check whether requests from the workqueue are being dequeued.
+
+    The stall detection and resolution works as follows:
+
+    1. There is a counter thread_group->queue_event_count for the number of 
+       events removed from the queue. Timer resets the counter to 0 on each run.
+    2. Timer determines stall if this counter remains 0 since last check
+       and the queue is not empty.
+    3. Once timer determined a stall it sets thread_group->stalled flag and
+       wakes and idle worker (or creates a new one, subject to throttling).
+    4. The stalled flag is reset, when an event is dequeued.
+
+    Q : Will this handling lead to an unbound growth of threads, if queue
+    stalls permanently?
+    A : No. If queue stalls permanently, it is an indication for many very long
+    simultaneous queries. The maximum number of simultanoues queries is 
+    max_connections, further we have threadpool_max_threads limit, upon which no
+    worker threads are created. So in case there is a flood of very long 
+    queries, threadpool would slowly approach thread-per-connection behavior.
+    NOTE:
+    If long queries never wait, creation of the new threads is done by timer,
+    so it is slower than in real thread-per-connection. However if long queries 
+    do wait and indicate that via thd_wait_begin/end callbacks, thread creation
+    will be faster.
   */
   if (!thread_group->queue.is_empty() && !thread_group->queue_event_count)
   {
@@ -1250,10 +1288,7 @@ void tp_post_kill_notification(THD *thd)
 void tp_wait_begin(THD *thd, int type)
 {
   DBUG_ENTER("tp_wait_begin");
-  
-  if (!thd)
-    DBUG_VOID_RETURN;
-
+  DBUG_ASSERT(thd);
   connection_t *connection = (connection_t *)thd->event_scheduler.data;
   if (connection)
   {
@@ -1272,8 +1307,7 @@ void tp_wait_begin(THD *thd, int type)
 void tp_wait_end(THD *thd) 
 { 
   DBUG_ENTER("tp_wait_end");
-  if (!thd)
-   DBUG_VOID_RETURN;
+  DBUG_ASSERT(thd);
 
   connection_t *connection = (connection_t *)thd->event_scheduler.data;
   if (connection)
