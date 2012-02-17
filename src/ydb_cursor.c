@@ -196,7 +196,7 @@ static int
 toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
-    STATUS_VALUE(YDB_C_LAYER_NUM_POINT_QUERIES)++;
+    //STATUS_VALUE(YDB_C_LAYER_NUM_POINT_QUERIES)++;
     int r = 0;
     QUERY_CONTEXT_S context; //Describes the context of this query.
     c_query_context_init(&context, c, flag, f, extra);
@@ -249,7 +249,7 @@ static int
 toku_c_getf_last(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
-    STATUS_VALUE(YDB_C_LAYER_NUM_POINT_QUERIES)++;
+    //STATUS_VALUE(YDB_C_LAYER_NUM_POINT_QUERIES)++;
     int r = 0;
     QUERY_CONTEXT_S context; //Describes the context of this query.
     c_query_context_init(&context, c, flag, f, extra); 
@@ -347,7 +347,7 @@ c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
 
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL && !lock_only) {
-        STATUS_VALUE(YDB_C_LAYER_NUM_SEQUENTIAL_QUERIES)++;  // accountability
+        //STATUS_VALUE(YDB_C_LAYER_NUM_SEQUENTIAL_QUERIES)++;  // accountability
         DBT found_val = { .data = (void *) val, .size = vallen };
         context->r_user_callback = context->f(&found_key, &found_val, context->f_extra);
         r = context->r_user_callback;
@@ -407,7 +407,7 @@ c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
 
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL && !lock_only) {
-        STATUS_VALUE(YDB_C_LAYER_NUM_SEQUENTIAL_QUERIES)++;  // accountability
+        //STATUS_VALUE(YDB_C_LAYER_NUM_SEQUENTIAL_QUERIES)++;  // accountability
         DBT found_val = { .data = (void *) val, .size = vallen };
         context->r_user_callback = context->f(&found_key, &found_val, context->f_extra);
         r = context->r_user_callback;
@@ -425,7 +425,7 @@ toku_c_getf_current(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
-    STATUS_VALUE(YDB_C_LAYER_NUM_SEQUENTIAL_QUERIES)++;  // accountability
+    //STATUS_VALUE(YDB_C_LAYER_NUM_SEQUENTIAL_QUERIES)++;  // accountability
     c_query_context_init(&context, c, flag, f, extra); 
     //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT, c_getf_current_callback, &context);
@@ -461,7 +461,7 @@ toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, voi
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
-    STATUS_VALUE(YDB_C_LAYER_NUM_SEQUENTIAL_QUERIES)++;  // accountability
+    //STATUS_VALUE(YDB_C_LAYER_NUM_SEQUENTIAL_QUERIES)++;  // accountability
     c_query_context_init(&context, c, flag, f, extra); 
     //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT_BINDING, c_getf_current_callback, &context);
@@ -479,7 +479,7 @@ toku_c_getf_set(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void 
 
     int r = 0;
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
-    STATUS_VALUE(YDB_C_LAYER_NUM_POINT_QUERIES)++;
+    //STATUS_VALUE(YDB_C_LAYER_NUM_POINT_QUERIES)++;
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     while (r == 0) {
         //toku_brt_cursor_set will call c_getf_set_callback(..., context) (if query is successful)
@@ -534,7 +534,7 @@ toku_c_getf_set_range(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f,
 
     int r = 0;
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
-    STATUS_VALUE(YDB_C_LAYER_NUM_POINT_QUERIES)++;
+    //STATUS_VALUE(YDB_C_LAYER_NUM_POINT_QUERIES)++;
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     while (r == 0) {
         //toku_brt_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
@@ -592,7 +592,7 @@ toku_c_getf_set_range_reverse(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUN
 
     int r = 0;
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
-    STATUS_VALUE(YDB_C_LAYER_NUM_POINT_QUERIES)++;
+    //STATUS_VALUE(YDB_C_LAYER_NUM_POINT_QUERIES)++;
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     while (r == 0) {
         //toku_brt_cursor_set_range_reverse will call c_getf_set_range_reverse_callback(..., context) (if query is successful)

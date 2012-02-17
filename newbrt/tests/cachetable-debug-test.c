@@ -49,8 +49,6 @@ cachetable_debug_test (int n) {
     }
     toku_cachetable_verify(ct);
 
-    if (verbose) toku_cachetable_print_hash_histogram();
-
     r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }

@@ -470,9 +470,7 @@ void toku_cachetable_maybe_flush_some(CACHETABLE ct);
 u_int64_t toku_cachefile_size_in_memory(CACHEFILE cf);
 
 typedef enum {
-    CT_LOCK_TAKEN = 0,
-    CT_LOCK_RELEASED,
-    CT_HIT,
+    CT_HIT = 0,
     CT_MISS,
     CT_MISSTIME,               // how many usec spent waiting for disk read because of cache miss
     CT_WAITTIME,               // how many usec spent waiting for another thread to release cache line
