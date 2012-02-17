@@ -17,7 +17,7 @@
 #endif
 
 static const char *pname;
-static enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY, RUN_RANGE, RUN_FLATTEN} run_mode = RUN_HWC;
+static enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY, RUN_RANGE} run_mode = RUN_HWC;
 static int do_txns=1, prelock=0, prelockflag=0;
 static int cleaner_period=0, cleaner_iterations=0;
 static u_int32_t lock_flag = 0;
@@ -36,7 +36,6 @@ static const char *log_dir = NULL;
 static int print_usage (const char *argv0) {
     fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag] [--env DIR] [--verbose]\n", argv0);
     fprintf(stderr, "  --verify-lwc             means to run the light weight cursor and the heavyweight cursor to verify that they get the same answer.\n");
-    fprintf(stderr, "  --flatten                Flatten only using special flatten function\n");
     fprintf(stderr, "  --lwc                    run light weight cursors instead of heavy weight cursors\n");
     fprintf(stderr, "  --prelock                acquire a read lock on the entire table before running\n");
     fprintf(stderr, "  --prelockflag            pass DB_PRELOCKED to the the cursor get operation whenever the locks have been acquired\n");
@@ -87,9 +86,6 @@ static void parse_args (int argc, char *const argv[]) {
         } else if (strcmp(*argv,"--verify-lwc")==0) {
 	    if (specified_run_mode && run_mode!=RUN_VERIFY) { two_modes: fprintf(stderr, "You specified two run modes\n"); exit(1); }
 	    run_mode = RUN_VERIFY;
-	} else if (strcmp(*argv, "--flatten")==0)  {
-	    if (specified_run_mode && run_mode!=RUN_FLATTEN) goto two_modes;
-	    run_mode = RUN_FLATTEN;
 	} else if (strcmp(*argv, "--lwc")==0)  {
 	    if (specified_run_mode && run_mode!=RUN_LWC) goto two_modes;
 	    run_mode = RUN_LWC;
@@ -330,17 +326,6 @@ static void scanscan_lwc (void) {
     }
 }
 
-static void scanscan_flatten (void) {
-    int r;
-    for (int counter=0; counter<n_experiments; counter++) {
-	double prevtime = gettime();
-        r = db->flatten(db, tid);
-	assert(r==0);
-	double thistime = gettime();
-	double tdiff = thistime-prevtime;
-	printf("Flatten Scan in %9.6fs\n", tdiff);
-    }
-}
 #endif
 
 static void scanscan_range (void) {
@@ -475,7 +460,6 @@ static int test_main (int argc, char *const argv[]) {
     case RUN_HWC:    scanscan_hwc();    break;
 #ifdef TOKUDB
     case RUN_LWC:    scanscan_lwc();    break;
-    case RUN_FLATTEN:    scanscan_flatten();    break;
     case RUN_VERIFY: scanscan_verify(); break;
 #endif
     case RUN_RANGE:  scanscan_range();  break;
