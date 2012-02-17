@@ -79,8 +79,9 @@ handler_create_thd(void)
 	}
 
 	my_net_init(&thd->net,(st_vio*) 0);
-	thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-	thd->thread_stack = (char*) &thd;
+	thd->variables.pseudo_thread_id = thread_id++;
+	thd->thread_id = thd->variables.pseudo_thread_id;
+	thd->thread_stack = reinterpret_cast<char*>(&thd);
 	thd->store_globals();
 
 	thd->binlog_setup_trx_data();
@@ -103,7 +104,7 @@ handler_open_table(
 	int		lock_type)	/*!< in: lock mode */
 {
 	TABLE_LIST              tables;
-	THD*			thd = (THD*) my_thd;
+	THD*			thd = static_cast<THD*>(my_thd);
 	Open_table_context	table_ctx(thd, 0);
 	thr_lock_type		lock_mode;
 
@@ -136,11 +137,12 @@ handler_binlog_row(
 	void*		my_table,	/*!< in: TABLE structure */
 	int		mode)		/*!< in: type of DML */
 {
-	TABLE*		table = (TABLE*) my_table;
+	TABLE*		table = static_cast<TABLE*>(my_table);
 	Log_func*	log_func;
 
 	switch (mode) {
 	case HDL_UPDATE:
+		/* Updated record must be allocated and filled */
 		assert(table->record[1]);
 		log_func = Update_rows_log_event::binlog_row_logging_function;
 		binlog_log_row(table, table->record[1], table->record[0],
@@ -167,7 +169,7 @@ handler_binlog_flush(
 	void*		my_thd,		/*!< in: THD* */
 	void*		my_table)	/*!< in: TABLE structure */
 {
-	THD*		thd = (THD*) my_thd;
+	THD*		thd = static_cast<THD*>(my_thd);
 	int		ret;
 
 	thd->binlog_write_table_map(static_cast<TABLE*>(my_table), 1, 0);
@@ -176,7 +178,7 @@ handler_binlog_flush(
 	if (ret) {
 		tc_log->unlog(ret, 0);
 	}
-	ret = trans_commit_stmt(thd);
+	trans_commit_stmt(thd);
 }
 
 /**********************************************************************//**
@@ -193,11 +195,10 @@ handler_binlog_truncate(
 
 	memset(query_str, 0, sizeof(query_str));
 
-	strcpy(query_str,"truncate table ");
-
 	assert(strlen(table_name) < MAX_FULL_NAME_LEN);
 
-	strcat(query_str, table_name);
+	snprintf(query_str, MAX_FULL_NAME_LEN + 16, "%s %s",
+		 "truncate table", table_name);
 
 	len = strlen(query_str);
 
@@ -211,7 +212,7 @@ handler_rec_init(
 /*=============*/
 	void*		my_table)	/*!< in/out: TABLE structure */
 {
-	empty_record((TABLE*) my_table);
+	empty_record(static_cast<TABLE*>(my_table));
 }
 
 /**********************************************************************//**
@@ -225,9 +226,11 @@ handler_rec_setup_str(
 	int		len)		/*!< in: length of string */
 {
 	Field*		fld;
-	TABLE*		table = (TABLE*) my_table;
+	TABLE*		table = static_cast<TABLE*>(my_table);
 
 	fld = table->field[field_id];
+
+	assert(len >= 0);
 
 	if (len) {
 		fld->store(str, len, &my_charset_bin);
@@ -236,6 +239,7 @@ handler_rec_setup_str(
 		fld->set_null();
 	}
 }
+
 /**********************************************************************//**
 Set up an integer field in TABLE->record[0] */
 void
@@ -248,7 +252,7 @@ handler_rec_setup_int(
 	bool		is_null)	/*!< in: whether it is null value */
 {
 	Field*		fld;
-	TABLE*		table = (TABLE*) my_table;
+	TABLE*		table = static_cast<TABLE*>(my_table);
 
 	fld = table->field[field_id];
 
@@ -259,23 +263,25 @@ handler_rec_setup_int(
 		fld->store(value, unsigned_flag);
 	}
 }
+
 /**********************************************************************//**
-Copy an record */
+Store a record */
 void
 handler_store_record(
 /*=================*/
 	void*		my_table)	/*!< in: TABLE */
 {
-	store_record((TABLE*) my_table, record[1]);
+	store_record(static_cast<TABLE*>(my_table), record[1]);
 }
+
 /**********************************************************************//**
-Close an handler */
+Close the handler */
 void
 handler_close_thd(
 /*==============*/
-	void*		my_thd)		/*!< in: thread */
+	void*		my_thd)		/*!< in: THD */
 {
-	delete ((THD*) my_thd);
+	delete (static_cast<THD*>(my_thd));
 
 	/* Don't have a THD anymore */
 	my_pthread_setspecific_ptr(THR_THD,  0);
@@ -283,7 +289,7 @@ handler_close_thd(
 
 /**********************************************************************//**
 Unlock a table and commit the transaction
-return 0 if fail to commit the transaction */
+return 0 if failed to commit the transaction */
 int
 handler_unlock_table(
 /*=================*/
@@ -292,13 +298,11 @@ handler_unlock_table(
 	int		mode)		/*!< in: mode */
 {
 	int			result;
-	THD*			thd = (THD*) my_thd;
-	TABLE*			table = (TABLE*) my_table;
+	THD*			thd = static_cast<THD*>(my_thd);
+	TABLE*			table = static_cast<TABLE*>(my_table);
 	thr_lock_type		lock_mode;
 
-	lock_mode = (mode & HDL_READ)
-			? TL_READ
-			: TL_WRITE;
+	lock_mode = (mode & HDL_READ) ? TL_READ : TL_WRITE;
 
 	if (lock_mode == TL_WRITE) {
 		query_cache_invalidate3(thd, table, 1);
@@ -329,14 +333,12 @@ Search table for a record with particular search criteria
 uchar*
 handler_select_rec(
 /*===============*/
-	THD*		my_thd,		/*!< in: thread */
 	TABLE*		my_table,	/*!< in: TABLE structure */
 	field_arg_t*	srch_args,	/*!< in: field to search */
 	int		idx_to_use)	/*!< in: index to use */
 {
 	KEY*		key_info = &my_table->key_info[0];
-	uchar*		srch_buf = static_cast<uchar*>(malloc(
-					key_info->key_length));
+	uchar*		srch_buf = new uchar[key_info->key_length];
 	size_t		total_key_len = 0;
 	key_part_map	part_map;
 	int		result;
@@ -350,12 +352,14 @@ handler_select_rec(
 		key_part = &key_info->key_part[i];
 
 		if (i < srch_args->num_arg) {
-			char*	srch_value = srch_args->value[i];
 			int	srch_len = srch_args->len[i];
 
-			if (!srch_len) {
+			assert(srch_len >= 0);
+
+			if (srch_len != 0) {
 				key_part->field->set_null();
 			} else {
+				char*	srch_value = srch_args->value[i];
 				key_part->field->set_notnull();
 				key_part->field->store(srch_value,
 						       srch_len,
@@ -367,8 +371,14 @@ handler_select_rec(
 		}
 	}
 
+	assert(key_info->key_length >= total_key_len);
+
 	key_copy(srch_buf, my_table->record[0], key_info, total_key_len);
 	my_table->read_set = &my_table->s->all_set;
+
+	/* Max column supported is 4096 */
+	assert(srch_args->num_arg <= 4096);
+
 	part_map = (1 << srch_args->num_arg) - 1;
 
 	handle->ha_index_or_rnd_end();
@@ -377,7 +387,7 @@ handler_select_rec(
 	result = handle->index_read_map(my_table->record[0], srch_buf,
 					part_map, HA_READ_KEY_EXACT);
 
-	free(srch_buf);
+	delete[] srch_buf;
 
 	if (!result) {
 		return(my_table->record[0]);
@@ -392,40 +402,37 @@ return 0 if successfully inserted */
 int
 handler_insert_rec(
 /*===============*/
-	THD*		my_thd,		/*!< in: thread */
 	TABLE*		my_table,	/*!< in: TABLE structure */
 	field_arg_t*	store_args)	/*!< in: inserting row data */
 {
 	uchar*		insert_buf;
 	KEY*		key_info = &(table->key_info[0]);
-	int		result;
 	handler*	handle = my_table->file;
 
 	empty_record(my_table);
 
-	assert(table->reginfo.lock_type > TL_READ);
+	assert(table->reginfo.lock_type > TL_READ
+	       && table->reginfo.lock_type <= TL_WRITE_ONLY);
 
 	insert_buf = my_table->record[0];
 	memset(insert_buf, 0, my_table->s->null_bytes);
 
 	assert(store_args->num_arg == key_info->key_parts);
 
-	for (unsigned int ix = 0; ix < key_info->key_parts; ix++) {
+	for (unsigned int i = 0; i < key_info->key_parts; i++) {
 		Field*		fld;
 
-		fld = table->field[ix];
-		if (store_args->len[ix]) {
-			fld->store(store_args->value[ix],
-				   store_args->len[ix], &my_charset_bin);
+		fld = table->field[i];
+		if (store_args->len[i]) {
+			fld->store(store_args->value[i],
+				   store_args->len[i], &my_charset_bin);
 			fld->set_notnull();
 		} else {
 			fld->set_null();
 		}
 	}
 
-	result = handle->ha_write_row((uchar *)my_table->record[0]);
-
-	return(result);
+	return(handle->ha_write_row((uchar *)my_table->record[0]));
 }
 
 /**********************************************************************//**
@@ -434,7 +441,6 @@ return 0 if successfully inserted */
 int
 handler_update_rec(
 /*===============*/
-	THD*		my_thd,		/*!< in: thread */
 	TABLE*		my_table,	/*!< in: TABLE structure */
 	field_arg_t*	store_args)	/*!< in: update row data */
 {
@@ -444,12 +450,12 @@ handler_update_rec(
 
         store_record(my_table, record[1]);
 
-	for (unsigned int ix = 0; ix < key_info->key_parts; ix++) {
+	for (unsigned int i = 0; i < key_info->key_parts; i++) {
 		Field*		fld;
 
-		fld = my_table->field[ix];
-		fld->store(store_args->value[ix],
-			   store_args->len[ix], &my_charset_bin);
+		fld = my_table->field[i];
+		fld->store(store_args->value[i],
+			   store_args->len[i], &my_charset_bin);
 		fld->set_notnull();
 	}
 
@@ -462,7 +468,6 @@ return 0 if successfully inserted */
 int
 handler_delete_rec(
 /*===============*/
-	THD*		my_thd,		/*!< in: thread */
 	TABLE*		my_table)	/*!< in: TABLE structure */
 {
 	return(my_table->file->ha_delete_row(my_table->record[0]));

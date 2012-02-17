@@ -45,13 +45,13 @@ Created 03/15/2011      Jimmy Yang
 are available. They are the "key", "value", "cas", "exp" and "flag" */
 #define	MCI_COL_TO_GET		5
 
-enum mci_col {
+typedef enum mci_col {
 	MCI_COL_KEY,		/*!< key */
 	MCI_COL_VALUE,		/*!< value */
 	MCI_COL_FLAG,		/*!< flag */
 	MCI_COL_CAS,		/*!< check and set value */
 	MCI_COL_EXP		/*!< expiration */
-};
+} mci_col_t;
 
 /** mci_column is the structure that stores and describes a column info
 in InnoDB Memcached. The supported column types are either character
@@ -70,20 +70,20 @@ typedef struct mci_column {
 } mci_column_t;
 
 /** "mci_item_t" represents values we read from a table row, and enough
-to assemble to an memcached response. As described in above mci_item_idx,
+to assemble to an memcached response. As described in above mci_col,
 we must have "MCI_COL_TO_GET" (5) column values to read. In addition,
 the user table could have multiple "value" columns, and it is possible
 to map such multiple "value" columns to a single memcached key,
 such value is separated by "separator" as defined in the "config_option"
 table. And we will assemble and disassemble the memcached value from these
-column values.  And "m_add_value" and "m_add_num" is used to support multiple
-value columns */
-typedef struct mci_items {
+column values. And "extra_col_value" and "n_extra_col" is used to support
+multiple value columns */
+typedef struct mci_item {
 	mci_column_t	col_value[MCI_COL_TO_GET]; /*!< columns in a row */
-	mci_column_t*	add_col_value;		/*!< whether there will be
+	mci_column_t*	extra_col_value;		/*!< whether there will be
 						additional/multiple "values"
 						to be stored */
-	int		n_add_col;		/*!< number of additional
+	int		n_extra_col;		/*!< number of additional
 						"value" columns */
 } mci_item_t;
 
@@ -92,7 +92,7 @@ Register InnoDB Callback functions */
 void
 register_innodb_cb(
 /*===============*/
-	char*	p);		/*!<in: Pointer to callback function arrary */
+	void*	p);		/*!<in: Pointer to callback function arrary */
 
 /*********************************************************************
 Open a table and return a cursor for the table. */
@@ -215,7 +215,7 @@ typedef enum conn_op_type {
 	CONN_OP_WRITE,		/*!< write operation */
 	CONN_OP_DELETE,		/*!< delete operation */
 	CONN_OP_FLUSH		/*!< flush operation */
-} op_type_t;
+} conn_op_type_t;
 
 /*************************************************************//**
 Increment read and write counters, if they exceed the batch size,
@@ -227,7 +227,7 @@ innodb_api_cursor_reset(
 						engine */
 	innodb_conn_data_t*	conn_data,	/*!< in/out: cursor affiliated
 						with a connection */
-	op_type_t               op_type);	/*!< in: type of DML
+	conn_op_type_t		op_type);	/*!< in: type of DML
 						performed */
 
 /*************************************************************//**

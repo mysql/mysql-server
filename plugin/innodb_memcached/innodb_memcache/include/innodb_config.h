@@ -50,7 +50,7 @@ There are 3 "system tables":
         (MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 14)
 
 /** structure describes each column's basic info (name, field_id etc.) */
-typedef struct meta_columns {
+typedef struct meta_column {
 	char*		col_name;		/*!< column name */
 	int		col_name_len;		/*!< column name length */
 	int		field_id;		/*!< column field id in
@@ -63,7 +63,7 @@ system tables */
 
 /** Columns in the "containers" system table, this maps the Memcached
 operation to a consistent InnoDB table */
-enum container {
+typedef enum container {
 	CONTAINER_NAME,		/*!< name for this mapping */
 	CONTAINER_DB,		/*!< database name */
 	CONTAINER_TABLE,	/*!< table name */
@@ -78,10 +78,10 @@ enum container {
 	CONTAINER_EXP,		/*!< column name for column maps to
 				"expiration" value */
 	CONTAINER_NUM_COLS	/*!< number of columns */
-};
+} container_t;
 
 /** columns in the "cache_policy" table */
-enum cache_policy {
+typedef enum cache_policy {
 	CACHE_POLICY_NAME,	/*!< "name" column, for the "cache_policy"
 				name */
 	CACHE_POLICY_GET,	/*!< "get" column, specifies the cache policy
@@ -93,14 +93,14 @@ enum cache_policy {
 	CACHE_POLICY_FLUSH,	/*!< "flush_all" column, specifies the
 				cache policy for "flush_all" command */
 	CACHE_POLICY_NUM_COLS	/*!< total 5 columns */
-};
+} cache_policy_t;
 
 /** columns in the "config_options" table */
-enum config_opt {
+typedef enum config_opt {
 	CONFIG_OPT_KEY,		/*!< key column in the "config_option" table */
 	CONFIG_OPT_VALUE,	/*!< value column */
 	CONFIG_OPT_NUM_COLS	/*!< number of columns (currently 2) in table */
-};
+} config_opt_t;
 
 /** Following are some value defines describes the options that configures
 the InnoDB Memcached */
@@ -110,11 +110,11 @@ indicating whether we will use cluster or secondary index on the
 "key" column to perform the search. Please note the index must
 be unique index */
 typedef enum meta_use_idx {
-	META_NO_INDEX = 1,	/*!< no cluster or unique secondary index
+	META_USE_NO_INDEX = 1,	/*!< no cluster or unique secondary index
 				on the key column. This is an error, will
 				cause setup to fail */
-	META_CLUSTER,		/*!< have cluster index on the key column */
-	META_SECONDARY		/*!< have unique secondary index on the
+	META_USE_CLUSTER,	/*!< have cluster index on the key column */
+	META_USE_SECONDARY	/*!< have unique secondary index on the
 				key column */
 } meta_use_idx_t;
 
@@ -140,9 +140,9 @@ typedef enum meta_cache_opt {
 to configure an InnoDB Memcached engine */
 typedef struct meta_cfg_info {
 	meta_column_t	col_info[CONTAINER_NUM_COLS]; /*!< column info */
-	meta_column_t*	add_col_info;		/*!< additional columns
+	meta_column_t*	extra_col_info;		/*!< additional columns
 						specified for the value field */
-	int		n_add_col;		/*!< number of additional
+	int		n_extra_col;		/*!< number of additional
 						value columns */
 	meta_index_t	index_info;		/*!< Index info */
 	bool		flag_enabled;		/*!< whether flag is enabled */

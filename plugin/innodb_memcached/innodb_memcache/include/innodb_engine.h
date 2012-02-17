@@ -55,7 +55,8 @@ struct innodb_conn_data_struct {
 	ib_trx_t	crsr_trx;	/*!< transaction for write cursor */
 	ib_crsr_t       crsr;		/*!< data cursor */
 	ib_crsr_t       idx_crsr;	/*!< index cursor */
-	bool            in_use;		/*!< whether they are in use */
+	bool            in_use;		/*!< whether the connection
+					is processing a request */
 	void*		conn_cookie;	/*!< connection cookie */
 	uint64_t	n_total_reads;	/*!< number of reads */
 	uint64_t	n_reads_since_commit;
@@ -72,7 +73,7 @@ struct innodb_conn_data_struct {
 			conn_list;	/*!< list ptr */
 };
 
-typedef UT_LIST_BASE_NODE_T(innodb_conn_data_t)		conn_base_t;
+typedef UT_LIST_BASE_NODE_T(innodb_conn_data_t)		conn_list_t;
 
 /** The InnoDB engine global data. Some layout are common to NDB memcached
 engine and InnoDB memcached engine */
@@ -80,7 +81,7 @@ typedef struct innodb_engine {
 	/* members all common to Memcached Engines */
 	ENGINE_HANDLE_V1	engine;		/*!< this InnoDB Memcached
 						engine */
-	SERVER_HANDLE_V1	server;		/*!< Memcached server */ 
+	SERVER_HANDLE_V1	server;		/*!< Memcached server */
 	GET_SERVER_API		get_server_api;	/*!< call back to get Memcached
 						server common functions */
 	ENGINE_HANDLE*		default_engine;	/*!< default memcached engine */
@@ -109,10 +110,12 @@ typedef struct innodb_engine {
 						for InnoDB Memcached */
 	meta_cfg_info_t		meta_info;	/*!< metadata info from
 						configuration */
-	conn_base_t		conn_data;	/*!< list of data specific for
+	conn_list_t		conn_data;	/*!< list of data specific for
 						connections */
 	pthread_mutex_t		conn_mutex;	/*!< mutex synchronizes
 						connection specific data */
+	pthread_mutex_t		cas_mutex;	/*!< mutex synchronizes
+						CAS */
 	ib_cb_t*		innodb_cb;	/*!< pointer to callback
 						functions */
 	uint64_t		read_batch_size;/*!< configured read batch

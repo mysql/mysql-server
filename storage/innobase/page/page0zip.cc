@@ -83,14 +83,6 @@ static const byte supremum_extra_data[] = {
 	0x65, 0x6d, 0x75, 0x6d	/* "supremum" */
 };
 
-extern
-ib_uint32_t
-(*ut_crc32)(
-/*========*/
-	const byte*     buf,    /*!< in: data over which to calculate CRC32 */
-	ulint           len);   /*!< in: data length */
-
-
 /** Assert that a block of memory is filled with zero bytes.
 Compare at most sizeof(field_ref_zero) bytes.
 @param b	in: memory block
