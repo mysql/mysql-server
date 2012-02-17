@@ -3428,6 +3428,7 @@ row_drop_table_for_mysql(
 	dict_table_t*	table;
 	ulint		space_id;
 	ulint		err;
+	ibool		print_msg;
 	const char*	table_name;
 	ulint		namelen;
 	ibool		locked_dictionary	= FALSE;
@@ -3842,9 +3843,14 @@ check_next_foreign:
 		/* Do not drop possible .ibd tablespace if something went
 		wrong: we do not want to delete valuable data of the user */
 
+		/* Don't spam the log if we can't find the tablespace of
+		a temp table or if the tablesace has been discarded. */
+
+		print_msg = !(is_temp || table->ibd_file_missing);
+
 		if (err == DB_SUCCESS && space_id > 0) {
 			if (!fil_space_for_table_exists_in_mem(
-					space_id, name, FALSE, !is_temp)) {
+					space_id, name, FALSE, print_msg)) {
 				err = DB_SUCCESS;
 
 				fprintf(stderr,
