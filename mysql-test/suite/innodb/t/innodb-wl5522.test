@@ -48,8 +48,51 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT COUNT(*) FROM t1;
 
 DROP TABLE t1;
-eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
 
+# Export/import on the same instance, with --innodb-file-per-table=1
+# Insert some more records to move the LSN forward and then drop the
+# table and restore
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT) ENGINE=InnoDB;
+
+INSERT INTO t1(c2) VALUES(1);
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+
+FLUSH TABLES t1 WITH READ LOCK;
+SELECT COUNT(*) FROM t1;
+perl;
+do 'include/innodb-util.inc';
+ib_backup_tablespaces("test", "t1");
+EOF
+UNLOCK TABLES;
+
+# Move the LSN forward
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT) ENGINE=InnoDB;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;
 #
 # Export/import on the same instance, with --innodb-file-per-table=0
 # This should fail because it is not supported
