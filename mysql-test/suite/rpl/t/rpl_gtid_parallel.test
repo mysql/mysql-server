@@ -31,7 +31,7 @@
 --echo ==== Configure ====
 
 --let $max_transactions= 1000
---let $max_seconds= 300
+--let $max_seconds= 150
 --let $n_forks= 30
 --let $flush_probability= 0.05
 --let $rename_probability= 0.1
