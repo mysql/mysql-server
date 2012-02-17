@@ -23,6 +23,15 @@ Insert into a table
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
+#ifdef __WIN__
+/* error LNK2001: unresolved external symbol _debug_sync_C_callback_ptr */
+# define DEBUG_SYNC_C(dummy) ((void) 0)
+#else
+# include "my_global.h" /* HAVE_* */
+# include "m_string.h" /* for my_sys.h */
+# include "my_sys.h" /* DEBUG_SYNC_C */
+#endif
+
 #include "row0ins.h"
 
 #ifdef UNIV_NONINL
@@ -2122,8 +2131,14 @@ function_exit:
 	if (UNIV_LIKELY_NULL(big_rec)) {
 		rec_t*	rec;
 		ulint*	offsets;
+
+		DBUG_EXECUTE_IF(
+			"row_ins_extern_checkpoint",
+			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE););
+
 		mtr_start(&mtr);
 
+		DEBUG_SYNC_C("before_row_ins_extern_latch");
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 					    BTR_MODIFY_TREE, &cursor, 0,
 					    __FILE__, __LINE__, &mtr);
@@ -2131,9 +2146,11 @@ function_exit:
 		offsets = rec_get_offsets(rec, index, NULL,
 					  ULINT_UNDEFINED, &heap);
 
+		DEBUG_SYNC_C("before_row_ins_upd_extern");
 		err = btr_store_big_rec_extern_fields(
 			index, btr_cur_get_block(&cursor),
 			rec, offsets, &mtr, FALSE, big_rec);
+		DEBUG_SYNC_C("after_row_ins_upd_extern");
 
 		if (modify) {
 			dtuple_big_rec_free(big_rec);
