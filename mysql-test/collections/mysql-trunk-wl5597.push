@@ -13,4 +13,4 @@ perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_4k_size 
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row --vardir=var-binlog_rpl_row --mysqld=--binlog-format=row --suite=binlog,rpl
 
 # regression testing for the new feature
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row --vardir=var-binlog_rpl_row --mysqld=--binlog-format=row --suite=binlog,rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row_hash_scan --vardir=var-binlog_rpl_row_hash_scan --mysqld=--binlog-format=row --suite=binlog,rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN
