@@ -9161,19 +9161,23 @@ ha_innobase::discard_or_import_tablespace(
 				"InnoDB: Tablespace for table %s exists. "
 				"Please DISCARD the tablespace before IMPORT.",
 				dict_table->name);
-			goto func_exit;
+		} else {
+			error = row_import_for_mysql(dict_table, prebuilt);
+
+			if (error == DB_SUCCESS) {
+
+				if (table->found_next_number_field) {
+					dict_table_autoinc_lock(dict_table);
+					innobase_initialize_autoinc();
+					dict_table_autoinc_unlock(dict_table);
+				}
+
+				info(HA_STATUS_TIME
+				     | HA_STATUS_CONST
+				     | HA_STATUS_VARIABLE
+				     | HA_STATUS_AUTO);
+			}
 		}
-
-		error = row_import_for_mysql(dict_table, prebuilt);
-
-		if (error == DB_SUCCESS && table->found_next_number_field) {
-			dict_table_autoinc_lock(dict_table);
-			innobase_initialize_autoinc();
-			dict_table_autoinc_unlock(dict_table);
-		}
-
-		info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE
-		     | HA_STATUS_AUTO);
 	}
 
 	err = convert_error_code_to_mysql(error, dict_table->flags, NULL);
