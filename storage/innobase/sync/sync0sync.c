@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -690,7 +690,7 @@ mutex_set_debug_info(
 	ut_ad(mutex);
 	ut_ad(file_name);
 
-	sync_thread_add_level(mutex, mutex->level);
+	sync_thread_add_level(mutex, mutex->level, FALSE);
 
 	mutex->file_name = file_name;
 	mutex->line	 = line;
@@ -1133,8 +1133,9 @@ void
 sync_thread_add_level(
 /*==================*/
 	void*	latch,	/*!< in: pointer to a mutex or an rw-lock */
-	ulint	level)	/*!< in: level in the latching order; if
+	ulint	level,	/*!< in: level in the latching order; if
 			SYNC_LEVEL_VARYING, nothing is done */
+	ibool	relock)	/*!< in: TRUE if re-entering an x-lock */
 {
 	ulint		i;
 	sync_level_t*	slot;
@@ -1184,6 +1185,10 @@ sync_thread_add_level(
 	}
 
 	array = thread_slot->levels;
+
+	if (relock) {
+		goto levels_ok;
+	}
 
 	/* NOTE that there is a problem with _NODE and _LEAF levels: if the
 	B-tree height changes, then a leaf can change to an internal node
@@ -1360,6 +1365,7 @@ sync_thread_add_level(
 		ut_error;
 	}
 
+levels_ok:
 	if (array->next_free == ULINT_UNDEFINED) {
 		ut_a(array->n_elems < array->max_elems);
 
