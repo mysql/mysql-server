@@ -526,7 +526,7 @@ row_import_adjust_root_pages(
 		err = btr_root_adjust_on_import(index);
 
 		if (err == DB_SUCCESS
-		    && btr_validate_index(index, trx, true)) {
+		    && !btr_validate_index(index, trx, true)) {
 
 			err = DB_CORRUPTION;
 		}
