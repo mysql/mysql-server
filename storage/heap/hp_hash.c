@@ -652,6 +652,10 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
         char_length2= my_charpos(cs, pos, pos + char_length_rec, char_length2);
         set_if_smaller(char_length_rec, char_length2);
       }
+      else
+      {
+        set_if_smaller(char_length_rec, seg->length);
+      }
 
       if (cs->coll->strnncollsp(seg->charset,
                                 (uchar*) pos, char_length_rec,

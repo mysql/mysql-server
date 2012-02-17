@@ -737,12 +737,12 @@ void ha_archive::frm_load(const char *name, azio_stream *dst)
   {
     if (!mysql_file_fstat(frm_file, &file_stat, MYF(MY_WME)))
     {
-      frm_ptr= (uchar *) my_malloc(sizeof(uchar) * file_stat.st_size, MYF(0));
+      frm_ptr= (uchar *) my_malloc(sizeof(uchar) * (size_t) file_stat.st_size, MYF(0));
       if (frm_ptr)
       {
-        if (my_read(frm_file, frm_ptr, file_stat.st_size, MYF(0)) ==
+        if (my_read(frm_file, frm_ptr, (size_t) file_stat.st_size, MYF(0)) ==
             (size_t) file_stat.st_size)
-          azwrite_frm(dst, (char *) frm_ptr, file_stat.st_size);
+          azwrite_frm(dst, (char *) frm_ptr, (size_t) file_stat.st_size);
         my_free(frm_ptr);
       }
     }
@@ -831,7 +831,10 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   /* 
     We reuse name_buff since it is available.
   */
-  if (create_info->data_file_name && create_info->data_file_name[0] != '#')
+#ifdef HAVE_READLINK
+  if (my_use_symdir &&
+      create_info->data_file_name &&
+      create_info->data_file_name[0] != '#')
   {
     DBUG_PRINT("ha_archive", ("archive will create stream file %s", 
                         create_info->data_file_name));
@@ -842,10 +845,27 @@ int ha_archive::create(const char *name, TABLE *table_arg,
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
   }
   else
+#endif /* HAVE_READLINK */
   {
+    if (create_info->data_file_name)
+    {
+      push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED,
+                          ER_DEFAULT(WARN_OPTION_IGNORED),
+                          "DATA DIRECTORY");
+    }
     fn_format(name_buff, name, "", ARZ,
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
     linkname[0]= 0;
+  }
+
+  /* Archive engine never uses INDEX DIRECTORY. */
+  if (create_info->index_file_name)
+  {
+    push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+                        WARN_OPTION_IGNORED,
+                        ER_DEFAULT(WARN_OPTION_IGNORED),
+                        "INDEX DIRECTORY");
   }
 
   /*

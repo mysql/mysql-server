@@ -59,7 +59,8 @@ SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5	{
                 "table": "t5",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ]
           },
@@ -196,18 +197,18 @@ SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5	{
 select (1-length(replace(TRACE, " ", ""))/length(TRACE))*100
 from information_schema.OPTIMIZER_TRACE;
 (1-length(replace(TRACE, " ", ""))/length(TRACE))*100
-61.7854
+61.7381
 set optimizer_trace="one_line=on";
 SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5 ;
 RESULT
 NULL
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5	{"steps": [{"join_preparation": {"select#": 1,"steps": [{"join_preparation": {"select#": 2,"steps": [{"expanded_query": "/* select#2 */ select 1 from `test`.`t6` where (`test`.`t6`.`d` = `test`.`t5`.`c`)"}]}},{"expanded_query": "/* select#1 */ select (/* select#2 */ select 1 from `test`.`t6` where (`test`.`t6`.`d` = `test`.`t5`.`c`)) AS `RESULT` from `test`.`t5`"}]}},{"join_optimization": {"select#": 1,"steps": [{"table_dependencies": [{"database": "test","table": "t5","row_may_be_null": false,"map_bit": 0,"depends_on_map_bits": []}]},{"rows_estimation": [{"database": "test","table": "t5","rows": 1,"cost": 1,"table_type": "system"}]},{"attaching_conditions_to_tables": {"original_condition": null,"attached_conditions_computation": [],"attached_conditions_summary": []}},{"refine_plan": []}]}},{"join_execution": {"select#": 1,"steps": [{"subselect_execution": {"select#": 2,"steps": [{"join_optimization": {"select#": 2,"steps": [{"condition_processing": {"condition": "WHERE","original_condition": "(`test`.`t6`.`d` = NULL)","steps": [{"transformation": "equality_propagation","resulting_condition": "multiple equal(NULL, `test`.`t6`.`d`)"},{"transformation": "constant_propagation","resulting_condition": "multiple equal(NULL, `test`.`t6`.`d`)"},{"transformation": "trivial_condition_removal","resulting_condition": "multiple equal(NULL, `test`.`t6`.`d`)"}]}},{"table_dependencies": [{"database": "test","table": "t6","row_may_be_null": false,"map_bit": 0,"depends_on_map_bits": []}]},{"ref_optimizer_key_uses": [{"database": "test","table": "t6","field": "d","equals": "NULL","null_rejecting": true}]},{"rows_estimation": [{"database": "test","table": "t6","range_analysis": {"table_scan": {"rows": 2,"cost": 4.5034},"potential_range_indices": [{"index": "d","usable": true,"key_parts": ["d"]}],"best_covering_index_scan": {"index": "d","cost": 1.4233,"chosen": true},"setup_range_conditions": [{"impossible_condition": {"cause": "comparison_with_null_always_false"}}],"impossible_range": true},"rows": 0,"cause": "impossible_where_condition"}]}],"empty_result": {"cause": "no matching row in const table"}}},{"join_execution": {"select#": 2,"steps": []}}]}}]}}]}	0	0
+SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5	{"steps": [{"join_preparation": {"select#": 1,"steps": [{"join_preparation": {"select#": 2,"steps": [{"expanded_query": "/* select#2 */ select 1 from `test`.`t6` where (`test`.`t6`.`d` = `test`.`t5`.`c`)"}]}},{"expanded_query": "/* select#1 */ select (/* select#2 */ select 1 from `test`.`t6` where (`test`.`t6`.`d` = `test`.`t5`.`c`)) AS `RESULT` from `test`.`t5`"}]}},{"join_optimization": {"select#": 1,"steps": [{"table_dependencies": [{"database": "test","table": "t5","row_may_be_null": false,"map_bit": 0,"depends_on_map_bits": []}]},{"rows_estimation": [{"database": "test","table": "t5","rows": 1,"cost": 1,"table_type": "system","empty": false}]},{"attaching_conditions_to_tables": {"original_condition": null,"attached_conditions_computation": [],"attached_conditions_summary": []}},{"refine_plan": []}]}},{"join_execution": {"select#": 1,"steps": [{"subselect_execution": {"select#": 2,"steps": [{"join_optimization": {"select#": 2,"steps": [{"condition_processing": {"condition": "WHERE","original_condition": "(`test`.`t6`.`d` = NULL)","steps": [{"transformation": "equality_propagation","resulting_condition": "multiple equal(NULL, `test`.`t6`.`d`)"},{"transformation": "constant_propagation","resulting_condition": "multiple equal(NULL, `test`.`t6`.`d`)"},{"transformation": "trivial_condition_removal","resulting_condition": "multiple equal(NULL, `test`.`t6`.`d`)"}]}},{"table_dependencies": [{"database": "test","table": "t6","row_may_be_null": false,"map_bit": 0,"depends_on_map_bits": []}]},{"ref_optimizer_key_uses": [{"database": "test","table": "t6","field": "d","equals": "NULL","null_rejecting": true}]},{"rows_estimation": [{"database": "test","table": "t6","range_analysis": {"table_scan": {"rows": 2,"cost": 4.5034},"potential_range_indices": [{"index": "d","usable": true,"key_parts": ["d"]}],"best_covering_index_scan": {"index": "d","cost": 1.4233,"chosen": true},"setup_range_conditions": [{"impossible_condition": {"cause": "comparison_with_null_always_false"}}],"impossible_range": true},"rows": 0,"cause": "impossible_where_condition"}]}],"empty_result": {"cause": "no matching row in const table"}}},{"join_execution": {"select#": 2,"steps": []}}]}}]}}]}	0	0
 select (1-length(replace(TRACE, " ", ""))/length(TRACE))*100
 from information_schema.OPTIMIZER_TRACE;
 (1-length(replace(TRACE, " ", ""))/length(TRACE))*100
-5.8391
+5.8447
 set optimizer_trace="one_line=off,end_marker=on";
 EXPLAIN SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESULT FROM t5 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -260,7 +261,8 @@ EXPLAIN SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESULT FROM t5	{
                 "table": "t5",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -368,6 +370,10 @@ EXPLAIN SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESULT FROM t5	{
                       "cause": "impossible_where_condition"
                     }
                   ] /* rows_estimation */
+                },
+                {
+                  "condition_on_constant_tables": "0",
+                  "condition_value": false
                 }
               ] /* steps */,
               "empty_result": {
@@ -437,7 +443,8 @@ SELECT /* should be last */ (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESUL
                 "table": "t5",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -651,7 +658,8 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                 "table": "t5",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -1005,7 +1013,8 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "materialization",
-                    "chosen": false
+                    "chosen": false,
+                    "cause": "in UNION"
                   } /* transformation */
                 }
               ] /* steps */
@@ -1031,7 +1040,8 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                     "select#": 3,
                     "from": "IN (SELECT)",
                     "to": "materialization",
-                    "chosen": false
+                    "chosen": false,
+                    "cause": "in UNION"
                   } /* transformation */
                 }
               ] /* steps */
@@ -1108,7 +1118,8 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                 "table": "t5",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -1210,7 +1221,8 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                           "select#": "fake",
                           "from": "IN (SELECT)",
                           "to": "materialization",
-                          "chosen": false
+                          "chosen": false,
+                          "cause": "in UNION"
                         } /* transformation */
                       }
                     ] /* steps */
@@ -1300,6 +1312,10 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                 }
               ] /* steps */
             } /* subselect_execution */
+          },
+          {
+            "condition_on_constant_tables": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `test`.`t6` where 0 union /* select#3 */ select 1 from `test`.`t6` where 0))",
+            "condition_value": false
           }
         ] /* steps */,
         "empty_result": {
@@ -1321,8 +1337,9 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 NULL	NULL
 select length(@trace);
 length(@trace)
-13765
-set optimizer_trace_max_mem_size=13900;
+14167
+set @max_mem_size=14300;
+set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 length(@query)+length(@trace) > @@optimizer_trace_max_mem_size
 0
@@ -1338,7 +1355,7 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-13765	1	1
+14167	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
@@ -1482,7 +1499,8 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                 "table": "t5",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               },
               {
                 "database": "test",
@@ -1701,6 +1719,8 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "materialization",
+                    "has_nullable_expressions": true,
+                    "treat_UNKNOWN_as_FALSE": true,
                     "chosen": true
                   } /* transformation */
                 }
@@ -1766,7 +1786,8 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                 "table": "t5",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -2484,14 +2505,6 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
                   "transformation": {
                     "select#": 2,
                     "from": "IN (SELECT)",
-                    "to": "materialization",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
                     "to": "EXISTS (CORRELATED SELECT)",
                     "chosen": true,
                     "evaluating_constant_where_conditions": [
@@ -2753,14 +2766,6 @@ explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
                     "chosen": false
                   } /* transformation */
                 },
@@ -3375,7 +3380,7 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
                     "from": "IN (SELECT)",
                     "to": "materialization",
                     "chosen": false,
-                    "cause": "field_types"
+                    "cause": "inner blob"
                   } /* transformation */
                 },
                 {
@@ -4400,6 +4405,8 @@ concat(c1,'y') IN
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "materialization",
+                    "has_nullable_expressions": true,
+                    "treat_UNKNOWN_as_FALSE": true,
                     "chosen": true
                   } /* transformation */
                 }
@@ -4426,6 +4433,8 @@ concat(c1,'y') IN
                     "select#": 3,
                     "from": "IN (SELECT)",
                     "to": "materialization",
+                    "has_nullable_expressions": true,
+                    "treat_UNKNOWN_as_FALSE": true,
                     "chosen": true
                   } /* transformation */
                 }
@@ -4812,14 +4821,16 @@ select * from t1,t2	{
                 "table": "t1",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               },
               {
                 "database": "test",
                 "table": "t2",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -5025,7 +5036,8 @@ trace
                 "table": "t3",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": true
               },
               {
                 "database": "test",
@@ -5490,7 +5502,8 @@ trace
                 "table": "t3",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": true
               },
               {
                 "database": "test",
@@ -6081,7 +6094,8 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0)	{
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "materialization",
-                    "chosen": false
+                    "chosen": false,
+                    "cause": "already have strategy"
                   } /* transformation */
                 }
               ] /* steps */
@@ -6596,7 +6610,7 @@ trace
               "rows": 2,
               "examined_rows": 2,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": NNN,
+              "sort_buffer_size": "NNN",
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -7059,7 +7073,8 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                 "table": "t5",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               },
               {
                 "database": "test",
@@ -7259,7 +7274,8 @@ delete t6 from t5, t6 where d>7000	{
                 "table": "t5",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               },
               {
                 "database": "test",

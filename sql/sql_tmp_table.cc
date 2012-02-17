@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -210,9 +210,12 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
       field= new Field_blob(item->max_length, item->maybe_null,
                             item->name, item->collation.collation);
     else
+    {
       field= new Field_varstring(item->max_length, item->maybe_null,
                                  item->name,
                                  table->s, item->collation.collation);
+      table->s->db_create_options|= HA_OPTION_PACK_RECORD;
+    }
     if (field)
       field->init(table);
     return field;
@@ -1644,6 +1647,11 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
   if (share->keys)
   {						// Get keys for ni_create
     bool using_unique_constraint=0;
+    if (share->keys > 1)
+    {
+      DBUG_ASSERT(0); // This code can't handle more than 1 key
+      share->keys= 1;
+    }
     HA_KEYSEG *seg= (HA_KEYSEG*) alloc_root(&table->mem_root,
                                             sizeof(*seg) * keyinfo->key_parts);
     if (!seg)

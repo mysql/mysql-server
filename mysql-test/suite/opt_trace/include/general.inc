@@ -82,12 +82,13 @@ select * from information_schema.OPTIMIZER_TRACE;
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
 select length(@trace);
 # The concatenation of query and trace above has length:
-# - >13900 in normal mode
-# - <13900 in ps-protocol mode (because IN->EXISTS is done at PREPARE
+# - >@max_mem_size in normal mode
+# - <@max_mem_size in ps-protocol mode (because IN->EXISTS is done at PREPARE
 # and we trace only EXECUTE)
 # - So in normal mode, the lines below verify truncation,
 # whereas in ps-protocol mode they verify non-truncation.
-set optimizer_trace_max_mem_size=13900;
+set @max_mem_size=14300;
+set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d = ifnull(c,null));
 select (@missing_bytes:=missing_bytes_beyond_max_mem_size) from information_schema.OPTIMIZER_TRACE;
@@ -311,7 +312,7 @@ select * from information_schema.OPTIMIZER_TRACE;
 # HAVING
 select t1.a,avg(t2.c) as moyenne from t1, t2 where t2.c>-1
   group by t1.a having moyenne<>0;
---replace_regex /("sort_buffer_size":) [0-9]+/\1 NNN/
+--replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/
 select trace from information_schema.OPTIMIZER_TRACE;
 # impossible HAVING
 select t1.a,avg(t2.c) as moyenne from t1, t2 where t2.c>-1

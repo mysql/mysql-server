@@ -1227,7 +1227,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  OFFSET_SYM
 %token  OLD_PASSWORD
 %token  ON                            /* SQL-2003-R */
-%token  ONE_SHOT_SYM
 %token  ONE_SYM
 %token  OPEN_SYM                      /* SQL-2003-R */
 %token  OPTIMIZE
@@ -1526,7 +1525,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
         start_transaction_opts
-        union_opt select_derived_init option_type2
+        union_opt select_derived_init
         opt_natural_language_mode opt_query_expansion
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
@@ -1661,7 +1660,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         ref_list opt_match_clause opt_on_update_delete use
         opt_delete_options opt_delete_option varchar nchar nvarchar
         opt_outer table_list table_name table_alias_ref_list table_alias_ref
-        opt_option opt_place
+        opt_place
         opt_attribute opt_attribute_list attribute column_list column_list_id
         opt_column_list grant_privileges grant_ident grant_list grant_option
         object_privilege object_privilege_list user_list rename_list
@@ -13320,7 +13319,7 @@ keyword_sp:
 /* Option functions */
 
 set:
-          SET opt_option
+          SET
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_SET_OPTION;
@@ -13332,11 +13331,6 @@ set:
           }
           option_value_list
           {}
-        ;
-
-opt_option:
-          /* empty */ {}
-        | OPTION {}
         ;
 
 option_value_list:
@@ -13372,7 +13366,15 @@ option_type_value:
               lex->var_list.empty();
               lex->one_shot_set= 0;
               lex->autocommit= 0;
-              lex->sphead->m_tmp_query= lip->get_tok_start();
+              /*
+                Extract the query statement from the tokenizer.  The
+                start is either lip->ptr, if there was no lookahead,
+                lip->tok_start otherwise.
+              */
+              if (yychar == YYEMPTY)
+                lex->sphead->m_tmp_query= lip->get_ptr();
+              else
+                lex->sphead->m_tmp_query= lip->get_tok_start();
             }
           }
           ext_option_value
@@ -13427,14 +13429,10 @@ option_type_value:
         ;
 
 option_type:
-          option_type2    {}
+          /* empty */ { $$= OPT_DEFAULT; }
         | GLOBAL_SYM  { $$=OPT_GLOBAL; }
         | LOCAL_SYM   { $$=OPT_SESSION; }
         | SESSION_SYM { $$=OPT_SESSION; }
-        ;
-
-option_type2:
-          /* empty */ { $$= OPT_DEFAULT; }
         ;
 
 opt_var_type:
@@ -13453,7 +13451,7 @@ opt_var_ident_type:
 
 ext_option_value:
           sys_option_value
-        | option_type2 option_value
+        | option_value
         ;
 
 sys_option_value:
@@ -13815,7 +13813,11 @@ table_lock:
 lock_option:
           READ_SYM               { $$= TL_READ_NO_INSERT; }
         | WRITE_SYM              { $$= TL_WRITE_DEFAULT; }
-        | LOW_PRIORITY WRITE_SYM { $$= TL_WRITE_LOW_PRIORITY; }
+        | LOW_PRIORITY WRITE_SYM 
+          { 
+            $$= TL_WRITE_LOW_PRIORITY; 
+            WARN_DEPRECATED(YYTHD, "LOW_PRIORITY WRITE", "WRITE");
+          }
         | READ_SYM LOCAL_SYM     { $$= TL_READ; }
         ;
 

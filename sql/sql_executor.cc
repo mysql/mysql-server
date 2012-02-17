@@ -2564,9 +2564,9 @@ test_if_quick_select(JOIN_TAB *tab)
    Reads content of constant table
    @param tab  table
    @param pos  position of table in query plan
-   @retval 0   ok
-   @retval >0  error
-   @retval <0  ??
+   @retval 0   ok, one row was found or one NULL-complemented row was created
+   @retval -1  ok, no row was found and no NULL-complemented row was created
+   @retval 1   error
 */
 
 int
@@ -2687,6 +2687,16 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 }
 
 
+/**
+  Read a constant table when there is at most one matching row, using a table
+  scan.
+
+  @param tab			Table to read
+
+  @retval  0  Row was found
+  @retval  -1 Row was not found
+  @retval  1  Got an error (other than row not found) during read
+*/
 static int
 join_read_system(JOIN_TAB *tab)
 {
@@ -2713,16 +2723,14 @@ join_read_system(JOIN_TAB *tab)
 
 
 /**
-  Read a [constant] table when there is at most one matching row.
+  Read a constant table when there is at most one matching row, using an
+  index lookup.
 
   @param tab			Table to read
 
-  @retval
-    0	Row was found
-  @retval
-    -1   Row was not found
-  @retval
-    1   Got an error (other than row not found) during read
+  @retval 0  Row was found
+  @retval -1 Row was not found
+  @retval 1  Got an error (other than row not found) during read
 */
 
 static int
