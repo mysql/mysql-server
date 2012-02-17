@@ -205,6 +205,7 @@ extern const char * g_clusters;
  *   we keep full path to them here
  */
 char * find_bin_path(const char * basename);
+char * find_bin_path(const char * prefix, const char * basename);
 extern const char * g_ndb_mgmd_bin_path;
 extern const char * g_ndbd_bin_path;
 extern const char * g_ndbmtd_bin_path;
