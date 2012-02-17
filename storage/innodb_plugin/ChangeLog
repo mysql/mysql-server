@@ -1,7 +1,19 @@
+2012-02-15	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, fsp/fsp0fsp.c, ibuf/ibuf0ibuf.c,
+	include/btr0btr.h, include/btr0cur.h, include/btr0cur.ic,
+	include/buf0buf.h, include/buf0buf.ic, include/fsp0fsp.h,
+	include/mtr0mtr.h, include/mtr0mtr.ic, include/page0page.h,
+	include/page0page.ic, include/trx0rec.ic, include/trx0undo.h,
+	mtr/mtr0mtr.c, page/page0cur.c, page/page0page.c, row/row0ins.c,
+	row/row0row.c, row/row0upd.c, trx/trx0rec.c, trx/trx0sys.c,
+	trx/trx0undo.c:
+	Fix Bug#13721257 RACE CONDITION IN UPDATES OR INSERTS OF WIDE RECORDS
+
 2012-02-06	The InnoDB Team
 
 	* handler/ha_innodb.cc:
-	Fix Bug #11754376 45976: INNODB LOST FILES FOR TEMPORARY TABLES ON
+	Fix Bug#11754376 45976: INNODB LOST FILES FOR TEMPORARY TABLES ON
 	GRACEFUL SHUTDOWN
 
 2012-01-30	The InnoDB Team
