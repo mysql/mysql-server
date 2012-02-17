@@ -552,6 +552,14 @@ public:
     increment_use_count(1);
     use_count++;
   }
+  void incr_refs_all()
+  {
+    for (SEL_ARG *pos=first(); pos ; pos=pos->next)
+    {
+      pos->increment_use_count(1);
+    }
+    use_count++;
+  }
   void free_tree()
   {
     for (SEL_ARG *pos=first(); pos ; pos=pos->next)
@@ -1090,9 +1098,11 @@ int SEL_IMERGE::and_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree,
   for (SEL_TREE** or_tree= trees; or_tree != trees_next; or_tree++) 
   {
     SEL_TREE *res_or_tree= 0;
-    if (!(res_or_tree= new SEL_TREE()))
+    SEL_TREE *and_tree= 0;
+    if (!(res_or_tree= new SEL_TREE()) ||
+        !(and_tree= new SEL_TREE(tree, TRUE, param)))
       return (-1);
-    if (!and_range_trees(param, *or_tree, tree, res_or_tree))
+    if (!and_range_trees(param, *or_tree, and_tree, res_or_tree))
     {
       if (new_imerge->or_sel_tree(param, res_or_tree))
         return (-1);
@@ -1305,7 +1315,7 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, bool without_merges,
   for (uint idx= 0; idx < param->keys; idx++)
   {
     if ((keys[idx]= arg->keys[idx]))
-      keys[idx]->incr_refs();
+      keys[idx]->incr_refs_all();
   }
 
   if (without_merges)
