@@ -654,9 +654,9 @@ header at offset FSP_SPACE_FLAGS.  They should be 0 for
 ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
 COMPRESSED and DYNAMIC, use a file format > Antelope so they should
 have a file format number plus the DICT_TF_COMPACT bit set.
-@return TRUE if valid, FALSE if not */
+@return true if valid, false if not */
 UNIV_INLINE
-ibool
+bool
 fsp_flags_valid(
 /*============*/
 	ulint	flags);		/*!< in: tablespace flags */
