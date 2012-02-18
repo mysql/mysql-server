@@ -87,6 +87,11 @@
 # it on Windows.
 --source include/not_windows.inc
 
+# This test case fails in MTS mode due to BUG#12995174
+# once that bug is fixed, the following line should be
+# removed so that the test is enabled in MTS
+--source include/not_mts_slave_parallel_workers.inc
+
 --echo ==== Configure ====
 
 --let $max_seconds= 300
