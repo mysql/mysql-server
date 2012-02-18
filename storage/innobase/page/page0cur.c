@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -1180,14 +1180,15 @@ page_cur_insert_rec_zip_reorg(
 	/* Before trying to reorganize the page,
 	store the number of preceding records on the page. */
 	pos = page_rec_get_n_recs_before(rec);
+	ut_ad(pos > 0);
 
 	if (page_zip_reorganize(block, index, mtr)) {
 		/* The page was reorganized: Find rec by seeking to pos,
 		and update *current_rec. */
-		rec = page + PAGE_NEW_INFIMUM;
-
-		while (--pos) {
-			rec = page + rec_get_next_offs(rec, TRUE);
+		if (pos > 1) {
+			rec = page_rec_get_nth(page, pos - 1);
+		} else {
+			rec = page + PAGE_NEW_INFIMUM;
 		}
 
 		*current_rec = rec;
@@ -1283,6 +1284,12 @@ page_cur_insert_rec_zip(
 			insert_rec = page_cur_insert_rec_zip_reorg(
 				current_rec, block, index, insert_rec,
 				page, page_zip, mtr);
+#ifdef UNIV_DEBUG
+			if (insert_rec) {
+				rec_offs_make_valid(
+					insert_rec, index, offsets);
+			}
+#endif /* UNIV_DEBUG */
 		}
 
 		return(insert_rec);
