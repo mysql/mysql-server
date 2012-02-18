@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -500,6 +500,27 @@ btr_cur_disown_inherited_fields(
 	const upd_t*	update,	/*!< in: update vector */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull(2,3,4,5,6)));
+
+/** Operation code for btr_store_big_rec_extern_fields(). */
+enum blob_op {
+	/** Store off-page columns for a freshly inserted record */
+	BTR_STORE_INSERT = 0,
+	/** Store off-page columns for an insert by update */
+	BTR_STORE_INSERT_UPDATE,
+	/** Store off-page columns for an update */
+	BTR_STORE_UPDATE
+};
+
+/*******************************************************************//**
+Determine if an operation on off-page columns is an update.
+@return TRUE if op != BTR_STORE_INSERT */
+UNIV_INLINE
+ibool
+btr_blob_op_is_update(
+/*==================*/
+	enum blob_op	op)	/*!< in: operation */
+	__attribute__((warn_unused_result));
+
 /*******************************************************************//**
 Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
@@ -507,58 +528,23 @@ The fields are stored on pages allocated from leaf node
 file segment of the index tree.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
-ulint
-btr_store_big_rec_extern_fields_func(
-/*=================================*/
+enum db_err
+btr_store_big_rec_extern_fields(
+/*============================*/
 	dict_index_t*	index,		/*!< in: index of rec; the index tree
 					MUST be X-latched */
 	buf_block_t*	rec_block,	/*!< in/out: block containing rec */
-	rec_t*		rec,		/*!< in: record */
+	rec_t*		rec,		/*!< in/out: record */
 	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index);
 					the "external storage" flags in offsets
 					will not correspond to rec when
 					this function returns */
 	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
 					to be stored externally */
-#ifdef UNIV_DEBUG
-	mtr_t*		local_mtr,	/*!< in: mtr containing the
-					latch to rec and to the tree */
-#endif /* UNIV_DEBUG */
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-	ibool		update_in_place,/*! in: TRUE if the record is updated
-					in place (not delete+insert) */
-#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-	mtr_t*		alloc_mtr)	/*!< in/out: in an insert, NULL;
-					in an update, local_mtr for
-					allocating BLOB pages and
-					updating BLOB pointers; alloc_mtr
-					must not have freed any leaf pages */
-	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
-
-/** Stores the fields in big_rec_vec to the tablespace and puts pointers to
-them in rec.  The extern flags in rec will have to be set beforehand.
-The fields are stored on pages allocated from leaf node
-file segment of the index tree.
-@param index	in: clustered index; MUST be X-latched by mtr
-@param b	in/out: block containing rec; MUST be X-latched by mtr
-@param rec	in/out: clustered index record
-@param offs	in: rec_get_offsets(rec, index);
-		the "external storage" flags in offsets will not be adjusted
-@param big	in: vector containing fields to be stored externally
-@param mtr	in: mini-transaction that holds x-latch on index and b
-@param upd	in: TRUE if the record is updated in place (not delete+insert)
-@param rmtr	in/out: in updates, the mini-transaction that holds rec
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-#ifdef UNIV_DEBUG
-# define btr_store_big_rec_extern_fields(index,b,rec,offs,big,mtr,upd,rmtr) \
-	btr_store_big_rec_extern_fields_func(index,b,rec,offs,big,mtr,upd,rmtr)
-#elif defined UNIV_BLOB_LIGHT_DEBUG
-# define btr_store_big_rec_extern_fields(index,b,rec,offs,big,mtr,upd,rmtr) \
-	btr_store_big_rec_extern_fields_func(index,b,rec,offs,big,upd,rmtr)
-#else
-# define btr_store_big_rec_extern_fields(index,b,rec,offs,big,mtr,upd,rmtr) \
-	btr_store_big_rec_extern_fields_func(index,b,rec,offs,big,rmtr)
-#endif
+	mtr_t*		btr_mtr,	/*!< in: mtr containing the
+					latches to the clustered index */
+	enum blob_op	op)		/*! in: operation code */
+	__attribute__((nonnull, warn_unused_result));
 
 /*******************************************************************//**
 Frees the space in an externally stored field to the file space

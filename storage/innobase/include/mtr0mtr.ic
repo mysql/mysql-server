@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -55,9 +55,9 @@ mtr_start(
 	mtr->log_mode = MTR_LOG_ALL;
 	mtr->inside_ibuf = FALSE;
 	mtr->modifications = FALSE;
-	mtr->freed_clust_leaf = FALSE;
 	mtr->made_dirty = FALSE;
 	mtr->n_log_recs = 0;
+	mtr->n_freed_pages = 0;
 
 	ut_d(mtr->state = MTR_ACTIVE);
 	ut_d(mtr->magic_n = MTR_MAGIC_N);
@@ -78,8 +78,7 @@ mtr_memo_push(
 
 	ut_ad(object);
 	ut_ad(type >= MTR_MEMO_PAGE_S_FIX);
-	ut_ad(type <= MTR_MEMO_FREE_CLUST_LEAF);
-	ut_ad(type != MTR_MEMO_FREE_CLUST_LEAF || mtr->freed_clust_leaf);
+	ut_ad(type <= MTR_MEMO_X_LOCK);
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
