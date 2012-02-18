@@ -31,8 +31,8 @@
 --echo ==== Configure ====
 
 --let $max_iterations= 10000
---let $max_seconds= 150
---let $n_forks= 16
+--let $max_seconds= 100
+--let $n_forks= 8
 --let $flush_probability= 0.05
 --let $rename_probability= 0.1
 
