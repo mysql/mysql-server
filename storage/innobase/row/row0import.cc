@@ -218,7 +218,7 @@ private:
 
 		field = rec_get_nth_field(rec, offsets, i, &len);
 
-		if (len <= BTR_EXTERN_FIELD_REF_SIZE) {
+		if (len < BTR_EXTERN_FIELD_REF_SIZE) {
 
 			char index_name[MAX_FULL_NAME_LEN + 1];
 
@@ -228,9 +228,9 @@ private:
 
 			ib_pushf(m_trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 				 ER_INDEX_CORRUPT,
-				"externally stored column has a reference "
-				"length of %lu\n in index",
-				len, index_name);
+				"Externally stored column(%lu) has a reference "
+				"length of %lu in the index %s",
+				i, len, index_name);
 
 			return(DB_CORRUPTION);
 		}
