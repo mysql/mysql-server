@@ -80,6 +80,8 @@
 # Created as part of WL#3584: Global Transaction Identifiers
 
 --source include/have_gtid.inc
+# Todo: figure out if test can be made to work under windows.
+--source include/not_windows.inc
 
 # This test case has path issues when executing the 
 # external command mysqldump.exe on windows. Since
