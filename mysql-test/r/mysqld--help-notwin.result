@@ -175,7 +175,8 @@ The following options may be given as the first argument:
  GROUP_CONCAT()
  -?, --help          Display this help and exit.
  --ignore-builtin-innodb 
- Disable initialization of builtin InnoDB plugin
+ DEPRECATED. This option will be removed in future
+ releases. Disable initialization of builtin InnoDB plugin
  --init-connect=name Command(s) that are executed for each new connection
  --init-file=name    Read SQL commands from this file at startup
  --init-rpl-role=name 
