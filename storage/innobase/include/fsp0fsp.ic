@@ -53,7 +53,7 @@ COMPRESSED and DYNAMIC, use a file format > Antelope so they should
 have a file format number plus the DICT_TF_COMPACT bit set.
 @return TRUE if valid, FALSE if not */
 UNIV_INLINE
-ibool
+bool
 fsp_flags_valid(
 /*============*/
 	ulint	flags)		/*!< in: tablespace flags */
@@ -66,15 +66,15 @@ fsp_flags_valid(
 	/* Make sure there are no bits that we do not know about. */
 	if (unused != 0) {
 
-		return(FALSE);
+		return(false);
 
-	} else if (post_antelope && atomic_blobs) {
+	} else if (!post_antelope && atomic_blobs) {
 
 		/* The Antelope row formats REDUNDANT and COMPACT did
 		not use tablespace flags, so this flag and the entire
 		4-byte field is zero for Antelope row formats. */
 
-		return(FALSE);
+		return(false);
 
 	} else if (!atomic_blobs) {
 
@@ -84,21 +84,21 @@ fsp_flags_valid(
 		externally stored parts. */
 
 		if (post_antelope || zip_ssize) {
-			return(FALSE);
+			return(false);
 		}
 
 	} else if (!post_antelope || zip_ssize > PAGE_ZIP_SSIZE_MAX) {
 
 		/* Validate the zip shift size is within allowed range. */
 
-		return(FALSE);
+		return(false);
 	}
 
 #if UNIV_FORMAT_MAX != UNIV_FORMAT_B
 # error "UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations."
 #endif
 
-	return(TRUE);
+	return(true);
 }
 
 /********************************************************************//**
