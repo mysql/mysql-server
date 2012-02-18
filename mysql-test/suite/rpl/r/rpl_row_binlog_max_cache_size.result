@@ -160,8 +160,6 @@ count(*)
 0
 show binlog events in 'slave-bin.000001' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Incident	#	#	#1 (LOST_EVENTS)
-slave-bin.000001	#	Rotate	#	#	slave-bin.000002;pos=4
 SET GLOBAL max_binlog_cache_size= ORIGINAL_VALUE;
 SET GLOBAL binlog_cache_size= ORIGINAL_VALUE;
 SET GLOBAL max_binlog_stmt_cache_size= ORIGINAL_VALUE;
