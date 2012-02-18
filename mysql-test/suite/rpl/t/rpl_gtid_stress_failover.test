@@ -81,6 +81,11 @@
 
 --source include/have_gtid.inc
 
+# This test case has path issues when executing the 
+# external command mysqldump.exe on windows. Since
+# what it tests is not platform dependent we disable 
+# it on Windows.
+--source include/not_windows.inc
 
 --echo ==== Configure ====
 
