@@ -961,7 +961,18 @@ public:
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   bool get_time(MYSQL_TIME *ltime);  
   void fix_length_and_dec();
-  enum Item_result result_type () const { return cmp_type; }
+  enum Item_result result_type () const
+  {
+    /*
+      If we compare as dates, then:
+      - field_type is MYSQL_TYPE_VARSTRING, MYSQL_TYPE_DATETIME
+        or MYSQL_TYPE_DATE.
+      - cmp_type is INT_RESULT or DECIMAL_RESULT,
+        depending on the amount of fractional digits.
+      We need to return STRING_RESULT in this case instead of cmp_type.
+    */
+    return compare_as_dates ? STRING_RESULT : cmp_type;
+  }
   enum Item_result cast_to_int_type () const
   {
     /*

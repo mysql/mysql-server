@@ -38,6 +38,11 @@
    copyright in any changes I have made; this code remains in the
    public domain.  */
 
+/*
+  Skip entirely if built with OpenSSL/YaSSL support.
+*/
+#if !defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+
 #include <my_global.h>
 #include <m_string.h>
 #include "my_md5.h"
@@ -323,3 +328,5 @@ main (int argc, char **argv)
   return 0;
 }
 #endif /* TEST */
+
+#endif /* !defined(HAVE_OPENSSL) && !defined(HAVE_YASSL) */

@@ -1,0 +1,119 @@
+############################################################
+# Tests startup options for mysql server pertaining binlog 
+# This test doesnot require (as of now) to be run for all 
+# the binlogging format as server startup in the cases
+# below are independent of the format. We therefore run this
+# test in only statement format.
+############################################################
+--source include/have_binlog_format_statement.inc
+
+#------------------------------------------------------------------#
+# BUG 11766817 - 60030: CRASH ON MYSQLD STARTUP WHEN USING LOG-BIN #
+#------------------------------------------------------------------#
+
+#fetch the basedir from the already started server
+--let MYSQL_BASEDIR= `select @@basedir`
+
+--perl
+  use strict;
+  my $vardir= $ENV{'MYSQLTEST_VARDIR'} or die ('MYSQLTEST_VARDIR not set! Aborting!\n');
+  my $cnf1= $vardir.'cnf_1.cnf';
+  my $basedir=  $ENV{'MYSQL_BASEDIR'} or die "Basedir not set";
+
+# check if mysqld exists in basedir/sql folder or in basedir/bin 
+  my $share_folder =$basedir."/sql/share/";
+  if(-e $share_folder)
+  {
+   $basedir=$basedir."/sql/";
+  }
+
+#create a new datadir if there is none else remove and create a new one.
+  unless(-e $basedir."/data")
+  {
+    mkdir($basedir."/data", 0777) or die "Can't make data directory: $!";
+  }
+  else
+  {
+# Ideally this section should not execute as this means that the default
+# datadir exists which is not possible in the current scenario.
+    use File::Path;
+    rmtree($basedir."/data");
+    use strict;
+    mkdir($basedir."/data", 0777) or die "Can't make data directory: $!";
+  }
+
+#create cnf_1 file
+  my $content= "[mysqld]\n";
+  $content.="basedir=$basedir\n";
+  $content.="socket=socket-5620.sock\n";
+  $content.="log-error=error.log\n";
+  $content.="port=5620\n";
+  $content.="user=root\n";
+  $content.="core\n";
+  $content.="log-bin\n";
+  open(FILE_CNF, ">$cnf1") or die("Unable to create $cnf1: $!\n");
+  print FILE_CNF $content;
+  close(FILE_CNF);
+
+#export the cnf path to mtr
+  open(FILE_INC, '>include/cnf_include.inc');
+  print FILE_INC '--let $CNF1'." = $cnf1\n";
+  close(FILE_INC);
+EOF
+
+--source include/cnf_include.inc  
+--error 1
+--exec $MYSQLD --defaults-file=$CNF1
+
+#--------------------------------------------------------------------------------------------#
+# BUG 12929941 - SEGFAULT IN STRMAKE/CONVERT_DIRNAME WHEN USING --RELAY-LOG=SLAVE-RELAY-BIN  #
+#--------------------------------------------------------------------------------------------#
+
+--perl
+  use strict;
+
+# Initialize the variables
+  my $vardir= $ENV{'MYSQLTEST_VARDIR'} or die ('MYSQLTEST_VARDIR not set! Aborting!\n');
+  my $basedir=  $ENV{'MYSQL_BASEDIR'} or die "Basedir not set: $!\n";
+
+# check if mysqld exists in basedir/sql folder or in basedir/bin 
+  my $share_folder =$basedir."/sql/share/\0";
+  if(-e $share_folder)
+  {
+   $basedir=$basedir."/sql/";
+  }
+
+#create cnf_2 file.
+  my $cnf2= $vardir.'cnf_2.cnf';
+  my $content= "[mysqld]\n";
+  $content.="basedir=$basedir\n";
+  $content.="port=5620\n";
+  $content.="core\n";
+  open(FILE_CNF, ">$cnf2") or die("Unable to create $cnf2: $!\n");
+  print FILE_CNF $content;
+  close(FILE_CNF);
+
+#export the cnf path and "actual basedir" to mtr
+  open(FILE_INC, '>include/cnf_include.inc');
+  print FILE_INC '--let $CNF2'." = $cnf2\n";
+  print FILE_INC '--let REAL_BASEDIR'."=$basedir\n";
+  close(FILE_INC);
+EOF
+
+--source include/cnf_include.inc
+--error 1
+--exec $MYSQLD --defaults-file=$CNF2 --relay-log=slave-relay-bin
+
+#cleanup
+--perl
+  use File::Path;
+  my $basedir= $ENV{'REAL_BASEDIR'};
+  rmtree($basedir."/data/");
+EOF
+
+--remove_file include/cnf_include.inc
+--remove_file $CNF1
+--remove_file $CNF2
+
+--echo End of test binlog.binlog_server_start_options.test
+
