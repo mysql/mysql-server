@@ -69,6 +69,7 @@ SET(SQL_SHARED_SOURCES
   keycaches.cc
   lock.cc
   log.cc
+  md5.cc
   mdl.cc
   mf_iocache.cc
   my_decimal.cc
@@ -89,6 +90,7 @@ SET(SQL_SHARED_SOURCES
   rpl_handler.cc
   scheduler.cc 
   set_var.cc 
+  sha1.cc
   sha2.cc
   signal_handler.cc
   sp.cc
