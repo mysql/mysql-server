@@ -3469,14 +3469,14 @@ fil_open_single_table_tablespace(
 	const char*		name)	/*!< in: table name in the
 					databasename/tablename format */
 {
-	db_err		err;
 	os_file_t	file;
 	char*		filepath;
 	ibool		success;
 	byte*		buf2;
 	byte*		page;
-	ulint		space_id;
 	ulint		space_flags;
+	db_err		err = DB_SUCCESS;
+	ulint		space_id = ULINT_UNDEFINED;
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
@@ -3543,13 +3543,9 @@ fil_open_single_table_tablespace(
 	/* Align the memory for file i/o if we might have O_DIRECT set */
 	page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
 
-	success = os_file_read(file, page, 0, UNIV_PAGE_SIZE);
-
-	if (!success) {
+	if (!os_file_read(file, page, 0, UNIV_PAGE_SIZE)) {
 		err = DB_IO_ERROR;
 	} else {
-		err = DB_SUCCESS;
-
 		/* We have to read the tablespace id and flags from the file. */
 
 		space_id = fsp_header_get_space_id(page);
