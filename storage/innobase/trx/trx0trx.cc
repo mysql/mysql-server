@@ -626,7 +626,7 @@ UNIV_INLINE
 trx_rseg_t*
 trx_assign_rseg(
 /*============*/
-	ulint	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
+	ulong	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
 	ulint	n_tablespaces)	/*!< in: number of rollback tablespaces */
 {
 	ulint		i;
@@ -634,7 +634,7 @@ trx_assign_rseg(
 	static ulint	latest_rseg = 0;
 
 	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
-		ut_a(max_undo_logs == ULINT_UNDEFINED);
+		ut_a(max_undo_logs == ULONG_UNDEFINED);
 		return(NULL);
 	}
 
