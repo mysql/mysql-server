@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -23,7 +23,6 @@ Insert into a table
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
-#include "my_global.h" /* HAVE_* */
 #include "m_string.h" /* for my_sys.h */
 #include "my_sys.h" /* DEBUG_SYNC_C */
 #include "row0ins.h"
@@ -351,9 +350,9 @@ row_ins_clust_index_entry_by_modify(
 			return(DB_LOCK_TABLE_FULL);
 
 		}
-		err = btr_cur_pessimistic_update(0, cursor,
-						 heap, big_rec, update,
-						 0, thr, mtr);
+		err = btr_cur_pessimistic_update(
+			BTR_KEEP_POS_FLAG, cursor, heap, big_rec, update,
+			0, thr, mtr);
 	}
 
 	return(err);
@@ -1982,6 +1981,7 @@ row_ins_index_entry_low(
 	ulint		modify = 0; /* remove warning */
 	rec_t*		insert_rec;
 	rec_t*		rec;
+	ulint*		offsets;
 	ulint		err;
 	ulint		n_unique;
 	big_rec_t*	big_rec			= NULL;
@@ -2089,6 +2089,64 @@ row_ins_index_entry_low(
 			err = row_ins_clust_index_entry_by_modify(
 				mode, &cursor, &heap, &big_rec, entry,
 				thr, &mtr);
+
+			if (big_rec) {
+				ut_a(err == DB_SUCCESS);
+				/* Write out the externally stored
+				columns while still x-latching
+				index->lock and block->lock. Allocate
+				pages for big_rec in the mtr that
+				modified the B-tree, but be sure to skip
+				any pages that were freed in mtr. We will
+				write out the big_rec pages before
+				committing the B-tree mini-transaction. If
+				the system crashes so that crash recovery
+				will not replay the mtr_commit(&mtr), the
+				big_rec pages will be left orphaned until
+				the pages are allocated for something else.
+
+				TODO: If the allocation extends the
+				tablespace, it will not be redo
+				logged, in either mini-transaction.
+				Tablespace extension should be
+				redo-logged in the big_rec
+				mini-transaction, so that recovery
+				will not fail when the big_rec was
+				written to the extended portion of the
+				file, in case the file was somehow
+				truncated in the crash. */
+
+				rec = btr_cur_get_rec(&cursor);
+				offsets = rec_get_offsets(
+					rec, index, NULL,
+					ULINT_UNDEFINED, &heap);
+
+				DEBUG_SYNC_C("before_row_ins_upd_extern");
+				err = btr_store_big_rec_extern_fields(
+					index, btr_cur_get_block(&cursor),
+					rec, offsets, big_rec, &mtr,
+					BTR_STORE_INSERT_UPDATE);
+				DEBUG_SYNC_C("after_row_ins_upd_extern");
+				/* If writing big_rec fails (for
+				example, because of DB_OUT_OF_FILE_SPACE),
+				the record will be corrupted. Even if
+				we did not update any externally
+				stored columns, our update could cause
+				the record to grow so that a
+				non-updated column was selected for
+				external storage. This non-update
+				would not have been written to the
+				undo log, and thus the record cannot
+				be rolled back.
+
+				However, because we have not executed
+				mtr_commit(mtr) yet, the update will
+				not be replayed in crash recovery, and
+				the following assertion failure will
+				effectively "roll back" the operation. */
+				ut_a(err == DB_SUCCESS);
+				goto stored_big_rec;
+			}
 		} else {
 			ut_ad(!n_ext);
 			err = row_ins_sec_index_entry_by_modify(
@@ -2117,9 +2175,6 @@ function_exit:
 	mtr_commit(&mtr);
 
 	if (UNIV_LIKELY_NULL(big_rec)) {
-		rec_t*	rec;
-		ulint*	offsets;
-
 		DBUG_EXECUTE_IF(
 			"row_ins_extern_checkpoint",
 			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE););
@@ -2134,12 +2189,13 @@ function_exit:
 		offsets = rec_get_offsets(rec, index, NULL,
 					  ULINT_UNDEFINED, &heap);
 
-		DEBUG_SYNC_C("before_row_ins_upd_extern");
+		DEBUG_SYNC_C("before_row_ins_extern");
 		err = btr_store_big_rec_extern_fields(
 			index, btr_cur_get_block(&cursor),
-			rec, offsets, &mtr, FALSE, big_rec);
-		DEBUG_SYNC_C("after_row_ins_upd_extern");
+			rec, offsets, big_rec, &mtr, BTR_STORE_INSERT);
+		DEBUG_SYNC_C("after_row_ins_extern");
 
+stored_big_rec:
 		if (modify) {
 			dtuple_big_rec_free(big_rec);
 		} else {
