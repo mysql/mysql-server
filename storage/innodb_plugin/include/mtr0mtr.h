@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,7 +50,9 @@ first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 #define	MTR_MEMO_PAGE_S_FIX	RW_S_LATCH
 #define	MTR_MEMO_PAGE_X_FIX	RW_X_LATCH
 #define	MTR_MEMO_BUF_FIX	RW_NO_LATCH
-#define MTR_MEMO_MODIFY		54
+#ifdef UNIV_DEBUG
+# define MTR_MEMO_MODIFY	54
+#endif /* UNIV_DEBUG */
 #define	MTR_MEMO_S_LOCK		55
 #define	MTR_MEMO_X_LOCK		56
 
@@ -378,11 +380,14 @@ struct mtr_struct{
 	dyn_array_t	memo;	/*!< memo stack for locks etc. */
 	dyn_array_t	log;	/*!< mini-transaction log */
 	ibool		modifications;
-				/* TRUE if the mtr made modifications to
-				buffer pool pages */
+				/*!< TRUE if the mini-transaction
+				modified buffer pool pages */
 	ulint		n_log_recs;
 				/* count of how many page initial log records
 				have been written to the mtr log */
+	ulint		n_freed_pages;
+				/* number of pages that have been freed in
+				this mini-transaction */
 	ulint		log_mode; /* specifies which operations should be
 				logged; default value MTR_LOG_ALL */
 	ib_uint64_t	start_lsn;/* start lsn of the possible log entry for
