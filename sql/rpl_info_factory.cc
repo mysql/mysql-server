@@ -387,7 +387,13 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
   DBUG_ENTER("Rpl_info_factory::decide_repository");
 
   if (option == INFO_REPOSITORY_DUMMY)
+  {
+    delete (*handler_src);
+    *handler_src= NULL;
+    info->set_rpl_info_handler(*handler_dest);
+    info->set_rpl_info_type(option);
     DBUG_RETURN(FALSE);
+  }
 
   DBUG_ASSERT((*handler_src) != NULL && (*handler_dest) != NULL &&
               (*handler_src) != (*handler_dest));

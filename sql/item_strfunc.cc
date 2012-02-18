@@ -181,7 +181,7 @@ String *Item_func_md5::val_str_ascii(String *str)
     uchar digest[16];
 
     null_value=0;
-    MY_MD5_HASH(digest,(uchar *) sptr->ptr(), sptr->length());
+    compute_md5_hash((char *) digest, (const char *) sptr->ptr(), sptr->length());
     if (str->alloc(32))				// Ensure that memory is free
     {
       null_value=1;
@@ -217,16 +217,11 @@ String *Item_func_sha::val_str_ascii(String *str)
   str->set_charset(&my_charset_bin);
   if (sptr)  /* If we got value different from NULL */
   {
-    SHA1_CONTEXT context;  /* Context used to generate SHA1 hash */
     /* Temporary buffer to store 160bit digest */
     uint8 digest[SHA1_HASH_SIZE];
-    mysql_sha1_reset(&context);  /* We do not have to check for error here */
-    /* No need to check error as the only case would be too long message */
-    mysql_sha1_input(&context,
-                     (const uchar *) sptr->ptr(), sptr->length());
-    /* Ensure that memory is free and we got result */
-    if (!( str->alloc(SHA1_HASH_SIZE*2) ||
-           (mysql_sha1_result(&context,digest))))
+    compute_sha1_hash(digest, (const char *) sptr->ptr(), sptr->length());
+    /* Ensure that memory is free */
+    if (!(str->alloc(SHA1_HASH_SIZE * 2)))
     {
       array_to_hex((char *) str->ptr(), digest, SHA1_HASH_SIZE);
       str->length((uint)  SHA1_HASH_SIZE*2);

@@ -145,6 +145,8 @@ SET(CLIENT_SOURCES
   ../sql-common/client_plugin.c 
   ../sql/net_serv.cc
   ../sql-common/pack.c 
+  ../sql/md5.cc
+  ../sql/sha1.cc
   ../sql/password.c
   ../sql/my_rnd.cc
 )
