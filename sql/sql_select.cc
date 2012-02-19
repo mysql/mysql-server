@@ -12695,9 +12695,8 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
       multiple equality contains a constant.
     */ 
     DBUG_EXECUTE("where", print_where(conds, "original", QT_ORDINARY););
-    conds= build_equal_items(join->thd, conds, NULL, join_list,
-                             &join->cond_equal);
-    DBUG_EXECUTE("where",print_where(conds,"after equal_items", QT_ORDINARY););
+    conds= build_equal_items(join->thd, conds, NULL, join_list, cond_equal);
+     DBUG_EXECUTE("where",print_where(conds,"after equal_items", QT_ORDINARY););
 
     /* change field = field to field = const for each found field = const */
     propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
