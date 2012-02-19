@@ -116,6 +116,60 @@ set @@join_cache_level= @jcl_912513;
 
 --echo # End
 
+--echo #
+--echo # BUG#934342: outer join + semijoin materialization 
+--echo #             + join_cache_level > 2
+--echo #
+
+CREATE TABLE t1 (a varchar(1), b varchar(1), INDEX idx_a(a) );
+INSERT INTO t1 VALUES ('v','v'), ('w','w'), ('t','t');
+
+CREATE TABLE t2 (c varchar(1), INDEX idx_c(c) );
+INSERT INTO t2 VALUES ('v'), ('v'), ('s'), ('j');
+
+CREATE TABLE t3 (c varchar(1), d varchar(1), INDEX idx_c(c) );
+INSERT INTO t3 VALUES ('v','v'), ('v','v'), ('s','s'), ('j','j');
+INSERT INTO t3 VALUES ('m','m'), ('d','d'), ('k','k'), ('m','m');
+
+set @tmp_otimizer_switch= @@optimizer_switch;
+set @tmp_join_cache_level=@@join_cache_level;
+set optimizer_switch = 'materialization=on,semijoin=on,join_cache_hashed=on';
+
+set join_cache_level=0;
+
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 ON (c = b)
+  WHERE (a, b) IN (SELECT a, b FROM t1 t);
+SELECT * FROM t1 LEFT JOIN t2 ON (c = b)
+  WHERE (a, b) IN (SELECT a, b FROM t1 t);
+
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t3 ON (c = b)
+  WHERE (a, b) IN (SELECT a, b FROM t1 t);
+SELECT * FROM t1 LEFT JOIN t3 ON (c = b)
+  WHERE (a, b) IN (SELECT a, b FROM t1 t);
+
+set join_cache_level=6;
+
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 ON (c = b)
+  WHERE (a, b) IN (SELECT a, b FROM t1 t);
+SELECT * FROM t1 LEFT JOIN t2 ON (c = b)
+  WHERE (a, b) IN (SELECT a, b FROM t1 t);
+
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t3 ON (c = b)
+  WHERE (a, b) IN (SELECT a, b FROM t1 t);
+SELECT * FROM t1 LEFT JOIN t3 ON (c = b)
+  WHERE (a, b) IN (SELECT a, b FROM t1 t);
+
+set optimizer_switch=@tmp_optimizer_switch;
+set join_cache_level=@tmp_join_cache_level;
+
+DROP TABLE t1,t2,t3;
+
+--echo # End
+
 set join_cache_level=default;
 show variables like 'join_cache_level';
 

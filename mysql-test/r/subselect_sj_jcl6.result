@@ -2753,6 +2753,86 @@ DROP table t1, t2;
 set @@optimizer_switch= @os_912513;
 set @@join_cache_level= @jcl_912513;
 # End
+#
+# BUG#934342: outer join + semijoin materialization 
+#             + join_cache_level > 2
+#
+CREATE TABLE t1 (a varchar(1), b varchar(1), INDEX idx_a(a) );
+INSERT INTO t1 VALUES ('v','v'), ('w','w'), ('t','t');
+CREATE TABLE t2 (c varchar(1), INDEX idx_c(c) );
+INSERT INTO t2 VALUES ('v'), ('v'), ('s'), ('j');
+CREATE TABLE t3 (c varchar(1), d varchar(1), INDEX idx_c(c) );
+INSERT INTO t3 VALUES ('v','v'), ('v','v'), ('s','s'), ('j','j');
+INSERT INTO t3 VALUES ('m','m'), ('d','d'), ('k','k'), ('m','m');
+set @tmp_otimizer_switch= @@optimizer_switch;
+set @tmp_join_cache_level=@@join_cache_level;
+set optimizer_switch = 'materialization=on,semijoin=on,join_cache_hashed=on';
+set join_cache_level=0;
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 ON (c = b)
+WHERE (a, b) IN (SELECT a, b FROM t1 t);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	idx_a	NULL	NULL	NULL	3	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	10	func,func	1	
+1	PRIMARY	t2	ref	idx_c	idx_c	4	test.t1.b	2	Using where; Using index
+2	MATERIALIZED	t	ALL	idx_a	NULL	NULL	NULL	3	
+SELECT * FROM t1 LEFT JOIN t2 ON (c = b)
+WHERE (a, b) IN (SELECT a, b FROM t1 t);
+a	b	c
+v	v	v
+v	v	v
+w	w	NULL
+t	t	NULL
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t3 ON (c = b)
+WHERE (a, b) IN (SELECT a, b FROM t1 t);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	idx_a	NULL	NULL	NULL	3	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	10	func,func	1	
+1	PRIMARY	t3	ref	idx_c	idx_c	4	test.t1.b	2	Using where
+2	MATERIALIZED	t	ALL	idx_a	NULL	NULL	NULL	3	
+SELECT * FROM t1 LEFT JOIN t3 ON (c = b)
+WHERE (a, b) IN (SELECT a, b FROM t1 t);
+a	b	c	d
+v	v	v	v
+v	v	v	v
+w	w	NULL	NULL
+t	t	NULL	NULL
+set join_cache_level=6;
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 ON (c = b)
+WHERE (a, b) IN (SELECT a, b FROM t1 t);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	idx_a	NULL	NULL	NULL	3	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	10	func,func	1	
+1	PRIMARY	t2	ref	idx_c	idx_c	4	test.t1.b	2	Using where; Using index
+2	MATERIALIZED	t	ALL	idx_a	NULL	NULL	NULL	3	
+SELECT * FROM t1 LEFT JOIN t2 ON (c = b)
+WHERE (a, b) IN (SELECT a, b FROM t1 t);
+a	b	c
+v	v	v
+v	v	v
+w	w	NULL
+t	t	NULL
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t3 ON (c = b)
+WHERE (a, b) IN (SELECT a, b FROM t1 t);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	idx_a	NULL	NULL	NULL	3	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	10	func,func	1	
+1	PRIMARY	t3	ref	idx_c	idx_c	4	test.t1.b	2	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+2	MATERIALIZED	t	ALL	idx_a	NULL	NULL	NULL	3	
+SELECT * FROM t1 LEFT JOIN t3 ON (c = b)
+WHERE (a, b) IN (SELECT a, b FROM t1 t);
+a	b	c	d
+v	v	v	v
+v	v	v	v
+w	w	NULL	NULL
+t	t	NULL	NULL
+set optimizer_switch=@tmp_optimizer_switch;
+set join_cache_level=@tmp_join_cache_level;
+DROP TABLE t1,t2,t3;
+# End
 set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value

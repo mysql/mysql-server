@@ -1266,9 +1266,20 @@ JOIN::optimize()
       Item *ref_item= *ref_item_ptr;
       if (!ref_item->used_tables() && !(select_options & SELECT_DESCRIBE))
         continue;
-      COND_EQUAL *equals= tab->first_inner ? tab->first_inner->cond_equal : 
-                                             cond_equal;
-      ref_item= substitute_for_best_equal_field(tab, ref_item, equals, map2table);
+      COND_EQUAL *equals= cond_equal;
+      JOIN_TAB *first_inner= tab->first_inner;
+      while (equals)
+      {
+        ref_item= substitute_for_best_equal_field(tab, ref_item,
+                                                  equals, map2table);
+        if (first_inner)
+	{
+          equals= first_inner->cond_equal;
+          first_inner= first_inner->first_upper;
+        }
+        else
+          equals= 0;
+      }  
       ref_item->update_used_tables();
       if (*ref_item_ptr != ref_item)
       {
@@ -9213,7 +9224,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
       Check whether table tab and the previous one belong to the same nest of
       inner tables and if so do not use join buffer when joining table tab. 
     */
-    if (tab->first_inner)
+    if (tab->first_inner && tab != tab->first_inner)
     {
       for (JOIN_TAB *first_inner= tab[-1].first_inner;
            first_inner;
@@ -9223,7 +9234,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
           goto no_join_cache;
       }
     }
-    else if (tab->first_sj_inner_tab &&
+    else if (tab->first_sj_inner_tab && tab != tab->first_sj_inner_tab &&
              tab->first_sj_inner_tab == tab[-1].first_sj_inner_tab)
       goto no_join_cache; 
   }       
