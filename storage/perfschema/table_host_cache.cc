@@ -226,6 +226,8 @@ table_host_cache::table_host_cache()
 
 void table_host_cache::materialize(THD *thd)
 {
+  Host_entry *current;
+  Host_entry *first;
   uint size;
   uint index;
   row_host_cache *rows;
@@ -253,8 +255,8 @@ void table_host_cache::materialize(THD *thd)
   index= 0;
   row= rows;
 
-  Host_entry *first= hostname_cache_first();
-  Host_entry *current= first;
+  first= hostname_cache_first();
+  current= first;
 
   while ((current != NULL) && (index < size))
   {
