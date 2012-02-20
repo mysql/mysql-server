@@ -1228,6 +1228,7 @@ static Sys_var_charptr Sys_ft_stopword_file(
 
 static Sys_var_mybool Sys_ignore_builtin_innodb(
        "ignore_builtin_innodb",
+       "IGNORED. This option will be removed in future releases. "
        "Disable initialization of builtin InnoDB plugin",
        READ_ONLY GLOBAL_VAR(opt_ignore_builtin_innodb),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
