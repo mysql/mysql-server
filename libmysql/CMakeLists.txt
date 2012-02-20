@@ -150,6 +150,17 @@ SET(CLIENT_SOURCES
   ../sql/password.c
   ../sql/my_rnd.cc
 )
+
+# We do RESTRICT_SYMBOL_EXPORTS(yassl) elsewhere.
+# In order to get correct symbol visibility, md5.cc and sha1.cc
+# must be compiled with "-fvisibility=hidden"
+IF(HAVE_VISIBILITY_HIDDEN)
+  SET_SOURCE_FILES_PROPERTIES(../sql/md5.cc
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  SET_SOURCE_FILES_PROPERTIES(../sql/sha1.cc
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
 DTRACE_INSTRUMENT(clientlib)
 ADD_DEPENDENCIES(clientlib GenError)
