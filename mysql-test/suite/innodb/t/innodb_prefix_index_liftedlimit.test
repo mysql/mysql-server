@@ -874,8 +874,12 @@ worklog5743;
 SELECT COUNT(*) FROM worklog5743;
 COMMIT;
 
+--echo "Disconnect the connections 1 and 2"
 --disconnect con1
+--source include/wait_until_disconnected.inc
+--connection con2
 --disconnect con2
+--source include/wait_until_disconnected.inc
 
 --connection default
 DROP TABLE worklog5743;
@@ -1368,4 +1372,10 @@ DROP TABLE worklog5743;
 eval set global innodb_file_format = $innodb_file_format_orig;
 eval set global innodb_file_per_table = $innodb_file_per_table_orig;
 eval set global innodb_large_prefix = $innodb_large_prefix_orig;
+--echo "Disconnect the connection 1"
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
 --enable_query_log
+--connection default
+
