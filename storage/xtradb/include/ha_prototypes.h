@@ -250,7 +250,6 @@ innobase_get_at_most_n_mbchars(
 /*************************************************************//**
 InnoDB index push-down condition check
 @return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
-UNIV_INTERN
 enum icp_result
 handler_index_cond_check(
 /*================*/
