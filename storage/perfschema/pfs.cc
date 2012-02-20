@@ -4554,16 +4554,10 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     /* Set digest stat. */
     digest_storage= &state->m_digest_state.m_digest_storage;
 
-    /* Calculate MD5 Hash of the tokens received. */
-    PFS_digest_hash digest_hash;
-    MY_MD5_HASH(digest_hash.m_md5,
-                (unsigned char *)digest_storage->m_token_array,
-                (uint) sizeof(digest_storage->m_token_array));
-
     /* 
       Populate PFS_statements_digest_stat with computed digest information.
     */
-    digest_stat_ptr= find_or_create_digest(thread, digest_hash, digest_storage);
+    digest_stat_ptr= find_or_create_digest(thread, digest_storage);
     if(digest_stat_ptr)
     {
       digest_stat= &(digest_stat_ptr->m_stat);
@@ -4621,17 +4615,10 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       /* Set digest stat. */
       digest_storage= &state->m_digest_state.m_digest_storage;
 
-      /* Calculate MD5 Hash of the tokens received. */
-      PFS_digest_hash digest_hash;
-      MY_MD5_HASH(digest_hash.m_md5,
-                  (unsigned char *)digest_storage->m_token_array,
-                  (uint) sizeof(digest_storage->m_token_array));
-
       /* 
         Populate PFS_statements_digest_stat with computed digest information.
       */
-      digest_stat_ptr= find_or_create_digest(thread, digest_hash,
-                                             digest_storage);
+      digest_stat_ptr= find_or_create_digest(thread, digest_storage);
       if(digest_stat_ptr)
       {
         digest_stat= &(digest_stat_ptr->m_stat);

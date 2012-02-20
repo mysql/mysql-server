@@ -165,7 +165,7 @@ static LF_PINS* get_digest_hash_pins(PFS_thread *thread)
 }
 
 PFS_statements_digest_stat* 
-find_or_create_digest(PFS_thread* thread, PFS_digest_hash d_hash,
+find_or_create_digest(PFS_thread* thread,
                       PFS_digest_storage* digest_storage)
 {
   LF_PINS *pins= get_digest_hash_pins(thread);
@@ -176,7 +176,13 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_hash d_hash,
     return NULL;
   }
 
-  unsigned char* hash_key= d_hash.m_md5;
+  /* Compute MD5 Hash of the tokens received. */
+  PFS_digest_hash md5;
+  compute_md5_hash((char*) md5.m_md5,
+                   digest_storage->m_token_array,
+                   digest_storage->m_byte_count);
+
+  unsigned char* hash_key= md5.m_md5;
  
   PFS_statements_digest_stat **entry;
   PFS_statements_digest_stat *pfs= NULL;
@@ -214,8 +220,7 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_hash d_hash,
     memcpy(pfs->m_digest_storage.m_token_array, digest_storage->m_token_array,
            PFS_MAX_DIGEST_STORAGE_SIZE);
     /* Copy digest hash/LF Hash search key. */
-    memcpy(pfs->m_digest_hash.m_md5,
-           d_hash.m_md5, 16);
+    memcpy(pfs->m_digest_hash.m_md5, md5.m_md5, 16);
 
     pfs->m_first_seen= now;
     pfs->m_last_seen= now;
