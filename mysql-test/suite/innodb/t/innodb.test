@@ -1394,6 +1394,17 @@ eval set storage_engine=$default;
 -- disable_query_log
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
+#
+# Test fix for bug 13117023. InnoDB increments HA_READ_KEY_COUNT (aka
+# HANDLER_READ_KEY) when it should not.
+#
+create table t1 (f1 integer primary key) engine=innodb;
+flush status;
+show status like "handler_read_key";
+select f1 from t1;
+show status like "handler_read_key";
+drop table t1;
+
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #

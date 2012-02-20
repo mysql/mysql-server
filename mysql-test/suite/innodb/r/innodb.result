@@ -2371,3 +2371,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 set storage_engine=MyISAM;
+Variable_name	Value
+Handler_read_key	0
+f1
+Variable_name	Value
+Handler_read_key	1
