@@ -10442,10 +10442,22 @@ return_zero_rows(JOIN *join, select_result *result, List<TABLE_LIST> &tables,
 
   if (send_row)
   {
+    /*
+      Set all tables to have NULL row. This is needed as we will be evaluating
+      HAVING condition.
+    */
     List_iterator<TABLE_LIST> ti(tables);
     TABLE_LIST *table;
     while ((table= ti++))
-      mark_as_null_row(table->table);		// All fields are NULL
+    {
+      /*
+        Don't touch semi-join materialization tables, as the above join_free()
+        call has freed them (and HAVING clause can't have references to them 
+        anyway).
+      */
+      if (!table->is_jtbm())
+        mark_as_null_row(table->table);		// All fields are NULL
+    }
     if (having &&
         !having->walk(&Item::clear_sum_processor, FALSE, NULL) &&
         having->val_int() == 0)

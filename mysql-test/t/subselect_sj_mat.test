@@ -1545,6 +1545,19 @@ select * from t1 where t1.a in (select a from t2 where t2.a=7 or t2.b<=1);
 
 drop table t1,t2;
 
+--echo #
+--echo # BUG#933407: Valgrind warnings in mark_as_null_row with materialization+semijoin, STRAIGHT_JOIN, impossible WHERE
+--echo #
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0),(8);
+
+SELECT STRAIGHT_JOIN MIN(a) FROM t1
+WHERE a IN (
+    SELECT a FROM t1
+    WHERE 'condition'='impossible'
+  );
+
+DROP TABLE t1;
 
 --echo # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
