@@ -6009,14 +6009,15 @@ Dbtc::sendRemoveMarker(Signal* signal,
   Uint32 len = 3;
 
   // currently packed signals can not address specific instance
-  bool send_unpacked = getNodeInfo(hostPtr.i).m_lqh_workers > 1;
+  Uint32 cnt_workers = getNodeInfo(hostPtr.i).m_lqh_workers;
+  bool send_unpacked = cnt_workers > 1;
   if (send_unpacked) {
     jam();
     // first word omitted
     memcpy(&signal->theData[0], &Tdata[1], (len - 1) << 2);
     Uint32 Tnode = hostPtr.i;
     Uint32 i;
-    for (i = 0; i < MAX_NDBMT_LQH_WORKERS; i++) {
+    for (i = 0; i < cnt_workers; i++) {
       // wl4391_todo skip workers not part of tx
       Uint32 instanceKey = 1 + i;
       BlockReference ref = numberToRef(DBLQH, instanceKey, Tnode);
