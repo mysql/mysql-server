@@ -178,7 +178,7 @@ enum dict_col_sys_columns_enum {
 	DICT_COL__SYS_COLUMNS__PREC		= 6,
 	DICT_NUM_COLS__SYS_COLUMNS		= 7
 };
-/* The field numbers in the SYS_TABLES clustered index */
+/* The field numbers in the SYS_COLUMNS clustered index */
 enum dict_fld_sys_columns_enum {
 	DICT_FLD__SYS_COLUMNS__TABLE_ID		= 0,
 	DICT_FLD__SYS_COLUMNS__POS		= 1,
@@ -222,7 +222,7 @@ enum dict_col_sys_fields_enum {
 	DICT_COL__SYS_FIELDS__COL_NAME		= 2,
 	DICT_NUM_COLS__SYS_FIELDS		= 3
 };
-/* The field numbers in the SYS_INDEXES clustered index */
+/* The field numbers in the SYS_FIELDS clustered index */
 enum dict_fld_sys_fields_enum {
 	DICT_FLD__SYS_FIELDS__INDEX_ID		= 0,
 	DICT_FLD__SYS_FIELDS__POS		= 1,

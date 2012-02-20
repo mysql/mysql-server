@@ -60,7 +60,7 @@ call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	715	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	1348	0
+select a into b from t1 limit 1	1380	0
 insert into t1 values(current_user())	20	0
 # this SET always purges all remembered traces
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
@@ -92,7 +92,7 @@ select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPT
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 insert into t2 values(current_user())	20	0
 insert into t2 values(current_user())	20	0
-insert into t3 select * from t3	1340	0
+insert into t3 select * from t3	1372	0
 
 # Show that really all global privileges are needed: let root
 # revoke just one from user1. Because user1 does not have all global
@@ -264,7 +264,7 @@ call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	715	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	1348	0
+select a into b from t1 limit 1	1380	0
 insert into t1 values(current_user())	20	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select f1();
@@ -437,7 +437,7 @@ call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	715	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	1339	0
+select a into b from t1 limit 1	1371	0
 insert into t1 values(current_user())	20	0
 # Trace exposed body of routine, and content of t1, which we
 # could see anyway:
@@ -870,7 +870,7 @@ call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	715	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	1339	0
+select a into b from t1 limit 1	1371	0
 insert into t1 values(current_user())	20	0
 # Trace exposed body of routine, and content of t1, which we
 # could see anyway:

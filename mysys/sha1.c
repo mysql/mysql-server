@@ -84,6 +84,41 @@
 #include "sha1.h"
 
 /*
+  Skip entire file if built with YaSSL.
+*/
+#ifndef HAVE_YASSL
+
+#ifdef HAVE_OPENSSL
+
+/*
+  Wrapper for OpenSSL SH1 methods.
+*/
+
+int mysql_sha1_reset(SHA1_CONTEXT *context)
+{
+  return SHA1_Init(context);
+}
+
+
+int mysql_sha1_input(SHA1_CONTEXT *context, const uint8 *message_array,
+                     unsigned length)
+{
+  return SHA1_Update(context, message_array, length);
+}
+
+
+int mysql_sha1_result(SHA1_CONTEXT *context,
+                      uint8 Message_Digest[SHA1_HASH_SIZE])
+{
+  return SHA1_Final(Message_Digest, context);
+}
+
+#else /* HAVE_OPENSSL */
+/*
+  Native MySQL SHA1 implementation.
+*/
+
+/*
   Define the SHA1 circular left shift macro
 */
 
@@ -420,3 +455,6 @@ static void SHA1PadMessage(SHA1_CONTEXT *context)
 
   SHA1ProcessMessageBlock(context);
 }
+#endif /* HAVE_OPENSSL */
+
+#endif /* HAVE_YASSL */
