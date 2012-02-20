@@ -386,134 +386,18 @@
    fun:__libc_start_main
 }
 
+#
+#  dlclose can allocate memory for error message, the memory will be
+#  freed by dlerror or other dl* function.
+#
 {
-   dlclose memory loss from udf_free
+   memory "loss" from dlclose error messages
    Memcheck:Leak
-   fun:calloc
-   fun:_dlerror_run
+   fun:*alloc
+   ...
    fun:dlclose
-   fun:_Z8udf_freev
 }
 
-{
-   dlsym memory loss from udf_free on SuSE 11.1 x64 variant 2
-   Memcheck:Leak
-   fun:calloc
-   obj:/lib*/ld-*.so
-   fun:dlclose
-   fun:udf_free
-}
-
-{
-   dlclose memory loss from plugin variant 1
-   Memcheck:Leak
-   fun:calloc
-   fun:_dlerror_run
-   fun:dlclose
-   fun:plugin_dl_del(st_mysql_lex_string const*)
-}
-
-{
-   dlclose memory loss from plugin variant 2
-   Memcheck:Leak
-   fun:malloc
-   fun:_dl_close_worker
-   fun:_dl_close
-   fun:_dl_catch_error
-   fun:_dlerror_run
-   fun:dlclose
-   fun:_Z15free_plugin_memP12st_plugin_dl
-   fun:_Z13plugin_dl_delPK19st_mysql_lex_string
-}
-
-{
-   dlclose memory loss from plugin variant 3
-   Memcheck:Leak
-   fun:malloc
-   fun:_dl_scope_free
-   fun:_dl_close_worker
-   fun:_dl_close
-   fun:_dl_catch_error
-   fun:_dlerror_run
-   fun:dlclose
-   fun:_Z15free_plugin_memP12st_plugin_dl
-   fun:_Z13plugin_dl_delPK19st_mysql_lex_string
-}
-
-{
-   dlclose memory loss from plugin variant 4
-   Memcheck:Leak
-   fun:malloc
-   obj:/lib*/ld-*.so
-   obj:/lib*/ld-*.so
-   obj:/lib*/ld-*.so
-   obj:/lib*/libdl-*.so
-   fun:dlclose
-   fun:_ZL15free_plugin_memP12st_plugin_dl
-   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
-}
-
-{
-   dlclose memory loss from plugin variant 5
-   Memcheck:Leak
-   fun:malloc
-   obj:/lib*/ld-*.so
-   obj:/lib*/ld-*.so
-   obj:/lib*/ld-*.so
-   obj:/lib*/ld-*.so
-   obj:/lib*/libdl-*.so
-   fun:dlclose
-   fun:_ZL15free_plugin_memP12st_plugin_dl
-}
-
-{
-   dlclose memory loss from plugin variant 6, seen on Ubuntu Jaunty i686
-   Memcheck:Leak
-   fun:malloc
-   fun:_dl_scope_free
-   fun:_dl_close_worker
-   fun:_dl_close
-   fun:dlclose_doit
-   fun:_dl_catch_error
-   fun:_dlerror_run
-   fun:dlclose
-   fun:_ZL15free_plugin_memP12st_plugin_dl
-   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
-}
-
-{
-   dlclose memory loss from plugin variant 7, seen on Ubuntu Jaunty i686
-   Memcheck:Leak
-   fun:malloc
-   fun:_dl_close_worker
-   fun:_dl_close
-   fun:dlclose_doit
-   fun:_dl_catch_error
-   fun:_dlerror_run
-   fun:dlclose
-   fun:_ZL15free_plugin_memP12st_plugin_dl
-   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
-}
-
-{
-   dlclose memory loss from plugin variant 8
-   Memcheck:Leak
-   fun:calloc
-   fun:_dlerror_run
-   fun:dlclose
-   fun:_Z15free_plugin_memP12st_plugin_dl
-   fun:_Z13plugin_dl_delPK19st_mysql_lex_string
-}
-
-{
-   dlclose memory loss from plugin variant 9
-   Memcheck:Leak
-   fun:calloc
-   fun:_dlerror_run
-   fun:dlclose
-   fun:_ZL15free_plugin_memP12st_plugin_dl
-   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
-}
 
 {
    dlsym memory loss from plugin on SuSE 11.1 x64
