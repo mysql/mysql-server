@@ -133,9 +133,19 @@ public:
    * Returns the index of the first occurance of the character c.
    *
    * @params c character to look for
+   * @params pos position to start searching from
    * @returns index of character, of -1 if no character found
    */
-  ssize_t indexOf(char c) const;
+  ssize_t indexOf(char c, size_t pos = 0) const;
+
+  /**
+   * Returns the index of the first occurance of the string needle
+   *
+   * @params needle string to search for
+   * @params pos position to start searching from
+   * @returns index of character, of -1 if no character found
+   */
+  ssize_t indexOf(const char * needle, size_t pos = 0) const;
 
   /**
    * Returns the index of the last occurance of the character c.
