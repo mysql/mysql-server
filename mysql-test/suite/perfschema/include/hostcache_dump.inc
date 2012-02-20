@@ -1,5 +1,8 @@
 # Helper for hostcache_*.test
 
+--echo "Dumping performance_schema.host_cache"
+
+--disable_query_log
 --vertical_results
 select 
   IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,
@@ -24,8 +27,13 @@ select
   COUNT_INIT_CONNECT_ERRORS,
   COUNT_LOCAL_ERRORS,
   COUNT_UNKNOWN_ERRORS,
-  if (FIRST_ERROR_SEEN is not null, "set", "null") as FIRST_ERROR_SEEN,
-  if (LAST_ERROR_SEEN is not null, "set", "null") as LAST_ERROR_SEEN
+  if (FIRST_ERROR_SEEN is not null,
+     if (FIRST_ERROR_SEEN > date("2012-01-01"), "set", "wrong epoch"),
+     "null") as FIRST_ERROR_SEEN,
+  if (LAST_ERROR_SEEN is not null,
+     if (FIRST_ERROR_SEEN > date("2012-01-01"), "set", "wrong epoch"),
+     "null") as LAST_ERROR_SEEN
   from performance_schema.host_cache;
 --horizontal_results
+--enable_query_log
 
