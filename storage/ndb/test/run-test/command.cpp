@@ -162,8 +162,15 @@ do_change_version(atrt_config& config, SqlResultSet& command,
                                   BaseString("MYSQL_BASE_DIR"),
                                   BaseString(new_prefix));
   proc.m_proc.m_env.assign(newEnv);
-  BaseString suffix(proc.m_proc.m_path.substr(strlen(old_prefix)));
-  proc.m_proc.m_path.assign(new_prefix).append(suffix);
+
+  ssize_t pos = proc.m_proc.m_path.lastIndexOf('/');
+  BaseString exename(proc.m_proc.m_path.substr(pos));
+  char * exe = find_bin_path(new_prefix, exename.c_str());
+  proc.m_proc.m_path = exe;
+  if (exe)
+  {
+    free(exe);
+  }
   if (process_args && strlen(process_args))
   {
     /* Beware too long args */
