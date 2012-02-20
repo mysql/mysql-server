@@ -4473,15 +4473,19 @@ table_opened:
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
-	if (ib_table->ibd_file_missing && !thd_tablespace_op(thd)) {
+	if (ib_table->ibd_file_missing
+	    && !(ib_table->flags2 & DICT_TF2_DISCARDED)
+	    && !thd_tablespace_op(thd)) {
+
 		sql_print_error("MySQL is trying to open a table handle but "
-				"the .ibd file for\ntable %s does not exist.\n"
+				"the .ibd file for table %s does not exist."
 				"Have you deleted the .ibd file from the "
-				"database directory under\nthe MySQL datadir, "
-				"or have you used DISCARD TABLESPACE?\n"
-				"See " REFMAN "innodb-troubleshooting.html\n"
-				"how you can resolve the problem.\n",
+				"database directory under the MySQL datadir, "
+				"or have you used DISCARD TABLESPACE? "
+				"See " REFMAN "innodb-troubleshooting.html "
+				"how you can resolve the problem.",
 				norm_name);
+
 		free_share(share);
 		my_errno = ENOENT;
 
