@@ -667,7 +667,7 @@ row_import_set_sys_max_row_id(
 		mutex_enter(&dict_sys->mutex);
 
 		if (row_id >= dict_sys->row_id) {
-			dict_sys->row_id = row_id;
+			dict_sys->row_id = row_id + 1;
 			dict_hdr_flush_row_id();
 		}
 
@@ -1155,9 +1155,7 @@ row_import_for_mysql(
 		return(row_import_error(prebuilt, trx, err));
 	}
 
-	table->ibd_file_missing = FALSE;
-
-	if (!dict_index_is_unique(index)) {
+	if (prebuilt->clust_index_was_generated) {
 
 		err = row_import_set_sys_max_row_id(prebuilt, table);
 
@@ -1189,6 +1187,9 @@ row_import_for_mysql(
 #endif /* UNIV_DEBUG */
 
 	ut_a(err == DB_SUCCESS);
+
+	table->ibd_file_missing = FALSE;
+
 	return(row_import_cleanup(prebuilt, trx, err));
 }
 
