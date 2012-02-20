@@ -1854,14 +1854,14 @@ err_exit:
 	if (table->space == 0) {
 		/* The system tablespace is always available. */
 	} else if (table->flags2 & DICT_TF2_DISCARDED) {
+		char	table_name[MAX_FULL_NAME_LEN + 1];
 
-		/* FIXME: Currently this is not persistent */
+		innobase_format_name(
+			table_name, sizeof(table_name), table->name, FALSE);
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Tablespace for table ");
-		ut_print_name(stderr, NULL, TRUE, table->name);
-		fprintf(stderr, " discarded.\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Tablespace for table %s is discarded",
+			table_name);
 
 		table->ibd_file_missing = TRUE;
 
