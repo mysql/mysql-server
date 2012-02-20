@@ -750,47 +750,57 @@ loop:
 
 		mtr_commit(&mtr);
 
+		/* For tables created with old versions of InnoDB,
+		SYS_TABLES.MIX_LEN may contain garbage.  Such tables
+		would always be in ROW_FORMAT=REDUNDANT. Pretend that
+		all such tables are non-temporary. That is, do not
+		suppress error printouts about temporary or discarded
+		tablespaces not being found. */
+
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_TABLES__MIX_LEN, &len);
+
+		bool		is_temp = false;
+		bool		discarded = false;
+		ib_uint32_t	flags2 = mach_read_from_4(field);
+
+		/* Check that the tablespace (the .ibd file) really
+		exists; print a warning to the .err log if not.
+		Do not print warnings for temporary tables or for
+		tablespaces that have been discarded. */
+
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_TABLES__N_COLS, &len);
+
+		/* MIX_LEN valid only for ROW_FORMAT > REDUNDANT. */
+		if (mach_read_from_4(field) & DICT_N_COLS_COMPACT) {
+
+			is_temp = !!(flags2 & DICT_TF2_TEMPORARY);
+			discarded = !!(flags2 & DICT_TF2_DISCARDED);
+		}
+
 		if (space_id == 0) {
 			/* The system tablespace always exists. */
+			ut_a(!is_temp);
+			ut_a(!discarded);
 		} else if (in_crash_recovery) {
-			/* Check that the tablespace (the .ibd file) really
-			exists; print a warning to the .err log if not.
-			Do not print warnings for temporary tables. */
-			ibool	is_temp;
-
-			field = rec_get_nth_field_old(
-				rec, DICT_FLD__SYS_TABLES__N_COLS, &len);
-			if (mach_read_from_4(field) & DICT_N_COLS_COMPACT) {
-				/* ROW_FORMAT=COMPACT: read the is_temp
-				flag from SYS_TABLES.MIX_LEN. */
-				field = rec_get_nth_field_old(
-					rec, 7/*MIX_LEN*/, &len);
-				is_temp = !!(mach_read_from_4(field)
-					     & DICT_TF2_TEMPORARY);
-			} else {
-				/* For tables created with old versions
-				of InnoDB, SYS_TABLES.MIX_LEN may contain
-				garbage.  Such tables would always be
-				in ROW_FORMAT=REDUNDANT.  Pretend that
-				all such tables are non-temporary.  That is,
-				do not suppress error printouts about
-				temporary tables not being found. */
-				is_temp = FALSE;
-			}
 
 			fil_space_for_table_exists_in_mem(
-				space_id, name, TRUE, !is_temp);
-		} else {
-			db_err	err;
+				space_id, name, TRUE, !(is_temp || discarded));
+
+		} else if (!discarded) {
 
 			/* It is a normal database startup: create the space
 			object and check that the .ibd file exists. */
 
-			err = fil_open_single_table_tablespace(
+			(void) fil_open_single_table_tablespace(
 				NULL, space_id,
 				dict_tf_to_fsp_flags(flags), name);
 
-			// FIXME: Why aren't we checking the return value?
+		} else {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"DISCARD flag set for table '%s', ignored.",
+				name);
 		}
 
 		mem_free(name);
@@ -1854,14 +1864,10 @@ err_exit:
 	if (table->space == 0) {
 		/* The system tablespace is always available. */
 	} else if (table->flags2 & DICT_TF2_DISCARDED) {
-		char	table_name[MAX_FULL_NAME_LEN + 1];
 
-		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
-
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Tablespace for table %s is discarded",
-			table_name);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Tablespace for table %s was discarded.\n",
+			table->name);
 
 		table->ibd_file_missing = TRUE;
 
