@@ -895,6 +895,7 @@ SELECT COUNT(*) FROM worklog5743;
 COUNT(*)
 1
 COMMIT;
+"Disconnect the connections 1 and 2"
 DROP TABLE worklog5743;
 CREATE TABLE worklog5743 (
 col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,
@@ -1367,3 +1368,4 @@ CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (1000));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
 DROP TABLE worklog5743;
+"Disconnect the connection 1"

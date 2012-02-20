@@ -31,10 +31,10 @@ show warnings;
 
 # Start a few sessions to do selections on table being updated in default
 # session, so it would rebuild the previous version from undo log.
-# 1) Default session:	Initiate an update on the externally stored column
-# 2) Session con1:	Select from table with repeated read
-# 3) Session con2:	Select from table with read uncommitted
-# 4) Default session:	rollback updates
+# 1) Default session:   Initiate an update on the externally stored column
+# 2) Session con1:      Select from table with repeated read
+# 3) Session con2:      Select from table with read uncommitted
+# 4) Default session:   rollback updates
 
 begin;
 update worklog5743 set a = (repeat("x", 17000));
@@ -316,12 +316,12 @@ drop table worklog5743_16;
 # directly on these large columns to show that prefix limit is
 # automatically applied and to show that limit.
 create table worklog5743(a1 int,
-	a2 varchar(20000),
-	a3 varchar(3073),
-	a4 varchar(3072),
-	a5 varchar(3069),
-	a6 varchar(3068))
-	ROW_FORMAT=DYNAMIC;
+   a2 varchar(20000),
+   a3 varchar(3073),
+   a4 varchar(3072),
+   a5 varchar(3069),
+   a6 varchar(3068))
+   ROW_FORMAT=DYNAMIC;
 create index idx1 on worklog5743(a2);
 create index idx2 on worklog5743(a3);
 create index idx3 on worklog5743(a4);
@@ -337,9 +337,9 @@ show warnings;
 show create table worklog5743;
 
 insert into worklog5743 values(9,
-	repeat("a", 20000), repeat("a", 3073),
-	repeat("a", 3072), repeat("a", 3069),
-	repeat("a", 3068));
+   repeat("a", 20000), repeat("a", 3073),
+   repeat("a", 3072), repeat("a", 3069),
+   repeat("a", 3068));
 
 begin;
 
@@ -428,3 +428,11 @@ drop table worklog5743;
 eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
 eval SET GLOBAL innodb_large_prefix=$innodb_large_prefix_orig;
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection con2
+--disconnect con2
+--source include/wait_until_disconnected.inc
+--connection default
+

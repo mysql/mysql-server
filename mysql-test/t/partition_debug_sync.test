@@ -86,6 +86,7 @@ connection con1;
 --reap
 SET DEBUG_SYNC= 'RESET';
 disconnect con1;
+--source include/wait_until_disconnected.inc
 connection default;
 --echo # Con default
 SET DEBUG_SYNC= 'RESET';
