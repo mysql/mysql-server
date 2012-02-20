@@ -1758,8 +1758,11 @@ sub collect_mysqld_features {
 	# Put variables into hash
 	if ( $line =~ /^([\S]+)[ \t]+(.*?)\r?$/ )
 	{
-	  # print "$1=\"$2\"\n";
-	  $mysqld_variables{$1}= $2;
+          my $name= $1;
+          my $value=$2;
+          $name =~ s/_/-/g;
+          # print "$name=\"$value\"\n";
+          $mysqld_variables{$name}= $value;
 	}
 	else
 	{
@@ -1813,8 +1816,11 @@ sub collect_mysqld_features_from_running_server ()
     # Put variables into hash
     if ( $line =~ /^([\S]+)[ \t]+(.*?)\r?$/ )
     {
-      # print "$1=\"$2\"\n";
-      $mysqld_variables{$1}= $2;
+      my $name= $1;
+      my $value=$2;
+      $name =~ s/_/-/g;
+      # print "$name=\"$value\"\n";
+      $mysqld_variables{$name}= $value;
     }
   }
 
