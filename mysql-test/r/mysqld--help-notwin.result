@@ -196,8 +196,8 @@ The following options may be given as the first argument:
  GROUP_CONCAT()
  -?, --help          Display this help and exit.
  --ignore-builtin-innodb 
- DEPRECATED. This option will be removed in future
- releases. Disable initialization of builtin InnoDB plugin
+ IGNORED. This option will be removed in future releases.
+ Disable initialization of builtin InnoDB plugin
  --ignore-db-dir=name 
  Specifies a directory to add to the ignore list when
  collecting database names from the datadir. Put a blank
