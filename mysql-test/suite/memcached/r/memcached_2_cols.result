@@ -102,9 +102,9 @@ D	Darmstadt	City
 E	Essen	Ost
 H	Hamburg	Norderstedt
 Here the memcached results after add Frankfurt|:
-Frankfurt
+Frankfurt|
 Here the memcached results after add |Airport:
-Frankfurt
+Frankfurt|
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -114,9 +114,9 @@ E	Essen	Ost
 F	Frankfurt	NULL
 H	Hamburg	Norderstedt
 Here the memcached results after replace Frankfurt a.M.:
-Frankfurt a. M.
+Frankfurt a. M.|
 Here the memcached results after replace Sachsenhausen:
-Sachsenhausen
+|Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte

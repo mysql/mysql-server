@@ -796,10 +796,6 @@ innodb_get(
 		int	i;
 		for (i = 0; i < result.n_extra_col; i++) {
 
-			if (result.extra_col_value[i].value_len == 0) {
-				continue;
-			}
-
 			total_len += (result.extra_col_value[i].value_len
 				      + meta_info->sep_len);
 		}
@@ -824,15 +820,14 @@ innodb_get(
 
 		for (i = 0; i < result.n_extra_col; i++) {
 
-			if (result.extra_col_value[i].value_len == 0) {
-				continue;
+			if (result.extra_col_value[i].value_len != 0) {
+				memcpy(c_value,
+				       result.extra_col_value[i].value_str,
+				       result.extra_col_value[i].value_len);
+
+				c_value += result.extra_col_value[i].value_len;
 			}
 
-			memcpy(c_value,
-			       result.extra_col_value[i].value_str,
-			       result.extra_col_value[i].value_len);
-
-			c_value += result.extra_col_value[i].value_len;
 			memcpy(c_value, meta_info->separator,
 			       meta_info->sep_len);
 			c_value += meta_info->sep_len;

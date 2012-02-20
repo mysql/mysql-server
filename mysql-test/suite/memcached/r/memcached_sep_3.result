@@ -70,8 +70,8 @@ C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 Here the memcached results after set:
-Essen|Ost|5|eeeeeeeeeee|5678|2012
-EssenÃ¼OstÃ¼5Ã¼eeeeeeeeeeeÃ¼5678Ã¼2012
+Essen|Ost|5|eeeeeeeeeee|5678|2012üüüüü
+EssenÃ¼OstÃ¼5Ã¼eeeeeeeeeeeÃ¼5678Ã¼2012üüüüü
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
