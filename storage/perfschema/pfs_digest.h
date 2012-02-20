@@ -74,7 +74,6 @@ void cleanup_digest();
 int init_digest_hash(void);
 void cleanup_digest_hash(void);
 PFS_statements_digest_stat* find_or_create_digest(PFS_thread*,
-                                                  PFS_digest_hash,
                                                   PFS_digest_storage*);
 
 void get_digest_text(char* digest_text, PFS_digest_storage*);

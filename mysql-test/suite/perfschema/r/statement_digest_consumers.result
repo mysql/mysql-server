@@ -88,28 +88,28 @@ Warning	1265	Data truncated for column 'c' at row 1
 ####################################
 SELECT digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
 digest	digest_text	count_star
-29570e463ee5c23d	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
-043b89731c01112f	SELECT ? FROM t1  	1
-454eba8b93c9ca0a	SELECT ? FROM `t1`  	1
-d7ee0ef93ad9fa8d	SELECT ?, ... FROM t1  	2
-a9a476e33c41ccf6	SELECT ? FROM t2  	1
-e0ec2ba9bfa25ce9	SELECT ?, ... FROM t2  	2
-9483370b7bfe3e5b	INSERT INTO t1 VALUES (?)  	1
-5a02f8af17096ad0	INSERT INTO t2 VALUES (?)  	1
-778782a1f7a22d3e	INSERT INTO t3 VALUES (...)  	1
-ba86d7d93b0f147d	INSERT INTO t4 VALUES (...)  	1
-d6451ffacc7e94dd	INSERT INTO t5 VALUES (...)  	1
-7fcb81b5cb6a8b88	INSERT INTO t1 VALUES (?) /* , ... */  	2
-0bac26f67845225a	INSERT INTO t3 VALUES (...) /* , ... */  	1
-ef74a0ff15482a27	INSERT INTO t5 VALUES (...) /* , ... */  	1
-21c8d94778536808	SELECT ? + ?  	3
-9b5972abc531b21c	SELECT ?  	1
-49d23ec9aebe975b	CREATE SCHEMA statements_digest_temp  	2
-d42c9738d3d96889	DROP SCHEMA statements_digest_temp  	2
-8bfbc5ac3b54dcc9	SELECT ? FROM t11  	1
-5d0009fe38bf1af6	CREATE TABLE t11 ( c CHARACTER (?) )  	2
-fe1467341bb94010	INSERT INTO t11 VALUES (?)  	1
-69029853781ad4cf	SHOW WARNINGS  	1
+f7ab835f907f396b	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
+0431ac94abde6328	SELECT ? FROM t1  	1
+d798ff4be98e0d26	SELECT ? FROM `t1`  	1
+d5016618084cd788	SELECT ?, ... FROM t1  	2
+6f08c6cdf2afab43	SELECT ? FROM t2  	1
+4fef50eb0b2f2fbc	SELECT ?, ... FROM t2  	2
+c4335f4ded28cdc3	INSERT INTO t1 VALUES (?)  	1
+b015c102ab03f4bc	INSERT INTO t2 VALUES (?)  	1
+f83d4b46c3fe5ff9	INSERT INTO t3 VALUES (...)  	1
+b81724d2cfa0ab7f	INSERT INTO t4 VALUES (...)  	1
+960035d85bc6d14f	INSERT INTO t5 VALUES (...)  	1
+6ee7554974d2ffa1	INSERT INTO t1 VALUES (?) /* , ... */  	2
+827ec3eb62c9f2ed	INSERT INTO t3 VALUES (...) /* , ... */  	1
+55e9e1b918c4e559	INSERT INTO t5 VALUES (...) /* , ... */  	1
+d055f262b12b2384	SELECT ? + ?  	3
+de392358e87965c3	SELECT ?  	1
+d8bde89f42443bc5	CREATE SCHEMA statements_digest_temp  	2
+5f49c045f89918f9	DROP SCHEMA statements_digest_temp  	2
+04bbba67445b1f70	SELECT ? FROM t11  	1
+60be4562b0114c30	CREATE TABLE t11 ( c CHARACTER (?) )  	2
+b1115cec4d694e11	INSERT INTO t11 VALUES (?)  	1
+2ff7a4150e76c272	SHOW WARNINGS  	1
 SELECT digest, digest_text FROM performance_schema.events_statements_current;
 digest	digest_text
 ####################################
