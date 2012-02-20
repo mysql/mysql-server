@@ -990,7 +990,7 @@ sub command_line_setup {
              'skip-test=s'              => \&collect_option,
              'do-test=s'                => \&collect_option,
              'start-from=s'             => \&collect_option,
-             'big-test'                 => \$opt_big_test,
+             'big-test+'                => \$opt_big_test,
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
              'experimental=s'           => \@opt_experimentals,
@@ -1761,8 +1761,11 @@ sub collect_mysqld_features {
 	# Put variables into hash
 	if ( $line =~ /^([\S]+)[ \t]+(.*?)\r?$/ )
 	{
-	  # print "$1=\"$2\"\n";
-	  $mysqld_variables{$1}= $2;
+          my $name= $1;
+          my $value=$2;
+          $name =~ s/_/-/g;
+          # print "$name=\"$value\"\n";
+          $mysqld_variables{$name}= $value;
 	}
 	else
 	{
@@ -1816,8 +1819,11 @@ sub collect_mysqld_features_from_running_server ()
     # Put variables into hash
     if ( $line =~ /^([\S]+)[ \t]+(.*?)\r?$/ )
     {
-      # print "$1=\"$2\"\n";
-      $mysqld_variables{$1}= $2;
+      my $name= $1;
+      my $value=$2;
+      $name =~ s/_/-/g;
+      # print "$name=\"$value\"\n";
+      $mysqld_variables{$name}= $value;
     }
   }
 
@@ -6007,7 +6013,8 @@ Options to control what test suites or cases to run
                         list of suite names.
                         The default is: "$DEFAULT_SUITES"
   skip-rpl              Skip the replication test cases.
-  big-test              Also run tests marked as "big"
+  big-test              Also run tests marked as "big". Repeat this option
+                        twice to run only "big" tests.
   staging-run           Run a limited number of tests (no slow tests). Used
                         for running staging trees with valgrind.
   enable-disabled       Run also tests marked as disabled

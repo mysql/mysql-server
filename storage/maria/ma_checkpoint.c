@@ -916,6 +916,9 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
         */
       }
       translog_unlock();
+      if (state_copy == state_copies)
+        break;                                  /* Nothing to do */
+
       /**
          We are going to flush these states.
          Before, all records describing how to undo such state must be
@@ -940,13 +943,13 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       if (translog_flush(state_copies_horizon))
         goto err;
       /* now we have cached states and they are WAL-safe*/
-      state_copies_end= state_copy;
+      state_copies_end= state_copy-1;
       state_copy= state_copies;
     }
 
     /* locate our state among these cached ones */
     for ( ; state_copy->index != i; state_copy++)
-      DBUG_ASSERT(state_copy < state_copies_end);
+      DBUG_ASSERT(state_copy <= state_copies_end);
 
     /* OS file descriptors are ints which we stored in 4 bytes */
     compile_time_assert(sizeof(int) <= 4);
