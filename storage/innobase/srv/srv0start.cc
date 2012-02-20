@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -904,8 +904,9 @@ skip_size_check:
 #endif /* UNIV_LOG_ARCHIVE */
 				min_flushed_lsn, max_flushed_lsn);
 
-			if (UNIV_PAGE_SIZE
-			    != fsp_flags_get_page_size(flags)) {
+			if (!one_opened
+			    && UNIV_PAGE_SIZE
+			       != fsp_flags_get_page_size(flags)) {
 
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -2180,7 +2181,7 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_available_undo_logs == ULINT_UNDEFINED) {
 		/* Can only happen if force recovery is set. */
 		ut_a(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
-		srv_undo_logs = ULINT_UNDEFINED;
+		srv_undo_logs = ULONG_UNDEFINED;
 	}
 
 	/* Create the thread which watches the timeouts for lock waits */

@@ -197,6 +197,7 @@ The following options may be given as the first argument:
  -?, --help          Display this help and exit.
  --host-cache-size=# How many host names should be cached to avoid resolving.
  --ignore-builtin-innodb 
+ IGNORED. This option will be removed in future releases.
  Disable initialization of builtin InnoDB plugin
  --ignore-db-dir=name 
  Specifies a directory to add to the ignore list when

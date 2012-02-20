@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -194,16 +194,17 @@ trx_undo_get_first_rec(
 	mtr_t*	mtr);	/*!< in: mtr */
 /********************************************************************//**
 Tries to add a page to the undo log segment where the undo log is placed.
-@return	page number if success, else FIL_NULL */
+@return	X-latched block if success, else NULL */
 UNIV_INTERN
-ulint
+buf_block_t*
 trx_undo_add_page(
 /*==============*/
 	trx_t*		trx,	/*!< in: transaction */
 	trx_undo_t*	undo,	/*!< in: undo log memory object */
-	mtr_t*		mtr);	/*!< in: mtr which does not have a latch to any
+	mtr_t*		mtr)	/*!< in: mtr which does not have a latch to any
 				undo log page; the caller must have reserved
 				the rollback segment mutex */
+	__attribute__((nonnull, warn_unused_result));
 /********************************************************************//**
 Frees the last undo log page.
 The caller must hold the rollback segment mutex. */
