@@ -1,0 +1,119 @@
+CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t3 (a INT PRIMARY KEY, b TEXT, c TEXT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,REPEAT('a',30000)),(2,REPEAT('b',40000));
+SET DEBUG_SYNC='before_row_upd_extern SIGNAL have_latch WAIT_FOR go1';
+BEGIN;
+UPDATE t1 SET a=a+2;
+ROLLBACK;
+BEGIN;
+UPDATE t1 SET b=CONCAT(b,'foo');
+SET DEBUG_SYNC='now WAIT_FOR have_latch';
+SELECT a, RIGHT(b,20) FROM t1;
+SET DEBUG_SYNC='now SIGNAL go1';
+a	RIGHT(b,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+SET DEBUG='+d,row_ins_extern_checkpoint';
+SET DEBUG_SYNC='before_row_ins_extern_latch SIGNAL rec_not_blob WAIT_FOR crash';
+ROLLBACK;
+BEGIN;
+INSERT INTO t1 VALUES (3,REPEAT('c',50000));
+SET DEBUG_SYNC='now WAIT_FOR rec_not_blob';
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SELECT @@tx_isolation;
+@@tx_isolation
+READ-UNCOMMITTED
+SELECT a, RIGHT(b,20) FROM t1;
+a	RIGHT(b,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+SELECT a FROM t1;
+a
+1
+2
+3
+SET DEBUG='+d,crash_commit_before';
+INSERT INTO t2 VALUES (42);
+ERROR HY000: Lost connection to MySQL server during query
+ERROR HY000: Lost connection to MySQL server during query
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t3 VALUES
+(1,REPEAT('d',7000),REPEAT('e',100)),
+(2,REPEAT('g',7000),REPEAT('h',100));
+SET DEBUG_SYNC='before_row_upd_extern SIGNAL have_latch WAIT_FOR go';
+UPDATE t3 SET c=REPEAT('f',3000) WHERE a=1;
+SET DEBUG_SYNC='now WAIT_FOR have_latch';
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SELECT @@tx_isolation;
+@@tx_isolation
+READ-UNCOMMITTED
+SELECT a, RIGHT(b,20), RIGHT(c,20) FROM t3;
+SET DEBUG_SYNC='now SIGNAL go';
+a	RIGHT(b,20)	RIGHT(c,20)
+1	dddddddddddddddddddd	ffffffffffffffffffff
+2	gggggggggggggggggggg	hhhhhhhhhhhhhhhhhhhh
+CHECK TABLE t1,t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+test.t2	check	status	OK
+test.t3	check	status	OK
+BEGIN;
+INSERT INTO t2 VALUES (347);
+SET DEBUG='+d,row_upd_extern_checkpoint';
+SET DEBUG_SYNC='before_row_upd_extern SIGNAL have_latch WAIT_FOR crash';
+UPDATE t3 SET c=REPEAT('i',3000) WHERE a=2;
+SET DEBUG_SYNC='now WAIT_FOR have_latch';
+SELECT info FROM information_schema.processlist
+WHERE state = 'debug sync point: before_row_upd_extern';
+info
+UPDATE t3 SET c=REPEAT('i',3000) WHERE a=2
+SET DEBUG='+d,crash_commit_before';
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+ERROR HY000: Lost connection to MySQL server during query
+CHECK TABLE t1,t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+test.t2	check	status	OK
+test.t3	check	status	OK
+SELECT a, RIGHT(b,20), RIGHT(c,20) FROM t3;
+a	RIGHT(b,20)	RIGHT(c,20)
+1	dddddddddddddddddddd	ffffffffffffffffffff
+2	gggggggggggggggggggg	hhhhhhhhhhhhhhhhhhhh
+SELECT a FROM t3;
+a
+1
+2
+BEGIN;
+INSERT INTO t2 VALUES (33101);
+SET DEBUG='+d,row_upd_extern_checkpoint';
+SET DEBUG_SYNC='after_row_upd_extern SIGNAL have_latch WAIT_FOR crash';
+UPDATE t3 SET c=REPEAT('j',3000) WHERE a=2;
+SET DEBUG_SYNC='now WAIT_FOR have_latch';
+SELECT info FROM information_schema.processlist
+WHERE state = 'debug sync point: after_row_upd_extern';
+info
+UPDATE t3 SET c=REPEAT('j',3000) WHERE a=2
+SET DEBUG='+d,crash_commit_before';
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+ERROR HY000: Lost connection to MySQL server during query
+CHECK TABLE t1,t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+test.t2	check	status	OK
+test.t3	check	status	OK
+SELECT a, RIGHT(b,20), RIGHT(c,20) FROM t3;
+a	RIGHT(b,20)	RIGHT(c,20)
+1	dddddddddddddddddddd	ffffffffffffffffffff
+2	gggggggggggggggggggg	hhhhhhhhhhhhhhhhhhhh
+SELECT a FROM t3;
+a
+1
+2
+SELECT * FROM t2;
+a
+DROP TABLE t1,t2,t3;

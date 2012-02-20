@@ -1823,7 +1823,7 @@ void st_select_lex::init_select()
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
   with_sum_func= 0;
-  cur_pos_in_select_list= UNDEF_POS;
+  cur_pos_in_all_fields= ALL_FIELDS_UNDEF_POS;
   non_agg_fields.empty();
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();

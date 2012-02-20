@@ -64,6 +64,28 @@
   Internet Society. 
 */
 
+#define SHA1_HASH_SIZE 20 /* Hash size in bytes */
+
+/*
+  Use SHA1 implementation provided by the SSL libraries if available.
+*/
+
+#if defined(HAVE_YASSL)
+
+C_MODE_START
+
+void mysql_sha1_yassl(uint8 *digest, const char *buf, int len);
+void mysql_sha1_multi_yassl(uint8 *digest, const char *buf1, int len1,
+                            const char *buf2, int len2);
+
+C_MODE_END
+
+#elif defined(HAVE_OPENSSL)
+
+#include <openssl/sha.h>
+#define SHA1_CONTEXT SHA_CTX
+
+# else
 
 enum sha_result_codes
 {
@@ -72,8 +94,6 @@ enum sha_result_codes
   SHA_INPUT_TOO_LONG,	/* input data too long */
   SHA_STATE_ERROR	/* called Input after Result */
 };
-
-#define SHA1_HASH_SIZE 20 /* Hash size in bytes */
 
 /*
   This structure will hold context information for the SHA-1
@@ -90,8 +110,11 @@ typedef struct SHA1_CONTEXT
   uint8 Message_Block[64];	/* 512-bit message blocks      */
 } SHA1_CONTEXT;
 
+#endif  /* HAVE_YASSL */
+
+#ifndef HAVE_YASSL
 /*
-  Function Prototypes
+  Function Prototypes (shared by MySQL & OpenSSL's SHA1 implementation )
 */
 
 C_MODE_START
@@ -102,4 +125,14 @@ int mysql_sha1_result(SHA1_CONTEXT* , uint8 Message_Digest[SHA1_HASH_SIZE]);
 
 C_MODE_END
 
-#endif /* SHA__INCLUDED */
+#endif /* HAVE_YASSL */
+
+C_MODE_START
+
+void compute_sha1_hash(uint8 *digest, const char *buf, int len);
+void compute_sha1_hash_multi(uint8 *digest, const char *buf1, int len1,
+                             const char *buf2, int len2);
+
+C_MODE_END
+
+#endif /* SHA1_INCLUDED */
