@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,11 +50,11 @@ first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 #define	MTR_MEMO_PAGE_S_FIX	RW_S_LATCH
 #define	MTR_MEMO_PAGE_X_FIX	RW_X_LATCH
 #define	MTR_MEMO_BUF_FIX	RW_NO_LATCH
-#define MTR_MEMO_MODIFY		54
+#ifdef UNIV_DEBUG
+# define MTR_MEMO_MODIFY	54
+#endif /* UNIV_DEBUG */
 #define	MTR_MEMO_S_LOCK		55
 #define	MTR_MEMO_X_LOCK		56
-/** The mini-transaction freed a clustered index leaf page. */
-#define MTR_MEMO_FREE_CLUST_LEAF	57
 
 /** @name Log item types
 The log items are declared 'byte' so that the compiler can warn if val
@@ -377,15 +377,15 @@ struct mtr_struct{
 	unsigned	modifications:1;
 				/*!< TRUE if the mini-transaction
 				modified buffer pool pages */
-	unsigned	freed_clust_leaf:1;
-				/*!< TRUE if MTR_MEMO_FREE_CLUST_LEAF
-				was logged in the mini-transaction */
 	unsigned	made_dirty:1;
 				/*!< TRUE if mtr has made at least
 				one buffer pool page dirty */
 	ulint		n_log_recs;
 				/* count of how many page initial log records
 				have been written to the mtr log */
+	ulint		n_freed_pages;
+				/* number of pages that have been freed in
+				this mini-transaction */
 	ulint		log_mode; /* specifies which operations should be
 				logged; default value MTR_LOG_ALL */
 	lsn_t		start_lsn;/* start lsn of the possible log entry for

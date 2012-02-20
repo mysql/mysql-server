@@ -559,7 +559,24 @@ public:
     (see bug #11829681/60295 etc).
   */
   uint name_length;                     /* Length of name */
-  int8 marker;
+  /**
+     This member has several successive meanings, depending on the phase we're
+     in:
+     - during field resolution: it contains the index, in the "all_fields"
+     list, of the expression to which this field belongs; or a special
+     constant UNDEF_POS; see st_select_lex::cur_pos_in_all_fields and
+     match_exprs_for_only_full_group_by().
+     - when attaching conditions to tables: it says whether some condition
+     needs to be attached or can be omitted (for example because it is already
+     implemented by 'ref' access)
+     - when pushing index conditions: it says whether a condition uses only
+     indexed columns
+     - when creating an internal temporary table: it says how to store BIT
+     fields
+     - when we change DISTINCT to GROUP BY: it is used for book-keeping of
+     fields.
+  */
+  int marker;
   uint8 decimals;
   my_bool maybe_null;			/* If item may be null */
   my_bool null_value;			/* if item is null */
@@ -648,6 +665,15 @@ public:
     if (result_type() == STRING_RESULT)
       return REAL_RESULT; 
     return result_type();
+  }
+  /**
+    Similar to result_type() but makes DATE, DATETIME, TIMESTAMP
+    pretend to be numbers rather than strings.
+  */
+  inline enum Item_result temporal_with_date_as_number_result_type() const
+  {
+    return is_temporal_with_date() ? 
+           (decimals ? DECIMAL_RESULT : INT_RESULT) : result_type();
   }
   virtual Item_result cast_to_int_type() const { return result_type(); }
   virtual enum_field_types string_field_type() const;
@@ -2058,6 +2084,9 @@ public:
     fprintf(DBUG_FILE, ">\n");
   }
 #endif
+
+  /// Pushes the item to select_lex.non_agg_fields() and updates its marker.
+  bool push_to_non_agg_fields(st_select_lex *select_lex);
 
   friend class Item_default_value;
   friend class Item_insert_value;
