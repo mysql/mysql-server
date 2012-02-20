@@ -403,10 +403,14 @@ row_undo_ins(
 
 		log_free_check();
 
-		if (node->table->id == DICT_INDEXES_ID
-		    && !dict_locked) {
+		if (node->table->id == DICT_INDEXES_ID) {
 
-			mutex_enter(&dict_sys->mutex);
+			if (!dict_locked) {
+				mutex_enter(&dict_sys->mutex);
+			}
+
+			// FIXME: Q&D hack
+			node->table->ibd_file_missing;
 		}
 
 		err = row_undo_ins_remove_clust_rec(node);

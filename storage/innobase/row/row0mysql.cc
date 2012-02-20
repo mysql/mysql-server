@@ -55,6 +55,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "fts0fts.h"
 #include "fts0types.h"
 #include "srv0start.h"
+#include "row0import.h"
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -2689,38 +2690,31 @@ db_err
 row_mysql_table_id_reassign(
 /*========================*/
 	dict_table_t*	table,	/*!< in/out: table */
-	trx_t*		trx)	/*!< in/out: transaction */
+	trx_t*		trx,	/*!< in/out: transaction */
+	table_id_t*	new_id)	/*!< out: new table id */
 {
 	db_err		err;
-	table_id_t	new_id;
 	pars_info_t*	info	= pars_info_create();
 
-	dict_hdr_get_new_id(&new_id, NULL, NULL);
+	dict_hdr_get_new_id(new_id, NULL, NULL);
 
 	/* Remove all locks except the table-level S and X locks. */
 	lock_remove_all_on_table(table, FALSE);
 
 	pars_info_add_ull_literal(info, "old_id", table->id);
-	pars_info_add_ull_literal(info, "new_id", new_id);
+	pars_info_add_ull_literal(info, "new_id", *new_id);
 
-	err = que_eval_sql(info,
-			   "PROCEDURE RENUMBER_TABLE_PROC () IS\n"
-			   "BEGIN\n"
-			   "UPDATE SYS_TABLES SET ID = :new_id\n"
-			   " WHERE ID = :old_id;\n"
-			   "UPDATE SYS_COLUMNS SET TABLE_ID = :new_id\n"
-			   " WHERE TABLE_ID = :old_id;\n"
-			   "UPDATE SYS_INDEXES SET TABLE_ID = :new_id\n"
-			   " WHERE TABLE_ID = :old_id;\n"
-			   "COMMIT WORK;\n"
-			   "END;\n", FALSE, trx);
-
-	if (err == DB_SUCCESS) {
-		/* FIXME: Should we really do it here. I think we shoud be
-		able to rollback the entire process in case of subsequent
-		failure. */
-		dict_table_change_id_in_cache(table, new_id);
-	}
+	err = que_eval_sql(
+		info,
+		"PROCEDURE RENUMBER_TABLE_PROC () IS\n"
+		"BEGIN\n"
+		"UPDATE SYS_TABLES SET ID = :new_id\n"
+		" WHERE ID = :old_id;\n"
+		"UPDATE SYS_COLUMNS SET TABLE_ID = :new_id\n"
+		" WHERE TABLE_ID = :old_id;\n"
+		"UPDATE SYS_INDEXES SET TABLE_ID = :new_id\n"
+		" WHERE TABLE_ID = :old_id;\n"
+		"END;\n", FALSE, trx);
 
 	return(err);
 }
@@ -2834,32 +2828,34 @@ row_discard_tablespace_for_mysql(
 		}
 	}
 
-	err = row_mysql_table_id_reassign(table, trx);
+	table_id_t	new_id;
 
-	if (err != DB_SUCCESS) {
+	if (row_mysql_table_id_reassign(table, trx, &new_id)
+	    	!= DB_SUCCESS
+	    || row_import_update_discarded_flag(trx, table, true, true)
+	    	!= DB_SUCCESS
+	    || row_import_update_index_root(trx, table, true, true)
+	    	!= DB_SUCCESS
+	    || ((err = fil_discard_tablespace(table->space, TRUE)) != DB_SUCCESS
+		&& err != DB_TABLESPACE_NOT_FOUND
+		&& err != DB_IO_ERROR)) {
+
+		/* We need to rollback the disk changes, something failed. */
+
 		trx->error_state = DB_SUCCESS;
 
 		trx_rollback_to_savepoint(trx, NULL);
 
 		trx->error_state = DB_SUCCESS;
+
 	} else {
 
-		err = fil_discard_tablespace(table->space, TRUE);
+		/* All persistent operations successful, update the
+		data dictionary memory cache. */
 
-		if (err != DB_SUCCESS) {
-			trx->error_state = DB_SUCCESS;
+		table->ibd_file_missing = TRUE;
 
-			trx_rollback_to_savepoint(trx, NULL);
-
-			trx->error_state = DB_SUCCESS;
-		}
-
-		/* Even if the function returns the following errors, we
-		know that the tablespace is no longer valid. */
-
-		ut_a(err == DB_SUCCESS
-		     || err == DB_TABLESPACE_NOT_FOUND
-		     || err == DB_IO_ERROR);
+		dict_table_change_id_in_cache(table, new_id);
 
 		/* Reset the root page numbers. */
 
@@ -2871,20 +2867,10 @@ row_discard_tablespace_for_mysql(
 			index->space = FIL_NULL;
 		}
 
-		table->ibd_file_missing = TRUE;
-
 #ifdef UNIV_DEBUG
 		DBUG_EXECUTE_IF("ib_discard_before_root_reset_crash",
 				DBUG_SUICIDE(););
 #endif /* UNIV_DEBUG */
-
-		/* Scan SYS_INDEXES for all indexes of the table and
-		reset root <space, pageno>. */
-		{
-			SetIndexRoot	callback(table);
-
-			row_mysql_sys_index_iterate(table->id, &callback);
-		}
 
 		err = DB_SUCCESS;
 	}
@@ -3266,7 +3252,8 @@ row_truncate_table_for_mysql(
 		dict_table_x_lock_indexes(table);
 	}
 
-	/* Scan SYS_INDEXES for all indexes of the table and reset root page. */
+	/* Scan SYS_INDEXES for all indexes of the table and reset root page.
+	Note: This operation cannot be rolled back. */
 	{
 		TruncateIndex	callback(table, recreate_space);
 
@@ -3853,12 +3840,18 @@ check_next_foreign:
 					space_id, name, FALSE, print_msg)) {
 				err = DB_SUCCESS;
 
-				fprintf(stderr,
-					"InnoDB: We removed now the InnoDB"
-					" internal data dictionary entry\n"
-					"InnoDB: of table ");
-				ut_print_name(stderr, trx, TRUE, name);
-				fprintf(stderr, ".\n");
+				if (print_msg) {
+					char table_name[MAX_FULL_NAME_LEN + 1];
+
+					innobase_format_name(
+						table_name, sizeof(table_name),
+					       	name, FALSE);
+
+					ib_logf(IB_LOG_LEVEL_INFO,
+						"Removed the table %s from "
+						"InnoDB's data dictionary",
+						table_name);
+				}
 			} else if (fil_delete_tablespace(space_id, FALSE)
 				   != DB_SUCCESS) {
 				fprintf(stderr,

@@ -560,7 +560,8 @@ db_err
 row_mysql_table_id_reassign(
 /*========================*/
 	dict_table_t*	table,	/*!< in/out: table */
-	trx_t*		trx);	/*!< in/out: transaction */
+	trx_t*		trx,	/*!< in/out: transaction */
+	table_id_t*	new_id);/*!< out: new table id */
 
 /*********************************************************************//**
 Iterate over the table's indexes in SYS_INDEXES.
