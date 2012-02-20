@@ -46,8 +46,9 @@ typedef struct eng_config_info {
 	void*		cb_ptr;			/*!< call back function ptr */
 	unsigned int	eng_read_batch_size;	/*!< read batch size */
 	unsigned int	eng_write_batch_size;	/*!< write batch size */
-	bool		enable_binlog;		/*!< whether binlog is
-						enabled */
+	bool		eng_enable_binlog;	/*!< whether binlog is
+						enabled specifically for
+						this memcached engine */
 } eng_config_info_t;
 
 /**********************************************************************//**
@@ -183,6 +184,11 @@ innodb_get_info(
 	return(&innodb_handle(handle)->info.info);
 }
 
+/** static variables for creating MySQL "FAKE" THD and "TABLE" structures
+for MDL locking */
+static void*	mysql_thd;
+static void*	mysql_table;
+
 /*******************************************************************//**
 Initialize InnoDB Memcached Engine.
 @return ENGINE_SUCCESS if successful */
@@ -198,6 +204,7 @@ innodb_initialize(
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
 	eng_config_info_t*	my_eng_config;
+	int			api_cfg_status;
 
 	my_eng_config = (eng_config_info_t*) config_str;
 
@@ -207,20 +214,25 @@ innodb_initialize(
 	innodb_eng->read_batch_size = (my_eng_config->eng_read_batch_size
 					? my_eng_config->eng_read_batch_size
 					: CONN_NUM_READ_COMMIT);
+
 	innodb_eng->write_batch_size = (my_eng_config->eng_write_batch_size
 					? my_eng_config->eng_write_batch_size
 					: CONN_NUM_WRITE_COMMIT);
 
-	innodb_eng->enable_binlog = my_eng_config->enable_binlog;
+	innodb_eng->enable_binlog = my_eng_config->eng_enable_binlog;
+
+	api_cfg_status = innodb_cb_get_cfg();
 
 	/* If binlog is not enabled by InnoDB memcached plugin, let's
 	check whether innodb_direct_access_enable_binlog is turned on */
 	if (!innodb_eng->enable_binlog) {
-		innodb_eng->enable_binlog = innodb_cb_binlog_enabled();
+		innodb_eng->enable_binlog = api_cfg_status
+					    & IB_CFG_BINLOG_ENABLED;
 	}
 
-	/* MEMCACHED_RESOLVE: Set the default write batch size to 1
-	if binlog is turned on */
+	innodb_eng->enable_mdl = api_cfg_status & IB_CFG_MDL_ENABLED;
+
+	/* Set the default write batch size to 1 if binlog is turned on */
 	if (innodb_eng->enable_binlog) {
 		innodb_eng->write_batch_size = 1;
 	}
@@ -238,6 +250,15 @@ innodb_initialize(
 		return_status = def_eng->engine.initialize(
 			innodb_eng->default_engine,
 			my_eng_config->option_string);
+	}
+
+	if (return_status == ENGINE_SUCCESS && innodb_eng->enable_mdl) {
+		mysql_thd = handler_create_thd(false);
+		mysql_table = handler_open_table(
+			mysql_thd,
+			innodb_eng->meta_info.col_info[CONTAINER_DB].col_name,
+			innodb_eng->meta_info.col_info[CONTAINER_TABLE].col_name,
+			HDL_READ);
 	}
 
 	return(return_status);
@@ -362,6 +383,11 @@ innodb_destroy(
 {
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
+
+	if (innodb_eng->enable_mdl && mysql_thd) {
+		handler_unlock_table(mysql_thd, mysql_table, HDL_READ);
+		handler_close_thd(mysql_thd);
+	}
 
 	innodb_conn_clean(innodb_eng, true, false);
 

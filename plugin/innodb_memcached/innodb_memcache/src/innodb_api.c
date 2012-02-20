@@ -78,7 +78,7 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_table_truncate,
 	(ib_cb_t*) &ib_cb_cursor_open_index_using_name,
 	(ib_cb_t*) &ib_cb_close_thd,
-	(ib_cb_t*) &ib_cb_binlog_enabled,
+	(ib_cb_t*) &ib_cb_get_cfg,
 	(ib_cb_t*) &ib_cb_cursor_set_cluster_access,
 	(ib_cb_t*) &ib_cb_cursor_commit_trx,
 	(ib_cb_t*) &ib_cb_cfg_trx_level
@@ -171,9 +171,15 @@ innodb_api_begin(
 			}
 
 			/* Create a "Fake" THD if binlog is enabled */
-			if (conn_data && engine->enable_binlog) {
-				if (!conn_data->thd) {
-					conn_data->thd = handler_create_thd();
+			if (conn_data) {
+				if (engine->enable_binlog && !conn_data->thd) {
+					conn_data->thd = handler_create_thd(
+						engine->enable_binlog);
+
+					if (!conn_data->thd) {
+						innodb_cb_cursor_close(*crsr);
+						return(DB_ERROR);
+					}
 				}
 			}
 		}
@@ -1014,7 +1020,7 @@ innodb_api_delete(
 				cursor_data->thd,
 				meta_info->col_info[CONTAINER_DB].col_name,
 				meta_info->col_info[CONTAINER_TABLE].col_name,
-				-2);
+				HDL_WRITE);
 		}
 
 		assert(cursor_data->mysql_tbl);
@@ -1201,7 +1207,8 @@ innodb_api_arithmetic(
 		cursor_data->mysql_tbl = handler_open_table(
 			cursor_data->thd,
 			meta_info->col_info[CONTAINER_DB].col_name,
-			meta_info->col_info[CONTAINER_TABLE].col_name, -2);
+			meta_info->col_info[CONTAINER_TABLE].col_name,
+			HDL_WRITE);
 	}
 
 	/* Can't find the row, decide whether to insert a new row */
@@ -1379,7 +1386,8 @@ innodb_api_store(
 		cursor_data->mysql_tbl = handler_open_table(
 			cursor_data->thd,
 			meta_info->col_info[CONTAINER_DB].col_name,
-			meta_info->col_info[CONTAINER_TABLE].col_name, -2);
+			meta_info->col_info[CONTAINER_TABLE].col_name,
+			HDL_WRITE);
 	}
 
 	switch (op) {
@@ -1483,7 +1491,7 @@ innodb_api_flush(
 
 	/* If binlog is enabled, log the truncate table statement */
 	if (err == DB_SUCCESS && engine->enable_binlog) {
-		void*  thd = handler_create_thd();
+		void*  thd = handler_create_thd(true);
 
 		snprintf(table_name, sizeof(table_name), "%s.%s", dbname, name);
 		handler_binlog_truncate(thd, table_name);
@@ -1774,14 +1782,13 @@ innodb_cb_cursor_open_index_using_name(
 	return(ib_cb_cursor_open_index_using_name(ib_open_crsr, index_name,
 						  ib_crsr, idx_type, idx_id));
 }
-
 /*****************************************************************//**
-Check whether the binlog option is turned on
-(innodb_direct_access_enable_binlog)
-@return true if on */
-bool
-innodb_cb_binlog_enabled()
-/*======================*/
+Get InnoDB API configure option
+@return configure status */
+int
+innodb_cb_get_cfg()
+/*===============*/
 {
-	return((bool) ib_cb_binlog_enabled());
+	return(ib_cb_get_cfg());
 }
+

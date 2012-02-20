@@ -435,7 +435,7 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_table_truncate,
 	(ib_cb_t) ib_cursor_open_index_using_name,
 	(ib_cb_t) ib_close_thd,
-	(ib_cb_t) ib_is_binlog_enabled,
+	(ib_cb_t) ib_cfg_get_cfg,
 	(ib_cb_t) ib_cursor_set_cluster_access,
 	(ib_cb_t) ib_cursor_commit_trx,
 	(ib_cb_t) ib_cfg_trx_level
@@ -14779,9 +14779,14 @@ static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
   "Use native AIO if supported on this platform.",
   NULL, NULL, TRUE);
 
-static MYSQL_SYSVAR_BOOL(direct_access_enable_binlog, ib_binlog_enabled,
+static MYSQL_SYSVAR_BOOL(api_enable_binlog, ib_binlog_enabled,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Enable binlog for applications direct access InnoDB through InnoDB APIs",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(api_enable_mdl, ib_mdl_enabled,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Enable MDL for applications direct access InnoDB through InnoDB APIs",
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONG(api_trx_level, ib_trx_level_setting,
@@ -14889,7 +14894,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
-  MYSQL_SYSVAR(direct_access_enable_binlog),
+  MYSQL_SYSVAR(api_enable_binlog),
+  MYSQL_SYSVAR(api_enable_mdl),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(read_io_threads),

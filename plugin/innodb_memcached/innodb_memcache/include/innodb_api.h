@@ -372,11 +372,9 @@ innodb_cb_cursor_open_index_using_name(
 	ib_id_u64_t*	idx_id);	/*!< out: index id */
 
 /*****************************************************************//**
-Check whether the binlog option is turned on
-(innodb_direct_access_enable_binlog)
-@return true if on */
-bool
-innodb_cb_binlog_enabled();
-/*======================*/
-
+Get InnoDB API configure option
+@return configure status */
+int
+innodb_cb_get_cfg();
+/*===============*/
 #endif

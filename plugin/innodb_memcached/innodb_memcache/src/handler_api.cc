@@ -46,6 +46,7 @@ Created 3/14/2011 Jimmy Yang
 
 #include "log_event.h"
 #include "innodb_config.h"
+#include "binlog.h"
 
 /** Some handler functions defined in sql/sql_table.cc and sql/handler.cc etc.
 and being used here */
@@ -66,10 +67,17 @@ extern int binlog_log_row(TABLE*          table,
 Create a THD object.
 @return a pointer to the THD object, NULL if failed */
 void*
-handler_create_thd(void)
-/*====================*/
+handler_create_thd(
+/*===============*/
+	bool	enable_binlog)		/*!< in: whether to enable binlog */
 {
 	THD*	thd;
+
+	if (enable_binlog && !binlog_enabled()) {
+		fprintf(stderr, "  InnoDB_Memcached: MySQL server"
+			 	" binlog not enabled\n");
+		return(NULL);
+	}
 
 	my_thread_init();
 	thd = new THD;
@@ -84,10 +92,12 @@ handler_create_thd(void)
 	thd->thread_stack = reinterpret_cast<char*>(&thd);
 	thd->store_globals();
 
-	thd->binlog_setup_trx_data();
+	if (enable_binlog) {
+		thd->binlog_setup_trx_data();
 
-	/* set binlog_format to "ROW" */
-	thd->set_current_stmt_binlog_format_row();
+		/* set binlog_format to "ROW" */
+		thd->set_current_stmt_binlog_format_row();
+	}
 
 	return(thd);
 }
@@ -108,9 +118,9 @@ handler_open_table(
 	Open_table_context	table_ctx(thd, 0);
 	thr_lock_type		lock_mode;
 
-	lock_mode = (lock_type < TL_IGNORE)
+	lock_mode = (lock_type <= HDL_READ)
 		     ? TL_READ
-		     : (thr_lock_type) lock_type;
+		     : TL_WRITE;
 
 	tables.init_one_table(db_name, strlen(db_name), table_name,
 			      strlen(table_name), table_name, lock_mode);
@@ -281,6 +291,7 @@ handler_close_thd(
 /*==============*/
 	void*		my_thd)		/*!< in: THD */
 {
+	my_thread_end();
 	delete (static_cast<THD*>(my_thd));
 
 	/* Don't have a THD anymore */
