@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -461,7 +461,7 @@ file space fragmentation.
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR
 @param[in/out] mtr		mini-transaction
-@return	the allocated page offset FIL_NULL if no page could be allocated */
+@return	X-latched block, or NULL if no page could be allocated */
 #define fseg_alloc_free_page(seg_header, hint, direction, mtr)		\
 	fseg_alloc_free_page_general(seg_header, hint, direction,	\
 				     FALSE, mtr, mtr)
@@ -469,13 +469,17 @@ file space fragmentation.
 Allocates a single free page from a segment. This function implements
 the intelligent allocation strategy which tries to minimize file space
 fragmentation.
-@return	allocated page offset, FIL_NULL if no page could be allocated */
+@retval NULL if no page could be allocated
+@retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
+(init_mtr == mtr, or the page was not previously freed in mtr)
+@retval block (not allocated or initialized) otherwise */
 UNIV_INTERN
-ulint
+buf_block_t*
 fseg_alloc_free_page_general(
 /*=========================*/
 	fseg_header_t*	seg_header,/*!< in/out: segment header */
-	ulint		hint,	/*!< in: hint of which page would be desirable */
+	ulint		hint,	/*!< in: hint of which page would be
+				desirable */
 	byte		direction,/*!< in: if the new page is needed because
 				of an index page split, and records are
 				inserted there in order, into which
@@ -488,10 +492,10 @@ fseg_alloc_free_page_general(
 				page */
 	mtr_t*		mtr,	/*!< in/out: mini-transaction */
 	mtr_t*		init_mtr)/*!< in/out: mtr or another mini-transaction
-				in which the page should be initialized,
-				or NULL if this is a "fake allocation" of
-				a page that was previously freed in mtr */
-	__attribute__((warn_unused_result, nonnull(1,5)));
+				in which the page should be initialized.
+				If init_mtr!=mtr, but the page is already
+				latched in mtr, do not initialize the page. */
+	__attribute__((warn_unused_result, nonnull));
 /**********************************************************************//**
 Reserves free pages from a tablespace. All mini-transactions which may
 use several pages from the tablespace should call this function beforehand

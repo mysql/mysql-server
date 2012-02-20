@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -145,9 +145,22 @@ SET(CLIENT_SOURCES
   ../sql-common/client_plugin.c 
   ../sql/net_serv.cc
   ../sql-common/pack.c 
+  ../sql/md5.cc
+  ../sql/sha1.cc
   ../sql/password.c
   ../sql/my_rnd.cc
 )
+
+# We do RESTRICT_SYMBOL_EXPORTS(yassl) elsewhere.
+# In order to get correct symbol visibility, md5.cc and sha1.cc
+# must be compiled with "-fvisibility=hidden"
+IF(HAVE_VISIBILITY_HIDDEN)
+  SET_SOURCE_FILES_PROPERTIES(../sql/md5.cc
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  SET_SOURCE_FILES_PROPERTIES(../sql/sha1.cc
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
 DTRACE_INSTRUMENT(clientlib)
 ADD_DEPENDENCIES(clientlib GenError)
