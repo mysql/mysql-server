@@ -102,7 +102,7 @@ innodb_config_parse_value_col(
 	char*		str,		/*!< in: column name(s) string */
 	int		len)		/*!< in: length of above string */
 {
-        static const char*	sep = " ;,";
+        static const char*	sep = " ;,\n";
         char*			last;
 	char*			column_str;
 	int			num_cols = 0;
@@ -131,9 +131,12 @@ innodb_config_parse_value_col(
 		for (column_str = strtok_r(my_str, sep, &last);
 		     column_str;
 		     column_str = strtok_r(NULL, sep, &last)) {
-			item->extra_col_info[i].col_name_len = strlen(column_str);
+			item->extra_col_info[i].col_name_len = strlen(
+				column_str);
 			item->extra_col_info[i].col_name = my_strdupl(
-				column_str, item->extra_col_info[i].col_name_len);
+				column_str,
+				item->extra_col_info[i].col_name_len);
+			item->extra_col_info[i].field_id = -1;
 			i++;
 		}
 
@@ -448,6 +451,8 @@ innodb_config_container(
 		item->col_info[i].col_name = my_strdupl(
 			(char*)innodb_cb_col_get_value(tpl, i), data_len);
 
+		item->col_info[i].field_id = -1;
+
 		if (i == CONTAINER_VALUE) {
 			innodb_config_parse_value_col(
 				item, item->col_info[i].col_name, data_len);
@@ -661,6 +666,21 @@ innodb_verify(
 		goto func_exit;
 	}
 
+	if (info->n_extra_col) {
+		for (i = 0; i < info->n_extra_col; i++) {
+			if (info->extra_col_info[i].field_id < 0) {
+				fprintf(stderr, "  InnoDB_Memcached: fail to"
+						" locate value column %s"
+						" in table '%s' as specified"
+						" by config table \n",
+					info->extra_col_info[i].col_name,
+					table_name);
+				err = DB_ERROR;
+				goto func_exit;
+			}
+		}
+	}
+				
 	/* Test the specified index */
 	innodb_cb_cursor_open_index_using_name(crsr, info->index_info.idx_name,
 					       &idx_crsr, &index_type,

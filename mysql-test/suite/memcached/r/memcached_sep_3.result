@@ -4,6 +4,7 @@ CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
 SET @tx_isolation= @@global.tx_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 UNINSTALL PLUGIN daemon_memcached;
+set names utf8;
 create database innodb_memcache;
 use innodb_memcache;
 CREATE  TABLE IF NOT EXISTS `cache_policies` (
@@ -33,7 +34,7 @@ CREATE  TABLE IF NOT EXISTS `config_options` (
 `value` varchar(50)) ENGINE = InnoDB;
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 "innodb_only", "innodb_only", "innodb_only");
-INSERT INTO config_options VALUES("separator", "0");
+INSERT INTO config_options VALUES("separator", "Ã¼");
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 "c1", "c2,c21,c22,c23,c24,c25", "c3", "c4", "c5", "PRIMARY");
 USE test;
@@ -58,10 +59,10 @@ C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 Here the memcached results with D,B,H,C:
-Darmstadt0City010dddddddddddddd0123402012
-Berlin0Mitte020bbbbbbbbbbbbbb0234502012
-Hamburg0Norderstedt040hhhhhhhhhh0456702012
-Cottbus0West030cccccccccccccc0345602012
+DarmstadtüCityü1üddddddddddddddü1234ü2012
+BerlinüMitteü2übbbbbbbbbbbbbbü2345ü2012
+HamburgüNorderstedtü4ühhhhhhhhhhü4567ü2012
+CottbusüWestü3üccccccccccccccü3456ü2012
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
@@ -70,13 +71,13 @@ D	Darmstadt	City	1	dddddddddddddd	1234	2012
 H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 Here the memcached results after set:
 Essen|Ost|5|eeeeeeeeeee|5678|2012
-Essen0Ost050eeeeeeeeeee0567802
+EssenÃ¼OstÃ¼5Ã¼eeeeeeeeeeeÃ¼5678Ã¼2012
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
-E	Essen	Ost	5	eeeeeeeeeee	5678	2
+E	EssenÃƒÂ¼OstÃƒÂ¼5ÃƒÂ¼eeeeeeeeeeeÃƒÂ¼5678ÃƒÂ¼2012	NULL	NULL	NULL	NULL	NULL
 H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;
