@@ -733,6 +733,16 @@ innodb_api_set_multi_cols(
 		}
 	}
 
+	for (; i < meta_info->n_extra_col; i++) {
+		err = ib_cb_col_set_value(
+			tpl, col_info[i].field_id,
+			NULL, IB_SQL_NULL);
+
+		if (err != DB_SUCCESS) {
+			break;
+		}
+	}
+
 	free(my_value);
 	return(err);
 }
