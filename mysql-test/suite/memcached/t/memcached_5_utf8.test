@@ -34,15 +34,17 @@ CREATE TABLE t1        (c1 VARCHAR(32),
 			c24 VARCHAR(40),
 			c25 VARCHAR(40),
 			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
-ENGINE = INNODB;
+ENGINE = INNODB DEFAULT CHARSET UTF8;
 
 INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City','1', 'dddddddddddddd', '1234', '2012', 0, 0, 0);
 INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', '2', 'bbbbbbbbbbbbbb', '2345', '2012', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', '3', 'cccccccccccccc', '3456', '2012', 0, 0 ,0);
-INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', '4', 'hhhhhhhhhh', '4567', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('M', 'München', 'Süd', '4', 'ÜÖÄßüöä', '4567', '2012', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SHOW CREATE TABLE t1;
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
@@ -54,12 +56,12 @@ use Cache::Memcached;
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11211" ]
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here the memcached results with D,B,M,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
 if ($val) { print "$val\n"; }
-$val = $memd->get("H");
+$val = $memd->get("M");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
 if ($val) { print "$val\n"; }
@@ -77,61 +79,8 @@ my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11211" ]
 };
 print "Here the memcached results after set:\n";
-$val = $memd->set("E","Essen|Ost|5|eeeeeeeeeee|5678|2012");
-$val = $memd->get("E");
-if ($val) { print "$val\n"; }
-$memd->disconnect_all;
-EOF
-
-# The following select is writing all to  memcache otherwisw memcache is empty.
---sorted_result
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
-
-perl;
-use DBI;
-use Cache::Memcached;
-my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11211" ]
-};
-print "Here the memcached results after add:\n";
-$val = $memd->add("F","Frankfurt|Airport|6|fffffffffff|6789|2012");
-$val = $memd->get("F");
-if ($val) { print "$val\n"; }
-$memd->disconnect_all;
-EOF
-
-# The following select is writing all to  memcache otherwisw memcache is empty.
---sorted_result
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
-
-perl;
-use DBI;
-use Cache::Memcached;
-my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11211" ]
-};
-print "Here the memcached results after replace:\n";
-$val = $memd->replace("F","Frankfurt a.M.|Sachsenhausen|61|fffff|6789|2012");
-$val = $memd->get("F");
-if ($val) { print "$val\n"; }
-$memd->disconnect_all;
-EOF
-
-# The following select is writing all to  memcache otherwisw memcache is empty.
---sorted_result
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
-
-perl;
-use DBI;
-use Cache::Memcached;
-my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11211" ]
-};
-print "Here the memcached results after delete:\n";
-$val = $memd->delete("F");
-$val = $memd->get("E");
-if ($val) { print "$val\n"; }
-$val = $memd->get("F");
+$val = $memd->set("Ü","Ülzen|City|5|üöäßÜÖÄ|5678|2012");
+$val = $memd->get("Ü");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
