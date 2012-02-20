@@ -61,29 +61,42 @@ CREATE SCHEMA statements_digest_temp;
 DROP SCHEMA statements_digest_temp;
 CREATE DATABASE statements_digest_temp;
 DROP DATABASE statements_digest_temp;
+SELECT 1 from t11;
+ERROR 42S02: Table 'statements_digest.t11' doesn't exist
+create table t11 (c char(4));
+create table t11 (c char(4));
+ERROR 42S01: Table 't11' already exists
+insert into t11 values("MySQL");
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 1
 ####################################
 # QUERYING PS STATEMENT DIGEST
 ####################################
-SELECT digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
-digest	digest_text	count_star
-29570e463ee5c23d	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
-043b89731c01112f	SELECT ? FROM t1  	1
-454eba8b93c9ca0a	SELECT ? FROM `t1`  	1
-d7ee0ef93ad9fa8d	SELECT ?, ... FROM t1  	2
-a9a476e33c41ccf6	SELECT ? FROM t2  	1
-e0ec2ba9bfa25ce9	SELECT ?, ... FROM t2  	2
-9483370b7bfe3e5b	INSERT INTO t1 VALUES (?)  	1
-5a02f8af17096ad0	INSERT INTO t2 VALUES (?)  	1
-778782a1f7a22d3e	INSERT INTO t3 VALUES (...)  	1
-ba86d7d93b0f147d	INSERT INTO t4 VALUES (...)  	1
-d6451ffacc7e94dd	INSERT INTO t5 VALUES (...)  	1
-7fcb81b5cb6a8b88	INSERT INTO t1 VALUES (?) /* , ... */  	2
-0bac26f67845225a	INSERT INTO t3 VALUES (...) /* , ... */  	1
-ef74a0ff15482a27	INSERT INTO t5 VALUES (...) /* , ... */  	1
-21c8d94778536808	SELECT ? + ?  	3
-9b5972abc531b21c	SELECT ?  	1
-49d23ec9aebe975b	CREATE SCHEMA statements_digest_temp  	2
-d42c9738d3d96889	DROP SCHEMA statements_digest_temp  	2
+SELECT DIGEST, DIGEST_TEXT, COUNT_STAR, SUM_ROWS_AFFECTED, SUM_WARNINGS,
+SUM_ERRORS FROM performance_schema.events_statements_summary_by_digest;
+DIGEST	DIGEST_TEXT	COUNT_STAR	SUM_ROWS_AFFECTED	SUM_WARNINGS	SUM_ERRORS
+29570e463ee5c23d	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1	0	0	0
+043b89731c01112f	SELECT ? FROM t1  	1	0	0	0
+454eba8b93c9ca0a	SELECT ? FROM `t1`  	1	0	0	0
+d7ee0ef93ad9fa8d	SELECT ?, ... FROM t1  	2	0	0	0
+a9a476e33c41ccf6	SELECT ? FROM t2  	1	0	0	0
+e0ec2ba9bfa25ce9	SELECT ?, ... FROM t2  	2	0	0	0
+9483370b7bfe3e5b	INSERT INTO t1 VALUES (?)  	1	1	0	0
+5a02f8af17096ad0	INSERT INTO t2 VALUES (?)  	1	1	0	0
+778782a1f7a22d3e	INSERT INTO t3 VALUES (...)  	1	1	0	0
+ba86d7d93b0f147d	INSERT INTO t4 VALUES (...)  	1	1	0	0
+d6451ffacc7e94dd	INSERT INTO t5 VALUES (...)  	1	1	0	0
+7fcb81b5cb6a8b88	INSERT INTO t1 VALUES (?) /* , ... */  	2	7	0	0
+0bac26f67845225a	INSERT INTO t3 VALUES (...) /* , ... */  	1	3	0	0
+ef74a0ff15482a27	INSERT INTO t5 VALUES (...) /* , ... */  	1	3	0	0
+21c8d94778536808	SELECT ? + ?  	3	0	0	0
+9b5972abc531b21c	SELECT ?  	1	0	0	0
+49d23ec9aebe975b	CREATE SCHEMA statements_digest_temp  	2	2	0	0
+d42c9738d3d96889	DROP SCHEMA statements_digest_temp  	2	0	0	0
+8bfbc5ac3b54dcc9	SELECT ? FROM t11  	1	0	0	1
+5d0009fe38bf1af6	CREATE TABLE t11 ( c CHARACTER (?) )  	2	0	0	1
+fe1467341bb94010	INSERT INTO t11 VALUES (?)  	1	1	1	0
+69029853781ad4cf	SHOW WARNINGS  	1	0	0	0
 ####################################
 # CLEANUP
 ####################################

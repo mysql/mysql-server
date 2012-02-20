@@ -73,3 +73,14 @@ CREATE DATABASE statements_digest_temp;
 DROP DATABASE statements_digest_temp;
 # TODO : add more
 --enable_warnings
+
+# -----------------------------------------------------------------------
+# Test case to show stats for statements giving ERRORS/WARNINGS, are also
+# captured.
+# -----------------------------------------------------------------------
+--ERROR ER_NO_SUCH_TABLE
+SELECT 1 from t11;
+create table t11 (c char(4));
+--ERROR ER_TABLE_EXISTS_ERROR
+create table t11 (c char(4));
+insert into t11 values("MySQL");

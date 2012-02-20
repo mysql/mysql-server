@@ -75,6 +75,14 @@ CREATE SCHEMA statements_digest_temp;
 DROP SCHEMA statements_digest_temp;
 CREATE DATABASE statements_digest_temp;
 DROP DATABASE statements_digest_temp;
+SELECT 1 from t11;
+ERROR 42S02: Table 'statements_digest.t11' doesn't exist
+create table t11 (c char(4));
+create table t11 (c char(4));
+ERROR 42S01: Table 't11' already exists
+insert into t11 values("MySQL");
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 1
 ####################################
 # QUERYING PS STATEMENT DIGEST
 ####################################
@@ -98,6 +106,10 @@ ef74a0ff15482a27	INSERT INTO t5 VALUES (...) /* , ... */  	1
 9b5972abc531b21c	SELECT ?  	1
 49d23ec9aebe975b	CREATE SCHEMA statements_digest_temp  	2
 d42c9738d3d96889	DROP SCHEMA statements_digest_temp  	2
+8bfbc5ac3b54dcc9	SELECT ? FROM t11  	1
+5d0009fe38bf1af6	CREATE TABLE t11 ( c CHARACTER (?) )  	2
+fe1467341bb94010	INSERT INTO t11 VALUES (?)  	1
+69029853781ad4cf	SHOW WARNINGS  	1
 SELECT digest, digest_text FROM performance_schema.events_statements_current;
 digest	digest_text
 ####################################

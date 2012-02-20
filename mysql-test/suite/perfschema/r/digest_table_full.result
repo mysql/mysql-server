@@ -61,13 +61,22 @@ CREATE SCHEMA statements_digest_temp;
 DROP SCHEMA statements_digest_temp;
 CREATE DATABASE statements_digest_temp;
 DROP DATABASE statements_digest_temp;
+SELECT 1 from t11;
+ERROR 42S02: Table 'statements_digest.t11' doesn't exist
+create table t11 (c char(4));
+create table t11 (c char(4));
+ERROR 42S01: Table 't11' already exists
+insert into t11 values("MySQL");
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 1
 ####################################
 # QUERYING PS STATEMENT DIGEST
 ####################################
-SELECT digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
-digest	digest_text	count_star
-NULL	NULL	24
-29570e463ee5c23d	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
+SELECT DIGEST, DIGEST_TEXT, COUNT_STAR, SUM_ROWS_AFFECTED, SUM_WARNINGS,
+SUM_ERRORS FROM performance_schema.events_statements_summary_by_digest;
+DIGEST	DIGEST_TEXT	COUNT_STAR	SUM_ROWS_AFFECTED	SUM_WARNINGS	SUM_ERRORS
+NULL	NULL	29	21	1	2
+29570e463ee5c23d	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1	0	0	0
 SHOW VARIABLES LIKE "performance_schema_digests_size";
 Variable_name	Value
 performance_schema_digests_size	2
