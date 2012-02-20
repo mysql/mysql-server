@@ -3257,3 +3257,14 @@ Handler_update	1
 Variable_name	Value
 Handler_delete	1
 DROP TABLE bug58912;
+create table t1 (f1 integer primary key) engine=innodb;
+flush status;
+show status like "handler_read_key";
+Variable_name	Value
+Handler_read_key	0
+select f1 from t1;
+f1
+show status like "handler_read_key";
+Variable_name	Value
+Handler_read_key	0
+drop table t1;

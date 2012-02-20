@@ -5250,6 +5250,11 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
     DBUG_RETURN(TRUE);
   }
   pthread_mutex_unlock(&LOCK_global_system_variables);
+  if (!key_cache->key_cache_inited)
+  {
+    my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), key_cache_name->str);
+    DBUG_RETURN(TRUE);
+  }
   check_opt.key_cache= key_cache;
   DBUG_RETURN(mysql_admin_table(thd, tables, &check_opt,
 				"assign_to_keycache", TL_READ_NO_INSERT, 0, 0,

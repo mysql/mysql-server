@@ -931,6 +931,13 @@ sub collect_one_test_case {
     $tinfo->{'long_test'}= 1;
   }
 
+  if ( ! $tinfo->{'big_test'} and $::opt_big_test > 1 )
+  {
+    $tinfo->{'skip'}= 1;
+    $tinfo->{'comment'}= "Small test";
+    return $tinfo
+  }
+
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
   {
     $tinfo->{'skip'}= 1;

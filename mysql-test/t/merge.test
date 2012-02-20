@@ -1848,9 +1848,13 @@ CREATE TABLE t1(a INT);
 --echo # Test reattach merge failure
 LOCK TABLES m1 READ;
 --echo # Replace 't1' with 't3' table using file operations.
-remove_file $MYSQLD_DATADIR/test/t1.frm;
-remove_file $MYSQLD_DATADIR/test/t1.MYI;
-remove_file $MYSQLD_DATADIR/test/t1.MYD;
+# move + remove is a work around for windows.
+move_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/oldt1.frm;
+move_file $MYSQLD_DATADIR/test/t1.MYI $MYSQLD_DATADIR/test/oldt1.MYI;
+move_file $MYSQLD_DATADIR/test/t1.MYD $MYSQLD_DATADIR/test/oldt1.MYD;
+remove_file $MYSQLD_DATADIR/test/oldt1.frm;
+remove_file $MYSQLD_DATADIR/test/oldt1.MYI;
+remove_file $MYSQLD_DATADIR/test/oldt1.MYD;
 copy_file $MYSQLD_DATADIR/test/t3.frm $MYSQLD_DATADIR/test/t1.frm;
 copy_file $MYSQLD_DATADIR/test/t3.MYI $MYSQLD_DATADIR/test/t1.MYI;
 copy_file $MYSQLD_DATADIR/test/t3.MYD $MYSQLD_DATADIR/test/t1.MYD;
