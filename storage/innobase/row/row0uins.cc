@@ -79,7 +79,6 @@ row_undo_ins_remove_clust_rec(
 	ut_a(success);
 
 	if (node->table->id == DICT_INDEXES_ID) {
-		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 
 		/* Drop the index tree associated with the row in
 		SYS_INDEXES table: */
@@ -400,15 +399,25 @@ row_undo_ins(
 
 	err = row_undo_ins_remove_sec_rec(node);
 
-	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
-		goto func_exit;
+	if (err == DB_SUCCESS) {
+
+		log_free_check();
+
+		if (node->table->id == DICT_INDEXES_ID
+		    && !dict_locked) {
+
+			mutex_enter(&dict_sys->mutex);
+		}
+
+		err = row_undo_ins_remove_clust_rec(node);
+
+		if (node->table->id == DICT_INDEXES_ID
+		    && !dict_locked) {
+
+			mutex_exit(&dict_sys->mutex);
+		}
 	}
 
-	log_free_check();
-
-	err = row_undo_ins_remove_clust_rec(node);
-
-func_exit:
 	dict_table_close(node->table, dict_locked);
 
 	node->table = NULL;
