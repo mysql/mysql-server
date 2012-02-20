@@ -33,7 +33,9 @@ Created 2012-02-08 by Sunny Bains.
 #include "que0que.h"
 #include "dict0boot.h"
 #include "ibuf0ibuf.h"
+#include "pars0pars.h"
 #include "row0upd.h"
+#include "row0sel.h"
 #include "row0mysql.h"
 #include "srv0start.h"
 #include "row0quiesce.h"
@@ -926,6 +928,209 @@ row_import_set_index_root(
 }
 
 /*****************************************************************//**
+Update the <space, root page> of a table's indexes from the values
+in the data dictionary.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+db_err
+row_import_update_index_root(
+/*=========================*/
+	trx_t*			trx,		/*!< in/out: transaction that
+						covers the update */
+	const dict_table_t*	table,		/*!< in: Table for which we want
+						to set the root page_no */
+	bool			reset,		/*!< if true then set to
+						FIL_NUL */
+	bool			dict_locked)	/*!< Set to TRUE if the 
+						caller already owns the 
+						dict_sys_t:: mutex. */
+
+{
+	const dict_index_t*	index;
+	que_t*			graph = 0;
+	db_err			err = DB_SUCCESS;
+
+	static const char	sql[] = {
+		"PROCEDURE UPDATE_INDEX_ROOT() IS\n"
+		"BEGIN\n"
+		"UPDATE SYS_INDEXES\n"
+		"SET SPACE = :space,\n"
+		"    PAGE_NO = :page\n"
+		"WHERE TABLE_ID = :table_id AND ID = :index_id;\n"
+		"END;\n"};
+
+	if (!dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
+	for (index = dict_table_get_first_index(table);
+	     index != 0;
+	     index = dict_table_get_next_index(index)) {
+
+		pars_info_t*		info;
+
+		info = (graph != 0) ? graph->info : pars_info_create();
+
+		ib_uint32_t	page = (reset) ? FIL_NULL : index->page;
+		ib_uint32_t	space = (reset) ? FIL_NULL : index->space;
+
+		pars_info_add_int4_literal(info, "space", space);
+		pars_info_add_int4_literal(info, "page", page);
+		pars_info_add_ull_literal(info, "index_id", index->id);
+		pars_info_add_ull_literal(info, "table_id", table->id);
+
+		if (graph == 0) {
+			graph = pars_sql(info, sql);
+			ut_a(graph);
+			graph->trx = trx;
+		}
+
+		que_thr_t*	thr;
+
+		graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
+
+		ut_a(thr = que_fork_start_command(graph));
+
+		que_run_threads(thr);
+
+		err = trx->error_state;
+
+		if (err != DB_SUCCESS) {
+			char index_name[MAX_FULL_NAME_LEN + 1];
+
+			innobase_format_name(
+				index_name, sizeof(index_name),
+				index->name, TRUE);
+
+			/* Note: This is really an internal InnoDB error. The
+			problem is that we don't have any InnoDB specific error
+			codes in mysqld_error.h. */
+
+			ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				 ER_INDEX_CORRUPT,
+				 "While updating the <space, root page number> "
+				 "of index %s - %s",
+				 index_name, ut_strerr(err));
+
+			break;
+		}
+	}
+
+	que_graph_free(graph);
+
+	if (!dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+	}
+
+	return(err);
+}
+
+/** Callback arg for row_import_set_discarded. */
+struct discard_t {
+	ib_uint32_t	flags2;			/*!< Value read from column */
+	bool		state;			/*!< New state of the flag */
+	ulint		n_recs;			/*!< Number of recs processed */
+};
+
+/******************************************************************//**
+Fetch callback that sets or unsets the DISCARDED tablespace flag in
+SYS_TABLES. The flags is stored in MIX_LEN column.
+@return FALSE if all OK */
+static
+ibool
+row_import_set_discarded(
+/*=====================*/
+	void*		row,			/*!< in: sel_node_t* */
+	void*		user_arg)		/*!< in: bool set/unset flag */
+{
+	sel_node_t*	node = static_cast<sel_node_t*>(row);
+	discard_t*	discard = static_cast<discard_t*>(user_arg);
+	dfield_t*	dfield = que_node_get_val(node->select_list);
+	dtype_t*	type = dfield_get_type(dfield);
+	ulint		len = dfield_get_len(dfield);
+
+	ut_a(dtype_get_mtype(type) == DATA_INT);
+	ut_a(len == sizeof(ib_uint32_t));
+
+	ulint	flags2 = mach_read_from_4(
+		static_cast<byte*>(dfield_get_data(dfield)));
+
+	if (discard->state) {
+		flags2 |= DICT_TF2_DISCARDED;
+	} else {
+		flags2 &= ~DICT_TF2_DISCARDED;
+	}
+
+	mach_write_to_4(reinterpret_cast<byte*>(&discard->flags2), flags2);
+
+	++discard->n_recs;
+
+	/* There should be at most one matching record. */
+	ut_a(discard->n_recs == 1);
+
+	return(FALSE);
+}
+
+/*****************************************************************//**
+Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
+@return DB_SUCCESS or error code. */
+UNIV_INTERN
+db_err
+row_import_update_discarded_flag(
+/*=============================*/
+	trx_t*			trx,		/*!< in/out: transaction that
+						covers the update */
+	const dict_table_t*	table,		/*!< in: Table for which we want
+						to set the root table->flags2 */
+	bool			discarded,	/*!< in: set MIX_LEN column bit
+						to discarded, if true */
+	bool			dict_locked)	/*!< Set to TRUE if the 
+						caller already owns the 
+						dict_sys_t:: mutex. */
+
+{
+	pars_info_t*		info;
+	discard_t		discard;
+
+	static const char	sql[] = {
+		"PROCEDURE UPDATE_DISCARDED_FLAG() IS\n"
+		"DECLARE FUNCTION row_import_set_discarded;\n"
+		"DECLARE CURSOR c IS\n"
+		" SELECT MIX_LEN\n"
+		" FROM SYS_TABLES\n"
+		" WHERE ID = :table_id FOR UPDATE;\n"
+		"\n"
+		"BEGIN\n"
+		"OPEN c;\n"
+		"WHILE 1 = 1 LOOP\n"
+		"  FETCH c INTO row_import_set_discarded();\n"
+		"  IF c % NOTFOUND THEN\n"
+		"    EXIT;\n"
+		"  END IF;\n"
+		"END LOOP;\n"
+		"UPDATE SYS_TABLES\n"
+		"SET MIX_LEN = :flags2\n"
+		"WHERE ID = :table_id;\n"
+		"CLOSE c;\n"
+		"END;\n"};
+
+	discard.n_recs = 0;
+	discard.state = discarded;
+
+	info = pars_info_create();
+
+	pars_info_add_ull_literal(info, "table_id", table->id);
+	pars_info_bind_int4_literal(info, "flags2", &discard.flags2);
+
+	pars_info_bind_function(
+		info,
+		"row_import_set_discarded", row_import_set_discarded,
+		&discard);
+
+	return(que_eval_sql(info, sql, !dict_locked, trx));
+}
+
+/*****************************************************************//**
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
 @return	error code or DB_SUCCESS */
@@ -1024,7 +1229,9 @@ row_import_for_mysql(
 	are referring to the tablespace that was discarded before the
 	import was initiated. */
 
-	err = (db_err) row_mysql_table_id_reassign(table, trx);
+	table_id_t	new_id;
+
+	err = row_mysql_table_id_reassign(table, trx, &new_id);
 
 	mutex_exit(&dict_sys->mutex);
 
@@ -1164,15 +1371,18 @@ row_import_for_mysql(
 		}
 	}
 
-	/* Scan SYS_INDEXES for all indexes of the table and set root page. */
-	{
-		SetIndexRoot	callback(table);
+	/* Update the root pages of the table's indexes. */
+	err = row_import_update_index_root(trx, table, false, false);
 
-		mutex_enter(&dict_sys->mutex);
+	if (err != DB_SUCCESS) {
+		return(row_import_error(prebuilt, trx, err));
+	}
 
-		row_mysql_sys_index_iterate(table->id, &callback);
+	/* Update the table's discarded flag, unset it. */
+	err = row_import_update_discarded_flag(trx, table, false, false);
 
-		mutex_exit(&dict_sys->mutex);
+	if (err != DB_SUCCESS) {
+		return(row_import_error(prebuilt, trx, err));
 	}
 
 #ifdef UNIV_DEBUG
@@ -1192,4 +1402,3 @@ row_import_for_mysql(
 
 	return(row_import_cleanup(prebuilt, trx, err));
 }
-
