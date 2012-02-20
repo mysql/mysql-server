@@ -416,6 +416,14 @@ void check_binlog_stmt_cache_size(THD *thd)
   }
 }
 
+/**
+ Check whether binlog_hton has valid slot and enabled
+*/
+bool binlog_enabled()
+{
+	return(binlog_hton && binlog_hton->slot != HA_SLOT_UNDEF);
+}
+
  /*
   Save position of binary log transaction cache.
 

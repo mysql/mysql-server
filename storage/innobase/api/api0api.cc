@@ -63,6 +63,9 @@ Created by Sunny Bains */
 /** configure variable for binlog option with InnoDB APIs */
 my_bool ib_binlog_enabled = FALSE;
 
+/** configure variable for MDL option with InnoDB APIs */
+my_bool ib_mdl_enabled = FALSE;
+
 /** configure variable for Transaction isolation levels */
 ulong ib_trx_level_setting = IB_TRX_READ_UNCOMMITTED;
 
@@ -3687,17 +3690,6 @@ ib_close_thd(
 }
 
 /*****************************************************************//**
-Check whether binlog is enabled (settable by server configure
-parameter "innodb_direct_access_enable_binlog")
-@return TRUE if enabled */
-UNIV_INTERN
-int
-ib_is_binlog_enabled()
-/*==================*/
-{
-	return(static_cast<int>(ib_binlog_enabled));
-}
-/*****************************************************************//**
 Return isolation configuration set by "innodb_api_trx_level"
 @return trx isolation level*/
 UNIV_INTERN
@@ -3706,4 +3698,23 @@ ib_cfg_trx_level()
 /*==============*/
 {
 	return(static_cast<ib_trx_state_t>(ib_trx_level_setting));
+}
+
+/*****************************************************************//**
+Get generic configure status
+@return configure status*/
+UNIV_INTERN
+int
+ib_cfg_get_cfg()
+/*============*/
+{
+	int	cfg_status;
+
+	cfg_status = (ib_binlog_enabled) ? IB_CFG_BINLOG_ENABLED : 0;
+	
+	if (ib_mdl_enabled) {
+		cfg_status |= IB_CFG_MDL_ENABLED;
+	}
+
+	return(cfg_status);
 }

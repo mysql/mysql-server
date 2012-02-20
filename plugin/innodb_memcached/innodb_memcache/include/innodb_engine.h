@@ -108,6 +108,8 @@ typedef struct innodb_engine {
 	/* following are InnoDB specific variables */
 	bool			enable_binlog;	/*!< whether binlog is enabled
 						for InnoDB Memcached */
+	bool			enable_mdl;	/*!< whether MDL is enabled
+						for InnoDB Memcached */
 	meta_cfg_info_t		meta_info;	/*!< metadata info from
 						configuration */
 	conn_list_t		conn_data;	/*!< list of data specific for

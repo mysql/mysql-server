@@ -40,7 +40,6 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 /** The boolean value of "false" used internally within InnoDB */
 #define IB_FALSE		0x0UL
 
-
 /* Basic types used by the InnoDB API. */
 /** All InnoDB error codes are represented by ib_err_t */
 typedef enum db_err		ib_err_t;
@@ -385,6 +384,9 @@ typedef enum {
 
 /** Generical InnoDB callback prototype. */
 typedef void (*ib_cb_t)(void);
+
+#define IB_CFG_BINLOG_ENABLED	0x1
+#define IB_CFG_MDL_ENABLED	0x2
 
 /** The first argument to the InnoDB message logging function. By default
 it's set to stderr. You should treat ib_msg_stream_t as a void*, since
@@ -1769,13 +1771,13 @@ ib_close_thd(
 				whose resources should be free'd */
 
 /*****************************************************************//**
-Check whether binlog is enabled (innodb_direct_access_enable_binlog
-is set to TRUE)
-@return TRUE if enabled */
+Get generic configure status
+@return configure status*/
 
 int
-ib_is_binlog_enabled();
-/*==================*/
+ib_cfg_get_cfg();
+/*============*/
+
 /*****************************************************************//**
 Check whether the table name conforms to our requirements. Currently
 we only do a simple check for the presence of a '/'.

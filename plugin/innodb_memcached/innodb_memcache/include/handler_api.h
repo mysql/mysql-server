@@ -47,8 +47,9 @@ extern "C" {
 Creates a THD object.
 @return a pointer to the THD object, NULL if failed */
 void*
-handler_create_thd(void);
-/*====================*/
+handler_create_thd(
+/*===============*/
+	bool	enable_binlog);		/*!< in: whether to enable binlog */
 
 /**********************************************************************//**
 Creates a MySQL TABLE object with specified database name and table name.

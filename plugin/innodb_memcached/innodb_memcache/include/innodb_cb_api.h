@@ -302,9 +302,9 @@ ib_err_t
 	void*		thd);
 
 typedef
-ib_err_t
-(*cb_binlog_enabled_t)();
-/*====================*/
+int
+(*cb_get_cfg_t)();
+/*=============*/
 
 typedef
 ib_err_t
@@ -374,7 +374,7 @@ cb_cursor_first_t		ib_cb_cursor_first;
 cb_cursor_last_t		ib_cb_cursor_last;
 cb_cursor_open_index_using_name_t	ib_cb_cursor_open_index_using_name;
 cb_close_thd_t			ib_cb_close_thd;
-cb_binlog_enabled_t		ib_cb_binlog_enabled;
+cb_get_cfg_t			ib_cb_get_cfg;
 cb_cursor_set_cluster_access_t	ib_cb_cursor_set_cluster_access;
 cb_cursor_commit_trx_t		ib_cb_cursor_commit_trx;
 cb_cfg_trx_level_t		ib_cb_cfg_trx_level;

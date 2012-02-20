@@ -2758,7 +2758,7 @@ void plugin_thdvar_cleanup(THD *thd)
     list= ((plugin_ref*) thd->lex->plugins.buffer) + idx - 1;
     DBUG_PRINT("info",("unlocking %d plugins", idx));
     while ((uchar*) list >= thd->lex->plugins.buffer)
-      intern_plugin_unlock(NULL, *list--);
+      intern_plugin_unlock(thd->lex, *list--);
   }
 
   reap_plugins();

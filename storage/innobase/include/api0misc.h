@@ -35,6 +35,9 @@ InnoDB Native API
 /** Whether binlog is enabled for applications using InnoDB APIs */
 extern my_bool                  ib_binlog_enabled;
 
+/** Whether MySQL MDL is enabled for applications using InnoDB APIs */
+extern my_bool                  ib_mdl_enabled;
+
 /** configure value for transaction isolation level */
 extern ulong			ib_trx_level_setting;
 
