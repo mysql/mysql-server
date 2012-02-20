@@ -455,6 +455,7 @@ struct thr_safe_pool
       }
       else
       {
+        ret->m_next = 0;
         * head = * tail = ret;
         return 1;
       }
