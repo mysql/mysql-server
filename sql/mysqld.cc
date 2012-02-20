@@ -761,7 +761,6 @@ char *opt_logname, *opt_slow_logname;
 
 static volatile sig_atomic_t kill_in_progress;
 #ifdef HAVE_STACKTRACE
-static my_bool opt_do_pstack;
 my_bool opt_stack_trace;
 #endif /* HAVE_STACKTRACE */
 my_bool opt_expect_abort= 0;
