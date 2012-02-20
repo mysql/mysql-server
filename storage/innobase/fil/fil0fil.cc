@@ -4155,7 +4155,7 @@ fil_report_missing_tablespace(
 	innobase_format_name(index_name, sizeof(index_name), name, TRUE);
 
 	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Table %s InnoDB data dictionary has tablespace id %lu, "
+		"Table %s in the InnoDB data dictionary has tablespace id %lu, "
 		"but tablespace with that id or name does not exist. Have"
 		"you deleted or moved .ibd files? This may also be a table "
 		"created with CREATE TEMPORARY TABLE whose .ibd and .frm "
