@@ -21442,6 +21442,8 @@ static void print_table_array(THD *thd,
          (curr->nested_join && !(curr->nested_join->used_tables &
                                 ~eliminated_tables))))
     {
+      /* as of 5.5, print_join doesnt put eliminated elements into array */
+      DBUG_ASSERT(0); 
       continue;
     }
 
@@ -21467,6 +21469,21 @@ static void print_table_array(THD *thd,
 }
 
 
+/*
+  Check if the passed table is 
+   - a base table which was eliminated, or
+   - a join nest which only contained eliminated tables (and so was eliminated,
+     too)
+*/
+
+static bool is_eliminated_table(table_map eliminated_tables, TABLE_LIST *tbl)
+{
+  return eliminated_tables &&
+    ((tbl->table && (tbl->table->map & eliminated_tables)) ||
+     (tbl->nested_join && !(tbl->nested_join->used_tables &
+                            ~eliminated_tables)));
+}
+
 /**
   Print joins from the FROM clause.
 
@@ -21488,8 +21505,14 @@ static void print_join(THD *thd,
   uint non_const_tables= 0;
 
   for (TABLE_LIST *t= ti++; t ; t= ti++)
-    if (!t->optimized_away)
+  {
+    /* 
+      See comment in print_table_array() about the second part of the
+      condition 
+    */
+    if (!t->optimized_away && !is_eliminated_table(eliminated_tables, t))
       non_const_tables++;
+  }
   if (!non_const_tables)
   {
     str->append(STRING_WITH_LEN("dual"));
@@ -21504,7 +21527,7 @@ static void print_join(THD *thd,
   TABLE_LIST *tmp, **t= table + (non_const_tables - 1);
   while ((tmp= ti++))
   {
-    if (tmp->optimized_away)
+    if (tmp->optimized_away || is_eliminated_table(eliminated_tables, tmp))
       continue;
     *t--= tmp;
   }
