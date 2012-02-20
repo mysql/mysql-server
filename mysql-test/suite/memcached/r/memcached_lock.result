@@ -9,23 +9,36 @@ INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 INSERT INTO config_options VALUES("separator", "|");
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+CREATE USER mysqltest1@localhost;
+CREATE USER mysqltest2@localhost;
 USE test;
 CREATE TABLE t1        (c1 VARCHAR(32),
 c2 VARCHAR(1024),
 c21 VARCHAR(1024),
 c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
+CREATE TABLE t2        (c1 VARCHAR(32),
+c2 VARCHAR(255),
+c21 VARCHAR(255),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
 INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
 INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
+INSERT INTO t2 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t2 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t2 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t2 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+USE test;
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
+LOCK TABLES t2 READ;
 Here the memcached results with D,B,H,C:
 Darmstadt|City
 Berlin|Mitte
@@ -37,6 +50,7 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
+UNLOCK TABLES;
 Here the memcached results after set:
 Essen|Ost
 SELECT c1,c2,c21 FROM t1;
@@ -46,50 +60,29 @@ C	Cottbus	West
 D	Darmstadt	City
 E	Essen	Ost
 H	Hamburg	Norderstedt
+LOCK TABLES t2 WRITE;
 Here the memcached results after add:
 Frankfurt|Sachsenhause
 SELECT c1,c2,c21 FROM t1;
-c1	c2	c21
-B	Berlin	Mitte
-C	Cottbus	West
-D	Darmstadt	City
-E	Essen	Ost
-F	Frankfurt	Sachsenhause
-H	Hamburg	Norderstedt
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
 Here the memcached results after replace:
 Frankfurt a. M.|Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
-c1	c2	c21
-B	Berlin	Mitte
-C	Cottbus	West
-D	Darmstadt	City
-E	Essen	Ost
-F	Frankfurt a. M.	Sachsenhausen
-H	Hamburg	Norderstedt
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
 Here the memcached results after delete:
 SELECT c1,c2,c21 FROM t1;
-c1	c2	c21
-B	Berlin	Mitte
-C	Cottbus	West
-D	Darmstadt	City
-E	Essen	Ost
-H	Hamburg	Norderstedt
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
 Here the memcached results after add Frankfurt|:
-Frankfurt
+Frankfurt|
 Here the memcached results after add |Airport:
-Frankfurt
+Frankfurt|
 SELECT c1,c2,c21 FROM t1;
-c1	c2	c21
-B	Berlin	Mitte
-C	Cottbus	West
-D	Darmstadt	City
-E	Essen	Ost
-F	Frankfurt	NULL
-H	Hamburg	Norderstedt
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+UNLOCK TABLES;
 Here the memcached results after replace Frankfurt a.M.:
-Frankfurt a. M.
+Frankfurt a. M.|
 Here the memcached results after replace Sachsenhausen:
-Sachsenhausen
+|Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -99,5 +92,8 @@ E	Essen	Ost
 F	NULL	Sachsenhausen
 H	Hamburg	Norderstedt
 DROP TABLE t1;
+DROP TABLE t2;
 DROP DATABASE innodb_memcache;
+DROP USER mysqltest1@localhost;
+DROP USER mysqltest2@localhost;
 SET @@global.tx_isolation= @tx_isolation;

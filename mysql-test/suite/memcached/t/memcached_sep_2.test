@@ -11,7 +11,9 @@ source include/have_innodb.inc;
 UNINSTALL PLUGIN daemon_memcached;
 
 # Create the memcached tables
+--disable_query_log
 source suite/memcached/inc/memcache_config.inc;
+--enable_query_log
 
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 				  "innodb_only", "innodb_only", "innodb_only");

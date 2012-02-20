@@ -24,6 +24,11 @@ INSERT INTO config_options VALUES("separator", "|");
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 			       "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
 
+CREATE USER mysqltest1@localhost;
+CREATE USER mysqltest2@localhost;
+connect (mysqltest1,localhost,mysqltest1,,);
+connect (mysqltest2,localhost,mysqltest2,,);
+connection mysqltest1;
 USE test;
 
 CREATE TABLE t1        (c1 VARCHAR(32),
@@ -32,18 +37,36 @@ CREATE TABLE t1        (c1 VARCHAR(32),
 			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
 
+CREATE TABLE t2        (c1 VARCHAR(32),
+			c2 VARCHAR(255),
+			c21 VARCHAR(255),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
 INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
 INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
 
+INSERT INTO t2 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t2 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t2 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t2 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
+
 # Tables must exist before plugin can be started!
+connection default;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
+connection mysqltest2;
+USE test;
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
+connection mysqltest1;
+LOCK TABLES t2 READ;
+
+connection mysqltest2;
 perl;
 use DBI;
 use Cache::Memcached;
@@ -66,6 +89,10 @@ EOF
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
+connection mysqltest1;
+UNLOCK TABLES;
+
+connection mysqltest2;
 perl;
 use DBI;
 use Cache::Memcached;
@@ -83,6 +110,9 @@ EOF
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
+connection mysqltest1;
+LOCK TABLES t2 WRITE;
+
 perl;
 use DBI;
 use Cache::Memcached;
@@ -98,6 +128,7 @@ EOF
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
+--error ER_TABLE_NOT_LOCKED
 SELECT c1,c2,c21 FROM t1;
 
 perl;
@@ -115,6 +146,7 @@ EOF
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
+--error ER_TABLE_NOT_LOCKED
 SELECT c1,c2,c21 FROM t1;
 
 perl;
@@ -132,6 +164,7 @@ EOF
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
+--error ER_TABLE_NOT_LOCKED
 SELECT c1,c2,c21 FROM t1;
 
 perl;
@@ -153,7 +186,11 @@ EOF
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
+--error 1100
 SELECT c1,c2,c21 FROM t1;
+
+connection mysqltest1;
+UNLOCK TABLES;
 
 perl;
 use DBI;
@@ -176,7 +213,14 @@ EOF
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
+connection mysqltest1;
 DROP TABLE t1;
+DROP TABLE t2;
+connection default;
+disconnect mysqltest1;
+disconnect mysqltest2;
 DROP DATABASE innodb_memcache;
+DROP USER mysqltest1@localhost;
+DROP USER mysqltest2@localhost;
  
 SET @@global.tx_isolation= @tx_isolation;
