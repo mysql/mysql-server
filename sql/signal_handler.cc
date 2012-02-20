@@ -92,10 +92,10 @@ extern "C" sig_handler handle_fatal_signal(int sig)
   my_safe_printf_stderr("%s",
     "This could be because you hit a bug. It is also possible that this binary\n"
     "or one of the libraries it was linked against is corrupt, improperly built,\n"
-    "or misconfigured. This error can also be caused by malfunctioning hardware.\n");
+    "or misconfigured. This error can also be caused by malfunctioning hardware.\n\n");
 
   my_safe_printf_stderr("%s",
-                        "To report this bug, see http://kb.askmonty.org/en/reporting-bugs\n");
+                        "To report this bug, see http://kb.askmonty.org/en/reporting-bugs\n\n");
 
   my_safe_printf_stderr("%s",
     "We will try our best to scrape up some info that will hopefully help\n"
