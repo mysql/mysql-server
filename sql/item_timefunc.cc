@@ -1134,15 +1134,7 @@ bool Item_func_unix_timestamp::get_timestamp_value(my_time_t *seconds,
 
   MYSQL_TIME ltime;
   if (get_arg0_date(&ltime, 0))
-  {
-    /*
-      We have to set null_value again because get_arg0_date will also set it
-      to true if we have wrong datetime parameter (and we should return 0 in 
-      this case).
-    */
-    null_value= args[0]->null_value;
     return 1;
-  }
 
   uint error_code;
   *seconds= TIME_to_timestamp(current_thd, &ltime, &error_code);
