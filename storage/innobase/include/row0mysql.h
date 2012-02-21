@@ -37,7 +37,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "trx0types.h"
 
 // Forward declaration
-class SysIndexCallback;
+struct SysIndexCallback;
 
 extern ibool row_rollback_on_timeout;
 
