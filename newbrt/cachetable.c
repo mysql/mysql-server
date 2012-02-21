@@ -4018,8 +4018,20 @@ toku_cleaner_thread (void *cachetable_v)
 void __attribute__((__constructor__)) toku_cachetable_drd_ignore(void);
 void
 toku_cachetable_drd_ignore(void) {
-    // incremented only while lock is held, but read by engine status asynchronously.
-    DRD_IGNORE_VAR(STATUS_VALUE(CT_EVICTIONS));
+    DRD_IGNORE_VAR(cachetable_hit);
+    DRD_IGNORE_VAR(cachetable_miss);
+    DRD_IGNORE_VAR(cachetable_misstime);
+    DRD_IGNORE_VAR(cachetable_waittime);
+    DRD_IGNORE_VAR(cachetable_wait_reading);
+    DRD_IGNORE_VAR(cachetable_wait_writing);
+    DRD_IGNORE_VAR(cachetable_wait_checkpoint);
+    DRD_IGNORE_VAR(cachetable_puts);
+    DRD_IGNORE_VAR(cachetable_prefetches);
+    DRD_IGNORE_VAR(cachetable_maybe_get_and_pins);
+    DRD_IGNORE_VAR(cachetable_maybe_get_and_pin_hits);
+    DRD_IGNORE_VAR(cachetable_evictions);
+    DRD_IGNORE_VAR(cleaner_executions);
+    DRD_IGNORE_VAR(ct_status);
 }
 
 #undef STATUS_VALUE

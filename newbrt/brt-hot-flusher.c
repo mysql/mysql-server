@@ -45,7 +45,6 @@ toku_brt_hot_status_init(void)
     STATUS_INIT(BRT_HOT_NUM_COMPLETED,        UINT64, "operations successfully completed");
     STATUS_INIT(BRT_HOT_NUM_ABORTED,          UINT64, "operations aborted");
     STATUS_INIT(BRT_HOT_MAX_ROOT_FLUSH_COUNT, UINT64, "max number of flushes from root ever required to optimize a tree");
-    DRD_IGNORE_VAR(STATUS_VALUE(BRT_HOT_MAX_ROOT_FLUSH_COUNT));
 
     hot_status.initialized = true;
 }
@@ -363,5 +362,13 @@ toku_brt_hot_optimize(BRT brt,
     }
     return r;
 }
+
+void __attribute__((__constructor__)) toku_hot_drd_ignore(void);
+void
+toku_hot_drd_ignore(void) {
+    // incremented only while lock is held, but read by engine status asynchronously.
+    DRD_IGNORE_VAR(hot_status);
+}
+
 
 #undef STATUS_VALUE
