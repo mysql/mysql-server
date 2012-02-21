@@ -12,10 +12,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+IF(WITH_INNODB_MEMCACHED)
+  ADD_SUBDIRECTORY(daemon_memcached)
+  ADD_SUBDIRECTORY(innodb_memcache)
 
-ADD_SUBDIRECTORY(daemon_memcached)
-ADD_SUBDIRECTORY(innodb_memcache)
-
-INSTALL(FILES ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/README-innodb_memcached DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
-
+  INSTALL(FILES ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/README-innodb_memcached DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
+ENDIF()
 INSTALL_SCRIPT("${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/innodb_memcache/scripts/innodb_memcached_config.sql" DESTINATION ${INSTALL_SCRIPTDIR} COMPONENT Server)
