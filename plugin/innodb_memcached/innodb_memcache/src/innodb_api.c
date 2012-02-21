@@ -178,6 +178,7 @@ innodb_api_begin(
 
 					if (!conn_data->thd) {
 						innodb_cb_cursor_close(*crsr);
+						*crsr = NULL;
 						return(DB_ERROR);
 					}
 				}

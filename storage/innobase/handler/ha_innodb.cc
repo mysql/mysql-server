@@ -14795,7 +14795,7 @@ static MYSQL_SYSVAR_ULONG(api_trx_level, ib_trx_level_setting,
   NULL, NULL,
   0,		/* Default setting */
   0,		/* Minimum value */
-  4, 0);	/* Maximum value */
+  3, 0);	/* Maximum value */
 
 static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   PLUGIN_VAR_RQCMDARG,
