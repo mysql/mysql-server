@@ -204,6 +204,7 @@ The following options may be given as the first argument:
  enabled. Can be ON or OFF.
  -?, --help          Display this help and exit.
  --ignore-builtin-innodb 
+ IGNORED. This option will be removed in future releases.
  Disable initialization of builtin InnoDB plugin
  --ignore-db-dir=name 
  Specifies a directory to add to the ignore list when
