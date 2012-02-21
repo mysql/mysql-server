@@ -856,32 +856,6 @@ struct SysIndexCallback {
 	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) throw() = 0;
 };
 
-/** Functor used by IMPORT and DISCARD to set the index space
-and root columns in the SYS_INDEXES table */
-struct SetIndexRoot : public SysIndexCallback {
-
-	SetIndexRoot(dict_table_t* table)
-		:
-		m_heap(mem_heap_create(256)),
-		m_table(table)
-	{
-		/* No op */
-	}
-
-	virtual ~SetIndexRoot()
-	{
-		mem_heap_free(m_heap);
-	}
-
-	/** Callback method for setting the index space and root page numbers.
-	@param mtr - current mini transaction
-	@param pcur - persistent cursor. */
-	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) throw();
-
-	mem_heap_t*	m_heap;
-	dict_table_t*	m_table;
-};
-
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687
 
 #define ROW_MYSQL_WHOLE_ROW	0
