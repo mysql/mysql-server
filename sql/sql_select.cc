@@ -862,6 +862,7 @@ JOIN::explain()
     table to resolve ORDER BY: in that case, we only may need to do
     filesort for GROUP BY.
   */
+  bool is_order_by= true;
   if (!order && !no_order && (!skip_sort_order || !need_tmp))
   {
     /*
@@ -871,21 +872,32 @@ JOIN::explain()
     order= group_list;
     simple_order= simple_group;
     skip_sort_order= 0;
+    is_order_by= false;
   }
-  if (order && 
-      (order != group_list || !(select_options & SELECT_BIG_RESULT)) &&
-      (const_tables == tables ||
-       ((simple_order || skip_sort_order) &&
-        test_if_skip_sort_order(&join_tab[const_tables], order,
-                                m_select_limit, 0, 
-                                &join_tab[const_tables].table->
-                                keys_in_use_for_query))))
-    order=0;
+
   having= tmp_having;
   if (tables)
+  {
+    /*
+      JOIN::optimize may have prepared an access patch which makes
+      either the GROUP BY or ORDER BY sorting obsolete by using an
+      ordered index for the access. If the required 'order' match
+      the available 'ordered_index_usage' we will use ordered index
+      access instead of doing a filesort.
+
+      NOTE: This code is intentional similar to 'is_skippable' code
+            in create_sort_index() which is the ::execute()
+            counterpart of what we 'explain' here.
+    */
+    const bool is_skippable= (is_order_by) ?
+      ( simple_order && ordered_index_usage == ordered_index_order_by )
+      :
+      ( simple_group && ordered_index_usage == ordered_index_group_by );
+
     explain_query_specification(thd, this, need_tmp,
-                                order != 0 && !skip_sort_order,
+                                (order != NULL) && !is_skippable,
                                 select_distinct);
+  }
   else
     explain_no_table(thd, this, "No tables used");
 
