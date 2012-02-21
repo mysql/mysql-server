@@ -144,6 +144,8 @@ install-data-local:
 uninstall-local:
 	@RM@ -f -r $(DESTDIR)$(testdir)
 
+uninstall-am: uninstall-local
+
 # mtr - a shortcut for executing mysql-test-run.pl
 mtr:
 	$(RM) -f mtr

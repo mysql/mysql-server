@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE                             /* For strndup() */
+#endif
+
 #include <mysql/plugin_auth.h>
 #include <string.h>
 #include <my_config.h>

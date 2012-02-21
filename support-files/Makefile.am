@@ -85,6 +85,9 @@ mysql-@VERSION@.spec:	mysql.spec
 			rm -f $@
 			cp mysql.spec $@
 
+# We don't need to uninstall as sql/share/Makefile.am is doing that for us
+uninstall-am:
+
 SUFFIXES = .sh
 
 .sh:

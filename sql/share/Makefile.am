@@ -49,6 +49,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/charsets/*.xml $(DESTDIR)$(pkgdatadir)/charsets
 
 # FIXME maybe shouldn't remove, could be needed by other installation?
+# Note that this removes the directory that support-files are using!
 uninstall-local:
 	@RM@ -f -r $(DESTDIR)$(pkgdatadir)
 
