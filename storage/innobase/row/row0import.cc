@@ -974,10 +974,10 @@ row_import_update_index_root(
 		ib_uint32_t	page = (reset) ? FIL_NULL : index->page;
 		ib_uint32_t	space = (reset) ? FIL_NULL : index->space;
 
-		pars_info_add_int4_literal(info, "space", space);
-		pars_info_add_int4_literal(info, "page", page);
-		pars_info_add_ull_literal(info, "index_id", index->id);
-		pars_info_add_ull_literal(info, "table_id", table->id);
+		pars_info_bind_int4_literal(info, "space", &space);
+		pars_info_bind_int4_literal(info, "page", &page);
+		pars_info_bind_ull_literal(info, "index_id", &index->id);
+		pars_info_bind_ull_literal(info, "table_id", &table->id);
 
 		if (graph == 0) {
 			graph = pars_sql(info, sql);
