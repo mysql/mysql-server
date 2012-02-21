@@ -187,6 +187,15 @@ enum enum_server_command
 #define CLIENT_PROGRESS  (1UL << 29)   /* Client support progress indicator */
 
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
+/*
+  It used to be that if mysql_real_connect() failed, it would delete any
+  options set by the client, unless the CLIENT_REMEMBER_OPTIONS flag was
+  given.
+  That behaviour does not appear very useful, and it seems unlikely that
+  any applications would actually depend on this. So from MariaDB 5.5 we
+  always preserve any options set in case of failed connect, and this
+  option is effectively always set.
+*/
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
 
 #ifdef HAVE_COMPRESS

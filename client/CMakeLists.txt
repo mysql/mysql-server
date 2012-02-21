@@ -73,6 +73,10 @@ IF(WIN32)
   MYSQL_ADD_EXECUTABLE(echo echo.c COMPONENT Junk)
 ENDIF(WIN32)
 
+# async_example is just a code example, do not install it.
+ADD_EXECUTABLE(async_example async_example.c)
+TARGET_LINK_LIBRARIES(async_example mysqlclient)
+
 SET_TARGET_PROPERTIES (mysqlcheck mysqldump mysqlimport mysql_upgrade mysqlshow mysqlslap mysql_plugin 
 PROPERTIES HAS_CXX TRUE)
 

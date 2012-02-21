@@ -202,6 +202,8 @@ struct st_vio
   char                  *read_pos;      /* start of unfetched data in the
                                            read buffer */
   char                  *read_end;      /* end of unfetched data */
+  struct mysql_async_context *async_context; /* For non-blocking API */
+  uint read_timeout, write_timeout;
   /* function pointers. They are similar for socket/SSL/whatever */
   void    (*viodelete)(Vio*);
   int     (*vioerrno)(Vio*);

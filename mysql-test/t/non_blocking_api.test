@@ -1,0 +1,22 @@
+# Test mixing the use of blocking and non-blocking API in a single connection.
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+--enable_non_blocking_api
+connect (con_nonblock,localhost,root,,test);
+--disable_non_blocking_api
+connect (con_normal,localhost,root,,test);
+
+connection con_nonblock;
+CREATE TABLE t1 (a INT PRIMARY KEY);
+--enable_non_blocking_api
+INSERT INTO t1 VALUES (1);
+--disable_non_blocking_api
+SELECT * FROM t1;
+--enable_non_blocking_api
+SELECT * FROM t1;
+
+connection con_normal;
+DROP TABLE t1;
