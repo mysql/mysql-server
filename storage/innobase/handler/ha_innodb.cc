@@ -4798,7 +4798,6 @@ ha_innobase::innobase_get_index(
 	dict_index_t*	index = 0;
 
 	DBUG_ENTER("innobase_get_index");
-	ha_statistic_increment(&SSV::ha_read_key_count);
 
 	ut_ad(user_thd == ha_thd());
 	ut_a(prebuilt->trx == thd_to_trx(user_thd));

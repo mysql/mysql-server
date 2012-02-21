@@ -1,3 +1,14 @@
+2011-12-13	The InnoDB Team
+
+	* handler/ha_innodb.cc, innodb.test, innodb.result:
+	Fix Bug#13117023: InnoDB was incrementing the handler_read_key, 
+	also the SSV::ha_read_key_count, at the wrong place.   
+
+2011-12-10	The InnoDB Team
+
+	* include/page0page.h, page/page0page.c:
+	Fix Bug#13418887 ERROR IN DIAGNOSTIC FUNCTION PAGE_REC_PRINT()
+
 2011-11-10	The InnoDB Team
 
 	* handler/ha_innodb.cc, row/row0ins.c, innodb_replace.test:
@@ -13,7 +24,12 @@
 2011-10-27	The InnoDB Team
 
 	* row/row0mysql.c:
-	Fix Bug#12884631 62146: TABLES ARE LOST FOR DDL
+	Fix Bug #12884631 62146: TABLES ARE LOST FOR DDL
+
+2011-10-25	The InnoDB Team
+
+	* handler/ha_innodb.cc, row/row0ins.c:
+	Fix Bug#13002783 PARTIALLY UNINITIALIZED CASCADE UPDATE VECTOR
 
 2011-10-20	The InnoDB Team
 
