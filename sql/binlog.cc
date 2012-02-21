@@ -680,13 +680,6 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
       uchar event_type_buf= 0;
       if (reinit_io_cache(cache_log, READ_CACHE, EVENT_TYPE_OFFSET, 0, 0))
         DBUG_RETURN(1);
-      printf("(read_end=%p)-(read_pos=%p)=%d\n",
-             cache_log->read_end, cache_log->read_pos,
-             (int)(cache_log->read_end - cache_log->read_pos));
-      fflush(stdout);
-      DBUG_PRINT("info", ("(read_end=%p)-(read_pos=%p)=%d\n",
-                          cache_log->read_end, cache_log->read_pos,
-                          (int)(cache_log->read_end - cache_log->read_pos)));
       if (my_b_read(cache_log, &event_type_buf, 1) != 0)
         printf("failed to read 1 byte\n");
       if ((Log_event_type)event_type_buf != GTID_LOG_EVENT)
@@ -694,7 +687,7 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
         printf("ASSERTION HIT! dumping contents of cache:\n");
         my_b_seek(cache_log, 0);
         uchar buf[1024];
-        my_off_t todo= my_b_filelength(cache_log);
+        my_off_t todo= saved_position;
         while (todo > 0)
         {
           int sz= todo > 1024 ? 1024 : (int)todo;
@@ -702,10 +695,11 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
             printf("failed to read %d bytes\n", sz);
           for (int i=0; i<sz; i++)
           {
-            printf("%02x ", buf[i]);
             if (i % 16 == 0)
-              printf("\n");
+              printf("\n%04x:", i / 16);
+            printf(" %02x", buf[i]);
           }
+          printf("\nEND CACHE DUMP\n");
           todo -= sz;
         }
         fflush(stdout);
