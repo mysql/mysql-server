@@ -410,7 +410,7 @@ row_undo_ins(
 			}
 
 			// FIXME: Q&D hack
-			node->table->ibd_file_missing;
+			node->table->ibd_file_missing = 1;
 		}
 
 		err = row_undo_ins_remove_clust_rec(node);
