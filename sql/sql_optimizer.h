@@ -197,7 +197,7 @@ public:
   {
     ordered_index_void,       // No ordered index avail.
     ordered_index_group_by,   // Use index for GROUP BY
-    ordered_index_order_by,   // Use index for ORDER BY
+    ordered_index_order_by    // Use index for ORDER BY
   } ordered_index_usage;
 
   /**
