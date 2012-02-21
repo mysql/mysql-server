@@ -87,6 +87,7 @@ EOF
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
+--error 1146
 SELECT c1,c2,c21 FROM t1;
 
 connection mysqltest1;
@@ -108,6 +109,7 @@ EOF
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
+--error 1146
 SELECT c1,c2,c21 FROM t1;
 
 connection mysqltest1;
@@ -211,10 +213,13 @@ EOF
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
+--error 1146
 SELECT c1,c2,c21 FROM t1;
 
 connection mysqltest1;
+--error 1051
 DROP TABLE t1;
+DROP TABLE t2;
 connection default;
 disconnect mysqltest1;
 disconnect mysqltest2;

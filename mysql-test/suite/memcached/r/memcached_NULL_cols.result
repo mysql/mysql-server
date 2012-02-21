@@ -31,10 +31,10 @@ C	Cottbus	West	3	NULL	3456	2012
 D	Darmstadt	NULL	1	dddddddddddddd	1234	NULL
 H	NULL	NULL	NULL	hhhhhhhhhh	NULL	NULL
 Here the memcached results with D,B,H,C:
-Darmstadt|1|dddddddddddddd|1234
-Berlin|Mitte|bbbbbbbbbbbbbb|2345|2012
-hhhhhhhhhh
-Cottbus|West|3|3456|2012
+Darmstadt||1|dddddddddddddd|1234|
+Berlin|Mitte||bbbbbbbbbbbbbb|2345|2012
+|||hhhhhhhhhh||
+Cottbus|West|3||3456|2012
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
 B	Berlin	Mitte	NULL	bbbbbbbbbbbbbb	2345	2012
@@ -42,7 +42,7 @@ C	Cottbus	West	3	NULL	3456	2012
 D	Darmstadt	NULL	1	dddddddddddddd	1234	NULL
 H	NULL	NULL	NULL	hhhhhhhhhh	NULL	NULL
 Here the memcached results after set:
-Essen|5678|2012
+Essen|5678|2012|||
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
 B	Berlin	Mitte	NULL	bbbbbbbbbbbbbb	2345	2012
@@ -51,7 +51,7 @@ D	Darmstadt	NULL	1	dddddddddddddd	1234	NULL
 E	Essen	5678	2012	NULL	NULL	NULL
 H	NULL	NULL	NULL	hhhhhhhhhh	NULL	NULL
 Here the memcached results after add:
-Frankfurt|Airport|2012
+Frankfurt|Airport|2012|||
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
 B	Berlin	Mitte	NULL	bbbbbbbbbbbbbb	2345	2012
@@ -61,7 +61,7 @@ E	Essen	5678	2012	NULL	NULL	NULL
 F	Frankfurt	Airport	2012	NULL	NULL	NULL
 H	NULL	NULL	NULL	hhhhhhhhhh	NULL	NULL
 Here the memcached results after replace:
-Frankfurt a.M.|Sachsenhausen|61|fffff|6789
+Frankfurt a.M.|Sachsenhausen|61|fffff|6789|
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
 B	Berlin	Mitte	NULL	bbbbbbbbbbbbbb	2345	2012
@@ -71,7 +71,7 @@ E	Essen	5678	2012	NULL	NULL	NULL
 F	Frankfurt a.M.	Sachsenhausen	61	fffff	6789	NULL
 H	NULL	NULL	NULL	hhhhhhhhhh	NULL	NULL
 Here the memcached results after delete:
-Essen|5678|2012
+Essen|5678|2012|||
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
 B	Berlin	Mitte	NULL	bbbbbbbbbbbbbb	2345	2012

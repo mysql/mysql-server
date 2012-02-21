@@ -1343,8 +1343,15 @@ ib_cursor_close(
 	ib_crsr_t	ib_crsr)	/*!< in,own: InnoDB cursor */
 {
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
-	row_prebuilt_t*	prebuilt = cursor->prebuilt;
-	trx_t*		trx = prebuilt->trx;
+	row_prebuilt_t*	prebuilt;
+	trx_t*		trx;
+
+	if (!cursor) {
+		return(DB_SUCCESS);
+	}
+
+	prebuilt = cursor->prebuilt;
+	trx = prebuilt->trx;
 
 	ib_qry_proc_free(&cursor->q_proc);
 
@@ -1359,6 +1366,7 @@ ib_cursor_close(
 
 	mem_heap_free(cursor->query_heap);
 	mem_heap_free(cursor->heap);
+	cursor = NULL;
 
 	return(DB_SUCCESS);
 }
