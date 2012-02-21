@@ -33,15 +33,15 @@ Warnings:
 Warning	1292	Truncated incorrect innodb_api_trx_level value: '100'
 SELECT @@global.innodb_api_trx_level;
 @@global.innodb_api_trx_level
-4
+3
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_api_trx_level';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_API_TRX_LEVEL	4
+INNODB_API_TRX_LEVEL	3
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_api_trx_level';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_API_TRX_LEVEL	4
+INNODB_API_TRX_LEVEL	3
 SET session innodb_api_trx_level=1;
 ERROR HY000: Variable 'innodb_api_trx_level' is a GLOBAL variable and should be set with SET GLOBAL
 SET global innodb_api_trx_level=1.1;
