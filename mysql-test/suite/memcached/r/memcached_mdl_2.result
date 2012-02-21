@@ -38,34 +38,35 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
-DROP TABLE IF EXISTS t1;
+send ALTER TABLE t1 DROP c21
+ALTER TABLE t1 DROP c21;
 Here the memcached results with D,B,H,C:
-SELECT c1,c2,c21 FROM t1;
-ERROR 42S02: Table 'test.t1' doesn't exist
+Darmstadt|City
+Berlin|Mitte
+Hamburg|Norderstedt
+Cottbus|West
 Here the memcached results after set:
-SELECT c1,c2,c21 FROM t1;
-ERROR 42S02: Table 'test.t1' doesn't exist
-LOCK TABLES t2 WRITE;
 Here the memcached results after add:
-SELECT c1,c2,c21 FROM t1;
-ERROR HY000: Table 't1' was not locked with LOCK TABLES
 Here the memcached results after replace:
-SELECT c1,c2,c21 FROM t1;
-ERROR HY000: Table 't1' was not locked with LOCK TABLES
 Here the memcached results after delete:
-SELECT c1,c2,c21 FROM t1;
-ERROR HY000: Table 't1' was not locked with LOCK TABLES
 Here the memcached results after add Frankfurt|:
 Here the memcached results after add |Airport:
-SELECT c1,c2,c21 FROM t1;
-ERROR HY000: Table 't1' was not locked with LOCK TABLES
-UNLOCK TABLES;
 Here the memcached results after replace Frankfurt a.M.:
 Here the memcached results after replace Sachsenhausen:
+reap
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varchar(32) NOT NULL DEFAULT '',
+  `c2` varchar(1024) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  `c4` bigint(20) unsigned DEFAULT NULL,
+  `c5` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT c1,c2,c21 FROM t1;
-ERROR 42S02: Table 'test.t1' doesn't exist
+ERROR 42S22: Unknown column 'c21' in 'field list'
 DROP TABLE t1;
-ERROR 42S02: Unknown table 'test.t1'
 DROP TABLE t2;
 DROP DATABASE innodb_memcache;
 DROP USER mysqltest1@localhost;

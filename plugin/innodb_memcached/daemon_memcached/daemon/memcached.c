@@ -1760,6 +1760,8 @@ static void process_bin_get(conn *c) {
     case ENGINE_DISCONNECT:
         c->state = conn_closing;
         break;
+    case ENGINE_TMPFAIL:
+	break;
     case ENGINE_ENOTSUP:
         write_bin_packet(c, PROTOCOL_BINARY_RESPONSE_NOT_SUPPORTED, 0);
         break;
