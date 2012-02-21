@@ -15474,7 +15474,7 @@ ib_pushf(
 #ifdef __WIN__
 	int		size = _vscprintf(format, args);
 	str = static_cast<char*>(malloc(size));
-	vsnprintf(str, size, args);
+	vsnprintf(str, size, format, args);
 #else
 	vasprintf(&str, format, args);
 #endif /* __WIN__ */
@@ -15529,7 +15529,7 @@ ib_logf(
 #ifdef __WIN__
 	int		size = _vscprintf(format, args);
 	str = static_cast<char*>(malloc(size));
-	vsnprintf(str, size, args);
+	vsnprintf(str, size, format, args);
 #else
 	vasprintf(&str, format, args);
 #endif /* __WIN__ */
