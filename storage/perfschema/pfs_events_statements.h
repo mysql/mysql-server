@@ -88,8 +88,8 @@ struct PFS_events_statements : public PFS_events
   ulonglong m_no_index_used;
   /** Optimizer metric, number of 'no good index used'. */
   ulonglong m_no_good_index_used;
-  /** statement digest stat */
-  struct PFS_statements_digest_stat* m_statement_digest_stat_ptr;
+  /** Statement digest. */
+  PSI_digest_storage m_digest_storage;
 };
 
 void insert_events_statements_history(PFS_thread *thread, PFS_events_statements *statement);

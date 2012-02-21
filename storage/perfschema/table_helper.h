@@ -23,17 +23,19 @@
 #include "pfs_instr_class.h"
 #include "pfs_digest.h"
 
+/*
+  Write MD5 hash value in a string to be used 
+  as DIGEST for the statement.
+*/
 #define MD5_HASH_TO_STRING(_hash, _str)                    \
-  /*
-    Write MD5 hash value in a string to be used 
-    as DIGEST for the statement.
-  */                                                       \
   sprintf(_str, "%02x%02x%02x%02x%02x%02x%02x%02x"         \
                 "%02x%02x%02x%02x%02x%02x%02x%02x",        \
           _hash[0], _hash[1], _hash[2], _hash[3],          \
           _hash[4], _hash[5], _hash[6], _hash[7],          \
           _hash[8], _hash[9], _hash[10], _hash[11],        \
           _hash[12], _hash[13], _hash[14], _hash[15])
+
+#define MD5_HASH_TO_STRING_LENGTH 32
 
 struct PFS_host;
 struct PFS_user;

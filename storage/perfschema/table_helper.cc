@@ -115,7 +115,7 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
       DIGEST in this row.
     */
     MD5_HASH_TO_STRING(pfs->m_digest_hash.m_md5, m_digest);
-    m_digest_length= 16;
+    m_digest_length= MD5_HASH_TO_STRING_LENGTH;
 
     /* 
       Caclulate digest_text information from the token array collected

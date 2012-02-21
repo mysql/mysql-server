@@ -27,6 +27,7 @@
 #include "pfs_timer.h"
 #include "sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
 #include "table_helper.h"
+#include "my_md5.h"
 
 THR_LOCK table_events_statements_current::m_table_lock;
 
@@ -368,16 +369,21 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   /* 
     Filling up statement digest information.
   */
-  PFS_statements_digest_stat *pfs= statement->m_statement_digest_stat_ptr;
-  if(pfs && pfs->m_digest_storage.m_byte_count != 0)
+  PSI_digest_storage *digest= & statement->m_digest_storage;
+  if (digest->m_byte_count > 0)
   {
-    /* Generate the DIGEST text string from the MD5 digest  */
-    MD5_HASH_TO_STRING(pfs->m_digest_hash.m_md5,
+    PFS_digest_hash md5;
+    compute_md5_hash((char*) md5.m_md5,
+                    digest->m_token_array,
+                    digest->m_byte_count);
+
+    /* Generate the DIGEST string from the MD5 digest  */
+    MD5_HASH_TO_STRING(md5.m_md5,
                        m_row.m_digest.m_digest);
-    m_row.m_digest.m_digest_length= 16;
+    m_row.m_digest.m_digest_length= MD5_HASH_TO_STRING_LENGTH;
 
     /* Generate the DIGEST_TEXT string from the token array */
-    get_digest_text(m_row.m_digest.m_digest_text, &pfs->m_digest_storage);
+    get_digest_text(m_row.m_digest.m_digest_text, digest);
     m_row.m_digest.m_digest_text_length= strlen(m_row.m_digest.m_digest_text);
   }
   else

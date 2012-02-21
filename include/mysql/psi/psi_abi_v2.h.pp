@@ -210,6 +210,5 @@ typedef struct PSI_file_locker_state_v2 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v2 PSI_statement_locker_state;
 typedef struct PSI_socket_locker_state_v2 PSI_socket_locker_state;
-typedef struct PSI_digest_locker_state_v2 PSI_digest_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI *PSI_server;
 C_MODE_END

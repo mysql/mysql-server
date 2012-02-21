@@ -75,28 +75,28 @@ Warning	1265	Data truncated for column 'c' at row 1
 SELECT DIGEST, DIGEST_TEXT, COUNT_STAR, SUM_ROWS_AFFECTED, SUM_WARNINGS,
 SUM_ERRORS FROM performance_schema.events_statements_summary_by_digest;
 DIGEST	DIGEST_TEXT	COUNT_STAR	SUM_ROWS_AFFECTED	SUM_WARNINGS	SUM_ERRORS
-f7ab835f907f396b	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1	0	0	0
-0431ac94abde6328	SELECT ? FROM t1  	1	0	0	0
-d798ff4be98e0d26	SELECT ? FROM `t1`  	1	0	0	0
-d5016618084cd788	SELECT ?, ... FROM t1  	2	0	0	0
-6f08c6cdf2afab43	SELECT ? FROM t2  	1	0	0	0
-4fef50eb0b2f2fbc	SELECT ?, ... FROM t2  	2	0	0	0
-c4335f4ded28cdc3	INSERT INTO t1 VALUES (?)  	1	1	0	0
-b015c102ab03f4bc	INSERT INTO t2 VALUES (?)  	1	1	0	0
-f83d4b46c3fe5ff9	INSERT INTO t3 VALUES (...)  	1	1	0	0
-b81724d2cfa0ab7f	INSERT INTO t4 VALUES (...)  	1	1	0	0
-960035d85bc6d14f	INSERT INTO t5 VALUES (...)  	1	1	0	0
-6ee7554974d2ffa1	INSERT INTO t1 VALUES (?) /* , ... */  	2	7	0	0
-827ec3eb62c9f2ed	INSERT INTO t3 VALUES (...) /* , ... */  	1	3	0	0
-55e9e1b918c4e559	INSERT INTO t5 VALUES (...) /* , ... */  	1	3	0	0
-d055f262b12b2384	SELECT ? + ?  	3	0	0	0
-de392358e87965c3	SELECT ?  	1	0	0	0
-d8bde89f42443bc5	CREATE SCHEMA statements_digest_temp  	2	2	0	0
-5f49c045f89918f9	DROP SCHEMA statements_digest_temp  	2	0	0	0
-04bbba67445b1f70	SELECT ? FROM t11  	1	0	0	1
-60be4562b0114c30	CREATE TABLE t11 ( c CHARACTER (?) )  	2	0	0	1
-b1115cec4d694e11	INSERT INTO t11 VALUES (?)  	1	1	1	0
-2ff7a4150e76c272	SHOW WARNINGS  	1	0	0	0
+f7ab835f907f396baeb2c5e6e605929b	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1	0	0	0
+0431ac94abde6328653ad7c73f14d029	SELECT ? FROM t1  	1	0	0	0
+d798ff4be98e0d2613b5d055f70cec1e	SELECT ? FROM `t1`  	1	0	0	0
+d5016618084cd788c9098d2e0260a9f0	SELECT ?, ... FROM t1  	2	0	0	0
+6f08c6cdf2afab43864454acffa74758	SELECT ? FROM t2  	1	0	0	0
+4fef50eb0b2f2fbc0d6e65c1ce6deeef	SELECT ?, ... FROM t2  	2	0	0	0
+c4335f4ded28cdc34f7903b443dcf022	INSERT INTO t1 VALUES (?)  	1	1	0	0
+b015c102ab03f4bccdfb32f01589af49	INSERT INTO t2 VALUES (?)  	1	1	0	0
+f83d4b46c3fe5ff99035ff92b367422f	INSERT INTO t3 VALUES (...)  	1	1	0	0
+b81724d2cfa0ab7f2ba1e05d6bf925ed	INSERT INTO t4 VALUES (...)  	1	1	0	0
+960035d85bc6d14f454362580d6e5454	INSERT INTO t5 VALUES (...)  	1	1	0	0
+6ee7554974d2ffa1ab5bd9549339e3e5	INSERT INTO t1 VALUES (?) /* , ... */  	2	7	0	0
+827ec3eb62c9f2eddd602524a535abcf	INSERT INTO t3 VALUES (...) /* , ... */  	1	3	0	0
+55e9e1b918c4e559684d4297de2bdbd9	INSERT INTO t5 VALUES (...) /* , ... */  	1	3	0	0
+d055f262b12b2384248d1f132e7b9fea	SELECT ? + ?  	3	0	0	0
+de392358e87965c3f5da40056c9629a3	SELECT ?  	1	0	0	0
+d8bde89f42443bc5632dfafe3f4c34f7	CREATE SCHEMA statements_digest_temp  	2	2	0	0
+5f49c045f89918f9cd317263aa694c53	DROP SCHEMA statements_digest_temp  	2	0	0	0
+04bbba67445b1f70cc44467ccc9d2b23	SELECT ? FROM t11  	1	0	0	1
+60be4562b0114c30639771d1b123cf00	CREATE TABLE t11 ( c CHARACTER (?) )  	2	0	0	1
+b1115cec4d694e118d0ee714c44bb998	INSERT INTO t11 VALUES (?)  	1	1	1	0
+2ff7a4150e76c272e5ebf9e66e0ddd10	SHOW WARNINGS  	1	0	0	0
 ####################################
 # CLEANUP
 ####################################
