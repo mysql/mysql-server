@@ -563,17 +563,6 @@ row_mysql_table_id_reassign(
 	trx_t*		trx,	/*!< in/out: transaction */
 	table_id_t*	new_id);/*!< out: new table id */
 
-/*********************************************************************//**
-Iterate over the table's indexes in SYS_INDEXES.
-@param table_id - to search for matching records.
-@param callback - function to call for each matching record  */
-UNIV_INTERN
-void
-row_mysql_sys_index_iterate(
-/*========================*/
-	ib_id_t			table_id,	/*!< in: table id to match */
-	SysIndexCallback*	callback);	/*!< in: callback */
-
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
 This template struct is used to speed up row transformations between
