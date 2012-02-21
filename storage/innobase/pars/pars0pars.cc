@@ -2478,7 +2478,7 @@ pars_info_bind_int8_literal(
 	const char*		name,	/* in: name */
 	const ib_uint64_t*	val)	/* in: value */
 {
-        pars_bound_lit_t*	pbl;
+	pars_bound_lit_t*	pbl;
 
 	pbl = pars_info_lookup_bound_lit(info, name);
 
@@ -2516,6 +2516,33 @@ pars_info_add_ull_literal(
 	mach_write_to_8(buf, val);
 
 	pars_info_add_literal(info, name, buf, 8, DATA_FIXBINARY, 0);
+}
+
+/****************************************************************//**
+If the literal value already exists then it rebinds otherwise it
+creates a new entry. */
+UNIV_INTERN
+void
+pars_info_bind_ull_literal(
+/*=======================*/
+	pars_info_t*		info,		/*!< in: info struct */
+	const char*		name,		/*!< in: name */
+	const ib_uint64_t*	val)		/*!< in: value */
+{
+	pars_bound_lit_t*	pbl;
+
+	pbl = pars_info_lookup_bound_lit(info, name);
+
+	if (!pbl) {
+		pars_info_add_literal(
+			info, name, val, sizeof(*val), DATA_FIXBINARY, 0);
+	} else {
+
+		pbl->address = val;
+		pbl->length = sizeof(*val);
+
+		sym_tab_rebind_lit(pbl->node, val, sizeof(*val));
+	}
 }
 
 /****************************************************************//**
