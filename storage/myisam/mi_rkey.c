@@ -158,7 +158,11 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
             mi_yield_and_check_if_killed(info, inx))
         {
           /* Aborted by user */
+          DBUG_ASSERT(info->lastpos == HA_OFFSET_ERROR &&
+                      my_errno == HA_ERR_ABORTED_BY_USER);
+          res= ICP_ERROR;
           buf= 0;                               /* Fast abort */
+          break;
         }
       }
       if (res == ICP_OUT_OF_RANGE)
@@ -180,7 +184,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
     }
     else
     {
-      DBUG_ASSERT(info->lastpos= HA_OFFSET_ERROR);
+      DBUG_ASSERT(info->lastpos == HA_OFFSET_ERROR);
     }
   }
   if (share->concurrent_insert)

@@ -2230,7 +2230,6 @@ static int find_uniq_filename(char *name)
   char			*start, *end;
   int                   error= 0;
   DBUG_ENTER("find_uniq_filename");
-  LINT_INIT(number);
 
   length= dirname_part(buff, name, &buf_length);
   start=  name + length;

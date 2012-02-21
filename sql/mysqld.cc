@@ -340,7 +340,7 @@ static volatile bool ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
-       ulong max_used_connections;
+ulong max_used_connections;
 static volatile ulong cached_thread_count= 0;
 static char *mysqld_user, *mysqld_chroot;
 static char *default_character_set_name;
@@ -680,6 +680,7 @@ char *opt_logname, *opt_slow_logname, *opt_bin_logname;
 my_bool opt_stack_trace;
 static volatile sig_atomic_t kill_in_progress;
 
+my_bool opt_expect_abort= 0;
 static my_bool opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag;
@@ -1240,7 +1241,6 @@ static int mysql_init_variables(void);
 static int get_options(int *argc_ptr, char ***argv_ptr);
 static bool add_terminator(DYNAMIC_ARRAY *options);
 extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
-static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
 static int fix_paths(void);
@@ -6876,6 +6876,8 @@ SHOW_VAR status_vars[]= {
   {"Handler_mrr_init",         (char*) offsetof(STATUS_VAR, ha_multi_range_read_init_count),  SHOW_LONG_STATUS},
 #endif
   {"Handler_prepare",          (char*) offsetof(STATUS_VAR, ha_prepare_count),  SHOW_LONG_STATUS},
+  {"Handler_pushed_index_cond_checks",(char*) offsetof(STATUS_VAR, ha_pushed_index_cond_checks), SHOW_LONG_STATUS},
+  {"Handler_pushed_index_cond_filtered",(char*) offsetof(STATUS_VAR, ha_pushed_index_cond_filtered), SHOW_LONG_STATUS},
   {"Handler_read_first",       (char*) offsetof(STATUS_VAR, ha_read_first_count), SHOW_LONG_STATUS},
   {"Handler_read_key",         (char*) offsetof(STATUS_VAR, ha_read_key_count), SHOW_LONG_STATUS},
   {"Handler_read_last",        (char*) offsetof(STATUS_VAR, ha_read_last_count), SHOW_LONG_STATUS},
@@ -7905,7 +7907,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   (MYSQL_SERVER_SUFFIX is set by the compilation environment)
 */
 
-static void set_server_version(void)
+void set_server_version(void)
 {
   char *end= strxmov(server_version, MYSQL_SERVER_VERSION,
                      MYSQL_SERVER_SUFFIX_STR, NullS);

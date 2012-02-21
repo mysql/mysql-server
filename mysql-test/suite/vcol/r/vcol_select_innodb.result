@@ -152,7 +152,7 @@ a	b	c
 2	-2	-2
 explain select * from t3 where a between 1 and 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition
+1	SIMPLE	t3	range	PRIMARY	PRIMARY	4	NULL	2	Using where
 # SELECT * FROM tbl_name WHERE <non-indexed vcol expr>
 select * from t3 where b between -2 and -1;
 a	b	c
@@ -176,7 +176,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where a between 1 and 2 order by b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using filesort
+1	SIMPLE	t3	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using filesort
 # SELECT * FROM tbl_name WHERE <non-vcol expr> ORDER BY <indexed vcol>
 select * from t3 where a between 1 and 2 order by c;
 a	b	c
@@ -184,7 +184,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where a between 1 and 2 order by c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using filesort
+1	SIMPLE	t3	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using filesort
 # SELECT * FROM tbl_name WHERE <non-indexed vcol expr> ORDER BY <non-vcol>
 select * from t3 where b between -2 and -1 order by a;
 a	b	c
