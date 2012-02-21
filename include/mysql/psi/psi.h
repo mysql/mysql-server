@@ -261,8 +261,10 @@ typedef struct PSI_bootstrap PSI_bootstrap;
   Compiling option to disable the statement digest instrumentation.
 */
 
+#ifndef DISABLE_PSI_STATEMENT
 #ifndef DISABLE_PSI_STATEMENT_DIGEST
 #define HAVE_PSI_STATEMENT_DIGEST_INTERFACE
+#endif
 #endif
 
 /**
@@ -946,21 +948,26 @@ struct PSI_table_locker_state_v1
   uint m_index;
 };
 
+#define PSI_MAX_DIGEST_STORAGE_SIZE 1024
+
 /**
   Structure to store token count/array for a statement
   on which digest is to be calculated.
 */
-typedef struct {
-                 my_bool m_full;
-                 int m_byte_count;
-                 char m_token_array[1024];
-               } PFS_digest_storage;
+struct PSI_digest_storage
+{
+  my_bool m_full;
+  int m_byte_count;
+  char m_token_array[PSI_MAX_DIGEST_STORAGE_SIZE];
+};
+typedef struct PSI_digest_storage PSI_digest_storage;
 
-struct PSI_digest_locker_state_v1
+struct PSI_digest_locker_state
 {
   int m_last_id_index;
-  PFS_digest_storage m_digest_storage;
+  PSI_digest_storage m_digest_storage;
 };
+typedef struct PSI_digest_locker_state PSI_digest_locker_state;
 
 /**
   State data storage for @c get_thread_statement_locker_v1_t,
@@ -1020,7 +1027,8 @@ struct PSI_statement_locker_state_v1
   ulong m_sort_rows;
   /** Metric, number of sort scans. */
   ulong m_sort_scan;
-  struct PSI_digest_locker_state_v1 m_digest_state;
+  /** Statement digest. */
+  PSI_digest_locker_state m_digest_state;
 };
 
 /**
@@ -2246,7 +2254,6 @@ typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
-typedef struct PSI_digest_locker_state_v1 PSI_digest_locker_state;
 #endif
 
 #ifdef USE_PSI_2
@@ -2267,7 +2274,6 @@ typedef struct PSI_file_locker_state_v2 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v2 PSI_statement_locker_state;
 typedef struct PSI_socket_locker_state_v2 PSI_socket_locker_state;
-typedef struct PSI_digest_locker_state_v2 PSI_digest_locker_state;
 #endif
 
 #else /* HAVE_PSI_INTERFACE */

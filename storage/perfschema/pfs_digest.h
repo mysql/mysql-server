@@ -25,7 +25,6 @@
 #include "lf.h"
 #include "pfs_stat.h"
 
-#define PFS_MAX_DIGEST_STORAGE_SIZE 1024
 #define PFS_SIZE_OF_A_TOKEN 2
 
 extern bool flag_statements_digest;
@@ -34,12 +33,16 @@ extern unsigned int digest_index;
 extern ulong digest_max;
 struct PFS_thread;
 
+/* Fixed, per MD5 hash. */
+#define PFS_MD5_SIZE 16
+
 /**
   Structure to store a MD5 hash value (digest) for a statement.
 */
-struct {
-         unsigned char m_md5[16];
-       }typedef PFS_digest_hash;
+struct PFS_digest_hash
+{
+  unsigned char m_md5[PFS_MD5_SIZE];
+};
 
 /** A statement digest stat record. */
 struct PFS_statements_digest_stat
@@ -52,7 +55,7 @@ struct PFS_statements_digest_stat
   /**
     Digest Storage.
   */
-  PFS_digest_storage m_digest_storage;
+  PSI_digest_storage m_digest_storage;
 
   /**
     Statement stat.
@@ -74,9 +77,9 @@ void cleanup_digest();
 int init_digest_hash(void);
 void cleanup_digest_hash(void);
 PFS_statements_digest_stat* find_or_create_digest(PFS_thread*,
-                                                  PFS_digest_storage*);
+                                                  PSI_digest_storage*);
 
-void get_digest_text(char* digest_text, PFS_digest_storage*);
+void get_digest_text(char* digest_text, PSI_digest_storage*);
 
 void reset_esms_by_digest();
 
@@ -90,13 +93,27 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
                                            uint token,
                                            OPAQUE_LEX_YYSTYPE *yylval);
 
+static inline void digest_reset(PSI_digest_storage *digest)
+{
+  digest->m_full= false;
+  digest->m_byte_count= 0;
+}
+
+static inline void digest_copy(PSI_digest_storage *to, const PSI_digest_storage *from)
+{
+  to->m_full= from->m_full;
+  to->m_byte_count= from->m_byte_count;
+  DBUG_ASSERT(to->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
+  memcpy(to->m_token_array, from->m_token_array, to->m_byte_count);
+}
+
 /** 
   Function to read a single token from token array.
 */
 inline void read_token(uint *tok, int *index, char *src)
 {
   unsigned short sh;
-  int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE - *index;
+  int remaining_bytes= PSI_MAX_DIGEST_STORAGE_SIZE - *index;
   DBUG_ASSERT(remaining_bytes >= 0);
 
   /* Make sure we have enough space to read a token from.
@@ -112,12 +129,12 @@ inline void read_token(uint *tok, int *index, char *src)
 /**
   Function to store a single token in token array.
 */
-inline void store_token(PFS_digest_storage* digest_storage, uint token)
+inline void store_token(PSI_digest_storage* digest_storage, uint token)
 {
   char* dest= digest_storage->m_token_array;
   int* index= &digest_storage->m_byte_count;
   unsigned short sh= (unsigned short)token;
-  int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE - *index;
+  int remaining_bytes= PSI_MAX_DIGEST_STORAGE_SIZE - *index;
   DBUG_ASSERT(remaining_bytes >= 0);
 
   /* Make sure we have enough space to write a token to. */
@@ -137,7 +154,7 @@ inline void read_identifier(char **dest, int *index, char *src,
                             uint available_bytes_to_write, uint offset)
 {
   uint length;
-  int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE - *index;
+  int remaining_bytes= PSI_MAX_DIGEST_STORAGE_SIZE - *index;
   DBUG_ASSERT(remaining_bytes >= 0);
   /*
     Read ID's length.
@@ -164,12 +181,12 @@ inline void read_identifier(char **dest, int *index, char *src,
 /**
   Function to store an identifier in token array.
 */
-inline void store_identifier(PFS_digest_storage* digest_storage,
+inline void store_identifier(PSI_digest_storage* digest_storage,
                              uint id_length, char *id_name)
 {
   char* dest= digest_storage->m_token_array;
   int* index= &digest_storage->m_byte_count;
-  int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE - *index;
+  int remaining_bytes= PSI_MAX_DIGEST_STORAGE_SIZE - *index;
   DBUG_ASSERT(remaining_bytes >= 0);
 
   /*
@@ -186,32 +203,6 @@ inline void store_identifier(PFS_digest_storage* digest_storage,
     store_token(digest_storage, id_length);
     strncpy(dest + *index, id_name, id_length);
     *index= *index + id_length;
-  }
-}
-
-/**
-  Function to read last two tokens from token array. If an identifier
-  is found, do not look for token after that.
-*/
-inline void read_last_two_tokens(PFS_digest_storage* digest_storage,
-                                 int last_id_index, uint *t1, uint *t2)
-{
-  int last_token_index;
-  int byte_count= digest_storage->m_byte_count;
-
-  if(last_id_index <= byte_count - PFS_SIZE_OF_A_TOKEN)
-  {
-    /* Take last token. */
-    last_token_index= byte_count - PFS_SIZE_OF_A_TOKEN;
-    DBUG_ASSERT(last_token_index >= 0);
-    read_token(t1, &last_token_index, digest_storage->m_token_array);
-  }
-  if(last_id_index <= byte_count - 2*PFS_SIZE_OF_A_TOKEN)
-  {
-    /* Take 2nd token from last. */
-    last_token_index= byte_count - 2*PFS_SIZE_OF_A_TOKEN;
-    DBUG_ASSERT(last_token_index >= 0);
-    read_token(t2, &last_token_index, digest_storage->m_token_array);
   }
 }
 

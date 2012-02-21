@@ -1042,13 +1042,6 @@ static inline int mysql_mutex_lock(...)
   @ingroup Performance_schema_implementation
 */
 
-/** TIMED bit in the state flags bitfield. */
-#define STATE_FLAG_TIMED (1<<0)
-/** THREAD bit in the state flags bitfield. */
-#define STATE_FLAG_THREAD (1<<1)
-/** EVENT bit in the state flags bitfield. */
-#define STATE_FLAG_EVENT (1<<2)
-
 pthread_key(PFS_thread*, THR_PFS);
 bool THR_PFS_initialized= false;
 
@@ -4226,7 +4219,7 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       pfs->m_sort_scan= 0;
       pfs->m_no_index_used= 0;
       pfs->m_no_good_index_used= 0;
-      pfs->m_statement_digest_stat_ptr= NULL;
+      digest_reset(& pfs->m_digest_storage);
 
       /* New stages will have this statement as parent */
       PFS_events_stages *child_stage= & pfs_thread->m_stage_current;
@@ -4252,6 +4245,13 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       flags= 0;
   }
 
+  if (flag_statements_digest)
+  {
+    flags|= STATE_FLAG_DIGEST;
+    state->m_digest_state.m_last_id_index= 0;
+    digest_reset(& state->m_digest_state.m_digest_storage);
+  }
+
   state->m_discarded= false;
   state->m_class= klass;
   state->m_flags= flags;
@@ -4272,11 +4272,6 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
   state->m_sort_scan= 0;
   state->m_no_index_used= 0;
   state->m_no_good_index_used= 0;
-
-  state->m_digest_state.m_last_id_index= 0;
-  state->m_digest_state.m_digest_storage.m_byte_count= 0;
-  state->m_digest_state.m_digest_storage.m_token_array[0]= '\0';
-  state->m_digest_state.m_digest_storage.m_full= false;
 
   return reinterpret_cast<PSI_statement_locker*> (state);
 }
@@ -4539,7 +4534,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   /*
    Capture statement stats by digest.
   */
-  PFS_digest_storage *digest_storage= NULL;
+  PSI_digest_storage *digest_storage= NULL;
   PFS_statement_stat *digest_stat= NULL;
   PFS_statements_digest_stat* digest_stat_ptr= NULL;
 
@@ -4595,8 +4590,19 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       pfs->m_timer_end= timer_end;
       pfs->m_end_event_id= thread->m_event_id;
 
-      pfs->m_statement_digest_stat_ptr= digest_stat_ptr;
-  
+      PSI_digest_storage *from= & state->m_digest_state.m_digest_storage;
+
+      if (from->m_byte_count > 0)
+      {
+        /*
+          The following columns in events_statement_current:
+          - DIGEST,
+          - DIGEST_TEXT
+          are computed from the digest storage.
+        */
+        digest_copy(& pfs->m_digest_storage, from);
+      }
+
       if (flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
       if (flag_events_statements_history_long)

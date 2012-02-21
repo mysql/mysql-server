@@ -239,16 +239,19 @@ struct PSI_table_locker_state_v1
   void *m_wait;
   uint m_index;
 };
-typedef struct {
-                 my_bool m_full;
-                 int m_byte_count;
-                 char m_token_array[1024];
-               } PFS_digest_storage;
-struct PSI_digest_locker_state_v1
+struct PSI_digest_storage
+{
+  my_bool m_full;
+  int m_byte_count;
+  char m_token_array[1024];
+};
+typedef struct PSI_digest_storage PSI_digest_storage;
+struct PSI_digest_locker_state
 {
   int m_last_id_index;
-  PFS_digest_storage m_digest_storage;
+  PSI_digest_storage m_digest_storage;
 };
+typedef struct PSI_digest_locker_state PSI_digest_locker_state;
 struct PSI_statement_locker_state_v1
 {
   my_bool m_discarded;
@@ -274,7 +277,7 @@ struct PSI_statement_locker_state_v1
   ulong m_sort_range;
   ulong m_sort_rows;
   ulong m_sort_scan;
-  struct PSI_digest_locker_state_v1 m_digest_state;
+  PSI_digest_locker_state m_digest_state;
 };
 struct PSI_socket_locker_state_v1
 {
@@ -611,6 +614,5 @@ typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
-typedef struct PSI_digest_locker_state_v1 PSI_digest_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI *PSI_server;
 C_MODE_END
