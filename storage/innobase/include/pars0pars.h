@@ -618,6 +618,17 @@ pars_info_add_ull_literal(
 	ib_uint64_t	val);		/*!< in: value */
 
 /****************************************************************//**
+If the literal value already exists then it rebinds otherwise it
+creates a new entry. */
+UNIV_INTERN
+void
+pars_info_bind_ull_literal(
+/*=======================*/
+	pars_info_t*		info,	/*!< in: info struct */
+	const char*		name,	/*!< in: name */
+	const ib_uint64_t*	val);	/*!< in: value */
+
+/****************************************************************//**
 Add bound id. */
 UNIV_INTERN
 void
