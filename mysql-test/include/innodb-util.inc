@@ -5,6 +5,8 @@
 # ib_backup_tablespaces("test", "t1", "blah", ...).
 
 perl;
+use File::Copy;
+
 sub ib_backup_tablespace {
     my ($db, $table) = @_;
     my $datadir = $ENV{'MYSQLD_DATADIR'};
@@ -12,11 +14,11 @@ sub ib_backup_tablespace {
     my $ibd_file = sprintf("%s.ibd", $table);
     my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
 
-    my @args = ("cp", "$datadir/$db/$ibd_file", "$tmpd/$ibd_file");
-    system(@args) == 0 or die "system @args failed: $?";
+    my @args = ("$datadir/$db/$ibd_file", "$tmpd/$ibd_file");
+    copy(@args) or die "system @args failed: $?";
 
-    my @args = ("cp", "$datadir/$db/$cfg_file", "$tmpd/$cfg_file");
-    system(@args) == 0 or die "system @args failed: $?";
+    my @args = ("$datadir/$db/$cfg_file", "$tmpd/$cfg_file");
+    copy(@args) or die "system @args failed: $?";
 }
 
 sub ib_cleanup {
@@ -76,11 +78,11 @@ sub ib_restore_tablespace {
     my $ibd_file = sprintf("%s.ibd", $table);
     my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
 
-    my @args = ("cp", "$tmpd/$cfg_file", "$datadir/$db/$cfg_file");
-    system(@args) == 0 or die "system @args failed: $?";
+    my @args = ("$tmpd/$cfg_file", "$datadir/$db/$cfg_file");
+    copy(@args) or die "system @args failed: $?";
 
-    my @args = ("cp", "$tmpd/$ibd_file", "$datadir/$db/$ibd_file");
-    system(@args) == 0 or die "system @args failed: $?";
+    my @args = ("$tmpd/$ibd_file", "$datadir/$db/$ibd_file");
+    copy(@args) or die "system @args failed: $?";
 }
 
 sub ib_restore_tablespaces {
