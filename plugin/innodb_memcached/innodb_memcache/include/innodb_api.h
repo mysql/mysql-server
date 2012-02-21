@@ -230,6 +230,17 @@ innodb_api_cursor_reset(
 	conn_op_type_t		op_type);	/*!< in: type of DML
 						performed */
 
+/**********************************************************************//**
+This function verifies the table configuration information on an opened
+table, and fills in columns used for memcached functionalities (cas, exp etc.)
+@return true if everything works out fine */
+ib_err_t
+innodb_verify_low(
+/*==============*/
+        meta_cfg_info_t*        info,           /*!< in/out: meta info
+                                                structure */
+        ib_crsr_t               crsr);          /*!< in: crsr */
+
 /*************************************************************//**
 Following are a set of InnoDB callback function wrappers for functions
 that will be used outside innodb_api.c

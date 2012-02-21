@@ -32,6 +32,7 @@ Created 04/12/2011 Jimmy Yang
 #include "innodb_api.h"
 #include "memcached/util.h"
 #include <innodb_cb_api.h>
+#include <innodb_config.h>
 
 /** Whether to update all columns' value or a specific column value */
 #define UPDATE_ALL_VAL_COL	-1
@@ -128,6 +129,7 @@ innodb_api_begin(
 	ib_lck_mode_t	lock_mode)	/*!< in:  lock mode */
 {
 	ib_err_t	err = DB_SUCCESS;
+	int		i;
 	char		table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
 
 	if (!*crsr) {
@@ -157,6 +159,31 @@ innodb_api_begin(
 		if (engine) {
 			meta_cfg_info_t* meta_info = &engine->meta_info;
 			meta_index_t*	meta_index = &meta_info->index_info;
+
+			if (!engine->enable_mdl) {
+				if (meta_info->n_extra_col) {
+					for (i = 0; i  < meta_info->n_extra_col;
+					     i++){
+						meta_info->extra_col_info[i].field_id
+							= -1;
+					}
+				}
+
+				meta_info->col_info[CONTAINER_FLAG].field_id = -1;
+				meta_info->col_info[CONTAINER_EXP].field_id = -1;
+				meta_info->col_info[CONTAINER_CAS].field_id = -1;
+
+				err = innodb_verify_low(meta_info , *crsr);
+
+				if (err != DB_SUCCESS) {
+					fprintf(stderr, " InnoDB_Memcached:"
+							" Table definition"
+							" modified for"
+							" table '%s'\n",
+						table_name);
+					return(err);
+				}
+			}
 
 			/* Open the cursor */
 			if (meta_index->srch_use_idx == META_USE_SECONDARY) {

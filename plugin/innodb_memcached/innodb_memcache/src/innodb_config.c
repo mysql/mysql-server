@@ -545,52 +545,28 @@ innodb_config_value_col_verify(
 	return(err);
 }
 
-
 /**********************************************************************//**
-This function verifies the table configuration information, and fills
-in columns used for memcached functionalities (cas, exp etc.)
+This function verifies the table configuration information on an opened
+table, and fills in columns used for memcached functionalities (cas, exp etc.)
 @return true if everything works out fine */
-bool
-innodb_verify(
-/*==========*/
-	meta_cfg_info_t*       info)	/*!< in: meta info structure */
+ib_err_t
+innodb_verify_low(
+/*==============*/
+	meta_cfg_info_t*	info,	/*!< in/out: meta info structure */
+	ib_crsr_t		crsr)	/*!< in: crsr */
 {
-	ib_crsr_t	crsr = NULL;
 	ib_crsr_t	idx_crsr = NULL;
 	ib_tpl_t	tpl = NULL;
 	ib_col_meta_t	col_meta;
-	char            table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
-	char*		dbname;
-	char*		name;
 	int		n_cols;
 	int		i;
-	ib_err_t	err = DB_SUCCESS;
 	bool		is_key_col = false;
 	bool		is_value_col = false;
 	int		index_type;
 	ib_id_u64_t	index_id;
-
-	dbname = info->col_info[CONTAINER_DB].col_name;
-	name = info->col_info[CONTAINER_TABLE].col_name;
-	info->flag_enabled = false;
-	info->cas_enabled = false;
-	info->exp_enabled = false;
-
-#ifdef __WIN__
-	sprintf(table_name, "%s\%s", dbname, name);
-#else
-	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);
-#endif
-
-	err = innodb_cb_open_table(table_name, NULL, &crsr);
-
-	/* Mapped InnoDB table must be able to open */
-	if (err != DB_SUCCESS) {
-		fprintf(stderr, " InnoDB_Memcached: fail to open table"
-				" '%s' \n", table_name);
-		err = DB_ERROR;
-		goto func_exit;
-	}
+	ib_err_t	err = DB_SUCCESS;
+	char*		name;
+	meta_column_t*	cinfo = info->col_info;
 
 	tpl = innodb_cb_read_tuple_create(crsr);
 
@@ -599,7 +575,6 @@ innodb_verify(
 	/* Verify each mapped column */
 	for (i = 0; i < n_cols; i++) {
 		ib_err_t	result = DB_SUCCESS;
-		meta_column_t*	cinfo = info->col_info;
 
 		name = innodb_cb_col_get_name(crsr, i);
 		innodb_cb_col_get_meta(tpl, i, &col_meta);
@@ -659,8 +634,7 @@ innodb_verify(
 	if (!is_key_col || !is_value_col) {
 		fprintf(stderr, " InnoDB_Memcached: fail to locate key"
 				" column or value column in table"
-				" '%s' as specified by config table \n",
-			table_name);
+				" as specified by config table \n");
 
 		err = DB_ERROR;
 		goto func_exit;
@@ -669,18 +643,35 @@ innodb_verify(
 	if (info->n_extra_col) {
 		for (i = 0; i < info->n_extra_col; i++) {
 			if (info->extra_col_info[i].field_id < 0) {
-				fprintf(stderr, "  InnoDB_Memcached: fail to"
+				fprintf(stderr, " InnoDB_Memcached: fail to"
 						" locate value column %s"
-						" in table '%s' as specified"
-						" by config table \n",
-					info->extra_col_info[i].col_name,
-					table_name);
+						" as specified by config"
+						" table \n",
+					info->extra_col_info[i].col_name);
 				err = DB_ERROR;
 				goto func_exit;
 			}
 		}
 	}
-				
+	if (info->flag_enabled && cinfo[CONTAINER_FLAG].field_id < 0) {
+		fprintf(stderr, " InnoDB_Memcached: fail to locate flag"
+				" column as specified by config table \n");
+		err = DB_ERROR;
+		goto func_exit;
+	}			
+	if (info->cas_enabled && cinfo[CONTAINER_CAS].field_id < 0) {
+		fprintf(stderr, " InnoDB_Memcached: fail to locate cas"
+				" column as specified by config table \n");
+		err = DB_ERROR;
+		goto func_exit;
+	}
+	if (info->exp_enabled && cinfo[CONTAINER_EXP].field_id < 0) {
+		fprintf(stderr, " InnoDB_Memcached: fail to locate exp"
+				" column as specified by config table \n");
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
 	/* Test the specified index */
 	innodb_cb_cursor_open_index_using_name(crsr, info->index_info.idx_name,
 					       &idx_crsr, &index_type,
@@ -707,6 +698,48 @@ func_exit:
 		innodb_cb_tuple_delete(tpl);
 	}
 
+	return(err);
+}
+
+/**********************************************************************//**
+This function verifies the table configuration information, and fills
+in columns used for memcached functionalities (cas, exp etc.)
+@return true if everything works out fine */
+bool
+innodb_verify(
+/*==========*/
+	meta_cfg_info_t*       info)	/*!< in: meta info structure */
+{
+	ib_crsr_t	crsr = NULL;
+	char            table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
+	char*		dbname;
+	char*		name;
+	ib_err_t	err = DB_SUCCESS;
+
+	dbname = info->col_info[CONTAINER_DB].col_name;
+	name = info->col_info[CONTAINER_TABLE].col_name;
+	info->flag_enabled = false;
+	info->cas_enabled = false;
+	info->exp_enabled = false;
+
+#ifdef __WIN__
+	sprintf(table_name, "%s\%s", dbname, name);
+#else
+	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);
+#endif
+
+	err = innodb_cb_open_table(table_name, NULL, &crsr);
+
+	/* Mapped InnoDB table must be able to open */
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, " InnoDB_Memcached: fail to open table"
+				" '%s' \n", table_name);
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
+	err = innodb_verify_low(info, crsr);
+func_exit:
 	if (crsr) {
 		innodb_cb_cursor_close(crsr);
 	}
