@@ -185,6 +185,14 @@ protected:
 public:
   uint elements;
 
+  bool operator==(const base_list &rhs) const
+  {
+    return
+      elements == rhs.elements &&
+      first == rhs.first &&
+      last == rhs.last;
+  }
+
   inline void empty() { elements=0; first= &end_of_list; last=&first;}
   inline base_list() { empty(); }
   /**
@@ -521,17 +529,8 @@ public:
     }
     empty();
   }
-  /**
-    @brief
-    Sort the list according to provided comparison function
 
-    @param cmp  node comparison function
-    @param arg  additional info to be passed to comparison function
-  * /
-  inline void sort(Node_cmp_func cmp, void *arg)
-  {
-    base_list::sort(cmp, arg);
-  }*/
+  using base_list::sort;
 };
 
 
