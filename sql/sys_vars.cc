@@ -2380,7 +2380,7 @@ static Sys_var_charptr Sys_secure_file_priv(
        "secure_file_priv",
        "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files "
        "within specified directory",
-       PREALLOCATED READ_ONLY GLOBAL_VAR(opt_secure_file_priv),
+       READ_ONLY GLOBAL_VAR(opt_secure_file_priv),
        CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(0));
 
 static bool fix_server_id(sys_var *self, THD *thd, enum_var_type type)
@@ -3378,7 +3378,7 @@ static bool fix_general_log_file(sys_var *self, THD *thd, enum_var_type type)
 }
 static Sys_var_charptr Sys_general_log_path(
        "general_log_file", "Log connections and queries to given file",
-       PREALLOCATED GLOBAL_VAR(opt_logname), CMD_LINE(REQUIRED_ARG),
+       GLOBAL_VAR(opt_logname), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_log_path), ON_UPDATE(fix_general_log_file));
 
@@ -3396,7 +3396,7 @@ static Sys_var_charptr Sys_slow_log_path(
        "slow_query_log_file", "Log slow queries to given log file. "
        "Defaults logging to hostname-slow.log. Must be enabled to activate "
        "other slow log options",
-       PREALLOCATED GLOBAL_VAR(opt_slow_logname), CMD_LINE(REQUIRED_ARG),
+       GLOBAL_VAR(opt_slow_logname), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_log_path), ON_UPDATE(fix_slow_log_file));
 

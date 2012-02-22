@@ -510,7 +510,10 @@ void
 ignore_db_dirs_free()
 {
   if (opt_ignore_db_dirs)
+  {
     my_free(opt_ignore_db_dirs);
+    opt_ignore_db_dirs= NULL;
+  }
   ignore_db_dirs_reset();
   delete_dynamic(&ignore_db_dirs_array);
   my_hash_free(&ignore_db_dirs_hash);

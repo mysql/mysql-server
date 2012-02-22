@@ -140,7 +140,13 @@ public:
     if (item)
       item->save_in_field_no_warnings(this, true);      
   }
-  
+  ~Mock_field_long()
+  {
+    bitmap_free(&share_allset);
+    bitmap_free(&tbl_readset);
+    bitmap_free(&tbl_writeset);
+  }
+
   // #bytes to store the value - see Field_long::key_lenght()
   static const int KEY_LENGTH= 4;
   const char *m_table_name;

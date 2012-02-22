@@ -58,11 +58,6 @@ C_MODE_END
 using std::min;
 using std::max;
 
-/**
-   @todo Remove this. It is not safe to use a shared String object.
- */
-String my_empty_string("",default_charset_info);
-
 /*
   For the Items which have only val_str_ascii() method
   and don't have their own "native" val_str(),
@@ -2599,7 +2594,7 @@ String *Item_func_make_set::val_str(String *str)
   ulonglong bits;
   bool first_found=0;
   Item **ptr=args;
-  String *result=&my_empty_string;
+  String *result= NULL;
 
   bits=item->val_int();
   if ((null_value=item->null_value))
@@ -2631,17 +2626,21 @@ String *Item_func_make_set::val_str(String *str)
 	{
 	  if (result != &tmp_str)
 	  {					// Copy data to tmp_str
-	    if (tmp_str.alloc(result->length()+res->length()+1) ||
+            if (tmp_str.alloc((result != NULL ? result->length() : 0) +
+                              res->length() + 1) ||
 		tmp_str.copy(*result))
               return make_empty_result();
 	    result= &tmp_str;
 	  }
-	  if (tmp_str.append(STRING_WITH_LEN(","), &my_charset_bin) || tmp_str.append(*res))
+	  if (tmp_str.append(STRING_WITH_LEN(","), &my_charset_bin) ||
+              tmp_str.append(*res))
             return make_empty_result();
 	}
       }
     }
   }
+  if (result == NULL)
+    return make_empty_result();
   return result;
 }
 

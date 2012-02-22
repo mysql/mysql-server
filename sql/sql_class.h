@@ -3967,7 +3967,7 @@ class sql_exchange :public Sql_alloc
 public:
   enum enum_filetype filetype; /* load XML, Added by Arnold & Erik */
   char *file_name;
-  String *field_term,*enclosed,*line_term,*line_start,*escaped;
+  const String *field_term, *enclosed, *line_term, *line_start, *escaped;
   bool opt_enclosed;
   bool dumpfile;
   ulong skip_lines;
