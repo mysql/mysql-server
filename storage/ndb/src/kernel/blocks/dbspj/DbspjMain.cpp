@@ -54,7 +54,7 @@
 #endif
 
 #if 1
-#define DEBUG_CRASH() if (ERROR_INSERTED(0)) ndbrequire(false)
+#define DEBUG_CRASH() { if (ERROR_INSERTED(0)) ndbrequire(false) }
 #else
 #define DEBUG_CRASH()
 #endif
@@ -398,18 +398,18 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
     if (unlikely(!m_arenaAllocator.seize(ah)))
       break;
 
-    if (unlikely(!m_request_pool.seize(ah, requestPtr)))
-    {
-      break;
-    }
-
     if (ERROR_INSERTED(17001))
     {
       ndbout_c("Injecting OutOfQueryMem error 17001 at line %d file %s",
                 __LINE__,  __FILE__);
+      jam();
       break;
     }
-
+    if (unlikely(!m_request_pool.seize(ah, requestPtr)))
+    {
+      jam();
+      break;
+    }
     new (requestPtr.p) Request(ah);
     do_init(requestPtr.p, req, signal->getSendersBlockRef());
 
@@ -701,18 +701,18 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
     if (unlikely(!m_arenaAllocator.seize(ah)))
       break;
 
-    if (unlikely(!m_request_pool.seize(ah, requestPtr)))
-    {
-      break;
-    }
-
     if (ERROR_INSERTED(17002))
     {
       ndbout_c("Injecting OutOfQueryMem error 17002 at line %d file %s",
                 __LINE__,  __FILE__);
+      jam();
       break;
     }
-
+    if (unlikely(!m_request_pool.seize(ah, requestPtr)))
+    {
+      jam();
+      break;
+    }
     new (requestPtr.p) Request(ah);
     do_init(requestPtr.p, req, signal->getSendersBlockRef());
 
@@ -922,6 +922,14 @@ Dbspj::build(Build_context& ctx,
     if (unlikely(node_op != param_op))
     {
       DEBUG_CRASH();
+      jam();
+      goto error;
+    }
+    if (ERROR_INSERTED(17006))
+    {
+      ndbout_c("Injecting UnknowQueryOperation error 17006 at line %d file %s",
+                __LINE__,  __FILE__);
+      jam();
       goto error;
     }
 
@@ -999,13 +1007,6 @@ Dbspj::build(Build_context& ctx,
     }
   }
 
-    if (ERROR_INSERTED(17006))
-    {
-      ndbout_c("Injecting OutOfOperations error 17006 at line %d file %s",
-                __LINE__,  __FILE__);
-      return DbspjErr::UnknowQueryOperation;
-    }
-
   return 0;
 
 error:
@@ -1022,6 +1023,13 @@ Dbspj::createNode(Build_context& ctx, Ptr<Request> requestPtr,
    *   that can be setup using the Build_context
    *
    */
+  if (ERROR_INSERTED(17005))
+  {
+    ndbout_c("Injecting OutOfOperations error 17005 at line %d file %s",
+             __LINE__,  __FILE__);
+    jam();
+    return DbspjErr::OutOfOperations;
+  }
   if (m_treenode_pool.seize(requestPtr.p->m_arena, treeNodePtr))
   {
     DEBUG("createNode - seize -> ptrI: " << treeNodePtr.i);
@@ -1030,12 +1038,6 @@ Dbspj::createNode(Build_context& ctx, Ptr<Request> requestPtr,
     Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
     list.addLast(treeNodePtr);
     treeNodePtr.p->m_node_no = ctx.m_cnt;
-    if (ERROR_INSERTED(17005))
-    {
-      ndbout_c("Injecting OutOfOperations error 17005 at line %d file %s",
-               __LINE__,  __FILE__);
-      return DbspjErr::OutOfOperations;
-    }
     return 0;
   }
   return DbspjErr::OutOfOperations;
@@ -2689,17 +2691,19 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
   if (m_free_page_list.firstItem == RNIL)
   {
     jam();
+    if (ERROR_INSERTED(17003))
+    {
+      ndbout_c("Injecting failed '::allocPage', error 17003 at line %d file %s",
+               __LINE__,  __FILE__);
+      jam();
+      return false;
+    }
     ptr.p = (RowPage*)m_ctx.m_mm.alloc_page(RT_SPJ_DATABUFFER,
                                             &ptr.i,
                                             Ndbd_mem_manager::NDB_ZONE_ANY);
     if (ptr.p == 0)
     {
-      return false;
-    }
-    if (ERROR_INSERTED(17003))
-    {
-      ndbout_c("Injecting OutOfRowMem error 17003 at line %d file %s",
-               __LINE__,  __FILE__);
+      jam();
       return false;
     }
     return true;
@@ -3936,18 +3940,19 @@ Dbspj::scanFrag_build(Build_context& ctx,
 
     treeNodePtr.p->m_scanfrag_data.m_scanFragHandlePtrI = RNIL;
     Ptr<ScanFragHandle> scanFragHandlePtr;
-    if (unlikely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena,
-                                             scanFragHandlePtr) != true))
-    {
-      err = DbspjErr::OutOfQueryMemory;
-      break;
-    }
-
     if (ERROR_INSERTED(17004))
     {
       ndbout_c("Injecting OutOfQueryMemory error 17004 at line %d file %s",
                __LINE__,  __FILE__);
+      jam();
       err = DbspjErr::OutOfQueryMemory;
+      break;
+    }
+    if (unlikely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena,
+                                             scanFragHandlePtr) != true))
+    {
+      err = DbspjErr::OutOfQueryMemory;
+      jam();
       break;
     }
 
@@ -6383,15 +6388,15 @@ Dbspj::appendToPattern(Local_pattern_store & pattern,
   if (unlikely(tree.ptr + len > tree.end))
     return DbspjErr::InvalidTreeNodeSpecification;
 
-  if (unlikely(pattern.append(tree.ptr, len)==0))
-    return  DbspjErr::OutOfQueryMemory;
-
   if (ERROR_INSERTED(17008))
   {
     ndbout_c("Injecting OutOfQueryMemory error 17008 at line %d file %s",
              __LINE__,  __FILE__);
+    jam();
     return DbspjErr::OutOfQueryMemory;
   }
+  if (unlikely(pattern.append(tree.ptr, len)==0))
+    return DbspjErr::OutOfQueryMemory;
 
   tree.ptr += len;
   return 0;
@@ -6415,6 +6420,7 @@ Dbspj::appendParamToPattern(Local_pattern_store& dst,
   {
     ndbout_c("Injecting OutOfQueryMemory error 17009 at line %d file %s",
              __LINE__,  __FILE__);
+    jam();
     return DbspjErr::OutOfQueryMemory;
   }
 
@@ -6439,6 +6445,7 @@ Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
   {
     ndbout_c("Injecting OutOfQueryMemory error 17010 at line %d file %s",
              __LINE__,  __FILE__);
+    jam();
     return DbspjErr::OutOfQueryMemory;
   }
 
@@ -7138,6 +7145,15 @@ Dbspj::parseDA(Build_context& ctx,
 
   do
   {
+    if (ERROR_INSERTED(17007))
+    {
+      ndbout_c("Injecting OutOfSectionMemory error 17007 at line %d file %s",
+                __LINE__,  __FILE__);
+      jam();
+      err = DbspjErr::OutOfSectionMemory;
+      break;
+    }
+
     if (treeBits & DABits::NI_REPEAT_SCAN_RESULT)
     {
       jam();
@@ -7595,13 +7611,6 @@ Dbspj::parseDA(Build_context& ctx,
         DEBUG_CRASH();
         break;
       }
-    }
-
-    if (ERROR_INSERTED(17007))
-    {
-      ndbout_c("Injecting OutOfSectionMemory error 17007 at line %d file %s",
-                __LINE__,  __FILE__);
-      return DbspjErr::OutOfSectionMemory;
     }
 
     return 0;
