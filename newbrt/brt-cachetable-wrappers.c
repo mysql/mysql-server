@@ -252,3 +252,16 @@ toku_unpin_brtnode(BRT brt, BRTNODE node)
     toku_unpin_brtnode_off_client_thread(brt->h, node);
 }
 
+void
+toku_unpin_brtnode_read_only(BRT brt, BRTNODE node)
+{
+    int r = toku_cachetable_unpin(
+        brt->h->cf,
+        node->thisnodename,
+        node->fullhash,
+        (enum cachetable_dirty) node->dirty,
+        make_invalid_pair_attr()
+        );
+    assert(r==0);
+}
+

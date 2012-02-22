@@ -438,6 +438,7 @@ struct brt {
 // FIXME needs toku prefix
 long brtnode_memory_size (BRTNODE node);
 PAIR_ATTR make_brtnode_pair_attr(BRTNODE node);
+PAIR_ATTR make_invalid_pair_attr(void);
 
 /* serialization code */
 void

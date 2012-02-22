@@ -19,6 +19,16 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
+#ifndef TRUE
+// In the future, use the stdbool bool and constants (true false), rather than BOOL, TRUE, and FALSE.
+#define TRUE true
+#define FALSE false
+typedef bool BOOL;
+#endif
+
+
+
 typedef struct brt *BRT;
 typedef struct brtnode *BRTNODE;
 typedef struct brtnode_leaf_basement_node *BASEMENTNODE;
@@ -56,6 +66,7 @@ typedef struct pair_attr_s {
     long leaf_size; // size if PAIR is a leaf node, 0 otherwise, used only for engine status
     long rollback_size; // size of PAIR is a rollback node, 0 otherwise, used only for engine status
     long cache_pressure_size; // amount PAIR contributes to cache pressure, is sum of buffer sizes and workdone counts
+    BOOL is_valid;
 } PAIR_ATTR;
 
 static inline PAIR_ATTR make_pair_attr(long size) { 
@@ -65,10 +76,11 @@ static inline PAIR_ATTR make_pair_attr(long size) {
         .nonleaf_size = 0, 
         .leaf_size = 0, 
         .rollback_size = 0, 
-        .cache_pressure_size = 0 
+        .cache_pressure_size = 0,
+        .is_valid = TRUE
     }; 
 #else
-    PAIR_ATTR result = {size, 0, 0, 0, 0};
+    PAIR_ATTR result = {size, 0, 0, 0, 0, TRUE};
 #endif
     return result; 
 }
@@ -106,14 +118,6 @@ typedef struct {
     u_int32_t num;
     FILENUM  *filenums;
 } FILENUMS;
-
-#include <stdbool.h>
-#ifndef TRUE
-// In the future, use the stdbool bool and constants (true false), rather than BOOL, TRUE, and FALSE.
-#define TRUE true
-#define FALSE false
-typedef bool BOOL;
-#endif
 
 typedef struct tokulogger *TOKULOGGER;
 #define NULL_LOGGER ((TOKULOGGER)0)

@@ -499,11 +499,23 @@ PAIR_ATTR make_brtnode_pair_attr(BRTNODE node) {
      .nonleaf_size = (node->height > 0) ? size : 0, 
      .leaf_size = (node->height > 0) ? 0 : size, 
      .rollback_size = 0, 
-     .cache_pressure_size = cachepressure_size
+     .cache_pressure_size = cachepressure_size,
+     .is_valid = TRUE
     }; 
     return result; 
 }
 
+PAIR_ATTR make_invalid_pair_attr(void) {
+    PAIR_ATTR result={
+     .size = 0, 
+     .nonleaf_size = 0, 
+     .leaf_size = 0, 
+     .rollback_size = 0, 
+     .cache_pressure_size = 0,
+     .is_valid = FALSE
+    }; 
+    return result; 
+}
 
 
 // assign unique dictionary id
@@ -5227,7 +5239,7 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
 #endif
 
         assert(next_unlockers.locked);
-        toku_unpin_brtnode(brt, childnode); // unpin the childnode before handling the reactive child (because that may make the childnode disappear.)
+        toku_unpin_brtnode_read_only(brt, childnode); // unpin the childnode before handling the reactive child (because that may make the childnode disappear.)
     } else {
         // try again.
 
@@ -5238,7 +5250,7 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
         //  some piece of a node that it needed was not in memory. In this case,
         //  the node was not unpinned, so we unpin it here
         if (next_unlockers.locked) {
-            toku_unpin_brtnode(brt, childnode);
+            toku_unpin_brtnode_read_only(brt, childnode);
         }
     }
 
@@ -5554,7 +5566,7 @@ try_again:
             //  some piece of a node that it needed was not in memory. 
             //  In this case, the node was not unpinned, so we unpin it here
             if (unlockers.locked) {
-                toku_unpin_brtnode(brt, node);
+                toku_unpin_brtnode_read_only(brt, node);
             }
 	    goto try_again;
 	} else {
@@ -5563,7 +5575,7 @@ try_again:
     }
 
     assert(unlockers.locked);
-    toku_unpin_brtnode(brt, node);
+    toku_unpin_brtnode_read_only(brt, node);
 
 
     //Heaviside function (+direction) queries define only a lower or upper
@@ -6060,7 +6072,7 @@ toku_brt_keyrange_internal (BRT brt, BRTNODE node,
 		*greater += rows_per_child * (node->n_children - child_number - 1);
 
 		assert(unlockers->locked);
-		toku_unpin_brtnode(brt, childnode);
+		toku_unpin_brtnode_read_only(brt, childnode);
 	    }
 	}
     }
@@ -6119,7 +6131,7 @@ toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p, u_i
 	    }
 	}
 	assert(unlockers.locked);
-	toku_unpin_brtnode(brt, node);
+	toku_unpin_brtnode_read_only(brt, node);
 	*less_p    = less;
 	*equal_p   = equal;
 	*greater_p = greater;

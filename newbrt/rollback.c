@@ -460,7 +460,8 @@ static inline PAIR_ATTR make_rollback_pair_attr(long size) {
      .nonleaf_size = 0, 
      .leaf_size = 0, 
      .rollback_size = size, 
-     .cache_pressure_size = 0 
+     .cache_pressure_size = 0,
+     .is_valid = TRUE
     }; 
     return result; 
 }
