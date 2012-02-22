@@ -1,0 +1,28 @@
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+DROP DATABASE IF EXISTS test_wl5522;
+Warnings:
+Note	1008	Can't drop database 'test_wl5522'; database doesn't exist
+CREATE DATABASE test_wl5522;
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (100), (200), (300);
+SELECT COUNT(*) FROM test_wl5522.t1;
+COUNT(*)
+3
+FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+backup: t1
+UNLOCK TABLES;
+DROP TABLE test_wl5522.t1;
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+SET SESSION debug="+d,ib_import_table_id_reassign_failure";
+restore: t1
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+ERROR HY000: Too many active concurrent transactions
+unlink: t1.ibd
+unlink: t1.cfg
+DROP TABLE test_wl5522.t1;
+DROP DATABASE test_wl5522;
+SET GLOBAL INNODB_FILE_PER_TABLE=0;

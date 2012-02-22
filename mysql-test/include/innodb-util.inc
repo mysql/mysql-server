@@ -27,6 +27,8 @@ sub ib_cleanup {
     my $cfg_file = sprintf("%s.cfg", $table);
     my $ibt_file = sprintf("%s.ibt", $table);
 
+    print "unlink: $cfg_file\n";
+
     unlink("$datadir/$db/$cfg_file") == 1
 	or die "unlnk $datadir/$db/$cfg_file failed: $?";
 
@@ -39,6 +41,7 @@ sub ib_unlink_tablespace {
     my $datadir = $ENV{'MYSQLD_DATADIR'};
     my $ibd_file = sprintf("%s.ibd", $table);
 
+    print "unlink: $ibd_file\n";
     unlink("$datadir/$db/$ibd_file") == 1
 	or die "unlnk $datadir/$db/$ibd_file failed: $?";
 

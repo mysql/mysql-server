@@ -1,0 +1,69 @@
+# Not supported in embedded
+--source include/not_embedded.inc
+
+# This test case needs to crash the server. Needs a debug server.
+--source include/have_debug.inc
+
+# Don't test this under valgrind, memory leaks will occur.
+--source include/not_valgrind.inc
+
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+-- source include/have_innodb.inc
+
+let MYSQLD_DATADIR =`SELECT @@datadir`;
+let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
+DROP DATABASE IF EXISTS test_wl5522;
+CREATE DATABASE test_wl5522;
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (100), (200), (300);
+SELECT COUNT(*) FROM test_wl5522.t1;
+FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+
+perl;
+do 'include/innodb-util.inc';
+ib_backup_tablespaces("test_wl5522", "t1");
+EOF
+
+UNLOCK TABLES;
+
+DROP TABLE test_wl5522.t1;
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+# Request a crash on next execution of commit.
+SET SESSION debug="+d,ib_import_table_id_reassign_failure";
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test_wl5522", "t1");
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+--error ER_TOO_MANY_CONCURRENT_TRXS
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+# Cleanup after the injected failure, otherwise DROP DATABASE will fail
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+# FIXME:
+# This logs a legitimate warning that cause the test framework to complain
+#--error ER_GET_ERRNO
+#SELECT COUNT(*) FROM test_wl5522.t1;
+
+DROP TABLE test_wl5522.t1;
+
+DROP DATABASE test_wl5522;
+
+eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
+

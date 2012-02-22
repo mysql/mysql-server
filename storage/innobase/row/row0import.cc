@@ -1222,18 +1222,20 @@ row_import_for_mysql(
 
 	log_make_checkpoint_at(current_lsn, TRUE);
 
-	mutex_enter(&dict_sys->mutex);
-
 	/* Reassign table->id, so that purge will not remove entries
-	of the imported table.  The undo logs may contain entries that
+	of the imported table. The undo logs may contain entries that
 	are referring to the tablespace that was discarded before the
 	import was initiated. */
 
-	table_id_t	new_id;
+	{
+		table_id_t	new_id;
 
-	err = row_mysql_table_id_reassign(table, trx, &new_id);
+		mutex_enter(&dict_sys->mutex);
 
-	mutex_exit(&dict_sys->mutex);
+		err = row_mysql_table_id_reassign(table, trx, &new_id);
+
+		mutex_exit(&dict_sys->mutex);
+	}
 
 #ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_table_id_reassign_failure",
