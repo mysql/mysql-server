@@ -4059,7 +4059,7 @@ loop:
 							 DICT_ERR_IGNORE_NONE);
 
 		ut_a(table);
-		ut_a(!table->can_be_evicted);
+		ut_a(!table->can_be_evicted || table->ibd_file_missing);
 
 		/* Wait until MySQL does not have any queries running on
 		the table */
