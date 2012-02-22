@@ -743,24 +743,6 @@ struct btr_cur_struct {
 					NULL */
 	ulint		fold;		/*!< fold value used in the search if
 					flag is BTR_CUR_HASH */
-	/*----- Delete buffering -------*/
-	ulint		ibuf_cnt;	/* in searches done on insert buffer
-					trees, this contains the "counter"
-					value (the first two bytes of the
-					fourth field) extracted from the
-					page above the leaf page, from the
-					father node pointer that pointed to
-					the leaf page. in other words, it
-					contains the minimum counter value
-					for records to be inserted on the
-					chosen leaf page. If for some reason
-					this can't be read, or if the search
-					ended on the leftmost leaf page in
-					the tree (in which case the father
-					node pointer had the 'minimum
-					record' flag set), this is
-					ULINT_UNDEFINED. */
-	/*------------------------------*/
 	/* @} */
 	btr_path_t*	path_arr;	/*!< in estimating the number of
 					rows in range, we store in this array

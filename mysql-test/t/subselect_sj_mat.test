@@ -1510,6 +1510,55 @@ SELECT * FROM t1 LEFT JOIN t2 ON ( a = b )
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # BUG#922254: Assertion `0' failed at item_cmpfunc.cc:5899: Item* Item_equal::get_first(JOIN_TAB*, Item*)
+--echo #
+CREATE TABLE t1 ( a VARCHAR(3) );
+CREATE TABLE t2 ( b VARCHAR(3), c VARCHAR(8), KEY(c) );
+INSERT INTO t2 VALUES ('USA','Abilene'),('USA','Akron');
+
+EXPLAIN
+SELECT * FROM
+  ( SELECT * FROM t1 ) AS alias1,
+  t2 AS alias2
+WHERE b = a AND a IN (
+  SELECT alias3.c
+  FROM t2 AS alias3, t2 AS alias4
+  WHERE alias4.c = alias3.b
+);
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#928048: Query containing IN subquery with OR in the where clause returns a wrong result
+--echo #
+create table t1 (a int, b int);
+insert into t1 values (7,5), (3,3), (5,4), (9,3);
+
+create table t2 (a int, b int, index i_a(a));
+
+insert into t2 values
+  (4,2), (7,9), (7,4), (3,1), (5,3), (3,1), (9,4), (8,1);
+
+explain select * from t1 where t1.a in (select a from t2 where t2.a=7 or t2.b<=1);
+select * from t1 where t1.a in (select a from t2 where t2.a=7 or t2.b<=1);
+
+drop table t1,t2;
+
+--echo #
+--echo # BUG#933407: Valgrind warnings in mark_as_null_row with materialization+semijoin, STRAIGHT_JOIN, impossible WHERE
+--echo #
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0),(8);
+
+SELECT STRAIGHT_JOIN MIN(a) FROM t1
+WHERE a IN (
+    SELECT a FROM t1
+    WHERE 'condition'='impossible'
+  );
+
+DROP TABLE t1;
+
 --echo # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;

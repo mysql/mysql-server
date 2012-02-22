@@ -74,5 +74,3 @@ SET SESSION transaction_prealloc_size=1024*1024*1024*5;
 SHOW PROCESSLIST;
 --enable_warnings
 
-SET @@session.transaction_prealloc_size= @def_var;
-

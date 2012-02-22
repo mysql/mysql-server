@@ -1,4 +1,5 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, Oracle and/or its affiliates.
+   Copyright (c) 2011, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +31,7 @@
 #endif
 
 /*
-  We are handling signals in this file.
+  We are handling signals/exceptions in this file.
   Any global variables we read should be 'volatile sig_atomic_t'
   to guarantee that we read some consistent value.
  */
@@ -44,23 +45,27 @@ extern volatile sig_atomic_t ld_assume_kernel_is_set;
 extern const char *optimizer_switch_names[];
 
 /**
- * Handler for fatal signals
+ * Handler for fatal signals on POSIX, exception handler on Windows.
  *
  * Fatal events (seg.fault, bus error etc.) will trigger
  * this signal handler.  The handler will try to dump relevant
  * debugging information to stderr and dump a core image.
  *
- * Signal handlers can only use a set of 'safe' system calls
- * and library functions.  A list of safe calls in POSIX systems
+ * POSIX : Signal handlers should, if possible, only use a set of 'safe' system 
+ * calls and library functions.  A list of safe calls in POSIX systems
  * are available at:
  *  http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html
- * For MS Windows, guidelines are available at:
- *  http://msdn.microsoft.com/en-us/library/xdkz3x12(v=vs.71).aspx
  *
- * @param sig Signal number
+ * @param sig Signal number /Exception code
 */
 extern "C" sig_handler handle_fatal_signal(int sig)
 {
+  time_t curr_time;
+  struct tm tm;
+#ifdef HAVE_STACKTRACE
+  THD *thd;
+#endif
+
   if (segfaulted)
   {
     my_safe_printf_stderr("Fatal " SIGNAL_FMT " while backtracing\n", sig);
@@ -69,43 +74,40 @@ extern "C" sig_handler handle_fatal_signal(int sig)
 
   segfaulted = 1;
 
-#ifdef __WIN__
-  SYSTEMTIME utc_time;
-  GetSystemTime(&utc_time);
-  const long hrs=  utc_time.wHour;
-  const long mins= utc_time.wMinute;
-  const long secs= utc_time.wSecond;
+  curr_time= my_time(0);
+  localtime_r(&curr_time, &tm);
+
+  my_safe_printf_stderr("%02d%02d%02d %2d:%02d:%02d ",
+                        tm.tm_year % 100, tm.tm_mon+1, tm.tm_mday,
+                        tm.tm_hour, tm.tm_min, tm.tm_sec);
+  if (opt_expect_abort
+#ifdef _WIN32
+    && sig == EXCEPTION_BREAKPOINT /* __debugbreak in my_sigabrt_hander() */
 #else
-  /* Using time() instead of my_time() to avoid looping */
-  const time_t curr_time= time(NULL);
-  /* Calculate time of day */
-  const long tmins = curr_time / 60;
-  const long thrs  = tmins / 60;
-  const long hrs   = thrs  % 24;
-  const long mins  = tmins % 60;
-  const long secs  = curr_time % 60;
+    && sig == SIGABRT
 #endif
+    )
+  {
+    fprintf(stderr,"[Note] mysqld did an expected abort\n");
+    goto end;
+  }
 
-  char hrs_buf[3]= "00";
-  char mins_buf[3]= "00";
-  char secs_buf[3]= "00";
-  my_safe_itoa(10, hrs, &hrs_buf[2]);
-  my_safe_itoa(10, mins, &mins_buf[2]);
-  my_safe_itoa(10, secs, &secs_buf[2]);
-
-  my_safe_printf_stderr("%s:%s:%s UTC - mysqld got " SIGNAL_FMT " ;\n",
-                        hrs_buf, mins_buf, secs_buf, sig);
+  my_safe_printf_stderr("[ERROR] mysqld got " SIGNAL_FMT " ;\n",sig);
 
   my_safe_printf_stderr("%s",
     "This could be because you hit a bug. It is also possible that this binary\n"
     "or one of the libraries it was linked against is corrupt, improperly built,\n"
-    "or misconfigured. This error can also be caused by malfunctioning hardware.\n");
+    "or misconfigured. This error can also be caused by malfunctioning hardware.\n\n");
+
+  my_safe_printf_stderr("%s",
+                        "To report this bug, see http://kb.askmonty.org/en/reporting-bugs\n\n");
 
   my_safe_printf_stderr("%s",
     "We will try our best to scrape up some info that will hopefully help\n"
     "diagnose the problem, but since we have already crashed, \n"
     "something is definitely wrong and this may fail.\n\n");
 
+  set_server_version();
   my_safe_printf_stderr("Server version: %s\n", server_version);
 
   my_safe_printf_stderr("key_buffer_size=%lu\n",
@@ -153,7 +155,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
 #endif /* HAVE_LINUXTHREADS */
 
 #ifdef HAVE_STACKTRACE
-  THD *thd=current_thd;
+  thd= current_thd;
 
   if (opt_stack_trace)
   {
@@ -268,15 +270,19 @@ extern "C" sig_handler handle_fatal_signal(int sig)
   if (test_flags & TEST_CORE_ON_SIGNAL)
   {
     my_safe_printf_stderr("%s", "Writing a core file\n");
+    fflush(stderr);
     my_write_core(sig);
   }
 #endif
 
+end:
 #ifndef __WIN__
   /*
      Quit, without running destructors (etc.)
      On Windows, do not terminate, but pass control to exception filter.
   */
   _exit(1);  // Using _exit(), since exit() is not async signal safe
+#else
+  return;
 #endif
 }

@@ -627,7 +627,12 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   if (!cond)
     DBUG_RETURN(TRUE);
   Field *field= field_part->field;
-  if (!(cond->used_tables() & field->table->map))
+  if (cond->used_tables() & OUTER_REF_TABLE_BIT)
+  { 
+    DBUG_RETURN(FALSE);
+  } 
+  if (!(cond->used_tables() & field->table->map) &&
+      test(cond->used_tables() & ~PSEUDO_TABLE_BITS))
   {
     /* Condition doesn't restrict the used table */
     DBUG_RETURN(!cond->const_item());

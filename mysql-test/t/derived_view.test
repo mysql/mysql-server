@@ -1192,7 +1192,7 @@ INSERT INTO t2 VALUES (7), (4);
 CREATE TABLE t1 (b int NOT NULL);
 INSERT INTO t1 VALUES (5), (7);
 CREATE ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1;
-
+SET @save_optimizer_switch=@@optimizer_switch;
 SET SESSION optimizer_switch='derived_merge=off';
 
 PREPARE st1 FROM
@@ -1201,10 +1201,12 @@ EXECUTE st1;
 EXECUTE st1;
 DEALLOCATE PREPARE st1;
 
+set SESSION optimizer_switch= @save_optimizer_switch;
+
 DROP VIEW v1;
 DROP TABLE t1,t2;
 
-SET SESSION optimizer_switch='derived_merge=on';
+
 
 --echo #
 --echo # LP bug #879939: assertion in ha_maria::enable_indexes 
@@ -1226,7 +1228,7 @@ INSERT INTO t1 VALUES
 
 CREATE TABLE t3 (a varchar(35));
 INSERT INTO t3 VALUES ('Miami');
-
+SET @save_optimizer_switch=@@optimizer_switch;
 SET optimizer_switch = 'derived_with_keys=on';
 SET @@tmp_table_size=1024*4;
 explain SELECT * FROM (SELECT t1.* FROM t1, t2) AS t JOIN t3 ON t3.a = t.b;
@@ -1234,7 +1236,7 @@ SELECT * FROM (SELECT t1.* FROM t1, t2) AS t JOIN t3 ON t3.a = t.b;
 SET @@tmp_table_size=1024*1024*16;
 SELECT * FROM (SELECT t1.* FROM t1, t2) AS t JOIN t3 ON t3.a = t.b;
 SET @@tmp_table_size=default;
-
+set SESSION optimizer_switch= @save_optimizer_switch;
 drop table t1,t2,t3;
 
 --echo #
@@ -1276,6 +1278,40 @@ ORDER BY CONCAT(alias2.col_varchar_nokey);
 
 set max_heap_table_size= @tmp_882994;
 drop table t1,t2,t3;
+
+--echo #
+--echo # LP bug #917990: Bad estimate of #rows for derived table with LIMIT
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES
+  (8), (3), (4), (7), (9), (5), (1), (2);
+
+SELECT * FROM (SELECT * FROM t1 LIMIT 3) t;
+EXPLAIN
+SELECT * FROM (SELECT * FROM t1 LIMIT 3) t;
+
+DROP TABLE t1;
+
+--echo #
+--echo # LP BUG#921878 incorrect check of items during columns union types
+--echo # aggregation for merged derived tables
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+SET SESSION optimizer_switch='derived_merge=on'; 
+CREATE TABLE t1 ( a ENUM( 'x', 'y' ) );
+insert into t1 values ('x');
+CREATE TABLE t2 LIKE t1;
+insert into t1 values ('y');
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t3
+  SELECT * FROM ( SELECT * FROM t1 ) AS A
+    UNION SELECT * FROM t2;
+select * from t3;
+
+drop table t1,t2,t3;
+
+set SESSION optimizer_switch= @save_optimizer_switch;
 
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;

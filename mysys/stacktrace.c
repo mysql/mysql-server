@@ -163,7 +163,7 @@ void my_print_stacktrace(uchar* stack_bottom __attribute__((unused)),
     my_safe_printf_stderr("%s",
       "Error when traversing the stack, stack appears corrupt.\n");
   else
-    my_safe_printf_stderr("%s"
+    my_safe_printf_stderr("%s",
       "Please read "
       "http://dev.mysql.com/doc/refman/5.1/en/resolve-stack-dump.html\n"
       "and follow instructions on how to resolve the stack trace.\n"
@@ -499,10 +499,11 @@ static void add_to_symbol_path(char *path, size_t path_buffer_size,
 }
 
 /*
-  Get symbol path - semicolon-separated list of directories to search for debug
-  symbols. We expect PDB in the same directory as corresponding exe or dll,
-  so the path is build from directories of the loaded modules. If environment
-  variable _NT_SYMBOL_PATH is set, it's value appended to the symbol search path
+  Get symbol path - semicolon-separated list of directories to search
+  for debug symbols. We expect PDB in the same directory as
+  corresponding exe or dll, so the path is build from directories of
+  the loaded modules. If environment variable _NT_SYMBOL_PATH is set,
+  it's value appended to the symbol search path
 */
 static void get_symbol_path(char *path, size_t size)
 { 
@@ -640,9 +641,9 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
     if(!have_module)
     {
       /*
-        ModuleInfo structure has been "compatibly" extended in releases after XP,
-        and its size was increased. To make XP dbghelp.dll function
-        happy, pretend passing the old structure.
+        ModuleInfo structure has been "compatibly" extended in
+        releases after XP, and its size was increased. To make XP
+        dbghelp.dll function happy, pretend passing the old structure.
       */
       module.SizeOfStruct= MODULE64_SIZE_WINXP;
       have_module= SymGetModuleInfo64(hProcess, addr, &module);

@@ -4053,6 +4053,28 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
   DBUG_RETURN(FALSE);
 }
 
+/**
+  Check that table/view is updatable and if it has single
+  underlying tables/views it is also updatable
+
+  @return Result of the check.
+*/
+
+bool TABLE_LIST::single_table_updatable()
+{
+  if (!updatable)
+    return false;
+  if (view_tables && view_tables->elements == 1)
+  {
+    /*
+      We need to check deeply only single table views. Multi-table views
+      will be turned to multi-table updates and then checked by leaf tables
+    */
+    return view_tables->head()->single_table_updatable();
+  }
+  return true;
+}
+
 
 /*
   Merge ON expressions for a view
@@ -4702,6 +4724,36 @@ bool TABLE_LIST::prepare_security(THD *thd)
   DBUG_RETURN(FALSE);
 }
 
+#ifndef DBUG_OFF
+void TABLE_LIST::set_check_merged()
+{
+  DBUG_ASSERT(derived);
+  /*
+    It is not simple to check all, but at least this should be checked:
+    this select is not excluded or the exclusion came from above.
+  */
+  DBUG_ASSERT(!derived->first_select()->exclude_from_table_unique_test ||
+              derived->outer_select()->
+              exclude_from_table_unique_test);
+}
+#endif
+
+void TABLE_LIST::set_check_materialized()
+{
+  DBUG_ASSERT(derived);
+  if (!derived->first_select()->exclude_from_table_unique_test)
+    derived->set_unique_exclude();
+  else
+  {
+    /*
+      The subtree should be already excluded
+    */
+    DBUG_ASSERT(!derived->first_select()->first_inner_unit() ||
+                derived->first_select()->first_inner_unit()->first_select()->
+                exclude_from_table_unique_test);
+  }
+}
+
 
 Natural_join_column::Natural_join_column(Field_translator *field_param,
                                          TABLE_LIST *tab)
@@ -4828,6 +4880,7 @@ Item *Field_iterator_table::create_item(THD *thd)
   {
     select->non_agg_fields.push_back(item);
     item->marker= select->cur_pos_in_select_list;
+    select->set_non_agg_field_used(true);
   }
   return item;
 }
@@ -5531,6 +5584,12 @@ void TABLE::mark_virtual_columns_for_write(bool insert_fl)
 {
   Field **vfield_ptr, *tmp_vfield;
   bool bitmap_updated= FALSE;
+
+  if (!vfield)
+    return;
+
+  if (!vfield)
+    return;
 
   for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
   {
@@ -6293,8 +6352,9 @@ bool TABLE_LIST::init_derived(THD *thd, bool init_view)
   */
   if (is_materialized_derived())
   {
-    unit->master_unit()->set_unique_exclude();
+    set_check_materialized();
   }
+
   /*
     Create field translation for mergeable derived tables/views.
     For derived tables field translation can be created only after

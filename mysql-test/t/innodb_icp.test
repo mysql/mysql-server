@@ -12,6 +12,39 @@ set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 
 --source include/icp_tests.inc
 
+--echo #
+--echo # BUG#920132: Assert trx->n_active_thrs == 1 failed at que0que.c line 1050 
+--echo #
+CREATE TABLE t1 ( a INT )
+  ENGINE=InnoDB;
+INSERT INTO t1 VALUES (7),(7);
+
+CREATE TABLE t2 ( b VARCHAR(1) );
+INSERT INTO t2 VALUES ('j'),('v');
+
+CREATE TABLE t3 (
+  c INT, d VARCHAR(1), e VARCHAR(1),
+  KEY (d,c)
+) ENGINE=InnoDB;
+INSERT INTO t3
+  VALUES (6,'w','w'),
+    (1,'v','v'),(7,'s','s'),(4,'l','l'),
+    (7,'y','y'),(0,'c','c'),(2,'i','i'),
+    (9,'h','h'),(4,'q','q'),(0,'a','a'),
+    (9,'v','v'),(1,'u','u'),(3,'s','s'),
+    (8,'z','z'),(1,'h','h'),(8,'p','p'),
+    (6,'e','e'),(3,'i','i'),(6,'y','y');
+
+SELECT *
+FROM t1 INNER JOIN t2 INNER JOIN t3
+  ON d = b
+WHERE
+  NOT EXISTS ( SELECT * FROM t3 )
+  OR a = c
+ORDER BY e;
+
+DROP TABLE t1,t2,t3;
+
 set optimizer_switch=@innodb_icp_tmp;
 set storage_engine= @save_storage_engine;
 

@@ -277,6 +277,7 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	0
 flush status;
 update t1 set a=9999 order by a limit 1;
@@ -289,6 +290,7 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	2
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	9
 flush status;
 delete from t1 order by a limit 1;
@@ -300,6 +302,7 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	0
 flush status;
 delete from t1 order by a desc limit 1;
@@ -311,6 +314,7 @@ Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	0
 alter table t1 disable keys;
 flush status;
@@ -323,7 +327,8 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	1
-Handler_read_rnd_next	9
+Handler_read_rnd_deleted	2
+Handler_read_rnd_next	7
 select * from t1;
 a	b
 0	0
@@ -377,6 +382,7 @@ Handler_read_last	0
 Handler_read_next	1
 Handler_read_prev	0
 Handler_read_rnd	1
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	0
 drop table t1, t2;
 create table t1(f1 int, `*f2` int);
@@ -415,6 +421,7 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	0
 SELECT user_id FROM t1 WHERE request_id=999999999999999999999999999999;
 user_id
@@ -426,6 +433,7 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	0
 UPDATE t1 SET user_id=null WHERE request_id=9999999999999;
 show status like '%Handler_read%';
@@ -436,6 +444,7 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	0
 UPDATE t1 SET user_id=null WHERE request_id=999999999999999999999999999999;
 show status like '%Handler_read%';
@@ -446,6 +455,7 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	0
 DROP TABLE t1;
 CREATE TABLE t1 (

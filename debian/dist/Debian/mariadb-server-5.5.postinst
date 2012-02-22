@@ -21,7 +21,7 @@ invoke() {
   fi
 }
 
-MYSQL_BOOTSTRAP="/usr/sbin/mysqld --bootstrap --user=mysql --skip-grant-tables --innodb=OFF --pbxt=OFF --default-storage-engine=myisam"
+MYSQL_BOOTSTRAP="/usr/sbin/mysqld --bootstrap --user=mysql --skip-grant-tables --loose-innodb=OFF --loose-pbxt=OFF --default-storage-engine=myisam"
 
 test_mysql_access() {
        mysql --no-defaults -u root -h localhost </dev/null >/dev/null 2>&1

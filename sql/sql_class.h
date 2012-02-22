@@ -585,12 +585,15 @@ typedef struct system_status_var
   ulong ha_read_prev_count;
   ulong ha_read_rnd_count;
   ulong ha_read_rnd_next_count;
+  ulong ha_read_rnd_deleted_count;
   /*
     This number doesn't include calls to the default implementation and
     calls made by range access. The intent is to count only calls made by
     BatchedKeyAccess.
   */
   ulong ha_multi_range_read_init_count;
+  ulong ha_mrr_extra_key_sorts;
+  ulong ha_mrr_extra_rowid_sorts;
 
   ulong ha_rollback_count;
   ulong ha_update_count;
@@ -599,6 +602,8 @@ typedef struct system_status_var
   ulong ha_tmp_update_count;
   ulong ha_tmp_write_count;
   ulong ha_prepare_count;
+  ulong ha_pushed_index_cond_checks;
+  ulong ha_pushed_index_cond_filtered;
   ulong ha_discover_count;
   ulong ha_savepoint_count;
   ulong ha_savepoint_rollback_count;
@@ -4217,10 +4222,17 @@ inline int handler::ha_ft_read(uchar *buf)
 inline int handler::ha_rnd_next(uchar *buf)
 {
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str, TRUE);
-  increment_statistics(&SSV::ha_read_rnd_next_count);
   int error= rnd_next(buf);
   if (!error)
+  {
     update_rows_read();
+    increment_statistics(&SSV::ha_read_rnd_next_count);
+  }
+  else if (error == HA_ERR_RECORD_DELETED)
+    increment_statistics(&SSV::ha_read_rnd_deleted_count);
+  else
+    increment_statistics(&SSV::ha_read_rnd_next_count);
+
   table->status=error ? STATUS_NOT_FOUND: 0;
   MYSQL_READ_ROW_DONE(error);
   return error;

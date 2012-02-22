@@ -276,12 +276,15 @@ Handler_commit	0
 Handler_delete	0
 Handler_discover	0
 Handler_prepare	0
+Handler_pushed_index_cond_checks	0
+Handler_pushed_index_cond_filtered	0
 Handler_read_first	0
 Handler_read_key	4
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	7
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	23
 Handler_rollback	0
 Handler_savepoint	0
@@ -297,7 +300,37 @@ Created_tmp_files	0
 Created_tmp_tables	2
 Handler_tmp_update	2
 Handler_tmp_write	7
-Rows_tmp_read	35
+Rows_tmp_read	38
+drop table t1;
+CREATE TABLE t1 (i int(11) DEFAULT NULL, KEY i (i) ) ENGINE=MyISAM;
+insert into t1 values (1),(2),(3),(4),(5);
+flush status;
+select * from t1 where i=5 union select * from t1 where i=5;
+i
+5
+show status like "handler%";
+Variable_name	Value
+Handler_commit	0
+Handler_delete	0
+Handler_discover	0
+Handler_prepare	0
+Handler_pushed_index_cond_checks	0
+Handler_pushed_index_cond_filtered	0
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	1
+Handler_read_rnd_next	2
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_tmp_update	0
+Handler_tmp_write	2
+Handler_update	0
+Handler_write	0
 drop table t1;
 set @@global.concurrent_insert= @old_concurrent_insert;
 SET GLOBAL log_output = @old_log_output;

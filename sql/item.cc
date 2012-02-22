@@ -5378,7 +5378,8 @@ bool Item_field::set_no_const_sub(uchar *arg)
 
 Item *Item_field::replace_equal_field(uchar *arg)
 {
-  if (item_equal && item_equal == (Item_equal *) arg)
+  REPLACE_EQUAL_FIELD_ARG* param= (REPLACE_EQUAL_FIELD_ARG*)arg;
+  if (item_equal && item_equal == param->item_equal)
   {
     Item *const_item= item_equal->get_const();
     if (const_item)
@@ -5387,7 +5388,8 @@ Item *Item_field::replace_equal_field(uchar *arg)
         return this;
       return const_item;
     }
-    Item_field *subst= (Item_field *)(item_equal->get_first(this));
+    Item_field *subst= 
+      (Item_field *)(item_equal->get_first(param->context_tab, this));
     if (subst)
       subst= (Item_field *) (subst->real_item());
     if (subst && !field->eq(subst->field))
@@ -9467,13 +9469,13 @@ void Item_type_holder::get_full_info(Item *item)
     DBUG_ASSERT((enum_set_typelib &&
                  get_real_type(item) == MYSQL_TYPE_NULL) ||
                 (!enum_set_typelib &&
-                 item->type() == Item::FIELD_ITEM &&
-                 (get_real_type(item) == MYSQL_TYPE_ENUM ||
-                  get_real_type(item) == MYSQL_TYPE_SET) &&
-                 ((Field_enum*)((Item_field *) item)->field)->typelib));
+                 item->real_item()->type() == Item::FIELD_ITEM &&
+                 (get_real_type(item->real_item()) == MYSQL_TYPE_ENUM ||
+                  get_real_type(item->real_item()) == MYSQL_TYPE_SET) &&
+                 ((Field_enum*)((Item_field *) item->real_item())->field)->typelib));
     if (!enum_set_typelib)
     {
-      enum_set_typelib= ((Field_enum*)((Item_field *) item)->field)->typelib;
+      enum_set_typelib= ((Field_enum*)((Item_field *) item->real_item())->field)->typelib;
     }
   }
 }
@@ -9558,18 +9560,22 @@ void Item_ref::update_used_tables()
 }
 
 
-table_map Item_direct_view_ref::used_tables() const		
+table_map Item_direct_view_ref::used_tables() const
 {
-  return get_depended_from() ? 
+  return get_depended_from() ?
          OUTER_REF_TABLE_BIT :
-         (view->merged ? (*ref)->used_tables() : view->table->map); 
+         ((view->merged || !view->table) ?
+          (*ref)->used_tables() :
+          view->table->map);
 }
 
-table_map Item_direct_view_ref::not_null_tables() const		
+table_map Item_direct_view_ref::not_null_tables() const
 {
-  return get_depended_from() ? 
+  return get_depended_from() ?
          0 :
-         (view->merged ? (*ref)->not_null_tables() : view->table->map); 
+         ((view->merged || !view->table) ?
+          (*ref)->not_null_tables() :
+          view->table->map);
 }
 
 /*
@@ -9582,6 +9588,8 @@ table_map Item_ref_null_helper::used_tables() const
           (*ref)->used_tables() | RAND_TABLE_BIT);
 }
 
+
+#ifndef DBUG_OFF
 
 /* Debugger help function */
 static char dbug_item_print_buf[256];
@@ -9599,6 +9607,9 @@ const char *dbug_print_item(Item *item)
   else
     return "Couldn't fit into buffer";
 }
+
+#endif /*DBUG_OFF*/
+
 /*****************************************************************************
 ** Instantiate templates
 *****************************************************************************/

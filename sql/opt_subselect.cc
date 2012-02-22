@@ -1,3 +1,19 @@
+/*
+   Copyright (c) 2010, 2012, Monty Program Ab
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 /**
   @file
 
@@ -4080,7 +4096,8 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
 {
   uint i;
   DBUG_ENTER("setup_semijoin_dups_elimination");
-
+  
+  join->complex_firstmatch_tables= table_map(0);
 
   POSITION *pos= join->best_positions + join->const_tables;
   for (i= join->const_tables ; i < join->top_join_tab_count; )
@@ -4099,6 +4116,11 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       {
         /* We jump from the last table to the first one */
         tab->loosescan_match_tab= tab + pos->n_sj_tables - 1;
+        
+        /* LooseScan requires records to be produced in order */
+        if (tab->select && tab->select->quick)
+          tab->select->quick->need_sorted_output();
+
         for (uint j= i; j < i + pos->n_sj_tables; j++)
           join->join_tab[j].inside_loosescan_range= TRUE;
 
@@ -4108,6 +4130,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         for (uint kp=0; kp < pos->loosescan_picker.loosescan_parts; kp++)
           keylen += tab->table->key_info[keyno].key_part[kp].store_length;
 
+        tab->loosescan_key= keyno;
         tab->loosescan_key_len= keylen;
         if (pos->n_sj_tables > 1) 
           tab[pos->n_sj_tables - 1].do_firstmatch= tab;
@@ -4163,16 +4186,46 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       }
       case SJ_OPT_FIRST_MATCH:
       {
-        JOIN_TAB *j, *jump_to= tab-1;
+        JOIN_TAB *j;
+        JOIN_TAB *jump_to= tab-1;
+
+        bool complex_range= FALSE;
+        table_map tables_in_range= table_map(0);
+
         for (j= tab; j != tab + pos->n_sj_tables; j++)
         {
-          /*
-            NOTE: this loop probably doesn't do the right thing for the case 
-            where FirstMatch's duplicate-generating range is interleaved with
-            "unrelated" tables (as specified in WL#3750, section 2.2).
-          */
+          tables_in_range |= j->table->map;
           if (!j->emb_sj_nest)
-            jump_to= tab;
+          {
+            /* 
+              Got a table that's not within any semi-join nest. This is a case
+              like this:
+
+              SELECT * FROM ot1, nt1 WHERE ot1.col IN (SELECT expr FROM it1, it2)
+
+              with a join order of 
+
+                   +----- FirstMatch range ----+
+                   |                           |
+              ot1 it1 nt1 nt2 it2 it3 ...
+                   |   ^
+                   |   +-------- 'j' points here
+                   +------------- SJ_OPT_FIRST_MATCH was set for this table as
+                                  it's the first one that produces duplicates
+              
+            */
+            DBUG_ASSERT(j != tab);  /* table ntX must have an itX before it */
+
+            /* 
+              If the table right before us is an inner table (like it1 in the
+              picture), it should be set to jump back to previous outer-table
+            */
+            if (j[-1].emb_sj_nest)
+              j[-1].do_firstmatch= jump_to;
+
+            jump_to= j; /* Jump back to us */
+            complex_range= TRUE;
+          }
           else
           {
             j->first_sj_inner_tab= tab;
@@ -4182,6 +4235,9 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         j[-1].do_firstmatch= jump_to;
         i+= pos->n_sj_tables;
         pos+= pos->n_sj_tables;
+
+        if (complex_range)
+          join->complex_firstmatch_tables|= tables_in_range;
         break;
       }
       case SJ_OPT_NONE:

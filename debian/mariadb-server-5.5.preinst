@@ -49,7 +49,7 @@ stop_server() {
 this_version=5.5
 
 # Abort if an NDB cluster is in use.
-if egrep -qi -r '^[^#]*ndb.connectstring|^[:space:]*\[[:space:]*ndb_mgmd' /etc/mysql/; then
+if egrep -qi -r '^[^#]*ndb.connectstring|^[[:space:]]*\[[[:space:]]*ndb_mgmd' /etc/mysql/; then
   db_fset mysql-server/no_upgrade_when_using_ndb seen false || true
   db_input high mysql-server/no_upgrade_when_using_ndb || true
   db_go

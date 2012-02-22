@@ -1,3 +1,19 @@
+/*
+   Copyright (c) 2009, 2012, Monty Program Ab
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #include "sql_select.h"
 #include "sql_test.h"
 
@@ -329,13 +345,23 @@ void push_index_cond(JOIN_TAB *tab, uint keyno)
 {
   DBUG_ENTER("push_index_cond");
   Item *idx_cond;
-
+  
+  /*
+  Backported the following from MySQL 5.6:
+    6. The index is not a clustered index. The performance improvement
+       of pushing an index condition on a clustered key is much lower 
+       than on a non-clustered key. This restriction should be 
+       re-evaluated when WL#6061 is implemented.
+  */
   if ((tab->table->file->index_flags(keyno, 0, 1) &
       HA_DO_INDEX_COND_PUSHDOWN) &&
      optimizer_flag(tab->join->thd, OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN) &&
      tab->join->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
      tab->join->thd->lex->sql_command != SQLCOM_DELETE_MULTI &&
-     tab->type != JT_CONST && tab->type != JT_SYSTEM)
+     tab->type != JT_CONST && tab->type != JT_SYSTEM &&
+     !(keyno == tab->table->s->primary_key &&             // (6)
+       tab->table->file->primary_key_is_clustered()))     // (6)
+
   {
     DBUG_EXECUTE("where",
                  print_where(tab->select_cond, "full cond", QT_ORDINARY););

@@ -964,6 +964,7 @@ bool st_select_lex::cleanup()
   }
   non_agg_fields.empty();
   inner_refs_list.empty();
+  exclude_from_table_unique_test= FALSE;
   DBUG_RETURN(error);
 }
 

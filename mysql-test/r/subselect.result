@@ -4620,6 +4620,13 @@ CREATE TABLE t1(a1 int);
 INSERT INTO t1 VALUES (1),(2);
 SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+EXPLAIN EXTENDED
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+Warnings:
+Note	1003	select 1 AS `1` from `test`.`t1` where <nop>(<in_optimizer>(1,((select max(`test`.`t1`.`a1`) from `test`.`t1`) > 1)))
 SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
 1
 1
@@ -5322,7 +5329,6 @@ EXPLAIN EXTENDED SELECT DISTINCT 1 FROM t1,
 WHERE t1.a = d1.a;
 ERROR 42S22: Unknown column 'd1.a' in 'where clause'
 DROP TABLE t1;
-End of 5.1 tests.
 Set up test tables.
 CREATE TABLE t1 (
 t1_id INT UNSIGNED,
@@ -5847,10 +5853,161 @@ NULL
 NULL
 5
 DROP TABLE t1, t2, t3;
+#
+# Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
+#
+CREATE TABLE t1(a1 int);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2(a1 int);
+INSERT INTO t2 VALUES (3);
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2 FROM t2);
+1
+1
+1
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2.0 FROM t2);
+1
+1
+1
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 'a' FROM t2);
+1
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t2);
+1
+1
+1
+SET SESSION sql_mode=@old_sql_mode;
+DROP TABLE t1, t2;
+create table t2(i int);
+insert into t2 values(0);
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+CREATE VIEW v1 AS  
+SELECT 'f' FROM t2 UNION SELECT 'x' FROM t2
+;
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+);
+SELECT t1.pk
+FROM t1
+WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 )
+;
+pk
+SET SESSION sql_mode=@old_sql_mode;
+drop table t2, t1;
+drop view v1;
+#
+# BUG#50257: Missing info in REF column of the EXPLAIN 
+#            lines for subselects
+#
+CREATE TABLE t1 (a INT, b INT, INDEX (a));
+INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	5	const	1	
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	SUBQUERY	t1	ref	a	a	5	const	1	Using index
+DROP TABLE t1;
+#
+# BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
+# (duplicate of LP bug #888456)
+#
+CREATE TABLE t1 (f1 varchar(1));
+INSERT INTO t1 VALUES ('v'),('s');
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
+('d'),('y'),('t'),('d'),('s');
+EXPLAIN
+SELECT table1.f1, table2.f1_key FROM t1 AS table1, t2 AS table2
+WHERE EXISTS (SELECT DISTINCT f1_key FROM t2 
+WHERE f1_key != table2.f1_key AND f1_key >= table1.f1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	table1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	table2	index	NULL	f1_key	4	NULL	10	Using where; Using index; Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	t2	index	f1_key	f1_key	4	NULL	10	Using where; Using index
+SELECT table1.f1, table2.f1_key FROM t1 AS table1, t2 AS table2
+WHERE EXISTS (SELECT DISTINCT f1_key FROM t2 
+WHERE f1_key != table2.f1_key AND f1_key >= table1.f1);
+f1	f1_key
+v	j
+s	j
+v	v
+s	v
+v	c
+s	c
+v	m
+s	m
+v	d
+s	d
+v	d
+s	d
+v	y
+s	y
+v	t
+s	t
+v	d
+s	d
+v	s
+s	s
+DROP TABLE t1,t2;
+#
+# LP bug 919427: EXPLAIN for a query over a single-row table 
+#                with IN subquery in WHERE condition
+# 
+CREATE TABLE ot (
+col_int_nokey int(11), 
+col_varchar_nokey varchar(1)
+) ;
+INSERT INTO ot VALUES (1,'x');
+CREATE TABLE it1(
+col_int_key int(11), 
+col_varchar_key varchar(1), 
+KEY idx_cvk_cik (col_varchar_key,col_int_key)
+);
+INSERT INTO it1 VALUES (NULL,'x'), (NULL,'f');
+CREATE TABLE it2 (
+col_int_key int(11),
+col_varchar_key varchar(1),
+col_varchar_key2 varchar(1),
+KEY idx_cvk_cvk2_cik (col_varchar_key, col_varchar_key2, col_int_key),
+KEY idx_cvk_cik (col_varchar_key, col_int_key)
+);
+INSERT INTO it2 VALUES (NULL,'x','x'), (NULL,'f','f');
+EXPLAIN
+SELECT col_int_nokey FROM ot 
+WHERE col_varchar_nokey IN 
+(SELECT col_varchar_key FROM it1 WHERE col_int_key IS NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
+2	MATERIALIZED	it1	ref	idx_cvk_cik	idx_cvk_cik	9	const,const	1	Using where; Using index
+SELECT col_int_nokey FROM ot 
+WHERE col_varchar_nokey IN 
+(SELECT col_varchar_key FROM it1 WHERE col_int_key IS NULL);
+col_int_nokey
+1
+EXPLAIN
+SELECT col_int_nokey FROM ot
+WHERE (col_varchar_nokey, 'x') IN
+(SELECT col_varchar_key, col_varchar_key2 FROM it2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	10	func,func	1	
+2	MATERIALIZED	it2	ref	idx_cvk_cvk2_cik,idx_cvk_cik	idx_cvk_cvk2_cik	8	const,const	1	Using where; Using index
+SELECT col_int_nokey FROM ot
+WHERE (col_varchar_nokey, 'x') IN
+(SELECT col_varchar_key, col_varchar_key2 FROM it2);
+col_int_nokey
+1
+DROP TABLE ot,it1,it2;
 End of 5.2 tests
 #
 # BUG#779885: Crash in eliminate_item_equal with materialization=on in
-# maria-5.3
 #
 CREATE TABLE t1 ( f1 int );
 INSERT INTO t1 VALUES (19), (20);
@@ -5897,32 +6054,6 @@ b	c
 9	NULL
 SET optimizer_switch=@save_optimizer_switch;
 drop table t1, t2, t3;
-End of 5.3 tests
-#
-# Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
-#
-CREATE TABLE t1(a1 int);
-INSERT INTO t1 VALUES (1),(2);
-CREATE TABLE t2(a1 int);
-INSERT INTO t2 VALUES (3);
-SELECT @@session.sql_mode INTO @old_sql_mode;
-SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
-SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2 FROM t2);
-1
-1
-1
-SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2.0 FROM t2);
-1
-1
-1
-SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 'a' FROM t2);
-1
-SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t2);
-1
-1
-1
-SET SESSION sql_mode=@old_sql_mode;
-DROP TABLE t1, t2;
 #
 # BUG#50257: Missing info in REF column of the EXPLAIN 
 #            lines for subselects
@@ -5944,6 +6075,54 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	SUBQUERY	t1	ref	a	a	5	const	1	Using index
 
 DROP TABLE t1;
+#
+# Bug#11764086: Null left operand to NOT IN in WHERE clause
+# behaves differently than real NULL
+#
+CREATE TABLE parent (id int);
+INSERT INTO parent VALUES (1), (2);
+CREATE TABLE child (parent_id int, other int);
+INSERT INTO child VALUES (1,NULL);
+# Offending query (c.parent_id is NULL for null-complemented rows only)
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id NOT IN (
+SELECT parent_id 
+FROM   child
+WHERE  parent_id = 3
+);
+id	parent_id
+1	1
+2	NULL
+# Some syntactic variations with IS FALSE and IS NOT TRUE
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+SELECT parent_id 
+FROM   child
+WHERE  parent_id = 3
+) IS NOT TRUE;
+id	parent_id
+1	1
+2	NULL
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+SELECT parent_id 
+FROM   child
+WHERE  parent_id = 3
+) IS FALSE;
+id	parent_id
+1	1
+2	NULL
+DROP TABLE parent, child;
+# End of test for bug#11764086.
 #
 # Bug 11765699 - 58690: !TABLE || (!TABLE->READ_SET || 
 #                BITMAP_IS_SET(TABLE->READ_SET, FIELD_INDEX
@@ -6283,5 +6462,14 @@ SELECT ( SELECT b FROM t2 WHERE b = a OR rand() * 0) FROM t1;
 1
 NULL
 drop table t1,t2,t3;
+#
+# LP BUG#905353 Wrong non-empty result with a constant table,
+# aggregate function in subquery, MyISAM or Aria
+#
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+SELECT a FROM t1 WHERE ( SELECT MIN(a) = 100 );
+a
+drop table t1;
 # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;

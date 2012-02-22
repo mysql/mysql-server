@@ -397,6 +397,33 @@ test.t1	assign_to_keycache	error	Subpartition sp0 returned error
 test.t1	assign_to_keycache	Error	Key 'inx_b' doesn't exist in table 't1'
 test.t1	assign_to_keycache	status	Operation failed
 DROP TABLE t1,t2;
+#
+# Bug#12361113: crash when load index into cache
+#
+# Note that this creates an empty disabled key cache!
+SET GLOBAL key_cache_none.key_cache_block_size = 1024;
+CREATE TABLE t1 (a INT, b INTEGER NOT NULL, KEY (b) )
+ENGINE = MYISAM
+PARTITION BY HASH(a) PARTITIONS 2;
+INSERT INTO t1 VALUES (1, 1);
+CACHE INDEX t1 IN key_cache_none;
+ERROR HY000: Unknown key cache 'key_cache_none'
+CACHE INDEX t1 PARTITION (p0) IN key_cache_none;
+ERROR HY000: Unknown key cache 'key_cache_none'
+CACHE INDEX t1 PARTITION (p1) IN key_cache_none;
+ERROR HY000: Unknown key cache 'key_cache_none'
+CACHE INDEX t1 PARTITION (p0) KEY (`b`) IN key_cache_none;
+ERROR HY000: Unknown key cache 'key_cache_none'
+CACHE INDEX t1 PARTITION (p1) KEY (`b`) IN key_cache_none;
+ERROR HY000: Unknown key cache 'key_cache_none'
+# The bug crashed the server at LOAD INDEX below. Now it will succeed
+# since the default cache is used due to CACHE INDEX failed for
+# key_cache_none.
+LOAD INDEX INTO CACHE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+DROP TABLE t1;
+# Clean up
 SET GLOBAL hot_cache.key_buffer_size = 0;
 SET GLOBAL warm_cache.key_buffer_size = 0;
 SET @@global.cold_cache.key_buffer_size = 0;

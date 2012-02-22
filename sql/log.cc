@@ -2230,7 +2230,6 @@ static int find_uniq_filename(char *name)
   char			*start, *end;
   int                   error= 0;
   DBUG_ENTER("find_uniq_filename");
-  LINT_INIT(number);
 
   length= dirname_part(buff, name, &buf_length);
   start=  name + length;
@@ -5372,6 +5371,7 @@ void MYSQL_BIN_LOG::purge()
     {
       purge_logs_before_date(purge_time);
     }
+    DEBUG_SYNC(current_thd, "after_purge_logs_before_date");
   }
 #endif
 }

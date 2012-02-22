@@ -9,9 +9,10 @@ if (!$PAM_SETUP_FOR_MTR) {
   skip No pam setup for mtr;
 }
 
---replace_result .dll .so
 eval install plugin pam soname '$AUTH_PAM_SO';
 create user test_pam identified via pam using 'mariadb_mtr';
+create user pam_test;
+grant proxy on pam_test to test_pam;
 
 let $plugindir=`SELECT @@global.plugin_dir`;
 
@@ -42,5 +43,6 @@ EOF
 --remove_file $MYSQLTEST_VARDIR/tmp/pam_good.txt
 --remove_file $MYSQLTEST_VARDIR/tmp/pam_bad.txt
 drop user test_pam;
+drop user pam_test;
 uninstall plugin pam;
 

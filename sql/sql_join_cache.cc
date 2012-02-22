@@ -899,6 +899,8 @@ int JOIN_CACHE::alloc_buffer()
       curr_buff_space_sz+= cache->get_join_buffer_size();
     }
   }
+  curr_min_buff_space_sz+= min_buff_size;
+  curr_buff_space_sz+= buff_size;
 
   if (curr_min_buff_space_sz > join_buff_space_limit ||
       (curr_buff_space_sz > join_buff_space_limit &&
@@ -2110,16 +2112,6 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
     if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
       goto finish;
   }
-  if (outer_join_first_inner)
-  {
-    /* 
-      All null complemented rows have been already generated for all
-      outer records from join buffer. Restore the state of the
-      first_unmatched values to 0 to avoid another null complementing.
-    */
-    for (tab= join_tab->first_inner; tab <= join_tab->last_inner; tab++)
-      tab->first_unmatched= 0;
-  } 
  
   if (skip_last)
   {
@@ -2132,6 +2124,16 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
   }
 
 finish:
+  if (outer_join_first_inner)
+  {
+    /* 
+      All null complemented rows have been already generated for all
+      outer records from join buffer. Restore the state of the
+      first_unmatched values to 0 to avoid another null complementing.
+    */
+    for (tab= join_tab->first_inner; tab <= join_tab->last_inner; tab++)
+      tab->first_unmatched= 0;
+  } 
   restore_last_record();
   reset(TRUE);
   DBUG_PRINT("exit", ("rc: %d", rc));
@@ -2573,6 +2575,15 @@ void JOIN_CACHE::print_explain_comment(String *str)
   str->append(join_alg);
   str->append(STRING_WITH_LEN(" join"));
   str->append(STRING_WITH_LEN(")"));
+}
+
+/**
+  get thread handle.
+*/
+
+THD *JOIN_CACHE::thd()
+{
+  return join->thd;
 }
 
 
@@ -4014,7 +4025,11 @@ bool bka_skip_index_tuple(range_seq_t rseq, range_id_t range_info)
 {
   DBUG_ENTER("bka_skip_index_tuple");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
-  bool res= cache->skip_index_tuple(range_info);
+  THD *thd= cache->thd();
+  bool res;
+  status_var_increment(thd->status_var.ha_pushed_index_cond_checks);
+  if ((res= cache->skip_index_tuple(range_info)))
+    status_var_increment(thd->status_var.ha_pushed_index_cond_filtered);
   DBUG_RETURN(res);
 }
 
@@ -4489,7 +4504,12 @@ bool bkah_skip_index_tuple(range_seq_t rseq, range_id_t range_info)
 {
   DBUG_ENTER("bka_unique_skip_index_tuple");
   JOIN_CACHE_BKAH *cache= (JOIN_CACHE_BKAH *) rseq;
-  DBUG_RETURN(cache->skip_index_tuple(range_info));
+  THD *thd= cache->thd();
+  bool res;
+  status_var_increment(thd->status_var.ha_pushed_index_cond_checks);
+  if ((res= cache->skip_index_tuple(range_info)))
+    status_var_increment(thd->status_var.ha_pushed_index_cond_filtered);
+  DBUG_RETURN(res);
 }
 
 

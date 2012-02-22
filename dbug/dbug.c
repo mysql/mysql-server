@@ -1884,6 +1884,8 @@ static void DBUGOpenFile(CODE_STATE *cs,
     name=cs->stack->name;
     if (strcmp(name, "-") == 0)
     {
+      if (!is_shared(cs->stack, out_file))
+        DBUGCloseFile(cs, cs->stack->out_file);
       cs->stack->out_file= stdout;
       cs->stack->flags |= FLUSH_ON_WRITE;
       cs->stack->name[0]=0;
@@ -1906,6 +1908,8 @@ static void DBUGOpenFile(CODE_STATE *cs,
         }
         else
         {
+          if (!is_shared(cs->stack, out_file))
+            DBUGCloseFile(cs, cs->stack->out_file);
           cs->stack->out_file= fp;
         }
       }

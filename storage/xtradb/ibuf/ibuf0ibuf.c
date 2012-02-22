@@ -254,11 +254,20 @@ ibuf_count_check(
 					list of the ibuf */
 /* @} */
 
+#define IBUF_REC_FIELD_SPACE	0	/*!< in the pre-4.1 format,
+					the page number. later, the space_id */
+#define IBUF_REC_FIELD_MARKER	1	/*!< starting with 4.1, a marker
+					consisting of 1 byte that is 0 */
+#define IBUF_REC_FIELD_PAGE	2	/*!< starting with 4.1, the
+					page number */
+#define IBUF_REC_FIELD_METADATA	3	/* the metadata field */
+#define IBUF_REC_FIELD_USER	4	/* first user field */
+
 /* Various constants for checking the type of an ibuf record and extracting
 data from it. For details, see the description of the record format at the
 top of this file. */
 
-/** @name Format of the fourth column of an insert buffer record
+/** @name Format of the IBUF_REC_FIELD_METADATA of an insert buffer record
 The fourth column in the MySQL 5.5 format contains an operation
 type, counter, and some flags. */
 /* @{ */
@@ -1275,13 +1284,13 @@ ibuf_rec_get_page_no_func(
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(rec_get_n_fields_old(rec) > 2);
 
-	field = rec_get_nth_field_old(rec, 1, &len);
+	field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
 
 	if (len == 1) {
 		/* This is of the >= 4.1.x record format */
 		ut_a(trx_sys_multiple_tablespace_format);
 
-		field = rec_get_nth_field_old(rec, 2, &len);
+		field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_PAGE, &len);
 	} else {
 		ut_a(trx_doublewrite_must_reset_space_ids);
 		ut_a(!trx_sys_multiple_tablespace_format);
@@ -1321,13 +1330,13 @@ ibuf_rec_get_space_func(
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(rec_get_n_fields_old(rec) > 2);
 
-	field = rec_get_nth_field_old(rec, 1, &len);
+	field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
 
 	if (len == 1) {
 		/* This is of the >= 4.1.x record format */
 
 		ut_a(trx_sys_multiple_tablespace_format);
-		field = rec_get_nth_field_old(rec, 0, &len);
+		field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_SPACE, &len);
 		ut_a(len == 4);
 
 		return(mach_read_from_4(field));
@@ -1377,9 +1386,9 @@ ibuf_rec_get_info_func(
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 	ut_ad(ibuf_inside(mtr));
 	fields = rec_get_n_fields_old(rec);
-	ut_a(fields > 4);
+	ut_a(fields > IBUF_REC_FIELD_USER);
 
-	types = rec_get_nth_field_old(rec, 3, &len);
+	types = rec_get_nth_field_old(rec, IBUF_REC_FIELD_METADATA, &len);
 
 	info_len_local = len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE;
 
@@ -1405,7 +1414,8 @@ ibuf_rec_get_info_func(
 
 	ut_a(op_local < IBUF_OP_COUNT);
 	ut_a((len - info_len_local) ==
-	     (fields - 4) * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
+	     (fields - IBUF_REC_FIELD_USER)
+	     * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
 
 	if (op) {
 		*op = op_local;
@@ -1449,7 +1459,7 @@ ibuf_rec_get_op_type_func(
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(rec_get_n_fields_old(rec) > 2);
 
-	(void) rec_get_nth_field_old(rec, 1, &len);
+	(void) rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
 
 	if (len > 1) {
 		/* This is a < 4.1.x format record */
@@ -1478,12 +1488,12 @@ ibuf_rec_get_counter(
 	const byte*	ptr;
 	ulint		len;
 
-	if (rec_get_n_fields_old(rec) < 4) {
+	if (rec_get_n_fields_old(rec) <= IBUF_REC_FIELD_METADATA) {
 
 		return(ULINT_UNDEFINED);
 	}
 
-	ptr = rec_get_nth_field_old(rec, 3, &len);
+	ptr = rec_get_nth_field_old(rec, IBUF_REC_FIELD_METADATA, &len);
 
 	if (len >= 2) {
 
@@ -1708,7 +1718,7 @@ ibuf_build_entry_from_ibuf_rec_func(
 	      || mtr_memo_contains_page(mtr, ibuf_rec, MTR_MEMO_PAGE_S_FIX));
 	ut_ad(ibuf_inside(mtr));
 
-	data = rec_get_nth_field_old(ibuf_rec, 1, &len);
+	data = rec_get_nth_field_old(ibuf_rec, IBUF_REC_FIELD_MARKER, &len);
 
 	if (len > 1) {
 		/* This a < 4.1.x format record */
@@ -1720,13 +1730,13 @@ ibuf_build_entry_from_ibuf_rec_func(
 
 	ut_a(trx_sys_multiple_tablespace_format);
 	ut_a(*data == 0);
-	ut_a(rec_get_n_fields_old(ibuf_rec) > 4);
+	ut_a(rec_get_n_fields_old(ibuf_rec) > IBUF_REC_FIELD_USER);
 
-	n_fields = rec_get_n_fields_old(ibuf_rec) - 4;
+	n_fields = rec_get_n_fields_old(ibuf_rec) - IBUF_REC_FIELD_USER;
 
 	tuple = dtuple_create(heap, n_fields);
 
-	types = rec_get_nth_field_old(ibuf_rec, 3, &len);
+	types = rec_get_nth_field_old(ibuf_rec, IBUF_REC_FIELD_METADATA, &len);
 
 	ibuf_rec_get_info(mtr, ibuf_rec, NULL, &comp, &info_len, NULL);
 
@@ -1740,7 +1750,8 @@ ibuf_build_entry_from_ibuf_rec_func(
 	for (i = 0; i < n_fields; i++) {
 		field = dtuple_get_nth_field(tuple, i);
 
-		data = rec_get_nth_field_old(ibuf_rec, i + 4, &len);
+		data = rec_get_nth_field_old(
+			ibuf_rec, i + IBUF_REC_FIELD_USER, &len);
 
 		dfield_set_data(field, data, len);
 
@@ -1787,7 +1798,7 @@ ibuf_rec_get_size(
 		field_offset = 2;
 		types_offset = DATA_ORDER_NULL_TYPE_BUF_SIZE;
 	} else {
-		field_offset = 4;
+		field_offset = IBUF_REC_FIELD_USER;
 		types_offset = DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE;
 	}
 
@@ -1848,7 +1859,7 @@ ibuf_rec_get_volume_func(
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(rec_get_n_fields_old(ibuf_rec) > 2);
 
-	data = rec_get_nth_field_old(ibuf_rec, 1, &len);
+	data = rec_get_nth_field_old(ibuf_rec, IBUF_REC_FIELD_MARKER, &len);
 	pre_4_1 = (len > 1);
 
 	if (pre_4_1) {
@@ -1871,7 +1882,8 @@ ibuf_rec_get_volume_func(
 		ut_a(trx_sys_multiple_tablespace_format);
 		ut_a(*data == 0);
 
-		types = rec_get_nth_field_old(ibuf_rec, 3, &len);
+		types = rec_get_nth_field_old(
+			ibuf_rec, IBUF_REC_FIELD_METADATA, &len);
 
 		ibuf_rec_get_info(mtr, ibuf_rec, &op, &comp, &info_len, NULL);
 
@@ -1901,7 +1913,8 @@ ibuf_rec_get_volume_func(
 		}
 
 		types += info_len;
-		n_fields = rec_get_n_fields_old(ibuf_rec) - 4;
+		n_fields = rec_get_n_fields_old(ibuf_rec)
+			- IBUF_REC_FIELD_USER;
 	}
 
 	data_size = ibuf_rec_get_size(ibuf_rec, types, n_fields, pre_4_1, comp);
@@ -1956,11 +1969,11 @@ ibuf_entry_build(
 
 	n_fields = dtuple_get_n_fields(entry);
 
-	tuple = dtuple_create(heap, n_fields + 4);
+	tuple = dtuple_create(heap, n_fields + IBUF_REC_FIELD_USER);
 
 	/* 1) Space Id */
 
-	field = dtuple_get_nth_field(tuple, 0);
+	field = dtuple_get_nth_field(tuple, IBUF_REC_FIELD_SPACE);
 
 	buf = mem_heap_alloc(heap, 4);
 
@@ -1970,7 +1983,7 @@ ibuf_entry_build(
 
 	/* 2) Marker byte */
 
-	field = dtuple_get_nth_field(tuple, 1);
+	field = dtuple_get_nth_field(tuple, IBUF_REC_FIELD_MARKER);
 
 	buf = mem_heap_alloc(heap, 1);
 
@@ -1982,7 +1995,7 @@ ibuf_entry_build(
 
 	/* 3) Page number */
 
-	field = dtuple_get_nth_field(tuple, 2);
+	field = dtuple_get_nth_field(tuple, IBUF_REC_FIELD_PAGE);
 
 	buf = mem_heap_alloc(heap, 4);
 
@@ -2030,10 +2043,7 @@ ibuf_entry_build(
 		ulint			fixed_len;
 		const dict_field_t*	ifield;
 
-		/* We add 4 below because we have the 4 extra fields at the
-		start of an ibuf record */
-
-		field = dtuple_get_nth_field(tuple, i + 4);
+		field = dtuple_get_nth_field(tuple, i + IBUF_REC_FIELD_USER);
 		entry_field = dtuple_get_nth_field(entry, i);
 		dfield_copy(field, entry_field);
 
@@ -2066,13 +2076,13 @@ ibuf_entry_build(
 
 	/* 4) Type info, part #2 */
 
-	field = dtuple_get_nth_field(tuple, 3);
+	field = dtuple_get_nth_field(tuple, IBUF_REC_FIELD_METADATA);
 
 	dfield_set_data(field, type_info, ti - type_info);
 
 	/* Set all the types in the new tuple binary */
 
-	dtuple_set_types_binary(tuple, n_fields + 4);
+	dtuple_set_types_binary(tuple, n_fields + IBUF_REC_FIELD_USER);
 
 	return(tuple);
 }
@@ -2132,11 +2142,11 @@ ibuf_new_search_tuple_build(
 
 	ut_a(trx_sys_multiple_tablespace_format);
 
-	tuple = dtuple_create(heap, 3);
+	tuple = dtuple_create(heap, IBUF_REC_FIELD_METADATA);
 
 	/* Store the space id in tuple */
 
-	field = dtuple_get_nth_field(tuple, 0);
+	field = dtuple_get_nth_field(tuple, IBUF_REC_FIELD_SPACE);
 
 	buf = mem_heap_alloc(heap, 4);
 
@@ -2146,7 +2156,7 @@ ibuf_new_search_tuple_build(
 
 	/* Store the new format record marker byte */
 
-	field = dtuple_get_nth_field(tuple, 1);
+	field = dtuple_get_nth_field(tuple, IBUF_REC_FIELD_MARKER);
 
 	buf = mem_heap_alloc(heap, 1);
 
@@ -2156,7 +2166,7 @@ ibuf_new_search_tuple_build(
 
 	/* Store the page number in tuple */
 
-	field = dtuple_get_nth_field(tuple, 2);
+	field = dtuple_get_nth_field(tuple, IBUF_REC_FIELD_PAGE);
 
 	buf = mem_heap_alloc(heap, 4);
 
@@ -2164,7 +2174,7 @@ ibuf_new_search_tuple_build(
 
 	dfield_set_data(field, buf, 4);
 
-	dtuple_set_types_binary(tuple, 3);
+	dtuple_set_types_binary(tuple, IBUF_REC_FIELD_METADATA);
 
 	return(tuple);
 }
@@ -2833,8 +2843,10 @@ ibuf_get_volume_buffered_hash(
 	ulint		fold;
 	ulint		bitmask;
 
-	len = ibuf_rec_get_size(rec, types, rec_get_n_fields_old(rec) - 4,
-				FALSE, comp);
+	len = ibuf_rec_get_size(
+		rec, types,
+		rec_get_n_fields_old(rec) - IBUF_REC_FIELD_USER,
+		FALSE, comp);
 	fold = ut_fold_binary(data, len);
 
 	hash += (fold / (CHAR_BIT * sizeof *hash)) % size;
@@ -2886,8 +2898,8 @@ ibuf_get_volume_buffered_count_func(
 	ut_ad(ibuf_inside(mtr));
 
 	n_fields = rec_get_n_fields_old(rec);
-	ut_ad(n_fields > 4);
-	n_fields -= 4;
+	ut_ad(n_fields > IBUF_REC_FIELD_USER);
+	n_fields -= IBUF_REC_FIELD_USER;
 
 	rec_get_nth_field_offs_old(rec, 1, &len);
 	/* This function is only invoked when buffering new
@@ -2896,7 +2908,7 @@ ibuf_get_volume_buffered_count_func(
 	ut_a(len == 1);
 	ut_ad(trx_sys_multiple_tablespace_format);
 
-	types = rec_get_nth_field_old(rec, 3, &len);
+	types = rec_get_nth_field_old(rec, IBUF_REC_FIELD_METADATA, &len);
 
 	switch (UNIV_EXPECT(len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
 			    IBUF_REC_INFO_SIZE)) {
@@ -3208,7 +3220,7 @@ ibuf_update_max_tablespace_id(void)
 	} else {
 		rec = btr_pcur_get_rec(&pcur);
 
-		field = rec_get_nth_field_old(rec, 0, &len);
+		field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_SPACE, &len);
 
 		ut_a(len == 4);
 
@@ -3230,10 +3242,12 @@ ibuf_update_max_tablespace_id(void)
 	ibuf_get_entry_counter_low_func(rec,space,page_no)
 #endif
 /****************************************************************//**
-Helper function for ibuf_set_entry_counter. Checks if rec is for (space,
-page_no), and if so, reads counter value from it and returns that + 1.
-Otherwise, returns 0.
-@return	new counter value, or 0 */
+Helper function for ibuf_get_entry_counter_func. Checks if rec is for
+(space, page_no), and if so, reads counter value from it and returns
+that + 1.
+@retval ULINT_UNDEFINED if the record does not contain any counter
+@retval 0 if the record is not for (space, page_no)
+@retval 1 + previous counter value, otherwise */
 static
 ulint
 ibuf_get_entry_counter_low_func(
@@ -3254,7 +3268,7 @@ ibuf_get_entry_counter_low_func(
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 	ut_ad(rec_get_n_fields_old(rec) > 2);
 
-	field = rec_get_nth_field_old(rec, 1, &len);
+	field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
 
 	if (UNIV_UNLIKELY(len != 1)) {
 		/* pre-4.1 format */
@@ -3267,7 +3281,7 @@ ibuf_get_entry_counter_low_func(
 	ut_a(trx_sys_multiple_tablespace_format);
 
 	/* Check the tablespace identifier. */
-	field = rec_get_nth_field_old(rec, 0, &len);
+	field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_SPACE, &len);
 	ut_a(len == 4);
 
 	if (mach_read_from_4(field) != space) {
@@ -3276,7 +3290,7 @@ ibuf_get_entry_counter_low_func(
 	}
 
 	/* Check the page offset. */
-	field = rec_get_nth_field_old(rec, 2, &len);
+	field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_PAGE, &len);
 	ut_a(len == 4);
 
 	if (mach_read_from_4(field) != page_no) {
@@ -3285,7 +3299,7 @@ ibuf_get_entry_counter_low_func(
 	}
 
 	/* Check if the record contains a counter field. */
-	field = rec_get_nth_field_old(rec, 3, &len);
+	field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_METADATA, &len);
 
 	switch (len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE) {
 	default:
@@ -3301,147 +3315,61 @@ ibuf_get_entry_counter_low_func(
 	}
 }
 
+#ifdef UNIV_DEBUG
+# define ibuf_get_entry_counter(space,page_no,rec,mtr,exact_leaf) \
+	ibuf_get_entry_counter_func(space,page_no,rec,mtr,exact_leaf)
+#else /* UNIV_DEBUG */
+# define ibuf_get_entry_counter(space,page_no,rec,mtr,exact_leaf) \
+	ibuf_get_entry_counter_func(space,page_no,rec,exact_leaf)
+#endif
+
 /****************************************************************//**
-Set the counter field in entry to the correct value based on the current
+Calculate the counter field for an entry based on the current
 last record in ibuf for (space, page_no).
-@return	FALSE if we should abort this insertion to ibuf */
+@return	the counter field, or ULINT_UNDEFINED
+if we should abort this insertion to ibuf */
 static
-ibool
-ibuf_set_entry_counter(
-/*===================*/
-	dtuple_t*	entry,		/*!< in/out: entry to patch */
+ulint
+ibuf_get_entry_counter_func(
+/*========================*/
 	ulint		space,		/*!< in: space id of entry */
 	ulint		page_no,	/*!< in: page number of entry */
-	btr_pcur_t*	pcur,		/*!< in: pcur positioned on the record
-					found by btr_pcur_open(.., entry,
-					PAGE_CUR_LE, ..., pcur, ...) */
-	ibool		is_optimistic,	/*!< in: is this an optimistic insert */
-	mtr_t*		mtr)		/*!< in: mtr */
+	const rec_t*	rec,		/*!< in: the record preceding the
+					insertion point */
+#ifdef UNIV_DEBUG
+	mtr_t*		mtr,		/*!< in: mini-transaction */
+#endif /* UNIV_DEBUG */
+	ibool		only_leaf)	/*!< in: TRUE if this is the only
+					leaf page that can contain entries
+					for (space,page_no), that is, there
+					was no exact match for (space,page_no)
+					in the node pointer */
 {
-	dfield_t*	field;
-	byte*		data;
-	ulint		counter = 0;
-
-	/* pcur points to either a user rec or to a page's infimum record. */
 	ut_ad(ibuf_inside(mtr));
-	ut_ad(mtr_memo_contains(mtr, btr_pcur_get_block(pcur),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(page_validate(btr_pcur_get_page(pcur), ibuf->index));
+	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(page_validate(page_align(rec), ibuf->index));
 
-	if (btr_pcur_is_on_user_rec(pcur)) {
-
-		counter = ibuf_get_entry_counter_low(
-			mtr, btr_pcur_get_rec(pcur), space, page_no);
-
-		if (UNIV_UNLIKELY(counter == ULINT_UNDEFINED)) {
-			/* The record lacks a counter field.
-			Such old records must be merged before
-			new records can be buffered. */
-
-			return(FALSE);
-		}
-	} else if (btr_pcur_is_before_first_in_tree(pcur, mtr)) {
-		/* Ibuf tree is either completely empty, or the insert
-		position is at the very first record of a non-empty tree. In
-		either case we have no previous records for (space,
-		page_no). */
-
-		counter = 0;
-	} else if (btr_pcur_is_before_first_on_page(pcur)) {
-		btr_cur_t*	cursor = btr_pcur_get_btr_cur(pcur);
-
-		if (cursor->low_match < 3) {
-			/* If low_match < 3, we know that the father node
-			pointer did not contain the searched for (space,
-			page_no), which means that the search ended on the
-			right page regardless of the counter value, and
-			since we're at the infimum record, there are no
-			existing records. */
-
-			counter = 0;
-		} else {
-			rec_t*		rec;
-			const page_t*	page;
-			buf_block_t*	block;
-			page_t*		prev_page;
-			ulint		prev_page_no;
-
-			ut_a(cursor->ibuf_cnt != ULINT_UNDEFINED);
-
-			page = btr_pcur_get_page(pcur);
-			prev_page_no = btr_page_get_prev(page, mtr);
-
-			ut_a(prev_page_no != FIL_NULL);
-
-			block = buf_page_get(
-				IBUF_SPACE_ID, 0, prev_page_no,
-				RW_X_LATCH, mtr);
-
-			buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
-
-			prev_page = buf_block_get_frame(block);
-
-			rec = page_rec_get_prev(
-				page_get_supremum_rec(prev_page));
-
-			ut_ad(page_rec_is_user_rec(rec));
-
-			counter = ibuf_get_entry_counter_low(
-				mtr, rec, space, page_no);
-
-			if (UNIV_UNLIKELY(counter == ULINT_UNDEFINED)) {
-				/* The record lacks a counter field.
-				Such old records must be merged before
-				new records can be buffered. */
-
-				return(FALSE);
-			}
-
-			if (counter < cursor->ibuf_cnt) {
-				/* Search ended on the wrong page. */
-
-				if (is_optimistic) {
-					/* In an optimistic insert, we can
-					shift the insert position to the left
-					page, since it only needs an X-latch
-					on the page itself, which the
-					original search acquired for us. */
-
-					btr_cur_position(
-						ibuf->index, rec, block,
-						btr_pcur_get_btr_cur(pcur));
-				} else {
-					/* We can't shift the insert
-					position to the left page in a
-					pessimistic insert since it would
-					require an X-latch on the left
-					page's left page, so we have to
-					abort. */
-
-					return(FALSE);
-				}
-			} else {
-				/* The counter field in the father node is
-				the same as we would insert; we don't know
-				whether the insert should go to this page or
-				the left page (the later fields can differ),
-				so refuse the insert. */
-
-				return(FALSE);
-			}
-		}
+	if (page_rec_is_supremum(rec)) {
+		/* This is just for safety. The record should be a
+		page infimum or a user record. */
+		ut_ad(0);
+		return(ULINT_UNDEFINED);
+	} else if (!page_rec_is_infimum(rec)) {
+		return(ibuf_get_entry_counter_low(mtr, rec, space, page_no));
+	} else if (only_leaf
+		   || fil_page_get_prev(page_align(rec)) == FIL_NULL) {
+		/* The parent node pointer did not contain the
+		searched for (space, page_no), which means that the
+		search ended on the correct page regardless of the
+		counter value, and since we're at the infimum record,
+		there are no existing records. */
+		return(0);
 	} else {
-		/* The cursor is not positioned at or before a user record. */
-		return(FALSE);
+		/* We used to read the previous page here. It would
+		break the latching order, because the caller has
+		buffer-fixed an insert buffer bitmap page. */
+		return(ULINT_UNDEFINED);
 	}
-
-	/* Patch counter value in already built entry. */
-	field = dtuple_get_nth_field(entry, 3);
-	data = dfield_get_data(field);
-
-	mach_write_to_2(data + IBUF_REC_OFFSET_COUNTER, counter);
-
-	return(TRUE);
 }
 
 /*********************************************************************//**
@@ -3650,16 +3578,27 @@ fail_exit:
 		}
 	}
 
-	/* Patch correct counter value to the entry to insert. This can
-	change the insert position, which can result in the need to abort in
-	some cases. */
-	if (!no_counter
-	    && !ibuf_set_entry_counter(ibuf_entry, space, page_no, &pcur,
-				       mode == BTR_MODIFY_PREV, &mtr)) {
-bitmap_fail:
-		ibuf_mtr_commit(&bitmap_mtr);
+	if (!no_counter) {
+		/* Patch correct counter value to the entry to
+		insert. This can change the insert position, which can
+		result in the need to abort in some cases. */
+		ulint		counter = ibuf_get_entry_counter(
+			space, page_no, btr_pcur_get_rec(&pcur), &mtr,
+			btr_pcur_get_btr_cur(&pcur)->low_match
+			< IBUF_REC_FIELD_METADATA);
+		dfield_t*	field;
 
-		goto fail_exit;
+		if (counter == ULINT_UNDEFINED) {
+bitmap_fail:
+			ibuf_mtr_commit(&bitmap_mtr);
+			goto fail_exit;
+		}
+
+		field = dtuple_get_nth_field(
+			ibuf_entry, IBUF_REC_FIELD_METADATA);
+		mach_write_to_2(
+			(byte*) dfield_get_data(field)
+			+ IBUF_REC_OFFSET_COUNTER, counter);
 	}
 
 	/* Set the bitmap bit denoting that the insert buffer contains
@@ -4003,7 +3942,7 @@ ibuf_insert_to_index_page(
 
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
-	ut_ad(!buf_block_align(page)->is_hashed);
+	ut_ad(!buf_block_align(page)->index);
 
 	if (UNIV_UNLIKELY(dict_table_is_comp(index->table)
 			  != (ibool)!!page_is_comp(page))) {

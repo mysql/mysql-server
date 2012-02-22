@@ -919,6 +919,11 @@ dict_index_find_on_id_low(
 	dict_table_t*	table;
 	dict_index_t*	index;
 
+	/* This can happen if the system tablespace is the wrong page size */
+	if (dict_sys == NULL) {
+		return(NULL);
+	}
+
 	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 
 	while (table) {

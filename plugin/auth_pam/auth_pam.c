@@ -1,5 +1,22 @@
+/*
+   Copyright (c) 2011, 2012, Monty Program Ab
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #include <mysql/plugin_auth.h>
 #include <string.h>
+#include <my_config.h>
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 
@@ -7,6 +24,24 @@ struct param {
   unsigned char buf[10240], *ptr;
   MYSQL_PLUGIN_VIO *vio;
 };
+
+/* It least solaris doesn't have strndup */
+
+#ifndef HAVE_STRNDUP
+char *strndup(const char *from, size_t length)
+{
+  char *ptr;
+  size_t max_length= strlen(from);
+  if (length > max_length)
+    length= max_length;
+  if ((ptr= (char*) malloc(length+1)) != 0)
+  {
+    memcpy((char*) ptr, (char*) from, length);
+    ptr[length]=0;
+  }
+  return ptr;
+}
+#endif
 
 static int conv(int n, const struct pam_message **msg,
                 struct pam_response **resp, void *data)
@@ -71,13 +106,21 @@ static int conv(int n, const struct pam_message **msg,
 
 #define DO(X) if ((status = (X)) != PAM_SUCCESS) goto end
 
+#ifdef SOLARIS
+typedef void** pam_get_item_3_arg;
+#else
+typedef const void** pam_get_item_3_arg;
+#endif
+
 static int pam_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
 {
   pam_handle_t *pamh = NULL;
   int status;
   const char *new_username;
   struct param param;
-  struct pam_conv c = { &conv, &param };
+  /* The following is written in such a way to make also solaris happy */
+  struct pam_conv pam_start_arg = { &conv, NULL };
+  pam_start_arg.appdata_ptr= (char*) &param;
 
   /*
     get the service name, as specified in
@@ -90,10 +133,10 @@ static int pam_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
   param.ptr = param.buf + 1;
   param.vio = vio;
 
-  DO( pam_start(service, info->user_name, &c, &pamh) );
+  DO( pam_start(service, info->user_name, &pam_start_arg, &pamh) );
   DO( pam_authenticate (pamh, 0) );
   DO( pam_acct_mgmt(pamh, 0) );
-  DO( pam_get_item(pamh, PAM_USER, (const void**)&new_username) );
+  DO( pam_get_item(pamh, PAM_USER, (pam_get_item_3_arg) &new_username) );
 
   if (new_username && strcmp(new_username, info->user_name))
     strncpy(info->authenticated_as, new_username,
@@ -104,7 +147,7 @@ end:
   return status == PAM_SUCCESS ? CR_OK : CR_ERROR;
 }
 
-static struct st_mysql_auth pam_info =
+static struct st_mysql_auth info =
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   "dialog",
@@ -114,7 +157,7 @@ static struct st_mysql_auth pam_info =
 maria_declare_plugin(pam)
 {
   MYSQL_AUTHENTICATION_PLUGIN,
-  &pam_info,
+  &info,
   "pam",
   "Sergei Golubchik",
   "PAM based authentication",

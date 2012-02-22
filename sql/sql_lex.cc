@@ -2847,7 +2847,7 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
 
       DBUG_ASSERT(fix_fields_successful);
     }
-    val= fix_fields_successful ? item->val_uint() : HA_POS_ERROR;
+    val= fix_fields_successful ? item->val_uint() : 0;
   }
   else
     val= ULL(0);
@@ -3167,6 +3167,7 @@ void LEX::cleanup_after_one_table_open()
   if (all_selects_list != &select_lex)
   {
     derived_tables= 0;
+    select_lex.exclude_from_table_unique_test= false;
     /* cleunup underlying units (units of VIEW) */
     for (SELECT_LEX_UNIT *un= select_lex.first_inner_unit();
          un;

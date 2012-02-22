@@ -22,6 +22,11 @@
 #
 # This file is used to make the Windows version
 
+IF(NOT WITH_PBXT_STORAGE_ENGINE)
+  SET(WITHOUT_PBXT 1)
+ENDIF(NOT WITH_PBXT_STORAGE_ENGINE)
+
+
 SET(PBXT_SOURCES
 src/bsearch_xt.cc
 src/bsearch_xt.h

@@ -17,7 +17,10 @@ use performance_schema;
 # "where" filters out instances that can be conditionally compiled out
 #
 
-select name from mutex_instances where name not rlike '/(DEBUG_SYNC::mutex)$' group by name;
+select name from mutex_instances
+ where name not rlike '/(DEBUG_SYNC::mutex)$'
+   and name != 'wait/synch/mutex/mysys/BITMAP::mutex'
+ group by name;
 # CRYPTO_dynlock_value::lock exists only when building with OpenSSL (not YaSSL).
 select name from rwlock_instances
        where name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock")
