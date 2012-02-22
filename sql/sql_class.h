@@ -588,8 +588,8 @@ typedef struct system_status_var
   ulong ha_tmp_update_count;
   ulong ha_tmp_write_count;
   ulong ha_prepare_count;
-  ulong ha_pushed_index_cond_checks;
-  ulong ha_pushed_index_cond_filtered;
+  ulong ha_icp_attempts;
+  ulong ha_icp_match;
   ulong ha_discover_count;
   ulong ha_savepoint_count;
   ulong ha_savepoint_rollback_count;

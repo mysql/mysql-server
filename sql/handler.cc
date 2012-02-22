@@ -4569,10 +4569,10 @@ extern "C" enum icp_result handler_index_cond_check(void* h_arg)
 
   if (h->end_range && h->compare_key2(h->end_range) > 0)
     return ICP_OUT_OF_RANGE;
-  h->increment_statistics(&SSV::ha_pushed_index_cond_checks);
+  h->increment_statistics(&SSV::ha_icp_attempts);
   if ((res= h->pushed_idx_cond->val_int()? ICP_MATCH : ICP_NO_MATCH) ==
-      ICP_NO_MATCH)
-    h->increment_statistics(&SSV::ha_pushed_index_cond_filtered);
+      ICP_MATCH)
+    h->increment_statistics(&SSV::ha_icp_match);
   return res;
 }
 

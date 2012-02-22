@@ -1533,7 +1533,7 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 
 explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
-show status like "Handler_pushed%";
+show status like "Handler_icp%";
 
 set join_cache_level=6;
 select t2.f1, t2.f2, t2.f3 from t1,t2
@@ -1541,7 +1541,7 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 
 explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
-show status like "Handler_pushed%";
+show status like "Handler_icp%";
 
 set join_cache_level=7;
 select t2.f1, t2.f2, t2.f3 from t1,t2
@@ -1549,7 +1549,7 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 
 explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
-show status like "Handler_pushed%";
+show status like "Handler_icp%";
 
 set join_cache_level=8;
 select t2.f1, t2.f2, t2.f3 from t1,t2
@@ -1557,7 +1557,7 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 
 explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
-show status like "Handler_pushed%";
+show status like "Handler_icp%";
 
 drop table t1,t2;
 set join_cache_level=default;

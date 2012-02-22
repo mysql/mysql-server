@@ -3520,10 +3520,10 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
-show status like "Handler_pushed%";
+show status like "Handler_icp%";
 Variable_name	Value
-Handler_pushed_index_cond_checks	20
-Handler_pushed_index_cond_filtered	16
+Handler_icp_attempts 	20
+Handler_icp_match	4
 set join_cache_level=6;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -3537,10 +3537,10 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
-show status like "Handler_pushed%";
+show status like "Handler_icp%";
 Variable_name	Value
-Handler_pushed_index_cond_checks	40
-Handler_pushed_index_cond_filtered	32
+Handler_icp_attempts 	40
+Handler_icp_match	8
 set join_cache_level=7;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -3554,10 +3554,10 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
-show status like "Handler_pushed%";
+show status like "Handler_icp%";
 Variable_name	Value
-Handler_pushed_index_cond_checks	60
-Handler_pushed_index_cond_filtered	48
+Handler_icp_attempts 	60
+Handler_icp_match	12
 set join_cache_level=8;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -3571,10 +3571,10 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
-show status like "Handler_pushed%";
+show status like "Handler_icp%";
 Variable_name	Value
-Handler_pushed_index_cond_checks	80
-Handler_pushed_index_cond_filtered	64
+Handler_icp_attempts 	80
+Handler_icp_match	16
 drop table t1,t2;
 set join_cache_level=default;
 #

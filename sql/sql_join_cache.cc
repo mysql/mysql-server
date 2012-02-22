@@ -4026,9 +4026,9 @@ bool bka_skip_index_tuple(range_seq_t rseq, range_id_t range_info)
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
   THD *thd= cache->thd();
   bool res;
-  status_var_increment(thd->status_var.ha_pushed_index_cond_checks);
-  if ((res= cache->skip_index_tuple(range_info)))
-    status_var_increment(thd->status_var.ha_pushed_index_cond_filtered);
+  status_var_increment(thd->status_var.ha_icp_attempts);
+  if (!(res= cache->skip_index_tuple(range_info)))
+    status_var_increment(thd->status_var.ha_icp_match);
   DBUG_RETURN(res);
 }
 
@@ -4505,9 +4505,9 @@ bool bkah_skip_index_tuple(range_seq_t rseq, range_id_t range_info)
   JOIN_CACHE_BKAH *cache= (JOIN_CACHE_BKAH *) rseq;
   THD *thd= cache->thd();
   bool res;
-  status_var_increment(thd->status_var.ha_pushed_index_cond_checks);
-  if ((res= cache->skip_index_tuple(range_info)))
-    status_var_increment(thd->status_var.ha_pushed_index_cond_filtered);
+  status_var_increment(thd->status_var.ha_icp_attempts);
+  if (!(res= cache->skip_index_tuple(range_info)))
+    status_var_increment(thd->status_var.ha_icp_match);
   DBUG_RETURN(res);
 }
 

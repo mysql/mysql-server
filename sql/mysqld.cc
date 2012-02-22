@@ -8107,9 +8107,9 @@ SHOW_VAR status_vars[]= {
   {"Handler_mrr_extra_rowid_sorts", (char*) offsetof(STATUS_VAR, ha_mrr_extra_rowid_sorts), SHOW_LONG_STATUS},
   {"Handler_mrr_init",         (char*) offsetof(STATUS_VAR, ha_multi_range_read_init_count),  SHOW_LONG_STATUS},
 #endif
+  {"Handler_icp_attempts ",    (char*) offsetof(STATUS_VAR, ha_icp_attempts), SHOW_LONG_STATUS},
+  {"Handler_icp_match",        (char*) offsetof(STATUS_VAR, ha_icp_match), SHOW_LONG_STATUS},
   {"Handler_prepare",          (char*) offsetof(STATUS_VAR, ha_prepare_count),  SHOW_LONG_STATUS},
-  {"Handler_pushed_index_cond_checks",(char*) offsetof(STATUS_VAR, ha_pushed_index_cond_checks), SHOW_LONG_STATUS},
-  {"Handler_pushed_index_cond_filtered",(char*) offsetof(STATUS_VAR, ha_pushed_index_cond_filtered), SHOW_LONG_STATUS},
   {"Handler_read_first",       (char*) offsetof(STATUS_VAR, ha_read_first_count), SHOW_LONG_STATUS},
   {"Handler_read_key",         (char*) offsetof(STATUS_VAR, ha_read_key_count), SHOW_LONG_STATUS},
   {"Handler_read_next",        (char*) offsetof(STATUS_VAR, ha_read_next_count), SHOW_LONG_STATUS},
