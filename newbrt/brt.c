@@ -4387,6 +4387,7 @@ int toku_brt_cursor (
     cursor->is_leaf_mode = FALSE;
     cursor->ttxn = ttxn;
     cursor->disable_prefetching = disable_prefetching;
+    cursor->is_temporary = FALSE;
     if (1) {
     toku_spin_lock(&brt->cursors_lock);
     toku_list_push(&brt->cursors, &cursor->cursors_link);
@@ -4394,6 +4395,11 @@ int toku_brt_cursor (
     }
     *cursorptr = cursor;
     return 0;
+}
+
+void
+toku_brt_cursor_set_temporary(BRT_CURSOR brtcursor) {
+    brtcursor->is_temporary = TRUE;
 }
 
 void
@@ -5090,10 +5096,12 @@ got_a_good_value:
             }
 
             brt_cursor_cleanup_dbts(brtcursor);
-            brtcursor->key.data = toku_memdup(key, keylen);
-            brtcursor->val.data = toku_memdup(val, vallen);
-            brtcursor->key.size = keylen;
-            brtcursor->val.size = vallen;
+            if (!brtcursor->is_temporary) {
+                brtcursor->key.data = toku_memdup(key, keylen);
+                brtcursor->val.data = toku_memdup(val, vallen);
+                brtcursor->key.size = keylen;
+                brtcursor->val.size = vallen;
+            }
             //The search was successful.  Prefetching can continue.
             *doprefetch = TRUE;
         }
