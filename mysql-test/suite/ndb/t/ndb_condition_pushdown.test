@@ -2403,9 +2403,35 @@ set engine_condition_pushdown=1;
  select * from mytable where s like concat(replace("%Xext","X", "T"),"%") order by i;
  select * from mytable where s not like concat(replace("%Text","T", "X"),"%") order by i;
 
-
 drop table mytable;
+
+# Bug #13400970   CRASH WITH ICP AND NULL FIELDS
+create table mytab(a char(20),b char(20),
+key a (a)) engine=ndbcluster default charset=latin1;
+insert into mytab values (null,null),(-1,1);
+select b from mytab where a like -1 having `b` like 1;
+
+drop table mytab;
+
+# Bug #13579318 LIKE SEARCH DOESN'T MATCH ANY ROWS ON A MULTI BYTE CHARSET COLUMN
+create table t(a bigint unsigned not null primary key auto_increment, b varchar(100)) character set utf8 engine ndb;
+
+insert into t (b) values('abc'),('aaa'),('bbb'),('ccc');
+--sorted_result
+select * from t where b like 'a%';
+--sorted_result
+select * from t where b not like 'a%';
+drop table t;
+
+# Bug #13604447 61064: SELECT QUERIES USING ESCAPE SYNTAX FAIL
+create table escapetest ( emailaddress varchar(255) default null, id int not
+null default '0') engine=ndbcluster;
+insert into escapetest values('test_data@test.org', 1);
+explain select * from escapetest where emailaddress like "test_%";
+select * from escapetest where emailaddress like "test_%";
+explain select * from escapetest where emailaddress like "test|_%" escape '|';
+select * from escapetest where emailaddress like "test|_%" escape '|';
+drop table escapetest;
 
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
-

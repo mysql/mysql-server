@@ -321,8 +321,8 @@ int decimal_actual_fraction(decimal_t *from)
       from            - value to convert
       to              - points to buffer where string representation
                         should be stored
-      *to_len         - in:  size of to buffer
-                        out: length of the actually written string
+      *to_len         - in:  size of to buffer (incl. terminating '\0')
+                        out: length of the actually written string (excl. '\0')
       fixed_precision - 0 if representation can be variable length and
                         fixed_decimals will not be checked in this case.
                         Put number as with fixed point position with this
@@ -339,6 +339,7 @@ int decimal2string(decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals,
                    char filler)
 {
+  /* {intg_len, frac_len} output widths; {intg, frac} places in input */
   int len, intg, frac= from->frac, i, intg_len, frac_len, fill;
   /* number digits before decimal point */
   int fixed_intg= (fixed_precision ?
@@ -1422,11 +1423,18 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale)
     buf++;
   }
   my_afree(d_copy);
+
+  /*
+    No digits? We have read the number zero, of unspecified precision.
+    Make it a proper zero, with non-zero precision.
+  */
+  if (to->intg == 0 && to->frac == 0)
+    decimal_make_zero(to);
   return error;
 
 err:
   my_afree(d_copy);
-  decimal_make_zero(((decimal_t*) to));
+  decimal_make_zero(to);
   return(E_DEC_BAD_NUM);
 }
 
@@ -1486,9 +1494,8 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
 {
   int frac0=scale>0 ? ROUND_UP(scale) : scale/DIG_PER_DEC1,
     frac1=ROUND_UP(from->frac), UNINIT_VAR(round_digit),
-      intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len,
-      intg1=ROUND_UP(from->intg +
-                     (((intg0 + frac0)>0) && (from->buf[0] == DIG_MAX)));
+    intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len;
+
   dec1 *buf0=from->buf, *buf1=to->buf, x, y, carry=0;
   int first_dig;
 
@@ -1503,6 +1510,12 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
   default: DBUG_ASSERT(0);
   }
 
+  /*
+    For my_decimal we always use len == DECIMAL_BUFF_LENGTH == 9
+    For internal testing here (ifdef MAIN) we always use len == 100/4
+   */
+  DBUG_ASSERT(from->len == to->len);
+
   if (unlikely(frac0+intg0 > len))
   {
     frac0=len-intg0;
@@ -1516,17 +1529,17 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
     return E_DEC_OK;
   }
 
-  if (to != from || intg1>intg0)
+  if (to != from)
   {
     dec1 *p0= buf0+intg0+max(frac1, frac0);
-    dec1 *p1= buf1+intg1+max(frac1, frac0);
+    dec1 *p1= buf1+intg0+max(frac1, frac0);
+
+    DBUG_ASSERT(p0 - buf0 <= len);
+    DBUG_ASSERT(p1 - buf1 <= len);
 
     while (buf0 < p0)
       *(--p1) = *(--p0);
-    if (unlikely(intg1 > intg0))
-      to->buf[0]= 0;
 
-    intg0= intg1;
     buf0=to->buf;
     buf1=to->buf;
     to->sign=from->sign;

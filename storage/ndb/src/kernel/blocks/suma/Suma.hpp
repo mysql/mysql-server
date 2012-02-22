@@ -505,6 +505,9 @@ public:
   // for LQH transporter overload check
   const NodeBitmask& getSubscriberNodes() const { return c_subscriber_nodes; }
 
+protected:
+  virtual bool getParam(const char * param, Uint32 * retVal);
+
 private:
   /**
    * Variables

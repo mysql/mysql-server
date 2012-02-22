@@ -44,8 +44,9 @@ public:
     T_REP   = 3, /* SUMA */
     T_IO    = 4, /* FS, SocketServer etc */
     T_TC    = 5, /* TC+SPJ */
+    T_SEND  = 6, /* No blocks */
 
-    T_END  = 6
+    T_END  = 7
   };
 
   THRConfig();
@@ -57,7 +58,7 @@ public:
 
   int do_parse(const char * ThreadConfig);
   int do_parse(unsigned MaxNoOfExecutionThreads,
-               unsigned __ndbmt_lqh_workers,
+               unsigned __ndbmt_lqh_threads,
                unsigned __ndbmt_classic);
 
   const char * getConfigString();
@@ -93,7 +94,7 @@ protected:
   int find_next(char *&);
 
   unsigned createCpuSet(const SparseBitmask&);
-  int do_bindings();
+  int do_bindings(bool allow_too_few_cpus);
   int do_validate();
 
   unsigned count_unbound(const Vector<T_Thread>& vec) const;
@@ -126,11 +127,15 @@ public:
 
   const char * getName(const unsigned short list[], unsigned cnt) const;
   void appendInfo(BaseString&, const unsigned short list[], unsigned cnt) const;
+  void appendInfoSendThread(BaseString&, unsigned instance_no) const;
   int do_bind(NdbThread*, const unsigned short list[], unsigned cnt);
   int do_bind_io(NdbThread*);
+  int do_bind_send(NdbThread*, unsigned);
 
 protected:
   const T_Thread* find_thread(const unsigned short list[], unsigned cnt) const;
+  void appendInfo(BaseString&, const T_Thread*) const;
+  int do_bind(NdbThread*, const T_Thread*);
 };
 
 #endif // IPCConfig_H

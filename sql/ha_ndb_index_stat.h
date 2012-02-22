@@ -40,18 +40,25 @@ public:
   pthread_cond_t COND;
   pthread_cond_t COND_ready;
 
-  /* protect entry lists where needed */
-  pthread_mutex_t list_mutex;
-
-  /* protect and signal changes in stats entries */
+  /*
+    protect stats entry lists where needed
+    protect and signal changes in stats entries
+  */
   pthread_mutex_t stat_mutex;
   pthread_cond_t stat_cond;
 
+  /* are we setup */
+  bool is_setup_complete();
 private:
   virtual int do_init() { return 0;}
   virtual void do_run();
   virtual int do_deinit() { return 0;}
 };
+
+/* free entries from share or at end */
+extern void ndb_index_stat_free(NDB_SHARE*, int iudex_id, int index_version);
+extern void ndb_index_stat_free(NDB_SHARE*);
+extern void ndb_index_stat_end();
 
 /* these have to live in ha_ndbcluster.cc */
 extern bool ndb_index_stat_get_enable(THD *thd);
@@ -75,5 +82,8 @@ compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
 
 /* request on stats entry with recent error was ignored */
 #define Ndb_index_stat_error_HAS_ERROR          9003
+ 
+/* stats thread aborted request on stats entry */
+#define Ndb_index_stat_error_ABORT_REQUEST      9004
 
 #endif

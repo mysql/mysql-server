@@ -66,6 +66,7 @@ SET (SQL_SOURCE
                sql_list.cc sql_load.cc sql_manager.cc sql_map.cc sql_parse.cc 
                sql_partition.cc sql_plugin.cc sql_prepare.cc sql_rename.cc 
                debug_sync.cc debug_sync.h
+               signal_handler.cc
                sql_repl.cc sql_select.cc sql_show.cc sql_state.c sql_string.cc 
                sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
                sql_update.cc sql_view.cc strfunc.cc table.cc thr_malloc.cc 
@@ -114,7 +115,7 @@ IF(MSVC AND NOT WITHOUT_DYNAMIC_PLUGINS)
   ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
     COMMAND cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
                   ${PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/sql)
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 ENDIF(MSVC AND NOT WITHOUT_DYNAMIC_PLUGINS)
 
 ADD_DEPENDENCIES(sql GenError)

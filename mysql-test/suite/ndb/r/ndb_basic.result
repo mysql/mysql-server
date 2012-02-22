@@ -1000,4 +1000,12 @@ ENGINE=ndb;
 show warnings;
 Level	Code	Message
 drop table t1;
+create table
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(id int
+primary key) engine=ndb;
+ERROR HY000: Can't create table 'test.abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' (errno: 1059)
+show warnings;
+Level	Code	Message
+Error	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+Error	1005	Can't create table 'test.abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' (errno: 1059)
 End of 5.1 tests

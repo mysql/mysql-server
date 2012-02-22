@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -262,7 +260,7 @@ mysql_declare_plugin(ftexample)
   MYSQL_FTPARSER_PLUGIN,      /* type                            */
   &simple_parser_descriptor,  /* descriptor                      */
   "simple_parser",            /* name                            */
-  "MySQL AB",                 /* author                          */
+  "Oracle Corp",              /* author                          */
   "Simple Full-Text Parser",  /* description                     */
   PLUGIN_LICENSE_GPL,
   simple_parser_plugin_init,  /* init function (when loaded)     */

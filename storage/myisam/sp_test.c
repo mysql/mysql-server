@@ -1,7 +1,5 @@
-/*
-   Copyright (C) 2002-2004 MySQL AB
-    All rights reserved. Use is subject to license terms.
-
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+   
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -20,6 +18,7 @@
 /* Written by Alex Barkov, who has a shared copyright to this code */
 
 #include "myisam.h"
+#include "myisamdef.h"
 
 #ifdef HAVE_SPATIAL
 #include "sp_defs.h"

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -247,6 +247,8 @@ btr_pcur_restore_position_func(
 			cursor->rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE,
 			index, latch_mode, btr_pcur_get_btr_cur(cursor), mtr);
 
+		cursor->latch_mode = latch_mode;
+		cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 		cursor->block_when_stored = btr_pcur_get_block(cursor);
 
 		return(FALSE);
@@ -266,8 +268,10 @@ btr_pcur_restore_position_func(
 					file, line, mtr))) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
-			buf_block_dbg_add_level(btr_pcur_get_block(cursor),
-						SYNC_TREE_NODE);
+			buf_block_dbg_add_level(
+				btr_pcur_get_block(cursor),
+				dict_index_is_ibuf(index)
+				? SYNC_IBUF_TREE_NODE : SYNC_TREE_NODE);
 
 			if (cursor->rel_pos == BTR_PCUR_ON) {
 #ifdef UNIV_DEBUG
@@ -356,33 +360,6 @@ btr_pcur_restore_position_func(
 	return(FALSE);
 }
 
-/**************************************************************//**
-If the latch mode of the cursor is BTR_LEAF_SEARCH or BTR_LEAF_MODIFY,
-releases the page latch and bufferfix reserved by the cursor.
-NOTE! In the case of BTR_LEAF_MODIFY, there should not exist changes
-made by the current mini-transaction to the data protected by the
-cursor latch, as then the latch must not be released until mtr_commit. */
-UNIV_INTERN
-void
-btr_pcur_release_leaf(
-/*==================*/
-	btr_pcur_t*	cursor, /*!< in: persistent cursor */
-	mtr_t*		mtr)	/*!< in: mtr */
-{
-	buf_block_t*	block;
-
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
-	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
-
-	block = btr_pcur_get_block(cursor);
-
-	btr_leaf_page_release(block, cursor->latch_mode, mtr);
-
-	cursor->latch_mode = BTR_NO_LATCHES;
-
-	cursor->pos_state = BTR_PCUR_WAS_POSITIONED;
-}
-
 /*********************************************************//**
 Moves the persistent cursor to the first record on the next page. Releases the
 latch on the current page, and bufferunfixes it. Note that there must not be
@@ -417,7 +394,8 @@ btr_pcur_move_to_next_page(
 	ut_ad(next_page_no != FIL_NULL);
 
 	next_block = btr_block_get(space, zip_size, next_page_no,
-				   cursor->latch_mode, mtr);
+				   cursor->latch_mode,
+				   btr_pcur_get_btr_cur(cursor)->index, mtr);
 	next_page = buf_block_get_frame(next_block);
 #ifdef UNIV_BTR_DEBUG
 	ut_a(page_is_comp(next_page) == page_is_comp(page));

@@ -574,7 +574,8 @@ public:
     Uint8 m_last_row;
     Uint8 m_reserved;
     Uint8 statScan;
-    Uint8 dummy[3]; // align?
+    Uint8 m_stop_batch;
+    Uint8 dummy[2]; // align?
   }; // Size 272 bytes
   typedef Ptr<ScanRecord> ScanRecordPtr;
 
@@ -912,16 +913,16 @@ public:
      *       would cost performance and doesn't seem like a good 
      *       idea. This is simple and it works.
      */
-    Uint16 gcpFilePtr[4];
+    Uint16 gcpFilePtr[NDB_MAX_LOG_PARTS];
     /** 
      *       The page number within the file for each log part.
      */
-    Uint16 gcpPageNo[4];
+    Uint16 gcpPageNo[NDB_MAX_LOG_PARTS];
     /**
      *       The word number within the last page that was written for
      *       each log part.
      */
-    Uint16 gcpWordNo[4];
+    Uint16 gcpWordNo[NDB_MAX_LOG_PARTS];
     /**
      *       The identity of this global checkpoint.
      */
@@ -929,12 +930,12 @@ public:
     /**
      *       The state of this global checkpoint, one for each log part.
      */
-    Uint8 gcpLogPartState[4];
+    Uint8 gcpLogPartState[NDB_MAX_LOG_PARTS];
     /**
      *       The sync state of this global checkpoint, one for each
      *       log part.
      */
-    Uint8 gcpSyncReady[4];
+    Uint8 gcpSyncReady[NDB_MAX_LOG_PARTS];
     /**
      *       User pointer of the sender of gcp_savereq (= master DIH).
      */
@@ -3300,7 +3301,8 @@ Dblqh::ScanRecord::check_scan_batch_completed() const
   Uint32 max_rows = m_max_batch_size_rows;
   Uint32 max_bytes = m_max_batch_size_bytes;
 
-  return (max_rows > 0 && (m_curr_batch_size_rows >= max_rows))  ||
+  return m_stop_batch ||
+    (max_rows > 0 && (m_curr_batch_size_rows >= max_rows))  ||
     (max_bytes > 0 && (m_curr_batch_size_bytes >= max_bytes));
 }
 

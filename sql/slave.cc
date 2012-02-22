@@ -98,7 +98,7 @@ static const char *reconnect_messages[SLAVE_RECON_ACT_MAX][SLAVE_RECON_MSG_MAX]=
 registration on master",
     "Reconnecting after a failed registration on master",
     "failed registering on master, reconnecting to try again, \
-log '%s' at postion %s",
+log '%s' at position %s",
     "COM_REGISTER_SLAVE",
     "Slave I/O thread killed during or after reconnect"
   },
@@ -106,7 +106,7 @@ log '%s' at postion %s",
     "Waiting to reconnect after a failed binlog dump request",
     "Slave I/O thread killed while retrying master dump",
     "Reconnecting after a failed binlog dump request",
-    "failed dump request, reconnecting to try again, log '%s' at postion %s",
+    "failed dump request, reconnecting to try again, log '%s' at position %s",
     "COM_BINLOG_DUMP",
     "Slave I/O thread killed during or after reconnect"
   },
@@ -115,7 +115,7 @@ log '%s' at postion %s",
     "Slave I/O thread killed while waiting to reconnect after a failed read",
     "Reconnecting after a failed master event read",
     "Slave I/O thread: Failed reading log event, reconnecting to retry, \
-log '%s' at postion %s",
+log '%s' at position %s",
     "",
     "Slave I/O thread killed during or after a reconnect done to recover from \
 failed read"
@@ -597,11 +597,15 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
       const char* old_msg = thd->enter_cond(start_cond,cond_lock,
                                             "Waiting for slave thread to start");
-      pthread_cond_wait(start_cond,cond_lock);
+      pthread_cond_wait(start_cond, cond_lock);
       thd->exit_cond(old_msg);
       pthread_mutex_lock(cond_lock); // re-acquire it as exit_cond() released
       if (thd->killed)
+      {
+        if (start_lock)
+          pthread_mutex_unlock(start_lock);
         DBUG_RETURN(thd->killed_errno());
+      }
     }
   }
   if (start_lock)
@@ -2726,6 +2730,7 @@ pthread_handler_t handle_slave_io(void *arg)
 
   thd= new THD; // note that contructor of THD uses DBUG_ !
   THD_CHECK_SENTRY(thd);
+  DBUG_ASSERT(mi->io_thd == 0);
   mi->io_thd = thd;
 
   pthread_detach_this_thread();
@@ -4842,9 +4847,6 @@ int rotate_relay_log(Master_info* mi)
   Relay_log_info* rli= &mi->rli;
   int error= 0;
 
-  /* We don't lock rli->run_lock. This would lead to deadlocks. */
-  pthread_mutex_lock(&mi->run_lock);
-
   /*
      We need to test inited because otherwise, new_file() will attempt to lock
      LOCK_log, which may not be inited (if we're not a slave).
@@ -4874,7 +4876,6 @@ int rotate_relay_log(Master_info* mi)
   */
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 end:
-  pthread_mutex_unlock(&mi->run_lock);
   DBUG_RETURN(error);
 }
 

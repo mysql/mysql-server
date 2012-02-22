@@ -690,6 +690,10 @@ enum enum_check_fields
 extern "C" THD *_current_thd_noinline();
 #define _current_thd() _current_thd_noinline()
 #else
+/*
+  THR_THD is a key which will be used to set/get THD* for a thread,
+  using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
+*/
 extern pthread_key(THD*, THR_THD);
 inline THD *_current_thd(void)
 {
@@ -849,7 +853,7 @@ void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 void sql_print_information(const char *format, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 typedef void (*sql_print_message_func)(const char *format, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  ATTRIBUTE_FORMAT_FPTR(printf, 1, 2);
 extern sql_print_message_func sql_print_message_handlers[];
 
 int error_log_print(enum loglevel level, const char *format,
@@ -1039,7 +1043,11 @@ void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
 void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 void decrease_user_connections(USER_CONN *uc);
-void thd_init_client_charset(THD *thd, uint cs_number);
+bool thd_init_client_charset(THD *thd, uint cs_number);
+inline bool is_supported_parser_charset(CHARSET_INFO *cs)
+{
+  return test(cs->mbminlen == 1);
+}
 bool setup_connection_thread_globals(THD *thd);
 
 int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
@@ -1486,13 +1494,6 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 			table_map read_tables, COND *conds,
                         bool allow_null_cond,  int *error);
 extern Item **not_found_item;
-
-/*
-  A set of constants used for checking non aggregated fields and sum
-  functions mixture in the ONLY_FULL_GROUP_BY_MODE.
-*/
-#define NON_AGG_FIELD_USED  1
-#define SUM_FUNC_USED       2
 
 /*
   This enumeration type is used only by the function find_item_in_list
@@ -1990,6 +1991,7 @@ extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options;
+extern ulong max_long_data_size;
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
@@ -2049,6 +2051,10 @@ extern TABLE_LIST general_log, slow_log;
 extern FILE *bootstrap_file;
 extern int bootstrap_error;
 extern FILE *stderror_file;
+/*
+  THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
+  using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
+*/
 extern pthread_key(MEM_ROOT**,THR_MALLOC);
 extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open, LOCK_lock_db,
        LOCK_mapped_file,LOCK_user_locks, LOCK_status,

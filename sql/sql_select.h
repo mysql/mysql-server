@@ -617,7 +617,8 @@ bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order,
                                                                       
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
-int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
+int opt_sum_query(THD* thd,
+                  TABLE_LIST *tables, List<Item> &all_fields, COND *conds);
 
 /* from sql_delete.cc, used by opt_range.cc */
 extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b);

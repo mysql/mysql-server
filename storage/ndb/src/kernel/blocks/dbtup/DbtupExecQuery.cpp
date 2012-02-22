@@ -1832,6 +1832,7 @@ int Dbtup::handleInsertReq(Signal* signal,
    */
   if(mem_insert)
   {
+    terrorCode = 0;
     if (!rowid)
     {
       if (ERROR_INSERTED(4018))
@@ -1938,7 +1939,13 @@ int Dbtup::handleInsertReq(Signal* signal,
       terrorCode = 1601;
       goto disk_prealloc_error;
     }
-    
+
+    if (!Local_key::isShort(frag_page_id))
+    {
+      terrorCode = 1603;
+      goto disk_prealloc_error;
+    }
+
     int ret= disk_page_prealloc(signal, fragPtr, &tmp, size);
     if (unlikely(ret < 0))
     {
@@ -2018,7 +2025,10 @@ null_check_error:
 
 mem_error:
   jam();
-  terrorCode= ZMEM_NOMEM_ERROR;
+  if (terrorCode == 0)
+  {
+    terrorCode= ZMEM_NOMEM_ERROR;
+  }
   goto update_error;
 
 log_space_error:

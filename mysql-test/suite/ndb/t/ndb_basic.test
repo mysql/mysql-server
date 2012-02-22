@@ -837,4 +837,13 @@ ENGINE=ndb;
 show warnings;
 drop table t1;
 
+#
+#Bug #11753491 44940: MYSQLD CRASHES WHEN CREATING A CLUSTER TABLE WITH 64 CHARACTER TABLE NAME
+#
+--error 1005
+create table
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(id int
+primary key) engine=ndb;
+show warnings;
+
 --echo End of 5.1 tests

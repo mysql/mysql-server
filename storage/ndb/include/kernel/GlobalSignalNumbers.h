@@ -454,9 +454,13 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_COPY_DATA_REF               337
 #define GSN_COPY_DATA_CONF              338
 
+/*
+   jonas 2012-01-10 unused currently...
+     so rename REQ to ORD
 #define GSN_OPEN_COMCONF                339
 #define GSN_OPEN_COMREF                 340
-#define GSN_OPEN_COMREQ                 341
+*/
+#define GSN_OPEN_COMORD                 341
 #define GSN_PACKED_SIGNAL               342
 #define GSN_PREP_FAILCONF               343
 #define GSN_PREP_FAILREF                344
@@ -592,7 +596,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_NODE_PING_REQ               461 /* distr. */
 #define GSN_NODE_PING_CONF              462 /* distr. */
 
-/* 463 unused */
+#define GSN_CANCEL_SUBSCRIPTION_REQ     463
 /* 464 unused */
 
 #define GSN_DUMP_STATE_ORD              465

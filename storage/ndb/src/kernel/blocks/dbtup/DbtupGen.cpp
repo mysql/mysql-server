@@ -32,6 +32,7 @@
 #include <signaldata/TupCommit.hpp>
 #include <signaldata/TupKey.hpp>
 #include <signaldata/NodeFailRep.hpp>
+#include <signaldata/NodeStateSignalData.hpp>
 
 #include <signaldata/DropTab.hpp>
 #include <SLList.hpp>
@@ -58,6 +59,8 @@ void Dbtup::initData()
   // Records with constant sizes
   init_list_sizes();
   cpackedListIndex = 0;
+
+  m_minFreePages = 0;
 }//Dbtup::initData()
 
 Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
@@ -99,6 +102,7 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   addRecSignal(GSN_TUP_ABORTREQ, &Dbtup::execTUP_ABORTREQ);
   addRecSignal(GSN_NDB_STTOR, &Dbtup::execNDB_STTOR);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbtup::execREAD_CONFIG_REQ, true);
+  addRecSignal(GSN_NODE_STATE_REP, &Dbtup::execNODE_STATE_REP, true);
 
   // Trigger Signals
   addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dbtup::execCREATE_TRIG_IMPL_REQ);
@@ -916,3 +920,31 @@ void Dbtup::execNODE_FAILREP(Signal* signal)
   }//for
 }
 
+extern Uint32 compute_acc_32kpages(const ndb_mgm_configuration_iterator * p);
+
+void
+Dbtup::execNODE_STATE_REP(Signal* signal)
+{
+  jamEntry();
+  const NodeStateRep* rep = CAST_CONSTPTR(NodeStateRep,
+                                          signal->getDataPtr());
+
+  if (rep->nodeState.startLevel == NodeState::SL_STARTED)
+  {
+    jam();
+
+    const ndb_mgm_configuration_iterator * p =
+      m_ctx.m_config.getOwnConfigIterator();
+    ndbrequire(p != 0);
+
+    Uint32 free_pct = 5;
+    ndb_mgm_get_int_parameter(p, CFG_DB_FREE_PCT, &free_pct);
+
+    Uint32 accpages = compute_acc_32kpages(p);
+
+    Resource_limit rl;
+    m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
+    m_minFreePages = ((rl.m_min - accpages) * free_pct) / 100;
+  }
+  SimulatedBlock::execNODE_STATE_REP(signal);
+}

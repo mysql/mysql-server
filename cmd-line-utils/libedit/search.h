@@ -1,4 +1,4 @@
-/*	$NetBSD: search.h,v 1.8 2003/10/18 23:27:36 christos Exp $	*/
+/*	$NetBSD: search.h,v 1.9 2009/12/30 22:37:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -43,24 +43,24 @@
 #include "histedit.h"
 
 typedef struct el_search_t {
-	char	*patbuf;		/* The pattern buffer		*/
+	Char	*patbuf;		/* The pattern buffer		*/
 	size_t	 patlen;		/* Length of the pattern buffer	*/
 	int	 patdir;		/* Direction of the last search	*/
 	int	 chadir;		/* Character search direction	*/
-	char	 chacha;		/* Character we are looking for	*/
+	Char	 chacha;		/* Character we are looking for	*/
 	char	 chatflg;		/* 0 if f, 1 if t */
 } el_search_t;
 
 
-protected int		el_match(const char *, const char *);
+protected int		el_match(const Char *, const Char *);
 protected int		search_init(EditLine *);
 protected void		search_end(EditLine *);
-protected int		c_hmatch(EditLine *, const char *);
+protected int		c_hmatch(EditLine *, const Char *);
 protected void		c_setpat(EditLine *);
 protected el_action_t	ce_inc_search(EditLine *, int);
 protected el_action_t	cv_search(EditLine *, int);
 protected el_action_t	ce_search_line(EditLine *, int);
-protected el_action_t	cv_repeat_srch(EditLine *, int);
-protected el_action_t	cv_csearch(EditLine *, int, int, int, int);
+protected el_action_t	cv_repeat_srch(EditLine *, Int);
+protected el_action_t	cv_csearch(EditLine *, int, Int, int, int);
 
 #endif /* _h_el_search */

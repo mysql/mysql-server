@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@
 # define bfill(A,B,C)           memset((A),(C),(B))
 #endif
 
-#if !defined(bzero) && !defined(HAVE_BZERO)
+#if !defined(bzero) && (!defined(HAVE_BZERO) || !defined(HAVE_DECL_BZERO))
 # define bzero(A,B)             memset((A),0,(B))
 #endif
 
@@ -178,6 +178,15 @@ extern int is_prefix(const char *, const char *);
 /* Conversion routines */
 double my_strtod(const char *str, char **end, int *error);
 double my_atof(const char *nptr);
+
+#ifndef NOT_FIXED_DEC
+#define NOT_FIXED_DEC			31
+#endif
+
+/*
+  Max length of a floating point number.
+ */
+#define FLOATING_POINT_BUFFER (311 + NOT_FIXED_DEC)
 
 extern char *llstr(longlong value,char *buff);
 extern char *ullstr(longlong value,char *buff);

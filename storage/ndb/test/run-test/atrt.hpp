@@ -118,9 +118,15 @@ struct atrt_testcase
   bool m_report;
   bool m_run_all;
   time_t m_max_time;
-  BaseString m_command;
-  BaseString m_args;
   BaseString m_name;
+  BaseString m_mysqld_options;
+
+  struct Command
+  {
+    atrt_process::Type m_cmd_type;
+    BaseString m_exe;
+    BaseString m_args;
+  } m_cmd; // Todo make array of these...
 };
 
 extern Logger g_logger;
@@ -154,6 +160,9 @@ bool do_command(atrt_config& config);
 
 bool start_process(atrt_process & proc);
 bool stop_process(atrt_process & proc);
+
+bool connect_mysqld(atrt_process & proc);
+bool disconnect_mysqld(atrt_process & proc);
 
 /**
  * check configuration if any changes has been 
@@ -196,6 +205,7 @@ extern const char * g_clusters;
  *   we keep full path to them here
  */
 char * find_bin_path(const char * basename);
+char * find_bin_path(const char * prefix, const char * basename);
 extern const char * g_ndb_mgmd_bin_path;
 extern const char * g_ndbd_bin_path;
 extern const char * g_ndbmtd_bin_path;

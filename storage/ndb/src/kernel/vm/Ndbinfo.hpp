@@ -149,9 +149,16 @@ public:
       bytes(0){
     }
 
-    bool need_break(const DbinfoScan& scan) const {
-      // Automatically limit the maxRows value
-      Uint32 maxRows = min(scan.maxRows ? scan.maxRows : 256, 256);
+    bool need_break(const DbinfoScan& scan) const
+    {
+      const Uint32 MAX_ROWS = 256;
+
+      // Upgrade zero to MAX_ROWS 
+      Uint32 maxRows = scan.maxRows ? scan.maxRows : MAX_ROWS; 
+
+      // Limit maxRows to MAX_ROWS
+      if (maxRows > MAX_ROWS)
+        maxRows = MAX_ROWS;
 
       if (maxRows != 0 && rows >= maxRows)
         return true; // More than max rows already sent
@@ -194,7 +201,9 @@ public:
     SPJ_SCAN_BATCHES_RETURNED_COUNTER = 20,
     SPJ_SCAN_ROWS_RETURNED_COUNTER = 21,
     SPJ_PRUNED_RANGE_SCANS_RECEIVED_COUNTER = 22,
-    SPJ_CONST_PRUNED_RANGE_SCANS_RECEIVED_COUNTER = 23
+    SPJ_CONST_PRUNED_RANGE_SCANS_RECEIVED_COUNTER = 23,
+    LOCAL_READ_COUNTER = 24,
+    LOCAL_WRITE_COUNTER = 25
   };
 
   struct counter_entry {

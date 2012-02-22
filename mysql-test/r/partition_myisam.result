@@ -1,0 +1,90 @@
+DROP TABLE IF EXISTS t1, t2;
+# Bug#30102 test
+CREATE TABLE t1 (a INT)
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (6),
+PARTITION `p1....................` VALUES LESS THAN (9),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+# List of files in database `test`, all original t1-files here
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
+t1#P#p2.MYD
+t1#P#p2.MYI
+t1.frm
+t1.par
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+# Renaming to a file name where the first partition is 250 chars
+# and the second partition is 350 chars
+RENAME TABLE t1 TO `t2_new..............................................end`;
+Got one of the listed errors
+# List of files in database `test`, should not be any t2-files here
+# List of files in database `test`, should be all t1-files here
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
+t1#P#p2.MYD
+t1#P#p2.MYI
+t1.frm
+t1.par
+SELECT * FROM t1;
+a
+1
+10
+2
+3
+4
+5
+6
+7
+8
+9
+# List of files in database `test`, should be all t1-files here
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
+t1#P#p2.MYD
+t1#P#p2.MYI
+t1.frm
+t1.par
+# Renaming to a file name where the first partition is 156 chars
+# and the second partition is 256 chars
+RENAME TABLE t1 TO `t2_............................_end`;
+Got one of the listed errors
+# List of files in database `test`, should not be any t2-files here
+# List of files in database `test`, should be all t1-files here
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
+t1#P#p2.MYD
+t1#P#p2.MYI
+t1.frm
+t1.par
+SELECT * FROM t1;
+a
+1
+10
+2
+3
+4
+5
+6
+7
+8
+9
+DROP TABLE t1;
+# Should not be any files left here
+# End of bug#30102 test.
+# Test of post-push fix for bug#11766249/59316
+CREATE TABLE t1 (a INT, b VARCHAR(255), PRIMARY KEY (a))
+ENGINE = MyISAM
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (0) MAX_ROWS=100,
+PARTITION p1 VALUES LESS THAN (100) MAX_ROWS=100,
+PARTITION pMax VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (1, "Partition p1, first row");
+DROP TABLE t1;

@@ -134,6 +134,8 @@ struct view {
     "  WHEN 21 THEN \"SCAN_ROWS_RETURNED\""
     "  WHEN 22 THEN \"PRUNED_RANGE_SCANS_RECEIVED\""
     "  WHEN 23 THEN \"CONST_PRUNED_RANGE_SCANS_RECEIVED\""
+    "  WHEN 24 THEN \"LOCAL_READS\""
+    "  WHEN 25 THEN \"LOCAL_WRITES\""
     "  ELSE \"<unknown>\" "
     " END AS counter_name, "
     "val "

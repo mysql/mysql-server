@@ -156,5 +156,25 @@ Suma::~Suma()
   c_page_pool.clear();
 }
 
+bool
+Suma::getParam(const char * param, Uint32 * retVal)
+{
+  if (param != NULL && retVal != NULL)
+  {
+    if (strcmp(param, "FragmentSendPool") == 0)
+    {
+      /* FragmentSendPool
+       * We increase the size of the fragment send pool
+       * to possibly handle max number of SQL nodes
+       * being subscribers
+       */
+
+      *retVal= MAX_NODES;
+      return true;
+    }
+  }
+  return false;
+}
+
 BLOCK_FUNCTIONS(Suma)
 

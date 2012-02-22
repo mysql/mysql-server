@@ -26,12 +26,17 @@
 #pragma interface                       /* gcc class implementation */
 #endif
 
+/* DDL names have to fit in system table ndb_schema */
+#define NDB_MAX_DDL_NAME_BYTESIZE 63
+#define NDB_MAX_DDL_NAME_BYTESIZE_STR "63"
+
 /* Blob tables and events are internal to NDB and must never be accessed */
 #define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
 
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/ndbapi_limits.h>
 #include <kernel/ndb_limits.h>
+#include "ndb_conflict.h"
 
 #define NDB_IGNORE_VALUE(x) (void)x
 
@@ -124,121 +129,6 @@ typedef enum {
   NSS_DROPPED,
   NSS_ALTERED 
 } NDB_SHARE_STATE;
-
-enum enum_conflict_fn_type
-{
-  CFT_NDB_UNDEF = 0
-  ,CFT_NDB_MAX
-  ,CFT_NDB_OLD
-  ,CFT_NDB_MAX_DEL_WIN
-  ,CFT_NDB_EPOCH
-  ,CFT_NDB_EPOCH_TRANS
-  ,CFT_NUMBER_OF_CFTS /* End marker */
-};
-
-#ifdef HAVE_NDB_BINLOG
-static const Uint32 MAX_CONFLICT_ARGS= 8;
-
-enum enum_conflict_fn_arg_type
-{
-  CFAT_END
-  ,CFAT_COLUMN_NAME
-  ,CFAT_EXTRA_GCI_BITS
-};
-
-struct st_conflict_fn_arg
-{
-  enum_conflict_fn_arg_type type;
-  const char *ptr;
-  uint32 len;
-  union
-  {
-    uint32 fieldno;      // CFAT_COLUMN_NAME
-    uint32 extraGciBits; // CFAT_EXTRA_GCI_BITS
-  };
-};
-
-struct st_conflict_fn_arg_def
-{
-  enum enum_conflict_fn_arg_type arg_type;
-  bool optional;
-};
-
-/* What type of operation was issued */
-enum enum_conflicting_op_type
-{                /* NdbApi          */
-  WRITE_ROW,     /* insert (!write) */
-  UPDATE_ROW,    /* update          */
-  DELETE_ROW,    /* delete          */
-  REFRESH_ROW    /* refresh         */
-};
-
-/*
-  prepare_detect_func
-
-  Type of function used to prepare for conflict detection on
-  an NdbApi operation
-*/
-typedef int (* prepare_detect_func) (struct st_ndbcluster_conflict_fn_share* cfn_share,
-                                     enum_conflicting_op_type op_type,
-                                     const uchar* old_data,
-                                     const uchar* new_data,
-                                     const MY_BITMAP* write_set,
-                                     class NdbInterpretedCode* code);
-
-enum enum_conflict_fn_flags
-{
-  CF_TRANSACTIONAL = 1
-};
-
-struct st_conflict_fn_def
-{
-  const char *name;
-  enum_conflict_fn_type type;
-  const st_conflict_fn_arg_def* arg_defs;
-  prepare_detect_func prep_func;
-  uint8 flags; /* enum_conflict_fn_flags */
-};
-
-/* What sort of conflict was found */
-enum enum_conflict_cause
-{
-  ROW_ALREADY_EXISTS,   /* On insert */
-  ROW_DOES_NOT_EXIST,   /* On Update, Delete */
-  ROW_IN_CONFLICT,      /* On Update, Delete */
-  TRANS_IN_CONFLICT     /* Any of above, or implied by transaction */
-};
-
-/* NdbOperation custom data which points out handler and record. */
-struct Ndb_exceptions_data {
-  struct NDB_SHARE* share;
-  const NdbRecord* key_rec;
-  const uchar* row;
-  enum_conflicting_op_type op_type;
-  Uint64 trans_id;
-};
-
-enum enum_conflict_fn_table_flags
-{
-  CFF_NONE         = 0,
-  CFF_REFRESH_ROWS = 1
-};
-
-typedef struct st_ndbcluster_conflict_fn_share {
-  const st_conflict_fn_def* m_conflict_fn;
-
-  /* info about original table */
-  uint8 m_pk_cols;
-  uint8 m_resolve_column;
-  uint8 m_resolve_size;
-  uint8 m_flags;
-  uint16 m_offset[16];
-  uint16 m_resolve_offset;
-
-  const NdbDictionary::Table *m_ex_tab;
-  uint32 m_count;
-} NDB_CONFLICT_FN_SHARE;
-#endif
 
 /*
   Stats that can be retrieved from ndb
@@ -357,99 +247,6 @@ inline void set_binlog_use_update(NDB_SHARE *share)
 }
 inline my_bool get_binlog_use_update(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
-
-enum enum_slave_trans_conflict_apply_state
-{
-  /* Normal with optional row-level conflict detection */
-  SAS_NORMAL,
-
-  /*
-    SAS_TRACK_TRANS_DEPENDENCIES
-    Track inter-transaction dependencies
-  */
-  SAS_TRACK_TRANS_DEPENDENCIES,
-
-  /*
-    SAS_APPLY_TRANS_DEPENDENCIES
-    Apply only non conflicting transactions
-  */
-  SAS_APPLY_TRANS_DEPENDENCIES
-};
-
-enum enum_slave_conflict_flags
-{
-  /* Conflict detection Ops defined */
-  SCS_OPS_DEFINED = 1,
-  /* Conflict detected on table with transactional resolution */
-  SCS_TRANS_CONFLICT_DETECTED_THIS_PASS = 2
-};
-
-/*
-  State associated with the Slave thread
-  (From the Ndb handler's point of view)
-*/
-struct st_ndb_slave_state
-{
-  /* Counter values for current slave transaction */
-  Uint32 current_violation_count[CFT_NUMBER_OF_CFTS];
-  Uint64 current_master_server_epoch;
-  Uint64 current_max_rep_epoch;
-  uint8 conflict_flags; /* enum_slave_conflict_flags */
-    /* Transactional conflict detection */
-  Uint32 retry_trans_count;
-  Uint32 current_trans_row_conflict_count;
-  Uint32 current_trans_row_reject_count;
-  Uint32 current_trans_in_conflict_count;
-
-  /* Cumulative counter values */
-  Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
-  Uint64 max_rep_epoch;
-  Uint32 sql_run_id;
-  /* Transactional conflict detection */
-  Uint64 trans_row_conflict_count;
-  Uint64 trans_row_reject_count;
-  Uint64 trans_detect_iter_count;
-  Uint64 trans_in_conflict_count;
-  Uint64 trans_conflict_commit_count;
-
-  static const Uint32 MAX_RETRY_TRANS_COUNT = 100;
-
-  /*
-    Slave Apply State
-
-    State of Binlog application from Ndb point of view.
-  */
-  enum_slave_trans_conflict_apply_state trans_conflict_apply_state;
-
-  MEM_ROOT conflict_mem_root;
-  class DependencyTracker* trans_dependency_tracker;
-
-  /* Methods */
-  void atStartSlave();
-  int  atPrepareConflictDetection(const NdbDictionary::Table* table,
-                                  const NdbRecord* key_rec,
-                                  const uchar* row_data,
-                                  Uint64 transaction_id,
-                                  bool& handle_conflict_now);
-  int  atTransConflictDetected(Uint64 transaction_id);
-  int  atConflictPreCommit(bool& retry_slave_trans);
-
-  void atBeginTransConflictHandling();
-  void atEndTransConflictHandling();
-
-  void atTransactionCommit();
-  void atTransactionAbort();
-  void atResetSlave();
-
-  void atApplyStatusWrite(Uint32 master_server_id,
-                          Uint32 row_server_id,
-                          Uint64 row_epoch,
-                          bool is_row_server_id_local);
-
-  void resetPerAttemptCounters();
-
-  st_ndb_slave_state();
-};
 
 /*
   Place holder for ha_ndbcluster thread specific data

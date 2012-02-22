@@ -80,6 +80,12 @@
 #include "../suma/Suma.hpp"
 #include "DblqhCommon.hpp"
 
+/**
+ * overload handling...
+ * TODO: cleanup...from all sorts of perspective
+ */
+#include <TransporterRegistry.hpp>
+
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
@@ -1220,36 +1226,32 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
-  clogPartFileSize = 4;
 
-  Uint32 nodeLogParts = 4;
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS,
-                            &nodeLogParts);
-  globalData.ndbLogParts = nodeLogParts;
-  ndbrequire(nodeLogParts <= NDB_MAX_LOG_PARTS);
-  {
-    NdbLogPartInfo lpinfo(instance());
-    clogPartFileSize = lpinfo.partCount; // How many are this instance responsible for...
-  }
-
-  if (globalData.ndbMtLqhWorkers > nodeLogParts)
+  /**
+   * TODO move check of log-parts vs. ndbMtLqhWorkers to better place
+   * (Configuration.cpp ??)
+   */
+  ndbrequire(globalData.ndbLogParts <= NDB_MAX_LOG_PARTS);
+  if (globalData.ndbMtLqhWorkers > globalData.ndbLogParts)
   {
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf),
       "Trying to start %d LQH workers with only %d log parts, try initial"
       " node restart to be able to use more LQH workers.",
-      globalData.ndbMtLqhWorkers, nodeLogParts);
+      globalData.ndbMtLqhWorkers, globalData.ndbLogParts);
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }
-  if (nodeLogParts != 4 &&
-      nodeLogParts != 8 &&
-      nodeLogParts != 16)
+
+  if (globalData.ndbLogParts != 4 &&
+      globalData.ndbLogParts != 8 &&
+      globalData.ndbLogParts != 12 &&
+      globalData.ndbLogParts != 16)
   {
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf),
       "Trying to start with %d log parts, number of log parts can"
-      " only be set to 4, 8 or 16.",
-      nodeLogParts);
+      " only be set to 4, 8, 12 or 16.",
+      globalData.ndbLogParts);
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }
 
@@ -1280,7 +1282,7 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TABLE, &ctabrecFileSize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TC_CONNECT, 
 					&ctcConnectrecFileSize));
-  clogFileFileSize       = 4 * cnoLogFiles;
+  clogFileFileSize = clogPartFileSize * cnoLogFiles;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_SCAN, &cscanrecFileSize));
   cmaxAccOps = cscanrecFileSize * MAX_PARALLEL_OP_PER_SCAN;
 
@@ -1911,7 +1913,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     ndbrequire(ptr.p->logPartNo == logPartNo);
 
     fragptr.p->m_log_part_ptr_i = ptr.i;
-    fragptr.p->lqhInstanceKey = lpinfo.instanceKey(logPartNo);
+    fragptr.p->lqhInstanceKey = getInstanceKey(tabptr.i, req->fragId);
   }
 
   if (DictTabInfo::isOrderedIndex(tabptr.p->tableType)) {
@@ -4282,9 +4284,10 @@ void Dblqh::seizeTcrec()
   locTcConnectptr.p->connectState = TcConnectionrec::CONNECTED;
 }//Dblqh::seizeTcrec()
 
-bool Dblqh::checkTransporterOverloaded(Signal* signal,
-                                       const NodeBitmask& all,
-                                       const LqhKeyReq* req)
+bool
+Dblqh::checkTransporterOverloaded(Signal* signal,
+                                  const NodeBitmask& all,
+                                  const LqhKeyReq* req)
 {
   // nodes likely to be affected by this op
   NodeBitmask mask;
@@ -4401,14 +4404,27 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   {
     const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
-    if (unlikely((!all.isclear() &&
-                  checkTransporterOverloaded(signal, all, lqhKeyReq))) ||
-        ERROR_INSERTED_CLEAR(5047)) {
-      jam();
-      releaseSections(handle);
-      noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
-      return;
+    if (unlikely(!all.isclear()))
+    {
+      if (checkTransporterOverloaded(signal, all, lqhKeyReq))
+      {
+        /**
+         * TODO: We should have counters for this...
+         */
+        jam();
+        releaseSections(handle);
+        noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+        return;
+      }
     }
+  }
+
+  if (ERROR_INSERTED_CLEAR(5047))
+  {
+    jam();
+    releaseSections(handle);
+    noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+    return;
   }
 
   sig0 = lqhKeyReq->clientConnectPtr;
@@ -4622,11 +4638,11 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     nextPos += 2;
   }
 
+  regTcPtr->m_fire_trig_pass = 0;
   Uint32 Tdeferred = LqhKeyReq::getDeferredConstraints(Treqinfo);
   if (isLongReq && Tdeferred)
   {
     regTcPtr->m_flags |= TcConnectionrec::OP_DEFERRED_CONSTRAINTS;
-    regTcPtr->m_fire_trig_pass = 0;
   }
 
   UintR TitcKeyLen = 0;
@@ -9345,7 +9361,8 @@ void Dblqh::lqhTransNextLab(Signal* signal)
 
       if (ERROR_INSERTED(5050))
       {
-        ndbout_c("send ZSCAN_MARKERS with 5s delay and killing master");
+        ndbout_c("send ZSCAN_MARKERS with 5s delay and killing master: %u",
+                 c_master_node_id);
         CLEAR_ERROR_INSERT_VALUE;
         signal->theData[0] = ZSCAN_MARKERS;
         signal->theData[1] = tcNodeFailptr.i;
@@ -9354,7 +9371,7 @@ void Dblqh::lqhTransNextLab(Signal* signal)
         sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 4);
         
         signal->theData[0] = 9999;
-        sendSignal(numberToRef(CMVMI, c_master_node_id), 
+        sendSignal(numberToRef(CMVMI, c_error_insert_extra),
                    GSN_NDB_TAMPER, signal, 1, JBB);
         return;
       }
@@ -10718,23 +10735,28 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
    * KeyInfo
    */
   Uint32 totalLen = tcPtrP->primKeyLen;
+  if (totalLen == 0)
+  {
+    return 0;
+  }
 
-  if (totalLen)
+  Uint32 * save = dst;
+  do
   {
     ndbassert( tcPtrP->keyInfoIVal != RNIL );
     SectionReader keyInfoReader(tcPtrP->keyInfoIVal,
                                 g_sectionSegmentPool);
-    
+
     if (tcPtrP->m_flags & TcConnectionrec::OP_SCANKEYINFOPOSSAVED)
     {
       /* Second or higher range in an MRR scan
-       * Restore SectionReader to the last position it was in 
+       * Restore SectionReader to the last position it was in
        */
       bool ok= keyInfoReader.setPos(tcPtrP->scanKeyInfoPos);
       ndbrequire(ok);
     }
 
-    /* Get first word of next range and extract range 
+    /* Get first word of next range and extract range
      * length, number from it.
      * For non MRR, these will be zero.
      */
@@ -10746,15 +10768,19 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
     tcPtrP->m_corrFactorLo &= 0x0000FFFF;
     tcPtrP->m_corrFactorLo |= (range_no << 16);
     firstWord &= 0xF; // Remove length+range num from first word
-    
+
     /* Write range info to dst */
     *(dst++)= firstWord;
     bool ok= keyInfoReader.getWords(dst, rangeLen - 1);
+    ndbassert(ok);
+    if (unlikely(!ok))
+      break;
 
-    ndbrequire(ok);
-    
+    if (ERROR_INSERTED(5074))
+      break;
+
     tcPtrP->primKeyLen-= rangeLen;
-    
+
     if (rangeLen == totalLen)
     {
       /* All range information has been copied, free the section */
@@ -10769,9 +10795,26 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
     }
 
     return rangeLen;
-  }
+  } while (0);
 
-  return totalLen;
+  /**
+   * We enter here if there was some error in the keyinfo
+   *   this has (once) been seen in customer lab,
+   *   never at in the wild, and never in internal lab.
+   *   root-cause unknown, maybe ndbapi application bug
+   *
+   * Crash in debug, or ERROR_INSERT (unless 5074)
+   * else
+   *   generate an incorrect bound...that will make TUX abort the scan
+   */
+#ifdef ERROR_INSERT
+  ndbrequire(ERROR_INSERTED_CLEAR(5074));
+#else
+  ndbassert(false);
+#endif
+
+  * save = TuxBoundInfo::InvalidBound;
+  return 1;
 }
 
 /* -------------------------------------------------------------------------
@@ -11241,6 +11284,21 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
   scanptr.p->m_curr_batch_size_bytes+= tdata4 * sizeof(Uint32);
   scanptr.p->m_curr_batch_size_rows = rows + 1;
   scanptr.p->m_last_row = tdata5;
+
+  const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
+  if (unlikely(!all.isclear()))
+  {
+    if (all.get(refToNode(scanptr.p->scanApiBlockref)))
+    {
+      /**
+       * End scan batch if transporter-buffer are overloaded
+       *
+       * TODO: We should have counters for this...
+       */
+      scanptr.p->m_stop_batch = 1;
+    }
+  }
+
   if (scanptr.p->check_scan_batch_completed() | tdata5){
     if (scanptr.p->scanLockHold == ZTRUE) {
       jam();
@@ -11547,6 +11605,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanptr.p->scanTcrec = tcConnectptr.i;
   scanptr.p->scanSchemaVersion = scanFragReq->schemaVersion;
 
+  scanptr.p->m_stop_batch = 0;
   scanptr.p->m_curr_batch_size_rows = 0;
   scanptr.p->m_curr_batch_size_bytes= 0;
   scanptr.p->m_max_batch_size_rows = max_rows;
@@ -11889,6 +11948,12 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
 #endif
   const bool longable = true; // TODO is_api && !old_dest;
 
+  if (isNdbMtLqh())
+  {
+    jam();
+    nodeId = 0; // prevent execute direct
+  }
+
   Uint32 * dst = keyInfo->keyData;
   dst += nodeId == getOwnNodeId() ? 0 : KeyInfo20::DataLength;
 
@@ -11922,11 +11987,6 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
   {
     jam();
     
-    if (isNdbMtLqh() && instance() != refToInstance(ref))
-    {
-      jam();
-      nodeId = 0; // prevent execute direct
-    }
     if (nodeId == getOwnNodeId())
     {
       EXECUTE_DIRECT(refToBlock(ref), GSN_KEYINFO20, signal,
@@ -12033,6 +12093,8 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
     scanptr.p->m_curr_batch_size_rows = 0;
     scanptr.p->m_curr_batch_size_bytes= 0;
   }
+
+  scanptr.p->m_stop_batch = 0;
 }//Dblqh::sendScanFragConf()
 
 /* ######################################################################### */
@@ -15926,6 +15988,7 @@ void Dblqh::initLogpage(Signal* signal)
   logPagePtr.p->logPageWord[ZPOS_VERSION] = NDB_VERSION;
   logPagePtr.p->logPageWord[ZPOS_NO_LOG_FILES] = logPartPtr.p->noLogFiles;
   logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = ZPAGE_HEADER_SIZE;
+  logPagePtr.p->logPageWord[ZPOS_NO_LOG_PARTS]= globalData.ndbLogParts;
   ilpTcConnectptr.i = logPartPtr.p->firstLogTcrec;
   if (ilpTcConnectptr.i != RNIL) {
     jam();
@@ -23366,6 +23429,12 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
+  if (arg == 5050)
+  {
+#ifdef ERROR_INSERT
+    SET_ERROR_INSERT_VALUE2(5050, c_master_node_id);
+#endif
+  }
 }//Dblqh::execDUMP_STATE_ORD()
 
 

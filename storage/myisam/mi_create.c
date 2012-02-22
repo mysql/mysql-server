@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -274,7 +274,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
             keyseg->type != HA_KEYTYPE_VARBINARY2)
         {
           my_errno=HA_WRONG_CREATE_OPTION;
-          goto err;
+          goto err_no_lock;
         }
       }
       keydef->keysegs+=sp_segs;
@@ -283,7 +283,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       min_key_length_skip+=SPLEN*2*SPDIMS;
 #else
       my_errno= HA_ERR_UNSUPPORTED;
-      goto err;
+      goto err_no_lock;
 #endif /*HAVE_SPATIAL*/
     }
     else if (keydef->flag & HA_FULLTEXT)
@@ -299,7 +299,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
             keyseg->type != HA_KEYTYPE_VARTEXT2)
         {
           my_errno=HA_WRONG_CREATE_OPTION;
-          goto err;
+          goto err_no_lock;
         }
         if (!(keyseg->flag & HA_BLOB_PART) &&
 	    (keyseg->type == HA_KEYTYPE_VARTEXT1 ||
@@ -424,7 +424,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     if (keydef->keysegs > MI_MAX_KEY_SEG)
     {
       my_errno=HA_WRONG_CREATE_OPTION;
-      goto err;
+      goto err_no_lock;
     }
     /*
       key_segs may be 0 in the case when we only want to be able to
@@ -449,7 +449,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
         length >= MI_MAX_KEY_BUFF)
     {
       my_errno=HA_WRONG_CREATE_OPTION;
-      goto err;
+      goto err_no_lock;
     }
     set_if_bigger(max_key_block_length,keydef->block_length);
     keydef->keylength= (uint16) key_length;
@@ -496,7 +496,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
                     "indexes and/or unique constraints.",
                     MYF(0), name + dirname_length(name));
     my_errno= HA_WRONG_CREATE_OPTION;
-    goto err;
+    goto err_no_lock;
   }
 
   bmove(share.state.header.file_version,(uchar*) myisam_file_magic,4);
@@ -829,12 +829,14 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   errpos=0;
   pthread_mutex_unlock(&THR_LOCK_myisam);
   if (my_close(file,MYF(0)))
-    goto err;
+    goto err_no_lock;
   my_free((char*) rec_per_key_part,MYF(0));
   DBUG_RETURN(0);
 
 err:
   pthread_mutex_unlock(&THR_LOCK_myisam);
+
+err_no_lock:
   save_errno=my_errno;
   switch (errpos) {
   case 3:

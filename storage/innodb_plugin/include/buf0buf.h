@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,6 +41,8 @@ Created 11/5/1995 Heikki Tuuri
 /* @{ */
 #define BUF_GET			10	/*!< get always */
 #define	BUF_GET_IF_IN_POOL	11	/*!< get if in pool */
+#define BUF_PEEK_IF_IN_POOL	12	/*!< get if in pool, do not make
+					the block young in the LRU list */
 #define BUF_GET_NO_LATCH	14	/*!< get and bufferfix, but
 					set no latch; we have
 					separated this case, because
@@ -118,13 +120,11 @@ buf_pool_free(void);
 /*===============*/
 
 /********************************************************************//**
-Drops the adaptive hash index.  To prevent a livelock, this function
-is only to be called while holding btr_search_latch and while
-btr_search_enabled == FALSE. */
+Clears the adaptive hash index on all pages in the buffer pool. */
 UNIV_INTERN
 void
-buf_pool_drop_hash_index(void);
-/*==========================*/
+buf_pool_clear_hash_index(void);
+/*===========================*/
 
 /********************************************************************//**
 Relocate a buffer control block.  Relocates the block on the LRU list
@@ -139,12 +139,6 @@ buf_relocate(
 				BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE */
 	buf_page_t*	dpage)	/*!< in/out: destination control block */
 	__attribute__((nonnull));
-/********************************************************************//**
-Resizes the buffer pool. */
-UNIV_INTERN
-void
-buf_pool_resize(void);
-/*=================*/
 /*********************************************************************//**
 Gets the current size of buffer buf_pool in bytes.
 @return	size in bytes */
@@ -160,6 +154,23 @@ UNIV_INLINE
 ib_uint64_t
 buf_pool_get_oldest_modification(void);
 /*==================================*/
+/********************************************************************//**
+Allocates a buf_page_t descriptor. This function must succeed. In case
+of failure we assert in this function. */
+UNIV_INLINE
+buf_page_t*
+buf_page_alloc_descriptor(void)
+/*===========================*/
+	__attribute__((malloc));
+/********************************************************************//**
+Free a buf_page_t descriptor. */
+UNIV_INLINE
+void
+buf_page_free_descriptor(
+/*=====================*/
+	buf_page_t*	bpage)	/*!< in: bpage descriptor to free. */
+	__attribute__((nonnull));
+
 /********************************************************************//**
 Allocates a buffer block.
 @return	own: the allocated block, in state BUF_BLOCK_MEMORY */
@@ -284,7 +295,7 @@ buf_page_get_gen(
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/*!< in: guessed block or NULL */
 	ulint		mode,	/*!< in: BUF_GET, BUF_GET_IF_IN_POOL,
-				BUF_GET_NO_LATCH */
+				BUF_PEEK_IF_IN_POOL, BUF_GET_NO_LATCH */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mini-transaction */
@@ -359,15 +370,6 @@ buf_page_peek(
 /*==========*/
 	ulint	space,	/*!< in: space id */
 	ulint	offset);/*!< in: page number */
-/********************************************************************//**
-Resets the check_index_page_at_flush field of a page if found in the buffer
-pool. */
-UNIV_INTERN
-void
-buf_reset_check_index_page_at_flush(
-/*================================*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset);/*!< in: page number */
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 /********************************************************************//**
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
@@ -414,6 +416,18 @@ buf_block_get_freed_page_clock(
 	__attribute__((pure));
 
 /********************************************************************//**
+Tells if a block is still close enough to the MRU end of the LRU list
+meaning that it is not in danger of getting evicted and also implying
+that it has been accessed recently.
+Note that this is for heuristics only and does not reserve buffer pool
+mutex.
+@return	TRUE if block is close to MRU end of LRU */
+UNIV_INLINE
+ibool
+buf_page_peek_if_young(
+/*===================*/
+	const buf_page_t*	bpage);	/*!< in: block */
+/********************************************************************//**
 Recommends a move of a block to the start of the LRU list if there is danger
 of dropping from the buffer pool. NOTE: does not reserve the buffer pool
 mutex.
@@ -423,17 +437,6 @@ ibool
 buf_page_peek_if_too_old(
 /*=====================*/
 	const buf_page_t*	bpage);	/*!< in: block to make younger */
-/********************************************************************//**
-Returns the current state of is_hashed of a page. FALSE if the page is
-not in the pool. NOTE that this operation does not fix the page in the
-pool if it is found there.
-@return	TRUE if page hash index is built in search system */
-UNIV_INTERN
-ibool
-buf_page_peek_if_search_hashed(
-/*===========================*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset);/*!< in: page number */
 /********************************************************************//**
 Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet.
@@ -1226,13 +1229,16 @@ struct buf_block_struct{
 	/* @} */
 
 	/** @name Hash search fields
-	These 6 fields may only be modified when we have
+	These 5 fields may only be modified when we have
 	an x-latch on btr_search_latch AND
 	- we are holding an s-latch or x-latch on buf_block_struct::lock or
 	- we know that buf_block_struct::buf_fix_count == 0.
 
 	An exception to this is when we init or create a page
-	in the buffer pool in buf0buf.c. */
+	in the buffer pool in buf0buf.c.
+
+	Another exception is that assigning block->index = NULL
+	is allowed whenever holding an x-latch on btr_search_latch. */
 
 	/* @{ */
 
@@ -1241,20 +1247,20 @@ struct buf_block_struct{
 					pointers in the adaptive hash index
 					pointing to this frame */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	unsigned	is_hashed:1;	/*!< TRUE if hash index has
-					already been built on this
-					page; note that it does not
-					guarantee that the index is
-					complete, though: there may
-					have been hash collisions,
-					record deletions, etc. */
 	unsigned	curr_n_fields:10;/*!< prefix length for hash indexing:
 					number of full fields */
 	unsigned	curr_n_bytes:15;/*!< number of bytes in hash
 					indexing */
 	unsigned	curr_left_side:1;/*!< TRUE or FALSE in hash indexing */
-	dict_index_t*	index;		/*!< Index for which the adaptive
-					hash index has been created. */
+	dict_index_t*	index;		/*!< Index for which the
+					adaptive hash index has been
+					created, or NULL if the page
+					does not exist in the
+					index. Note that it does not
+					guarantee that the index is
+					complete, though: there may
+					have been hash collisions,
+					record deletions, etc. */
 	/* @} */
 # ifdef UNIV_SYNC_DEBUG
 	/** @name Debug fields */
@@ -1296,6 +1302,8 @@ struct buf_pool_stat_struct{
 	ulint	n_pages_written;/*!< number write operations */
 	ulint	n_pages_created;/*!< number of pages created
 				in the pool with no read */
+	ulint	n_ra_pages_read_rnd;/*!< number of pages read in
+				as part of random read ahead */
 	ulint	n_ra_pages_read;/*!< number of pages read in
 				as part of read ahead */
 	ulint	n_ra_pages_evicted;/*!< number of read ahead
@@ -1419,8 +1427,10 @@ struct buf_pool_struct{
 	frames and buf_page_t descriptors of blocks that exist
 	in the buffer pool only in compressed form. */
 	/* @{ */
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
 					/*!< unmodified compressed pages */
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
 					/*!< buddy free lists */
 #if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE

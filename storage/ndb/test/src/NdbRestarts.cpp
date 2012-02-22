@@ -24,7 +24,7 @@
 #include <NdbEnv.h>
 #include <NDBT_Test.hpp>
 
-#define F_ARGS NDBT_Context* ctx, NdbRestarter& _restarter, const NdbRestarts::NdbRestart* _restart
+#define F_ARGS NDBT_Context* ctx, NdbRestarter& _restarter, const NdbRestarts::NdbRestart* _restart, int
 
 int restartRandomNodeGraceful(F_ARGS);
 int restartRandomNodeAbort(F_ARGS);
@@ -242,7 +242,8 @@ const NdbRestarts::NdbRestart* NdbRestarts::getRestart(const char* _name){
 
 int NdbRestarts::executeRestart(NDBT_Context* ctx,
                                 const NdbRestarts::NdbRestart* _restart,
-				unsigned int _timeout){
+				unsigned int _timeout,
+                                int safety){
   // Check that there are enough nodes in the cluster
   // for this test
   NdbRestarter restarter;
@@ -258,7 +259,7 @@ int NdbRestarts::executeRestart(NDBT_Context* ctx,
     return NDBT_FAILED;
   }
   
-  int res = _restart->m_restartFunc(ctx, restarter, _restart);
+  int res = _restart->m_restartFunc(ctx, restarter, _restart, safety);
 
   // Sleep a little waiting for nodes to react to command
   NdbSleep_SecSleep(2);
@@ -280,23 +281,25 @@ int NdbRestarts::executeRestart(NDBT_Context* ctx,
 
 int NdbRestarts::executeRestart(NDBT_Context* ctx,
                                 int _num,
-				unsigned int _timeout){
+				unsigned int _timeout,
+                                int safety){
   const NdbRestarts::NdbRestart* r = getRestart(_num);
   if (r == NULL)
     return NDBT_FAILED;
 
-  int res = executeRestart(ctx, r, _timeout);
+  int res = executeRestart(ctx, r, _timeout, safety);
   return res;
 }
 
 int NdbRestarts::executeRestart(NDBT_Context* ctx,
                                 const char* _name,
-				unsigned int _timeout){
+				unsigned int _timeout,
+                                int safety){
   const NdbRestarts::NdbRestart* r = getRestart(_name);
   if (r == NULL)
     return NDBT_FAILED;
 
-  int res = executeRestart(ctx, r, _timeout);
+  int res = executeRestart(ctx, r, _timeout, safety);
   return res;
 }
 
@@ -658,12 +661,12 @@ NFDuringNR_codes[] = {
   5002
 };
 
-int restartNFDuringNR(F_ARGS){
+int restartNFDuringNR(F_ARGS safety){
 
   myRandom48Init((long)NdbTick_CurrentMillisecond());
   int i;
   const int sz = sizeof(NFDuringNR_codes)/sizeof(NFDuringNR_codes[0]);
-  for(i = 0; i<sz; i++){
+  for(i = 0; i<sz && !ctx->closeToTimeout(safety); i++){
     int randomId = myRandom48(_restarter.getNumDbNodes());
     int nodeId = _restarter.getDbNodeId(randomId);
     int error = NFDuringNR_codes[i];
@@ -708,7 +711,7 @@ int restartNFDuringNR(F_ARGS){
   if(NdbEnv_GetEnv("USER", buf, 256) == 0 || strcmp(buf, "ejonore") != 0)
     return NDBT_OK;
   
-  for(i = 0; i<sz && !ctx->isTestStopped(); i++){
+  for(i = 0; i<sz && !ctx->isTestStopped() && !ctx->closeToTimeout(safety);i++){
     const int randomId = myRandom48(_restarter.getNumDbNodes());
     int nodeId = _restarter.getDbNodeId(randomId);
     const int error = NFDuringNR_codes[i];
@@ -786,7 +789,7 @@ NRDuringLCP_NonMaster_codes[] = {
   7018  // Crash in !master when changing state to LCP_TAB_SAVED
 };
 
-int restartNodeDuringLCP(F_ARGS) {
+int restartNodeDuringLCP(F_ARGS safety) {
   int i;
   // Master
   int val = DumpStateOrd::DihMinTimeBetweenLCP;
@@ -794,8 +797,8 @@ int restartNodeDuringLCP(F_ARGS) {
 	"Failed to set LCP to min value"); // Set LCP to min val
   int sz = sizeof(NRDuringLCP_Master_codes)/
            sizeof(NRDuringLCP_Master_codes[0]);
-  for(i = 0; i<sz; i++) {
-
+  for(i = 0; i<sz && !ctx->closeToTimeout(safety); i++)
+  {
     int error = NRDuringLCP_Master_codes[i];
     int masterNodeId = _restarter.getMasterNodeId();
 
@@ -832,7 +835,7 @@ int restartNodeDuringLCP(F_ARGS) {
   // NON-Master
   sz = sizeof(NRDuringLCP_NonMaster_codes)/
        sizeof(NRDuringLCP_NonMaster_codes[0]);
-  for(i = 0; i<sz; i++) {
+  for(i = 0; i<sz && !ctx->closeToTimeout(safety) ; i++) {
 
     int error = NRDuringLCP_NonMaster_codes[i];
     int nodeId = getRandomNodeId(_restarter);

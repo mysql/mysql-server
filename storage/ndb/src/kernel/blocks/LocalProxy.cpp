@@ -27,8 +27,6 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   for (i = 0; i < MaxWorkers; i++)
     c_worker[i] = 0;
 
-  c_ssIdSeq = 0;
-
   c_typeOfStart = NodeState::ST_ILLEGAL_TYPE;
   c_masterNodeId = ZNIL;
 

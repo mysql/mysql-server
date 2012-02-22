@@ -450,13 +450,20 @@ int runRestarts(NDBT_Context* ctx, NDBT_Step* step){
   int i = 0;
   int timeout = 240;
 
-  while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
-    
-    if(restarts.executeRestart(ctx, pCase->getName(), timeout) != 0){
+  while (i<loops && result != NDBT_FAILED && !ctx->isTestStopped())
+  {
+    int safety = 0;
+    if (i > 0)
+      safety = 15;
+
+    if (ctx->closeToTimeout(safety))
+      break;
+
+    if(restarts.executeRestart(ctx, pCase->getName(), timeout, safety) != 0){
       g_err << "Failed to executeRestart(" <<pCase->getName() <<")" << endl;
       result = NDBT_FAILED;
       break;
-    }    
+    }
     i++;
   }
   ctx->stopTest();
@@ -2587,6 +2594,9 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
 
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped())
   {
+    if (i > 0 && ctx->closeToTimeout(100 / loops))
+      break;
+
     int id = lastId % restarter.getNumDbNodes();
     int nodeId = restarter.getDbNodeId(id);
     int err = 5048 + ((i+offset) % 2);
@@ -3178,15 +3188,12 @@ loop:
   int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };    
   res.dumpStateOneNode(master, val2, 2);
   res.dumpStateOneNode(victim, val2, 2);
-  
-  for (int i = 0; i<res.getNumDbNodes(); i++)
-  {
-    int nodeId = res.getDbNodeId(i);
-    res.insertErrorInNode(nodeId, 5050);
-  }
-  
+
+  int err5050[] = { 5050 };
+  res.dumpStateAllNodes(err5050, 1);
+
   res.insertErrorInNode(victim, 9999);
-  
+
   int nodes[2];
   nodes[0] = master;
   nodes[1] = victim;
@@ -4875,6 +4882,138 @@ runMasterFailSlowLCP(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug13464664(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  if (res.getNumDbNodes() < 4)
+    return NDBT_OK;
+
+  /**
+   * m = master
+   * o = node in other node-group than next master
+   * p = not master and node o
+   *
+   * o error 7230 - responde to MASTER_LCPREQ quickly and die
+   * p error 7231 - responde slowly to MASTER_LCPREQ
+   * m error 7025 - die during LCP_FRAG_REP
+   * m dump 7099  - force LCP
+   *
+   */
+loop:
+  int m = res.getMasterNodeId();
+  int n = res.getNextMasterNodeId(m);
+  int o = res.getRandomNodeOtherNodeGroup(n, rand());
+  ndbout_c("m: %u n: %u o: %u", m, n, o);
+  if (res.getNodeGroup(o) == res.getNodeGroup(m))
+  {
+    ndbout_c("=> restart n(%u)", n);
+    res.restartOneDbNode(n,
+                         /** initial */ false, 
+                         /** nostart */ true,
+                         /** abort   */ true);
+    res.waitNodesNoStart(&n, 1);
+    res.startNodes(&n, 1);
+    res.waitClusterStarted();
+    goto loop;
+  }
+
+  ndbout_c("search p");
+loop2:
+  int p = res.getNode(NdbRestarter::NS_RANDOM);
+  while (p == n || p == o || p == m)
+    goto loop2;
+  ndbout_c("p: %u\n", p);
+
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  res.dumpStateOneNode(o, val2, 2);
+  res.dumpStateOneNode(m, val2, 2);
+
+  res.insertErrorInNode(o, 7230);
+  res.insertErrorInNode(p, 7231);
+  res.insertErrorInNode(m, 7025);
+  int val1[] = { 7099 };
+  res.dumpStateOneNode(m, val1, 1);
+
+  int list[2] = { m, o };
+  res.waitNodesNoStart(list, 2);
+  res.startNodes(list, 2);
+  res.waitClusterStarted();
+
+  return NDBT_OK;
+}
+
+int master_err[] =
+{
+  7025, // LCP_FRG_REP in DIH
+  5056, // LCP complete rep from LQH
+  7191, // execLCP_COMPLETE_REP in DIH
+  7015, // execSTART_LCP_CONF in DIH
+  0
+};
+
+int other_err[] =
+{
+  7205, // execMASTER_LCPREQ
+  7206, // execEMPTY_LCP_CONF
+  7230, // sendMASTER_LCPCONF and die
+  7232, // Die after sending MASTER_LCPCONF
+  0
+};
+
+int
+runLCPTakeOver(NDBT_Context* ctx, NDBT_Step* step)
+{
+  {
+    NdbRestarter res;
+    if (res.getNumDbNodes() < 4)
+    {
+      ctx->stopTest();
+      return NDBT_OK;
+    }
+  }
+
+  for (int i = 0; master_err[i] != 0; i++)
+  {
+    int errno1 = master_err[i];
+    for (int j = 0; other_err[j] != 0; j++)
+    {
+      int errno2 = other_err[j];
+
+      /**
+       * we want to kill master,
+       *   and kill another node during LCP take-ove (not new master)
+       */
+      NdbRestarter res;
+      int master = res.getMasterNodeId();
+      int next = res.getNextMasterNodeId(master);
+  loop:
+      int victim = res.getRandomNodeOtherNodeGroup(master, rand());
+      while (next == victim)
+        goto loop;
+
+      ndbout_c("master: %u next: %u victim: %u master-err: %u victim-err: %u",
+               master, next, victim, errno1, errno2);
+
+      int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+      res.dumpStateOneNode(master, val2, 2);
+      res.dumpStateOneNode(victim, val2, 2);
+      res.insertErrorInNode(next, 7233);
+      res.insertErrorInNode(victim, errno2);
+      res.insertErrorInNode(master, errno1);
+
+      int val1[] = { 7099 };
+      res.dumpStateOneNode(master, val1, 1);
+      int list[] = { master, victim };
+      res.waitNodesNoStart(list, 2);
+      res.startNodes(list, 2);
+      res.waitClusterStarted();
+    }
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -5424,6 +5563,19 @@ TESTCASE("ClusterSplitLatency",
   INITIALIZER(analyseDynamicOrder);
   INITIALIZER(runSplitLatency25PctFail);
 }
+TESTCASE("Bug13464664", "")
+{
+  INITIALIZER(runBug13464664);
+}
+TESTCASE("LCPTakeOver", "")
+{
+  INITIALIZER(runCheckAllNodesStarted);
+  INITIALIZER(runLoadTable);
+  STEP(runLCPTakeOver);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runScanUpdateUntilStopped);
+}
+
 NDBT_TESTSUITE_END(testNodeRestart);
 
 int main(int argc, const char** argv){

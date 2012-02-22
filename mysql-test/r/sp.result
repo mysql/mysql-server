@@ -7053,6 +7053,40 @@ init_connect
 SET @@GLOBAL.init_connect= @old_init_connect;
 DROP PROCEDURE p2;
 DROP PROCEDURE p5;
+#
+# Bug#11840395 (formerly known as bug#60347):
+# The string "versiondata" seems
+# to be 'leaking' into the schema name space
+#
+DROP DATABASE IF EXISTS mixedCaseDbName;
+CREATE DATABASE mixedCaseDbName;
+CREATE PROCEDURE mixedCaseDbName.tryMyProc() begin end|
+CREATE FUNCTION mixedCaseDbName.tryMyFunc() returns text begin return 'IT WORKS'; end
+|
+call mixedCaseDbName.tryMyProc();
+select mixedCaseDbName.tryMyFunc();
+mixedCaseDbName.tryMyFunc()
+IT WORKS
+DROP DATABASE mixedCaseDbName;
+#
+# Bug#11766594  59736: SELECT DISTINCT.. INCORRECT RESULT WITH DETERMINISTIC FUNCTION IN WHERE C
+#
+CREATE TABLE t1 (a INT, b INT, KEY(b));
+CREATE TABLE t2 (c INT, d INT, KEY(c));
+INSERT INTO t1 VALUES (1,1),(1,1),(1,2);
+INSERT INTO t2 VALUES (1,1),(1,2);
+CREATE FUNCTION f1() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE a int;
+-- SQL statement inside
+SELECT 1 INTO a;
+RETURN a;
+END $
+SELECT COUNT(DISTINCT d) FROM t1, t2  WHERE a = c AND b = f1();
+COUNT(DISTINCT d)
+2
+DROP FUNCTION f1;
+DROP TABLE t1, t2;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------

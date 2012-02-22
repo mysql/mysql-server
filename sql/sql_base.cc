@@ -97,6 +97,13 @@ static TABLE_SHARE *oldest_unused_share, end_of_unused_share;
 static pthread_mutex_t LOCK_table_share;
 static bool table_def_inited= 0;
 
+/**
+  Dummy TABLE instance which is used in reopen_tables() and reattach_merge()
+  functions to mark MERGE tables and their children with which there is some
+  kind of problem and which therefore we need to close.
+*/
+static TABLE bad_merge_marker;
+
 static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
 			     const char *alias,
                              char *cache_key, uint cache_key_length,
@@ -2804,10 +2811,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                  ("Found table '%s.%s' with different refresh version",
                   table_list->db, table_list->table_name));
 
-      /* Ignore FLUSH, but not name locks! */
+      /* Ignore FLUSH and pending name locks, but not acquired name locks! */
       if (flags & MYSQL_LOCK_IGNORE_FLUSH && !table->open_placeholder)
       {
-        DBUG_ASSERT(table->db_stat);
         /* Force close at once after usage */
         thd->version= table->s->version;
         continue;
@@ -3222,46 +3228,65 @@ void close_data_files_and_morph_locks(THD *thd, const char *db,
 
 
 /**
+  @brief Mark merge parent and children with bad_merge_marker
+
+  @param[in,out]  parent       the TABLE object of the parent
+*/
+
+static void mark_merge_parent_and_children_as_bad(TABLE *parent)
+{
+  TABLE_LIST *child_l;
+  DBUG_ENTER("mark_merge_parent_and_children_as_bad");
+  parent->parent= &bad_merge_marker;
+  for (child_l= parent->child_l; ; child_l= child_l->next_global)
+  {
+    child_l->table->parent= &bad_merge_marker;
+    child_l->table= NULL;
+    if (&child_l->next_global == parent->child_last_l)
+      break;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/**
   Reattach MERGE children after reopen.
 
   @param[in]     thd            thread context
-  @param[in,out] err_tables_p   pointer to pointer of tables in error
+
+  @note If reattach failed for certain MERGE table, the table (and all
+        it's children) are marked with bad_merge_marker.
 
   @return       status
-    @retval     FALSE           OK, err_tables_p unchanged
-    @retval     TRUE            Error, err_tables_p contains table(s)
+    @retval     FALSE           OK
+    @retval     TRUE            Error
 */
 
-static bool reattach_merge(THD *thd, TABLE **err_tables_p)
+static bool reattach_merge(THD *thd)
 {
   TABLE *table;
-  TABLE *next;
-  TABLE **prv_p= &thd->open_tables;
   bool error= FALSE;
   DBUG_ENTER("reattach_merge");
 
-  for (table= thd->open_tables; table; table= next)
+  for (table= thd->open_tables; table; table= table->next)
   {
-    next= table->next;
-    DBUG_PRINT("tcache", ("check table: '%s'.'%s' 0x%lx  next: 0x%lx",
+    DBUG_PRINT("tcache", ("check table: '%s'.'%s' 0x%lx",
                           table->s->db.str, table->s->table_name.str,
-                          (long) table, (long) next));
-    /* Reattach children for MERGE tables with "closed data files" only. */
-    if (table->child_l && !table->children_attached)
+                          (long) table));
+    /*
+      Reattach children only for MERGE tables that had children or parent
+      with "closed data files" and were reopen. For extra safety skip MERGE
+      tables which we failed to reopen (should not happen with current code).
+    */
+    if (table->child_l && table->parent != &bad_merge_marker &&
+        !table->children_attached)
     {
       DBUG_PRINT("tcache", ("MERGE parent, attach children"));
-      if(table->file->extra(HA_EXTRA_ATTACH_CHILDREN))
+      if (table->file->extra(HA_EXTRA_ATTACH_CHILDREN))
       {
         my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
         error= TRUE;
-        /* Remove table from open_tables. */
-        *prv_p= next;
-        if (next)
-          prv_p= &next->next;
-        /* Stack table on error list. */
-        table->next= *err_tables_p;
-        *err_tables_p= table;
-        continue;
+        mark_merge_parent_and_children_as_bad(table);
       }
       else
       {
@@ -3271,7 +3296,6 @@ static bool reattach_merge(THD *thd, TABLE **err_tables_p)
                             table->s->table_name.str, (long) table));
       }
     }
-    prv_p= &table->next;
   }
   DBUG_RETURN(error);
 }
@@ -3301,7 +3325,6 @@ bool reopen_tables(THD *thd, bool get_locks, bool mark_share_as_old)
 {
   TABLE *table,*next,**prev;
   TABLE **tables,**tables_ptr;			// For locks
-  TABLE *err_tables= NULL;
   bool error=0, not_used;
   bool merge_table_found= FALSE;
   const uint flags= MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN |
@@ -3335,29 +3358,69 @@ bool reopen_tables(THD *thd, bool get_locks, bool mark_share_as_old)
   for (table=thd->open_tables; table ; table=next)
   {
     uint db_stat=table->db_stat;
+    TABLE *parent= table->child_l ? table : table->parent;
     next=table->next;
     DBUG_PRINT("tcache", ("open table: '%s'.'%s' 0x%lx  "
                           "parent: 0x%lx  db_stat: %u",
                           table->s->db.str, table->s->table_name.str,
                           (long) table, (long) table->parent, db_stat));
-    if (table->child_l && !db_stat)
+    /*
+      If we need to reopen child or parent table in a MERGE table, then
+      children in this MERGE table has to be already detached at this
+      point.
+    */
+    DBUG_ASSERT(db_stat || !parent || !parent->children_attached);
+    /*
+      Thanks to the above assumption the below condition will guarantee that
+      merge_table_found is TRUE when we need to reopen child or parent table.
+      Note that it works even in situation when it is only a child and not a
+      parent that needs reopen (this can happen when get_locks == FALSE).
+    */
+    if (table->child_l && !table->children_attached)
       merge_table_found= TRUE;
-    if (!tables || (!db_stat && reopen_table(table)))
+
+    if (!tables)
     {
-      my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
       /*
-        If we could not allocate 'tables', we may close open tables
-        here. If a MERGE table is affected, detach the children first.
-        It is not necessary to clear the child or parent table reference
-        of this table because the TABLE is freed. But we need to clear
-        the child or parent references of the other belonging tables so
-        that they cannot be moved into the unused_tables chain with
-        these pointers set.
+        If we could not allocate 'tables' we close ALL open tables here.
+        Before closing MERGE child or parent we need to detach children
+        and/or clear references in/to them.
       */
-      if (table->child_l || table->parent)
+      if (parent)
         detach_merge_children(table, TRUE);
-      VOID(hash_delete(&open_cache,(uchar*) table));
-      error=1;
+    }
+    else if (table->parent == &bad_merge_marker)
+    {
+      /*
+        This is either a child or a parent of a MERGE table for which
+        we already decided that we are unable to reopen it. Close it.
+
+        Reset parent reference, it may be used while freeing the table.
+      */
+      table->parent= NULL;
+    }
+    else if (!db_stat && reopen_table(table))
+    {
+      /*
+        If we fail to reopen a child or a parent in a MERGE table and the
+        MERGE table is affected for the first time, mark all relevant tables
+        invalid. Otherwise handle it as usual.
+
+        All in all we must end up with:
+        - child tables are detached from parent. This was done earlier,
+          but child<->parent references were kept valid for reopen.
+        - parent is not in the to-be-locked tables
+        - all child tables and parent are not in the THD::open_tables.
+        - all child tables and parent are not in the open_cache.
+
+        Please note that below we do additional pass through THD::open_tables
+        list to achieve the last three points.
+      */
+      if (parent)
+      {
+        mark_merge_parent_and_children_as_bad(parent);
+        table->parent= NULL;
+      }
     }
     else
     {
@@ -3373,21 +3436,56 @@ bool reopen_tables(THD *thd, bool get_locks, bool mark_share_as_old)
 	table->s->version=0;
 	table->open_placeholder= 0;
       }
+      continue;
     }
+    my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
+    VOID(hash_delete(&open_cache, (uchar *) table));
+    error= 1;
   }
   *prev=0;
   /*
     When all tables are open again, we can re-attach MERGE children to
-    their parents. All TABLE objects are still present.
+    their parents.
+
+    If there was an error while reopening a child or a parent of a MERGE
+    table, or while reattaching child tables to their parents, some tables
+    may have been kept open but marked for close with bad_merge_marker.
+    Close these tables now.
   */
-  DBUG_PRINT("tcache", ("re-attaching MERGE tables: %d", merge_table_found));
-  if (!error && merge_table_found && reattach_merge(thd, &err_tables))
+  if (tables && merge_table_found && (error|= reattach_merge(thd)))
   {
-    while (err_tables)
+    prev= &thd->open_tables;
+    for (table= thd->open_tables; table; table= next)
     {
-      VOID(hash_delete(&open_cache, (uchar*) err_tables));
-      err_tables= err_tables->next;
+      next= table->next;
+      if (table->parent == &bad_merge_marker)
+      {
+        /* Remove merge parent from to-be-locked tables array. */
+        if (get_locks && table->child_l)
+        {
+          TABLE **t;
+          for (t= tables; t < tables_ptr; t++)
+          {
+            if (*t == table)
+            {
+              tables_ptr--;
+              memmove(t, t + 1, (tables_ptr - t) * sizeof(TABLE *));
+              break;
+            }
+          }
+        }
+        /* Reset parent reference, it may be used while freeing the table. */
+        table->parent= NULL;
+        /* Free table. */
+        VOID(hash_delete(&open_cache, (uchar *) table));
+      }
+      else
+      {
+        *prev= table;
+        prev= &table->next;
+      }
     }
+    *prev= 0;
   }
   DBUG_PRINT("tcache", ("open tables to lock: %u",
                         (uint) (tables_ptr - tables)));
@@ -4015,7 +4113,7 @@ retry:
      {
        /* Give right error message */
        thd->clear_error();
-       my_error(ER_NOT_KEYFILE, MYF(0), share->table_name.str, my_errno);
+       my_error(ER_NOT_KEYFILE, MYF(0), share->table_name.str);
        sql_print_error("Couldn't repair table: %s.%s", share->db.str,
                        share->table_name.str);
        if (entry->file)
@@ -7597,7 +7695,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
-    thd->used_tables|= item->used_tables();
+    thd->lex->used_tables|= item->used_tables();
     thd->lex->current_select->cur_pos_in_select_list++;
   }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
@@ -7707,7 +7805,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
   }
   if (tablenr > MAX_TABLES)
   {
-    my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES);
+    my_error(ER_TOO_MANY_TABLES, MYF(0), static_cast<int>(MAX_TABLES));
     DBUG_RETURN(1);
   }
   for (table_list= tables;
@@ -7944,7 +8042,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       views and natural joins this update is performed inside the loop below.
     */
     if (table)
-      thd->used_tables|= table->map;
+      thd->lex->used_tables|= table->map;
 
     /*
       Initialize a generic field iterator for the current table reference.
@@ -8029,7 +8127,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           field_table= nj_col->table_ref->table;
           if (field_table)
           {
-            thd->used_tables|= field_table->map;
+            thd->lex->used_tables|= field_table->map;
             field_table->covering_keys.intersect(field->part_of_key);
             field_table->merge_keys.merge(field->part_of_key);
             field_table->used_fields++;
@@ -8037,7 +8135,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         }
       }
       else
-        thd->used_tables|= item->used_tables();
+        thd->lex->used_tables|= item->used_tables();
       thd->lex->current_select->cur_pos_in_select_list++;
     }
     /*
