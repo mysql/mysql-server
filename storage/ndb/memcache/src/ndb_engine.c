@@ -265,7 +265,7 @@ static void ndb_destroy(ENGINE_HANDLE* handle, bool force)
   struct ndb_engine* ndb_eng = ndb_handle(handle);
   struct default_engine *def_eng = default_handle(ndb_eng);
 
-  for(int i = 0 ; i < ndb_eng->npipelines; i ++) {
+  for(unsigned i = 0 ; i < ndb_eng->npipelines; i ++) {
     void *p = ndb_eng->schedulers[i];
     if(p) {
       shutdown_scheduler(p);
