@@ -23,6 +23,11 @@
   the file descriptior.
 */
 
+#ifdef __WIN__
+  #include <winsock2.h>
+  #include <MSWSock.h>
+  #pragma comment(lib, "ws2_32.lib")
+#endif
 #include "vio_priv.h"
 
 #ifdef FIONREAD_IN_SYS_FILIO
@@ -277,6 +282,37 @@ vio_was_interrupted(Vio *vio __attribute__((unused)))
 }
 
 
+int
+mysql_socket_shutdown(my_socket mysql_socket, int how)
+{
+  int result;
+
+#ifdef __WIN__
+  static LPFN_DISCONNECTEX DisconnectEx = NULL;
+  if (DisconnectEx == NULL)
+  {
+    DWORD dwBytesReturned;
+    GUID guidDisconnectEx = WSAID_DISCONNECTEX;
+    WSAIoctl(mysql_socket, SIO_GET_EXTENSION_FUNCTION_POINTER,
+             &guidDisconnectEx, sizeof(GUID),
+             &DisconnectEx, sizeof(DisconnectEx), 
+             &dwBytesReturned, NULL, NULL);
+  }
+#endif
+
+  /* Non instrumented code */
+#ifdef __WIN__
+  if (DisconnectEx)
+    result= (DisconnectEx(mysql_socket, (LPOVERLAPPED) NULL,
+                          (DWORD) 0, (DWORD) 0) == TRUE) ? 0 : -1;
+  else
+#endif
+    result= shutdown(mysql_socket, how);
+
+  return result;
+}
+
+
 int vio_close(Vio * vio)
 {
   int r=0;
@@ -289,7 +325,7 @@ int vio_close(Vio * vio)
       vio->type == VIO_TYPE_SSL);
 
     DBUG_ASSERT(vio->sd >= 0);
-    if (shutdown(vio->sd, SHUT_RDWR))
+    if (mysql_socket_shutdown(vio->sd, SHUT_RDWR))
       r= -1;
     if (closesocket(vio->sd))
       r= -1;
