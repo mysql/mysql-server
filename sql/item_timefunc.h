@@ -385,11 +385,6 @@ public:
   Item_func_unix_timestamp(Item *a) :Item_func_seconds_hybrid(a) {}
   const char *func_name() const { return "unix_timestamp"; }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  void fix_num_length_and_dec()
-  {
-    maybe_null= false;
-    Item_func_seconds_hybrid::fix_num_length_and_dec();
-  }
   /*
     UNIX_TIMESTAMP() depends on the current timezone
     (and thus may not be used as a partitioning function)

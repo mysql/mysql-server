@@ -1553,6 +1553,8 @@ public:
   {}
 };
 
+extern "C" enum icp_result handler_index_cond_check(void* h_arg);
+
 uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 /*
   bitmap with first N+1 bits set
@@ -2632,6 +2634,8 @@ public:
   { return ht; }
   inline int ha_write_tmp_row(uchar *buf);
   inline int ha_update_tmp_row(const uchar * old_data, uchar * new_data);
+
+  friend enum icp_result handler_index_cond_check(void* h_arg);
 };
 
 #include "multi_range_read.h"

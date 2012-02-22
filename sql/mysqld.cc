@@ -117,9 +117,6 @@ extern "C" {					// Because of SCO 3.2V4.2
 
 #ifdef __WIN__ 
 #include <crtdbg.h>
-#define SIGNAL_FMT "exception 0x%x"
-#else
-#define SIGNAL_FMT "signal %d"
 #endif
 
 #ifdef __NETWARE__
@@ -263,7 +260,7 @@ inline void setup_fpu()
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
-extern "C" sig_handler handle_segfault(int sig);
+extern "C" sig_handler handle_fatal_signal(int sig);
 
 #if defined(__linux__)
 #define ENABLE_TEMP_POOL 1
@@ -460,6 +457,10 @@ TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
 
 /* static variables */
 
+#ifdef HAVE_NPTL
+volatile sig_atomic_t ld_assume_kernel_is_set= 0;
+#endif
+
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
 static bool max_long_data_size_used= false;
@@ -467,7 +468,7 @@ static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
-static my_bool opt_ignore_wrong_options= 0, opt_expect_abort= 0;
+static my_bool opt_ignore_wrong_options= 0;
 static my_bool opt_sync= 0, opt_thread_alarm;
 /*
   Set this to 1 if you want to that 'strict mode' should affect all date
@@ -475,11 +476,10 @@ static my_bool opt_sync= 0, opt_thread_alarm;
   dates into a table.
 */
 my_bool strict_date_checking= 0;
-
 static uint kill_cached_threads, wake_thread;
 ulong thread_created;
 uint thread_handling;
-static ulong max_used_connections;
+ulong max_used_connections;
 static ulong my_bind_addr;			/**< the address we bind to */
 static volatile ulong cached_thread_count= 0;
 static const char *sql_mode_str= "OFF";
@@ -640,7 +640,7 @@ TYPELIB binlog_format_typelib=
 ulong opt_binlog_format_id= (ulong) BINLOG_FORMAT_UNSPEC;
 const char *opt_binlog_format= binlog_format_names[opt_binlog_format_id];
 #ifdef HAVE_INITGROUPS
-static bool calling_initgroups= FALSE; /**< Used in SIGSEGV handler. */
+volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
 #endif
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint mysqld_extra_port;
@@ -831,8 +831,11 @@ char *opt_logname, *opt_slow_logname;
 
 /* Static variables */
 
-static bool kill_in_progress, segfaulted;
-static my_bool opt_stack_trace;
+static volatile sig_atomic_t kill_in_progress;
+#ifdef HAVE_STACKTRACE
+my_bool opt_stack_trace;
+#endif /* HAVE_STACKTRACE */
+my_bool opt_expect_abort= 0;
 static my_bool opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag, opt_myisam_block_size;
@@ -943,7 +946,6 @@ pthread_handler_t signal_hand(void *arg);
 static int mysql_init_variables(void);
 static int get_options(int *argc,char **argv);
 extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
-static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
 static int fix_paths(void);
@@ -1590,7 +1592,6 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_delayed_insert);
   (void) pthread_mutex_destroy(&LOCK_delayed_status);
   (void) pthread_mutex_destroy(&LOCK_delayed_create);
-  (void) pthread_mutex_destroy(&LOCK_manager);
   (void) pthread_mutex_destroy(&LOCK_crypt);
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
@@ -1631,7 +1632,6 @@ static void clean_up_mutexes()
   (void) pthread_cond_destroy(&COND_global_read_lock);
   (void) pthread_cond_destroy(&COND_thread_cache);
   (void) pthread_cond_destroy(&COND_flush_thread_cache);
-  (void) pthread_cond_destroy(&COND_manager);
   DBUG_VOID_RETURN;
 }
 
@@ -1782,9 +1782,9 @@ static void set_user(const char *user, struct passwd *user_info_arg)
     calling_initgroups as a flag to the SIGSEGV handler that is then used to
     output a specific message to help the user resolve this problem.
   */
-  calling_initgroups= TRUE;
+  calling_initgroups= 1;
   initgroups((char*) user, user_info_arg->pw_gid);
-  calling_initgroups= FALSE;
+  calling_initgroups= 0;
 #endif
   if (setgid(user_info_arg->pw_gid) == -1)
   {
@@ -2351,7 +2351,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
   __try
   {
     my_set_exception_pointers(ex_pointers);
-    handle_segfault(ex_pointers->ExceptionRecord->ExceptionCode);
+    handle_fatal_signal(ex_pointers->ExceptionRecord->ExceptionCode);
   }
   __except(EXCEPTION_EXECUTE_HANDLER)
   {
@@ -2662,195 +2662,6 @@ extern "C" char *my_demangle(const char *mangled_name, int *status)
 #endif
 
 
-extern "C" sig_handler handle_segfault(int sig)
-{
-  time_t curr_time;
-  struct tm tm;
-#ifdef HAVE_STACKTRACE
-  THD *thd=current_thd;
-#endif
-
-  /*
-    Strictly speaking, one needs a mutex here
-    but since we have got SIGSEGV already, things are a mess
-    so not having the mutex is not as bad as possibly using a buggy
-    mutex - so we keep things simple
-  */
-  if (segfaulted)
-  {
-    fprintf(stderr, "Fatal " SIGNAL_FMT " while backtracing\n", sig);
-    exit(1);
-  }
-
-  segfaulted = 1;
-
-  curr_time= my_time(0);
-  localtime_r(&curr_time, &tm);
-
-  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d ",
-          tm.tm_year % 100, tm.tm_mon+1, tm.tm_mday,
-          tm.tm_hour, tm.tm_min, tm.tm_sec);
-  if (opt_expect_abort && sig == SIGABRT)
-  {
-    fprintf(stderr,"[Note] mysqld did an expected abort\n");
-    goto end;
-  }
-
-  fprintf(stderr,"[ERROR] mysqld got " SIGNAL_FMT " ;\n\
-This could be because you hit a bug. It is also possible that this binary\n\
-or one of the libraries it was linked against is corrupt, improperly built,\n\
-or misconfigured. This error can also be caused by malfunctioning hardware.\n",
-	  sig);
-  fprintf(stderr, "\
-We will try our best to scrape up some info that will hopefully help diagnose\n\
-the problem, but since we have already crashed, something is definitely wrong\n\
-and this may fail.\n\n");
-  set_server_version();
-  fprintf(stderr, "Server version: %s\n", server_version);
-  fprintf(stderr, "key_buffer_size=%lu\n",
-          (ulong) dflt_key_cache->key_cache_mem_size);
-  fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
-  fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
-  fprintf(stderr, "max_threads=%u\n", thread_scheduler.max_threads +
-          (uint) extra_max_connections);
-  fprintf(stderr, "threads_connected=%u\n", thread_count);
-  fprintf(stderr, "It is possible that mysqld could use up to \n\
-key_buffer_size + (read_buffer_size + sort_buffer_size)*max_threads = %lu K\n\
-bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
-		     (global_system_variables.read_buff_size +
-		      global_system_variables.sortbuff_size) *
-		     (thread_scheduler.max_threads + extra_max_connections) +
-                     (max_connections + extra_max_connections)* sizeof(THD))
-          / 1024);
-  fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
-
-#if defined(HAVE_LINUXTHREADS)
-  if (sizeof(char*) == 4 && thread_count > UNSAFE_DEFAULT_LINUX_THREADS)
-  {
-    fprintf(stderr, "\
-You seem to be running 32-bit Linux and have %d concurrent connections.\n\
-If you have not changed STACK_SIZE in LinuxThreads and built the binary \n\
-yourself, LinuxThreads is quite likely to steal a part of the global heap for\n\
-the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
-	    thread_count);
-  }
-#endif /* HAVE_LINUXTHREADS */
-
-#ifdef HAVE_STACKTRACE
-
-  if (opt_stack_trace)
-  {
-    fprintf(stderr, "Thread pointer: 0x%lx\n", (long) thd);
-    fprintf(stderr, "Attempting backtrace. You can use the following "
-                    "information to find out\nwhere mysqld died. If "
-                    "you see no messages after this, something went\n"
-                    "terribly wrong...\n");
-    my_print_stacktrace(thd ? (uchar*) thd->thread_stack : NULL,
-                        my_thread_stack_size);
-  }
-  if (thd)
-  {
-    const char *kreason= "UNKNOWN";
-    switch (thd->killed) {
-    case NOT_KILLED:
-    case KILL_HARD_BIT:
-      kreason= "NOT_KILLED";
-      break;
-    case KILL_BAD_DATA:
-    case KILL_BAD_DATA_HARD:
-      kreason= "KILL_BAD_DATA";
-      break;
-    case KILL_CONNECTION:
-    case KILL_CONNECTION_HARD:
-      kreason= "KILL_CONNECTION";
-      break;
-    case KILL_QUERY:
-    case KILL_QUERY_HARD:
-      kreason= "KILL_QUERY";
-      break;
-    case KILL_SYSTEM_THREAD:
-    case KILL_SYSTEM_THREAD_HARD:
-      kreason= "KILL_SYSTEM_THREAD";
-      break;
-    case KILL_SERVER:
-    case KILL_SERVER_HARD:
-      kreason= "KILL_SERVER";
-      break;
-    }
-    fprintf(stderr, "\nTrying to get some variables.\n"
-                    "Some pointers may be invalid and cause the dump to abort.\n");
-    fprintf(stderr, "Query (%p): ", thd->query());
-    my_safe_print_str(thd->query(), min(65536,thd->query_length()));
-    fprintf(stderr, "Connection ID (thread ID): %lu\n", (ulong) thd->thread_id);
-    fprintf(stderr, "Status: %s\n", kreason);
-    fprintf(stderr, "Optimizer switch: ");
-    ulonglong optsw= thd->variables.optimizer_switch;
-    for (uint i= 0; optimizer_switch_names[i+1]; i++, optsw >>= 1)
-    {
-      if (i)
-        fputc(',', stderr);
-      fprintf(stderr, "%s=%s",
-        optimizer_switch_names[i], optsw & 1 ? "on" : "off");
-    }
-    fprintf(stderr, "\n\n");
-  }
-  fprintf(stderr, "\
-The manual page at http://dev.mysql.com/doc/mysql/en/crashing.html contains\n\
-information that should help you find out what is causing the crash.\n");
-  fflush(stderr);
-#endif /* HAVE_STACKTRACE */
-
-#ifdef HAVE_INITGROUPS
-  if (calling_initgroups)
-    fprintf(stderr, "\n\
-This crash occured while the server was calling initgroups(). This is\n\
-often due to the use of a mysqld that is statically linked against glibc\n\
-and configured to use LDAP in /etc/nsswitch.conf. You will need to either\n\
-upgrade to a version of glibc that does not have this problem (2.3.4 or\n\
-later when used with nscd), disable LDAP in your nsswitch.conf, or use a\n\
-mysqld that is not statically linked.\n");
-#endif
-
-#ifdef HAVE_NPTL
-  if (thd_lib_detected == THD_LIB_LT && !getenv("LD_ASSUME_KERNEL"))
-    fprintf(stderr,"\n\
-You are running a statically-linked LinuxThreads binary on an NPTL system.\n\
-This can result in crashes on some distributions due to LT/NPTL conflicts.\n\
-You should either build a dynamically-linked binary, or force LinuxThreads\n\
-to be used with the LD_ASSUME_KERNEL environment variable. Please consult\n\
-the documentation for your distribution on how to do that.\n");
-#endif
-
-  if (locked_in_memory)
-  {
-    fprintf(stderr, "\n\
-The \"--memlock\" argument, which was enabled, uses system calls that are\n\
-unreliable and unstable on some operating systems and operating-system\n\
-versions (notably, some versions of Linux).  This crash could be due to use\n\
-of those buggy OS calls.  You should consider whether you really need the\n\
-\"--memlock\" parameter and/or consult the OS distributer about \"mlockall\"\n\
-bugs.\n");
-  }
-
-#ifdef HAVE_WRITE_CORE
-  if (test_flags & TEST_CORE_ON_SIGNAL)
-  {
-    fprintf(stderr, "Writing a core file\n");
-    fflush(stderr);
-    my_write_core(sig);
-  }
-#endif
-
-end:
-#ifndef __WIN__
-  /* Terminate */
-  exit(1);
-#else
-  /* On Windows, do not terminate, but pass control to exception filter */
-  ;
-#endif
-}
-
 #if !defined(__WIN__) && !defined(__NETWARE__)
 #ifndef SA_RESETHAND
 #define SA_RESETHAND 0
@@ -2879,9 +2690,9 @@ static void init_signals(void)
     my_init_stacktrace();
 #endif
 #if defined(__amiga__)
-    sa.sa_handler=(void(*)())handle_segfault;
+    sa.sa_handler=(void(*)())handle_fatal_signal;
 #else
-    sa.sa_handler=handle_segfault;
+    sa.sa_handler=handle_fatal_signal;
 #endif
     sigaction(SIGSEGV, &sa, NULL);
     sigaction(SIGABRT, &sa, NULL);
@@ -3889,7 +3700,6 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_delayed_insert,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_delayed_status,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_delayed_create,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_manager,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_crypt,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
@@ -3929,7 +3739,6 @@ static int init_thread_environment()
   (void) pthread_cond_init(&COND_global_read_lock,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
-  (void) pthread_cond_init(&COND_manager,NULL);
 #ifdef HAVE_REPLICATION
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_rpl_status, NULL);
@@ -4678,6 +4487,10 @@ int win_main(int argc, char **argv)
 int main(int argc, char **argv)
 #endif
 {
+#ifdef HAVE_NPTL
+  ld_assume_kernel_is_set= (getenv("LD_ASSUME_KERNEL") != 0);
+#endif
+
   MY_INIT(argv[0]);		// init my_sys library & pthreads
   /* nothing should come before this line ^^^ */
 
@@ -8290,6 +8103,14 @@ SHOW_VAR status_vars[]= {
   {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
   {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
   {"Handler_discover",         (char*) offsetof(STATUS_VAR, ha_discover_count), SHOW_LONG_STATUS},
+
+  {"Handler_icp_attempts ",    (char*) offsetof(STATUS_VAR, ha_icp_attempts), SHOW_LONG_STATUS},
+  {"Handler_icp_match",        (char*) offsetof(STATUS_VAR, ha_icp_match), SHOW_LONG_STATUS},
+
+  {"Handler_mrr_init",         (char*) offsetof(STATUS_VAR, ha_mrr_init_count),  SHOW_LONG_STATUS},
+  {"Handler_mrr_key_refills",   (char*) offsetof(STATUS_VAR, ha_mrr_key_refills_count), SHOW_LONG_STATUS},
+  {"Handler_mrr_rowid_refills", (char*) offsetof(STATUS_VAR, ha_mrr_rowid_refills_count), SHOW_LONG_STATUS},
+
   {"Handler_prepare",          (char*) offsetof(STATUS_VAR, ha_prepare_count),  SHOW_LONG_STATUS},
   {"Handler_read_first",       (char*) offsetof(STATUS_VAR, ha_read_first_count), SHOW_LONG_STATUS},
   {"Handler_read_key",         (char*) offsetof(STATUS_VAR, ha_read_key_count), SHOW_LONG_STATUS},
@@ -8301,10 +8122,10 @@ SHOW_VAR status_vars[]= {
   {"Handler_rollback",         (char*) offsetof(STATUS_VAR, ha_rollback_count), SHOW_LONG_STATUS},
   {"Handler_savepoint",        (char*) offsetof(STATUS_VAR, ha_savepoint_count), SHOW_LONG_STATUS},
   {"Handler_savepoint_rollback",(char*) offsetof(STATUS_VAR, ha_savepoint_rollback_count), SHOW_LONG_STATUS},
-  {"Handler_update",           (char*) offsetof(STATUS_VAR, ha_update_count), SHOW_LONG_STATUS},
-  {"Handler_write",            (char*) offsetof(STATUS_VAR, ha_write_count), SHOW_LONG_STATUS},
   {"Handler_tmp_update",       (char*) offsetof(STATUS_VAR, ha_tmp_update_count), SHOW_LONG_STATUS},
   {"Handler_tmp_write",        (char*) offsetof(STATUS_VAR, ha_tmp_write_count), SHOW_LONG_STATUS},
+  {"Handler_update",           (char*) offsetof(STATUS_VAR, ha_update_count), SHOW_LONG_STATUS},
+  {"Handler_write",            (char*) offsetof(STATUS_VAR, ha_write_count), SHOW_LONG_STATUS},
   {"Key",                      (char*) &show_default_keycache, SHOW_FUNC},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
@@ -8510,7 +8331,7 @@ static int mysql_init_variables(void)
   opt_secure_file_priv= 0;
   opt_bootstrap= opt_myisam_log= 0;
   mqh_used= 0;
-  segfaulted= kill_in_progress= 0;
+  kill_in_progress= 0;
   cleanup_done= 0;
   defaults_argc= 0;
   defaults_argv= 0;
@@ -9684,7 +9505,7 @@ static int get_options(int *argc,char **argv)
   (MYSQL_SERVER_SUFFIX is set by the compilation environment)
 */
 
-static void set_server_version(void)
+void set_server_version(void)
 {
   char *end= strxmov(server_version, MYSQL_SERVER_VERSION,
                      MYSQL_SERVER_SUFFIX_STR, NullS);

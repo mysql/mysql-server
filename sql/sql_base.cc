@@ -1707,11 +1707,12 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
   t_name= table->table_name;
   t_alias= table->alias;
 
+retry:
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
-  for (;;)
+  for (TABLE_LIST *tl= table_list;;)
   {
-    if (((! (res= find_table_in_global_list(table_list, d_name, t_name))) &&
-         (! (res= mysql_lock_have_duplicate(thd, table, table_list)))) ||
+    if (((! (res= find_table_in_global_list(tl, d_name, t_name))) &&
+         (! (res= mysql_lock_have_duplicate(thd, table, tl)))) ||
         ((!res->table || res->table != table->table) &&
          (!check_alias || !(lower_case_table_names ?
           my_strcasecmp(files_charset_info, t_alias, res->alias) :
@@ -1724,9 +1725,22 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
       processed in derived table or top select of multi-update/multi-delete
       (exclude_from_table_unique_test) or prelocking placeholder.
     */
-    table_list= res->next_global;
+    tl= res->next_global;
     DBUG_PRINT("info",
                ("found same copy of table or table which we should skip"));
+  }
+  if (res && res->belong_to_derived)
+  {
+    /* Try to fix */
+    TABLE_LIST *derived=  res->belong_to_derived;
+    if (derived->is_merged_derived())
+    {
+      DBUG_PRINT("info",
+                 ("convert merged to materialization to resolve the conflict"));
+      derived->change_refs_to_fields();
+      derived->set_materialized_derived();
+    }
+    goto retry;
   }
   DBUG_RETURN(res);
 }
@@ -7197,11 +7211,16 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       if (!(eq_cond= new Item_func_eq(item_ident_1, item_ident_2)))
         goto err;                               /* Out of memory. */
 
+      if (field_1 && field_1->vcol_info)
+        field_1->table->mark_virtual_col(field_1);
+      if (field_2 && field_2->vcol_info)
+        field_2->table->mark_virtual_col(field_2);
+
       /*
         Add the new equi-join condition to the ON clause. Notice that
         fix_fields() is applied to all ON conditions in setup_conds()
         so we don't do it here.
-       */
+      */
       add_join_on((table_ref_1->outer_join & JOIN_TYPE_RIGHT ?
                    table_ref_1 : table_ref_2),
                   eq_cond);
@@ -7922,7 +7941,8 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
     while ((table_list= ti++))
     {
       TABLE *table= table_list->table;
-      table->pos_in_table_list= table_list;
+      if (table)
+        table->pos_in_table_list= table_list;
       if (first_select_table &&
           table_list->top_table() == first_select_table)
       {
@@ -7935,7 +7955,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
       {
         table_list->jtbm_table_no= tablenr;
       }
-      else
+      else if (table)
       {
         table->pos_in_table_list= table_list;
         setup_table_map(table, table_list, tablenr);

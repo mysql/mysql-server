@@ -1089,7 +1089,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	100.00	
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select 6 AS `a`,5 AS `b` from `test`.`t1` `t` join `test`.`t2` left join `test`.`t3` on((0 <> 0)) where (not(<expr_cache><6,5>(<in_optimizer>((6,5),<exists>(select 7,5 having (trigcond(((<cache>(6) = 7) or isnull(7))) and trigcond(((<cache>(5) = 5) or isnull(5))) and trigcond(<is_not_null_test>(7)) and trigcond(<is_not_null_test>(5))))))))
 SELECT t.a,t.b FROM t3 RIGHT JOIN ((SELECT * FROM t1) AS t, t2) ON t2.b != 0 
@@ -1103,7 +1103,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	100.00	
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select 6 AS `a`,5 AS `b` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((0 <> 0)) where (not(<expr_cache><6,5>(<in_optimizer>((6,5),<exists>(select 7,5 having (trigcond(((<cache>(6) = 7) or isnull(7))) and trigcond(((<cache>(5) = 5) or isnull(5))) and trigcond(<is_not_null_test>(7)) and trigcond(<is_not_null_test>(5))))))))
 SELECT t.a,t.b FROM t3 RIGHT JOIN (v1 AS t, t2) ON t2.b != 0 
@@ -1117,7 +1117,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	100.00	
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select 6 AS `a`,5 AS `b` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((0 <> 0)) where (not(<expr_cache><6,5>(<in_optimizer>((6,5),<exists>(select 7,5 having (trigcond(((<cache>(6) = 7) or isnull(7))) and trigcond(((<cache>(5) = 5) or isnull(5))) and trigcond(<is_not_null_test>(7)) and trigcond(<is_not_null_test>(5))))))))
 DROP VIEW v1;
@@ -1800,6 +1800,7 @@ INSERT INTO t2 VALUES (7), (4);
 CREATE TABLE t1 (b int NOT NULL);
 INSERT INTO t1 VALUES (5), (7);
 CREATE ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1;
+SET @save_optimizer_switch=@@optimizer_switch;
 SET SESSION optimizer_switch='derived_merge=off';
 PREPARE st1 FROM
 'SELECT * FROM (SELECT * FROM t2 LEFT JOIN v1 ON t2.a = v1.b) AS t';
@@ -1812,9 +1813,9 @@ a	b
 7	7
 4	NULL
 DEALLOCATE PREPARE st1;
+set SESSION optimizer_switch= @save_optimizer_switch;
 DROP VIEW v1;
 DROP TABLE t1,t2;
-SET SESSION optimizer_switch='derived_merge=on';
 #
 # LP bug #879939: assertion in ha_maria::enable_indexes 
 #                 with derived_with_keys=on
@@ -1832,6 +1833,7 @@ INSERT INTO t1 VALUES
 ('USA','Mesquite'), ('USA','Metairie'), ('USA','Miami');
 CREATE TABLE t3 (a varchar(35));
 INSERT INTO t3 VALUES ('Miami');
+SET @save_optimizer_switch=@@optimizer_switch;
 SET optimizer_switch = 'derived_with_keys=on';
 SET @@tmp_table_size=1024*4;
 explain SELECT * FROM (SELECT t1.* FROM t1, t2) AS t JOIN t3 ON t3.a = t.b;
@@ -1855,6 +1857,7 @@ USA	Miami	Miami
 USA	Miami	Miami
 USA	Miami	Miami
 SET @@tmp_table_size=default;
+set SESSION optimizer_switch= @save_optimizer_switch;
 drop table t1,t2,t3;
 #
 # BUG#882994: Crash in QUICK_RANGE_SELECT::reset with derived_with_keys
@@ -1906,5 +1909,25 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	8	
 DROP TABLE t1;
+#
+# LP BUG#921878 incorrect check of items during columns union types
+# aggregation for merged derived tables
+#
+SET @save_optimizer_switch=@@optimizer_switch;
+SET SESSION optimizer_switch='derived_merge=on';
+CREATE TABLE t1 ( a ENUM( 'x', 'y' ) );
+insert into t1 values ('x');
+CREATE TABLE t2 LIKE t1;
+insert into t1 values ('y');
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t3
+SELECT * FROM ( SELECT * FROM t1 ) AS A
+UNION SELECT * FROM t2;
+select * from t3;
+a
+x
+y
+drop table t1,t2,t3;
+set SESSION optimizer_switch= @save_optimizer_switch;
 set optimizer_switch=@exit_optimizer_switch;
 set join_cache_level=@exit_join_cache_level;

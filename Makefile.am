@@ -277,7 +277,6 @@ API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql.h \
 
 TEST_PREPROCESSOR_HEADER = $(API_PREPROCESSOR_HEADER) \
                            $(top_srcdir)/sql/mysql_priv.h
-                            
 
 #
 # Rules for checking that the abi/api has not changed.

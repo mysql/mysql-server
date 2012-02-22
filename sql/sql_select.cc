@@ -1266,9 +1266,20 @@ JOIN::optimize()
       Item *ref_item= *ref_item_ptr;
       if (!ref_item->used_tables() && !(select_options & SELECT_DESCRIBE))
         continue;
-      COND_EQUAL *equals= tab->first_inner ? tab->first_inner->cond_equal : 
-                                             cond_equal;
-      ref_item= substitute_for_best_equal_field(tab, ref_item, equals, map2table);
+      COND_EQUAL *equals= cond_equal;
+      JOIN_TAB *first_inner= tab->first_inner;
+      while (equals)
+      {
+        ref_item= substitute_for_best_equal_field(tab, ref_item,
+                                                  equals, map2table);
+        if (first_inner)
+	{
+          equals= first_inner->cond_equal;
+          first_inner= first_inner->first_upper;
+        }
+        else
+          equals= 0;
+      }  
       ref_item->update_used_tables();
       if (*ref_item_ptr != ref_item)
       {
@@ -8919,7 +8930,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
          first_inner;
          first_inner= first_inner->first_upper)           
     {
-      for (tab= end_tab-1; tab >= first_inner; tab--)
+      for (tab= end_tab; tab >= first_inner; tab--)
         set_join_cache_denial(tab);
       end_tab= first_inner;
     }
@@ -8927,7 +8938,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
   else if (join_tab->first_sj_inner_tab)
   {
     first_inner= join_tab->first_sj_inner_tab;
-    for (tab= join_tab-1; tab >= first_inner; tab--)
+    for (tab= join_tab; tab >= first_inner; tab--)
     {
       set_join_cache_denial(tab);
     }
@@ -9169,6 +9180,9 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 
   if (tab->use_quick == 2)
     goto no_join_cache;
+
+  if (tab->table->map & join->complex_firstmatch_tables)
+    goto no_join_cache;
   
   /*
     Don't use join cache if we're inside a join tab range covered by LooseScan
@@ -9226,7 +9240,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
       Check whether table tab and the previous one belong to the same nest of
       inner tables and if so do not use join buffer when joining table tab. 
     */
-    if (tab->first_inner)
+    if (tab->first_inner && tab != tab->first_inner)
     {
       for (JOIN_TAB *first_inner= tab[-1].first_inner;
            first_inner;
@@ -9236,7 +9250,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
           goto no_join_cache;
       }
     }
-    else if (tab->first_sj_inner_tab &&
+    else if (tab->first_sj_inner_tab && tab != tab->first_sj_inner_tab &&
              tab->first_sj_inner_tab == tab[-1].first_sj_inner_tab)
       goto no_join_cache; 
   }       
@@ -9379,7 +9393,7 @@ void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
   {
     tab->used_join_cache_level= join->max_allowed_join_cache_level;  
   }
-  
+
   uint idx= join->const_tables;
   for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
        tab; 
@@ -9463,6 +9477,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   bool sorted= 1;
+
+  join->complex_firstmatch_tables= table_map(0);
 
   if (!join->select_lex->sj_nests.is_empty() &&
       setup_semijoin_dups_elimination(join, options, no_jbuf_after))
@@ -10343,6 +10359,15 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
   }
   
 
+  /*
+    Cleanup to avoid interference of calls of this function for
+    ORDER BY and GROUP BY
+  */
+  for (JOIN_TAB *tab= join->join_tab + join->const_tables;
+       tab < join->join_tab + join->table_count;
+       tab++)
+    tab->cached_eq_ref_table= FALSE;
+
   prev_ptr= &first_order;
   *simple_order= *join->join_tab[join->const_tables].on_expr_ref ? 0 : 1;
 
@@ -10433,10 +10458,22 @@ return_zero_rows(JOIN *join, select_result *result, List<TABLE_LIST> &tables,
 
   if (send_row)
   {
+    /*
+      Set all tables to have NULL row. This is needed as we will be evaluating
+      HAVING condition.
+    */
     List_iterator<TABLE_LIST> ti(tables);
     TABLE_LIST *table;
     while ((table= ti++))
-      mark_as_null_row(table->table);		// All fields are NULL
+    {
+      /*
+        Don't touch semi-join materialization tables, as the above join_free()
+        call has freed them (and HAVING clause can't have references to them 
+        anyway).
+      */
+      if (!table->is_jtbm())
+        mark_as_null_row(table->table);		// All fields are NULL
+    }
     if (having &&
         !having->walk(&Item::clear_sum_processor, FALSE, NULL) &&
         having->val_int() == 0)
@@ -11492,7 +11529,7 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
     }      
 
     /* 
-      Check if "item_field=head" equality is already guaranteed to be true 
+      Check if "field_item=head" equality is already guaranteed to be true 
       on upper AND-levels.
     */
     if (upper)
@@ -11504,7 +11541,8 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
         Item_equal_fields_iterator li(*item_equal);
         while ((item= li++) != field_item)
         {
-          if (item->find_item_equal(upper_levels) == upper)
+          if (embedding_sjm(item) == field_sjm && 
+              item->find_item_equal(upper_levels) == upper)
             break;
         }
       }
@@ -11648,7 +11686,7 @@ static COND* substitute_for_best_equal_field(JOIN_TAB *context_tab,
     if (and_level)
     {
       cond_equal= &((Item_cond_and *) cond)->cond_equal;
-      cond_list->disjoin((List<Item> *) &cond_equal->current_level);
+      cond_list->disjoin((List<Item> *) &cond_equal->current_level);/* remove Item_equal objects from the AND. */
 
       List_iterator_fast<Item_equal> it(cond_equal->current_level);      
       while ((item_equal= it++))
@@ -12685,9 +12723,8 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
       multiple equality contains a constant.
     */ 
     DBUG_EXECUTE("where", print_where(conds, "original", QT_ORDINARY););
-    conds= build_equal_items(join->thd, conds, NULL, join_list,
-                             &join->cond_equal);
-    DBUG_EXECUTE("where",print_where(conds,"after equal_items", QT_ORDINARY););
+    conds= build_equal_items(join->thd, conds, NULL, join_list, cond_equal);
+     DBUG_EXECUTE("where",print_where(conds,"after equal_items", QT_ORDINARY););
 
     /* change field = field to field = const for each found field = const */
     propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
@@ -15392,7 +15429,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     if (join_tab->loosescan_match_tab && 
         join_tab->loosescan_match_tab->found_match)
     {
-      KEY *key= join_tab->table->key_info + join_tab->index;
+      KEY *key= join_tab->table->key_info + join_tab->loosescan_key;
       key_copy(join_tab->loosescan_buf, join_tab->table->record[0], key, 
                join_tab->loosescan_key_len);
       skip_over= TRUE;
@@ -15402,7 +15439,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
     if (skip_over && !error) 
     {
-      if(!key_cmp(join_tab->table->key_info[join_tab->index].key_part,
+      if(!key_cmp(join_tab->table->key_info[join_tab->loosescan_key].key_part,
                   join_tab->loosescan_buf, join_tab->loosescan_key_len))
       {
         /* 
@@ -18405,7 +18442,6 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     table->sort.io_cache= NULL;
 
     select->cleanup();				// filesort did select
-    tab->select= 0;
     table->quick_keys.clear_all();  // as far as we cleanup select->quick
     table->intersect_keys.clear_all();
     table->sort.io_cache= tablesort_result_cache;

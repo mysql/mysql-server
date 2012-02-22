@@ -191,7 +191,8 @@ bool end_active_trans(THD *thd)
     if (ha_commit(thd))
       error=1;
 #ifdef WITH_ARIA_STORAGE_ENGINE
-    ha_maria::implicit_commit(thd, TRUE);
+    if (ha_storage_engine_is_enabled(maria_hton))
+      ha_maria::implicit_commit(thd, TRUE);
 #endif
   }
   thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
@@ -1231,6 +1232,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       char *beginning_of_next_stmt= (char*) end_of_stmt;
 
 #ifdef WITH_ARIA_STORAGE_ENGINE
+    if (ha_storage_engine_is_enabled(maria_hton))
       ha_maria::implicit_commit(thd, FALSE);
 #endif
 
@@ -1608,7 +1610,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->transaction.stmt.reset();
 
 #ifdef WITH_ARIA_STORAGE_ENGINE
-  ha_maria::implicit_commit(thd, FALSE);
+    if (ha_storage_engine_is_enabled(maria_hton))
+      ha_maria::implicit_commit(thd, FALSE);
 #endif
 
   if (!(sql_command_flags[thd->lex->sql_command] & CF_CHANGES_DATA))
@@ -7363,13 +7366,23 @@ static uint kill_threads_for_user(THD *thd, LEX_USER *user,
   if (!threads_to_kill.is_empty())
   {
     List_iterator_fast<THD> it(threads_to_kill);
-    THD *ptr;
-    while ((ptr= it++))
+    THD *next_ptr;
+    THD *ptr= it++;
+    do
     {
       ptr->awake(kill_signal);
+      /*
+        Careful here: The list nodes are allocated on the memroots of the
+        THDs to be awakened.
+        But those THDs may be terminated and deleted as soon as we release
+        LOCK_thd_data, which will make the list nodes invalid.
+        Since the operation "it++" dereferences the "next" pointer of the
+        previous list node, we need to do this while holding LOCK_thd_data.
+      */
+      next_ptr= it++;
       pthread_mutex_unlock(&ptr->LOCK_thd_data);
       (*rows)++;
-    }
+    } while ((ptr= next_ptr));
   }
   DBUG_RETURN(0);
 }

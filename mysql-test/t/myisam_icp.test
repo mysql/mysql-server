@@ -263,3 +263,4 @@ SET optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1,t2,t3,t4;
 
 set optimizer_switch=@myisam_icp_tmp;
+

@@ -4079,7 +4079,8 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
 {
   uint i;
   DBUG_ENTER("setup_semijoin_dups_elimination");
-
+  
+  join->complex_firstmatch_tables= table_map(0);
 
   POSITION *pos= join->best_positions + join->const_tables;
   for (i= join->const_tables ; i < join->top_join_tab_count; )
@@ -4098,6 +4099,11 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       {
         /* We jump from the last table to the first one */
         tab->loosescan_match_tab= tab + pos->n_sj_tables - 1;
+        
+        /* LooseScan requires records to be produced in order */
+        if (tab->select && tab->select->quick)
+          tab->select->quick->need_sorted_output();
+
         for (uint j= i; j < i + pos->n_sj_tables; j++)
           join->join_tab[j].inside_loosescan_range= TRUE;
 
@@ -4107,6 +4113,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         for (uint kp=0; kp < pos->loosescan_picker.loosescan_parts; kp++)
           keylen += tab->table->key_info[keyno].key_part[kp].store_length;
 
+        tab->loosescan_key= keyno;
         tab->loosescan_key_len= keylen;
         if (pos->n_sj_tables > 1) 
           tab[pos->n_sj_tables - 1].do_firstmatch= tab;
@@ -4164,8 +4171,13 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       {
         JOIN_TAB *j;
         JOIN_TAB *jump_to= tab-1;
+
+        bool complex_range= FALSE;
+        table_map tables_in_range= table_map(0);
+
         for (j= tab; j != tab + pos->n_sj_tables; j++)
         {
+          tables_in_range |= j->table->map;
           if (!j->emb_sj_nest)
           {
             /* 
@@ -4175,11 +4187,12 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
               SELECT * FROM ot1, nt1 WHERE ot1.col IN (SELECT expr FROM it1, it2)
 
               with a join order of 
-                   
 
-              ot1 it1 nt1 nt2
+                   +----- FirstMatch range ----+
+                   |                           |
+              ot1 it1 nt1 nt2 it2 it3 ...
                    |   ^
-                   |   +-------- 'j' point here
+                   |   +-------- 'j' points here
                    +------------- SJ_OPT_FIRST_MATCH was set for this table as
                                   it's the first one that produces duplicates
               
@@ -4194,6 +4207,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
               j[-1].do_firstmatch= jump_to;
 
             jump_to= j; /* Jump back to us */
+            complex_range= TRUE;
           }
           else
           {
@@ -4204,6 +4218,9 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         j[-1].do_firstmatch= jump_to;
         i+= pos->n_sj_tables;
         pos+= pos->n_sj_tables;
+
+        if (complex_range)
+          join->complex_firstmatch_tables|= tables_in_range;
         break;
       }
       case SJ_OPT_NONE:

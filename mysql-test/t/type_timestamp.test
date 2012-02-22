@@ -410,3 +410,10 @@ SHOW STATUS LIKE 'Handler_read_next';
 DROP TABLE t1, t2;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # lp:923429 Crash in decimal_cmp on using UNIX_TIMESTAMP with a wrongly formatted timestamp
+--echo #
+SELECT UNIX_TIMESTAMP('abc') > 0;
+SELECT UNIX_TIMESTAMP('abc');
+

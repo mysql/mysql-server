@@ -1069,6 +1069,7 @@ struct Query_cache_query_flags
   (((L)->sql_command == SQLCOM_SELECT) && (L)->safe_to_cache_query)
 #else
 #define QUERY_CACHE_FLAGS_SIZE 0
+#define QUERY_CACHE_DB_LENGTH_SIZE 0
 #define query_cache_store_query(A, B)     do { } while(0)
 #define query_cache_destroy()             do { } while(0)
 #define query_cache_result_size_limit(A)  do { } while(0)
@@ -2032,6 +2033,7 @@ void sql_perror(const char *message);
 
 bool fn_format_relative_to_data_home(char * to, const char *name,
 				     const char *dir, const char *extension);
+void set_server_version(void);
 /**
   Test a file path to determine if the path is compatible with the secure file
   path restriction.
@@ -2182,13 +2184,13 @@ extern ulong binlog_checksum_options;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
+extern my_bool opt_expect_abort, opt_stack_trace;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, mysqld_extra_port, dropping_tables;
 extern uint delay_key_write_options;
-extern ulong max_long_data_size;
+extern ulong max_long_data_size, max_used_connections;
 extern uint internal_tmp_table_max_key_length;
 extern uint internal_tmp_table_max_key_segments;
-
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
@@ -2258,7 +2260,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open, LOCK_lock_db,
        LOCK_mapped_file,LOCK_user_locks, LOCK_status,
        LOCK_error_log, LOCK_delayed_insert, LOCK_short_uuid_generator,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
-       LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
+       LOCK_slave_list, LOCK_active_mi, LOCK_global_read_lock,
        LOCK_global_system_variables, LOCK_user_conn,
        LOCK_prepared_stmt_count,
        LOCK_bytes_sent, LOCK_bytes_received, LOCK_connection_count;
@@ -2276,7 +2278,7 @@ extern pthread_mutex_t LOCK_stats;
 extern int mysqld_server_started;
 extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern rw_lock_t LOCK_system_variables_hash;
-extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
+extern pthread_cond_t COND_refresh, COND_thread_count;
 extern pthread_cond_t COND_global_read_lock;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;

@@ -257,7 +257,12 @@ public:
       last= &first;
     return tmp->info;
   }
-  inline void disjoin(base_list *list)
+  /*
+    Remove from this list elements that are contained in the passed list. 
+    We assume that the passed list is a tail of this list (that is, the whole 
+    list_node* elements are shared).
+  */
+  inline void disjoin(const base_list *list)
   {
     list_node **prev= &first;
     list_node *node= first;

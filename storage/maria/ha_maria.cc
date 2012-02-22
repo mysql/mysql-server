@@ -2243,21 +2243,6 @@ int ha_maria::delete_row(const uchar * buf)
   return maria_delete(file, buf);
 }
 
-C_MODE_START
-
-ICP_RESULT index_cond_func_maria(void *arg)
-{
-  ha_maria *h= (ha_maria*)arg;
-  if (h->end_range)
-  {
-    if (h->compare_key2(h->end_range) > 0)
-      return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
-  }
-  return h->pushed_idx_cond->val_int() ? ICP_MATCH : ICP_NO_MATCH;
-}
-
-C_MODE_END
-
 int ha_maria::index_read_map(uchar * buf, const uchar * key,
 			     key_part_map keypart_map,
 			     enum ha_rkey_function find_flag)
@@ -2277,7 +2262,7 @@ int ha_maria::index_read_idx_map(uchar * buf, uint index, const uchar * key,
   /* Use the pushed index condition if it matches the index we're scanning */
   end_range= NULL;
   if (index == pushed_idx_cond_keyno)
-    ma_set_index_cond_func(file, index_cond_func_maria, this);
+    ma_set_index_cond_func(file, handler_index_cond_check, this);
   
   error= maria_rkey(file, buf, index, key, keypart_map, find_flag);
    
@@ -2358,7 +2343,7 @@ int ha_maria::index_init(uint idx, bool sorted)
 { 
   active_index=idx;
   if (pushed_idx_cond_keyno == idx)
-    ma_set_index_cond_func(file, index_cond_func_maria, this);
+    ma_set_index_cond_func(file, handler_index_cond_check, this);
   return 0; 
 }
 
@@ -3791,7 +3776,7 @@ Item *ha_maria::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
   pushed_idx_cond= idx_cond_arg;
   in_range_check_pushed_down= TRUE;
   if (active_index == pushed_idx_cond_keyno)
-    ma_set_index_cond_func(file, index_cond_func_maria, this);
+    ma_set_index_cond_func(file, handler_index_cond_check, this);
   return NULL;
 }
 

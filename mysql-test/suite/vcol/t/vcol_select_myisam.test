@@ -48,3 +48,23 @@ eval SET @@session.storage_engine = 'MyISAM';
 #------------------------------------------------------------------------------#
 # Cleanup
 --source suite/vcol/inc/vcol_cleanup.inc
+
+--echo #
+--echo # Bug #806057: join with USING over a virtual column 
+--echo #
+
+CREATE TABLE t1 (b int);
+INSERT INTO t1 VALUES (NULL),( 78), (185), (0), (154);
+
+CREATE TABLE t2 (a int, b int AS (a) VIRTUAL);
+INSERT INTO t2 VALUES (187,187), (9,9), (187,187);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 JOIN t2 USING (b);
+SELECT * FROM t1 JOIN t2 USING (b);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 NATURAL JOIN t2;
+SELECT * FROM t1 NATURAL JOIN t2;
+
+DROP TABLE t1,t2;

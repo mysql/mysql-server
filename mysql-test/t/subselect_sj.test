@@ -1354,6 +1354,45 @@ set optimizer_switch=@save_optimizer_switch;
 DROP TABLE ot1, ot2, ot3, it1;
 
 --echo #
+--echo # Bug#59919/11766739: Crash in tmp_table_param::init() with semijoin=on
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER) ENGINE=MyISAM;
+CREATE TABLE t2 (f1 INTEGER, f2 INTEGER) ENGINE=MyISAM;
+CREATE TABLE t3 (f1 INTEGER, f2 INTEGER) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1,1), (2,1);
+INSERT INTO t3 VALUES 
+  (1,1), (2,1), (5,4), (7,3), (8,2), (8,1), (7,3),
+  (9,5), (4,3), (7,2), (7,7), (3,1), (5,8), (9,7);
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+set optimizer_switch='semijoin=off,materialization=on';
+EXPLAIN
+SELECT * FROM t3
+WHERE f2 IN (SELECT t1.f1
+             FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+SELECT * FROM t3
+WHERE f2 IN (SELECT t1.f1
+             FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+
+set optimizer_switch='semijoin=on,materialization=on';
+EXPLAIN
+SELECT * FROM t3
+WHERE f2 IN (SELECT t1.f1
+             FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+SELECT * FROM t3
+WHERE f2 IN (SELECT t1.f1
+             FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+
+set optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1, t2, t3 ;
+
+--echo #
+--echo #
 --echo # BUG#784723: Wrong result with semijoin + nested subqueries in maria-5.3  
 --echo #
 CREATE TABLE t1 ( t1field integer, primary key (t1field));
@@ -2233,6 +2272,64 @@ SELECT a, COUNT(*) FROM t1
   );
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # BUG#920255: Wrong result (extra rows) with loosescan and IN subquery
+--echo #
+CREATE TABLE t1 ( a INT PRIMARY KEY, b INT, KEY(b) );
+INSERT INTO t1 VALUES
+  (1,2),(2,1),(3,3),(4,2),(5,5),
+  (6,3),(7,1),(8,4),(9,3),(10,2);
+
+CREATE TABLE t2 ( c INT, d INT, UNIQUE KEY(c) );
+INSERT INTO t2 VALUES
+  (1,2),(2,1),(3,3),(4,2),(5,5),(6,3),(7,1);
+
+SELECT a, b, d FROM t1, t2
+WHERE ( b, d ) IN
+  ( SELECT b, d FROM t1, t2 WHERE b = c );
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#920713: Wrong result (missing rows) with firstmatch+BNL, IN subquery, ...
+--echo #
+# t1 should be MyISAM or InnoDB
+CREATE TABLE t1 ( a VARCHAR(1) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('e'),('w'),('a'),('h'),('x'),('k'),('g');
+CREATE TABLE t2 ( b INT, c VARCHAR(1) );
+INSERT INTO t2 VALUES (0,'j'),(8,'v');
+
+#SET debug_optimizer_prefer_join_prefix= 'alias2,alias4,alias1,alias3';
+
+SELECT * FROM t1 alias1, t2 alias2
+WHERE alias2.c IN (
+  SELECT alias4.c FROM t1 alias3, t2 alias4
+);
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#923246: Loosescan reports different result than other semijoin methods
+--echo #
+set @tmp_923246= @@optimizer_switch;
+set optimizer_switch='mrr=on,materialization=off';
+
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1 (kp1 int, kp2 int, c int, filler char(100), key(kp1, kp2));
+insert into t1 select A.a+10*(B.a+10*C.a), 0, 0, 'filler' from t0 A, t0 B, t0 C;
+insert into t1 select * from t1 where kp1 < 20;
+
+create table t3 (a int);
+insert into t3 select A.a + 10*B.a from t0 A, t0 B;
+
+select * from t3 where a in (select kp1 from t1 where kp1<20);
+explain select * from t3 where a in (select kp1 from t1 where kp1<20);
+
+drop table t0,t1,t3;
+set optimizer_switch= @tmp_923246;
 
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;
