@@ -1,0 +1,6 @@
+# Include original my.cnf
+!include include/default_my.cnf
+
+[embedded]
+# Can't run with innodb currently, since mysqltest_embedded have it locked
+innodb=OFF

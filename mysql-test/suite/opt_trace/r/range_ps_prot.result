@@ -878,10 +878,6 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
       "join_explain": {
         "select#": 1,
         "steps": [
-          {
-            "reconsidering_access_paths_for_index_ordering": {
-            } /* reconsidering_access_paths_for_index_ordering */
-          }
         ] /* steps */
       } /* join_explain */
     }
@@ -1417,10 +1413,6 @@ GROUP BY key2	{
       "join_explain": {
         "select#": 1,
         "steps": [
-          {
-            "reconsidering_access_paths_for_index_ordering": {
-            } /* reconsidering_access_paths_for_index_ordering */
-          }
         ] /* steps */
       } /* join_explain */
     }
@@ -4645,14 +4637,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                 "access_type": "range"
               }
             ] /* refine_plan */
-          }
-        ] /* steps */
-      } /* join_optimization */
-    },
-    {
-      "join_explain": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "reconsidering_access_paths_for_index_ordering": {
               "rows_estimation": {
@@ -4731,6 +4716,13 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
           }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
         ] /* steps */
       } /* join_explain */
     }
@@ -5077,18 +5069,6 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
       "join_explain": {
         "select#": 1,
         "steps": [
-          {
-            "reconsidering_access_paths_for_index_ordering": {
-              "index_order_summary": {
-                "database": "test",
-                "table": "t1",
-                "index": "k1",
-                "order_direction": "desc",
-                "plan_changed": true,
-                "access_type": "index_scan"
-              } /* index_order_summary */
-            } /* reconsidering_access_paths_for_index_ordering */
-          }
         ] /* steps */
       } /* join_explain */
     }
@@ -6237,14 +6217,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                 "table_condition_attached": null
               }
             ] /* refine_plan */
-          }
-        ] /* steps */
-      } /* join_optimization */
-    },
-    {
-      "join_explain": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "reconsidering_access_paths_for_index_ordering": {
               "index_order_summary": {
@@ -6258,6 +6231,13 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
           }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
         ] /* steps */
       } /* join_explain */
     }
