@@ -5519,23 +5519,21 @@ try_again:
     //  - brt_search_node is called, assuming that the node and its relevant partition are in memory.
     //
     struct brtnode_fetch_extra bfe;
+    fill_bfe_for_subset_read(
+        &bfe,
+        brt->h,
+        search,
+        &brtcursor->range_lock_left_key,
+        &brtcursor->range_lock_right_key,
+        brtcursor->left_is_neg_infty,
+        brtcursor->right_is_pos_infty,
+        brtcursor->disable_prefetching
+        );
     BRTNODE node = NULL;
     {
         toku_brtheader_grab_treelock(brt->h);
-
         u_int32_t fullhash;
         CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
-
-        fill_bfe_for_subset_read(
-            &bfe,
-            brt->h,
-            search,
-            &brtcursor->range_lock_left_key,
-            &brtcursor->range_lock_right_key,
-            brtcursor->left_is_neg_infty,
-            brtcursor->right_is_pos_infty,
-            brtcursor->disable_prefetching
-            );
         toku_pin_brtnode_off_client_thread(
             brt->h, 
             *rootp, 
