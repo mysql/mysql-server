@@ -706,7 +706,7 @@ struct pivot_bounds {
 };
 
 // FIXME needs toku prefix
-void maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds);
+void maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, BOOL* msgs_applied);
 
 int
 toku_brt_search_which_child(

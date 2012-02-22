@@ -620,7 +620,8 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
         parentnode->max_msn_applied_to_node_on_disk = max_parent_msn;
         struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
         const struct pivot_bounds infinite_bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = NULL };
-        maybe_apply_ancestors_messages_to_node(t, child, &ancestors, &infinite_bounds);
+        BOOL* msgs_applied;
+        maybe_apply_ancestors_messages_to_node(t, child, &ancestors, &infinite_bounds, &msgs_applied);
 
         FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
                      {
@@ -840,7 +841,8 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     parentnode->max_msn_applied_to_node_on_disk = max_parent_msn;
     struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
     const struct pivot_bounds bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = kv_pair_malloc(childkeys[7].data, childkeys[7].size, NULL, 0) };
-    maybe_apply_ancestors_messages_to_node(t, child, &ancestors, &bounds);
+    BOOL msgs_applied;
+    maybe_apply_ancestors_messages_to_node(t, child, &ancestors, &bounds, &msgs_applied);
 
     FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
                  {
@@ -1024,7 +1026,8 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
     parentnode->max_msn_applied_to_node_on_disk = max_parent_msn;
     struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
     const struct pivot_bounds infinite_bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = NULL };
-    maybe_apply_ancestors_messages_to_node(t, child2, &ancestors, &infinite_bounds);
+    BOOL msgs_applied;
+    maybe_apply_ancestors_messages_to_node(t, child2, &ancestors, &infinite_bounds, &msgs_applied);
 
     FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
                  {
