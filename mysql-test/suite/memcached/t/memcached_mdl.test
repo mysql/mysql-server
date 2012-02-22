@@ -214,7 +214,7 @@ echo reap;
 reap;
 SHOW CREATE TABLE t1;
 --sorted_result
-SELECT c1,c2,c21 FROM t1;
+SELECT c1,c2 FROM t1;
 DROP TABLE t1;
 DROP TABLE t2;
 connection default;

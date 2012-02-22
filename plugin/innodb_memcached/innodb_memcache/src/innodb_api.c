@@ -82,7 +82,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_get_cfg,
 	(ib_cb_t*) &ib_cb_cursor_set_cluster_access,
 	(ib_cb_t*) &ib_cb_cursor_commit_trx,
-	(ib_cb_t*) &ib_cb_cfg_trx_level
+	(ib_cb_t*) &ib_cb_cfg_trx_level,
+	(ib_cb_t*) &ib_cb_get_n_user_cols
 };
 
 /** Set expiration time */
