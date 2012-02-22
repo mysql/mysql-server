@@ -187,6 +187,19 @@ public:
     GROUP/ORDER BY.
   */
   bool simple_order, simple_group;
+
+  /*
+    ordered_index_usage is set if an ordered index access
+    should be used instead of a filesort when computing 
+    ORDER/GROUP BY.
+  */
+  enum
+  {
+    ordered_index_void,       // No ordered index avail.
+    ordered_index_group_by,   // Use index for GROUP BY
+    ordered_index_order_by    // Use index for ORDER BY
+  } ordered_index_usage;
+
   /**
     Is set only in case if we have a GROUP BY clause
     and no ORDER BY after constant elimination of 'order'.
@@ -323,6 +336,7 @@ public:
     no_order= 0;
     simple_order= 0;
     simple_group= 0;
+    ordered_index_usage= ordered_index_void;
     skip_sort_order= 0;
     need_tmp= 0;
     hidden_group_fields= 0; /*safety*/
