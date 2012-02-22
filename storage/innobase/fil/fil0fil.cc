@@ -3185,34 +3185,20 @@ fil_reset_space_and_lsn(
 					first page is too high */
 {
 	db_err		err;
-	os_file_t	file;
-	char*		filepath;
-	char*		tmpfilepath;
 	byte*		page;
-	byte*		buf2;
-	lsn_t		flush_lsn;
-	ulint		fil_space_id;
-	ulint		space_flags;
-	os_offset_t	file_size;
+	os_file_t	file;
 	os_offset_t	offset;
-	ulint		zip_size;
 	ibool		success;
 	page_zip_des_t	page_zip;
+	ulint		zip_size;
+	char*		filepath;
+	byte*		buf2 = 0;
+	lsn_t		flush_lsn;
+	os_offset_t	file_size;
+	ulint		fil_space_id;
 
 	filepath = fil_make_ibd_name(table->name, FALSE);
-	tmpfilepath = fil_make_ibt_name(filepath);
 
-	file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key, tmpfilepath,
-		OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
-
-	if (success) {
-
-		err = DB_SUCCESS;
-		goto renamed;
-	}
-
-	/* No such file; retry with .ibd suffix. */
 	file = os_file_create_simple_no_error_handling(
 		innodb_file_data_key, filepath,
 		OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
@@ -3221,49 +3207,21 @@ fil_reset_space_and_lsn(
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
 
-		ut_print_timestamp(stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to import a table, but could not "
+			"open the tablespace file %s ", filepath);
 
-		fputs("  InnoDB: Error: trying to import a table,"
-		      " but could not\n"
-		      "InnoDB: open the tablespace file ", stderr);
-		ut_print_filename(stderr, filepath);
-		fputs(" or ", stderr);
-		ut_print_filename(stderr, tmpfilepath);
-		fputs("!\n", stderr);
 		mem_free(filepath);
-		mem_free(tmpfilepath);
 
 		return(DB_TABLESPACE_NOT_FOUND);
+
+	} else {
+		err = DB_SUCCESS;
 	}
 
-	os_file_close(file);
-
-	buf2 = NULL;
-
-	/* Rename the tablespace from .ibd to .ibt for the duration of
-	the adjustment. */
-	if (!os_file_rename(innodb_file_data_key, filepath, tmpfilepath)) {
-		err = DB_IO_ERROR;
-		goto func_exit;
-	}
-
-	err = DB_SUCCESS;
-
-	if (!os_file_create_simple_no_error_handling(
-		innodb_file_data_key, tmpfilepath,
-		OS_FILE_OPEN, OS_FILE_READ_WRITE, &success)) {
-
-		/* We have no idea what the error is, unless we fix
-		os_file_create_simple_no_error_handling() to return db_err */
-		err = DB_ERROR;
-
-		goto func_exit;
-	}
-
-renamed:
 	/* Read the first page of the tablespace */
-
 	buf2 = static_cast<byte*>(ut_malloc(3 * UNIV_PAGE_SIZE));
+
 	/* Align the memory for file i/o if we might have O_DIRECT set */
 	page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
 
@@ -3297,49 +3255,31 @@ renamed:
 	    && fil_space_id == table->space) {
 		/* Ok */
 		err = DB_SUCCESS;
-		goto rename_and_exit;
+		goto func_exit;
 	}
 
 	page_zip_des_init(&page_zip);
 	page_zip_set_size(&page_zip, zip_size);
+
 	if (zip_size) {
 		page_zip.data = page + UNIV_PAGE_SIZE;
 	}
 
-	ut_print_timestamp(stderr);
 	if (table->space != fil_space_id) {
-		fprintf(stderr,
-			" InnoDB: Tablespace file %lu is"
-			" to be imported to space %lu.\n",
-			(ulong) fil_space_id, (ulong) table->space);
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Current system lsn is " LSN_PF ", flush lsn"
-			" in the file is " LSN_PF ".\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Tablespace file with id %lu is to be imported as "
+			"space %lu. Current system lsn is " LSN_PF ", flush "
+			"lsn in the file is " LSN_PF ". Reset the space id "
+			"and lsn in the file ",
+			(ulong) fil_space_id, (ulong) table->space,
 			current_lsn, flush_lsn);
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: We reset the space id and lsn in the file ");
 	} else {
-		fprintf(stderr,
-			" InnoDB: Flush lsn in the tablespace file %lu"
-			" to be imported\n",
-			(ulong) fil_space_id);
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: is " LSN_PF ", which exceeds current"
-			" system lsn " LSN_PF ".\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Flush lsn in the tablespace file to be imported is "
+			"%lu is " LSN_PF ", which exceeds currentsystem lsn " 
+			LSN_PF ". We reset the lsn's in the file ",
 			flush_lsn, current_lsn);
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: We reset the lsn's in the file ");
 	}
-	ut_print_filename(stderr, tmpfilepath);
-	fputs(".\n", stderr);
 
 	ut_a(ut_is_2pow(zip_size));
 	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
@@ -3358,16 +3298,21 @@ renamed:
 	for (; offset < file_size;
 	     offset += zip_size ? zip_size : UNIV_PAGE_SIZE) {
 
-		switch (fil_reset_space_and_lsn_read(tmpfilepath, file, offset,
-						     page, zip_size)) {
+		ulint	status;
+
+		status = fil_reset_space_and_lsn_read(
+			filepath, file, offset, page, zip_size);
+
+		switch (status) {
 		case 0:
-			if (!fil_reset_space_and_lsn_write(
-				current_lsn, tmpfilepath, file,
+			success = fil_reset_space_and_lsn_write(
+				current_lsn, filepath, file,
 				table->space, offset, page,
-				zip_size ? &page_zip : NULL)) {
+				zip_size ? &page_zip : NULL);
+
+			if (!success) {
 
 				err = DB_ERROR;
-				goto func_exit;
 			}
 
 			break;
@@ -3377,68 +3322,67 @@ renamed:
 			break;
 		default:
 			err = DB_ERROR;
-			goto func_exit;
 		}
 	}
 
-	/* Flush all but the first page, to be on the safe side after
-	a crash.  Then, adjust and flush the first page. */
-	if (!os_file_flush(file)) {
-		err = DB_IO_ERROR;
-		goto func_exit;
-	}
+	if (err != DB_SUCCESS) {
+		; // Get out of here
+	} else if (!os_file_flush(file)) {
 
-	if (fil_reset_space_and_lsn_read(tmpfilepath, file, 0,
-					 page, zip_size)) {
+		/* Flush all but the first page, to be on the safe side after
+		a crash.  Then, adjust and flush the first page. */
+
+		err = DB_IO_ERROR;
+
+	} else if (fil_reset_space_and_lsn_read(
+			filepath, file, 0, page, zip_size)) {
+
 		/* The first page is corrupted.  Actually, it should
 		never be, as it has already been checked. */
 		err = DB_ERROR;
-		goto func_exit;
-	}
+	} else {
+		/* Validate the space flags */
+		ulint	space_flags = fsp_header_get_flags(page);
 
-	/* Initialize table->flags. */
-	space_flags = fsp_header_get_flags(page);
+		if (!fsp_flags_valid(space_flags)) {
 
-	if (!fsp_flags_valid(space_flags)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: unsupported tablespace format %lu\n",
-			(ulong) space_flags);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unsupported tablespace format %lu",
+				(ulong) space_flags);
 
-		err = DB_UNSUPPORTED;
-		goto func_exit;
-	}
+			err = DB_UNSUPPORTED;
+		} else {
+			mach_write_to_8(
+				FIL_PAGE_FILE_FLUSH_LSN + page, current_lsn);
 
-	mach_write_to_8(FIL_PAGE_FILE_FLUSH_LSN + page, current_lsn);
+			/* Write space_id to the file space header. */
+			mach_write_to_4(FIL_PAGE_DATA + page, table->space);
 
-	/* Write space_id to the file space header. */
-	mach_write_to_4(FIL_PAGE_DATA + page, table->space);
+			/* Update the flush_lsn stamp at the start
+			of the file */
 
-	/* Update the flush_lsn stamp at the start of the file */
-	if (!fil_reset_space_and_lsn_write(
-		current_lsn, tmpfilepath, file, table->space, 0,
-		page, zip_size ? &page_zip : NULL)) {
+			success = fil_reset_space_and_lsn_write(
+				current_lsn, filepath, file, table->space, 0,
+				page, zip_size ? &page_zip : NULL);
 
-		err = DB_ERROR;
-		goto func_exit;
-	}
-
-rename_and_exit:
-	if (!os_file_flush(file)) {
-		err = DB_IO_ERROR;
-		goto func_exit;
-	}
-
-	if (!os_file_rename(innodb_file_data_key, tmpfilepath, filepath)) {
-		err = DB_ERROR;
+			if (!success) {
+				err = DB_ERROR;
+			}
+		}
+		
+		if (err == DB_SUCCESS && !os_file_flush(file)) {
+			err = DB_IO_ERROR;
+		}
 	}
 
 func_exit:
 	os_file_close(file);
+
 	if (buf2) {
 		ut_free(buf2);
 	}
+
 	mem_free(filepath);
-	mem_free(tmpfilepath);
 
 	return(err);
 }
