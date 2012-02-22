@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,12 +25,7 @@
   Published with a permission.
 */
 
-/* needed to have access to 64 bit file functions */
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
-
-#define _XOPEN_SOURCE 500 /* needed to include getopt.h on some platforms. */
-
+#include <my_global.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -54,7 +48,6 @@
 /* another argument to specify page ranges... seek to right spot and go from there */
 
 typedef unsigned long int ulint;
-typedef unsigned char uchar;
 
 /* innodb function in name; modified slightly to not have the ASM version (lots of #ifs that didn't apply) */
 ulint mach_read_from_4(uchar *b)

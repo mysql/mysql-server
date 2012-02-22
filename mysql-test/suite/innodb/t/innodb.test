@@ -1021,6 +1021,24 @@ update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id 
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 drop table t3,t2,t1;
 
+# test ON UPDATE CASCADE
+CREATE TABLE t1 (
+        c1 VARCHAR(8), c2 VARCHAR(8),
+	PRIMARY KEY (c1, c2)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+        c0 INT PRIMARY KEY,
+        c1 VARCHAR(8) UNIQUE,
+        FOREIGN KEY (c1) REFERENCES t1 (c1) ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('old', 'somevalu'), ('other', 'anyvalue');
+INSERT INTO t2 VALUES (10, 'old'), (20, 'other');
+-- error ER_FOREIGN_DUPLICATE_KEY
+UPDATE t1 SET c1 = 'other' WHERE c1 = 'old';
+DROP TABLE t2,t1;
+
 #
 # test for recursion depth limit
 #
@@ -1370,6 +1388,17 @@ eval set storage_engine=$default;
 
 -- disable_query_log
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
+
+#
+# Test fix for bug 13117023. InnoDB increments HA_READ_KEY_COUNT (aka
+# HANDLER_READ_KEY) when it should not.
+#
+create table t1 (f1 integer primary key) engine=innodb;
+flush status;
+show status like "handler_read_key";
+select f1 from t1;
+show status like "handler_read_key";
+drop table t1;
 
 #######################################################################
 #                                                                     #

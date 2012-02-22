@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2000-2005 MySQL AB
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -99,7 +95,6 @@ static bool read_texts(const char *file_name,const char ***point,
   char name[FN_REFLEN];
   uchar *buff;
   uchar head[32],*pos;
-  const char *errmsg;
   DBUG_ENTER("read_texts");
 
   LINT_INIT(buff);
@@ -171,18 +166,9 @@ Check that the above file is the right version for this program!",
   DBUG_RETURN(0);
 
 err:
-  switch (funktpos) {
-  case 2:
-    errmsg= "Not enough memory for messagefile '%s'";
-    break;
-  case 1:
-    errmsg= "Can't read from messagefile '%s'";
-    break;
-  default:
-    errmsg= "Can't find messagefile '%s'";
-    break;
-  }
-  sql_print_error(errmsg, name);
+  sql_print_error((funktpos == 2) ? "Not enough memory for messagefile '%s'" :
+                  ((funktpos == 1) ? "Can't read from messagefile '%s'" :
+                   "Can't find messagefile '%s'"), name);
 err1:
   if (file != FERR)
     VOID(my_close(file,MYF(MY_WME)));

@@ -138,6 +138,7 @@ CREATE TABLE `я` (a INT);
 SET NAMES DEFAULT;
 --echo mysqlcheck --default-character-set="latin1" --databases test
 # Error returned depends on platform, replace it with "Table doesn't exist"
+call mtr.add_suppression("Can't find file: '..test.@003f.frm'");
 --replace_result "Can't find file: './test/@003f.frm' (errno: 22)" "Table doesn't exist" "Table 'test.?' doesn't exist" "Table doesn't exist"
 --exec $MYSQL_CHECK --default-character-set="latin1" --databases test
 --echo mysqlcheck --default-character-set="utf8" --databases test

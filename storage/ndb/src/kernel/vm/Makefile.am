@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-noinst_LIBRARIES = libkernel.a libsched.a
+noinst_LIBRARIES = libkernel.a libsched.a libtest.a
 EXTRA_LIBRARIES= libsched_mt.a
 
 if BUILD_NDBMTD
@@ -58,6 +58,9 @@ libsched_mt_a_SOURCES = SimulatedBlock_mt.cpp \
                         mt.cpp \
                         dummy_mt.cpp
 
+libtest_a_SOURCES = test_context.cpp \
+                    ../blocks/dbtup/tuppage.cpp
+
 EXTRA_DIST=SimulatedBlock.cpp TransporterCallback.cpp CMakeLists.txt LongSignal.cpp SimplePropertiesSection.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
@@ -73,15 +76,23 @@ EXTRA_PROGRAMS = ndbd_malloc_impl_test bench_pool testDynArr256 \
 
 ndbd_malloc_impl_test_CXXFLAGS = -DUNIT_TEST
 ndbd_malloc_impl_test_SOURCES = ndbd_malloc_impl.cpp
-ndbd_malloc_impl_test_LDFLAGS = @ndb_bin_am_ldflags@ \
+ndbd_malloc_impl_test_LDFLAGS = @ndb_bin_am_ldflags@
+ndbd_malloc_impl_test_LDADD = \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
   $(top_builddir)/mysys/libmysyslt.la \
   $(top_builddir)/dbug/libdbuglt.la \
   $(top_builddir)/strings/libmystringslt.la
 
 bench_pool_SOURCES = bench_pool.cpp
-bench_pool_LDFLAGS = @ndb_bin_am_ldflags@\
-  libkernel.a ../error/liberror.a \
+bench_pool_LDFLAGS = @ndb_bin_am_ldflags@
+bench_pool_LDADD = libkernel.a ../error/liberror.a \
+  $(top_builddir)/storage/ndb/src/libndbclient.la \
+  $(top_builddir)/mysys/libmysyslt.la \
+  $(top_builddir)/dbug/libdbuglt.la \
+  $(top_builddir)/strings/libmystringslt.la
+
+test_ldadd = libtest.a \
+  libkernel.a libsched.a ../error/liberror.a \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
   $(top_builddir)/mysys/libmysyslt.la \
   $(top_builddir)/dbug/libdbuglt.la \
@@ -89,25 +100,28 @@ bench_pool_LDFLAGS = @ndb_bin_am_ldflags@\
 
 testDynArr256_CXXFLAGS = -DUNIT_TEST
 testDynArr256_SOURCES = DynArr256.cpp
-testDynArr256_LDFLAGS = @ndb_bin_am_ldflags@ \
-  libkernel.a ../error/liberror.a \
-  $(top_builddir)/storage/ndb/src/libndbclient.la \
-  $(top_builddir)/mysys/libmysyslt.la \
-  $(top_builddir)/dbug/libdbuglt.la \
-  $(top_builddir)/strings/libmystringslt.la
+testDynArr256_LDFLAGS = @ndb_bin_am_ldflags@
+testDynArr256_LDADD = $(test_ldadd)
+
+CountingPool_t_CXXFLAGS = -DTAP_TEST
+CountingPool_t_SOURCES = CountingPool.cpp
+CountingPool_t_LDFLAGS = @ndb_bin_am_ldflags@
+CountingPool_t_LDADD = $(test_ldadd)
+
+DynArr256_t_CXXFLAGS = -DTAP_TEST
+DynArr256_t_SOURCES = DynArr256.cpp
+DynArr256_t_LDFLAGS = @ndb_bin_am_ldflags@
+DynArr256_t_LDADD = $(test_ldadd)
 
 testSectionReader_CXXFLAGS = -DUNIT_TEST
 testSectionReader_SOURCES = SectionReader.cpp
-testSectionReader_LDFLAGS = @ndb_bin_am_ldflags@ \
-  $(top_builddir)/storage/ndb/src/libndbclient.la \
-  $(top_builddir)/mysys/libmysyslt.la \
-  $(top_builddir)/dbug/libdbuglt.la \
-  $(top_builddir)/strings/libmystringslt.la
+testSectionReader_LDFLAGS = @ndb_bin_am_ldflags@
+testSectionReader_LDADD = $(test_ldadd)
 
 testLongSignals_CXXFLAGS = -DUNIT_TEST
 testLongSignals_SOURCES = testLongSig/testLongSig.cpp
-testLongSignals_LDFLAGS = @ndb_bin_am_ldflags@ \
-  $(top_builddir)/storage/ndb/src/libndbclient.la \
+testLongSignals_LDFLAGS = @ndb_bin_am_ldflags@
+testLongSignals_LDADD = $(top_builddir)/storage/ndb/src/libndbclient.la \
   $(top_builddir)/mysys/libmysyslt.la \
   $(top_builddir)/dbug/libdbuglt.la \
   $(top_builddir)/strings/libmystringslt.la \
@@ -115,7 +129,8 @@ testLongSignals_LDFLAGS = @ndb_bin_am_ldflags@ \
 
 testSafeMutex_CXXFLAGS = -DUNIT_TEST
 testSafeMutex_SOURCES = SafeMutex.cpp
-testSafeMutex_LDFLAGS = @ndb_bin_am_ldflags@ \
+testSafeMutex_LDFLAGS = @ndb_bin_am_ldflags@
+testSafeMutex_LDADD = \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
   $(top_builddir)/mysys/libmysyslt.la \
   $(top_builddir)/dbug/libdbuglt.la \
@@ -128,4 +143,4 @@ mt_thr_config_t_LDADD = \
 	$(top_builddir)/storage/ndb/src/common/util/libgeneral.la \
 	$(top_builddir)/mysys/libmysyslt.la
 
-noinst_PROGRAMS = mt_thr_config-t
+noinst_PROGRAMS = mt_thr_config-t CountingPool-t DynArr256-t

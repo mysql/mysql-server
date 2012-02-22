@@ -148,6 +148,19 @@ extern "C" {
 #define MAX(x,y) (((x)>(y))?(x):(y))
 #endif
 
+/*
+  Dont allow use of min() or max() macros
+   - in order to enforce forward compatibilty
+*/
+
+#ifdef min
+#undef min
+#endif
+
+#ifdef max
+#undef max
+#endif
+
 #define NDB_O_DIRECT_WRITE_ALIGNMENT 512
 
 #ifndef STATIC_ASSERT
@@ -235,6 +248,11 @@ extern "C" {
 #else
 #define ATTRIBUTE_NOINLINE
 #endif
+
+/**
+ * Pad to NDB_CL size
+ */
+#define NDB_CL_PADSZ(x) (NDB_CL - ((x) % NDB_CL))
 
 /*
  * require is like a normal assert, only it's always on (eg. in release)

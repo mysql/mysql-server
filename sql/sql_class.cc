@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 /*****************************************************************************
 **
 ** This file implements classes defined in sql_class.h
@@ -654,7 +653,6 @@ THD::THD()
   is_slave_error= thread_specific_used= FALSE;
   hash_clear(&handler_tables_hash);
   tmp_table=0;
-  used_tables=0;
   cuted_fields= sent_row_count= row_count= 0L;
   limit_found_rows= 0;
   row_count_func= -1;
@@ -1219,6 +1217,25 @@ bool THD::store_globals()
     created in another thread
   */
   thr_lock_info_init(&lock_info);
+  return 0;
+}
+
+/*
+  Remove the thread specific info (THD and mem_root pointer) stored during
+  store_global call for this thread.
+*/
+bool THD::restore_globals()
+{
+  /*
+    Assert that thread_stack is initialized: it's necessary to be able
+    to track stack overrun.
+  */
+  DBUG_ASSERT(thread_stack);
+  
+  /* Undocking the thread specific data. */
+  my_pthread_setspecific_ptr(THR_THD, NULL);
+  my_pthread_setspecific_ptr(THR_MALLOC, NULL);
+  
   return 0;
 }
 
@@ -2066,7 +2083,7 @@ bool select_export::send_data(List<Item> &items)
                             ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                             ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
-                            item->name, row_count);
+                            item->name, static_cast<long>(row_count));
       }
       else if (from_end_pos < res->ptr() + res->length())
       { 
@@ -2075,7 +2092,7 @@ bool select_export::send_data(List<Item> &items)
         */
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
-                            item->full_name(), row_count);
+                            item->full_name(), static_cast<long>(row_count));
       }
       cvt_str.length(bytes);
       res= &cvt_str;
@@ -3451,6 +3468,7 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
     xs->xa_state=xa_state;
     xs->xid.set(xid);
     xs->in_thd=0;
+    xs->rm_error=0;
     res=my_hash_insert(&xid_cache, (uchar*)xs);
   }
   pthread_mutex_unlock(&LOCK_xid_cache);

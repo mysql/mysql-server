@@ -431,15 +431,15 @@ public:
      * critical and is not worth fixing.
      */
     Uint16 indexStatFragId;
-    Uint16 indexStatNodeId;
+    Uint16 indexStatNodes[MAX_REPLICAS];
 
     // pending background request (IndexStatRep::RequestType)
     Uint32 indexStatBgRequest;
   };
 
-  TableRecord_pool c_tableRecordPool;
-  RSS_AP_SNAPSHOT(c_tableRecordPool);
-  TableRecord_pool& get_pool(TableRecordPtr) { return c_tableRecordPool; }
+  TableRecord_pool c_tableRecordPool_;
+  RSS_AP_SNAPSHOT(c_tableRecordPool_);
+  TableRecord_pool& get_pool(TableRecordPtr) { return c_tableRecordPool_; }
 
   /**  Node Group and Tablespace id+version + range or list data.
     *  This is only stored temporarily in DBDICT during an ongoing
@@ -459,6 +459,7 @@ public:
    */
   struct TriggerRecord {
     TriggerRecord() {}
+    static bool isCompatible(Uint32 type) { return DictTabInfo::isTrigger(type); }
 
     /** Trigger state */
     enum TriggerState {
@@ -505,8 +506,9 @@ public:
   typedef ArrayPool<TriggerRecord> TriggerRecord_pool;
 
   Uint32 c_maxNoOfTriggers;
-  TriggerRecord_pool c_triggerRecordPool;
-  RSS_AP_SNAPSHOT(c_triggerRecordPool);
+  TriggerRecord_pool c_triggerRecordPool_;
+  TriggerRecord_pool& get_pool(TriggerRecordPtr) { return c_triggerRecordPool_;}
+  RSS_AP_SNAPSHOT(c_triggerRecordPool_);
 
   /**
    * Information for each FS connection.
@@ -771,11 +773,31 @@ public:
     return find_object(obj, object, id);
   }
 
+  bool find_object(DictObjectPtr& obj, Ptr<TriggerRecord>& object, Uint32 id)
+  {
+    if (!find_trigger_object(obj, id))
+    {
+      object.setNull();
+      return false;
+    }
+    get_pool(object).getPtr(object, obj.p->m_object_ptr_i);
+    return !object.isNull();
+  }
+
   bool find_object(DictObjectPtr& object, Uint32 id)
   {
     DictObject key;
     key.m_id = id;
     key.m_type = 0; // Not a trigger atleast
+    bool ok = c_obj_id_hash.find(object, key);
+    return ok;
+  }
+
+  bool find_trigger_object(DictObjectPtr& object, Uint32 id)
+  {
+    DictObject key;
+    key.m_id = id;
+    key.m_type = DictTabInfo::HashIndexTrigger; // A trigger type
     bool ok = c_obj_id_hash.find(object, key);
     return ok;
   }
@@ -2001,6 +2023,7 @@ private:
     bool m_flush_complete;
     bool m_flush_end;
     bool m_wait_gcp_on_commit;
+    bool m_abort_on_node_fail;
 
     // magic is on when record is seized
     enum { DICT_MAGIC = ~RT_DBDICT_SCHEMA_TRANSACTION };
@@ -2026,6 +2049,7 @@ private:
       m_flush_complete = false;
       m_flush_end = false;
       m_wait_gcp_on_commit = true;
+      m_abort_on_node_fail = false;
     }
 
     SchemaTrans(Uint32 the_trans_key) {
@@ -2506,8 +2530,7 @@ private:
     MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
 
     // current and new temporary work table
-    TableRecordPtr m_tablePtr;
-    TableRecordPtr m_newTablePtr;
+    TableRecordPtr::I m_newTablePtrI;
     Uint32 m_newTable_realObjectId;
 
     // before image
@@ -2536,8 +2559,7 @@ private:
     AlterTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
-      m_tablePtr.setNull();
-      m_newTablePtr.setNull();
+      m_newTablePtrI = RNIL;
       m_dihAddFragPtr = RNIL;
       m_lqhFragPtr = RNIL;
       m_blockNo[0] = DBLQH;
@@ -3728,14 +3750,17 @@ private:
   /* ------------------------------------------------------------ */
   // Drop Table Handling
   /* ------------------------------------------------------------ */
-  void releaseTableObject(Uint32 tableId, bool removeFromHash = true);
+  void releaseTableObject(Uint32 table_ptr_i, bool removeFromHash = true);
 
   /* ------------------------------------------------------------ */
   // General Stuff
   /* ------------------------------------------------------------ */
   Uint32 getFreeObjId(bool both = false);
   Uint32 getFreeTableRecord();
+  bool seizeTableRecord(TableRecordPtr& tableRecord, Uint32& schemaFileId);
   Uint32 getFreeTriggerRecord();
+  bool seizeTriggerRecord(TriggerRecordPtr& tableRecord, Uint32 triggerId);
+  void releaseTriggerObject(Uint32 trigger_ptr_i);
   bool getNewAttributeRecord(TableRecordPtr tablePtr,
 			     AttributeRecordPtr & attrPtr);
   void packTableIntoPages(Signal* signal);
@@ -3988,10 +4013,8 @@ private:
   void initWriteSchemaRecord();
 
   void initNodeRecords();
-  void initTableRecords();
-  void initialiseTableRecord(TableRecordPtr tablePtr);
-  void initTriggerRecords();
-  void initialiseTriggerRecord(TriggerRecordPtr triggerPtr);
+  void initialiseTableRecord(TableRecordPtr tablePtr, Uint32 tableId);
+  void initialiseTriggerRecord(TriggerRecordPtr triggerPtr, Uint32 triggerId);
   void initPageRecords();
 
   Uint32 getFsConnRecord();

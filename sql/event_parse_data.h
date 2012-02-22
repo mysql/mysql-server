@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2008 MySQL AB
-   Use is subject to license terms.
+   Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,6 +51,7 @@ public:
 
   int on_completion;
   int status;
+  bool status_changed;
   longlong originator;
   /*
     do_not_create will be set if STARTS time is in the past and

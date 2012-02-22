@@ -921,6 +921,22 @@ MgmApiSession::restart(Properties const &args, int version) {
                                     force != 0,
                                     &m_stopSelf);
 
+  if (result == UNSUPPORTED_NODE_SHUTDOWN && nodes.size() > 1 && force)
+  {
+    /**
+     * We don't support multi node graceful shutdown...
+     *   add "-a" and try again
+     */
+    abort = 1;
+    result= m_mgmsrv.restartNodes(nodes,
+                                  &restarted,
+                                  nostart != 0,
+                                  initialstart != 0,
+                                  abort != 0,
+                                  force != 0,
+                                  &m_stopSelf);
+  }
+
   if (force &&
       (result == NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH ||
        result == UNSUPPORTED_NODE_SHUTDOWN))
@@ -1111,6 +1127,17 @@ MgmApiSession::stop(Properties const &args, int version) {
   {
     result= m_mgmsrv.stopNodes(nodes, &stopped, abort != 0, force != 0,
                                &m_stopSelf);
+
+    if (result == UNSUPPORTED_NODE_SHUTDOWN && nodes.size() > 1 && force)
+    {
+      /**
+       * We don't support multi node graceful shutdown...
+       *   add "-a" and try again
+       */
+      abort = 1;
+      result= m_mgmsrv.stopNodes(nodes, &stopped, abort != 0, force != 0,
+                                 &m_stopSelf);
+    }
 
     if (force &&
         (result == NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH ||

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -369,7 +369,7 @@ C_MODE_END
 #define ulonglong2double(A) my_ulonglong2double(A)
 #define my_off_t2double(A)  my_ulonglong2double(A)
 C_MODE_START
-double my_ulonglong2double(unsigned long long A);
+inline double my_ulonglong2double(unsigned long long A) { return (double) A; }
 C_MODE_END
 #endif /* _AIX */
 

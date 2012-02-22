@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,9 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -483,7 +481,10 @@ bool Item_func::is_expensive_processor(uchar *arg)
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed);
-  int2my_decimal(E_DEC_FATAL_ERROR, val_int(), unsigned_flag, decimal_value);
+  longlong nr= val_int();
+  if (null_value)
+    return 0; /* purecov: inspected */
+  int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, decimal_value);
   return decimal_value;
 }
 
@@ -841,7 +842,7 @@ longlong Item_func_numhybrid::val_int()
       return 0;
 
     char *end= (char*) res->ptr() + res->length();
-    CHARSET_INFO *cs= str_value.charset();
+    CHARSET_INFO *cs= res->charset();
     return (*(cs->cset->strtoll10))(cs, res->ptr(), &end, &err_not_used);
   }
   default:
@@ -1064,7 +1065,7 @@ err:
   push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                       ER_WARN_DATA_OUT_OF_RANGE,
                       ER(ER_WARN_DATA_OUT_OF_RANGE),
-                      name, 1);
+                      name, 1L);
   return dec;
 }
 
@@ -1804,9 +1805,10 @@ void Item_func_integer::fix_length_and_dec()
 
 void Item_func_int_val::fix_num_length_and_dec()
 {
-  max_length= args[0]->max_length - (args[0]->decimals ?
-                                     args[0]->decimals + 1 :
-                                     0) + 2;
+  ulonglong tmp_max_length= (ulonglong ) args[0]->max_length - 
+    (args[0]->decimals ? args[0]->decimals + 1 : 0) + 2;
+  max_length= tmp_max_length > (ulonglong) max_field_size ?
+    max_field_size : (uint32) tmp_max_length;
   uint tmp= float_length(decimals);
   set_if_smaller(max_length,tmp);
   decimals= 0;
@@ -1970,6 +1972,9 @@ void Item_func_round::fix_length_and_dec()
   }
 
   val1= args[1]->val_int();
+  if ((null_value= args[1]->is_null()))
+    return;
+
   val1_unsigned= args[1]->unsigned_flag;
   if (val1 < 0)
     decimals_to_set= val1_unsigned ? INT_MAX : 0;
@@ -2119,10 +2124,7 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   if (!(null_value= (args[0]->null_value || args[1]->null_value ||
                      my_decimal_round(E_DEC_FATAL_ERROR, value, (int) dec,
                                       truncate, decimal_value) > 1))) 
-  {
-    decimal_value->frac= decimals;
     return decimal_value;
-  }
   return 0;
 }
 
@@ -2851,7 +2853,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
   if (!tmp_udf)
   {
-    my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str, errno);
+    my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str);
     DBUG_RETURN(TRUE);
   }
   u_d=tmp_udf;
@@ -3841,6 +3843,7 @@ Item_func_set_user_var::fix_length_and_dec()
   maybe_null=args[0]->maybe_null;
   max_length=args[0]->max_length;
   decimals=args[0]->decimals;
+  unsigned_flag= args[0]->unsigned_flag;
   collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
 }
 

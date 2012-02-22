@@ -16,6 +16,13 @@
 -- source include/not_windows.inc
 -- source include/have_log_bin.inc
 
+# This test is really a walking race-condition...
+#   and valgrind in PB2..."normally" gets timeout...
+#   so ignore this test in valgrind
+# In CluB it actually more frequently fails in gcc-madness, not sure why
+#   (same timeout)
+-- source include/not_valgrind.inc
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 CREATE DATABASE IF NOT EXISTS mysqlslap;
@@ -51,8 +58,8 @@ set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and 
 --echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --echo
 
-let $end_mysqlslap= 5000;
---exec $MYSQL_SLAP --query="update test.t1 set a=a+1 where pk=1" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
+let $end_mysqlslap= 2000;
+--exec $MYSQL_SLAP --query="update test.t1 set a=a+1 where pk=1; select sleep(0.01);" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
 
 # wait for 100 updates
 --disable_result_log
@@ -92,8 +99,8 @@ select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' 
 --echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 --echo
 
-update t1 set b= 0;
---exec $MYSQL_SLAP --query="update test.t1 set b=b+1 where pk=1" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
+update t1 set b = 0 where pk = 1;
+--exec $MYSQL_SLAP --query="update test.t1 set b=b+1 where pk=1; select sleep(0.01);" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
 
 # wait for 100 updates
 --disable_result_log
@@ -133,8 +140,8 @@ select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' 
 --echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --echo
 
-update t1 set c= 0;
---exec $MYSQL_SLAP --query="update test.t1 set c=c+1 where pk=1" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
+update t1 set c = 0 where pk = 1;
+--exec $MYSQL_SLAP --query="update test.t1 set c=c+1 where pk=1; select sleep(0.01);" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
 
 # wait for mysqlslap to end
 --disable_result_log

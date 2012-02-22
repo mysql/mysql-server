@@ -260,6 +260,9 @@ rw_lock_create_func(
 	contains garbage at initialization and cannot be used for
 	recursive x-locking. */
 	lock->recursive = FALSE;
+	/* Silence Valgrind when UNIV_DEBUG_VALGRIND is not enabled. */
+	memset((void*) &lock->writer_thread, 0, sizeof lock->writer_thread);
+	UNIV_MEM_INVALID(&lock->writer_thread, sizeof lock->writer_thread);
 
 #ifdef UNIV_SYNC_DEBUG
 	UT_LIST_INIT(lock->debug_list);
@@ -609,6 +612,9 @@ rw_lock_x_lock_func(
 	ibool   spinning = FALSE;
 
 	ut_ad(rw_lock_validate(lock));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	i = 0;
 
@@ -763,7 +769,9 @@ rw_lock_add_debug_info(
 	rw_lock_debug_mutex_exit();
 
 	if ((pass == 0) && (lock_type != RW_LOCK_WAIT_EX)) {
-		sync_thread_add_level(lock, lock->level);
+		sync_thread_add_level(lock, lock->level,
+				      lock_type == RW_LOCK_EX
+				      && lock->lock_word < 0);
 	}
 }
 
@@ -923,11 +931,13 @@ rw_lock_list_print_info(
 				putc('\n', file);
 			}
 
+			rw_lock_debug_mutex_enter();
 			info = UT_LIST_GET_FIRST(lock->debug_list);
 			while (info != NULL) {
 				rw_lock_debug_print(file, info);
 				info = UT_LIST_GET_NEXT(list, info);
 			}
+			rw_lock_debug_mutex_exit();
 		}
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
 		mutex_exit(&(lock->mutex));
@@ -971,11 +981,13 @@ rw_lock_print(
 			putc('\n', stderr);
 		}
 
+		rw_lock_debug_mutex_enter();
 		info = UT_LIST_GET_FIRST(lock->debug_list);
 		while (info != NULL) {
 			rw_lock_debug_print(stderr, info);
 			info = UT_LIST_GET_NEXT(list, info);
 		}
+		rw_lock_debug_mutex_exit();
 	}
 }
 

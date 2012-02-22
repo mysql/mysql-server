@@ -199,11 +199,14 @@
 #define CFG_DB_MT_THREAD_CONFIG          628
 
 #define CFG_DB_CRASH_ON_CORRUPTED_TUPLE  629
+#define CFG_DB_FREE_PCT                  630
+
 /* 632 used for CFG_DB_NO_REDOLOG_PARTS */
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 #define CFG_RESERVED_SEND_BUFFER_MEMORY 202
+#define CFG_EXTRA_SEND_BUFFER_MEMORY  203
 
 #define CFG_MIN_LOGLEVEL          250
 #define CFG_LOGLEVEL_STARTUP      250

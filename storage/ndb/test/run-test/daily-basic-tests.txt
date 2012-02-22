@@ -12,7 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-max-time: 900
+max-time: 1800
 cmd: testIndex
 args: -n DeferredError
 
@@ -20,7 +20,7 @@ max-time: 900
 cmd: testIndex
 args: -n DeferredMixedLoad T1 T6 T13
 
-max-time: 1800
+max-time: 2000
 cmd: testIndex
 args: -n DeferredMixedLoadError T1 T6 T13
 
@@ -28,7 +28,7 @@ max-time: 900
 cmd: testIndex
 args: -n NF_DeferredMixed T1 T6 T13
 
-max-time: 900
+max-time: 1800
 cmd: testIndex
 args: -n NF_Mixed T1 T6 T13
 
@@ -577,6 +577,10 @@ args: -n ScanReadError8081 T1 D1 D2
 
 max-time: 500
 cmd: testScan
+args: -n Bug13394788 T1
+
+max-time: 500
+cmd: testScan
 args: -n InsertDelete T1 T6 D1 D2 
 
 max-time: 500
@@ -1107,6 +1111,10 @@ max-time: 1000
 cmd: test_event
 args: -l 10 -n Bug27169 T1
 
+max-time: 1000
+cmd: test_event
+args: -n Bug12598496 T1
+
 #
 max-time: 600
 cmd: test_event_merge
@@ -1232,6 +1240,10 @@ args: -l 1 -n RestartNFDuringNR T6 T13
 max-time: 3600
 cmd: testNodeRestart
 args: -n RestartNodeDuringLCP T6 
+
+max-time: 3600
+cmd: testNodeRestart
+args: -n LCPTakeOver T6 
 
 max-time: 2500
 cmd: testNodeRestart
@@ -1590,7 +1602,7 @@ max-time: 500
 cmd: testLimits
 args: -n DropSignalFragments T1
 
-max-time: 300
+max-time: 500
 cmd: testMgm
 args:
 
@@ -1739,7 +1751,7 @@ max-time: 300
 cmd: testBasic
 args: -n UnlockUpdateBatch T3
 
-max-time: 300
+max-time: 600
 cmd: testNodeRestart
 args: -n MixReadUnlockRestart T1
 
@@ -1831,12 +1843,23 @@ cmd: testNdbApi
 args: -n NdbClusterConnectSR T1
 
 # Fragmented signal send
-max-time 1800
+max-time: 1800
 cmd: testNdbApi
 args: -n TestFragmentedSend T1
 
 max-time: 300
 cmd: testNodeRestart
-args: -nMasterFailSlowLCP T1
+args: -n MasterFailSlowLCP T1
 
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug13464664 T1
+
+max-time: 300
+cmd: testDict
+args: -n Bug13416603 I2
+
+max-time: 300
+cmd: testDict
+args: -n IndexStatCreate T1
 

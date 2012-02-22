@@ -139,7 +139,7 @@ private:
   EventLogger operator = (const EventLogger&);
   bool operator == (const EventLogger&);
 
-  STATIC_CONST(MAX_TEXT_LENGTH = 256);
+  STATIC_CONST(MAX_TEXT_LENGTH = 384);
 };
 
 extern void getRestartAction(Uint32 action, BaseString &str);

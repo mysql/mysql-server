@@ -7,6 +7,7 @@ SELECT * FROM t1;
 a	b
 1	10
 2	2
+call mtr.add_suppression("Slave SQL.*suffer.*http:..bugs.mysql.com.bug.php.id=24432");
 include/wait_for_slave_sql_error.inc [errno=1105]
 Last_SQL_Error = 'Error 'master may suffer from http://bugs.mysql.com/bug.php?id=24432 so slave stops; check error log on slave for more info' on query. Default database: 'test'. Query: 'INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10''
 SELECT * FROM t1;

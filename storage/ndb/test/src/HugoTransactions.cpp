@@ -396,12 +396,19 @@ restart:
     }
 
     pOp = getScanOperation(pTrans);
-    if (pOp == NULL) {
-      ERR(pTrans->getNdbError());
+    if (pOp == NULL)
+    {
+      const NdbError err = pTrans->getNdbError();
+      ERR(err);
       closeTransaction(pNdb);
+      if (err.status == NdbError::TemporaryError)
+      {
+        NdbSleep_MilliSleep(50);
+        continue;
+      }
       return NDBT_FAILED;
     }
-    
+
     if( pOp->readTuples(NdbOperation::LM_Exclusive, flags,
                         parallelism))
     {

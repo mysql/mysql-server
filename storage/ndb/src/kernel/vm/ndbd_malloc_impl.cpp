@@ -288,6 +288,17 @@ Ndbd_mem_manager::get_resource_limit(Uint32 id, Resource_limit& rl) const
   return false;
 }
 
+bool
+Ndbd_mem_manager::get_resource_limit_nolock(Uint32 id, Resource_limit& rl) const
+{
+  if (id < XX_RL_COUNT)
+  {
+    rl = m_resource_limit[id];
+    return true;
+  }
+  return false;
+}
+
 static
 inline
 void

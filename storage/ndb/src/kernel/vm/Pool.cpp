@@ -34,13 +34,13 @@ Pool_context::release_page(Uint32 type_id, Uint32 i)
 }
 
 void*
-Pool_context::get_memroot()
+Pool_context::get_memroot() const
 {
   return m_block->m_ctx.m_mm.get_memroot();
 }
 
 void
-Pool_context::handleAbort(int err, const char * msg)
+Pool_context::handleAbort(int err, const char * msg) const
 {
   m_block->progError(__LINE__, err, msg);
 }

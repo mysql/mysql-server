@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -491,6 +492,8 @@ static void handle_bootstrap_impl(THD *thd)
     query= (char *) thd->memdup_w_gap(buff, length + 1,
                                       thd->db_length + 1 +
                                       QUERY_CACHE_FLAGS_SIZE);
+    size_t db_len= 0;
+    memcpy(query + length + 1, (char *) &db_len, sizeof(size_t));
     thd->set_query(query, length);
     DBUG_PRINT("query",("%-.4096s", thd->query()));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
@@ -1154,13 +1157,22 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     if (ptr < packet_end)
     {
+      CHARSET_INFO *cs;
       if (ptr + 2 > packet_end)
       {
         my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
         break;
       }
 
-      cs_number= uint2korr(ptr);
+      if ((cs_number= uint2korr(ptr)) &&
+          (cs= get_charset(cs_number, MYF(0))) &&
+          !is_supported_parser_charset(cs))
+      {
+        /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
+        my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+                 cs->csname);
+        break;
+      }        
     }
 
     /* Convert database name to utf8 */
@@ -1206,7 +1218,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       if (cs_number)
       {
-        thd_init_client_charset(thd, cs_number);
+        /*
+          We have checked charset earlier,
+          so thd_init_client_charset cannot fail.
+        */
+        if (thd_init_client_charset(thd, cs_number))
+          DBUG_ASSERT(0);
         thd->update_charset();
       }
     }
@@ -1476,14 +1493,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_REFRESH:
   {
     int not_used;
-#ifndef MCP_BUG13001491
     /*
       Initialize thd->lex since it's used in many base functions, such as
       open_tables(). Otherwise, it remains unitialized and may cause crash
       during execution of COM_REFRESH.
     */
     lex_start(thd);
-#endif
     status_var_increment(thd->status_var.com_stat[SQLCOM_FLUSH]);
     ulong options= (ulong) (uchar) packet[0];
     if (check_global_access(thd,RELOAD_ACL))
@@ -1897,13 +1912,30 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
     pos--;
     packet_length--;
   }
-  /* We must allocate some extra memory for query cache */
+  /* We must allocate some extra memory for query cache 
+
+    The query buffer layout is:
+       buffer :==
+            <statement>   The input statement(s)
+            '\0'          Terminating null char  (1 byte)
+            <length>      Length of following current database name (size_t)
+            <db_name>     Name of current database
+            <flags>       Flags struct
+  */
   if (! (query= (char*) thd->memdup_w_gap(packet,
                                           packet_length,
-                                          1 + thd->db_length +
+                                          1 + sizeof(size_t) + thd->db_length +
                                           QUERY_CACHE_FLAGS_SIZE)))
       return TRUE;
   query[packet_length]= '\0';
+  /*
+    Space to hold the name of the current database is allocated.  We
+    also store this length, in case current database is changed during
+    execution.  We might need to reallocate the 'query' buffer
+  */
+  char *len_pos = (query + packet_length + 1);
+  memcpy(len_pos, (char *) &thd->db_length, sizeof(size_t));
+    
   thd->set_query(query, packet_length);
 
   /* Reclaim some memory */
@@ -2609,6 +2641,12 @@ mysql_execute_command(THD *thd)
 			   create_table->table_name))
       goto end_with_restore_list;
 #endif
+    /*
+      If no engine type was given, work out the default now
+      rather than at parse-time.
+    */
+    if (!(create_info.used_fields & HA_CREATE_USED_ENGINE))
+      create_info.db_type= ha_default_handlerton(thd);
     /*
       If we are using SET CHARSET without DEFAULT, add an implicit
       DEFAULT to not confuse old users. (This may change).
@@ -3979,8 +4017,7 @@ end_with_restore_list:
             hostname_requires_resolving(user->host.str))
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_WARN_HOSTNAME_WONT_WORK,
-                              ER(ER_WARN_HOSTNAME_WONT_WORK),
-                              user->host.str);
+                              ER(ER_WARN_HOSTNAME_WONT_WORK));
         // Are we trying to change a password of another user
         DBUG_ASSERT(user->host.str != 0);
         if (strcmp(thd->security_ctx->user, user->user.str) ||
@@ -5887,7 +5924,7 @@ mysql_new_select(LEX *lex, bool move_down)
   lex->nest_level++;
   if (lex->nest_level > (int) MAX_SELECT_NESTING)
   {
-    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT,MYF(0),MAX_SELECT_NESTING);
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
     DBUG_RETURN(1);
   }
   select_lex->nest_level= lex->nest_level;
@@ -6937,7 +6974,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
           When an error is returned, my_message may have not been called and
           the client will hang waiting for a response.
         */
-        my_error(ER_UNKNOWN_ERROR, MYF(0), "FLUSH PRIVILEGES failed");
+        my_error(ER_UNKNOWN_ERROR, MYF(0));
       }
     }
 
@@ -6986,7 +7023,6 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     if (ha_flush_logs(NULL))
       result=1;
     if (flush_error_log())
-#ifndef MCP_BUG13001491
     {
       /*
         When flush_error_log() failed, my_error() has not been called.
@@ -6995,9 +7031,6 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       my_error(ER_UNKNOWN_ERROR, MYF(0));
       result= 1;
     }
-#else
-      result=1;
-#endif
   }
 #ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
@@ -7046,7 +7079,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 	return 1;                               // Killed
       if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
                               FALSE : TRUE, TRUE))
-          result= 1;
+      {
+        /*
+          NOTE: my_error() has been already called by reopen_tables() within
+          close_cached_tables().
+        */
+        result= 1;
+      }
       
       if (make_global_read_lock_block_commit(thd)) // Killed
       {
@@ -7059,7 +7098,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     {
       if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
                               FALSE : TRUE, FALSE))
+      {
+        /*
+          NOTE: my_error() has been already called by reopen_tables() within
+          close_cached_tables().
+        */
         result= 1;
+      }
     }
     my_dbopt_cleanup();
   }
@@ -7076,7 +7121,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     tmp_write_to_binlog= 0;
     if (reset_master(thd))
     {
-      result=1;
+      /* NOTE: my_error() has been already called by reset_master(). */
+      result= 1;
     }
   }
 #endif
@@ -7084,7 +7130,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
    if (options & REFRESH_DES_KEY_FILE)
    {
      if (des_key_file && load_des_key_file(des_key_file))
-         result= 1;
+     {
+       /* NOTE: my_error() has been already called by load_des_key_file(). */
+       result= 1;
+     }
    }
 #endif
 #ifdef HAVE_REPLICATION
@@ -7093,7 +7142,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
    tmp_write_to_binlog= 0;
    pthread_mutex_lock(&LOCK_active_mi);
    if (reset_slave(thd, active_mi))
-     result=1;
+   {
+     /* NOTE: my_error() has been already called by reset_slave(). */
+     result= 1;
+   }
    pthread_mutex_unlock(&LOCK_active_mi);
  }
 #endif
@@ -7985,10 +8037,14 @@ bool parse_sql(THD *thd,
 
   bool mysql_parse_status= MYSQLparse(thd) != 0;
 
-  /* Check that if MYSQLparse() failed, thd->is_error() is set. */
+  /*
+    Check that if MYSQLparse() failed, thd->is_error() is set (unless
+    we have an error handler installed, which might have silenced error).
+  */
 
   DBUG_ASSERT(!mysql_parse_status ||
-              (mysql_parse_status && thd->is_error()));
+              (mysql_parse_status && thd->is_error()) ||
+              (mysql_parse_status && thd->get_internal_handler()));
 
   /* Reset parser state. */
 

@@ -70,7 +70,7 @@ public:
   Cache* m_cacheBuild;
   Cache* m_cacheQuery;
   Cache* m_cacheClean;
-  // mutex for query cache switch, memory barrier would do
+  // mutex for query cache switch and reference count
   NdbMutex* m_query_mutex;
   NdbEventOperation* m_eventOp;
   Mem* m_mem_handler;
@@ -185,6 +185,8 @@ public:
     // performance
     mutable Uint64 m_save_time;
     mutable Uint64 m_sort_time;
+    // in use by query_stat
+    mutable uint m_ref_count;
     Cache();
     // pos is index < sampleCount, addr is offset in keyArray
     uint get_keyaddr(uint pos) const;

@@ -88,6 +88,8 @@
 #include <signaldata/TransIdAI.hpp>
 #include <signaldata/CreateTab.hpp>
 
+#include <TransporterRegistry.hpp> // error 8035
+
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
 #ifdef VM_TRACE
@@ -3067,7 +3069,16 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     case ZWRITE:
     case ZREFRESH:
       jam();
-      if (unlikely((++ regApiPtr->m_write_count) > m_max_writes_per_trans))
+      regApiPtr->m_write_count++;
+      if (regApiPtr->m_flags & ApiConnectRecord::TF_DEFERRED_CONSTRAINTS)
+      {
+        /**
+         * Allow slave applier to ignore m_max_writes_per_trans
+         */
+        break;
+      }
+
+      if (unlikely(regApiPtr->m_write_count > m_max_writes_per_trans))
       {
         TCKEY_abort(signal, 65);
         return;
@@ -3144,7 +3155,8 @@ handle_reorg_trigger(DiGetNodesConf * conf)
   {
     conf->fragId = conf->nodes[MAX_REPLICAS];
     conf->reqinfo = conf->nodes[MAX_REPLICAS+1];
-    memcpy(conf->nodes, conf->nodes+MAX_REPLICAS+2, sizeof(conf->nodes));
+    memcpy(conf->nodes, conf->nodes+MAX_REPLICAS+2,
+           sizeof(Uint32)*MAX_REPLICAS);
   }
   else
   {
@@ -3356,7 +3368,10 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     jam();
     regTcPtr->lastReplicaNo = 0;
     regTcPtr->noOfNodes = 1;
-  } 
+
+    if (regTcPtr->tcNodedata[0] == getOwnNodeId())
+      c_counters.clocalReadCount++;
+  }
   else if (Toperation == ZUNLOCK)
   {
     regTcPtr->m_special_op_flags &= ~TcConnectRecord::SOF_REORG_MOVING;
@@ -3406,6 +3421,8 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     TlastReplicaNo = tnoOfBackup + tnoOfStandby;
     regTcPtr->lastReplicaNo = (Uint8)TlastReplicaNo;
     regTcPtr->noOfNodes = (Uint8)(TlastReplicaNo + 1);
+    if (regTcPtr->tcNodedata[0] == getOwnNodeId())
+      c_counters.clocalWriteCount++;
 
     if (unlikely((Toperation == ZREFRESH) &&
                  (! isRefreshSupported())))
@@ -8375,7 +8392,8 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
   cfailure_nr = nodeFail->failNo;
   const Uint32 tnoOfNodes  = nodeFail->noOfNodes;
   const Uint32 tnewMasterId = nodeFail->masterNodeId;
-  
+  Uint32 cdata[MAX_NDB_NODES];
+
   arrGuard(tnoOfNodes, MAX_NDB_NODES);
   Uint32 i;
   int index = 0;
@@ -10408,7 +10426,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   SectionHandle handle(this, signal);
   SegmentedSectionPtr api_op_ptr;
   handle.getSection(api_op_ptr, 0);
-  copy(&cdata[0], api_op_ptr);
+  Uint32 * apiPtr = signal->theData+25; // temp storage
+  copy(apiPtr, api_op_ptr);
 
   Uint32 aiLength= 0;
   Uint32 keyLen= 0;
@@ -10534,7 +10553,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   ndbrequire(transP->apiScanRec == RNIL);
   ndbrequire(scanptr.p->scanApiRec == RNIL);
 
-  errCode = initScanrec(scanptr, scanTabReq, scanParallel, noOprecPerFrag, aiLength, keyLen);
+  errCode = initScanrec(scanptr, scanTabReq, scanParallel, noOprecPerFrag,
+                        aiLength, keyLen, apiPtr);
   if (unlikely(errCode))
   {
     jam();
@@ -10570,11 +10590,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     /**
      * Force API_FAILREQ
      */
-    DisconnectRep * const  rep = (DisconnectRep *)signal->getDataPtrSend();
-    rep->nodeId = refToNode(apiConnectptr.p->ndbapiBlockref);
-    rep->err = 8038;
-    
-    sendSignal(CMVMI_REF, GSN_DISCONNECT_REP, signal, 2, JBA);
+    signal->theData[0] = refToNode(apiConnectptr.p->ndbapiBlockref);
+    sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBA);
     CLEAR_ERROR_INSERT_VALUE;
   }
 
@@ -10645,7 +10662,8 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
 		  UintR scanParallel,
 		  UintR noOprecPerFrag,
 		  Uint32 aiLength,
-		  Uint32 keyLength)
+		  Uint32 keyLength,
+                  const Uint32 apiPtr[])
 {
   const UintR ri = scanTabReq->requestInfo;
   scanptr.p->scanTcrec = tcConnectptr.i;
@@ -10697,7 +10715,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
     ptr.p->scanFragState = ScanFragRec::IDLE;
     ptr.p->scanRec = scanptr.i;
     ptr.p->scanFragId = 0;
-    ptr.p->m_apiPtr = cdata[i];
+    ptr.p->m_apiPtr = apiPtr[i];
   }//for
 
   (* (ScanTabReq::getRangeScanFlag(ri) ? 
@@ -13260,7 +13278,9 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
       { Ndbinfo::WRITES_COUNTER, c_counters.cwriteCount },
       { Ndbinfo::ABORTS_COUNTER, c_counters.cabortCount },
       { Ndbinfo::TABLE_SCANS_COUNTER, c_counters.c_scan_count },
-      { Ndbinfo::RANGE_SCANS_COUNTER, c_counters.c_range_scan_count }
+      { Ndbinfo::RANGE_SCANS_COUNTER, c_counters.c_range_scan_count },
+      { Ndbinfo::LOCAL_READ_COUNTER, c_counters.clocalReadCount },
+      { Ndbinfo::LOCAL_WRITE_COUNTER, c_counters.clocalWriteCount }
     };
     const size_t num_counters = sizeof(counters) / sizeof(counters[0]);
 

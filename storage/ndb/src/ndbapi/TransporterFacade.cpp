@@ -351,7 +351,7 @@ TransporterFacade::start_instance(NodeId nodeId,
   (void)signal(SIGPIPE, SIG_IGN);
 #endif
 
-  theTransporterRegistry = new TransporterRegistry(this);
+  theTransporterRegistry = new TransporterRegistry(this, this);
   if (theTransporterRegistry == NULL)
     return -1;
 
@@ -643,7 +643,10 @@ TransporterFacade::configure(NodeId nodeId,
   // Configure send buffers
   Uint32 total_send_buffer = 0;
   iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
-  theTransporterRegistry->allocate_send_buffers(total_send_buffer);
+  Uint64 extra_send_buffer = 0;
+  iter.get(CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_send_buffer);
+  theTransporterRegistry->allocate_send_buffers(total_send_buffer,
+                                                extra_send_buffer);
 
   Uint32 auto_reconnect=1;
   iter.get(CFG_AUTO_RECONNECT, &auto_reconnect);

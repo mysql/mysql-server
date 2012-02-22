@@ -4397,6 +4397,7 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
                          Vector<SimpleSignal>& events)
 {
   int nodes_counter[MAX_NDB_NODES];
+  NdbNodeBitmask save = nodes;
   SignalSender ss(theFacade);
   ss.lock();
 
@@ -4447,6 +4448,10 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
       if (!nodes.get(nodeid))
       {
         // The reporting node was not expected
+#ifndef NDEBUG
+        ndbout_c("nodeid: %u", nodeid);
+        ndbout_c("save: %s", BaseString::getPrettyText(save).c_str());
+#endif
         assert(false);
         return false;
       }

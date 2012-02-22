@@ -43,7 +43,9 @@ void Dbacc::initData()
   scanRec = 0;
   tabrec = 0;
 
-  cnoOfAllocatedPagesMax = cnoOfAllocatedPages = cpagesize = cpageCount = 0;
+  m_free_pct = 0;
+  m_oom = false;
+  cnoOfAllocatedPagesMax = cnoOfAllocatedPages = cpagesize = cpageCount = m_maxAllocPages = 0;
   // Records with constant sizes
 
   RSS_OP_COUNTER_INIT(cnoOfFreeFragrec);
@@ -93,6 +95,7 @@ void Dbacc::initRecords()
       if (ptrI + cnt > cpagesize)
         cpagesize = ptrI + cnt;
     }
+    m_maxAllocPages = cpagesize;
   }
 
   operationrec = (Operationrec*)allocRecord("Operationrec",
@@ -157,6 +160,7 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_DROP_FRAG_REQ, &Dbacc::execDROP_FRAG_REQ);
 
   addRecSignal(GSN_DBINFO_SCANREQ, &Dbacc::execDBINFO_SCANREQ);
+  addRecSignal(GSN_NODE_STATE_REP, &Dbacc::execNODE_STATE_REP, true);
 
   initData();
 

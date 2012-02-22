@@ -67,6 +67,9 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			ndb_conflict_trans.h \
                         ndb_component.h \
                         ndb_util_thread.h \
+                        ndb_table_guard.h \
+                        ndb_repl_tab.h \
+                        ndb_conflict.h \
 			ha_partition.h rpl_constants.h \
 			debug_sync.h \
 			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
@@ -114,6 +117,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 		   	records.cc filesort.cc handler.cc \
 		        ha_partition.cc \
 			debug_sync.cc \
+			signal_handler.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
@@ -147,7 +151,9 @@ libndb_la_SOURCES=	ha_ndbcluster.cc \
 			ha_ndbinfo.cc \
 			ndb_mi.cc \
 			ndb_conflict_trans.cc \
-                        ndb_component.cc
+                        ndb_component.cc \
+                        ndb_repl_tab.cc \
+                        ndb_conflict.cc
 
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@

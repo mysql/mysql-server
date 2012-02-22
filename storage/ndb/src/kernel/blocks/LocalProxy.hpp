@@ -192,11 +192,17 @@ protected:
 
   template <class Ss>
   Ss& ssSeize() {
-    const Uint32 base = SsIdBase;
-    const Uint32 mask = ~base;
-    const Uint32 ssId = base | c_ssIdSeq;
-    c_ssIdSeq = (c_ssIdSeq + 1) & mask;
-    return ssSeize<Ss>(ssId);
+    SsPool<Ss>& sp = Ss::pool(this);
+    Ss* ssptr = ssSearch<Ss>(0);
+    ndbrequire(ssptr != 0);
+    // Use position in array as ssId
+    UintPtr pos = ssptr - sp.m_pool;
+    Uint32 ssId = Uint32(pos) + 1;
+    new (ssptr) Ss;
+    ssptr->m_ssId = ssId;
+    sp.m_usage++;
+    D("ssSeize()" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
+    return *ssptr;
   }
 
   template <class Ss>

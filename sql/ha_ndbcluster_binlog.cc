@@ -1,19 +1,17 @@
-/*
-   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "ha_ndbcluster_glue.h"
 
@@ -33,6 +31,18 @@
 #include <ndbapi/ndb_cluster_connection.hpp>
 #include <util/NdbAutoPtr.hpp>
 #include <portlib/NdbTick.h>
+#include "ndb_table_guard.h"
+
+/*
+  defines for cluster replication table names
+*/
+#include "ha_ndbcluster_tables.h"
+#define NDB_APPLY_TABLE_FILE "./" NDB_REP_DB "/" NDB_APPLY_TABLE
+#define NDB_SCHEMA_TABLE_FILE "./" NDB_REP_DB "/" NDB_SCHEMA_TABLE
+static char repdb[]= NDB_REP_DB;
+static char reptable[]= NDB_REP_TABLE;
+
+#include "ndb_repl_tab.h"
 
 #ifdef ndb_dynamite
 #undef assert
@@ -52,14 +62,7 @@ extern my_bool log_bin_use_v1_row_events;
 
 bool ndb_log_empty_epochs(void);
 
-/*
-  defines for cluster replication table names
-*/
-#include "ha_ndbcluster_tables.h"
-#define NDB_APPLY_TABLE_FILE "./" NDB_REP_DB "/" NDB_APPLY_TABLE
-#define NDB_SCHEMA_TABLE_FILE "./" NDB_REP_DB "/" NDB_SCHEMA_TABLE
-static char repdb[]= NDB_REP_DB;
-static char reptable[]= NDB_REP_TABLE;
+void ndb_index_stat_restart();
 
 /*
   Timeout for syncing schema events between
@@ -299,8 +302,26 @@ static void run_query(THD *thd, char *buf, char *end,
   thd->set_query(buf, (uint) (end - buf));
   thd->variables.pseudo_thread_id= thread_id;
   thd->transaction.stmt.modified_non_trans_table= FALSE;
+  ulonglong save_options= thd->options;
+  ulong save_binlog_format= thd->variables.binlog_format;
   if (disable_binlog)
-    tmp_disable_binlog(thd);
+  {
+    /**
+     * the tmp_disable_binlog(thd) macro doesn't work here
+     *   as binlog code, will first take a mutex before
+     *   checking (thd->options & OPTION_BIN_LOG)
+     *   and ndbcluster_binlog_index_purge_file is called with
+     *   conflicting binlog mutexes held.
+     *
+     * However, rat's nest inspection has found that
+     *  setting binlog format to ROW, changes order in which these checks
+     *  are performed, and avoids the mutex-trap
+     *
+     * Luckily, this has changed in mysql-5.5, so we can remove this junk
+     */
+    thd->options &= ~OPTION_BIN_LOG;
+    thd->variables.binlog_format= BINLOG_FORMAT_ROW;
+  }
 
   DBUG_PRINT("query", ("%s", thd->query()));
 
@@ -383,7 +404,12 @@ static void run_query(THD *thd, char *buf, char *end,
   }
 #endif
 
-  reenable_binlog(thd);
+  if (disable_binlog)
+  {
+    thd->options= save_options;
+    thd->variables.binlog_format= save_binlog_format;
+  }
+
   thd->set_query(save_thd_query, save_thd_query_length);
   thd->variables.pseudo_thread_id= save_thread_id;
   thd->status_var= save_thd_status_var;
@@ -1370,8 +1396,12 @@ static int ndbcluster_create_schema_table(THD *thd)
   */
   end= strmov(buf, "CREATE TABLE IF NOT EXISTS "
                    NDB_REP_DB "." NDB_SCHEMA_TABLE
-                   " ( db VARBINARY(63) NOT NULL,"
-                   " name VARBINARY(63) NOT NULL,"
+                   " ( db VARBINARY("
+                   NDB_MAX_DDL_NAME_BYTESIZE_STR
+                   ") NOT NULL,"
+                   " name VARBINARY("
+                   NDB_MAX_DDL_NAME_BYTESIZE_STR
+                   ") NOT NULL,"
                    " slock BINARY(32) NOT NULL,"
                    " query BLOB NOT NULL,"
                    " node_id INT UNSIGNED NOT NULL,"
@@ -1979,12 +2009,14 @@ ndbcluster_update_slock(THD *thd,
   }
 
   if (ndb_error)
+  {
+    char buf[1024];
+    my_snprintf(buf, sizeof(buf), "Could not release lock on '%s.%s'",
+                db, table_name);
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                         ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-                        ndb_error->code,
-                        ndb_error->message,
-                        "Could not release lock on '%s.%s'",
-                        db, table_name);
+                        ndb_error->code, ndb_error->message, buf);
+  }
   if (trans)
     ndb->closeTransaction(trans);
   ndb->setDatabaseName(save_db);
@@ -3215,6 +3247,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         }
         if (share)
         {
+          pthread_mutex_lock(&share->mutex);
           if (share->op)
           {
             Ndb_event_data *event_data= (Ndb_event_data *) share->op->getCustomData();
@@ -3228,6 +3261,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             share->op= 0;
             free_share(&share);
           }
+          pthread_mutex_unlock(&share->mutex);
           free_share(&share);
         }
 
@@ -3292,7 +3326,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           DBUG_PRINT("info", ("Detected frm change of table %s.%s",
                               schema->db, schema->name));
           log_query= 1;
-          build_table_filename(key, FN_LEN-1, schema->db, schema->name, NullS, 0);
+          build_table_filename(key, sizeof(key)-1, schema->db, schema->name, NullS, 0);
           /*
             If the there is no local table shadowing the altered table and 
             it has an frm that is different than the one on disk then 
@@ -3820,7 +3854,6 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
                      const NDBTAB *ndbtab, uint field_index,
                      uint resolve_col_sz,
                      const st_conflict_fn_def* conflict_fn,
-                     TABLE *table,
                      uint8 flags)
 {
   DBUG_ENTER("slave_set_resolve_fn");
@@ -3840,10 +3873,10 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
   /* Calculate resolve col stuff (if relevant) */
   cfn_share->m_resolve_size= resolve_col_sz;
   cfn_share->m_resolve_column= field_index;
-  cfn_share->m_resolve_offset= (uint16)(table->field[field_index]->ptr -
-                                        table->record[0]);
   cfn_share->m_flags = flags;
 
+  /* Init Exceptions Table Writer */
+  new (&cfn_share->m_ex_tab_writer) ExceptionsTableWriter();
   {
     /* get exceptions table */
     char ex_tab_name[FN_REFLEN];
@@ -3855,68 +3888,31 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
     const NDBTAB *ex_tab= ndbtab_g.get_table();
     if (ex_tab)
     {
-      const int fixed_cols= 4;
-      bool ok=
-        ex_tab->getNoOfColumns() >= fixed_cols &&
-        ex_tab->getNoOfPrimaryKeys() == 4 &&
-        /* server id */
-        ex_tab->getColumn(0)->getType() == NDBCOL::Unsigned &&
-        ex_tab->getColumn(0)->getPrimaryKey() &&
-        /* master_server_id */
-        ex_tab->getColumn(1)->getType() == NDBCOL::Unsigned &&
-        ex_tab->getColumn(1)->getPrimaryKey() &&
-        /* master_epoch */
-        ex_tab->getColumn(2)->getType() == NDBCOL::Bigunsigned &&
-        ex_tab->getColumn(2)->getPrimaryKey() &&
-        /* count */
-        ex_tab->getColumn(3)->getType() == NDBCOL::Unsigned &&
-        ex_tab->getColumn(3)->getPrimaryKey();
-      if (ok)
+      char msgBuf[ FN_REFLEN ];
+      const char* msg = NULL;
+      if (cfn_share->m_ex_tab_writer.init(ndbtab,
+                                          ex_tab,
+                                          msgBuf,
+                                          sizeof(msgBuf),
+                                          &msg) == 0)
       {
-        int ncol= ndbtab->getNoOfColumns();
-        int nkey= ndbtab->getNoOfPrimaryKeys();
-        int i, k;
-        for (i= k= 0; i < ncol && k < nkey; i++)
+        /* Ok */
+        /* Hold our table reference outside the table_guard scope */
+        ndbtab_g.release();
+        if (opt_ndb_extra_logging)
         {
-          const NdbDictionary::Column* col= ndbtab->getColumn(i);
-          if (col->getPrimaryKey())
-          {
-            const NdbDictionary::Column* ex_col=
-              ex_tab->getColumn(fixed_cols + k);
-            ok=
-              ex_col != NULL &&
-              col->getType() == ex_col->getType() &&
-              col->getLength() == ex_col->getLength() &&
-              col->getNullable() == ex_col->getNullable();
-            if (!ok)
-              break;
-            cfn_share->m_offset[k]=
-              (uint16)(table->field[i]->ptr - table->record[0]);
-            k++;
-          }
+          sql_print_information("NDB Slave: Table %s.%s logging exceptions to %s.%s",
+                                share->db,
+                                share->table_name,
+                                share->db,
+                                ex_tab_name);
         }
-        if (ok)
-        {
-          cfn_share->m_ex_tab= ex_tab;
-          cfn_share->m_pk_cols= nkey;
-          ndbtab_g.release();
-          if (opt_ndb_extra_logging)
-            sql_print_information("NDB Slave: Table %s.%s logging exceptions to %s.%s",
-                                  table->s->db.str,
-                                  table->s->table_name.str,
-                                  table->s->db.str,
-                                  ex_tab_name);
-        }
-        else
-          sql_print_warning("NDB Slave: exceptions table %s has wrong "
-                            "definition (column %d)",
-                            ex_tab_name, fixed_cols + k);
       }
       else
-        sql_print_warning("NDB Slave: exceptions table %s has wrong "
-                          "definition (initial %d columns)",
-                          ex_tab_name, fixed_cols);
-    }
+      {
+        sql_print_warning("%s", msg);
+      }
+    } /* if (ex_tab) */
   }
   DBUG_RETURN(0);
 }
@@ -3937,6 +3933,7 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
 int
 row_conflict_fn_old(st_ndbcluster_conflict_fn_share* cfn_share,
                     enum_conflicting_op_type op_type,
+                    const NdbRecord* data_record,
                     const uchar* old_data,
                     const uchar* new_data,
                     const MY_BITMAP* write_set,
@@ -3945,7 +3942,10 @@ row_conflict_fn_old(st_ndbcluster_conflict_fn_share* cfn_share,
   DBUG_ENTER("row_conflict_fn_old");
   uint32 resolve_column= cfn_share->m_resolve_column;
   uint32 resolve_size= cfn_share->m_resolve_size;
-  const uchar* field_ptr = old_data + cfn_share->m_resolve_offset;
+  const uchar* field_ptr = (const uchar*)
+    NdbDictionary::getValuePtr(data_record,
+                               (const char*) old_data,
+                               cfn_share->m_resolve_column);
 
   assert((resolve_size == 4) || (resolve_size == 8));
 
@@ -4013,6 +4013,7 @@ row_conflict_fn_old(st_ndbcluster_conflict_fn_share* cfn_share,
 int
 row_conflict_fn_max_update_only(st_ndbcluster_conflict_fn_share* cfn_share,
                                 enum_conflicting_op_type op_type,
+                                const NdbRecord* data_record,
                                 const uchar* old_data,
                                 const uchar* new_data,
                                 const MY_BITMAP* write_set,
@@ -4021,7 +4022,10 @@ row_conflict_fn_max_update_only(st_ndbcluster_conflict_fn_share* cfn_share,
   DBUG_ENTER("row_conflict_fn_max_update_only");
   uint32 resolve_column= cfn_share->m_resolve_column;
   uint32 resolve_size= cfn_share->m_resolve_size;
-  const uchar* field_ptr = new_data + cfn_share->m_resolve_offset;
+  const uchar* field_ptr = (const uchar*)
+    NdbDictionary::getValuePtr(data_record,
+                               (const char*) new_data,
+                               cfn_share->m_resolve_column);
 
   assert((resolve_size == 4) || (resolve_size == 8));
 
@@ -4100,6 +4104,7 @@ row_conflict_fn_max_update_only(st_ndbcluster_conflict_fn_share* cfn_share,
 int
 row_conflict_fn_max(st_ndbcluster_conflict_fn_share* cfn_share,
                     enum_conflicting_op_type op_type,
+                    const NdbRecord* data_record,
                     const uchar* old_data,
                     const uchar* new_data,
                     const MY_BITMAP* write_set,
@@ -4113,6 +4118,7 @@ row_conflict_fn_max(st_ndbcluster_conflict_fn_share* cfn_share,
   case UPDATE_ROW:
     return row_conflict_fn_max_update_only(cfn_share,
                                            op_type,
+                                           data_record,
                                            old_data,
                                            new_data,
                                            write_set,
@@ -4124,6 +4130,7 @@ row_conflict_fn_max(st_ndbcluster_conflict_fn_share* cfn_share,
      */
     return row_conflict_fn_old(cfn_share,
                                op_type,
+                               data_record,
                                old_data,
                                new_data,
                                write_set,
@@ -4152,6 +4159,7 @@ row_conflict_fn_max(st_ndbcluster_conflict_fn_share* cfn_share,
 int
 row_conflict_fn_max_del_win(st_ndbcluster_conflict_fn_share* cfn_share,
                             enum_conflicting_op_type op_type,
+                            const NdbRecord* data_record,
                             const uchar* old_data,
                             const uchar* new_data,
                             const MY_BITMAP* write_set,
@@ -4165,6 +4173,7 @@ row_conflict_fn_max_del_win(st_ndbcluster_conflict_fn_share* cfn_share,
   case UPDATE_ROW:
     return row_conflict_fn_max_update_only(cfn_share,
                                            op_type,
+                                           data_record,
                                            old_data,
                                            new_data,
                                            write_set,
@@ -4189,6 +4198,7 @@ row_conflict_fn_max_del_win(st_ndbcluster_conflict_fn_share* cfn_share,
 int
 row_conflict_fn_epoch(st_ndbcluster_conflict_fn_share* cfn_share,
                       enum_conflicting_op_type op_type,
+                      const NdbRecord* data_record,
                       const uchar* old_data,
                       const uchar* new_data,
                       const MY_BITMAP* write_set,
@@ -4284,7 +4294,6 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
                        const st_conflict_fn_def** conflict_fn,
                        st_conflict_fn_arg* args,
                        Uint32* max_args,
-                       const TABLE* table,
                        char *msg, uint msg_len)
 {
   DBUG_ENTER("parse_conflict_fn_spec");
@@ -4375,9 +4384,6 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
 
       uint len= (uint)(end_arg - start_arg);
       args[no_args].type=    type;
-      args[no_args].ptr=     start_arg;
-      args[no_args].len=     len;
-      args[no_args].fieldno= (uint32)-1;
  
       DBUG_PRINT("info", ("found argument %s %u", start_arg, len));
 
@@ -4386,20 +4392,11 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
       {
       case CFAT_COLUMN_NAME:
       {
-        /* find column in table */
-        DBUG_PRINT("info", ("searching for %s %u", start_arg, len));
-        TABLE_SHARE *table_s= table->s;
-        for (uint j= 0; j < table_s->fields; j++)
-        {
-          Field *field= table_s->field[j];
-          if (strncmp(start_arg, field->field_name, len) == 0 &&
-              field->field_name[len] == '\0')
-          {
-            DBUG_PRINT("info", ("found %s", field->field_name));
-            args[no_args].fieldno= j;
-            break;
-          }
-        }
+        /* Copy column name out into argument's buffer */
+        char* dest= &args[no_args].resolveColNameBuff[0];
+
+        memcpy(dest, start_arg, MIN(len, (uint)NAME_CHAR_LEN));
+        dest[len]= '\0';
         break;
       }
       case CFAT_EXTRA_GCI_BITS:
@@ -4461,7 +4458,7 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
   }
   /* parse error */
   my_snprintf(msg, msg_len, "%s, %s at '%s'",
-           conflict_fn_spec, error_str, ptr);
+              conflict_fn_spec, error_str, ptr);
   DBUG_PRINT("info", ("%s", msg));
   DBUG_RETURN(-1);
 }
@@ -4470,7 +4467,6 @@ static int
 setup_conflict_fn(THD *thd, NDB_SHARE *share,
                   const NDBTAB *ndbtab,
                   char *msg, uint msg_len,
-                  TABLE *table,
                   const st_conflict_fn_def* conflict_fn,
                   const st_conflict_fn_arg* args,
                   const Uint32 num_args)
@@ -4492,38 +4488,65 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
       DBUG_RETURN(-1);
     }
 
+    /* Now try to find the column in the table */
+    int colNum = -1;
+    const char* resolveColName = args[0].resolveColNameBuff;
+    int resolveColNameLen = (int)strlen(resolveColName);
+
+    for (int j=0; j< ndbtab->getNoOfColumns(); j++)
+    {
+      const char* colName = ndbtab->getColumn(j)->getName();
+
+      if (strncmp(colName,
+                  resolveColName,
+                  resolveColNameLen) == 0 &&
+          colName[resolveColNameLen] == '\0')
+      {
+        colNum = j;
+        break;
+      }
+    }
+    if (colNum == -1)
+    {
+      my_snprintf(msg, msg_len,
+                  "Could not find resolve column %s.",
+                  resolveColName);
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
     uint resolve_col_sz= 0;
 
     if (0 == (resolve_col_sz =
-              slave_check_resolve_col_type(ndbtab, args[0].fieldno)))
+              slave_check_resolve_col_type(ndbtab, colNum)))
     {
       /* wrong data type */
       slave_reset_conflict_fn(share);
       my_snprintf(msg, msg_len,
-                  "column '%s' has wrong datatype",
-                  table->s->field[args[0].fieldno]->field_name);
+                  "Column '%s' has wrong datatype",
+                  resolveColName);
       DBUG_PRINT("info", ("%s", msg));
       DBUG_RETURN(-1);
     }
 
     if (slave_set_resolve_fn(thd, share, ndbtab,
-                             args[0].fieldno, resolve_col_sz,
-                             conflict_fn, table, CFF_NONE))
+                             colNum, resolve_col_sz,
+                             conflict_fn, CFF_NONE))
     {
       my_snprintf(msg, msg_len,
-                  "unable to setup conflict resolution using column '%s'",
-                  table->s->field[args[0].fieldno]->field_name);
+                  "Unable to setup conflict resolution using column '%s'",
+                  resolveColName);
       DBUG_PRINT("info", ("%s", msg));
       DBUG_RETURN(-1);
     }
-    if (opt_ndb_extra_logging)
-    {
-       sql_print_information("NDB Slave: Table %s.%s using conflict_fn %s on attribute %s.",
-                             table->s->db.str,
-                             table->s->table_name.str,
-                             conflict_fn->name,
-                             table->s->field[args[0].fieldno]->field_name);
-    }
+
+    /* Success, update message */
+    my_snprintf(msg, msg_len,
+                "NDB Slave: Table %s.%s using conflict_fn %s on attribute %s.",
+                share->db,
+                share->table_name,
+                conflict_fn->name,
+                resolveColName);
     break;
   }
   case CFT_NDB_EPOCH:
@@ -4550,7 +4573,9 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
      * represent SavePeriod/EpochPeriod
      */
     if (ndbtab->getExtraRowGciBits() == 0)
-      sql_print_information("Ndb Slave : CFT_NDB_EPOCH[_TRANS], low epoch resolution");
+      sql_print_information("NDB Slave: Table %s.%s : CFT_NDB_EPOCH[_TRANS], low epoch resolution",
+                            share->db,
+                            share->table_name);
 
     if (ndbtab->getExtraRowAuthorBits() == 0)
     {
@@ -4562,20 +4587,20 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
     if (slave_set_resolve_fn(thd, share, ndbtab,
                              0, // field_no
                              0, // resolve_col_sz
-                             conflict_fn, table, CFF_REFRESH_ROWS))
+                             conflict_fn, CFF_REFRESH_ROWS))
     {
       my_snprintf(msg, msg_len,
                   "unable to setup conflict resolution");
       DBUG_PRINT("info", ("%s", msg));
       DBUG_RETURN(-1);
     }
-    if (opt_ndb_extra_logging)
-    {
-      sql_print_information("NDB Slave: Table %s.%s using conflict_fn %s.",
-                            table->s->db.str,
-                            table->s->table_name.str,
-                            conflict_fn->name);
-    }
+    /* Success, update message */
+    my_snprintf(msg, msg_len,
+                "NDB Slave: Table %s.%s using conflict_fn %s.",
+                share->db,
+                share->table_name,
+                conflict_fn->name);
+
     break;
   }
   case CFT_NUMBER_OF_CFTS:
@@ -4583,288 +4608,6 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
     abort();
   }
   DBUG_RETURN(0);
-}
-
-static const char *ndb_rep_db= NDB_REP_DB;
-static const char *ndb_replication_table= NDB_REPLICATION_TABLE;
-static const char *nrt_db= "db";
-static const char *nrt_table_name= "table_name";
-static const char *nrt_server_id= "server_id";
-static const char *nrt_binlog_type= "binlog_type";
-static const char *nrt_conflict_fn= "conflict_fn";
-
-/*
-   ndbcluster_read_replication_table
-
-   This function reads the information for the supplied table from
-   the mysql.ndb_replication table.
-   Where there is no information (or no table), defaults are
-   returned.
-*/
-int
-ndbcluster_read_replication_table(THD *thd, Ndb *ndb,
-                                  const char* db,
-                                  const char* table_name,
-                                  uint server_id,
-                                  Uint32* binlog_flags,
-                                  char** conflict_fn_spec,
-                                  char* conflict_fn_buffer,
-                                  Uint32 conflict_fn_buffer_len)
-{
-  DBUG_ENTER("ndbcluster_read_replication_table");
-  NdbError ndberror;
-  int error= 0;
-  const char *error_str= "<none>";
-
-  ndb->setDatabaseName(ndb_rep_db);
-  NDBDICT *dict= ndb->getDictionary();
-  Ndb_table_guard ndbtab_g(dict, ndb_replication_table);
-  const NDBTAB *reptab= ndbtab_g.get_table();
-  if (reptab == NULL &&
-      (dict->getNdbError().classification == NdbError::SchemaError ||
-       dict->getNdbError().code == 4009))
-  {
-    DBUG_PRINT("info", ("No %s.%s table", ndb_rep_db, ndb_replication_table));
-    *binlog_flags= NBT_DEFAULT;
-    *conflict_fn_spec= NULL;
-    DBUG_RETURN(0);
-  }
-  const NDBCOL
-    *col_db, *col_table_name, *col_server_id, *col_binlog_type, *col_conflict_fn;
-  char tmp_buf[FN_REFLEN];
-  uint retries= 100;
-  int retry_sleep= 30; /* 30 milliseconds, transaction */
-  if (reptab == NULL)
-  {
-    ndberror= dict->getNdbError();
-    goto err;
-  }
-  if (reptab->getNoOfPrimaryKeys() != 3)
-  {
-    error= -2;
-    error_str= "Wrong number of primary key parts, expected 3";
-    goto err;
-  }
-  error= -1;
-  col_db= reptab->getColumn(error_str= nrt_db);
-  if (col_db == NULL ||
-      !col_db->getPrimaryKey() ||
-      col_db->getType() != NDBCOL::Varbinary)
-    goto err;
-  col_table_name= reptab->getColumn(error_str= nrt_table_name);
-  if (col_table_name == NULL ||
-      !col_table_name->getPrimaryKey() ||
-      col_table_name->getType() != NDBCOL::Varbinary)
-    goto err;
-  col_server_id= reptab->getColumn(error_str= nrt_server_id);
-  if (col_server_id == NULL ||
-      !col_server_id->getPrimaryKey() ||
-      col_server_id->getType() != NDBCOL::Unsigned)
-    goto err;
-  col_binlog_type= reptab->getColumn(error_str= nrt_binlog_type);
-  if (col_binlog_type == NULL ||
-      col_binlog_type->getPrimaryKey() ||
-      col_binlog_type->getType() != NDBCOL::Unsigned)
-    goto err;
-  col_conflict_fn= reptab->getColumn(error_str= nrt_conflict_fn);
-  if (col_conflict_fn == NULL)
-  {
-    col_conflict_fn= NULL;
-  }
-  else if (col_conflict_fn->getPrimaryKey() ||
-           col_conflict_fn->getType() != NDBCOL::Varbinary)
-    goto err;
-
-  error= 0;
-  for (;;)
-  {
-    NdbTransaction *trans= ndb->startTransaction();
-    if (trans == NULL)
-    {
-      ndberror= ndb->getNdbError();
-      break;
-    }
-    NdbRecAttr *col_binlog_type_rec_attr[2];
-    NdbRecAttr *col_conflict_fn_rec_attr[2]= {NULL, NULL};
-    uint32 ndb_binlog_type[2];
-    const uint sz= 256;
-    char ndb_conflict_fn_buf[2*sz];
-    char *ndb_conflict_fn[2]= {ndb_conflict_fn_buf, ndb_conflict_fn_buf+sz};
-    NdbOperation *op[2];
-    uint32 i, id= 0;
-    /* Read generic row (server_id==0) and specific row (server_id == our id)
-     * from ndb_replication.
-     * Specific overrides generic, if present
-     */
-    for (i= 0; i < 2; i++)
-    {
-      NdbOperation *_op;
-      DBUG_PRINT("info", ("reading[%u]: %s,%s,%u", i, db, table_name, id));
-      if ((_op= trans->getNdbOperation(reptab)) == NULL) abort();
-      if (_op->readTuple(NdbOperation::LM_CommittedRead)) abort();
-      ndb_pack_varchar(col_db, tmp_buf, db, (int)strlen(db));
-      if (_op->equal(col_db->getColumnNo(), tmp_buf)) abort();
-      ndb_pack_varchar(col_table_name, tmp_buf, table_name, (int)strlen(table_name));
-      if (_op->equal(col_table_name->getColumnNo(), tmp_buf)) abort();
-      if (_op->equal(col_server_id->getColumnNo(), id)) abort();
-      if ((col_binlog_type_rec_attr[i]=
-           _op->getValue(col_binlog_type, (char *)&(ndb_binlog_type[i]))) == 0) abort();
-      /* optional columns */
-      if (col_conflict_fn)
-      {
-        if ((col_conflict_fn_rec_attr[i]=
-             _op->getValue(col_conflict_fn, ndb_conflict_fn[i])) == 0) abort();
-      }
-      id= server_id;
-      op[i]= _op;
-    }
-
-    if (trans->execute(NdbTransaction::Commit,
-                       NdbOperation::AO_IgnoreError))
-    {
-      if (ndb->getNdbError().status == NdbError::TemporaryError)
-      {
-        if (retries--)
-        {
-          if (trans)
-            ndb->closeTransaction(trans);
-          do_retry_sleep(retry_sleep);
-          continue;
-        }
-      }
-      ndberror= trans->getNdbError();
-      ndb->closeTransaction(trans);
-      break;
-    }
-    for (i= 0; i < 2; i++)
-    {
-      if (op[i]->getNdbError().code)
-      {
-        if (op[i]->getNdbError().classification == NdbError::NoDataFound)
-        {
-          col_binlog_type_rec_attr[i]= NULL;
-          col_conflict_fn_rec_attr[i]= NULL;
-          DBUG_PRINT("info", ("not found row[%u]", i));
-          continue;
-        }
-        ndberror= op[i]->getNdbError();
-        break;
-      }
-      DBUG_PRINT("info", ("found row[%u]", i));
-    }
-    if (col_binlog_type_rec_attr[1] == NULL ||
-        col_binlog_type_rec_attr[1]->isNULL())
-    {
-      /* No specific value, use generic */
-      col_binlog_type_rec_attr[1]= col_binlog_type_rec_attr[0];
-      ndb_binlog_type[1]= ndb_binlog_type[0];
-    }
-    if (col_conflict_fn_rec_attr[1] == NULL ||
-        col_conflict_fn_rec_attr[1]->isNULL())
-    {
-      /* No specific value, use generic */
-      col_conflict_fn_rec_attr[1]= col_conflict_fn_rec_attr[0];
-      ndb_conflict_fn[1]= ndb_conflict_fn[0];
-    }
-
-    if (col_binlog_type_rec_attr[1] == NULL ||
-        col_binlog_type_rec_attr[1]->isNULL())
-    {
-      DBUG_PRINT("info", ("No binlog flag value, using default"));
-      /* No value */
-      *binlog_flags= NBT_DEFAULT;
-    }
-    else
-    {
-      DBUG_PRINT("info", ("Taking binlog flag value from the table"));
-      *binlog_flags= (enum Ndb_binlog_type) ndb_binlog_type[1];
-    }
-
-    if (col_conflict_fn_rec_attr[1] == NULL ||
-        col_conflict_fn_rec_attr[1]->isNULL())
-    {
-      /* No conflict function */
-      *conflict_fn_spec = NULL;
-    }
-    else
-    {
-      const char* conflict_fn = ndb_conflict_fn[1];
-      uint len= 0;
-      switch (col_conflict_fn->getArrayType())
-      {
-      case NDBCOL::ArrayTypeShortVar:
-        len= *(uchar*)conflict_fn;
-        conflict_fn++;
-        break;
-      case NDBCOL::ArrayTypeMediumVar:
-        len= uint2korr(conflict_fn);
-        conflict_fn+= 2;
-        break;
-      default:
-        abort();
-      }
-      if ((len + 1) > conflict_fn_buffer_len)
-      {
-        ndb->closeTransaction(trans);
-        error= -2;
-        error_str= "Conflict function specification too long.";
-        goto err;
-      }
-      memcpy(conflict_fn_buffer, conflict_fn, len);
-      conflict_fn_buffer[len] = '\0';
-      *conflict_fn_spec = conflict_fn_buffer;
-    }
-
-    DBUG_PRINT("info", ("Retrieved Binlog flags : %u and function spec : %s",
-                        *binlog_flags, (*conflict_fn_spec != NULL ?*conflict_fn_spec:
-                                       "NULL")));
-
-    ndb->closeTransaction(trans);
-
-    DBUG_RETURN(0);
-  }
-
-err:
-  DBUG_PRINT("info", ("error %d, error_str %s, ndberror.code %u",
-                      error, error_str, ndberror.code));
-  if (error < 0)
-  {
-    char msg[FN_REFLEN];
-    switch (error)
-    {
-      case -1:
-        my_snprintf(msg, sizeof(msg),
-                 "Missing or wrong type for column '%s'", error_str);
-        break;
-      case -2:
-        my_snprintf(msg, sizeof(msg), "%s", error_str);
-        break;
-      default:
-        abort();
-    }
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                        ER_NDB_REPLICATION_SCHEMA_ERROR,
-                        ER(ER_NDB_REPLICATION_SCHEMA_ERROR),
-                        msg);
-  }
-  else
-  {
-    char msg[FN_REFLEN];
-    my_snprintf(tmp_buf, sizeof(tmp_buf), "ndberror %u", ndberror.code);
-    my_snprintf(msg, sizeof(msg), "Unable to retrieve %s.%s, logging and "
-             "conflict resolution may not function as intended (%s)",
-             ndb_rep_db, ndb_replication_table, tmp_buf);
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                        ER_ILLEGAL_HA_CREATE_OPTION,
-                        ER(ER_ILLEGAL_HA_CREATE_OPTION),
-                        ndbcluster_hton_name, msg);  
-  }
-  *binlog_flags= NBT_DEFAULT;
-  *conflict_fn_spec= NULL;
-
-  if (ndberror.code && opt_ndb_extra_logging)
-    print_warning_list("NDB", thd_warn_list(thd));
-  DBUG_RETURN(ndberror.code);
 }
 
 /*
@@ -4881,7 +4624,6 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
                                        const char* db,
                                        const char* table_name,
                                        uint server_id,
-                                       const TABLE *table,
                                        Uint32* binlog_flags,
                                        const st_conflict_fn_def** conflict_fn,
                                        st_conflict_fn_arg* args,
@@ -4912,50 +4654,64 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
     }
   }
 
-  const Uint32 MAX_CONFLICT_FN_SPEC_LEN = 256;
-  char conflict_fn_buffer[MAX_CONFLICT_FN_SPEC_LEN];
-  char* conflict_fn_spec;
+  Ndb_rep_tab_reader rep_tab_reader;
 
-  if (ndbcluster_read_replication_table(thd,
-                                        ndb,
-                                        db,
-                                        table_name,
-                                        server_id,
-                                        binlog_flags,
-                                        &conflict_fn_spec,
-                                        conflict_fn_buffer,
-                                        MAX_CONFLICT_FN_SPEC_LEN) != 0)
+  int rc = rep_tab_reader.lookup(ndb,
+                                 db,
+                                 table_name,
+                                 server_id);
+
+  const char* msg = rep_tab_reader.get_warning_message();
+  if (msg != NULL)
   {
-    DBUG_RETURN(ER_NDB_REPLICATION_SCHEMA_ERROR);
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_NDB_REPLICATION_SCHEMA_ERROR,
+                        ER(ER_NDB_REPLICATION_SCHEMA_ERROR),
+                        msg);
+    sql_print_warning("NDB Binlog: %s",
+                      msg);
   }
 
-  if (table != NULL)
-  {
-    if (conflict_fn_spec != NULL)
-    {
-      char tmp_buf[FN_REFLEN];
+  if (rc != 0)
+    DBUG_RETURN(ER_NDB_REPLICATION_SCHEMA_ERROR);
 
-      if (parse_conflict_fn_spec(conflict_fn_spec,
-                                 conflict_fn,
-                                 args,
-                                 num_args,
-                                 table,
-                                 tmp_buf,
-                                 sizeof(tmp_buf)) != 0)
-      {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                            ER_CONFLICT_FN_PARSE_ERROR,
-                            ER(ER_CONFLICT_FN_PARSE_ERROR),
-                            tmp_buf);
-        DBUG_RETURN(ER_CONFLICT_FN_PARSE_ERROR);
-      }
-    }
-    else
+  *binlog_flags= rep_tab_reader.get_binlog_flags();
+  const char* conflict_fn_spec= rep_tab_reader.get_conflict_fn_spec();
+
+  if (conflict_fn_spec != NULL)
+  {
+    char msgbuf[ FN_REFLEN ];
+    if (parse_conflict_fn_spec(conflict_fn_spec,
+                               conflict_fn,
+                               args,
+                               num_args,
+                               msgbuf,
+                               sizeof(msgbuf)) != 0)
     {
-      /* No conflict function specified */
-      conflict_fn= NULL;
-      num_args= 0;
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_CONFLICT_FN_PARSE_ERROR,
+                          ER(ER_CONFLICT_FN_PARSE_ERROR),
+                          msgbuf);
+
+      /*
+        Log as well, useful for contexts where the thd's stack of
+        warnings are ignored
+      */
+      if (opt_ndb_extra_logging)
+      {
+        sql_print_warning("NDB Slave: Table %s.%s : Parse error on conflict fn : %s",
+                          db, table_name,
+                          msgbuf);
+      }
+
+      DBUG_RETURN(ER_CONFLICT_FN_PARSE_ERROR);
     }
+  }
+  else
+  {
+    /* No conflict function specified */
+    conflict_fn= NULL;
+    num_args= 0;
   }
 
   DBUG_RETURN(0);
@@ -4965,7 +4721,6 @@ int
 ndbcluster_apply_binlog_replication_info(THD *thd,
                                          NDB_SHARE *share,
                                          const NDBTAB* ndbtab,
-                                         TABLE* table,
                                          const st_conflict_fn_def* conflict_fn,
                                          const st_conflict_fn_arg* args,
                                          Uint32 num_args,
@@ -4986,15 +4741,32 @@ ndbcluster_apply_binlog_replication_info(THD *thd,
     if (setup_conflict_fn(thd, share,
                           ndbtab,
                           tmp_buf, sizeof(tmp_buf),
-                          table,
                           conflict_fn,
                           args,
-                          num_args) != 0)
+                          num_args) == 0)
     {
+      if (opt_ndb_extra_logging)
+      {
+        sql_print_information("%s", tmp_buf);
+      }
+    }
+    else
+    {
+      /*
+        Dump setup failure message to error log
+        for cases where thd warning stack is
+        ignored
+      */
+      sql_print_warning("NDB Slave: Table %s.%s : %s",
+                        share->db,
+                        share->table_name,
+                        tmp_buf);
+
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                           ER_CONFLICT_FN_PARSE_ERROR,
                           ER(ER_CONFLICT_FN_PARSE_ERROR),
                           tmp_buf);
+
       DBUG_RETURN(-1);
     }
   }
@@ -5012,7 +4784,6 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    NDB_SHARE *share,
                                    const NDBTAB *ndbtab,
                                    uint server_id,
-                                   TABLE *table,
                                    bool do_set_binlog_flags)
 {
   DBUG_ENTER("ndbcluster_read_binlog_replication");
@@ -5025,7 +4796,6 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                               share->db,
                                               share->table_name,
                                               server_id,
-                                              table,
                                               &binlog_flags,
                                               &conflict_fn,
                                               args,
@@ -5033,7 +4803,6 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       (ndbcluster_apply_binlog_replication_info(thd,
                                                 share,
                                                 ndbtab,
-                                                table,
                                                 conflict_fn,
                                                 args,
                                                 num_args,
@@ -5054,8 +4823,8 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   char ndb_file[FN_REFLEN + 1];
 
   DBUG_ENTER("ndbcluster_check_if_local_table");
-  build_table_filename(key, FN_LEN-1, dbname, tabname, reg_ext, 0);
-  build_table_filename(ndb_file, FN_LEN-1, dbname, tabname, ha_ndb_ext, 0);
+  build_table_filename(key, sizeof(key)-1, dbname, tabname, reg_ext, 0);
+  build_table_filename(ndb_file, sizeof(ndb_file)-1, dbname, tabname, ha_ndb_ext, 0);
   /* Check that any defined table is an ndb table */
   DBUG_PRINT("info", ("Looking for file %s and %s", key, ndb_file));
   if ((! my_access(key, F_OK)) && my_access(ndb_file, F_OK))
@@ -5209,11 +4978,18 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
     /*
      */
     ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
-                                       ::server_id, NULL, TRUE);
+                                       ::server_id, TRUE);
 #endif
     /*
       check if logging turned off for this table
     */
+    if ((share->flags & NSF_HIDDEN_PK) &&
+        (share->flags & NSF_BLOB_FLAG) &&
+        !(share->flags & NSF_NO_BINLOG))
+    {
+      DBUG_PRINT("NDB_SHARE", ("NSF_HIDDEN_PK && NSF_BLOB_FLAG -> NSF_NO_BINLOG"));
+      share->flags |= NSF_NO_BINLOG;
+    }
     if (get_binlog_nologging(share))
     {
       if (opt_ndb_extra_logging)
@@ -6674,6 +6450,71 @@ void updateInjectorStats(Ndb* schemaNdb, Ndb* dataNdb)
     dataNdb->getClientStat(Ndb::EventBytesRecvdCount);
 }
 
+/**
+   injectApplyStatusWriteRow
+
+   Inject a WRITE_ROW event on the ndb_apply_status table into
+   the Binlog.
+   This contains our server_id and the supplied epoch number.
+   When applied on the Slave it gives a transactional position
+   marker
+*/
+static
+bool
+injectApplyStatusWriteRow(injector::transaction& trans,
+                          ulonglong gci)
+{
+  DBUG_ENTER("injectApplyStatusWriteRow");
+  if (ndb_apply_status_share == NULL)
+  {
+    sql_print_error("NDB: Could not get apply status share");
+    DBUG_ASSERT(ndb_apply_status_share != NULL);
+    DBUG_RETURN(false);
+  }
+
+  /* Build row buffer for generated ndb_apply_status
+     WRITE_ROW event
+     First get the relevant table structure.
+  */
+  DBUG_ASSERT(!ndb_apply_status_share->event_data);
+  DBUG_ASSERT(ndb_apply_status_share->op);
+  Ndb_event_data* event_data=
+    (Ndb_event_data *) ndb_apply_status_share->op->getCustomData();
+  DBUG_ASSERT(event_data);
+  DBUG_ASSERT(event_data->table);
+  TABLE* apply_status_table= event_data->table;
+
+  /*
+    Intialize apply_status_table->record[0]
+  */
+  empty_record(apply_status_table);
+
+  apply_status_table->field[0]->store((longlong)::server_id, true);
+  apply_status_table->field[1]->store((longlong)gci, true);
+  apply_status_table->field[2]->store("", 0, &my_charset_bin);
+  apply_status_table->field[3]->store((longlong)0, true);
+  apply_status_table->field[4]->store((longlong)0, true);
+#ifndef DBUG_OFF
+  const LEX_STRING& name= apply_status_table->s->table_name;
+  DBUG_PRINT("info", ("use_table: %.*s",
+                      (int) name.length, name.str));
+#endif
+  injector::transaction::table tbl(apply_status_table, true);
+  int ret = trans.use_table(::server_id, tbl);
+  assert(ret == 0); NDB_IGNORE_VALUE(ret);
+
+  ret= trans.write_row(::server_id,
+                       injector::transaction::table(apply_status_table,
+                                                    true),
+                       &apply_status_table->s->all_set,
+                       apply_status_table->s->fields,
+                       apply_status_table->record[0]);
+
+  assert(ret == 0);
+
+  DBUG_RETURN(true);
+}
+
 enum Binlog_thread_state
 {
   BCCC_running= 0,
@@ -6964,6 +6805,7 @@ restart_cluster_failure:
         ndb_latest_handled_binlog_epoch= 0;
         ndb_latest_applied_binlog_epoch= 0;
         ndb_latest_received_binlog_epoch= 0;
+        ndb_index_stat_restart();
       }
       else if (ndb_latest_applied_binlog_epoch > 0)
       {
@@ -7156,44 +6998,6 @@ restart_cluster_failure:
     {
       DBUG_PRINT("info", ("pollEvents res: %d", res));
       thd->proc_info= "Processing events";
-      uchar apply_status_buf[512];
-      TABLE *apply_status_table= NULL;
-      if (ndb_apply_status_share)
-      {
-        /*
-          We construct the buffer to write the apply status binlog
-          event here, as the table->record[0] buffer is referenced
-          by the apply status event operation, and will be filled
-          with data at the nextEvent call if the first event should
-          happen to be from the apply status table
-        */
-        Ndb_event_data *event_data= ndb_apply_status_share->event_data;
-        if (!event_data)
-        {
-          DBUG_ASSERT(ndb_apply_status_share->op);
-          event_data= 
-            (Ndb_event_data *) ndb_apply_status_share->op->getCustomData();
-          DBUG_ASSERT(event_data);
-        }
-        apply_status_table= event_data->table;
-
-        /* 
-           Intialize apply_status_table->record[0] 
-        */
-        empty_record(apply_status_table);
-
-        apply_status_table->field[0]->store((longlong)::server_id, true);
-        /*
-          gci is added later, just before writing to binlog as gci
-          is unknown here
-        */
-        apply_status_table->field[2]->store("", 0, &my_charset_bin);
-        apply_status_table->field[3]->store((longlong)0, true);
-        apply_status_table->field[4]->store((longlong)0, true);
-        DBUG_ASSERT(sizeof(apply_status_buf) >= apply_status_table->s->reclength);
-        memcpy(apply_status_buf, apply_status_table->record[0],
-               apply_status_table->s->reclength);
-      }
       NdbEventOperation *pOp= i_ndb->nextEvent();
       ndb_binlog_index_row _row;
       ndb_binlog_index_row *rows= &_row;
@@ -7321,35 +7125,11 @@ restart_cluster_failure:
         }
         if (trans.good())
         {
-          if (apply_status_table)
+          /* Inject ndb_apply_status WRITE_ROW event */
+          if (!injectApplyStatusWriteRow(trans,
+                                         gci))
           {
-#ifndef DBUG_OFF
-            const LEX_STRING& name= apply_status_table->s->table_name;
-            DBUG_PRINT("info", ("use_table: %.*s",
-                                (int) name.length, name.str));
-#endif
-            injector::transaction::table tbl(apply_status_table, true);
-            int ret = trans.use_table(::server_id, tbl);
-            assert(ret == 0); NDB_IGNORE_VALUE(ret);
-
-            /* add the gci to the record */
-            Field *field= apply_status_table->field[1];
-            my_ptrdiff_t row_offset=
-              (my_ptrdiff_t) (apply_status_buf - apply_status_table->record[0]);
-            field->move_field_offset(row_offset);
-            field->store((longlong)gci, true);
-            field->move_field_offset(-row_offset);
-
-            trans.write_row(::server_id,
-                            injector::transaction::table(apply_status_table,
-                                                         true),
-                            &apply_status_table->s->all_set,
-                            apply_status_table->s->fields,
-                            apply_status_buf);
-          }
-          else
-          {
-            sql_print_error("NDB: Could not get apply status share");
+            sql_print_error("NDB Binlog: Failed to inject apply status write row");
           }
         }
 #ifdef RUN_NDB_BINLOG_TIMER
@@ -7501,6 +7281,8 @@ restart_cluster_failure:
                 volatile THD::killed_state killed= thd->killed;
                 /* We are cleaning up, allow for flushing last epoch */
                 thd->killed= THD::NOT_KILLED;
+                /* also clear error from last failing write */
+                thd->clear_error();
                 ndb_binlog_index_table__write_rows(thd, rows);
                 /* Restore kill flag */
                 thd->killed= killed;

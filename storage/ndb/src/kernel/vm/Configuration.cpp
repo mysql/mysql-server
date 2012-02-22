@@ -17,6 +17,7 @@
 
 #include <ndb_global.h>
 
+#include <TransporterRegistry.hpp>
 #include "Configuration.hpp"
 #include <ErrorHandlingMacros.hpp>
 #include "GlobalData.hpp"
@@ -315,7 +316,10 @@ Configuration::setupConfiguration(){
 
   Uint32 total_send_buffer = 0;
   iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
-  globalTransporterRegistry.allocate_send_buffers(total_send_buffer);
+  Uint64 extra_send_buffer = 0;
+  iter.get(CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_send_buffer);
+  globalTransporterRegistry.allocate_send_buffers(total_send_buffer,
+                                                  extra_send_buffer);
   
   if(iter.get(CFG_DB_NO_SAVE_MSGS, &_maxErrorLogs)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
@@ -470,6 +474,11 @@ Configuration::setupConfiguration(){
       break;
 
     globalData.ndbMtTcThreads = m_thr_config.getThreadCount(THRConfig::T_TC);
+    globalData.ndbMtSendThreads =
+      m_thr_config.getThreadCount(THRConfig::T_SEND);
+    globalData.ndbMtReceiveThreads =
+      m_thr_config.getThreadCount(THRConfig::T_RECV);
+
     globalData.isNdbMtLqh = true;
     {
       if (m_thr_config.getMtClassic())
@@ -677,6 +686,12 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     lqhInstances = globalData.ndbMtLqhWorkers;
   }
 
+  Uint32 tcInstances = 1;
+  if (globalData.ndbMtTcThreads > 1)
+  {
+    tcInstances = globalData.ndbMtTcThreads;
+  }
+
   Uint64 indexMem = 0, dataMem = 0;
   ndb_mgm_get_int64_parameter(&db, CFG_DB_DATA_MEM, &dataMem);
   ndb_mgm_get_int64_parameter(&db, CFG_DB_INDEX_MEM, &indexMem);
@@ -803,7 +818,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 
 #else
-    noOfLocalScanRecords = 4 * (noOfDBNodes * noOfScanRecords) +
+    noOfLocalScanRecords = tcInstances * lqhInstances *
+      (noOfDBNodes * noOfScanRecords) +
 #endif
       1 /* NR */ + 
       1 /* LCP */; 
@@ -1030,7 +1046,7 @@ Configuration::setLockCPU(NdbThread * pThread,
   }
   else if (!NdbIsMultiThreaded())
   {
-    BlockNumber list[] = { CMVMI };
+    BlockNumber list[] = { DBDIH };
     res = m_thr_config.do_bind(pThread, list, 1);
   }
 

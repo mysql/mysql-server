@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -244,7 +244,7 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
       if (str == end)
       {
 	info->is_float = 1;             // we can't use variable decimals here
-	return 1;
+	DBUG_RETURN(1);
       }
       DBUG_RETURN(0);
     }

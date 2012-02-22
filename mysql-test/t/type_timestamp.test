@@ -373,4 +373,51 @@ SELECT a FROM t1 WHERE a >= '20000101000000';
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#50774: failed to get the correct resultset when timestamp values 
+--echo # are appended with .0
+--echo #
+CREATE TABLE t1 ( a TIMESTAMP, KEY ( a ) );
+
+INSERT INTO t1 VALUES( '2010-02-01 09:31:01' );
+INSERT INTO t1 VALUES( '2010-02-01 09:31:02' );
+INSERT INTO t1 VALUES( '2010-02-01 09:31:03' );
+INSERT INTO t1 VALUES( '2010-02-01 09:31:04' );
+
+SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
+SELECT * FROM t1 WHERE '2010-02-01 09:31:02.0' <= a;
+SELECT * FROM t1 WHERE a <= '2010-02-01 09:31:02.0';
+SELECT * FROM t1 WHERE '2010-02-01 09:31:02.0' >= a;
+
+--replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x
+EXPLAIN
+SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
+SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
+
+CREATE TABLE t2 ( a TIMESTAMP, KEY ( a DESC ) );
+
+INSERT INTO t2 VALUES( '2010-02-01 09:31:01' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:02' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:03' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:04' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:05' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:06' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:07' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:08' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:09' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:10' );
+INSERT INTO t2 VALUES( '2010-02-01 09:31:11' );
+
+--echo # The bug would cause the range optimizer's comparison to use an open
+--echo # interval here. This reveals itself only in the number of reads 
+--echo # performed.
+FLUSH STATUS;
+--replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x
+EXPLAIN
+SELECT * FROM t2 WHERE a < '2010-02-01 09:31:02.0';
+SELECT * FROM t2 WHERE a < '2010-02-01 09:31:02.0';
+SHOW STATUS LIKE 'Handler_read_next';
+
+DROP TABLE t1, t2;
+
 --echo End of 5.1 tests

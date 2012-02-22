@@ -29,7 +29,6 @@
 
 #include <NdbMutex.h>
 #include <NdbThread.h>
-#include <NdbTick.h>
 
 #include <ndb_socket.h>
 
@@ -93,8 +92,6 @@ public:
                                                  used >= m_overload_limit);
   }
 
-  bool is_connect_blocked();
-  
   virtual int doSend() = 0;
 
   bool has_data_to_send()
@@ -176,11 +173,6 @@ private:
 
   virtual bool send_is_possible(int timeout_millisec) const = 0;
   virtual bool send_limit_reached(int bufsize) = 0;
-
-  Uint32 m_connection_refused_counter;
-  NDB_TICKS m_connect_block_end;
-  void connection_refused();
-  void reset_connection_block();
 
 protected:
   Uint32 m_os_max_iovec;

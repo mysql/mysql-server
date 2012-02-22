@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2000,2004 MySQL AB
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,7 +31,7 @@ extern "C" {
 #include <thr_lock.h>
 #endif
 
-#include "my_handler.h"
+#include "my_compare.h"
 #include "my_tree.h"
 
 	/* defines used by heap-funktions */
@@ -53,6 +51,7 @@ typedef struct st_heapinfo		/* Struct from heap_info */
   uint reclength;			/* Length of one record */
   int errkey;
   ulonglong auto_increment;
+  time_t create_time;
 } HEAPINFO;
 
 
@@ -149,6 +148,7 @@ typedef struct st_heap_share
   uint open_count;
   uchar *del_link;			/* Link to next block with del. rec */
   char * name;			/* Name of "memory-file" */
+  time_t create_time;
 #ifdef THREAD
   THR_LOCK lock;
   pthread_mutex_t intern_lock;		/* Locking for use with _locking */

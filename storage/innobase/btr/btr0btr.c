@@ -464,6 +464,16 @@ btr_page_free_low(
 	page_no = buf_frame_get_page_no(page);
 
 	fseg_free_page(seg_header, space, page_no, mtr);
+
+	/* The page was marked free in the allocation bitmap, but it
+	should remain buffer-fixed until mtr_commit(mtr) or until it
+	is explicitly freed from the mini-transaction. */
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
+				MTR_MEMO_PAGE_X_FIX));
+	/* TODO: Discard any operations on the page from the redo log
+	and remove the block from the flush list and the buffer pool.
+	This would free up buffer pool earlier and reduce writes to
+	both the tablespace and the redo log. */
 }
 
 /******************************************************************
@@ -479,6 +489,7 @@ btr_page_free(
 {
 	ulint		level;
 
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
 	level = btr_page_get_level(page, mtr);

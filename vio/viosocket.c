@@ -1,13 +1,14 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
@@ -661,7 +662,7 @@ size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
 {
   size_t length;
   size_t remain_local;
-  char *current_postion;
+  char *current_position;
   HANDLE events[2];
 
   DBUG_ENTER("vio_read_shared_memory");
@@ -669,7 +670,7 @@ size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
                        size));
 
   remain_local = size;
-  current_postion=buf;
+  current_position=buf;
 
   events[0]= vio->event_server_wrote;
   events[1]= vio->event_conn_closed;
@@ -703,11 +704,11 @@ size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
     if (length > remain_local)
        length = remain_local;
 
-    memcpy(current_postion,vio->shared_memory_pos,length);
+    memcpy(current_position,vio->shared_memory_pos,length);
 
     vio->shared_memory_remain-=length;
     vio->shared_memory_pos+=length;
-    current_postion+=length;
+    current_position+=length;
     remain_local-=length;
 
     if (!vio->shared_memory_remain)
@@ -727,7 +728,7 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
 {
   size_t length, remain, sz;
   HANDLE pos;
-  const uchar *current_postion;
+  const uchar *current_position;
   HANDLE events[2];
 
   DBUG_ENTER("vio_write_shared_memory");
@@ -735,7 +736,7 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
                        size));
 
   remain = size;
-  current_postion = buf;
+  current_position = buf;
 
   events[0]= vio->event_server_read;
   events[1]= vio->event_conn_closed;
@@ -753,9 +754,9 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
 
     int4store(vio->handle_map,sz);
     pos = vio->handle_map + 4;
-    memcpy(pos,current_postion,sz);
+    memcpy(pos,current_position,sz);
     remain-=sz;
-    current_postion+=sz;
+    current_position+=sz;
     if (!SetEvent(vio->event_client_wrote))
       DBUG_RETURN((size_t) -1);
   }

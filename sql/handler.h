@@ -1,13 +1,14 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
@@ -15,14 +16,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 /* Definitions for parameters to do with handler-routines */
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 
-#include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
 
@@ -114,7 +113,7 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
   a table with rnd_next()
   - We will see all rows (including deleted ones)
   - Row positions are 'table->s->db_record_offset' apart
-  If this flag is not set, filesort will do a postion() call for each matched
+  If this flag is not set, filesort will do a position() call for each matched
   row to be able to find the row later.
 */
 #define HA_REC_NOT_IN_SEQ      (1 << 3)
@@ -1280,7 +1279,7 @@ public:
     DBUG_ASSERT(locked == FALSE);
     /* TODO: DBUG_ASSERT(inited == NONE); */
   }
-  virtual handler *clone(MEM_ROOT *mem_root);
+  virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   /** This is called after create to allow us to set up cached variables */
   void init()
   {

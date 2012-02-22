@@ -841,7 +841,7 @@ private:
   void sendINCL_NODEREQ(Signal *, Uint32 nodeId, Uint32);
   void sendMASTER_GCPREQ(Signal *, Uint32 nodeId, Uint32);
   void sendMASTER_LCPREQ(Signal *, Uint32 nodeId, Uint32);
-  void sendMASTER_LCPCONF(Signal * signal);
+  void sendMASTER_LCPCONF(Signal * signal, Uint32 fromLine);
   void sendSTART_RECREQ(Signal *, Uint32 nodeId, Uint32);
   void sendSTART_INFOREQ(Signal *, Uint32 nodeId, Uint32);
   void sendSTART_TOREQ(Signal *, Uint32 nodeId, Uint32);
@@ -1127,7 +1127,9 @@ private:
   void allocStoredReplica(FragmentstorePtr regFragptr,
                           ReplicaRecordPtr& newReplicaPtr,
                           Uint32 nodeId);
-  Uint32 extractNodeInfo(const Fragmentstore * fragPtr, Uint32 nodes[]);
+  Uint32 extractNodeInfo(EmulatedJamBuffer *jambuf,
+                         const Fragmentstore * fragPtr,
+                         Uint32 nodes[]);
   bool findBestLogNode(CreateReplicaRecord* createReplica,
                        FragmentstorePtr regFragptr,
                        Uint32 startGci,
@@ -1324,6 +1326,7 @@ private:
     Uint32 clastVerifyQueue;
     Uint32 m_empty_done;
     Uint32 m_ref;
+    char pad[NDB_CL_PADSZ(sizeof(void*) + 4 * sizeof(Uint32))];
   };
 
   bool isEmpty(const DIVERIFY_queue&);
@@ -1332,7 +1335,7 @@ private:
   void emptyverificbuffer(Signal *, Uint32 q, bool aContintueB);
   void emptyverificbuffer_check(Signal*, Uint32, Uint32);
 
-  DIVERIFY_queue c_diverify_queue[MAX_NDBMT_LQH_THREADS];
+  DIVERIFY_queue c_diverify_queue[MAX_NDBMT_TC_THREADS];
   Uint32 c_diverify_queue_cnt;
 
   /*------------------------------------------------------------------------*/
@@ -1886,14 +1889,20 @@ private:
   } m_local_lcp_state;
 
   // MT LQH
-  Uint32 c_fragments_per_node;
+  Uint32 c_fragments_per_node_;
+  Uint32 getFragmentsPerNode();
   Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr) {
     ndbrequire(!tFragPtr.isNull());
     Uint32 log_part_id = tFragPtr.p->m_log_part_id;
-    Uint32 instanceKey = 1 + log_part_id % MAX_NDBMT_LQH_WORKERS;
+    Uint32 instanceKey = 1 + (log_part_id % NDBMT_MAX_BLOCK_INSTANCES);
     return instanceKey;
   }
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
+
+  /**
+   * Get minimum version of nodes in alive-list
+   */
+  Uint32 getMinVersion() const;
 
   bool c_2pass_inr;
 };

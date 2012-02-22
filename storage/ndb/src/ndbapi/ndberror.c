@@ -233,16 +233,21 @@ ErrorBundle ErrorCodes[] = {
   { 623,  HA_ERR_RECORD_FILE_FULL, IS, "623" },
   { 624,  HA_ERR_RECORD_FILE_FULL, IS, "624" },
   { 625,  HA_ERR_INDEX_FILE_FULL, IS, "Out of memory in Ndb Kernel, hash index part (increase IndexMemory)" },
-  { 633,  HA_ERR_INDEX_FILE_FULL, IS, "Table fragment hash index has reached maximum possible size" },
+  { 633,  HA_ERR_INDEX_FILE_FULL, IS,
+    "Table fragment hash index has reached maximum possible size" },
   { 640,  DMEC, IS, "Too many hash indexes (should not happen)" },
   { 826,  HA_ERR_RECORD_FILE_FULL, IS, "Too many tables and attributes (increase MaxNoOfAttributes or MaxNoOfTables)" },
   { 827,  HA_ERR_RECORD_FILE_FULL, IS, "Out of memory in Ndb Kernel, table data (increase DataMemory)" },
+  { 889,  HA_ERR_RECORD_FILE_FULL, IS,
+    "Table fragment fixed data reference has reached maximum possible value (specify MAXROWS or increase no of partitions)"},
   { 902,  HA_ERR_RECORD_FILE_FULL, IS, "Out of memory in Ndb Kernel, ordered index data (increase DataMemory)" },
   { 903,  HA_ERR_INDEX_FILE_FULL, IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
   { 904,  HA_ERR_INDEX_FILE_FULL, IS, "Out of fragment records (increase MaxNoOfOrderedIndexes)" },
   { 905,  DMEC, IS, "Out of attribute records (increase MaxNoOfAttributes)" },
   { 1601, HA_ERR_RECORD_FILE_FULL, IS, "Out extents, tablespace full" },
   { 1602, DMEC, IS,"No datafile in tablespace" },
+  { 1603, HA_ERR_RECORD_FILE_FULL, IS,
+    "Table fragment fixed data reference has reached maximum possible value (specify MAXROWS or increase no of partitions)"},
 
   /**
    * TimeoutExpired 
@@ -575,6 +580,11 @@ ErrorBundle ErrorCodes[] = {
   { 4718, DMEC, IE, "Index stats samples data or memory cache is invalid" },
   { 4719, DMEC, IE, "Index stats internal error" },
   { 4720, DMEC, AE, "Index stats sys tables " NDB_INDEX_STAT_PREFIX " partly missing or invalid" },
+  { 4721, DMEC, IE, "Mysqld: index stats thread not open for requests" },
+  { 4722, DMEC, IE, "Mysqld: index stats entry unexpectedly not found" },
+  { 4723, DMEC, AE, "Mysqld: index stats request ignored due to recent error" },
+  { 4724, DMEC, AE, "Mysqld: index stats request aborted by stats thread" },
+  { 4725, DMEC, AE, "Index stats were deleted by another process" },
   
   /**
    * Still uncategorized
@@ -601,6 +611,7 @@ ErrorBundle ErrorCodes[] = {
   { 1426, DMEC, SE, "No such subscriber" },
   { 1427, DMEC, NR, "Api node died, when SUB_START_REQ reached node "},
   { 1428, DMEC, IE, "No replica to scan on this node (internal index stats error)" },
+  { 1429, DMEC, IE, "Subscriber node undefined in SubStartReq (config change??)" },
 
   { 4004, DMEC, AE, "Attribute name or id not found in the table" },
   

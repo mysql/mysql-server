@@ -18,6 +18,8 @@
 #ifndef NDB_LIMITS_H
 #define NDB_LIMITS_H
 
+#include "ndb_version.h"  // Limits might depend on NDB version
+
 #define RNIL    0xffffff00
 
 /**
@@ -110,7 +112,11 @@
 /*
 * The default batch size. Configurable parameter.
 */
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define DEF_BATCH_SIZE 64
+#else
+#define DEF_BATCH_SIZE 256
+#endif
 /*
 * When calculating the number of records sent from LQH in each batch
 * one uses SCAN_BATCH_SIZE divided by the expected size of signals
@@ -120,7 +126,7 @@
 * signals.
 * This parameter is configurable, this is the default value.
 */
-#define SCAN_BATCH_SIZE 32768
+#define SCAN_BATCH_SIZE 16384
 /*
 * To protect the NDB API from overload we also define a maximum total
 * batch size from all nodes. This parameter should most likely be
@@ -193,11 +199,24 @@
 #define NDBMT_BLOCK_BITS 9
 #define NDBMT_BLOCK_MASK ((1 << NDBMT_BLOCK_BITS) - 1)
 #define NDBMT_BLOCK_INSTANCE_BITS 7
+#define NDBMT_MAX_BLOCK_INSTANCES (1 << NDBMT_BLOCK_INSTANCE_BITS)
 
-#define NDB_MAX_LOG_PARTS     4
+#define NDB_DEFAULT_LOG_PARTS 4
+
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
+#define NDB_MAX_LOG_PARTS          4
+#define MAX_NDBMT_TC_THREADS       2
+#define MAX_NDBMT_RECEIVE_THREADS  1
+#define MAX_NDBMT_SEND_THREADS     0
+#else
+#define NDB_MAX_LOG_PARTS         16
+#define MAX_NDBMT_TC_THREADS      16
+#define MAX_NDBMT_RECEIVE_THREADS  8
+#define MAX_NDBMT_SEND_THREADS     8
+#endif
+
 #define MAX_NDBMT_LQH_WORKERS NDB_MAX_LOG_PARTS
 #define MAX_NDBMT_LQH_THREADS NDB_MAX_LOG_PARTS
-#define MAX_NDBMT_TC_THREADS  2
 
 #define NDB_FILE_BUFFER_SIZE (256*1024)
 

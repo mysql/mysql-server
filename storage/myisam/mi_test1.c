@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 /* Testing of the basic functions of a MyISAM table */
 
 #include "myisam.h"
+#include "myisamdef.h"
 #include <my_getopt.h>
 #include <m_string.h>
 

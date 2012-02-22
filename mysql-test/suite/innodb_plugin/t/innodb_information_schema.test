@@ -116,11 +116,29 @@ SELECT * FROM ```t'\"_str` WHERE c1 = '4' FOR UPDATE;
 # executes before some of them, resulting in less than expected number
 # of rows being selected from innodb_locks. If there is a bug and there
 # are no 14 rows in innodb_locks then this test will fail with timeout.
-let $count = 14;
-let $table = INFORMATION_SCHEMA.INNODB_LOCKS;
--- source include/wait_until_rows_count.inc
-# the above enables the query log, re-disable it
--- disable_query_log
+# Notice that if we query INNODB_LOCKS more often than once per 0.1 sec
+# then its contents will never change because the cache from which it is
+# filled is updated only if it has not been read for 0.1 seconds. See
+# CACHE_MIN_IDLE_TIME_US in trx/trx0i_s.c.
+let $cnt=10;
+while ($cnt)
+{
+    let $success=`SELECT COUNT(*) = 14 FROM INFORMATION_SCHEMA.INNODB_LOCKS`;
+    if ($success)
+    {
+        let $cnt=0;
+    }
+    if (!$success)
+    {
+        real_sleep 0.2;
+        dec $cnt;
+    }
+}
+if (!$success)
+{
+    -- echo Timeout waiting for rows in INNODB_LOCKS to appear
+}
+
 SELECT lock_mode, lock_type, lock_table, lock_index, lock_rec, lock_data
 FROM INFORMATION_SCHEMA.INNODB_LOCKS ORDER BY lock_data;
 

@@ -1,1 +1,2 @@
 smoke : not ready for automated testing yet
+bug13637411 : uses mysqltest features only available in 5.5

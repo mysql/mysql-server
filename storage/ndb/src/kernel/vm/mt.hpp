@@ -13,21 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <kernel_types.h>
-#include <TransporterDefinitions.hpp>
-
 #ifndef ndb_mt_hpp
 #define ndb_mt_hpp
 
-
-/*
-  For now, we use locks to only have one thread at the time running in the
-  transporter as sender, and only one as receiver.
-
-  Thus, we can use a global variable to record the id of the current
-  transporter threads. Only valid while holding the transporter receive lock.
-*/
-extern Uint32 receiverThreadId;
+#include <kernel_types.h>
+#include <TransporterDefinitions.hpp>
 
 Uint32 mt_get_instance_count(Uint32 block);
 
@@ -56,6 +46,8 @@ SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
  */
 void mt_section_lock();
 void mt_section_unlock();
+
+int mt_checkDoJob(Uint32 receiver_thread_idx);
 
 /**
  * Are we (not) multi threaded
@@ -109,5 +101,20 @@ struct ndb_thr_stat
 
 void
 mt_get_thr_stat(class SimulatedBlock *, ndb_thr_stat* dst);
+
+/**
+ * Get TransporterReceiveHandle for a specific trpman instance
+ *   Currently used for error insert that block/unblock traffic
+ */
+class TransporterReceiveHandle *
+mt_get_trp_receive_handle(unsigned instance);
+
+/**
+ * return receiver thread handling a particular node
+ *   returned number is indexed from 0 and upwards to #receiver threads
+ *   (or MAX_NODES is none)
+ */
+Uint32
+mt_get_recv_thread_idx(NodeId nodeId);
 
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -928,8 +928,12 @@ bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   }
   else
   {
-    longlong value= val_int();
     int was_cut;
+    longlong value= val_int();
+
+    if (null_value)
+      goto err;
+
     if (number_to_datetime(value, ltime, fuzzydate, &was_cut) == LL(-1))
     {
       char buff[22], *end;
@@ -2744,6 +2748,16 @@ bool Item_param::set_longdata(const char *str, ulong length)
     (here), and first have to concatenate all pieces together,
     write query to the binary log and only then perform conversion.
   */
+  if (str_value.length() + length > max_long_data_size)
+  {
+    my_message(ER_UNKNOWN_ERROR,
+               "Parameter of prepared statement which is set through "
+               "mysql_send_long_data() is longer than "
+               "'max_long_data_size' bytes",
+               MYF(0));
+    DBUG_RETURN(true);
+  }
+
   if (str_value.append(str, length, &my_charset_bin))
     DBUG_RETURN(TRUE);
   state= LONG_DATA_VALUE;
@@ -4452,14 +4466,14 @@ mark_non_agg_field:
     SELECT_LEX *select_lex= cached_table ? 
       cached_table->select_lex : context->select_lex;
     if (!thd->lex->in_sum_func)
-      select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+      select_lex->set_non_agg_field_used(true);
     else
     {
       if (outer_fixed)
         thd->lex->in_sum_func->outer_fields.push_back(this);
       else if (thd->lex->in_sum_func->nest_level !=
           thd->lex->current_select->nest_level)
-        select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+        select_lex->set_non_agg_field_used(true);
     }
   }
   return FALSE;
@@ -6109,7 +6123,7 @@ void Item_ref::print(String *str, enum_query_type query_type)
     {
       THD *thd= current_thd;
       append_identifier(thd, str, (*ref)->real_item()->name,
-                        (*ref)->real_item()->name_length);
+                        strlen((*ref)->real_item()->name));
     }
     else
       (*ref)->print(str, query_type);
@@ -7097,7 +7111,7 @@ String *Item_cache_int::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (!value_cached && !cache_value())
     return NULL;
-  str->set(value, default_charset());
+  str->set_int(value, unsigned_flag, default_charset());
   return str;
 }
 

@@ -68,6 +68,8 @@ ADD_EXECUTABLE(testSpj testSpj.cpp)
 TARGET_LINK_LIBRARIES(testBackup ndbbank)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank)
 ADD_EXECUTABLE(testLimits testLimits.cpp)
+ADD_EXECUTABLE(testSingleUserMode testSingleUserMode.cpp)
+ADD_EXECUTABLE(testIndexStat testIndexStat.cpp)
 
 INSTALL(TARGETS create_all_tabs create_tab
   drop_all_tabs flexAsynch flexBench
@@ -81,4 +83,6 @@ INSTALL(TARGETS create_all_tabs create_tab
   testLcp testPartitioning testBitfield DbCreate
   DbAsyncGenerator test_event_merge testNdbinfo
   testNativeDefault testLimits testSpj
+  testSingleUserMode
+  testIndexStat
 DESTINATION bin)

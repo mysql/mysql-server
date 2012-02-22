@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -89,6 +89,7 @@ enum options_client
   OPT_SLAP_POST_SYSTEM,
   OPT_SLAP_COMMIT,
   OPT_SLAP_DETACH,
+  OPT_SLAP_NO_DROP,
   OPT_MYSQL_REPLACE_INTO, OPT_BASE64_OUTPUT_MODE, OPT_SERVER_ID,
 #ifndef MCP_WL3126
   OPT_BIND_ADDRESS,

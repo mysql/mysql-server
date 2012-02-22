@@ -297,9 +297,24 @@ BaseString::split(Vector<BaseString> &v,
 }
 
 ssize_t
-BaseString::indexOf(char c) const {
-    char *p;
-    p = strchr(m_chr, c);
+BaseString::indexOf(char c, size_t pos) const {
+
+  if (pos >= m_len)
+    return -1;
+
+    char *p = strchr(m_chr + pos, c);
+    if(p == NULL)
+	return -1;
+    return (ssize_t)(p-m_chr);
+}
+
+ssize_t
+BaseString::indexOf(const char * needle, size_t pos) const {
+
+  if (pos >= m_len)
+    return -1;
+
+    char *p = strstr(m_chr + pos, needle);
     if(p == NULL)
 	return -1;
     return (ssize_t)(p-m_chr);

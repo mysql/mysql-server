@@ -1613,6 +1613,34 @@ runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug13394788(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const int loops = ctx->getNumLoops();
+  const int records = ctx->getNumRecords();
+  const NdbDictionary::Index * pIdx =
+    GETNDB(step)->getDictionary()->getIndex(orderedPkIdxName,
+					    ctx->getTab()->getName());
+  HugoTransactions hugoTrans(*ctx->getTab(), pIdx);
+
+  NdbRestarter res;
+  for (int i = 0; i < loops; i++)
+  {
+    res.insertErrorInAllNodes(5074);
+    // this will actually be a mrr scan...
+    int batch = 1 + (rand() % records);
+    // this should be error...
+    hugoTrans.pkReadRecords(GETNDB(step), records, batch);
+
+    // make it should work again...
+    res.insertErrorInAllNodes(0);
+    if (hugoTrans.pkReadRecords(GETNDB(step), records, batch) != 0)
+      return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -2162,6 +2190,14 @@ TESTCASE("Bug12324191", "")
   INITIALIZER(runLoadTable);
   STEP(runScanRead);
   STEPS(runMixedDML,10);
+}
+TESTCASE("Bug13394788", "")
+{
+  INITIALIZER(createOrderedPkIndex);
+  INITIALIZER(runLoadTable);
+  STEP(runBug13394788);
+  FINALIZER(createOrderedPkIndex_Drop);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testScan);
 

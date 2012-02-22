@@ -166,6 +166,11 @@ public:
   struct Cache
   {
     Cache(Uint32 a0 = 512, Uint32 a1 = 256) { m_first_free = RNIL; m_free_cnt = 0; m_alloc_cnt = a0; m_max_free_cnt = a1; }
+    void init_cache(Uint32 a0, Uint32 a1)
+    {
+      m_alloc_cnt = a0;
+      m_max_free_cnt = a1;
+    }
     Uint32 m_first_free;
     Uint32 m_free_cnt;
     Uint32 m_alloc_cnt;
@@ -248,17 +253,24 @@ public:
 #endif
 
 protected:
-  Uint32 firstFree;
+  T * theArray;
   Uint32 size;
+  /*
+   * Protect size and theArray which are very seldomly updated from
+   * updates of often updated variables such as firstFree, noOfFree.
+   * Protect here means to have them on separate CPU cache lines to
+   * avoid false CPU cache line sharing.
+   */
+  char protect_read_var[NDB_CL_PADSZ(sizeof(Uint32) + sizeof(void*))];
+  Uint32 firstFree;
   Uint32 noOfFree;
   Uint32 noOfFreeMin;
-  T * theArray;
-  void * alloc_ptr;
 #ifdef ARRAY_GUARD
+  bool chunk;
   Uint32 bitmaskSz;
   Uint32 *theAllocatedBitmask;
-  bool chunk;
 #endif
+  void * alloc_ptr;
 };
 
 template <class T>
