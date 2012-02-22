@@ -1513,7 +1513,7 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
 
     /* field is set in the read_set and is not a blob */
     if (bitmap_is_set(cols, f->field_index) && 
-        (f->type() != MYSQL_TYPE_BLOB))
+        (f->type() != MYSQL_TYPE_BLOB) && (f->type() != MYSQL_TYPE_BIT))
       crc= my_checksum(crc, f->ptr, f->data_length());
   }
   
