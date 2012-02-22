@@ -56,6 +56,7 @@ static const bool useDoubleBuffers = true;
 
 /* Various error codes that are not specific to NdbQuery. */
 static const int Err_TupleNotFound = 626;
+static const int Err_FalsePredicate = 899;
 static const int Err_MemoryAlloc = 4000;
 static const int Err_SendFailed = 4002;
 static const int Err_FunctionNotImplemented = 4003;
@@ -225,12 +226,24 @@ public:
 
   void incrOutstandingResults(Int32 delta)
   {
+    if (traceSignals) {
+      ndbout << "incrOutstandingResults: " << m_outstandingResults
+             << ", with: " << delta
+             << endl;
+    }
     m_outstandingResults += delta;
+    assert(!(m_confReceived && m_outstandingResults<0));
   }
 
-  void clearOutstandingResults()
+  void throwRemainingResults()
   {
+    if (traceSignals) {
+      ndbout << "throwRemainingResults: " << m_outstandingResults
+             << endl;
+    }
     m_outstandingResults = 0;
+    m_confReceived = true; 
+    postFetchRelease();
   }
 
   void setConfReceived(Uint32 tcPtrI);
@@ -4977,23 +4990,34 @@ NdbQueryOperationImpl::execTCKEYREF(const NdbApiSignal* aSignal)
 
   NdbRootFragment& rootFrag = getQuery().m_rootFrags[0];
 
-  if (ref->errorCode != DbspjErr::NodeFailure)
+  /**
+   * Error may be either a 'soft' or a 'hard' error.
+   * 'Soft error' are regarded 'informational', and we are
+   * allowed to continue execution of the query. A 'hard error'
+   * will terminate query, close comminication, and further
+   * incomming signals to this NdbReceiver will be discarded.
+   */
+  switch (ref->errorCode)
   {
-    // Compensate for children results not produced.
-    // (doSend() assumed all child results to be materialized)
-    Uint32 cnt = 0;
-    cnt += 1; // self
+  case Err_TupleNotFound:  // 'Soft error' : Row not found
+  case Err_FalsePredicate: // 'Soft error' : Interpreter_exit_nok
+  {
+    /**
+     * Need to update 'outstanding' count:
+     * Compensate for children results not produced.
+     * (doSend() assumed all child results to be materialized)
+     */
+    Uint32 cnt = 1; // self
     cnt += getNoOfDescendantOperations();
     if (getNoOfChildOperations() > 0)
     {
       cnt += getNoOfLeafOperations();
     }
     rootFrag.incrOutstandingResults(- Int32(cnt));
+    break;
   }
-  else
-  {
-    // consider frag-batch complete
-    rootFrag.clearOutstandingResults();
+  default:                             // 'Hard error':
+    rootFrag.throwRemainingResults();  // Terminate receive -> complete
   }
 
   bool ret = false;
@@ -5004,7 +5028,6 @@ NdbQueryOperationImpl::execTCKEYREF(const NdbApiSignal* aSignal)
 
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execTCKEYREF(): returns:" << ret
-           << ", resultStream= {" << rootFrag.getResultStream(*this) << "}"
            << ", *this=" << *this <<  endl;
   }
   return ret;
@@ -5283,10 +5306,6 @@ NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
   }
   out << "  m_queryImpl: " << &op.m_queryImpl;
   out << "  m_operationDef: " << &op.m_operationDef;
-  for(Uint32 i = 0; i<op.m_queryImpl.getRootFragCount(); i++){
-    NdbRootFragment& rootFrag = op.m_queryImpl.m_rootFrags[i];
-    out << "  m_resultStream[" << i << "]{" << rootFrag.getResultStream(op) << "}";
-  }
   out << " m_isRowNull " << op.m_isRowNull;
   out << " ]";
   return out;

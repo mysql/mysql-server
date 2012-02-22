@@ -350,6 +350,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
       else
       {
         tCon = lookupTransactionFromOperation(keyConf);
+        if (tCon == NULL) goto InvalidSignal;
       }
       const BlockReference aTCRef = aSignal->theSendersBlockRef;
 

@@ -737,4 +737,23 @@ ndbd_128_instances_address(Uint32 x)
   return x >= NDBD_128_INSTANCES_ADDRESS_72;
 }
 
+#define NDBD_FIXED_LOOKUP_QUERY_ABORT_72 NDB_MAKE_VERSION(7,2,5)
+
+static
+inline
+int
+ndbd_fixed_lookup_query_abort(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor < 2)
+  {
+    // Only experimental support of SPJ pre 7.2.0.
+    // Assume we support 'fixed-abort' as we want it tested.
+    return true;
+  }
+  return x >= NDBD_FIXED_LOOKUP_QUERY_ABORT_72;
+}
+
 #endif
