@@ -314,6 +314,7 @@ while ($id <= $max_id)
     --let $stmt_type= `SELECT SUBSTR('$stmt_type', 6)`
     --let $send_reap= send
   }
+  --let $stmt=
   if ($stmt_type == 'reap')
   {
     --let $send_reap= reap
@@ -374,6 +375,17 @@ while ($id <= $max_id)
   if (`SELECT '$stmt_type' REGEXP '^[0-9][0-9]*:[0-9][0-9]*'`)
   {
     --let $stmt= `SELECT CONCAT('SET GTID_NEXT = "', NUMBER_TO_UUID('$stmt_type'), '"')`
+  }
+  if ($stmt == '')
+  {
+    if ($stmt_type != reap)
+    {
+      if ($stmt_type != running)
+      {
+        --echo unrecognized statement specification: stmt_type='$stmt_type' orig_stmt_type='$orig_stmt_type' stmt='$stmt'
+        --die error in test: unrecognized statement specification
+      }
+    }
   }
 
   --let $rpl_connection_name= server_1_$connection
