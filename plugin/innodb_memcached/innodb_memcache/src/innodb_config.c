@@ -31,6 +31,7 @@ Created 04/12/2011 Jimmy Yang
 
 #include "innodb_api.h"
 #include "innodb_config.h"
+#include "innodb_cb_api.h"
 
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string.
@@ -690,6 +691,30 @@ innodb_verify_low(
 	}
 
 	if (idx_crsr) {
+		ib_tpl_t	idx_tpl = NULL;
+		if (index_type & IB_CLUSTERED) {
+			idx_tpl = innodb_cb_read_tuple_create(idx_crsr);
+		} else {
+			idx_tpl = ib_cb_search_tuple_create(idx_crsr);
+		}
+
+		n_cols = ib_cb_get_n_user_cols(idx_tpl);
+
+		name = innodb_cb_col_get_name(idx_crsr, 0);
+
+		if (strcmp(name, cinfo[CONTAINER_KEY].col_name)) {
+			fprintf(stderr, " InnoDB_Memcached: Index used"
+					" must be on key column only\n");
+			err = DB_ERROR;
+		}
+
+		if (!(index_type & IB_CLUSTERED) && n_cols > 1) {
+			fprintf(stderr, " InnoDB_Memcached: Index used"
+					" must be on key column only\n");
+			err = DB_ERROR;
+		}
+
+		innodb_cb_tuple_delete(idx_tpl);
 		innodb_cb_cursor_close(idx_crsr);
 	}
 func_exit:

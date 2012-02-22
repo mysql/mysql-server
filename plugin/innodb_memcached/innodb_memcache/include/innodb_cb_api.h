@@ -334,6 +334,13 @@ int
 (*cb_cfg_trx_level_t)();
 /*===================*/
 
+
+typedef
+ib_ulint_t
+(*cb_get_n_user_cols)(
+/*==================*/
+	const ib_tpl_t  ib_tpl);
+
 cb_open_table_t			ib_cb_open_table;
 cb_read_row_t			ib_cb_read_row;
 cb_insert_row_t			ib_cb_insert_row;
@@ -378,5 +385,6 @@ cb_get_cfg_t			ib_cb_get_cfg;
 cb_cursor_set_cluster_access_t	ib_cb_cursor_set_cluster_access;
 cb_cursor_commit_trx_t		ib_cb_cursor_commit_trx;
 cb_cfg_trx_level_t		ib_cb_cfg_trx_level;
+cb_get_n_user_cols		ib_cb_get_n_user_cols;
 
 #endif /* innodb_cb_api_h */
