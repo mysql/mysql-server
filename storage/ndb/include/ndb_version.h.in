@@ -751,7 +751,7 @@ ndbd_fixed_lookup_query_abort(Uint32 x)
   {
     // Only experimental support of SPJ pre 7.2.0.
     // Assume we support 'fixed-abort' as we want it tested.
-    return true;
+    return 1;
   }
   return x >= NDBD_FIXED_LOOKUP_QUERY_ABORT_72;
 }
