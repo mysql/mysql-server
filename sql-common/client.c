@@ -1864,7 +1864,7 @@ mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
 
  */
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
 
 static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const char **errptr)
 {
@@ -1922,7 +1922,7 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
   DBUG_RETURN(1);
 }
 
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
 
 
 /*

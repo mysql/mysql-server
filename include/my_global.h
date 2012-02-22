@@ -1532,7 +1532,6 @@ static inline double rint(double x)
 /* Things we don't need in the embedded version of MySQL */
 /* TODO HF add #undef HAVE_VIO if we don't want client in embedded library */
 
-#undef HAVE_OPENSSL
 #undef HAVE_SMEM				/* No shared memory */
 
 #endif /* EMBEDDED_LIBRARY */
