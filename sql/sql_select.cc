@@ -700,6 +700,8 @@ static int clear_sj_tmp_tables(JOIN *join)
 */
 void JOIN::restore_tmp()
 {
+  DBUG_PRINT("info", ("restore_tmp this %p tmp_join %p", this, tmp_join));
+  DBUG_ASSERT(tmp_join != this);
   memcpy(tmp_join, this, (size_t) sizeof(JOIN));
 }
 
@@ -3151,13 +3153,18 @@ void JOIN::cleanup(bool full)
   {
     if (tmp_join)
       tmp_table_param.copy_field= 0;
-    group_fields.delete_elements();
+
     /* 
-      Ensure that the above delete_elements() would not be called
+      Ensure that the following delete_elements() would not be called
       twice for the same list.
     */
-    if (tmp_join && tmp_join != this)
-      tmp_join->group_fields= group_fields;
+    if (tmp_join && tmp_join != this &&
+        tmp_join->group_fields == this->group_fields)
+      tmp_join->group_fields.empty();
+
+    // Run Cached_item DTORs!
+    group_fields.delete_elements();
+
     /*
       We can't call delete_elements() on copy_funcs as this will cause
       problems in free_elements() as some of the elements are then deleted.
