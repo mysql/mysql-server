@@ -8101,12 +8101,11 @@ SHOW_VAR status_vars[]= {
   {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
   {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
   {"Handler_discover",         (char*) offsetof(STATUS_VAR, ha_discover_count), SHOW_LONG_STATUS},
-#if 0
-  /* Made 3 counters below temporarily invisible until we agree upon their names */
-  {"Handler_mrr_extra_key_sorts",   (char*) offsetof(STATUS_VAR, ha_mrr_extra_key_sorts), SHOW_LONG_STATUS},
-  {"Handler_mrr_extra_rowid_sorts", (char*) offsetof(STATUS_VAR, ha_mrr_extra_rowid_sorts), SHOW_LONG_STATUS},
-  {"Handler_mrr_init",         (char*) offsetof(STATUS_VAR, ha_multi_range_read_init_count),  SHOW_LONG_STATUS},
-#endif
+
+  {"Handler_mrr_key_refills",   (char*) offsetof(STATUS_VAR, ha_mrr_key_refills_count), SHOW_LONG_STATUS},
+  {"Handler_mrr_rowid_refills", (char*) offsetof(STATUS_VAR, ha_mrr_rowid_refills_count), SHOW_LONG_STATUS},
+  {"Handler_mrr_init",         (char*) offsetof(STATUS_VAR, ha_mrr_init_count),  SHOW_LONG_STATUS},
+
   {"Handler_icp_attempts ",    (char*) offsetof(STATUS_VAR, ha_icp_attempts), SHOW_LONG_STATUS},
   {"Handler_icp_match",        (char*) offsetof(STATUS_VAR, ha_icp_match), SHOW_LONG_STATUS},
   {"Handler_prepare",          (char*) offsetof(STATUS_VAR, ha_prepare_count),  SHOW_LONG_STATUS},

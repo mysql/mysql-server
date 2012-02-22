@@ -102,6 +102,9 @@ Handler_delete	1
 Handler_discover	0
 Handler_icp_attempts 	0
 Handler_icp_match	0
+Handler_mrr_init	0
+Handler_mrr_key_refills	0
+Handler_mrr_rowid_refills	0
 Handler_prepare	18
 Handler_read_first	0
 Handler_read_key	3
