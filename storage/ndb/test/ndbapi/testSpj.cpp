@@ -31,7 +31,7 @@ static int faultToInject = 0;
 
 enum faultsToInject {
   FI_START = 17001,
-  FI_END = 17020
+  FI_END = 17042
 };
 
 int
@@ -101,7 +101,7 @@ runLookupJoin(NDBT_Context* ctx, NDBT_Step* step){
 int
 runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
-  int joinlevel = ctx->getProperty("JoinLevel", 3);
+  int joinlevel = ctx->getProperty("JoinLevel", 8);
   int records = ctx->getNumRecords();
   int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
   Uint32 stepNo = step->getStepNo();
@@ -113,7 +113,12 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueries hugoTrans(*query);
 
   NdbRestarter restarter;
-  int lookupFaults[] = {17001, 17005, 17006, 17007, 17008};
+  int lookupFaults[] = {
+      17001, 17005, 17006, 17007, 17008,
+      17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
+      17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
+      17040, 17041, 17042  // lookup_parent_row -> OutOfQueryMemory
+  }; 
   loops =  faultToInject ? 1 : sizeof(lookupFaults)/sizeof(int);
 
   while ((i<loops || until_stopped) && !ctx->isTestStopped())
@@ -124,20 +129,23 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
     int randomId = rand() % restarter.getNumDbNodes();
     int nodeId = restarter.getDbNodeId(randomId);
 
-    ndbout << endl<< "LookupJoinError: Injecting error "<<  inject_err <<
+    ndbout << "LookupJoinError: Injecting error "<<  inject_err <<
       " in node " << nodeId << " loop "<< i << endl;
 
-    if (restarter.insertErrorInNode(nodeId, inject_err) != 0){
+    if (restarter.insertErrorInNode(nodeId, inject_err) != 0)
+    {
       ndbout << "Could not insert error in node "<< nodeId <<endl;
+      g_info << endl;
       return NDBT_FAILED;
     }
 
     // It'd be better if test could differentiates failures from
     // fault injection and others.
-    if (hugoTrans.runLookupQuery(GETNDB(step), records))
+    // We expect to fail, and it's a failure if we don't
+    if (!hugoTrans.runLookupQuery(GETNDB(step), records))
     {
-      ndbout << "LookUpJoinError can probably fail due to fault injection."<< endl;
-      g_info << endl;
+      g_info << "LookUpJoinError didn't fail as expected."<< endl;
+      // return NDBT_FAILED;
     }
 
     addMask(ctx, (1 << stepNo), "Running");
@@ -188,7 +196,12 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueries hugoTrans(* query);
 
   NdbRestarter restarter;
-  int scanFaults[] = {17002, 17004, 17005, 17006, 17007, 17008};
+  int scanFaults[] = {
+      17002, 17004, 17005, 17006, 17007, 17008,
+      17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
+      17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
+      17040, 17041, 17042  // lookup_parent_row -> OutOfQueryMemory
+  }; 
   loops =  faultToInject ? 1 : sizeof(scanFaults)/sizeof(int);
 
   while ((i<loops || until_stopped) && !ctx->isTestStopped())
@@ -199,23 +212,24 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
     int randomId = rand() % restarter.getNumDbNodes();
     int nodeId = restarter.getDbNodeId(randomId);
 
-    ndbout << endl<<"ScanJoin: Injecting error "<<  inject_err <<
+    ndbout << "ScanJoin: Injecting error "<<  inject_err <<
               " in node " << nodeId << " loop "<< i<< endl;
 
-    if (restarter.insertErrorInNode(nodeId, inject_err) != 0){
+    if (restarter.insertErrorInNode(nodeId, inject_err) != 0)
+    {
       ndbout << "Could not insert error in node "<< nodeId <<endl;
       return NDBT_FAILED;
     }
 
     // It'd be better if test could differentiates failures from
     // fault injection and others.
-    if (hugoTrans.runScanQuery(GETNDB(step)))
+    // We expect to fail, and it's a failure if we don't
+    if (!hugoTrans.runScanQuery(GETNDB(step)))
     {
-      ndbout << "runScanJoinError failed probably due to fault injection."<< endl;
+      g_info << "ScanJoinError didn't fail as expected."<< endl;
       // return NDBT_FAILED;
     }
 
-    g_info << endl;
     addMask(ctx, (1 << stepNo), "Running");
     i++;
   }
