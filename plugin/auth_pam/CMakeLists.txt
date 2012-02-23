@@ -1,6 +1,8 @@
 INCLUDE (CheckIncludeFiles)
+INCLUDE (CheckFunctionExists)
 
 CHECK_INCLUDE_FILES (security/pam_appl.h HAVE_PAM_APPL_H)
+CHECK_FUNCTION_EXISTS (strndup HAVE_STRNDUP)
 
 IF(HAVE_PAM_APPL_H)
   MYSQL_ADD_PLUGIN(auth_pam auth_pam.c LINK_LIBRARIES pam MODULE_ONLY)
