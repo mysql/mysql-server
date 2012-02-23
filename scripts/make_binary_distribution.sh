@@ -285,7 +285,8 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
     pkgplugindir=@pkgplugindir@ \
     pkgsuppdir=@pkgsuppdir@ \
     mandir=@mandir@ \
-    infodir=@infodir@
+    infodir=@infodir@ \
+    libexecdir=@prefix@/libexec
 
   # ----------------------------------------------------------------------
   # Rename top directory, and set DEST to the new directory
@@ -301,7 +302,10 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
     if [ -z "$gcclib" ] ; then
       echo "Warning: Compiler doesn't tell libgcc.a!"
     elif [ -f "$gcclib" ] ; then
+    {
+      mkdir -p $DEST/lib
       $CP $gcclib $DEST/lib/libmygcc.a
+    }
     else
       echo "Warning: Compiler result '$gcclib' not found / no file!"
     fi

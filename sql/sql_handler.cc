@@ -676,7 +676,7 @@ retry:
   /* save open_tables state */
   if (handler->lock->lock_count > 0)
   {
-    bool lock_error;
+    int lock_error;
 
     handler->lock->locks[0]->type= handler->lock->locks[0]->org_type;
     lock_error= mysql_lock_tables(thd, handler->lock, 0, 

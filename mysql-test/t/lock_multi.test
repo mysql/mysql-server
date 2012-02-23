@@ -5,6 +5,7 @@
 
 --disable_warnings
 drop table if exists t1,t2;
+drop DATABASE if exists mysqltest_1;
 --enable_warnings
 
 # Test to see if select will get the lock ahead of low priority update

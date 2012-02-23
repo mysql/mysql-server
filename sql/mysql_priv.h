@@ -2347,9 +2347,9 @@ extern struct st_VioSSLFd * ssl_acceptor_fd;
 
 MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
                               uint flags, bool *need_reopen);
-bool mysql_lock_tables(THD *thd, MYSQL_LOCK *sql_lock,
-                       bool write_lock_used,
-                       uint flags, bool *need_reopen);
+int mysql_lock_tables(THD *thd, MYSQL_LOCK *sql_lock,
+                      bool write_lock_used,
+                      uint flags, bool *need_reopen);
 
 /* mysql_lock_tables() and open_table() flags bits */
 #define MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      0x0001
