@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "mem_root_array.h"
 #include "sql_executor.h"
 
+#include <functional>
 /**
    Returns a constant of type 'type' with the 'A' lowest-weight bits set.
    Example: LOWER_BITS(uint, 3) == 7.
@@ -653,6 +654,135 @@ st_join_table::st_join_table()
   */
   memset(&read_record, 0, sizeof(read_record));
 }
+
+/**
+  "Less than" comparison function object used to compare two JOIN_TAB
+  objects based on a number of factors in this order:
+
+   - table before another table that depends on it (straight join, 
+     outer join etc), then
+   - table before another table that depends on it to use a key
+     as access method, then
+   - table with smallest number of records first, then
+   - the table with lowest-value pointer (i.e., the one located 
+     in the lowest memory address) first.
+
+  @param jt1  first JOIN_TAB object
+  @param jt2  second JOIN_TAB object
+
+  @note The order relation implemented by Join_tab_compare_default is not
+    transitive, i.e. it is possible to choose a, b and c such that 
+    (a < b) && (b < c) but (c < a). This is the case in the
+    following example: 
+
+      a: dependent = <none>   found_records = 3
+      b: dependent = <none>   found_records = 4
+      c: dependent = b        found_records = 2
+
+        a < b: because a has fewer records
+        b < c: because c depends on b (e.g outer join dependency)
+        c < a: because c has fewer records
+
+    This implies that the result of a sort using the relation
+    implemented by Join_tab_compare_default () depends on the order in
+    which elements are compared, i.e. the result is
+    implementation-specific.
+
+  @return
+    true if jt1 is smaller than jt2, false otherwise
+*/
+class Join_tab_compare_default :
+  public std::binary_function<const JOIN_TAB*, const JOIN_TAB*, bool>
+{
+public:
+  bool operator()(const JOIN_TAB *jt1, const JOIN_TAB *jt2)
+  {
+    // Sorting distinct tables, so a table should not be compared with itself
+    DBUG_ASSERT(jt1 != jt2);
+
+    if (jt1->dependent & jt2->table->map)
+      return false;
+    if (jt2->dependent & jt1->table->map)
+      return true;
+
+    const bool jt1_keydep_jt2= jt1->key_dependent & jt2->table->map;
+    const bool jt2_keydep_jt1= jt2->key_dependent & jt1->table->map;
+
+    if (jt1_keydep_jt2 && !jt2_keydep_jt1)
+      return false;
+    if (jt2_keydep_jt1 && !jt1_keydep_jt2)
+      return true;
+
+    if (jt1->found_records > jt2->found_records)
+      return false;
+    if (jt1->found_records < jt2->found_records)
+      return true;
+
+    return jt1 < jt2;
+  }
+};
+
+/**
+  "Less than" comparison function object used to compare two JOIN_TAB
+  objects that are joined using STRAIGHT JOIN. For STRAIGHT JOINs, 
+  the join order is dictated by the relative order of the tables in the
+  query which is reflected in JOIN_TAB::dependent. Table size and key
+  dependencies are ignored here.
+*/
+class Join_tab_compare_straight :
+  public std::binary_function<const JOIN_TAB*, const JOIN_TAB*, bool>
+{
+public:
+  bool operator()(const JOIN_TAB *jt1, const JOIN_TAB *jt2)
+  {
+    // Sorting distinct tables, so a table should not be compared with itself
+    DBUG_ASSERT(jt1 != jt2);
+
+    /*
+      We don't do subquery flattening if the parent or child select has
+      STRAIGHT_JOIN modifier. It is complicated to implement and the semantics
+      is hardly useful.
+    */
+    DBUG_ASSERT(!jt1->emb_sj_nest);
+    DBUG_ASSERT(!jt2->emb_sj_nest);
+
+    if (jt1->dependent & jt2->table->map)
+      return false;
+    if (jt2->dependent & jt1->table->map)
+      return true;
+
+    return jt1 < jt2;
+  }
+};
+
+/*
+  Same as Join_tab_compare_default but tables from within the given
+  semi-join nest go first. Used when optimizing semi-join
+  materialization nests.
+*/
+class Join_tab_compare_embedded_first :
+  public std::binary_function<const JOIN_TAB*, const JOIN_TAB*, bool>
+{
+private:
+  const TABLE_LIST *emb_nest;
+public:
+  
+  Join_tab_compare_embedded_first(const TABLE_LIST *nest) : emb_nest(nest){}
+
+  bool operator()(const JOIN_TAB *jt1, const JOIN_TAB *jt2)
+  {
+    // Sorting distinct tables, so a table should not be compared with itself
+    DBUG_ASSERT(jt1 != jt2);
+
+    if (jt1->emb_sj_nest == emb_nest && jt2->emb_sj_nest != emb_nest)
+      return true;
+    if (jt1->emb_sj_nest != emb_nest && jt2->emb_sj_nest == emb_nest)
+      return false;
+
+    Join_tab_compare_default cmp;
+    return cmp(jt1,jt2);
+  }
+};
 
 
 
