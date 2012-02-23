@@ -4,6 +4,14 @@ select counter_name, sum(val) as val
 from ndbinfo.counters 
 where block_name='DBSPJ' 
 group by counter_name;
+create temporary table server_counts_at_startup
+select * from information_schema.global_status 
+where variable_name in 
+('Ndb_pruned_scan_count',
+'Ndb_sorted_scan_count',
+'Ndb_pushed_queries_defined',
+'Ndb_pushed_queries_dropped',
+'Ndb_pushed_queries_executed');
 set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
 set ndb_join_pushdown = true;
 create table t1 (
@@ -4103,6 +4111,16 @@ where t1.a = 10 and t1.b = 10 and
 t2.a = t1.c and t2.b = t1.c;
 a	b	c	a	b	c
 10	10	11	11	11	12
+create temporary table server_counts
+select * from information_schema.global_status 
+where variable_name in 
+('Ndb_scan_count',
+'Ndb_pruned_scan_count',
+'Ndb_sorted_scan_count',
+'Ndb_pushed_queries_defined',
+'Ndb_pushed_queries_dropped',
+'Ndb_pushed_queries_executed',
+'Ndb_pushed_reads');
 select * from t1 t1, t1 t2 
 where t1.a = 11 and t1.b = 11 and 
 t2.a = t1.c and t2.b = t1.c;
@@ -4119,20 +4137,20 @@ where t1.a = 11 and
 t2.a = t1.c and t2.b = t1.c;
 count(*)
 1
-scan_count
-2
-pruned_scan_count
-1
-sorted_scan_count
-1
-pushed_queries_defined
-3
-pushed_queries_dropped
-0
-pushed_queries_executed
-3
-pushed_reads
-4
+select new.variable_name, new.variable_value - old.variable_value
+from server_counts as old,
+information_schema.global_status as new
+where new.variable_name = old.variable_name
+order by new.variable_name;
+variable_name	new.variable_value - old.variable_value
+NDB_PRUNED_SCAN_COUNT	1
+NDB_PUSHED_QUERIES_DEFINED	3
+NDB_PUSHED_QUERIES_DROPPED	0
+NDB_PUSHED_QUERIES_EXECUTED	3
+NDB_PUSHED_READS	4
+NDB_SCAN_COUNT	2
+NDB_SORTED_SCAN_COUNT	1
+drop table server_counts;
 drop table t1;
 create table t1(
 d int not null,
@@ -5518,13 +5536,14 @@ group by counter_name;
 select spj_counts_at_end.counter_name, spj_counts_at_end.val - spj_counts_at_startup.val 
 from spj_counts_at_end, spj_counts_at_startup 
 where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
-and spj_counts_at_end.counter_name <> 'READS_NOT_FOUND'
-       and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
-       and spj_counts_at_end.counter_name <> 'REMOTE_READS_SENT'
-       and spj_counts_at_end.counter_name <> 'LOCAL_RANGE_SCANS_SENT'
-       and spj_counts_at_end.counter_name <> 'REMOTE_RANGE_SCANS_SENT'
-       and spj_counts_at_end.counter_name <> 'SCAN_ROWS_RETURNED'
-       and spj_counts_at_end.counter_name <> 'SCAN_BATCHES_RETURNED';
+and spj_counts_at_end.counter_name not in 
+('READS_NOT_FOUND',
+'LOCAL_READS_SENT',
+'REMOTE_READS_SENT',
+'LOCAL_RANGE_SCANS_SENT',
+'REMOTE_RANGE_SCANS_SENT',
+'SCAN_ROWS_RETURNED',
+'SCAN_BATCHES_RETURNED');
 counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	8
 LOCAL_TABLE_SCANS_SENT	250
@@ -5534,16 +5553,16 @@ READS_RECEIVED	58
 TABLE_SCANS_RECEIVED	250
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
-scan_count_derived
-1.0
-pruned_scan_count
-8
-sorted_scan_count
-10
-pushed_queries_defined
-405
-pushed_queries_dropped
-8
-pushed_queries_executed
-550
+select new.variable_name, new.variable_value - old.variable_value
+from server_counts_at_startup as old,
+information_schema.global_status as new
+where new.variable_name = old.variable_name
+order by new.variable_name;
+variable_name	new.variable_value - old.variable_value
+NDB_PRUNED_SCAN_COUNT	8
+NDB_PUSHED_QUERIES_DEFINED	405
+NDB_PUSHED_QUERIES_DROPPED	8
+NDB_PUSHED_QUERIES_EXECUTED	550
+NDB_SORTED_SCAN_COUNT	10
+drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;

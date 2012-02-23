@@ -18,6 +18,7 @@
 #define DBSPJ_C
 #include "Dbspj.hpp"
 
+#include <ndb_version.h>
 #include <SectionReader.hpp>
 #include <signaldata/LqhKey.hpp>
 #include <signaldata/QueryTree.hpp>
@@ -53,7 +54,7 @@
 #endif
 
 #if 1
-#define DEBUG_CRASH() ndbrequire(false)
+#define DEBUG_CRASH() { if (ERROR_INSERTED(0)) ndbrequire(false) }
 #else
 #define DEBUG_CRASH()
 #endif
@@ -397,9 +398,18 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
     if (unlikely(!m_arenaAllocator.seize(ah)))
       break;
 
-
-    m_request_pool.seize(ah, requestPtr);
-
+    if (ERROR_INSERTED(17001))
+    {
+      ndbout_c("Injecting OutOfQueryMem error 17001 at line %d file %s",
+                __LINE__,  __FILE__);
+      jam();
+      break;
+    }
+    if (unlikely(!m_request_pool.seize(ah, requestPtr)))
+    {
+      jam();
+      break;
+    }
     new (requestPtr.p) Request(ah);
     do_init(requestPtr.p, req, signal->getSendersBlockRef());
 
@@ -535,6 +545,7 @@ Dbspj::handle_early_lqhkey_ref(Signal* signal,
                                const LqhKeyReq * lqhKeyReq,
                                Uint32 err)
 {
+  CLEAR_ERROR_INSERT_VALUE; // clear injected error if any
   /**
    * Error path...
    */
@@ -690,8 +701,18 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
     if (unlikely(!m_arenaAllocator.seize(ah)))
       break;
 
-    m_request_pool.seize(ah, requestPtr);
-
+    if (ERROR_INSERTED(17002))
+    {
+      ndbout_c("Injecting OutOfQueryMem error 17002 at line %d file %s",
+                __LINE__,  __FILE__);
+      jam();
+      break;
+    }
+    if (unlikely(!m_request_pool.seize(ah, requestPtr)))
+    {
+      jam();
+      break;
+    }
     new (requestPtr.p) Request(ah);
     do_init(requestPtr.p, req, signal->getSendersBlockRef());
 
@@ -804,6 +825,8 @@ Dbspj::handle_early_scanfrag_ref(Signal* signal,
                                  const ScanFragReq * _req,
                                  Uint32 err)
 {
+  CLEAR_ERROR_INSERT_VALUE; // clear any injected error
+
   ScanFragReq req = *_req;
   Uint32 senderRef = signal->getSendersBlockRef();
 
@@ -899,6 +922,14 @@ Dbspj::build(Build_context& ctx,
     if (unlikely(node_op != param_op))
     {
       DEBUG_CRASH();
+      jam();
+      goto error;
+    }
+    if (ERROR_INSERTED(17006))
+    {
+      ndbout_c("Injecting UnknowQueryOperation error 17006 at line %d file %s",
+                __LINE__,  __FILE__);
+      jam();
       goto error;
     }
 
@@ -992,6 +1023,13 @@ Dbspj::createNode(Build_context& ctx, Ptr<Request> requestPtr,
    *   that can be setup using the Build_context
    *
    */
+  if (ERROR_INSERTED(17005))
+  {
+    ndbout_c("Injecting OutOfOperations error 17005 at line %d file %s",
+             __LINE__,  __FILE__);
+    jam();
+    return DbspjErr::OutOfOperations;
+  }
   if (m_treenode_pool.seize(requestPtr.p->m_arena, treeNodePtr))
   {
     DEBUG("createNode - seize -> ptrI: " << treeNodePtr.i);
@@ -1649,6 +1687,22 @@ void
 Dbspj::abort(Signal* signal, Ptr<Request> requestPtr, Uint32 errCode)
 {
   jam();
+
+  /**
+   * Need to handle online upgrade as the protocoll for 
+   * signaling errors for Lookup-request changed in 7.2.5.
+   * If API-version is <= 7.2.4 we increase the severity 
+   * of the error to a 'NodeFailure' as this is the only
+   * errorcode for which the API will stop further
+   * 'outstanding-counting' in pre 7.2.5.
+   * (Starting from 7.2.5 we will stop counting for all 'hard errors')
+   */
+  if (requestPtr.p->isLookup() &&
+      !ndbd_fixed_lookup_query_abort(getNodeInfo(getResultRef(requestPtr)).m_version))
+  {
+    jam();
+    errCode = DbspjErr::NodeFailure;
+  }
 
   if ((requestPtr.p->m_state & Request::RS_ABORTING) != 0)
   {
@@ -2637,11 +2691,19 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
   if (m_free_page_list.firstItem == RNIL)
   {
     jam();
+    if (ERROR_INSERTED(17003))
+    {
+      ndbout_c("Injecting failed '::allocPage', error 17003 at line %d file %s",
+               __LINE__,  __FILE__);
+      jam();
+      return false;
+    }
     ptr.p = (RowPage*)m_ctx.m_mm.alloc_page(RT_SPJ_DATABUFFER,
                                             &ptr.i,
                                             Ndbd_mem_manager::NDB_ZONE_ANY);
     if (ptr.p == 0)
     {
+      jam();
       return false;
     }
     return true;
@@ -3019,6 +3081,23 @@ Dbspj::lookup_send(Signal* signal,
   getSection(handle.m_ptr[1], attrInfoPtrI);
   handle.m_cnt = 2;
 
+  /**
+   * Inject error to test LQHKEYREF handling:
+   * Tampering with tableSchemaVersion such that LQH will 
+   * return LQHKEYREF('1227: Invalid schema version')
+   * May happen for different treeNodes in the request:
+   * - 17030: Fail on any lookup_send()
+   * - 17031: Fail on lookup_send() if 'isLeaf'
+   * - 17032: Fail on lookup_send() if treeNode not root 
+   */
+  if (ERROR_INSERTED_CLEAR(17030) ||
+      (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17031)) ||
+      (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17032)))
+  {
+    jam();
+    req->tableSchemaVersion += (1 << 16); // Provoke 'Invalid schema version'
+  }
+
 #if defined DEBUG_LQHKEYREQ
   ndbout_c("LQHKEYREQ to %x", ref);
   printLQHKEYREQ(stdout, signal->getDataPtrSend(),
@@ -3040,6 +3119,22 @@ Dbspj::lookup_send(Signal* signal,
     c_Counters.incr_counter(CI_REMOTE_READS_SENT, 1);
   }
 
+  /**
+   * Test execution terminated due to 'NodeFailure' which
+   * may happen for different treeNodes in the request:
+   * - 17020: Fail on any lookup_send()
+   * - 17021: Fail on lookup_send() if 'isLeaf'
+   * - 17022: Fail on lookup_send() if treeNode not root 
+   */
+  if (ERROR_INSERTED_CLEAR(17020) ||
+      (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17021)) ||
+      (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17022)))
+  {
+    jam();
+    releaseSections(handle);
+    abort(signal, requestPtr, DbspjErr::NodeFailure);
+    return;
+  }
   if (unlikely(!c_alive_nodes.get(Tnode)))
   {
     jam();
@@ -3099,14 +3194,18 @@ Dbspj::lookup_execTRANSID_AI(Signal* signal,
     LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
     Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
     Dependency_map::ConstDataBufferIterator it;
+
     for (list.first(it); !it.isNull(); list.next(it))
     {
-      jam();
-      Ptr<TreeNode> childPtr;
-      m_treenode_pool.getPtr(childPtr, * it.data);
-      ndbrequire(childPtr.p->m_info != 0&&childPtr.p->m_info->m_parent_row!=0);
-      (this->*(childPtr.p->m_info->m_parent_row))(signal,
-                                                  requestPtr, childPtr,rowRef);
+      if (likely(requestPtr.p->m_state & Request::RS_RUNNING))
+      {
+        jam();
+        Ptr<TreeNode> childPtr;
+        m_treenode_pool.getPtr(childPtr, * it.data);
+        ndbrequire(childPtr.p->m_info!=0 && childPtr.p->m_info->m_parent_row!=0);
+        (this->*(childPtr.p->m_info->m_parent_row))(signal,
+                                                    requestPtr, childPtr,rowRef);
+      }
     }
   }
   ndbrequire(!(requestPtr.p->isLookup() && treeNodePtr.p->isLeaf()));
@@ -3143,85 +3242,89 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
 
   c_Counters.incr_counter(CI_READS_NOT_FOUND, 1);
 
-  if (requestPtr.p->isLookup())
+  DEBUG("lookup_execLQHKEYREF, errorCode:" << errCode);
+
+  /**
+   * If Request is still actively running: API need to
+   * be informed about error. 
+   * Error code may either indicate a 'hard error' which should
+   * terminate the query execution, or a 'soft error' which 
+   * should be signaled NDBAPI, and execution continued.
+   */
+  if (likely(requestPtr.p->m_state & Request::RS_RUNNING))
   {
-    jam();
+    switch(errCode){
+    case 626: // 'Soft error' : Row not found
+    case 899: // 'Soft error' : Interpreter_exit_nok
 
-    /* CONF/REF not requested for lookup-Leaf: */
-    ndbrequire(!treeNodePtr.p->isLeaf());
-
-    /**
-     * Scan-request does not need to
-     *   send TCKEYREF...
-     */
-    /**
-     * Return back to api...
-     *   NOTE: assume that signal is tampered with
-     */
-    Uint32 resultRef = treeNodePtr.p->m_lookup_data.m_api_resultRef;
-    Uint32 resultData = treeNodePtr.p->m_lookup_data.m_api_resultData;
-    TcKeyRef* ref = (TcKeyRef*)signal->getDataPtr();
-    ref->connectPtr = resultData;
-    ref->transId[0] = requestPtr.p->m_transId[0];
-    ref->transId[1] = requestPtr.p->m_transId[1];
-    ref->errorCode = errCode;
-    ref->errorData = 0;
-
-    DEBUG("lookup_execLQHKEYREF, errorCode:" << errCode);
-
-    sendTCKEYREF(signal, resultRef, requestPtr.p->m_senderRef);
-
-    if (treeNodePtr.p->m_bits & TreeNode::T_UNIQUE_INDEX_LOOKUP)
-    {
+      jam();
       /**
-       * If this is a "leaf" unique index lookup
-       *   emit extra TCKEYCONF as would have been done with ordinary
-       *   operation
+       * Only Lookup-request need to send TCKEYREF...
        */
-      LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
-      Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
-      Dependency_map::ConstDataBufferIterator it;
-      ndbrequire(list.first(it));
-      ndbrequire(list.getSize() == 1); // should only be 1 child
-      Ptr<TreeNode> childPtr;
-      m_treenode_pool.getPtr(childPtr, * it.data);
-      if (childPtr.p->m_bits & TreeNode::T_LEAF)
+      if (requestPtr.p->isLookup())
       {
         jam();
-        Uint32 resultRef = childPtr.p->m_lookup_data.m_api_resultRef;
-        Uint32 resultData = childPtr.p->m_lookup_data.m_api_resultData;
-        TcKeyConf* conf = (TcKeyConf*)signal->getDataPtr();
-        conf->apiConnectPtr = RNIL;
-        conf->confInfo = 0;
-        conf->gci_hi = 0;
-        TcKeyConf::setNoOfOperations(conf->confInfo, 1);
-        conf->transId1 = requestPtr.p->m_transId[0];
-        conf->transId2 = requestPtr.p->m_transId[1];
-        conf->operations[0].apiOperationPtr = resultData;
-        conf->operations[0].attrInfoLen =
-          TcKeyConf::DirtyReadBit |getOwnNodeId();
-        sendTCKEYCONF(signal, TcKeyConf::StaticLength + 2, resultRef, requestPtr.p->m_senderRef);
-      }
-    }
-  }
-  else
-  {
-    jam();
-    switch(errCode){
-    case 626: // Row not found
-    case 899: // Interpreter_exit_nok
-      jam();
+
+        /* CONF/REF not requested for lookup-Leaf: */
+        ndbrequire(!treeNodePtr.p->isLeaf());
+
+        /**
+         * Return back to api...
+         *   NOTE: assume that signal is tampered with
+         */
+        Uint32 resultRef = treeNodePtr.p->m_lookup_data.m_api_resultRef;
+        Uint32 resultData = treeNodePtr.p->m_lookup_data.m_api_resultData;
+        TcKeyRef* ref = (TcKeyRef*)signal->getDataPtr();
+        ref->connectPtr = resultData;
+        ref->transId[0] = requestPtr.p->m_transId[0];
+        ref->transId[1] = requestPtr.p->m_transId[1];
+        ref->errorCode = errCode;
+        ref->errorData = 0;
+
+        sendTCKEYREF(signal, resultRef, requestPtr.p->m_senderRef);
+
+        if (treeNodePtr.p->m_bits & TreeNode::T_UNIQUE_INDEX_LOOKUP)
+        {
+          /**
+           * If this is a "leaf" unique index lookup
+           *   emit extra TCKEYCONF as would have been done with ordinary
+           *   operation
+           */
+          LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+          Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
+          Dependency_map::ConstDataBufferIterator it;
+          ndbrequire(list.first(it));
+          ndbrequire(list.getSize() == 1); // should only be 1 child
+          Ptr<TreeNode> childPtr;
+          m_treenode_pool.getPtr(childPtr, * it.data);
+          if (childPtr.p->m_bits & TreeNode::T_LEAF)
+          {
+            jam();
+            Uint32 resultRef = childPtr.p->m_lookup_data.m_api_resultRef;
+            Uint32 resultData = childPtr.p->m_lookup_data.m_api_resultData;
+            TcKeyConf* conf = (TcKeyConf*)signal->getDataPtr();
+            conf->apiConnectPtr = RNIL;
+            conf->confInfo = 0;
+            conf->gci_hi = 0;
+            TcKeyConf::setNoOfOperations(conf->confInfo, 1);
+            conf->transId1 = requestPtr.p->m_transId[0];
+            conf->transId2 = requestPtr.p->m_transId[1];
+            conf->operations[0].apiOperationPtr = resultData;
+            conf->operations[0].attrInfoLen =
+              TcKeyConf::DirtyReadBit |getOwnNodeId();
+            sendTCKEYCONF(signal, TcKeyConf::StaticLength + 2, resultRef, requestPtr.p->m_senderRef);
+          }
+        }
+      } // isLookup()
       break;
-    default:
+
+    default: // 'Hard error' : abort query
       jam();
       abort(signal, requestPtr, errCode);
     }
   }
 
-  Uint32 cnt = 2;
-  if (treeNodePtr.p->isLeaf())  // Can't be a lookup-Leaf, asserted above
-    cnt = 1;
-
+  Uint32 cnt = (treeNodePtr.p->isLeaf()) ? 1 : 2;
   ndbassert(requestPtr.p->m_lookup_node_data[Tnode] >= cnt);
   requestPtr.p->m_lookup_node_data[Tnode] -= cnt;
 
@@ -3291,7 +3394,7 @@ Dbspj::lookup_parent_row(Signal* signal,
    *   2) compute hash     (normally TC)
    *   3) get node for row (normally TC)
    */
-  Uint32 err;
+  Uint32 err = 0;
   const LqhKeyReq* src = (LqhKeyReq*)treeNodePtr.p->m_lookup_data.m_lqhKeyReq;
   const Uint32 tableId = LqhKeyReq::getTableId(src->tableSchemaVersion);
   const Uint32 corrVal = rowRef.m_src_correlation;
@@ -3300,6 +3403,22 @@ Dbspj::lookup_parent_row(Signal* signal,
 
   do
   {
+    /**
+     * Test execution terminated due to 'OutOfQueryMemory' which
+     * may happen multiple places below:
+     * - 17040: Fail on any lookup_parent_row()
+     * - 17041: Fail on lookup_parent_row() if 'isLeaf'
+     * - 17042: Fail on lookup_parent_row() if treeNode not root 
+     */
+    if (ERROR_INSERTED_CLEAR(17040) ||
+        (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17041)) ||
+        (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17042)))
+    {
+      jam();
+      err = DbspjErr::OutOfQueryMemory;
+      break;
+    }
+
     Uint32 ptrI = RNIL;
     if (treeNodePtr.p->m_bits & TreeNode::T_KEYINFO_CONSTRUCTED)
     {
@@ -3471,7 +3590,10 @@ Dbspj::lookup_parent_row(Signal* signal,
     return;
   } while (0);
 
-  ndbrequire(false);
+  // If we fail it will always be a 'hard error' -> abort
+  ndbrequire(err);
+  jam();
+  abort(signal, requestPtr, err);
 }
 
 void
@@ -3818,10 +3940,19 @@ Dbspj::scanFrag_build(Build_context& ctx,
 
     treeNodePtr.p->m_scanfrag_data.m_scanFragHandlePtrI = RNIL;
     Ptr<ScanFragHandle> scanFragHandlePtr;
+    if (ERROR_INSERTED(17004))
+    {
+      ndbout_c("Injecting OutOfQueryMemory error 17004 at line %d file %s",
+               __LINE__,  __FILE__);
+      jam();
+      err = DbspjErr::OutOfQueryMemory;
+      break;
+    }
     if (unlikely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena,
                                              scanFragHandlePtr) != true))
     {
       err = DbspjErr::OutOfQueryMemory;
+      jam();
       break;
     }
 
@@ -4072,19 +4203,22 @@ Dbspj::scanFrag_execTRANSID_AI(Signal* signal,
   jam();
   treeNodePtr.p->m_scanfrag_data.m_rows_received++;
 
-  LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
-  Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
-  Dependency_map::ConstDataBufferIterator it;
-
   {
+    LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+    Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
+    Dependency_map::ConstDataBufferIterator it;
+
     for (list.first(it); !it.isNull(); list.next(it))
     {
-      jam();
-      Ptr<TreeNode> childPtr;
-      m_treenode_pool.getPtr(childPtr, * it.data);
-      ndbrequire(childPtr.p->m_info != 0&&childPtr.p->m_info->m_parent_row!=0);
-      (this->*(childPtr.p->m_info->m_parent_row))(signal,
-                                                  requestPtr, childPtr,rowRef);
+      if (likely(requestPtr.p->m_state & Request::RS_RUNNING))
+      {
+        jam();
+        Ptr<TreeNode> childPtr;
+        m_treenode_pool.getPtr(childPtr, * it.data);
+        ndbrequire(childPtr.p->m_info!=0 && childPtr.p->m_info->m_parent_row!=0);
+        (this->*(childPtr.p->m_info->m_parent_row))(signal,
+                                                    requestPtr, childPtr,rowRef);
+      }
     }
   }
 
@@ -5405,19 +5539,22 @@ Dbspj::scanIndex_execTRANSID_AI(Signal* signal,
 {
   jam();
 
-  LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
-  Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
-  Dependency_map::ConstDataBufferIterator it;
-
   {
+    LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+    Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
+    Dependency_map::ConstDataBufferIterator it;
+
     for (list.first(it); !it.isNull(); list.next(it))
     {
-      jam();
-      Ptr<TreeNode> childPtr;
-      m_treenode_pool.getPtr(childPtr, * it.data);
-      ndbrequire(childPtr.p->m_info != 0&&childPtr.p->m_info->m_parent_row!=0);
-      (this->*(childPtr.p->m_info->m_parent_row))(signal,
-                                                  requestPtr, childPtr,rowRef);
+      if (likely(requestPtr.p->m_state & Request::RS_RUNNING))
+      {
+        jam();
+        Ptr<TreeNode> childPtr;
+        m_treenode_pool.getPtr(childPtr, * it.data);
+        ndbrequire(childPtr.p->m_info != 0&&childPtr.p->m_info->m_parent_row!=0);
+        (this->*(childPtr.p->m_info->m_parent_row))(signal,
+                                                    requestPtr, childPtr,rowRef);
+      }
     }
   }
 
@@ -6251,8 +6388,15 @@ Dbspj::appendToPattern(Local_pattern_store & pattern,
   if (unlikely(tree.ptr + len > tree.end))
     return DbspjErr::InvalidTreeNodeSpecification;
 
+  if (ERROR_INSERTED(17008))
+  {
+    ndbout_c("Injecting OutOfQueryMemory error 17008 at line %d file %s",
+             __LINE__,  __FILE__);
+    jam();
+    return DbspjErr::OutOfQueryMemory;
+  }
   if (unlikely(pattern.append(tree.ptr, len)==0))
-    return  DbspjErr::OutOfQueryMemory;
+    return DbspjErr::OutOfQueryMemory;
 
   tree.ptr += len;
   return 0;
@@ -6271,6 +6415,15 @@ Dbspj::appendParamToPattern(Local_pattern_store& dst,
   Uint32 len = AttributeHeader::getDataSize(* ptr ++);
   /* Param COL's converted to DATA when appended to pattern */
   Uint32 info = QueryPattern::data(len);
+
+  if (ERROR_INSERTED(17009))
+  {
+    ndbout_c("Injecting OutOfQueryMemory error 17009 at line %d file %s",
+             __LINE__,  __FILE__);
+    jam();
+    return DbspjErr::OutOfQueryMemory;
+  }
+
   return dst.append(&info,1) && dst.append(ptr,len) ? 0 : DbspjErr::OutOfQueryMemory;
 }
 
@@ -6287,6 +6440,15 @@ Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
   Uint32 len = AttributeHeader::getDataSize(*ptr);
   /* Param COL's converted to DATA when appended to pattern */
   Uint32 info = QueryPattern::data(len+1);
+
+  if (ERROR_INSERTED(17010))
+  {
+    ndbout_c("Injecting OutOfQueryMemory error 17010 at line %d file %s",
+             __LINE__,  __FILE__);
+    jam();
+    return DbspjErr::OutOfQueryMemory;
+  }
+
   return dst.append(&info,1) && dst.append(ptr,len+1) ? 0 : DbspjErr::OutOfQueryMemory;
 }
 
@@ -6983,6 +7145,15 @@ Dbspj::parseDA(Build_context& ctx,
 
   do
   {
+    if (ERROR_INSERTED(17007))
+    {
+      ndbout_c("Injecting OutOfSectionMemory error 17007 at line %d file %s",
+                __LINE__,  __FILE__);
+      jam();
+      err = DbspjErr::OutOfSectionMemory;
+      break;
+    }
+
     if (treeBits & DABits::NI_REPEAT_SCAN_RESULT)
     {
       jam();
@@ -7011,16 +7182,16 @@ Dbspj::parseDA(Build_context& ctx,
         break;
       }
 
-      err = 0;
-
       if (unlikely(cnt!=1))
       {
         /**
          * Only a single parent supported for now, i.e only trees
          */
         DEBUG_CRASH();
+        break;
       }
 
+      err = 0;
       for (Uint32 i = 0; i<cnt; i++)
       {
         DEBUG("adding " << dst[i] << " as parent");
