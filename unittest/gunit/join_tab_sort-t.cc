@@ -55,18 +55,27 @@ protected:
   Server_initializer initializer;
 };
 
+
 class MOCK_JOIN_TAB : public JOIN_TAB
 {
 public:
   MOCK_JOIN_TAB(uint recs, uint table_no) : JOIN_TAB()
   {
     found_records= recs;
-    m_table.map= 1UL<<table_no;
+    m_table.map= 1ULL << table_no;
     this->table= &m_table;
   }
   
   TABLE       m_table;
 };
+
+std::ostream &operator<<(std::ostream &s, const MOCK_JOIN_TAB &jt)
+{
+  return s << "{"
+           << jt.found_records << ", "
+           << jt.m_table.map
+           << "}";
+}
 
 
 TEST_F(JTSortTest, SimpleSortTest)
@@ -135,14 +144,16 @@ TEST_F(JTSortTest, SortDependsTest)
   {
     arr[i]= new MOCK_JOIN_TAB(i, i);
     for (int j= i+1; j < num_tables; j++)
-      arr[i]->dependent|= 1UL << j;
+      arr[i]->dependent|= 1ULL << j;
   }
 
   // MERGE SORT
   std::random_shuffle(arr, arr + num_tables);
   merge_sort(arr, arr + num_tables, Join_tab_compare_default());
   for (int i= 1; i < num_tables; i++)
-    EXPECT_TRUE(arr[i]->found_records < arr[i-1]->found_records);
+    EXPECT_TRUE(arr[i]->found_records < arr[i-1]->found_records)
+      << "i: " << *(arr[i]) << " "
+      << "i-1: " << *(arr[i-1]);
 
   // INSERT SORT
   std::random_shuffle(arr, arr + num_tables);
@@ -171,7 +182,7 @@ TEST_F(JTSortTest, SortKeyDependsTest)
   {
     arr[i]= new MOCK_JOIN_TAB(i, i);
     for (int j= i+1; j < num_tables; j++)
-      arr[i]->key_dependent|= 1UL << j;
+      arr[i]->key_dependent|= 1ULL << j;
   }
 
   // MERGE SORT

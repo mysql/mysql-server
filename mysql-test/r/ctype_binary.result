@@ -2818,8 +2818,8 @@ DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_da
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					field_str1	254	29	10	Y	128	31	63
 def					field1_str2	254	29	19	Y	128	31	63
-def					field_date	10	10	10	Y	160	0	63
-def					field_datetime	12	19	19	Y	160	0	63
+def					field_date	10	10	10	Y	128	0	63
+def					field_datetime	12	19	19	Y	128	0	63
 field_str1	field1_str2	field_date	field_datetime
 2007-08-02	2007-08-03 17:32:00	2007-08-02	2007-08-03 17:32:00
 SELECT

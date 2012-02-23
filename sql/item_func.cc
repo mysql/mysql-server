@@ -597,6 +597,7 @@ void Item_func_numhybrid::fix_num_length_and_dec()
 */
 void Item_func::count_datetime_length(Item **item, uint nitems)
 {
+  unsigned_flag= 0;
   decimals= 0;
   if (field_type() != MYSQL_TYPE_DATE)
   {
@@ -612,16 +613,13 @@ void Item_func::count_datetime_length(Item **item, uint nitems)
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
       len+= MAX_DATETIME_WIDTH;
-      unsigned_flag= 1;
       break;
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_NEWDATE:
       len+= MAX_DATE_WIDTH;
-      unsigned_flag= 1;
       break;
     case MYSQL_TYPE_TIME:
       len+= MAX_TIME_WIDTH;
-      unsigned_flag= 0;
       break;
     default:
       DBUG_ASSERT(0);
