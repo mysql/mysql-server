@@ -2235,11 +2235,9 @@ void Item_date_add_interval::fix_length_and_dec()
     uint8 dec= MY_MAX(args[0]->datetime_precision(), interval_dec);
     fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, dec);
     cached_field_type= MYSQL_TYPE_DATETIME;
-    unsigned_flag= 1;
   }
   else if (arg0_field_type == MYSQL_TYPE_DATE)
   {
-    unsigned_flag= 1;
     if (int_type <= INTERVAL_DAY || int_type == INTERVAL_YEAR_MONTH)
     {
       cached_field_type= MYSQL_TYPE_DATE;
@@ -2808,7 +2806,6 @@ void Item_func_add_time::fix_length_and_dec()
   else if (args[0]->is_temporal_with_date_and_time() || is_date)
   {
     cached_field_type= MYSQL_TYPE_DATETIME;
-    unsigned_flag= 1;
     uint8 dec= MY_MAX(args[0]->datetime_precision(), args[1]->time_precision());
     fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, dec);
   }
@@ -3327,7 +3324,6 @@ void Item_func_str_to_date::fix_from_format(const char *format, uint length)
         */
         cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
         cached_field_type= MYSQL_TYPE_DATETIME; 
-        unsigned_flag= 1;
         fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH,
                                                 DATETIME_MAX_DECIMALS);
         return;
@@ -3345,7 +3341,6 @@ void Item_func_str_to_date::fix_from_format(const char *format, uint length)
   }
   else if (time_part_used)
   {
-    unsigned_flag= 1;
     if (date_part_used) /* DATETIME, no microseconds */
     {
       cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
