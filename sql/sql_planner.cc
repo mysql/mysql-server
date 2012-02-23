@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "opt_range.h"
 #include "opt_trace.h"
 #include "sql_executor.h"
+#include "merge_sort.h"
 #include <my_bit.h>
 
 #include <algorithm>
@@ -36,106 +37,6 @@ using std::max;
 using std::min;
 
 static double prev_record_reads(JOIN *join, uint idx, table_map found_ref);
-
-/**
-  Compare two JOIN_TAB objects based on the number of accessed records.
-
-  @param ptr1 pointer to first JOIN_TAB object
-  @param ptr2 pointer to second JOIN_TAB object
-
-  NOTES
-    The order relation implemented by join_tab_cmp() is not transitive,
-    i.e. it is possible to choose such a, b and c that (a < b) && (b < c)
-    but (c < a). This implies that result of a sort using the relation
-    implemented by join_tab_cmp() depends on the order in which
-    elements are compared, i.e. the result is implementation-specific.
-    Example:
-      a: dependent = 0x0 table->map = 0x1 found_records = 3 ptr = 0x907e6b0
-      b: dependent = 0x0 table->map = 0x2 found_records = 3 ptr = 0x907e838
-      c: dependent = 0x6 table->map = 0x10 found_records = 2 ptr = 0x907ecd0
-     
-  @retval
-    1  if first is bigger
-  @retval
-    -1  if second is bigger
-  @retval
-    0  if equal
-*/
-
-static int
-join_tab_cmp(const void *, const void* ptr1, const void* ptr2)
-{
-  JOIN_TAB *jt1= *(JOIN_TAB**) ptr1;
-  JOIN_TAB *jt2= *(JOIN_TAB**) ptr2;
-
-  if (jt1->dependent & jt2->table->map)
-    return 1;
-  if (jt2->dependent & jt1->table->map)
-    return -1;  
-  if (jt1->found_records > jt2->found_records)
-    return 1;
-  if (jt1->found_records < jt2->found_records)
-    return -1; 
-  return jt1 > jt2 ? 1 : (jt1 < jt2 ? -1 : 0);
-}
-
-
-/**
-  Same as join_tab_cmp, but for use with SELECT_STRAIGHT_JOIN.
-*/
-
-static int
-join_tab_cmp_straight(const void *, const void* ptr1, const void* ptr2)
-{
-  JOIN_TAB *jt1= *(JOIN_TAB**) ptr1;
-  JOIN_TAB *jt2= *(JOIN_TAB**) ptr2;
- 
-  /*
-    We don't do subquery flattening if the parent or child select has
-    STRAIGHT_JOIN modifier. It is complicated to implement and the semantics
-    is hardly useful.
-  */
-  DBUG_ASSERT(!jt1->emb_sj_nest);
-  DBUG_ASSERT(!jt2->emb_sj_nest);
-
-  if (jt1->dependent & jt2->table->map)
-    return 1;
-  if (jt2->dependent & jt1->table->map)
-    return -1;
-  return jt1 > jt2 ? 1 : (jt1 < jt2 ? -1 : 0);
-}
-
-
-/*
-  Same as join_tab_cmp but tables from within the given semi-join nest go 
-  first. Used when optimizing semi-join materialization nests.
-*/
-
-static int
-join_tab_cmp_embedded_first(const void *emb, const void* ptr1, const void* ptr2)
-{
-  const TABLE_LIST *emb_nest= (TABLE_LIST*) emb;
-  JOIN_TAB *jt1= *(JOIN_TAB**) ptr1;
-  JOIN_TAB *jt2= *(JOIN_TAB**) ptr2;
-
-  if (jt1->emb_sj_nest == emb_nest && jt2->emb_sj_nest != emb_nest)
-    return -1;
-  if (jt1->emb_sj_nest != emb_nest && jt2->emb_sj_nest == emb_nest)
-    return 1;
-
-  if (jt1->dependent & jt2->table->map)
-    return 1;
-  if (jt2->dependent & jt1->table->map)
-    return -1;
-
-  if (jt1->found_records > jt2->found_records)
-    return 1;
-  if (jt1->found_records < jt2->found_records)
-    return -1; 
-  
-  return jt1 > jt2 ? 1 : (jt1 < jt2 ? -1 : 0);
-}
-
 
 /*
   This is a class for considering possible loose index scan optimizations.
@@ -1149,7 +1050,6 @@ bool Optimize_table_order::choose_table_order()
   }
 
   reset_nj_counters(join->join_list);
-  qsort2_cmp jtab_sort_func;
 
   const bool straight_join= test(join->select_options & SELECT_STRAIGHT_JOIN);
   table_map join_tables;      ///< The tables involved in order selection
@@ -1159,7 +1059,9 @@ bool Optimize_table_order::choose_table_order()
     /* We're optimizing semi-join materialization nest, so put the 
        tables from this semi-join as first
     */
-    jtab_sort_func= join_tab_cmp_embedded_first;
+    merge_sort(join->best_ref + join->const_tables,
+               join->best_ref + join->tables,
+               Join_tab_compare_embedded_first(emb_sjm_nest));
     join_tables= emb_sjm_nest->sj_inner_tables;
   }
   else
@@ -1172,12 +1074,17 @@ bool Optimize_table_order::choose_table_order()
         Apply heuristic: pre-sort all access plans with respect to the number of
         records accessed.
     */
-    jtab_sort_func= straight_join ? join_tab_cmp_straight : join_tab_cmp;
+    if (straight_join)
+      merge_sort(join->best_ref + join->const_tables,
+                 join->best_ref + join->tables,
+                 Join_tab_compare_straight());
+    else 
+      merge_sort(join->best_ref + join->const_tables,
+                 join->best_ref + join->tables,
+                 Join_tab_compare_default());
+
     join_tables= join->all_table_map & ~join->const_table_map;
   }
-  my_qsort2(join->best_ref + join->const_tables,
-            join->tables - join->const_tables, sizeof(JOIN_TAB*),
-            jtab_sort_func, (void*)emb_sjm_nest);
 
   Opt_trace_object wrapper(&join->thd->opt_trace);
   Opt_trace_array
@@ -1882,6 +1789,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
 
   for (JOIN_TAB **pos= join->best_ref + idx; *pos; pos++)
   {
+    status_var_increment(thd->status_var.opt_partial_plans);
     JOIN_TAB *const s= *pos;
     const table_map real_table_bit= s->table->map;
 
@@ -2250,6 +2158,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
                           added_to_eq_ref_extension);
       if (added_to_eq_ref_extension)
       {
+        status_var_increment(thd->status_var.opt_partial_plans);
         double current_record_count, current_read_time;
 
         /* Add the cost of extending the plan with 's' */
