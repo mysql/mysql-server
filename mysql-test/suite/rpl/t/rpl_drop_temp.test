@@ -5,8 +5,8 @@
 # Purpose: According to TU in 16552 This is how
 # to work around NDB's issue with temp tables
 ##############################################
-source include/master-slave.inc;
 source include/have_binlog_format_mixed_or_statement.inc;
+source include/master-slave.inc;
 
 --disable_warnings
 create database if not exists mysqltest;

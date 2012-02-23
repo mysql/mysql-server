@@ -13,32 +13,13 @@ FILES
 GLOBAL_STATUS
 GLOBAL_VARIABLES
 INDEX_STATISTICS
-INNODB_BUFFER_POOL_PAGES
-INNODB_BUFFER_POOL_PAGES_BLOB
-INNODB_BUFFER_POOL_PAGES_INDEX
-INNODB_CMP
 INNODB_CMPMEM
-INNODB_CMPMEM_RESET
-INNODB_CMP_RESET
-INNODB_INDEX_STATS
 INNODB_LOCKS
-INNODB_LOCK_WAITS
-INNODB_RSEG
-INNODB_SYS_COLUMNS
-INNODB_SYS_FIELDS
-INNODB_SYS_FOREIGN
-INNODB_SYS_FOREIGN_COLS
-INNODB_SYS_INDEXES
-INNODB_SYS_STATS
-INNODB_SYS_TABLES
-INNODB_SYS_TABLESTATS
-INNODB_TABLE_STATS
 INNODB_TRX
 KEY_CACHES
 KEY_COLUMN_USAGE
 PARAMETERS
 PARTITIONS
-PBXT_STATISTICS
 PLUGINS
 PROCESSLIST
 PROFILING
@@ -86,32 +67,13 @@ FILES	TABLE_SCHEMA
 GLOBAL_STATUS	VARIABLE_NAME
 GLOBAL_VARIABLES	VARIABLE_NAME
 INDEX_STATISTICS	TABLE_SCHEMA
-INNODB_BUFFER_POOL_PAGES	page_type
-INNODB_BUFFER_POOL_PAGES_BLOB	space_id
-INNODB_BUFFER_POOL_PAGES_INDEX	index_id
-INNODB_CMP	page_size
 INNODB_CMPMEM	page_size
-INNODB_CMPMEM_RESET	page_size
-INNODB_CMP_RESET	page_size
-INNODB_INDEX_STATS	table_schema
 INNODB_LOCKS	lock_id
-INNODB_LOCK_WAITS	requesting_trx_id
-INNODB_RSEG	rseg_id
-INNODB_SYS_COLUMNS	TABLE_ID
-INNODB_SYS_FIELDS	INDEX_ID
-INNODB_SYS_FOREIGN	ID
-INNODB_SYS_FOREIGN_COLS	ID
-INNODB_SYS_INDEXES	INDEX_ID
-INNODB_SYS_STATS	INDEX_ID
-INNODB_SYS_TABLES	SCHEMA
-INNODB_SYS_TABLESTATS	SCHEMA
-INNODB_TABLE_STATS	table_schema
 INNODB_TRX	trx_id
 KEY_CACHES	KEY_CACHE_NAME
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
 PARAMETERS	SPECIFIC_SCHEMA
 PARTITIONS	TABLE_SCHEMA
-PBXT_STATISTICS	ID
 PLUGINS	PLUGIN_NAME
 PROCESSLIST	ID
 PROFILING	QUERY_ID
@@ -159,32 +121,13 @@ FILES	TABLE_SCHEMA
 GLOBAL_STATUS	VARIABLE_NAME
 GLOBAL_VARIABLES	VARIABLE_NAME
 INDEX_STATISTICS	TABLE_SCHEMA
-INNODB_BUFFER_POOL_PAGES	page_type
-INNODB_BUFFER_POOL_PAGES_BLOB	space_id
-INNODB_BUFFER_POOL_PAGES_INDEX	index_id
-INNODB_CMP	page_size
 INNODB_CMPMEM	page_size
-INNODB_CMPMEM_RESET	page_size
-INNODB_CMP_RESET	page_size
-INNODB_INDEX_STATS	table_schema
 INNODB_LOCKS	lock_id
-INNODB_LOCK_WAITS	requesting_trx_id
-INNODB_RSEG	rseg_id
-INNODB_SYS_COLUMNS	TABLE_ID
-INNODB_SYS_FIELDS	INDEX_ID
-INNODB_SYS_FOREIGN	ID
-INNODB_SYS_FOREIGN_COLS	ID
-INNODB_SYS_INDEXES	INDEX_ID
-INNODB_SYS_STATS	INDEX_ID
-INNODB_SYS_TABLES	SCHEMA
-INNODB_SYS_TABLESTATS	SCHEMA
-INNODB_TABLE_STATS	table_schema
 INNODB_TRX	trx_id
 KEY_CACHES	KEY_CACHE_NAME
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
 PARAMETERS	SPECIFIC_SCHEMA
 PARTITIONS	TABLE_SCHEMA
-PBXT_STATISTICS	ID
 PLUGINS	PLUGIN_NAME
 PROCESSLIST	ID
 PROFILING	QUERY_ID
@@ -238,32 +181,13 @@ FILES	information_schema.FILES	1
 GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
 GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
 INDEX_STATISTICS	information_schema.INDEX_STATISTICS	1
-INNODB_BUFFER_POOL_PAGES	information_schema.INNODB_BUFFER_POOL_PAGES	1
-INNODB_BUFFER_POOL_PAGES_BLOB	information_schema.INNODB_BUFFER_POOL_PAGES_BLOB	1
-INNODB_BUFFER_POOL_PAGES_INDEX	information_schema.INNODB_BUFFER_POOL_PAGES_INDEX	1
-INNODB_CMP	information_schema.INNODB_CMP	1
 INNODB_CMPMEM	information_schema.INNODB_CMPMEM	1
-INNODB_CMPMEM_RESET	information_schema.INNODB_CMPMEM_RESET	1
-INNODB_CMP_RESET	information_schema.INNODB_CMP_RESET	1
-INNODB_INDEX_STATS	information_schema.INNODB_INDEX_STATS	1
 INNODB_LOCKS	information_schema.INNODB_LOCKS	1
-INNODB_LOCK_WAITS	information_schema.INNODB_LOCK_WAITS	1
-INNODB_RSEG	information_schema.INNODB_RSEG	1
-INNODB_SYS_COLUMNS	information_schema.INNODB_SYS_COLUMNS	1
-INNODB_SYS_FIELDS	information_schema.INNODB_SYS_FIELDS	1
-INNODB_SYS_FOREIGN	information_schema.INNODB_SYS_FOREIGN	1
-INNODB_SYS_FOREIGN_COLS	information_schema.INNODB_SYS_FOREIGN_COLS	1
-INNODB_SYS_INDEXES	information_schema.INNODB_SYS_INDEXES	1
-INNODB_SYS_STATS	information_schema.INNODB_SYS_STATS	1
-INNODB_SYS_TABLES	information_schema.INNODB_SYS_TABLES	1
-INNODB_SYS_TABLESTATS	information_schema.INNODB_SYS_TABLESTATS	1
-INNODB_TABLE_STATS	information_schema.INNODB_TABLE_STATS	1
 INNODB_TRX	information_schema.INNODB_TRX	1
 KEY_CACHES	information_schema.KEY_CACHES	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
 PARAMETERS	information_schema.PARAMETERS	1
 PARTITIONS	information_schema.PARTITIONS	1
-PBXT_STATISTICS	information_schema.PBXT_STATISTICS	1
 PLUGINS	information_schema.PLUGINS	1
 PROCESSLIST	information_schema.PROCESSLIST	1
 PROFILING	information_schema.PROFILING	1
@@ -300,32 +224,13 @@ Database: information_schema
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
 | INDEX_STATISTICS                      |
-| INNODB_BUFFER_POOL_PAGES              |
-| INNODB_BUFFER_POOL_PAGES_BLOB         |
-| INNODB_BUFFER_POOL_PAGES_INDEX        |
-| INNODB_CMP                            |
 | INNODB_CMPMEM                         |
-| INNODB_CMPMEM_RESET                   |
-| INNODB_CMP_RESET                      |
-| INNODB_INDEX_STATS                    |
 | INNODB_LOCKS                          |
-| INNODB_LOCK_WAITS                     |
-| INNODB_RSEG                           |
-| INNODB_SYS_COLUMNS                    |
-| INNODB_SYS_FIELDS                     |
-| INNODB_SYS_FOREIGN                    |
-| INNODB_SYS_FOREIGN_COLS               |
-| INNODB_SYS_INDEXES                    |
-| INNODB_SYS_STATS                      |
-| INNODB_SYS_TABLES                     |
-| INNODB_SYS_TABLESTATS                 |
-| INNODB_TABLE_STATS                    |
 | INNODB_TRX                            |
 | KEY_CACHES                            |
 | KEY_COLUMN_USAGE                      |
 | PARAMETERS                            |
 | PARTITIONS                            |
-| PBXT_STATISTICS                       |
 | PLUGINS                               |
 | PROCESSLIST                           |
 | PROFILING                             |
@@ -363,32 +268,13 @@ Database: INFORMATION_SCHEMA
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
 | INDEX_STATISTICS                      |
-| INNODB_BUFFER_POOL_PAGES              |
-| INNODB_BUFFER_POOL_PAGES_BLOB         |
-| INNODB_BUFFER_POOL_PAGES_INDEX        |
-| INNODB_CMP                            |
 | INNODB_CMPMEM                         |
-| INNODB_CMPMEM_RESET                   |
-| INNODB_CMP_RESET                      |
-| INNODB_INDEX_STATS                    |
 | INNODB_LOCKS                          |
-| INNODB_LOCK_WAITS                     |
-| INNODB_RSEG                           |
-| INNODB_SYS_COLUMNS                    |
-| INNODB_SYS_FIELDS                     |
-| INNODB_SYS_FOREIGN                    |
-| INNODB_SYS_FOREIGN_COLS               |
-| INNODB_SYS_INDEXES                    |
-| INNODB_SYS_STATS                      |
-| INNODB_SYS_TABLES                     |
-| INNODB_SYS_TABLESTATS                 |
-| INNODB_TABLE_STATS                    |
 | INNODB_TRX                            |
 | KEY_CACHES                            |
 | KEY_COLUMN_USAGE                      |
 | PARAMETERS                            |
 | PARTITIONS                            |
-| PBXT_STATISTICS                       |
 | PLUGINS                               |
 | PROCESSLIST                           |
 | PROFILING                             |
@@ -417,5 +303,5 @@ Wildcard: inf_rmation_schema
 | information_schema |
 SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	58
+information_schema	39
 mysql	23

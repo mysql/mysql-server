@@ -3,7 +3,6 @@
 # available (since these engines inject tables into INFORMATION_SCHEMA).
 
 --source include/not_embedded.inc
---source include/have_pbxt.inc
 --source include/have_xtradb.inc
 --source include/not_staging.inc
 

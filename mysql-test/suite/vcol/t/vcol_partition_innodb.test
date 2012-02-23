@@ -13,7 +13,6 @@
 # Change Date:                                                                 #
 # Change:                                                                      #
 ################################################################################
---source include/have_partition.inc
 
 #
 # NOTE: PLEASE DO NOT ADD NOT MYISAM SPECIFIC TESTCASES HERE !
@@ -23,11 +22,11 @@
 
 #------------------------------------------------------------------------------#
 # General not engine specific settings and requirements
---source suite/vcol/inc/vcol_init_vars.pre
+--source inc/vcol_init_vars.pre
 
 #------------------------------------------------------------------------------#
 # Cleanup
---source suite/vcol/inc/vcol_cleanup.inc
+--source inc/vcol_cleanup.inc
 
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
@@ -42,11 +41,11 @@ eval SET @@session.storage_engine = 'InnoDB';
 
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines
---source suite/vcol/inc/vcol_partition.inc
+--source inc/vcol_partition.inc
 
 #------------------------------------------------------------------------------#
 # Execute storage engine specific tests
 
 #------------------------------------------------------------------------------#
 # Cleanup
---source suite/vcol/inc/vcol_cleanup.inc
+--source inc/vcol_cleanup.inc

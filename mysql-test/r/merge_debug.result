@@ -1,3 +1,4 @@
+set @default_storage_engine= @@global.storage_engine;
 set global storage_engine=myisam;
 set session storage_engine=myisam;
 drop table if exists crashed,t2,t3,t4;
@@ -22,3 +23,4 @@ INSERT INTO t3 VALUES (31);
 UNLOCK TABLES;
 DROP TRIGGER t1_ai;
 DROP TABLE t4,crashed,t2,t3;
+set global storage_engine=@default_storage_engine;

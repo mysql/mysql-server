@@ -10,7 +10,8 @@ sub skip_combinations {
   push @combinations, 'xtradb_plugin' unless $ENV{HA_XTRADB_SO};
   push @combinations, 'xtradb' unless $::mysqld_variables{'innodb'} eq "ON";
 
-  my %skip = ( 'include/have_innodb.combinations' => [ @combinations ]);
+  my %skip = ( 'include/have_innodb.combinations' => [ @combinations ],
+               'include/have_xtradb.combinations' => [ @combinations ]);
 
   # as a special case, disable certain include files as a whole
   $skip{'include/not_embedded.inc'} = 'Not run for embedded server'
@@ -29,7 +30,6 @@ sub skip_combinations {
 
   %skip;
 }
-
 
 bless { };
 
