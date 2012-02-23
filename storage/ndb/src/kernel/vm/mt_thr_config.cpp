@@ -1101,7 +1101,7 @@ TAPTEST(mt_thr_config)
         "main={ keso=88, count=23},ldm,ldm",
         "main={ cpuset=1-3 }, ldm={cpuset=3-4}",
         "main={ cpuset=1-3 }, ldm={cpubind=2}",
-        "tc,tc,tc={count=5}",
+        "tc,tc,tc={count=25}",
         0
       };
 

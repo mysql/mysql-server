@@ -19,6 +19,7 @@
 #define MYSQL_SERVER
 #endif
 
+#include "ha_ndbcluster_glue.h"
 #include "ndb_thd.h"
 #include "ndb_thd_ndb.h"
 

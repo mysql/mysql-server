@@ -79,6 +79,7 @@ public:
    *        2 - nodata
    */
   Uint32 release(ReleaseIterator&, Uint32* retptr);
+  Uint32 truncate(Uint32 keep_pos, ReleaseIterator&, Uint32* retptr);
 protected:
   Head & m_head;
   DynArr256Pool & m_pool;
@@ -86,5 +87,11 @@ protected:
   bool expand(Uint32 pos);
   void handle_invalid_ptr(Uint32 pos, Uint32 ptrI, Uint32 p0);
 };
+
+inline
+Uint32 DynArr256::release(ReleaseIterator& iter, Uint32* retptr)
+{
+  return truncate(0, iter, retptr);
+}
 
 #endif

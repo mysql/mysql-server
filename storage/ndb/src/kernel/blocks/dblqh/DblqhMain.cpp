@@ -1244,12 +1244,13 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
 
   if (globalData.ndbLogParts != 4 &&
       globalData.ndbLogParts != 8 &&
+      globalData.ndbLogParts != 12 &&
       globalData.ndbLogParts != 16)
   {
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf),
       "Trying to start with %d log parts, number of log parts can"
-      " only be set to 4, 8 or 16.",
+      " only be set to 4, 8, 12 or 16.",
       globalData.ndbLogParts);
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }
@@ -1912,7 +1913,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     ndbrequire(ptr.p->logPartNo == logPartNo);
 
     fragptr.p->m_log_part_ptr_i = ptr.i;
-    fragptr.p->lqhInstanceKey = lpinfo.instanceKey(logPartNo);
+    fragptr.p->lqhInstanceKey = getInstanceKey(tabptr.i, req->fragId);
   }
 
   if (DictTabInfo::isOrderedIndex(tabptr.p->tableType)) {

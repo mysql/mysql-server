@@ -786,6 +786,7 @@ executeTrans(ThreadNdb* pThread,
           ignore this record
         */
         aNdbObject->closeTransaction(tConArray[num_ops]);
+        tConArray[num_ops] = NULL;
         continue;
       }
       for (unsigned int k = 0; k < tNoOfOpsPerTrans; k++) {

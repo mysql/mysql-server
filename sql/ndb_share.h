@@ -26,23 +26,12 @@
 #include <sql_const.h>       // MAX_REF_PARTS
 
 #include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
+#include "ndb_conflict.h"
 
 enum NDB_SHARE_STATE {
   NSS_INITIAL= 0,
   NSS_DROPPED,
   NSS_ALTERED 
-};
-
-
-enum enum_conflict_fn_type
-{
-  CFT_NDB_UNDEF = 0
-  ,CFT_NDB_MAX
-  ,CFT_NDB_OLD
-  ,CFT_NDB_MAX_DEL_WIN
-  ,CFT_NDB_EPOCH
-  ,CFT_NDB_EPOCH_TRANS
-  ,CFT_NUMBER_OF_CFTS /* End marker */
 };
 
 #ifdef HAVE_NDB_BINLOG
@@ -56,112 +45,6 @@ enum Ndb_binlog_type
   ,NBT_UPDATED_ONLY_USE_UPDATE  = NBT_UPDATED_ONLY | NBT_USE_UPDATE
   ,NBT_FULL_USE_UPDATE          = NBT_FULL         | NBT_USE_UPDATE
 };
-
-static const Uint32 MAX_CONFLICT_ARGS= 8;
-
-enum enum_conflict_fn_arg_type
-{
-  CFAT_END
-  ,CFAT_COLUMN_NAME
-  ,CFAT_EXTRA_GCI_BITS
-};
-
-struct st_conflict_fn_arg
-{
-  enum_conflict_fn_arg_type type;
-  union
-  {
-    char resolveColNameBuff[ NAME_CHAR_LEN + 1 ]; // CFAT_COLUMN_NAME
-    uint32 extraGciBits; // CFAT_EXTRA_GCI_BITS
-  };
-};
-
-struct st_conflict_fn_arg_def
-{
-  enum enum_conflict_fn_arg_type arg_type;
-  bool optional;
-};
-
-/* What type of operation was issued */
-enum enum_conflicting_op_type
-{                /* NdbApi          */
-  WRITE_ROW,     /* insert (!write) */
-  UPDATE_ROW,    /* update          */
-  DELETE_ROW,    /* delete          */
-  REFRESH_ROW    /* refresh         */
-};
-
-/*
-  prepare_detect_func
-
-  Type of function used to prepare for conflict detection on
-  an NdbApi operation
-*/
-typedef int (* prepare_detect_func) (struct st_ndbcluster_conflict_fn_share* cfn_share,
-                                     enum_conflicting_op_type op_type,
-                                     const NdbRecord* data_record,
-                                     const uchar* old_data,
-                                     const uchar* new_data,
-                                     const MY_BITMAP* write_set,
-                                     class NdbInterpretedCode* code);
-
-enum enum_conflict_fn_flags
-{
-  CF_TRANSACTIONAL = 1
-};
-
-struct st_conflict_fn_def
-{
-  const char *name;
-  enum_conflict_fn_type type;
-  const st_conflict_fn_arg_def* arg_defs;
-  prepare_detect_func prep_func;
-  uint8 flags; /* enum_conflict_fn_flags */
-};
-
-/* What sort of conflict was found */
-enum enum_conflict_cause
-{
-  ROW_ALREADY_EXISTS,   /* On insert */
-  ROW_DOES_NOT_EXIST,   /* On Update, Delete */
-  ROW_IN_CONFLICT,      /* On Update, Delete */
-  TRANS_IN_CONFLICT     /* Any of above, or implied by transaction */
-};
-
-/* NdbOperation custom data which points out handler and record. */
-struct Ndb_exceptions_data {
-  struct NDB_SHARE* share;
-  const NdbRecord* key_rec;
-  const uchar* row;
-  enum_conflicting_op_type op_type;
-  Uint64 trans_id;
-};
-
-enum enum_conflict_fn_table_flags
-{
-  CFF_NONE         = 0,
-  CFF_REFRESH_ROWS = 1
-};
-
-/*
-   Maximum supported key parts (16)
-   (Ndb supports 32, but MySQL has a lower limit)
-*/
-static const int NDB_MAX_KEY_PARTS = MAX_REF_PARTS;
-
-typedef struct st_ndbcluster_conflict_fn_share {
-  const st_conflict_fn_def* m_conflict_fn;
-
-  /* info about original table */
-  uint8 m_pk_cols;
-  uint16 m_resolve_column;
-  uint8 m_resolve_size;
-  uint8 m_flags;
-  uint16 m_key_attrids[ NDB_MAX_KEY_PARTS ];
-
-  const NdbDictionary::Table *m_ex_tab;
-  uint32 m_count;
-} NDB_CONFLICT_FN_SHARE;
 #endif
 
 
