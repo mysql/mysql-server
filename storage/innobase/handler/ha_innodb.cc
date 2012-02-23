@@ -1327,6 +1327,9 @@ convert_error_code_to_mysql(
 		return(HA_ERR_WRONG_COMMAND);
 
 	case DB_TABLE_NOT_FOUND:
+		return(ER_FILE_NOT_FOUND);
+
+	case DB_TABLESPACE_NOT_FOUND:
 		return(HA_ERR_NO_SUCH_TABLE);
 
 	case DB_TOO_BIG_RECORD:
