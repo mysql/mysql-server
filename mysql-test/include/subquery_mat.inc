@@ -910,7 +910,6 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3; 
 
-
 --echo #
 --echo # Bug#13419028 - SUBQUERY MATERIALIZATION NOT USED IN CREATE
 --echo # SELECT
@@ -979,5 +978,369 @@ FROM t1 LEFT JOIN t2
 DROP TABLE t1, t2;
 
 --echo # End of test for bug#13591383.
+
+--echo #
+--echo # Bug#13607423: Assertion !(*tab->on_expr_ref->is_expensive())
+--echo # in join_read_const_table()
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int DEFAULT NULL,
+  col_int_key int DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1,2,4), (2,150,62);
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_key int DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (1,7);
+
+let $query=
+SELECT table1.pk, table2.pk
+FROM t2 AS table1 LEFT JOIN t2 AS table2
+     ON table2.pk = table1.pk AND
+        table2.col_int_key IN
+         (SELECT col_int_key
+          FROM t1 AS innr
+          WHERE innr.col_int_nokey > innr.col_int_nokey
+          GROUP BY col_int_key
+          HAVING COUNT(*) > 0
+         );
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13607423.
+
+--echo
+--echo Test of WL#6094 "Allow subquery materialization in NOT IN if all
+--echo columns are not nullable"
+--echo
+
+# We want to test WL#6094 only, not WL#6095, so we use 2 columns.
+
+create table t1(a int not null);
+create table t2(a int not null);
+insert into t1 values(1),(2);
+insert into t2 values(1),(2);
+
+--echo Test in SELECT list
+
+--echo
+let $query=select a, (a,a) in (select a,a from t2) from t1;
+
+--echo cols not nullable => subq materialization
+eval explain extended $query;
+eval $query;
+
+--echo
+let $query=select t1.a, t2.a, (t1.a,t1.a) in (select a,a from t2 as t3)
+from t1 join t2 on t1.a+t2.a=1000;
+--echo cols not nullable => subq materialization
+eval explain extended $query;
+eval $query;
+
+--echo
+let $query=select t1.a, t2.a, (t2.a,t2.a) in (select a,a from t2 as t3)
+from t1 left join t2 on t1.a+t2.a=1000;
+
+--echo t2.a is not nullable, but in the query it may appear as NULL
+--echo as it's in an outer join. So, no materialization.
+eval explain extended $query;
+eval $query;
+
+--echo
+alter table t2 modify a int;
+let $query=select t1.a, t2.a, (t1.a,t1.a) in (select a,a from t2 as t3)
+from t1 join t2 on t1.a+t2.a=1000;
+--echo two nullable inner cols => no subq materialization
+eval explain extended $query;
+eval $query;
+alter table t2 modify a int not null;
+
+--echo
+--echo Test in WHERE
+--echo
+let $query=select t1.a, t2.a
+from t1 join t2 on t1.a+t2.a=3
+where (t2.a,t2.a) in (select a,a from t2 as t3);
+--echo top-level => subq materialization. With one exception: if
+--echo semijoin is enabled in @@optimizer_switch, semijoin is chosen,
+--echo then rejected (due to outer join), and in that case, the
+--echo fallback is IN->EXISTS, subq-materialization is not tried...
+eval explain extended $query;
+eval $query;
+
+--echo
+let $query=select t1.a, t2.a
+from t1 join t2 on t1.a+t2.a=3
+where (t2.a,t2.a) not in (select a,a from t2 as t3);
+--echo cols not nullable => subq materialization
+eval explain extended $query;
+eval $query;
+
+drop table t1,t2;
+
+--echo
+--echo Test of WL6095 "Allow subquery materialization in NOT IN if
+--echo single-column subquery"
+--echo
+
+# We want to test WL#6095 only, not WL#6094, so we use nullable columns.
+
+create table t1(a int null);
+create table t2(a int null);
+insert into t1 values(1),(2);
+insert into t2 values(1),(2);
+
+--echo
+let $query=select a, a in (select a from t2) from t1;
+
+--echo one col => subq materialization
+eval explain extended $query;
+eval $query;
+
+--echo
+let $query=select t1.a, t2.a, t2.a in (select * from t2 as t3)
+from t1 left join t2 on t1.a+t2.a=1000;
+
+--echo t2.a is not nullable, but in the query it may appear as NULL
+--echo as it's in an outer join. But there is only one inner column so
+--echo materialization is possible
+eval explain extended $query;
+eval $query;
+
+--echo
+let $query=select t1.a, t2.a, (t2.a,t2.a) in (select a,a from t2 as t3)
+from t1 left join t2 on t1.a+t2.a=1000;
+
+--echo _two_ outer columns, nullable => no materialization
+eval explain extended $query;
+eval $query;
+
+drop table t1,t2;
+
+--echo
+--echo Test in HAVING
+
+create table t1(a int, b int);
+create table t2(a int);
+insert into t1 values(1,1),(1,2),(1,3),(2,1),(2,2),(2,3);
+insert into t2 values(10),(20);
+
+let $query=select t1.a as z, sum(t1.b) from t1 group by t1.a
+having (z in (select * from t2)) is null;
+
+--echo no NULLs.
+
+eval explain extended $query;
+eval $query;
+
+--echo one outer NULL
+insert into t1 values(null,null);
+
+eval explain extended $query;
+eval $query;
+
+--echo one outer NULL and one inner NULL
+insert into t2 values(null);
+
+eval explain extended $query;
+eval $query;
+
+--echo one inner NULL
+delete from t1 where a is null;
+
+eval explain extended $query;
+eval $query;
+
+drop table t1,t2;
+
+--echo
+--echo Verify that an inner NULL is looked up only once (result is
+--echo cached).
+
+create table t1(a int);
+create table t2(a int);
+insert into t1 values(1),(2),(3),(4),(5),(6);
+insert into t1 select * from t1; # t1 has 12 rows
+insert into t2 values(10),(20),(NULL);
+
+let $query=select a, (a in (select * from t2)) from t1;
+
+eval explain extended $query;
+flush status;
+eval $query;
+--echo There will be one look-up in the temporary table for each row
+--echo of t1 (12), plus one additional look-up to check whether table
+--echo contains a NULL value.
+show status like "handler_read_key";
+
+drop table t1,t2;
+
+--echo #
+--echo # Bug#13495157 - SUBQUERY MATERIALIZATION NOT USED FOR CERTAIN
+--echo # STATEMENTS
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(2),(3);
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES(1),(2),(4);
+
+--echo # subquery materialization used for SELECT:
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
+SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
+
+--echo # Also used for INSERT SELECT:
+# a) all different tables:
+CREATE TABLE t3 SELECT * FROM t1;
+EXPLAIN INSERT INTO t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
+INSERT INTO t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
+--sorted_result
+SELECT * FROM t3;
+
+# b) insert into subquery's selected table
+EXPLAIN INSERT INTO t2 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
+INSERT INTO t2 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
+--sorted_result
+SELECT * FROM t2;
+
+# c) insert into subquery's and query's selected table
+EXPLAIN INSERT INTO t2 SELECT * FROM t2 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
+INSERT INTO t2 SELECT * FROM t2 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
+--sorted_result
+SELECT * FROM t2;
+
+--echo # Not used for single-table UPDATE, DELETE:
+# a) all different tables
+EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT * FROM t1);
+EXPLAIN UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);
+UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);
+--sorted_result
+SELECT * FROM t2;
+EXPLAIN DELETE FROM t2 WHERE a IN (SELECT * FROM t1);
+DELETE FROM t2 WHERE a IN (SELECT * FROM t1);
+--sorted_result
+SELECT * FROM t2;
+
+# b) update/delete in subquery's selected table: forbidden
+--error ER_UPDATE_TABLE_USED
+EXPLAIN UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t2);
+--error ER_UPDATE_TABLE_USED
+EXPLAIN DELETE FROM t2 WHERE a IN (SELECT * FROM t2);
+
+# Put some content so that future queries have rows to modify:
+UPDATE t2 SET a=3 WHERE a=0;
+
+--echo # Used for multi-table UPDATE, DELETE:
+
+# a) all different tables
+EXPLAIN SELECT * FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
+EXPLAIN UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
+UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
+--sorted_result
+SELECT * FROM t2;
+EXPLAIN DELETE t2.* FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
+DELETE t2.* FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
+--sorted_result
+SELECT * FROM t2;
+
+# b) update/delete in subquery's selected table: forbidden
+--error ER_UPDATE_TABLE_USED
+EXPLAIN UPDATE t2,t3 SET t2.a=10 WHERE t2.a IN (SELECT * FROM t2 WHERE a <> 2);
+--error ER_UPDATE_TABLE_USED
+EXPLAIN DELETE t2.* FROM t2,t3 WHERE t2.a IN (SELECT * FROM t2 WHERE a <> 2);
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Test that subquery materialization only does one lookup: does
+--echo # not try to read the next row if the first row failed the
+--echo # subquery's WHERE. We use a case where index lookup is not
+--echo # enough to satisfy IN(), because index has length two when the
+--echo # outer value has length three, and thus the post-filtering
+--echo # WHERE added by subselect_hash_sj_engine::setup() makes the
+--echo # decision.
+--echo #
+create table t1 (a varchar(3));
+create table t2 (a varchar(2));
+insert into t1 values('aaa'), ('aaa');
+insert into t2 values('aa'), ('aa');
+let $query=select * from t1 where a in (select a from t2);
+eval explain $query;
+flush status;
+eval $query;
+show status like "handler_read%";
+drop table t1,t2;
+
+--echo #
+--echo # Bug#13655791 DIFFERENT RESULT WITH WL6094 ON QUERY WITH XOR
+--echo # IN WHERE CLAUSE + MYISAM
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (10,'x');
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (1,'v'), (5,'x'), (11,'z'), (12,'c'), (15,'y');
+
+CREATE TABLE t3 (
+  pk int NOT NULL,
+  col_int_key int DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t3 VALUES (10,8);
+
+CREATE TABLE t4 (
+  pk int NOT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t4 VALUES (1,'x');
+
+let $query=
+SELECT OUTR.pk, OUTR.col_varchar_nokey, OUTR2.col_varchar_nokey
+FROM t2 AS OUTR2
+  JOIN t4 AS OUTR
+  ON (OUTR2.col_varchar_nokey > OUTR.col_varchar_nokey)
+WHERE
+  OUTR.col_varchar_nokey IN (
+    SELECT INNR.col_varchar_nokey
+    FROM t3 AS INNR2
+      LEFT JOIN t1 AS INNR
+      ON (INNR2.col_int_key >= INNR.pk)
+  )
+  XOR OUTR.pk < 6
+;
+
+eval EXPLAIN $query;
+FLUSH STATUS;
+eval $query;
+SHOW STATUS LIKE "HANDLER_READ%";
+
+DROP TABLE t1,t2,t3,t4;
 
 --echo # End of 5.6 tests

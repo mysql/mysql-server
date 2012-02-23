@@ -45,6 +45,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "row0types.h" /* sel_node_t */
 #include "srv0mon.h"
 #include "ut0vec.h"
+#include "btr0btr.h"
 
 /* Restricts the length of search we will do in the waits-for
 graph of transactions */
@@ -1670,7 +1671,7 @@ lock_sec_rec_some_has_impl(
 
 	} else if (!lock_check_trx_id_sanity(max_trx_id, rec, index, offsets)) {
 
-		buf_page_print(page, 0);
+		buf_page_print(page, 0, 0);
 
 		/* The page is corrupt: try to avoid a crash by returning 0 */
 		trx_id = 0;
@@ -5066,9 +5067,34 @@ lock_print_info_summary(
 
 	fprintf(file,
 		"Purge done for trx's n:o < " TRX_ID_FMT
-		" undo n:o < " TRX_ID_FMT "\n",
+		" undo n:o < " TRX_ID_FMT " state: ",
 		purge_sys->iter.trx_no,
 		purge_sys->iter.undo_no);
+
+	/* Note: We are reading the state without the latch. One because it
+	will violate the latching order and two because we are merely querying
+	the state of the variable for display. */
+
+	switch (purge_sys->state){
+	case PURGE_STATE_EXIT:
+	case PURGE_STATE_INIT:
+		/* Should never be in this state while the system is running. */
+		ut_error;
+
+	case PURGE_STATE_RUN:
+		fprintf(file, "running");
+		/* Check if it is waiting for more data to arrive. */
+		if (!purge_sys->running) {
+			fprintf(file, " but idle");
+		}
+		break;
+
+	case PURGE_STATE_STOP:
+		fprintf(file, "stopped");
+		break;
+	}
+
+	fprintf(file, "\n");
 
 	fprintf(file,
 		"History list length %lu\n",

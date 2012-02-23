@@ -121,11 +121,6 @@ static bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   Execute select, executor entry point.
 
   @todo
-    Note, that create_sort_index calls test_if_skip_sort_order and may
-    finally replace sorting with index scan if there is a LIMIT clause in
-    the query.  It's never shown in EXPLAIN!
-
-  @todo
     When can we have here thd->net.report_error not zero?
 */
 
@@ -180,12 +175,6 @@ JOIN::exec()
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
-    if (result->send_result_set_metadata(*columns_list,
-                                         Protocol::SEND_NUM_ROWS |
-                                         Protocol::SEND_EOF))
-    {
-      DBUG_VOID_RETURN;
-    }
     /*
       We have to test for 'conds' here as the WHERE may not be constant
       even if we don't have any tables for prepared statements or if
@@ -200,6 +189,12 @@ JOIN::exec()
         (!conds || conds->val_int()) &&
         (!having || having->val_int()))
     {
+      if (result->send_result_set_metadata(*columns_list,
+                                           Protocol::SEND_NUM_ROWS |
+                                           Protocol::SEND_EOF))
+      {
+        DBUG_VOID_RETURN;
+      }
       if (do_send_rows &&
           (procedure ? (procedure->send_row(procedure_fields_list) ||
            procedure->end_of_records()) : result->send_data(fields_list)))
@@ -210,15 +205,15 @@ JOIN::exec()
         send_records= ((select_options & OPTION_FOUND_ROWS) ? 1 :
                        thd->get_sent_row_count());
       }
+      /* Query block (without union) always returns 0 or 1 row */
+      thd->limit_found_rows= send_records;
+      thd->set_examined_row_count(0);
     }
     else
     {
-      error=(int) result->send_eof();
-      send_records= 0;
+      tables= 0;
+      return_zero_rows(this, *columns_list);
     }
-    /* Single select (without union) always returns 0 or 1 row */
-    thd->limit_found_rows= send_records;
-    thd->set_examined_row_count(0);
     DBUG_VOID_RETURN;
   }
   /*
@@ -641,6 +636,9 @@ JOIN::execute(JOIN *parent)
           Note: here we call make_cond_for_table() a second time in order
           to get sort_table_cond. An alternative could be to use
           Item::copy_andor_structure() to make a copy of sort_table_cond.
+
+          TODO: This is now obsolete as test_if_skip_sort_order()
+                is not any longer called as part of JOIN::execute() !
         */
         if (curr_table->pre_idx_push_cond)
         {
@@ -699,9 +697,6 @@ JOIN::execute(JOIN *parent)
 	Here we sort rows for ORDER BY/GROUP BY clause, if the optimiser
 	chose FILESORT to be faster than INDEX SCAN or there is no 
 	suitable index present.
-	Note, that create_sort_index calls test_if_skip_sort_order and may
-	finally replace sorting with index scan if there is a LIMIT clause in
-	the query. XXX: it's never shown in EXPLAIN!
 	OPTION_FOUND_ROWS supersedes LIMIT and is taken into account.
       */
       DBUG_PRINT("info",("Sorting for order by/group by"));
@@ -971,11 +966,9 @@ JOIN::optimize_distinct()
   /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
   if (order && skip_sort_order)
   {
-    /* Should always succeed */
-    if (test_if_skip_sort_order(&join_tab[const_tables],
-                                order, unit->select_limit_cnt, false, 
-                                &join_tab[const_tables].table->
-                                keys_in_use_for_order_by))
+    /* Should already have been optimized away */
+    DBUG_ASSERT(ordered_index_usage == ordered_index_order_by);
+    if (ordered_index_usage == ordered_index_order_by)
       order= NULL;
   }
 }
@@ -2599,9 +2592,9 @@ test_if_quick_select(JOIN_TAB *tab)
    Reads content of constant table
    @param tab  table
    @param pos  position of table in query plan
-   @retval 0   ok
-   @retval >0  error
-   @retval <0  ??
+   @retval 0   ok, one row was found or one NULL-complemented row was created
+   @retval -1  ok, no row was found and no NULL-complemented row was created
+   @retval 1   error
 */
 
 int
@@ -2722,6 +2715,16 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 }
 
 
+/**
+  Read a constant table when there is at most one matching row, using a table
+  scan.
+
+  @param tab			Table to read
+
+  @retval  0  Row was found
+  @retval  -1 Row was not found
+  @retval  1  Got an error (other than row not found) during read
+*/
 static int
 join_read_system(JOIN_TAB *tab)
 {
@@ -2748,16 +2751,14 @@ join_read_system(JOIN_TAB *tab)
 
 
 /**
-  Read a [constant] table when there is at most one matching row.
+  Read a constant table when there is at most one matching row, using an
+  index lookup.
 
   @param tab			Table to read
 
-  @retval
-    0	Row was found
-  @retval
-    -1   Row was not found
-  @retval
-    1   Got an error (other than row not found) during read
+  @retval 0  Row was found
+  @retval -1 Row was not found
+  @retval 1  Got an error (other than row not found) during read
 */
 
 static int
@@ -3974,19 +3975,25 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   select= tab->select;
 
   /*
-    When there is SQL_BIG_RESULT do not sort using index for GROUP BY,
-    and thus force sorting on disk unless a group min-max optimization
-    is going to be used as it is applied now only for one table queries
-    with covering indexes.
+    JOIN::optimize may have prepared an access path which makes
+    either the GROUP BY or ORDER BY sorting obsolete by using an
+    ordered index for the access. If the requested 'order' match
+    the prepared 'ordered_index_usage', we don't have to build 
+    a temporary sort index now.
   */
-  if ((order != join->group_list || 
-       !(join->select_options & SELECT_BIG_RESULT) ||
-       (select && select->quick &&
-        select->quick->get_type() == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)) &&
-      test_if_skip_sort_order(tab,order,select_limit,0, 
-                              is_order_by ?  &table->keys_in_use_for_order_by :
-                              &table->keys_in_use_for_group_by))
-    DBUG_RETURN(0);
+  {
+    DBUG_ASSERT((is_order_by) == (order == join->order));  // Obsolete arg !
+    const bool is_skippable= (is_order_by) ?
+      ( join->simple_order &&
+        join->ordered_index_usage == JOIN::ordered_index_order_by )
+      :
+      ( join->simple_group &&
+        join->ordered_index_usage == JOIN::ordered_index_group_by );
+
+    if (is_skippable)
+      DBUG_RETURN(0);
+  }
+
   for (ORDER *ord= join->order; ord; ord= ord->next)
     length++;
   if (!(join->sortorder= 

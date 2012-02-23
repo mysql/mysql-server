@@ -2978,93 +2978,6 @@ drop table t0, t1, t2, t3;
 
 
 #
-# BUG#33509: Server crashes with number of recursive subqueries=61
-#  (the query may or may not fail with an error so we're using it with SP 
-#  
-create table t1 (a int not null);
-
-delimiter |;
-
---disable_warnings
-drop procedure if exists p1|
---enable_warnings
-CREATE PROCEDURE p1()
-BEGIN
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION select a from t1;
-  prepare s1 from '
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( select a from t1) 
-  )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))';
-  execute s1;
-END;
-|
-delimiter ;|
-
-call p1();
-drop procedure p1;
-drop table t1;
-
-#
 # BUG#35468 "Slowdown and wrong result for uncorrelated subquery w/o where"
 #
 
@@ -4818,5 +4731,73 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #13596176: Missing row on select with nested in clause when
+--echo #                matr=on and bnl=off + MyISAM
+--echo #
+
+CREATE TABLE t1 (
+  int_key int DEFAULT NULL,
+  vc_key varchar(1) DEFAULT NULL,
+  vc_nokey varchar(1) DEFAULT NULL,
+  KEY int_key (int_key),
+  KEY vc_key (vc_key, int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES
+ (8,'x','x'), (7,'d','d'), (1,'r','r'), (7,'f','f'),
+ (9,'y','y'), (NULL,'u','u'), (1,'m','m'), (9,NULL,NULL),
+ (2,'o','o'), (9,'w','w'), (2,'m','m'), (4,'q','q'),
+ (0,NULL,NULL), (4,'d','d'), (8,'g','g'), (NULL,'x','x'),
+ (NULL,'f','f'), (0,'p','p'), (NULL,'j','j'), (8,'c','c');
+
+CREATE TABLE t2 (
+  int_key int DEFAULT NULL,
+  vc_key varchar(1) DEFAULT NULL,
+  KEY int_key (int_key),
+  KEY vc_key (vc_key, int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (8,'g');
+
+let $query=
+SELECT vc_key
+FROM t1 as outr
+WHERE (vc_nokey, vc_key ) IN
+ (SELECT vc_nokey, vc_nokey
+  FROM t1 middle
+  WHERE vc_nokey IN
+   (SELECT child1.vc_key
+    FROM t2 AS child1 JOIN t1 AS child2 USING (int_key)
+   )
+ );
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13596176.
+
+--echo #
+--echo # BUG#11754478: MAX/MIN + SUBQUERY + AND FAILS TO RETURN ANY ROWS
+--echo # BUG#13599013: MAX/MIN + SUBQUERY IN WHERE CLAUSE MATCHING NO 
+--echo #               ROWS + INDEX DOES NOT RETURN NULL
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) PRIMARY KEY,
+  int_key int(11),
+  KEY int_key (int_key)
+);
+
+INSERT INTO t1 VALUES (1,0),(2,0),(3,2),(4,0),(5,3),(6,0);
+
+SELECT MIN(int_key) FROM t1 WHERE (4, 4) IN (SELECT 1, 2);
+SELECT MIN(int_key) FROM t1 WHERE (4, 4) IN (SELECT 4, 4);
+SELECT MIN(pk) FROM t1 WHERE pk IN (SELECT int_key FROM t1) AND pk = 6;
+
+DROP TABLE t1;
 
 --echo # End of 5.6 tests

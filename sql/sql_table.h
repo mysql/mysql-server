@@ -198,7 +198,6 @@ void close_cached_table(THD *thd, TABLE *table);
 void sp_prepare_create_field(THD *thd, Create_field *sql_field);
 int prepare_create_field(Create_field *sql_field,
 			 uint *blob_columns,
-			 int *timestamps, int *timestamps_with_niladic,
 			 longlong table_flags);
 const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
                                           HA_CREATE_INFO *create_info);
@@ -217,6 +216,9 @@ bool sync_ddl_log();
 void release_ddl_log();
 void execute_ddl_log_recovery();
 bool execute_ddl_log_entry(THD *thd, uint first_entry);
+
+template<typename T> class List;
+void promote_first_timestamp_column(List<Create_field> *column_definitions);
 
 /*
   These prototypes where under INNODB_COMPATIBILITY_HOOKS.

@@ -31,7 +31,6 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 #define HA_RECOVER_QUICK	8	/* Don't check rows in data file */
 #define HA_RECOVER_OFF         16	/* No automatic recover */
 
-extern ulong myisam_sort_buffer_size;
 extern TYPELIB myisam_recover_typelib;
 extern const char *myisam_recover_names[];
 extern ulonglong myisam_recover_options;

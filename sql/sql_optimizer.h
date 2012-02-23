@@ -75,7 +75,13 @@ public:
   bool     do_send_rows;
   table_map all_table_map;   ///< Set of tables contained in query
   table_map const_table_map; ///< Set of tables found to be const
-  table_map found_const_table_map; ///< Tables that are const and non-empty
+  /**
+     Const tables which are either:
+     - not empty
+     - empty but inner to a LEFT JOIN, thus "considered" not empty for the
+     rest of execution (a NULL-complemented row will be used).
+  */
+  table_map found_const_table_map;
   table_map outer_join;      ///< Bitmap of all inner tables from outer joins
   /* Number of records produced after join + group operation */
   ha_rows  send_records;
@@ -181,6 +187,19 @@ public:
     GROUP/ORDER BY.
   */
   bool simple_order, simple_group;
+
+  /*
+    ordered_index_usage is set if an ordered index access
+    should be used instead of a filesort when computing 
+    ORDER/GROUP BY.
+  */
+  enum
+  {
+    ordered_index_void,       // No ordered index avail.
+    ordered_index_group_by,   // Use index for GROUP BY
+    ordered_index_order_by    // Use index for ORDER BY
+  } ordered_index_usage;
+
   /**
     Is set only in case if we have a GROUP BY clause
     and no ORDER BY after constant elimination of 'order'.
@@ -193,7 +212,7 @@ public:
 
   Key_use_array keyuse;
 
-  List<Item> all_fields; ///< to store all fields that used in query
+  List<Item> all_fields; ///< to store all expressions used in query
   ///Above list changed to use temporary table
   List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
   ///Part, shared with list above, emulate following list
@@ -317,6 +336,7 @@ public:
     no_order= 0;
     simple_order= 0;
     simple_group= 0;
+    ordered_index_usage= ordered_index_void;
     skip_sort_order= 0;
     need_tmp= 0;
     hidden_group_fields= 0; /*safety*/
@@ -509,9 +529,21 @@ Item *remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value);
 bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
 Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
                             bool *inherited_fl);
+Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
 Item *
 make_cond_for_table(Item *cond, table_map tables, table_map used_table,
                     bool exclude_expensive_cond);
 
+/**
+   Returns true if arguments are a temporal Field having no date,
+   part and a temporal expression having a date part.
+   @param  f  Field
+   @param  v  Expression
+ */
+inline bool field_time_cmp_date(const Field *f, const Item *v)
+{
+  return f->is_temporal() && !f->is_temporal_with_date() &&
+    v->is_temporal_with_date();
+}
 
 #endif /* SQL_OPTIMIZER_INCLUDED */

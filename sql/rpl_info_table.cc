@@ -175,7 +175,6 @@ int Rpl_info_table::do_flush_info(const ulong *uidx, const uint nidx,
       Prepares the information to be stored before calling ha_update_row.
     */
     store_record(table, record[1]);
-    table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     if (access->store_info_values(get_number_info(), table->field,
                                   field_values))
       goto end;

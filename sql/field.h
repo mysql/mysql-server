@@ -21,6 +21,7 @@
 #include "sql_string.h"                         /* String */
 #include "my_decimal.h"                         /* my_decimal */
 #include "sql_error.h"                          /* Sql_condition */
+#include "mysql_version.h"                      /* FRM_VER */
 
 /*
 
@@ -118,6 +119,13 @@ inline uint get_set_pack_length(int elements)
   uint len= (elements + 7) / 8;
   return len > 4 ? 8 : len;
 }
+
+#define ASSERT_COLUMN_MARKED_FOR_READ \
+DBUG_ASSERT(!table || (!table->read_set || \
+                       bitmap_is_set(table->read_set, field_index)))
+#define ASSERT_COLUMN_MARKED_FOR_WRITE \
+DBUG_ASSERT(!table || (!table->write_set || \
+                       bitmap_is_set(table->write_set, field_index)))
 
 
 /**
@@ -242,7 +250,8 @@ inline bool is_temporal_type_with_date_and_time(enum_field_types type)
 */
 inline bool real_type_with_now_as_default(enum_field_types type)
 {
-  return type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_TIMESTAMP2;
+  return type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_TIMESTAMP2 ||
+    type == MYSQL_TYPE_DATETIME || type == MYSQL_TYPE_DATETIME2;
 }
 
 
@@ -255,6 +264,17 @@ inline bool real_type_with_now_as_default(enum_field_types type)
   @retval false  If field real type can not have "ON UPDATE CURRENT_TIMESTAMP".
 */
 inline bool real_type_with_now_on_update(enum_field_types type)
+{
+  return type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_TIMESTAMP2 ||
+    type == MYSQL_TYPE_DATETIME || type == MYSQL_TYPE_DATETIME2;
+}
+
+
+/**
+   Recognizer for concrete data type (called real_type for some reason),
+   returning true if it is one of the TIMESTAMP types.
+*/
+inline bool is_timestamp_type(enum_field_types type)
 {
   return type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_TIMESTAMP2;
 }
@@ -290,6 +310,19 @@ class Field
   Field(const Item &);				/* Prevent use of these */
   void operator=(Field &);
 public:
+
+  bool has_insert_default_function() const
+  {
+    return unireg_check == TIMESTAMP_DN_FIELD ||
+      unireg_check == TIMESTAMP_DNUN_FIELD;
+  }
+
+  bool has_update_default_function() const
+  {
+    return unireg_check == TIMESTAMP_UN_FIELD ||
+      unireg_check == TIMESTAMP_DNUN_FIELD;
+  }
+
   /* To do: inherit Sql_alloc and get these for free */
   static void *operator new(size_t size) throw ()
   { return sql_alloc(size); }
@@ -533,7 +566,6 @@ public:
 
   virtual int reset(void) { memset(ptr, 0, pack_length()); return 0; }
   virtual void reset_fields() {}
-  timestamp_auto_set_type get_auto_set_type();
   /**
     Returns timestamp value in "struct timeval" format.
     This method is used in "SELECT UNIX_TIMESTAMP(field)"
@@ -541,23 +573,43 @@ public:
   */
   virtual bool get_timestamp(struct timeval *tm, int *warnings);
   /**
-    Stores a timestamp value in "struct timeval" format into a field.
-    Note, store_timestamp(), get_timestamp() and store_time()
-    do not depend on timezone and always work "in UTC".
+    Stores a timestamp value in timeval format in a field.
+   
+   @note 
+   - store_timestamp(), get_timestamp() and store_time() do not depend on
+   timezone and always work "in UTC".
+
+   - The default implementation of this interface expects that storing the
+   value will not fail. For most Field descendent classes, this is not the
+   case. However, this interface is only used when the function
+   CURRENT_TIMESTAMP is used as a column default expression, and currently we
+   only allow TIMESTAMP and DATETIME columns to be declared with this as the
+   column default. Hence it is enough that the classes implementing columns
+   with these types either override this interface, or that
+   store_time(MYSQL_TIME*, uint8) does not fail.
+
+   - The column types above interpret decimals() to mean the scale of the
+   fractional seconds.
+   
+   - We also have the limitation that the scale of a column must be the same as
+   the scale of the CURRENT_TIMESTAMP. I.e. we only allow 
+   
+   @code
+   
+   [ TIMESTAMP | DATETIME ] (n) [ DEFAULT | ON UPDATE ] CURRENT_TIMESTAMP (n)
+
+   @endcode
+
+   Since this interface relies on the caller to truncate the value according to this
+   Field's scale, it will work with all constructs that we currently allow.
   */
-  virtual void store_timestamp(const struct timeval *tm)
-  {
-    DBUG_ASSERT(0); // Only Field_timestamp and Field_timestampf are allowed
-  }
+  virtual void store_timestamp(const timeval *tm) { DBUG_ASSERT(false); }
+
   /**
-    Writes current timestamp value into a field.
-  */
-  virtual void set_time()
-  {
-    DBUG_ASSERT(0); // Only Field_timestamp and Field_timestampf are allowed
-  }
-  /**
-    Stores a timestamp value in my_time_t format into a field.
+     Interface for legacy code. Newer code uses the store_timestamp(const
+     timeval*) interface.
+
+     @param timestamp A TIMESTAMP value in the my_time_t format.
   */
   void store_timestamp(my_time_t sec)
   {
@@ -568,6 +620,12 @@ public:
   }
   virtual void set_default()
   {
+    if (has_insert_default_function())
+    {
+      evaluate_insert_default_function();
+      return;
+    }
+
     my_ptrdiff_t l_offset= (my_ptrdiff_t) (table->s->default_values -
 					  table->record[0]);
     memcpy(ptr, ptr + l_offset, pack_length());
@@ -575,6 +633,23 @@ public:
       *null_ptr= ((*null_ptr & (uchar) ~null_bit) |
 		  (null_ptr[l_offset] & null_bit));
   }
+
+
+  /**
+     Evaluates the @c INSERT default function and stores the result in the
+     field. If no such function exists for the column, or the function is not
+     valid for the column's data type, invoking this function has no effect.
+  */
+  void evaluate_insert_default_function();
+
+
+  /**
+     Evaluates the @c UPDATE default function, if one exists, and stores the
+     result in the record buffer. If no such function exists for the column,
+     or the function is not valid for the column's data type, invoking this
+     function has no effect.
+  */
+  void evaluate_update_default_function();
   virtual bool binary() const { return 1; }
   virtual bool zero_pack() const { return 1; }
   virtual enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
@@ -2078,9 +2153,12 @@ private:
   }
 protected:
   /**
-    Initialize flags and share for timestamp column.
+     Initialize flags for TIMESTAMP DEFAULT CURRENT_TIMESTAMP / ON UPDATE
+     CURRENT_TIMESTAMP columns.
+     
+     @todo get rid of TIMESTAMP_FLAG and ON_UPDATE_NOW_FLAG.
   */
-  void init_timestamp_flags_and_share(TABLE_SHARE *share);
+  void init_timestamp_flags();
   /**
     Store "struct timeval" value into field.
     The value must be properly rounded or truncated according
@@ -2109,7 +2187,6 @@ public:
                               unireg_check_arg, field_name_arg,
                               MAX_DATETIME_WIDTH, dec_arg)
     { }
-  void set_time();
   void store_timestamp(const struct timeval *tm);
 };
 
@@ -2188,10 +2265,10 @@ protected:
   bool get_date_internal(MYSQL_TIME *ltime);
   void store_timestamp_internal(const struct timeval *tm);
 public:
+  static const int PACK_LENGTH= 4;
   Field_timestamp(uchar *ptr_arg, uint32 len_arg,
                   uchar *null_ptr_arg, uchar null_bit_arg,
-		  enum utype unireg_check_arg, const char *field_name_arg,
-		  TABLE_SHARE *share);
+		  enum utype unireg_check_arg, const char *field_name_arg);
   Field_timestamp(bool maybe_null_arg, const char *field_name_arg);
   enum_field_types type() const { return MYSQL_TYPE_TIMESTAMP;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
@@ -2200,17 +2277,9 @@ public:
   longlong val_int(void);
   int cmp(const uchar *,const uchar *);
   void sort_string(uchar *buff,uint length);
-  uint32 pack_length() const { return 4; }
+  uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 0; }
-  virtual void set_default()
-  {
-    if (table->get_timestamp_field() == this &&
-        unireg_check != TIMESTAMP_UN_FIELD)
-      set_time();
-    else
-      Field::set_default();
-  }
   /* Get TIMESTAMP field value as seconds since begging of Unix Epoch */
   bool get_timestamp(struct timeval *tm, int *warnings);
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
@@ -2218,7 +2287,8 @@ public:
     DBUG_ASSERT(type() == MYSQL_TYPE_TIMESTAMP);
     return new (mem_root) Field_timestamp(*this);
   }
-  Field_timestamp *clone() const {
+  Field_timestamp *clone() const
+  {
     DBUG_ASSERT(type() == MYSQL_TYPE_TIMESTAMP);
     return new Field_timestamp(*this);
   }
@@ -2246,6 +2316,7 @@ protected:
   ulonglong date_flags(const THD *thd);
   void store_timestamp_internal(const struct timeval *tm);
 public:
+  static const int PACK_LENGTH= 8;
   /**
     Field_timestampf constructor
     @param ptr_arg           See Field definition
@@ -2258,7 +2329,7 @@ public:
   */
   Field_timestampf(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
                    enum utype unireg_check_arg, const char *field_name_arg,
-                   TABLE_SHARE *share, uint8 dec_arg);
+                   uint8 dec_arg);
   /**
     Field_timestampf constructor
     @param maybe_null_arg    See Field definition
@@ -2299,14 +2370,6 @@ public:
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   void sql_type(String &str) const;
 
-  virtual void set_default()
-  {
-    if (table->get_timestamp_field() == this &&
-        unireg_check != TIMESTAMP_UN_FIELD)
-      set_time();
-    else
-      Field::set_default();
-  }
   bool get_timestamp(struct timeval *tm, int *warnings);
 };
 
@@ -2578,21 +2641,46 @@ protected:
   int store_internal(const MYSQL_TIME *ltime, int *error);
   bool get_date_internal(MYSQL_TIME *ltime);
   ulonglong date_flags(const THD *thd);
-  void store_timestamp_internal(const struct timeval *tm)
-  {
-    DBUG_ASSERT(0);
-  }
+  void store_timestamp_internal(const struct timeval *tm);
+
 public:
+  static const int PACK_LENGTH= 8;
+
+  /**
+     DATETIME columns can be defined as having CURRENT_TIMESTAMP as the
+     default value on inserts or updates. This constructor accepts a
+     unireg_check value to initialize the column default expressions.
+
+     The implementation of function defaults is heavily entangled with the
+     binary .frm file format. The @c utype @c enum is part of the file format
+     specification but is declared a member of the Field class.
+
+     Four distinct unireg_check values are used for DATETIME columns to
+     distinguish various cases of DEFAULT or ON UPDATE values. These values are:
+
+     - TIMESTAMP_DN_FIELD - means DATETIME DEFAULT CURRENT_TIMESTAMP.
+
+     - TIMESTAMP_UN_FIELD - means DATETIME DEFAULT <default value> ON UPDATE
+     CURRENT_TIMESTAMP, where <default value> is an implicit or explicit
+     expression other than CURRENT_TIMESTAMP or any synonym thereof
+     (e.g. NOW().)
+
+     - TIMESTAMP_DNUN_FIELD - means DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE
+     CURRENT_TIMESTAMP.
+
+     - NONE - means that the column has neither DEFAULT CURRENT_TIMESTAMP, nor
+     ON UPDATE CURRENT_TIMESTAMP
+   */
   Field_datetime(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
                  enum utype unireg_check_arg, const char *field_name_arg)
     :Field_temporal_with_date_and_time(ptr_arg, null_ptr_arg, null_bit_arg,
                                        unireg_check_arg, field_name_arg, 0)
-    { }
+    {}
   Field_datetime(bool maybe_null_arg, const char *field_name_arg)
     :Field_temporal_with_date_and_time((uchar *) 0,
                                        maybe_null_arg ? (uchar *) "" : 0,
                                        0, NONE, field_name_arg, 0)
-    { }
+    {}
   enum_field_types type() const { return MYSQL_TYPE_DATETIME;}
 #ifdef HAVE_LONG_LONG
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }
@@ -2609,7 +2697,7 @@ public:
   String *val_str(String*,String *);
   int cmp(const uchar *,const uchar *);
   void sort_string(uchar *buff,uint length);
-  uint32 pack_length() const { return 8; }
+  uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
@@ -2645,10 +2733,8 @@ protected:
   bool get_date_internal(MYSQL_TIME *ltime);
   int store_internal(const MYSQL_TIME *ltime, int *error);
   ulonglong date_flags(const THD *thd);
-  void store_timestamp_internal(const struct timeval *tm)
-  {
-    DBUG_ASSERT(0);
-  }
+  void store_timestamp_internal(const struct timeval *tm);
+
 public:
   /**
     Constructor for Field_datetimef
@@ -2665,7 +2751,7 @@ public:
     :Field_temporal_with_date_and_timef(ptr_arg, null_ptr_arg, null_bit_arg,
                                         unireg_check_arg, field_name_arg,
                                         dec_arg)
-    { }
+    {}
   /**
     Constructor for Field_datetimef
     @param maybe_null_arg    See Field definition
@@ -2678,7 +2764,7 @@ public:
     :Field_temporal_with_date_and_timef((uchar *) 0,
                                         maybe_null_arg ? (uchar *) "" : 0, 0,
                                         NONE, field_name_arg, dec_arg)
-    { }
+    {}
   Field_datetimef *clone(MEM_ROOT *mem_root) const
   {
     DBUG_ASSERT(type() == MYSQL_TYPE_DATETIME);
@@ -3363,7 +3449,16 @@ public:
   const char *change;			// If done with alter table
   const char *after;			// Put column after this one
   LEX_STRING comment;			// Comment for field
-  Item	*def;				// Default value
+
+  /**
+     The declared default value, if any, otherwise NULL. Note that this member
+     is NULL if the default is a function. If the column definition has a
+     function declared as the default, the information is found in
+     Create_field::unireg_check.
+     
+     @see Create_field::unireg_check
+  */
+  Item *def;
   enum	enum_field_types sql_type;
   /*
     At various stages in execution this can be length of field in bytes or
@@ -3387,7 +3482,7 @@ public:
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
-  Create_field() :after(0) {}
+  Create_field() :after(NULL) {}
   Create_field(Field *field, Field *orig_field);
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
   Create_field *clone(MEM_ROOT *mem_root) const

@@ -942,6 +942,7 @@ bool st_select_lex::cleanup()
   {
     error|= lex_unit->cleanup();
   }
+  cur_pos_in_all_fields= ALL_FIELDS_UNDEF_POS;
   non_agg_fields.empty();
   inner_refs_list.empty();
   DBUG_RETURN(error);

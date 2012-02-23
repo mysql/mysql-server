@@ -2262,7 +2262,7 @@ while ($num1)
   dec $num1;
 }
 
-SELECT * FROM t1_results ORDER BY v3_to_v1_options;
+SELECT * FROM t1_results ORDER BY v3_to_v1_options, statement, v3_to_v1_violation, errno;
 
 let $message=
 Plausibility checks for INSERTs and UPDATEs ( 4. and 5. above).

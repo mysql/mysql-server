@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,6 +70,9 @@
 #include "debug_sync.h"
 #include "sql_callback.h"
 #include "opt_trace_context.h"
+
+#include "global_threads.h"
+#include "mysqld.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -593,6 +596,9 @@ uint mysql_real_data_home_len, mysql_data_home_len= 1;
 uint reg_ext_length;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
+char logname_path[FN_REFLEN];
+char slow_logname_path[FN_REFLEN];
+char secure_file_real_path[FN_REFLEN];
 
 DATE_TIME_FORMAT global_date_format, global_datetime_format, global_time_format;
 Time_zone *default_tz;
@@ -1534,10 +1540,7 @@ static void mysqld_exit(int exit_code)
   clean_up_mutexes();
   clean_up_error_log_mutex();
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  /*
-    Bug#56666 needs to be fixed before calling:
-    shutdown_performance_schema();
-  */
+  shutdown_performance_schema();
 #endif
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(exit_code); /* purecov: inspected */
@@ -1654,6 +1657,12 @@ void clean_up(bool print_message)
   my_free(const_cast<char*>(relay_log_index));
 #endif
   free_list(opt_plugin_load_list_ptr);
+
+  if (THR_THD)
+    (void) pthread_key_delete(THR_THD);
+
+  if (THR_MALLOC)
+    (void) pthread_key_delete(THR_MALLOC);
 
   /*
     The following lines may never be executed as the main thread may have
@@ -2721,10 +2730,21 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     should not be any other mysql_cond_signal() calls.
   */
   mysql_mutex_lock(&LOCK_thread_count);
-  mysql_mutex_unlock(&LOCK_thread_count);
   mysql_cond_broadcast(&COND_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
-  (void) pthread_sigmask(SIG_BLOCK,&set,NULL);
+  /*
+    Waiting for until mysqld_server_started != 0
+    to ensure that all server components has been successfully
+    initialized. This step is mandatory since signal processing
+    could be done safely only when all server components
+    has been initialized.
+  */
+  mysql_mutex_lock(&LOCK_server_started);
+  while (!mysqld_server_started)
+    mysql_cond_wait(&COND_server_started, &LOCK_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
+
   for (;;)
   {
     int error;          // Used when debugging
@@ -3203,6 +3223,15 @@ rpl_make_log_name(const char *opt,
   const char *base= opt ? opt : def;
   unsigned int options=
     MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH;
+
+  /* mysql_real_data_home_ptr  may be null if no value of datadir has been
+     specified through command-line or througha cnf file. If that is the 
+     case we make mysql_real_data_home_ptr point to mysql_real_data_home
+     which, in that case holds the default path for data-dir.
+  */ 
+  if(mysql_real_data_home_ptr == NULL)
+    mysql_real_data_home_ptr= mysql_real_data_home;
+
   if (fn_format(buff, base, mysql_real_data_home_ptr, ext, options))
     DBUG_RETURN(strdup(buff));
   else
@@ -3212,7 +3241,6 @@ rpl_make_log_name(const char *opt,
 
 int init_common_variables()
 {
-  char buff[FN_REFLEN];
   umask(((~my_umask) & 0666));
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();      // Set tzname
@@ -3587,13 +3615,13 @@ int init_common_variables()
   if (!VAR || !*VAR)                                            \
   {                                                             \
     my_free(VAR); /* it could be an allocated empty string "" */ \
-    VAR= my_strdup(ALT, MYF(0));                                \
+    VAR= ALT;                                                    \
   }
 
   FIX_LOG_VAR(opt_logname,
-              make_default_log_name(buff, ".log"));
+              make_default_log_name(logname_path, ".log"));
   FIX_LOG_VAR(opt_slow_logname,
-              make_default_log_name(buff, "-slow.log"));
+              make_default_log_name(slow_logname_path, "-slow.log"));
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the debug sync facility. See debug_sync.cc. */
@@ -4293,6 +4321,10 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   /* Allow storage engine to give real error messages */
   if (ha_init_errors())
     DBUG_RETURN(1);
+
+  if (opt_ignore_builtin_innodb)
+    sql_print_warning("ignore-builtin-innodb is ignored "
+                      "and will be removed in future releases.");
 
   if (plugin_init(&remaining_argc, remaining_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
@@ -7300,6 +7332,7 @@ static int mysql_init_variables(void)
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
+  opt_secure_file_priv= NULL;
   opt_bootstrap= opt_myisam_log= 0;
   mqh_used= 0;
   kill_in_progress= 0;
@@ -7374,7 +7407,12 @@ static int mysql_init_variables(void)
     relay_log_info_file= (char*) "relay-log.info";
   report_user= report_password = report_host= 0;  /* TO BE DELETED */
   opt_relay_logname= opt_relaylog_index_name= 0;
+  log_bin_basename= NULL;
+  log_bin_index= NULL;
 
+  /* Handler variables */
+  total_ha= 0;
+  total_ha_2pc= 0;
   /* Variables in libraries */
   charsets_dir= 0;
   default_character_set_name= (char*) MYSQL_DEFAULT_CHARSET_NAME;
@@ -8245,10 +8283,7 @@ static int fix_paths(void)
   if (opt_secure_file_priv)
   {
     if (*opt_secure_file_priv == 0)
-    {
-      my_free(opt_secure_file_priv);
-      opt_secure_file_priv= 0;
-    }
+      opt_secure_file_priv= NULL;
     else
     {
       if (strlen(opt_secure_file_priv) >= FN_REFLEN)
@@ -8258,9 +8293,7 @@ static int fix_paths(void)
         sql_print_warning("Failed to normalize the argument for --secure-file-priv.");
         return 1;
       }
-      char *secure_file_real_path= (char *)my_malloc(FN_REFLEN, MYF(MY_FAE));
       convert_dirname(secure_file_real_path, buff, NullS);
-      my_free(opt_secure_file_priv);
       opt_secure_file_priv= secure_file_real_path;
     }
   }

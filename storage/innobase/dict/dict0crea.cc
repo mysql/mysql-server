@@ -258,27 +258,20 @@ dict_build_table_def_step(
 	ibool		is_path;
 	mtr_t		mtr;
 	ulint		space = 0;
-	ibool		file_per_table;
+	bool		use_tablespace;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	table = node->table;
-
-	/* Cache the global variable "srv_file_per_table" to
-	a local variable before using it. Please note
-	"srv_file_per_table" is not under dict_sys mutex
-	protection, and could be changed while executing
-	this function. So better to cache the current value
-	to a local variable, and all future reference to
-	"srv_file_per_table" should use this local variable. */
-	file_per_table = srv_file_per_table;
+	use_tablespace = !!(table->flags2 & DICT_TF2_USE_TABLESPACE);
 
 	dict_hdr_get_new_id(&table->id, NULL, NULL);
 
 	thr_get_trx(thr)->table_id = table->id;
 
-	if (file_per_table) {
-		/* Get a new space id if srv_file_per_table is set */
+	if (use_tablespace) {
+		/* This table will not use the system tablespace.
+		Get a new space id. */
 		dict_hdr_get_new_id(NULL, NULL, &space);
 
 		if (UNIV_UNLIKELY(space == ULINT_UNDEFINED)) {
@@ -311,6 +304,7 @@ dict_build_table_def_step(
 		error = fil_create_new_single_table_tablespace(
 			space, path_or_name, is_path,
 			dict_tf_to_fsp_flags(table->flags),
+			table->flags2,
 			FIL_IBD_FILE_INITIAL_SIZE);
 		table->space = (unsigned int) space;
 

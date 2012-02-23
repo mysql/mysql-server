@@ -1011,7 +1011,6 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
     return TRUE;
   context->resolve_in_table_list_only(table_list);
   lex->use_only_table_context= TRUE;
-  select_lex->cur_pos_in_select_list= UNDEF_POS;
   table->map= 1; //To ensure correct calculation of const item
   table->get_fields_in_item_tree= TRUE;
   table_list->table= table;
@@ -6822,9 +6821,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   lpt->deleted= 0;
   lpt->pack_frm_data= NULL;
   lpt->pack_frm_len= 0;
-
-  /* Never update timestamp columns when alter */
-  lpt->table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   if (table->file->alter_table_flags(alter_info->flags) &
         HA_PARTITION_ONE_PHASE)

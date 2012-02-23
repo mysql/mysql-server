@@ -862,6 +862,15 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES (1,7,'f');
 
+# Bug was specific of IN->EXISTS:
+set @old_opt_switch=@@optimizer_switch;
+--disable_query_log
+if (`select locate('materialization', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='materialization=off';
+}
+--enable_query_log
+
 let query=
 SELECT t1.i1
 FROM t1
@@ -877,6 +886,7 @@ WHERE t1.i1 NOT IN
 eval EXPLAIN $query;
 eval $query;
 
+set @@optimizer_switch=@old_opt_switch;
 DROP TABLE t1,t2;
 
 --echo #
@@ -909,6 +919,15 @@ CREATE TABLE t3 (
 
 INSERT INTO t3 VALUES (NULL,'w'), (1,NULL), (2,'d');
 
+# Bug was specific of IN->EXISTS:
+set @old_opt_switch=@@optimizer_switch;
+--disable_query_log
+if (`select locate('materialization', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='materialization=off';
+}
+--enable_query_log
+
 let query=
 SELECT i1
 FROM t3
@@ -923,6 +942,7 @@ WHERE c1 IN
 eval EXPLAIN $query;
 eval $query;
 
+set @@optimizer_switch=@old_opt_switch;
 DROP TABLE t1, t2, t3;
 
 --echo #
@@ -1043,7 +1063,7 @@ INSERT INTO t2 VALUES (0,9),(3,10),(4,6),(6,1),(100,3),(200,5);
 
 let $query=
 SELECT t2.col_int_key AS field1
-FROM t2 JOIN t1 ON t2.col_int_key
+FROM t2 USE INDEX(col_int_key) STRAIGHT_JOIN t1 ON t2.col_int_key
 WHERE t2.pk < 7 AND t2.col_int_key <> 7
 GROUP BY field1;
 
@@ -1098,4 +1118,35 @@ CALL proc1(15);
 
 DROP PROCEDURE proc1;
 
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#13655397 "CRASH IN SYNC_THREAD_LEVELS_NONEMPTY_TRX"
+--echo #
+
+CREATE TABLE t1 (
+  i1 INTEGER NOT NULL,
+  i2 INTEGER NOT NULL,
+  KEY (i1)
+);
+
+INSERT INTO t1 VALUES (4,4), (5,5);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (1);
+
+CREATE FUNCTION f1() RETURNS INTEGER
+RETURN (SELECT MOD(COUNT(DISTINCT pk), 10) FROM t2);
+
+let query=
+SELECT i1, i2 FROM t1 WHERE f1() = 1 AND i1 = 5;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP FUNCTION f1;
 DROP TABLE t1, t2;

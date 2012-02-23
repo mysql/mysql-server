@@ -47,7 +47,8 @@ explain extended select '�����', _latin1'�����' from t1 limit 1	{
                 "table": "t1",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -114,7 +115,8 @@ explain extended select 'ÁÂÃÄÅ', _latin1'ÁÂÃÄÅ' from t1 limit 1	{
                 "table": "t1",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -212,7 +214,8 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
                       "table": "t1",
                       "rows": 1,
                       "cost": 1,
-                      "table_type": "system"
+                      "table_type": "system",
+                      "empty": false
                     }
                   ] /* rows_estimation */
                 },
@@ -295,9 +298,14 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
                 "table": "v1",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
+          },
+          {
+            "condition_on_constant_tables": "1",
+            "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {
@@ -425,6 +433,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "c <= ÁÂÃÄ"
                         ] /* ranges */,
@@ -628,6 +637,7 @@ select `col
                     "range_scan_alternatives": [
                       {
                         "index": "index\n1\ta",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "NULL < col\n1\ta < 6"
                         ] /* ranges */,

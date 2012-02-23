@@ -132,12 +132,14 @@ trx_active_transactions	disabled
 trx_rseg_history_len	disabled
 trx_undo_slots_used	disabled
 trx_undo_slots_cached	disabled
-trx_rseg_curent_size	disabled
+trx_rseg_current_size	disabled
 purge_del_mark_records	disabled
 purge_upd_exist_or_extern_records	disabled
 purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
+purge_stop_count	disabled
+purge_resume_count	disabled
 log_checkpoints	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
@@ -336,12 +338,14 @@ trx_active_transactions	enabled
 trx_rseg_history_len	enabled
 trx_undo_slots_used	enabled
 trx_undo_slots_cached	enabled
-trx_rseg_curent_size	enabled
+trx_rseg_current_size	enabled
 purge_del_mark_records	enabled
 purge_upd_exist_or_extern_records	enabled
 purge_invoked	enabled
 purge_undo_log_pages	enabled
 purge_dml_delay_usec	enabled
+purge_stop_count	enabled
+purge_resume_count	enabled
 log_checkpoints	enabled
 log_lsn_last_flush	enabled
 log_lsn_last_checkpoint	enabled
@@ -542,12 +546,14 @@ trx_active_transactions	disabled
 trx_rseg_history_len	disabled
 trx_undo_slots_used	disabled
 trx_undo_slots_cached	disabled
-trx_rseg_curent_size	disabled
+trx_rseg_current_size	disabled
 purge_del_mark_records	disabled
 purge_upd_exist_or_extern_records	disabled
 purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
+purge_stop_count	disabled
+purge_resume_count	disabled
 log_checkpoints	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
@@ -746,12 +752,14 @@ trx_active_transactions	0	disabled
 trx_rseg_history_len	0	disabled
 trx_undo_slots_used	0	disabled
 trx_undo_slots_cached	0	disabled
-trx_rseg_curent_size	0	disabled
+trx_rseg_current_size	0	disabled
 purge_del_mark_records	0	disabled
 purge_upd_exist_or_extern_records	0	disabled
 purge_invoked	0	disabled
 purge_undo_log_pages	0	disabled
 purge_dml_delay_usec	0	disabled
+purge_stop_count	0	disabled
+purge_resume_count	0	disabled
 log_checkpoints	0	disabled
 log_lsn_last_flush	0	disabled
 log_lsn_last_checkpoint	0	disabled
@@ -1004,12 +1012,14 @@ trx_active_transactions	enabled
 trx_rseg_history_len	enabled
 trx_undo_slots_used	enabled
 trx_undo_slots_cached	enabled
-trx_rseg_curent_size	enabled
+trx_rseg_current_size	enabled
 purge_del_mark_records	enabled
 purge_upd_exist_or_extern_records	enabled
 purge_invoked	enabled
 purge_undo_log_pages	enabled
 purge_dml_delay_usec	enabled
+purge_stop_count	enabled
+purge_resume_count	enabled
 log_checkpoints	enabled
 log_lsn_last_flush	enabled
 log_lsn_last_checkpoint	enabled
@@ -1208,12 +1218,14 @@ trx_active_transactions	disabled
 trx_rseg_history_len	disabled
 trx_undo_slots_used	disabled
 trx_undo_slots_cached	disabled
-trx_rseg_curent_size	disabled
+trx_rseg_current_size	disabled
 purge_del_mark_records	disabled
 purge_upd_exist_or_extern_records	disabled
 purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
+purge_stop_count	disabled
+purge_resume_count	disabled
 log_checkpoints	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
@@ -1412,12 +1424,14 @@ trx_active_transactions	enabled
 trx_rseg_history_len	enabled
 trx_undo_slots_used	enabled
 trx_undo_slots_cached	enabled
-trx_rseg_curent_size	enabled
+trx_rseg_current_size	enabled
 purge_del_mark_records	enabled
 purge_upd_exist_or_extern_records	enabled
 purge_invoked	enabled
 purge_undo_log_pages	enabled
 purge_dml_delay_usec	enabled
+purge_stop_count	enabled
+purge_resume_count	enabled
 log_checkpoints	enabled
 log_lsn_last_flush	enabled
 log_lsn_last_checkpoint	enabled
@@ -1616,12 +1630,14 @@ trx_active_transactions	disabled
 trx_rseg_history_len	disabled
 trx_undo_slots_used	disabled
 trx_undo_slots_cached	disabled
-trx_rseg_curent_size	disabled
+trx_rseg_current_size	disabled
 purge_del_mark_records	disabled
 purge_upd_exist_or_extern_records	disabled
 purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
+purge_stop_count	disabled
+purge_resume_count	disabled
 log_checkpoints	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
@@ -1820,12 +1836,14 @@ trx_active_transactions	disabled
 trx_rseg_history_len	disabled
 trx_undo_slots_used	disabled
 trx_undo_slots_cached	disabled
-trx_rseg_curent_size	disabled
+trx_rseg_current_size	disabled
 purge_del_mark_records	disabled
 purge_upd_exist_or_extern_records	disabled
 purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
+purge_stop_count	disabled
+purge_resume_count	disabled
 log_checkpoints	enabled
 log_lsn_last_flush	enabled
 log_lsn_last_checkpoint	enabled

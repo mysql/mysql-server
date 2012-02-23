@@ -1159,6 +1159,14 @@ class Item_func_now_local :public Item_func_now
 protected:
   Time_zone *time_zone();
 public:
+  /**
+     Stores the query start time in a field, truncating to the field's number
+     of fractional second digits.
+     
+     @param field The field to store in.
+   */
+  static void store_in(Field *field);
+
   Item_func_now_local(uint8 dec_arg) :Item_func_now(dec_arg) {}
   const char *func_name() const { return "now"; }
   virtual enum Functype functype() const { return NOW_FUNC; }

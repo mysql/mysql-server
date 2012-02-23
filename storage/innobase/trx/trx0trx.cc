@@ -624,15 +624,15 @@ UNIV_INLINE
 trx_rseg_t*
 trx_assign_rseg(
 /*============*/
-	ulint	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
+	ulong	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
 	ulint	n_tablespaces)	/*!< in: number of rollback tablespaces */
 {
 	ulint		i;
 	trx_rseg_t*	rseg;
 	static ulint	latest_rseg = 0;
 
-	if (srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
-		ut_a(max_undo_logs == ULINT_UNDEFINED);
+	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
+		ut_a(max_undo_logs == ULONG_UNDEFINED);
 		return(NULL);
 	}
 
@@ -738,7 +738,10 @@ trx_start_low(
 			ut_d(trx->in_ro_trx_list = TRUE);
 		}
 	} else {
-		ut_ad(trx->rseg != NULL);
+
+		ut_ad(trx->rseg != NULL
+		      || srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
+
 		ut_ad(!trx_is_autocommit_non_locking(trx));
 		UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
 		ut_d(trx->in_rw_trx_list = TRUE);
@@ -1022,6 +1025,13 @@ trx_commit(
 		ut_ad(!trx->in_ro_trx_list);
 		ut_ad(!trx->in_rw_trx_list);
 
+		/* Note: We are asserting without holding the lock mutex. But
+		that is OK because this transaction is not waiting and cannot
+		be rolled back and no new locks can (or should not) be added
+		becuase it is flagged as a non-locking read-only transaction. */
+
+		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+
 		/* This state change is not protected by any mutex, therefore
 		there is an inherent race here around state transition during
 		printouts. We ignore this race for the sake of efficiency.
@@ -1163,6 +1173,9 @@ trx_commit(
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
+
+	trx->error_state = DB_SUCCESS;
+
 	/* trx->in_mysql_trx_list would hold between
 	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
 	hold for recovered transactions or system transactions. */
