@@ -26,6 +26,7 @@ OBJS_RAW = \
 	ydb_env_func \
 	ydb_write \
 	ydb_db \
+	ydb_txn \
 	errors \
 	dlmalloc \
 	loader \
