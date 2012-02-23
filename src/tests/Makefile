@@ -1074,9 +1074,6 @@ maxsize-for-loader-B.tdbrun: maxsize-for-loader.tdb
 # dont run perf tests with valgrind
 perf_%.tdbrun: VGRIND=
 
-# build some perf test with malloc 
-perf_%.tdb: CPPFLAGS+=-DDONT_DEPRECATE_MALLOC
-
 clean:
 	rm -f $(ALL_BINS)
 	rm -rf dir.* *.check.output *.check.valgrind
