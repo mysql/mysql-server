@@ -836,6 +836,7 @@ typedef struct system_status_var
 {
   ulonglong created_tmp_disk_tables;
   ulonglong created_tmp_tables;
+  ulonglong opt_partial_plans;
   ulonglong ha_commit_count;
   ulonglong ha_delete_count;
   ulonglong ha_read_first_count;
