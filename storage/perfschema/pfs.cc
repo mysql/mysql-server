@@ -39,7 +39,6 @@
 #include "pfs_setup_object.h"
 #include "sql_error.h"
 #include "sp_head.h"
-#include "my_md5.h"
 #include "pfs_digest.h"
 
 /**
@@ -4527,16 +4526,15 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     wait_time= timer_end - state->m_timer_start;
   }
 
-  PFS_statement_stat *event_name_array= NULL;
+  PFS_statement_stat *event_name_array;
   uint index= klass->m_event_name_index;
-  PFS_statement_stat *stat= NULL;
+  PFS_statement_stat *stat;
   
   /*
    Capture statement stats by digest.
   */
   PSI_digest_storage *digest_storage= NULL;
   PFS_statement_stat *digest_stat= NULL;
-  PFS_statements_digest_stat* digest_stat_ptr= NULL;
 
   if (flags & STATE_FLAG_THREAD)
   {
@@ -4546,16 +4544,14 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     stat= & event_name_array[index];
 
-    /* Set digest stat. */
-    digest_storage= &state->m_digest_state.m_digest_storage;
-
-    /* 
-      Populate PFS_statements_digest_stat with computed digest information.
-    */
-    digest_stat_ptr= find_or_create_digest(thread, digest_storage);
-    if(digest_stat_ptr)
+    if (flags & STATE_FLAG_DIGEST)
     {
-      digest_stat= &(digest_stat_ptr->m_stat);
+      digest_storage= &state->m_digest_state.m_digest_storage;
+
+      /* 
+        Populate PFS_statements_digest_stat with computed digest information.
+      */
+      digest_stat= find_or_create_digest(thread, digest_storage);
     }
 
     if (flags & STATE_FLAG_EVENT)
@@ -4590,9 +4586,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       pfs->m_timer_end= timer_end;
       pfs->m_end_event_id= thread->m_event_id;
 
-      PSI_digest_storage *from= & state->m_digest_state.m_digest_storage;
-
-      if (from->m_byte_count > 0)
+      if (flags & STATE_FLAG_DIGEST)
       {
         /*
           The following columns in events_statement_current:
@@ -4600,7 +4594,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
           - DIGEST_TEXT
           are computed from the digest storage.
         */
-        digest_copy(& pfs->m_digest_storage, from);
+        digest_copy(& pfs->m_digest_storage, digest_storage);
       }
 
       if (flag_events_statements_history)
@@ -4614,20 +4608,20 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   }
   else
   {
-    PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-
-    if(thread)
+    if (flags & STATE_FLAG_DIGEST)
     {
-      /* Set digest stat. */
-      digest_storage= &state->m_digest_state.m_digest_storage;
+      PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
 
-      /* 
-        Populate PFS_statements_digest_stat with computed digest information.
-      */
-      digest_stat_ptr= find_or_create_digest(thread, digest_storage);
-      if(digest_stat_ptr)
+      /* An instrumented thread is required, for LF_PINS. */
+      if (thread != NULL)
       {
-        digest_stat= &(digest_stat_ptr->m_stat);
+        /* Set digest stat. */
+        digest_storage= &state->m_digest_state.m_digest_storage;
+
+        /* 
+          Populate PFS_statements_digest_stat with computed digest information.
+        */
+        digest_stat= find_or_create_digest(thread, digest_storage);
       }
     }
 
@@ -4664,7 +4658,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   stat->m_no_index_used+= state->m_no_index_used;
   stat->m_no_good_index_used+= state->m_no_good_index_used;
 
-  if(digest_stat)
+  if (digest_stat != NULL)
   {
     if (flags & STATE_FLAG_TIMED)
     {
@@ -4693,14 +4687,14 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     digest_stat->m_no_good_index_used+= state->m_no_good_index_used;
   }
 
-  switch(da->status())
+  switch (da->status())
   {
     case Diagnostics_area::DA_EMPTY:
       break;
     case Diagnostics_area::DA_OK:
       stat->m_rows_affected+= da->affected_rows();
       stat->m_warning_count+= da->statement_warn_count();
-      if(digest_stat)
+      if (digest_stat != NULL)
       {
         digest_stat->m_rows_affected+= da->affected_rows();
         digest_stat->m_warning_count+= da->statement_warn_count();
@@ -4708,14 +4702,14 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       break;
     case Diagnostics_area::DA_EOF:
       stat->m_warning_count+= da->statement_warn_count();
-      if(digest_stat)
+      if (digest_stat != NULL)
       {
         digest_stat->m_warning_count+= da->statement_warn_count();
       }
       break;
     case Diagnostics_area::DA_ERROR:
       stat->m_error_count++;
-      if(digest_stat)
+      if (digest_stat != NULL)
       {
         digest_stat->m_error_count++;
       }

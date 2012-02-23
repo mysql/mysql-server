@@ -568,7 +568,6 @@ extern ulong events_stages_history_per_thread;
 extern ulong events_statements_history_per_thread;
 extern ulong locker_lost;
 extern ulong statement_lost;
-extern uint statement_digest_max;
 
 /* Exposing the data directly, for iterators. */
 

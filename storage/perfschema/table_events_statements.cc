@@ -373,9 +373,9 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   if (digest->m_byte_count > 0)
   {
     PFS_digest_hash md5;
-    compute_md5_hash((char*) md5.m_md5,
-                    digest->m_token_array,
-                    digest->m_byte_count);
+    compute_md5_hash((char *) md5.m_md5,
+                     (char *) digest->m_token_array,
+                     digest->m_byte_count);
 
     /* Generate the DIGEST string from the MD5 digest  */
     MD5_HASH_TO_STRING(md5.m_md5,
@@ -391,7 +391,6 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
     m_row.m_digest.m_digest_length= 0;
     m_row.m_digest.m_digest_text_length= 0;
   }
-
 
   m_row_exists= true;
   return;
@@ -468,17 +467,17 @@ int table_events_statements_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 10: /* DIGEST */
-           if(m_row.m_digest.m_digest_length > 0)
-            set_field_varchar_utf8(f, m_row.m_digest.m_digest,
-                                   m_row.m_digest.m_digest_length);
-         else
+        if (m_row.m_digest.m_digest_length > 0)
+          set_field_varchar_utf8(f, m_row.m_digest.m_digest,
+                                 m_row.m_digest.m_digest_length);
+        else
           f->set_null();
         break;
       case 11: /* DIGEST_TEXT */
-         if(m_row.m_digest.m_digest_text_length > 0)
-            set_field_longtext_utf8(f, m_row.m_digest.m_digest_text,
-                                    m_row.m_digest.m_digest_text_length);
-         else
+        if (m_row.m_digest.m_digest_text_length > 0)
+           set_field_longtext_utf8(f, m_row.m_digest.m_digest_text,
+                                   m_row.m_digest.m_digest_text_length);
+        else
           f->set_null();
         break;
       case 12: /* CURRENT_SCHEMA */

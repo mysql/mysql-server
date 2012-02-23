@@ -108,7 +108,7 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
     stats at index 0 of statements_digest_stat_array. So do not calculate
     digest/digest_text as it should always be "NULL".
   */
-  if(pfs->m_digest_storage.m_byte_count != 0)
+  if (pfs->m_digest_storage.m_byte_count != 0)
   {
     /*
       Calculate digest from MD5 HASH collected to be shown as
@@ -123,7 +123,6 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
     */ 
     get_digest_text(m_digest_text, &pfs->m_digest_storage);
     m_digest_text_length= strlen(m_digest_text);
-
   }
   else
   {

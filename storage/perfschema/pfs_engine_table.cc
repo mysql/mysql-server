@@ -1322,11 +1322,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       break;
     case 135:
       name= "events_statements_summary_by_digest.row_count";
-      size= statement_digest_max;
+      size= digest_max;
       break;
     case 136:
       name= "events_statements_summary_by_digest.memory";
-      size= statement_digest_max * sizeof(PFS_statements_digest_stat);
+      size= digest_max * sizeof(PFS_statements_digest_stat);
       total_memory+= size;
       break;    
     /*

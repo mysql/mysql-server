@@ -243,7 +243,7 @@ struct PSI_digest_storage
 {
   my_bool m_full;
   int m_byte_count;
-  char m_token_array[1024];
+  unsigned char m_token_array[1024];
 };
 typedef struct PSI_digest_storage PSI_digest_storage;
 struct PSI_digest_locker_state

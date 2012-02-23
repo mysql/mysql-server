@@ -958,7 +958,7 @@ struct PSI_digest_storage
 {
   my_bool m_full;
   int m_byte_count;
-  char m_token_array[PSI_MAX_DIGEST_STORAGE_SIZE];
+  unsigned char m_token_array[PSI_MAX_DIGEST_STORAGE_SIZE];
 };
 typedef struct PSI_digest_storage PSI_digest_storage;
 
