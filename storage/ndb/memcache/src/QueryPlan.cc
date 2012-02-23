@@ -78,7 +78,11 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
   dup_numbers(false),
   is_scan(false),
   spec(my_spec),
+  extern_store(0),
   static_flags(spec->static_flags),
+  key_record(0), 
+  val_record(0),
+  row_record(0),
   db(my_ndb)
 {
   const NdbDictionary::Column *col;

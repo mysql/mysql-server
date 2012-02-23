@@ -209,13 +209,16 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public Operation getDeleteOperation(Table storeTable) {
         enlist();
+        if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName());
+        if (USE_NDBRECORD) {
+            return new NdbRecordDeleteOperationImpl(this, storeTable);
+        }
         TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
         handleError(ndbTable, ndbDictionary);
         NdbOperation ndbOperation = ndbTransaction.getNdbOperation(ndbTable);
         handleError(ndbOperation, ndbTransaction);
         int returnCode = ndbOperation.deleteTuple();
         handleError(returnCode, ndbTransaction);
-        if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName());;
         return new OperationImpl(ndbOperation, this);
     }
 
@@ -223,7 +226,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
         enlist();
         if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName());
         if (USE_NDBRECORD) {
-            return new NdbRecordOperationImpl(this, storeTable);
+            return new NdbRecordInsertOperationImpl(this, storeTable);
         }
         TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
         handleError(ndbTable, ndbDictionary);
@@ -284,6 +287,9 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public Operation getSelectOperation(Table storeTable) {
         enlist();
+        if (USE_NDBRECORD) {
+            return new NdbRecordKeyOperationImpl(this, storeTable);
+        }
         TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
         handleError(ndbTable, ndbDictionary);
         NdbOperation ndbOperation = ndbTransaction.getNdbOperation(ndbTable);
@@ -400,6 +406,40 @@ class ClusterTransactionImpl implements ClusterTransaction {
     public NdbOperationConst insertTuple(NdbRecordConst ndbRecord,
             ByteBuffer buffer, byte[] mask, OperationOptionsConst options) {
         NdbOperationConst operation = ndbTransaction.insertTuple(ndbRecord, buffer, mask, options, 0);
+        handleError(operation, ndbTransaction);
+        return operation;
+    }
+
+    /** Create an NdbOperation for delete using NdbRecord.
+     * 
+     * @param ndbRecord the NdbRecord
+     * @param buffer the buffer with data for the operation
+     * @param mask the mask of column values already set in the buffer
+     * @param options the OperationOptions for this operation
+     * @return the delete operation
+     */
+    public NdbOperationConst deleteTuple(NdbRecordConst ndbRecord,
+            ByteBuffer buffer, byte[] mask, OperationOptionsConst options) {
+        NdbOperationConst operation = ndbTransaction.deleteTuple(ndbRecord, buffer, ndbRecord, null, mask, options, 0);
+        handleError(operation, ndbTransaction);
+        return operation;
+    }
+
+    /** Create an NdbOperation for key read using NdbRecord. The 'find' lock mode is used.
+     * 
+     * @param ndbRecordKeys the NdbRecord for the key
+     * @param keyBuffer the buffer with the key for the operation
+     * @param ndbRecordValues the NdbRecord for the value
+     * @param valueBuffer the buffer with the value returned by the operation
+     * @param mask the mask of column values to be read
+     * @param options the OperationOptions for this operation
+     * @return the ndb operation for key read
+     */
+    public NdbOperationConst readTuple(NdbRecordConst ndbRecordKeys, ByteBuffer keyBuffer,
+            NdbRecordConst ndbRecordValues, ByteBuffer valueBuffer,
+            byte[] mask, OperationOptionsConst options) {
+        NdbOperationConst operation = ndbTransaction.readTuple(ndbRecordKeys, keyBuffer, 
+                ndbRecordValues, valueBuffer, findLockMode, mask, options, 0);
         handleError(operation, ndbTransaction);
         return operation;
     }

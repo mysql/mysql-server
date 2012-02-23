@@ -21,12 +21,17 @@
 */
 
 
+/* DDL names have to fit in system table ndb_schema */
+#define NDB_MAX_DDL_NAME_BYTESIZE 63
+#define NDB_MAX_DDL_NAME_BYTESIZE_STR "63"
+
 /* Blob tables and events are internal to NDB and must never be accessed */
 #define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
 
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/ndbapi_limits.h>
 #include <kernel/ndb_limits.h>
+#include "ndb_conflict.h"
 
 #define NDB_IGNORE_VALUE(x) (void)x
 
@@ -109,99 +114,6 @@ public:
 
 #include "ndb_ndbapi_util.h"
 #include "ndb_share.h"
-
-enum enum_slave_trans_conflict_apply_state
-{
-  /* Normal with optional row-level conflict detection */
-  SAS_NORMAL,
-
-  /*
-    SAS_TRACK_TRANS_DEPENDENCIES
-    Track inter-transaction dependencies
-  */
-  SAS_TRACK_TRANS_DEPENDENCIES,
-
-  /*
-    SAS_APPLY_TRANS_DEPENDENCIES
-    Apply only non conflicting transactions
-  */
-  SAS_APPLY_TRANS_DEPENDENCIES
-};
-
-enum enum_slave_conflict_flags
-{
-  /* Conflict detection Ops defined */
-  SCS_OPS_DEFINED = 1,
-  /* Conflict detected on table with transactional resolution */
-  SCS_TRANS_CONFLICT_DETECTED_THIS_PASS = 2
-};
-
-/*
-  State associated with the Slave thread
-  (From the Ndb handler's point of view)
-*/
-struct st_ndb_slave_state
-{
-  /* Counter values for current slave transaction */
-  Uint32 current_violation_count[CFT_NUMBER_OF_CFTS];
-  Uint64 current_master_server_epoch;
-  Uint64 current_max_rep_epoch;
-  uint8 conflict_flags; /* enum_slave_conflict_flags */
-    /* Transactional conflict detection */
-  Uint32 retry_trans_count;
-  Uint32 current_trans_row_conflict_count;
-  Uint32 current_trans_row_reject_count;
-  Uint32 current_trans_in_conflict_count;
-
-  /* Cumulative counter values */
-  Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
-  Uint64 max_rep_epoch;
-  Uint32 sql_run_id;
-  /* Transactional conflict detection */
-  Uint64 trans_row_conflict_count;
-  Uint64 trans_row_reject_count;
-  Uint64 trans_detect_iter_count;
-  Uint64 trans_in_conflict_count;
-  Uint64 trans_conflict_commit_count;
-
-  static const Uint32 MAX_RETRY_TRANS_COUNT = 100;
-
-  /*
-    Slave Apply State
-
-    State of Binlog application from Ndb point of view.
-  */
-  enum_slave_trans_conflict_apply_state trans_conflict_apply_state;
-
-  MEM_ROOT conflict_mem_root;
-  class DependencyTracker* trans_dependency_tracker;
-
-  /* Methods */
-  void atStartSlave();
-  int  atPrepareConflictDetection(const NdbDictionary::Table* table,
-                                  const NdbRecord* key_rec,
-                                  const uchar* row_data,
-                                  Uint64 transaction_id,
-                                  bool& handle_conflict_now);
-  int  atTransConflictDetected(Uint64 transaction_id);
-  int  atConflictPreCommit(bool& retry_slave_trans);
-
-  void atBeginTransConflictHandling();
-  void atEndTransConflictHandling();
-
-  void atTransactionCommit();
-  void atTransactionAbort();
-  void atResetSlave();
-
-  void atApplyStatusWrite(Uint32 master_server_id,
-                          Uint32 row_server_id,
-                          Uint64 row_epoch,
-                          bool is_row_server_id_local);
-
-  void resetPerAttemptCounters();
-
-  st_ndb_slave_state();
-};
 
 struct Ndb_local_table_statistics {
   int no_uncommitted_rows_count;

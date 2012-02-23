@@ -78,6 +78,12 @@ struct EmulatorData {
 extern struct EmulatorData globalEmulatorData;
 
 /**
+ * Get number of extra send buffer pages to use
+ */
+Uint32 mt_get_extra_send_buffer_pages(Uint32 curr_num_pages,
+                                      Uint32 extra_mem_pages);
+
+/**
  * Compute no of pages to be used as job-buffer
  */
 Uint32 compute_jb_pages(struct EmulatorData* ed);

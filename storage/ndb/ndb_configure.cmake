@@ -77,6 +77,24 @@ int main()
 }"
 HAVE___BUILTIN_FFS)
 
+CHECK_CXX_SOURCE_COMPILES("
+unsigned A = 7;
+int main()
+{
+  unsigned a = __builtin_ctz(A);
+  return 0;
+}"
+HAVE___BUILTIN_CTZ)
+
+CHECK_CXX_SOURCE_COMPILES("
+unsigned A = 7;
+int main()
+{
+  unsigned a = __builtin_clz(A);
+  return 0;
+}"
+HAVE___BUILTIN_CLZ)
+
 CHECK_C_SOURCE_COMPILES("
 #include <intrin.h>
 unsigned long A = 7;
@@ -87,6 +105,17 @@ int main()
   return (int)a;
 }"
 HAVE__BITSCANFORWARD)
+
+CHECK_C_SOURCE_COMPILES("
+#include <intrin.h>
+unsigned long A = 7;
+int main()
+{
+  unsigned long a;
+  unsigned char res = _BitScanReverse(&a, A);
+  return (int)a;
+}"
+HAVE__BITSCANREVERSE)
 
 # Linux scheduling and locking support
 CHECK_C_SOURCE_COMPILES("

@@ -67,6 +67,8 @@ TARGET_LINK_LIBRARIES(testSRBank ndbbank)
 ADD_EXECUTABLE(testLimits testLimits.cpp)
 ADD_EXECUTABLE(testSingleUserMode testSingleUserMode.cpp)
 ADD_EXECUTABLE(testIndexStat testIndexStat.cpp)
+ADD_EXECUTABLE(testUpgrade testUpgrade.cpp)
+ADD_EXECUTABLE(testAsynchMultiwait testAsynchMultiwait.cpp)
 
 SET(BINS create_all_tabs create_tab
   drop_all_tabs flexAsynch flexBench
@@ -81,7 +83,9 @@ SET(BINS create_all_tabs create_tab
   DbAsyncGenerator test_event_merge testNdbinfo
   testNativeDefault testLimits testSpj
   testSingleUserMode
-  testIndexStat)
+  testIndexStat
+  testUpgrade
+  testAsynchMultiwait)
 
 IF(MSVC)
   
@@ -94,5 +98,7 @@ FOREACH(B ${BINS})
   TARGET_LINK_LIBRARIES(${B} ndbNDBT)
   TARGET_LINK_LIBRARIES(${B} ndbclient_so)
 ENDFOREACH()
+
+TARGET_LINK_LIBRARIES(testUpgrade mysqlclient)
 
 INSTALL(TARGETS ${BINS} DESTINATION bin)

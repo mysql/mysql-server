@@ -9114,6 +9114,22 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_nextResult(JNIEnv * env, jobject 
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
+ * Method:    nextResultCopyOut
+ * Signature: (Ljava/nio/ByteBuffer;ZZ)I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_nextResultCopyOut(JNIEnv * env, jobject obj, jobject p0, jboolean p1, jboolean p2)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_nextResultCopyOut(JNIEnv *, jobject, jobject, jboolean, jboolean)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_int, ttrait_char_1p_bb, ttrait_bool, ttrait_bool, &NdbScanOperation::nextResultCopyOut >(env, obj, p0, p1, p2);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanOperation_r, ttrait_char_1p_bb, ttrait_bool, ttrait_bool, &NdbApiWrapper::NdbScanOperation__nextResultCopyOut >(env, NULL, obj, p0, p1, p2);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
  * Method:    close
  * Signature: (ZZ)V
  */

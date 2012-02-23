@@ -3192,6 +3192,13 @@ struct NdbApiWrapper {
         return obj.nextResult(p0, p1);
     }
 
+    static int
+    NdbScanOperation__nextResultCopyOut
+    ( NdbScanOperation & obj, char * p0, bool p1, bool p2 )
+    {
+        return obj.nextResultCopyOut(p0, p1, p2);
+    }
+
     static void
     NdbScanOperation__close
     ( NdbScanOperation & obj, bool p0, bool p1 )

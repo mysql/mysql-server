@@ -210,16 +210,21 @@ ErrorBundle ErrorCodes[] = {
   { 623,  HA_ERR_RECORD_FILE_FULL, IS, "623" },
   { 624,  HA_ERR_RECORD_FILE_FULL, IS, "624" },
   { 625,  HA_ERR_INDEX_FILE_FULL, IS, "Out of memory in Ndb Kernel, hash index part (increase IndexMemory)" },
-  { 633,  HA_ERR_INDEX_FILE_FULL, IS, "Table fragment hash index has reached maximum possible size" },
+  { 633,  HA_ERR_INDEX_FILE_FULL, IS,
+    "Table fragment hash index has reached maximum possible size" },
   { 640,  DMEC, IS, "Too many hash indexes (should not happen)" },
   { 826,  HA_ERR_RECORD_FILE_FULL, IS, "Too many tables and attributes (increase MaxNoOfAttributes or MaxNoOfTables)" },
   { 827,  HA_ERR_RECORD_FILE_FULL, IS, "Out of memory in Ndb Kernel, table data (increase DataMemory)" },
+  { 889,  HA_ERR_RECORD_FILE_FULL, IS,
+    "Table fragment fixed data reference has reached maximum possible value (specify MAXROWS or increase no of partitions)"},
   { 902,  HA_ERR_RECORD_FILE_FULL, IS, "Out of memory in Ndb Kernel, ordered index data (increase DataMemory)" },
   { 903,  HA_ERR_INDEX_FILE_FULL, IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
   { 904,  HA_ERR_INDEX_FILE_FULL, IS, "Out of fragment records (increase MaxNoOfOrderedIndexes)" },
   { 905,  DMEC, IS, "Out of attribute records (increase MaxNoOfAttributes)" },
   { 1601, HA_ERR_RECORD_FILE_FULL, IS, "Out extents, tablespace full" },
   { 1602, DMEC, IS,"No datafile in tablespace" },
+  { 1603, HA_ERR_RECORD_FILE_FULL, IS,
+    "Table fragment fixed data reference has reached maximum possible value (specify MAXROWS or increase no of partitions)"},
 
   /**
    * TimeoutExpired 

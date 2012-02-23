@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -208,10 +208,12 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
             case PRIMARY_KEY: {
                 // perform a select operation
                 Operation op = session.getSelectOperation(domainTypeHandler.getStoreTable());
+                op.beginDefinition();
                 // set key values into the operation
                 index.operationSetKeys(context, op);
                 // set the expected columns into the operation
                 domainTypeHandler.operationGetValues(op);
+                op.endDefinition();
                 // execute the select and get results
                 result = op.resultData();
                 break;
@@ -310,8 +312,10 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     // perform a delete by primary key operation
                     if (logger.isDetailEnabled()) logger.detail("Using delete by primary key.");
                     Operation op = session.getDeleteOperation(domainTypeHandler.getStoreTable());
+                    op.beginDefinition();
                     // set key values into the operation
                     index.operationSetKeys(context, op);
+                    op.endDefinition();
                     // execute the delete operation
                     session.executeNoCommit(false, true);
                     errorCode = op.errorCode();

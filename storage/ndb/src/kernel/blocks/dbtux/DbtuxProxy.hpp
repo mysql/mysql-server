@@ -69,20 +69,7 @@ protected:
   void sendINDEX_STAT_IMPL_CONF(Signal*, Uint32 ssId);
 
   // GSN_INDEX_STAT_REP
-  struct Ss_INDEX_STAT_REP : SsParallel {
-    IndexStatRep m_rep;
-    Ss_INDEX_STAT_REP() {
-      m_sendREQ = (SsFUNCREQ)&DbtuxProxy::sendINDEX_STAT_REP;
-      m_sendCONF = 0;
-    }
-    enum { poolSize = 1 };
-    static SsPool<Ss_INDEX_STAT_REP>& pool(LocalProxy* proxy) {
-      return ((DbtuxProxy*)proxy)->c_ss_INDEX_STAT_REP;
-    }
-  };
-  SsPool<Ss_INDEX_STAT_REP> c_ss_INDEX_STAT_REP;
   void execINDEX_STAT_REP(Signal*);
-  void sendINDEX_STAT_REP(Signal*, Uint32 ssId, SectionHandle*);
 };
 
 #endif

@@ -373,6 +373,208 @@ show variables like 'server_id';
 --connection master
 drop table t3oneex, t2diffex, t1allsame, t3oneex$EX, t2diffex$EX;
 
+delete from mysql.ndb_replication;
+
+--echo Test exceptions table schema flexibility
+#
+# An exceptions table should be able to have the mandatory columns with
+# different names, as long as the types match.
+# Also, not all main table primary key parts need be present
+# Finally, arbitrary extra columns should be allowed, as long as
+# they can be defaulted.
+#
+
+insert into mysql.ndb_replication values ("test", "t1", 0, 7, "NDB$MAX(X)");
+
+--echo Test 'normal' mandatory column names + all table pks
+
+create table test.t1$EX(
+   server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   b int not null,
+   c int not null,
+   primary key (server_id, master_server_id, master_epoch, count)) engine=ndb;
+
+create table test.t1 (a int, b int, c int, d int, e int, X int unsigned,
+                      primary key(a,b,c)) engine=ndb;
+
+--echo Generate a conflict on the slave
+
+insert into test.t1 values (1,1,1,1,1,1);
+--sync_slave_with_master slave
+--connection master
+update test.t1 set X=0 where a=1 and b=1 and c=1;
+--sync_slave_with_master slave
+--connection slave
+
+--echo Check that conflict has been recorded.
+--replace_column 3 <epoch_num>
+select * from test.t1$EX;
+
+--connection master
+drop table test.t1;
+drop table test.t1$EX;
+
+--echo Test 'normal' mandatory column names + all table pks +
+--echo extra columns with same and different names to main table columns
+--echo Also a defaulted extra column.
+
+create table test.t1$EX(
+   server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   b int not null,
+   c int not null,
+   d int,                     # Same name as main table, but user defined
+   lilljeholmen varchar(50) default 'Slussen',
+                              # Separate, user defined
+   primary key (server_id, master_server_id, master_epoch, count)) engine=ndb;
+
+create table test.t1 (a int, b int, c int, d int, e int, X int unsigned,
+                      primary key(a,b,c)) engine=ndb;
+
+--echo Generate a conflict on the slave
+
+insert into test.t1 values (1,1,1,1,1,1);
+--sync_slave_with_master slave
+--connection master
+update test.t1 set X=0 where a=1 and b=1 and c=1;
+--sync_slave_with_master slave
+--connection slave
+
+--echo Check that conflict has been recorded.
+--replace_column 3 <epoch_num>
+select * from test.t1$EX;
+
+--connection master
+drop table test.t1;
+drop table test.t1$EX;
+
+--echo Test unusual mandatory column names + all table pks +
+--echo extra columns with same and different names to main table columns
+--echo Also a defaulted extra column.
+
+create table test.t1$EX(
+   monteverdi int unsigned,
+   asparagi int unsigned,
+   plenipotentiary bigint unsigned,
+   mountebank int unsigned,
+   a int not null,
+   b int not null,
+   c int not null,
+   d int,                     # Same name as main table, but user defined
+   lilljeholmen varchar(50) default 'Slussen',
+                              # Separate, user defined
+   primary key (monteverdi, asparagi, plenipotentiary, mountebank)) engine=ndb;
+
+create table test.t1 (a int, b int, c int, d int, e int, X int unsigned,
+                      primary key(a,b,c)) engine=ndb;
+
+--echo Generate a conflict on the slave
+
+insert into test.t1 values (1,1,1,1,1,1);
+--sync_slave_with_master slave
+--connection master
+update test.t1 set X=0 where a=1 and b=1 and c=1;
+--sync_slave_with_master slave
+--connection slave
+
+--echo Check that conflict has been recorded.
+--replace_column 3 <epoch_num>
+select * from test.t1$EX;
+
+--connection master
+drop table test.t1;
+drop table test.t1$EX;
+
+--echo Test unusual mandatory column names + all table pks which are same
+--echo as 'normal' exceptions table column names plus extra columns with
+--echo same and different names to main table columns
+--echo Also a defaulted extra column.
+
+create table test.t1$EX(
+   monteverdi int unsigned,
+   asparagi int unsigned,
+   plenipotentiary bigint unsigned,
+   mountebank int unsigned,
+   server_id int unsigned not null,
+   master_server_id int unsigned not null,
+   master_epoch bigint unsigned not null,
+   count int unsigned not null,
+   d int,                     # Same name as main table, but user defined
+   lilljeholmen varchar(50) default 'Slussen',
+                              # Separate, user defined
+   primary key (monteverdi, asparagi, plenipotentiary, mountebank)) engine=ndb;
+
+create table test.t1 (server_id int unsigned,
+                      master_server_id int unsigned,
+                      master_epoch bigint unsigned,
+                      count int unsigned,
+                      d int, e int, X int unsigned,
+                      primary key(server_id, master_server_id,
+                                  master_epoch, count)) engine=ndb;
+
+--echo Generate a conflict on the slave
+
+insert into test.t1 values (1,1,1,1,1,1,1);
+--sync_slave_with_master slave
+--connection master
+update test.t1 set X=0 where server_id=1 and master_server_id=1 and master_epoch=1 and count=1;
+--sync_slave_with_master slave
+--connection slave
+
+--echo Check that conflict has been recorded.
+--replace_column 3 <epoch_num>
+select * from test.t1$EX;
+
+--connection master
+drop table test.t1;
+drop table test.t1$EX;
+
+--connection server1
+call mtr.add_suppression("NDB Slave: exceptions table .* has wrong definition .*");
+--connection server2
+call mtr.add_suppression("NDB Slave: exceptions table .* has wrong definition .*");
+--connection slave
+call mtr.add_suppression("NDB Slave: exceptions table .* has wrong definition .*");
+--connection master
+
+--echo And some bad exceptions table schemata
+--echo   Keys in wrong positions
+create table test.t1$EX(
+   a int not null,
+   b int not null,
+   c int not null,
+   d int,                     # Same name as main table, but user defined
+   lilljeholmen varchar(50) default 'Slussen',
+                              # Separate, user defined
+   server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   primary key (server_id, master_server_id, master_epoch, count)) engine=ndb;
+
+create table test.t1 (a int, b int, c int, d int, e int, X int unsigned,
+                      primary key(a,b,c)) engine=ndb;
+show warnings;
+
+--let $server_num=1.1
+--let $pattern=%NDB Slave%
+--let $limit=2
+
+--source suite/ndb_rpl/t/show_mysqld_warnings.inc
+
+drop table test.t1;
+drop table test.t1$EX;
+
+
+
+
 ###############
 --echo "Cleanup"
 

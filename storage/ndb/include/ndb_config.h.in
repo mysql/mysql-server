@@ -38,7 +38,10 @@
 #cmakedefine HAVE_MLOCK 1
 #cmakedefine HAVE_FFS 1
 #cmakedefine HAVE___BUILTIN_FFS 1
+#cmakedefine HAVE___BUILTIN_CTZ 1
+#cmakedefine HAVE___BUILTIN_CLZ 1
 #cmakedefine HAVE__BITSCANFORWARD 1
+#cmakedefine HAVE__BITSCANREVERSE 1
 #cmakedefine HAVE_PTHREAD_MUTEXATTR_INIT 1
 #cmakedefine HAVE_PTHREAD_MUTEXATTR_SETTYPE 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
