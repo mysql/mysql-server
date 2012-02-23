@@ -31,8 +31,19 @@ use File::Basename;
 #
 # Rules to run first of all
 #
+
+sub add_opt_values {
+  my ($self, $config)= @_;
+
+  # add auto-options
+  $config->insert('OPT', 'port'   => sub { fix_port($self, $config) });
+  $config->insert('OPT', 'vardir' => sub { $self->{ARGS}->{vardir} });
+  $config->insert('mysqld', "loose-skip-$_" => undef) for (@::optional_plugins);
+}
+
 my @pre_rules=
 (
+  \&add_opt_values,
 );
 
 
@@ -230,9 +241,10 @@ my @mysqld_rules=
  { 'port' => \&fix_port },
  { 'socket' => \&fix_socket },
  { '#log-error' => \&fix_log_error },
- { 'general-log' => sub { return 1; } },
+ { 'general-log' => 1 },
+ { 'plugin-dir' => sub { $::plugindir } },
  { 'general-log-file' => \&fix_log },
- { 'slow-query-log' => sub { return 1; } },
+ { 'slow-query-log' => 1 },
  { 'slow-query-log-file' => \&fix_log_slow_queries },
  { '#user' => sub { return shift->{ARGS}->{user} || ""; } },
  { '#password' => sub { return shift->{ARGS}->{password} || ""; } },
@@ -432,7 +444,7 @@ sub post_check_embedded_group {
   my $first_mysqld= $config->first_like('mysqld.') or
     croak "Can't run with embedded, config has no mysqld";
 
-  my @no_copy =
+  my %no_copy = map { $_ => 1 }
     (
      '#log-error', # Embedded server writes stderr to mysqltest's log file
      'slave-net-timeout', # Embedded server are not build with replication
@@ -441,7 +453,7 @@ sub post_check_embedded_group {
 
   foreach my $option ( $mysqld->options(), $first_mysqld->options() ) {
     # Don't copy options whose name is in "no_copy" list
-    next if grep ( $option->name() eq $_, @no_copy);
+    next if $no_copy{$option->name()};
 
     $config->insert('embedded', $option->name(), $option->value())
   }
@@ -632,18 +644,10 @@ sub new_config {
                    testname     => $args->{testname},
 		  }, $class;
 
-  # add auto-options
-  $config->insert('OPT', 'port'   => sub { fix_port($self, $config) });
-  $config->insert('OPT', 'vardir' => sub { $self->{ARGS}->{vardir} });
-  $config->insert('OPT', 'plugindir' => sub { $::plugindir });
-
-  {
-    # Run pre rules
-    foreach my $rule ( @pre_rules ) {
-      &$rule($self, $config);
-    }
+  # Run pre rules
+  foreach my $rule ( @pre_rules ) {
+    &$rule($self, $config);
   }
-
 
   $self->run_section_rules($config,
 			   'cluster_config\.\w*$',

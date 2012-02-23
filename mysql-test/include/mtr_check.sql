@@ -74,5 +74,8 @@ BEGIN
     mysql.time_zone_transition_type,
     mysql.user;
 
+  -- verify that no plugin changed its disabled/enabled state
+  SELECT * FROM INFORMATION_SCHEMA.PLUGINS;
+
 END||
 

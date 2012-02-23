@@ -133,7 +133,6 @@ and values - with templating extensions. They are
     to values in the [ENV] group of my.cnf file.
 
   Via the OPT group one can refer to special values:
-    @OPT.plugindir - a path to plugindir
     @OPT.vardir - a path to vardir
     @OPT.port - a new port number is reserved out of the pool. It will not
                 match any other port number used by this test run.

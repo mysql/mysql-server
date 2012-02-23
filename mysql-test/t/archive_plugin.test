@@ -1,5 +1,5 @@
 if (!$HA_ARCHIVE_SO) {
-  --skip Need example plugin
+  --skip Need archive plugin
 }
 
 CREATE TABLE t1(a int) ENGINE=ARCHIVE;

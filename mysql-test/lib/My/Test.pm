@@ -40,7 +40,7 @@ sub copy {
   my $copy= My::Test->new();
   while (my ($key, $value) = each(%$self)) {
     if (ref $value eq "ARRAY") {
-      push(@{$copy->{$key}}, @$value);
+      $copy->{$key} = [ @$value ];
     } else {
       $copy->{$key}= $value;
     }

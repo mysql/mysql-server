@@ -36,7 +36,6 @@ our $binlog_format;
 our $enable_disabled;
 our $default_storage_engine;
 our $opt_with_ndbcluster_only;
-our $defaults_file;
 
 sub collect_option {
   my ($opt, $value)= @_;
@@ -109,7 +108,7 @@ sub collect_test_cases ($$$$) {
   {
     foreach my $suite (split(",", $suites))
     {
-      push(@$cases, collect_one_suite($suite, $opt_cases, $opt_skip_test_list));
+      push(@$cases, collect_one_suite($suite, $opt_cases));
     }
   }
 
@@ -137,7 +136,7 @@ sub collect_test_cases ($$$$) {
 	$sname= "main" if !$opt_reorder and !$sname;
 	mtr_error("Could not find '$tname' in '$suites' suite(s)") unless $sname;
 	# If suite was part of name, find it there, may come with combinations
-	my @this_case = collect_one_suite($sname, [ $tname ]);
+	my @this_case = collect_one_suite($sname, [ $test_name_spec ]);
 	if (@this_case)
         {
 	  push (@$cases, @this_case);
@@ -152,9 +151,6 @@ sub collect_test_cases ($$$$) {
 
   if ( $opt_reorder )
   {
-    # Reorder the test cases in an order that will make them faster to run
-    my %sort_criteria;
-
     # Make a mapping of test name to a string that represents how that test
     # should be sorted among the other tests.  Put the most important criterion
     # first, then a sub-criterion, then sub-sub-criterion, etc.
@@ -163,9 +159,12 @@ sub collect_test_cases ($$$$) {
       my @criteria = ();
 
       #
-      # Append the criteria for sorting, in order of importance.
+      # Collect the criteria for sorting, in order of importance.
+      # Note that criteria are also used in mysql-test-run.pl to
+      # schedule tests to workers, and it preferres tests that have
+      # *identical* criteria. That is, test name is *not* part of
+      # the criteria, but it's part of the sorting function below.
       #
-      push @criteria, ($tinfo->{'long_test'} ? "long" : "short");
       push(@criteria, $tinfo->{template_path});
       for (qw(master_opt slave_opt)) {
         # Group test with equal options together.
@@ -173,11 +172,15 @@ sub collect_test_cases ($$$$) {
         my $opts= $tinfo->{$_} ? $tinfo->{$_} : [];
         push(@criteria, join("!", sort @{$opts}) . "~");
       }
-      push @criteria, $tinfo->{name};
       $tinfo->{criteria}= join(" ", @criteria);
     }
 
-    @$cases = sort { $a->{criteria} cmp $b->{criteria} } @$cases;
+    @$cases = sort {                            # ORDER BY
+      $b->{skip} <=> $a->{skip}           ||    #   skipped DESC,
+      $a->{criteria} cmp $b->{criteria}   ||    #   criteria ASC,
+      $b->{long_test} <=> $a->{long_test} ||    #   long_test DESC,
+      $a->{name} cmp $b->{name}                 #   name ASC
+    } @$cases;
   }
 
   return $cases;
@@ -214,8 +217,12 @@ sub split_testname {
   mtr_error("Illegal format of test name: $test_name");
 }
 
-my %skip_combinations;
-my %file_combinations;
+our %file_to_tags;
+our %file_to_master_opts;
+our %file_to_slave_opts;
+our %file_combinations;
+our %skip_combinations;
+our %file_in_overlay;
 
 sub load_suite_object {
   my ($suitename, $suitedir) = @_;
@@ -225,11 +232,11 @@ sub load_suite_object {
       $suite= do "$suitedir/suite.pm";
       unless (ref $suite) {
         my $comment = $suite;
-        $suite = do 'My/Suite.pm';
+        $suite = My::Suite->new();
         $suite->{skip} = $comment;
       }
     } else {
-      $suite = do 'My/Suite.pm';
+      $suite = My::Suite->new();
     }
 
     $suites{$suitename} = $suite;
@@ -238,7 +245,12 @@ sub load_suite_object {
     # with only one lookup
     my %suite_skiplist = $suite->skip_combinations();
     while (my ($file, $skiplist) = each %suite_skiplist) {
-      $skip_combinations{"$suitedir/$file => $_"} = 1 for (@$skiplist);
+      $file =~ s/\.\w+$/\.combinations/;
+      if (ref $skiplist) {
+        $skip_combinations{"$suitedir/$file => $_"} = 1 for (@$skiplist);
+      } else {
+        $skip_combinations{"$suitedir/$file"} = $skiplist;
+      }
     }
   }
   return $suites{$suitename};
@@ -246,36 +258,36 @@ sub load_suite_object {
 
 
 # returns a pair of (suite, suitedir)
-sub find_suite_of_file($) {
+sub load_suite_for_file($) {
   my ($file) = @_;
-  return ($2, $1)
+  return load_suite_object($2, $1)
     if $file =~ m@^(.*/(?:storage|plugin)/\w+/mysql-test/(\w+))/@;
-  return ($2, $1) if $file =~ m@^(.*/mysql-test/suite/(\w+))/@;
-  return ('main', $1) if $file =~ m@^(.*/mysql-test)/@;
+  return load_suite_object($2, $1) if $file =~ m@^(.*/mysql-test/suite/(\w+))/@;
+  return load_suite_object('main', $1) if $file =~ m@^(.*/mysql-test)/@;
   mtr_error("Cannot determine suite for $file");
 }
 
-sub combinations_from_file($)
+sub combinations_from_file($$)
 {
-  my ($filename) = @_;
-  return () if @::opt_combinations or not -f $filename;
-
-  # check the suite object, and load its %skip_combinations
-  my $suite = load_suite_object(find_suite_of_file($filename));
-  return () if $suite->{skip}; # XXX
-
-  # Read combinations file in my.cnf format
-  mtr_verbose("Read combinations file");
-  my $config= My::Config->new($filename);
+  my ($in_overlay, $filename) = @_;
   my @combs;
-  foreach my $group ($config->groups()) {
-    next if $group->auto();
-    my $comb= { name => $group->name() };
-    next if $skip_combinations{"$filename => $comb->{name}"}; # XXX
-    foreach my $option ( $group->options() ) {
-      push(@{$comb->{comb_opt}}, $option->option());
+  if ($skip_combinations{$filename}) {
+    @combs = ({ skip => $skip_combinations{$filename} });
+  } else {
+    return () if @::opt_combinations or not -f $filename;
+    # Read combinations file in my.cnf format
+    mtr_verbose("Read combinations file");
+    my $config= My::Config->new($filename);
+    foreach my $group ($config->option_groups()) {
+      my $comb= { name => $group->name(), comb_opt => [] };
+      next if $skip_combinations{"$filename => $comb->{name}"};
+      foreach my $option ( $group->options() ) {
+        push(@{$comb->{comb_opt}}, $option->option());
+      }
+      $comb->{in_overlay} = 1 if $in_overlay;
+      push @combs, $comb;
     }
-    push @combs, $comb;
+    @combs = ({ skip => 'Requires: ' . basename($filename, '.combinations') }) unless @combs;
   }
   @combs;
 }
@@ -302,12 +314,14 @@ sub collect_one_suite
 {
   my $suitename= shift;  # Test suite name
   my $opt_cases= shift;
-  my $opt_skip_test_list= shift;
-  my @cases; # Array of hash
+  my $over;
+
+  ($suitename, $over) = split '-', $suitename;
 
   mtr_verbose("Collecting: $suitename");
 
-  my $suitedir= "$::glob_mysql_test_dir"; # Default
+  my $suitedir= $::glob_mysql_test_dir; # Default
+  my @overlays = ();
   if ( $suitename ne "main" )
   {
     # Allow suite to be path to "some dir" if $suitename has at least
@@ -319,62 +333,108 @@ sub collect_one_suite
     }
     else
     {
-      $suitedir= my_find_dir($::basedir,
-			     ["share/mysql-test/suite",
-			      "share/mysql/mysql-test/suite",
-			      "mysql-test/suite",
-			      "mysql-test",
-			      # Look in storage engine specific suite dirs
-			      "storage/*/mtr",
-			      # Look in plugin specific suite dir
-			      "plugin/$suitename/tests",
-			     ],
-			     [$suitename]);
+      @overlays = my_find_dir($::basedir,
+                              ["mysql-test/suite",
+                               "storage/*/mysql-test",
+                               "plugin/*/mysql-test"],
+                              [$suitename]);
+      #
+      # XXX at the moment, for simplicity, we will not fully support one plugin
+      # overlaying a suite of another plugin. Only suites in the main
+      # mysql-test directory can be safely overlayed. To be fixed, when needed.
+      # To fix it we'll need a smarter overlay detection (that is, detection of
+      # what is an overlay and what is the "original" suite) than simply
+      # "prefer directories with more files".
+      #
+
+      if ($overlays[0] !~ m@/mysql-test/suite/$suitename$@) {
+        # prefer directories with more files
+        @overlays = sort { scalar(<$a/*>) <=> scalar(<$b/*>) } @overlays;
+      }
+      $suitedir = shift @overlays;
     }
-    mtr_verbose("suitedir: $suitedir");
+  } else {
+    @overlays = my_find_dir($::basedir,
+                            ["storage/*/mysql-test",
+                             "plugin/*/mysql-test"],
+                            ['main'], NOT_REQUIRED);
   }
+  mtr_verbose("suitedir: $suitedir");
+  mtr_verbose("overlays: @overlays") if @overlays;
 
-  my $testdir= "$suitedir/t";
-  my $resdir=  "$suitedir/r";
+  # we always need to process the parent suite, even if we won't use any
+  # test from it.
+  my @cases= process_suite($suitename, undef, $suitedir,
+                           $over ? [ '*BOGUS*' ] : $opt_cases);
 
-  # Check if t/ exists
-  if (-d $testdir){
-    # t/ exists
+  # when working with overlays we cannot use global caches like
+  # %file_to_tags. Because the same file may have different tags
+  # with and without overlays. For example, when a.test includes
+  # b.inc, which includes c.inc, and an overlay replaces c.inc.
+  # In this case b.inc may have different tags in the overlay,
+  # despite the fact that b.inc itself is not replaced.
+  for (@overlays) {
+    local %file_to_tags = ();
+    local %file_to_master_opts = ();
+    local %file_to_slave_opts = ();
+    local %file_combinations = ();
+    local %file_in_overlay = ();
 
-    if ( -d $resdir )
-    {
-      # r/exists
-    }
-    else
-    {
-      # No r/, use t/ as result dir
-      $resdir= $testdir;
-    }
-
+    die unless m@/(?:storage|plugin)/(\w+)/mysql-test/\w+$@;
+    next unless defined $over and ($over eq '' or $over eq $1);
+    push @cases, 
+    # don't add cases that take *all* data from the parent suite
+      grep { $_->{in_overlay} } process_suite($suitename, $1, $_, $opt_cases);
   }
-  else {
-    # No t/ dir => there can' be any r/ dir
-    mtr_error("Can't have r/ dir without t/") if -d $resdir;
+  return @cases;
+}
 
-    # No t/ or r/ => use suitedir
-    $resdir= $testdir= $suitedir;
+sub process_suite {
+  my ($basename, $overname, $suitedir, $opt_cases) = @_;
+  my $suitename;
+  my $parent;
+
+  if ($overname) {
+    $parent = $suites{$basename};
+    die unless $parent;
+    $suitename = $basename . '-' . $overname;
+  } else {
+    $suitename = $basename;
   }
-
-  mtr_verbose("testdir: $testdir");
-  mtr_verbose("resdir: $resdir");
 
   my $suite = load_suite_object($suitename, $suitedir);
 
   #
   # Read suite config files, unless it was done aleady
   #
-  unless (defined $suite->{dir}) {
-    $suite->{dir} = $suitedir;
-    $suite->{tdir} = $testdir;
-    $suite->{rdir} = $resdir;
+  unless (defined $suite->{name}) {
+    $suite->{name} = $suitename;
+    $suite->{dir}  = $suitedir;
+
+    # First, we need to find where the test files and result files are.
+    # test files are usually in a t/ dir inside suite dir. Or directly in the
+    # suite dir. result files are in a r/ dir or in the suite dir.
+    # Overlay uses t/ and r/ if and only if its parent does.
+    if ($parent) {
+      $suite->{parent} = $parent;
+      my $tdir = $parent->{tdir};
+      my $rdir = $parent->{rdir};
+      substr($tdir, 0, length $parent->{dir}) = $suitedir;
+      substr($rdir, 0, length $parent->{dir}) = $suitedir;
+      $suite->{tdir} = $tdir if -d $tdir;
+      $suite->{rdir} = $rdir if -d $rdir;
+    } else {
+      my $tdir= "$suitedir/t";
+      my $rdir= "$suitedir/r";
+      $suite->{tdir} = -d $tdir ? $tdir : $suitedir;
+      $suite->{rdir} = -d $rdir ? $rdir : $suite->{tdir};
+    }
+
+    mtr_verbose("testdir: " . $suite->{tdir});
+    mtr_verbose( "resdir: " . $suite->{rdir});
 
     # disabled.def
-    parse_disabled("$testdir/disabled.def", $suitename);
+    parse_disabled($suite->{dir} .'/disabled.def', $suitename);
 
     # combinations
     if (@::opt_combinations)
@@ -390,120 +450,52 @@ sub collect_one_suite
     }
     else
     {
-      my @combs = combinations_from_file("$suitedir/combinations");
+      my @combs;
+      @combs = combinations_from_file($parent, "$suitedir/combinations")
+        unless $suite->{skip};
       $suite->{combinations} = [ @combs ];
+      #  in overlays it's a union of parent's and overlay's files.
+      unshift @{$suite->{combinations}}, @{$parent->{combinations}} if $parent;
     }
 
     # suite.opt
+    #  in overlays it's a union of parent's and overlay's files.
     $suite->{opts} = [ opts_from_file("$suitedir/suite.opt") ];
+    $suite->{in_overlay} = 1 if $parent and @{$suite->{opts}};
+    unshift @{$suite->{opts}}, @{$parent->{opts}} if $parent;
+
+    $suite->{cases} = [ $suite->list_cases($suite->{tdir}) ];
   }
 
-  my @case_names= $suite->list_cases($testdir);
+  my %all_cases;
+  %all_cases = map { $_ => $parent->{tdir} } @{$parent->{cases}} if $parent;
+  $all_cases{$_} = $suite->{tdir} for @{$suite->{cases}};
 
-  if ( @$opt_cases )
-  {
-    my (%case_names)= map { $_ => 1 } @case_names;
-    @case_names= ();
-
+  my @cases;
+  if (@$opt_cases) {
     # Collect in specified order
     foreach my $test_name_spec ( @$opt_cases )
     {
       my ($sname, $tname)= split_testname($test_name_spec);
 
       # Check correct suite if suitename is defined
-      next if (defined $sname and $suitename ne $sname);
+      next if defined $sname and $sname ne $suitename
+                             and $sname ne "$basename-";
 
-      if (not $case_names{$tname})
-      {
-        # This is only an error if suite was specified, otherwise it
-        # could exist in another suite
-        mtr_error("Test '$tname' was not found in suite '$sname'")
-          if $sname;
-
-        next;
-      }
-      push @case_names, $tname;
+      next unless $all_cases{$tname};
+      push @cases, collect_one_test_case($suite, $all_cases{$tname}, $tname);
+    }
+  } else {
+    for (sort keys %all_cases)
+    {
+      # Skip tests that do not match the --do-test= filter
+      next if $do_test_reg and not /$do_test_reg/o;
+      push @cases, collect_one_test_case($suite, $all_cases{$_}, $_);
     }
   }
 
-  foreach (@case_names)
-  {
-    # Skip tests that do not match the --do-test= filter
-    next if ($do_test_reg and not $_ =~ /$do_test_reg/o);
-
-    push @cases, collect_one_test_case($suitename, $_);
-  }
-
-  #  Return empty list if no testcases found
-  return if (@cases == 0);
-
-  optimize_cases(\@cases);
-
-  return @cases;
+  @cases;
 }
-
-
-
-#
-# Loop through all test cases
-# - optimize which test to run by skipping unnecessary ones
-# - update settings if necessary
-#
-sub optimize_cases {
-  my ($cases)= @_;
-
-  my @new_cases= ();
-
-  foreach my $tinfo ( @$cases )
-  {
-    push @new_cases, $tinfo;
-
-    # Skip processing if already marked as skipped
-    next if $tinfo->{skip};
-
-    # =======================================================
-    # Check that engine selected by
-    # --default-storage-engine=<engine> is supported
-    # =======================================================
-
-    #
-    # mandatory engines cannot be disabled with --skip-FOO.
-    # That is, --FOO switch does not exist, and mtr cannot detect
-    # if the engine is available.
-    #
-    my %mandatory_engines = ('myisam' => 1, 'memory' => 1, 'csv' => 1);
-
-    foreach my $opt ( @{$tinfo->{master_opt}} ) {
-      my $default_engine=
-	mtr_match_prefix($opt, "--default-storage-engine=");
-
-      # Allow use of uppercase, convert to all lower case
-      $default_engine =~ tr/A-Z/a-z/;
-
-      if (defined $default_engine){
-
-	#print " $tinfo->{name}\n";
-	#print " - The test asked to use '$default_engine'\n";
-
-	#my $engine_value= $::mysqld_variables{$default_engine};
-	#print " - The mysqld_variables says '$engine_value'\n";
-
-	if ( ! exists $::mysqld_variables{$default_engine} and
-	     ! exists $mandatory_engines{$default_engine} )
-	{
-	  $tinfo->{'skip'}= 1;
-	  $tinfo->{'comment'}=
-	    "'$default_engine' not supported";
-	}
-
-	$tinfo->{'ndb_test'}= 1
-	  if ( $default_engine =~ /^ndb/i );
-      }
-    }
-  }
-  @$cases= @new_cases;
-}
-
 
 #
 # Read options from the given opt file and append them as an array
@@ -549,6 +541,12 @@ sub make_combinations($@)
   my ($test, @combinations) = @_;
 
   return ($test) if $test->{'skip'} or not @combinations;
+  if ($combinations[0]->{skip}) {
+    $test->{skip} = 1;
+    $test->{comment} = $combinations[0]->{skip} unless $test->{comment};
+    die unless @combinations == 1;
+    return ($test);
+  }
 
   foreach my $comb (@combinations)
   {
@@ -578,12 +576,31 @@ sub make_combinations($@)
     # Add combination name short name
     push @{$new_test->{combinations}}, $comb->{name};
 
+    $new_test->{in_overlay} = 1 if $comb->{in_overlay};
+
     # Add the new test to new test cases list
     push(@cases, $new_test);
   }
   return @cases;
 }
 
+
+sub find_file_in_dirs
+{
+  my ($tinfo, $slot, $filename) = @_;
+  my $parent = $tinfo->{suite}->{parent};
+  my $f = $tinfo->{suite}->{$slot} . '/' . $filename;
+
+  if (-f $f) {
+    $tinfo->{in_overlay} = 1 if $parent;
+    return $f;
+  }
+
+  return undef unless $parent;
+
+  $f = $parent->{$slot} . '/' . $filename;
+  return -f $f ? $f : undef;
+}
 
 ##############################################################################
 #
@@ -592,15 +609,13 @@ sub make_combinations($@)
 ##############################################################################
 
 sub collect_one_test_case {
-  my $suitename=  shift;
-  my $tname=      shift;
+  my $suite     =  shift;
+  my $tpath     =  shift;
+  my $tname     =  shift;
 
-  my $name     = "$suitename.$tname";
-  my $suite    =  $suites{$suitename};
-  my $suitedir =  $suite->{dir};
-  my $testdir  =  $suite->{tdir};
-  my $resdir   =  $suite->{rdir};
-  my $filename = "$testdir/${tname}.test";
+  my $suitename =  $suite->{name};
+  my $name      = "$suitename.$tname";
+  my $filename  = "$tpath/${tname}.test";
 
   # ----------------------------------------------------------------------
   # Set defaults
@@ -611,6 +626,7 @@ sub collect_one_test_case {
      shortname     => $tname,
      path          => $filename,
      suite         => $suite,
+     in_overlay    => $suite->{in_overlay},
      master_opt    => [ @{$suite->{opts}} ],
      slave_opt     => [ @{$suite->{opts}} ],
     );
@@ -618,8 +634,8 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   # Skip some tests but include in list, just mark them as skipped
   # ----------------------------------------------------------------------
-  if ( $skip_test_reg and ($tname =~ /$skip_test_reg/o ||
-                           $name =~ /$skip_test/o))
+  if ( $skip_test_reg and ($tname =~ /$skip_test_reg/o or
+                            $name =~ /$skip_test_reg/o))
   {
     $tinfo->{'skip'}= 1;
     return $tinfo;
@@ -629,34 +645,41 @@ sub collect_one_test_case {
   # Check for disabled tests
   # ----------------------------------------------------------------------
   my $disable = $disabled{".$tname"} || $disabled{$name};
-  if ($disable)
+  if (not defined $disable and $suite->{parent}) {
+    $disable = $disabled{$suite->{parent}->{name} . ".$tname"};
+  }
+  if (defined $disable)
   {
     $tinfo->{comment}= $disable;
     if ( $enable_disabled )
     {
       # User has selected to run all disabled tests
       mtr_report(" - $tinfo->{name} wil be run although it's been disabled\n",
-		 "  due to '$tinfo->{comment}'");
+		 "  due to '$disable'");
     }
     else
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'disable'}= 1;   # Sub type of 'skip'
-      return $tinfo;
+
+      # we can stop test file processing early if the test if disabled, but
+      # only if we're not in the overlay.  for overlays we want to know exactly
+      # whether the test is ignored (in_overlay=0) or disabled.
+      return $tinfo unless $suite->{parent};
     }
   }
 
   if ($suite->{skip}) {
     $tinfo->{skip}= 1;
-    $tinfo->{comment}= $suite->{skip};
-    return $tinfo;
+    $tinfo->{comment}= $suite->{skip} unless $tinfo->{comment};
+    return $tinfo unless $suite->{parent};
   }
 
   # ----------------------------------------------------------------------
   # Check for test specific config file
   # ----------------------------------------------------------------------
-  my $test_cnf_file= "$testdir/$tname.cnf";
-  if ( -f $test_cnf_file ) {
+  my $test_cnf_file= find_file_in_dirs($tinfo, tdir => "$tname.cnf");
+  if ($test_cnf_file ) {
     # Specifies the configuration file to use for this test
     $tinfo->{'template_path'}= $test_cnf_file;
   }
@@ -664,8 +687,8 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   # master sh
   # ----------------------------------------------------------------------
-  my $master_sh= "$testdir/$tname-master.sh";
-  if ( -f $master_sh )
+  my $master_sh= find_file_in_dirs($tinfo, tdir => "$tname-master.sh");
+  if ($master_sh)
   {
     if ( IS_WIN32PERL )
     {
@@ -682,8 +705,8 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   # slave sh
   # ----------------------------------------------------------------------
-  my $slave_sh= "$testdir/$tname-slave.sh";
-  if ( -f $slave_sh )
+  my $slave_sh= find_file_in_dirs($tinfo, tdir => "$tname-slave.sh");
+  if ($slave_sh)
   {
     if ( IS_WIN32PERL )
     {
@@ -697,8 +720,8 @@ sub collect_one_test_case {
     }
   }
 
-  my ($master_opts, $slave_opts)=
-    tags_from_test_file($tinfo, $filename, $suitedir);
+  my ($master_opts, $slave_opts)= tags_from_test_file($tinfo);
+  $tinfo->{in_overlay} = 1 if $file_in_overlay{$filename};
 
   if ( $tinfo->{'big_test'} and ! $::opt_big_test )
   {
@@ -760,41 +783,19 @@ sub collect_one_test_case {
     }
   }
 
-  if ( $tinfo->{'need_ipv6'} )
-  {
-    # This is a test that needs ssl
-    if ( ! $::have_ipv6 ) {
-      # IPv6 is not supported, skip it
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No IPv6";
-      return $tinfo;
-    }
-  }
-
   # ----------------------------------------------------------------------
   # Find config file to use if not already selected in <testname>.opt file
   # ----------------------------------------------------------------------
-  if (defined $defaults_file) {
-    # Using same config file for all tests
-    $tinfo->{template_path}= $defaults_file;
-  }
-  elsif (! $tinfo->{template_path} )
+  if (not $tinfo->{template_path} )
   {
-    my $config= "$suitedir/my.cnf";
-    if (! -f $config )
+    my $config= find_file_in_dirs($tinfo, dir => 'my.cnf');
+    if (not $config)
     {
-      # assume default.cnf will be used
-      $config= "include/default_my.cnf";
-
       # Suite has no config, autodetect which one to use
-      if ( $tinfo->{rpl_test} ){
-	$config= "suite/rpl/my.cnf";
-	if ( $tinfo->{ndb_test} ){
-	  $config= "suite/rpl_ndb/my.cnf";
-	}
-      }
-      elsif ( $tinfo->{ndb_test} ){
-	$config= "suite/ndb/my.cnf";
+      if ($tinfo->{rpl_test}) {
+        $config= "suite/rpl/my.cnf";
+      } else {
+        $config= "include/default_my.cnf";
       }
     }
     $tinfo->{template_path}= $config;
@@ -816,34 +817,86 @@ sub collect_one_test_case {
   }
 
   for $tinfo (@cases) {
+    #
+    # Now we find a result file for every test file. It's a bit complicated.
+    # For a test foobar.test in the combination pair {aa,bb}, and in the
+    # overlay "rty" to the suite "qwe", in other words, for the
+    # that that mtr prints as
+    #   ...
+    #   qwe-rty.foobar                   'aa,bb'  [ pass ]
+    #   ...
+    # the result can be expected in
+    #  * either .rdiff or .result file
+    #  * either in the overlay or in the original suite
+    #  * with or without combinations in the file name.
+    # which means any of the following 15 file names can be used:
+    #
+    #  1    rty/r/foo,aa,bb.result          
+    #  2    rty/r/foo,aa,bb.rdiff
+    #  3    qwe/r/foo,aa,bb.result
+    #  4    qwe/r/foo,aa,bb.rdiff
+    #  5    rty/r/foo,aa.result
+    #  6    rty/r/foo,aa.rdiff
+    #  7    qwe/r/foo,aa.result
+    #  8    qwe/r/foo,aa.rdiff
+    #  9    rty/r/foo,bb.result
+    # 10    rty/r/foo,bb.rdiff
+    # 11    qwe/r/foo,bb.result
+    # 12    qwe/r/foo,bb.rdiff
+    # 13    rty/r/foo.result
+    # 14    rty/r/foo.rdiff
+    # 15    qwe/r/foo.result
+    #
+    # They are listed, precisely, in the order of preference.
+    # mtr will walk that list from top to bottom and the first file that
+    # is found will be used.
+    #
+    # If this found file is a .rdiff, mtr continues walking down the list
+    # until the first .result file is found.
+    # A .rdiff is applied to that .result.
+    #
+    my $re ='';
+
     if ($tinfo->{combinations}) {
-      my $re = '(?:' . join('|', @{$tinfo->{combinations}}) . ')';
-      my $found = 0;
-      for (<$resdir/$tname,*.{rdiff,result}>) {
-        my ($combs, $ext) = m@$tname((?:,$re)+)\.(rdiff|result)$@ or next;
-        my @commas = ($combs =~ m/,/g);
-        # prefer the most specific result file
-        if (@commas > $found) {
-          $found = @commas;
-          $tinfo->{result_file} = $_;
-          if ($ext eq 'rdiff' and not $::exe_patch) {
-            $tinfo->{skip} = 1;
-            $tinfo->{comment} = "requires patch executable";
-          }
+      $re = '(?:' . join('|', @{$tinfo->{combinations}}) . ')';
+    }
+    my $resdirglob = $suite->{rdir};
+    $resdirglob.= ',' . $suite->{parent}->{rdir} if $suite->{parent};
+
+    my %files;
+    for (<{$resdirglob}/$tname*.{rdiff,result}>) {
+      my ($path, $combs, $ext) =
+                  m@^(.*)/$tname((?:,$re)*)\.(rdiff|result)$@ or next;
+      my @combs = sort split /,/, $combs;
+      $files{$_} = join '~', (                # sort files by
+        99 - scalar(@combs),                  # number of combinations DESC
+        join(',', sort @combs),               # combination names ASC
+        $path eq $suite->{rdir} ? 1 : 2,      # overlay first
+        $ext eq 'result' ? 1 : 2              # result before rdiff
+      );
+    }
+    my @results = sort { $files{$a} cmp $files{$b} } keys %files;
+
+    if (@results) {
+      my $result_file = shift @results;
+      $tinfo->{result_file} = $result_file;
+
+      if ($result_file =~ /\.rdiff$/) {
+        shift @results while $results[0] =~ /\.rdiff$/;
+        mtr_error ("$result_file has no corresponding .result file")
+          unless @results;
+        $tinfo->{base_result} = $results[0];
+
+        if (not $::exe_patch) {
+          $tinfo->{skip} = 1;
+          $tinfo->{comment} = "requires patch executable";
         }
       }
-    }
-    
-    unless (defined $tinfo->{result_file}) {
-      my $result_file= "$resdir/$tname.result";
-      if (-f $result_file) {
-        $tinfo->{result_file}= $result_file;
-      } else {
-        # No .result file exist
-        # Remember the path  where it should be
-        # saved in case of --record
-        $tinfo->{record_file}= $result_file;
-      }
+    } else {
+      # No .result file exist
+      # Remember the path  where it should be
+      # saved in case of --record
+      $tinfo->{record_file}= $suite->{rdir} . "/$tname.result";
     }
   }
 
@@ -856,15 +909,10 @@ my $tags_map= {'big_test' => ['big_test', 1],
                'have_multi_ndb' => ['ndb_test', 1],
                'master-slave' => ['rpl_test', 1],
                'ndb_master-slave' => ['rpl_test', 1, 'ndb_test', 1],
-               'check_ipv6' => ['need_ipv6', 1],
                'long_test' => ['long_test', 1],
 };
 my $tags_regex_string= join('|', keys %$tags_map);
 my $tags_regex= qr:include/($tags_regex_string)\.inc:o;
-
-my %file_to_tags;
-my %file_to_master_opts;
-my %file_to_slave_opts;
 
 # Get various tags from a file, recursively scanning also included files.
 # And get options from .opt file, also recursively for included files.
@@ -875,7 +923,7 @@ my %file_to_slave_opts;
 # We need to be a bit careful about speed here; previous version of this code
 # took forever to scan the full test suite.
 sub get_tags_from_file($$) {
-  my ($file, $suitedir)= @_;
+  my ($file, $suite)= @_;
 
   return @{$file_to_tags{$file}} if exists $file_to_tags{$file};
 
@@ -886,6 +934,25 @@ sub get_tags_from_file($$) {
   my $master_opts= [];
   my $slave_opts= [];
   my @combinations;
+
+  my $over = defined $suite->{parent};
+  my $sdir = $suite->{dir};
+  my $pdir = $suite->{parent}->{dir} if $over;
+  my $in_overlay = 0;
+  my $suffix = $file;
+  my @prefix = ('');
+
+  # to be able to look up all auxillary files in the overlay
+  # we split the file path in a prefix and a suffix
+  if ($file =~ m@^$sdir/(.*)$@) {
+    $suffix = $1;
+    @prefix =  ("$sdir/");
+    push @prefix, "$pdir/" if $over;
+    $in_overlay = $over;
+  } elsif ($over and $file =~ m@^$pdir/(.*)$@) {
+    $suffix = $1;
+    @prefix = map { "$_/" } $sdir, $pdir;
+  }
 
   while (my $line= <$F>)
   {
@@ -906,20 +973,23 @@ sub get_tags_from_file($$) {
     if ($line =~ /^(--)?[[:space:]]*source[[:space:]]+([^;[:space:]]+)/)
     {
       my $include= $2;
-      # Sourced file may exist relative to test file, or in global location.
+      # The rules below must match open_file() function of mysqltest.cc
       # Note that for the purpose of tag collection we ignore
       # non-existing files, and let mysqltest handle the error
       # (e.g. mysqltest.test needs this)
-      for my $sourced_file (dirname($file) . '/' . $include,
-                            $suitedir . '/' . $include,
-                            $::glob_mysql_test_dir . '/' . $include)
+      for ((map { dirname("$_$suffix") } @prefix),
+           $sdir, $pdir, $::glob_mysql_test_dir)
       {
+        next unless defined $_;
+        my $sourced_file = "$_/$include";
+        next if $sourced_file eq $file;
         if (-e $sourced_file)
         {
-          push @$tags, get_tags_from_file($sourced_file, $suitedir);
+          push @$tags, get_tags_from_file($sourced_file, $suite);
           push @$master_opts, @{$file_to_master_opts{$sourced_file}};
           push @$slave_opts, @{$file_to_slave_opts{$sourced_file}};
           push @combinations, @{$file_combinations{$sourced_file}};
+          $file_in_overlay{$file} ||= $file_in_overlay{$sourced_file};
           last;
         }
       }
@@ -929,30 +999,48 @@ sub get_tags_from_file($$) {
   # Add options from main file _after_ those of any includes; this allows a
   # test file to override options set by includes (eg. rpl.rpl_ddl uses this
   # to enable innodb, then disable innodb in the slave.
-  my $file_no_ext= $file;
-  $file_no_ext =~ s/\.\w+$//;
-  my @common_opts= opts_from_file("$file_no_ext.opt");
-  push @$master_opts, @common_opts, opts_from_file("$file_no_ext-master.opt");
-  push @$slave_opts, @common_opts, opts_from_file("$file_no_ext-slave.opt");
+  $suffix =~ s/\.\w+$//;
 
-  push @combinations, [ combinations_from_file("$file_no_ext.combinations") ];
+  for (qw(.opt -master.opt -slave.opt)) {
+    my @res;
+    push @res, opts_from_file("$prefix[1]$suffix$_") if $over;
+    if (-f "$prefix[0]$suffix$_") {
+      $in_overlay = $over;
+      push @res, opts_from_file("$prefix[0]$suffix$_");
+    }
+    push @$master_opts, @res unless /slave/;
+    push @$slave_opts, @res unless /master/;
+  }
+
+  # for combinations we need to make sure that its suite object is loaded,
+  # even if this file does not belong to a current suite!
+  my $comb_file = "$suffix.combinations";
+  $suite = load_suite_for_file($comb_file) if $prefix[0] eq '';
+  my @comb;
+  unless ($suite->{skip}) {
+    @comb = combinations_from_file($over, "$prefix[0]$comb_file");
+    push @comb, combinations_from_file(undef, "$prefix[1]$comb_file") if $over;
+  }
+  push @combinations, [ @comb ];
 
   # Save results so we can reuse without parsing if seen again.
   $file_to_tags{$file}= $tags;
   $file_to_master_opts{$file}= $master_opts;
   $file_to_slave_opts{$file}= $slave_opts;
   $file_combinations{$file}= [ uniq(@combinations) ];
+  $file_in_overlay{$file} = 1 if $in_overlay;
   return @{$tags};
 }
 
 sub tags_from_test_file {
-  my ($tinfo, $file, $suitedir)= @_;
+  my ($tinfo)= @_;
+  my $file = $tinfo->{path};
 
   # a suite may generate tests that don't map to real *.test files
   # see unit suite for an example.
   return ([], []) unless -f $file;
 
-  for (get_tags_from_file($file, $suitedir))
+  for (get_tags_from_file($file, $tinfo->{suite}))
   {
     $tinfo->{$_->[0]}= $_->[1];
   }
@@ -973,7 +1061,7 @@ sub opts_from_file ($) {
 
   return () unless -f $file;
 
-  open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
+  open(FILE, '<', $file) or mtr_error("can't open file \"$file\": $!");
   my @args;
   while ( <FILE> )
   {

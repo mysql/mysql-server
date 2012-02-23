@@ -1,0 +1,15 @@
+#
+# This tests the following:
+#   simple.test has two combinations (in simple.combinations).
+#   it includes combs.inc (indirectly, via proxy.inc) with two more combinations
+#   thus it should run 4 times
+#
+#   combs.combinations is overlayed in the example overlay, adding one more
+#   combination. Thus simple.test must run two more times in the mtr-example.
+#
+#   Note that neither simple.test nor proxy.inc are touched by the overlay,
+#   mtr needs to propagate "affected by the overlay" flag up the
+#   inclusion chain.
+#
+source proxy.inc;
+select @@old;

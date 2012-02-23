@@ -23,21 +23,19 @@ character-set-server=      latin1
 # disconnects when test servers are put under load see BUG#28359
 connect-timeout=            60
 
-plugin-dir=@OPT.plugindir
 secure-file-priv= @OPT.vardir
 
 log-basename=mysqld
 debug-no-sync
+
+# Retry bind as this may fail on busy server
+port-open-timeout=10
 
 log-bin-trust-function-creators=1
 key_buffer_size=            1M
 sort_buffer=                256K
 max_heap_table_size=        1M
 
-loose-skip-innodb
-loose-skip-pbxt
-loose-skip-federated
-loose-skip-feedback
 loose-feedback-user-info=  mysql-test
 
 loose-innodb_data_file_path=      ibdata1:10M:autoextend
@@ -61,3 +59,20 @@ loose-performance-schema-max-table-instances=500
 loose-performance-schema-max-table-handles=1000
 
 binlog-direct-non-transactional-updates
+
+# here, at the end of [mysqld] group mtr will automatically disable
+# all optional plugins.
+
+[embedded]
+# mtr automatically adds [embedded] group at the end and copies [mysqld]
+# and [mysqld.1] groups into it.
+# but we want [server] group to be after [mysqld] (and its copies).
+# create a non-empty [embedded] group here, to force it before [server]
+local-infile
+
+[server]
+# Aria is optional, but it must be enabled if it's used for temporary
+# tables.  Let's enable it in the [server] group, because this group
+# is read after [mysqld] and [embedded]
+loose-aria
+

@@ -1,0 +1,326 @@
+--- r/range_vs_index_merge_innodb.result	2011-11-23 22:19:38.000000000 +0100
++++ r/range_vs_index_merge_innodb.reject	2012-02-08 13:04:41.000000000 +0100
+@@ -50,14 +50,14 @@
+ WHERE (Population >= 100000 OR Name LIKE 'P%') AND Country='CAN' OR
+ (Population < 100000 OR Name Like 'T%') AND Country='ARG';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Population,Country,Name	Country	3	NULL	106	Using index condition; Using where
++1	SIMPLE	City	range	Population,Country,Name	Country	3	NULL	106	Using where
+ EXPLAIN
+ SELECT * FROM City
+ WHERE Population < 200000 AND Name LIKE 'P%' AND
+ (Population > 300000 OR Name LIKE 'T%') AND
+ (Population < 100000 OR Name LIKE 'Pa%');
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Population,Name	Name	35	NULL	235	Using index condition; Using where
++1	SIMPLE	City	range	Population,Name	Name	35	NULL	235	Using where
+ EXPLAIN
+ SELECT * FROM City
+ WHERE Population > 100000 AND Name LIKE 'Aba%' OR
+@@ -70,12 +70,12 @@
+ SELECT * FROM City
+ WHERE (Population > 101000 AND Population < 115000);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Population	Population	4	NULL	458	Using index condition
++1	SIMPLE	City	range	Population	Population	4	NULL	458	Using where
+ EXPLAIN 
+ SELECT * FROM City
+ WHERE (Population > 101000 AND Population < 102000);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Population	Population	4	NULL	38	Using index condition
++1	SIMPLE	City	range	Population	Population	4	NULL	38	Using where
+ EXPLAIN 
+ SELECT * FROM City
+ WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'));
+@@ -92,7 +92,7 @@
+ WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+ AND (Population > 101000 AND Population < 102000);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Population,Country,Name	Population	4	NULL	38	Using index condition; Using where
++1	SIMPLE	City	range	Population,Country,Name	Population	4	NULL	38	Using where
+ SELECT * FROM City USE INDEX ()
+ WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+ AND (Population > 101000 AND Population < 115000);
+@@ -172,37 +172,37 @@
+ EXPLAIN
+ SELECT  * FROM City WHERE (Name < 'Ac');
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Name	Name	35	NULL	23	Using index condition
++1	SIMPLE	City	range	Name	Name	35	NULL	23	Using where
+ EXPLAIN
+ SELECT  * FROM City WHERE (Name < 'Bb');
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Name	Name	35	NULL	373	Using index condition
++1	SIMPLE	City	range	Name	Name	35	NULL	373	Using where
+ EXPLAIN
+ SELECT  * FROM City WHERE (Country > 'A' AND Country < 'B');
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Country	Country	3	NULL	106	Using index condition
++1	SIMPLE	City	range	Country	Country	3	NULL	106	Using where
+ EXPLAIN
+ SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'Pb');
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Name	Name	35	NULL	71	Using index condition
++1	SIMPLE	City	range	Name	Name	35	NULL	71	Using where
+ EXPLAIN
+ SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'S');
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Name	Name	35	NULL	384	Using index condition
++1	SIMPLE	City	range	Name	Name	35	NULL	384	Using where
+ EXPLAIN
+ SELECT  * FROM City WHERE (Population > 101000 AND Population < 110000);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Population	Population	4	NULL	327	Using index condition
++1	SIMPLE	City	range	Population	Population	4	NULL	327	Using where
+ EXPLAIN
+ SELECT  * FROM City WHERE (Population > 103000 AND Population < 104000);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Population	Population	4	NULL	36	Using index condition
++1	SIMPLE	City	range	Population	Population	4	NULL	36	Using where
+ EXPLAIN
+ SELECT  * FROM City 
+ WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+ (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Population,Country,Name	Name	35	NULL	94	Using index condition; Using where
++1	SIMPLE	City	range	Population,Country,Name	Name	35	NULL	94	Using where
+ EXPLAIN
+ SELECT  * FROM City
+ WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+@@ -328,34 +328,34 @@
+ EXPLAIN
+ SELECT * FROM City WHERE (ID < 10) OR (ID BETWEEN 100 AND 110);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	20	Using index condition; Using where
++1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	20	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE (ID < 200) OR (ID BETWEEN 100 AND 200);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	200	Using index condition; Using where
++1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	200	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE (ID < 600) OR (ID BETWEEN 900 AND 1500);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	1198	Using index condition; Using where
++1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	1198	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE Country > 'A' AND Country < 'ARG';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Country	Country	3	NULL	19	Using index condition
++1	SIMPLE	City	range	Country	Country	3	NULL	19	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE Name LIKE 'H%' OR Name LIKE 'P%' ;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Name	Name	35	NULL	394	Using index condition; Using where
++1	SIMPLE	City	range	Name	Name	35	NULL	394	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE Name LIKE 'Ha%' OR Name LIKE 'Pa%' ;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Name	Name	35	NULL	133	Using index condition; Using where
++1	SIMPLE	City	range	Name	Name	35	NULL	133	Using where
+ EXPLAIN
+ SELECT * FROM City
+ WHERE ((ID < 10) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+ OR ((ID BETWEEN 100 AND 110) AND 
+ (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	20	Using index condition; Using where
++1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	20	Using where
+ EXPLAIN
+ SELECT * FROM City
+ WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+@@ -369,7 +369,7 @@
+ OR ((ID BETWEEN 100 AND 200) AND 
+ (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	200	Using index condition; Using where
++1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	200	Using where
+ SELECT * FROM City USE INDEX ()
+ WHERE ((ID < 10) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+ OR ((ID BETWEEN 100 AND 110) AND 
+@@ -577,39 +577,39 @@
+ EXPLAIN 
+ SELECT * FROM City WHERE Population > 101000 AND Population < 102000;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Population	Population	4	NULL	38	Using index condition
++1	SIMPLE	City	range	Population	Population	4	NULL	38	Using where
+ EXPLAIN 
+ SELECT * FROM City WHERE Population > 101000 AND Population < 110000;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Population	Population	4	NULL	327	Using index condition
++1	SIMPLE	City	range	Population	Population	4	NULL	327	Using where
+ EXPLAIN 
+ SELECT * FROM City WHERE Country < 'C';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Country	Country	3	NULL	446	Using index condition
++1	SIMPLE	City	range	Country	Country	3	NULL	446	Using where
+ EXPLAIN 
+ SELECT * FROM City WHERE Country < 'AGO';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Country	Country	3	NULL	5	Using index condition
++1	SIMPLE	City	range	Country	Country	3	NULL	5	Using where
+ EXPLAIN 
+ SELECT * FROM City WHERE Name BETWEEN 'P' AND 'S';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Name	Name	35	NULL	384	Using index condition
++1	SIMPLE	City	range	Name	Name	35	NULL	384	Using where
+ EXPLAIN 
+ SELECT * FROM City WHERE Name BETWEEN 'P' AND 'Pb';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Name	Name	35	NULL	71	Using index condition
++1	SIMPLE	City	range	Name	Name	35	NULL	71	Using where
+ EXPLAIN 
+ SELECT * FROM City WHERE ID BETWEEN 3400 AND 3800;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	400	Using index condition
++1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	400	Using where
+ EXPLAIN 
+ SELECT * FROM City WHERE ID BETWEEN 3790 AND 3800;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
++1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using where
+ EXPLAIN 
+ SELECT * FROM City WHERE Name LIKE 'P%';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Name	Name	35	NULL	235	Using index condition
++1	SIMPLE	City	range	Name	Name	35	NULL	235	Using where
+ EXPLAIN
+ SELECT * FROM City
+ WHERE ((Population > 101000 AND Population < 102000) AND
+@@ -680,23 +680,23 @@
+ EXPLAIN
+ SELECT * FROM City WHERE Name LIKE 'Pas%';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Name	Name	35	NULL	8	Using index condition
++1	SIMPLE	City	range	Name	Name	35	NULL	8	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE Name LIKE 'P%';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Name	Name	35	NULL	235	Using index condition
++1	SIMPLE	City	range	Name	Name	35	NULL	235	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE (Population > 101000 AND Population < 103000);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Population	Population	4	NULL	80	Using index condition
++1	SIMPLE	City	range	Population	Population	4	NULL	80	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE Country='USA';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	ref	Country,CountryPopulation	Country	3	const	274	Using index condition
++1	SIMPLE	City	ref	Country,CountryPopulation	Country	3	const	274	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE Country='FIN';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	ref	Country,CountryPopulation	Country	3	const	7	Using index condition
++1	SIMPLE	City	ref	Country,CountryPopulation	Country	3	const	7	Using where
+ EXPLAIN
+ SELECT * FROM City 
+ WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+@@ -708,7 +708,7 @@
+ WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
+ AND Country='FIN';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	ref	Population,Country,Name,CountryPopulation	Country	3	const	7	Using index condition; Using where
++1	SIMPLE	City	ref	Population,Country,Name,CountryPopulation	Country	3	const	7	Using where
+ SELECT * FROM City 
+ WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+ AND Country='USA';
+@@ -753,51 +753,51 @@
+ EXPLAIN
+ SELECT * FROM City WHERE Country='USA';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	ref	Country,CountryPopulation,CountryName	Country	3	const	274	Using index condition
++1	SIMPLE	City	ref	Country,CountryPopulation,CountryName	Country	3	const	274	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE Country='FIN';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	ref	Country,CountryPopulation,CountryName	Country	3	const	7	Using index condition
++1	SIMPLE	City	ref	Country,CountryPopulation,CountryName	Country	3	const	7	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE Country='BRA';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	ref	Country,CountryPopulation,CountryName	Country	3	const	250	Using index condition
++1	SIMPLE	City	ref	Country,CountryPopulation,CountryName	Country	3	const	250	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE ID BETWEEN 3790 AND 3800;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
++1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE ID BETWEEN 4025 AND 4035;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
++1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE ID BETWEEN 4028 AND 4032;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	5	Using index condition
++1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	5	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE ID BETWEEN 3500 AND 3800;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	300	Using index condition
++1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	300	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE ID BETWEEN 4000 AND 4300;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	80	Using index condition
++1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	80	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE ID BETWEEN 250 and 260 ;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
++1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE (Population > 101000 AND Population < 102000);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Population	Population	4	NULL	38	Using index condition
++1	SIMPLE	City	range	Population	Population	4	NULL	38	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE (Population > 101000 AND Population < 103000);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Population	Population	4	NULL	80	Using index condition
++1	SIMPLE	City	range	Population	Population	4	NULL	80	Using where
+ EXPLAIN
+ SELECT * FROM City WHERE Name LIKE 'Pa%';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Name	Name	35	NULL	71	Using index condition
++1	SIMPLE	City	range	Name	Name	35	NULL	71	Using where
+ EXPLAIN
+ SELECT * FROM City
+ WHERE ((Population > 101000 AND Population < 102000) OR
+@@ -818,7 +818,7 @@
+ ID BETWEEN 3500 AND 3800) AND Country='FIN'
+         AND (Name BETWEEN 'P' AND 'T' OR ID BETWEEN 4000 AND 4300);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	ref	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	Country	3	const	7	Using index condition; Using where
++1	SIMPLE	City	ref	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	Country	3	const	7	Using where
+ SELECT * FROM City USE INDEX ()
+ WHERE ((Population > 101000 AND Population < 102000) OR
+ ID BETWEEN 3790 AND 3800) AND Country='USA'
+@@ -950,14 +950,14 @@
+ ID BETWEEN 3500 AND 3800) AND Country='USA'
+         AND (Name LIKE 'P%' OR ID BETWEEN 4000 AND 4300);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	CountryName	38	NULL	18	Using index condition; Using where
++1	SIMPLE	City	range	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	CountryName	38	NULL	18	Using where
+ EXPLAIN
+ SELECT * FROM City
+ WHERE ((Population > 101000 AND Population < 11000) OR
+ ID BETWEEN 3500 AND 3800) AND Country='USA'
+         AND (Name LIKE 'Pho%' OR ID BETWEEN 4000 AND 4300);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	Name	35	NULL	1	Using index condition; Using where
++1	SIMPLE	City	range	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	Name	35	NULL	1	Using where
+ SELECT * FROM City USE INDEX ()
+ WHERE ((Population > 101000 AND Population < 11000) OR
+ ID BETWEEN 3500 AND 3800) AND Country='USA'
+@@ -1422,7 +1422,7 @@
+ WHERE t1.a>300 AND t1.c!=0 AND t1.b>=350 AND t1.b<=400 AND
+ (t1.c=0 OR t1.a=500);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	range	PRIMARY,idx	PRIMARY	4	NULL	1	Using index condition; Using where
++1	SIMPLE	t1	range	PRIMARY,idx	PRIMARY	4	NULL	1	Using where
+ SELECT * FROM t1
+ WHERE t1.a>300 AND t1.c!=0 AND t1.b>=350 AND t1.b<=400 AND
+ (t1.c=0 OR t1.a=500);

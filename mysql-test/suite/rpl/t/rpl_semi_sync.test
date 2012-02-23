@@ -19,6 +19,10 @@ call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received w
 enable_query_log;
 connection master;
 
+# wait for dying connections (if any) to disappear
+let $wait_condition= select count(*) = 0 from information_schema.processlist where command='killed';
+--source include/wait_condition.inc
+
 # After fix of BUG#45848, semi-sync slave should not create any extra
 # connections on master, save the count of connections before start
 # semi-sync slave for comparison below.
@@ -166,8 +170,7 @@ show status like 'Rpl_semi_sync_master_yes_tx';
 # After fix of BUG#45848, semi-sync slave should not create any extra
 # connections on master.
 let $_connections_semisync_slave= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
-replace_result $_connections_semisync_slave CONNECTIONS_SEMISYNC_SLAVE;
-replace_result $_connections_normal_slave CONNECTIONS_NORMAL_SLAVE;
+replace_result $_connections_normal_slave CONNECTIONS_NORMAL_SLAVE $_connections_semisync_slave CONNECTIONS_SEMISYNC_SLAVE;
 eval select $_connections_semisync_slave - $_connections_normal_slave as 'Should be 0';
 
 let $i=300;

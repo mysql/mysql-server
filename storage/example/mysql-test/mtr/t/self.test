@@ -1,0 +1,8 @@
+#
+# A test that includes itself. But really it includes the
+# self.test from the parent suite, not itself.
+#
+let $a=1;
+source self.test;
+let $a=2;
+source self.test;

@@ -1,0 +1,8 @@
+#
+# This test exists only in the overlay. It will run only for the overlay
+# and not for the parent suite.
+#
+--disable_result_log
+source suite/mtr/t/combs.inc;
+--enable_result_log
+select 1;

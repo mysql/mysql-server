@@ -1,0 +1,11 @@
+--- suite/mtr/t/simple,old.result	2012-02-04 12:13:25.000000000 +0100
++++ suite/mtr/t/simple,old,infile.reject	2012-02-04 12:13:59.000000000 +0100
+@@ -3,7 +3,7 @@
+ proxy
+ select @@local_infile;
+ @@local_infile
+-1
++0
+ select @@old;
+ @@old
+ 1

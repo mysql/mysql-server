@@ -67,7 +67,7 @@ CREATE TABLE servers ( Server_name char(64) NOT NULL DEFAULT '', Host char(64) N
 INSERT INTO servers VALUES ('test','localhost','test','root','', 0,'','mysql','root');
 
 # Run the mysql_fix_privilege_tables.sql using "mysql --force"
---exec $MYSQL --force test < $MYSQL_FIX_PRIVILEGE_TABLES > $MYSQLTEST_VARDIR/log/system_mysql_db_fix50030.log 2>&1
+--exec $MYSQL --force test < $MYSQL_FIX_PRIVILEGE_TABLES
 
 -- enable_query_log
 -- enable_result_log

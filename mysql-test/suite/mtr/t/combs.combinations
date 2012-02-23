@@ -1,0 +1,5 @@
+[c1]
+allow-suspicious-udfs
+
+[c2]
+disable-local-infile

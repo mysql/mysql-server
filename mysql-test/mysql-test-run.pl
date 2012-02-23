@@ -161,7 +161,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= join(',', qw(
+my $DEFAULT_SUITES= join(',', map { "$_-" } qw(
     main
     binlog
     federated
@@ -208,7 +208,6 @@ my $opt_ssl;
 my $opt_skip_ssl;
 my @opt_skip_test_list;
 our $opt_ssl_supported;
-our $have_ipv6;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
@@ -339,9 +338,8 @@ my $exe_ndb_mgmd;
 my $exe_ndb_waiter;
 my $exe_ndb_mgm;
 
-our $debug_compiled_binaries;
-
 our %mysqld_variables;
+our @optional_plugins;
 
 my $source_dist= 0;
 
@@ -432,11 +430,11 @@ sub main {
   {
     # Run the mysqld to find out what features are available
     collect_mysqld_features();
+    mysql_install_db(default_mysqld(), "$opt_vardir/install.db");
   }
-  check_ndbcluster_support(\%mysqld_variables);
-  check_ssl_support(\%mysqld_variables);
-  check_ipv6_support();
-  check_debug_support(\%mysqld_variables);
+  check_ndbcluster_support();
+  check_ssl_support();
+  check_debug_support();
 
   executable_setup();
 
@@ -1860,8 +1858,6 @@ sub set_build_thread_ports($) {
 
 
 sub collect_mysqld_features {
-  my $found_variable_list_start= 0;
-
   #
   # Execute "mysqld --no-defaults --help --verbose" to get a
   # list of all features and settings
@@ -1878,6 +1874,7 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--basedir=%s", $basedir);
   mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
+  mtr_add_arg($args, "--log-warnings=0");
   for (@opt_extra_mysqld_opt) {
     mtr_add_arg($args, $_) unless /^--binlog-format\b/;
   }
@@ -1896,70 +1893,40 @@ sub collect_mysqld_features {
 
   my $exe_mysqld= find_mysqld($bindir);
   my $cmd= join(" ", $exe_mysqld, @$args);
-  my $list= `$cmd`;
 
   mtr_verbose("cmd: $cmd");
 
-  foreach my $line (split('\n', $list))
-  {
-    # First look for version
-    if ( !$mysql_version_id )
-    {
-      # Look for version
-      my $exe_name= basename($exe_mysqld);
-      mtr_verbose("exe_name: $exe_name");
-      if ( $line =~ /^\S*$exe_name\s\sVer\s([0-9]*)\.([0-9]*)\.([0-9]*)([^\s]*)/ )
-      {
-	#print "Major: $1 Minor: $2 Build: $3\n";
-	$mysql_version_id= $1*10000 + $2*100 + $3;
-	#print "mysql_version_id: $mysql_version_id\n";
-	mtr_report("MariaDB Version $1.$2.$3");
-	$mysql_version_extra= $4;
-      }
-    }
-    else
-    {
-      if (!$found_variable_list_start)
-      {
-	# Look for start of variables list
-	if ( $line =~ /[\-]+\s[\-]+/ )
-	{
-	  $found_variable_list_start= 1;
-	}
-      }
-      else
-      {
-	# Put variables into hash
-	if ( $line =~ /^([\S]+)[ \t]+(.*?)\r?$/ )
-	{
-          my $name= $1;
-          my $value=$2;
-          $name =~ s/_/-/g;
-          # print "$name=\"$value\"\n";
-          $mysqld_variables{$name}= $value;
-	}
-	else
-	{
-	  # The variable list is ended with a blank line
-	  if ( $line =~ /^[\s]*$/ )
-	  {
-	    last;
-	  }
-	  else
-	  {
-	    # Send out a warning, we should fix the variables that has no
-	    # space between variable name and it's value
-	    # or should it be fixed width column parsing? It does not
-	    # look like that in function my_print_variables in my_getopt.c
-	    mtr_warning("Could not parse variable list line : $line");
-	  }
-	}
-      }
-    }
-  }
-  mtr_error("Could not find version of MySQL") unless $mysql_version_id;
-  mtr_error("Could not find variabes list") unless $found_variable_list_start;
+  my $list= `$cmd`;
 
+  # to simplify the parsing, we'll merge all nicely formatted --help texts
+  $list =~ s/\n {22}(\S)/ $1/g;
+
+  my @list= split '\n', $list;
+  mtr_error("Could not find version of MariaDB")
+     unless shift(@list) =~ /^$exe_mysqld\s+Ver\s(\d+)\.(\d+)\.(\d+)(\S*)/;
+  $mysql_version_id= $1*10000 + $2*100 + $3;
+  $mysql_version_extra= $4;
+  mtr_report("MariaDB Version $1.$2.$3$4");
+
+  for (@list)
+  {
+    # first part of the help - command-line options.
+    if (/Copyright/ .. /^-{30,}/) {
+      # here we want to detect all not mandatory plugins
+      # they are listed in the --help output as
+      #  --archive[=name]    Enable or disable ARCHIVE plugin. Possible values are ON, OFF, FORCE (don't start if the plugin fails to load).
+      push @optional_plugins, $1
+        if /^  --([-a-z0-9]+)\[=name\] +Enable or disable \w+ plugin. Possible values are ON, OFF, FORCE/;
+      next;
+    }
+
+    last if /^$/; # then goes a list of variables, it ends with an empty line
+
+    # Put a variable into hash
+    /^([\S]+)[ \t]+(.*?)\r?$/ or die "Could not parse mysqld --help: $_\n";
+    $mysqld_variables{$1}= $2;
+  }
+  mtr_error("Could not find variabes list") unless %mysqld_variables;
 }
 
 
@@ -2789,9 +2756,7 @@ sub  check_running_as_root () {
 }
 
 
-sub check_ssl_support ($) {
-  my $mysqld_variables= shift;
-
+sub check_ssl_support {
   if ($opt_skip_ssl)
   {
     mtr_report(" - skipping SSL");
@@ -2800,7 +2765,7 @@ sub check_ssl_support ($) {
     return;
   }
 
-  if ( ! $mysqld_variables->{'ssl'} )
+  if ( ! $mysqld_variables{'ssl'} )
   {
     if ( $opt_ssl)
     {
@@ -2816,29 +2781,15 @@ sub check_ssl_support ($) {
   $opt_ssl_supported= 1;
 }
 
-sub check_ipv6_support {
-  use Socket;
-  $have_ipv6 = socket SOCK, PF_INET6, SOCK_STREAM, getprotobyname('tcp');
-  close SOCK;
-}
-
-sub check_debug_support ($) {
-  my $mysqld_variables= shift;
-  my $debug_var= $mysqld_variables->{'debug'};
-  
-  if ( !$debug_var || $debug_var eq "disabled")
+sub check_debug_support {
+  if (defined $mysqld_variables{'debug-dbug'})
   {
-    #mtr_report(" - binaries are not debug compiled");
-    $debug_compiled_binaries= 0;
-
-    if ( $opt_debug_server )
-    {
-      mtr_error("Can't use --debug[-server], binary does not support it");
-    }
-    return;
+    mtr_report(" - binaries are debug compiled");
   }
-  mtr_report(" - binaries are debug compiled");
-  $debug_compiled_binaries= 1;
+  elsif ($opt_debug_server)
+  {
+    mtr_error("Can't use --debug[-server], binary does not support it");
+  }
 }
 
 
@@ -2901,8 +2852,7 @@ sub vs_config_dirs ($$) {
 }
 
 
-sub check_ndbcluster_support ($) {
-  my $mysqld_variables= shift;
+sub check_ndbcluster_support {
 
   # Check if this is MySQL Cluster, ie. mysql version string ends
   # with -ndb-Y.Y.Y[-status]
@@ -3396,8 +3346,6 @@ sub initialize_servers {
     {
       remove_stale_vardir();
       setup_vardir();
-
-      mysql_install_db(default_mysqld(), "$opt_vardir/install.db");
     }
   }
 }
@@ -3490,10 +3438,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
   mtr_add_arg($args, "--default-storage-engine=myisam");
-  mtr_add_arg($args, "--loose-skip-innodb");
-  mtr_add_arg($args, "--loose-skip-pbxt");
-  mtr_add_arg($args, "--loose-skip-ndbcluster");
-  mtr_add_arg($args, "--loose-skip-aria");
+  mtr_add_arg($args, "--skip-$_") for @optional_plugins;
   mtr_add_arg($args, "--disable-sync-frm");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
   mtr_add_arg($args, "--core-file");
@@ -3719,23 +3664,27 @@ sub do_before_run_mysqltest($)
 
   # Remove old files produced by mysqltest
   die "unsupported result file name $resfile, stoping" unless
-         $resfile =~ /^(.*)\.(rdiff|result)$/;
-  my $base_file= $1;
+         $resfile =~ /^(.*?)((?:,\w+)*)\.(rdiff|result)$/;
+  my ($base_file, $suites, $ext)= ($1, $2, $3);
   # if the result file is a diff, make a proper result file
-  if ($2 eq 'rdiff') {
+  if ($ext eq 'rdiff') {
+    my $base_result = $tinfo->{base_result};
     my $resdir= dirname($resfile);
     # we'll use a separate extension for generated result files
-    # to be able to distinguish them from manually created version
-    # controlled results, and to ignore them in bzr.
-    my $dest = "$base_file.result~";
+    # to be able to distinguish them from manually created
+    # version-controlled results, and to ignore them in bzr.
+    my $dest = "$base_file$suites.result~";
+    my @cmd = ($exe_patch, qw/--binary -r - -f -s -o/,
+               $dest, $base_result, $resfile);
     if (-w $resdir) {
       # don't rebuild a file if it's up to date
-      unless (-e $dest and -M $dest < -M $resfile) {
-        run_system("$exe_patch -o $dest -i $resfile -r - -f -s -d $resdir");
+      unless (-e $dest and -M $dest < -M $resfile
+                       and -M $dest < -M $base_result) {
+        run_system(@cmd);
       }
     } else {
-      $dest = $opt_tmpdir . '/' . basename($dest);
-      run_system("$exe_patch -o $dest -i $resfile -r - -f -s -d $resdir");
+      $cmd[-3] = $dest = $opt_tmpdir . '/' . basename($dest);
+      run_system(@cmd);
     }
     $tinfo->{result_file} = $dest;
   }
@@ -4064,7 +4013,7 @@ sub mycnf_create {
   my ($config) = @_;
   my $res;
 
-  foreach my $group ($config->groups()) {
+  foreach my $group ($config->option_groups()) {
     $res .= "[$group->{name}]\n";
 
     foreach my $option ($group->options()) {
@@ -4176,6 +4125,7 @@ sub run_testcase ($$) {
   } else {
     delete($ENV{'TZ'});
   }
+  $ENV{MTR_SUITE_DIR} = $tinfo->{suite}->{dir};
   mtr_verbose("Setting timezone: $timezone");
 
   if ( ! using_extern() )
@@ -5228,10 +5178,9 @@ sub report_failure_and_restart ($) {
 }
 
 
-sub run_system($) {
-  my ($script)= @_;
-  mtr_verbose("Running '$script'");
-  my $ret= system($script) >> 8;
+sub run_system(@) {
+  mtr_verbose("Running '$_[0]'");
+  my $ret= system(@_) >> 8;
   return $ret;
 }
 
@@ -5285,19 +5234,6 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "--user=root");
   }
 
-  if ( $opt_valgrind_mysqld )
-  {
-    if ( $mysql_version_id < 50100 )
-    {
-      mtr_add_arg($args, "--skip-bdb");
-    }
-  }
-
-  mtr_add_arg($args, "--loose-skip-safemalloc");
-  mtr_add_arg($args, "%s--disable-sync-frm");
-  # Retry bind as this may fail on busy server
-  mtr_add_arg($args, "%s--port-open-timeout=10");
-
   # On some old linux kernels, aio on tmpfs is not supported
   # Remove this if/when Bug #58421 fixes this in the server
   if ($^O eq "linux" && $opt_mem)
@@ -5305,7 +5241,7 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "--loose-skip-innodb-use-native-aio");
   }
 
-  if (!using_extern() and $mysql_version_id >= 50106 && !$opt_user_args)
+  if (!using_extern() and !$opt_user_args)
   {
     # Turn on logging to file
     mtr_add_arg($args, "%s--log-output=file");
@@ -5907,6 +5843,14 @@ sub start_mysqltest ($) {
     mtr_init_args(\$args);
     valgrind_arguments($args, \$exe);
     mtr_add_arg($args, "%s", $_) for @args_saved;
+  }
+
+  my $suite = $tinfo->{suite};
+  if ($suite->{parent}) {
+    mtr_add_arg($args, "--overlay-dir=%s/", $suite->{dir});
+    mtr_add_arg($args, "--suite-dir=%s/", $suite->{parent}->{dir});
+  } else {
+    mtr_add_arg($args, "--suite-dir=%s/", $suite->{dir});
   }
 
   mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});

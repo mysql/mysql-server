@@ -1,0 +1,5 @@
+#
+# the test is present in the mtr suite and is not affected by the example
+# overlay. It should run only once.
+#
+select 1;

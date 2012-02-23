@@ -2,11 +2,17 @@
 ignore-builtin-innodb
 plugin-load=$HA_INNODB_SO
 innodb
+innodb-cmpmem
+innodb-trx
 
 [xtradb_plugin]
 ignore-builtin-innodb
 plugin-load=$HA_XTRADB_SO
 innodb
+innodb-cmpmem
+innodb-trx
 
 [xtradb]
 innodb
+innodb-cmpmem
+innodb-trx

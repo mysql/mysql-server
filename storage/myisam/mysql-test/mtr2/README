@@ -1,0 +1,2 @@
+These tests don't have anything to do with the engine itself,
+but they test how mysql-test handles overlays

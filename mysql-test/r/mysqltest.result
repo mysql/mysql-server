@@ -366,7 +366,7 @@ $dollar
 drop table t1;
 mysqltest: At line 1: query 'let $var2= `failing query`' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
-mysqltest: At line 1: Could not open './non_existingFile' for reading, errno: 2
+mysqltest: At line 1: Could not open 'non_existingFile' for reading, errno: 2
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": 
 included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
 included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:

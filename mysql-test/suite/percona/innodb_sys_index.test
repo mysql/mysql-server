@@ -1,5 +1,5 @@
 --source include/big_test.inc
---source include/have_innodb.inc
+--source include/have_xtradb.inc
 
 drop table if exists t1;
 #

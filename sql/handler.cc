@@ -155,7 +155,7 @@ redo:
   if ((plugin= my_plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
     handlerton *hton= plugin_data(plugin, handlerton *);
-    if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
+    if (hton && !(hton->flags & HTON_NOT_USER_SELECTABLE))
       return plugin;
       
     /*

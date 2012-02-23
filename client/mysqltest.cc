@@ -93,11 +93,7 @@ static my_bool get_one_option(int optid, const struct my_option *,
 C_MODE_END
 
 enum {
-  OPT_PS_PROTOCOL=OPT_MAX_CLIENT_OPTION, OPT_SP_PROTOCOL,
-  OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL, OPT_MAX_CONNECT_RETRIES,
-  OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS, OPT_LOG_DIR,
-  OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION,
-  OPT_MY_CONNECT_TIMEOUT, OPT_NON_BLOCKING_API
+  OPT_LOG_DIR=OPT_MAX_CLIENT_OPTION, OPT_RESULT_FORMAT_VERSION
 };
 
 static int record= 0, opt_sleep= -1;
@@ -105,7 +101,7 @@ static char *opt_db= 0, *opt_pass= 0;
 const char *opt_user= 0, *opt_host= 0, *unix_sock= 0, *opt_basedir= "./";
 static char *shared_memory_base_name=0;
 const char *opt_logdir= "";
-const char *opt_include= 0, *opt_charsets_dir;
+const char *opt_prologue= 0, *opt_charsets_dir;
 static int opt_port= 0;
 static int opt_max_connect_retries;
 static int opt_result_format_version;
@@ -216,7 +212,6 @@ static struct st_test_file file_stack[16];
 static struct st_test_file* cur_file;
 static struct st_test_file* file_stack_end;
 
-
 static CHARSET_INFO *charset_info= &my_charset_latin1; /* Default charset */
 
 static const char *embedded_server_groups[]=
@@ -242,7 +237,9 @@ static ulonglong timer_now(void);
 
 static ulong connection_retry_sleep= 100000; /* Microseconds */
 
-static char *opt_plugin_dir= 0;
+static const char *opt_plugin_dir;
+static const char *opt_suite_dir, *opt_overlay_dir;
+static size_t suite_dir_len, overlay_dir_len;
 
 /* Precompiled re's */
 static my_regex_t ps_re;     /* the query can be run using PS protocol */
@@ -2866,40 +2863,128 @@ void eval_expr(VAR *v, const char *p, const char **p_end,
 }
 
 
-int open_file(const char *name)
+bool open_and_set_current(const char *name)
+{
+  FILE *opened= fopen(name, "rb");
+
+  if (!opened)
+    return false;
+
+  cur_file++;
+  cur_file->file= opened;
+  cur_file->file_name= my_strdup(name, MYF(MY_FAE));
+  cur_file->lineno=1;
+  return true;
+}
+
+
+void open_file(const char *name)
 {
   char buff[FN_REFLEN];
   size_t length;
+  const char *curname= cur_file->file_name;
   DBUG_ENTER("open_file");
   DBUG_PRINT("enter", ("name: %s", name));
 
-  /* Extract path from current file and try it as base first */
-  if (dirname_part(buff, cur_file->file_name, &length))
-  {
-    strxmov(buff, buff, name, NullS);
-    if (access(buff, F_OK) == 0){
-      DBUG_PRINT("info", ("The file exists"));
-      name= buff;
-    }
-  }
-  if (!test_if_hard_path(name))
-  {
-    strxmov(buff, opt_basedir, name, NullS);
-    name=buff;
-  }
-  fn_format(buff, name, "", "", MY_UNPACK_FILENAME);
-
   if (cur_file == file_stack_end)
     die("Source directives are nesting too deep");
-  cur_file++;
-  if (!(cur_file->file = fopen(buff, "rb")))
+
+  if (test_if_hard_path(name))
   {
-    cur_file--;
-    die("Could not open '%s' for reading, errno: %d", buff, errno);
+    if (open_and_set_current(name))
+      DBUG_VOID_RETURN;
   }
-  cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
-  cur_file->lineno=1;
-  DBUG_RETURN(0);
+  else
+  {
+    /*
+      if overlay-dir is specified, and the file is located somewhere
+      under overlay-dir or under suite-dir, the search works as follows:
+
+      0.let suffix be current file dirname relative to siute-dir or overlay-dir
+      1.try in overlay-dir/suffix
+      2.try in suite-dir/suffix
+      3.try in overlay-dir
+      4.try in suite-dir
+      5.try in basedir
+
+        consider an example: 'rty' overlay of the 'qwe' suite,
+        file qwe/include/some.inc contains the line
+          --source thing.inc
+        we look for it in this order:
+        0.suffix is "include/"
+        1.try in rty/include/thing.inc
+        2.try in qwe/include/thing.inc
+        3.try in try/thing.inc             | this is useful when t/a.test has
+        4.try in qwe/thing.inc             | source include/b.inc;
+        5.try in mysql-test/include/thing.inc
+
+      otherwise the search is as follows
+      1.try in current file dirname
+      3.try in overlay-dir (if any)
+      4.try in suite-dir
+      5.try in basedir
+    */
+
+    bool in_overlay= opt_overlay_dir &&
+                     !strncmp(curname, opt_overlay_dir, overlay_dir_len);
+    bool in_suiteir= opt_overlay_dir && !in_overlay &&
+                     !strncmp(curname, opt_suite_dir, suite_dir_len);
+    if (in_overlay || in_suiteir)
+    {
+      size_t prefix_len = in_overlay ? overlay_dir_len : suite_dir_len;
+      char buf2[FN_REFLEN], *suffix= buf2 + prefix_len;
+      dirname_part(buf2, curname, &length);
+
+      /* 1. first we look in the overlay dir */
+      strxnmov(buff, sizeof(buff), opt_overlay_dir, suffix, name, NullS);
+
+      /*
+        Overlayed rty/include/thing.inc can contain the line
+        --source thing.inc
+        which would mean to include qwe/include/thing.inc.
+        But it looks like including "itself", so don't try to open the file,
+        if buff contains the same file name as curname.
+      */
+      if (strcmp(buff, curname) && open_and_set_current(buff))
+        DBUG_VOID_RETURN;
+
+      /* 2. if that failed, we look in the suite dir */
+      strxnmov(buff, sizeof(buff), opt_suite_dir, suffix, name, NullS);
+
+      /* buff can not be equal to curname, as a file can never include itself */
+      if (open_and_set_current(buff))
+        DBUG_VOID_RETURN;
+    }
+    else
+    {
+      /* 1. try in current file dirname */
+      dirname_part(buff, curname, &length);
+      strxnmov(buff, sizeof(buff), buff, name, NullS);
+      if (open_and_set_current(buff))
+        DBUG_VOID_RETURN;
+    }
+
+    /* 3. now, look in the overlay dir */
+    if (opt_overlay_dir)
+    {
+      strxmov(buff, opt_overlay_dir, name, NullS);
+      if (open_and_set_current(buff))
+        DBUG_VOID_RETURN;
+    }
+
+    /* 4. if that failed - look in the suite dir */
+    strxmov(buff, opt_suite_dir, name, NullS);
+    if (open_and_set_current(buff))
+      DBUG_VOID_RETURN;
+    
+    /* 5. the last resort - look in the base dir */
+    strxnmov(buff, sizeof(buff), opt_basedir, name, NullS);
+    if (open_and_set_current(buff))
+      DBUG_VOID_RETURN;
+  }
+
+  die("Could not open '%s' for reading, errno: %d", name, errno);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -6584,13 +6669,13 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"basedir", 'b', "Basedir for tests.", &opt_basedir,
    &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"character-sets-dir", OPT_CHARSETS_DIR,
+  {"character-sets-dir", 0,
    "Directory for character set files.", &opt_charsets_dir,
    &opt_charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use the compressed server/client protocol.",
    &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"cursor-protocol", OPT_CURSOR_PROTOCOL, "Use cursors for prepared statements.",
+  {"cursor-protocol", 0, "Use cursors for prepared statements.",
    &cursor_protocol, &cursor_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use.", &opt_db, &opt_db, 0,
@@ -6602,27 +6687,27 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
+  {"debug-check", 0, "Check memory and open file usage at exit.",
    &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
+  {"debug-info", 0, "Print some debug info at exit.",
    &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", &opt_host, &opt_host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"include", 'i', "Include SQL before each test case.", &opt_include,
-   &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"prologue", 0, "Include SQL before each test case.", &opt_prologue,
+   &opt_prologue, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"logdir", OPT_LOG_DIR, "Directory for log files", &opt_logdir,
    &opt_logdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"mark-progress", OPT_MARK_PROGRESS,
+  {"mark-progress", 0,
    "Write line number and elapsed time to <testname>.progress.",
    &opt_mark_progress, &opt_mark_progress, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"max-connect-retries", OPT_MAX_CONNECT_RETRIES,
+  {"max-connect-retries", 0,
    "Maximum number of attempts to connect to server.",
    &opt_max_connect_retries, &opt_max_connect_retries, 0,
    GET_INT, REQUIRED_ARG, 500, 1, 10000, 0, 0, 0},
-  {"max-connections", OPT_MAX_CONNECTIONS,
+  {"max-connections", 0,
    "Max number of open connections to server",
    &opt_max_connections, &opt_max_connections, 0,
    GET_INT, REQUIRED_ARG, DEFAULT_MAX_CONN, 8, 5120, 0, 0, 0},
@@ -6637,11 +6722,11 @@ static struct my_option my_long_options[] =
 #endif
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
    &opt_port, &opt_port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"ps-protocol", OPT_PS_PROTOCOL, 
+  {"ps-protocol", 0, 
    "Use prepared-statement protocol for communication.",
    &ps_protocol, &ps_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"non-blocking-api", OPT_NON_BLOCKING_API,
+  {"non-blocking-api", 0,
    "Use the non-blocking client API for communication.",
    &non_blocking_api_enabled, &non_blocking_api_enabled, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -6661,7 +6746,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-file", 'F', "Read embedded server arguments from file.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
+  {"shared-memory-base-name", 0,
    "Base name of shared memory.", &shared_memory_base_name, 
    &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 
    0, 0, 0},
@@ -6673,11 +6758,11 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &unix_sock, &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
-  {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select.",
+  {"sp-protocol", 0, "Use stored procedures for select.",
    &sp_protocol, &sp_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
-  {"tail-lines", OPT_TAIL_LINES,
+  {"tail-lines", 0,
    "Number of lines of the result to include in a failure report.",
    &opt_tail_lines, &opt_tail_lines, 0,
    GET_INT, REQUIRED_ARG, 0, 0, 10000, 0, 0, 0},
@@ -6693,16 +6778,20 @@ static struct my_option my_long_options[] =
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
+  {"view-protocol", 0, "Use views for select.",
    &view_protocol, &view_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"connect_timeout", OPT_CONNECT_TIMEOUT,
+  {"connect_timeout", 0,
    "Number of seconds before connection timeout.",
    &opt_connect_timeout, &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
    120, 0, 3600 * 12, 0, 0, 0},
-  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+  {"plugin_dir", 0, "Directory for client-side plugins.",
     &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"overlay-dir", 0, "Overlay directory.", &opt_overlay_dir,
+    &opt_overlay_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"suite-dir", 0, "Suite directory.", &opt_suite_dir,
+    &opt_suite_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -6907,6 +6996,11 @@ int parse_args(int argc, char **argv)
     global_subst_from[comma-global_subst]= 0;
     memcpy(global_subst_to, comma+1, strlen(comma));
   }
+
+  if (!opt_suite_dir)
+    opt_suite_dir= "./";
+  suite_dir_len= strlen(opt_suite_dir);
+  overlay_dir_len= opt_overlay_dir ? strlen(opt_overlay_dir) : 0;
 
   if (!record)
   {
@@ -8738,9 +8832,9 @@ int main(int argc, char **argv)
 
   set_current_connection(con);
 
-  if (opt_include)
+  if (opt_prologue)
   {
-    open_file(opt_include);
+    open_file(opt_prologue);
   }
 
   verbose_msg("Start processing test commands from '%s' ...", cur_file->file_name);

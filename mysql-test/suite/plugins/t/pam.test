@@ -5,10 +5,6 @@ if (!$AUTH_PAM_SO) {
   skip No pam auth plugin;
 }
 
-if (!$PAM_SETUP_FOR_MTR) {
-  skip No pam setup for mtr;
-}
-
 eval install plugin pam soname '$AUTH_PAM_SO';
 create user test_pam identified via pam using 'mariadb_mtr';
 create user pam_test;

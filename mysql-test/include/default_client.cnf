@@ -4,7 +4,7 @@
 #
 
 [client]
-plugin-dir=@OPT.plugindir
+plugin-dir=@mysqld.1.plugin-dir
 
 [mysql]
 default-character-set=latin1
