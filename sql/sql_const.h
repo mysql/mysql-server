@@ -57,6 +57,10 @@
 #define MAX_DATETIME_WIDTH	19	/* YYYY-MM-DD HH:MM:SS */
 #define MAX_DATETIME_COMPRESSED_WIDTH 14  /* YYYYMMDDHHMMSS */
 
+#define DATE_INT_DIGITS       8         /* YYYYMMDD       */
+#define TIME_INT_DIGITS       7         /* hhhmmss        */
+#define DATETIME_INT_DIGITS  14         /* YYYYMMDDhhmmss */
+
 #define MAX_TABLES	(sizeof(table_map)*8-3)	/* Max tables in join */
 #define PARAM_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-3))
 #define OUTER_REF_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-2))
