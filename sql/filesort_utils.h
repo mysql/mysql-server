@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 #include <utility>
 
+class Sort_param;
 /*
   Calculate cost of merge sort
 
@@ -65,6 +66,9 @@ public:
     m_idx_array(), m_record_length(0), m_start_of_data(NULL)
   {}
 
+  /** Sort me... */
+  void sort_buffer(const Sort_param *param, uint count);
+
   /// Initializes a record pointer.
   uchar *get_record_buffer(uint idx)
   {
@@ -89,7 +93,7 @@ public:
   uchar **alloc_sort_buffer(uint num_records, uint record_length);
 
   /// What is the <num_records, record_length> for the buffer?
-  std::pair<uint, uint> sort_buffer_properties()
+  std::pair<uint, uint> sort_buffer_properties() const
   { return std::make_pair(m_idx_array.size(), m_record_length); }
 
   /// Frees the buffer.

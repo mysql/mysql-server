@@ -37,6 +37,7 @@
 #include "probes_mysql.h"
 #include <mysql/psi/mysql_table.h>
 #include "debug_sync.h"         // DEBUG_SYNC
+#include <my_bit.h>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -5273,10 +5274,41 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       min_endp= range.start_key.length? &range.start_key : NULL;
       max_endp= range.end_key.length? &range.end_key : NULL;
     }
-    if ((range.range_flag & UNIQUE_RANGE) && !(range.range_flag & NULL_RANGE))
+    /*
+      Get the number of rows in the range. This is done by calling
+      records_in_range() unless:
+
+        1) The range is an equality range and the index is unique.
+           There cannot be more than one matching row, so 1 is
+           assumed. Note that it is possible that the correct number
+           is actually 0, so the row estimate may be too high in this
+           case. Also note: ranges of the form "x IS NULL" may have more
+           than 1 mathing row so records_in_range() is called for these.
+        2) a) The range is an equality range but the index is either 
+              not unique or all of the keyparts are not used. 
+           b) The user has requested that index statistics should be used
+              for equality ranges to avoid the incurred overhead of 
+              index dives in records_in_range().
+           c) Index statistics is available.
+           Ranges of the form "x IS NULL" will not use index statistics 
+           because the number of rows with this value are likely to be 
+           very different than the values in the index statistics.
+    */
+    int keyparts_used= 0;
+    if ((range.range_flag & UNIQUE_RANGE) &&                        // 1)
+        !(range.range_flag & NULL_RANGE))
       rows= 1; /* there can be at most one row */
+    else if ((range.range_flag & EQ_RANGE) &&                       // 2a)
+             (range.range_flag & USE_INDEX_STATISTICS) &&           // 2b)
+             (keyparts_used= my_count_bits(range.start_key.keypart_map)) &&
+             table->key_info[keyno].rec_per_key[keyparts_used-1] && // 2c)
+             !(range.range_flag & NULL_RANGE))
+      rows= table->key_info[keyno].rec_per_key[keyparts_used-1];
     else
     {
+      DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
+      // Fails - reintroduce when fixed
+      // DBUG_ASSERT(min_endp || max_endp);
       if (HA_POS_ERROR == (rows= this->records_in_range(keyno, min_endp, 
                                                         max_endp)))
       {

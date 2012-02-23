@@ -174,14 +174,6 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                         "transformation": {
                           "select#": 4,
                           "from": "IN (SELECT)",
-                          "to": "materialization",
-                          "chosen": false
-                        } /* transformation */
-                      },
-                      {
-                        "transformation": {
-                          "select#": 4,
-                          "from": "IN (SELECT)",
                           "to": "EXISTS (CORRELATED SELECT)",
                           "chosen": true,
                           "evaluating_constant_where_conditions": [
@@ -199,14 +191,6 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
                     "chosen": false
                   } /* transformation */
                 },
@@ -284,7 +268,8 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                 "table": "where_subselect_19379",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": true
               }
             ] /* rows_estimation */
           }
@@ -378,14 +363,6 @@ FROM t1
                     "to": "semijoin",
                     "chosen": false
                   } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
-                    "chosen": false
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -449,7 +426,8 @@ FROM t1
                 "table": "where_subselect_19033",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -510,7 +488,8 @@ FROM t1
                             "table": "t1",
                             "rows": 1,
                             "cost": 1,
-                            "table_type": "system"
+                            "table_type": "system",
+                            "empty": false
                           }
                         ] /* rows_estimation */
                       },
@@ -561,7 +540,8 @@ FROM t1
                                         "table": "t2",
                                         "rows": 1,
                                         "cost": 1,
-                                        "table_type": "system"
+                                        "table_type": "system",
+                                        "empty": false
                                       }
                                     ] /* rows_estimation */
                                   },
@@ -596,6 +576,10 @@ FROM t1
                 }
               ] /* steps */
             } /* subselect_execution */
+          },
+          {
+            "condition_on_constant_tables": "<in_optimizer>('7',<exists>(/* select#2 */ select 1 from dual where (<cache>('7') = (/* select#3 */ select '7' from dual))))",
+            "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {
@@ -806,14 +790,6 @@ ON table2 .col_int_key = table1 .col_int_key
                     "select#": 3,
                     "from": "IN (SELECT)",
                     "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 3,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
                     "chosen": false
                   } /* transformation */
                 }
@@ -1659,6 +1635,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                 "range_scan_alternatives": [
                                   {
                                     "index": "a",
+                                    "index_dives_for_eq_ranges": true,
                                     "ranges": [
                                       "1 <= a <= 1"
                                     ] /* ranges */,
@@ -1671,6 +1648,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                   },
                                   {
                                     "index": "a_2",
+                                    "index_dives_for_eq_ranges": true,
                                     "ranges": [
                                       "1 <= a <= 1"
                                     ] /* ranges */,
@@ -1759,14 +1737,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                             "table": "t1"
                           }
                         ] /* refine_plan */
-                      }
-                    ] /* steps */
-                  } /* join_optimization */
-                },
-                {
-                  "join_execution": {
-                    "select#": 2,
-                    "steps": [
+                      },
                       {
                         "reconsidering_access_paths_for_index_ordering": {
                           "index_order_summary": {
@@ -1779,6 +1750,13 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                           } /* index_order_summary */
                         } /* reconsidering_access_paths_for_index_ordering */
                       }
+                    ] /* steps */
+                  } /* join_optimization */
+                },
+                {
+                  "join_execution": {
+                    "select#": 2,
+                    "steps": [
                     ] /* steps */
                   } /* join_execution */
                 }

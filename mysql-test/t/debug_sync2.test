@@ -1,0 +1,25 @@
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # Bug#13688248 CRASH IN DIAGNOSTICS_AREA::SET_OK_STATUS WHEN USING DEBUG_SYNC
+--echo #
+
+SET SESSION DEBUG_SYNC= 'RESET';
+
+CREATE TABLE t1 (pk INT, PRIMARY KEY(pk));
+
+connect (con1,localhost,root,,);
+connection con1;
+SET SESSION sql_mode=TRADITIONAL;
+SET SESSION autocommit=1;
+
+INSERT INTO t1 VALUES(1);
+
+connection con1;
+SET SESSION debug_sync='write_row_replace SIGNAL go_ahead1 WAIT_FOR comes_never ';
+--send
+REPLACE INTO t1 ( pk ) VALUES ( 1 );
+--reap;
+
+DROP TABLE t1;

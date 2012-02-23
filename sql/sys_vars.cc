@@ -1213,6 +1213,7 @@ static Sys_var_charptr Sys_ft_stopword_file(
 
 static Sys_var_mybool Sys_ignore_builtin_innodb(
        "ignore_builtin_innodb",
+       "IGNORED. This option will be removed in future releases. "
        "Disable initialization of builtin InnoDB plugin",
        READ_ONLY GLOBAL_VAR(opt_ignore_builtin_innodb),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
@@ -2041,14 +2042,15 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   }
 
   /*
-    Perform a 'FLUSH TABLES WITH READ LOCK'.
-    This is a 3 step process:
-    - [1] lock_global_read_lock()
-    - [2] close_cached_tables()
-    - [3] make_global_read_lock_block_commit()
-    [1] prevents new connections from obtaining tables locked for write.
-    [2] waits until all existing connections close their tables.
-    [3] prevents transactions from being committed.
+    READ_ONLY=1 prevents write locks from being taken on tables and
+    blocks transactions from committing. We therefore should make sure
+    that no such events occur while setting the read_only variable.
+    This is a 2 step process:
+    [1] lock_global_read_lock()
+      Prevents connections from obtaining new write locks on
+      tables. Note that we can still have active rw transactions.
+    [2] make_global_read_lock_block_commit()
+      Prevents transactions from committing.
   */
 
   read_only= opt_readonly;
@@ -2056,19 +2058,6 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
 
   if (thd->global_read_lock.lock_global_read_lock(thd))
     goto end_with_mutex_unlock;
-
-  /*
-    This call will be blocked by any connection holding a READ or WRITE lock.
-    Ideally, we want to wait only for pending WRITE locks, but since:
-    con 1> LOCK TABLE T FOR READ;
-    con 2> LOCK TABLE T FOR WRITE; (blocked by con 1)
-    con 3> SET GLOBAL READ ONLY=1; (blocked by con 2)
-    can cause to wait on a read lock, it's required for the client application
-    to unlock everything, and acceptable for the server to wait on all locks.
-  */
-  if ((result= close_cached_tables(thd, NULL, TRUE,
-                                   thd->variables.lock_wait_timeout)))
-    goto end_with_read_lock;
 
   if ((result= thd->global_read_lock.make_global_read_lock_block_commit(thd)))
     goto end_with_read_lock;
@@ -2117,6 +2106,14 @@ static Sys_var_ulong Sys_div_precincrement(
        "operator will be increased on that value",
        SESSION_VAR(div_precincrement), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, DECIMAL_MAX_SCALE), DEFAULT(4), BLOCK_SIZE(1));
+
+static Sys_var_uint Sys_eq_range_index_dive_limit(
+       "eq_range_index_dive_limit",
+       "The optimizer will use existing index statistics instead of "
+       "doing index dives for equality ranges if the number of equality "
+       "ranges for the index is larger than or equal to this number.",
+       SESSION_VAR(eq_range_index_dive_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, UINT_MAX32), DEFAULT(10), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_range_alloc_block_size(
        "range_alloc_block_size",
@@ -2334,18 +2331,31 @@ static Sys_var_mybool Sys_query_cache_wlock_invalidate(
        DEFAULT(FALSE));
 #endif /* HAVE_QUERY_CACHE */
 
+static bool
+on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
+{
+  if (!var->save_result.ulonglong_value)
+  {
+    WARN_DEPRECATED(thd, "pre-4.1 password hash", "post-4.1 password hash");
+  }
+  return false;
+}
+
 static Sys_var_mybool Sys_secure_auth(
        "secure_auth",
        "Disallow authentication for accounts that have old (pre-4.1) "
        "passwords",
        GLOBAL_VAR(opt_secure_auth), CMD_LINE(OPT_ARG),
-       DEFAULT(FALSE));
+       DEFAULT(TRUE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(on_check_opt_secure_auth)
+       );
 
 static Sys_var_charptr Sys_secure_file_priv(
        "secure_file_priv",
        "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files "
        "within specified directory",
-       PREALLOCATED READ_ONLY GLOBAL_VAR(opt_secure_file_priv),
+       READ_ONLY GLOBAL_VAR(opt_secure_file_priv),
        CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(0));
 
 static bool fix_server_id(sys_var *self, THD *thd, enum_var_type type)
@@ -3351,7 +3361,7 @@ static bool fix_general_log_file(sys_var *self, THD *thd, enum_var_type type)
 }
 static Sys_var_charptr Sys_general_log_path(
        "general_log_file", "Log connections and queries to given file",
-       PREALLOCATED GLOBAL_VAR(opt_logname), CMD_LINE(REQUIRED_ARG),
+       GLOBAL_VAR(opt_logname), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_log_path), ON_UPDATE(fix_general_log_file));
 
@@ -3369,7 +3379,7 @@ static Sys_var_charptr Sys_slow_log_path(
        "slow_query_log_file", "Log slow queries to given log file. "
        "Defaults logging to hostname-slow.log. Must be enabled to activate "
        "other slow log options",
-       PREALLOCATED GLOBAL_VAR(opt_slow_logname), CMD_LINE(REQUIRED_ARG),
+       GLOBAL_VAR(opt_slow_logname), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_log_path), ON_UPDATE(fix_slow_log_file));
 

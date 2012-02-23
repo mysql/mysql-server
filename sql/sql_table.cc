@@ -2770,7 +2770,6 @@ void calculate_interval_lengths(const CHARSET_INFO *cs, TYPELIB *interval,
     prepare_create_field()
     sql_field     field to prepare for packing
     blob_columns  count for BLOBs
-    timestamps    count for timestamps
     table_flags   table flags
 
   DESCRIPTION
@@ -2784,7 +2783,6 @@ void calculate_interval_lengths(const CHARSET_INFO *cs, TYPELIB *interval,
 
 int prepare_create_field(Create_field *sql_field, 
 			 uint *blob_columns, 
-			 int *timestamps, int *timestamps_with_niladic,
 			 longlong table_flags)
 {
   unsigned int dup_val_count;
@@ -2909,21 +2907,6 @@ int prepare_create_field(Create_field *sql_field,
     break;
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_TIMESTAMP2:
-    /* We should replace old TIMESTAMP fields with their newer analogs */
-    if (sql_field->unireg_check == Field::TIMESTAMP_OLD_FIELD)
-    {
-      if (!*timestamps)
-      {
-        sql_field->unireg_check= Field::TIMESTAMP_DNUN_FIELD;
-        (*timestamps_with_niladic)++;
-      }
-      else
-        sql_field->unireg_check= Field::NONE;
-    }
-    else if (sql_field->unireg_check != Field::NONE)
-      (*timestamps_with_niladic)++;
-
-    (*timestamps)++;
     /* fall-through */
   default:
     sql_field->pack_flag=(FIELDFLAG_NUMBER |
@@ -2975,6 +2958,41 @@ const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
 }
 
 
+/**
+   Modifies the first column definition whose SQL type is TIMESTAMP
+   by adding the features DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP.
+
+   @param column_definitions The list of column definitions, in the physical
+                             order in which they appear in the table.
+ */
+void promote_first_timestamp_column(List<Create_field> *column_definitions)
+{
+  List_iterator<Create_field> it(*column_definitions);
+  Create_field *column_definition;
+
+  while ((column_definition= it++) != NULL)
+  {
+    if (column_definition->sql_type == MYSQL_TYPE_TIMESTAMP ||      // TIMESTAMP
+        column_definition->sql_type == MYSQL_TYPE_TIMESTAMP2 || //  ms TIMESTAMP
+        column_definition->unireg_check == Field::TIMESTAMP_OLD_FIELD) // Legacy
+    {
+      if ((column_definition->flags & NOT_NULL_FLAG) != 0 && // NOT NULL,
+          column_definition->def == NULL &&            // no constant default,
+          column_definition->unireg_check == Field::NONE) // no function default
+      {
+        DBUG_PRINT("info", ("First TIMESTAMP column '%s' was promoted to "
+                            "DEFAULT CURRENT_TIMESTAMP ON UPDATE "
+                            "CURRENT_TIMESTAMP",
+                            column_definition->field_name
+                            ));
+        column_definition->unireg_check= Field::TIMESTAMP_DNUN_FIELD;
+      }
+      return;
+    }
+  }
+}
+
+
 /*
   Preparation for table creation
 
@@ -3015,7 +3033,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   ulong		record_offset= 0;
   KEY		*key_info;
   KEY_PART_INFO *key_part_info;
-  int		timestamps= 0, timestamps_with_niladic= 0;
   int		field_no,dup_no;
   int		select_field_pos,auto_increment=0;
   List_iterator<Create_field> it(alter_info->create_list);
@@ -3297,7 +3314,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_ASSERT(sql_field->charset != 0);
 
     if (prepare_create_field(sql_field, &blob_columns, 
-			     &timestamps, &timestamps_with_niladic,
 			     file->ha_table_flags()))
       DBUG_RETURN(TRUE);
     if (sql_field->sql_type == MYSQL_TYPE_VARCHAR)
@@ -3306,12 +3322,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
     record_offset+= sql_field->pack_length;
-  }
-  if (timestamps_with_niladic > 1)
-  {
-    my_message(ER_TOO_MUCH_AUTO_TIMESTAMP_COLS,
-               ER(ER_TOO_MUCH_AUTO_TIMESTAMP_COLS), MYF(0));
-    DBUG_RETURN(TRUE);
   }
   if (auto_increment > 1)
   {
@@ -3332,6 +3342,15 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                MYF(0));
     DBUG_RETURN(TRUE);
   }
+
+  /*
+   CREATE TABLE[with auto_increment column] SELECT is unsafe as the rows
+   inserted in the created table depends on the order of the rows fetched
+   from the select tables. This order may differ on master and slave. We
+   therefore mark it as unsafe.
+  */
+  if (select_field_count > 0 && auto_increment)
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_SELECT_AUTOINC);
 
   /* Create keys */
 
@@ -3885,7 +3904,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 
     if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
         !sql_field->def &&
-        real_type_with_now_as_default(sql_field->sql_type) &&
+        is_timestamp_type(sql_field->sql_type) &&
         (sql_field->flags & NOT_NULL_FLAG) &&
         (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
     {
@@ -4440,7 +4459,6 @@ bool mysql_create_table_no_lock(THD *thd,
 
   THD_STAGE_INFO(thd, stage_creating_table);
 
-#ifdef HAVE_READLINK
   {
     size_t dirlen;
     char   dirpath[FN_REFLEN];
@@ -4487,8 +4505,7 @@ bool mysql_create_table_no_lock(THD *thd,
   }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
-  if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
-#endif /* HAVE_READLINK */
+  if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
   {
     if (create_info->data_file_name)
       push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
@@ -4620,6 +4637,8 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
 
   /* Got lock. */
   DEBUG_SYNC(thd, "locked_table_name");
+
+  promote_first_timestamp_column(&alter_info->create_list);
 
   result= mysql_create_table_no_lock(thd, create_table->db,
                                      create_table->table_name, create_info,
@@ -7292,8 +7311,26 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       else
       {
+        MDL_request_list mdl_requests;
+        MDL_request target_db_mdl_request;
+
         target_mdl_request.init(MDL_key::TABLE, new_db, new_name,
                                 MDL_EXCLUSIVE, MDL_TRANSACTION);
+        mdl_requests.push_front(&target_mdl_request);
+
+        /*
+          If we are moving the table to a different database, we also
+          need IX lock on the database name so that the target database
+          is protected by MDL while the table is moved.
+        */
+        if (new_db != db)
+        {
+          target_db_mdl_request.init(MDL_key::SCHEMA, new_db, "",
+                                     MDL_INTENTION_EXCLUSIVE,
+                                     MDL_TRANSACTION);
+          mdl_requests.push_front(&target_db_mdl_request);
+        }
+
         /*
           Global intention exclusive lock must have been already acquired when
           table to be altered was open, so there is no need to do it here.
@@ -7302,14 +7339,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                                    "", "",
                                                    MDL_INTENTION_EXCLUSIVE));
 
-        if (thd->mdl_context.try_acquire_lock(&target_mdl_request))
+        if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                           thd->variables.lock_wait_timeout))
           DBUG_RETURN(TRUE);
-        if (target_mdl_request.ticket == NULL)
-        {
-          /* Table exists and is locked by some thread. */
-	  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
-	  DBUG_RETURN(TRUE);
-        }
+
         DEBUG_SYNC(thd, "locked_table_name");
         /*
           Table maybe does not exist, but we got an exclusive lock
@@ -8076,6 +8109,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
   DBUG_EXECUTE_IF("sleep_before_create_table_no_lock",
                   my_sleep(100000););
+
+  promote_first_timestamp_column(&alter_info->create_list);
+
   /*
     Create a table with a temporary name.
     With create_info->frm_only == 1 this creates a .frm file only.
@@ -8134,8 +8170,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   */
   if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
   {
-    /* We don't want update TIMESTAMP fields during ALTER TABLE. */
-    new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
     THD_STAGE_INFO(thd, stage_copy_to_tmp_table);
     DBUG_EXECUTE_IF("abort_copy_table", {

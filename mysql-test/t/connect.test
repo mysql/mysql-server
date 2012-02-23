@@ -65,6 +65,7 @@ connect (fail_con,localhost,test,zorro,test2);
 connect (fail_con,localhost,test,zorro,);
 
 # check if old password version also works
+SET GLOBAL secure_auth = OFF;
 update mysql.user set password=old_password("gambling2") where user=_binary"test";
 flush privileges;
 
@@ -102,6 +103,7 @@ connect (fail_con,localhost,test,zorro,);
 # do not depend on this test.
 delete from mysql.user where user=_binary"test";
 flush privileges;
+SET GLOBAL secure_auth = DEFAULT;
 
 #
 # Bug#12517 Clear user variables and replication events before
@@ -296,6 +298,37 @@ SET GLOBAL event_scheduler = OFF;
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
+
+--echo #
+--echo # Bug #13586336 : SRVGEN - HIBISCUS: ISSUE DEPRECATION WARNING FOR
+--echo # LEGACY AUTHENTICATION METHOD
+--echo #
+
+--echo #Expect 1
+SELECT @@global.secure_auth;
+
+SET old_passwords=true;
+
+--echo #Expect deprecation warning
+CREATE USER old_pwd@localhost IDENTIFIED BY 'aha';
+
+--echo #Expect deprecation warning
+SET PASSWORD FOR old_pwd@localhost = OLD_PASSWORD('aha2');
+
+--echo #Expect deprecation warning
+GRANT SELECT on test.* TO old_gpwd@localhost 
+  IDENTIFIED BY 'aha3';
+
+--echo #Expected normal flush, no warnings  
+FLUSH PRIVILEGES;  
+
+DROP USER old_pwd@localhost, old_gpwd@localhost;  
+SET old_passwords=default;
+
+--echo # ------------------------------------------------------------------
+--echo # -- End of 5.6 tests
+--echo # ------------------------------------------------------------------
+
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

@@ -1,19 +1,21 @@
 SET @global_start_value = @@global.secure_auth;
 SELECT @global_start_value;
 @global_start_value
-0
+1
 '#--------------------FN_DYNVARS_143_01------------------------#'
-SET @@global.secure_auth = 1;
+SET @@global.secure_auth = 0;
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 SET @@global.secure_auth = DEFAULT;
 SELECT @@global.secure_auth;
 @@global.secure_auth
-0
+1
 '#---------------------FN_DYNVARS_143_02-------------------------#'
 SET secure_auth = 1;
 ERROR HY000: Variable 'secure_auth' is a GLOBAL variable and should be set with SET GLOBAL
 SELECT @@secure_auth;
 @@secure_auth
-0
+1
 SELECT global.secure_auth;
 ERROR 42S02: Unknown table 'global' in field list
 SET global secure_auth = 1;
@@ -22,6 +24,8 @@ SELECT @@global.secure_auth;
 1
 '#--------------------FN_DYNVARS_143_03------------------------#'
 SET @@global.secure_auth = 0;
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 SELECT @@global.secure_auth;
 @@global.secure_auth
 0
@@ -83,6 +87,8 @@ VARIABLE_VALUE
 ON
 '#---------------------FN_DYNVARS_143_08-------------------------#'
 SET @@global.secure_auth = OFF;
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 SELECT @@global.secure_auth;
 @@global.secure_auth
 0
@@ -96,10 +102,12 @@ SELECT @@global.secure_auth;
 @@global.secure_auth
 1
 SET @@global.secure_auth = FALSE;
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 SELECT @@global.secure_auth;
 @@global.secure_auth
 0
 SET @@global.secure_auth = @global_start_value;
 SELECT @@global.secure_auth;
 @@global.secure_auth
-0
+1

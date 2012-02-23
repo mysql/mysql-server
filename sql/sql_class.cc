@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,6 +57,8 @@
 #include "sql_parse.h"                          // is_update_query
 #include "sql_callback.h"
 #include "lock.h"
+#include "global_threads.h"
+#include "mysqld.h"
 
 #include <mysql/psi/mysql_statement.h>
 
@@ -1424,10 +1426,10 @@ THD::~THD()
 #ifndef EMBEDDED_LIBRARY
   if (rli_fake)
   {
+    rli_fake->end_info();
     delete rli_fake;
     rli_fake= NULL;
   }
-  
   mysql_audit_free_thd(this);
 #endif
 
@@ -2078,17 +2080,6 @@ void THD::close_active_vio()
 #endif
 
 
-struct Item_change_record: public ilink
-{
-  Item **place;
-  Item *old_value;
-  /* Placement new was hidden by `new' in ilink (TODO: check): */
-  static void *operator new(size_t size, void *mem) { return mem; }
-  static void operator delete(void *ptr, size_t size) {}
-  static void operator delete(void *ptr, void *mem) { /* never called */ }
-};
-
-
 /*
   Register an item tree tree transformation, performed by the query
   optimizer. We need a pointer to runtime_memroot because it may be !=
@@ -2185,10 +2176,12 @@ bool select_result::check_simple_select() const
 }
 
 
-static String default_line_term("\n",default_charset_info);
-static String default_escaped("\\",default_charset_info);
-static String default_field_term("\t",default_charset_info);
-static String default_xml_row_term("<row>", default_charset_info);
+static const String default_line_term("\n",default_charset_info);
+static const String default_escaped("\\",default_charset_info);
+static const String default_field_term("\t",default_charset_info);
+static const String default_xml_row_term("<row>", default_charset_info);
+static const String my_empty_string("",default_charset_info);
+
 
 sql_exchange::sql_exchange(char *name, bool flag,
                            enum enum_filetype filetype_arg)
@@ -2987,6 +2980,12 @@ bool select_exists_subselect::send_data(List<Item> &items)
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
+  /*
+    A subquery may be evaluated 1) by executing the JOIN 2) by optimized
+    functions (index_subquery, subquery materialization).
+    It's only in (1) that we get here when we find a row. In (2) "value" is
+    set elsewhere.
+  */
   it->value= 1;
   it->assigned(1);
   DBUG_RETURN(0);
@@ -4409,6 +4408,118 @@ void xid_cache_delete(XID_STATE *xid_state)
   mysql_mutex_lock(&LOCK_xid_cache);
   my_hash_delete(&xid_cache, (uchar *)xid_state);
   mysql_mutex_unlock(&LOCK_xid_cache);
+}
+
+
+/**
+   Allocates and initializes a MY_BITMAP bitmap, containing one bit per column
+   in the table. The table THD's MEM_ROOT is used to allocate memory.
+
+   @param      table   The table whose columns should be used as a template
+                       for the bitmap.
+   @param[out] bitmap  A pointer to the allocated bitmap.
+
+   @retval false Suceess.
+   @retval true Memory allocation error.
+*/
+static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap)
+{
+  DBUG_ENTER("allocate_column_bitmap");
+  const uint number_bits= table->s->fields;
+  MY_BITMAP *the_struct;
+  my_bitmap_map *the_bits;
+
+  DBUG_ASSERT(current_thd == table->in_use);
+  if (multi_alloc_root(table->in_use->mem_root,
+                       &the_struct, sizeof(MY_BITMAP),
+                       &the_bits, bitmap_buffer_size(number_bits),
+                       NULL) == NULL)
+    DBUG_RETURN(true);
+
+  if (bitmap_init(the_struct, the_bits, number_bits, FALSE) != 0)
+    DBUG_RETURN(true);
+
+  *bitmap= the_struct;
+
+  DBUG_RETURN(false);
+}
+
+
+bool COPY_INFO::get_function_default_columns(TABLE *table)
+{
+  DBUG_ENTER("COPY_INFO::get_function_default_columns");
+
+  if (m_function_default_columns != NULL)
+    DBUG_RETURN(false);
+
+  if (allocate_column_bitmap(table, &m_function_default_columns))
+    DBUG_RETURN(true);
+
+  if (!m_manage_defaults)
+    DBUG_RETURN(false); // leave bitmap full of zeroes
+
+  /* Find columns with function default on insert or update. */
+  for (uint i= 0; i < table->s->fields; ++i)
+  {
+    Field *f= table->field[i];
+    if ((m_optype == INSERT_OPERATION && f->has_insert_default_function()) ||
+        (m_optype == UPDATE_OPERATION && f->has_update_default_function()))
+      bitmap_set_bit(m_function_default_columns, f->field_index);
+  }
+
+  /*
+    Remove explicitly assigned columns from the bitmap. The assignment
+    target (lvalue) may not always be a column (Item_field), e.g. we could
+    be inserting into a view, whose column is actually a base table's column
+    converted with COLLATE: the lvalue would then be an
+    Item_func_set_collation.
+    If the lvalue is an expression tree, we clear all columns in it from the
+    bitmap.
+  */
+  List<Item> *all_changed_columns[2]=
+    { m_changed_columns, m_changed_columns2 };
+  for (uint i= 0; i < 2; i++)
+  {
+    if (all_changed_columns[i] != NULL)
+    {
+      List_iterator<Item> lvalue_it(*all_changed_columns[i]);
+      Item *lvalue_item;
+      while ((lvalue_item= lvalue_it++) != NULL)
+        lvalue_item->walk(&Item::remove_column_from_bitmap,
+                          true,
+                          reinterpret_cast<uchar*>(m_function_default_columns));
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
+
+void COPY_INFO::set_function_defaults(TABLE *table)
+{
+  DBUG_ENTER("COPY_INFO::set_function_defaults");
+
+  DBUG_ASSERT(m_function_default_columns != NULL);
+
+  /* Quick reject test for checking the case when no defaults are invoked. */
+  if (bitmap_is_clear_all(m_function_default_columns))
+    DBUG_VOID_RETURN;
+
+  for (uint i= 0; i < table->s->fields; ++i)
+    if (bitmap_is_set(m_function_default_columns, i))
+    {
+      DBUG_ASSERT(bitmap_is_set(table->write_set, i));
+      switch (m_optype)
+      {
+      case INSERT_OPERATION:
+        table->field[i]->evaluate_insert_default_function();
+        break;
+      case UPDATE_OPERATION:
+        table->field[i]->evaluate_update_default_function();
+        break;
+      }
+    }
+  DBUG_VOID_RETURN;
 }
 
 

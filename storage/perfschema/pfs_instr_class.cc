@@ -47,7 +47,13 @@
 */
 my_bool pfs_enabled= TRUE;
 
-DYNAMIC_ARRAY pfs_instr_init_array;
+/**
+  PFS_INSTRUMENT option settings array and associated state variable to
+  serialize access during shutdown.
+ */
+DYNAMIC_ARRAY pfs_instr_config_array;
+int pfs_instr_config_state= PFS_INSTR_CONFIG_NOT_INITIALIZED;
+
 static void configure_instr_class(PFS_instr_class *entry);
 
 static void init_instr_class(PFS_instr_class *klass,
@@ -619,10 +625,10 @@ static void configure_instr_class(PFS_instr_class *entry)
 {
   uint match_length= 0; /* length of matching pattern */
 
-  for (uint i= 0; i < pfs_instr_init_array.elements; i++)
+  for (uint i= 0; i < pfs_instr_config_array.elements; i++)
   {
-    PFS_instr_init* e;
-    get_dynamic(&pfs_instr_init_array, (uchar*)&e, i);
+    PFS_instr_config* e;
+    get_dynamic(&pfs_instr_config_array, (uchar*)&e, i);
 
     /**
       Compare class name to all configuration entries. In case of multiple

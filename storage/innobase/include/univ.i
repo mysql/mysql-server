@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -155,7 +155,7 @@ be excluded from instrumentation. */
 #endif /* HAVE_PSI_INTERFACE */
 
 #ifdef __WIN__
-# define YY_NO_UNISTD_H
+# define YY_NO_UNISTD_H 1
 #endif /* __WIN__ */
 
 /*			DEBUG VERSION CONTROL
@@ -454,6 +454,8 @@ typedef unsigned long long int	ullint;
 
 /** The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
+
+#define ULONG_UNDEFINED		((ulong)(-1))
 
 /** The 'undefined' value for a ib_uint64_t */
 #define UINT64_UNDEFINED	((ib_uint64_t)(-1))

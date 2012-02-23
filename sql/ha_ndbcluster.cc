@@ -4899,8 +4899,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   DBUG_ASSERT(trans);
 
   ha_statistic_increment(&SSV::ha_write_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->get_timestamp_field()->set_time();
 
   /*
      Setup OperationOptions
@@ -5589,11 +5587,6 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   }
 
   ha_statistic_increment(&SSV::ha_update_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-  {
-    table->get_timestamp_field()->set_time();
-    bitmap_set_bit(table->write_set, table->get_timestamp_field()->field_index);
-  }
 
   bool skip_partition_for_unique_index= FALSE;
   if (m_use_partition_pruning)

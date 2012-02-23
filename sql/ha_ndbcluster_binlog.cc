@@ -18,6 +18,7 @@
 #include "ha_ndbcluster_glue.h"
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_connection.h"
 #include "ndb_local_connection.h"
@@ -26,6 +27,7 @@
 #include "ndb_global_schema_lock.h"
 #include "ndb_global_schema_lock_guard.h"
 
+#include "global_threads.h"
 #include "rpl_injector.h"
 #include "rpl_filter.h"
 #if MYSQL_VERSION_ID > 50600

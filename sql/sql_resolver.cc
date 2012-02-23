@@ -47,8 +47,13 @@ setup_new_fields(THD *thd, List<Item> &fields,
 		 List<Item> &all_fields, ORDER *new_field);
 static int
 setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
-	    List<Item> &fields, List<Item> &all_fields, ORDER *order,
-	    bool *hidden_group_fields);
+            List<Item> &fields, List<Item> &all_fields, ORDER *order);
+static bool
+match_exprs_for_only_full_group_by(THD *thd, List<Item> &all_fields,
+                                   int hidden_group_exprs_count,
+                                   int hidden_order_exprs_count,
+                                   int select_exprs_count,
+                                   ORDER *group_exprs);
 
 
 /**
@@ -377,42 +382,136 @@ err:
 
 
 /**
-  @brief Check if subquery predicate's compared types allow materialization.
+  Check if the subquery predicate can be executed via materialization.
 
-  @param predicate subquery predicate
+  @param predicate IN subquery predicate
+  @param thd       THD
+  @param select_lex SELECT_LEX of the subquery
+  @param outer      Parent SELECT_LEX (outer to subquery)
 
-  @return TRUE if subquery types allow materialization, FALSE otherwise.
-
-  @details
-    This is a temporary fix for BUG#36752.
-    See bug report for description of restrictions we need to put on the
-    compared expressions.
+  @return TRUE if subquery allows materialization, FALSE otherwise.
 */
 
-static 
-bool subquery_types_allow_materialization(Item_in_subselect *predicate)
+static
+bool subquery_allows_materialization(Item_in_subselect *predicate,
+                                     THD *thd,
+                                     SELECT_LEX *select_lex,
+                                     const SELECT_LEX *outer)
 {
-  DBUG_ENTER("subquery_types_allow_materialization");
+  bool has_nullables= false;
+  const uint elements= predicate->unit->first_select()->item_list.elements;
+  DBUG_ENTER("subquery_allows_materialization");
+  DBUG_ASSERT(elements >= 1);
+  DBUG_ASSERT(predicate->left_expr->cols() == elements);
 
-  DBUG_ASSERT(predicate->left_expr->fixed);
-  DBUG_ASSERT(predicate->left_expr->cols() ==
-              predicate->unit->first_select()->item_list.elements);
+  OPT_TRACE_TRANSFORM(&thd->opt_trace, trace_wrapper, trace_mat,
+                      select_lex->select_number,
+                      "IN (SELECT)", "materialization");
 
-  List_iterator<Item> it(predicate->unit->first_select()->item_list);
-  uint elements= predicate->unit->first_select()->item_list.elements;
-  
-  for (uint i= 0; i < elements; i++)
+  const char *cause= NULL;
+  if (select_lex->is_part_of_union())
   {
-    Item *inner= it++;
-    if (!types_allow_materialization(predicate->left_expr->element_index(i),
-                                     inner))
-      DBUG_RETURN(FALSE);
-    if (inner->is_blob_field())
-      DBUG_RETURN(FALSE);
+    // Subquery must be a single query specification clause (not a UNION)
+    cause= "in UNION";
   }
+  else if (!select_lex->master_unit()->first_select()->leaf_tables)
+  {
+    // Subquery has no tables, hence no point in materializing.
+    cause= "no inner tables";
+  }
+  else if (!outer->join)
+  {
+    /*
+      Maybe this is a subquery of a single table UPDATE/DELETE (TODO:
+      handle this by switching to multi-table UPDATE/DELETE).
+    */
+    cause= "parent query has no JOIN";
+  }
+  else if (!outer->leaf_tables)
+  {
+    /*
+      The upper query is SELECT ... FROM DUAL. We can't do materialization for
+      SELECT .. FROM DUAL because it does not call
+      setup_subquery_materialization(). We could fix it but it's not worth it.
+    */
+    cause= "no tables in outer query";
+  }
+  else if (predicate->is_correlated)
+  {
+    /*
+      Subquery should not be correlated.
+      TODO:
+      This is an overly restrictive condition. It can be extended to:
+         (Subquery is non-correlated ||
+          Subquery is correlated to any query outer to IN predicate ||
+          (Subquery is correlated to the immediate outer query &&
+           Subquery !contains {GROUP BY, ORDER BY [LIMIT],
+           aggregate functions}) && subquery predicate is not under "NOT IN"))
+    */
+    cause= "correlated";
+  }
+  else if (predicate->exec_method !=
+           Item_exists_subselect::EXEC_UNSPECIFIED)
+  {
+    // An execution method was already chosen (by a prepared statement).
+    cause= "already have strategy";
+  }
+  else
+  {
+    /*
+      Check that involved expression types allow materialization.
+      This is a temporary fix for BUG#36752; see bug report for
+      description of restrictions we need to put on the compared expressions.
+    */
+    DBUG_ASSERT(predicate->left_expr->fixed);
+    List_iterator<Item> it(predicate->unit->first_select()->item_list);
 
-  DBUG_PRINT("info",("subquery_types_allow_materialization: ok, allowed"));
-  DBUG_RETURN(TRUE);
+    for (uint i= 0; i < elements; i++)
+    {
+      Item * const inner= it++;
+      Item * const outer= predicate->left_expr->element_index(i);
+      if (!types_allow_materialization(outer, inner))
+      {
+        cause= "type mismatch";
+        break;
+      }
+      if (inner->is_blob_field())                 // 6
+      {
+        cause= "inner blob";
+        break;
+      }
+      has_nullables|= outer->maybe_null | inner->maybe_null;
+    }
+
+    if (!cause)
+    {
+      trace_mat.add("has_nullable_expressions", has_nullables);
+      /*
+        Subquery materialization cannot handle NULLs partial matching
+        properly, yet. If the outer or inner values are NULL, the
+        subselect_hash_sj_engine may reply FALSE when it should reply UNKNOWN.
+        So, we must limit it to those three cases:
+        - when FALSE and UNKNOWN are equivalent answers. I.e. this is a a
+        top-level predicate (this implies it is not negated).
+        - when outer and inner values cannot be NULL.
+        - when there is a single inner column (because for this we have a
+        limited implementation of NULLs partial matching).
+      */
+      const bool is_top_level= predicate->is_top_level_item();
+      trace_mat.add("treat_UNKNOWN_as_FALSE", is_top_level);
+
+      if (!is_top_level && has_nullables && (elements > 1))
+        cause= "cannot_handle_partial_matches";
+      else
+      {
+        trace_mat.add("chosen", true);
+        DBUG_RETURN(TRUE);
+      }
+    }
+  }
+  DBUG_ASSERT(cause != NULL);
+  trace_mat.add("chosen", false).add_alnum("cause", cause);
+  DBUG_RETURN(false);
 }
 
 
@@ -437,13 +536,11 @@ bool subquery_types_allow_materialization(Item_in_subselect *predicate)
 
 */
 
-static
-bool resolve_subquery(THD *thd, JOIN *join)
+static bool resolve_subquery(THD *thd, JOIN *join)
 {
   DBUG_ENTER("resolve_subquery");
 
-  enum {SQ_NONE, SQ_SEMIJOIN, SQ_MATERIALIZATION} sq_choice= SQ_NONE;
-  bool types_problem= false; // if types prevented subq materialization
+  bool chose_semijoin= false;
   SELECT_LEX *const select_lex= join->select_lex;
   SELECT_LEX *const outer= select_lex->outer_select();
 
@@ -548,93 +645,37 @@ bool resolve_subquery(THD *thd, JOIN *join)
 
     /* Register the subquery for further processing in flatten_subqueries() */
     outer->join->sj_subselects.push_back(in_exists_predicate);
-    sq_choice= SQ_SEMIJOIN;
+    chose_semijoin= true;
   }
-  else
+
+  if (subq_predicate_substype == Item_subselect::IN_SUBS)
   {
-    DBUG_PRINT("info", ("Subquery can't be converted to semi-join"));
+    Opt_trace_context * const trace= &join->thd->opt_trace;
+    OPT_TRACE_TRANSFORM(trace, oto0, oto1,
+                        select_lex->select_number, "IN (SELECT)", "semijoin");
+    oto1.add("chosen", chose_semijoin);
+  }
+
+  if (!chose_semijoin &&
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION) &&
+      (subq_predicate_substype == Item_subselect::IN_SUBS))
+  {
     /*
       Check if the subquery predicate can be executed via materialization.
-      The required conditions are:
-      1. Subquery predicate is an IN/=ANY subquery predicate
-      2. Subquery is a single SELECT (not a UNION)
-      3. Subquery is not a table-less query. In this case there is no
-         point in materializing.
-        3A The upper query is not a confluent SELECT ... FROM DUAL. We
-           can't do materialization for SELECT .. FROM DUAL because it
-           does not call setup_subquery_materialization(). We could make 
-           SELECT ... FROM DUAL call that function but that doesn't seem
-           to be the case that is worth handling.
-      4. Subquery predicate is a top-level predicate
-         (this implies it is not negated)
-         TODO: this is a limitation that should be lifted once we
-         implement correct NULL semantics (WL#3830)
-      5. Subquery is non-correlated
-         TODO:
-         This is an overly restrictive condition. It can be extended to:
-         (Subquery is non-correlated ||
-          Subquery is correlated to any query outer to IN predicate ||
-          (Subquery is correlated to the immediate outer query &&
-           Subquery !contains {GROUP BY, ORDER BY [LIMIT],
-           aggregate functions}) && subquery predicate is not under "NOT IN"))
-      6. No execution method was already chosen (by a prepared statement).
-      7. Involved expression types allow materialization (temporary only)
-
-      (*) The subquery must be part of a SELECT or CREATE SELECT statement. We
-           should relax this and allow it in multi/single-table UPDATE/DELETE,
-           INSERT SELECT (after studying potential problems when the
-           inserts/updates/deletes are done to a table which is itself part of
-           the subquery).
 
       We have to determine whether we will perform subquery materialization
       before calling the IN=>EXISTS transformation, so that we know whether to
       perform the whole transformation or only that part of it which wraps
       Item_in_subselect in an Item_in_optimizer.
     */
-    Item_in_subselect *in_predicate= (Item_in_subselect *)subq_predicate;
-
-    if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION)  && 
-        subq_predicate_substype == Item_subselect::IN_SUBS &&        // 1
-        !select_lex->is_part_of_union() &&                              // 2
-        select_lex->master_unit()->first_select()->leaf_tables &&       // 3
-        (thd->lex->sql_command == SQLCOM_SELECT ||
-         thd->lex->sql_command == SQLCOM_CREATE_TABLE) &&               // *
-        outer->leaf_tables &&                                           // 3A
-        in_predicate->is_top_level_item() &&                            // 4
-        !in_predicate->is_correlated &&                                 // 5
-        in_predicate->exec_method ==
-        Item_exists_subselect::EXEC_UNSPECIFIED)        // 6
-    {
-      if (subquery_types_allow_materialization(in_predicate))             // 7
-      {
-        in_predicate->exec_method=
-          Item_exists_subselect::EXEC_MATERIALIZATION;
-        sq_choice= SQ_MATERIALIZATION;
-      }
-      else
-        types_problem= true;
-    }
+    Item_in_subselect *in_predicate= static_cast<Item_in_subselect *>
+      (subq_predicate);
+    if (subquery_allows_materialization(in_predicate, thd, select_lex, outer))
+      in_predicate->exec_method=
+        Item_exists_subselect::EXEC_MATERIALIZATION;
   }
 
-  Opt_trace_context * const trace= &join->thd->opt_trace;
-  if (subq_predicate_substype == Item_subselect::IN_SUBS)
-  {
-    {
-      OPT_TRACE_TRANSFORM(trace, oto, oto1, select_lex->select_number,
-                          "IN (SELECT)", "semijoin");
-      oto1.add("chosen", sq_choice == SQ_SEMIJOIN);
-    }
-    if (sq_choice != SQ_SEMIJOIN)
-    {
-      OPT_TRACE_TRANSFORM(trace, oto0, oto1, select_lex->select_number,
-                          "IN (SELECT)", "materialization");
-      oto1.add("chosen", sq_choice == SQ_MATERIALIZATION);
-      if (types_problem)
-        oto1.add_alnum("cause", "field_types");
-    }
-  }
-
-  if (sq_choice != SQ_SEMIJOIN &&
+  if (!chose_semijoin &&
       subq_predicate->select_transformer(join) == Item_subselect::RES_ERROR)
     DBUG_RETURN(TRUE);
 
@@ -874,7 +915,7 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
 /**
   Function to setup clauses without sum functions.
 */
-static inline int 
+static inline int
 setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
                     TABLE_LIST *tables,
                     TABLE_LIST *leaves,
@@ -901,11 +942,27 @@ setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
   thd->lex->current_select->set_non_agg_field_used(saved_non_agg_field_used);
 
   thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
+
+  int all_fields_count= all_fields.elements;
+
   res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
                           order);
+
+  const int hidden_order_fields_count= all_fields.elements - all_fields_count;
+  all_fields_count= all_fields.elements;
+
   thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
+
   res= res || setup_group(thd, ref_pointer_array, tables, fields, all_fields,
-                          group, hidden_group_fields);
+                          group);
+  const int hidden_group_fields_count= all_fields.elements - all_fields_count;
+  *hidden_group_fields= hidden_group_fields_count != 0;
+
+  res= res || match_exprs_for_only_full_group_by(thd, all_fields,
+                                                 hidden_group_fields_count,
+                                                 hidden_order_fields_count,
+                                                 fields.elements, group);
+
   thd->lex->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(res);
 }
@@ -1102,7 +1159,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
 /**
   Change order to point at item in select list.
 
-  If item isn't a number and doesn't exits in the select list, add it the
+  If item isn't a number and doesn't exists in the select list, add it to the
   the field list.
 */
 
@@ -1110,18 +1167,187 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List<Item> &all_fields, ORDER *order)
 {
   thd->where="order clause";
+  DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
+              SELECT_LEX::ALL_FIELDS_UNDEF_POS);
   for (; order; order=order->next)
   {
+    thd->lex->current_select->cur_pos_in_all_fields=
+      fields.elements - all_fields.elements - 1;
     if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
 			   all_fields, FALSE))
       return 1;
   }
+  thd->lex->current_select->cur_pos_in_all_fields=
+		SELECT_LEX::ALL_FIELDS_UNDEF_POS;
   return 0;
 }
 
 
 /**
-  Intitialize the GROUP BY list.
+   Scans the SELECT list and ORDER BY list: for each expression, if it is not
+   present in GROUP BY, examines the non-aggregated columns contained in the
+   expression; if those columns are not all in GROUP BY, raise an error.
+
+   Examples:
+   1) "SELECT a+1 FROM t GROUP BY a+1"
+   "a+1" in SELECT list was found, by setup_group() (exactly
+   find_order_in_list()), to be the same as "a+1" in GROUP BY; as it is a
+   GROUP BY expression, setup_group() has marked this expression with
+   ALL_FIELDS_UNDEF_POS (item->marker= ALL_FIELDS_UNDEF_POS).
+   2) "SELECT a+1 FROM t GROUP BY a"
+   "a+1" is not found in GROUP BY; its non-aggregated column is "a", "a" is
+   present in GROUP BY so it's ok.
+
+   A "hidden" GROUP BY / ORDER BY expression is a member of GROUP BY / ORDER
+   BY which was not found (by setup_order() or setup_group()) to be also
+   present in the SELECT list. setup_order() and setup_group() have thus added
+   the expression to the front of JOIN::all_fields.
+
+   @param  thd                     THD pointer
+   @param  all_fields              list of expressions, including SELECT list
+                                   and hidden ORDER BY expressions
+   @param  hidden_group_exprs_count the list starts with that many hidden
+                                   GROUP BY expressions
+   @param  hidden_order_exprs_count and continues with that many hidden ORDER
+                                   BY expressions
+   @param  select_exprs_cout       and ends with that many SELECT list
+                                   expressions (there may be a gap between
+                                   hidden ORDER BY expressions and SELECT list
+                                   expressions)
+   @param  group_exprs             GROUP BY expressions
+
+   @returns true if ONLY_FULL_GROUP_BY is violated.
+*/
+
+static bool
+match_exprs_for_only_full_group_by(THD *thd, List<Item> &all_fields,
+                                   int hidden_group_exprs_count,
+                                   int hidden_order_exprs_count,
+                                   int select_exprs_count,
+                                   ORDER *group_exprs)
+{
+  if (!group_exprs ||
+      !(thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY))
+    return false;
+
+  /*
+    For all expressions of the SELECT list and ORDER BY, a list of columns
+    which aren't under an aggregate function, 'select_lex->non_agg_fields',
+    has been created (see Item_field::fix_fields()). Each column in that list
+    keeps in Item::marker the position, in all_fields, of the (SELECT
+    list or ORDER BY) expression which it belongs to (see
+    st_select_lex::cur_pos_in_all_fields). all_fields looks like this:
+    (front) HIDDEN GROUP BY - HIDDEN ORDER BY - gap - SELECT LIST (back)
+    "Gap" may contain some aggregate expressions (see Item::split_sum_func2())
+    which are irrelevant to us.
+
+    We take an expressions of the SELECT list or a hidden ORDER BY expression
+    ('expr' variable).
+    - (1) If it also belongs to the GROUP BY list, it's ok.
+    - (2) If it is an aggregate function, it's ok.
+    - (3) If is is a constant, it's ok.
+    - (4) If it is a column resolved to an outer SELECT it's ok;
+    indeed, it is a constant from the point of view of one execution of the
+    inner SELECT - it does not introduce any randomness in the result.
+    - Otherwise we scan the list of non-aggregated columns and if we find at
+    least one column belonging to this expression and NOT occuring
+    in the GROUP BY list, we throw an error.
+  */
+  List_iterator<Item> exprs_it(all_fields);
+  /*
+    All "idx*" variables below are indices in all_fields, with "index of
+    front" = 0 and "index of back" = all_fields.elements - 1.
+  */
+  int idx= -1;
+  const int idx_of_first_hidden_order= hidden_group_exprs_count;
+  const int idx_of_last_hidden_order= idx_of_first_hidden_order +
+    hidden_order_exprs_count - 1;
+  const int idx_of_first_select= all_fields.elements - select_exprs_count;
+  /*
+    Also an index in all_fields, but with the same counting convention as
+    st_select_lex::cur_pos_in_all_fields.
+  */
+  int cur_pos_in_all_fields;
+  Item *expr;
+  Item_field *non_agg_field;
+  List_iterator<Item_field>
+    non_agg_fields_it(thd->lex->current_select->non_agg_fields);
+
+  non_agg_field= non_agg_fields_it++;
+  while (non_agg_field && (expr= exprs_it++))
+  {
+    idx++;
+    if (idx < idx_of_first_hidden_order ||      // In hidden GROUP BY.
+        (idx > idx_of_last_hidden_order &&      // After hidden ORDER BY,
+         idx < idx_of_first_select))            // but not yet in SELECT list
+      continue;
+    cur_pos_in_all_fields= idx - idx_of_first_select;
+
+    if ((expr->marker == SELECT_LEX::ALL_FIELDS_UNDEF_POS) ||  // (1)
+        expr->type() == Item::SUM_FUNC_ITEM ||                 // (2)
+        expr->const_item() ||                                  // (3)
+        (expr->real_item()->type() == Item::FIELD_ITEM &&
+         expr->used_tables() & OUTER_REF_TABLE_BIT))           // (4)
+      continue; // Ignore this expression.
+
+    while (non_agg_field)
+    {
+      /*
+        All non-aggregated columns contained in 'expr' have their
+        'marker' equal to 'cur_pos_in_all_fields' OR equal to
+        ALL_FIELDS_UNDEF_POS. The latter case happens in:
+        "SELECT a FROM t GROUP BY a"
+        when setup_group() finds that "a" in GROUP BY is also in the
+        SELECT list ('fields' list); setup_group() marks the "a" expression
+        with ALL_FIELDS_UNDEF_POS; at the same time, "a" is also a
+        non-aggregated column of the "a" expression; thus, non-aggregated
+        column "a" had its marker change from >=0 to
+        ALL_FIELDS_UNDEF_POS. Such non-aggregated column can be ignored (and
+        that is why ALL_FIELDS_UNDEF_POS is a very negative number).
+      */
+      if (non_agg_field->marker < cur_pos_in_all_fields)
+      {
+        /*
+          Ignorable column, or the owning expression was found to be
+          ignorable (cases 1-2-3-4 above); ignore it and switch to next
+          column.
+        */
+        goto next_non_agg_field;
+      }
+      if (non_agg_field->marker > cur_pos_in_all_fields)
+      {
+        /*
+          'expr' has been passed (we have scanned all its non-aggregated
+          columns and are seeing one which belongs to a next expression),
+          switch to next expression.
+        */
+        break;
+      }
+      // Check whether the non-aggregated column occurs in the GROUP BY list
+      for (ORDER *grp= group_exprs; grp; grp= grp->next)
+        if ((*grp->item)->eq(static_cast<Item *>(non_agg_field), false))
+        {
+          // column is in GROUP BY so is ok; check the next
+          goto next_non_agg_field;
+        }
+      /*
+        If we come here, one non-aggregated column belonging to 'expr' was
+        not found in GROUP BY, we raise an error.
+        TODO: change ER_WRONG_FIELD_WITH_GROUP to more detailed
+        ER_NON_GROUPING_FIELD_USED
+      */
+      my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0), non_agg_field->full_name());
+      return true;
+  next_non_agg_field:
+      non_agg_field= non_agg_fields_it++;
+    }
+  }
+  return false;
+}
+
+
+/**
+  Initialize the GROUP BY list.
 
   @param thd			Thread handler
   @param ref_pointer_array	We store references to all fields that was
@@ -1148,91 +1374,25 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 
 static int
 setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
-	    List<Item> &fields, List<Item> &all_fields, ORDER *order,
-	    bool *hidden_group_fields)
+            List<Item> &fields, List<Item> &all_fields, ORDER *order)
 {
-  *hidden_group_fields=0;
-  ORDER *ord;
-
   if (!order)
     return 0;				/* Everything is ok */
 
-  uint org_fields=all_fields.elements;
-
   thd->where="group statement";
-  for (ord= order; ord; ord= ord->next)
+  for (ORDER *ord= order; ord; ord= ord->next)
   {
     if (find_order_in_list(thd, ref_pointer_array, tables, ord, fields,
 			   all_fields, TRUE))
       return 1;
-    (*ord->item)->marker= UNDEF_POS;		/* Mark found */
+    // ONLY_FULL_GROUP_BY needn't verify this expression:
+    (*ord->item)->marker= SELECT_LEX::ALL_FIELDS_UNDEF_POS;
     if ((*ord->item)->with_sum_func)
     {
       my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*ord->item)->full_name());
       return 1;
     }
   }
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-  {
-    /*
-      Don't allow one to use fields that is not used in GROUP BY
-      For each select a list of field references that aren't under an
-      aggregate function is created. Each field in this list keeps the
-      position of the select list expression which it belongs to.
-
-      First we check an expression from the select list against the GROUP BY
-      list. If it's found there then it's ok. It's also ok if this expression
-      is a constant or an aggregate function. Otherwise we scan the list
-      of non-aggregated fields and if we'll find at least one field reference
-      that belongs to this expression and doesn't occur in the GROUP BY list
-      we throw an error. If there are no fields in the created list for a
-      select list expression this means that all fields in it are used under
-      aggregate functions.
-    */
-    Item *item;
-    Item_field *field;
-    int cur_pos_in_select_list= 0;
-    List_iterator<Item> li(fields);
-    List_iterator<Item_field> naf_it(thd->lex->current_select->non_agg_fields);
-
-    field= naf_it++;
-    while (field && (item=li++))
-    {
-      if (item->type() != Item::SUM_FUNC_ITEM && item->marker >= 0 &&
-          !item->const_item() &&
-          !(item->real_item()->type() == Item::FIELD_ITEM &&
-            item->used_tables() & OUTER_REF_TABLE_BIT))
-      {
-        while (field)
-        {
-          /* Skip fields from previous expressions. */
-          if (field->marker < cur_pos_in_select_list)
-            goto next_field;
-          /* Found a field from the next expression. */
-          if (field->marker > cur_pos_in_select_list)
-            break;
-          /*
-            Check whether the field occur in the GROUP BY list.
-            Throw the error later if the field isn't found.
-          */
-          for (ord= order; ord; ord= ord->next)
-            if ((*ord->item)->eq((Item*)field, 0))
-              goto next_field;
-          /*
-            TODO: change ER_WRONG_FIELD_WITH_GROUP to more detailed
-            ER_NON_GROUPING_FIELD_USED
-          */
-          my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0), field->full_name());
-          return 1;
-next_field:
-          field= naf_it++;
-        }
-      }
-      cur_pos_in_select_list++;
-    }
-  }
-  if (org_fields != all_fields.elements)
-    *hidden_group_fields=1;			// group fields is not used
   return 0;
 }
 

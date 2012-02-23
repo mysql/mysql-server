@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ enum enum_vio_io_event
 #define VIO_LOCALHOST 1                         /* a localhost connection */
 #define VIO_BUFFERED_READ 2                     /* use buffered read */
 #define VIO_READ_BUFFER_SIZE 16384              /* size of read buffer */
+#define VIO_DESCRIPTION_SIZE 30                 /* size of description */
 
 Vio* vio_new(my_socket sd, enum enum_vio_type type, uint flags);
 Vio*  mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags);
@@ -214,7 +215,11 @@ struct st_vio
   struct sockaddr_storage	remote;		/* Remote internet address */
   int addrLen;                          /* Length of remote address */
   enum enum_vio_type	type;		/* Type of connection */
-  char			desc[30];	/* String description */
+  char			desc[VIO_DESCRIPTION_SIZE]; /* Description string. This
+                                                      member MUST NOT be
+                                                      used directly, but only
+                                                      via function
+                                                      "vio_description" */
   char                  *read_buffer;   /* buffer for vio_read_buff */
   char                  *read_pos;      /* start of unfetched data in the
                                            read buffer */

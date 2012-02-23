@@ -49,7 +49,7 @@ static bool pack_header(uchar *forminfo,enum legacy_db_type table_type,
 static uint get_interval_id(uint *,List<Create_field> &, Create_field *);
 static bool pack_fields(File file, List<Create_field> &create_fields,
                         ulong data_offset);
-static bool make_empty_rec(THD *thd, int file, enum legacy_db_type table_type,
+static bool make_empty_rec(THD *thd, int file,
 			   uint table_options,
 			   List<Create_field> &create_fields,
 			   uint reclength, ulong data_offset,
@@ -320,7 +320,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   mysql_file_seek(file,
                   (ulong) uint2korr(fileinfo+6) + (ulong) key_buff_length,
                   MY_SEEK_SET, MYF(0));
-  if (make_empty_rec(thd,file,ha_legacy_type(create_info->db_type),
+  if (make_empty_rec(thd,file,
                      create_info->table_options,
 		     create_fields,reclength, data_offset, db_file))
     goto err;
@@ -1064,9 +1064,32 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
 }
 
 
-	/* save an empty record on start of formfile */
+/**
+   Creates a record buffer consisting of default values for all columns and
+   stores it in the formfile (.frm file.)
 
-static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
+   The value stored for each column is
+
+   - The default value if the column has one.
+   - 1 if the column type is @c enum.
+   - Special messages if the unireg type is YES or NO.
+   - A buffer full of only zeroes in all other cases. This also happens if the
+     default is a function.
+
+   @param thd           The current session.
+   @param file          The .frm file.
+   @param table_options Describes how to pack the values in the buffer.
+   @param create_fields A list of column definition objects.
+   @param reclength     Length of the record buffer in bytes.
+   @param data_offset   Offset inside the buffer before the values.
+   @param handler       The storage engine.
+
+   @retval true An error occured.
+   @retval false Success.
+
+*/
+
+static bool make_empty_rec(THD *thd, File file,
 			   uint table_options,
 			   List<Create_field> &create_fields,
 			   uint reclength,
@@ -1147,6 +1170,11 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
 
     if (field->def)
     {
+      /*
+        Storing the value of a function is pointless as this function may not
+        be constant.
+      */
+      DBUG_ASSERT(field->def->type() != Item::FUNC_ITEM);
       int res= field->def->save_in_field(regfield, 1);
       /* If not ok or warning of level 'note' */
       if (res != 0 && res != 3)

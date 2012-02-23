@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -909,6 +909,9 @@ void my_init_time(void)
   my_time.hour=		(uint) l_time->tm_hour;
   my_time.minute=	(uint) l_time->tm_min;
   my_time.second=	(uint) l_time->tm_sec;
+  my_time.time_type= MYSQL_TIMESTAMP_DATETIME;
+  my_time.neg= 0;
+  my_time.second_part= 0;
   my_system_gmt_sec(&my_time, &my_time_zone, &not_used); /* Init my_time_zone */
 }
 

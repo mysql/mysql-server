@@ -157,6 +157,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
                     "range_scan_alternatives": [
                       {
                         "index": "i2",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "key2 < 5",
                           "1020 < key2"
@@ -529,6 +530,7 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                           "range_scan_alternatives": [
                             {
                               "index": "i1",
+                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "key1 < 3"
                               ] /* ranges */,
@@ -546,6 +548,7 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                           "range_scan_alternatives": [
                             {
                               "index": "i2",
+                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "1020 < key2"
                               ] /* ranges */,
@@ -875,10 +878,6 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
       "join_explain": {
         "select#": 1,
         "steps": [
-          {
-            "reconsidering_access_paths_for_index_ordering": {
-            } /* reconsidering_access_paths_for_index_ordering */
-          }
         ] /* steps */
       } /* join_explain */
     }
@@ -1233,6 +1232,7 @@ GROUP BY key2	{
                       {
                         "index": "i2_1",
                         "covering": true,
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= key2 <= 1",
                           "2 <= key2 <= 2",
@@ -1246,6 +1246,7 @@ GROUP BY key2	{
                       {
                         "index": "i2_2",
                         "covering": true,
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= key2 <= 1",
                           "2 <= key2 <= 2",
@@ -1283,6 +1284,7 @@ GROUP BY key2	{
                     "range_scan_alternatives": [
                       {
                         "index": "i2_1",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= key2 <= 1",
                           "2 <= key2 <= 2",
@@ -1298,6 +1300,7 @@ GROUP BY key2	{
                       },
                       {
                         "index": "i2_2",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= key2 <= 1",
                           "2 <= key2 <= 2",
@@ -1410,10 +1413,6 @@ GROUP BY key2	{
       "join_explain": {
         "select#": 1,
         "steps": [
-          {
-            "reconsidering_access_paths_for_index_ordering": {
-            } /* reconsidering_access_paths_for_index_ordering */
-          }
         ] /* steps */
       } /* join_explain */
     }
@@ -1540,6 +1539,7 @@ EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5)	{
                     "range_scan_alternatives": [
                       {
                         "index": "i2_1",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= key2 <= 1"
                         ] /* ranges */,
@@ -1551,6 +1551,7 @@ EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5)	{
                       },
                       {
                         "index": "i2_2",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= key2 <= 1"
                         ] /* ranges */,
@@ -1787,6 +1788,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                           "range_scan_alternatives": [
                             {
                               "index": "i2",
+                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "10 <= key2 <= 10"
                               ] /* ranges */,
@@ -1804,6 +1806,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                           "range_scan_alternatives": [
                             {
                               "index": "i3",
+                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "3 <= key3 <= 3"
                               ] /* ranges */,
@@ -2217,6 +2220,7 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "5 <= key1a <= 5 AND key1b < 10"
                         ] /* ranges */,
@@ -2228,6 +2232,7 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
                       },
                       {
                         "index": "i1b",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "key1b < 10 AND 5 <= key1a <= 5"
                         ] /* ranges */,
@@ -2435,6 +2440,7 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "4 <= key1a <= 4 AND 3 < key1b < 7",
                           "5 <= key1a <= 5 AND 2 < key1b < 10"
@@ -2447,6 +2453,7 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
                       },
                       {
                         "index": "i1b",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "2 < key1b <= 3 AND 5 <= key1a <= 5",
                           "3 < key1b < 7",
@@ -2650,6 +2657,7 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "4 <= key1a <= 4 AND 7 < key1b < 10",
                           "5 <= key1a <= 5 AND 7 < key1b < 10"
@@ -2662,6 +2670,7 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
                       },
                       {
                         "index": "i1b",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "7 < key1b < 10 AND 4 <= key1a <= 4",
                           "7 < key1b < 10 AND 5 <= key1a <= 5"
@@ -2882,6 +2891,7 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                           "range_scan_alternatives": [
                             {
                               "index": "i1",
+                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "1 < key1"
                               ] /* ranges */,
@@ -2900,6 +2910,7 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                           "range_scan_alternatives": [
                             {
                               "index": "i2",
+                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "2 < key2"
                               ] /* ranges */,
@@ -3129,6 +3140,7 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                     "range_scan_alternatives": [
                       {
                         "index": "i2",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1020 < key2"
                         ] /* ranges */,
@@ -3384,6 +3396,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                     "range_scan_alternatives": [
                       {
                         "index": "cola",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "foo <= cola <= foo"
                         ] /* ranges */,
@@ -3395,6 +3408,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                       },
                       {
                         "index": "colb",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "bar <= colb <= bar"
                         ] /* ranges */,
@@ -3637,6 +3651,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
                     "range_scan_alternatives": [
                       {
                         "index": "cola",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "f\no <= cola <= f\no"
                         ] /* ranges */,
@@ -4051,7 +4066,8 @@ EXPLAIN SELECT 1 FROM
                 "table": "d2",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": true
               }
             ] /* rows_estimation */
           },
@@ -4368,7 +4384,8 @@ EXPLAIN SELECT 1 FROM
                 "table": "d2",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": true
               }
             ] /* rows_estimation */
           },
@@ -4510,6 +4527,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                     "range_scan_alternatives": [
                       {
                         "index": "k1",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "2 < i1"
                         ] /* ranges */,
@@ -4521,6 +4539,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                       },
                       {
                         "index": "k2",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "2 < i1"
                         ] /* ranges */,
@@ -4618,14 +4637,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                 "access_type": "range"
               }
             ] /* refine_plan */
-          }
-        ] /* steps */
-      } /* join_optimization */
-    },
-    {
-      "join_explain": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "reconsidering_access_paths_for_index_ordering": {
               "rows_estimation": {
@@ -4662,6 +4674,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                     "range_scan_alternatives": [
                       {
                         "index": "k2",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "2 < i1"
                         ] /* ranges */,
@@ -4703,6 +4716,13 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
           }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
         ] /* steps */
       } /* join_explain */
     }
@@ -4807,6 +4827,7 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                       {
                         "index": "k1",
                         "covering": true,
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= i1"
                         ] /* ranges */,
@@ -4816,6 +4837,7 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                       {
                         "index": "k2",
                         "covering": true,
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= i1"
                         ] /* ranges */,
@@ -4846,6 +4868,7 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                     "range_scan_alternatives": [
                       {
                         "index": "k1",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= i1"
                         ] /* ranges */,
@@ -4858,6 +4881,7 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                       },
                       {
                         "index": "k2",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= i1"
                         ] /* ranges */,
@@ -4969,6 +4993,7 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                     "range_scan_alternatives": [
                       {
                         "index": "k1",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= i1"
                         ] /* ranges */,
@@ -5044,18 +5069,6 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
       "join_explain": {
         "select#": 1,
         "steps": [
-          {
-            "reconsidering_access_paths_for_index_ordering": {
-              "index_order_summary": {
-                "database": "test",
-                "table": "t1",
-                "index": "k1",
-                "order_direction": "desc",
-                "plan_changed": true,
-                "access_type": "index_scan"
-              } /* index_order_summary */
-            } /* reconsidering_access_paths_for_index_ordering */
-          }
         ] /* steps */
       } /* join_explain */
     }
@@ -5203,6 +5216,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "pk < 3"
                         ] /* ranges */,
@@ -5215,6 +5229,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       },
                       {
                         "index": "i1_idx",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= i1 <= 1"
                         ] /* ranges */,
@@ -5227,6 +5242,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       },
                       {
                         "index": "v_idx",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "a <= v <= a AND 1 <= i1 <= 1"
                         ] /* ranges */,
@@ -5507,6 +5523,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "pk < 3"
                         ] /* ranges */,
@@ -5518,6 +5535,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       },
                       {
                         "index": "v_idx",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "a <= v <= a AND 1 <= i1 <= 1"
                         ] /* ranges */,
@@ -5529,6 +5547,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       },
                       {
                         "index": "i1_i2_idx",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= i2 <= 1 AND 1 <= i1 <= 1"
                         ] /* ranges */,
@@ -5782,6 +5801,7 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                       {
                         "index": "PRIMARY",
                         "covering": true,
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= a <= 1 AND b < 2"
                         ] /* ranges */,
@@ -5816,6 +5836,7 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= a <= 1 AND b < 2"
                         ] /* ranges */,
@@ -5828,6 +5849,7 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                       },
                       {
                         "index": "b",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "b < 2"
                         ] /* ranges */,
@@ -6079,6 +6101,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                     "range_scan_alternatives": [
                       {
                         "index": "k1",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= c1 <= 1"
                         ] /* ranges */,
@@ -6090,6 +6113,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                       },
                       {
                         "index": "k2",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= c1 <= 1"
                         ] /* ranges */,
@@ -6193,14 +6217,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                 "table_condition_attached": null
               }
             ] /* refine_plan */
-          }
-        ] /* steps */
-      } /* join_optimization */
-    },
-    {
-      "join_explain": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "reconsidering_access_paths_for_index_ordering": {
               "index_order_summary": {
@@ -6214,6 +6231,13 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
           }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
         ] /* steps */
       } /* join_explain */
     }

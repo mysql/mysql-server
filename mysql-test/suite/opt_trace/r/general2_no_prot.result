@@ -331,6 +331,7 @@ TRACE
                     "range_scan_alternatives": [
                       {
                         "index": "a",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "12 < a"
                         ] /* ranges */,
@@ -703,7 +704,10 @@ TRACE
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "materialization",
-                    "chosen": false
+                    "has_nullable_expressions": true,
+                    "treat_UNKNOWN_as_FALSE": false,
+                    "chosen": false,
+                    "cause": "cannot_handle_partial_matches"
                   } /* transformation */
                 },
                 {
@@ -1160,7 +1164,7 @@ TRACE
               "rows": 4,
               "examined_rows": 4,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": NNN,
+              "sort_buffer_size": "NNN",
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -1420,7 +1424,7 @@ TRACE
                     "rows": 3,
                     "examined_rows": 3,
                     "number_of_tmp_files": 0,
-                    "sort_buffer_size": NNN,
+                    "sort_buffer_size": "NNN",
                     "sort_mode": "<sort_key, rowid>"
                   } /* filesort_summary */
                 }
@@ -1665,7 +1669,7 @@ insert into t1 values(3)	{
   "steps": [
   ] /* steps */
 }	0	0
-SET @a=(select count(a) from t1 where a>0)	{
+SET  @a=(select count(a) from t1 where a>0)	{
   "steps": [
     {
       "join_preparation": {
@@ -1923,7 +1927,7 @@ jump_if_not 11(15) (case_expr@0 = 2)	{
   "steps": [
   ] /* steps */
 }	0	0
-SET @b=2	{
+SET  @b=2	{
   "steps": [
   ] /* steps */
 }	0	0
@@ -2435,7 +2439,8 @@ table3.col_varchar_10_utf8_key	{
                 "table": "table2",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": true
               },
               {
                 "database": "test",
@@ -2486,6 +2491,10 @@ table3.col_varchar_10_utf8_key	{
                 ] /* rest_of_plan */
               }
             ] /* considered_execution_plans */
+          },
+          {
+            "condition_on_constant_tables": "1",
+            "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {
@@ -2622,7 +2631,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Using where
 2	DEPENDENT SUBQUERY	t1	index	a	a	5	NULL	10	Using where; Using index
 2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.a	1	Using index
-2	DEPENDENT SUBQUERY	t3	ref	a	a	5	test.t2.a	1	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	ref	a	a	5	test.t1.a	1	Using index
 select * from information_schema.optimizer_trace;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain select * 
@@ -2645,14 +2654,6 @@ from t0 where a in
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
                     "chosen": false
                   } /* transformation */
                 },
@@ -3271,7 +3272,7 @@ from t0 where a in
                       {
                         "database": "test",
                         "table": "t3",
-                        "attached": "(`test`.`t3`.`a` = `test`.`t1`.`a`)"
+                        "attached": null
                       }
                     ] /* attached_conditions_summary */
                   } /* attaching_conditions_to_tables */
@@ -3473,7 +3474,8 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "table": "t1",
                       "rows": 1,
                       "cost": 1,
-                      "table_type": "system"
+                      "table_type": "system",
+                      "empty": true
                     },
                     {
                       "database": "test",
@@ -4022,7 +4024,8 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                 "table": "t3",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "const"
+                "table_type": "const",
+                "empty": false
               },
               {
                 "database": "test",
@@ -4057,6 +4060,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= seq_0_id <= 1"
                         ] /* ranges */,
@@ -4144,6 +4148,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= seq_0_id <= 1"
                         ] /* ranges */,
@@ -4241,6 +4246,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= seq_0_id <= 1"
                         ] /* ranges */,
@@ -4485,6 +4491,10 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                 ] /* rest_of_plan */
               }
             ] /* considered_execution_plans */
+          },
+          {
+            "condition_on_constant_tables": "1",
+            "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {
@@ -4951,7 +4961,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               "rows": 8,
               "examined_rows": 8,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": NNN,
+              "sort_buffer_size": "NNN",
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -4961,3 +4971,121 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
   ] /* steps */
 }	0	0
 DROP TABLE t1,t2;
+#
+# Trace of "condition on constant tables"
+#
+create table t1(a int) engine=myisam;
+insert into t1 values(26);
+create table t2(b int primary key, c int) engine=myisam;
+insert into t2 values(1,100),(2,200),(3,300);
+select * from t1,t2 where t1.a+t2.c=cos(10) and t2.b=2;
+a	b	c
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+select * from t1,t2 where t1.a+t2.c=cos(10) and t2.b=2	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where (((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and (`test`.`t2`.`b` = 2))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and (`test`.`t2`.`b` = 2))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and multiple equal(2, `test`.`t2`.`b`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and multiple equal(2, `test`.`t2`.`b`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and multiple equal(2, `test`.`t2`.`b`))"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "row_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+              {
+                "database": "test",
+                "table": "t2",
+                "field": "b",
+                "equals": "2",
+                "null_rejecting": false
+              }
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "rows_estimation": [
+              {
+                "database": "test",
+                "table": "t1",
+                "rows": 1,
+                "cost": 1,
+                "table_type": "system",
+                "empty": false
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "rows": 1,
+                "cost": 1,
+                "table_type": "const",
+                "empty": false
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "condition_on_constant_tables": "(('26' + '200') = cos(10))",
+            "condition_value": false
+          }
+        ] /* steps */,
+        "empty_result": {
+          "cause": "Impossible WHERE noticed after reading const tables"
+        } /* empty_result */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+drop table t1,t2;

@@ -96,4 +96,27 @@ drop table t1;
 include/stop_slave.inc
 CHANGE MASTER TO master_host='SAVE_MASTER_HOST';
 include/start_slave.inc
+include/rpl_reset.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='', MASTER_PORT=MASTER_PORT;
+ERROR HY000: Incorrect arguments to MASTER_HOST
+CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1\n127.0.0.1', MASTER_PORT=MASTER_PORT;
+ERROR HY000: Incorrect argument contains not-allowed LF value: '127.0.0.1
+127.0.0.1'
+CHANGE MASTER TO MASTER_USER='root\n', MASTER_HOST='master2.mycompany.com', MASTER_PORT=MASTER_PORT, MASTER_USER='replication', MASTER_PASSWORD='bigs3cret', MASTER_LOG_FILE='master2-bin.001', MASTER_LOG_POS=4;
+ERROR HY000: Incorrect argument contains not-allowed LF value: 'root
+'
+CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='master2.mycompany.com', MASTER_PORT=MASTER_PORT, MASTER_USER='repli\ncation', MASTER_PASSWORD='bigs3cret', MASTER_LOG_FILE='master2-bin.001', MASTER_LOG_POS=4;
+ERROR HY000: Incorrect argument contains not-allowed LF value: 'repli
+cation'
+CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='master2.mycompany.com', MASTER_PORT=MASTER_PORT, MASTER_USER='replication', MASTER_PASSWORD='bigs3cret', MASTER_LOG_FILE='master2-bin.\n001', MASTER_LOG_POS=4;
+ERROR HY000: Incorrect argument contains not-allowed LF value: 'master2-bin.
+001'
+CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT;
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+include/start_slave.inc
+Master_Host = '127.0.0.1'
+include/rpl_reset.inc
 include/rpl_end.inc
