@@ -176,6 +176,9 @@ hot_update_status(BRTNODE UU(child),
     return;
 }
 
+// If we've just split a node, HOT needs another chance to decide which
+// one to flush into.  This gives it a chance to do that, and update the
+// keys it maintains.
 static int
 hot_pick_child_after_split(struct brt_header *h,
                            BRTNODE parent,
@@ -188,6 +191,10 @@ hot_pick_child_after_split(struct brt_header *h,
     assert(childnum == childnuma || childnum == childnumb);
     hot_update_flusher_keys(parent, childnum, flusher);
     if (parent->height == 1) {
+        // We don't want to recurse into a leaf node, but if we return
+        // anything valid, brt_split_child will try to go there, so we
+        // return -1 to allow brt_split_child to have its default
+        // behavior, which will be to stop recursing.
         childnum = -1;
     }
     return childnum;
