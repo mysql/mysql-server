@@ -6113,6 +6113,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       String line_term(sql_ex.line_term,sql_ex.line_term_len,log_cs);
       String line_start(sql_ex.line_start,sql_ex.line_start_len,log_cs);
       String escaped(sql_ex.escaped,sql_ex.escaped_len, log_cs);
+      const String empty_str("", 0, log_cs);
       ex.field_term= &field_term;
       ex.enclosed= &enclosed;
       ex.line_term= &line_term;
@@ -6121,7 +6122,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
 
       ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
       if (sql_ex.empty_flags & FIELD_TERM_EMPTY)
-        ex.field_term->length(0);
+        ex.field_term= &empty_str;
 
       ex.skip_lines = skip_lines;
       List<Item> field_list;
