@@ -1,4 +1,5 @@
 package My::Suite::Main;
+use My::Platform;
 
 @ISA = qw(My::Suite);
 
@@ -12,6 +13,9 @@ sub skip_combinations {
 
   my %skip = ( 'include/have_innodb.combinations' => [ @combinations ],
                'include/have_xtradb.combinations' => [ @combinations ]);
+
+  # don't run tests for the wrong platform
+  $skip{'include/platform.combinations'} = [ (IS_WINDOWS) ? 'unix' : 'win' ];
 
   # as a special case, disable certain include files as a whole
   $skip{'include/not_embedded.inc'} = 'Not run for embedded server'

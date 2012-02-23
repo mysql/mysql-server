@@ -1,0 +1,91 @@
+--- r/mysqld--help.result	2012-01-13 16:50:49.000000000 +0100
++++ r/mysqld--help-win.result	2012-01-19 14:12:00.000000000 +0100
+@@ -240,7 +240,6 @@
+  The number of segments in a key cache
+  -L, --language=name Client error messages in given language. May be given as
+  a full path. Deprecated. Use --lc-messages-dir instead.
+- --large-pages       Enable support for large pages
+  --lc-messages=name  Set the language used for the error messages.
+  -L, --lc-messages-dir=name 
+  Directory where error messages are
+@@ -436,6 +435,7 @@
+  NULLS_UNEQUAL (default behavior for 4.1 and later),
+  NULLS_EQUAL (emulate 4.0 behavior), and NULLS_IGNORED
+  --myisam-use-mmap   Use memory mapping for reading and writing MyISAM tables
++ --named-pipe        Enable the named pipe (NT)
+  --net-buffer-length=# 
+  Buffer length for TCP/IP and socket communication
+  --net-read-timeout=# 
+@@ -695,6 +695,9 @@
+  files within specified directory
+  --server-id=#       Uniquely identifies the server instance in the community
+  of replication partners
++ --shared-memory     Enable the shared memory
++ --shared-memory-base-name=name 
++ Base name of shared memory
+  --show-slave-auth-info 
+  Show user and password in SHOW SLAVE HOSTS on this
+  master.
+@@ -759,6 +762,10 @@
+  Log slow queries to given log file. Defaults logging to
+  'hostname'-slow.log. Must be enabled to activate other
+  slow log options
++ --slow-start-timeout=# 
++ Maximum number of milliseconds that the service control
++ manager should wait before trying to kill the windows
++ service during startup(Default: 15000).
+  --socket=name       Socket file to use for connection
+  --sort-buffer-size=# 
+  Each thread that needs to do a sort allocates a buffer of
+@@ -767,6 +774,7 @@
+  for the complete list of valid sql modes
+  --stack-trace       Print a symbolic stack trace on failure
+  (Defaults to on; use --skip-stack-trace to disable.)
++ --standalone        Dummy option to start as a standalone program (NT).
+  -s, --symbolic-links 
+  Enable symbolic link support.
+  --sync-binlog=#     Synchronously flush binary log to disk after every #th
+@@ -807,8 +815,8 @@
+  size, MySQL will automatically convert it to an on-disk
+  MyISAM or Aria table
+  -t, --tmpdir=name   Path for temporary files. Several paths may be specified,
+- separated by a colon (:), in this case they are used in a
+- round-robin fashion
++ separated by a semicolon (;), in this case they are used
++ in a round-robin fashion
+  --transaction-alloc-block-size=# 
+  Allocation block size for transactions to be stored in
+  binary log
+@@ -908,7 +916,6 @@
+ key-cache-division-limit 100
+ key-cache-segments 0
+ language MYSQL_SHAREDIR/
+-large-pages FALSE
+ lc-messages en_US
+ lc-messages-dir MYSQL_SHAREDIR/
+ lc-time-names en_US
+@@ -971,6 +978,7 @@
+ myisam-sort-buffer-size 8388608
+ myisam-stats-method nulls_unequal
+ myisam-use-mmap FALSE
++named-pipe FALSE
+ net-buffer-length 16384
+ net-read-timeout 30
+ net-retry-count 10
+@@ -1035,6 +1043,8 @@
+ secure-auth FALSE
+ secure-file-priv (No default value)
+ server-id 0
++shared-memory FALSE
++shared-memory-base-name MYSQL
+ show-slave-auth-info FALSE
+ skip-grant-tables TRUE
+ skip-name-resolve FALSE
+@@ -1050,6 +1060,7 @@
+ slave-type-conversions 
+ slow-launch-time 2
+ slow-query-log FALSE
++slow-start-timeout 15000
+ sort-buffer-size 2097152
+ sql-mode 
+ stack-trace TRUE

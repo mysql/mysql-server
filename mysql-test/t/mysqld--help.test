@@ -2,6 +2,8 @@
 # mysqld --help
 #
 --source include/not_embedded.inc
+--source include/have_perfschema.inc
+--source include/platform.inc
 
 #
 # force lower-case-table-names=1 (linux/macosx have different defaults)
