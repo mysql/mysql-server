@@ -1566,10 +1566,12 @@ void Item_func_substr_index::fix_length_and_dec()
 String *Item_func_substr_index::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+  char buff[MAX_FIELD_WIDTH];
+  String tmp(buff,sizeof(buff),system_charset_info);
   String *res= args[0]->val_str(str);
-  String *delimiter= args[1]->val_str(&tmp_value);
+  String *delimiter= args[1]->val_str(&tmp);
   int32 count= (int32) args[2]->val_int();
-  uint offset;
+  int offset;
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value)
   {					// string and/or delim are null
@@ -1640,7 +1642,7 @@ String *Item_func_substr_index::val_str(String *str)
     {					// start counting from the beginning
       for (offset=0; ; offset+= delimiter_length)
       {
-	if ((int) (offset= res->strstr(*delimiter, offset)) < 0)
+	if ((offset= res->strstr(*delimiter, offset)) < 0)
 	  return res;			// Didn't find, return org string
 	if (!--count)
 	{
@@ -1654,14 +1656,14 @@ String *Item_func_substr_index::val_str(String *str)
       /*
         Negative index, start counting at the end
       */
-      for (offset=res->length(); offset ;)
+      for (offset=res->length(); offset; )
       {
         /* 
           this call will result in finding the position pointing to one 
           address space less than where the found substring is located
           in res
         */
-	if ((int) (offset= res->strrstr(*delimiter, offset)) < 0)
+	if ((offset= res->strrstr(*delimiter, offset)) < 0)
 	  return res;			// Didn't find, return org string
         /*
           At this point, we've searched for the substring
@@ -1674,14 +1676,10 @@ String *Item_func_substr_index::val_str(String *str)
 	  break;
 	}
       }
+      if (count)
+        return res;			// Didn't find, return org string
     }
   }
-  /*
-    We always mark tmp_value as const so that if val_str() is called again
-    on this object, we don't disrupt the contents of tmp_value when it was
-    derived from another String.
-  */
-  tmp_value.mark_as_const();
   return (&tmp_value);
 }
 
