@@ -675,13 +675,16 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
                            &cached_group->spec);
     my_off_t saved_position= cache_data->get_byte_position();
     IO_CACHE *cache_log= &cache_data->cache_log;
-    my_b_seek(cache_log, 0);
+    flush_io_cache(cache_log);
+    reinit_io_cache(cache_log, WRITE_CACHE, 0, 0, 0);
     if (gtid_ev.write(cache_log) != 0)
     {
-      my_b_seek(cache_log, saved_position);
+      flush_io_cache(cache_log);
+      reinit_io_cache(cache_log, WRITE_CACHE, saved_position, 0, 0);
       DBUG_RETURN(1);
     }
-    my_b_seek(cache_log, saved_position);
+    flush_io_cache(cache_log);
+    reinit_io_cache(cache_log, WRITE_CACHE, saved_position, 0, 0);
   }
 
   DBUG_RETURN(0);
