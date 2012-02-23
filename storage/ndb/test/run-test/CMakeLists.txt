@@ -48,4 +48,5 @@ INSTALL(FILES   daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt
                 conf-techra29.cnf conf-test.cnf conf-tyr64.cnf conf-upgrade.cnf
                 test-tests.txt upgrade-tests.txt release-bigmem-tests.txt
                 conf-tyr13.cnf
+		conf-blade08.cnf
         DESTINATION mysql-test/ndb)
