@@ -26,6 +26,6 @@ for x in $(seq 1 $nsamples)
 awk '
   BEGIN { s = ""; } 
   /^Thread/ { if (s != "") print s; s = ""; } 
-  /^\#/ { if (s != "" ) { s = s "," $4} else { s = $4 } } 
+  /^\#/ { if ($3 == "in") { v = $4; } else { v = $2 } if (s != "" ) { s = s "," v} else { s = v } } 
   END { print s }' | \
 sort | uniq -c | sort -r -n -k 1,1
