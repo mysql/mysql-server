@@ -60,7 +60,7 @@ struct my_context {
   ucontext_t base_context;
   ucontext_t spawned_context;
   int active;
-#ifdef HAVE_VALGRIND_VALGRIND_H
+#ifdef HAVE_VALGRIND
   unsigned int valgrind_stack_id;
 #endif
 #ifndef DBUG_OFF
@@ -77,7 +77,7 @@ struct my_context {
   uint64_t save[9];
   void *stack_top;
   void *stack_bot;
-#ifdef HAVE_VALGRIND_VALGRIND_H
+#ifdef HAVE_VALGRIND
   unsigned int valgrind_stack_id;
 #endif
 #ifndef DBUG_OFF
@@ -94,7 +94,7 @@ struct my_context {
   uint64_t save[7];
   void *stack_top;
   void *stack_bot;
-#ifdef HAVE_VALGRIND_VALGRIND_H
+#ifdef HAVE_VALGRIND
   unsigned int valgrind_stack_id;
 #endif
 #ifndef DBUG_OFF

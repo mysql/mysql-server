@@ -3920,8 +3920,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 
 static void init_ssl()
 {
-#ifdef HAVE_OPENSSL
-#ifndef EMBEDDED_LIBRARY
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (opt_use_ssl)
   {
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
@@ -3943,12 +3942,9 @@ static void init_ssl()
   {
     have_ssl= SHOW_OPTION_DISABLED;
   }
-#else
-  have_ssl= SHOW_OPTION_DISABLED;
-#endif /* ! EMBEDDED_LIBRARY */
   if (des_key_file)
     load_des_key_file(des_key_file);
-#endif /* HAVE_OPENSSL */
+#endif /* HAVE_OPENSSL && ! EMBEDDED_LIBRARY */
 }
 
 
@@ -7236,7 +7232,7 @@ static int mysql_init_variables(void)
     have_profiling = SHOW_OPTION_NO;
 #endif
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   have_ssl=SHOW_OPTION_YES;
 #else
   have_ssl=SHOW_OPTION_NO;

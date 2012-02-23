@@ -1776,7 +1776,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 	      const char *cipher __attribute__((unused)))
 {
   DBUG_ENTER("mysql_ssl_set");
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   my_free(mysql->options.ssl_key);
   my_free(mysql->options.ssl_cert);
   my_free(mysql->options.ssl_ca);

@@ -1531,9 +1531,9 @@ static int connect_to_db(char *host, char *user,char *passwd)
   if (opt_default_auth && *opt_default_auth)
     mysql_options(&mysql_connection, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
-  if (!(mysql= mysql_real_connect(&mysql_connection,host,user,passwd,
-                                  NULL,opt_mysql_port,opt_mysql_unix_port,
-                                  0)))
+  mysql= &mysql_connection;          /* So we can mysql_close() it properly */
+  if (!mysql_real_connect(&mysql_connection,host,user,passwd,
+                          NULL,opt_mysql_port,opt_mysql_unix_port, 0))
   {
     DB_error(&mysql_connection, "when trying to connect");
     DBUG_RETURN(1);
