@@ -23,6 +23,84 @@ ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Too many active concurrent transactions
 unlink: t1.ibd
 unlink: t1.cfg
+restore: t1
+SET SESSION debug="-d,ib_import_table_id_reassign_failure";
+SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+ERROR HY000: InnoDB: Cannot reset LSN's in table "test_wl5522"."t1" : Too many concurrent transactions
+unlink: t1.ibd
+unlink: t1.cfg
+restore: t1
+SET SESSION debug="-d,ib_import_reset_space_and_lsn_failure";
+SET SESSION debug="+d,ib_import_open_tablespace_failure";
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+ERROR HY000: InnoDB: Cannot find or open in the database directory the .ibd file of "test_wl5522"."t1" : Tablespace not found
+unlink: t1.ibd
+unlink: t1.cfg
+restore: t1
+SET SESSION debug="-d,ib_import_open_tablespace_failure";
+SET SESSION debug="+d,ib_import_check_bitmap_failure";
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+unlink: t1.ibd
+unlink: t1.cfg
+restore: t1
+SET SESSION debug="-d,ib_import_check_bitmap_failure";
+SET SESSION debug="+d,ib_import_cluster_root_adjust_failure";
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+unlink: t1.ibd
+unlink: t1.cfg
+restore: t1
+SET SESSION debug="-d,ib_import_cluster_root_adjust_failure";
+SET SESSION debug="+d,ib_import_cluster_failure";
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+unlink: t1.ibd
+unlink: t1.cfg
+restore: t1
+SET SESSION debug="-d,ib_import_cluster_failure";
+SET SESSION debug="+d,ib_import_sec_root_adjust_failure";
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+unlink: t1.ibd
+unlink: t1.cfg
+restore: t1
+SET SESSION debug="-d,ib_import_sec_root_adjust_failure";
+SET SESSION debug="+d,ib_import_set_max_rowid_failure";
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+unlink: t1.ibd
+unlink: t1.cfg
+restore: t1
+SET SESSION debug="-d,ib_import_set_max_rowid_failure";
+SET SESSION debug="+d,ib_import_before_checkpoint_crash";
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+ERROR HY000: Lost connection to MySQL server during query
+unlink: t1.ibd
+unlink: t1.cfg
+restore: t1
+SET SESSION debug="-d,ib_import_before_checkpoint_crash";
+SET SESSION debug="+d,ib_import_after_checkpoint_crash";
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+ERROR HY000: Lost connection to MySQL server during query
+unlink: t1.ibd
+unlink: t1.cfg
+restore: t1
+SET SESSION debug="-d,ib_import_after_checkpoint_crash";
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+SELECT COUNT(*) FROM test_wl5522.t1;
+COUNT(*)
+3
+INSERT INTO test_wl5522.t1 VALUES(400), (500), (600);
+SELECT * FROM test_wl5522.t1;
+c1
+100
+200
+300
+400
+500
+600
 DROP TABLE test_wl5522.t1;
 DROP DATABASE test_wl5522;
 SET GLOBAL INNODB_FILE_PER_TABLE=0;
