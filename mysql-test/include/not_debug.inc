@@ -1,6 +1,5 @@
-let $is_debug = `select version() like '%debug%'`;
-if ($is_debug)
+if (`select version() like '%debug%'`)
 {
-  skip Does not run in with debug binaries;
+  skip Does not run with debug binaries;
 }
 

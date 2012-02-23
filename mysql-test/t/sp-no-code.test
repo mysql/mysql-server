@@ -2,7 +2,7 @@
 # Test the debugging feature "show procedure/function code <name>" 
 #
 
--- source include/have_nodebug.inc
+-- source include/not_debug.inc
 
 --error ER_FEATURE_DISABLED
 show procedure code foo;
