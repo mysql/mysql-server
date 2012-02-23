@@ -86,7 +86,7 @@ bindir='@bindir@'
 # If installed, search for the compiled in directory first (might be "lib64")
 pkglibdir='@pkglibdir@'
 pkglibdir_rel=`echo $pkglibdir | sed -e "s;^$basedir/;;"`
-fix_path pkglibdir $pkglibdir_rel lib/mysql lib
+fix_path pkglibdir $pkglibdir_rel lib64/mysql lib64 lib/mysql lib
 
 plugindir='@pkgplugindir@'
 
