@@ -89,12 +89,6 @@
 #define IF_WIN(A,B) B
 #endif
 
-#ifdef HAVE_purify
-#define IF_PURIFY(A,B) A
-#else
-#define IF_PURIFY(A,B) B
-#endif
-
 #ifndef EMBEDDED_LIBRARY
 #ifdef WITH_NDB_BINLOG
 #define HAVE_NDB_BINLOG 1

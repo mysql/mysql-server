@@ -23,7 +23,7 @@
 #define IF_VALGRIND(A,B) B
 #endif
 
-#if defined(HAVE_VALGRIND) && defined(HAVE_VALGRIND_MEMCHECK_H)
+#if defined(HAVE_VALGRIND)
 # include <valgrind/memcheck.h>
 # define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
 # define MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)

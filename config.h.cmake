@@ -313,7 +313,11 @@
 #define USE_MB 1
 #define USE_MB_IDENT 1
 
-#cmakedefine HAVE_VALGRIND
+/* this means that valgrind headers and macros are available */
+#cmakedefine HAVE_VALGRIND 1
+
+/* this means WITH_VALGRIND - we change some code paths for valgrind */
+#cmakedefine HAVE_valgrind 1
 
 /* Types we may use */
 #ifdef __APPLE__

@@ -1024,12 +1024,11 @@ if available and 'smp' configuration otherwise.")
 MARK_AS_ADVANCED(WITH_ATOMIC_LOCKS MY_ATOMIC_MODE_RWLOCK MY_ATOMIC_MODE_DUMMY)
 
 IF(WITH_VALGRIND)
-  CHECK_INCLUDE_FILES("valgrind/memcheck.h;valgrind/valgrind.h" 
-    HAVE_VALGRIND_HEADERS)
-  IF(HAVE_VALGRIND_HEADERS)
-    SET(HAVE_VALGRIND 1)
-  ENDIF()
+  SET(HAVE_valgrind 1)
 ENDIF()
+
+CHECK_INCLUDE_FILES("valgrind/memcheck.h;valgrind/valgrind.h" 
+  HAVE_VALGRIND)
 
 #--------------------------------------------------------------------
 # Check for IPv6 support
