@@ -225,7 +225,7 @@ int table_esms_by_digest::rnd_next(void)
 {
   PFS_statements_digest_stat* digest_stat;
 
-  if(statements_digest_stat_array == NULL)
+  if (statements_digest_stat_array == NULL)
     return HA_ERR_END_OF_FILE;
 
   for (m_pos.set_at(&m_next_pos);
@@ -233,7 +233,7 @@ int table_esms_by_digest::rnd_next(void)
        m_pos.next())
   {
     digest_stat= &statements_digest_stat_array[m_pos.m_index];
-    if(digest_stat->m_first_seen != 0)
+    if (digest_stat->m_first_seen != 0)
     {
       make_row(digest_stat);
       m_next_pos.set_after(&m_pos);
@@ -249,13 +249,13 @@ table_esms_by_digest::rnd_pos(const void *pos)
 {
   PFS_statements_digest_stat* digest_stat;
 
-  if(statements_digest_stat_array == NULL)
+  if (statements_digest_stat_array == NULL)
     return HA_ERR_END_OF_FILE;
 
   set_position(pos);
   digest_stat= &statements_digest_stat_array[m_pos.m_index];
 
-  if(digest_stat->m_first_seen != 0)
+  if (digest_stat->m_first_seen != 0)
   {
     make_row(digest_stat);
     return 0;

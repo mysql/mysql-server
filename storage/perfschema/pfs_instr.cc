@@ -82,8 +82,6 @@ uint statement_stack_max;
 ulong locker_lost= 0;
 /** Number of statement lost. @sa STATEMENT_STACK_SIZE. */
 ulong statement_lost= 0;
-/** Digest size **/
-uint statement_digest_max= 0; 
 
 /**
   Mutex instrumentation instances array.
@@ -420,8 +418,6 @@ int init_instruments(const PFS_global_param *param)
     for (index= 0; index < statement_class_max; index++)
       global_instr_class_statements_array[index].reset();
   }
-
-  statement_digest_max= param->m_digest_sizing;
 
   return 0;
 }
@@ -1029,6 +1025,11 @@ void destroy_thread(PFS_thread *pfs)
   {
     lf_hash_put_pins(pfs->m_host_hash_pins);
     pfs->m_host_hash_pins= NULL;
+  }
+  if (pfs->m_digest_hash_pins)
+  {
+    lf_hash_put_pins(pfs->m_digest_hash_pins);
+    pfs->m_digest_hash_pins= NULL;
   }
   pfs->m_lock.allocated_to_free();
 }

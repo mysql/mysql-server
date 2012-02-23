@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,8 +28,6 @@
 #define PFS_SIZE_OF_A_TOKEN 2
 
 extern bool flag_statements_digest;
-extern unsigned int statements_digest_size;
-extern unsigned int digest_index;
 extern ulong digest_max;
 struct PFS_thread;
 
@@ -68,7 +66,10 @@ struct PFS_statements_digest_stat
   ulonglong m_first_seen;
   ulonglong m_last_seen;
 
-  void reset();
+  /** Reset data for this record. */
+  void reset_data();
+  /** Reset data and remove index for this record. */
+  void reset_index(PFS_thread *thread);
 };
 
 int init_digest(const PFS_global_param *param);
@@ -76,8 +77,8 @@ void cleanup_digest();
 
 int init_digest_hash(void);
 void cleanup_digest_hash(void);
-PFS_statements_digest_stat* find_or_create_digest(PFS_thread*,
-                                                  PSI_digest_storage*);
+PFS_statement_stat* find_or_create_digest(PFS_thread*,
+                                          PSI_digest_storage*);
 
 void get_digest_text(char* digest_text, PSI_digest_storage*);
 
@@ -101,29 +102,41 @@ static inline void digest_reset(PSI_digest_storage *digest)
 
 static inline void digest_copy(PSI_digest_storage *to, const PSI_digest_storage *from)
 {
-  to->m_full= from->m_full;
-  to->m_byte_count= from->m_byte_count;
-  DBUG_ASSERT(to->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
-  memcpy(to->m_token_array, from->m_token_array, to->m_byte_count);
+  if (from->m_byte_count > 0)
+  {
+    to->m_full= from->m_full;
+    to->m_byte_count= from->m_byte_count;
+    DBUG_ASSERT(to->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
+    memcpy(to->m_token_array, from->m_token_array, to->m_byte_count);
+  }
+  else
+  {
+    DBUG_ASSERT(! from->m_full);
+    DBUG_ASSERT(from->m_byte_count == 0);
+    to->m_full= false;
+    to->m_byte_count= 0;
+  }
 }
 
 /** 
   Function to read a single token from token array.
 */
-inline void read_token(uint *tok, int *index, char *src)
+inline int read_token(PSI_digest_storage *digest_storage,
+                      int index, uint *tok)
 {
-  unsigned short sh;
-  int remaining_bytes= PSI_MAX_DIGEST_STORAGE_SIZE - *index;
-  DBUG_ASSERT(remaining_bytes >= 0);
+  DBUG_ASSERT(index <= digest_storage->m_byte_count);
+  DBUG_ASSERT(digest_storage->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
 
-  /* Make sure we have enough space to read a token from.
-   */
-  if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)
+  if (index + PFS_SIZE_OF_A_TOKEN <= digest_storage->m_byte_count)
   {
-    sh= ((0x00ff & src[*index + 1])<<8) | (0x00ff & src[*index]);
-    *tok= (uint)(sh);
-    *index= *index + PFS_SIZE_OF_A_TOKEN;
+    unsigned char *src= & digest_storage->m_token_array[index];
+    *tok= src[0] | (src[1] << 8);
+    return index + PFS_SIZE_OF_A_TOKEN;
   }
+
+  /* The input byte stream is exhausted. */
+  *tok= 0;
+  return PSI_MAX_DIGEST_STORAGE_SIZE + 1;
 }
 
 /**
@@ -131,78 +144,76 @@ inline void read_token(uint *tok, int *index, char *src)
 */
 inline void store_token(PSI_digest_storage* digest_storage, uint token)
 {
-  char* dest= digest_storage->m_token_array;
-  int* index= &digest_storage->m_byte_count;
-  unsigned short sh= (unsigned short)token;
-  int remaining_bytes= PSI_MAX_DIGEST_STORAGE_SIZE - *index;
-  DBUG_ASSERT(remaining_bytes >= 0);
+  DBUG_ASSERT(digest_storage->m_byte_count >= 0);
+  DBUG_ASSERT(digest_storage->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
 
-  /* Make sure we have enough space to write a token to. */
-  if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)
+  if (digest_storage->m_byte_count + PFS_SIZE_OF_A_TOKEN <= PSI_MAX_DIGEST_STORAGE_SIZE)
   {
-    dest[*index]= (sh) & 0xff;
-    *index= *index + 1;
-    dest[*index]= (sh>>8) & 0xff;
-    *index= *index + 1;
+    unsigned char* dest= & digest_storage->m_token_array[digest_storage->m_byte_count];
+    dest[0]= token & 0xff;
+    dest[1]= (token >> 8) & 0xff;
+    digest_storage->m_byte_count+= PFS_SIZE_OF_A_TOKEN; 
+  }
+  else
+  {
+    digest_storage->m_full= true;
   }
 }
 
 /**
   Function to read an identifier from token array.
 */
-inline void read_identifier(char **dest, int *index, char *src,
-                            uint available_bytes_to_write, uint offset)
+inline int read_identifier(PSI_digest_storage* digest_storage,
+                           int index, char ** id_string, int *id_length)
 {
-  uint length;
-  int remaining_bytes= PSI_MAX_DIGEST_STORAGE_SIZE - *index;
-  DBUG_ASSERT(remaining_bytes >= 0);
+  int new_index;
+  DBUG_ASSERT(index <= digest_storage->m_byte_count);
+  DBUG_ASSERT(digest_storage->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
+
   /*
-    Read ID's length.
-    Make sure that space to read ID's length from, is available.
+    token + length + string are written in an atomic way,
+    so we do always expect a length + string here
   */
-  if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN &&
-     available_bytes_to_write > offset)
-  {
-    read_token(&length, index, src);
-    /*
-      Make sure not to overflow digest_text buffer while writing
-      identifier name.
-      +/-offset is to make sure extra space for ''' and ' '.
-    */
-    length= available_bytes_to_write >= length+offset ?
-                                        length :
-                                        available_bytes_to_write-offset;
-    strncpy(*dest, src + *index, length);
-    *index= *index + length;
-    *dest= *dest + length;
-  }
+  unsigned char *src= & digest_storage->m_token_array[index];
+  uint length= src[0] | (src[1] << 8);
+  *id_string= (char *) (src + 2);
+  *id_length= length;
+
+  new_index= index + PFS_SIZE_OF_A_TOKEN + length;
+  DBUG_ASSERT(new_index <= digest_storage->m_byte_count);
+  return new_index;
 }
 
 /**
   Function to store an identifier in token array.
 */
-inline void store_identifier(PSI_digest_storage* digest_storage,
-                             uint id_length, char *id_name)
+inline void store_token_identifier(PSI_digest_storage* digest_storage,
+                                   uint token,
+                                   uint id_length, const char *id_name)
 {
-  char* dest= digest_storage->m_token_array;
-  int* index= &digest_storage->m_byte_count;
-  int remaining_bytes= PSI_MAX_DIGEST_STORAGE_SIZE - *index;
-  DBUG_ASSERT(remaining_bytes >= 0);
+  DBUG_ASSERT(digest_storage->m_byte_count >= 0);
+  DBUG_ASSERT(digest_storage->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
 
-  /*
-    Store ID's length.
-    Make sure that space, to store ID's length, is available.
-  */
-  if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)
+  uint bytes_needed= 2 * PFS_SIZE_OF_A_TOKEN + id_length;
+  if (digest_storage->m_byte_count + bytes_needed <= PSI_MAX_DIGEST_STORAGE_SIZE)
   {
-    /*
-       Make sure to store ID length/ID as per the space available.
-    */
-    remaining_bytes-= PFS_SIZE_OF_A_TOKEN;
-    id_length= id_length>(uint)remaining_bytes?(uint)remaining_bytes:id_length;
-    store_token(digest_storage, id_length);
-    strncpy(dest + *index, id_name, id_length);
-    *index= *index + id_length;
+    unsigned char* dest= & digest_storage->m_token_array[digest_storage->m_byte_count];
+    /* Write the token */
+    dest[0]= token & 0xff;
+    dest[1]= (token >> 8) & 0xff;
+    /* Write the string length */
+    dest[2]= id_length & 0xff;
+    dest[3]= (id_length >> 8) & 0xff;
+    /* Write the string data */
+    if (id_length > 0)
+    {
+      strncpy((char *)(dest + 4), id_name, id_length);
+    }
+    digest_storage->m_byte_count+= bytes_needed; 
+  }
+  else
+  {
+    digest_storage->m_full= true;
   }
 }
 
