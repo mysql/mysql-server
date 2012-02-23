@@ -1281,18 +1281,16 @@ row_import_for_mysql(
 
 #ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
-			err = DB_TOO_MANY_CONCURRENT_TRXS;);
+			err = DB_TABLESPACE_NOT_FOUND;);
 #endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 
-		if (table->ibd_file_missing) {
-			ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-				 ER_FILE_NOT_FOUND,
-				"Cannot find or open in the "
-				"database directory the .ibd file of %s : %s",
-				table_name, ut_strerr(err));
-		}
+		ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			 ER_FILE_NOT_FOUND,
+			 "Cannot find or open in the database directory "
+			 "the .ibd file of %s : %s",
+			 table_name, ut_strerr(err));
 
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
@@ -1301,23 +1299,25 @@ row_import_for_mysql(
 
 #ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_check_bitmap_failure",
-			err = DB_TABLE_NOT_FOUND;);
+			err = DB_CORRUPTION;);
 #endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
 
+	/* The first index must always be the cluster index. */
+
 	dict_index_t*	index = dict_table_get_first_index(table);
+
+	if (!dict_index_is_clust(index)) {
+		return(row_import_error(prebuilt, trx, DB_CORRUPTION));
+	}
 
 	/* Scan the indexes. In the clustered index, initialize DB_TRX_ID
 	and DB_ROLL_PTR.  Ensure that the next available DB_ROW_ID is not
 	smaller than any DB_ROW_ID stored in the table. Purge any
 	delete-marked records from every index. */
-
-	if (!dict_index_is_clust(index)) {
-		return(row_import_error(prebuilt, trx, DB_CORRUPTION));
-	}
 
 	err = btr_root_adjust_on_import(index);
 
