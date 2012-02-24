@@ -2141,6 +2141,20 @@ WHERE t2.b IN (SELECT t3.b FROM t3 WHERE t3.a < ANY (SELECT t4.a FROM t4) and t3
 c	a	b
 10	7	0
 drop table t2, t3, t4;
+#
+# BUG#934597: Assertion `! is_set()' failed in Diagnostics_area::set_ok_status(THD...
+#
+CREATE TABLE t1 ( a VARCHAR(1) );
+INSERT INTO t1 VALUES ('u'),('k');
+CREATE TABLE t2 AS
+SELECT a AS field1 FROM t1
+WHERE ( SELECT alias1.a
+FROM t1 AS alias1
+) IS NOT NULL;
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t2;
+ERROR 42S02: Unknown table 't2'
+DROP TABLE t1;
 set optimizer_switch=@subselect4_tmp;
 SET optimizer_switch= @@global.optimizer_switch;
 set @@tmp_table_size= @@global.tmp_table_size;

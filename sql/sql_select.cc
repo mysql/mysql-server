@@ -2161,6 +2161,15 @@ JOIN::exec()
       !exec_const_cond->val_int())
     zero_result_cause= "Impossible WHERE noticed after reading const tables";
 
+  /* 
+    We've called exec_const_cond->val_int(). This may have caused an error.
+  */
+  if (thd->is_error())
+  {
+    error= thd->is_error();
+    DBUG_VOID_RETURN;
+  }
+
   if (zero_result_cause)
   {
     (void) return_zero_rows(this, result, select_lex->leaf_tables,
