@@ -511,8 +511,8 @@ void PFS_engine_table::set_field_enum(Field *f, ulonglong value)
 void PFS_engine_table::set_field_timestamp(Field *f, ulonglong value)
 {
   struct timeval tm;
-  tm.tv_sec= (long) value / 1000000;
-  tm.tv_usec= (long) value % 1000000;
+  tm.tv_sec= (long)(value / 1000000);
+  tm.tv_usec= (long)(value % 1000000);
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
   Field_timestampf *f2= (Field_timestampf*) f;
   f2->store_timestamp(& tm);
