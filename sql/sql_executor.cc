@@ -1366,8 +1366,9 @@ return_zero_rows(JOIN *join, List<Item> &fields)
     if (join->send_row_on_empty_set())
     {
       // Mark tables as containing only NULL values
-      for (uint tableno= 0; tableno < join->tables; tableno++)
-        mark_as_null_row((join->join_tab+tableno)->table);
+      for (TABLE_LIST *table= join->select_lex->leaf_tables; table;
+           table= table->next_leaf)
+        mark_as_null_row(table->table);
 
       // Calculate aggregate functions for no rows
       List_iterator_fast<Item> it(fields);
