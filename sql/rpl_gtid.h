@@ -1234,15 +1234,15 @@ public:
     Iterator over intervals of a const Gtid_set.
   */
   class Const_interval_iterator
-    : public Interval_iterator_base<const Gtid_set, Interval *const>
+    : public Interval_iterator_base<const Gtid_set, Interval const * const>
   {
   public:
     /// Create this Const_interval_iterator.
     Const_interval_iterator(const Gtid_set *gtid_set, rpl_sidno sidno)
-      : Interval_iterator_base<const Gtid_set, Interval *const>(gtid_set, sidno) {}
+      : Interval_iterator_base<const Gtid_set, Interval const * const>(gtid_set, sidno) {}
     /// Create this Const_interval_iterator.
     Const_interval_iterator(const Gtid_set *gtid_set)
-      : Interval_iterator_base<const Gtid_set, Interval *const>(gtid_set) {}
+      : Interval_iterator_base<const Gtid_set, Interval const * const>(gtid_set) {}
   };
 
   /**
@@ -1310,7 +1310,7 @@ public:
       if (gno == ivit.get()->end)
       {
         ivit.next();
-        Interval *iv= ivit.get();
+        const Interval *iv= ivit.get();
         // last interval for this sidno? then go to next sidno
         if (iv == NULL)
         {
@@ -1333,7 +1333,7 @@ public:
     /// Find the next sidno that has one or more intervals.
     inline void next_sidno()
     {
-      Interval *iv;
+      const Interval *iv;
       do
       {
         sidno++;
