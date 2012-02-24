@@ -12274,6 +12274,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
           tbl->table->maybe_null= FALSE;
         tbl->join_list= table->join_list;
         repl_list.push_back(tbl);
+        tbl->dep_tables|= table->dep_tables;
       }
       li.replace(repl_list);
       /* Need to update the name resolution table chain when flattening joins */
