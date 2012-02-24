@@ -1193,7 +1193,7 @@ public:
     pointer is either the initial pointer into the list, or the next
     pointer of one of the intervals in the list.
   */
-  template<typename Gtid_set_t, typename Interval_p> class Interval_iterator_base
+  template<typename Gtid_set_p, typename Interval_p> class Interval_iterator_base
   {
   public:
     /**
@@ -1202,22 +1202,22 @@ public:
       @param gtid_set The Gtid_set.
       @param sidno The SIDNO.
     */
-    Interval_iterator_base(Gtid_set_t *gtid_set, rpl_sidno sidno)
+    Interval_iterator_base(Gtid_set_p gtid_set, rpl_sidno sidno)
     {
       DBUG_ASSERT(sidno >= 1 && sidno <= gtid_set->get_max_sidno());
       init(gtid_set, sidno);
     }
     /// Construct a new iterator over the free intervals of a Gtid_set.
-    Interval_iterator_base(Gtid_set_t *gtid_set)
-    { p= &gtid_set->free_intervals; }
+    Interval_iterator_base(Gtid_set_p gtid_set)
+    { p= const_cast<Interval_p *>(&gtid_set->free_intervals); }
     /// Reset this iterator.
-    inline void init(Gtid_set_t *gtid_set, rpl_sidno sidno)
+    inline void init(Gtid_set_p gtid_set, rpl_sidno sidno)
     { p= dynamic_element(&gtid_set->intervals, sidno - 1, Interval_p *); }
     /// Advance current_elem one step.
     inline void next()
     {
       DBUG_ASSERT(*p != NULL);
-      p= &(*p)->next;
+      p= const_cast<Interval_p *>(&(*p)->next);
     }
     /// Return current_elem.
     inline Interval_p get() const { return *p; }
@@ -1234,15 +1234,15 @@ public:
     Iterator over intervals of a const Gtid_set.
   */
   class Const_interval_iterator
-    : public Interval_iterator_base<const Gtid_set, Interval const * const>
+    : public Interval_iterator_base<const Gtid_set *, const Interval *>
   {
   public:
     /// Create this Const_interval_iterator.
     Const_interval_iterator(const Gtid_set *gtid_set, rpl_sidno sidno)
-      : Interval_iterator_base<const Gtid_set, Interval const * const>(gtid_set, sidno) {}
+      : Interval_iterator_base<const Gtid_set *, const Interval *>(gtid_set, sidno) {}
     /// Create this Const_interval_iterator.
     Const_interval_iterator(const Gtid_set *gtid_set)
-      : Interval_iterator_base<const Gtid_set, Interval const * const>(gtid_set) {}
+      : Interval_iterator_base<const Gtid_set *, const Interval *>(gtid_set) {}
   };
 
   /**
@@ -1250,15 +1250,15 @@ public:
     methods to modify the Gtid_set.
   */
   class Interval_iterator
-    : public Interval_iterator_base<Gtid_set, Interval *>
+    : public Interval_iterator_base<Gtid_set *, Interval *>
   {
   public:
     /// Create this Interval_iterator.
     Interval_iterator(Gtid_set *gtid_set, rpl_sidno sidno)
-      : Interval_iterator_base<Gtid_set, Interval *>(gtid_set, sidno) {}
+      : Interval_iterator_base<Gtid_set *, Interval *>(gtid_set, sidno) {}
     /// Destroy this Interval_iterator.
     Interval_iterator(Gtid_set *gtid_set)
-      : Interval_iterator_base<Gtid_set, Interval *>(gtid_set) {}
+      : Interval_iterator_base<Gtid_set *, Interval *>(gtid_set) {}
   private:
     /**
       Set current_elem to the given Interval but do not touch the
