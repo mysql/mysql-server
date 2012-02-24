@@ -1,5 +1,6 @@
 /*
    Copyright (c) 2000, 2011, Oracle and/or its affiliates
+   Copyright (c) 2012, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -176,7 +177,8 @@ thr_lock_owner_equal(THR_LOCK_INFO *rhs, THR_LOCK_INFO *lhs)
 static uint found_errors=0;
 
 static int check_lock(struct st_lock_list *list, const char* lock_type,
-		      const char *where, my_bool same_owner, my_bool no_cond)
+		      const char *where, my_bool same_owner, my_bool no_cond,
+                      my_bool read_lock)
 {
   THR_LOCK_DATA *data,**prev;
   uint count=0;
@@ -189,6 +191,23 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
 
     for (data=list->data; data && count++ < MAX_LOCKS ; data=data->next)
     {
+      if (data->type == TL_UNLOCK)
+      {
+	fprintf(stderr,
+		"Warning: Found unlocked lock at %s: %s\n",
+                lock_type, where);
+        return 1;
+      }
+      if ((read_lock && data->type > TL_READ_NO_INSERT) ||
+          (!read_lock && data->type <= TL_READ_NO_INSERT))
+      {
+	fprintf(stderr,
+		"Warning: Found %s lock in %s queue at %s: %s\n",
+                read_lock ? "write" : "read",
+                read_lock ? "read" : "write",
+                lock_type, where);
+        return 1;
+      }
       if (data->type != last_lock_type)
 	last_lock_type=TL_IGNORE;
       if (data->prev != prev)
@@ -245,11 +264,14 @@ static void check_locks(THR_LOCK *lock, const char *where,
 
   if (found_errors < MAX_FOUND_ERRORS)
   {
-    if (check_lock(&lock->write,"write",where,1,1) |
-	check_lock(&lock->write_wait,"write_wait",where,0,0) |
-	check_lock(&lock->read,"read",where,0,1) |
-	check_lock(&lock->read_wait,"read_wait",where,0,0))
+    if (check_lock(&lock->write,"write",where,1,1,0) |
+	check_lock(&lock->write_wait,"write_wait",where,0,0,0) |
+	check_lock(&lock->read,"read",where,0,1,1) |
+	check_lock(&lock->read_wait,"read_wait",where,0,0,1))
+    {
+      DBUG_ASSERT(my_assert_on_error == 0);
       found_errors++;
+    }
 
     if (found_errors < MAX_FOUND_ERRORS)
     {
@@ -621,17 +643,16 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
 
 
 static enum enum_thr_lock_result
-thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
-         enum thr_lock_type lock_type, ulong lock_wait_timeout)
+thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner, ulong lock_wait_timeout)
 {
   THR_LOCK *lock=data->lock;
   enum enum_thr_lock_result result= THR_LOCK_SUCCESS;
   struct st_lock_list *wait_queue;
+  enum thr_lock_type lock_type= data->type;
   DBUG_ENTER("thr_lock");
 
   data->next=0;
   data->cond=0;					/* safety */
-  data->type=lock_type;
   data->owner= owner;                           /* Must be reset ! */
   data->priority&= ~THR_LOCK_LATE_PRIV;
   mysql_mutex_lock(&lock->mutex);
@@ -964,9 +985,7 @@ void thr_unlock(THR_LOCK_DATA *data, uint unlock_flags)
   if (lock_type == TL_READ_NO_INSERT)
     lock->read_no_write_count--;
   data->type=TL_UNLOCK;				/* Mark unlocked */
-  check_locks(lock,"after releasing lock", lock_type, 1);
   wake_up_waiters(lock);
-  check_locks(lock,"end of thr_unlock", lock_type, 1);
   mysql_mutex_unlock(&lock->mutex);
   DBUG_VOID_RETURN;
 }
@@ -986,6 +1005,7 @@ static void wake_up_waiters(THR_LOCK *lock)
   enum thr_lock_type lock_type;
   DBUG_ENTER("wake_up_waiters");
 
+  check_locks(lock, "before waking up waiters", TL_UNLOCK, 1);
   if (!lock->write.data)			/* If no active write locks */
   {
     data=lock->write_wait.data;
@@ -1140,8 +1160,7 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_INFO *owner,
   /* lock everything */
   for (pos=data,end=data+count; pos < end ; pos++)
   {
-    enum enum_thr_lock_result result= thr_lock(*pos, owner, (*pos)->type,
-                                               lock_wait_timeout);
+    enum enum_thr_lock_result result= thr_lock(*pos, owner, lock_wait_timeout);
     if (result != THR_LOCK_SUCCESS)
     {						/* Aborted */
       thr_multi_unlock(data,(uint) (pos-data), 0);

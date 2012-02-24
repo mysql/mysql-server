@@ -750,7 +750,7 @@ retry:
 
   if (handler->lock->lock_count > 0)
   {
-    bool lock_error;
+    int lock_error;
 
     handler->lock->locks[0]->type= handler->lock->locks[0]->org_type;
 

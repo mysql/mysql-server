@@ -526,7 +526,7 @@ int Mrr_ordered_index_reader::refill_buffer(bool initial)
   {
     /* This is a non-initial buffer fill and we've got a non-empty buffer */
     THD *thd= current_thd;
-    status_var_increment(thd->status_var.ha_mrr_extra_key_sorts);
+    status_var_increment(thd->status_var.ha_mrr_key_refills_count);
   }
 
   key_buffer->sort((key_buffer->type() == Lifo_buffer::FORWARD)? 
@@ -626,7 +626,7 @@ int Mrr_ordered_rndpos_reader::refill_buffer(bool initial)
   {
     /* Ok, this was a successful buffer refill operation */
     THD *thd= current_thd;
-    status_var_increment(thd->status_var.ha_mrr_extra_rowid_sorts);
+    status_var_increment(thd->status_var.ha_mrr_rowid_refills_count);
   }
 
   DBUG_RETURN(res);
@@ -861,8 +861,6 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     strategy= disk_strategy= &reader_factory.ordered_rndpos_reader;
   }
 
-  status_var_increment(thd->status_var.ha_multi_range_read_init_count);
-
   full_buf= buf->buffer;
   full_buf_end= buf->buffer_end;
 
@@ -952,6 +950,12 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
       goto error;
     }
   }
+  
+  /* 
+    At this point, we're sure that we're running a native MRR scan (i.e. we
+    didnt fall back to default implementation for some reason).
+  */
+  status_var_increment(thd->status_var.ha_mrr_init_count);
 
   res= strategy->refill_buffer(TRUE);
   if (res)

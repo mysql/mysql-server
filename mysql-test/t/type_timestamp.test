@@ -411,6 +411,12 @@ DROP TABLE t1, t2;
 
 --echo End of 5.1 tests
 
+--echo #
+--echo # lp:923429 Crash in decimal_cmp on using UNIX_TIMESTAMP with a wrongly formatted timestamp
+--echo #
+SELECT UNIX_TIMESTAMP('abc') > 0;
+SELECT UNIX_TIMESTAMP('abc');
+
 --echo
 --echo Bug#50888 valgrind warnings in Field_timestamp::val_str
 --echo
@@ -441,4 +447,3 @@ SELECT MAX(dt) = '2011-01-06 12:34:30' FROM t1;
 DROP TABLE t1;
 
 --echo End of 5.5 tests
-

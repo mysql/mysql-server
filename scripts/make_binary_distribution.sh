@@ -274,6 +274,7 @@ cd ..
 # the build for the relevant directories.
 # ----------------------------------------------------------------------
 @MAKE@ DESTDIR=$BASE install \
+  libexecdir=@prefix@/libexec \
   pkglibdir=@pkglibdir@ \
   pkgincludedir=@pkgincludedir@ \
   pkgdatadir=@pkgdatadir@ \

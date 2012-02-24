@@ -587,6 +587,19 @@ Variable_name	Value
 Handler_read_next	1
 DROP TABLE t1, t2;
 End of 5.1 tests
+#
+# lp:923429 Crash in decimal_cmp on using UNIX_TIMESTAMP with a wrongly formatted timestamp
+#
+SELECT UNIX_TIMESTAMP('abc') > 0;
+UNIX_TIMESTAMP('abc') > 0
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: 'abc'
+SELECT UNIX_TIMESTAMP('abc');
+UNIX_TIMESTAMP('abc')
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: 'abc'
 
 Bug#50888 valgrind warnings in Field_timestamp::val_str
 

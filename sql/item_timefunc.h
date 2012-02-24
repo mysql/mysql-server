@@ -436,11 +436,6 @@ public:
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  void fix_num_length_and_dec()
-  {
-    maybe_null= false;
-    Item_func_seconds_hybrid::fix_num_length_and_dec();
-  }
   /*
     UNIX_TIMESTAMP() depends on the current timezone
     (and thus may not be used as a partitioning function)
