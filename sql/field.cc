@@ -5144,8 +5144,6 @@ Field_temporal_with_date_and_time::convert_TIME_to_timestamp(THD *thd,
 
 void Field_temporal_with_date_and_time::init_timestamp_flags()
 {
-  /* For 4.0 MYD and 4.0 InnoDB compatibility */
-  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG | BINARY_FLAG;
   if (unireg_check != NONE)
   {
     /*
@@ -5243,6 +5241,8 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32 len_arg,
                                      unireg_check_arg, field_name_arg, 0)
 {
   init_timestamp_flags();
+   /* For 4.0 MYD and 4.0 InnoDB compatibility */
+  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
 }
 
 
@@ -5253,6 +5253,8 @@ Field_timestamp::Field_timestamp(bool maybe_null_arg,
                                      NONE, field_name_arg, 0)
 {
   init_timestamp_flags();
+  /* For 4.0 MYD and 4.0 InnoDB compatibility */
+  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
 }
 
 
@@ -5429,8 +5431,6 @@ Field_timestampf::Field_timestampf(bool maybe_null_arg,
                                       maybe_null_arg ? (uchar*) "": 0, 0,
                                       NONE, field_name_arg, dec_arg)
 {
-  /* For 4.0 MYD and 4.0 InnoDB compatibility */
-  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG | BINARY_FLAG;
   if (unireg_check != TIMESTAMP_DN_FIELD)
     flags|= ON_UPDATE_NOW_FLAG;
 }
@@ -9742,6 +9742,9 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     }
     break;
   case MYSQL_TYPE_TIMESTAMP:
+    /* Add flags for TIMESTAMP for 4.0 MYD and 4.0 InnoDB compatibility */
+    flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
+    /* Fall through */
   case MYSQL_TYPE_TIMESTAMP2:
     if (fld_length == NULL)
     {
@@ -9759,7 +9762,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
         length= ((length+1)/2)*2;
       length= min<ulong>(length, MAX_DATETIME_COMPRESSED_WIDTH);
     }
-    flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
+    
     /*
       Since we silently rewrite down to MAX_DATETIME_COMPRESSED_WIDTH bytes,
       the parser should not raise errors unless bizzarely large. 

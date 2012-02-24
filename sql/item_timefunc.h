@@ -588,11 +588,11 @@ class Item_date_func :public Item_temporal_func
 {
 public:
   Item_date_func() :Item_temporal_func()
-  { unsigned_flag= 1; }
+  { }
   Item_date_func(Item *a) :Item_temporal_func(a)
-  { unsigned_flag= 1; }
+  { }
   Item_date_func(Item *a, Item *b) :Item_temporal_func(a, b)
-  { unsigned_flag= 1; }
+  { }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   bool get_time(MYSQL_TIME *ltime)
   {
@@ -636,13 +636,13 @@ class Item_datetime_func :public Item_temporal_func
 {
 public:
   Item_datetime_func() :Item_temporal_func()
-  { unsigned_flag= 1; }
+  { }
   Item_datetime_func(Item *a) :Item_temporal_func(a)
-  { unsigned_flag= 1; }
+  { }
   Item_datetime_func(Item *a,Item *b) :Item_temporal_func(a,b)
-  { unsigned_flag= 1; }
+  { }
   Item_datetime_func(Item *a,Item *b, Item *c) :Item_temporal_func(a,b,c)
-  { unsigned_flag= 1; }
+  { }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
   double val_real() { return val_real_from_decimal(); }
   String *val_str(String *str)
