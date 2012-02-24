@@ -1157,6 +1157,23 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
 
 void Relay_log_info::clear_tables_to_lock()
 {
+  DBUG_ENTER("Relay_log_info::clear_tables_to_lock()");
+#ifndef DBUG_OFF
+  /**
+    When replicating in RBR and MyISAM Merge tables are involved
+    open_and_lock_tables (called in do_apply_event) appends the 
+    base tables to the list of tables_to_lock. Then these are 
+    removed from the list in close_thread_tables (which is called 
+    before we reach this point).
+
+    This assertion just confirms that we get no surprises at this
+    point.
+   */
+  uint i=0;
+  for (TABLE_LIST *ptr= tables_to_lock ; ptr ; ptr= ptr->next_global, i++) ;
+  DBUG_ASSERT(i == tables_to_lock_count);
+#endif  
+
   while (tables_to_lock)
   {
     uchar* to_free= reinterpret_cast<uchar*>(tables_to_lock);
@@ -1181,11 +1198,13 @@ void Relay_log_info::clear_tables_to_lock()
     my_free(to_free);
   }
   DBUG_ASSERT(tables_to_lock == NULL && tables_to_lock_count == 0);
+  DBUG_VOID_RETURN;
 }
 
 void Relay_log_info::slave_close_thread_tables(THD *thd)
 {
   thd->get_stmt_da()->set_overwrite_status(true);
+  DBUG_ENTER("Relay_log_info::slave_close_thread_tables(THD *thd)");
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
   thd->get_stmt_da()->set_overwrite_status(false);
 
@@ -1206,6 +1225,7 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
     thd->mdl_context.release_statement_locks();
 
   clear_tables_to_lock();
+  DBUG_VOID_RETURN;
 }
 /**
   Execute a SHOW RELAYLOG EVENTS statement.
