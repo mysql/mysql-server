@@ -246,6 +246,13 @@ ib_err_t
 
 typedef
 ib_err_t
+(*cb_cursor_set_lock_t)(
+/*====================*/
+	ib_crsr_t	ib_crsr,
+	ib_lck_mode_t	ib_lck_mode);
+
+typedef
+ib_err_t
 (*cb_cursor_close_t)(
 /*=================*/
 	ib_crsr_t	ib_crsr);
@@ -293,6 +300,12 @@ typedef
 ib_err_t
 (*cb_cursor_last_t)(
 /*================*/
+        ib_crsr_t       ib_crsr);
+
+typedef
+void
+(*cb_cursor_clear_trx_t)(
+/*=====================*/
         ib_crsr_t       ib_crsr);
 
 typedef
@@ -386,5 +399,7 @@ cb_cursor_set_cluster_access_t	ib_cb_cursor_set_cluster_access;
 cb_cursor_commit_trx_t		ib_cb_cursor_commit_trx;
 cb_cfg_trx_level_t		ib_cb_cfg_trx_level;
 cb_get_n_user_cols		ib_cb_get_n_user_cols;
+cb_cursor_set_lock_t		ib_cb_cursor_set_lock;
+cb_cursor_clear_trx_t		ib_cb_cursor_clear_trx;
 
 #endif /* innodb_cb_api_h */

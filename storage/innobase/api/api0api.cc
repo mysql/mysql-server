@@ -66,6 +66,9 @@ my_bool ib_binlog_enabled = FALSE;
 /** configure variable for MDL option with InnoDB APIs */
 my_bool ib_mdl_enabled = FALSE;
 
+/** configure variable for disable rowlock with InnoDB APIs */
+my_bool ib_disable_row_lock = FALSE;
+
 /** configure variable for Transaction isolation levels */
 ulong ib_trx_level_setting = IB_TRX_READ_UNCOMMITTED;
 
@@ -1259,6 +1262,19 @@ ib_qry_proc_free(
 }
 
 /*****************************************************************//**
+set a cursor trx to NULL */
+UNIV_INTERN
+void
+ib_cursor_clear_trx(
+/*================*/
+	ib_crsr_t	ib_crsr)	/*!< in/out: InnoDB cursor */
+{
+	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
+
+	cursor->prebuilt->trx = NULL;
+}
+
+/*****************************************************************//**
 Reset the cursor.
 @return	DB_SUCCESS or err code */
 UNIV_INTERN
@@ -1270,7 +1286,7 @@ ib_cursor_reset(
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
 	row_prebuilt_t*	prebuilt = cursor->prebuilt;
 
-	if (prebuilt->trx != NULL
+	if (cursor->valid_trx && prebuilt->trx != NULL
 	    && prebuilt->trx->n_mysql_tables_in_use > 0) {
 
 		--prebuilt->trx->n_mysql_tables_in_use;
@@ -1329,6 +1345,7 @@ ib_cursor_commit_trx(
 
 	ut_ad(prebuilt->trx == trx);
 	err = ib_trx_commit(ib_trx);
+	prebuilt->trx = NULL;
 	cursor->valid_trx = FALSE;
 	return(err);
 }
@@ -2041,12 +2058,18 @@ ib_cursor_read_row(
 			page_format = dict_table_is_comp(tuple->index->table);
 			rec = btr_pcur_get_rec(pcur);
 
+			if (prebuilt->innodb_api_rec &&
+			    prebuilt->innodb_api_rec != rec) {
+				rec = prebuilt->innodb_api_rec;
+			}
+
 			if (!rec_get_deleted_flag(rec, page_format)) {
 				ib_read_tuple(rec, page_format, tuple);
 				err = DB_SUCCESS;
 			} else{
 				err = DB_RECORD_NOT_FOUND;
 			}
+
 		} else {
 			err = DB_RECORD_NOT_FOUND;
 		}
@@ -2147,6 +2170,8 @@ ib_cursor_moveto(
 	}
 
 	ut_a(prebuilt->select_lock_type <= LOCK_NUM);
+
+	prebuilt->innodb_api_rec = NULL;
 
 	buf = static_cast<unsigned char*>(mem_alloc(UNIV_PAGE_SIZE));
 
@@ -3722,6 +3747,10 @@ ib_cfg_get_cfg()
 	
 	if (ib_mdl_enabled) {
 		cfg_status |= IB_CFG_MDL_ENABLED;
+	}
+
+	if (ib_disable_row_lock) {
+		cfg_status |= IB_CFG_DISABLE_ROWLOCK;
 	}
 
 	return(cfg_status);

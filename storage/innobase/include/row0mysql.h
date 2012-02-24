@@ -809,6 +809,7 @@ struct row_prebuilt_struct {
 	/*----------------------*/
 	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API 
 					query */
+	const rec_t*	innodb_api_rec;	/*!< InnoDB API search result */
 };
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687

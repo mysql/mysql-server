@@ -254,7 +254,7 @@ typedef enum {
 	IB_LOCK_X,			/*!< Exclusive locks should be used to
 					lock rows*/
 
-	IB_LOCK_NOT_USED,		/*!< Future use, reserved */
+	IB_LOCK_TABLE_X,		/*!< exclusive table lock */
 
 	IB_LOCK_NONE,			/*!< This is used internally to note
 					consistent read */
@@ -387,6 +387,7 @@ typedef void (*ib_cb_t)(void);
 
 #define IB_CFG_BINLOG_ENABLED	0x1
 #define IB_CFG_MDL_ENABLED	0x2
+#define IB_CFG_DISABLE_ROWLOCK	0x4
 
 /** The first argument to the InnoDB message logging function. By default
 it's set to stderr. You should treat ib_msg_stream_t as a void*, since
@@ -805,6 +806,15 @@ Reset the cursor.
 ib_err_t
 ib_cursor_reset(
 /*============*/
+	ib_crsr_t	ib_crsr);	/*!< in/out: InnoDB cursor */
+
+
+/*****************************************************************//**
+set a cursor trx to NULL */
+
+void
+ib_cursor_clear_trx(
+/*================*/
 	ib_crsr_t	ib_crsr);	/*!< in/out: InnoDB cursor */
 
 /*****************************************************************//**

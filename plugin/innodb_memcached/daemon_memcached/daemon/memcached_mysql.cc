@@ -62,7 +62,7 @@ static MYSQL_SYSVAR_STR(option, mci_memcached_option,
 
 static MYSQL_SYSVAR_UINT(r_batch_size, mci_r_batch_size,
 			 PLUGIN_VAR_READONLY,
-			 "read batch commit size", 0, 0, 1048576,
+			 "read batch commit size", 0, 0, 1,
 			 1, 1073741824, 0);
 
 static MYSQL_SYSVAR_UINT(w_batch_size, mci_w_batch_size,
