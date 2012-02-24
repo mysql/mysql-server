@@ -524,6 +524,37 @@ insert into t2 values(3);
 connection default;
 drop table t1, t2;
 
+#
+# BUG#909635 - MariaDB crashes on a select with long varchar and blob fields
+#
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b CHAR(255),
+  c VARCHAR(2048),
+  d VARCHAR(18990),
+  e CHAR(128),
+  f CHAR(192)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+INSERT INTO t1 VALUES
+  (1,'A','B','C','','D'),
+  (2,'Abcdefghi','E','F','','G');
+
+CREATE TABLE t2 (
+  g INT PRIMARY KEY,
+  h CHAR(32),
+  i CHAR(255),
+  j TEXT
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+INSERT INTO t2 VALUES (1,'M','','H'),
+  (2,'N','','H');
+
+SELECT * FROM t1, t2 WHERE a = g ORDER BY b;
+drop table t1,t2;
+
+
 # End of 5.1 tests
 
 --disable_result_log
