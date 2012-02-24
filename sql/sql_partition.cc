@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6550,7 +6550,7 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
     part_info= lpt->part_info->get_clone();
     close_all_tables_for_name(thd, table->s, false);
   }
-  else if (table->m_needs_reopen)
+  else
   {
 err_exclusive_lock:
     /*

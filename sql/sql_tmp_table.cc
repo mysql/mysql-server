@@ -823,7 +823,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (!table->file)
     goto err;
 
-  if (table->file->set_ha_share_storage(&share->ha_share))
+  if (table->file->set_ha_share_ref(&share->ha_share))
   {
     delete table->file;
     goto err;
@@ -1332,7 +1332,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   if (!table->file)
     goto err;
 
-  if (table->file->set_ha_share_storage(&share->ha_share))
+  if (table->file->set_ha_share_ref(&share->ha_share))
   {
     delete table->file;
     goto err;
@@ -1945,7 +1945,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   if (!(new_table.file= get_new_handler(&share, &new_table.mem_root,
                                         new_table.s->db_type())))
     DBUG_RETURN(1);				// End of memory
-  if (new_table.file->set_ha_share_storage(&share.ha_share))
+  if (new_table.file->set_ha_share_ref(&share.ha_share))
   {
     delete new_table.file;
     DBUG_RETURN(1);

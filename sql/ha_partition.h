@@ -2,7 +2,7 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,25 +54,38 @@ typedef struct st_part_name_def
 } PART_NAME_DEF;
 
 /** class where to save partitions Handler_share's */
-class Parts_share_storage
+class Parts_share_refs
 {
 public:
   uint num_parts;                              /**< Size of ha_share array */
   Handler_share **ha_shares;                   /**< Storage for each part */
-  Parts_share_storage(uint arg_num_parts)
+  Parts_share_refs()
   {
-    num_parts= arg_num_parts;
-    /* Allocate an array of Handler_share pointers */
-    ha_shares= new Handler_share *[num_parts];
-    memset(ha_shares, 0, sizeof(Handler_share*) * num_parts);
+    num_parts= 0;
+    ha_shares= NULL;
   }
-  ~Parts_share_storage()
+  ~Parts_share_refs()
   {
     uint i;
     for (i= 0; i < num_parts; i++)
       if (ha_shares[i])
         delete ha_shares[i];
-    delete [] ha_shares;
+    if (ha_shares)
+      delete [] ha_shares;
+  }
+  bool init(uint arg_num_parts)
+  {
+    DBUG_ASSERT(!num_parts && !ha_shares);
+    num_parts= arg_num_parts;
+    /* Allocate an array of Handler_share pointers */
+    ha_shares= new Handler_share *[num_parts];
+    if (!ha_shares)
+    {
+      num_parts= 0;
+      return true;
+    }
+    memset(ha_shares, 0, sizeof(Handler_share*) * num_parts);
+    return false;
   }
 };
 
@@ -93,7 +106,7 @@ public:
   bool partition_name_hash_initialized;
   HASH partition_name_hash;
   /** Storage for each partitions Handler_share */
-  Parts_share_storage *partitions_shares;
+  Parts_share_refs *partitions_share_refs;
   Partition_share() {}
   ~Partition_share()
   {
@@ -101,8 +114,8 @@ public:
     mysql_mutex_destroy(&auto_inc_mutex);
     if (partition_name_hash_initialized)
       my_hash_free(&partition_name_hash);
-    if (partitions_shares)
-      delete partitions_shares;
+    if (partitions_share_refs)
+      delete partitions_share_refs;
     DBUG_VOID_RETURN;
   }
   bool init(uint num_parts);
@@ -251,7 +264,7 @@ private:
   /** Stores shared auto_increment etc. */
   Partition_share *part_share;
   /** Temporary storage for new partitions Handler_shares during ALTER */
-  List<Parts_share_storage> m_new_partitions_shares;
+  List<Parts_share_refs> m_new_partitions_share_refs;
 public:
   Partition_share *get_part_share() { return part_share; }
   handler *clone(const char *name, MEM_ROOT *mem_root);
@@ -361,7 +374,7 @@ private:
                                      bool is_subpart);
   bool populate_partition_name_hash();
   Partition_share *get_share();
-  bool set_ha_share_storage(Handler_share **ha_share);
+  bool set_ha_share_ref(Handler_share **ha_share);
 
 public:
 
