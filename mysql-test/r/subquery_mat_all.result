@@ -630,10 +630,10 @@ insert into t2 values (1,10);
 explain extended
 select a from t1 where a in (select c from t2 where d >= 20);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	index	it1a	it1a	4	NULL	7	100.00	Using index
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where; Materialize
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where; Materialize; Scan
+1	PRIMARY	t1	ref	it1a	it1a	4	test.t2.c	2	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t2`.`d` >= 20))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`d` >= 20))
 select a from t1 where a in (select c from t2 where d >= 20);
 a
 2
@@ -682,12 +682,12 @@ explain extended
 select a from t1
 where a in (select c from t2 where d >= some(select e from t3 where b=e));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	index	it1a,iab	iab	8	NULL	7	100.00	Using index
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	7	100.00	Start temporary
+1	PRIMARY	t1	ref	it1a,iab	iab	4	test.t2.c	1	100.00	Using where; Using index; End temporary
 3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and <nop>(<in_optimizer>(`test`.`t2`.`d`,<exists>(/* select#3 */ select 1 from `test`.`t3` where ((`test`.`t1`.`b` = `test`.`t3`.`e`) and (<cache>(`test`.`t2`.`d`) >= `test`.`t3`.`e`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`a` = `test`.`t2`.`c`) and <nop>(<in_optimizer>(`test`.`t2`.`d`,<exists>(/* select#3 */ select 1 from `test`.`t3` where ((`test`.`t1`.`b` = `test`.`t3`.`e`) and (<cache>(`test`.`t2`.`d`) >= `test`.`t3`.`e`))))))
 select a from t1
 where a in (select c from t2 where d >= some(select e from t3 where b=e));
 a

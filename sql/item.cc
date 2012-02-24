@@ -617,6 +617,18 @@ uint Item::decimal_precision() const
                                      unsigned_flag);
     return min<uint>(prec, DECIMAL_MAX_PRECISION);
   }
+  switch (field_type())
+  {
+    case MYSQL_TYPE_TIME:
+      return decimals + TIME_INT_DIGITS;
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      return decimals + DATETIME_INT_DIGITS;
+    case MYSQL_TYPE_DATE:
+      return decimals + DATE_INT_DIGITS;
+    default:
+      break;
+  }
   return min<uint>(max_char_length(), DECIMAL_MAX_PRECISION);
 }
 

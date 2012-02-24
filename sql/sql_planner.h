@@ -1,7 +1,7 @@
 #ifndef SQL_PLANNER_INCLUDED
 #define SQL_PLANNER_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -140,12 +140,6 @@ private:
                 double *newcount, double *newcost);
 
   static uint determine_search_depth(uint search_depth, uint table_count);
-  /**
-    @todo: Add the static functions join_tab_cmp(), join_tab_cmp_straight() and
-    join_tab_cmp_embedded_first() as static private member functions here.
-    This is currently not possible because they are fed to my_qsort2(),
-    which requires C linkage.
-  */
 };
 
 void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
