@@ -174,7 +174,7 @@ innodb_read_cache_policy(
 
 	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
 			       MCI_CFG_CACHE_POLICIES, NULL, ib_trx,
-			       &crsr, &idx_crsr, IB_LOCK_IS);
+			       &crsr, &idx_crsr, IB_LOCK_S);
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, " InnoDB_Memcached: Cannot open config table"
@@ -281,7 +281,7 @@ innodb_read_config_option(
 	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
 	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
 			       MCI_CFG_CONFIG_OPTIONS, NULL, ib_trx,
-			       &crsr, &idx_crsr, IB_LOCK_IS);
+			       &crsr, &idx_crsr, IB_LOCK_S);
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, " InnoDB_Memcached: Cannot open config table"
@@ -381,7 +381,7 @@ innodb_config_container(
 	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
 	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
 			       MCI_CFG_CONTAINER_TABLE, NULL, ib_trx,
-			       &crsr, &idx_crsr, IB_LOCK_IS);
+			       &crsr, &idx_crsr, IB_LOCK_S);
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, " InnoDB_Memcached: Please create config table"
@@ -499,7 +499,8 @@ innodb_config_value_col_verify(
 	char*		name,		/*!< in: column name */
 	meta_cfg_info_t*meta_info,	/*!< in: meta info structure */
 	ib_col_meta_t*	col_meta,	/*!< in: column metadata */
-	int		col_id)		/*!< in: column ID */
+	int		col_id,		/*!< in: column ID */
+	meta_column_t*	col_verify)	/*!< in: verify structure */
 {
 	ib_err_t	err = DB_NOT_FOUND;
 
@@ -537,6 +538,11 @@ innodb_config_value_col_verify(
 					= col_id;
 				meta_info->col_info[CONTAINER_VALUE].col_meta
 					= *col_meta;
+
+				if (col_verify) {
+					col_verify[i].field_id = col_id;
+				}
+
 				err = DB_SUCCESS;
 			}
 		}
@@ -554,7 +560,8 @@ ib_err_t
 innodb_verify_low(
 /*==============*/
 	meta_cfg_info_t*	info,	/*!< in/out: meta info structure */
-	ib_crsr_t		crsr)	/*!< in: crsr */
+	ib_crsr_t		crsr,	/*!< in: crsr */
+	bool			runtime)/*!< in: verify at the runtime */
 {
 	ib_crsr_t	idx_crsr = NULL;
 	ib_tpl_t	tpl = NULL;
@@ -563,13 +570,29 @@ innodb_verify_low(
 	int		i;
 	bool		is_key_col = false;
 	bool		is_value_col = false;
+	bool		is_flag_col = false;
+	bool		is_cas_col = false;
+	bool		is_exp_col = false;
 	int		index_type;
 	ib_id_u64_t	index_id;
 	ib_err_t	err = DB_SUCCESS;
 	char*		name;
 	meta_column_t*	cinfo = info->col_info;
+	meta_column_t*	col_verify = NULL;
 
 	tpl = innodb_cb_read_tuple_create(crsr);
+
+	if (runtime && info->n_extra_col) {
+		col_verify = malloc(info->n_extra_col * sizeof(meta_column_t));
+
+		if (!col_verify) {
+			return(false);
+		}
+
+		for (i = 0; i < info->n_extra_col; i++) {
+			col_verify[i].field_id = -1;
+		}
+	}
 
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
@@ -581,7 +604,7 @@ innodb_verify_low(
 		innodb_cb_col_get_meta(tpl, i, &col_meta);
 
 		result = innodb_config_value_col_verify(
-			name, info, &col_meta, i);
+			name, info, &col_meta, i, col_verify);
 
 		if (result == DB_SUCCESS) {
 			is_value_col = true;
@@ -610,6 +633,7 @@ innodb_verify_low(
 			cinfo[CONTAINER_FLAG].field_id = i;
 			cinfo[CONTAINER_FLAG].col_meta = col_meta;
 			info->flag_enabled = true;
+			is_flag_col = true;
 		} else if (strcmp(name, cinfo[CONTAINER_CAS].col_name) == 0) {
 			/* CAS column must be integer type */
 			if (col_meta.type != IB_INT) {
@@ -619,6 +643,7 @@ innodb_verify_low(
 			cinfo[CONTAINER_CAS].field_id = i;
 			cinfo[CONTAINER_CAS].col_meta = col_meta;
 			info->cas_enabled = true;
+			is_cas_col = true;
 		} else if (strcmp(name, cinfo[CONTAINER_EXP].col_name) == 0) {
 			/* EXP column must be integer type */
 			if (col_meta.type != IB_INT) {
@@ -628,6 +653,7 @@ innodb_verify_low(
 			cinfo[CONTAINER_EXP].field_id = i;
 			cinfo[CONTAINER_EXP].col_meta = col_meta;
 			info->exp_enabled = true;
+			is_exp_col = true;
 		}
 	}
 
@@ -642,8 +668,14 @@ innodb_verify_low(
 	}
 
 	if (info->n_extra_col) {
+		meta_column_t*	col_check;
+
+		col_check = (runtime && col_verify)
+			    ? col_verify
+			    : info->extra_col_info;
+
 		for (i = 0; i < info->n_extra_col; i++) {
-			if (info->extra_col_info[i].field_id < 0) {
+			if (col_check[i].field_id < 0) {
 				fprintf(stderr, " InnoDB_Memcached: fail to"
 						" locate value column %s"
 						" as specified by config"
@@ -654,19 +686,20 @@ innodb_verify_low(
 			}
 		}
 	}
-	if (info->flag_enabled && cinfo[CONTAINER_FLAG].field_id < 0) {
+
+	if (info->flag_enabled && !is_flag_col) {
 		fprintf(stderr, " InnoDB_Memcached: fail to locate flag"
 				" column as specified by config table \n");
 		err = DB_ERROR;
 		goto func_exit;
 	}			
-	if (info->cas_enabled && cinfo[CONTAINER_CAS].field_id < 0) {
+	if (info->cas_enabled && !is_cas_col) {
 		fprintf(stderr, " InnoDB_Memcached: fail to locate cas"
 				" column as specified by config table \n");
 		err = DB_ERROR;
 		goto func_exit;
 	}
-	if (info->exp_enabled && cinfo[CONTAINER_EXP].field_id < 0) {
+	if (info->exp_enabled && !is_exp_col) {
 		fprintf(stderr, " InnoDB_Memcached: fail to locate exp"
 				" column as specified by config table \n");
 		err = DB_ERROR;
@@ -719,6 +752,10 @@ innodb_verify_low(
 	}
 func_exit:
 
+	if (runtime && col_verify) {
+		free(col_verify);
+	}
+
 	if (tpl) {
 		innodb_cb_tuple_delete(tpl);
 	}
@@ -763,7 +800,7 @@ innodb_verify(
 		goto func_exit;
 	}
 
-	err = innodb_verify_low(info, crsr);
+	err = innodb_verify_low(info, crsr, false);
 func_exit:
 	if (crsr) {
 		innodb_cb_cursor_close(crsr);

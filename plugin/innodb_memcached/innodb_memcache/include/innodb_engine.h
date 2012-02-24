@@ -48,7 +48,6 @@ typedef struct innodb_conn_data_struct		innodb_conn_data_t;
 
 /** Connection specific data */
 struct innodb_conn_data_struct {
-	ib_trx_t	read_crsr_trx;	/*!< transaction for read only crsr */
 	ib_crsr_t	read_crsr;	/*!< read only cursor for the
 					connection */
 	ib_crsr_t	idx_read_crsr;	/*!< index cursor for read */
@@ -110,6 +109,8 @@ typedef struct innodb_engine {
 						for InnoDB Memcached */
 	bool			enable_mdl;	/*!< whether MDL is enabled
 						for InnoDB Memcached */
+	ib_trx_level_t		trx_level;	/*!< transaction isolation
+						level */
 	meta_cfg_info_t		meta_info;	/*!< metadata info from
 						configuration */
 	conn_list_t		conn_data;	/*!< list of data specific for

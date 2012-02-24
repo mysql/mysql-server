@@ -237,9 +237,11 @@ table, and fills in columns used for memcached functionalities (cas, exp etc.)
 ib_err_t
 innodb_verify_low(
 /*==============*/
-        meta_cfg_info_t*        info,           /*!< in/out: meta info
-                                                structure */
-        ib_crsr_t               crsr);          /*!< in: crsr */
+        meta_cfg_info_t*	info,		/*!< in/out: meta info
+						structure */
+        ib_crsr_t		crsr,		/*!< in: crsr */
+	bool			runtime);	/*!< in: verify at the
+						runtime */
 
 /*************************************************************//**
 Following are a set of InnoDB callback function wrappers for functions

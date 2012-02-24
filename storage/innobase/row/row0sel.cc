@@ -3921,7 +3921,8 @@ row_search_for_mysql(
 	    && dict_index_is_clust(index)
 	    && !prebuilt->templ_contains_blob
 	    && !prebuilt->used_in_HANDLER
-	    && (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)) {
+	    && (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)
+	    && !prebuilt->innodb_api) {
 
 		mode = PAGE_CUR_GE;
 
@@ -4926,6 +4927,10 @@ idx_cond_failed:
 		/* Inside an update always store the cursor position */
 
 		btr_pcur_store_position(pcur, &mtr);
+
+		if (prebuilt->innodb_api) {
+			prebuilt->innodb_api_rec = result_rec;
+		}
 	}
 
 	goto normal_return;

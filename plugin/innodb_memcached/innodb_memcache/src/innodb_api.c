@@ -83,7 +83,9 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cursor_set_cluster_access,
 	(ib_cb_t*) &ib_cb_cursor_commit_trx,
 	(ib_cb_t*) &ib_cb_cfg_trx_level,
-	(ib_cb_t*) &ib_cb_get_n_user_cols
+	(ib_cb_t*) &ib_cb_get_n_user_cols,
+	(ib_cb_t*) &ib_cb_cursor_set_lock,
+	(ib_cb_t*) &ib_cb_cursor_clear_trx
 };
 
 /** Set expiration time */
@@ -130,7 +132,6 @@ innodb_api_begin(
 	ib_lck_mode_t	lock_mode)	/*!< in:  lock mode */
 {
 	ib_err_t	err = DB_SUCCESS;
-	int		i;
 	char		table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
 
 	if (!*crsr) {
@@ -149,7 +150,12 @@ innodb_api_begin(
 			return(err);
 		}
 
-		err = ib_cb_cursor_lock(*crsr, lock_mode);
+		if (lock_mode == IB_LOCK_TABLE_X) {
+			/* Table lock only */
+			err = ib_cb_cursor_lock(*crsr, IB_LOCK_X);
+		} else {
+			err = ib_cb_cursor_set_lock(*crsr, lock_mode);
+		}
 
 		if (err != DB_SUCCESS) {
 			fprintf(stderr, " InnoDB_Memcached: Fail to lock"
@@ -162,19 +168,8 @@ innodb_api_begin(
 			meta_index_t*	meta_index = &meta_info->index_info;
 
 			if (!engine->enable_mdl) {
-				if (meta_info->n_extra_col) {
-					for (i = 0; i  < meta_info->n_extra_col;
-					     i++){
-						meta_info->extra_col_info[i].field_id
-							= -1;
-					}
-				}
-
-				meta_info->col_info[CONTAINER_FLAG].field_id = -1;
-				meta_info->col_info[CONTAINER_EXP].field_id = -1;
-				meta_info->col_info[CONTAINER_CAS].field_id = -1;
-
-				err = innodb_verify_low(meta_info , *crsr);
+				err = innodb_verify_low(
+					meta_info , *crsr, true);
 
 				if (err != DB_SUCCESS) {
 					fprintf(stderr, " InnoDB_Memcached:"
@@ -195,7 +190,7 @@ innodb_api_begin(
 					*crsr, meta_index->idx_name,
 					idx_crsr, &index_type, &index_id);
 
-				ib_cb_cursor_lock(*idx_crsr, lock_mode);
+				ib_cb_cursor_set_lock(*idx_crsr, lock_mode);
 			}
 
 			/* Create a "Fake" THD if binlog is enabled */
@@ -214,7 +209,13 @@ innodb_api_begin(
 		}
 	} else {
 		ib_cb_cursor_new_trx(*crsr, ib_trx);
-		err = ib_cb_cursor_lock(*crsr, lock_mode);
+
+		if (lock_mode == IB_LOCK_TABLE_X) {
+			/* Table lock only */
+			err = ib_cb_cursor_lock(*crsr, IB_LOCK_X);
+		} else {
+			err = ib_cb_cursor_set_lock(*crsr, lock_mode);
+		}
 
 		if (err != DB_SUCCESS) {
 			fprintf(stderr, " InnoDB_Memcached: Fail to lock"
@@ -229,7 +230,7 @@ innodb_api_begin(
 			/* set up secondary index cursor */
 			if (meta_index->srch_use_idx == META_USE_SECONDARY) {
 				ib_cb_cursor_new_trx(*idx_crsr, ib_trx);
-				ib_cb_cursor_lock(*idx_crsr, lock_mode);
+				ib_cb_cursor_set_lock(*idx_crsr, lock_mode);
 			}
 		}
 	}
@@ -555,6 +556,15 @@ innodb_api_search(
 					 : cursor_data->crsr);
 
 		err = ib_cb_read_row(srch_crsr, read_tpl);
+
+		if (err != DB_SUCCESS) {
+			ib_cb_tuple_delete(read_tpl);
+
+			if (r_tpl) {
+				*r_tpl = NULL;
+			}
+			goto func_exit;
+		}
 
 		n_cols = ib_cb_tuple_get_n_cols(read_tpl);
 
@@ -1250,6 +1260,8 @@ innodb_api_arithmetic(
 			HDL_WRITE);
 	}
 
+	memset(value_buf, 0, 128);
+
 	/* Can't find the row, decide whether to insert a new row */
 	if (err != DB_SUCCESS) {
 		ib_cb_tuple_delete(old_tpl);
@@ -1574,8 +1586,16 @@ innodb_api_cursor_reset(
 	        || (op_type == CONN_OP_FLUSH))) {
 		ib_cb_cursor_reset(conn_data->crsr);
 
+		if (conn_data->read_crsr) {
+			ib_cb_cursor_reset(conn_data->read_crsr);
+		}
+
 		if (conn_data->idx_crsr) {
 			ib_cb_cursor_reset(conn_data->idx_crsr);
+		}
+
+		if (conn_data->idx_read_crsr) {
+			ib_cb_cursor_reset(conn_data->idx_read_crsr);
 		}
 
 		if (conn_data->crsr_trx) {
@@ -1584,6 +1604,22 @@ innodb_api_cursor_reset(
 			ib_cb_cursor_commit_trx(
 				conn_data->crsr, conn_data->crsr_trx);
 			conn_data->crsr_trx = NULL;
+
+			if (conn_data->read_crsr) {
+				ib_cb_cursor_clear_trx(
+					conn_data->read_crsr);
+			}
+
+			if (conn_data->idx_crsr) {
+				ib_cb_cursor_clear_trx(
+					conn_data->idx_crsr);
+			}
+
+			if (conn_data->idx_read_crsr) {
+				ib_cb_cursor_clear_trx(
+					conn_data->idx_read_crsr);
+			}
+
 			commit_trx = true;
 			conn_data->in_use = false;
 
@@ -1592,36 +1628,64 @@ innodb_api_cursor_reset(
 		}
 
 		conn_data->n_writes_since_commit = 0;
+		conn_data->n_reads_since_commit = 0;
 	}
 
 	if (conn_data->read_crsr
-	    && (conn_data->n_reads_since_commit > engine->read_batch_size
+	    && (conn_data->n_reads_since_commit >= engine->read_batch_size
 	        || (op_type == CONN_OP_FLUSH))) {
 		ib_cb_cursor_reset(conn_data->read_crsr);
+
+		if (conn_data->crsr) {
+			ib_cb_cursor_reset(conn_data->crsr);
+		}
 
 		if (conn_data->idx_read_crsr) {
 			ib_cb_cursor_reset(conn_data->idx_read_crsr);
 		}
 
-		if (conn_data->read_crsr_trx) {
+		if (conn_data->idx_crsr) {
+			ib_cb_cursor_reset(conn_data->idx_crsr);
+		}
+
+		if (conn_data->crsr_trx) {
 			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						engine);
 			ib_cb_cursor_commit_trx(
 				conn_data->read_crsr,
-				conn_data->read_crsr_trx);
-			conn_data->read_crsr_trx = NULL;
+				conn_data->crsr_trx);
+			conn_data->crsr_trx = NULL;
 			commit_trx = true;
+			if (conn_data->crsr) {
+				ib_cb_cursor_clear_trx(
+					conn_data->crsr);
+			}
+
+			if (conn_data->idx_crsr) {
+				ib_cb_cursor_clear_trx(
+					conn_data->idx_crsr);
+			}
+
+			if (conn_data->idx_read_crsr) {
+				ib_cb_cursor_clear_trx(
+					conn_data->idx_read_crsr);
+			}
+
 			conn_data->in_use = false;
 			UNLOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						  engine);
 		}
 		conn_data->n_reads_since_commit = 0;
+		conn_data->n_writes_since_commit = 0;
 	}
 
 	if (!commit_trx) {
 		LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 					engine);
-		assert(conn_data->in_use);
+		if (op_type != CONN_OP_FLUSH) {
+			assert(conn_data->in_use);
+		}
+
 		conn_data->in_use = false;
 		UNLOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 					  engine);
@@ -1696,8 +1760,7 @@ innodb_cb_cursor_lock(
 	ib_crsr_t	ib_crsr,	/*!< in/out: InnoDB cursor */
 	ib_lck_mode_t	ib_lck_mode)	/*!< in: InnoDB lock mode */
 {
-
-	return(ib_cb_cursor_lock(ib_crsr, ib_lck_mode));
+	return(ib_cb_cursor_set_lock(ib_crsr, ib_lck_mode));
 }
 
 /*****************************************************************//**

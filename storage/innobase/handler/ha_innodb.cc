@@ -439,7 +439,9 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_set_cluster_access,
 	(ib_cb_t) ib_cursor_commit_trx,
 	(ib_cb_t) ib_cfg_trx_level,
-	(ib_cb_t) ib_tuple_get_n_user_cols
+	(ib_cb_t) ib_tuple_get_n_user_cols,
+	(ib_cb_t) ib_cursor_set_lock_mode,
+	(ib_cb_t) ib_cursor_clear_trx
 };
 
 /*************************************************************//**
@@ -14790,6 +14792,11 @@ static MYSQL_SYSVAR_BOOL(api_enable_mdl, ib_mdl_enabled,
   "Enable MDL for applications direct access InnoDB through InnoDB APIs",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(api_disable_rowlock, ib_disable_row_lock,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Disable row lock when direct access InnoDB through InnoDB APIs",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ULONG(api_trx_level, ib_trx_level_setting,
   PLUGIN_VAR_OPCMDARG,
   "Number of undo logs to use.",
@@ -14897,6 +14904,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(doublewrite),
   MYSQL_SYSVAR(api_enable_binlog),
   MYSQL_SYSVAR(api_enable_mdl),
+  MYSQL_SYSVAR(api_disable_rowlock),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(read_io_threads),
