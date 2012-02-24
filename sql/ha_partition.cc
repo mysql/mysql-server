@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -135,9 +135,14 @@ bool Partition_share::init(uint num_parts)
   auto_inc_initialized= false;
   partition_name_hash_initialized= false;
   next_auto_inc_val= 0;
-  partitions_shares= new Parts_share_storage(num_parts);
-  if (!partitions_shares)
+  partitions_share_refs= new Parts_share_refs;
+  if (!partitions_share_refs)
     DBUG_RETURN(true);
+  if (partitions_share_refs->init(num_parts))
+  {
+    delete partitions_share_refs;
+    DBUG_RETURN(true);
+  }
   DBUG_RETURN(false);
 }
 
@@ -334,7 +339,7 @@ void ha_partition::init_handler_variables()
   m_is_clone_of= NULL;
   m_clone_mem_root= NULL;
   part_share= NULL;
-  m_new_partitions_shares.empty();
+  m_new_partitions_share_refs.empty();
 
 #ifdef DONT_HAVE_TO_BE_INITALIZED
   m_start_key.flag= 0;
@@ -363,8 +368,8 @@ const char *ha_partition::table_type() const
 ha_partition::~ha_partition()
 {
   DBUG_ENTER("ha_partition::~ha_partition()");
-  if (m_new_partitions_shares.elements)
-    m_new_partitions_shares.delete_elements();
+  if (m_new_partitions_share_refs.elements)
+    m_new_partitions_share_refs.delete_elements();
   if (m_file != NULL)
   {
     uint i;
@@ -1707,16 +1712,18 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
              part_elem->part_state == PART_TO_BE_ADDED)
     {
       uint j= 0;
-      Parts_share_storage *p_share_storage;
+      Parts_share_refs *p_share_refs;
       /*
         The Handler_shares for each partition's handler can be allocated
         within this handler, since there will not be any more instances of the
         new partitions, until the table is reopened after the ALTER succeeded.
       */
-      p_share_storage= new Parts_share_storage(num_subparts);
-      if (!p_share_storage)
+      p_share_refs= new Parts_share_refs;
+      if (!p_share_refs)
         DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-      if (m_new_partitions_shares.push_back(p_share_storage))
+      if (p_share_refs->init(num_subparts))
+        DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      if (m_new_partitions_share_refs.push_back(p_share_refs))
         DBUG_RETURN(HA_ERR_OUT_OF_MEM);
       do
       {
@@ -1729,7 +1736,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
           mem_alloc_error(sizeof(handler));
           DBUG_RETURN(HA_ERR_OUT_OF_MEM);
         }
-        if ((*new_file)->set_ha_share_storage(&p_share_storage->ha_shares[j]))
+        if ((*new_file)->set_ha_share_ref(&p_share_refs->ha_shares[j]))
         {
           DBUG_RETURN(HA_ERR_OUT_OF_MEM);
         }
@@ -2842,27 +2849,26 @@ err:
     @retval false Sucess
 */
 
-bool ha_partition::set_ha_share_storage(Handler_share **ha_share_arg)
+bool ha_partition::set_ha_share_ref(Handler_share **ha_share_arg)
 {
   Handler_share **ha_shares;
   uint i;
-  DBUG_ENTER("ha_partition::set_ha_share_storage");
+  DBUG_ENTER("ha_partition::set_ha_share_ref");
 
-  DBUG_ASSERT(!ha_share);
-  DBUG_ASSERT(ha_share_arg);
   DBUG_ASSERT(!part_share);
   DBUG_ASSERT(table_share);
   DBUG_ASSERT(!m_is_clone_of);
   DBUG_ASSERT(m_tot_parts);
-  ha_share= ha_share_arg;
+  if (handler::set_ha_share_ref(ha_share_arg))
+    DBUG_RETURN(true);
   if (!(part_share= get_share()))
     DBUG_RETURN(true);
-  DBUG_ASSERT(part_share->partitions_shares);
-  DBUG_ASSERT(part_share->partitions_shares->num_parts >= m_tot_parts);
-  ha_shares= part_share->partitions_shares->ha_shares;
+  DBUG_ASSERT(part_share->partitions_share_refs);
+  DBUG_ASSERT(part_share->partitions_share_refs->num_parts >= m_tot_parts);
+  ha_shares= part_share->partitions_share_refs->ha_shares;
   for (i= 0; i < m_tot_parts; i++)
   {
-    if (m_file[i]->set_ha_share_storage(&ha_shares[i]))
+    if (m_file[i]->set_ha_share_ref(&ha_shares[i]))
       DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
@@ -2882,34 +2888,27 @@ bool ha_partition::set_ha_share_storage(Handler_share **ha_share_arg)
 
 Partition_share *ha_partition::get_share()
 {
-  Handler_share *tmp_ha_share;
-  Partition_share *tmp_part_share;
+  Partition_share *tmp_share;
   DBUG_ENTER("ha_partition::get_share");
   DBUG_ASSERT(table_share);
 
-  if (!(tmp_ha_share= get_ha_share_ptr()))
+  lock_shared_ha_data();
+  if (!(tmp_share= static_cast<Partition_share*>(get_ha_share_ptr())))
   {
-    tmp_part_share= new Partition_share;
-    if (!tmp_part_share)
+    tmp_share= new Partition_share;
+    if (!tmp_share)
       goto err;
-    if (tmp_part_share->init(m_tot_parts))
+    if (tmp_share->init(m_tot_parts))
     {
-      delete tmp_part_share;
+      delete tmp_share;
+      tmp_share= NULL;
       goto err;
     }
-    part_share= tmp_part_share;
-
-    set_ha_share_ptr(static_cast<Handler_share*>(tmp_part_share));
-    DBUG_RETURN(tmp_part_share);
+    set_ha_share_ptr(static_cast<Handler_share*>(tmp_share));
   }
-
-  DBUG_RETURN(static_cast<Partition_share*>(tmp_ha_share));
 err:
-  /*
-    LOCK_ha_data is taken in get_ha_share_ptr and not released if not found.
-  */
   unlock_shared_ha_data();
-  DBUG_RETURN(NULL);
+  DBUG_RETURN(tmp_share);
 }
 
 
@@ -3184,7 +3183,7 @@ handler *ha_partition::clone(const char *name, MEM_ROOT *mem_root)
 
   /*
     We will not clone each partition's handler here, it will be done in
-    ha_partition::open() for clones. Also set_ha_share_storage is not needed
+    ha_partition::open() for clones. Also set_ha_share_ref is not needed
     here, since 1) ha_share is copied in the constructor used above
     2) each partition's cloned handler will set it from its original.
   */

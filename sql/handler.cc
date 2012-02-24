@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2139,7 +2139,7 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 
   if (!new_handler)
     return NULL;
-  if (new_handler->set_ha_share_storage(ha_share))
+  if (new_handler->set_ha_share_ref(ha_share))
     goto err;
 
   /*
@@ -6166,49 +6166,37 @@ void handler::use_hidden_primary_key()
 
 
 /**
-  Get an initialized ha_share
+  Get an initialized ha_share.
 
-  @return Initialized ha_data_share
-    @retval NULL    ha_share is not yet initialized,
-                    table_share->LOCK_ha_data is taken.
+  @return Initialized ha_share
+    @retval NULL    ha_share is not yet initialized.
     @retval != NULL previous initialized ha_share.
 
   @note
-  Helper function to avoid code duplication. If there is no ha_data_share
-  found and it is not a temporary table LOCK_ha_data is not release and
-  must be unlocked by the caller.
+  If not a temp table, then LOCK_ha_data must be held.
 */
 
 Handler_share *handler::get_ha_share_ptr()
 {
-  Handler_share *found_share;
   DBUG_ENTER("handler::get_ha_share_ptr");
   DBUG_ASSERT(ha_share && table_share);
 
-  lock_shared_ha_data();
+#ifndef DBUG_OFF
+  if (table_share->tmp_table == NO_TMP_TABLE)
+    mysql_mutex_assert_owner(&table_share->LOCK_ha_data);
+#endif
 
-  if (!(found_share= *ha_share))
-  {
-    /*
-      No ha_data_share set yet, leave LOCK_ha_data locked
-      and let the caller prepare it and set it with set_ha_share_ptr().
-    */
-    DBUG_RETURN(NULL);
-  }
-  unlock_shared_ha_data();
-  DBUG_RETURN(found_share);
+  DBUG_RETURN(*ha_share);
 }
 
 
 /**
-  Set ha_data_share in the TABLE_SHARE
+  Set ha_share to be used by all instances of the same table/partition.
 
-  @param ha_data          Data to be shared
-  @param ha_data_destroy  Callback to destroy ha_data
+  @param ha_share    Handler_share to be shared.
 
-  @note Helper function to avoid code duplication.
-  If not a temp table, then LOCK_ha_data must be held,
-  and is released in this function.
+  @note
+  If not a temp table, then LOCK_ha_data must be held.
 */
 
 void handler::set_ha_share_ptr(Handler_share *arg_ha_share)
@@ -6221,7 +6209,6 @@ void handler::set_ha_share_ptr(Handler_share *arg_ha_share)
 #endif
 
   *ha_share= arg_ha_share;
-  unlock_shared_ha_data();
   DBUG_VOID_RETURN;
 }
 

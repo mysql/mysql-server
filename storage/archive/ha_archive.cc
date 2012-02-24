@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -432,6 +432,7 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc)
 
   DBUG_ENTER("ha_archive::get_share");
 
+  lock_shared_ha_data();
   if (!(tmp_share= static_cast<Archive_share*>(get_ha_share_ptr())))
   {
     azio_stream archive_tmp;
@@ -462,6 +463,7 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc)
     {
       delete tmp_share;
       *rc= my_errno ? my_errno : HA_ERR_CRASHED;
+      tmp_share= NULL;
       goto err;
     }
     stats.auto_increment_value= archive_tmp.auto_increment + 1;
@@ -476,15 +478,12 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc)
   }
   if (tmp_share->crashed)
     *rc= HA_ERR_CRASHED_ON_USAGE;
-
-  DBUG_RETURN(tmp_share);
-
 err:
   unlock_shared_ha_data();
 
-  DBUG_ASSERT(*rc);
+  DBUG_ASSERT(tmp_share || *rc);
 
-  DBUG_RETURN(NULL);
+  DBUG_RETURN(tmp_share);
 }
 
 

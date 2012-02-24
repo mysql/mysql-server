@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -152,14 +152,12 @@ static int example_init_func(void *p)
 
 Example_share *ha_example::get_share()
 {
-  Handler_share *tmp_ha_share;
   Example_share *tmp_share;
 
   DBUG_ENTER("ha_example::get_share()");
 
-  if ((tmp_ha_share= get_ha_share_ptr()))
-    tmp_share= static_cast<Example_share*>(tmp_ha_share);
-  else
+  lock_shared_ha_data();
+  if (!(tmp_share= static_cast<Example_share*>(get_ha_share_ptr())))
   {
     tmp_share= new Example_share;
     if (!tmp_share)
@@ -167,11 +165,9 @@ Example_share *ha_example::get_share()
 
     set_ha_share_ptr(static_cast<Handler_share*>(tmp_share));
   }
-  DBUG_RETURN(tmp_share);
-
 err:
   unlock_shared_ha_data();
-  DBUG_RETURN(NULL);
+  DBUG_RETURN(tmp_share);
 }
 
 

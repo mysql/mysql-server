@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1458,8 +1458,6 @@ private:
     object. This cloned handler object needs to know about the lock_type used.
   */
   int m_lock_type;
-
-protected:
   /**
     Pointer where to store/retrieve the Handler_share pointer.
     For non partitioned handlers this is &TABLE_SHARE::ha_share.
@@ -2479,7 +2477,7 @@ public:
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
-  virtual bool set_ha_share_storage(Handler_share **arg_ha_share)
+  virtual bool set_ha_share_ref(Handler_share **arg_ha_share)
   {
     DBUG_ASSERT(!ha_share);
     DBUG_ASSERT(arg_ha_share);

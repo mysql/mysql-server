@@ -11711,6 +11711,7 @@ ha_innobase::get_share(void)
 {
 	Innobase_share *tmp_share;
 
+	lock_shared_ha_data();
 	tmp_share= static_cast<Innobase_share*>(get_ha_share_ptr());
 
 	if (!tmp_share)
@@ -11718,14 +11719,13 @@ ha_innobase::get_share(void)
 		tmp_share= new Innobase_share;
 		if (!tmp_share)
 		{
-			/* LOCK_ha_data is taken in get_ha_share_ptr and
-			not released if not found */
 			unlock_shared_ha_data();
 			return(NULL);
 		}
 
 		set_ha_share_ptr(static_cast<Handler_share*>(tmp_share));
 	}
+	unlock_shared_ha_data();
 	ut_ad(tmp_share);
 	return(tmp_share);
 }
