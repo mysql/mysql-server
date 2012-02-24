@@ -1559,6 +1559,20 @@ WHERE a IN (
 
 DROP TABLE t1;
 
+--echo #
+--echo # BUG#938131: Subquery materialization is not used in CREATE TABLE SELECT
+--echo # 
+CREATE TABLE t1(a int);
+INSERT INTO t1 values(1),(2);
+CREATE TABLE t2(a int);
+INSERT INTO t2 values(1),(2);
+--echo # Should use Materialization:
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 GROUP BY a HAVING a > 1);
+flush status;
+CREATE TABLE t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 GROUP BY a HAVING a > 1);
+SHOW STATUS LIKE 'Created_tmp_tables';
+DROP TABLE t1,t2,t3;
+
 --echo # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;
