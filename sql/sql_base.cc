@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6084,6 +6084,13 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                                       strlen(path)+1 + key_length,
                                       MYF(MY_WME))))
     DBUG_RETURN(0);				/* purecov: inspected */
+
+#ifndef DBUG_OFF
+  mysql_mutex_lock(&LOCK_open);
+  DBUG_ASSERT(!my_hash_search(&table_def_cache, (uchar*) cache_key,
+                              key_length));
+  mysql_mutex_unlock(&LOCK_open);
+#endif
 
   share= (TABLE_SHARE*) (tmp_table+1);
   tmp_path= (char*) (share+1);
