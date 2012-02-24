@@ -617,3 +617,27 @@ ERROR 23000: Duplicate entry '2' for key 'a'
 insert into t1 values(3);
 insert into t2 values(3);
 drop table t1, t2;
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b CHAR(255),
+c VARCHAR(2048),
+d VARCHAR(18990),
+e CHAR(128),
+f CHAR(192)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES
+(1,'A','B','C','','D'),
+(2,'Abcdefghi','E','F','','G');
+CREATE TABLE t2 (
+g INT PRIMARY KEY,
+h CHAR(32),
+i CHAR(255),
+j TEXT
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO t2 VALUES (1,'M','','H'),
+(2,'N','','H');
+SELECT * FROM t1, t2 WHERE a = g ORDER BY b;
+a	b	c	d	e	f	g	h	i	j
+1	A	B	C		D	1	M		H
+2	Abcdefghi	E	F		G	2	N		H
+drop table t1,t2;
