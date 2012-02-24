@@ -616,11 +616,13 @@ Gtid_set::add_gno_intervals(rpl_sidno sidno,
 {
   DBUG_ENTER("Gtid_set::add_gno_intervals(rpl_sidno, Const_interval_iterator, bool *)");
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
-  Interval *iv;
+  const Interval *other_iv;
   Interval_iterator ivit(this, sidno);
-  while ((iv= other_ivit.get()) != NULL)
+  while ((other_iv= other_ivit.get()) != NULL)
   {
-    PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit, iv->start, iv->end, lock));
+    PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit,
+                                              other_iv->start, other_iv->end,
+                                              lock));
     other_ivit.next();
   }
   RETURN_OK;
@@ -634,11 +636,12 @@ Gtid_set::remove_gno_intervals(rpl_sidno sidno,
 {
   DBUG_ENTER("Gtid_set::remove_gno_intervals(rpl_sidno, Interval_iterator, bool *)");
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
-  Interval *iv;
+  const Interval *other_iv;
   Interval_iterator ivit(this, sidno);
-  while ((iv= other_ivit.get()) != NULL)
+  while ((other_iv= other_ivit.get()) != NULL)
   {
-    PROPAGATE_REPORTED_ERROR(remove_gno_interval(&ivit, iv->start, iv->end,
+    PROPAGATE_REPORTED_ERROR(remove_gno_interval(&ivit,
+                                                 other_iv->start, other_iv->end,
                                                  lock));
     other_ivit.next();
   }

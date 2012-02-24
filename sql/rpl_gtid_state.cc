@@ -176,7 +176,7 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
   Gtid next_candidate= { sidno, 1 };
   while (true)
   {
-    Gtid_set::Interval *iv= ivit.get();
+    const Gtid_set::Interval *iv= ivit.get();
     rpl_gno next_interval_start= iv != NULL ? iv->start : MAX_GNO;
     while (next_candidate.gno < next_interval_start)
     {
