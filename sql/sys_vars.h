@@ -2143,9 +2143,9 @@ public:
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
     DBUG_ENTER("Sys_var_gtid_owned::session_value_ptr");
+    char *buf= NULL;
     if (thd->owned_gtid.sidno == 0)
       DBUG_RETURN((uchar *)thd->strdup(""));
-    char *buf;
     if (thd->owned_gtid.sidno == -1)
     {
 #ifdef HAVE_NDB_BINLOG
