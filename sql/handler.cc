@@ -19,6 +19,7 @@
   Handler-calling-functions
 */
 
+#include "binlog.h"
 #include "sql_priv.h"
 #include "unireg.h"
 #include "rpl_handler.h"
@@ -518,6 +519,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     the switch below and hton->state should be removed when
     command-line options for plugins will be implemented
   */
+  DBUG_PRINT("info", ("hton->state=%d", hton->state));
   switch (hton->state) {
   case SHOW_OPTION_NO:
     break;
@@ -1014,11 +1016,12 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   {
     trans= &thd->transaction.all;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
+    DBUG_PRINT("info", ("setting SERVER_STATUS_IN_TRANS"));
   }
   else
     trans= &thd->transaction.stmt;
 
-  ha_info= thd->ha_data[ht_arg->slot].ha_info + static_cast<unsigned>(all);
+  ha_info= thd->ha_data[ht_arg->slot].ha_info + (all ? 1 : 0);
 
   if (ha_info->is_started())
     DBUG_VOID_RETURN; /* already registered, return */
@@ -1168,6 +1171,8 @@ int ha_commit_trans(THD *thd, bool all)
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
   DBUG_ENTER("ha_commit_trans");
 
+  DBUG_PRINT("info", ("all=%d thd->in_sub_stmt=%d ha_info=%p is_real_trans=%d",
+                      all, thd->in_sub_stmt, ha_info, is_real_trans));
   /*
     We must not commit the normal transaction if a statement
     transaction is pending. Otherwise statement transaction
@@ -1448,6 +1453,8 @@ int ha_rollback_trans(THD *thd, bool all)
   if (all)
     thd->transaction_rollback_request= FALSE;
 
+  gtid_rollback(thd);
+
   /*
     If the transaction cannot be rolled back safely, warn; don't warn if this
     is a slave thread (because when a slave thread executes a ROLLBACK, it has
@@ -1495,7 +1502,7 @@ static my_bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
 }
 
 
-int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
+int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
 {
   struct xahton_st xaop;
   xaop.xid= xid;
@@ -1503,6 +1510,8 @@ int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
 
   plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &xaop);
+
+  gtid_rollback(thd);
 
   return xaop.result;
 }

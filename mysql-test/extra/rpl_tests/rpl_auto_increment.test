@@ -215,7 +215,21 @@ sync_slave_with_master;
 
 connection master;
 let $MYSQLD_DATADIR= `SELECT @@DATADIR`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 | $MYSQL test
+# Keep original binlog file
+--copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.saved
+# Stop slave
+connection slave;
+source include/stop_slave.inc;
+RESET SLAVE;
+RESET MASTER;
+connection master;
+# Force master to forget used GTIDs
+RESET MASTER;
+FLUSH LOGS;
+connection slave;
+source include/start_slave.inc;
+connection master;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved | $MYSQL test
 sync_slave_with_master;
 
 let $diff_tables= master:t1, slave:t1;

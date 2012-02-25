@@ -24,7 +24,7 @@ drop table test.t2;
 update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/synch/rwlock/sql/%"
   and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock");
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (performance_schema.setup_instruments)
