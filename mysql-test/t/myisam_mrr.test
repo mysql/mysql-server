@@ -313,6 +313,8 @@ set join_buffer_size=10;
 explain select sum(t1.b) from t0,t1 where t0.a=t1.a;
 flush status;
 select sum(t1.b) from t0,t1 where t0.a=t1.a;
+# the values below depend on sizeof(void*)
+--replace_result 1 ok 2 ok 3 ok
 show status like 'handler_mrr%';
 
 set join_cache_level= @join_cache_level_save;
