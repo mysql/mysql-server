@@ -40,14 +40,14 @@ alter table t3 add primary key(a);
 #   (despite that subquery's join output estimate is 50 rows)
 explain select * from t3 where a in (select max(t2.a) from t1, t2 group by t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	5	Using where
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	5	
 1	PRIMARY	t3	eq_ref	PRIMARY	PRIMARY	8	<subquery2>.max(t2.a)	1	Using where; Using index
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	5	Using temporary
 2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
 # Compare to this which really will have 50 record combinations:
 explain select * from t3 where a in (select max(t2.a) from t1, t2 group by t2.b, t1.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	50	Using where
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	50	
 1	PRIMARY	t3	eq_ref	PRIMARY	PRIMARY	8	<subquery2>.max(t2.a)	1	Using where; Using index
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	5	Using temporary
 2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
@@ -57,7 +57,7 @@ SET optimizer_switch='outer_join_with_cache=off';
 explain select * from t3 
 where a in (select max(t2.a) from t1 left join t2 on t1.a=t2.a group by t2.b, t1.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	50	Using where
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	50	
 1	PRIMARY	t3	eq_ref	PRIMARY	PRIMARY	8	<subquery2>.max(t2.a)	1	Using where; Using index
 2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	10	Using temporary
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
@@ -69,7 +69,7 @@ t4.b=t0.a and t4.a in (select max(t2.a) from t1, t2 group by t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	
 1	PRIMARY	t4	ALL	a	NULL	NULL	NULL	100	Using where; Using join buffer (flat, BNL join)
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	test.t4.a	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	test.t4.a	1	
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	5	Using temporary
 2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
 insert into t4 select 100 + (B.a *100 + A.a), 100 + (B.a*100 + A.a), 'filler' from t4 A, t0 B;
@@ -77,8 +77,8 @@ explain select * from t4 where
 t4.a in (select max(t2.a) from t1, t2 group by t2.b) and 
 t4.b in (select max(t2.a) from t1, t2 group by t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	5	Using where
-1	PRIMARY	<subquery3>	ALL	distinct_key	NULL	NULL	NULL	5	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	5	
+1	PRIMARY	<subquery3>	ALL	distinct_key	NULL	NULL	NULL	5	Using join buffer (flat, BNL join)
 1	PRIMARY	t4	ref	a	a	10	<subquery2>.max(t2.a),<subquery3>.max(t2.a)	12	
 3	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	5	Using temporary
 3	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
@@ -114,7 +114,7 @@ insert into t1 select A.a + 10*B.a + 100*C.a from t0 A, t0 B, t0 C;
 # The following must use non-merged SJ-Materialization:
 explain select * from t1 X join t0 Y on X.a < Y.a where X.a in (select max(a) from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	1	Using where
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	1	
 1	PRIMARY	X	ref	a	a	5	<subquery2>.max(a)	1	Using index
 1	PRIMARY	Y	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (flat, BNL join)
 2	MATERIALIZED	t0	ALL	NULL	NULL	NULL	NULL	10	

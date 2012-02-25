@@ -57,9 +57,17 @@ int select_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
+  if (table->no_rows_with_nulls)
+    table->null_catch_flags= CHECK_ROW_FOR_NULLS_TO_REJECT;
   fill_record(thd, table->field, values, TRUE, FALSE);
   if (thd->is_error())
     return 1;
+  if (table->no_rows_with_nulls)
+  {
+    table->null_catch_flags&= ~CHECK_ROW_FOR_NULLS_TO_REJECT;
+    if (table->null_catch_flags)
+      return 0;
+  }
 
   if ((write_err= table->file->ha_write_tmp_row(table->record[0])))
   {
