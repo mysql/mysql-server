@@ -3168,6 +3168,7 @@ bool setup_sj_materialization_part1(JOIN_TAB *sjm_tab)
     sjm->sjm_table_cols.push_back(*p_item);
 
   sjm->sjm_table_param.field_count= subq_select->item_list.elements;
+  sjm->sjm_table_param.force_not_null_cols= TRUE;
 
   if (!(sjm->table= create_tmp_table(thd, &sjm->sjm_table_param, 
                                      sjm->sjm_table_cols, (ORDER*) 0, 

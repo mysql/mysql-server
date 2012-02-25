@@ -1573,6 +1573,35 @@ CREATE TABLE t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 GROUP BY a HAVING 
 SHOW STATUS LIKE 'Created_tmp_tables';
 DROP TABLE t1,t2,t3;
 
+--echo # 
+--echo # BUG#939009: Crash with aggregate function in IN subquery 
+--echo #
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='materialization=on,semijoin=on';
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (7,1), (4,2), (7,7);
+
+CREATE TABLE t2 ( c INT );
+INSERT INTO t2 VALUES (4), (7), (6);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1
+  WHERE a IN (SELECT MAX(c) FROM t2) AND b=7 AND (a IS NULL OR a=b);
+SELECT * FROM t1
+  WHERE a IN (SELECT MAX(c) FROM t2) AND b=7 AND (a IS NULL OR a=b);
+
+EXPLAIN
+SELECT * FROM t1
+  WHERE a IN (SELECT MAX(c) FROM t2 WHERE c < 4) AND b=7 AND (a IS NULL OR a=b);
+SELECT * FROM t1
+  WHERE a IN (SELECT MAX(c) FROM t2 WHERE c < 4) AND b=7 AND (a IS NULL OR a=b);
+
+SET optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1,t2;
+
 --echo # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;

@@ -3778,15 +3778,18 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 	{
 	  /* field = expression OR field IS NULL */
 	  old->level= and_level;
-	  old->optimize= KEY_OPTIMIZE_REF_OR_NULL;
-	  /*
-            Remember the NOT NULL value unless the value does not depend
-            on other tables.
-          */
-	  if (!old->val->used_tables() && old->val->is_null())
-	    old->val= new_fields->val;
-          /* The referred expression can be NULL: */ 
-          old->null_rejecting= 0;
+          if (old->field->maybe_null())
+	  {
+	    old->optimize= KEY_OPTIMIZE_REF_OR_NULL;
+	    /*
+              Remember the NOT NULL value unless the value does not depend
+              on other tables.
+            */
+	    if (!old->val->used_tables() && old->val->is_null())
+	      old->val= new_fields->val;
+            /* The referred expression can be NULL: */ 
+            old->null_rejecting= 0;
+	  }
 	}
 	else
 	{
@@ -13587,6 +13590,7 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
   table->merge_keys.init();
   table->intersect_keys.init();
   table->keys_in_use_for_query.init();
+  table->no_rows_with_nulls= param->force_not_null_cols;
 
   table->s= share;
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname);
@@ -13666,6 +13670,11 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
           thd->mem_root= mem_root_save;
           arg= sum_item->set_arg(i, thd, new Item_field(new_field));
           thd->mem_root= &table->mem_root;
+          if (param->force_not_null_cols)
+	  {
+            new_field->flags|= NOT_NULL_FLAG;
+            new_field->null_ptr= NULL;
+          }
 	  if (!(new_field->flags & NOT_NULL_FLAG))
           {
 	    null_count++;
@@ -13741,6 +13750,11 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
           agg_item->result_field= new_field;
       }
       tmp_from_field++;
+      if (param->force_not_null_cols)
+      {
+        new_field->flags|= NOT_NULL_FLAG;
+        new_field->null_ptr= NULL;
+      }
       reclength+=new_field->pack_length();
       if (!(new_field->flags & NOT_NULL_FLAG))
 	null_count++;
