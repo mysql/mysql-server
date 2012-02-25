@@ -2,6 +2,7 @@ source include/have_semisync_plugin.inc;
 source include/not_embedded.inc;
 source include/have_innodb.inc;
 source include/master-slave.inc;
+source include/not_gtid_enabled.inc;
 
 let $engine_type= InnoDB;
 #let $engine_type= MyISAM;
@@ -29,9 +30,7 @@ let $_connections_normal_slave= query_get_value(SHOW STATUS LIKE 'Threads_connec
 --echo # Uninstall semi-sync plugins on master and slave
 --echo #
 connection slave;
-disable_query_log;
 source include/stop_slave.inc;
-reset slave;
 disable_warnings;
 error 0,1305;
 UNINSTALL PLUGIN rpl_semi_sync_slave;
@@ -40,16 +39,16 @@ UNINSTALL PLUGIN rpl_semi_sync_master;
 enable_warnings;
 
 connection master;
-reset master;
-set sql_log_bin=0;
 disable_warnings;
 error 0,1305;
 UNINSTALL PLUGIN rpl_semi_sync_slave;
 error 0,1305;
 UNINSTALL PLUGIN rpl_semi_sync_master;
 enable_warnings;
-set sql_log_bin=1;
-enable_query_log;
+--let $rpl_only_running_threads= 1
+--let $rpl_no_start_slave= 1
+--source include/rpl_reset.inc
+--let $rpl_only_running_threads= 0
 
 --echo #
 --echo # Main test of semi-sync replication start here
@@ -58,16 +57,14 @@ enable_query_log;
 connection master;
 echo [ on master ];
 
-disable_query_log;
 let $value = query_get_value(show variables like 'rpl_semi_sync_master_enabled', Value, 1);
 if ($value == No such row)
 {
-    set sql_log_bin=0;
-    eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
-    set global rpl_semi_sync_master_timeout= 5000; /* 5s */
-    set sql_log_bin=1;
+  disable_query_log;
+  eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+  set global rpl_semi_sync_master_timeout= 5000 /* 5s */;
+  enable_query_log;
 }
-enable_query_log;
 
 echo [ default state of semi-sync on master should be OFF ];
 show variables like 'rpl_semi_sync_master_enabled';
@@ -111,10 +108,11 @@ show status like 'Rpl_semi_sync_master_clients';
 show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_yes_tx';
 
-disable_query_log;
-# reset master to make sure the following test will start with a clean environment
-reset master;
-enable_query_log;
+# reset master and slave so the following test starts in a clean environment
+--let $rpl_only_running_threads= 1
+--let $rpl_no_start_slave= 1
+--source include/rpl_reset.inc
+--let $rpl_only_running_threads= 0
 
 --echo #
 --echo # INSTALL PLUGIN semi-sync on slave
@@ -123,15 +121,13 @@ enable_query_log;
 connection slave;
 echo [ on slave ];
 
-disable_query_log;
 let $value= query_get_value(show variables like 'rpl_semi_sync_slave_enabled', Value, 1);
 if ($value == No such row)
 {
-    set sql_log_bin=0;
-    eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
-    set sql_log_bin=1;
+  disable_query_log;
+  eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+  enable_query_log;
 }
-enable_query_log;
 
 echo [ default state of semi-sync on slave should be OFF ];
 show variables like 'rpl_semi_sync_slave_enabled';
@@ -386,6 +382,7 @@ echo [ on slave ];
 
 source include/stop_slave.inc;
 reset slave;
+reset master;
 
 # Kill the dump thread on master for previous slave connection and
 # wait for it to exit
@@ -436,12 +433,7 @@ show status like 'Rpl_semi_sync_master_yes_tx';
 --echo #
 --echo # Start semi-sync replication without SUPER privilege
 --echo #
-connection slave;
-source include/stop_slave.inc;
-reset slave;
-connection master;
-echo [ on master ];
-reset master;
+--source include/rpl_reset.inc
 
 # Kill the dump thread on master for previous slave connection and wait for it to exit
 let $_tid= `select id from information_schema.processlist where command = 'Binlog Dump' limit 1`;
@@ -544,9 +536,7 @@ connection slave;
 source include/stop_slave.inc;
 connection master;
 echo [ on master ];
-set sql_log_bin=0;
 UNINSTALL PLUGIN rpl_semi_sync_master;
-set sql_log_bin=1;
 enable_query_log;
 SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled';
 
@@ -567,11 +557,9 @@ SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 --echo #
 
 connection master;
-set sql_log_bin=0;
 replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN;
 eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
 set global rpl_semi_sync_master_timeout= 5000; /* 5s */
-set sql_log_bin=1;
 set global rpl_semi_sync_master_enabled= 1;
 
 connection slave;

@@ -1,5 +1,6 @@
 -- source include/not_embedded.inc
 -- source include/have_log_bin.inc
+
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.'); 
 #
 # SQL Syntax for Prepared Statements test

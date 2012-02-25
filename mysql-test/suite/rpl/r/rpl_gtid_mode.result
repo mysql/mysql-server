@@ -1,0 +1,113 @@
+include/master-slave.inc
+[connection master]
+call mtr.add_suppression("Slave I/O: The slave IO thread stops because the master has GTID_MODE");
+call mtr.add_suppression("Error reading packet from server: Lost connection to MySQL");
+call mtr.add_suppression("Aborting");
+include/stop_slave.inc
+==== Master and slave have GTID_MODE = OFF ====
+---- Default value for GTID_MODE ----
+include/assert.inc [Default value for GTID_MODE should be OFF]
+---- GTID_MODE is read-only ----
+SET GTID_MODE = OFF;
+ERROR HY000: Variable 'gtid_mode' is a read only variable
+SET GTID_MODE = UPGRADE_STEP_1;
+ERROR HY000: Variable 'gtid_mode' is a read only variable
+SET GTID_MODE = UPGRADE_STEP_2;
+ERROR HY000: Variable 'gtid_mode' is a read only variable
+SET GTID_MODE = ON;
+ERROR HY000: Variable 'gtid_mode' is a read only variable
+---- GTID_NEXT must be ANONYMOUS or AUTOMATIC ----
+SET GTID_NEXT = 'AUTOMATIC';
+SET GTID_NEXT = 'ANONYMOUS';
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+ERROR HY000: GTID_NEXT cannot be set to UUID:NUMBER when GTID_MODE = OFF.
+---- CHANGE MASTER TO MASTER_AUTO_POSITION not supported ----
+CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+ERROR HY000: CHANGE MASTER TO AUTO_POSITION = 1 can only be executed when GTID_MODE = ON.
+CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+---- No GTIDs in binlog ----
+include/start_slave.inc
+SET GTID_NEXT = 'AUTOMATIC';
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+SET GTID_NEXT = 'ANONYMOUS';
+INSERT INTO t1 VALUES (1);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Query	#	#	BEGIN
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000002	#	Rotate	#	#	master-bin.000001;pos=POS
+==== Checks performed at server start when GTID_MODE = ON ====
+include/rpl_stop_server.inc [server_number=2]
+---- GTID_MODE = UPGRADE_STEP_[1|2] not supported ----
+include/assert_command_output.inc
+include/assert_command_output.inc
+---- GTID_MODE=ON requires --disable-gtid-unsafe-statements ----
+include/assert_command_output.inc
+==== Master has GTID_MODE = OFF, slave has GTID_MODE = ON ====
+include/rpl_start_server.inc [server_number=2 gtids=on]
+---- Slave can't connect ----
+START SLAVE;
+include/wait_for_slave_io_error.inc [errno=1593 # ER_SLAVE_FATAL_ERROR]
+include/stop_slave_sql.inc
+==== Master and slave have GTID_MODE = ON ====
+include/rpl_stop_server.inc [server_number=1]
+---- GTID_MODE = ON requires --log-bin --log-slave-updates ----
+include/assert_command_output.inc
+include/rpl_start_server.inc [server_number=1 gtids=on]
+include/start_slave.inc
+include/assert.inc [GTID_MODE should be ON now.]
+---- GTID_NEXT must be SID:GNO or AUTOMATIC -----
+SET GTID_NEXT = 'AUTOMATIC';
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+SET GTID_NEXT = 'ANONYMOUS';
+ERROR HY000: GTID_NEXT cannot be set to ANONYMOUS when GTID_MODE = ON.
+ROLLBACK;
+SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns 7805BE8E-51AB-11E1-BACC-6706C20AD7BA:1. Ownership is released on COMMIT or ROLLBACK.
+ROLLBACK;
+SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+ROLLBACK;
+---- GTIDs are in binlog ----
+SET GTID_NEXT = 'AUTOMATIC';
+INSERT INTO t1 VALUES (2);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Previous_gtids	#	#	
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000002	#	Previous_gtids	#	#	
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000005	#	Previous_gtids	#	#	
+---- CHANGE MASTER TO MASTER_AUTO_POSITION = 1 works ----
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+include/start_slave.inc
+INSERT INTO t1 VALUES (3);
+include/stop_slave.inc
+==== Checks performed at server start when GTID_MODE = OFF ====
+include/rpl_stop_server.inc [server_number=2]
+---- Fail to start with GTID_MODE = OFF and GTIDs in binlog/relay log ----
+include/assert_command_output.inc
+include/rpl_start_server.inc [server_number=2 gtids=on]
+RESET SLAVE;
+RESET MASTER;
+==== Master has GTID_MODE = ON, slave has GTID_MODE = OFF ====
+include/rpl_stop_server.inc [server_number=2]
+include/rpl_start_server.inc [server_number=2 parameters: --log-slave-updates]
+CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = PORT, MASTER_USER = 'root', MASTER_LOG_FILE = 'FILE', MASTER_LOG_POS = POS, MASTER_CONNECT_RETRY = 1;
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+---- Slave can't connect ----
+START SLAVE;
+include/wait_for_slave_io_error.inc [errno=1593 # ER_SLAVE_FATAL_ERROR]
+include/stop_slave_sql.inc
+RESET SLAVE;
+include/rpl_end.inc

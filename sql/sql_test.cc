@@ -572,7 +572,6 @@ Next alarm time: %lu\n",
 	 alarm_info.next_alarm_time);
 #endif
   display_table_locks();
-  fflush(stdout);
 #ifdef HAVE_MALLINFO
   struct mallinfo info= mallinfo();
   printf("\nMemory status:\n\
@@ -604,6 +603,7 @@ Estimated memory (with thread stack):    %ld\n",
   Events::dump_internal_status();
 #endif
   puts("");
+  fflush(stdout);
 }
 
 
