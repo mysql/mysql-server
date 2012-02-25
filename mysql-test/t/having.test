@@ -589,5 +589,69 @@ ORDER BY t1.f1;
 
 DROP TABLE t1,t2;
 
-
 --echo End of 5.1 tests
+
+--echo #
+--echo # LP bug:938518 HAVING does not reject the result of aggregation
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY, a INT);
+INSERT INTO t1 VALUES (2,7), (4,7), (6,2), (17,0);
+SELECT MIN(t.pk) FROM t1, t1 as t WHERE t1.pk = 1;
+SELECT MIN(t.pk) FROM t1, t1 as t WHERE t1.pk = 1 HAVING MIN(t.pk) < 10;
+drop table t1;
+
+--echo #
+--echo # LP bug #791761: MAX over an empty join + HAVING
+--echo #
+
+CREATE TABLE t1 (a int, b int , KEY (b)) ;
+INSERT INTO t1 VALUES (3,1);
+
+CREATE TABLE t2 (a int NOT NULL ) ;
+INSERT INTO t2 VALUES (29);
+
+SELECT MAX(t1.b)  FROM t1,t2 WHERE t2.a > 0 HAVING MAX(t1.b) <> 6;
+SELECT MAX(t1.b)  FROM t1,t2 WHERE t2.a > 0 HAVING MAX(t1.b) IS NULL;
+
+EXPLAIN
+SELECT MAX(t1.b)  FROM t1,t2 WHERE t2.a < 0 HAVING MAX(t1.b) <> 6;
+SELECT MAX(t1.b)  FROM t1,t2 WHERE t2.a < 0 HAVING MAX(t1.b) <> 6;
+
+CREATE TABLE t3 ( f3 int) ;
+INSERT INTO t3 VALUES (NULL);
+
+SELECT MAX(t1.b) AS f FROM t1 JOIN t2 ON t2.a != 0
+  WHERE (SELECT f3 FROM t3) <> 0 HAVING f <> 6 ;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug:806955 HAVING not observed with aggregate +subquery
+--echo #
+
+#in 5.3 here optimizer_switch should be saved, and semijoin switched off
+CREATE TABLE t1 (f3 int, f10 varchar(1), f11 int, KEY (f10) );
+INSERT INTO t1 VALUES (NULL,'a',0),(8,'b',0);
+
+CREATE TABLE t2 (f2 int);
+INSERT INTO t2 VALUES (7);
+
+CREATE TABLE t3 (f3 int);
+INSERT INTO t3 VALUES (0),(8);
+
+SELECT MIN( t1.f10 ) AS field1
+FROM t1 , t2
+WHERE t2.f2 IN ( SELECT f3 FROM t3 )
+HAVING field1 < 's';
+
+explain extended
+SELECT MIN( t1.f10 ) AS field1
+FROM t1 , t2
+WHERE t2.f2 IN ( SELECT f3 FROM t3 )
+HAVING field1 < 's';
+
+#in 5.3 here optimizer_switch should be restored
+drop table t1,t2,t3;
+
+
+--echo End of 5.2 tests

@@ -104,7 +104,7 @@ static ORDER *remove_const(JOIN *join,ORDER *first_order,COND *cond,
 static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
                             List<Item> &fields, bool send_row,
                             ulonglong select_options, const char *info,
-                            Item *having);
+                            Item *having, List<Item> &all_fields);
 static COND *build_equal_items(THD *thd, COND *cond,
                                COND_EQUAL *inherited,
                                List<TABLE_LIST> *join_list,
@@ -1854,7 +1854,7 @@ JOIN::exec()
 			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
-			    having);
+			    having, all_fields);
     DBUG_VOID_RETURN;
   }
 
@@ -7447,7 +7447,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
 static int
 return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
 		 List<Item> &fields, bool send_row, ulonglong select_options,
-		 const char *info, Item *having)
+		 const char *info, Item *having, List<Item> &all_fields)
 {
   DBUG_ENTER("return_zero_rows");
 
@@ -7461,8 +7461,16 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
 
   if (send_row)
   {
+    List_iterator_fast<Item> it(all_fields);
+    Item *item;
     for (TABLE_LIST *table= tables; table; table= table->next_leaf)
       mark_as_null_row(table->table);		// All fields are NULL
+    /*
+      Inform all items (especially aggregating) to calculate HAVING correctly,
+      also we will need it for sending results.
+    */
+    while ((item= it++))
+      item->no_rows_in_result();
     if (having && having->val_int() == 0)
       send_row=0;
   }
@@ -7471,13 +7479,7 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
   {
     bool send_error= FALSE;
     if (send_row)
-    {
-      List_iterator_fast<Item> it(fields);
-      Item *item;
-      while ((item= it++))
-	item->no_rows_in_result();
       send_error= result->send_data(fields) > 0;
-    }
     if (!send_error)
       result->send_eof();				// Should be safe
   }
