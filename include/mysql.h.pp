@@ -264,7 +264,8 @@ enum mysql_option
   MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
   MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
-  MYSQL_PROGRESS_CALLBACK
+  MYSQL_PROGRESS_CALLBACK,
+  MYSQL_OPT_NONBLOCK=6000
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
@@ -402,6 +403,10 @@ const char * mysql_info(MYSQL *mysql);
 unsigned long mysql_thread_id(MYSQL *mysql);
 const char * mysql_character_set_name(MYSQL *mysql);
 int mysql_set_character_set(MYSQL *mysql, const char *csname);
+int mysql_set_character_set_start(int *ret, MYSQL *mysql,
+                                                   const char *csname);
+int mysql_set_character_set_cont(int *ret, MYSQL *mysql,
+                                                  int status);
 MYSQL * mysql_init(MYSQL *mysql);
 my_bool mysql_ssl_set(MYSQL *mysql, const char *key,
           const char *cert, const char *ca,
@@ -409,6 +414,12 @@ my_bool mysql_ssl_set(MYSQL *mysql, const char *key,
 const char * mysql_get_ssl_cipher(MYSQL *mysql);
 my_bool mysql_change_user(MYSQL *mysql, const char *user,
        const char *passwd, const char *db);
+int mysql_change_user_start(my_bool *ret, MYSQL *mysql,
+                                                const char *user,
+                                                const char *passwd,
+                                                const char *db);
+int mysql_change_user_cont(my_bool *ret, MYSQL *mysql,
+                                               int status);
 MYSQL * mysql_real_connect(MYSQL *mysql, const char *host,
         const char *user,
         const char *passwd,
@@ -416,13 +427,44 @@ MYSQL * mysql_real_connect(MYSQL *mysql, const char *host,
         unsigned int port,
         const char *unix_socket,
         unsigned long clientflag);
+int mysql_real_connect_start(MYSQL **ret, MYSQL *mysql,
+                                                 const char *host,
+                                                 const char *user,
+                                                 const char *passwd,
+                                                 const char *db,
+                                                 unsigned int port,
+                                                 const char *unix_socket,
+                                                 unsigned long clientflag);
+int mysql_real_connect_cont(MYSQL **ret, MYSQL *mysql,
+                                                int status);
 int mysql_select_db(MYSQL *mysql, const char *db);
+int mysql_select_db_start(int *ret, MYSQL *mysql,
+                                              const char *db);
+int mysql_select_db_cont(int *ret, MYSQL *mysql,
+                                             int status);
 int mysql_query(MYSQL *mysql, const char *q);
+int mysql_query_start(int *ret, MYSQL *mysql,
+                                          const char *q);
+int mysql_query_cont(int *ret, MYSQL *mysql,
+                                         int status);
 int mysql_send_query(MYSQL *mysql, const char *q,
       unsigned long length);
+int mysql_send_query_start(int *ret, MYSQL *mysql,
+                                               const char *q,
+                                               unsigned long length);
+int mysql_send_query_cont(int *ret, MYSQL *mysql,
+                                              int status);
 int mysql_real_query(MYSQL *mysql, const char *q,
      unsigned long length);
+int mysql_real_query_start(int *ret, MYSQL *mysql,
+                                               const char *q,
+                                               unsigned long length);
+int mysql_real_query_cont(int *ret, MYSQL *mysql,
+                                              int status);
 MYSQL_RES * mysql_store_result(MYSQL *mysql);
+int mysql_store_result_start(MYSQL_RES **ret, MYSQL *mysql);
+int mysql_store_result_cont(MYSQL_RES **ret, MYSQL *mysql,
+                                                int status);
 MYSQL_RES * mysql_use_result(MYSQL *mysql);
 void mysql_get_character_set_info(MYSQL *mysql,
                            MY_CHARSET_INFO *charset);
@@ -441,15 +483,39 @@ mysql_set_local_infile_default(MYSQL *mysql);
 int mysql_shutdown(MYSQL *mysql,
                                        enum mysql_enum_shutdown_level
                                        shutdown_level);
+int mysql_shutdown_start(int *ret, MYSQL *mysql,
+                                             enum mysql_enum_shutdown_level
+                                             shutdown_level);
+int mysql_shutdown_cont(int *ret, MYSQL *mysql,
+                                            int status);
 int mysql_dump_debug_info(MYSQL *mysql);
+int mysql_dump_debug_info_start(int *ret, MYSQL *mysql);
+int mysql_dump_debug_info_cont(int *ret, MYSQL *mysql,
+                                                   int status);
 int mysql_refresh(MYSQL *mysql,
          unsigned int refresh_options);
+int mysql_refresh_start(int *ret, MYSQL *mysql,
+                                            unsigned int refresh_options);
+int mysql_refresh_cont(int *ret, MYSQL *mysql, int status);
 int mysql_kill(MYSQL *mysql,unsigned long pid);
+int mysql_kill_start(int *ret, MYSQL *mysql,
+                                         unsigned long pid);
+int mysql_kill_cont(int *ret, MYSQL *mysql, int status);
 int mysql_set_server_option(MYSQL *mysql,
       enum enum_mysql_set_option
       option);
+int mysql_set_server_option_start(int *ret, MYSQL *mysql,
+                                                      enum enum_mysql_set_option
+                                                      option);
+int mysql_set_server_option_cont(int *ret, MYSQL *mysql,
+                                                     int status);
 int mysql_ping(MYSQL *mysql);
+int mysql_ping_start(int *ret, MYSQL *mysql);
+int mysql_ping_cont(int *ret, MYSQL *mysql, int status);
 const char * mysql_stat(MYSQL *mysql);
+int mysql_stat_start(const char **ret, MYSQL *mysql);
+int mysql_stat_cont(const char **ret, MYSQL *mysql,
+                                        int status);
 const char * mysql_get_server_info(MYSQL *mysql);
 const char * mysql_get_server_name(MYSQL *mysql);
 const char * mysql_get_client_info(void);
@@ -458,11 +524,25 @@ const char * mysql_get_host_info(MYSQL *mysql);
 unsigned long mysql_get_server_version(MYSQL *mysql);
 unsigned int mysql_get_proto_info(MYSQL *mysql);
 MYSQL_RES * mysql_list_dbs(MYSQL *mysql,const char *wild);
+int mysql_list_dbs_start(MYSQL_RES **ret, MYSQL *mysql,
+                                             const char *wild);
+int mysql_list_dbs_cont(MYSQL_RES **ret, MYSQL *mysql,
+                                            int status);
 MYSQL_RES * mysql_list_tables(MYSQL *mysql,const char *wild);
+int mysql_list_tables_start(MYSQL_RES **ret, MYSQL *mysql,
+                                                const char *wild);
+int mysql_list_tables_cont(MYSQL_RES **ret, MYSQL *mysql,
+                                               int status);
 MYSQL_RES * mysql_list_processes(MYSQL *mysql);
+int mysql_list_processes_start(MYSQL_RES **ret,
+                                                   MYSQL *mysql);
+int mysql_list_processes_cont(MYSQL_RES **ret, MYSQL *mysql,
+                                                  int status);
 int mysql_options(MYSQL *mysql,enum mysql_option option,
           const void *arg);
 void mysql_free_result(MYSQL_RES *result);
+int mysql_free_result_start(MYSQL_RES *result);
+int mysql_free_result_cont(MYSQL_RES *result, int status);
 void mysql_data_seek(MYSQL_RES *result,
      my_ulonglong offset);
 MYSQL_ROW_OFFSET mysql_row_seek(MYSQL_RES *result,
@@ -470,10 +550,19 @@ MYSQL_ROW_OFFSET mysql_row_seek(MYSQL_RES *result,
 MYSQL_FIELD_OFFSET mysql_field_seek(MYSQL_RES *result,
         MYSQL_FIELD_OFFSET offset);
 MYSQL_ROW mysql_fetch_row(MYSQL_RES *result);
+int mysql_fetch_row_start(MYSQL_ROW *ret,
+                                              MYSQL_RES *result);
+int mysql_fetch_row_cont(MYSQL_ROW *ret, MYSQL_RES *result,
+                                             int status);
 unsigned long * mysql_fetch_lengths(MYSQL_RES *result);
 MYSQL_FIELD * mysql_fetch_field(MYSQL_RES *result);
 MYSQL_RES * mysql_list_fields(MYSQL *mysql, const char *table,
        const char *wild);
+int mysql_list_fields_start(MYSQL_RES **ret, MYSQL *mysql,
+                                                const char *table,
+                                                const char *wild);
+int mysql_list_fields_cont(MYSQL_RES **ret, MYSQL *mysql,
+                                               int status);
 unsigned long mysql_escape_string(char *to,const char *from,
          unsigned long from_length);
 unsigned long mysql_hex_string(char *to,const char *from,
@@ -487,6 +576,10 @@ unsigned int mysql_thread_safe(void);
 my_bool mysql_embedded(void);
 my_bool mariadb_connection(MYSQL *mysql);
 my_bool mysql_read_query_result(MYSQL *mysql);
+int mysql_read_query_result_start(my_bool *ret,
+                                                      MYSQL *mysql);
+int mysql_read_query_result_cont(my_bool *ret,
+                                                     MYSQL *mysql, int status);
 enum enum_mysql_stmt_state
 {
   MYSQL_STMT_INIT_DONE= 1, MYSQL_STMT_PREPARE_DONE, MYSQL_STMT_EXECUTE_DONE,
@@ -557,12 +650,22 @@ enum enum_stmt_attr_type
 MYSQL_STMT * mysql_stmt_init(MYSQL *mysql);
 int mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query,
                                unsigned long length);
+int mysql_stmt_prepare_start(int *ret, MYSQL_STMT *stmt,
+                                     const char *query, unsigned long length);
+int mysql_stmt_prepare_cont(int *ret, MYSQL_STMT *stmt, int status);
 int mysql_stmt_execute(MYSQL_STMT *stmt);
+int mysql_stmt_execute_start(int *ret, MYSQL_STMT *stmt);
+int mysql_stmt_execute_cont(int *ret, MYSQL_STMT *stmt, int status);
 int mysql_stmt_fetch(MYSQL_STMT *stmt);
+int mysql_stmt_fetch_start(int *ret, MYSQL_STMT *stmt);
+int mysql_stmt_fetch_cont(int *ret, MYSQL_STMT *stmt, int status);
 int mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind_arg,
                                     unsigned int column,
                                     unsigned long offset);
 int mysql_stmt_store_result(MYSQL_STMT *stmt);
+int mysql_stmt_store_result_start(int *ret, MYSQL_STMT *stmt);
+int mysql_stmt_store_result_cont(int *ret, MYSQL_STMT *stmt,
+                                         int status);
 unsigned long mysql_stmt_param_count(MYSQL_STMT * stmt);
 my_bool mysql_stmt_attr_set(MYSQL_STMT *stmt,
                                     enum enum_stmt_attr_type attr_type,
@@ -573,12 +676,25 @@ my_bool mysql_stmt_attr_get(MYSQL_STMT *stmt,
 my_bool mysql_stmt_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
 my_bool mysql_stmt_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
 my_bool mysql_stmt_close(MYSQL_STMT * stmt);
+int mysql_stmt_close_start(my_bool *ret, MYSQL_STMT *stmt);
+int mysql_stmt_close_cont(my_bool *ret, MYSQL_STMT * stmt, int status);
 my_bool mysql_stmt_reset(MYSQL_STMT * stmt);
+int mysql_stmt_reset_start(my_bool *ret, MYSQL_STMT * stmt);
+int mysql_stmt_reset_cont(my_bool *ret, MYSQL_STMT *stmt, int status);
 my_bool mysql_stmt_free_result(MYSQL_STMT *stmt);
+int mysql_stmt_free_result_start(my_bool *ret, MYSQL_STMT *stmt);
+int mysql_stmt_free_result_cont(my_bool *ret, MYSQL_STMT *stmt,
+                                        int status);
 my_bool mysql_stmt_send_long_data(MYSQL_STMT *stmt,
                                           unsigned int param_number,
                                           const char *data,
                                           unsigned long length);
+int mysql_stmt_send_long_data_start(my_bool *ret, MYSQL_STMT *stmt,
+                                            unsigned int param_number,
+                                            const char *data,
+                                            unsigned long len);
+int mysql_stmt_send_long_data_cont(my_bool *ret, MYSQL_STMT *stmt,
+                                           int status);
 MYSQL_RES * mysql_stmt_result_metadata(MYSQL_STMT *stmt);
 MYSQL_RES * mysql_stmt_param_metadata(MYSQL_STMT *stmt);
 unsigned int mysql_stmt_errno(MYSQL_STMT * stmt);
@@ -593,9 +709,25 @@ my_ulonglong mysql_stmt_affected_rows(MYSQL_STMT *stmt);
 my_ulonglong mysql_stmt_insert_id(MYSQL_STMT *stmt);
 unsigned int mysql_stmt_field_count(MYSQL_STMT *stmt);
 my_bool mysql_commit(MYSQL * mysql);
+int mysql_commit_start(my_bool *ret, MYSQL * mysql);
+int mysql_commit_cont(my_bool *ret, MYSQL * mysql, int status);
 my_bool mysql_rollback(MYSQL * mysql);
+int mysql_rollback_start(my_bool *ret, MYSQL * mysql);
+int mysql_rollback_cont(my_bool *ret, MYSQL * mysql, int status);
 my_bool mysql_autocommit(MYSQL * mysql, my_bool auto_mode);
+int mysql_autocommit_start(my_bool *ret, MYSQL * mysql,
+                                   my_bool auto_mode);
+int mysql_autocommit_cont(my_bool *ret, MYSQL * mysql, int status);
 my_bool mysql_more_results(MYSQL *mysql);
 int mysql_next_result(MYSQL *mysql);
+int mysql_next_result_start(int *ret, MYSQL *mysql);
+int mysql_next_result_cont(int *ret, MYSQL *mysql, int status);
 int mysql_stmt_next_result(MYSQL_STMT *stmt);
+int mysql_stmt_next_result_start(int *ret, MYSQL_STMT *stmt);
+int mysql_stmt_next_result_cont(int *ret, MYSQL_STMT *stmt, int status);
+void mysql_close_slow_part(MYSQL *mysql);
 void mysql_close(MYSQL *sock);
+int mysql_close_start(MYSQL *sock);
+int mysql_close_cont(MYSQL *sock, int status);
+my_socket mysql_get_socket(const MYSQL *mysql);
+unsigned int mysql_get_timeout_value(const MYSQL *mysql);

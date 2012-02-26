@@ -212,6 +212,7 @@ my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
 my $opt_view_protocol;
+my $opt_non_blocking_api;
 
 our $opt_debug;
 my $debug_d= "d,*";
@@ -1125,6 +1126,7 @@ sub command_line_setup {
              'sp-protocol'              => \$opt_sp_protocol,
              'view-protocol'            => \$opt_view_protocol,
              'cursor-protocol'          => \$opt_cursor_protocol,
+             'non-blocking-api'         => \$opt_non_blocking_api,
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
              'compress'                 => \$opt_compress,
@@ -5852,6 +5854,11 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--cursor-protocol");
   }
 
+  if ( $opt_non_blocking_api )
+  {
+    mtr_add_arg($args, "--non-blocking-api");
+  }
+
   if ( $opt_strace_client )
   {
     $exe=  $opt_strace_client || "strace";
@@ -6312,6 +6319,7 @@ Options to control what engine/variation to run
                         (implies --ps-protocol)
   view-protocol         Create a view to execute all non updating queries
   sp-protocol           Create a stored procedure to execute all queries
+  non-blocking-api      Use the non-blocking client API
   compress              Use the compressed protocol between client and server
   ssl                   Use ssl protocol between client and server
   skip-ssl              Dont start server with support for ssl connections

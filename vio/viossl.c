@@ -21,6 +21,8 @@
 */
 
 #include "vio_priv.h"
+#include "my_context.h"
+#include <mysql_async.h>
 
 #ifdef HAVE_OPENSSL
 
@@ -66,7 +68,10 @@ size_t vio_ssl_read(Vio *vio, uchar* buf, size_t size)
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u  ssl: 0x%lx",
 		       vio->sd, (long) buf, (uint) size, (long) vio->ssl_arg));
 
-  r= SSL_read((SSL*) vio->ssl_arg, buf, size);
+  if (vio->async_context && vio->async_context->active)
+    r= my_ssl_read_async(vio->async_context, (SSL *)vio->ssl_arg, buf, size);
+  else
+    r= SSL_read((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
   if (r == (size_t) -1)
     report_errors((SSL*) vio->ssl_arg);
@@ -83,7 +88,10 @@ size_t vio_ssl_write(Vio *vio, const uchar* buf, size_t size)
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd,
                        (long) buf, (uint) size));
 
-  r= SSL_write((SSL*) vio->ssl_arg, buf, size);
+  if (vio->async_context && vio->async_context->active)
+    r= my_ssl_write_async(vio->async_context, (SSL *)vio->ssl_arg, buf, size);
+  else
+    r= SSL_write((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
   if (r == (size_t) -1)
     report_errors((SSL*) vio->ssl_arg);
