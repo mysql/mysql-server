@@ -1110,7 +1110,28 @@ retry:
 	}
 
 	ut_a(!dict_index_is_ibuf(index));
-	ut_ad(!dict_index_is_online_ddl(index));
+#ifdef UNIV_DEBUG
+	switch (dict_index_get_online_status(index)) {
+	case ONLINE_INDEX_COMPLETE:
+		/* The index has been published. */
+	case ONLINE_INDEX_ABORTED:
+		/* Either the index creation was aborted due to an
+		error observed by InnoDB (in which case there should
+		not be any adaptive hash index entries), or it was
+		completed and then flagged aborted in
+		rollback_inplace_alter_table(). In the latter case,
+		there could exist adaptive hash index entries. */
+		break;
+	case ONLINE_INDEX_CREATION:
+		/* The adaptive hash index should not be built during
+		online index creation. */
+	case ONLINE_INDEX_ABORTED_DROPPED:
+		/* The index should have been dropped from the tablespace
+		already, and the adaptive hash index entries should have
+		been dropped as well. */
+		ut_error;
+	}
+#endif /* UNIV_DEBUG */
 
 	table = btr_search_sys->hash_index;
 
