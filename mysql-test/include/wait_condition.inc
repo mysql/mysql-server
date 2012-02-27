@@ -23,8 +23,6 @@
 #    events_bugs.test, events_time_zone.test
 #
 
---disable_query_log
-
 let $wait_counter= 300;
 if ($wait_timeout)
 {
@@ -53,7 +51,5 @@ while ($wait_counter)
 }
 if (!$success)
 {
-  echo Timeout in wait_condition.inc for $wait_condition;
+  die Timeout in wait_condition.inc for $wait_condition;
 }
-
---enable_query_log

@@ -450,6 +450,20 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
   if (lex->spcont && tmp->var == Sys_autocommit_ptr)
     lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
 
+#ifdef HAVE_REPLICATION
+  if (lex->uses_stored_routines() &&
+      (tmp->var == Sys_gtid_next_ptr
+#ifdef HAVE_NDB_BINLOG
+       || tmp->var == Sys_gtid_next_list_ptr
+#endif
+     ))
+  {
+    my_error(ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION, MYF(0),
+             tmp->var->name.str);
+    return TRUE;
+  }
+#endif
+
   if (! (var= new set_var(var_type, tmp->var, &tmp->base_name, val)))
     return TRUE;
 
@@ -1104,6 +1118,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  INT_SYM                       /* SQL-2003-R */
 %token  INVOKER_SYM
 %token  IN_SYM                        /* SQL-2003-R */
+%token  IO_AFTER_GTIDS                /* MYSQL, FUTURE-USE */
+%token  IO_BEFORE_GTIDS               /* MYSQL, FUTURE-USE */
 %token  IO_SYM
 %token  IPC_SYM
 %token  IS                            /* SQL-2003-R */
@@ -1145,6 +1161,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  LOOP_SYM
 %token  LOW_PRIORITY
 %token  LT                            /* OPERATOR */
+%token  MASTER_AUTO_POSITION_SYM
 %token  MASTER_BIND_SYM
 %token  MASTER_CONNECT_RETRY_SYM
 %token  MASTER_DELAY_SYM
@@ -1360,6 +1377,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SQLEXCEPTION_SYM              /* SQL-2003-R */
 %token  SQLSTATE_SYM                  /* SQL-2003-R */
 %token  SQLWARNING_SYM                /* SQL-2003-R */
+%token  SQL_AFTER_GTIDS               /* MYSQL, FUTURE-USE */
+%token  SQL_BEFORE_GTIDS              /* MYSQL */
 %token  SQL_BIG_RESULT
 %token  SQL_BUFFER_RESULT
 %token  SQL_CACHE_SYM
@@ -2095,6 +2114,13 @@ master_def:
           {
             Lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_ENABLE;
            }
+        |
+        MASTER_AUTO_POSITION_SYM EQ ulong_num
+          {
+            Lex->mi.auto_position= $3 ?
+              LEX_MASTER_INFO::LEX_MI_ENABLE :
+              LEX_MASTER_INFO::LEX_MI_DISABLE;
+          }
         |
         master_file_def
         ;
@@ -7321,9 +7347,11 @@ slave_until:
           {
             LEX *lex=Lex;
             if (((lex->mi.log_file_name || lex->mi.pos) &&
-                (lex->mi.relay_log_name || lex->mi.relay_log_pos)) ||
+                (lex->mi.relay_log_name || lex->mi.relay_log_pos) &&
+                lex->mi.gtid) ||
                 !((lex->mi.log_file_name && lex->mi.pos) ||
-                  (lex->mi.relay_log_name && lex->mi.relay_log_pos)))
+                  (lex->mi.relay_log_name && lex->mi.relay_log_pos) ||
+                  lex->mi.gtid))
             {
                my_message(ER_BAD_SLAVE_UNTIL_COND,
                           ER(ER_BAD_SLAVE_UNTIL_COND), MYF(0));
@@ -7335,6 +7363,10 @@ slave_until:
 slave_until_opts:
           master_file_def
         | slave_until_opts ',' master_file_def
+        | SQL_BEFORE_GTIDS EQ TEXT_STRING_sys
+          {
+            Lex->mi.gtid= $3.str;
+          }
         ;
 
 checksum:
@@ -13161,6 +13193,7 @@ keyword_sp:
         | MASTER_SSL_CRL_SYM       {}
         | MASTER_SSL_CRLPATH_SYM   {}
         | MASTER_SSL_KEY_SYM       {}
+        | MASTER_AUTO_POSITION_SYM {}
         | MAX_CONNECTIONS_PER_HOUR {}
         | MAX_QUERIES_PER_HOUR     {}
         | MAX_SIZE_SYM             {}

@@ -15,7 +15,6 @@ create table test.t1(a int, b int, unique(b));
 load data infile '../../std_data/rpl_loaddata.dat' into table test.t1;
 
 # Test logging on slave;
-
 sync_slave_with_master;
 select count(*) from test.t1; # check that LOAD was replicated
 source include/show_binlog_events.inc;

@@ -23,6 +23,8 @@
 #include "sql_class.h"
 #include "tztime.h"
 
+#include "mock_field_timestamp.h"
+
 namespace {
 
 using my_testing::Server_initializer;
@@ -157,6 +159,23 @@ TEST_F(ItemTest, ItemInt)
    TODO: There are about 100 member functions in Item.
          Figure out which ones are relevant for unit testing here.
   */
+}
+
+
+TEST_F(ItemTest, ItemEqual)
+{
+  // Bug#13720201 VALGRIND: VARIOUS BLOCKS OF BYTES DEFINITELY LOST
+  Mock_field_timestamp mft;
+  // foo is longer than STRING_BUFFER_USUAL_SIZE used by cmp_item_sort_string.
+  const char foo[]=
+    "0123456789012345678901234567890123456789"
+    "0123456789012345678901234567890123456789"
+    "0123456789012345678901234567890123456789";
+  Item_equal *item_equal=
+    new Item_equal(new Item_string(STRING_WITH_LEN(foo), &my_charset_bin),
+                   new Item_field(&mft));
+  EXPECT_FALSE(item_equal->fix_fields(thd(), NULL));
+  EXPECT_EQ(0, item_equal->val_int());
 }
 
 
