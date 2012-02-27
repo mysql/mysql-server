@@ -2549,8 +2549,10 @@ row_merge_drop_indexes(
 				}
 				continue;
 			case ONLINE_INDEX_CREATION:
+				rw_lock_x_lock(dict_index_get_lock(index));
 				ut_ad(*index->name == TEMP_INDEX_PREFIX);
 				row_log_free(index);
+				rw_lock_x_unlock(dict_index_get_lock(index));
 			drop_aborted:
 				/* covered by dict_sys->mutex */
 				MONITOR_INC(MONITOR_BACKGROUND_DROP_INDEX);
@@ -3409,8 +3411,12 @@ func_exit:
 			case ONLINE_INDEX_COMPLETE:
 				break;
 			case ONLINE_INDEX_CREATION:
+				rw_lock_x_lock(
+					dict_index_get_lock(indexes[i]));
 				row_log_free(indexes[i]);
 				indexes[i]->type |= DICT_CORRUPT;
+				rw_lock_x_unlock(
+					dict_index_get_lock(indexes[i]));
 				new_table->drop_aborted = TRUE;
 				/* fall through */
 			case ONLINE_INDEX_ABORTED_DROPPED:
