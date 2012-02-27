@@ -48,7 +48,7 @@ UNIV_INTERN
 void
 row_log_free(
 /*=========*/
-	dict_index_t*	index)	/*!< in/out: index */
+	dict_index_t*	index)	/*!< in/out: index (x-latched) */
 	__attribute__((nonnull));
 
 /******************************************************//**

@@ -286,10 +286,13 @@ UNIV_INTERN
 void
 row_log_free(
 /*=========*/
-	dict_index_t*	index)	/*!< in/out: index */
+	dict_index_t*	index)	/*!< in/out: index (x-latched) */
 {
 	row_log_t*	log;
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	dict_index_set_online_status(index, ONLINE_INDEX_ABORTED);
 	log = index->info.online_log;
 	index->info.search = log->search;
