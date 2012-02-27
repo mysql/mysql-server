@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -512,36 +512,6 @@ typedef struct st_table_field_def
 } TABLE_FIELD_DEF;
 
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-/** Struct to be used for partition_name_hash */
-typedef struct st_part_name_def
-{
-  uchar *partition_name;
-  uint length;
-  uint32 part_id;
-  my_bool is_subpart;
-} PART_NAME_DEF;
-
-uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
-                     my_bool not_used __attribute__((unused)));
-
-/**
-  Partition specific ha_data struct.
-*/
-typedef struct st_ha_data_partition
-{
-  bool auto_inc_initialized;
-  mysql_mutex_t LOCK_auto_inc;                 /**< protecting auto_inc val */
-  ulonglong next_auto_inc_val;                 /**< first non reserved value */
-  /**
-    Hash of partition names. Initialized in the first ha_partition::open()
-    for the table_share. After that it is read-only, i.e. no locking required.
-  */
-  HASH partition_name_hash;
-} HA_DATA_PARTITION;
-#endif
-
-
 class Table_check_intact
 {
 protected:
@@ -747,17 +717,8 @@ struct TABLE_SHARE
   */
   const TABLE_FIELD_DEF *table_field_def_cache;
 
-  /** place to store storage engine specific data */
-  void *ha_data;
-  void (*ha_data_destroy)(void *); /* An optional destructor for ha_data */
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  /** place to store partition specific data, LOCK_ha_data hold while init. */
-  HA_DATA_PARTITION *ha_part_data;
-  /* Destructor for ha_part_data */
-  void (*ha_part_data_destroy)(HA_DATA_PARTITION *);
-#endif
-
+  /** Main handler's share */
+  Handler_share *ha_share;
 
   /** Instrumentation for this table share. */
   PSI_table_share *m_psi;

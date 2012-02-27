@@ -205,7 +205,7 @@ void Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid)
                       owned_gtids.get_owner(gtid), thd->thread_id));
   DBUG_ASSERT(owned_gtids.get_owner(gtid) != thd->thread_id);
   sid_locks.enter_cond(thd, gtid.sidno,
-                       &stage_waiting_for_group_to_be_written_to_binary_log,
+                       &stage_waiting_for_gtid_to_be_written_to_binary_log,
                        &old_stage);
   //while (get_owner(g.sidno, g.gno) != 0 && !thd->killed && !abort_loop)
   sid_locks.wait(gtid.sidno);

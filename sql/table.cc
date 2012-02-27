@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -212,19 +212,6 @@ static uchar *get_field_name(Field **buff, size_t *length,
   *length= (uint) strlen((*buff)->field_name);
   return (uchar*) (*buff)->field_name;
 }
-
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-/**
-  A function to return the partition name from a partition element
-*/
-uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
-                            my_bool not_used __attribute__((unused)))
-{
-  *length= part->length;
-  return part->partition_name;
-}
-#endif
 
 
 /*
@@ -455,6 +442,13 @@ void TABLE_SHARE::destroy()
   uint idx;
   KEY *info_it;
 
+  DBUG_ENTER("TABLE_SHARE::destroy");
+  DBUG_PRINT("info", ("db: %s table: %s", db.str, table_name.str));
+  if (ha_share)
+  {
+    delete ha_share;
+    ha_share= NULL;
+  }
   /* The mutex is initialized only for shares that are part of the TDC */
   if (tmp_table == NO_TMP_TABLE)
     mysql_mutex_destroy(&LOCK_ha_data);
@@ -474,19 +468,6 @@ void TABLE_SHARE::destroy()
     }
   }
 
-  if (ha_data_destroy)
-  {
-    ha_data_destroy(ha_data);
-    ha_data_destroy= NULL;
-  }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (ha_part_data_destroy)
-  {
-    ha_part_data_destroy(ha_part_data);
-    ha_part_data_destroy= NULL;
-  }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
-
 #ifdef HAVE_PSI_TABLE_INTERFACE
   PSI_CALL(release_table_share)(m_psi);
 #endif
@@ -497,6 +478,7 @@ void TABLE_SHARE::destroy()
   */
   MEM_ROOT own_root= mem_root;
   free_root(&own_root, MYF(0));
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -1386,6 +1368,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                       share->db_type())))
     goto err;
 
+  if (handler_file->set_ha_share_ref(&share->ha_share))
+    goto err;
+
   record= share->default_values-1;              /* Fieldstart = 1 */
   if (share->null_field_first)
   {
@@ -1860,18 +1845,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   delete crypted;
   delete handler_file;
   my_hash_free(&share->name_hash);
-  if (share->ha_data_destroy)
-  {
-    share->ha_data_destroy(share->ha_data);
-    share->ha_data_destroy= NULL;
-  }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (share->ha_part_data_destroy)
-  {
-    share->ha_part_data_destroy(share->ha_part_data);
-    share->ha_data_destroy= NULL;
-  }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   open_table_error(share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
@@ -1938,6 +1911,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   {
     if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
                                           share->db_type())))
+      goto err;
+    if (outparam->file->set_ha_share_ref(&share->ha_share))
       goto err;
   }
   else
