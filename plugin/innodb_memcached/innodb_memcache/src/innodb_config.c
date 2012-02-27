@@ -178,9 +178,9 @@ innodb_read_cache_policy(
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, " InnoDB_Memcached: Cannot open config table"
-				"'%s' in database '%s'. Error %lu\n",
+				"'%s' in database '%s'. Error %d\n",
 			MCI_CFG_CACHE_POLICIES, MCI_CFG_DB_NAME,
-			(ulong)err);
+			err);
 		err = DB_ERROR;
 		goto func_exit;
 	}
@@ -386,9 +386,9 @@ innodb_config_container(
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, " InnoDB_Memcached: Please create config table"
 				"'%s' in database '%s' by running"
-				" 'scripts/innodb_config.sql. error %lu'\n",
+				" 'scripts/innodb_config.sql. error %d'\n",
 			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME,
-			(ulong) err);
+			err);
 		err = DB_ERROR;
 		goto func_exit;
 	}
