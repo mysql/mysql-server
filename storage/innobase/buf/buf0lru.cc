@@ -460,16 +460,20 @@ buf_flush_or_remove_page(
 	} else {
 		mutex_t*	block_mutex;
 
+		block_mutex = buf_page_get_mutex(bpage);
+
+		/* Acquire the block mutex to avoid a race condition between
+		this thread and the background flush thread for the flush
+		and remove use case below. */
+
+		mutex_enter(block_mutex);
+
 		/* We have to release the flush_list_mutex to obey the
 		latching order. We are however guaranteed that the page
 		will stay in the flush_list because buf_flush_remove()
-		needs buf_pool->mutex as well. */
+		needs buf_pool->mutex as well (for the non-flush case). */
 
 		buf_flush_list_mutex_exit(buf_pool);
-
-		block_mutex = buf_page_get_mutex(bpage);
-
-		mutex_enter(block_mutex);
 
 		ut_ad(bpage->oldest_modification != 0);
 

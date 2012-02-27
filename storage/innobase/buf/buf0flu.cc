@@ -864,7 +864,7 @@ buf_flush_write_block_low(
 #endif
 
 #ifdef UNIV_LOG_DEBUG
-	static ibool univ_log_debug_warned;
+	static ibool	univ_log_debug_warned;
 #endif /* UNIV_LOG_DEBUG */
 
 	ut_ad(buf_page_in_file(bpage));
