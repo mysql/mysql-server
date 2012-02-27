@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -115,6 +115,8 @@ enum db_err {
 	DB_READ_ONLY,			/*!< Update operation attempted in
 					a read-only transaction */
 	DB_FTS_INVALID_DOCID,		/* FTS Doc ID cannot be zero */
+	DB_TABLE_IN_FK_CHECK,		/* table is being used in foreign
+					key check */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

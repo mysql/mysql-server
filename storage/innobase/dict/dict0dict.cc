@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -64,6 +64,8 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "lock0lock.h"
 #include "dict0priv.h"
 #include "row0upd.h"
+#include "m_string.h"
+#include "my_sys.h"
 
 #include <ctype.h>
 
@@ -2892,6 +2894,8 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
+	ut_a(foreign->foreign_table->n_foreign_key_checks_running == 0);
+
 	mem_heap_free(foreign->heap);
 }
 

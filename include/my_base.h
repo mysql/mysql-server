@@ -10,8 +10,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+
 
 /* This file includes constants used with all databases */
 
@@ -451,7 +452,8 @@ enum ha_base_keytype {
 #define HA_ERR_INDEX_CORRUPT      180	 /* InnoDB index corrupted */
 #define HA_ERR_UNDO_REC_TOO_BIG   181    /* Undo log record too big */
 #define HA_FTS_INVALID_DOCID      182	/* Invalid InnoDB Doc ID */
-#define HA_ERR_LAST               182    /* Copy of last error nr */
+#define HA_ERR_TABLE_IN_FK_CHECK  183    /* Table being used in foreign key check */
+#define HA_ERR_LAST               183    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
