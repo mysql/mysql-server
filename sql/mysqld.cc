@@ -8488,7 +8488,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
-  key_PARTITION_LOCK_auto_inc, key_LOCK_log_throttle_qni;
+  key_LOCK_log_throttle_qni;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
 
 static PSI_mutex_info all_server_mutexes[]=
@@ -8544,7 +8544,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
   { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
   { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
-  { &key_PARTITION_LOCK_auto_inc, "HA_DATA_PARTITION::LOCK_auto_inc", 0},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL}
 };
 
