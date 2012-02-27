@@ -1406,6 +1406,20 @@ DROP TABLE t1;
 
 --echo End of 5.1 tests
 
+--echo #
+--echo # LP Bug #533117: Wrong use_count in SEL_ARG trees
+--echo #   (Bug #58731)
+--echo #
+
+create table t1 (a int, b int, c int, key idx (a,b,c));
+insert into t1 values (0,0,0), (2,2,0), (1,1,1), (2,2,1);
+
+explain
+select * from t1 force index (idx) where a >=1 and c <= 1 and a=b and b > 1;
+select * from t1 force index (idx) where a >=1 and c <= 1 and a=b and b > 1;
+
+drop table t1;
+
 #
 # lp:750117 Bogus warning with aggregate and datetime column
 #
@@ -1459,4 +1473,3 @@ SELECT * FROM t1 ignore index(d) WHERE d = 'q' OR d >= 'q' OR (d IN ( 'j' , 's' 
 SELECT * FROM t1 force index(d)  WHERE d = 'q' OR d >= 'q' OR (d IN ( 'j' , 's' , 'i' ) AND ( b = 102 ));
 
 DROP TABLE t1;
-

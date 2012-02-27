@@ -259,9 +259,8 @@ innobase_get_at_most_n_mbchars(
 /*************************************************************//**
 InnoDB index push-down condition check
 @return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
-UNIV_INTERN
 enum icp_result
-innobase_index_cond(
+handler_index_cond_check(
 /*================*/
 	void*	file)	/*!< in/out: pointer to ha_innobase */
 	__attribute__((nonnull, warn_unused_result));

@@ -139,6 +139,7 @@ SET(CLIENT_SOURCES
   libmysql.c
   errmsg.c
   ../sql-common/client.c 
+  ../sql-common/mysql_async.c
   ../sql-common/my_time.c 
   ../sql-common/client_plugin.c 
   ../sql/net_serv.cc

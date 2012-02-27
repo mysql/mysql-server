@@ -852,3 +852,25 @@ SET optimizer_switch=@save_optimizer_switch;
 
 DROP TABLE t1,t2;
 
+--echo # check "Handler_pushed" status varuiables
+CREATE TABLE t1 (
+  c1 CHAR(1),
+  c2 CHAR(1),
+  KEY (c1)
+);
+
+INSERT INTO t1 VALUES ('3', '3'),('4','4'),('5','5');
+
+flush status;
+show status like "Handler_icp%";
+
+SELECT * FROM t1 FORCE INDEX(c1) WHERE (c1='3' or c1='4') and c1 % 2 = 0 ;
+
+show status like "Handler_icp%";
+
+SELECT * FROM t1 WHERE (c2='3' or c2='4') and c2 % 2 = 0 ;
+
+show status like "Handler_icp%";
+
+DROP TABLE t1;
+

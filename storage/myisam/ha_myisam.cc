@@ -1645,27 +1645,11 @@ int ha_myisam::delete_row(const uchar *buf)
 }
 
 
-C_MODE_START
-
-ICP_RESULT index_cond_func_myisam(void *arg)
-{
-  ha_myisam *h= (ha_myisam*)arg;
-  if (h->end_range)
-  {
-    if (h->compare_key2(h->end_range) > 0)
-      return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
-  }
-  return (ICP_RESULT) test(h->pushed_idx_cond->val_int());
-}
-
-C_MODE_END
-
-
 int ha_myisam::index_init(uint idx, bool sorted)
 { 
   active_index=idx;
   if (pushed_idx_cond_keyno == idx)
-    mi_set_index_cond_func(file, index_cond_func_myisam, this);
+    mi_set_index_cond_func(file, handler_index_cond_check, this);
   return 0; 
 }
 
@@ -1711,7 +1695,7 @@ int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
   /* Use the pushed index condition if it matches the index we're scanning */
   end_range= NULL;
   if (index == pushed_idx_cond_keyno)
-    mi_set_index_cond_func(file, index_cond_func_myisam, this);
+    mi_set_index_cond_func(file, handler_index_cond_check, this);
   res= mi_rkey(file, buf, index, key, keypart_map, find_flag);
   mi_set_index_cond_func(file, NULL, 0);
   return res;
@@ -2267,7 +2251,7 @@ Item *ha_myisam::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
   pushed_idx_cond= idx_cond_arg;
   in_range_check_pushed_down= TRUE;
   if (active_index == pushed_idx_cond_keyno)
-    mi_set_index_cond_func(file, index_cond_func_myisam, this);
+    mi_set_index_cond_func(file, handler_index_cond_check, this);
   return NULL;
 }
 

@@ -521,4 +521,22 @@ EXPLAIN SELECT alias1.* FROM t3 LEFT JOIN v1 as alias1 ON ( t3.a = alias1.b );
 drop view v1;
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # BUG#919878: Assertion `!eliminated_tables...
+--echo #
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2
+  ( b INT, UNIQUE INDEX(b) );
+INSERT INTO t2 VALUES (1),(2);
+
+EXPLAIN EXTENDED
+  SELECT * FROM t2
+  WHERE b IN (
+    SELECT SUM(a) FROM t1 LEFT JOIN t2 ON b=a
+  );
+
+DROP TABLE t1,t2;
+
 SET optimizer_switch=@save_optimizer_switch;

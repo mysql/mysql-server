@@ -591,9 +591,9 @@ typedef struct system_status_var
     calls made by range access. The intent is to count only calls made by
     BatchedKeyAccess.
   */
-  ulong ha_multi_range_read_init_count;
-  ulong ha_mrr_extra_key_sorts;
-  ulong ha_mrr_extra_rowid_sorts;
+  ulong ha_mrr_init_count;
+  ulong ha_mrr_key_refills_count;
+  ulong ha_mrr_rowid_refills_count;
 
   ulong ha_rollback_count;
   ulong ha_update_count;
@@ -602,6 +602,8 @@ typedef struct system_status_var
   ulong ha_tmp_update_count;
   ulong ha_tmp_write_count;
   ulong ha_prepare_count;
+  ulong ha_icp_attempts;
+  ulong ha_icp_match;
   ulong ha_discover_count;
   ulong ha_savepoint_count;
   ulong ha_savepoint_rollback_count;

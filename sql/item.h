@@ -3901,6 +3901,12 @@ public:
     return example->is_expensive_processor(arg);
   }
   virtual void set_null();
+  bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
+  {
+    if (example && example->walk(processor, walk_subquery, arg))
+      return TRUE;
+    return (this->*processor)(arg);
+  }
 };
 
 

@@ -84,6 +84,7 @@ SET (SQL_SOURCE
                opt_table_elimination.cc sql_expression_cache.cc
                gcalc_slicescan.cc gcalc_tools.cc
 			   threadpool_common.cc 
+			   ../sql-common/mysql_async.c
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE}
 			   )

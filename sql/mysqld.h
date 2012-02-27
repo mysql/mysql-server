@@ -501,6 +501,8 @@ get_thread_running()
   return num_thread_running;
 }
 
+void set_server_version(void);
+
 #if defined(MYSQL_DYNAMIC_PLUGIN) && defined(_WIN32)
 extern "C" THD *_current_thd_noinline();
 #define _current_thd() _current_thd_noinline()
@@ -534,6 +536,7 @@ extern scheduler_functions *thread_scheduler, *extra_thread_scheduler;
 extern char *opt_log_basename;
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_stack_trace;
+extern my_bool opt_expect_abort;
 extern my_bool opt_slave_sql_verify_checksum;
 extern ulong binlog_checksum_options;
 extern bool max_user_connections_checking;

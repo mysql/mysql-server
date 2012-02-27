@@ -1885,6 +1885,19 @@ a	b
 7	5
 3	3
 drop table t1,t2;
+#
+# BUG#933407: Valgrind warnings in mark_as_null_row with materialization+semijoin, STRAIGHT_JOIN, impossible WHERE
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0),(8);
+SELECT STRAIGHT_JOIN MIN(a) FROM t1
+WHERE a IN (
+SELECT a FROM t1
+WHERE 'condition'='impossible'
+  );
+MIN(a)
+NULL
+DROP TABLE t1;
 # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;

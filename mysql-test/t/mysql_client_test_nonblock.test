@@ -1,0 +1,23 @@
+# This runs the mysql_client_test using the non-blocking API.
+
+# The non-blocking API is not supported in the embedded server.
+-- source include/not_embedded.inc
+
+SET @old_general_log= @@global.general_log;
+SET @old_slow_query_log= @@global.slow_query_log;
+
+# We run with different binaries for normal and --embedded-server
+#
+# If this test fails with "command "$MYSQL_CLIENT_TEST" failed",
+# you should either run mysql_client_test separartely against a running
+# server or run mysql-test-run --debug mysql_client_test and check
+# var/log/mysql_client_test.trace
+
+--exec echo "$MYSQL_CLIENT_TEST --non-blocking-api" > $MYSQLTEST_VARDIR/log/mysql_client_test.out.log 2>&1
+--exec $MYSQL_CLIENT_TEST --non-blocking-api --getopt-ll-test=25600M >> $MYSQLTEST_VARDIR/log/mysql_client_test.out.log 2>&1
+
+# End of 4.1 tests
+echo ok;
+
+SET @@global.general_log= @old_general_log;
+SET @@global.slow_query_log= @old_slow_query_log;

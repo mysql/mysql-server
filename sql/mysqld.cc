@@ -341,7 +341,7 @@ static volatile bool ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
-       ulong max_used_connections;
+ulong max_used_connections;
 static volatile ulong cached_thread_count= 0;
 static char *mysqld_user, *mysqld_chroot;
 static char *default_character_set_name;
@@ -681,6 +681,7 @@ char *opt_logname, *opt_slow_logname, *opt_bin_logname;
 my_bool opt_stack_trace;
 static volatile sig_atomic_t kill_in_progress;
 
+my_bool opt_expect_abort= 0;
 static my_bool opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag;
@@ -1241,7 +1242,6 @@ static int mysql_init_variables(void);
 static int get_options(int *argc_ptr, char ***argv_ptr);
 static bool add_terminator(DYNAMIC_ARRAY *options);
 extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
-static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
 static int fix_paths(void);
@@ -3921,8 +3921,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 
 static void init_ssl()
 {
-#ifdef HAVE_OPENSSL
-#ifndef EMBEDDED_LIBRARY
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (opt_use_ssl)
   {
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
@@ -3944,12 +3943,9 @@ static void init_ssl()
   {
     have_ssl= SHOW_OPTION_DISABLED;
   }
-#else
-  have_ssl= SHOW_OPTION_DISABLED;
-#endif /* ! EMBEDDED_LIBRARY */
   if (des_key_file)
     load_des_key_file(des_key_file);
-#endif /* HAVE_OPENSSL */
+#endif /* HAVE_OPENSSL && ! EMBEDDED_LIBRARY */
 }
 
 
@@ -6341,8 +6337,10 @@ struct my_option my_long_options[]=
      The system call realpath() produces warnings under valgrind and
      purify. These are not suppressed: instead we disable symlinks
      option if compiled with valgrind support.
+     Also disable by default on Windows, due to high overhead for checking .sym 
+     files.
    */
-   IF_VALGRIND(0,1), 0, 0, 0, 0, 0},
+   IF_VALGRIND(0,IF_WIN(0,1)), 0, 0, 0, 0, 0},
   {"debug-no-sync", 0,
    "Disables system sync calls. Only for running tests or debugging!",
    &my_disable_sync, &my_disable_sync, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
@@ -6881,12 +6879,14 @@ SHOW_VAR status_vars[]= {
   {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
   {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
   {"Handler_discover",         (char*) offsetof(STATUS_VAR, ha_discover_count), SHOW_LONG_STATUS},
-#if 0
-  /* Made 3 counters below temporarily invisible until we agree upon their names */
-  {"Handler_mrr_extra_key_sorts",   (char*) offsetof(STATUS_VAR, ha_mrr_extra_key_sorts), SHOW_LONG_STATUS},
-  {"Handler_mrr_extra_rowid_sorts", (char*) offsetof(STATUS_VAR, ha_mrr_extra_rowid_sorts), SHOW_LONG_STATUS},
-  {"Handler_mrr_init",         (char*) offsetof(STATUS_VAR, ha_multi_range_read_init_count),  SHOW_LONG_STATUS},
-#endif
+
+  {"Handler_icp_attempts ",    (char*) offsetof(STATUS_VAR, ha_icp_attempts), SHOW_LONG_STATUS},
+  {"Handler_icp_match",        (char*) offsetof(STATUS_VAR, ha_icp_match), SHOW_LONG_STATUS},
+
+  {"Handler_mrr_init",         (char*) offsetof(STATUS_VAR, ha_mrr_init_count),  SHOW_LONG_STATUS},
+  {"Handler_mrr_key_refills",   (char*) offsetof(STATUS_VAR, ha_mrr_key_refills_count), SHOW_LONG_STATUS},
+  {"Handler_mrr_rowid_refills", (char*) offsetof(STATUS_VAR, ha_mrr_rowid_refills_count), SHOW_LONG_STATUS},
+
   {"Handler_prepare",          (char*) offsetof(STATUS_VAR, ha_prepare_count),  SHOW_LONG_STATUS},
   {"Handler_read_first",       (char*) offsetof(STATUS_VAR, ha_read_first_count), SHOW_LONG_STATUS},
   {"Handler_read_key",         (char*) offsetof(STATUS_VAR, ha_read_key_count), SHOW_LONG_STATUS},
@@ -7250,7 +7250,7 @@ static int mysql_init_variables(void)
     have_profiling = SHOW_OPTION_NO;
 #endif
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   have_ssl=SHOW_OPTION_YES;
 #else
   have_ssl=SHOW_OPTION_NO;
@@ -7923,7 +7923,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   (MYSQL_SERVER_SUFFIX is set by the compilation environment)
 */
 
-static void set_server_version(void)
+void set_server_version(void)
 {
   char *end= strxmov(server_version, MYSQL_SERVER_VERSION,
                      MYSQL_SERVER_SUFFIX_STR, NullS);

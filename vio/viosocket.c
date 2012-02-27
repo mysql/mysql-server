@@ -24,6 +24,8 @@
 */
 
 #include "vio_priv.h"
+#include "my_context.h"
+#include <mysql_async.h>
 
 #ifdef FIONREAD_IN_SYS_FILIO
 # include <sys/filio.h>
@@ -44,12 +46,26 @@ size_t vio_read(Vio * vio, uchar* buf, size_t size)
 
   /* Ensure nobody uses vio_read_buff and vio_read simultaneously */
   DBUG_ASSERT(vio->read_end == vio->read_pos);
+  if (vio->async_context && vio->async_context->active)
+    r= my_recv_async(vio->async_context, vio->sd, buf, size, vio->read_timeout);
+  else
+  {
+    if (vio->async_context)
+    {
+      /*
+        If switching from non-blocking to blocking API usage, set the socket
+        back to blocking mode.
+      */
+      my_bool old_mode;
+      vio_blocking(vio, TRUE, &old_mode);
+    }
 #ifdef __WIN__
-  r = recv(vio->sd, buf, size,0);
+    r = recv(vio->sd, buf, size,0);
 #else
-  errno=0;					/* For linux */
-  r = read(vio->sd, buf, size);
+    errno=0;					/* For linux */
+    r = read(vio->sd, buf, size);
 #endif /* __WIN__ */
+  }
 #ifndef DBUG_OFF
   if (r == (size_t) -1)
   {
@@ -116,11 +132,26 @@ size_t vio_write(Vio * vio, const uchar* buf, size_t size)
   DBUG_ENTER("vio_write");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
                        (uint) size));
+  if (vio->async_context && vio->async_context->active)
+    r= my_send_async(vio->async_context, vio->sd, buf, size,
+                     vio->write_timeout);
+  else
+  {
+    if (vio->async_context)
+    {
+      /*
+        If switching from non-blocking to blocking API usage, set the socket
+        back to blocking mode.
+      */
+      my_bool old_mode;
+      vio_blocking(vio, TRUE, &old_mode);
+    }
 #ifdef __WIN__
-  r = send(vio->sd, buf, size,0);
+    r = send(vio->sd, buf, size,0);
 #else
-  r = write(vio->sd, buf, size);
+    r = write(vio->sd, buf, size);
 #endif /* __WIN__ */
+  }
 #ifndef DBUG_OFF
   if (r == (size_t) -1)
   {
@@ -689,6 +720,8 @@ my_bool vio_poll_read(Vio *vio, uint timeout)
 {
   my_socket sd= vio->sd;
   DBUG_ENTER("vio_poll_read");
+  if (vio->async_context && vio->async_context->active)
+    DBUG_RETURN(my_poll_read_async(vio->async_context, timeout));
 #ifdef HAVE_OPENSSL
   if (vio->type == VIO_TYPE_SSL)
     sd= SSL_get_fd((SSL*) vio->ssl_arg);
@@ -777,6 +810,11 @@ void vio_timeout(Vio *vio, uint which, uint timeout)
   thr_alarm or just run without read/write timeout(s)
 */
 #endif
+  /* Make timeout values available for async operations. */
+  if (which)
+    vio->write_timeout= timeout;
+  else
+    vio->read_timeout= timeout;
 }
 
 

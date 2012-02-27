@@ -61,6 +61,12 @@
 #define SIGNAL_FMT "signal %d"
 #endif
 
+static my_bool non_blocking_api_enabled= 0;
+#if !defined(EMBEDDED_LIBRARY)
+#define WRAP_NONBLOCK_ENABLED non_blocking_api_enabled
+#include "../tests/nonblock-wrappers.h"
+#endif
+
 /* Use cygwin for --exec and --system before 5.0 */
 #if MYSQL_VERSION_ID < 50000
 #define USE_CYGWIN
@@ -91,7 +97,7 @@ enum {
   OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL, OPT_MAX_CONNECT_RETRIES,
   OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS, OPT_LOG_DIR,
   OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION,
-  OPT_MY_CONNECT_TIMEOUT
+  OPT_MY_CONNECT_TIMEOUT, OPT_NON_BLOCKING_API
 };
 
 static int record= 0, opt_sleep= -1;
@@ -353,6 +359,7 @@ enum enum_commands {
   Q_LOWERCASE,
   Q_START_TIMER, Q_END_TIMER,
   Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
+  Q_ENABLE_NON_BLOCKING_API, Q_DISABLE_NON_BLOCKING_API,
   Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
   Q_IF,
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
@@ -434,6 +441,8 @@ const char *command_names[]=
   "character_set",
   "disable_ps_protocol",
   "enable_ps_protocol",
+  "enable_non_blocking_api",
+  "disable_non_blocking_api",
   "disable_reconnect",
   "enable_reconnect",
   "if",
@@ -5682,6 +5691,7 @@ void do_connect(struct st_command *command)
     mysql_options(con_slot->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
                   (void *) &opt_connect_timeout);
 
+  mysql_options(con_slot->mysql, MYSQL_OPT_NONBLOCK, 0);
   if (opt_compress || con_compress)
     mysql_options(con_slot->mysql, MYSQL_OPT_COMPRESS, NullS);
   mysql_options(con_slot->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
@@ -6630,6 +6640,10 @@ static struct my_option my_long_options[] =
   {"ps-protocol", OPT_PS_PROTOCOL, 
    "Use prepared-statement protocol for communication.",
    &ps_protocol, &ps_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"non-blocking-api", OPT_NON_BLOCKING_API,
+   "Use the non-blocking client API for communication.",
+   &non_blocking_api_enabled, &non_blocking_api_enabled, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"quiet", 's', "Suppress all normal output.", &silent,
    &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -7953,6 +7967,7 @@ int util_query(MYSQL* org_mysql, const char* query){
 
     /* enable local infile, in non-binary builds often disabled by default */
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+    mysql_options(mysql, MYSQL_OPT_NONBLOCK, 0);
     safe_connect(mysql, "util", org_mysql->host, org_mysql->user,
                  org_mysql->passwd, org_mysql->db, org_mysql->port,
                  org_mysql->unix_socket);
@@ -8622,6 +8637,7 @@ int main(int argc, char **argv)
   next_con= connections + 1;
   
   var_set_int("$PS_PROTOCOL", ps_protocol);
+  var_set_int("$NON_BLOCKING_API", non_blocking_api_enabled);
   var_set_int("$SP_PROTOCOL", sp_protocol);
   var_set_int("$VIEW_PROTOCOL", view_protocol);
   var_set_int("$CURSOR_PROTOCOL", cursor_protocol);
@@ -8705,6 +8721,7 @@ int main(int argc, char **argv)
 
   if (!(con->name = my_strdup("default", MYF(MY_WME))))
     die("Out of memory");
+  mysql_options(con->mysql, MYSQL_OPT_NONBLOCK, 0);
 
   safe_connect(con->mysql, con->name, opt_host, opt_user, opt_pass,
                opt_db, opt_port, unix_sock);
@@ -9060,6 +9077,12 @@ int main(int argc, char **argv)
         break;
       case Q_ENABLE_PS_PROTOCOL:
         set_property(command, P_PS, ps_protocol);
+        break;
+      case Q_DISABLE_NON_BLOCKING_API:
+        non_blocking_api_enabled= 0;
+        break;
+      case Q_ENABLE_NON_BLOCKING_API:
+        non_blocking_api_enabled= 1;
         break;
       case Q_DISABLE_RECONNECT:
         set_reconnect(cur_con->mysql, 0);

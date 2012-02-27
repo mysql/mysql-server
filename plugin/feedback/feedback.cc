@@ -138,6 +138,7 @@ static LEX_STRING vars_filter[]= {
   {C_STRING_WITH_LEN("ft\\_m%")},
   {C_STRING_WITH_LEN("have\\_%")},
   {C_STRING_WITH_LEN("%\\_size")},
+  {C_STRING_WITH_LEN("innodb_f%")},
   {C_STRING_WITH_LEN("%\\_length%")},
   {C_STRING_WITH_LEN("%\\_timeout")},
   {C_STRING_WITH_LEN("large\\_%")},

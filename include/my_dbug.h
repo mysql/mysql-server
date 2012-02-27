@@ -59,6 +59,8 @@ extern  void _db_lock_file_(void);
 extern  void _db_unlock_file_(void);
 extern  FILE *_db_fp_(void);
 extern  void _db_flush_();
+extern void dbug_swap_code_state(void **code_state_store);
+extern void dbug_free_code_state(void **code_state_store);
 extern  const char* _db_get_func_(void);
 
 #define DBUG_ENTER(a) struct _db_stack_frame_ _db_stack_frame_; \
@@ -93,6 +95,8 @@ extern  const char* _db_get_func_(void);
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
 #define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
 #define IF_DBUG(A,B)                    A
+#define DBUG_SWAP_CODE_STATE(arg) dbug_swap_code_state(arg)
+#define DBUG_FREE_CODE_STATE(arg) dbug_free_code_state(arg)
 
 #ifndef __WIN__
 #define DBUG_ABORT()                    (_db_flush_(), abort())
@@ -151,6 +155,8 @@ extern void _db_suicide_();
 #define DEBUGGER_OFF                    do { } while(0)
 #define DEBUGGER_ON                     do { } while(0)
 #define IF_DBUG(A,B)                    B
+#define DBUG_SWAP_CODE_STATE(arg)       do { } while(0)
+#define DBUG_FREE_CODE_STATE(arg)       do { } while(0)
 #define DBUG_ABORT()                    do { } while(0)
 #define DBUG_CRASH_ENTER(func)
 #define DBUG_CRASH_RETURN(val)          do { return(val); } while(0)
