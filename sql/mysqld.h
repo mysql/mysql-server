@@ -287,7 +287,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
-  key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc,
+  key_LOCK_error_messages, key_LOCK_thread_count,
   key_LOCK_log_throttle_qni;
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 
@@ -419,7 +419,7 @@ extern PSI_stage_info stage_user_lock;
 extern PSI_stage_info stage_user_sleep;
 extern PSI_stage_info stage_verifying_table;
 extern PSI_stage_info stage_waiting_for_delay_list;
-extern PSI_stage_info stage_waiting_for_group_to_be_written_to_binary_log;
+extern PSI_stage_info stage_waiting_for_gtid_to_be_written_to_binary_log;
 extern PSI_stage_info stage_waiting_for_handler_insert;
 extern PSI_stage_info stage_waiting_for_handler_lock;
 extern PSI_stage_info stage_waiting_for_handler_open;
