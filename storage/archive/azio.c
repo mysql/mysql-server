@@ -52,29 +52,20 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   int level = Z_DEFAULT_COMPRESSION; /* compression level */
   int strategy = Z_DEFAULT_STRATEGY; /* compression strategy */
 
-  s->stream.zalloc = (alloc_func)0;
-  s->stream.zfree = (free_func)0;
-  s->stream.opaque = (voidpf)0;
-  memset(s->inbuf, 0, AZ_BUFSIZE_READ);
-  memset(s->outbuf, 0, AZ_BUFSIZE_WRITE);
+  memset(s, 0, sizeof(azio_stream));
   s->stream.next_in = s->inbuf;
   s->stream.next_out = s->outbuf;
-  s->stream.avail_in = s->stream.avail_out = 0;
-  s->z_err = Z_OK;
-  s->z_eof = 0;
-  s->in = 0;
-  s->out = 0;
+  DBUG_ASSERT(s->z_err == Z_OK);
   s->back = EOF;
   s->crc = crc32(0L, Z_NULL, 0);
-  s->transparent = 0;
   s->mode = 'r';
-  s->version = (unsigned char)az_magic[1]; /* this needs to be a define to version */
+  /* this needs to be a define to version */
+  s->version = (unsigned char)az_magic[1];
   s->minor_version= (unsigned char) az_magic[2]; /* minor version */
-  s->dirty= AZ_STATE_CLEAN;
-  s->start= 0;
+  DBUG_ASSERT(s->dirty == AZ_STATE_CLEAN);
 
   /*
-    We do our own version of append by nature. 
+    We do our own version of append by nature.
     We must always have write access to take card of the header.
   */
   DBUG_ASSERT(Flags | O_APPEND);
@@ -131,18 +122,8 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     return Z_NULL;
   }
 
-  if (Flags & O_CREAT || Flags & O_TRUNC) 
+  if (Flags & O_CREAT || Flags & O_TRUNC)
   {
-    s->rows= 0;
-    s->forced_flushes= 0;
-    s->shortest_row= 0;
-    s->longest_row= 0;
-    s->auto_increment= 0;
-    s->check_point= 0;
-    s->comment_start_pos= 0;
-    s->comment_length= 0;
-    s->frm_start_pos= 0;
-    s->frm_length= 0;
     s->dirty= 1; /* We create the file dirty */
     s->start = AZHEADER_SIZE + AZMETA_BUFFER_SIZE;
     write_header(s);
