@@ -2808,7 +2808,7 @@ ER_TOO_BIG_ROWSIZE 42000
         cze "-BŘádek je příliš velký. Maximální velikost řádku, nepočítaje položky blob, je %ld. Musíte změnit některé položky na blob"
         dan "For store poster. Max post størrelse, uden BLOB's, er %ld. Du må lave nogle felter til BLOB's"
         nla "Rij-grootte is groter dan toegestaan. Maximale rij grootte, blobs niet meegeteld, is %ld. U dient sommige velden in blobs te veranderen."
-        eng "Row size too large. The maximum row size for the used table type, not counting BLOBs, is %ld. You have to change some columns to TEXT or BLOBs"
+        eng "Row size too large. The maximum row size for the used table type, not counting BLOBs, is %ld. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs"
         jps "row size が大きすぎます. BLOB を含まない場合の row size の最大は %ld です. いくつかの field を BLOB に変えてください.",
         est "Liiga pikk kirje. Kirje maksimumpikkus arvestamata BLOB-tüüpi välju on %ld. Muuda mõned väljad BLOB-tüüpi väljadeks"
         fre "Ligne trop grande. Le taille maximale d'une ligne, sauf les BLOBs, est %ld. Changez le type de quelques colonnes en BLOB"
