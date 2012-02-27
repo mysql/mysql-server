@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -55,6 +55,8 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "m_ctype.h" /* my_isspace() */
 #include "ha_prototypes.h" /* innobase_strcasecmp(), innobase_casedn_str()*/
 #include "row0upd.h"
+#include "m_string.h"
+#include "my_sys.h"
 
 #include <ctype.h>
 
@@ -2329,6 +2331,8 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
+	ut_a(foreign->foreign_table->n_foreign_key_checks_running == 0);
+
 	mem_heap_free(foreign->heap);
 }
 

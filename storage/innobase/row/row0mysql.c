@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -51,6 +51,9 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0sea.h"
 #include "fil0fil.h"
 #include "ibuf0ibuf.h"
+#include "m_string.h"
+#include "my_sys.h"
+
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -1442,6 +1445,8 @@ row_update_for_mysql(
 
 		return(DB_ERROR);
 	}
+
+	DEBUG_SYNC_C("innodb_row_update_for_mysql_begin");
 
 	trx->op_info = "updating or deleting";
 
@@ -3803,6 +3808,7 @@ row_rename_table_for_mysql(
 	ulint		n_constraints_to_drop	= 0;
 	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
+	int		retry;
 
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
@@ -3883,6 +3889,25 @@ row_rename_table_for_mysql(
 
 			goto funct_exit;
 		}
+	}
+
+	/* Is a foreign key check running on this table? */
+	for (retry = 0; retry < 100
+	     && table->n_foreign_key_checks_running > 0; ++retry) {
+		row_mysql_unlock_data_dictionary(trx);
+		os_thread_yield();
+		row_mysql_lock_data_dictionary(trx);
+	}
+
+	if (table->n_foreign_key_checks_running > 0) {
+		ut_print_timestamp(stderr);
+		fputs(" InnoDB: Error: in ALTER TABLE ", stderr);
+		ut_print_name(stderr, trx, TRUE, old_name);
+		fprintf(stderr, "\n"
+			"InnoDB: a FOREIGN KEY check is running.\n"
+			"InnoDB: Cannot rename table.\n");
+		err = DB_TABLE_IN_FK_CHECK;
+		goto funct_exit;
 	}
 
 	/* We use the private SQL parser of Innobase to generate the query
