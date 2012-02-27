@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved. 
-   reserved
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +10,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+
 
 /* This file includes constants used with all databases */
 
@@ -449,7 +449,8 @@ enum ha_base_keytype {
 #define HA_ERR_INDEX_COL_TOO_LONG 178	 /* Index column length exceeds limit */
 #define HA_ERR_INDEX_CORRUPT      179	 /* Index corrupted */
 #define HA_ERR_UNDO_REC_TOO_BIG   180    /* Undo log record too big */
-#define HA_ERR_LAST               180    /* Copy of last error nr */
+#define HA_ERR_TABLE_IN_FK_CHECK  181    /* Table being used in foreign key check */
+#define HA_ERR_LAST               181    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
