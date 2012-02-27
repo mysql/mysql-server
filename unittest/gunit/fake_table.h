@@ -48,6 +48,7 @@ class Fake_TABLE: public TABLE
     in_use= current_thd;
     null_row= '\0';
     write_set= &write_set_struct;
+    read_set= NULL;
 
     EXPECT_EQ(0, bitmap_init(write_set, NULL, s->fields, false))
       << "Out of memory";
@@ -59,6 +60,7 @@ class Fake_TABLE: public TABLE
       field[i]->table= this;
       field[i]->field_index= i;
     }
+    const_table= true;
   }
 
 public:
