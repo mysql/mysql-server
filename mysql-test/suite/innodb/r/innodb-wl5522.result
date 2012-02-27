@@ -1,4 +1,4 @@
-drop table if exists t1;
+DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -106,6 +106,8 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Index "idx" not in table "test"."t1"
+unlink: t1.ibd
+unlink: t1.cfg
 DROP TABLE t1;
 CREATE TABLE t1(
 c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -116,6 +118,7 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT COUNT(*) FROM t1 WHERE c2 = 1;
 COUNT(*)
 16
+unlink: t1.cfg
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = 0;
 CREATE TABLE t1(
