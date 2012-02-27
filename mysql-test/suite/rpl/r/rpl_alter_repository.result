@@ -141,7 +141,7 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Uuid` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The master server uuid.',
   `Ssl_crl` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
   `Ssl_crlpath` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
-  `Enabled_auto_position` tinyint(1) NOT NULL COMMENT 'Indicates whether GTids will be used to retrieve events from the master.',
+  `Enabled_auto_position` tinyint(1) NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
   `Retry_count` bigint(20) unsigned NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.',
   PRIMARY KEY (`Master_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Master Information'
