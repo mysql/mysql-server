@@ -294,6 +294,7 @@ innodb_api_write_int(
 {
 	ib_col_meta_t   col_meta;
 	ib_col_meta_t*	m_col = &col_meta;
+	void*		src;
 
 	ib_cb_col_get_meta(tpl, field, m_col);
 
@@ -302,7 +303,7 @@ innodb_api_write_int(
 
 	if (m_col->attr == IB_COL_UNSIGNED) {
 		if (m_col->type_len == 8) {
-			ib_cb_tuple_write_u64(tpl, field, value);
+			src = &value;
 
 			/* If table is non-NULL, set up corresponding
 			TABLE->record[0] field for replication */
@@ -314,7 +315,7 @@ innodb_api_write_int(
 			uint32_t	value32;
 			value32 = (uint32_t) value;
 
-			ib_cb_tuple_write_u32(tpl, field, value32);
+			src = &value32;
 			if (table) {
 				handler_rec_setup_int(
 					table, field, value32, true, false);
@@ -326,7 +327,7 @@ innodb_api_write_int(
 			int64_t		value64;
 			value64 = (int64_t) value;
 
-			ib_cb_tuple_write_i64(tpl, field, value64);
+			src= &value64;
 			if (table) {
 				handler_rec_setup_int(
 					table, field, value64, false, false);
@@ -334,7 +335,8 @@ innodb_api_write_int(
 		} else if (m_col->type_len == 4) {
 			int32_t		value32;
 			value32 = (int32_t) value;
-			ib_cb_tuple_write_i32(tpl, field, value32);
+
+			src = &value32;
 			if (table) {
 				handler_rec_setup_int(
 					table, field, value32, false, false);
@@ -342,6 +344,7 @@ innodb_api_write_int(
 		}
 	}
 
+	ib_cb_col_set_value(tpl, field, src, m_col->type_len);
 	return(DB_SUCCESS);
 }
 

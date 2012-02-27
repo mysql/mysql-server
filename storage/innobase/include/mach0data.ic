@@ -819,11 +819,11 @@ mach_write_int_type(
 #else
         mach_swap_byte_order(dest, src, len);
 
+#endif
         if (!usign) {
 
                 *dest ^=  0x80;
         }
-#endif
 }
 
 #endif /* !UNIV_HOTBACKUP */
