@@ -1555,6 +1555,30 @@ public:
   void fix_length_and_dec() { max_length=21; maybe_null=1;}
 };
 
+class Item_master_gtid_set_wait :public Item_int_func
+{
+  String value;
+public:
+  Item_master_gtid_set_wait(Item *a) :Item_int_func(a) {}
+  Item_master_gtid_set_wait(Item *a, Item *b) :Item_int_func(a,b) {}
+  longlong val_int();
+  const char *func_name() const { return "sql_thread_wait_after_gtids"; }
+  void fix_length_and_dec() { max_length= 21; maybe_null= 1; }
+};
+
+#ifdef HAVE_REPLICATION
+class Item_func_gtid_subset : public Item_int_func
+{
+  String buf1;
+  String buf2;
+public:
+  Item_func_gtid_subset(Item *a, Item *b) : Item_int_func(a, b) {}
+  longlong val_int();
+  const char *func_name() const { return "gtid_subset"; }
+  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+};
+#endif // if HAVE_REPLICATION
+
 
 /**
   Common class for:

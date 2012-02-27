@@ -102,6 +102,7 @@ must be zero
 0
 stop slave;
 reset slave;
+reset master;
 set @@global.binlog_checksum= IF(floor((rand()*1000)%2), "CRC32", "NONE");
 flush logs;
 set @@global.binlog_checksum= CRC32;

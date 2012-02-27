@@ -145,6 +145,12 @@ The following options may be given as the first argument:
  handling INSERT DELAYED. If the queue becomes full, any
  client that does INSERT DELAYED will wait until there is
  room in the queue again
+ --disable-gtid-unsafe-statements 
+ Prevents execution of statements that would be impossible
+ to log in a transactionally safe manner. Currently, the
+ disallowed statements include CREATE TEMPORARY TABLE
+ inside transactions, all updates to non-transactional
+ tables, and CREATE TABLE ... SELECT.
  --disconnect-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
  replication.
@@ -194,6 +200,8 @@ The following options may be given as the first argument:
  --group-concat-max-len=# 
  The maximum length of the result of function 
  GROUP_CONCAT()
+ --gtid-mode=name    Whether Global Transaction Identifiers (GTIDs) are
+ enabled. Can be ON or OFF.
  -?, --help          Display this help and exit.
  --ignore-builtin-innodb 
  IGNORED. This option will be removed in future releases.
@@ -915,6 +923,7 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
+disable-gtid-unsafe-statements FALSE
 disconnect-slave-event-count 0
 div-precision-increment 4
 eq-range-index-dive-limit 10
@@ -931,6 +940,7 @@ ft-stopword-file (No default value)
 gdb FALSE
 general-log FALSE
 group-concat-max-len 1024
+gtid-mode OFF
 help TRUE
 ignore-builtin-innodb FALSE
 init-connect 
@@ -1058,7 +1068,7 @@ performance-schema-max-rwlock-instances 1000000
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances 1000
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 167
+performance-schema-max-statement-classes 168
 performance-schema-max-table-handles 10000
 performance-schema-max-table-instances 1000
 performance-schema-max-thread-classes 50

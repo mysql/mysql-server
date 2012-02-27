@@ -47,9 +47,7 @@ CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 
 let $data = `select concat('"', repeat('a',2000), '"')`;
 
---echo ########################################################################################
---echo #                                   1 - SINGLE STATEMENT
---echo ########################################################################################
+--echo ###### 1 - SINGLE STATEMENT  ######
 
 connection master;
 
@@ -96,9 +94,7 @@ eval UPDATE t2, t1 SET t2.data = CONCAT($data, $data, $data, $data),
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
---echo ########################################################################################
---echo #                             2 - BEGIN - IMPLICIT COMMIT by DDL
---echo ########################################################################################
+--echo #########  2 - BEGIN - IMPLICIT COMMIT by DDL #########
 
 connection master;
 TRUNCATE TABLE t1;
@@ -186,9 +182,7 @@ CREATE TABLE t5 (a int);
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
---echo ########################################################################################
---echo #                                     3 - BEGIN - COMMIT
---echo ########################################################################################
+--echo ###### 3 - BEGIN - COMMIT ######
 
 connection master;
 TRUNCATE TABLE t1;
@@ -216,9 +210,7 @@ COMMIT;
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
---echo ########################################################################################
---echo #                                      4 - BEGIN - ROLLBACK
---echo ########################################################################################
+--echo ####### 4 - BEGIN - ROLLBACK  #######
 
 connection master;
 TRUNCATE TABLE t1;
@@ -246,9 +238,7 @@ ROLLBACK;
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
---echo ########################################################################################
---echo #                                         5 - PROCEDURE 
---echo ########################################################################################
+--echo ###### 5 - PROCEDURE  #######
 
 connection master;
 TRUNCATE TABLE t1;
@@ -296,9 +286,7 @@ ROLLBACK;
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
---echo ########################################################################################
---echo #                                           6 - XID
---echo ########################################################################################
+--echo ####### 6 - XID ######
 
 connection master;
 TRUNCATE TABLE t1;
@@ -328,9 +316,7 @@ COMMIT;
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
---echo ########################################################################################
---echo #                                        7 - NON-TRANS TABLE
---echo ########################################################################################
+--echo ####### 7 - NON-TRANS TABLE #######
 
 connection master;
 TRUNCATE TABLE t1;
@@ -372,10 +358,8 @@ COMMIT;
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
---echo ########################################################################
---echo #      8 - Bug#55375(Regression Bug) Transaction bigger than
---echo #          max_binlog_cache_size crashes slave
---echo ########################################################################
+--echo ######### 8 - Bug#55375(Regression Bug) Transaction bigger than  ##########
+--echo #########     max_binlog_cache_size crashes slave                ##########
 
 --echo # [ On Slave ]
 SET GLOBAL max_binlog_cache_size = 4096;
@@ -423,7 +407,7 @@ while ($n)
 COMMIT;
 
 --connection slave
---let $slave_sql_errno= 1197
+--let $slave_sql_errno= 1534,1197
 source include/wait_for_slave_sql_error.inc;
 
 SELECT count(*) FROM t1;
@@ -445,9 +429,7 @@ connection master;
 sync_slave_with_master;
 SELECT count(*) FROM t1;
 
---echo ########################################################################################
---echo #                       CHECK MAX_BINLOG_CACHE_SIZE and BINLOG_CACHE_SIZE
---echo ########################################################################################
+--echo ######## CHECK MAX_BINLOG_CACHE_SIZE and BINLOG_CACHE_SIZE #########
 #
 # Checking what happens when we try to set BINLOG_CACHE_SIZE to a value that is
 # greater than MAX_BINLOG_CACHE_SIZE and vice-versa. In both cases, We expect
@@ -465,9 +447,7 @@ SET @@GLOBAL.MAX_BINLOG_CACHE_SIZE= 4096;
 SHOW VARIABLES LIKE 'MAX_BINLOG_CACHE_SIZE';
 SHOW VARIABLES LIKE 'BINLOG_CACHE_SIZE';
 
---echo ########################################################################################
---echo #                                        CLEAN
---echo ########################################################################################
+--echo ######### CLEAN #########
 
 --disable_query_log
 --eval SET GLOBAL max_binlog_cache_size= $old_max_binlog_cache_size

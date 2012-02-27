@@ -310,7 +310,7 @@ CREATE TABLE t_check_dml_not_executed_prematurely (a INT);
 --sleep $time1
 
 --echo # sync with master (with timeout 1*T)
---source include/sync_with_master.inc
+--source include/sync_slave_sql.inc
 
 --let $assert_text= DDL Query should be executed
 --let $assert_cond= COUNT(*) = 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = "t_check_dml_not_executed_prematurely"

@@ -989,4 +989,16 @@ public:
   String *val_str(String *);
 };
 
+#ifdef HAVE_REPLICATION
+class Item_func_gtid_subtract: public Item_str_ascii_func
+{
+  String buf1, buf2;
+public:
+  Item_func_gtid_subtract(Item *a, Item *b) :Item_str_ascii_func(a, b) {}
+  void fix_length_and_dec();
+  const char *func_name() const{ return "gtid_subtract"; }
+  String *val_str_ascii(String *);
+};
+#endif // if HAVE_REPLICATION
+
 #endif /* ITEM_STRFUNC_INCLUDED */

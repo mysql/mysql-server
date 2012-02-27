@@ -5,7 +5,7 @@
 #
 # The following is printed on the current connection:
 #
-#   SELECT NOW()
+#   SELECT NOW(), @@SERVER_ID, @@SERVER_UUID
 #   SHOW SLAVE STATUS
 #   SHOW MASTER STATUS
 #   SHOW PROCESSLIST
@@ -51,6 +51,7 @@
 --let $_rpl_server= $rpl_server_count
 --inc $_rpl_server
 
+--echo CURRENT_CONNECTION = '$_rpl_old_con'
 
 while ($_rpl_server)
 {
@@ -66,7 +67,11 @@ while ($_rpl_server)
   SHOW WARNINGS;
   --echo
   --echo **** SELECT replication-related variables on $CURRENT_CONNECTION ****
-  SELECT NOW(), @@SERVER_ID, @@SERVER_UUID;
+  query_vertical SELECT NOW(), @@SERVER_ID, @@SERVER_UUID, @@PORT;
+  --echo
+  --echo **** GTID_* on $CURRENT_CONNECTION ****
+  query_vertical
+  SELECT @@GLOBAL.GTID_DONE, @@GLOBAL.GTID_LOST, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_DONE, @@SESSION.GTID_OWNED;
   --echo
   --echo **** SHOW SLAVE STATUS on $CURRENT_CONNECTION ****
   query_vertical SHOW SLAVE STATUS;
@@ -106,6 +111,9 @@ while ($_rpl_server)
     }
   }
 }
+
+--echo rand_seed: '$rand_seed' _rand_state: '$_rand_state'
+--echo extra debug info if any: '$extra_debug_info'
 
 --connection $_rpl_old_con
 --enable_abort_on_error
