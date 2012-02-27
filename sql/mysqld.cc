@@ -6334,8 +6334,10 @@ struct my_option my_long_options[]=
      The system call realpath() produces warnings under valgrind and
      purify. These are not suppressed: instead we disable symlinks
      option if compiled with valgrind support.
+     Also disable by default on Windows, due to high overhead for checking .sym 
+     files.
    */
-   IF_VALGRIND(0,1), 0, 0, 0, 0, 0},
+   IF_VALGRIND(0,IF_WIN(0,1)), 0, 0, 0, 0, 0},
   {"debug-no-sync", 0,
    "Disables system sync calls. Only for running tests or debugging!",
    &my_disable_sync, &my_disable_sync, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
