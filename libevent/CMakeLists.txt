@@ -38,7 +38,6 @@ SET(LIBEVENT_EXTRA_SOURCES
 		http.c
 		evhttp.h
 		http-internal.h
-		evdns.c
 		evdns.h
 		evrpc.c
 		evrpc.h
