@@ -448,21 +448,6 @@ innodb_allocate(
 					flags, exptime));
 }
 
-/******************************************************************//**
-Function used to loop a thread (for debugging/instrumentation
-purpose). */
-static
-void
-srv_debug_loop(void)
-/*================*/
-{
-        bool set = true;
-
-        while (set) {
-                pthread_yield();
-        }
-}
-
 /*******************************************************************//**
 Cleanup connections
 @return number of connection cleaned */
