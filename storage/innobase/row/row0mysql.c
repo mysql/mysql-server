@@ -3283,6 +3283,18 @@ check_next_foreign:
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 	trx->table_id = table->id;
 
+	/* Mark all indexes unavailable in the data dictionary cache
+	before starting to drop the table. */
+
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+		rw_lock_x_lock(dict_index_get_lock(index));
+		ut_ad(!index->to_be_dropped);
+		index->to_be_dropped = TRUE;
+		rw_lock_x_unlock(dict_index_get_lock(index));
+	}
+
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in deleting the dictionary data from system
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
@@ -3368,18 +3380,6 @@ check_next_foreign:
 			   "WHERE ID = table_id;\n"
 			   "END;\n"
 			   , FALSE, trx);
-
-	/* Mark all indexes unavailable in the data dictionary cache
-	before starting to drop the table. */
-
-	for (index = dict_table_get_first_index(table);
-	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
-		rw_lock_x_lock(dict_index_get_lock(index));
-		ut_ad(!index->to_be_dropped);
-		index->to_be_dropped = TRUE;
-		rw_lock_x_unlock(dict_index_get_lock(index));
-	}
 
 	switch (err) {
 		ibool		is_temp;
