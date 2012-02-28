@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1142,14 +1142,6 @@ ulint
 dict_index_get_page(
 /*================*/
 	const dict_index_t*	tree);	/*!< in: index */
-/*********************************************************************//**
-Sets the page number of the root of index tree. */
-UNIV_INLINE
-void
-dict_index_set_page(
-/*================*/
-	dict_index_t*	index,	/*!< in/out: index */
-	ulint		page);	/*!< in: page number */
 /*********************************************************************//**
 Gets the read-write lock of the index tree.
 @return	read-write lock */
