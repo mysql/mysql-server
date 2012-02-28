@@ -18,6 +18,7 @@ source include/show_binlog_events.inc;
 # escaped).
 let $MYSQLD_DATADIR= `select @@datadir`;
 flush logs;
+--replace_regex s/$MYSQL_TEST_DIR/MYSQL_TEST_DIR/ s/SET @@SESSION.GTID_NEXT= .*;/SET @@SESSION.GTID_NEXT= 'GTID';/ /GROUPS: .*:(.*,.*) /GROUPS: GTID:(X,X)/
 --exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000001 
 drop table t1;
 

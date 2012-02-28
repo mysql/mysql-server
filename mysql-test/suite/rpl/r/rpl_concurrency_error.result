@@ -32,7 +32,7 @@ COMMIT;
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")
@@ -57,7 +57,7 @@ INSERT INTO t VALUES (6 + (2 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
 COMMIT;
 COMMIT;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")
@@ -82,7 +82,7 @@ COMMIT;
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")
@@ -105,7 +105,7 @@ INSERT INTO t VALUES (6 + (1 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
 COMMIT;
 COMMIT;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")

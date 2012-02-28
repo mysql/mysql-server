@@ -131,6 +131,7 @@ bool trans_begin(THD *thd, uint flags)
   {
     thd->variables.option_bits&= ~OPTION_TABLE_LOCK;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
     res= test(ha_commit_trans(thd, TRUE));
   }
 
@@ -148,6 +149,7 @@ bool trans_begin(THD *thd, uint flags)
 
   thd->variables.option_bits|= OPTION_BEGIN;
   thd->server_status|= SERVER_STATUS_IN_TRANS;
+  DBUG_PRINT("info", ("setting SERVER_STATUS_IN_TRANS"));
 
   if (flags & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
     res= ha_start_consistent_snapshot(thd);
@@ -174,6 +176,7 @@ bool trans_commit(THD *thd)
     DBUG_RETURN(TRUE);
 
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_commit_trans(thd, TRUE);
   /*
     if res is non-zero, then ha_commit_trans has rolled back the
@@ -217,6 +220,7 @@ bool trans_commit_implicit(THD *thd)
     if (!thd->locked_tables_mode)
       thd->variables.option_bits&= ~OPTION_TABLE_LOCK;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
     res= test(ha_commit_trans(thd, TRUE));
   }
 
@@ -253,6 +257,7 @@ bool trans_rollback(THD *thd)
     DBUG_RETURN(TRUE);
 
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_rollback_trans(thd, TRUE);
   (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   thd->variables.option_bits&= ~OPTION_BEGIN;
@@ -664,7 +669,7 @@ bool trans_xa_commit(THD *thd)
     else
     {
       res= xa_trans_rolled_back(xs);
-      ha_commit_or_rollback_by_xid(thd->lex->xid, !res);
+      ha_commit_or_rollback_by_xid(thd, thd->lex->xid, !res);
       xid_cache_delete(xs);
     }
     DBUG_RETURN(res);
@@ -719,6 +724,7 @@ bool trans_xa_commit(THD *thd)
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   xid_cache_delete(&thd->transaction.xid_state);
   thd->transaction.xid_state.xa_state= XA_NOTR;
 
@@ -749,7 +755,7 @@ bool trans_xa_rollback(THD *thd)
     else
     {
       xa_trans_rolled_back(xs);
-      ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
+      ha_commit_or_rollback_by_xid(thd, thd->lex->xid, 0);
       xid_cache_delete(xs);
     }
     DBUG_RETURN(thd->get_stmt_da()->is_error());
@@ -766,6 +772,7 @@ bool trans_xa_rollback(THD *thd)
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   xid_cache_delete(&thd->transaction.xid_state);
   thd->transaction.xid_state.xa_state= XA_NOTR;
 

@@ -65,8 +65,8 @@ drop table t1;
 include/check_slave_is_running.inc
 flush logs;
 show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000002	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+master-bin.000002	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 set global max_binlog_size= @my_max_binlog_size;
 #
 # End of 4.1 tests

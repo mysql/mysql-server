@@ -36,9 +36,6 @@ source include/show_binlog_events.inc;
 let $binlog_limit= 1;
 source include/show_binlog_events.inc;
 
-let $binlog_limit= 2;
-source include/show_binlog_events.inc;
-
 let $binlog_limit= 1,4;
 source include/show_binlog_events.inc;
 let $binlog_limit=;

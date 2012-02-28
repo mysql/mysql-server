@@ -36,6 +36,7 @@
 
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .* and file master-bin.000001");
+call mtr.add_suppression("Binlog has bad magic number;  It's not a binary log file that can be used by this version of MySQL");
 CREATE TABLE t1(a INT, PRIMARY KEY(a)) engine=innodb;
 
 insert into t1(a) values(1);

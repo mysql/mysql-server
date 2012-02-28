@@ -13,7 +13,7 @@ CREATE TABLE t2 (c INT, d INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,1),(2,4),(3,9);
 INSERT INTO t2 VALUES (1,1),(2,8),(3,27);
 UPDATE t1,t2 SET b = d, d = b * 2 WHERE a = c;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b INT) ENGINE=MyISAM
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (c INT, d INT) ENGINE=MyISAM
@@ -46,7 +46,7 @@ START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG
 include/wait_for_slave_sql_to_stop.inc
 include/check_slave_param.inc [Exec_Master_Log_Pos]
 include/check_slave_no_error.inc
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 include/wait_for_slave_to_start.inc
 SELECT * FROM t1;
@@ -66,7 +66,7 @@ RESET MASTER;
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET @foo = 12;
 INSERT INTO t1 VALUES(@foo, 2*@foo);
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`foo`=12
@@ -74,7 +74,7 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(@foo, 2*@foo)
 master-bin.000001	#	Query	#	#	COMMIT
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
 include/wait_for_slave_sql_to_stop.inc
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 include/wait_for_slave_to_start.inc
 **** On Master ****
@@ -119,7 +119,7 @@ a	b
 2	master only
 3	master/slave
 *** On Slave ***
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 include/start_slave.inc
 SELECT * FROM t1 ORDER BY a;
 a	b
@@ -165,7 +165,7 @@ a	b
 2	master only
 3	master/slave
 *** On Slave ***
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 include/start_slave.inc
 SELECT * FROM t4 ORDER BY a;
 a	b
@@ -208,7 +208,7 @@ a	b
 6	master only
 7	master only
 *** On Slave ***
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=10;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=11;
 include/start_slave.inc
 SELECT * FROM t4 ORDER BY a;
 a	b
@@ -254,7 +254,7 @@ a	b
 6	master only
 7	master only
 *** On Slave ***
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 include/start_slave.inc
 SELECT * FROM t4 ORDER BY a;
 a	b
@@ -283,7 +283,7 @@ a	b
 2	master only
 3	master only
 *** On Slave ***
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 include/start_slave.inc
 SELECT * FROM t10 ORDER BY a;
 a	b

@@ -126,7 +126,7 @@ if(!$success)
    eval
    SELECT * $part;
    --echo # abort
-   exit;
+   die;
 }
 let $part=
 FROM performance_schema.socket_summary_by_instance
@@ -141,7 +141,7 @@ if(!$success)
    eval
    SELECT * $part;
    --echo # abort
-   exit;
+   die;
 }
 # DISABLED FOR WINDOWS
 let $part=
@@ -157,7 +157,7 @@ let $wait_timeout= 5;
 #   eval
 #   SELECT * $part;
 #   --echo # abort
-#   exit;
+#   die;
 #}
 let $part=
 FROM performance_schema.socket_summary_by_instance
@@ -172,7 +172,7 @@ if(!$success)
    eval
    SELECT * $part;
    --echo # abort
-   exit;
+   die;
 }
 
 --disable_query_log
@@ -405,6 +405,7 @@ SELECT COUNT(*) = 1
 FROM performance_schema.threads
 WHERE processlist_user = 'root';
 --source include/wait_condition.inc
+--enable_query_log
 if (!$success)
 {
    --enable_query_log
@@ -415,7 +416,7 @@ if (!$success)
    SELECT * FROM performance_schema.threads
    WHERE processlist_user = 'root';
    --echo # abort
-   exit;
+   die;
 }
 
 # Disable instrumenting of the current default session.
@@ -614,7 +615,7 @@ if(`SELECT NOT ( $my_rules ) $part `)
    eval
    SELECT * $part;
    --echo # abort
-   exit;
+   die;
 }
 let $part=
 FROM performance_schema.socket_summary_by_instance
@@ -625,7 +626,7 @@ if(`SELECT NOT ( $my_rules ) $part `)
    eval
    SELECT * $part;
    --echo # abort
-   exit;
+   die;
 }
 let $my_rules= COUNT(*) = 1;
 let $part=
@@ -639,7 +640,7 @@ if (0)
    eval
    SELECT * $part;
    --echo # abort
-   exit;
+   die;
 }
 let $part=
 FROM performance_schema.socket_summary_by_instance
@@ -650,7 +651,7 @@ if(`SELECT NOT ( $my_rules ) $part `)
    eval
    SELECT * $part;
    --echo # abort
-   exit;
+   die;
 }
 
 --echo # 4. Check delta (value_after_action - value_before_action) details

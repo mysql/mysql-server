@@ -85,6 +85,7 @@ SET(SQL_SHARED_SOURCES
   procedure.cc 
   protocol.cc
   records.cc
+  rpl_constants.cc
   rpl_handler.cc
   scheduler.cc 
   set_var.cc 
@@ -206,7 +207,11 @@ IF(WIN32)
   TARGET_LINK_LIBRARIES(sql auth_win_client)
 ENDIF()
 
-SET (BINLOG_SOURCE log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
+SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
+                   rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
+                   rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_cache.cc
+                   rpl_gtid_execution.cc rpl_gtid_mutex_cond_array.cc
+                   log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
 		   rpl_injector.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
