@@ -1,0 +1,28 @@
+--source include/not_embedded.inc
+
+SET @start_global_value = @@global.gtid_mode;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+select @@global.gtid_mode;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.gtid_mode;
+show global variables like 'gtid_mode';
+show session variables like 'gtid_mode';
+select * from information_schema.global_variables where variable_name='gtid_mode';
+select * from information_schema.session_variables where variable_name='gtid_mode';
+
+#
+# show that it isn't writable now.
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global gtid_mode = "ON";
+select @@global.gtid_mode;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session gtid_mode = 1;
+
+#
+# See rpl_gtid_mode.test for a comprehensive test case.
+#

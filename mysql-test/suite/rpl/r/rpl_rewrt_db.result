@@ -197,7 +197,7 @@ get_lock("con_03",10)
 show status like 'Slave_open_temp_tables';
 Variable_name	Value
 Slave_open_temp_tables	0
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `database_master_temp_01`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_01_01_temp`
 master-bin.000001	#	Query	#	#	use `database_master_temp_02`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_02_02_temp`,`t_02_01_temp`

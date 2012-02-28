@@ -4292,3 +4292,12 @@ DROP VIEW view_t1;
 
 --echo # End of test  BUG#63020
 
+--echo #
+--echo # Bug #13571700 TINYBLOB NOT NULL, CRASH IN PROTOCOL::NET_STORE_DATA
+--echo #
+
+CREATE TABLE t1 (a TINYBLOB NOT NULL);
+SELECT a, COUNT(*) FROM t1 WHERE 0;
+DROP TABLE t1;
+
+--echo # End of test BUG#13571700

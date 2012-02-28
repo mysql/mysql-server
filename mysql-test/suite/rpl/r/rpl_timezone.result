@@ -135,6 +135,7 @@ date	a
 2008-12-23 20:39:39	1
 2008-12-23 19:39:39	2
 DROP TABLE t1;
+RESET MASTER;
 select * from t1 order by a;
 date	a
 2008-12-23 20:39:39	1

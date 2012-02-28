@@ -1,13 +1,39 @@
+# ==== Purpose ====
 #
-# This file relies on the rpl_mixing_engines.inc which provides an engine
-# to process commands.
+# This file is an engine to process commands like
+# rpl_mixing_engines.inc.  It has the same set of commands, and in
+# addition the extra command 'recovery'.  The 'configure' and 'clean'
+# commands are also extended version of the same commands in
+# rpl_mixing_engines.inc.
 #
+# ==== Usage ====
+#
+# --let $commands= command1 command2 ...
+# --let $database_name= name
+# --let $failure= d,debug_flag
+# [--let $verbose= 1]
+# --source include/rpl_mixing_engines.inc
+#
+#   Parameters:
+#
+#     $commands, $database_name, $verbose
+#       See rpl_mixing_engines.inc.
+#
+#     $failure
+#       This debug symbol will be set. See the implementation for
+#       details.
+#
+# ==== Implementation ====
+#
+# This file has its own code for 'configure' and 'clean'.  For other
+# commands, this file first configures the server according to
+# $failure, and then delegates the commands to rpl_mixing_engines.inc.
 
 #
 # Creates tables used throughout the test and changes the type of the
 # mysql.slave_relay_log_info to Innodb.
 #
-if (`SELECT HEX(@commands) = HEX('configure')`)
+if ($commands == 'configure')
 {
   --sync_slave_with_master
   --source include/stop_slave.inc
@@ -24,29 +50,31 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
 
   --sync_slave_with_master
   connection master;
+  --let $commands=
 }
 
 #
 # Cleans the test case by deleting all tables, triggers, procedures and
 # functions that were created.
 #
-if (`SELECT HEX(@commands) = HEX('clean')`)
+if ($commands == 'clean')
 {
   connection master;
   --source extra/rpl_tests/rpl_mixing_engines.inc
+  --let $commands=
 }
 
 #
-# Executes the set of commands defined in @command by calling
+# Executes the set of commands defined in $command by calling
 # rpl_mixing_engines.inc
 #
-if (`SELECT HEX(@commands) != HEX('')`)
+if ($commands != '')
 {
   # 
   # If an fault injection point was defined, stop the SQL THREAD and
   # prepare the slave to be restarted. Otherwise, do nothing.
   #
-  if (`SELECT HEX(@failure) != HEX('')`)
+  if ($failure != '')
   {
     connection slave;
     STOP SLAVE SQL_THREAD;
@@ -60,20 +88,21 @@ if (`SELECT HEX(@commands) != HEX('')`)
   # WL#4801 for further details.
   #
   connection master;
-  if (`SELECT HEX(@failure) != HEX('')`)
+  if ($failure != '')
   {
-    if (`SELECT HEX(@failure) != HEX('d,crash_after_commit_and_update_pos') && HEX(@failure) != HEX('d,crash_after_apply')`)
+    --let $outcome= O2
+    if ($failure != 'd,crash_after_commit_and_update_pos')
     {
-      --echo FAILURE $failure and OUTCOME O1
+      if ($failure != 'd,crash_after_apply')
+      {
+        --let $outcome= O1
+      }
     }
-    if (`SELECT HEX(@failure) = HEX('d,crash_after_commit_and_update_pos') || HEX(@failure) = HEX('d,crash_after_apply')`)
-    {
-      --echo FAILURE $failure and OUTCOME O2
-    }
+    --echo FAILURE $failure and OUTCOME $outcome
   }
 
   #
-  # Executes the set of commands defined in @command by calling
+  # Executes the set of commands defined in $command by calling
   # rpl_mixing_engines.inc
   #
   connection master;
@@ -86,7 +115,7 @@ if (`SELECT HEX(@commands) != HEX('')`)
   # re-started.
   #
   connection master;
-  if (`SELECT HEX(@failure) != HEX('')`)
+  if ($failure != '')
   {
     connection slave;
     --error 0, 2013
@@ -109,7 +138,7 @@ if (`SELECT HEX(@commands) != HEX('')`)
   sync_slave_with_master;
 
   --let $slave_after= `SELECT master_log_pos FROM mysql.slave_relay_log_info`
-  if (`SELECT $slave_after != $master_after`)
+  if ($slave_after != $master_after)
   {
     --echo Slave is out of sync.
     --echo MASTER_BEFORE $master_before MASTER_AFTER $master_after SLAVE_BEFORE $slave_before SLAVE_AFTER $slave_after

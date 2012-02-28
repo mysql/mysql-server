@@ -700,6 +700,8 @@ static int clear_sj_tmp_tables(JOIN *join)
 */
 void JOIN::restore_tmp()
 {
+  DBUG_PRINT("info", ("restore_tmp this %p tmp_join %p", this, tmp_join));
+  DBUG_ASSERT(tmp_join != this);
   memcpy(tmp_join, this, (size_t) sizeof(JOIN));
 }
 
@@ -862,6 +864,7 @@ JOIN::explain()
     table to resolve ORDER BY: in that case, we only may need to do
     filesort for GROUP BY.
   */
+  bool is_order_by= true;
   if (!order && !no_order && (!skip_sort_order || !need_tmp))
   {
     /*
@@ -871,21 +874,32 @@ JOIN::explain()
     order= group_list;
     simple_order= simple_group;
     skip_sort_order= 0;
+    is_order_by= false;
   }
-  if (order && 
-      (order != group_list || !(select_options & SELECT_BIG_RESULT)) &&
-      (const_tables == tables ||
-       ((simple_order || skip_sort_order) &&
-        test_if_skip_sort_order(&join_tab[const_tables], order,
-                                m_select_limit, 0, 
-                                &join_tab[const_tables].table->
-                                keys_in_use_for_query))))
-    order=0;
+
   having= tmp_having;
   if (tables)
+  {
+    /*
+      JOIN::optimize may have prepared an access patch which makes
+      either the GROUP BY or ORDER BY sorting obsolete by using an
+      ordered index for the access. If the required 'order' match
+      the available 'ordered_index_usage' we will use ordered index
+      access instead of doing a filesort.
+
+      NOTE: This code is intentional similar to 'is_skippable' code
+            in create_sort_index() which is the ::execute()
+            counterpart of what we 'explain' here.
+    */
+    const bool is_skippable= (is_order_by) ?
+      ( simple_order && ordered_index_usage == ordered_index_order_by )
+      :
+      ( simple_group && ordered_index_usage == ordered_index_group_by );
+
     explain_query_specification(thd, this, need_tmp,
-                                order != 0 && !skip_sort_order,
+                                (order != NULL) && !is_skippable,
                                 select_distinct);
+  }
   else
     explain_no_table(thd, this, "No tables used");
 
@@ -3139,13 +3153,18 @@ void JOIN::cleanup(bool full)
   {
     if (tmp_join)
       tmp_table_param.copy_field= 0;
-    group_fields.delete_elements();
+
     /* 
-      Ensure that the above delete_elements() would not be called
+      Ensure that the following delete_elements() would not be called
       twice for the same list.
     */
-    if (tmp_join && tmp_join != this)
-      tmp_join->group_fields= group_fields;
+    if (tmp_join && tmp_join != this &&
+        tmp_join->group_fields == this->group_fields)
+      tmp_join->group_fields.empty();
+
+    // Run Cached_item DTORs!
+    group_fields.delete_elements();
+
     /*
       We can't call delete_elements() on copy_funcs as this will cause
       problems in free_elements() as some of the elements are then deleted.
@@ -3946,7 +3965,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
     if (best_key >= 0)
     {
-      if (table->quick_keys.is_set(best_key) &&
+      if (select &&
+          table->quick_keys.is_set(best_key) &&
           !tab->quick_order_tested.is_set(best_key) &&
           best_key != ref_key)
       {
