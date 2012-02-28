@@ -68,6 +68,9 @@ connection master;
 CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
                  data2 LONGBLOB, data3 LONGBLOB, PRIMARY KEY(a));
 
+--sync_slave_with_master
+--connection master
+
 INSERT INTO t1 (data1, data2, data3) VALUES (repeat('a',1000000), repeat('a', 1000000), repeat('a', 1000000));
 
 SELECT LENGTH(data1), LENGTH(data2), LENGTH(data3) FROM t1 WHERE a = 1;

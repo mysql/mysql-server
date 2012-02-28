@@ -58,11 +58,6 @@ C_MODE_END
 using std::min;
 using std::max;
 
-/**
-   @todo Remove this. It is not safe to use a shared String object.
- */
-String my_empty_string("",default_charset_info);
-
 /*
   For the Items which have only val_str_ascii() method
   and don't have their own "native" val_str(),
@@ -181,7 +176,7 @@ String *Item_func_md5::val_str_ascii(String *str)
     uchar digest[16];
 
     null_value=0;
-    MY_MD5_HASH(digest,(uchar *) sptr->ptr(), sptr->length());
+    compute_md5_hash((char *) digest, (const char *) sptr->ptr(), sptr->length());
     if (str->alloc(32))				// Ensure that memory is free
     {
       null_value=1;
@@ -217,16 +212,11 @@ String *Item_func_sha::val_str_ascii(String *str)
   str->set_charset(&my_charset_bin);
   if (sptr)  /* If we got value different from NULL */
   {
-    SHA1_CONTEXT context;  /* Context used to generate SHA1 hash */
     /* Temporary buffer to store 160bit digest */
     uint8 digest[SHA1_HASH_SIZE];
-    mysql_sha1_reset(&context);  /* We do not have to check for error here */
-    /* No need to check error as the only case would be too long message */
-    mysql_sha1_input(&context,
-                     (const uchar *) sptr->ptr(), sptr->length());
-    /* Ensure that memory is free and we got result */
-    if (!( str->alloc(SHA1_HASH_SIZE*2) ||
-           (mysql_sha1_result(&context,digest))))
+    compute_sha1_hash(digest, (const char *) sptr->ptr(), sptr->length());
+    /* Ensure that memory is free */
+    if (!(str->alloc(SHA1_HASH_SIZE * 2)))
     {
       array_to_hex((char *) str->ptr(), digest, SHA1_HASH_SIZE);
       str->length((uint)  SHA1_HASH_SIZE*2);
@@ -1576,10 +1566,12 @@ void Item_func_substr_index::fix_length_and_dec()
 String *Item_func_substr_index::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+  char buff[MAX_FIELD_WIDTH];
+  String tmp(buff,sizeof(buff),system_charset_info);
   String *res= args[0]->val_str(str);
-  String *delimiter= args[1]->val_str(&tmp_value);
+  String *delimiter= args[1]->val_str(&tmp);
   int32 count= (int32) args[2]->val_int();
-  uint offset;
+  int offset;
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value)
   {					// string and/or delim are null
@@ -1650,7 +1642,7 @@ String *Item_func_substr_index::val_str(String *str)
     {					// start counting from the beginning
       for (offset=0; ; offset+= delimiter_length)
       {
-	if ((int) (offset= res->strstr(*delimiter, offset)) < 0)
+	if ((offset= res->strstr(*delimiter, offset)) < 0)
 	  return res;			// Didn't find, return org string
 	if (!--count)
 	{
@@ -1664,14 +1656,14 @@ String *Item_func_substr_index::val_str(String *str)
       /*
         Negative index, start counting at the end
       */
-      for (offset=res->length(); offset ;)
+      for (offset=res->length(); offset; )
       {
         /* 
           this call will result in finding the position pointing to one 
           address space less than where the found substring is located
           in res
         */
-	if ((int) (offset= res->strrstr(*delimiter, offset)) < 0)
+	if ((offset= res->strrstr(*delimiter, offset)) < 0)
 	  return res;			// Didn't find, return org string
         /*
           At this point, we've searched for the substring
@@ -1684,14 +1676,10 @@ String *Item_func_substr_index::val_str(String *str)
 	  break;
 	}
       }
+      if (count)
+        return res;			// Didn't find, return org string
     }
   }
-  /*
-    We always mark tmp_value as const so that if val_str() is called again
-    on this object, we don't disrupt the contents of tmp_value when it was
-    derived from another String.
-  */
-  tmp_value.mark_as_const();
   return (&tmp_value);
 }
 
@@ -2604,7 +2592,7 @@ String *Item_func_make_set::val_str(String *str)
   ulonglong bits;
   bool first_found=0;
   Item **ptr=args;
-  String *result=&my_empty_string;
+  String *result= NULL;
 
   bits=item->val_int();
   if ((null_value=item->null_value))
@@ -2636,17 +2624,21 @@ String *Item_func_make_set::val_str(String *str)
 	{
 	  if (result != &tmp_str)
 	  {					// Copy data to tmp_str
-	    if (tmp_str.alloc(result->length()+res->length()+1) ||
+            if (tmp_str.alloc((result != NULL ? result->length() : 0) +
+                              res->length() + 1) ||
 		tmp_str.copy(*result))
               return make_empty_result();
 	    result= &tmp_str;
 	  }
-	  if (tmp_str.append(STRING_WITH_LEN(","), &my_charset_bin) || tmp_str.append(*res))
+	  if (tmp_str.append(STRING_WITH_LEN(","), &my_charset_bin) ||
+              tmp_str.append(*res))
             return make_empty_result();
 	}
       }
     }
   }
+  if (result == NULL)
+    return make_empty_result();
   return result;
 }
 

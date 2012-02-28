@@ -5955,7 +5955,13 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     if ((memcmp(const_cast<char *>(mi->get_master_log_name()),
                 hb.get_log_ident(), hb.get_ident_len())
          && mi->get_master_log_name() != NULL)
-        || mi->get_master_log_pos() != hb.log_pos)
+        || ((mi->get_master_log_pos() != hb.log_pos && gtid_mode == 0) || 
+            /*
+              When Gtid mode is on only monotocity can be claimed.
+              Todo: enhance HB event with the skipped events size
+              and to convert HB.pos  == MI.pos to HB.pos - HB.skip_size == MI.pos
+            */
+            (mi->get_master_log_pos() > hb.log_pos)))
     {
       /* missed events of heartbeat from the past */
       error= ER_SLAVE_HEARTBEAT_FAILURE;
