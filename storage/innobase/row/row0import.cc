@@ -58,7 +58,6 @@ public:
 		m_n_recs(0),
 		m_space_id(space_id)
 	{
-		rec_offs_init(m_offsets_);
 	}
 
 	/** Descructor
@@ -76,8 +75,11 @@ public:
 	db_err	import() throw()
 	{
 		db_err	err;
-		ulint*	offsets = m_offsets_;
+		ulint	offsets_[REC_OFFS_NORMAL_SIZE];
+		ulint*	offsets = offsets_;
 		ibool	comp = dict_table_is_comp(m_index->table);
+
+		rec_offs_init(offsets_);
 
 		/* Open the persistent cursor and start the
 		mini-transaction. */
@@ -122,7 +124,7 @@ public:
 
 	/** Gettor for m_n_recs.
 	@return total records in the index after purge */
-	ulint	get_n_recs() throw()
+	ulint	get_n_recs() const throw()
 	{
 		return(m_n_recs);
 	}
@@ -155,7 +157,7 @@ private:
 				&m_heap));
 	}
 
-	/** Postition the cursor on the next record.
+	/** Position the cursor on the next record.
 	@return DB_SUCCESS or error code */
 	db_err	next() throw()
 	{
@@ -232,7 +234,7 @@ private:
 				 ER_INDEX_CORRUPT,
 				"Externally stored column(%lu) has a reference "
 				"length of %lu in the index %s",
-				i, len, index_name);
+				(ulong) i, (ulong) len, index_name);
 
 			return(DB_CORRUPTION);
 		}
@@ -263,6 +265,8 @@ private:
 		const ulint*	offsets) throw()
 	{
 		ut_ad(dict_index_is_clust(m_index));
+
+		ut_ad(rec_offs_any_extern(offsets));
 
 		/* Adjust the space_id in the BLOB pointers. */
 
@@ -331,6 +335,10 @@ private:
 
 		btr_pcur_restore_position(BTR_MODIFY_TREE, &m_pcur, &m_mtr);
 
+		ut_ad(rec_get_deleted_flag(
+				btr_pcur_get_rec(&m_pcur),
+				dict_table_is_comp(m_index->table)));
+
 		btr_cur_pessimistic_delete(
 			&err, FALSE, btr_pcur_get_btr_cur(&m_pcur),
 			RB_NONE, &m_mtr);
@@ -348,9 +356,9 @@ private:
 	/** Adjust the BLOB references and sys fields for the current record.
 	@param rec - current row
 	@param offsets - column offsets
-	@param deleted - true of row is delete marked
+	@param deleted - true if row is delete marked
 	@return DB_SUCCESS or error code. */
-	db_err	adjust(rec_t* rec, const ulint* offsets, ibool deleted) throw()
+	db_err	adjust(rec_t* rec, const ulint* offsets, bool deleted) throw()
 	{
 		/* Only adjust the system fields and BLOB pointers in the
 		cluster index. */
@@ -406,13 +414,12 @@ private:
 	dict_index_t*		m_index;	/*!< Index to be processed */
 	ulint			m_n_recs;	/*!< Records in index */
 	ulint			m_space_id;	/*!< Tablespace id */
-	ulint			m_offsets_[REC_OFFS_NORMAL_SIZE];
 						/*!< Column offsets */
 };
 
 /*****************************************************************//**
 Cleanup after import tablespace. */
-static
+static	__attribute__((nonnull, warn_unused_result))
 db_err
 row_import_cleanup(
 /*===============*/
@@ -421,13 +428,14 @@ row_import_cleanup(
 	db_err		err)		/*!< in: error code */
 {
 	ut_a(prebuilt->trx != trx);
+	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_TABLE);
 
 	if (err != DB_SUCCESS) {
 		dict_table_t*	table = prebuilt->table;
 
 		prebuilt->trx->error_info = NULL;
 
-		char table_name[MAX_FULL_NAME_LEN + 1];
+		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
 			table_name, sizeof(table_name),
@@ -480,9 +488,11 @@ row_import_error(
 			table_name, sizeof(table_name),
 			prebuilt->table->name, FALSE);
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"ALTER TABLE %s IMPORT TABLESPACE failed: %lu : %s",
-			table_name, (ulint) err, ut_strerr(err));
+		ib_pushf(trx->mysql_thd,
+			 IB_LOG_LEVEL_WARN,
+			 ER_ALTER_INFO,
+			 "ALTER TABLE %s IMPORT TABLESPACE failed: %lu : %s",
+			 table_name, (ulong) err, ut_strerr(err));
 	}
 
 	return(row_import_cleanup(prebuilt, trx, err));
@@ -558,9 +568,9 @@ row_import_adjust_root_pages(
 				"Index %s contains %lu entries, should be "
 				"%lu, you should recreate this index.",
 				index_name,
-				(ulint) n_rows,
-				(ulint) n_rows_in_table);
-					
+				(ulong) n_rows,
+				(ulong) n_rows_in_table);
+
 			/* Do not bail out, so that the data
 			can be recovered. */
 
@@ -574,7 +584,7 @@ row_import_adjust_root_pages(
 /*****************************************************************//**
 Ensure that dict_sys->row_id exceeds SELECT MAX(DB_ROW_ID).
 @return error code */
-static
+static	__attribute__((nonnull, warn_unused_result))
 db_err
 row_import_set_sys_max_row_id(
 /*==========================*/
@@ -634,6 +644,7 @@ row_import_set_sys_max_row_id(
 			mem_heap_free(heap);
 		}
 	} else {
+		/* The table is empty. */
 		err = DB_SUCCESS;
 	}
 
@@ -650,10 +661,10 @@ row_import_set_sys_max_row_id(
 			index_name, sizeof(index_name), index->name, TRUE);
 
 		ib_pushf(prebuilt->trx->mysql_thd,
-			IB_LOG_LEVEL_WARN,
-			ER_INDEX_CORRUPT,
-			"Index %s corruption detected, invalid row id "
-			"in index.", index_name);
+			 IB_LOG_LEVEL_WARN,
+			 ER_INDEX_CORRUPT,
+			 "Index %s corruption detected, invalid row id "
+			 "in index.", index_name);
 
 		return(err);
 
@@ -702,7 +713,7 @@ row_import_cfg_read_index_name(
 			}
 		/* max_len includes the NUL byte */
 		} else if (len != max_len - 1) {
-			return(DB_IO_ERROR);
+			break;
 		} else {
 			name[len] = 0;
 			return(DB_SUCCESS);
@@ -716,7 +727,7 @@ row_import_cfg_read_index_name(
 Read the index names and root page numbers of the indexes and set the values.
 Row format [root_page_no, len of str, str ... ]
 @return DB_SUCCESS or error code. */
-static
+static __attribute__((nonnull, warn_unused_result))
 db_err
 row_import_set_index_root_v1(
 /*=========================*/
@@ -726,11 +737,12 @@ row_import_set_index_root_v1(
 	void*		thd)		/*!< in: session */
 {
 	byte*		ptr;
+	db_err		err = DB_SUCCESS;
 	byte		row[sizeof(ib_uint32_t) * 2];
 
-	for (ulint i = 0; i < n_indexes; ++i) {
-		db_err		err;
-		dict_index_t*	index;
+	ut_a(n_indexes > 0);
+
+	for (ulint i = 0; i < n_indexes && err == DB_SUCCESS; ++i) {
 		ib_uint32_t	pageno;
 
 		ptr = row;
@@ -738,8 +750,8 @@ row_import_set_index_root_v1(
 		/* Read the root page number of the index. */
 		if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-				"IO error (%lu), reading index meta-data",
-				(ulint) errno);
+				"I/O error (%lu) while reading index "
+				"meta-data", (ulint) errno);
 
 			return(DB_IO_ERROR);
 		}
@@ -752,8 +764,8 @@ row_import_set_index_root_v1(
 
 		if (len > OS_FILE_MAX_PATH) {
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-				"Index name length (%lu) too long "
-				"the meta-data is corrupt", len);
+				 "Index name length (%lu) is too long, "
+				 "the meta-data is corrupt", len);
 
 			return(DB_CORRUPTION);
 		}
@@ -762,43 +774,44 @@ row_import_set_index_root_v1(
 
 		err = row_import_cfg_read_index_name(file, name, len);
 
-		if (err != DB_SUCCESS) {
-			ut_free(name);
-			return(err);
-		}
+		if (err == DB_SUCCESS) {
 
-		index = dict_table_get_index_on_name(table, name);
+			dict_index_t*	index;
 
-		if (index != 0) {
-			index->page = pageno;
-			index->space = table->space;
-		} else {
-			char index_name[MAX_FULL_NAME_LEN + 1];
+			index = dict_table_get_index_on_name(table, name);
 
-			innobase_format_name(
-				index_name, sizeof(index_name), name, TRUE);
+			if (index != 0) {
+				index->page = pageno;
+				index->space = table->space;
+			} else {
+				char index_name[MAX_FULL_NAME_LEN + 1];
 
-			char table_name[MAX_FULL_NAME_LEN + 1];
+				innobase_format_name(
+					index_name, sizeof(index_name),
+					name, TRUE);
 
-			innobase_format_name(
-				table_name, sizeof(table_name),
-				table->name, FALSE);
+				char table_name[MAX_FULL_NAME_LEN + 1];
 
-			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-				 "Index %s not in table %s",
-				 index_name, table_name);
+				innobase_format_name(
+					table_name, sizeof(table_name),
+					table->name, FALSE);
 
-			/* TODO: If the table schema matches, it would
-			be better to just ignore this error. */
+				ib_pushf(thd,
+					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+					 "Index %s not in table %s",
+					 index_name, table_name);
 
-			ut_free(name);
-			return(DB_ERROR);
+				/* TODO: If the table schema matches, it would
+				be better to just ignore this error. */
+
+				err = DB_ERROR;
+			}
 		}
 
 		ut_free(name);
 	}
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /*****************************************************************//**
@@ -820,7 +833,7 @@ row_import_set_index_root_v1(
 	/* Read the tablespace page size. */
 	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-			 "IO error (%lu), reading page size",
+			 "IO error (%lu) while  reading page size",
 			 (ulint) errno);
 
 		return(DB_IO_ERROR);
@@ -837,7 +850,7 @@ row_import_set_index_root_v1(
 			"Tablespace to be imported has different "
 			"page size than this server. Server page size "
 			"is: %lu, whereas tablespace page size is %lu",
-			UNIV_PAGE_SIZE, page_size);
+			UNIV_PAGE_SIZE, (ulint) page_size);
 
 		return(DB_ERROR);
 	}
@@ -845,7 +858,7 @@ row_import_set_index_root_v1(
 	ulint	flags = mach_read_from_4(ptr);
 	ptr += sizeof(ib_uint32_t);
 
-	if (dict_tf_validate(flags) != DB_SUCCESS) {
+	if (!dict_tf_valid(flags)) {
 		return(DB_CORRUPTION);
 	}
 
@@ -871,7 +884,7 @@ row_import_set_index_root(
 
 	if (fread(&value, sizeof(value), 1, file) != 1) {
 		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_INDEX_CORRUPT,
-			"IO error (%lu), reading version",
+			"IO error (%lu) while reading version",
 			(ulint) errno);
 
 		return(DB_IO_ERROR);
@@ -887,8 +900,6 @@ row_import_set_index_root(
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
 			"Unsupported meta-data version number (%lu), "
 			"file ignored", (ulint) value);
-
-		return(DB_ERROR);
 	}
 
 	return(DB_ERROR);
@@ -1032,7 +1043,7 @@ struct discard_t {
 Fetch callback that sets or unsets the DISCARDED tablespace flag in
 SYS_TABLES. The flags is stored in MIX_LEN column.
 @return FALSE if all OK */
-static
+static	__attribute__((nonnull, warn_unused_result))
 ibool
 row_import_set_discarded(
 /*=====================*/
@@ -1141,7 +1152,7 @@ row_import_for_mysql(
 	trx_t*		trx;
 	lsn_t		current_lsn;
 	ulint		n_rows_in_table;
-	char 		table_name[MAX_FULL_NAME_LEN + 1];
+	char		table_name[MAX_FULL_NAME_LEN + 1];
 
 	innobase_format_name(
 		table_name, sizeof(table_name), table->name, FALSE);

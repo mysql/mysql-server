@@ -18,7 +18,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /**************************************************//**
 @file include/row0import.h
-Header file for import tablespace functions. 
+Header file for import tablespace functions.
 
 Created 2012-02-08 by Sunny Bains
 *******************************************************/
@@ -59,12 +59,13 @@ row_import_update_discarded_flag(
 						to set the root table->flags2 */
 	bool			discarded,	/*!< in: set MIX_LEN column bit
 						to discarded, if true */
-	bool			dict_locked);	/*!< Set to TRUE if the 
-						caller already owns the 
-						dict_sys_t:: mutex. */
+	bool			dict_locked)	/*!< Set to TRUE if the
+						caller already owns the
+						dict_sys_t::mutex. */
+	__attribute__((nonnull, warn_unused_result));
 
 /*****************************************************************//**
-Update the <space, root page> of a table's indexes from the values
+Update the (space, root page) of a table's indexes from the values
 in the data dictionary.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
@@ -77,9 +78,10 @@ row_import_update_index_root(
 						to set the root page_no */
 	bool			reset,		/*!< if true then set to
 						FIL_NUL */
-	bool			dict_locked);	/*!< Set to TRUE if the 
-						caller already owns the 
+	bool			dict_locked)	/*!< Set to TRUE if the
+						caller already owns the
 						dict_sys_t:: mutex. */
+	__attribute__((nonnull, warn_unused_result));
 #ifndef UNIV_NONINL
 #include "row0import.ic"
 #endif

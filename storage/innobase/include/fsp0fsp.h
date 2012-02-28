@@ -671,7 +671,8 @@ UNIV_INLINE
 ulint
 fsp_flags_validate(
 /*===============*/
-	ulint	flags);		/*!< in: tablespace flags */
+	ulint	flags)		/*!< in: tablespace flags */
+	__attribute__((warn_unused_result, const));
 /********************************************************************//**
 Determine if the tablespace is compressed from dict_table_t::flags.
 @return	TRUE if compressed, FALSE if not compressed */

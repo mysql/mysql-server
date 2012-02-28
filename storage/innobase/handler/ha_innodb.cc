@@ -11271,15 +11271,17 @@ ha_innobase::external_lock(
 
 	reset_template();
 
-	if (prebuilt->table->quiesce == QUIESCE_START) {
+	switch (prebuilt->table->quiesce) {
+	case QUIESCE_START:
 		/* Check for FLUSH TABLE t WITH READ LOCK; */
 		if (thd_sql_command(thd) == SQLCOM_FLUSH
 		    && lock_type == F_RDLCK) {
 
 			row_quiesce_table_start(prebuilt->table, trx);
 		}
+		break;
 
-	} else if (prebuilt->table->quiesce == QUIESCE_COMPLETE) {
+	case QUIESCE_COMPLETE:
 		/* Check for UNLOCK TABLES; or trx interruption. */
 		if ((thd_sql_command(thd) == SQLCOM_UNLOCK_TABLES
 		     || trx_is_interrupted(trx))
@@ -11287,8 +11289,11 @@ ha_innobase::external_lock(
 
 			row_quiesce_table_complete(prebuilt->table, trx);
 		}
-	} else {
-		ut_a(prebuilt->table->quiesce == QUIESCE_NONE);
+
+		break;
+
+	case QUIESCE_NONE:
+		break;
 	}
 
 	if (lock_type == F_WRLCK) {
@@ -11984,7 +11989,15 @@ ha_innobase::store_lock(
 	/* Check for FLUSH TABLES ... WITH READ LOCK */
 	if (sql_command == SQLCOM_FLUSH && lock_type == TL_READ_NO_INSERT) {
 
-		row_quiesce_set_state(prebuilt->table, QUIESCE_START, trx);
+		/* Note: This call can fail, but there is no way to return
+		the error to the caller. We simply ignore it for now here
+		and push the error code to the caller where the error is
+		detected in the function. */
+
+		db_err	err = row_quiesce_set_state(
+			prebuilt->table, QUIESCE_START, trx);
+
+		ut_a(err == DB_SUCCESS || err == DB_UNSUPPORTED);
 
 	/* Check for DROP TABLE */
 	} else if (sql_command == SQLCOM_DROP_TABLE) {
