@@ -5,6 +5,7 @@
 
 source include/have_binlog_format_mixed.inc;
 source include/master-slave.inc;
+source include/not_gtid_enabled.inc;
 
 
 # we need a db != test, where we don't have automatic grants
@@ -554,7 +555,6 @@ connection master;
 # were written to the binary log.
 --source include/show_binlog_events.inc
 
-
 # Restore log_bin_trust_function_creators to its original value.
 # This is a cleanup for all parts above where we tested stored
 # functions and triggers.
@@ -614,7 +614,7 @@ show function status like '%mysqltestbug36570%';
 connection master;
 flush logs;
 let $MYSQLD_DATADIR= `select @@datadir`;
---replace_regex s/$MYSQL_TEST_DIR/MYSQL_TEST_DIR/ s/TIMESTAMP=[0-9]*/TIMESTAMP=t/
+--replace_regex s/$MYSQL_TEST_DIR/MYSQL_TEST_DIR/ s/TIMESTAMP=[0-9]*/TIMESTAMP=t/ s/SET @@SESSION.GTID_NEXT= .*;/SET @@SESSION.GTID_NEXT= 'GTID';/ s/GROUPS: .*:(.*,.*) /GROUPS: GTID:(X,X)/
 --exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000001
 use test;
 drop procedure mysqltestbug36570_p1;

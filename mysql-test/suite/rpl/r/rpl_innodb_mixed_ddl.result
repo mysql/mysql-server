@@ -135,7 +135,7 @@ ALTER TABLE t2 DROP COLUMN d;
 
 
 ******************** SHOW BINLOG EVENTS ********************
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	DROP DATABASE IF EXISTS test_rpl
 master-bin.000001	#	Query	#	#	DROP DATABASE IF EXISTS test_rpl_1

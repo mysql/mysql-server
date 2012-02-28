@@ -8,16 +8,18 @@
 # ==== Usage ====
 #
 # [--let $sync_slave_connection= <connection_name>]
+# [--let $use_gtids= 1]
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # --source include/sync_slave_io_with_master.inc
 #
-# Syncs slave to the current position on master, as found by SHOW
-# MASTER STATUS.
-#
 # Must be called on the master. Will change connection to the slave.
 #
 # Parameters:
+#
+#   $use_gtids
+#     If set, uses GTIDs instead of filename and offset for positions.
+#
 #   $sync_slave_connection
 #     By default, this script switches connection to 'slave'. If
 #     $sync_slave_connection is set, then '$sync_slave_connection' is
@@ -42,7 +44,7 @@ if ($sync_slave_connection)
 }
 --source include/rpl_connection.inc
 
---source include/sync_io_with_master.inc
+--source include/sync_slave_io.inc
 
 
 --let $include_filename= sync_slave_io_with_master.inc

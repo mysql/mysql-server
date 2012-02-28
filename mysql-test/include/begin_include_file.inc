@@ -48,10 +48,10 @@
 #     must be provided both for begin_include_file.inc and
 #     end_include_file.inc.
 #
-#   $keep_include_silent
-#     This specifies whether it should be echoed to the result file
-#     the following string: include/$include_filename
-#     If not set, the string will be echoed.
+#   $include_silent
+#     By default, the following string is printed to the result file:
+#       include/$include_filename
+#     If this variable is set, this printout is inhibited.
 #
 #   $rpl_debug
 #     If set, this script will print the following text:
@@ -64,7 +64,7 @@
 # recursively.
 if (!$_include_file_depth)
 {
-  if (!$keep_include_silent)
+  if (!$include_silent)
   {
     --echo include/$include_filename
   }
