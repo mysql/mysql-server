@@ -3406,7 +3406,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
             The effect of this is that we don't do const substitution for
             such tables.
           */
-          KEY *keyinfo= table->key_info+key;
+          KEY *keyinfo= table->key_info + key;
           uint  key_parts= table->actual_n_key_parts(keyinfo);
           if (eq_part.is_prefix(key_parts) &&
               !table->fulltext_searched && 
@@ -4746,7 +4746,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   /* fill keyuse with found key parts */
   for ( ; field != end ; field++)
   {
-    if (add_key_part(keyuse, field))
+    if (add_key_part(keyuse,field))
       return TRUE;
   }
 

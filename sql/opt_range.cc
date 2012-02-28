@@ -2987,7 +2987,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
     if (!(param.key_parts=
            (KEY_PART*) alloc_root(&alloc,
-                                  sizeof(KEY_PART)*
+                                  sizeof(KEY_PART) *
 	                          head->s->actual_n_key_parts(thd))) ||
         fill_used_fields_bitmap(&param))
     {
@@ -11717,7 +11717,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     if (!table->covering_keys.is_set(cur_index))
       goto next_index;
 
-     /*
+    /*
       Unless extended keys can be used for cur_index:
       If the current storage manager is such that it appends the primary key to
       each index, then the above condition is insufficient to check if the
@@ -11727,8 +11727,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
       does not qualify as covering in our case. If this is the case, below
       we check that all query fields are indeed covered by 'cur_index'.
     */
-    if (cur_index_info->key_parts==table->actual_n_key_parts(cur_index_info) &&
-        pk < MAX_KEY && cur_index != pk &&
+    if (cur_index_info->key_parts == table->actual_n_key_parts(cur_index_info)
+        && pk < MAX_KEY && cur_index != pk &&
         (table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
     {
       /* For each table field */
@@ -11845,7 +11845,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
       If there is no MIN/MAX, the keyparts after the last group part can be
       referenced only in equalities with constants, and the referenced keyparts
       must form a sequence without any gaps that starts immediately after the
-      last group keyparyt.
+      last group keypart.
     */
     key_parts= table->actual_n_key_parts(cur_index_info);
     last_part= cur_index_info->key_part + key_parts;
@@ -12299,7 +12299,8 @@ get_field_keypart(KEY *index, Field *field)
 {
   KEY_PART_INFO *part, *end;
 
-  for (part= index->key_part, end= part+field->table->actual_n_key_parts(index);
+  for (part= index->key_part,
+         end= part + field->table->actual_n_key_parts(index);
        part < end; part++)
   {
     if (field->eq(part->field))

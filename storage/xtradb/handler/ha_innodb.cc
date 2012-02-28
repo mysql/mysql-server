@@ -8080,10 +8080,10 @@ ha_innobase::records_in_range(
 	heap = mem_heap_create(2 * (key_parts * sizeof(dfield_t)
 				    + sizeof(dtuple_t)));
 
-	range_start = dtuple_create(heap, key_parts);
+	range_start= dtuple_create(heap, key_parts);
 	dict_index_copy_types(range_start, index, key_parts);
 
-	range_end = dtuple_create(heap, key_parts);
+	range_end= dtuple_create(heap, key_parts);
 	dict_index_copy_types(range_end, index, key_parts);
 
 	row_sel_convert_mysql_key_to_innobase(

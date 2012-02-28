@@ -809,6 +809,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->keys_for_keyread.init(0);
   share->keys_in_use.init(keys);
 
+  /*
+    At this point we don't have enough information read from the frm file
+    to get a proper handlerton for the interesting engine in order to get
+    properties of this engine.
+  */   
   /* Currently only InnoDB can use extended keys */
   share->set_use_ext_keys_flag(legacy_db_type == DB_TYPE_INNODB);
 
@@ -830,6 +835,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     added that are not included in the proper key definition. 
     If after all it turns out that there is no primary key the
     added components are removed from each key.
+
+    When in the future we support others schemes of extending of
+    secondary keys with components of the primary key we'll have
+    to change the type of this flag for an enumeration type.                 
   */   
 
   for (i=0 ; i < keys ; i++, keyinfo++)
@@ -857,16 +866,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       ext_key_parts= key_parts +
 	             (share->use_ext_keys ? first_keyinfo.key_parts*(keys-1) : 0); 
     
-      n_length=keys*sizeof(KEY)+ext_key_parts*sizeof(KEY_PART_INFO);
+      n_length=keys * sizeof(KEY) + ext_key_parts * sizeof(KEY_PART_INFO);
       if (!(keyinfo= (KEY*) alloc_root(&share->mem_root,
 				       n_length + len)))
         goto err;                                   /* purecov: inspected */
       bzero((char*) keyinfo,n_length);
       share->key_info= keyinfo;
-      key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo+keys);
+      key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo + keys);
 
       if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
-                                             sizeof(ulong)*ext_key_parts)))
+                                             sizeof(ulong) * ext_key_parts)))
         goto err;
       first_key_part= key_part;
       first_key_parts= first_keyinfo.key_parts;
@@ -913,7 +922,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     {
       keyinfo->ext_key_flags= keyinfo->flags | HA_NOSAME;
       keyinfo->ext_key_part_map= 0;
-      for (j= 0; j<first_key_parts && keyinfo->ext_key_parts<MAX_REF_PARTS; j++)
+      for (j= 0; 
+           j < first_key_parts && keyinfo->ext_key_parts < MAX_REF_PARTS;
+           j++)
       {
         uint key_parts= keyinfo->key_parts;
         KEY_PART_INFO* curr_key_part= keyinfo->key_part;
@@ -1547,7 +1558,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
       if (ext_key_parts > share->key_parts && key)
       {
-	KEY_PART_INFO *new_key_part= (keyinfo-1)->key_part+
+        KEY_PART_INFO *new_key_part= (keyinfo-1)->key_part +
                                      (keyinfo-1)->ext_key_parts;
 
         /* 
@@ -2370,7 +2381,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 			                              key_info->key_parts) ;      
       for ( ; key_part < key_part_end; key_part++)
       {
-        Field *field= key_part->field= outparam->field[key_part->fieldnr-1];
+        Field *field= key_part->field= outparam->field[key_part->fieldnr - 1];
 
         if (field->key_length() != key_part->length &&
             !(field->flags & BLOB_FLAG))
@@ -2385,7 +2396,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
         }
       }
       if (!share->use_ext_keys)
-	key_part+= key_info->ext_key_parts-key_info->key_parts;
+	key_part+= key_info->ext_key_parts - key_info->key_parts;
     }
   }
 
