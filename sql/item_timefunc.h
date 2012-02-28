@@ -1375,48 +1375,6 @@ class Item_extract :public Item_int_func
 };
 
 
-class Item_typecast :public Item_str_func
-{
-public:
-  Item_typecast(Item *a) :Item_str_func(a) {}
-  String *val_str(String *a)
-  {
-    DBUG_ASSERT(fixed == 1);
-    String *tmp=args[0]->val_str(a);
-    null_value=args[0]->null_value;
-    if (tmp)
-      tmp->set_charset(collation.collation);
-    return tmp;
-  }
-  void fix_length_and_dec()
-  {
-    collation.set(&my_charset_bin);
-    max_length=args[0]->max_length;
-  }
-  virtual const char* cast_type() const= 0;
-  virtual void print(String *str, enum_query_type query_type);
-};
-
-
-class Item_char_typecast :public Item_typecast
-{
-  int cast_length;
-  const CHARSET_INFO *cast_cs, *from_cs;
-  bool charset_conversion;
-  String tmp_value;
-public:
-  Item_char_typecast(Item *a, int length_arg, const CHARSET_INFO *cs_arg)
-    :Item_typecast(a), cast_length(length_arg), cast_cs(cs_arg) {}
-  enum Functype functype() const { return CHAR_TYPECAST_FUNC; }
-  bool eq(const Item *item, bool binary_cmp) const;
-  const char *func_name() const { return "cast_as_char"; }
-  const char* cast_type() const { return "char"; };
-  String *val_str(String *a);
-  void fix_length_and_dec();
-  virtual void print(String *str, enum_query_type query_type);
-};
-
-
 class Item_date_typecast :public Item_date_func
 {
 public:
