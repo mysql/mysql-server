@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1624,7 +1624,9 @@ ha_innobase::prepare_drop_index(
 			goto func_exit;
 		}
 
+		rw_lock_x_lock(dict_index_get_lock(index));
 		index->to_be_dropped = TRUE;
+		rw_lock_x_unlock(dict_index_get_lock(index));
 	}
 
 	/* If FOREIGN_KEY_CHECKS = 1 you may not drop an index defined
@@ -1743,7 +1745,9 @@ func_exit:
 			= dict_table_get_first_index(prebuilt->table);
 
 		do {
+			rw_lock_x_lock(dict_index_get_lock(index));
 			index->to_be_dropped = FALSE;
+			rw_lock_x_unlock(dict_index_get_lock(index));
 			index = dict_table_get_next_index(index);
 		} while (index);
 	}
@@ -1834,7 +1838,9 @@ ha_innobase::final_drop_index(
 		for (index = dict_table_get_first_index(prebuilt->table);
 		     index; index = dict_table_get_next_index(index)) {
 
+			rw_lock_x_lock(dict_index_get_lock(index));
 			index->to_be_dropped = FALSE;
+			rw_lock_x_unlock(dict_index_get_lock(index));
 		}
 
 		goto func_exit;
