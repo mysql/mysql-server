@@ -1107,7 +1107,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       DBUG_PRINT("redo", ("org_page_length: %u  new_page_length: %u",
                           uint2korr(header), uint2korr(header+2)));
       DBUG_ASSERT(uint2korr(header) == page_length);
-      new_page_length= uint2korr(header+2);
+      new_page_length= min(uint2korr(header+2), max_page_size);
       header+= 4;
       break;
     case KEY_OP_MAX_PAGELENGTH:

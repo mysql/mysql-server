@@ -1383,6 +1383,10 @@ uint _ma_get_binary_pack_key(MARIA_KEY *int_key, uint page_flag, uint nod_flag,
   memcpy(key, from, length + nod_flag);
   *page_pos= from + length + nod_flag;
   
+#ifdef USEFUL_FOR_DEBUGGING
+  DBUG_DUMP("key", int_key->data,
+            (uint) (int_key->data_length + int_key->ref_length));
+#endif
   DBUG_RETURN(int_key->data_length + int_key->ref_length);
 }
 
