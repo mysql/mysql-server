@@ -113,6 +113,19 @@ if ($commands == 'configure')
     RETURN "fc_i_nt_5_suc";
   END|
 
+  CREATE FUNCTION fc_i_nt_3_tt_3_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+  BEGIN
+    DECLARE in_stmt_id INTEGER;
+    SELECT max(stmt_id) INTO in_stmt_id FROM nt_3 WHERE trans_id= p_trans_id;
+    SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+    INSERT INTO nt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+
+    SELECT max(stmt_id) INTO in_stmt_id FROM tt_3 WHERE trans_id= p_trans_id;
+    SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+    INSERT INTO tt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+    RETURN "fc_i_nt_3_tt_3_suc";
+  END|
+
   CREATE TRIGGER tr_i_tt_3_to_nt_3 AFTER INSERT ON tt_3 FOR EACH ROW
   BEGIN
     DECLARE in_stmt_id INTEGER;
@@ -186,6 +199,7 @@ if ($commands == 'clean')
   DROP PROCEDURE pc_i_nt_5_suc;
   DROP FUNCTION fc_i_tt_5_suc;
   DROP FUNCTION fc_i_nt_5_suc;
+  DROP FUNCTION fc_i_nt_3_tt_3_suc;
 
   --disable_query_log
   if ($database_name != 'test')
@@ -437,6 +451,21 @@ while ($commands != '')
     let $old_stmt_id= `SELECT max(stmt_id) from tt_5 where trans_id= $old_trans_id`;
     --error ER_DUP_ENTRY, ER_DUP_KEY
     eval INSERT INTO tt_5(trans_id, stmt_id, info) VALUES ($trans_id, $stmt_id, ''), ($old_trans_id, $old_stmt_id, fc_i_nt_5_suc ($trans_id, $stmt_id));
+    inc $stmt_id;
+  }
+  if ($command == 'set-T')
+  {
+    --eval SET @var= fc_i_tt_5_suc($trans_id, $stmt_id)
+    inc $stmt_id;
+  }
+  if ($command == 'set-N')
+  {
+    --eval SET @var= fc_i_nt_5_suc($trans_id, $stmt_id)
+    inc $stmt_id;
+  }
+  if ($command == 'set-NT')
+  {
+    --eval SET @var= fc_i_nt_3_tt_3_suc($trans_id, $stmt_id)
     inc $stmt_id;
   }
   if ($command == 'CS-T->T')
