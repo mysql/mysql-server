@@ -24,6 +24,7 @@
   doesn't resemble an IP address.
 */
 
+#include "my_global.h"
 #include "sql_priv.h"
 #include "hostname.h"
 #include "hash_filo.h"
@@ -45,52 +46,99 @@ extern "C" {					// Because of SCO 3.2V4.2
 }
 #endif
 
-/*
-  HOST_ENTRY_KEY_SIZE -- size of IP address string in the hash cache.
-*/
+Host_errors::Host_errors()
+: m_connect(0),
+  m_host_blocked(0),
+  m_nameinfo_transient(0),
+  m_nameinfo_permanent(0),
+  m_format(0),
+  m_addrinfo_transient(0),
+  m_addrinfo_permanent(0),
+  m_FCrDNS(0),
+  m_host_acl(0),
+  m_no_auth_plugin(0),
+  m_auth_plugin(0),
+  m_handshake(0),
+  m_proxy_user(0),
+  m_proxy_user_acl(0),
+  m_authentication(0),
+  m_ssl(0),
+  m_max_user_connection(0),
+  m_max_user_connection_per_hour(0),
+  m_default_database(0),
+  m_init_connect(0),
+  m_local(0)
+{}
 
-#define HOST_ENTRY_KEY_SIZE INET6_ADDRSTRLEN
+Host_errors::~Host_errors()
+{}
 
-/**
-  An entry in the hostname hash table cache.
-
-  Host name cache does two things:
-    - caches host names to save DNS look ups;
-    - counts connect errors from IP.
-
-  Host name can be NULL (that means DNS look up failed), but connect errors
-  still are counted.
-*/
-
-class Host_entry :public hash_filo_element
+void Host_errors::reset()
 {
-public:
-  /**
-    Client IP address. This is the key used with the hash table.
+  m_connect= 0;
+  m_host_blocked= 0;
+  m_nameinfo_transient= 0;
+  m_nameinfo_permanent= 0;
+  m_format= 0;
+  m_addrinfo_transient= 0;
+  m_addrinfo_permanent= 0;
+  m_FCrDNS= 0;
+  m_host_acl= 0;
+  m_no_auth_plugin= 0;
+  m_auth_plugin= 0;
+  m_handshake= 0;
+  m_proxy_user= 0;
+  m_proxy_user_acl= 0;
+  m_authentication= 0;
+  m_ssl= 0;
+  m_max_user_connection= 0;
+  m_max_user_connection_per_hour= 0;
+  m_default_database= 0;
+  m_init_connect= 0;
+  m_local= 0;
+}
 
-    The client IP address is always expressed in IPv6, even when the
-    network IPv6 stack is not present.
-
-    This IP address is never used to connect to a socket.
-  */
-  char ip_key[HOST_ENTRY_KEY_SIZE];
-
-  /**
-    Number of errors during handshake phase from the IP address.
-  */
-  uint connect_errors;
-
-  /**
-    One of the host names for the IP address. May be NULL.
-  */
-  const char *hostname;
-};
+void Host_errors::aggregate(const Host_errors *errors)
+{
+  m_connect+= errors->m_connect;
+  m_host_blocked+= errors->m_host_blocked;
+  m_nameinfo_transient+= errors->m_nameinfo_transient;
+  m_nameinfo_permanent+= errors->m_nameinfo_permanent;
+  m_format+= errors->m_format;
+  m_addrinfo_transient+= errors->m_addrinfo_transient;
+  m_addrinfo_permanent+= errors->m_addrinfo_permanent;
+  m_FCrDNS+= errors->m_FCrDNS;
+  m_host_acl+= errors->m_host_acl;
+  m_no_auth_plugin+= errors->m_no_auth_plugin;
+  m_auth_plugin+= errors->m_auth_plugin;
+  m_handshake+= errors->m_handshake;
+  m_proxy_user+= errors->m_proxy_user;
+  m_proxy_user_acl+= errors->m_proxy_user_acl;
+  m_authentication+= errors->m_authentication;
+  m_ssl+= errors->m_ssl;
+  m_max_user_connection+= errors->m_max_user_connection;
+  m_max_user_connection_per_hour+= errors->m_max_user_connection_per_hour;
+  m_default_database+= errors->m_default_database;
+  m_init_connect+= errors->m_init_connect;
+  m_local+= errors->m_local;
+}
 
 static hash_filo *hostname_cache;
+ulong host_cache_size;
 
 void hostname_cache_refresh()
 {
   hostname_cache->clear();
+}
+
+uint hostname_cache_size()
+{
+  return hostname_cache->size();
+}
+
+void hostname_cache_resize(uint size)
+{
+  hostname_cache->resize(size);
 }
 
 bool hostname_cache_init()
@@ -115,6 +163,16 @@ void hostname_cache_free()
   hostname_cache= NULL;
 }
 
+void hostname_cache_lock()
+{
+  mysql_mutex_lock(&hostname_cache->lock);
+}
+
+void hostname_cache_unlock()
+{
+  mysql_mutex_unlock(&hostname_cache->lock);
+}
+
 static void prepare_hostname_cache_key(const char *ip_string,
                                        char *ip_key)
 {
@@ -125,65 +183,142 @@ static void prepare_hostname_cache_key(const char *ip_string,
   memcpy(ip_key, ip_string, ip_string_length);
 }
 
+Host_entry *hostname_cache_first()
+{ return (Host_entry *) hostname_cache->first(); }
+
 static inline Host_entry *hostname_cache_search(const char *ip_key)
 {
   return (Host_entry *) hostname_cache->search((uchar *) ip_key, 0);
 }
 
-static bool add_hostname_impl(const char *ip_key, const char *hostname)
+static void add_hostname_impl(const char *ip_key, const char *hostname,
+                              bool validated, Host_errors *errors,
+                              ulonglong now)
 {
-  if (hostname_cache_search(ip_key))
-    return FALSE;
+  Host_entry *entry;
+  bool need_add= false;
 
-  size_t hostname_size= hostname ? strlen(hostname) + 1 : 0;
+  entry= hostname_cache_search(ip_key);
 
-  Host_entry *entry= (Host_entry *) malloc(sizeof (Host_entry) + hostname_size);
-
-  if (!entry)
-    return TRUE;
-
-  char *hostname_copy;
-
-  memcpy(&entry->ip_key, ip_key, HOST_ENTRY_KEY_SIZE);
-
-  if (hostname_size)
+  if (likely(entry == NULL))
   {
-    hostname_copy= (char *) (entry + 1);
-    memcpy(hostname_copy, hostname, hostname_size);
+    entry= (Host_entry *) malloc(sizeof (Host_entry));
+    if (entry == NULL)
+      return;
 
-    DBUG_PRINT("info", ("Adding '%s' -> '%s' to the hostname cache...'",
-                        (const char *) ip_key,
-                        (const char *) hostname_copy));
+    need_add= true;
+    memcpy(&entry->ip_key, ip_key, HOST_ENTRY_KEY_SIZE);
+    entry->m_errors.reset();
+    entry->m_hostname_length= 0;
+    entry->m_host_validated= false;
+    entry->m_first_seen= now;
+    entry->m_last_seen= now;
+    entry->m_first_error_seen= 0;
+    entry->m_last_error_seen= 0;
   }
   else
   {
-    hostname_copy= NULL;
-
-    DBUG_PRINT("info", ("Adding '%s' -> NULL to the hostname cache...'",
-                        (const char *) ip_key));
+    entry->m_last_seen= now;
   }
 
-  entry->hostname= hostname_copy;
-  entry->connect_errors= 0;
+  if (validated)
+  {
+    if (hostname != NULL)
+    {
+      uint len= strlen(hostname);
+      if (len > sizeof(entry->m_hostname) - 1)
+        len= sizeof(entry->m_hostname) - 1;
+      memcpy(entry->m_hostname, hostname, len);
+      entry->m_hostname[len]= '\0';
+      entry->m_hostname_length= len;
 
-  return hostname_cache->add(entry);
+      DBUG_PRINT("info",
+                 ("Adding/Updating '%s' -> '%s' (validated) to the hostname cache...'",
+                 (const char *) ip_key,
+                 (const char *) entry->m_hostname));
+    }
+    else
+    {
+      entry->m_hostname_length= 0;
+      DBUG_PRINT("info",
+                 ("Adding/Updating '%s' -> NULL (validated) to the hostname cache...'",
+                 (const char *) ip_key));
+    }
+    entry->m_host_validated= true;
+    /*
+      New errors that are considered 'blocking',
+      that will eventually cause the IP to be black listed and blocked.
+    */
+    errors->sum_connect_errors();
+  }
+  else
+  {
+    entry->m_hostname_length= 0;
+    entry->m_host_validated= false;
+    /* Do not count new blocking errors during DNS failures. */
+    errors->clear_connect_errors();
+    DBUG_PRINT("info",
+               ("Adding/Updating '%s' -> NULL (not validated) to the hostname cache...'",
+               (const char *) ip_key));
+  }
+
+  if (errors->has_error())
+    entry->set_error_timestamps(now);
+
+  entry->m_errors.aggregate(errors);
+
+  if (need_add)
+    hostname_cache->add(entry);
+
+  return;
 }
 
-static bool add_hostname(const char *ip_key, const char *hostname)
+static void add_hostname(const char *ip_key, const char *hostname,
+                         bool validated, Host_errors *errors)
 {
   if (specialflag & SPECIAL_NO_HOST_CACHE)
-    return FALSE;
+    return;
+
+  ulonglong now= my_micro_time();
 
   mysql_mutex_lock(&hostname_cache->lock);
 
-  bool err_status= add_hostname_impl(ip_key, hostname);
+  add_hostname_impl(ip_key, hostname, validated, errors, now);
 
   mysql_mutex_unlock(&hostname_cache->lock);
 
-  return err_status;
+  return;
 }
 
-void inc_host_errors(const char *ip_string)
+void inc_host_errors(const char *ip_string, Host_errors *errors)
+{
+  if (!ip_string)
+    return;
+
+  ulonglong now= my_micro_time();
+  char ip_key[HOST_ENTRY_KEY_SIZE];
+  prepare_hostname_cache_key(ip_string, ip_key);
+
+  mysql_mutex_lock(&hostname_cache->lock);
+
+  Host_entry *entry= hostname_cache_search(ip_key);
+
+  if (entry)
+  {
+    if (entry->m_host_validated)
+      errors->sum_connect_errors();
+    else
+      errors->clear_connect_errors();
+
+    entry->m_errors.aggregate(errors);
+    entry->set_error_timestamps(now);
+  }
+
+  mysql_mutex_unlock(&hostname_cache->lock);
+}
+
+
+void reset_host_connect_errors(const char *ip_string)
 {
   if (!ip_string)
     return;
@@ -196,26 +331,7 @@ void inc_host_errors(const char *ip_string)
   Host_entry *entry= hostname_cache_search(ip_key);
 
   if (entry)
-    entry->connect_errors++;
-
-  mysql_mutex_unlock(&hostname_cache->lock);
-}
-
-
-void reset_host_errors(const char *ip_string)
-{
-  if (!ip_string)
-    return;
-
-  char ip_key[HOST_ENTRY_KEY_SIZE];
-  prepare_hostname_cache_key(ip_string, ip_key);
-
-  mysql_mutex_lock(&hostname_cache->lock);
-
-  Host_entry *entry= hostname_cache_search(ip_key);
-
-  if (entry)
-    entry->connect_errors= 0;
+    entry->m_errors.clear_connect_errors();
 
   mysql_mutex_unlock(&hostname_cache->lock);
 }
@@ -272,6 +388,7 @@ static inline bool is_hostname_valid(const char *hostname)
     - returns host name if IP-address is validated;
     - set value to out-variable connect_errors -- this variable represents the
       number of connection errors from the specified IP-address.
+    - update the host_cache statistics
 
   NOTE: connect_errors are counted (are supported) only for the clients
   where IP-address can be resolved and FCrDNS check is passed.
@@ -282,26 +399,32 @@ static inline bool is_hostname_valid(const char *hostname)
   @param [out] connect_errors
 
   @return Error status
-  @retval FALSE Success
-  @retval TRUE Error
+  @retval 0 Success
+  @retval RC_BLOCKED_HOST The host is blocked.
 
   The function does not set/report MySQL server error in case of failure.
   It's caller's responsibility to handle failures of this function
   properly.
 */
 
-bool ip_to_hostname(struct sockaddr_storage *ip_storage,
-                    const char *ip_string,
-                    char **hostname, uint *connect_errors)
+int ip_to_hostname(struct sockaddr_storage *ip_storage,
+                   const char *ip_string,
+                   char **hostname,
+                   uint *connect_errors)
 {
   const struct sockaddr *ip= (const sockaddr *) ip_storage;
   int err_code;
   bool err_status;
+  Host_errors errors;
 
   DBUG_ENTER("ip_to_hostname");
   DBUG_PRINT("info", ("IP address: '%s'; family: %d.",
                       (const char *) ip_string,
                       (int) ip->sa_family));
+
+  /* Default output values, for most cases. */
+  *hostname= NULL;
+  *connect_errors= 0;
 
   /* Check if we have loopback address (127.0.0.1 or ::1). */
 
@@ -309,10 +432,10 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   {
     DBUG_PRINT("info", ("Loopback address detected."));
 
-    *connect_errors= 0; /* Do not count connect errors from localhost. */
+    /* Do not count connect errors from localhost. */
     *hostname= (char *) my_localhost;
 
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(0);
   }
 
   /* Prepare host name cache key. */
@@ -324,27 +447,45 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   if (!(specialflag & SPECIAL_NO_HOST_CACHE))
   {
+    ulonglong now= my_micro_time();
+
     mysql_mutex_lock(&hostname_cache->lock);
 
     Host_entry *entry= hostname_cache_search(ip_key);
 
     if (entry)
     {
-      *connect_errors= entry->connect_errors;
-      *hostname= NULL;
+      entry->m_last_seen= now;
 
-      if (entry->hostname)
-        *hostname= my_strdup(entry->hostname, MYF(0));
+      if (entry->m_errors.m_connect > max_connect_errors)
+      {
+        entry->m_errors.m_host_blocked++;
+        entry->set_error_timestamps(now);
+        *connect_errors= entry->m_errors.m_connect;
+        mysql_mutex_unlock(&hostname_cache->lock);
+        DBUG_RETURN(RC_BLOCKED_HOST);
+      }
 
-      DBUG_PRINT("info",("IP (%s) has been found in the cache. "
-                         "Hostname: '%s'; connect_errors: %d",
-                         (const char *) ip_key,
-                         (const char *) (*hostname? *hostname : "null"),
-                         (int) *connect_errors));
+      /*
+        If there is an IP -> HOSTNAME association in the cache,
+        but for a hostname that was not validated,
+        do not return that hostname: perform the network validation again.
+      */
+      if (entry->m_host_validated)
+      {
+        if (entry->m_hostname_length)
+          *hostname= my_strdup(entry->m_hostname, MYF(0));
 
-      mysql_mutex_unlock(&hostname_cache->lock);
+        DBUG_PRINT("info",("IP (%s) has been found in the cache. "
+                           "Hostname: '%s'",
+                           (const char *) ip_key,
+                           (const char *) (*hostname? *hostname : "null")
+                          ));
 
-      DBUG_RETURN(FALSE);
+        mysql_mutex_unlock(&hostname_cache->lock);
+
+        DBUG_RETURN(0);
+      }
     }
 
     mysql_mutex_unlock(&hostname_cache->lock);
@@ -362,6 +503,61 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   err_code= vio_getnameinfo(ip, hostname_buffer, NI_MAXHOST, NULL, 0,
                             NI_NAMEREQD);
 
+  /*
+  ===========================================================================
+  DEBUG code only (begin)
+  Simulate various output from vio_getnameinfo().
+  ===========================================================================
+  */
+
+  DBUG_EXECUTE_IF("getnameinfo_error_noname",
+                  {
+                    strcpy(hostname_buffer, "<garbage>");
+                    err_code= EAI_NONAME;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getnameinfo_error_again",
+                  {
+                    strcpy(hostname_buffer, "<garbage>");
+                    err_code= EAI_AGAIN;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getnameinfo_fake_ipv4",
+                  {
+                    strcpy(hostname_buffer, "santa.claus.ipv4.example.com");
+                    err_code= 0;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getnameinfo_fake_ipv6",
+                  {
+                    strcpy(hostname_buffer, "santa.claus.ipv6.example.com");
+                    err_code= 0;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getnameinfo_format_ipv4",
+                  {
+                    strcpy(hostname_buffer, "12.12.12.12");
+                    err_code= 0;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getnameinfo_format_ipv6",
+                  {
+                    strcpy(hostname_buffer, "12:DEAD:BEEF:0");
+                    err_code= 0;
+                  }
+                  );
+
+  /*
+  ===========================================================================
+  DEBUG code only (end)
+  ===========================================================================
+  */
+
   if (err_code)
   {
     // NOTE: gai_strerror() returns a string ending by a dot.
@@ -374,23 +570,29 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       (const char *) ip_key,
                       (const char *) gai_strerror(err_code));
 
+    bool validated;
     if (vio_is_no_name_error(err_code))
     {
       /*
         The no-name error means that there is no reverse address mapping
         for the IP address. A host name can not be resolved.
-
+      */
+      errors.m_nameinfo_permanent= 1;
+      validated= true;
+    }
+    else
+    {
+      /*
         If it is not the no-name error, we should not cache the hostname
         (or rather its absence), because the failure might be transient.
+        Only the ip error statistics are cached.
       */
-
-      add_hostname(ip_key, NULL);
-
-      *hostname= NULL;
-      *connect_errors= 0; /* New IP added to the cache. */
+      errors.m_nameinfo_transient= 1;
+      validated= false;
     }
+    add_hostname(ip_key, NULL, validated, &errors);
 
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(0);
   }
 
   DBUG_PRINT("info", ("IP '%s' resolved to '%s'.",
@@ -426,18 +628,21 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       (const char *) ip_key,
                       (const char *) hostname_buffer);
 
-    err_status= add_hostname(ip_key, NULL);
+    errors.m_format= 1;
+    add_hostname(ip_key, hostname_buffer, false, &errors);
 
-    *hostname= NULL;
-    *connect_errors= 0; /* New IP added to the cache. */
-
-    DBUG_RETURN(err_status);
+    DBUG_RETURN(false);
   }
 
   /* Get IP-addresses for the resolved host name (FCrDNS technique). */
 
   struct addrinfo hints;
   struct addrinfo *addr_info_list;
+  /*
+    Makes fault injection with DBUG_EXECUTE_IF easier.
+    Invoking free_addr_info(NULL) crashes on some platforms.
+  */
+  bool free_addr_info_list= false;
 
   memset(&hints, 0, sizeof (struct addrinfo));
   hints.ai_flags= AI_PASSIVE;
@@ -448,27 +653,283 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       (const char *) hostname_buffer));
 
   err_code= getaddrinfo(hostname_buffer, NULL, &hints, &addr_info_list);
+  if (err_code == 0)
+    free_addr_info_list= true;
 
-  if (err_code == EAI_NONAME)
+  /*
+  ===========================================================================
+  DEBUG code only (begin)
+  Simulate various output from getaddrinfo().
+  ===========================================================================
+  */
+  DBUG_EXECUTE_IF("getaddrinfo_error_noname",
+                  {
+                    if (free_addr_info_list)
+                      freeaddrinfo(addr_info_list);
+
+                    addr_info_list= NULL;
+                    err_code= EAI_NONAME;
+                    free_addr_info_list= false;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getaddrinfo_error_again",
+                  {
+                    if (free_addr_info_list)
+                      freeaddrinfo(addr_info_list);
+
+                    addr_info_list= NULL;
+                    err_code= EAI_AGAIN;
+                    free_addr_info_list= false;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getaddrinfo_fake_bad_ipv4",
+                  {
+                    if (free_addr_info_list)
+                      freeaddrinfo(addr_info_list);
+
+                    struct sockaddr_in *debug_addr;
+                    /*
+                      Not thread safe, which is ok.
+                      Only one connection at a time is tested with
+                      fault injection.
+                    */
+                    static struct sockaddr_in debug_sock_addr[2];
+                    static struct addrinfo debug_addr_info[2];
+                    /* Simulating ipv4 192.0.2.126 */
+                    debug_addr= & debug_sock_addr[0];
+                    debug_addr->sin_family= AF_INET;
+                    debug_addr->sin_addr.s_addr= inet_addr("192.0.2.126");
+
+                    /* Simulating ipv4 192.0.2.127 */
+                    debug_addr= & debug_sock_addr[1];
+                    debug_addr->sin_family= AF_INET;
+                    debug_addr->sin_addr.s_addr= inet_addr("192.0.2.127");
+
+                    debug_addr_info[0].ai_addr= (struct sockaddr*) & debug_sock_addr[0];
+                    debug_addr_info[0].ai_addrlen= sizeof (struct sockaddr_in);
+                    debug_addr_info[0].ai_next= & debug_addr_info[1];
+
+                    debug_addr_info[1].ai_addr= (struct sockaddr*) & debug_sock_addr[1];
+                    debug_addr_info[1].ai_addrlen= sizeof (struct sockaddr_in);
+                    debug_addr_info[1].ai_next= NULL;
+
+                    addr_info_list= & debug_addr_info[0];
+                    err_code= 0;
+                    free_addr_info_list= false;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getaddrinfo_fake_good_ipv4",
+                  {
+                    if (free_addr_info_list)
+                      freeaddrinfo(addr_info_list);
+
+                    struct sockaddr_in *debug_addr;
+                    static struct sockaddr_in debug_sock_addr[2];
+                    static struct addrinfo debug_addr_info[2];
+                    /* Simulating ipv4 192.0.2.5 */
+                    debug_addr= & debug_sock_addr[0];
+                    debug_addr->sin_family= AF_INET;
+                    debug_addr->sin_addr.s_addr= inet_addr("192.0.2.5");
+
+                    /* Simulating ipv4 192.0.2.4 */
+                    debug_addr= & debug_sock_addr[1];
+                    debug_addr->sin_family= AF_INET;
+                    debug_addr->sin_addr.s_addr= inet_addr("192.0.2.4");
+
+                    debug_addr_info[0].ai_addr= (struct sockaddr*) & debug_sock_addr[0];
+                    debug_addr_info[0].ai_addrlen= sizeof (struct sockaddr_in);
+                    debug_addr_info[0].ai_next= & debug_addr_info[1];
+
+                    debug_addr_info[1].ai_addr= (struct sockaddr*) & debug_sock_addr[1];
+                    debug_addr_info[1].ai_addrlen= sizeof (struct sockaddr_in);
+                    debug_addr_info[1].ai_next= NULL;
+
+                    addr_info_list= & debug_addr_info[0];
+                    err_code= 0;
+                    free_addr_info_list= false;
+                  }
+                  );
+
+#ifdef HAVE_IPV6
+  DBUG_EXECUTE_IF("getaddrinfo_fake_bad_ipv6",
+                  {
+                    if (free_addr_info_list)
+                      freeaddrinfo(addr_info_list);
+
+                    struct sockaddr_in6 *debug_addr;
+                    struct in6_addr *ip6;
+                    /*
+                      Not thread safe, which is ok.
+                      Only one connection at a time is tested with
+                      fault injection.
+                    */
+                    static struct sockaddr_in6 debug_sock_addr[2];
+                    static struct addrinfo debug_addr_info[2];
+                    /* Simulating ipv6 2001:DB8::6:7E */
+                    debug_addr= & debug_sock_addr[0];
+                    debug_addr->sin6_family= AF_INET6;
+                    ip6= & debug_addr->sin6_addr;
+                    /* inet_pton not available on Windows XP. */
+                    ip6->s6_addr[ 0] = 0x20;
+                    ip6->s6_addr[ 1] = 0x01;
+                    ip6->s6_addr[ 2] = 0x0d;
+                    ip6->s6_addr[ 3] = 0xb8;
+                    ip6->s6_addr[ 4] = 0x00;
+                    ip6->s6_addr[ 5] = 0x00;
+                    ip6->s6_addr[ 6] = 0x00;
+                    ip6->s6_addr[ 7] = 0x00;
+                    ip6->s6_addr[ 8] = 0x00;
+                    ip6->s6_addr[ 9] = 0x00;
+                    ip6->s6_addr[10] = 0x00;
+                    ip6->s6_addr[11] = 0x00;
+                    ip6->s6_addr[12] = 0x00;
+                    ip6->s6_addr[13] = 0x06;
+                    ip6->s6_addr[14] = 0x00;
+                    ip6->s6_addr[15] = 0x7e;
+
+                    /* Simulating ipv6 2001:DB8::6:7F */
+                    debug_addr= & debug_sock_addr[1];
+                    debug_addr->sin6_family= AF_INET6;
+                    ip6= & debug_addr->sin6_addr;
+                    ip6->s6_addr[ 0] = 0x20;
+                    ip6->s6_addr[ 1] = 0x01;
+                    ip6->s6_addr[ 2] = 0x0d;
+                    ip6->s6_addr[ 3] = 0xb8;
+                    ip6->s6_addr[ 4] = 0x00;
+                    ip6->s6_addr[ 5] = 0x00;
+                    ip6->s6_addr[ 6] = 0x00;
+                    ip6->s6_addr[ 7] = 0x00;
+                    ip6->s6_addr[ 8] = 0x00;
+                    ip6->s6_addr[ 9] = 0x00;
+                    ip6->s6_addr[10] = 0x00;
+                    ip6->s6_addr[11] = 0x00;
+                    ip6->s6_addr[12] = 0x00;
+                    ip6->s6_addr[13] = 0x06;
+                    ip6->s6_addr[14] = 0x00;
+                    ip6->s6_addr[15] = 0x7f;
+
+                    debug_addr_info[0].ai_addr= (struct sockaddr*) & debug_sock_addr[0];
+                    debug_addr_info[0].ai_addrlen= sizeof (struct sockaddr_in6);
+                    debug_addr_info[0].ai_next= & debug_addr_info[1];
+
+                    debug_addr_info[1].ai_addr= (struct sockaddr*) & debug_sock_addr[1];
+                    debug_addr_info[1].ai_addrlen= sizeof (struct sockaddr_in6);
+                    debug_addr_info[1].ai_next= NULL;
+
+                    addr_info_list= & debug_addr_info[0];
+                    err_code= 0;
+                    free_addr_info_list= false;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getaddrinfo_fake_good_ipv6",
+                  {
+                    if (free_addr_info_list)
+                      freeaddrinfo(addr_info_list);
+
+                    struct sockaddr_in6 *debug_addr;
+                    struct in6_addr *ip6;
+                    /*
+                      Not thread safe, which is ok.
+                      Only one connection at a time is tested with
+                      fault injection.
+                    */
+                    static struct sockaddr_in6 debug_sock_addr[2];
+                    static struct addrinfo debug_addr_info[2];
+                    /* Simulating ipv6 2001:DB8::6:7 */
+                    debug_addr= & debug_sock_addr[0];
+                    debug_addr->sin6_family= AF_INET6;
+                    ip6= & debug_addr->sin6_addr;
+                    ip6->s6_addr[ 0] = 0x20;
+                    ip6->s6_addr[ 1] = 0x01;
+                    ip6->s6_addr[ 2] = 0x0d;
+                    ip6->s6_addr[ 3] = 0xb8;
+                    ip6->s6_addr[ 4] = 0x00;
+                    ip6->s6_addr[ 5] = 0x00;
+                    ip6->s6_addr[ 6] = 0x00;
+                    ip6->s6_addr[ 7] = 0x00;
+                    ip6->s6_addr[ 8] = 0x00;
+                    ip6->s6_addr[ 9] = 0x00;
+                    ip6->s6_addr[10] = 0x00;
+                    ip6->s6_addr[11] = 0x00;
+                    ip6->s6_addr[12] = 0x00;
+                    ip6->s6_addr[13] = 0x06;
+                    ip6->s6_addr[14] = 0x00;
+                    ip6->s6_addr[15] = 0x07;
+
+                    /* Simulating ipv6 2001:DB8::6:6 */
+                    debug_addr= & debug_sock_addr[1];
+                    debug_addr->sin6_family= AF_INET6;
+                    ip6= & debug_addr->sin6_addr;
+                    ip6->s6_addr[ 0] = 0x20;
+                    ip6->s6_addr[ 1] = 0x01;
+                    ip6->s6_addr[ 2] = 0x0d;
+                    ip6->s6_addr[ 3] = 0xb8;
+                    ip6->s6_addr[ 4] = 0x00;
+                    ip6->s6_addr[ 5] = 0x00;
+                    ip6->s6_addr[ 6] = 0x00;
+                    ip6->s6_addr[ 7] = 0x00;
+                    ip6->s6_addr[ 8] = 0x00;
+                    ip6->s6_addr[ 9] = 0x00;
+                    ip6->s6_addr[10] = 0x00;
+                    ip6->s6_addr[11] = 0x00;
+                    ip6->s6_addr[12] = 0x00;
+                    ip6->s6_addr[13] = 0x06;
+                    ip6->s6_addr[14] = 0x00;
+                    ip6->s6_addr[15] = 0x06;
+
+                    debug_addr_info[0].ai_addr= (struct sockaddr*) & debug_sock_addr[0];
+                    debug_addr_info[0].ai_addrlen= sizeof (struct sockaddr_in6);
+                    debug_addr_info[0].ai_next= & debug_addr_info[1];
+
+                    debug_addr_info[1].ai_addr= (struct sockaddr*) & debug_sock_addr[1];
+                    debug_addr_info[1].ai_addrlen= sizeof (struct sockaddr_in6);
+                    debug_addr_info[1].ai_next= NULL;
+
+                    addr_info_list= & debug_addr_info[0];
+                    err_code= 0;
+                    free_addr_info_list= false;
+                  }
+                  );
+#endif /* HAVE_IPV6 */
+
+  /*
+  ===========================================================================
+  DEBUG code only (end)
+  ===========================================================================
+  */
+
+  if (err_code != 0)
   {
-    /*
-      Don't cache responses when the DNS server is down, as otherwise
-      transient DNS failure may leave any number of clients (those
-      that attempted to connect during the outage) unable to connect
-      indefinitely.
-    */
+    sql_print_warning("Host name '%s' could not be resolved: %s",
+                      (const char *) hostname_buffer,
+                      (const char *) gai_strerror(err_code));
 
-    err_status= add_hostname(ip_key, NULL);
+    bool validated;
 
-    *hostname= NULL;
-    *connect_errors= 0; /* New IP added to the cache. */
+    if (err_code == EAI_NONAME)
+    {
+      errors.m_addrinfo_permanent= 1;
+      validated= true;
+    }
+    else
+    {
+      /*
+        Don't cache responses when the DNS server is down, as otherwise
+        transient DNS failure may leave any number of clients (those
+        that attempted to connect during the outage) unable to connect
+        indefinitely.
+        Only cache error statistics.
+      */
+      errors.m_addrinfo_transient= 1;
+      validated= false;
+    }
+    add_hostname(ip_key, NULL, validated, &errors);
 
-    DBUG_RETURN(err_status);
-  }
-  else if (err_code)
-  {
-    DBUG_PRINT("error", ("getaddrinfo() failed with error code %d.", err_code));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(false);
   }
 
   /* Check that getaddrinfo() returned the used IP (FCrDNS technique). */
@@ -490,7 +951,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
     DBUG_PRINT("info", ("  - '%s'", (const char *) ip_buffer));
 
-    if (strcmp(ip_key, ip_buffer) == 0)
+    if (strcasecmp(ip_key, ip_buffer) == 0)
     {
       /* Copy host name string to be stored in the cache. */
 
@@ -500,8 +961,9 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
       {
         DBUG_PRINT("error", ("Out of memory."));
 
-        freeaddrinfo(addr_info_list);
-        DBUG_RETURN(TRUE);
+        if (free_addr_info_list)
+          freeaddrinfo(addr_info_list);
+        DBUG_RETURN(true);
       }
 
       break;
@@ -512,9 +974,11 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   if (!*hostname)
   {
-    sql_print_information("Hostname '%s' does not resolve to '%s'.",
-                          (const char *) hostname_buffer,
-                          (const char *) ip_key);
+    errors.m_FCrDNS= 1;
+
+    sql_print_warning("Hostname '%s' does not resolve to '%s'.",
+                      (const char *) hostname_buffer,
+                      (const char *) ip_key);
     sql_print_information("Hostname '%s' has the following IP addresses:",
                           (const char *) hostname_buffer);
 
@@ -528,29 +992,16 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                                      ip_buffer, sizeof (ip_buffer));
       DBUG_ASSERT(!err_status);
 
-      sql_print_information(" - %s\n", (const char *) ip_buffer);
+      sql_print_information(" - %s", (const char *) ip_buffer);
     }
   }
 
-  /* Free the result of getaddrinfo(). */
-
-  freeaddrinfo(addr_info_list);
-
   /* Add an entry for the IP to the cache. */
+  add_hostname(ip_key, *hostname, true, &errors);
 
-  if (*hostname)
-  {
-    err_status= add_hostname(ip_key, *hostname);
-    *connect_errors= 0;
-  }
-  else
-  {
-    DBUG_PRINT("error",("Couldn't verify hostname with getaddrinfo()."));
+  /* Free the result of getaddrinfo(). */
+  if (free_addr_info_list)
+    freeaddrinfo(addr_info_list);
 
-    err_status= add_hostname(ip_key, NULL);
-    *hostname= NULL;
-    *connect_errors= 0;
-  }
-
-  DBUG_RETURN(err_status);
+  DBUG_RETURN(false);
 }
