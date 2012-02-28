@@ -8,7 +8,7 @@ perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experim
 
 # Run the suites that are not part of the default - funcs_2, parts, stress, jp, nist
 perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=funcs2-debug  --vardir=var-funcs2-debug  --suite=funcs_2
-perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=partitions-debug  --vardir=var-parts-debug --suite=parts
+#perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=partitions-debug  --vardir=var-parts-debug --suite=parts
 perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=stress-debug --vardir=var-stress-debug  --suite=stress
 perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=jp-debug --vardir=var-jp-debug --suite=jp
 perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=nist-debug  --vardir=var-nist-debug --suite=nist

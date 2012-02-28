@@ -1013,44 +1013,47 @@ btr_page_alloc(
 
 /**************************************************************//**
 Gets the number of pages in a B-tree.
-@return	number of pages */
+@return	number of pages, or ULINT_UNDEFINED if the index is unavailable */
 UNIV_INTERN
 ulint
 btr_get_size(
 /*=========*/
 	dict_index_t*	index,	/*!< in: index */
-	ulint		flag)	/*!< in: BTR_N_LEAF_PAGES or BTR_TOTAL_SIZE */
+	ulint		flag,	/*!< in: BTR_N_LEAF_PAGES or BTR_TOTAL_SIZE */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction where index
+				is s-latched */
 {
 	fseg_header_t*	seg_header;
 	page_t*		root;
 	ulint		n;
 	ulint		dummy;
-	mtr_t		mtr;
 
-	mtr_start(&mtr);
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
+				MTR_MEMO_S_LOCK));
 
-	mtr_s_lock(dict_index_get_lock(index), &mtr);
+	if (index->page == FIL_NULL || dict_index_is_online_ddl(index)
+	    || *index->name == TEMP_INDEX_PREFIX) {
+		return(ULINT_UNDEFINED);
+	}
 
-	root = btr_root_get(index, &mtr);
+	root = btr_root_get(index, mtr);
 
 	if (flag == BTR_N_LEAF_PAGES) {
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
 
-		fseg_n_reserved_pages(seg_header, &n, &mtr);
+		fseg_n_reserved_pages(seg_header, &n, mtr);
 
 	} else if (flag == BTR_TOTAL_SIZE) {
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_TOP;
 
-		n = fseg_n_reserved_pages(seg_header, &dummy, &mtr);
+		n = fseg_n_reserved_pages(seg_header, &dummy, mtr);
 
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
 
-		n += fseg_n_reserved_pages(seg_header, &dummy, &mtr);
+		n += fseg_n_reserved_pages(seg_header, &dummy, mtr);
 	} else {
 		ut_error;
 	}
-
-	mtr_commit(&mtr);
 
 	return(n);
 }

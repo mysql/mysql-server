@@ -23,8 +23,6 @@ Smart ALTER TABLE
 
 #include <unireg.h>
 #include <mysqld_error.h>
-#include <sql_lex.h>                            // SQLCOM_CREATE_INDEX
-#include <sql_alter.h>
 #include <log.h>
 #include <mysql/innodb_priv.h>
 
@@ -2276,19 +2274,24 @@ ha_innobase::commit_inplace_alter_table(
 			trx_start_if_not_started(trx);
 			DBUG_ASSERT(trx_get_dict_operation(trx)
 				    == TRX_DICT_OP_INDEX);
-#if 1 /* TODO: enable this in WL#6049 (MDL for FK lookups) */
-			/* Replace the indexes in foreign key constraints
-			if needed. */
 
 			for (ulint i = 0; i < ctx->num_to_drop; i++) {
 				dict_index_t*	index = ctx->drop[i];
 				DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
 				DBUG_ASSERT(index->table == prebuilt->table);
 
+				/* Replace the indexes in foreign key
+				constraints if needed. */
+
 				dict_foreign_replace_index(
 					prebuilt->table, index, prebuilt->trx);
+
+				/* Mark the index dropped
+				in the data dictionary cache. */
+				rw_lock_x_lock(dict_index_get_lock(index));
+				index->page = FIL_NULL;
+				rw_lock_x_unlock(dict_index_get_lock(index));
 			}
-#endif
 
 			row_merge_drop_indexes_dict(trx, prebuilt->table->id);
 
