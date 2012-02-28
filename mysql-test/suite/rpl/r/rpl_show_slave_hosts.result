@@ -14,6 +14,9 @@ SHOW SLAVE HOSTS;
 Server_id	Host	Port	Master_id	Slave_UUID
 3	slave2	DEFAULT_PORT	1	SLAVE_UUID
 2		SLAVE_PORT	1	SLAVE_UUID
+Server_id	Host	Port	Master_id
+3	slave2	SLAVE_PORT	1
+2		SLAVE_PORT	1
 include/stop_slave_io.inc
 SHOW SLAVE HOSTS;
 Server_id	Host	Port	Master_id	Slave_UUID

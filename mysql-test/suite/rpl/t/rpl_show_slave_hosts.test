@@ -25,7 +25,9 @@ let $field= Server_id;
 # 3 is server_id of slave2.
 let $condition= ='3';
 source include/wait_show_condition.inc;
-source include/show_slave_hosts.inc;
+--replace_column 3 'SLAVE_PORT'
+--replace_result $SLAVE_MYPORT SLAVE_PORT $DEFAULT_MASTER_PORT DEFAULT_PORT
+SHOW SLAVE HOSTS;
 
 connection slave2;
 --source include/stop_slave_io.inc
