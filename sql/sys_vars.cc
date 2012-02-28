@@ -53,6 +53,7 @@
                      // mysql_user_table_is_in_short_password_format
 #include "derror.h"  // read_texts
 #include "sql_base.h"                           // close_cached_tables
+#include "hostname.h"                           // host_cache_size
 #include "sql_show.h"                           // opt_ignore_db_dirs
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -3803,6 +3804,22 @@ static Sys_var_tz Sys_time_zone(
        "time_zone", "time_zone",
        SESSION_VAR(time_zone), NO_CMD_LINE,
        DEFAULT(&default_tz), NO_MUTEX_GUARD, IN_BINLOG);
+
+static bool fix_host_cache_size(sys_var *, THD *, enum_var_type)
+{
+  hostname_cache_resize((uint) host_cache_size);
+  return false;
+}
+
+static Sys_var_ulong Sys_host_cache_size(
+       "host_cache_size",
+       "How many host names should be cached to avoid resolving.",
+       GLOBAL_VAR(host_cache_size),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 65536),
+       DEFAULT(HOST_CACHE_SIZE),
+       BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(fix_host_cache_size));
 
 static Sys_var_charptr Sys_ignore_db_dirs(
        "ignore_db_dirs",
