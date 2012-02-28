@@ -32,7 +32,7 @@ INSERT INTO tt_2(ddl_case) VALUES(0);
 --echo #                          CHECK IMPLICT COMMIT
 --echo #########################################################################
 SET AUTOCOMMIT= 0;
-let $ddl_cases= 41;
+let $ddl_cases= 43;
 while ($ddl_cases >= 1)
 {
   --echo -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
@@ -84,6 +84,15 @@ while ($ddl_cases >= 1)
   let $first_binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1);
   --enable_query_log
   eval INSERT INTO tt_1(ddl_case) VALUES ($ddl_cases);
+
+  if ($ddl_cases == 43)
+  {
+    let $cmd= CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+  }
+  if ($ddl_cases == 42)
+  {
+    let $cmd= DROP FUNCTION myfunc_int;
+  }
   if ($ddl_cases == 41)
   {
     let $cmd= LOAD INDEX INTO CACHE nt_1 IGNORE LEAVES;
@@ -611,6 +620,7 @@ while ($ddl_cases >= 1)
       let $commit_event_row_number= 6;
     }
   }
+  --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
   --eval $cmd
   --disable_query_log
   #
@@ -634,6 +644,7 @@ while ($ddl_cases >= 1)
       exit;
     }
   }
+
   --echo -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
   let $binlog_start= $first_binlog_position;
   --echo -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
