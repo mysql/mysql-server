@@ -1820,37 +1820,6 @@ AND t2.f2 = t1.f1;
 f1	f2	f1	f2
 drop table t1,t2,t3,t4;
 #
-# LP BUG#806943 Second crash with select_describe with nested subqueries in maria-5.3
-#
-CREATE TABLE t1 ( f4 int) ;
-INSERT INTO t1 VALUES (0),(0);
-CREATE TABLE t2 ( f2 int) ;
-CREATE TABLE t3 ( f1 int NOT NULL );
-CREATE TABLE t4 ( f2 int, f3 int) ;
-INSERT INTO t4 VALUES (8,0),(3,0);
-EXPLAIN SELECT *
-FROM t2, t3
-WHERE t3.f1 = (
-SELECT SUM( f2 )
-FROM t4
-WHERE EXISTS (
-SELECT DISTINCT f4
-FROM t1));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	
-3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
-SELECT *
-FROM t2, t3
-WHERE t3.f1 = (
-SELECT SUM( f2 )
-FROM t4
-WHERE EXISTS (
-SELECT DISTINCT f4
-FROM t1));
-f2	f1
-drop table t1, t2, t3, t4;
-#
 # LP BUG#611690 Crash in select_describe() with nested subqueries
 #
 CREATE TABLE t1 (

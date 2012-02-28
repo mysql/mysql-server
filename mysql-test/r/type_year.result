@@ -359,3 +359,25 @@ total_rows	min_value	MAX(c1+0)
 DROP TABLE t1;
 #
 End of 5.1 tests
+create function y2k() returns int deterministic return 2000;
+create table t1 (a year(2), b int);
+insert t1 values (0,2000);
+select a from t1 where a=2000;
+a
+00
+select a from t1 where a=1000+1000;
+a
+00
+select a from t1 where a=(select 2000);
+a
+00
+select a from t1 where a=(select 2000 from dual where 1);
+a
+00
+select a from t1 where a=y2k();
+a
+00
+select a from t1 where a=b;
+a
+drop table t1;
+drop function y2k;

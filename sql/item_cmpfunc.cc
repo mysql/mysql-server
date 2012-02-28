@@ -452,12 +452,17 @@ static bool convert_const_to_int(THD *thd, Item_field *field_item,
     But we still convert it if it is compared with a Field_year,
     as YEAR(2) may change the value of an integer when converting it
     to an integer (say, 0 to 70).
+
+    As a special hack, to avoid reevaluation of stored routines
+    where 5.2 didn't reevaluate them, we "convert" for BIGINT too.
+    In 5.5 it isn't necessary, as it caches constant expressions correctly.
   */
   if ((*item)->cmp_type() == INT_RESULT &&
-      field_item->field_type() != MYSQL_TYPE_YEAR)
+      field_item->field_type() != MYSQL_TYPE_YEAR &&
+      field_item->field_type() != MYSQL_TYPE_LONGLONG)
     return 1;
 
-  if ((*item)->const_item() && !(*item)->is_expensive())
+  if ((*item)->const_item())
   {
     TABLE *table= field->table;
     ulong orig_sql_mode= thd->variables.sql_mode;
