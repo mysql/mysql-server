@@ -1,26 +1,22 @@
-##########################################
-# Change Author: JBM
-# Change Date: 2006-05-02
-# Change: Added Order By for NDB testing
-##########################################
+# ==== Purpose ====
+#
+# Unknown (something related to replication + SF/SP)
+#
+# ==== References ====
+#
+# WL#2146
 
 # Test of replication of stored procedures (WL#2146 for MySQL 5.0)
 -- source include/master-slave.inc
+--source include/have_innodb.inc
+--source include/not_gtid_enabled.inc
 
 # ****************************************************************
 connection master;
 
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 
-# cleanup
---disable_warnings
-drop procedure if exists p1;
-drop procedure if exists p2;
-drop function if exists f1;
-drop table if exists t1,t2;
-drop view if exists v1;
---enable_warnings
-create table t1 (a int);
+create table t1 (a int) engine = innodb;
 
 SET GLOBAL log_bin_trust_function_creators = 1;
 
@@ -49,7 +45,7 @@ delimiter //;
 create procedure p2()
 begin
   declare a int default 4;
-  create table t2 as select a;
+  create table t2 engine = innodb as select a;
 end//
 delimiter ;//
 
@@ -90,7 +86,7 @@ delimiter ;//
 call p1(f1(1), f1(2));
 SELECT * FROM t1 ORDER BY a;
 
-create table t2(a int);
+create table t2(a int) engine = innodb;
 insert into t2 values (10),(11);
 SELECT a,f1(a) FROM t2 ORDER BY a;
 

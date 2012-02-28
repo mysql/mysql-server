@@ -247,8 +247,8 @@
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
-SET @verbose= 'Y';
-SET @commands= 'configure';
+--let $verbose= 1
+--let $commands= configure
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 --echo #########################################################################
@@ -266,16 +266,16 @@ connection master;
 --echo #      --> ROW   "B T C" entries, format R.
 --echo #      --> MIXED "B T C" entries, format S.
 --echo #
-SET @commands= 'T';
+--let $commands= T
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'T-trig';
+--let $commands= T-trig
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'T-func';
+--let $commands= T-func
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'T-proc';
+--let $commands= T-proc
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -289,16 +289,16 @@ SET @commands= 'T-proc';
 --echo #        --> ROW   empty.
 --echo #        --> MIXED empty.
 --echo #
-SET @commands= 'eT';
+--let $commands= eT
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'Te';
+--let $commands= Te
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'Te-trig';
+--let $commands= Te-trig
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'Te-func';
+--let $commands= Te-func
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 --echo
@@ -311,16 +311,16 @@ SET @commands= 'Te-func';
 --echo #      --> ROW   "B N C" entry, format R.
 --echo #      --> MIXED "B N C" entry, format S.
 --echo #
-SET @commands= 'N';
+--let $commands= N
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'N-trig';
+--let $commands= N-trig
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'N-func';
+--let $commands= N-func
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'N-proc';
+--let $commands= N-proc
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -334,16 +334,16 @@ SET @commands= 'N-proc';
 --echo #        --> ROW   "B N C" entry, format R.
 --echo #        --> MIXED "B N C" entry, format S.
 --echo #
-SET @commands= 'eN';
+--let $commands= eN
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'Ne';
+--let $commands= Ne
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'Ne-trig';
+--let $commands= Ne-trig
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'Ne-func';
+--let $commands= Ne-func
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 --echo
@@ -357,28 +357,28 @@ SET @commands= 'Ne-func';
 --echo #      --> ROW   "B N T B T C" entries, format R.
 --echo #      --> MIXED "B N T B T C" entries, format R.
 --echo #
-SET @commands= 'tN';
+--let $commands= tN
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'nT';
+--let $commands= nT
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'NT';
+--let $commands= NT
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'NT-trig';
+--let $commands= NT-trig
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'NT-func';
+--let $commands= NT-func
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'TN';
+--let $commands= TN
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'TN-trig';
+--let $commands= TN-trig
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'TN-func';
+--let $commands= TN-func
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -392,22 +392,22 @@ SET @commands= 'TN-func';
 --echo #      --> STMT  "B M R" entries, format S.
 --echo #      --> ROW   "B N C" entry, format R.
 --echo #      --> MIXED "B N C" entry, format R.
-SET @commands= 'tNe';
+--let $commands= tNe
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'nTe';
+--let $commands= nTe
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'NeT-trig';
+--let $commands= NeT-trig
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'NeT-func';
+--let $commands= NeT-func
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'TeN-trig';
+--let $commands= TeN-trig
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'TeN-func';
+--let $commands= TeN-func
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 --echo
@@ -420,52 +420,52 @@ SET @commands= 'TeN-func';
 --echo #     --> ROW   "B T T C" entries, format R.
 --echo #     --> MIXED "B T T C" entries, format S
 --echo #
-SET @commands= 'B T T C';
+--let $commands= B T T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T T-trig C';
+--let $commands= B T T-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T T-func C';
+--let $commands= B T T-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T T-proc C';
+--let $commands= B T T-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig T C';
+--let $commands= B T-trig T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig T-trig C';
+--let $commands= B T-trig T-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig T-func C';
+--let $commands= B T-trig T-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig T-proc C';
+--let $commands= B T-trig T-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func T C';
+--let $commands= B T-func T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func T-trig C';
+--let $commands= B T-func T-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func T-func C';
+--let $commands= B T-func T-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func T-proc C';
+--let $commands= B T-func T-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc T C';
+--let $commands= B T-proc T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc T-trig C';
+--let $commands= B T-proc T-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc T-func C';
+--let $commands= B T-proc T-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc T-proc C';
+--let $commands= B T-proc T-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -479,28 +479,28 @@ SET @commands= 'B T-proc T-proc C';
 --echo #       --> ROW   "B T C" entries, format R.
 --echo #       --> MIXED "B T C" entries, format S.
 --echo #
-SET @commands= 'B T eT C';
+--let $commands= B T eT C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T Te C';
+--let $commands= B T Te C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T Te-trig C';
+--let $commands= B T Te-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T Te-func C';
+--let $commands= B T Te-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B eT T C';
+--let $commands= B eT T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Te T C';
+--let $commands= B Te T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Te-trig T C';
+--let $commands= B Te-trig T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Te-func T C';
+--let $commands= B Te-func T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -514,52 +514,52 @@ SET @commands= 'B Te-func T C';
 --echo #     --> ROW   empty.
 --echo #     --> MIXED empty.
 --echo #
-SET @commands= 'B T T R';
+--let $commands= B T T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T T-trig R';
+--let $commands= B T T-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T T-func R';
+--let $commands= B T T-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T T-proc R';
+--let $commands= B T T-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig T R';
+--let $commands= B T-trig T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig T-trig R';
+--let $commands= B T-trig T-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig T-func R';
+--let $commands= B T-trig T-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig T-proc R';
+--let $commands= B T-trig T-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func T R';
+--let $commands= B T-func T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func T-trig R';
+--let $commands= B T-func T-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func T-func R';
+--let $commands= B T-func T-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func T-proc R';
+--let $commands= B T-func T-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc T R';
+--let $commands= B T-proc T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc T-trig R';
+--let $commands= B T-proc T-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc T-func R';
+--let $commands= B T-proc T-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc T-proc R';
+--let $commands= B T-proc T-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -573,28 +573,28 @@ SET @commands= 'B T-proc T-proc R';
 --echo #       --> ROW   empty.
 --echo #       --> MIXED empty.
 --echo #
-SET @commands= 'B T eT R';
+--let $commands= B T eT R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T Te R';
+--let $commands= B T Te R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T Te-trig R';
+--let $commands= B T Te-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T Te-func R';
+--let $commands= B T Te-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B eT T R';
+--let $commands= B eT T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Te T R';
+--let $commands= B Te T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Te-trig T R';
+--let $commands= B Te-trig T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Te-func T R';
+--let $commands= B Te-func T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -608,52 +608,52 @@ SET @commands= 'B Te-func T R';
 --echo #     --> ROW   "B N C B N C" entries, format R.
 --echo #     --> MIXED "B N C B N C" entries, format S.
 --echo #
-SET @commands= 'B N N C';
+--let $commands= B N N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N N-trig C';
+--let $commands= B N N-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N N-func C';
+--let $commands= B N N-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N N-proc C';
+--let $commands= B N N-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig N C';
+--let $commands= B N-trig N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig N-trig C';
+--let $commands= B N-trig N-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig N-func C';
+--let $commands= B N-trig N-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig N-proc C';
+--let $commands= B N-trig N-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func N C';
+--let $commands= B N-func N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func N-trig C';
+--let $commands= B N-func N-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func N-func C';
+--let $commands= B N-func N-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func N-proc C';
+--let $commands= B N-func N-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc N C';
+--let $commands= B N-proc N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc N-trig C';
+--let $commands= B N-proc N-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc N-func C';
+--let $commands= B N-proc N-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc N-proc C';
+--let $commands= B N-proc N-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -667,28 +667,28 @@ SET @commands= 'B N-proc N-proc C';
 --echo #     --> ROW   "B N C B N C" entries, format R.
 --echo #     --> MIXED "B N C B N C" entries, format S.
 --echo #
-SET @commands= 'B N eN C';
+--let $commands= B N eN C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N Ne C';
+--let $commands= B N Ne C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N Ne-trig C';
+--let $commands= B N Ne-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N Ne-func C';
+--let $commands= B N Ne-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B eN N C';
+--let $commands= B eN N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Ne N C';
+--let $commands= B Ne N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Ne-trig N C';
+--let $commands= B Ne-trig N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Ne-func N C';
+--let $commands= B Ne-func N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -702,52 +702,52 @@ SET @commands= 'B Ne-func N C';
 --echo #      --> ROW   "B N C B N C" entries, format R.
 --echo #      --> MIXED "B N C B N C" entries, format S.
 --echo #
-SET @commands= 'B N N R';
+--let $commands= B N N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N N-trig R';
+--let $commands= B N N-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N N-func R';
+--let $commands= B N N-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N N-proc R';
+--let $commands= B N N-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig N R';
+--let $commands= B N-trig N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig N-trig R';
+--let $commands= B N-trig N-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig N-func R';
+--let $commands= B N-trig N-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig N-proc R';
+--let $commands= B N-trig N-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func N R';
+--let $commands= B N-func N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func N-trig R';
+--let $commands= B N-func N-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func N-func R';
+--let $commands= B N-func N-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func N-proc R';
+--let $commands= B N-func N-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc N R';
+--let $commands= B N-proc N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc N-trig R';
+--let $commands= B N-proc N-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc N-func R';
+--let $commands= B N-proc N-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc N-proc R';
+--let $commands= B N-proc N-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -761,28 +761,28 @@ SET @commands= 'B N-proc N-proc R';
 --echo #     --> ROW   "B N C B N C" entries, format R.
 --echo #     --> MIXED "B N C B N C" entries, format S.
 --echo #
-SET @commands= 'B N eN R';
+--let $commands= B N eN R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N Ne R';
+--let $commands= B N Ne R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N Ne-trig R';
+--let $commands= B N Ne-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N Ne-func R';
+--let $commands= B N Ne-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B eN N R';
+--let $commands= B eN N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Ne N R';
+--let $commands= B Ne N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Ne-trig N R';
+--let $commands= B Ne-trig N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Ne-func N R';
+--let $commands= B Ne-func N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -796,52 +796,52 @@ SET @commands= 'B Ne-func N R';
 --echo #       --> ROW   "B N C B T C" entries, format R.
 --echo #       --> MIXED "B N C B T C" entries, format R in N and S in T.
 --echo #
-SET @commands= 'B T N C';
+--let $commands= B T N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T N-trig C';
+--let $commands= B T N-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T N-func C';
+--let $commands= B T N-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T N-proc C';
+--let $commands= B T N-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig N C';
+--let $commands= B T-trig N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig N-trig C';
+--let $commands= B T-trig N-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig N-func C';
+--let $commands= B T-trig N-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig N-proc C';
+--let $commands= B T-trig N-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func N C';
+--let $commands= B T-func N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func N-trig C';
+--let $commands= B T-func N-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func N-func C';
+--let $commands= B T-func N-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func N-proc C';
+--let $commands= B T-func N-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc N C';
+--let $commands= B T-proc N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc N-trig C';
+--let $commands= B T-proc N-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc N-func C';
+--let $commands= B T-proc N-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc N-proc C';
+--let $commands= B T-proc N-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -859,16 +859,16 @@ SET @commands= 'B T-proc N-proc C';
 --echo #       --> ROW   "B N C B T C" entries, format R.
 --echo #       --> MIXED "B N C B T C" entries, format R in N and S in T.
 --echo #
-SET @commands= 'B eT N C';
+--let $commands= B eT N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Te N C';
+--let $commands= B Te N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T eN C';
+--let $commands= B T eN C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T Ne C';
+--let $commands= B T Ne C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -882,52 +882,52 @@ SET @commands= 'B T Ne C';
 --echo #     --> ROW   "B N C" entry, format R.
 --echo #     --> MIXED "B N C" entry, format R.
 --echo #
-SET @commands= 'B T N R';
+--let $commands= B T N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T N-trig R';
+--let $commands= B T N-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T N-func R';
+--let $commands= B T N-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T N-proc R';
+--let $commands= B T N-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig N R';
+--let $commands= B T-trig N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig N-trig R';
+--let $commands= B T-trig N-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig N-func R';
+--let $commands= B T-trig N-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-trig N-proc R';
+--let $commands= B T-trig N-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func N R';
+--let $commands= B T-func N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func N-trig R';
+--let $commands= B T-func N-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func N-func R';
+--let $commands= B T-func N-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-func N-proc R';
+--let $commands= B T-func N-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc N R';
+--let $commands= B T-proc N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc N-trig R';
+--let $commands= B T-proc N-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc N-func R';
+--let $commands= B T-proc N-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T-proc N-proc R';
+--let $commands= B T-proc N-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -945,16 +945,16 @@ SET @commands= 'B T-proc N-proc R';
 --echo #       --> ROW   "B N C" entry, format R.
 --echo #       --> MIXED "B N C" entry, format R.
 --echo #
-SET @commands= 'B eT N R';
+--let $commands= B eT N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B Te N R';
+--let $commands= B Te N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T eN R';
+--let $commands= B T eN R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T Ne R';
+--let $commands= B T Ne R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -969,52 +969,52 @@ SET @commands= 'B T Ne R';
 --echo #     --> ROW   "B N C B T C" entries, format R.
 --echo #     --> MIXED "B N C B T C" entries, format S.
 --echo #
-SET @commands= 'B N T C';
+--let $commands= B N T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N T-trig C';
+--let $commands= B N T-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N T-func C';
+--let $commands= B N T-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N T-proc C';
+--let $commands= B N T-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig T C';
+--let $commands= B N-trig T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig T-trig C';
+--let $commands= B N-trig T-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig T-func C';
+--let $commands= B N-trig T-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig T-proc C';
+--let $commands= B N-trig T-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func T C';
+--let $commands= B N-func T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func T-trig C';
+--let $commands= B N-func T-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func T-func C';
+--let $commands= B N-func T-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func T-proc C';
+--let $commands= B N-func T-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc T C';
+--let $commands= B N-proc T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc T-trig C';
+--let $commands= B N-proc T-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc T-func C';
+--let $commands= B N-proc T-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc T-proc C';
+--let $commands= B N-proc T-proc C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1029,52 +1029,52 @@ SET @commands= 'B N-proc T-proc C';
 --echo #     --> MIXED "B N C" entries, format S.
 --echo #
 
-SET @commands= 'B N T R';
+--let $commands= B N T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N T-proc R';
+--let $commands= B N T-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N T-trig R';
+--let $commands= B N T-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N T-func R';
+--let $commands= B N T-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig T R';
+--let $commands= B N-trig T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig T-trig R';
+--let $commands= B N-trig T-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig T-func R';
+--let $commands= B N-trig T-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-trig T-proc R';
+--let $commands= B N-trig T-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func T R';
+--let $commands= B N-func T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func T-trig R';
+--let $commands= B N-func T-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func T-func R';
+--let $commands= B N-func T-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-func T-proc R';
+--let $commands= B N-func T-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc T R';
+--let $commands= B N-proc T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc T-proc R';
+--let $commands= B N-proc T-proc R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc T-trig R';
+--let $commands= B N-proc T-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N-proc T-func R';
+--let $commands= B N-proc T-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1089,28 +1089,28 @@ SET @commands= 'B N-proc T-func R';
 --echo #      --> ROW   "B N C B T T C" entries, format R.
 --echo #      --> MIXED "B N C B T T C" entries, format R in N/T and format S in T.
 --echo #
-SET @commands= 'B tN T C';
+--let $commands= B tN T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B nT T C';
+--let $commands= B nT T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NT T C';
+--let $commands= B NT T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NT-trig T C';
+--let $commands= B NT-trig T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NT-func T C';
+--let $commands= B NT-func T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TN T C';
+--let $commands= B TN T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TN-trig T C';
+--let $commands= B TN-trig T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TN-func T C';
+--let $commands= B TN-func T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1125,22 +1125,22 @@ SET @commands= 'B TN-func T C';
 --echo #        --> ROW   "B N C B T T C" entries, format R.
 --echo #        --> MIXED "B N C B T T C" entries, format R in N/T and format S in T.
   --echo #  
-SET @commands= 'B tNe T C';
+--let $commands= B tNe T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B nTe T C';
+--let $commands= B nTe T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NeT-trig T C';
+--let $commands= B NeT-trig T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NeT-func T C';
+--let $commands= B NeT-func T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TeN-trig T C';
+--let $commands= B TeN-trig T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TeN-func T C';
+--let $commands= B TeN-func T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1155,28 +1155,28 @@ SET @commands= 'B TeN-func T C';
 --echo #      --> ROW   "B N C" entry, format R.
 --echo #      --> MIXED "B N C" entry, format R.
 --echo #
-SET @commands= 'B tN T R';
+--let $commands= B tN T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B nT T R';
+--let $commands= B nT T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NT T R';
+--let $commands= B NT T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NT-trig T R';
+--let $commands= B NT-trig T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NT-func T R';
+--let $commands= B NT-func T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TN T R';
+--let $commands= B TN T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TN-trig T R';
+--let $commands= B TN-trig T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TN-func T R';
+--let $commands= B TN-func T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1191,22 +1191,22 @@ SET @commands= 'B TN-func T R';
 --echo #        --> ROW   "B N C" entry, format R.
 --echo #        --> MIXED "B N C" entry, format R.
 --echo #
-SET @commands= 'B tNe T R';
+--let $commands= B tNe T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B nTe T R';
+--let $commands= B nTe T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NeT-trig T R';
+--let $commands= B NeT-trig T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NeT-func T R';
+--let $commands= B NeT-func T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TeN-trig T R';
+--let $commands= B TeN-trig T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TeN-func T R';
+--let $commands= B TeN-func T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1220,28 +1220,28 @@ SET @commands= 'B TeN-func T R';
 --echo #      --> ROW   "B N C B T T C" entries, format R.
 --echo #      --> MIXED "B N C B T T C" entries, format R in N/T and format S in T.
 --echo #
-SET @commands= 'B T tN C';
+--let $commands= B T tN C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T nT C';
+--let $commands= B T nT C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T NT C';
+--let $commands= B T NT C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T NT-trig C';
+--let $commands= B T NT-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T NT-func C';
+--let $commands= B T NT-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T TN C';
+--let $commands= B T TN C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T TN-trig C';
+--let $commands= B T TN-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T TN-func C';
+--let $commands= B T TN-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1255,22 +1255,22 @@ SET @commands= 'B T TN-func C';
 --echo #        --> ROW   "B N C B T C" entry, format R.
 --echo #        --> MIXED "B N C B T C" entry, format R.
 --echo #
-SET @commands= 'B T tNe C';
+--let $commands= B T tNe C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T nTe C';
+--let $commands= B T nTe C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T NeT-trig C';
+--let $commands= B T NeT-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T NeT-func C';
+--let $commands= B T NeT-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T TeN-trig C';
+--let $commands= B T TeN-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T TeN-func C';
+--let $commands= B T TeN-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 --echo
@@ -1283,28 +1283,28 @@ SET @commands= 'B T TeN-func C';
 --echo #        --> ROW   "B N C" entry, format R.
 --echo #        --> MIXED "B N C" entry, format R.
 --echo #
-SET @commands= 'B T tN R';
+--let $commands= B T tN R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T nT R';
+--let $commands= B T nT R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T NT R';
+--let $commands= B T NT R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T NT-trig R';
+--let $commands= B T NT-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T NT-func R';
+--let $commands= B T NT-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T TN R';
+--let $commands= B T TN R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T TN-trig R';
+--let $commands= B T TN-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T TN-func R';
+--let $commands= B T TN-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1318,22 +1318,22 @@ SET @commands= 'B T TN-func R';
 --echo #        --> ROW   "B N C" entry, format R.
 --echo #        --> MIXED "B N C" entry, format R.
 --echo #
-SET @commands= 'B T tNe R';
+--let $commands= B T tNe R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T nTe R';
+--let $commands= B T nTe R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T NeT-trig R';
+--let $commands= B T NeT-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T NeT-func R';
+--let $commands= B T NeT-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T TeN-trig R';
+--let $commands= B T TeN-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T TeN-func R';
+--let $commands= B T TeN-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1349,28 +1349,28 @@ SET @commands= 'B T TeN-func R';
 --echo #      --> MIXED "B M C B N C" entries if in M only N-Table is changed, format S.
 --echo #      --> MIXED "B N C B N C B T C" entries, format R.
 --echo #
-SET @commands= 'B tN N C';
+--let $commands= B tN N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B nT N C';
+--let $commands= B nT N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NT N C';
+--let $commands= B NT N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NT-trig N C';
+--let $commands= B NT-trig N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NT-func N C';
+--let $commands= B NT-func N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TN N C';
+--let $commands= B TN N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TN-trig N C';
+--let $commands= B TN-trig N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TN-func N C';
+--let $commands= B TN-func N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1386,22 +1386,22 @@ SET @commands= 'B TN-func N C';
 --echo #      --> MIXED "B M C B N C" entries if in M only N-Table is changed, format S.
 --echo #      --> MIXED "B N C B N C B T C" entries, format R.
 --echo #
-SET @commands= 'B tNe N C';
+--let $commands= B tNe N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B nTe N C';
+--let $commands= B nTe N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NeT-trig N C';
+--let $commands= B NeT-trig N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NeT-func N C';
+--let $commands= B NeT-func N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TeN-trig N C';
+--let $commands= B TeN-trig N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TeN-func N C';
+--let $commands= B TeN-func N C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 --echo
@@ -1416,28 +1416,28 @@ SET @commands= 'B TeN-func N C';
 --echo #    --> MIXED "B M C B N C" entries if in M only N-Table is changed, format S.
 --echo #    --> MIXED "B N C B N C" entries, format R.
 --echo #
-SET @commands= 'B tN N R';
+--let $commands= B tN N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B nT N R';
+--let $commands= B nT N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NT N R';
+--let $commands= B NT N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NT-trig N R';
+--let $commands= B NT-trig N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NT-func N R';
+--let $commands= B NT-func N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TN N R';
+--let $commands= B TN N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TN-trig N R';
+--let $commands= B TN-trig N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TN-func N R';
+--let $commands= B TN-func N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1453,22 +1453,22 @@ SET @commands= 'B TN-func N R';
 --echo #      --> MIXED "B M C B N C" entries if in M only N-Table is changed, format S.
 --echo #      --> MIXED "B N C B N C" entries, format R.
 --echo #
-SET @commands= 'B tNe N R';
+--let $commands= B tNe N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B nTe N R';
+--let $commands= B nTe N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NeT-trig N R';
+--let $commands= B NeT-trig N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B NeT-func N R';
+--let $commands= B NeT-func N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TeN-trig N R';
+--let $commands= B TeN-trig N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B TeN-func N R';
+--let $commands= B TeN-func N R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1484,28 +1484,28 @@ SET @commands= 'B TeN-func N R';
 --echo #    --> MIXED "B N C B N C B T C" entries, format S in first N and format R in the other.
 --echo #
 
-SET @commands= 'B N tN C';
+--let $commands= B N tN C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N nT C';
+--let $commands= B N nT C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N NT C';
+--let $commands= B N NT C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N NT-trig C';
+--let $commands= B N NT-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N NT-func C';
+--let $commands= B N NT-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N TN C';
+--let $commands= B N TN C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N TN-trig C';
+--let $commands= B N TN-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N TN-func C';
+--let $commands= B N TN-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1521,22 +1521,22 @@ SET @commands= 'B N TN-func C';
 --echo #      --> ROW   "B N C B N C" entries, format R.
 --echo #      --> MIXED "B N C B N C" entries, format S in first N and format R in the other.
 --echo #
-SET @commands= 'B N tNe C';
+--let $commands= B N tNe C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N nTe C';
+--let $commands= B N nTe C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N NeT-trig C';
+--let $commands= B N NeT-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N NeT-func C';
+--let $commands= B N NeT-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N TeN-trig C';
+--let $commands= B N TeN-trig C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N TeN-func C';
+--let $commands= B N TeN-func C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1552,28 +1552,28 @@ SET @commands= 'B N TeN-func C';
 --echo #    --> MIXED "B N C B N C" entries, format S in first N and format R in the other.
 --echo #
 
-SET @commands= 'B N tN R';
+--let $commands= B N tN R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N nT R';
+--let $commands= B N nT R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N NT R';
+--let $commands= B N NT R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N NT-trig R';
+--let $commands= B N NT-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N NT-func R';
+--let $commands= B N NT-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N TN R';
+--let $commands= B N TN R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N TN-trig R';
+--let $commands= B N TN-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N TN-func R';
+--let $commands= B N TN-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1588,58 +1588,58 @@ SET @commands= 'B N TN-func R';
 --echo #      --> ROW   "B N C B N C" entries, format R.
 --echo #      --> MIXED "B N C B N C" entries, format S in first N and format R in the other.
 --echo #
-SET @commands= 'B N tNe R';
+--let $commands= B N tNe R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N nTe R';
+--let $commands= B N nTe R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N NeT-trig R';
+--let $commands= B N NeT-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N NeT-func R';
+--let $commands= B N NeT-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N TeN-trig R';
+--let $commands= B N TeN-trig R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N TeN-func R';
+--let $commands= B N TeN-func R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 --echo ###################################################################################
 --echo #                               2 - SAVEPOINT
 --echo ###################################################################################
-SET @commands= 'B T Sn T Rn C';
+--let $commands= B T Sn T Rn C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N T Sn T Rn C';
+--let $commands= B N T Sn T Rn C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T N Sn T Rn C';
+--let $commands= B T N Sn T Rn C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T Sn N T Rn C';
+--let $commands= B T Sn N T Rn C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 --echo ###################################################################################
 --echo #                            3 - CREATE TABLE...SELECT
 --echo ###################################################################################
-SET @commands= 'CSe-T->T CS-T->T drop-CS';
+--let $commands= CSe-T->T CS-T->T drop-CS
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'CSe-N->N CS-N->N drop-CS';
+--let $commands= CSe-N->N CS-N->N drop-CS
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'CSe-T->N CS-T->N drop-CS';
+--let $commands= CSe-T->N CS-T->N drop-CS
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'CSe-N->T CS-N->T drop-CS';
+--let $commands= CSe-N->T CS-N->T drop-CS
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'CSe-N->T CS-N->T drop-CS';
+--let $commands= CSe-N->T CS-N->T drop-CS
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'CSe-N->T CS-N->T drop-CS';
+--let $commands= CSe-N->T CS-N->T drop-CS
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1647,116 +1647,116 @@ SET @commands= 'CSe-N->T CS-N->T drop-CS';
 --echo #                            4 - INSERT TABLE...SELECT
 --echo ###################################################################################
 
-SET @commands= 'CS-T->T';
+--let $commands= CS-T->T
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-T B T IS-T<-N T C';
+--let $commands= trunc-CS-T B T IS-T<-N T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-T B T ISe-T<-N T C';
+--let $commands= trunc-CS-T B T ISe-T<-N T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-T B IS-T<-N T C';
+--let $commands= trunc-CS-T B IS-T<-N T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-T B ISe-T<-N T C';
+--let $commands= trunc-CS-T B ISe-T<-N T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'drop-CS';
+--let $commands= drop-CS
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'CS-T->T';
+--let $commands= CS-T->T
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-T B T IS-T<-T T C';
+--let $commands= trunc-CS-T B T IS-T<-T T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-T B T ISe-T<-T T C';
+--let $commands= trunc-CS-T B T ISe-T<-T T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-T B IS-T<-T T C';
+--let $commands= trunc-CS-T B IS-T<-T T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-T B ISe-T<-T T C';
+--let $commands= trunc-CS-T B ISe-T<-T T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'drop-CS';
+--let $commands= drop-CS
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'CS-N->N';
+--let $commands= CS-N->N
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-N B T IS-N<-T T C';
+--let $commands= trunc-CS-N B T IS-N<-T T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-N B T ISe-N<-T T C';
+--let $commands= trunc-CS-N B T ISe-N<-T T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-N B IS-N<-T T C';
+--let $commands= trunc-CS-N B IS-N<-T T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-N B ISe-N<-T T C';
+--let $commands= trunc-CS-N B ISe-N<-T T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'drop-CS';
+--let $commands= drop-CS
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'CS-N->N';
+--let $commands= CS-N->N
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-N B T IS-N<-N T C';
+--let $commands= trunc-CS-N B T IS-N<-N T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-N B T ISe-N<-N T C';
+--let $commands= trunc-CS-N B T ISe-N<-N T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-N B IS-N<-N T C';
+--let $commands= trunc-CS-N B IS-N<-N T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'trunc-CS-N B ISe-N<-N T C';
+--let $commands= trunc-CS-N B ISe-N<-N T C
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'drop-CS';
+--let $commands= drop-CS
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
 --echo ###################################################################################
 --echo #                         5 - ROLLBACK TEMPORARY TABLE
 --echo ###################################################################################
-SET @commands= 'B T CT R';
+--let $commands= B T CT R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'drop-CT';
+--let $commands= drop-CT
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T Sn T CT Rn R';
+--let $commands= B T Sn T CT Rn R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'drop-CT';
+--let $commands= drop-CT
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T CT T R';
+--let $commands= B T CT T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'drop-CT';
+--let $commands= drop-CT
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B tN CT T R';
+--let $commands= B tN CT T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'drop-CT';
+--let $commands= drop-CT
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B CT T R';
+--let $commands= B CT T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'drop-CT';
+--let $commands= drop-CT
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N CT T R';
+--let $commands= B N CT T R
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'drop-CT';
+--let $commands= drop-CT
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 
@@ -1776,5 +1776,5 @@ if (`select @@session.binlog_direct_non_transactional_updates = 0 || @@session.b
 --echo ###################################################################################
 --echo #                                        CLEAN
 --echo ###################################################################################
-SET @commands= 'clean';
+--let $commands= clean
 --source extra/rpl_tests/rpl_mixing_engines.inc
