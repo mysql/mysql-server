@@ -30,9 +30,9 @@
 
 --echo ==== Configure ====
 
---let $max_transactions= 1000
---let $max_seconds= 300
---let $n_forks= 30
+--let $max_iterations= 10000
+--let $max_seconds= 100
+--let $n_forks= 8
 --let $flush_probability= 0.05
 --let $rename_probability= 0.1
 
@@ -78,14 +78,16 @@ eval INSERT INTO t2_$t VALUES (0);
 
 --echo ==== Generate binary log ====
 
---let $i= 1
---let $last_i= 0
+--let $iteration= 1
 --let $start_time= `SELECT UNIX_TIMESTAMP()`
 --let $done= 0
 --disable_query_log
 while (!$done)
 {
-  if (`SELECT RAND() < $rename_probability`)
+  --let $rand_type= decide
+  --let $rand_probability= $rename_probability
+  --source include/rand.inc
+  if ($rand)
   {
     --let $last_t= $t
     --inc $t
@@ -93,18 +95,21 @@ while (!$done)
     eval RENAME TABLE t2_$last_t TO t2_$t;
   }
   BEGIN;
-  eval INSERT INTO t2_$t VALUES ($i);
-  eval UPDATE t1_$t SET a = $i WHERE a = $i - 1;
-  eval DELETE FROM t2_$t WHERE a = $i - 1;
+  eval INSERT INTO t2_$t VALUES ($iteration);
+  eval UPDATE t1_$t SET a = $iteration WHERE a = $iteration - 1;
+  eval DELETE FROM t2_$t WHERE a = $iteration - 1;
   COMMIT;
-  if (`SELECT RAND() < $flush_probability`)
+
+  --let $rand_type= decide
+  --let $rand_probability= $flush_probability
+  --source include/rand.inc
+  if ($rand)
   {
     FLUSH LOGS;
   }
-  --let $last_i= $i
-  --inc $i
+  --inc $iteration
 
-  if ($i >= $max_transactions)
+  if ($iteration >= $max_iterations)
   {
     --let $done= 1
   }
@@ -134,6 +139,7 @@ perl;
   my $n= $n_forks;
   my @cmd_lists= ( [ 'echo "USE test; CALL show_slave_status();"' ],
                    [ 'echo "USE test; CALL read_gtid_done();"' ],
+                   \@mysqlbinlog_commands,
                    \@mysqlbinlog_commands );
   $n-- while $n && fork;
   my $cmd_list= $cmd_lists[$n % @cmd_lists];

@@ -2740,15 +2740,22 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
   if (command == COM_BINLOG_DUMP_GTID)
   {
     // get set of GTIDs
-    Gtid_set gtid_set(&global_sid_map);
-    global_sid_lock.rdlock();
-
-    gtid_set.add_gtid_set(mi->rli->get_gtid_set());
-    gtid_set.add_gtid_set(gtid_state.get_logged_gtids());
-
+    Sid_map sid_map(NULL/*no lock needed*/);
+    Gtid_set gtid_done(&sid_map);
+    global_sid_lock.wrlock();
+    gtid_state.dbug_print();
+    if (gtid_done.add_gtid_set(mi->rli->get_gtid_set()) != RETURN_STATUS_OK ||
+        gtid_done.add_gtid_set(gtid_state.get_logged_gtids()) !=
+        RETURN_STATUS_OK)
+    {
+      global_sid_lock.unlock();
+      goto err;
+    }
+    global_sid_lock.unlock();
+     
     // allocate buffer
     size_t unused_size= 0;
-    size_t encoded_data_size= gtid_set.get_encoded_length();
+    size_t encoded_data_size= gtid_done.get_encoded_length();
     size_t allocation_size= 
       ::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
       ::BINLOG_NAME_SIZE_INFO_SIZE + BINLOG_NAME_INFO_SIZE +
@@ -2781,11 +2788,14 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     int8store(ptr_buffer, mi->get_master_log_pos());
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
 
+    DBUG_PRINT("info",
+               ("is_master_slave_proto=%d",
+                is_master_slave_proto(binlog_flags, BINLOG_THROUGH_GTID)));
     if (is_master_slave_proto(binlog_flags, BINLOG_THROUGH_GTID))
     {
       int4store(ptr_buffer, encoded_data_size);
       ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
-      gtid_set.encode(ptr_buffer);
+      gtid_done.encode(ptr_buffer);
       ptr_buffer+= encoded_data_size;
       /*
         Resetting the name of the file in order to force to start
@@ -2793,14 +2803,13 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       */
       DBUG_ASSERT(BINLOG_NAME_INFO_SIZE == 0 &&
                   mi->get_master_log_pos() == BIN_LOG_HEADER_SIZE);
+      gtid_done.dbug_print("sending gtid set");
     }
     else
     {
       unused_size= ::BINLOG_DATA_SIZE_INFO_SIZE + encoded_data_size;
     }
 
-    global_sid_lock.unlock();
-     
     command_size= ptr_buffer - command_buffer;
     DBUG_ASSERT(command_size == (allocation_size - unused_size - 1));
   }

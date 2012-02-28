@@ -1,8 +1,10 @@
 # ==== Purpose ====
 #
-# Waits until the slave IO thread has been synced, i.e., all events
-# have been copied over to slave.  Does not care if the SQL thread is
-# in sync (or even running).
+# Waits until the slave SQL thread has been synced, i.e., all events
+# have been copied over to slave.  This is like mtr's built-in command
+# sync_slave_with_master, but more flexible (e.g., you can set a
+# custom timeout and you can force it to use GTIDs instead of filename
+# and offset).
 #
 #
 # ==== Usage ====
@@ -31,9 +33,9 @@
 #   $rpl_debug
 #      See include/rpl_init.inc
 
---let $include_filename= sync_slave_io_with_master.inc
---source include/begin_include_file.inc
 
+--let $include_filename= sync_slave_sql_with_master.inc
+--source include/begin_include_file.inc
 
 --source include/save_master_pos.inc
 
@@ -44,9 +46,8 @@ if ($sync_slave_connection)
 }
 --source include/rpl_connection.inc
 
---source include/sync_slave_io.inc
+--source include/sync_slave_sql.inc
 
-
---let $include_filename= sync_slave_io_with_master.inc
+--let $include_filename= sync_slave_sql_with_master.inc
 --let $skip_restore_connection= 1
 --source include/end_include_file.inc
