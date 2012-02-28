@@ -888,8 +888,11 @@ double ha_maria::scan_time()
   splitting algorithms depends on this. (With only one key on a page
   we also can't use any compression, which may make the index file much
   larger)
-  We use HA_MAX_KEY_BUFF as this is a stack restriction imposed by the
-  handler interface.
+  We use HA_MAX_KEY_LENGTH as this is a stack restriction imposed by the
+  handler interface.  If we want to increase this, we have also to
+  increase HA_MARIA_KEY_BUFF and MARIA_MAX_KEY_BUFF as the buffer needs
+  to take be able to store the extra lenght bytes that is part of the stored
+  key.
 
   We also need to reserve place for a record pointer (8) and 3 bytes
   per key segment to store the length of the segment + possible null bytes.
@@ -900,7 +903,7 @@ double ha_maria::scan_time()
 uint ha_maria::max_supported_key_length() const
 {
   uint tmp= (maria_max_key_length() - 8 - HA_MAX_KEY_SEG*3);
-  return min(HA_MAX_KEY_BUFF, tmp);
+  return min(HA_MAX_KEY_LENGTH, tmp);
 }
 
 
@@ -2948,7 +2951,7 @@ void ha_maria::get_auto_increment(ulonglong offset, ulonglong increment,
 {
   ulonglong nr;
   int error;
-  uchar key[HA_MAX_KEY_LENGTH];
+  uchar key[MARIA_MAX_KEY_BUFF];
 
   if (!table->s->next_number_key_offset)
   {                                             // Autoincrement at key-start

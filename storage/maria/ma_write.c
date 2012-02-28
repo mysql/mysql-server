@@ -715,6 +715,8 @@ static int w_search(register MARIA_HA *info, uint32 comp_flag, MARIA_KEY *key,
   {
     error= _ma_insert(info, key, &page, keypos, keybuff,
                       father_page, father_keypos, insert_last);
+    if (error < 0)
+      goto err;
     page_mark_changed(info, &page);
     if (_ma_write_keypage(&page, PAGECACHE_LOCK_LEFT_WRITELOCKED,
                           DFLT_INIT_HITS))
