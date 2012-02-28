@@ -57,6 +57,8 @@
 */
 
 ulong digest_max= 0;
+ulong digest_lost= 0;
+
 
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
 PFS_statements_digest_stat *statements_digest_stat_array= NULL;
@@ -79,12 +81,13 @@ int init_digest(const PFS_global_param *param)
 {
   unsigned int index;
 
-  /* 
-    Allocate memory for statements_digest_stat_array based on 
+  /*
+    Allocate memory for statements_digest_stat_array based on
     performance_schema_digests_size values
   */
   digest_max= param->m_digest_sizing;
- 
+  digest_lost= 0;
+
   if (digest_max == 0)
     return 0;
 
@@ -93,7 +96,7 @@ int init_digest(const PFS_global_param *param)
                      MYF(MY_ZEROFILL));
   if (unlikely(statements_digest_stat_array == NULL))
     return 1;
-   
+
   for (index= 0; index < digest_max; index++)
   {
     statements_digest_stat_array[index].reset_data();
@@ -164,7 +167,7 @@ static LF_PINS* get_digest_hash_pins(PFS_thread *thread)
   return thread->m_digest_hash_pins;
 }
 
-PFS_statement_stat* 
+PFS_statement_stat*
 find_or_create_digest(PFS_thread* thread,
                       PSI_digest_storage* digest_storage)
 {
@@ -185,11 +188,17 @@ find_or_create_digest(PFS_thread* thread,
                    digest_storage->m_byte_count);
 
   unsigned char* hash_key= md5.m_md5;
- 
+
+  int res;
+  ulong safe_index;
+  uint retry_count= 0;
+  const uint retry_max= 3;
   PFS_statements_digest_stat **entry;
   PFS_statements_digest_stat *pfs= NULL;
 
   ulonglong now= my_micro_time();
+
+search:
 
   /* Lookup LF_HASH using this new key. */
   entry= reinterpret_cast<PFS_statements_digest_stat**>
@@ -205,68 +214,71 @@ find_or_create_digest(PFS_thread* thread,
     return & pfs->m_stat;
   }
 
-  if (entry == NULL)
+  lf_hash_search_unpin(pins);
+
+  /* Dirty read of digest_index */
+  if (digest_index == 0)
   {
-    /* Dirty read of digest_index */
-    if (digest_index == 0)
-    {
-      /*  digest_stat array is full. Add stat at index 0 and return. */
-      pfs= &statements_digest_stat_array[0];
+    /*  digest_stat array is full. Add stat at index 0 and return. */
+    pfs= &statements_digest_stat_array[0];
 
-      if (pfs->m_first_seen == 0)
-        pfs->m_first_seen= now;
-      pfs->m_last_seen= now;
-      return & pfs->m_stat;
-    }
-
-    ulong safe_index;
-    safe_index= PFS_atomic::add_u32(& digest_index, 1);
-    if (safe_index >= digest_max)
-    {
-      /* The digest array is now full. */
-      digest_index= 0;
-      pfs= &statements_digest_stat_array[0];
-
-      if (pfs->m_first_seen == 0)
-        pfs->m_first_seen= now;
-      pfs->m_last_seen= now;
-      return & pfs->m_stat;
-    }
-
-    /* Add a new record in digest stat array. */
-    pfs= &statements_digest_stat_array[safe_index];
-    
-    /* Copy digest hash/LF Hash search key. */
-    memcpy(pfs->m_digest_hash.m_md5, md5.m_md5, PFS_MD5_SIZE);
-
-    /* 
-      Copy digest storage to statement_digest_stat_array so that it could be
-      used later to generate digest text.
-    */
-    digest_copy(& pfs->m_digest_storage, digest_storage);
-
-    pfs->m_first_seen= now;
+    if (pfs->m_first_seen == 0)
+      pfs->m_first_seen= now;
     pfs->m_last_seen= now;
-    
-    /*
-      Add this new digest into LF_HASH.
-      - duplicate key errors are ignored
-        (not supposed to happen because of the search pin)
-      - OOM errors are ignored
-        (nothing that can be done)
-      If inserting in the hash fails, we might end
-      with 2 entries for the same digest, which is tolerated.
-    */
-    (void) lf_hash_insert(&digest_hash, pins, &pfs);
-    lf_hash_search_unpin(pins);
-
     return & pfs->m_stat;
   }
 
-  lf_hash_search_unpin(pins);
+  safe_index= PFS_atomic::add_u32(& digest_index, 1);
+  if (safe_index >= digest_max)
+  {
+    /* The digest array is now full. */
+    digest_index= 0;
+    pfs= &statements_digest_stat_array[0];
+
+    if (pfs->m_first_seen == 0)
+      pfs->m_first_seen= now;
+    pfs->m_last_seen= now;
+    return & pfs->m_stat;
+  }
+
+  /* Add a new record in digest stat array. */
+  pfs= &statements_digest_stat_array[safe_index];
+
+  /* Copy digest hash/LF Hash search key. */
+  memcpy(pfs->m_digest_hash.m_md5, md5.m_md5, PFS_MD5_SIZE);
+
+  /*
+    Copy digest storage to statement_digest_stat_array so that it could be
+    used later to generate digest text.
+  */
+  digest_copy(& pfs->m_digest_storage, digest_storage);
+
+  pfs->m_first_seen= now;
+  pfs->m_last_seen= now;
+
+  res= lf_hash_insert(&digest_hash, pins, &pfs);
+  if (likely(res == 0))
+  {
+    return & pfs->m_stat;
+  }
+
+  if (res > 0)
+  {
+    /* Duplicate insert by another thread */
+    if (++retry_count > retry_max)
+    {
+      /* Avoid infinite loops */
+      digest_lost++;
+      return NULL;
+    }
+    goto search;
+  }
+
+  /* OOM in lf_hash_insert */
+  digest_lost++;
   return NULL;
 }
- 
+
 void purge_digest(PFS_thread* thread, unsigned char* hash_key)
 {
   LF_PINS *pins= get_digest_hash_pins(thread);
