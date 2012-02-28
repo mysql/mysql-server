@@ -29,6 +29,7 @@
 
 extern bool flag_statements_digest;
 extern ulong digest_max;
+extern ulong digest_lost;
 struct PFS_thread;
 
 /* Fixed, per MD5 hash. */
