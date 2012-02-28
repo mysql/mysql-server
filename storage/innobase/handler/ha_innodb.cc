@@ -242,6 +242,11 @@ const struct _ft_vft ft_vft_result = {NULL,
 				      innobase_fts_retrieve_ranking,
 				      NULL};
 
+const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
+					      innobase_fts_flags,
+					      innobase_fts_retrieve_docid,
+					      innobase_fts_count_matches};
+
 #ifdef HAVE_PSI_INTERFACE
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
@@ -2018,7 +2023,8 @@ ha_innobase::ha_innobase(
 		  HA_PRIMARY_KEY_IN_READ_INDEX |
 		  HA_BINLOG_ROW_CAPABLE |
 		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
-		  HA_TABLE_SCAN_ON_INDEX | HA_CAN_FULLTEXT),
+		  HA_TABLE_SCAN_ON_INDEX | HA_CAN_FULLTEXT |
+		  HA_CAN_FULLTEXT_EXT),
 	start_of_scan(0),
 	num_write_row(0)
 {}
@@ -7664,6 +7670,7 @@ ha_innobase::ft_init_ext(
 						   MYF(0));
 
 		fts_hdl->please = (struct _ft_vft*)(&ft_vft_result);
+		fts_hdl->could_you = (struct _ft_vft_ext*)(&ft_vft_ext_result);
 		fts_hdl->ft_prebuilt = prebuilt;
 		fts_hdl->ft_result = result;
 	}
@@ -7715,6 +7722,13 @@ next_record:
 	if (result->current != NULL) {
 		dict_index_t*	index;
 		dtuple_t*	tuple = prebuilt->search_tuple;
+
+		/* If we only need information from result we can return
+		   without fetching the table row */
+		if (ft_prebuilt->read_just_key) {
+			table->status= 0;
+			return (0);
+		}
 
 		index = dict_table_get_index_on_name(
 			prebuilt->table, FTS_DOC_ID_INDEX_NAME);
@@ -14068,6 +14082,12 @@ innobase_fts_retrieve_ranking(
 
 	ft_prebuilt = ((NEW_FT_INFO*) fts_hdl)->ft_prebuilt;
 
+	if (ft_prebuilt->read_just_key) {
+		fts_ranking_t*  ranking = 
+			rbt_value(fts_ranking_t, result->current);
+		return (ranking->rank);
+	}
+
 	/* Retrieve the ranking value for doc_id with value of
 	prebuilt->fts_doc_id */
 	return(fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id));
@@ -14121,6 +14141,69 @@ innobase_fts_find_ranking(
 	prebuilt->fts_doc_id */
 	return fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id);
 }
+
+/***********************************************************************
+@return version of the extended FTS API */
+uint
+innobase_fts_get_version()
+{
+	/* Currently this doesn't make much sense as returning
+	HA_CAN_FULLTEXT_EXT automatically mean this version is supported.
+	This supposed to ease future extensions.  */
+	return 2;
+}
+
+/***********************************************************************
+@return Which part of the extended FTS API is supported */
+ulonglong
+innobase_fts_flags()
+{
+	return (FTS_ORDERED_RESULT | FTS_DOCID_IN_RESULT);
+}
+
+
+/***********************************************************************
+Find and Retrieve the FTS doc_id for the current result row
+@return the document ID */
+ulonglong
+innobase_fts_retrieve_docid(
+/*============================*/
+		FT_INFO * fts_hdl)	/*!< in: FTS handler */
+{
+	row_prebuilt_t* ft_prebuilt;
+	fts_result_t*	result;
+
+	ft_prebuilt = ((NEW_FT_INFO *)fts_hdl)->ft_prebuilt;
+	result = ((NEW_FT_INFO *)fts_hdl)->ft_result;
+
+	if (ft_prebuilt->read_just_key) {
+		fts_ranking_t* ranking = 
+			rbt_value(fts_ranking_t, result->current);
+		return (ranking->doc_id);
+	}
+
+	return(ft_prebuilt->fts_doc_id);
+}
+
+/***********************************************************************
+Find and retrieve the size of the current result
+@return number of matching rows */
+ulonglong
+innobase_fts_count_matches(
+/*============================*/
+		FT_INFO * fts_hdl)	/*!< in: FTS handler */
+{
+	row_prebuilt_t* ft_prebuilt;
+
+	ft_prebuilt = ((NEW_FT_INFO *)fts_hdl)->ft_prebuilt;
+
+	if (ft_prebuilt->result->rankings_by_id != NULL) {
+		return rbt_size(ft_prebuilt->result->rankings_by_id);
+	} else {
+		return(0);
+	}
+}
+
 
 /* These variables are never read by InnoDB or changed. They are a kind of
 dummies that are needed by the MySQL infrastructure to call

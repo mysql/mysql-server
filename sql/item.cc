@@ -6755,6 +6755,25 @@ Item* Item::cache_const_expr_transformer(uchar *arg)
 }
 
 
+bool Item_field::item_field_by_name_analyzer(uchar **arg)
+{
+  const char *name= reinterpret_cast<char*>(*arg);
+  
+  if (strcmp(field_name, name) == 0)
+    return true;
+  else
+    return false;
+}
+
+
+Item* Item_field::item_field_by_name_transformer(uchar *arg)
+{
+  Item *item= reinterpret_cast<Item*>(arg);
+  item->name= name;
+  return item;
+}
+
+
 bool Item_field::send(Protocol *protocol, String *buffer)
 {
   return protocol->store(result_field);

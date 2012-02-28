@@ -1,0 +1,528 @@
+CREATE TABLE wp(
+FTS_DOC_ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+title VARCHAR(255) NOT NULL DEFAULT '',
+text MEDIUMTEXT NOT NULL,
+dummy INTEGER,
+PRIMARY KEY (FTS_DOC_ID),
+UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+FULLTEXT KEY idx (title,text) 
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO wp (title, text) VALUES
+('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database to database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 SELECT FTS_DOC_ID FROM wp;
+SELECT FTS_DOC_ID, title, MATCH(title, text) AGAINST ('database') AS score1,
+MATCH(title, text) AGAINST ('mysql') AS score2 
+FROM wp;
+FTS_DOC_ID	title	score1	score2
+1	MySQL Tutorial	0.22764469683170319	0.000000003771856604828372
+2	How To Use MySQL Well	0	0.000000001885928302414186
+3	Optimizing MySQL	0	0.000000001885928302414186
+4	1001 MySQL Tricks	0	0.000000001885928302414186
+5	MySQL vs. YourSQL	0.45528939366340637	0.000000001885928302414186
+6	MySQL Security	0	0.000000003771856604828372
+No sorting for this query
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score DESC;
+title	score
+MySQL vs. YourSQL	0.45528939366340637
+MySQL Tutorial	0.22764469683170319
+SHOW SESSION STATUS LIKE 'Sort%';
+Variable_name	Value
+Sort_merge_passes	0
+Sort_range	0
+Sort_rows	0
+Sort_scan	0
+No sorting for this query even if MATCH is part of an expression
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database') > 0.1
+ORDER BY score DESC;
+title	score
+MySQL vs. YourSQL	0.45528939366340637
+MySQL Tutorial	0.22764469683170319
+SHOW SESSION STATUS LIKE 'Sort%';
+Variable_name	Value
+Sort_merge_passes	0
+Sort_range	0
+Sort_rows	0
+Sort_scan	0
+No sorting even if there are several MATCH expressions as long as the
+right one is used in ORDER BY
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score1,
+MATCH(title, text) AGAINST ('mysql') AS score2 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score1 DESC;
+title	score1	score2
+MySQL vs. YourSQL	0.45528939366340637	0.000000001885928302414186
+MySQL Tutorial	0.22764469683170319	0.000000003771856604828372
+SHOW SESSION STATUS LIKE 'Sort%';
+Variable_name	Value
+Sort_merge_passes	0
+Sort_range	0
+Sort_rows	0
+Sort_scan	0
+Sorting since it is not a single table query
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp, t1 
+WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID = t1.i
+ORDER BY score DESC;
+title	score
+MySQL vs. YourSQL	0.45528939366340637
+MySQL Tutorial	0.22764469683170319
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+Variable_name	Value
+Sort_rows	2
+Sorting since there is no WHERE clause
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC;
+title	score
+MySQL vs. YourSQL	0.45528939366340637
+MySQL Tutorial	0.22764469683170319
+How To Use MySQL Well	0
+Optimizing MySQL	0
+1001 MySQL Tricks	0
+MySQL Security	0
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+Variable_name	Value
+Sort_rows	6
+Sorting since ordering on multiple columns
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score DESC, FTS_DOC_ID;
+title	score
+MySQL vs. YourSQL	0.45528939366340637
+MySQL Tutorial	0.22764469683170319
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+Variable_name	Value
+Sort_rows	2
+Sorting since ordering is not descending
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score ASC;
+title	score
+MySQL Tutorial	0.22764469683170319
+MySQL vs. YourSQL	0.45528939366340637
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+Variable_name	Value
+Sort_rows	2
+Sorting because one is ordering on a different MATCH expression
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('mysql') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score DESC;
+title	score
+MySQL Tutorial	0.000000003771856604828372
+MySQL vs. YourSQL	0.000000001885928302414186
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+Variable_name	Value
+Sort_rows	2
+No sorting for this query
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC LIMIT 2;
+title	score
+MySQL vs. YourSQL	0.45528939366340637
+MySQL Tutorial	0.22764469683170319
+SHOW SESSION STATUS LIKE 'Sort%';
+Variable_name	Value
+Sort_merge_passes	0
+Sort_range	0
+Sort_rows	0
+Sort_scan	0
+Revert to table scan and sorting for this query since not
+enough matching rows to satisfy LIMIT clause
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC LIMIT 3;
+title	score
+MySQL vs. YourSQL	0.45528939366340637
+MySQL Tutorial	0.22764469683170319
+How To Use MySQL Well	0
+SHOW SESSION STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	3
+Handler_read_rnd_next	7
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+Variable_name	Value
+Sort_rows	3
+Sorting since no LIMIT clause
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC;
+title	score
+MySQL vs. YourSQL	0.45528939366340637
+MySQL Tutorial	0.22764469683170319
+How To Use MySQL Well	0
+Optimizing MySQL	0
+1001 MySQL Tricks	0
+MySQL Security	0
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+Variable_name	Value
+Sort_rows	6
+Sorting since there is a WHERE clause
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp
+WHERE dummy IS NULL
+ORDER BY score DESC LIMIT 2;
+title	score
+MySQL vs. YourSQL	0.45528939366340637
+MySQL Tutorial	0.22764469683170319
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+Variable_name	Value
+Sort_rows	2
+Sorting since ordering is not on a simple MATCH expressions
+FLUSH STATUS;
+SELECT title, (MATCH(title, text) AGAINST ('database')) * 100 AS score 
+FROM wp 
+ORDER BY score DESC LIMIT 2;
+title	score
+MySQL vs. YourSQL	45.52893936634064
+MySQL Tutorial	22.76446968317032
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+Variable_name	Value
+Sort_rows	2
+No ordinary handler accesses when only accessing FTS_DOC_ID and MATCH
+FLUSH STATUS;
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database');
+docid	score
+5	0.45528939366340637
+1	0.22764469683170319
+SHOW SESSION STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Still no handler accesses when adding FTS_DOC_ID to WHERE clause
+FLUSH STATUS;
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID > 2;
+docid	score
+5	0.45528939366340637
+SHOW SESSION STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Still no handler accesses when ordering by MATCH expression
+FLUSH STATUS;
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score;
+docid	score
+1	0.22764469683170319
+5	0.45528939366340637
+SHOW SESSION STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	2
+Handler_read_rnd_next	0
+Optimization is disabled when ordering on FTS_DOC_ID
+FLUSH STATUS;
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY 1 DESC;
+docid	score
+5	0.45528939366340637
+1	0.22764469683170319
+SHOW SESSION STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	2
+Handler_read_rnd_next	0
+Optimization also work with several MATCH expressions
+FLUSH STATUS;
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score1,
+MATCH(title, text) AGAINST ('mysql') AS score2 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database');
+docid	score1	score2
+5	0.45528939366340637	0.000000001885928302414186
+1	0.22764469683170319	0.000000003771856604828372
+SHOW SESSION STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Optimization does not apply if sorting on a different MATCH expressions
+from the one used to access the 
+FLUSH STATUS;
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score1,
+MATCH(title, text) AGAINST ('mysql') AS score2 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score2 DESC;
+docid	score1	score2
+1	0.22764469683170319	0.000000003771856604828372
+5	0.45528939366340637	0.000000001885928302414186
+SHOW SESSION STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	2
+Handler_read_rnd_next	0
+FLUSH STATUS;
+Optimization does not apply for GROUP BY
+SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('database') AS score
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+GROUP BY score;
+FTS_DOC_ID	score
+1	0.22764469683170319
+5	0.45528939366340637
+SHOW SESSION STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	2
+Handler_read_rnd_next	3
+No sorting and no table access with LIMIT clause and only information
+from FTS result
+FLUSH STATUS;
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC LIMIT 2;
+docid	score
+5	0.45528939366340637
+1	0.22764469683170319
+SHOW STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+SHOW SESSION STATUS LIKE 'Sort%';
+Variable_name	Value
+Sort_merge_passes	0
+Sort_range	0
+Sort_rows	0
+Sort_scan	0
+If count optimization applies, EXPLAIN shows 
+"Select tables optimized away."
+EXPLAIN SELECT COUNT(*) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+FLUSH STATUS;
+SELECT COUNT(*) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+COUNT(*)
+2
+Verify that there was no table access
+SHOW STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Optimization applies also to COUNT(expr) as long as expr is not nullable
+EXPLAIN SELECT COUNT(title) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT COUNT(title) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+COUNT(title)
+2
+Optimization does not apply if not a single table query.
+EXPLAIN SELECT count(*)
+FROM wp, t1 
+WHERE MATCH(title, text) AGAINST ('database');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	wp	fulltext	idx	idx	0		1	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	
+SELECT count(*)
+FROM wp, t1 
+WHERE MATCH(title, text) AGAINST ('database');
+count(*)
+12
+Optimization does not apply if MATCH is part of an expression
+EXPLAIN SELECT COUNT(title) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	wp	fulltext	idx	idx	0		1	Using where
+SELECT COUNT(title) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
+COUNT(title)
+2
+Optimization does not apply if MATCH is part of an expression
+EXPLAIN SELECT COUNT(title) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	wp	fulltext	idx	idx	0		1	Using where
+SELECT COUNT(title) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
+COUNT(title)
+2
+Optimization does not apply if COUNT expression is nullable
+EXPLAIN SELECT COUNT(dummy) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	wp	fulltext	idx	idx	0		1	Using where
+SELECT COUNT(dummy) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+COUNT(dummy)
+0
+ALTER TABLE wp ENGINE=myisam;
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score DESC;
+title	score
+MySQL vs. YourSQL	0.9562782645225525
+MySQL Tutorial	0.5756555199623108
+SHOW SESSION STATUS LIKE 'Sort%';
+Variable_name	Value
+Sort_merge_passes	0
+Sort_range	1
+Sort_rows	2
+Sort_scan	0
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC LIMIT 2;
+title	score
+MySQL vs. YourSQL	0.9562782645225525
+MySQL Tutorial	0.5756555199623108
+SHOW SESSION STATUS LIKE 'Sort%';
+Variable_name	Value
+Sort_merge_passes	0
+Sort_range	1
+Sort_rows	2
+Sort_scan	0
+FLUSH STATUS;
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database');
+docid	score
+5	0.9562782645225525
+1	0.5756555199623108
+SHOW SESSION STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+FLUSH STATUS;
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC LIMIT 2;
+docid	score
+5	0.9562782645225525
+1	0.5756555199623108
+SHOW STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	2
+Handler_read_rnd_next	0
+SHOW SESSION STATUS LIKE 'Sort%';
+Variable_name	Value
+Sort_merge_passes	0
+Sort_range	1
+Sort_rows	2
+Sort_scan	0
+EXPLAIN SELECT COUNT(*) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	wp	fulltext	idx	idx	0		1	Using where
+FLUSH STATUS;
+SELECT COUNT(*) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+COUNT(*)
+2
+Verify that there was no table access
+SHOW STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+DROP TABLE wp, t1;

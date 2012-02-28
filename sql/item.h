@@ -1248,6 +1248,28 @@ public:
 
   virtual bool cache_const_expr_analyzer(uchar **arg);
   virtual Item* cache_const_expr_transformer(uchar *arg);
+
+  /**
+     Analyzer for finding Item_field by name
+     
+     @param arg  Field name to search for
+     
+     @return TRUE Go deeper in item tree.  (Found Item or not an Item_field)
+     @return FALSE Don't go deeper in item tree. (Item_field with other name)
+  */
+  virtual bool item_field_by_name_analyzer(uchar **arg) { return true; };
+
+  /**
+     Simple transformer that returns the argument if this is an Item_field.
+     The new item will inherit it's name to maintain aliases.
+
+     @param arg Item to replace Item_field
+
+     @return argument if this is an Item_field
+     @return this otherwise.
+  */
+  virtual Item* item_field_by_name_transformer(uchar *arg) { return this; };
+  
   /*
     Check if a partition function is allowed
     SYNOPSIS
@@ -2045,6 +2067,8 @@ public:
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(uchar *select_arg);
+  virtual bool item_field_by_name_analyzer(uchar **arg);
+  virtual Item* item_field_by_name_transformer(uchar *arg);
   virtual void print(String *str, enum_query_type query_type);
   bool is_outer_field() const
   {

@@ -1857,8 +1857,90 @@ public:
 
   bool fix_index();
   void init_search(bool no_order);
+
+  /**
+     Get number of matching rows from FT handler.
+
+     @note Requires that FT handler supports the extended API
+
+     @return Number of matching rows in result 
+   */
+  ulonglong get_count()
+  {
+    DBUG_ASSERT(ft_handler);
+    DBUG_ASSERT(table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT);
+
+    return ((FT_INFO_EXT *)ft_handler)->could_you->count_matches(ft_handler);
+  }
+
+  /**
+     Check whether FT result is ordered on rank
+
+     @return true if result is ordered
+     @return false otherwise
+   */
+  bool ordered_result()
+  {
+    if (flags & FT_SORTED)
+      return true;
+
+    if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+      return false;
+
+    DBUG_ASSERT(ft_handler);
+    return ((FT_INFO_EXT *)ft_handler)->could_you->get_flags() & 
+      FTS_ORDERED_RESULT;
+  }
+
+  /**
+     Check whether FT result contains the document ID
+
+     @return true if document ID is available
+     @return false otherwise
+   */
+  bool docid_in_result()
+  {
+    DBUG_ASSERT(ft_handler);
+
+    if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+      return false;
+
+    return ((FT_INFO_EXT *)ft_handler)->could_you->get_flags() & 
+      FTS_DOCID_IN_RESULT;
+  }
 };
 
+/**
+   Item_func class used to fetch document ID from FTS result.  This
+   class is used to replace Item_field objects in order to fetch
+   document ID from FTS result instead of table.
+ */
+class Item_func_docid : public Item_int_func
+{
+  FT_INFO_EXT *ft_handler;
+public:
+  Item_func_docid(FT_INFO_EXT *handler) : ft_handler(handler) 
+  { 
+    max_length= 21;
+    maybe_null= false; 
+    unsigned_flag= true;
+  } 
+
+  const char *func_name() const { return "docid"; }
+
+  void update_used_tables()
+  {
+    Item_int_func::update_used_tables();
+    used_tables_cache|= RAND_TABLE_BIT;
+  }
+
+  longlong val_int() 
+  { 
+    DBUG_ASSERT(ft_handler);
+    return ft_handler->could_you->get_docid(reinterpret_cast<FT_INFO*>
+                                            (ft_handler));
+  }
+};
 
 class Item_func_bit_xor : public Item_func_bit
 {

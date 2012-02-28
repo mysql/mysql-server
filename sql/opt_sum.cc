@@ -239,7 +239,7 @@ int opt_sum_query(THD *thd,
 {
   List_iterator_fast<Item> it(all_fields);
   int const_result= 1;
-  bool recalc_const_item= 0;
+  bool recalc_const_item= false;
   ulonglong count= 1;
   bool is_exact_count= TRUE, maybe_exact_count= TRUE;
   table_map removed_tables= 0, outer_tables= 0, used_tables= 0;
@@ -348,11 +348,37 @@ int opt_sum_query(THD *thd,
             }
             is_exact_count= 1;                  // count is now exact
           }
-          ((Item_sum_count*) item)->make_const((longlong) count);
-          recalc_const_item= 1;
+        }
+        /* For result count of full-text search: If
+           1. it is a single table query,
+           2. the WHERE condition is a single MATCH expresssion,
+           3. the table engine can provide the row count from FTS result, and
+           4. the expr in COUNT(expr) can not be NULL,
+           we do the full-text search now, and replace with the actual count.
+
+           Note: Item_func_match::init_search() will be called again
+                 later in the optimization phase by init_fts_funcs(),
+                 but search will still only be done once.
+        */
+        else if (tables->next_leaf == NULL &&                             // 1 
+                 conds && conds->type() == Item::FUNC_ITEM && 
+                 ((Item_func*)conds)->functype() == Item_func::FT_FUNC && // 2
+                 (tables->table->file->ha_table_flags() &
+                  HA_CAN_FULLTEXT_EXT) &&                                 // 3
+                 !((Item_sum_count*) item)->get_arg(0)->maybe_null)       // 4
+        {
+          Item_func_match* fts_item= static_cast<Item_func_match*>(conds); 
+          fts_item->init_search(true);
+          count= fts_item->get_count();
         }
         else
           const_result= 0;
+
+        if (const_result == 1) {
+          ((Item_sum_count*) item)->make_const((longlong) count);
+          recalc_const_item= true;
+        }
+          
         break;
       case Item_sum::MIN_FUNC:
       case Item_sum::MAX_FUNC:
