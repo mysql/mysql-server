@@ -2801,10 +2801,8 @@ row_discard_tablespace_for_mysql(
 			index->space = FIL_NULL;
 		}
 
-#ifdef UNIV_DEBUG
 		DBUG_EXECUTE_IF("ib_discard_before_root_reset_crash",
 				DBUG_SUICIDE(););
-#endif /* UNIV_DEBUG */
 
 		err = DB_SUCCESS;
 	}
@@ -2815,15 +2813,11 @@ func_exit:
 		dict_table_close(table, TRUE);
 	}
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_discard_before_commit_crash", DBUG_SUICIDE(););
-#endif /* UNIV_DEBUG */
 
 	trx_commit_for_mysql(trx);
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_discard_after_commit_crash", DBUG_SUICIDE(););
-#endif /* UNIV_DEBUG */
 
 	row_mysql_unlock_data_dictionary(trx);
 

@@ -507,10 +507,8 @@ row_import_adjust_root_pages(
 	dict_index_t*		index;
 	db_err			err = DB_SUCCESS;
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_sec_rec_count_mismatch_failure",
 			n_rows_in_table++;);
-#endif /* UNIV_DEBUG */
 
 	/* Skip the cluster index. */
 	index = dict_table_get_first_index(table);
@@ -642,10 +640,8 @@ row_import_set_sys_max_row_id(
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_set_max_rowid_failure",
 			err = DB_CORRUPTION;);
-#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 		char		index_name[MAX_FULL_NAME_LEN + 1];
@@ -1180,10 +1176,8 @@ row_import_for_mysql(
 
 	mutex_exit(&trx->undo_mutex);
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_undo_assign_failure",
 			err = DB_TOO_MANY_CONCURRENT_TRXS;);
-#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 
@@ -1203,10 +1197,8 @@ row_import_for_mysql(
 
 	err = row_import_set_index_root(table, trx->mysql_thd);
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_set_index_root_failure",
 			err = DB_TOO_MANY_CONCURRENT_TRXS;);
-#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));
@@ -1237,10 +1229,8 @@ row_import_for_mysql(
 		mutex_exit(&dict_sys->mutex);
 	}
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_table_id_reassign_failure",
 			err = DB_TOO_MANY_CONCURRENT_TRXS;);
-#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 		return(row_import_cleanup(prebuilt, trx, err));
@@ -1255,10 +1245,8 @@ row_import_for_mysql(
 
 	err = fil_reset_space_and_lsn(table, current_lsn);
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_reset_space_and_lsn_failure",
 			err = DB_TOO_MANY_CONCURRENT_TRXS;);
-#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 		ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
@@ -1279,10 +1267,8 @@ row_import_for_mysql(
 		    dict_tf_to_fsp_flags(table->flags),
 		    table->name);
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
 			err = DB_TABLESPACE_NOT_FOUND;);
-#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 
@@ -1297,10 +1283,8 @@ row_import_for_mysql(
 
 	err = ibuf_check_bitmap_on_import(trx, table->space);
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_check_bitmap_failure",
 			err = DB_CORRUPTION;);
-#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 		return(row_import_cleanup(prebuilt, trx, err));
@@ -1321,10 +1305,8 @@ row_import_for_mysql(
 
 	err = btr_root_adjust_on_import(index);
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_cluster_root_adjust_failure",
 			err = DB_CORRUPTION;);
-#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));
@@ -1344,9 +1326,7 @@ row_import_for_mysql(
 		trx->op_info = "";
 	}
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_cluster_failure", err = DB_CORRUPTION;);
-#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));
@@ -1355,10 +1335,8 @@ row_import_for_mysql(
 	err = row_import_adjust_root_pages(
 		prebuilt, trx, table, n_rows_in_table);
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_sec_root_adjust_failure",
 			err = DB_CORRUPTION;);
-#endif /* UNIV_DEBUG */
 
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));
@@ -1387,16 +1365,12 @@ row_import_for_mysql(
 		return(row_import_error(prebuilt, trx, err));
 	}
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_before_checkpoint_crash", DBUG_SUICIDE(););
-#endif /* UNIV_DEBUG */
 
 	/* Flush dirty blocks to the file. */
 	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
 
-#ifdef UNIV_DEBUG
 	DBUG_EXECUTE_IF("ib_import_after_checkpoint_crash", DBUG_SUICIDE(););
-#endif /* UNIV_DEBUG */
 
 	ut_a(err == DB_SUCCESS);
 
