@@ -373,7 +373,6 @@ struct __toku_dbc {
   DB *dbp;
   int (*c_close) (DBC *);
   int (*c_count) (DBC *, db_recno_t *, u_int32_t);
-  int (*c_del) (DBC *, u_int32_t);
   int (*c_get) (DBC *, DBT *, DBT *, u_int32_t);
 };
 int db_env_create(DB_ENV **, u_int32_t) __attribute__((__visibility__("default")));

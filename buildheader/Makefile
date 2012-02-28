@@ -18,4 +18,4 @@ default: ../include/db.h
 hfiles: tdb.h
 
 clean:
-	rm -f *.o make_tdb
+	rm -f *.o make_tdb make_db_h_?_? sample_offsets sample_offsets_mysql make_tdb_h

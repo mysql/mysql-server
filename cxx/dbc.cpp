@@ -15,6 +15,8 @@ int Dbc::get(Dbt* key, Dbt *data, u_int32_t flags) {
     return env->maybe_throw_error(ret);
 }
 
+#if 0
+// No longer present (see #4576)
 int Dbc::del(u_int32_t flags) {
     DBC *dbc = this;
     int ret = dbc->c_del(dbc, flags);
@@ -22,6 +24,7 @@ int Dbc::del(u_int32_t flags) {
     DbEnv *env = (DbEnv*)dbenv_c->api1_internal;
     return env->maybe_throw_error(ret);
 }
+#endif
 
 int Dbc::count(db_recno_t *count, u_int32_t flags) {
     DBC *dbc = this;

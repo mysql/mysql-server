@@ -209,6 +209,8 @@ void test_zero_count(Db *db, int n) {
 
     Dbt key; key.set_flags(DB_DBT_REALLOC);
     Dbt val; val.set_flags(DB_DBT_REALLOC);
+#if 0
+    // c->del no longer supported.  See #4576.
     int i;
     for (i=1; count > 0; i++) {
         r = cursor->del(0); assert(r == 0);
@@ -222,6 +224,7 @@ void test_zero_count(Db *db, int n) {
         if (r != 0) break;
     }
     assert(i == 2);
+#endif
     if (key.get_data()) toku_free(key.get_data());
     if (val.get_data()) toku_free(val.get_data());
     r = cursor->close(); assert(r == 0);
