@@ -157,6 +157,16 @@ foreach my $option (@ARGV)
     $cmakeargs = $cmakeargs." -DWITH_ZLIB=system";
     next;
   }
+  if($option =~ /with-libevent=/)
+  {
+    $cmakeargs = $cmakeargs." -DWITH_LIBEVENT=system";
+    next;
+  }
+  if($option =~ /with-libevent/)
+  {
+    $cmakeargs = $cmakeargs." -DWITH_LIBEVENT=bundled";
+    next;
+  }
   if($option =~ /with-ssl=/)
   {
     $cmakeargs = $cmakeargs." -DWITH_SSL=yes";

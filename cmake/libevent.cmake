@@ -29,9 +29,9 @@ ENDMACRO()
 #
 # Provides the following configure options:
 # WITH_LIBEVENT_BUNDLED
-# If this is set,we use bindled zlib
-# If this is not set,search for system zlib. 
-# if system zlib is not found, use bundled copy
+# If this is set,we use bindled libevent
+# If this is not set,search for system libevent. 
+# if system libevent is not found, use bundled copy
 # LIBEVENT_LIBRARIES, LIBEVENT_INCLUDE_DIR and LIBEVENT_SOURCES
 # are set after this macro has run
 
