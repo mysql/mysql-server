@@ -29,10 +29,7 @@
 #
 # Setup
 #
-
---source include/not_embedded.inc
---source include/not_threadpool.inc
-
+--source include/one_thread_per_connection.inc
 SET @global_slow_launch_time = @@GLOBAL.slow_launch_time;
 
 --echo ** Connection default **

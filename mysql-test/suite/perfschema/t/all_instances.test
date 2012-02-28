@@ -5,6 +5,7 @@
 --source include/have_blackhole.inc
 --source include/have_ssl.inc
 --source include/not_windows.inc
+--source include/one_thread_per_connection.inc
 
 use performance_schema;
 

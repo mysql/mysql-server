@@ -1,0 +1,47 @@
+# uint global
+--source include/not_windows.inc
+--source include/not_embedded.inc
+SET @start_global_value = @@global.thread_pool_size;
+
+#
+# exists as global only
+#
+--replace_column 1 #
+select @@global.thread_pool_size;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.thread_pool_size;
+--replace_column 2 #
+show global variables like 'thread_pool_size';
+--replace_column 2 #
+show session variables like 'thread_pool_size';
+--replace_column 2 #
+select * from information_schema.global_variables where variable_name='thread_pool_size';
+--replace_column 2 #
+select * from information_schema.session_variables where variable_name='thread_pool_size';
+--replace_column 2 #
+
+#
+# show that it's writable
+#
+set global thread_pool_size=1;
+select @@global.thread_pool_size;
+set global thread_pool_size=128;
+select @@global.thread_pool_size;
+--error ER_GLOBAL_VARIABLE
+set session thread_pool_size=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global thread_pool_size=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global thread_pool_size=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global thread_pool_size="foo";
+
+set global thread_pool_size=-1;
+
+set global thread_pool_size=100000;
+
+SET @@global.thread_pool_size = @start_global_value;

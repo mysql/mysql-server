@@ -767,6 +767,9 @@ THD::THD()
   stmt_arena= this;
   thread_stack= 0;
   scheduler= thread_scheduler;                 // Will be fixed later
+  event_scheduler.data= 0;
+  event_scheduler.m_psi= 0;
+  skip_wait_timeout= false;
   extra_port= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
@@ -812,8 +815,8 @@ THD::THD()
 #endif
 #ifndef EMBEDDED_LIBRARY
   mysql_audit_init_thd(this);
-  net.vio=0;
 #endif
+  net.vio=0;
   client_capabilities= 0;                       // minimalistic client
   ull=0;
   system_thread= NON_SYSTEM_THREAD;
@@ -1522,33 +1525,8 @@ void THD::awake(killed_state state_to_set)
 #ifdef SIGNAL_WITH_VIO_CLOSE
     if (this != current_thd)
     {
-      /*
-        Before sending a signal, let's close the socket of the thread
-        that is being killed ("this", which is not the current thread).
-        This is to make sure it does not block if the signal is lost.
-        This needs to be done only on platforms where signals are not
-        a reliable interruption mechanism.
-
-        Note that the downside of this mechanism is that we could close
-        the connection while "this" target thread is in the middle of
-        sending a result to the application, thus violating the client-
-        server protocol.
-
-        On the other hand, without closing the socket we have a race
-        condition. If "this" target thread passes the check of
-        thd->killed, and then the current thread runs through
-        THD::awake(), sets the 'killed' flag and completes the
-        signaling, and then the target thread runs into read(), it will
-        block on the socket. As a result of the discussions around
-        Bug#37780, it has been decided that we accept the race
-        condition. A second KILL awakes the target from read().
-
-        If we are killing ourselves, we know that we are not blocked.
-        We also know that we will check thd->killed before we go for
-        reading the next statement.
-      */
-
-      close_active_vio();
+      if(active_vio)
+        vio_shutdown(active_vio, SHUT_RDWR);
     }
 #endif
 
@@ -1723,7 +1701,7 @@ bool THD::store_globals()
   real_id= pthread_self();                      // For debugging
   mysys_var->stack_ends_here= thread_stack +    // for consistency, see libevent_thread_proc
                               STACK_DIRECTION * (long)my_thread_stack_size;
-
+  vio_set_thread_id(net.vio, real_id);
   /*
     We have to call thr_lock_info_init() again here as THD may have been
     created in another thread
@@ -3931,9 +3909,7 @@ extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
   return sqlcom_can_generate_row_events(thd);
 }
 
-#ifdef NOT_USED /* we'll do the correctly instead */
-extern "C" void thd_pool_wait_begin(MYSQL_THD thd, int wait_type);
-extern "C" void thd_pool_wait_end(MYSQL_THD thd);
+
 
 /*
   Interface for MySQL Server, plugins and storage engines to report
@@ -3942,6 +3918,7 @@ extern "C" void thd_pool_wait_end(MYSQL_THD thd);
   SYNOPSIS
   thd_wait_begin()
   thd                     Thread object
+                          Can be NULL, in this case current THD is used.
   wait_type               Type of wait
                           1 -- short wait (e.g. for mutex)
                           2 -- medium wait (e.g. for disk io)
@@ -3958,6 +3935,12 @@ extern "C" void thd_pool_wait_end(MYSQL_THD thd);
 */
 extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
+  if (!thd)
+  {
+    thd= current_thd;
+    if (unlikely(!thd))
+      return;
+  }
   MYSQL_CALLBACK(thd->scheduler, thd_wait_begin, (thd, wait_type));
 }
 
@@ -3966,24 +3949,19 @@ extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
   when they waking up from a sleep/stall.
 
   @param  thd   Thread handle
+  Can be NULL, in this case current THD is used.
 */
 extern "C" void thd_wait_end(MYSQL_THD thd)
 {
+  if (!thd)
+  {
+    thd= current_thd;
+    if (unlikely(!thd))
+      return;
+  }
   MYSQL_CALLBACK(thd->scheduler, thd_wait_end, (thd));
 }
-#else
-extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
-{
-  /* do NOTHING for the embedded library */
-  return;
-}
 
-extern "C" void thd_wait_end(MYSQL_THD thd)
-{
-  /* do NOTHING for the embedded library */
-  return;
-}
-#endif
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
 /****************************************************************************

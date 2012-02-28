@@ -1,0 +1,41 @@
+SET @start_global_value = @@global.thread_pool_size;
+select @@global.thread_pool_size;
+@@global.thread_pool_size
+#
+select @@session.thread_pool_size;
+ERROR HY000: Variable 'thread_pool_size' is a GLOBAL variable
+show global variables like 'thread_pool_size';
+Variable_name	Value
+thread_pool_size	#
+show session variables like 'thread_pool_size';
+Variable_name	Value
+thread_pool_size	#
+select * from information_schema.global_variables where variable_name='thread_pool_size';
+VARIABLE_NAME	VARIABLE_VALUE
+THREAD_POOL_SIZE	#
+select * from information_schema.session_variables where variable_name='thread_pool_size';
+VARIABLE_NAME	VARIABLE_VALUE
+THREAD_POOL_SIZE	#
+set global thread_pool_size=1;
+select @@global.thread_pool_size;
+@@global.thread_pool_size
+1
+set global thread_pool_size=128;
+select @@global.thread_pool_size;
+@@global.thread_pool_size
+128
+set session thread_pool_size=1;
+ERROR HY000: Variable 'thread_pool_size' is a GLOBAL variable and should be set with SET GLOBAL
+set global thread_pool_size=1.1;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_size'
+set global thread_pool_size=1e1;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_size'
+set global thread_pool_size="foo";
+ERROR 42000: Incorrect argument type to variable 'thread_pool_size'
+set global thread_pool_size=-1;
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_size value: '-1'
+set global thread_pool_size=100000;
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_size value: '100000'
+SET @@global.thread_pool_size = @start_global_value;

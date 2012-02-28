@@ -40,7 +40,11 @@ typedef struct st_alarm_info
 } ALARM_INFO;
 
 void thr_alarm_info(ALARM_INFO *info);
+extern my_bool my_disable_thr_alarm;
 
+#ifdef _WIN32
+#define DONT_USE_THR_ALARM
+#endif
 #if defined(DONT_USE_THR_ALARM)
 
 #define USE_ALARM_THREAD
@@ -88,7 +92,6 @@ typedef struct st_alarm {
 
 extern uint thr_client_alarm;
 extern pthread_t alarm_thread;
-extern my_bool my_disable_thr_alarm;
 
 #define thr_alarm_init(A) (*(A))=0
 #define thr_alarm_in_use(A) (*(A)!= 0)

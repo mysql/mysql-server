@@ -26,11 +26,6 @@
     path 	Path to file
     amode	Access method
  
-  DESCRIPTION
-    This function wraps the normal access method because the access 
-    available in MSVCRT> +reports that filenames such as LPT1 and 
-    COM1 are valid (they are but should not be so for us).
- 
   RETURN VALUES
   0    ok
   -1   error  (We use -1 as my_access is mapped to access on other platforms)
@@ -38,12 +33,11 @@
 
 int my_access(const char *path, int amode) 
 { 
-  WIN32_FILE_ATTRIBUTE_DATA fileinfo;
-  BOOL result;
-	
-  result= GetFileAttributesEx(path, GetFileExInfoStandard, &fileinfo);
-  if (! result ||
-      (fileinfo.dwFileAttributes & FILE_ATTRIBUTE_READONLY) && (amode & W_OK))
+  DWORD attributes;
+
+  attributes = GetFileAttributes(path);
+  if (attributes == INVALID_FILE_ATTRIBUTES ||
+      (attributes & FILE_ATTRIBUTE_READONLY) && (amode & W_OK))
   {
     my_errno= errno= EACCES;
     return -1;

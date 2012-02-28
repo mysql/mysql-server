@@ -22,3 +22,10 @@
 
 # The below was used for really old versions of FreeBSD, roughly: before 5.1.9
 # ADD_DEFINITIONS(-DHAVE_BROKEN_REALPATH)
+
+# Use atomic builtins
+IF(CMAKE_SIZEOF_VOID_P EQUAL 4 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "i386")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=i686")		
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=i686")		
+  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -march=i686")
+ENDIF()

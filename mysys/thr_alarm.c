@@ -598,93 +598,6 @@ static void *alarm_handler(void *arg __attribute__((unused)))
   return 0;					/* Impossible */
 }
 #endif /* USE_ALARM_THREAD */
-
-/*****************************************************************************
-  thr_alarm for win95
-*****************************************************************************/
-
-#else /* __WIN__ */
-
-void thr_alarm_kill(my_thread_id thread_id)
-{
-  /* Can't do this yet */
-}
-
-sig_handler process_alarm(int sig __attribute__((unused)))
-{
-  /* Can't do this yet */
-}
-
-
-my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
-{
-  (*alrm)= &alarm->alarmed;
-  if (alarm_aborted)
-  {
-    alarm->alarmed.crono=0;
-    return 1;
-  }
-  if (!(alarm->alarmed.crono=SetTimer((HWND) NULL,0, sec*1000,
-				      (TIMERPROC) NULL)))
-    return 1;
-  return 0;
-}
-
-
-my_bool thr_got_alarm(thr_alarm_t *alrm_ptr)
-{
-  thr_alarm_t alrm= *alrm_ptr;
-  MSG msg;
-  if (alrm->crono)
-  {
-    PeekMessage(&msg,NULL,WM_TIMER,WM_TIMER,PM_REMOVE) ;
-    if (msg.message == WM_TIMER || alarm_aborted)
-    {
-      KillTimer(NULL, alrm->crono);
-      alrm->crono = 0;
-    }
-  }
-  return !alrm->crono || alarm_aborted;
-}
-
-
-void thr_end_alarm(thr_alarm_t *alrm_ptr)
-{
-  thr_alarm_t alrm= *alrm_ptr;
-  /* alrm may be zero if thr_alarm aborted with an error */
-  if (alrm && alrm->crono)
-
-  {
-    KillTimer(NULL, alrm->crono);
-    alrm->crono = 0;
-  }
-}
-
-void end_thr_alarm(my_bool free_structures)
-{
-  DBUG_ENTER("end_thr_alarm");
-  alarm_aborted=1;				/* No more alarms */
-  DBUG_VOID_RETURN;
-}
-
-void init_thr_alarm(uint max_alarm)
-{
-  DBUG_ENTER("init_thr_alarm");
-  alarm_aborted=0;				/* Yes, Gimmie alarms */
-  DBUG_VOID_RETURN;
-}
-
-void thr_alarm_info(ALARM_INFO *info)
-{
-  bzero((char*) info, sizeof(*info));
-}
-
-void resize_thr_alarm(uint max_alarms)
-{
-}
-
-#endif /* __WIN__ */
-
 #endif
 
 /****************************************************************************
@@ -955,4 +868,5 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 }
 
 #endif /* !defined(DONT_USE_ALARM_THREAD) */
+#endif /* WIN */
 #endif /* MAIN */

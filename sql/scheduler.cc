@@ -46,28 +46,20 @@ static bool no_threads_end(THD *thd, bool put_in_cache)
 /**@{*/
 extern "C"
 {
-static void scheduler_wait_lock_begin(void) {
-  THD *thd=current_thd;
-  scheduler_functions *func= thd->scheduler;
-  MYSQL_CALLBACK(func, thd_wait_begin, (thd, THD_WAIT_TABLE_LOCK));
+static void scheduler_wait_lock_begin(void) { 
+  thd_wait_begin(NULL, THD_WAIT_TABLE_LOCK);
 }
 
 static void scheduler_wait_lock_end(void) {
-  THD *thd=current_thd;
-  scheduler_functions *func= thd->scheduler;
-  MYSQL_CALLBACK(func, thd_wait_end, (thd));
+  thd_wait_end(NULL);
 }
 
 static void scheduler_wait_sync_begin(void) {
-  THD *thd=current_thd;
-  scheduler_functions *func= thd ? thd->scheduler : thread_scheduler;
-  MYSQL_CALLBACK(func, thd_wait_begin, (thd, THD_WAIT_TABLE_LOCK));
+  thd_wait_begin(NULL, THD_WAIT_SYNC);
 }
 
 static void scheduler_wait_sync_end(void) {
-  THD *thd=current_thd;
-  scheduler_functions *func= thd ? thd->scheduler : thread_scheduler;
-  MYSQL_CALLBACK(func, thd_wait_end, (thd));
+  thd_wait_end(NULL);
 }
 };
 /**@}*/
@@ -79,7 +71,7 @@ static void scheduler_wait_sync_end(void) {
   one_thread_scheduler() or one_thread_per_connection_scheduler() in
   mysqld.cc, so this init function will always be called.
  */
-static void scheduler_init() {
+void scheduler_init() {
   thr_set_lock_wait_callback(scheduler_wait_lock_begin,
                              scheduler_wait_lock_end);
   thr_set_sync_wait_callback(scheduler_wait_sync_begin,
@@ -124,25 +116,6 @@ void one_thread_scheduler(scheduler_functions *func)
 }
 
 
-#ifdef HAVE_POOL_OF_THREADS
-
-/*
-  thd_scheduler keeps the link between THD and events.
-  It's embedded in the THD class.
-*/
-
-thd_scheduler::thd_scheduler()
-  : m_psi(NULL), logged_in(FALSE), io_event(NULL), thread_attached(FALSE)
-{
-}
-
-
-thd_scheduler::~thd_scheduler()
-{
-  my_free(io_event);
-}
-
-#endif
 
 /*
   no pluggable schedulers in mariadb.

@@ -1701,6 +1701,9 @@ public:
   /* True if we want to log all errors */
   bool log_all_errors;
 
+  /* Do not set socket timeouts for wait_timeout (used with threadpool) */
+  bool skip_wait_timeout;
+
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
@@ -2343,6 +2346,7 @@ public:
   {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = vio;
+    vio_set_thread_id(vio, pthread_self());
     mysql_mutex_unlock(&LOCK_thd_data);
   }
   inline void clear_active_vio()
@@ -4285,6 +4289,8 @@ inline int handler::ha_update_tmp_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_DONE(error);
   return error;
 }
+
+extern pthread_attr_t *get_connection_attrib(void);
 
 #endif /* MYSQL_SERVER */
 

@@ -891,6 +891,7 @@ static int check_connection(THD *thd)
 
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
+
 #ifdef SIGNAL_WITH_VIO_CLOSE
   thd->set_active_vio(net->vio);
 #endif
@@ -1202,7 +1203,7 @@ void do_handle_one_connection(THD *thd_arg)
   /* We need to set this because of time_out_user_resource_limits */
   thd->start_utime= thd->thr_create_utime;
 
-  if (MYSQL_CALLBACK_ELSE(thread_scheduler, init_new_connection_thread, (), 0))
+  if (MYSQL_CALLBACK_ELSE(thd->scheduler, init_new_connection_thread, (), 0))
   {
     close_connection(thd, ER_OUT_OF_RESOURCES);
     statistic_increment(aborted_connects,&LOCK_status);

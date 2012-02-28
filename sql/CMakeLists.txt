@@ -31,7 +31,7 @@ ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
 
-ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_EVENT_SCHEDULER) 
+ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_EVENT_SCHEDULER -DHAVE_POOL_OF_THREADS) 
 IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
@@ -82,10 +82,18 @@ SET (SQL_SOURCE
                create_options.cc multi_range_read.cc
                opt_index_cond_pushdown.cc opt_subselect.cc
                opt_table_elimination.cc sql_expression_cache.cc
-               gcalc_slicescan.cc gcalc_tools.cc ../sql-common/mysql_async.c
-
+               gcalc_slicescan.cc gcalc_tools.cc
+			   threadpool_common.cc 
+			   ../sql-common/mysql_async.c
                ${GEN_SOURCES}
-               ${MYSYS_LIBWRAP_SOURCE})
+               ${MYSYS_LIBWRAP_SOURCE}
+			   )
+  
+IF(WIN32)
+  SET(SQL_SOURCE ${SQL_SOURCE} threadpool_win.cc)
+ELSE()
+ SET(SQL_SOURCE ${SQL_SOURCE} threadpool_unix.cc)
+ENDIF()
 
 MYSQL_ADD_PLUGIN(partition ha_partition.cc STORAGE_ENGINE DEFAULT STATIC_ONLY
 RECOMPILE_FOR_EMBEDDED)

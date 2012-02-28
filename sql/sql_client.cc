@@ -29,7 +29,7 @@ void my_net_local_init(NET *net)
 {
 #ifndef EMBEDDED_LIBRARY
   net->max_packet=   (uint) global_system_variables.net_buffer_length;
-
+  net->read_timeout= net->write_timeout= 0;
   my_net_set_read_timeout(net, (uint)global_system_variables.net_read_timeout);
   my_net_set_write_timeout(net,
                            (uint)global_system_variables.net_write_timeout);

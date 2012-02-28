@@ -804,9 +804,6 @@ The following options may be given as the first argument:
  values are COMMIT or ROLLBACK.
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
- --thread-handling=name 
- Define threads usage for handling queries, one of
- one-thread-per-connection, no-threads
  --thread-stack=#    The stack size for each thread
  --time-format=name  The TIME format (ignored)
  --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
@@ -1076,7 +1073,6 @@ table-definition-cache 400
 table-open-cache 400
 tc-heuristic-recover COMMIT
 thread-cache-size 0
-thread-handling one-thread-per-connection
 thread-stack 294912
 time-format %H:%i:%s
 timed-mutexes FALSE

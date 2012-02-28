@@ -1,0 +1,47 @@
+SET @start_global_value = @@global.thread_pool_stall_limit;
+select @@global.thread_pool_stall_limit;
+@@global.thread_pool_stall_limit
+500
+select @@session.thread_pool_stall_limit;
+ERROR HY000: Variable 'thread_pool_stall_limit' is a GLOBAL variable
+show global variables like 'thread_pool_stall_limit';
+Variable_name	Value
+thread_pool_stall_limit	500
+show session variables like 'thread_pool_stall_limit';
+Variable_name	Value
+thread_pool_stall_limit	500
+select * from information_schema.global_variables where variable_name='thread_pool_stall_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+THREAD_POOL_STALL_LIMIT	500
+select * from information_schema.session_variables where variable_name='thread_pool_stall_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+THREAD_POOL_STALL_LIMIT	500
+set global thread_pool_stall_limit=60;
+select @@global.thread_pool_stall_limit;
+@@global.thread_pool_stall_limit
+60
+set global thread_pool_stall_limit=4294967295;
+select @@global.thread_pool_stall_limit;
+@@global.thread_pool_stall_limit
+4294967295
+set session thread_pool_stall_limit=1;
+ERROR HY000: Variable 'thread_pool_stall_limit' is a GLOBAL variable and should be set with SET GLOBAL
+set global thread_pool_stall_limit=1.1;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_stall_limit'
+set global thread_pool_stall_limit=1e1;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_stall_limit'
+set global thread_pool_stall_limit="foo";
+ERROR 42000: Incorrect argument type to variable 'thread_pool_stall_limit'
+set global thread_pool_stall_limit=-1;
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_stall_limit value: '-1'
+select @@global.thread_pool_stall_limit;
+@@global.thread_pool_stall_limit
+10
+set global thread_pool_stall_limit=10000000000;
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_stall_limit value: '10000000000'
+select @@global.thread_pool_stall_limit;
+@@global.thread_pool_stall_limit
+4294967295
+set @@global.thread_pool_stall_limit = @start_global_value;
