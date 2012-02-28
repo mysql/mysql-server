@@ -2277,6 +2277,8 @@ fil_make_ibt_name(
 	it to .ibt, so that a server crash during the import will not
 	cause trouble during crash recovery.  If an .ibt file exists,
 	try to recover it instead of an .ibd file. */
+	ut_ad(strlen(filepath) > 4);
+
 	ibt_name = mem_strdup(filepath);
 	ibt_name[strlen(ibt_name) - 1] = 't';
 	return(ibt_name);
@@ -2296,6 +2298,8 @@ fil_make_cfg_name(
 
 	/* Create a temporary file path by replacing the .ibd suffix
 	with .cfg. */
+
+	ut_ad(strlen(filepath) > 4);
 
 	cfg_name = mem_strdup(filepath);
 	ut_snprintf(cfg_name + strlen(cfg_name) - 3, 4, "cfg");
@@ -2516,9 +2520,7 @@ try_again:
 		fil_op_write_log(MLOG_FILE_DELETE, id, 0, 0, path, NULL, &mtr);
 		mtr_commit(&mtr);
 #endif
-		mem_free(path);
-
-		return(DB_SUCCESS);
+		err = DB_SUCCESS;
 	}
 
 	mem_free(path);
@@ -2580,20 +2582,17 @@ fil_discard_tablespace(
 		break;
 
 	case DB_IO_ERROR:
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Warning: While deleting tablespace "
-			"%lu in DISCARD TABLESPACE. File rename/delete"
-			" failed, IO Error.\n",
-			(ulong) id);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"While deleting tablespace %lu in DISCARD "
+			"TABLESPACE. File rename/delete failed: %s\n",
+			(ulong) id, ut_strerr(err));
 		break;
 
 	case DB_TABLESPACE_NOT_FOUND:
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Warning: cannot delete tablespace "
-			"%lu in DISCARD TABLESPACE. Not found",
-			(ulong) id);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Cannot delete tablespace %lu in DISCARD "
+			"TABLESPACE. %s",
+			(ulong) id, ut_strerr(err));
 		break;
 
 	default:
@@ -3048,7 +3047,7 @@ error_exit2:
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Report that a page is corrupted. */
-static
+static	__attribute__((nonnull))
 void
 fil_page_corrupted(
 /*===============*/
@@ -3057,18 +3056,23 @@ fil_page_corrupted(
 	os_offset_t	offset,		/*!< in: file offset */
 	ulint		size)		/*!< in: page size */
 {
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		" InnoDB: %s: Page %lu at offset " UINT64PF
-		" looks corrupted.\n",
-		name, (ulint) (offset / size), offset);
+	ib_logf(IB_LOG_LEVEL_WARN,
+		"%s: Page %lu at offset " UINT64PF " looks corrupted.\n",
+		name, (ulong) (offset / size), offset);
 }
+
+/** Status returned by fil_reset_space_and_lsn_read() */
+enum fil_page_status_t {
+	FIL_PAGE_STATUS_OK,		/*!< Page is OK */
+	FIL_PAGE_STATUS_ALL_ZERO,	/*!< Page is all zeros */
+	FIL_PAGE_STATUS_CORRUPTED	/*!< Page is corrupted */
+};
 
 /********************************************************************//**
 Read a file page for resetting the space identifier and the system lsn.
 @return 0 on success, 1 if all zero, 2 if corrupted */
-static
-ulint
+static	__attribute__((nonnull, warn_unused_result))
+fil_page_status_t
 fil_reset_space_and_lsn_read(
 /*=========================*/
 	const char*	name,		/*!< in: name of the file or path as a
@@ -3091,7 +3095,7 @@ fil_reset_space_and_lsn_read(
 		&& page_get_page_no(page) != 0)) {
 
 		fil_page_corrupted(name, offset, size);
-		return(2);
+		return(FIL_PAGE_STATUS_CORRUPTED);
 
 	} else if (offset > 0 && page_get_page_no(page) == 0) {
 
@@ -3105,21 +3109,21 @@ fil_reset_space_and_lsn_read(
 		while (b != e) {
 			if (*b++) {
 				fil_page_corrupted(name, offset, size);
-				return(2);
+				return(FIL_PAGE_STATUS_CORRUPTED);
 			}
 		}
 
 		/* The page is all zero: do nothing. */
-		return(1);
+		return(FIL_PAGE_STATUS_ALL_ZERO);
 	}
 
-	return(0);
+	return(FIL_PAGE_STATUS_OK);
 }
 
 /********************************************************************//**
 Write the space identifier and the system lsn of a file page if needed.
 @return TRUE on success */
-static
+static	__attribute__((nonnull(2,6), warn_unused_result))
 ibool
 fil_reset_space_and_lsn_write(
 /*==========================*/
@@ -3277,7 +3281,7 @@ fil_reset_space_and_lsn(
 	} else {
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Flush lsn in the tablespace file to be imported is "
-			"%lu is " LSN_PF ", which exceeds currentsystem lsn " 
+			"%lu is " LSN_PF ", which exceeds current system lsn "
 			LSN_PF ". We reset the lsn's in the file ",
 			flush_lsn, current_lsn);
 	}
@@ -3299,32 +3303,30 @@ fil_reset_space_and_lsn(
 	for (; offset < file_size;
 	     offset += zip_size ? zip_size : UNIV_PAGE_SIZE) {
 
-		ulint	status;
-
-		status = fil_reset_space_and_lsn_read(
-			filepath, file, offset, page, zip_size);
-
-		switch (status) {
-		case 0:
-			success = fil_reset_space_and_lsn_write(
+		switch (fil_reset_space_and_lsn_read(
+				filepath, file, offset, page, zip_size)) {
+		case FIL_PAGE_STATUS_OK:
+			if (!fil_reset_space_and_lsn_write(
 				current_lsn, filepath, file,
 				table->space, offset, page,
-				zip_size ? &page_zip : NULL);
-
-			if (!success) {
+				zip_size ? &page_zip : NULL)) {
 
 				err = DB_ERROR;
 			}
 
 			break;
 
-		case 1:
+		case FIL_PAGE_STATUS_ALL_ZERO:
 			/* The page is all zero: leave it as is. */
 			break;
-		default:
-			err = DB_ERROR;
+
+		case FIL_PAGE_STATUS_CORRUPTED:
+			err = DB_CORRUPTION;
 		}
 	}
+
+	DBUG_EXECUTE_IF("ib_reset_space_and_lsn_no_pre_flush_crash",
+			DBUG_SUICIDE(););
 
 	if (err != DB_SUCCESS) {
 		; // Get out of here
@@ -3336,7 +3338,8 @@ fil_reset_space_and_lsn(
 		err = DB_IO_ERROR;
 
 	} else if (fil_reset_space_and_lsn_read(
-			filepath, file, 0, page, zip_size)) {
+			filepath, file, 0, page, zip_size)
+		   != FIL_PAGE_STATUS_OK) {
 
 		/* The first page is corrupted.  Actually, it should
 		never be, as it has already been checked. */
@@ -3357,24 +3360,29 @@ fil_reset_space_and_lsn(
 				FIL_PAGE_FILE_FLUSH_LSN + page, current_lsn);
 
 			/* Write space_id to the file space header. */
-			mach_write_to_4(FIL_PAGE_DATA + page, table->space);
+
+			mach_write_to_4(
+				FSP_HEADER_OFFSET + page + FSP_SPACE_ID,
+				table->space);
 
 			/* Update the flush_lsn stamp at the start
 			of the file */
 
-			success = fil_reset_space_and_lsn_write(
+			if (!fil_reset_space_and_lsn_write(
 				current_lsn, filepath, file, table->space, 0,
-				page, zip_size ? &page_zip : NULL);
+				page, zip_size ? &page_zip : NULL)) {
 
-			if (!success) {
 				err = DB_ERROR;
 			}
 		}
-		
+
 		if (err == DB_SUCCESS && !os_file_flush(file)) {
 			err = DB_IO_ERROR;
 		}
 	}
+
+	DBUG_EXECUTE_IF("ib_reset_space_and_lsn_post_flush_crash",
+		       	DBUG_SUICIDE(););
 
 func_exit:
 	os_file_close(file);
@@ -3440,7 +3448,9 @@ fil_open_single_table_tablespace(
 			}
 			break;
 		default:
-			ut_a(flags == space_flags);
+			if (flags != space_flags) {
+				return(DB_CORRUPTION);
+			}
 			break;
 		}
 	}
@@ -3523,9 +3533,7 @@ fil_open_single_table_tablespace(
 	}
 
 skip_check:
-	success = fil_space_create(name, space_id, flags, FIL_TABLESPACE);
-
-	if (!success) {
+	if (!fil_space_create(name, space_id, flags, FIL_TABLESPACE)) {
 		err = DB_ERROR;
 		goto func_exit;
 	}
@@ -4101,7 +4109,7 @@ fil_report_missing_tablespace(
 
 	ib_logf(IB_LOG_LEVEL_ERROR,
 		"Table %s in the InnoDB data dictionary has tablespace id %lu, "
-		"but tablespace with that id or name does not exist. Have"
+		"but tablespace with that id or name does not exist. Have "
 		"you deleted or moved .ibd files? This may also be a table "
 		"created with CREATE TEMPORARY TABLE whose .ibd and .frm "
 		"files MySQL automatically removed, but the table still "

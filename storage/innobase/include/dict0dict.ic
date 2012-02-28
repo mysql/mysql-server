@@ -1171,4 +1171,16 @@ dict_index_is_corrupted(
 	       || (index->table && index->table->corrupted));
 }
 
+/********************************************************************//**
+Check if the tablespace for the table has been discarded.
+@return	true if the tablespace has been discarded. */
+UNIV_INLINE
+bool
+dict_table_is_discarded(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table to check */
+{
+	return(table->flags2 & DICT_TF2_DISCARDED);
+}
+
 #endif /* !UNIV_HOTBACKUP */

@@ -489,8 +489,7 @@ buf_dblwr_init_or_restore_pages(
 
 			/* Check if the page is corrupt */
 
-			if (buf_page_is_corrupted(true,
-						   read_buf, zip_size)) {
+			if (buf_page_is_corrupted(true, read_buf, zip_size)) {
 
 				fprintf(stderr,
 					"InnoDB: Warning: database page"

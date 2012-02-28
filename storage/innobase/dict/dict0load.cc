@@ -781,8 +781,8 @@ loop:
 
 		if (space_id == 0) {
 			/* The system tablespace always exists. */
-			ut_a(!is_temp);
-			ut_a(!discarded);
+			ut_ad(!is_temp);
+			ut_ad(!discarded);
 		} else if (in_crash_recovery) {
 
 			fil_space_for_table_exists_in_mem(
@@ -1884,17 +1884,10 @@ err_exit:
 			/* Do not bother to retry opening temporary tables. */
 			table->ibd_file_missing = TRUE;
 		} else {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Error: Failed to find tablespace "
-				"for table ");
-			ut_print_filename(stderr, name);
-			fprintf(stderr, " in memory.\n");
-
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Attempting to load the tablespace "
-				"with id %lu.\n", (ulong) table->space);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Failed to find tablespace for table '%s' "
+				"in memory. Attempting to load the tablespace "
+				"with id %lu.", name, (ulong) table->space);
 
 			/* Try to open the tablespace */
 			err = fil_open_single_table_tablespace(

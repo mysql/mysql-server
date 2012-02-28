@@ -499,7 +499,7 @@ row_import_error(
 }
 
 /*****************************************************************//**
-Adjust the root on the table's indexes.
+Adjust the root on the table's secondary indexes.
 @return error code */
 static
 db_err

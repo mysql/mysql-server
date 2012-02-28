@@ -1452,6 +1452,16 @@ dict_tf_valid(
 	ulint		flags)		/*!< in: table flags */
 	__attribute__((warn_unused_result));
 
+/********************************************************************//**
+Check if the tablespace for the table has been discarded.
+@return	true if the tablespace has been discarded. */
+UNIV_INLINE
+bool
+dict_table_is_discarded(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table to check */
+	__attribute__((nonnull, pure, warn_unused_result));
+
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"
 #endif

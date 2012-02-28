@@ -812,7 +812,8 @@ btr_root_adjust_on_import(
 	if (fil_page_get_type(page) != FIL_PAGE_INDEX
 	    || fil_page_get_prev(page) != FIL_NULL
 	    || fil_page_get_next(page) != FIL_NULL
-	    || !!comp != dict_table_is_comp(table)) {
+	    || (dict_index_is_clust(index)
+		&& !!comp != dict_table_is_comp(table))) {
 
 		err = DB_CORRUPTION;
 
@@ -4175,13 +4176,13 @@ btr_validate_report2(
 Validates index tree level.
 @return	TRUE if ok */
 static
-ibool
+bool
 btr_validate_level(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index tree */
 	const trx_t*	trx,	/*!< in: transaction or NULL */
 	ulint		level,	/*!< in: level number */
-	ibool		init_id)/*!< in: FALSE=check that PAGE_INDEX_ID
+	bool		init_id)/*!< in: FALSE=check that PAGE_INDEX_ID
 				equals index->id; TRUE=assign PAGE_INDEX_ID
 				and PAGE_MAX_TRX_ID = trx->id */
 {
@@ -4200,7 +4201,7 @@ btr_validate_level(
 	ulint		left_page_no;
 	page_cur_t	cursor;
 	dtuple_t*	node_ptr_tuple;
-	ibool		ret	= TRUE;
+	bool		ret	= true;
 	mtr_t		mtr;
 	mem_heap_t*	heap	= mem_heap_create(256);
 	fseg_header_t*	seg;
@@ -4245,7 +4246,7 @@ btr_validate_level(
 			ut_print_timestamp(stderr);
 			fprintf(stderr, " InnoDB: page is free\n");
 
-			ret = FALSE;
+			ret = false;
 		}
 
 		ut_a(space == buf_block_get_space(block));
@@ -4296,32 +4297,33 @@ loop:
 
 		btr_validate_report1(index, level, block);
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: page is free\n");
-		ret = FALSE;
-	}
+		ib_logf(IB_LOG_LEVEL_WARN, "Page is marked as free\n");
+		ret = false;
 
-	/* Check ordering etc. of records */
+	} else if (init_id) {
 
-	if (init_id) {
 		btr_page_set_index_id(page, page_zip, index->id, &mtr);
 		page_set_max_trx_id(block, page_zip, trx->id, &mtr);
-	} else {
-		ut_a(btr_page_get_index_id(page) == index->id);
-	}
 
-	if (!page_validate(page, index)) {
+	} else if (btr_page_get_index_id(page) != index->id) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Page index id " IB_ID_FMT " != data dictionary "
+			"index id " IB_ID_FMT,
+			btr_page_get_index_id(page), index->id);
+		ret = false;
+
+	} else if (!page_validate(page, index)) {
+
 		btr_validate_report1(index, level, block);
+		ret = false;
 
-		ret = FALSE;
-	} else if (level == 0) {
+	} else if (level == 0 && !btr_index_page_validate(block, index)) {
+
 		/* We are on level 0. Check that the records have the right
 		number of fields, and field lengths are right. */
 
-		if (!btr_index_page_validate(block, index)) {
-
-			ret = FALSE;
-		}
+		ret = false;
 	}
 
 	ut_a(btr_page_get_level(page, &mtr) == level);
@@ -4347,7 +4349,7 @@ loop:
 			buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
 			buf_page_print(right_page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
-			ret = FALSE;
+			ret = false;
 		}
 
 		if (page_is_comp(right_page) != page_is_comp(page)) {
@@ -4356,7 +4358,7 @@ loop:
 			buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
 			buf_page_print(right_page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
-			ret = FALSE;
+			ret = false;
 
 			goto node_ptr_fails;
 		}
@@ -4389,7 +4391,7 @@ loop:
 			rec_print(stderr, rec, index);
 			putc('\n', stderr);
 
-			ret = FALSE;
+			ret = false;
 		}
 	}
 
@@ -4440,7 +4442,7 @@ loop:
 			fputs("InnoDB: record on page ", stderr);
 			rec_print_new(stderr, rec, offsets);
 			putc('\n', stderr);
-			ret = FALSE;
+			ret = false;
 
 			goto node_ptr_fails;
 		}
@@ -4470,7 +4472,7 @@ loop:
 				fputs("InnoDB: first rec ", stderr);
 				rec_print(stderr, first_rec, index);
 				putc('\n', stderr);
-				ret = FALSE;
+				ret = false;
 
 				goto node_ptr_fails;
 			}
@@ -4498,7 +4500,7 @@ loop:
 
 				if (btr_cur_get_rec(&right_node_cur)
 				    != right_node_ptr) {
-					ret = FALSE;
+					ret = false;
 					fputs("InnoDB: node pointer to"
 					      " the right page is wrong\n",
 					      stderr);
@@ -4524,7 +4526,7 @@ loop:
 				    != page_rec_get_next(
 					    page_get_infimum_rec(
 						    right_father_page))) {
-					ret = FALSE;
+					ret = false;
 					fputs("InnoDB: node pointer 2 to"
 					      " the right page is wrong\n",
 					      stderr);
@@ -4549,7 +4551,7 @@ loop:
 				if (page_get_page_no(right_father_page)
 				    != btr_page_get_next(father_page, &mtr)) {
 
-					ret = FALSE;
+					ret = false;
 					fputs("InnoDB: node pointer 3 to"
 					      " the right page is wrong\n",
 					      stderr);
@@ -4616,7 +4618,7 @@ btr_validate_index(
 	/* Full Text index are implemented by auxiliary tables,
 	not the B-tree */
 	if (index->type & DICT_FTS) {
-		return(TRUE);
+		return(true);
 	}
 
 	mtr_start(&mtr);
@@ -4630,12 +4632,12 @@ btr_validate_index(
 
 			mtr_commit(&mtr);
 
-			return(FALSE);
+			return(false);
 		}
 	}
 
 	mtr_commit(&mtr);
 
-	return(TRUE);
+	return(true);
 }
 #endif /* !UNIV_HOTBACKUP */
