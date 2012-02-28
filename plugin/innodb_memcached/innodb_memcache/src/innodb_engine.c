@@ -536,6 +536,7 @@ innodb_conn_init(
 		return(conn_data);
 	}
 
+	/* Write operation */
 	if (!is_select) {
 		if (!crsr) {
 			if (!conn_data->crsr_trx) {
@@ -572,6 +573,8 @@ innodb_conn_init(
 				engine->trx_level);
 
 			innodb_cb_cursor_new_trx(crsr, conn_data->crsr_trx);
+			trx_updated = true;
+
 			err = innodb_cb_cursor_lock(crsr, lock_mode);
 
 			if (err != DB_SUCCESS) {
@@ -603,10 +606,19 @@ innodb_conn_init(
 				return(NULL);
 			}
 		}
-		if (conn_data->read_crsr && trx_updated) {
-			innodb_cb_cursor_new_trx(
-				conn_data->read_crsr,
-				conn_data->crsr_trx);
+
+		if (trx_updated) {
+			if (conn_data->read_crsr) {
+				innodb_cb_cursor_new_trx(
+					conn_data->read_crsr,
+					conn_data->crsr_trx);
+			}
+
+			if (conn_data->idx_read_crsr) {
+				innodb_cb_cursor_new_trx(
+					conn_data->idx_read_crsr,
+					conn_data->crsr_trx);
+			}
 		}
 			
 	} else {
@@ -639,15 +651,11 @@ innodb_conn_init(
 				return(NULL);
 			}
 
-			if (conn_data->crsr && trx_updated) {
-				innodb_cb_cursor_new_trx(
-					conn_data->crsr,
-					conn_data->crsr_trx);
-			}
-
 		} else if (!conn_data->crsr_trx) {
 			conn_data->crsr_trx = innodb_cb_trx_begin(
 				engine->trx_level);
+
+			trx_updated = true;
 
 			innodb_cb_cursor_new_trx(
 				conn_data->read_crsr,
@@ -669,6 +677,20 @@ innodb_conn_init(
 					idx_crsr, conn_data->crsr_trx);
 				innodb_cb_cursor_lock(
 					idx_crsr, lock_mode);
+			}
+		}
+
+		if (trx_updated) {
+			if (conn_data->crsr) {
+				innodb_cb_cursor_new_trx(
+					conn_data->crsr,
+					conn_data->crsr_trx);
+			}
+
+			if (conn_data->idx_crsr) {
+				innodb_cb_cursor_new_trx(
+					conn_data->idx_crsr,
+					conn_data->crsr_trx);
 			}
 		}
 	}
