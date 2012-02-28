@@ -27,13 +27,13 @@ INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 USE test;
 
 CREATE TABLE t1        (c1 VARCHAR(32),
-			c2 VARCHAR(40),
-			c21 VARCHAR(40),
-			c22 VARCHAR(40),
-			c23 VARCHAR(40),
-			c24 VARCHAR(40),
-			c25 VARCHAR(40),
-			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+                        c2 VARCHAR(40),
+                        c21 CHAR(40),
+                        c22 VARCHAR(2048),
+                        c23 TEXT,
+                        c24 VARCHAR(250),
+                        c25 CHAR (10),
+                        c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
 
 INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City','1', 'dddddddddddddd', '1234', '2012', 0, 0, 0);

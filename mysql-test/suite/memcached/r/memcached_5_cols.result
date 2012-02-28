@@ -12,11 +12,11 @@ INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 USE test;
 CREATE TABLE t1        (c1 VARCHAR(32),
 c2 VARCHAR(40),
-c21 VARCHAR(40),
-c22 VARCHAR(40),
-c23 VARCHAR(40),
-c24 VARCHAR(40),
-c25 VARCHAR(40),
+c21 CHAR(40),
+c22 VARCHAR(2048),
+c23 TEXT,
+c24 VARCHAR(250),
+c25 CHAR (10),
 c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
 INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City','1', 'dddddddddddddd', '1234', '2012', 0, 0, 0);
@@ -31,10 +31,10 @@ C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 Here the memcached results with D,B,H,C:
-Darmstadt|City|1|dddddddddddddd|1234|2012
-Berlin|Mitte|2|bbbbbbbbbbbbbb|2345|2012
-Hamburg|Norderstedt|4|hhhhhhhhhh|4567|2012
-Cottbus|West|3|cccccccccccccc|3456|2012
+Darmstadt|City                                    |1|dddddddddddddd|1234|2012      
+Berlin|Mitte                                   |2|bbbbbbbbbbbbbb|2345|2012      
+Hamburg|Norderstedt                             |4|hhhhhhhhhh|4567|2012      
+Cottbus|West                                    |3|cccccccccccccc|3456|2012      
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
@@ -42,43 +42,37 @@ C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 Here the memcached results after set:
-Essen|Ost|5|eeeeeeeeeee|5678|2012
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+Essen|OstSELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
+5|eeeeeeeeeee|5678|2012
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
-E	Essen	Ost	5	eeeeeeeeeee	5678	2012
-H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
+E	Essen	Ost
 Here the memcached results after add:
-Frankfurt|Airport|6|fffffffffff|6789|2012
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+Frankfurt|AirportSELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
+5|eeeeeeeeeee|5678|2012
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
-E	Essen	Ost	5	eeeeeeeeeee	5678	2012
-F	Frankfurt	Airport	6	fffffffffff	6789	2012
-H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
+E	Essen	Ost
 Here the memcached results after replace:
-Frankfurt a.M.|Sachsenhausen|61|fffff|6789|2012
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+Frankfurt a.M.|SachsenhausenSELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
+5|eeeeeeeeeee|5678|2012
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
-E	Essen	Ost	5	eeeeeeeeeee	5678	2012
-F	Frankfurt a.M.	Sachsenhausen	61	fffff	6789	2012
-H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
+E	Essen	Ost
 Here the memcached results after delete:
-Essen|Ost|5|eeeeeeeeeee|5678|2012
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+Essen|OstSELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
+5|eeeeeeeeeee|5678|2012
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
-E	Essen	Ost	5	eeeeeeeeeee	5678	2012
-H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
+E	Essen	Ost
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;
 SET @@global.tx_isolation= @tx_isolation;
