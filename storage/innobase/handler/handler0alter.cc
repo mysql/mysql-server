@@ -1388,6 +1388,9 @@ prepare_inplace_alter_table_dict(
 			DBUG_ASSERT(trx != user_trx);
 			trx_rollback_to_savepoint(trx, NULL);
 
+			/* n_ref_count must be 1, because purge cannot
+			be executing on this very table as we are
+			holding dict_operation_lock X-latch. */
 			ut_ad(user_table->n_ref_count == 1);
 
 			online_retry_drop_indexes_with_trx(user_table, trx);
@@ -1401,6 +1404,9 @@ prepare_inplace_alter_table_dict(
 			DBUG_RETURN(error != 0);
 		}
 
+		/* n_ref_count must be 1, because purge cannot
+		be executing on this very table as we are
+		holding dict_operation_lock X-latch. */
 		DBUG_ASSERT(indexed_table->n_ref_count == 1);
 	}
 
@@ -1574,7 +1580,10 @@ error_handling:
 		}
 
 		trx_commit_for_mysql(trx);
-		ut_ad(user_table->n_ref_count == 1);
+		/* n_ref_count must be 1, because purge cannot
+		be executing on this very table as we are
+		holding dict_operation_lock X-latch. */
+		DBUG_ASSERT(user_table->n_ref_count == 1);
 
 		online_retry_drop_indexes_with_trx(user_table, trx);
 	} else {
@@ -1954,8 +1963,10 @@ oom:
 		ut_d(dict_table_check_for_dup_indexes(
 			     prebuilt->table, CHECK_PARTIAL_OK));
 		ut_d(mutex_exit(&dict_sys->mutex));
-		ut_a(ctx->indexed_table == prebuilt->table
-		     || prebuilt->table->n_ref_count == 1);
+		/* n_ref_count must be 1, or 2 when purge
+		happens to be executing on this very table. */
+		DBUG_ASSERT(ctx->indexed_table == prebuilt->table
+			    || prebuilt->table->n_ref_count - 1 <= 1);
 		DBUG_RETURN(false);
 	case DB_DUPLICATE_KEY:
 		if (prebuilt->trx->error_key_num == ULINT_UNDEFINED) {
@@ -1990,8 +2001,10 @@ oom:
 				prebuilt->table->flags);
 	}
 
+	/* n_ref_count must be 1, or 2 when purge
+	happens to be executing on this very table. */
 	DBUG_ASSERT(ctx->indexed_table == prebuilt->table
-		    || prebuilt->table->n_ref_count == 1);
+		    || prebuilt->table->n_ref_count - 1 <= 1);
 	prebuilt->trx->error_info = NULL;
 	ctx->trx->error_state = DB_SUCCESS;
 
@@ -2156,6 +2169,9 @@ ha_innobase::commit_inplace_alter_table(
 			prebuilt->table, ctx->indexed_table,
 			tmp_name, trx);
 
+		/* n_ref_count must be 1, because purge cannot
+		be executing on this very table as we are
+		holding dict_operation_lock X-latch. */
 		ut_a(prebuilt->table->n_ref_count == 1);
 
 		if (error == DB_SUCCESS) {
