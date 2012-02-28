@@ -17,12 +17,12 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a) key_block_size=1000000000000000000);
 Warnings:
-Warning	1071	Specified key was too long; max key length is 1208 bytes
+Warning	1071	Specified key was too long; max key length is 1000 bytes
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2048) DEFAULT NULL,
-  KEY `a` (`a`(1208)) KEY_BLOCK_SIZE=8192
+  KEY `a` (`a`(1000)) KEY_BLOCK_SIZE=8192
 ) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, key `a` (a) key_block_size=1025);
@@ -645,3 +645,26 @@ a	b	c	d	e	f	g	h	i	j
 1	A	B	C		D	1	M		H
 2	Abcdefghi	E	F		G	2	N		H
 drop table t1,t2;
+CREATE TABLE t1 ( a VARCHAR(800),KEY(a) )
+ENGINE=Aria DEFAULT CHARACTER SET latin1;
+INSERT INTO t1 VALUES
+(REPEAT('abc ',200)), (REPEAT('def ',200)),
+(REPEAT('ghi ',200)), (REPEAT('jkl ',200));
+INSERT INTO t1 SELECT * FROM t1;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+ALTER TABLE t1 MODIFY a VARCHAR(800) CHARSET `ucs2`;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(800) CHARACTER SET ucs2 DEFAULT NULL,
+  KEY `a` (`a`(500))
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+DROP TABLE t1;
