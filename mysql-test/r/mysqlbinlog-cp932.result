@@ -3,6 +3,7 @@ create table t3 (f text character set utf8);
 create table t4 (f text character set cp932);
 flush logs;
 rename table t3 to t03, t4 to t04;
+RESET MASTER;
 select HEX(f) from t03;
 HEX(f)
 E382BD

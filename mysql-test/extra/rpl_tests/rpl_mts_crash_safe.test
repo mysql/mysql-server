@@ -33,21 +33,22 @@
 ################################################################################
 
 
-################################################################################
-#                                      SET UP
-################################################################################
+--echo ########################################################################
+--echo #                               SET UP
+--echo ########################################################################
 let $max_groups=3;
 let $max_workers=3;
 
+--let $verbose= 0
 --connection master
-SET @commands= 'configure';
+--let $commands= configure
 --let $engine_type="Innodb"
 --source extra/rpl_tests/rpl_mts_crash_safe.inc
 
 
-################################################################################
-#                                      TEST 
-################################################################################
+--echo ########################################################################
+--echo #                                TEST 
+--echo ########################################################################
 let $count_debug_groups=1;
 while ($count_debug_groups <= $max_groups)
 {
@@ -72,14 +73,14 @@ while ($count_debug_groups <= $max_groups)
             --connection master
             --let $database_name=test_$count_database
             --echo Generating Number of Workers $count_workers --- Number of Groups per worker $count_groups --- Debugging Groups $count_debug_groups --- Database $database_name
-            SET @commands='B T T C';
+            --let $commands= B T T C
             --source extra/rpl_tests/rpl_mts_crash_safe.inc
             inc $count_database;
           }
           inc $count_transactions;
         }
         --echo ----Executing----
-        SET @commands='recovery';
+        --let $commands= recovery
         --source extra/rpl_tests/rpl_mts_crash_safe.inc
         inc $count_groups;
       }
@@ -91,9 +92,9 @@ while ($count_debug_groups <= $max_groups)
 }
 
 
-################################################################################
-#                                CHECK CONSISTENCY
-################################################################################
+--echo ########################################################################
+--echo #                          CHECK CONSISTENCY
+--echo ########################################################################
 --connection slave
 --source include/start_slave.inc
 
@@ -109,11 +110,11 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 --diff_files $MYSQLD_DATADIR/test-mts-crash-master.sql $MYSQLD_DATADIR/test-mts-crash-slave.sql
 
 
-################################################################################
-#                                   CLEAN UP
-################################################################################
+--echo ########################################################################
+--echo #                             CLEAN UP
+--echo ########################################################################
 --connection master
-SET @commands= 'clean';
+--let $commands= clean
 --source extra/rpl_tests/rpl_mts_crash_safe.inc
 
 --connection master

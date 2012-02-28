@@ -5,7 +5,7 @@
 #
 # The following is printed on the current connection:
 #
-#   SELECT NOW()
+#   SELECT NOW(), @@SERVER_ID, @@SERVER_UUID
 #   SHOW SLAVE STATUS
 #   SHOW MASTER STATUS
 #   SHOW PROCESSLIST
@@ -65,8 +65,12 @@ while ($_rpl_server)
   --echo **** SHOW WARNINGS on $CURRENT_CONNECTION ****
   SHOW WARNINGS;
   --echo
+  --echo **** GTID_* on $CURRENT_CONNECTION ****
+  query_vertical
+  SELECT @@GLOBAL.GTID_DONE, @@GLOBAL.GTID_LOST, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_DONE, @@SESSION.GTID_OWNED;
+  --echo
   --echo **** SELECT replication-related variables on $CURRENT_CONNECTION ****
-  SELECT NOW(), @@SERVER_ID, @@SERVER_UUID;
+  query_vertical SELECT NOW(), @@SERVER_ID, @@SERVER_UUID;
   --echo
   --echo **** SHOW SLAVE STATUS on $CURRENT_CONNECTION ****
   query_vertical SHOW SLAVE STATUS;

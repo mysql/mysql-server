@@ -24,6 +24,7 @@
 *****************************************************************************/
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "binlog.h"
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_class.h"
@@ -805,6 +806,7 @@ THD::THD(bool enable_plugins)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
+   owned_gtid_set(&global_sid_map),
    main_da(0, false),
    m_stmt_da(&main_da)
 {
@@ -1260,6 +1262,9 @@ void THD::init(void)
   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
   debug_sync_init_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+
+  owned_gtid.sidno= 0;
+  owned_gtid.gno= 0;
 }
 
 
@@ -1419,6 +1424,17 @@ THD::~THD()
   {
     delete rli_fake;
     rli_fake= NULL;
+  }
+
+  if (variables.gtid_next_list.gtid_set != NULL)
+  {
+#ifdef HAVE_NDB_BINLOG
+    delete variables.gtid_next_list.gtid_set;
+    variables.gtid_next_list.gtid_set= NULL;
+    variables.gtid_next_list.is_non_null= false;
+#else
+    DBUG_ASSERT(0);
+#endif
   }
   
   mysql_audit_free_thd(this);

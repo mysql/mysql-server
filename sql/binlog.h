@@ -75,7 +75,6 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   uint file_id;
   uint open_count;				// For replication
   int readers_count;
-  bool need_start_event;
   /*
     no_auto_events means we don't want any of these automatic events :
     Start/Rotate/Stop. That is, in 4.x when we rotate a relay log, we don't
@@ -178,8 +177,34 @@ public:
     m_key_file_log_index= key_file_log_index;
   }
 #endif
+  /**
+    Reads the set of all GTIDs in the binary log, and the set of all
+    lost GTIDs in the binary log, and stores each set in respective
+    argument.
 
-  int open(const char *opt_name);
+    @param gtid_set Will be filled with all GTIDs in this binary log.
+    @param lost_groups Will be filled with all GTIDs in the
+    Previous_gtids_log_event of the first binary log that has a
+    Previous_gtids_log_event.
+    @param verify_checksum If true, checksums will be checked.
+    @param need_lock If true, LOCK_log, LOCK_index, and
+    global_sid_lock.wrlock are acquired; otherwise they are asserted
+    to be taken already.
+    @return false on success, true on error.
+  */
+  bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
+                      bool verify_checksum, bool need_lock);
+
+  void set_previous_gtid_set(Gtid_set *previous_gtid_set_param)
+  {
+    previous_gtid_set= previous_gtid_set_param;
+  }
+private:
+  Gtid_set* previous_gtid_set;
+
+  int open(const char *opt_name) { return open_binlog(opt_name); }
+public:
+  int open_binlog(const char *opt_name);
   void close();
   int log_xid(THD *thd, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
@@ -193,6 +218,10 @@ public:
   int remove_pending_rows_event(THD *thd, bool is_transactional);
 
 #endif /* !defined(MYSQL_CLIENT) */
+  void add_bytes_written(ulonglong inc)
+  {
+    bytes_written += inc;
+  }
   void reset_bytes_written()
   {
     bytes_written = 0;
@@ -213,25 +242,46 @@ public:
   void signal_update();
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
   int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
-  void set_need_start_event() { need_start_event = 1; }
-  void init(bool no_auto_events_arg, ulong max_size);
+  int init(bool no_auto_events_arg, ulong max_size);
   void init_pthread_objects();
   void cleanup();
-  bool open(const char *log_name,
-            enum_log_type log_type,
-            const char *new_name,
-	    enum cache_type io_cache_type_arg,
-	    bool no_auto_events_arg, ulong max_size,
-            bool null_created,
-            bool need_mutex);
+  /**
+    Create a new binary log.
+    @param log_name Name of binlog
+    @param log_type Always LOG_BIN. This is probably redundant and can
+    be removed
+    @param new_name Name of binlog, too. todo: what's the difference
+    between new_name and log_name?
+    @param io_cache_type_arg Specifies how the IO cache is opened:
+    read-only or read-write.
+    @param no_auto_events_arg Do not create Format_description_log_event.
+    @param max_size The size at which this binlog will be rotated.
+    @param null_created If false, and a Format_description_log_event
+    is written, then the Format_description_log_event will have the
+    timestamp 0. Otherwise, it the timestamp will be the time when the
+    event was written to the log.
+    @param need_mutex If true, LOCK_index is acquired; otherwise
+    LOCK_index must be taken by the caller.
+    @param need_sid_lock If true, the read lock on global_sid_lock
+    will be acquired.  Otherwise, the caller must hold the read lock
+    on global_sid_lock.
+  */
+  bool open_binlog(const char *log_name,
+                   enum_log_type log_type,
+                   const char *new_name,
+                   enum cache_type io_cache_type_arg,
+                   bool no_auto_events_arg, ulong max_size,
+                   bool null_created,
+                   bool need_mutex, bool need_sid_lock);
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name, bool need_mutex);
   /* Use this to start writing a new log file */
   int new_file();
 
-  bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache, bool incident, bool prepared);
-  int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
+  bool write_event(Log_event* event_info);
+  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
+                   bool prepared);
+  int  do_write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
@@ -242,12 +292,8 @@ public:
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
-  /*
-    v stands for vector
-    invoked as appendv(buf1,len1,buf2,len2,...,bufn,lenn,0)
-  */
-  bool appendv(const char* buf,uint len,...);
-  bool append(Log_event* ev);
+  bool append_buffer(const char* buf, uint len);
+  bool append_event(Log_event* ev);
 
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
@@ -330,14 +376,17 @@ bool trans_cannot_safely_rollback(const THD* thd);
 bool stmt_cannot_safely_rollback(const THD* thd);
 
 int log_loaded_block(IO_CACHE* file);
-File open_binlog(IO_CACHE *log, const char *log_file_name,
-                 const char **errmsg);
+File open_binlog_file(IO_CACHE *log, const char *log_file_name,
+                      const char **errmsg);
 int check_binlog_magic(IO_CACHE* log, const char** errmsg);
 bool purge_master_logs(THD* thd, const char* to_log);
 bool purge_master_logs_before_date(THD* thd, time_t purge_time);
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log);
+bool mysql_show_binlog_events(THD* thd);
 void check_binlog_cache_size(THD *thd);
 void check_binlog_stmt_cache_size(THD *thd);
+void register_binlog_handler(THD *thd, bool trx);
+int gtid_empty_group_log_and_cleanup(THD *thd);
 
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
