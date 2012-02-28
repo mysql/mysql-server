@@ -90,9 +90,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 # ifndef MYSQL_PLUGIN_IMPORT
 #  define MYSQL_PLUGIN_IMPORT /* nothing */
 # endif /* MYSQL_PLUGIN_IMPORT */
-
-/** to protect innobase_open_files */
-static mysql_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
 static mysql_mutex_t prepare_commit_mutex;
 static ulong commit_threads = 0;
@@ -230,8 +227,6 @@ it every INNOBASE_WAKE_INTERVAL'th step. */
 #define INNOBASE_WAKE_INTERVAL	32
 static ulong	innobase_active_counter	= 0;
 
-static hash_table_t*	innobase_open_tables;
-
 /** Allowed values of innodb_change_buffering */
 static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 	"none",		/* IBUF_USE_NONE */
@@ -253,7 +248,6 @@ const struct _ft_vft ft_vft_result = {NULL,
 #ifdef HAVE_PSI_INTERFACE
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
-static mysql_pfs_key_t	innobase_share_mutex_key;
 static mysql_pfs_key_t	prepare_commit_mutex_key;
 static mysql_pfs_key_t	commit_threads_m_key;
 static mysql_pfs_key_t	commit_cond_mutex_key;
@@ -262,7 +256,6 @@ static mysql_pfs_key_t	commit_cond_key;
 static PSI_mutex_info	all_pthread_mutexes[] = {
 	{&commit_threads_m_key, "commit_threads_m", 0},
 	{&commit_cond_mutex_key, "commit_cond_mutex", 0},
-	{&innobase_share_mutex_key, "innobase_share_mutex", 0},
 	{&prepare_commit_mutex_key, "prepare_commit_mutex", 0}
 };
 
@@ -569,23 +562,6 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_available_undo_logs,        SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
-
-/************************************************************************//**
-Handling the shared INNOBASE_SHARE structure that is needed to provide table
-locking. Register the table name if it doesn't exist in the hash table. */
-static
-INNOBASE_SHARE*
-get_share(
-/*======*/
-	const char*	table_name);	/*!< in: table to lookup */
-
-/************************************************************************//**
-Free the shared object that was registered with get_share(). */
-static
-void
-free_share(
-/*=======*/
-	INNOBASE_SHARE*	share);		/*!< in/own: share to free */
 
 /*****************************************************************//**
 Frees a possible InnoDB trx object associated with the current THD.
@@ -3024,10 +3000,6 @@ innobase_change_buffering_inited_ok:
 
 	ibuf_max_size_update(innobase_change_buffer_max_size);
 
-	innobase_open_tables = hash_create(200);
-	mysql_mutex_init(innobase_share_mutex_key,
-			 &innobase_share_mutex,
-			 MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(prepare_commit_mutex_key,
 			 &prepare_commit_mutex, MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_threads_m_key,
@@ -3088,14 +3060,11 @@ innobase_end(
 		srv_fast_shutdown = (ulint) innobase_fast_shutdown;
 
 		innodb_inited = 0;
-		hash_table_free(innobase_open_tables);
-		innobase_open_tables = NULL;
 		if (innobase_shutdown_for_mysql() != DB_SUCCESS) {
 			err = 1;
 		}
 		srv_free_paths_and_sizes();
 		my_free(internal_innobase_data_file_path);
-		mysql_mutex_destroy(&innobase_share_mutex);
 		mysql_mutex_destroy(&prepare_commit_mutex);
 		mysql_mutex_destroy(&commit_threads_m);
 		mysql_mutex_destroy(&commit_cond_m);
@@ -4054,8 +4023,8 @@ innobase_match_index_columns(
 }
 
 /*******************************************************************//**
-This function builds a translation table in INNOBASE_SHARE
-structure for fast index location with mysql array number from its
+This function builds a translation table in Innobase_share
+object for fast index location with mysql array number from its
 table->key_info structure. This also provides the necessary translation
 between the key order in mysql key_info and Innodb ib_table->indexes if
 they are not fully matched with each other.
@@ -4072,7 +4041,7 @@ innobase_build_index_translation(
 					dictionary */
 	dict_table_t*		ib_table,/*!< in: table in Innodb data
 					dictionary */
-	INNOBASE_SHARE*		share)	/*!< in/out: share structure
+	Innobase_share*		share)	/*!< in/out: share object
 					where index translation table
 					will be constructed in. */
 {
@@ -4192,7 +4161,7 @@ static
 dict_index_t*
 innobase_index_lookup(
 /*==================*/
-	INNOBASE_SHARE*	share,	/*!< in: share structure for index
+	Innobase_share*	share,	/*!< in: share object for index
 				translation table. */
 	uint		keynr)	/*!< in: index number for the requested
 				index */
@@ -4347,7 +4316,7 @@ ha_innobase::open(
 
 	user_thd = NULL;
 
-	if (!(share=get_share(name))) {
+	if (!(share=get_share())) {
 
 		DBUG_RETURN(1);
 	}
@@ -4466,7 +4435,6 @@ retry:
 				"See " REFMAN "innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
-		free_share(share);
 		my_errno = ENOENT;
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -4488,8 +4456,6 @@ table_opened:
 				"See " REFMAN "innodb-troubleshooting.html "
 				"how you can resolve the problem.",
 				norm_name);
-
-		free_share(share);
 		my_errno = ENOENT;
 
 		dict_table_close(ib_table, FALSE);
@@ -4699,8 +4665,6 @@ ha_innobase::close()
 		upd_buf = NULL;
 		upd_buf_size = 0;
 	}
-
-	free_share(share);
 
 	MONITOR_INC(MONITOR_TABLE_CLOSE);
 
@@ -9870,7 +9834,7 @@ static
 int
 innobase_get_mysql_key_number_for_index(
 /*====================================*/
-	INNOBASE_SHARE*		share,	/*!< in: share structure for index
+	Innobase_share*		share,	/*!< in: share object for index
 					translation table. */
 	const TABLE*		table,	/*!< in: table in MySQL data
 					dictionary */
@@ -11839,94 +11803,31 @@ innobase_show_status(
 }
 
 /************************************************************************//**
-Handling the shared INNOBASE_SHARE structure that is needed to provide table
-locking. Register the table name if it doesn't exist in the hash table. */
-static
-INNOBASE_SHARE*
-get_share(
-/*======*/
-	const char*	table_name)
+Handling the shared Innobase_share object that is needed to provide table
+locking. */
+Innobase_share*
+ha_innobase::get_share(void)
+/*========================*/
 {
-	INNOBASE_SHARE*	share;
+	Innobase_share *tmp_share;
 
-	mysql_mutex_lock(&innobase_share_mutex);
+	lock_shared_ha_data();
+	tmp_share= static_cast<Innobase_share*>(get_ha_share_ptr());
 
-	ulint	fold = ut_fold_string(table_name);
+	if (!tmp_share)
+	{
+		tmp_share= new Innobase_share;
+		if (!tmp_share)
+		{
+			unlock_shared_ha_data();
+			return(NULL);
+		}
 
-	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
-		    INNOBASE_SHARE*, share,
-		    ut_ad(share->use_count > 0),
-		    !strcmp(share->table_name, table_name));
-
-	if (!share) {
-
-		uint length = (uint) strlen(table_name);
-
-		/* TODO: invoke HASH_MIGRATE if innobase_open_tables
-		grows too big */
-
-		share = (INNOBASE_SHARE*) my_malloc(sizeof(*share)+length+1,
-			MYF(MY_FAE | MY_ZEROFILL));
-
-		share->table_name = (char*) memcpy(share + 1,
-						   table_name, length + 1);
-
-		HASH_INSERT(INNOBASE_SHARE, table_name_hash,
-			    innobase_open_tables, fold, share);
-
-		thr_lock_init(&share->lock);
-
-		/* Index translation table initialization */
-		share->idx_trans_tbl.index_mapping = NULL;
-		share->idx_trans_tbl.index_count = 0;
-		share->idx_trans_tbl.array_size = 0;
+		set_ha_share_ptr(static_cast<Handler_share*>(tmp_share));
 	}
-
-	share->use_count++;
-	mysql_mutex_unlock(&innobase_share_mutex);
-
-	return(share);
-}
-
-/************************************************************************//**
-Free the shared object that was registered with get_share(). */
-static
-void
-free_share(
-/*=======*/
-	INNOBASE_SHARE*	share)	/*!< in/own: table share to free */
-{
-	mysql_mutex_lock(&innobase_share_mutex);
-
-#ifdef UNIV_DEBUG
-	INNOBASE_SHARE* share2;
-	ulint	fold = ut_fold_string(share->table_name);
-
-	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
-		    INNOBASE_SHARE*, share2,
-		    ut_ad(share->use_count > 0),
-		    !strcmp(share->table_name, share2->table_name));
-
-	ut_a(share2 == share);
-#endif /* UNIV_DEBUG */
-
-	if (!--share->use_count) {
-		ulint	fold = ut_fold_string(share->table_name);
-
-		HASH_DELETE(INNOBASE_SHARE, table_name_hash,
-			    innobase_open_tables, fold, share);
-		thr_lock_delete(&share->lock);
-
-		/* Free any memory from index translation table */
-		my_free(share->idx_trans_tbl.index_mapping);
-
-		my_free(share);
-
-		/* TODO: invoke HASH_MIGRATE if innobase_open_tables
-		shrinks too much */
-	}
-
-	mysql_mutex_unlock(&innobase_share_mutex);
+	unlock_shared_ha_data();
+	ut_ad(tmp_share);
+	return(tmp_share);
 }
 
 /*****************************************************************//**
