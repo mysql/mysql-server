@@ -36,7 +36,7 @@ Created 2012-02-08 by Sunny Bains.
 
 /*********************************************************************//**
 Write the meta data config file header. */
-static
+static	__attribute__((nonnull, warn_unused_result))
 db_err
 row_quiesce_write_meta_data_header(
 /*===============================*/
@@ -195,6 +195,8 @@ row_quiesce_table_start(
 
 	trx_purge_stop();
 
+	ut_a(table->id > 0);
+
 	ibuf_contract_in_background(table->id, TRUE);
 
 	if (!trx_is_interrupted(trx)) {
@@ -217,7 +219,8 @@ row_quiesce_table_start(
 		ib_logf(IB_LOG_LEVEL_WARN, "Quiesce aborted!");
 	}
 
-	row_quiesce_set_state(table, QUIESCE_COMPLETE, trx);
+	db_err	err = row_quiesce_set_state(table, QUIESCE_COMPLETE, trx);
+	ut_a(err == DB_SUCCESS);
 }
 
 /*********************************************************************//**
@@ -230,7 +233,7 @@ row_quiesce_table_complete(
 	trx_t*		trx)		/*!< in/out: transaction/session */
 {
 	ulint		count = 0;
-	char 		table_name[MAX_FULL_NAME_LEN + 1];
+	char		table_name[MAX_FULL_NAME_LEN + 1];
 
 	ut_a(trx->mysql_thd != 0);
 
@@ -269,7 +272,8 @@ row_quiesce_table_complete(
 
 	trx_purge_run();
 
-	row_quiesce_set_state(table, QUIESCE_NONE, trx);
+	db_err	err = row_quiesce_set_state(table, QUIESCE_NONE, trx);
+	ut_a(err == DB_SUCCESS);
 }
 
 /*********************************************************************//**
@@ -294,7 +298,7 @@ row_quiesce_set_state(
 
 	} else if (table->space == TRX_SYS_SPACE) {
 
-		char 	table_name[MAX_FULL_NAME_LEN + 1];
+		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
 			table_name, sizeof(table_name), table->name, FALSE);

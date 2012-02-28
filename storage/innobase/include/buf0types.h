@@ -54,7 +54,8 @@ enum buf_flush {
 	BUF_FLUSH_N_TYPES		/*!< index of last element + 1  */
 };
 
-/** Algorithm to remove the pages for a tablespace from the buffer pool. */
+/** Algorithm to remove the pages for a tablespace from the buffer pool.
+See buf_LRU_flush_or_remove_pages(). */
 enum buf_remove_t {
 	BUF_REMOVE_ALL_NO_WRITE,	/*!< Remove all pages from the buffer
 					pool, don't write or sync to disk */

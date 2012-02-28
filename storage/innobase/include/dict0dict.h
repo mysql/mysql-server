@@ -1442,6 +1442,16 @@ dict_set_corrupted_by_space(
 /*========================*/
 	ulint		space_id);	/*!< in: space ID */
 
+/********************************************************************//**
+Validate the table flags.
+@return	true if valid. */
+UNIV_INLINE
+bool
+dict_tf_valid(
+/*==========*/
+	ulint		flags)		/*!< in: table flags */
+	__attribute__((warn_unused_result));
+
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"
 #endif

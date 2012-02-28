@@ -390,13 +390,14 @@ UNIV_INTERN
 ulint
 ibuf_contract_in_background(
 /*========================*/
-	ib_id_t	table_id,	/*!< in: if merge should be done only for
-				a specific table, for all tables this should
-				be IB_ID_UNDEFINED */
-	ibool	full);		/*!< in: TRUE if the caller wants to do a full
-				contract based on PCT_IO(100). If FALSE then
-				the size of contract batch is determined based
-				on the current size of the ibuf tree. */
+	table_id_t	table_id,	/*!< in: if merge should be done only
+					for a specific table, for all tables
+					this should be 0 */
+	ibool		full);		/*!< in: TRUE if the caller wants to
+					do a full contract based on PCT_IO(100).
+				       	If FALSE then the size of contract
+					batch is determined based on the
+					current size of the ibuf tree. */
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Parses a redo log record of an ibuf bitmap page init.
@@ -459,8 +460,9 @@ UNIV_INTERN
 db_err
 ibuf_check_bitmap_on_import(
 /*========================*/
-	trx_t*	trx,		/*!< in: transaction */
-	ulint	space_id);	/*!< in: tablespace identifier */
+	const trx_t*	trx,		/*!< in: transaction */
+	ulint		space_id)	/*!< in: tablespace identifier */
+	__attribute__((nonnull, warn_unused_result));
 
 #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
 #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO

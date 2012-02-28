@@ -252,7 +252,8 @@ buf_flush_page(
 /*===========*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	buf_page_t*	bpage,		/*!< in: buffer control block */
-	enum buf_flush	flush_type);	/*!< in: type of flush */
+	buf_flush	flush_type)	/*!< in: type of flush */
+	__attribute__((nonnull));
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL

@@ -750,7 +750,10 @@ struct dict_table_struct{
 				/* @} */
 	/*----------------------*/
 
-	ib_quiesce_t	 quiesce;/*!< Quiescing states */
+	ib_quiesce_t	 quiesce;/*!< Quiescing states, protected by the
+				dict_index_t::lock. ie. we can only change
+				the state if we acquire all the latches of
+				this table's indexes. */
 
 	/*----------------------*/
 	ulint		n_rec_locks;

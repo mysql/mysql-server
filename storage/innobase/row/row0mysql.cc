@@ -2659,7 +2659,7 @@ means that this function renames the .ibd file and assigns a new table id for
 the table. Also the flag table->ibd_file_missing is set to TRUE.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-int
+db_err
 row_discard_tablespace_for_mysql(
 /*=============================*/
 	const char*	name,	/*!< in: table name */
@@ -2733,30 +2733,33 @@ row_discard_tablespace_for_mysql(
 
 		if (foreign) {
 
-			FILE*	ef	= dict_foreign_err_file;
+			char table_name[MAX_FULL_NAME_LEN + 1];
+			char foreign_table_name[MAX_FULL_NAME_LEN + 1];
+
+			innobase_format_name(
+				table_name, sizeof(table_name),
+				table->name, FALSE);
+
+			innobase_format_name(
+				foreign_table_name, sizeof(foreign_table_name),
+				foreign->foreign_table_name, FALSE);
 
 			/* We only allow discarding a referenced table if
 			FOREIGN_KEY_CHECKS is set to 0 */
 
-			err = DB_CANNOT_DROP_CONSTRAINT;
-
 			mutex_enter(&dict_foreign_err_mutex);
 
-			rewind(ef);
-
-			ut_print_timestamp(ef);
-			fprintf(ef, " InnoDB: Cannot DISCARD table ");
-			ut_print_name(ef, trx, TRUE, name);
-			fprintf(ef, "\n");
-
-			ut_print_timestamp(ef);
-			fprintf(ef, " InnoDB: because it is referenced by ");
-			ut_print_name(
-				ef, trx, TRUE, foreign->foreign_table_name);
-
-			fprintf(ef, "\n");
+			ib_pushf(trx->mysql_thd,
+				 IB_LOG_LEVEL_ERROR,
+				 ER_ROW_IS_REFERENCED,
+				 "Cannot DISCARD table %s because it is "
+				 "referenced by %s",
+				 table_name,
+				 foreign->foreign_table_name);
 
 			mutex_exit(&dict_foreign_err_mutex);
+
+			err = DB_CANNOT_DROP_CONSTRAINT;
 
 			goto func_exit;
 		}
@@ -2765,11 +2768,11 @@ row_discard_tablespace_for_mysql(
 	table_id_t	new_id;
 
 	if (row_mysql_table_id_reassign(table, trx, &new_id)
-	    	!= DB_SUCCESS
+	    != DB_SUCCESS
 	    || row_import_update_discarded_flag(trx, table, true, true)
-	    	!= DB_SUCCESS
+	    != DB_SUCCESS
 	    || row_import_update_index_root(trx, table, true, true)
-	    	!= DB_SUCCESS
+	    != DB_SUCCESS
 	    || ((err = fil_discard_tablespace(table->space, TRUE)) != DB_SUCCESS
 		&& err != DB_TABLESPACE_NOT_FOUND
 		&& err != DB_IO_ERROR)) {
@@ -2823,7 +2826,7 @@ func_exit:
 
 	trx->op_info = "";
 
-	return((int) err);
+	return(err);
 }
 
 /*********************************************************************//**
@@ -3050,7 +3053,7 @@ row_truncate_table_for_mysql(
 		goto funct_exit;
 	}
 
-	/* Remove all locks except the table-level the X lock. */
+	/* Remove all locks except the table-level X lock. */
 
 	lock_remove_all_on_table(table, FALSE);
 
@@ -3796,7 +3799,7 @@ check_next_foreign:
 
 					innobase_format_name(
 						table_name, sizeof(table_name),
-					       	name, FALSE);
+						name, FALSE);
 
 					ib_logf(IB_LOG_LEVEL_INFO,
 						"Removed the table %s from "

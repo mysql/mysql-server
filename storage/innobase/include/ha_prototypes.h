@@ -427,7 +427,8 @@ innobase_format_name(
 	ulint		buflen,		/*!< in: length of buf, in bytes */
 	const char*	name,		/*!< in: index or table name
 					to format */
-	ibool		is_index_name); /*!< in: index name */
+	ibool		is_index_name)	/*!< in: index name */
+	__attribute__((nonnull));
 
 /** Corresponds to Sql_condition:enum_warning_level. */
 enum ib_log_level_t {
@@ -439,7 +440,7 @@ enum ib_log_level_t {
 
 /******************************************************************//**
 Push a warning message to the client, it is a wrapper around:
-								    
+
 void push_warning_printf(
 	THD *thd, Sql_condition::enum_warning_level level,
 	uint code, const char *format, ...);

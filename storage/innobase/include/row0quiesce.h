@@ -17,9 +17,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file include/row0import.h
+@file include/row0quiesce.h
 
-Header file for tablespace quiesce functions. 
+Header file for tablespace quiesce functions.
 
 Created 2012-02-08 by Sunny Bains
 *******************************************************/
@@ -42,7 +42,8 @@ void
 row_quiesce_table_start(
 /*====================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
-	trx_struct*	trx);		/*!< in/out: transaction/session */
+	trx_struct*	trx)		/*!< in/out: transaction/session */
+        __attribute__((nonnull));
 
 /*********************************************************************//**
 Set a table's quiesce state.
@@ -53,7 +54,8 @@ row_quiesce_set_state(
 /*==================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
 	ib_quiesce_t	state,		/*!< in: quiesce state to set */
-	trx_struct*	trx);		/*!< in/out: transaction */
+	trx_struct*	trx)		/*!< in/out: transaction */
+        __attribute__((nonnull, warn_unused_result));
 
 /*********************************************************************//**
 Cleanup after table quiesce. */
@@ -62,7 +64,8 @@ void
 row_quiesce_table_complete(
 /*=======================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
-	trx_struct*	trx);		/*!< in/out: transaction/session */
+	trx_struct*	trx)		/*!< in/out: transaction/session */
+        __attribute__((nonnull));
 
 #ifndef UNIV_NONINL
 #include "row0quiesce.ic"

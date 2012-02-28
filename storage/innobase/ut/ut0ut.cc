@@ -748,7 +748,7 @@ ut_strerr(
 	case DB_END_OF_INDEX:
 		return("End of index");
 	case DB_IO_ERROR:
-		return("IO error");
+		return("I/O error");
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
 	}

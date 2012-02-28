@@ -438,7 +438,8 @@ row_mysql_lock_table(
 	trx_t*		trx,		/*!< in/out: transaction */
 	dict_table_t*	table,		/*!< in: table to lock */
 	enum lock_mode	mode,		/*!< in: LOCK_X or LOCK_S */
-	const char*	op_info);	/*!< in: string for trx->op_info */
+	const char*	op_info)	/*!< in: string for trx->op_info */
+	__attribute__((nonnull, warn_unused_result));
 
 /*********************************************************************//**
 Truncates a table for MySQL.
@@ -464,6 +465,7 @@ row_drop_table_for_mysql(
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx,	/*!< in: dictionary transaction handle */
 	ibool		drop_db);/*!< in: TRUE=dropping whole database */
+
 /*********************************************************************//**
 Drop all temporary tables during crash recovery. */
 UNIV_INTERN
@@ -477,7 +479,7 @@ means that this function deletes the .ibd file and assigns a new table id for
 the table. Also the flag table->ibd_file_missing is set TRUE.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-int
+db_err
 row_discard_tablespace_for_mysql(
 /*=============================*/
 	const char*	name,	/*!< in: table name */
@@ -487,11 +489,13 @@ Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-enum db_err
+db_err
 row_import_tablespace_for_mysql(
 /*============================*/
 	dict_table_t*	table,		/*!< in/out: table */
-	row_prebuilt_t*	prebuilt);	/*!< in: prebuilt struct in MySQL */
+	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
+        __attribute__((nonnull, warn_unused_result));
+
 /*********************************************************************//**
 Drops a database for MySQL.
 @return	error code or DB_SUCCESS */
@@ -561,7 +565,8 @@ row_mysql_table_id_reassign(
 /*========================*/
 	dict_table_t*	table,	/*!< in/out: table */
 	trx_t*		trx,	/*!< in/out: transaction */
-	table_id_t*	new_id);/*!< out: new table id */
+	table_id_t*	new_id) /*!< out: new table id */
+        __attribute__((nonnull, warn_unused_result));
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.

@@ -626,7 +626,8 @@ pars_info_bind_ull_literal(
 /*=======================*/
 	pars_info_t*		info,	/*!< in: info struct */
 	const char*		name,	/*!< in: name */
-	const ib_uint64_t*	val);	/*!< in: value */
+	const ib_uint64_t*	val)	/*!< in: value */
+	__attribute__((nonnull));
 
 /****************************************************************//**
 Add bound id. */

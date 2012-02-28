@@ -2489,7 +2489,7 @@ ibuf_get_merge_page_nos_func(
 /*******************************************************************//**
 Get the matching records for space id.
 @return	current rec or NULL */
-static
+static	__attribute__((nonnull, warn_unused_result))
 const rec_t*
 ibuf_get_user_rec(
 /*===============*/
@@ -2511,7 +2511,7 @@ ibuf_get_user_rec(
 Reads page numbers for a space id from an ibuf tree.
 @return a lower limit for the combined volume of records which will be
 merged */
-static
+static	__attribute__((nonnull, warn_unused_result))
 ulint
 ibuf_get_merge_page_nos_func(
 /*=========================*/
@@ -2699,11 +2699,8 @@ ibuf_merge_space(
 		ut_a(*n_pages <= UT_ARR_SIZE(pages));
 
 		for (ulint i = 0; i < *n_pages; ++i) {
-			ut_a(spaces[i] == space);
-			ut_a(i == 0 || versions[i] == versions[i - 1]);
-#if 1
-			fprintf(stderr, "pg: %lu\n", pages[i]);
-#endif
+			ut_ad(spaces[i] == space);
+			ut_ad(i == 0 || versions[i] == versions[i - 1]);
 		}
 #endif /* UNIV_DEBUG */
 
@@ -2725,7 +2722,7 @@ ibuf_merge(
 /*=======*/
 	ib_id_t	table_id,	/*!< in: if merge should be done only for
 				a specific table, for all tables this should
-				be IB_ID_UNDEFINED */
+				be 0 */
 	ulint*	n_pages,	/*!< out: number of pages to which merged */
 	bool	sync)		/*!< in: TRUE if the caller wants to wait for
 				the issued read with the highest tablespace
@@ -2742,7 +2739,7 @@ ibuf_merge(
 
 	if (ibuf->empty && !srv_shutdown_state) {
 		return(0);
-	} else if (table_id == IB_ID_UNDEFINED) {
+	} else if (table_id == 0) {
 		return(ibuf_merge_pages(n_pages, sync));
 	} else if ((table = ibuf_get_table(table_id)) == 0) {
 		/* Table has been dropped. */
@@ -2771,7 +2768,7 @@ ibuf_contract(
 {
 	ulint	n_pages;
 
-	return(ibuf_merge(IB_ID_UNDEFINED, &n_pages, sync));
+	return(ibuf_merge(0, &n_pages, sync));
 }
 
 /*********************************************************************//**
@@ -2783,13 +2780,14 @@ UNIV_INTERN
 ulint
 ibuf_contract_in_background(
 /*========================*/
-	ib_id_t	table_id,	/*!< in: if merge should be done only for
-				a specific table, for all tables this should
-				be IB_ID_UNDEFINED */
-	ibool	full)		/*!< in: TRUE if the caller wants to do a full
-				contract based on PCT_IO(100). If FALSE then
-				the size of contract batch is determined based
-				on the current size of the ibuf tree. */
+	table_id_t	table_id,	/*!< in: if merge should be done only
+					for a specific table, for all tables
+					this should be 0 */
+	ibool		full)		/*!< in: TRUE if the caller wants to
+					do a full contract based on PCT_IO(100).
+				       	If FALSE then the size of contract
+					batch is determined based on the
+					current size of the ibuf tree. */
 {
 	ulint	sum_bytes	= 0;
 	ulint	sum_pages	= 0;
@@ -5000,8 +4998,8 @@ UNIV_INTERN
 db_err
 ibuf_check_bitmap_on_import(
 /*========================*/
-	trx_t*	trx,		/*!< in: transaction */
-	ulint	space_id)	/*!< in: tablespace identifier */
+	const trx_t*	trx,		/*!< in: transaction */
+	ulint		space_id)	/*!< in: tablespace identifier */
 {
 	ulint	zip_size;
 	ulint	page_size;

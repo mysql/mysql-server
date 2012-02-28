@@ -793,9 +793,15 @@ loop:
 			/* It is a normal database startup: create the space
 			object and check that the .ibd file exists. */
 
-			(void) fil_open_single_table_tablespace(
+			db_err	err = fil_open_single_table_tablespace(
 				NULL, space_id,
 				dict_tf_to_fsp_flags(flags), name);
+
+			if (err != DB_SUCCESS) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Tablespace open failed for '%s', "
+					"ignored.", name);
+			}
 
 		} else {
 			ib_logf(IB_LOG_LEVEL_INFO,

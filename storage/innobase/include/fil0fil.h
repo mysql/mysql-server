@@ -415,18 +415,24 @@ fil_delete_tablespace(
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the
 memory cache. Discarding is like deleting a tablespace, but
-1) we do not drop the table from the data dictionary;
-2) we remove all insert buffer entries for the tablespace immediately; in DROP
-TABLE they are only removed gradually in the background;
-3) when the user does IMPORT TABLESPACE, the tablespace will have the same id
-as it originally had.
-@return	DB_SUCCESS or error*/
+
+ 1. We do not drop the table from the data dictionary;
+
+ 2. We remove all insert buffer entries for the tablespace immediately;
+    in DROP TABLE they are only removed gradually in the background;
+
+ 3. when the user does IMPORT TABLESPACE, the tablespace will have the
+    same id as it originally had.
+
+ 4. Free all the pages in use by the tablespace if rename=TRUE.
+@return	DB_SUCCESS or error */
 UNIV_INTERN
 db_err
 fil_discard_tablespace(
 /*===================*/
 	ulint	id,	/*!< in: space id */
-	ibool	rename);/*!< in: TRUE=rename to .ibt; FALSE=remove */
+	ibool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
+ 	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
 Renames a single-table tablespace. The tablespace must be cached in the
@@ -494,7 +500,7 @@ fil_open_single_table_tablespace(
 	ulint			flags,	/*!< in: tablespace flags */
 	const char*		name)	/*!< in: table name in the
 					databasename/tablename format */
-	__attribute__((nonnull(4)));
+	__attribute__((nonnull(4), warn_unused_result));
 /********************************************************************//**
 It is possible, though very improbable, that the lsn's in the tablespace to be
 imported have risen above the current system lsn, if a lengthy purge, ibuf

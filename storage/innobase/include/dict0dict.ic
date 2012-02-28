@@ -459,11 +459,11 @@ dict_table_has_fts_index(
 
 /********************************************************************//**
 Validate the table flags.
-@return	DB_SUCCESS or DB_CORRUPTION. */
+@return	true if valid. */
 UNIV_INLINE
-db_err
-dict_tf_validate(
-/*=============*/
+bool
+dict_tf_valid(
+/*==========*/
 	ulint	flags)		/*!< in: table flags */
 {
 	ulint	compact = DICT_TF_GET_COMPACT(flags);
@@ -474,7 +474,7 @@ dict_tf_validate(
 	/* Make sure there are no bits that we do not know about. */
 	if (unused != 0) {
 
-		return(DB_CORRUPTION);
+		return(false);
 
 	} else if (atomic_blobs) {
 		/* Barracuda row formats COMPRESSED and DYNAMIC build on
@@ -483,13 +483,13 @@ dict_tf_validate(
 		data stored off-page in the clustered index. */
 
 		if (!compact) {
-			return(DB_CORRUPTION);
+			return(false);
 		}
 
 	} else if (zip_ssize) {
 
 		/* Antelope does not support COMPRESSED row format. */
-		return(DB_CORRUPTION);
+		return(false);
 	}
 
 	if (zip_ssize) {
@@ -501,11 +501,11 @@ dict_tf_validate(
 		    || !atomic_blobs
 		    || zip_ssize > PAGE_ZIP_SSIZE_MAX) {
 
-			return(DB_CORRUPTION);
+			return(false);
 		}
 	}
 
-	return(DB_SUCCESS);
+	return(true);
 }
 
 /********************************************************************//**
@@ -592,7 +592,7 @@ dict_tf_get_rec_format(
 /*===================*/
 	ulint		flags)	/*!< in: dict_table_t::flags */
 {
-	ut_a(dict_tf_validate(flags) == DB_SUCCESS);
+	ut_a(dict_tf_valid(flags));
 
 	if (!DICT_TF_GET_COMPACT(flags)) {
 		return(REC_FORMAT_REDUNDANT);
@@ -718,11 +718,10 @@ dict_tf_to_sys_tables_type(
 		ut_a(flags == DICT_TF_REDUNDANT
 		     || flags == DICT_TF_COMPACT);
 		return(SYS_TABLE_TYPE_ANTELOPE);
-	} else if (dict_tf_validate(flags) == DB_SUCCESS) {
-		return(flags);
 	}
 
-	ut_error;
+	ut_a(dict_tf_valid(flags));
+	return(flags);
 }
 
 /********************************************************************//**

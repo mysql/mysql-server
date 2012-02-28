@@ -212,7 +212,8 @@ struct fil_space_struct {
 				last incomplete megabytes in data files may be
 				ignored if space == 0 */
 	ulint		flags;	/*!< tablespace flags; see
-				fsp_flags_validate(), fsp_flags_get_zip_size() */
+				fsp_flags_validate(),
+				fsp_flags_get_zip_size() */
 	ulint		n_reserved_extents;
 				/*!< number of reserved free extents for
 				ongoing operations like B-tree page split */
@@ -1211,7 +1212,7 @@ fil_space_create(
 {
 	fil_space_t*	space;
 
-	fsp_flags_validate(flags);
+	ut_a(fsp_flags_validate(flags));
 
 try_again:
 	/*printf(
@@ -2882,7 +2883,7 @@ fil_create_new_single_table_tablespace(
 	ut_a(space_id > 0);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
-	fsp_flags_validate(flags);
+	ut_a(fsp_flags_validate(flags));
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
@@ -3424,9 +3425,9 @@ fil_open_single_table_tablespace(
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
-	fsp_flags_validate(flags);
-
-	if (table != 0) {
+	if (!fsp_flags_validate(flags)) {
+		return(DB_CORRUPTION);
+	} else if (table != 0) {
 		space_flags = dict_tf_to_fsp_flags(table->flags);
 
 		ut_ad(table->name == name || !strcmp(table->name, name));
