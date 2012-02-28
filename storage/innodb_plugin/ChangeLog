@@ -1,3 +1,11 @@
+2012-02-28	The InnoDB Team
+
+	* btr/btr0btr.c, dict/dict0dict.c, include/btr0btr.h,
+	include/dict0dict.h, include/dict0dict.ic, include/dict0mem.h,
+	handler/handler0alter.cc, row/row0mysql.c:
+	Fix Bug#12861864 RACE CONDITION IN BTR_GET_SIZE() AND
+	DROP INDEX/TABLE/DATABASE
+
 2012-02-15	The InnoDB Team
 
 	* btr/btr0btr.c, btr/btr0cur.c, fsp/fsp0fsp.c, ibuf/ibuf0ibuf.c,
