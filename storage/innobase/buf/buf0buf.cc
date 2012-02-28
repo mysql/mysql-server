@@ -455,7 +455,7 @@ UNIV_INTERN
 ibool
 buf_page_is_corrupted(
 /*==================*/
-	bool		check_lsn,	/*!< in: true if we need to check the
+	bool		check_lsn,	/*!< in: true if we need to check
 					and complain about the LSN */
 	const byte*	read_buf,	/*!< in: a database page */
 	ulint		zip_size)	/*!< in: size of compressed page;

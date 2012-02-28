@@ -1327,7 +1327,7 @@ convert_error_code_to_mysql(
 		return(HA_ERR_WRONG_COMMAND);
 
 	case DB_TABLE_NOT_FOUND:
-		return(ER_FILE_NOT_FOUND);
+		return(HA_ERR_NO_SUCH_TABLE);
 
 	case DB_TABLESPACE_NOT_FOUND:
 		return(HA_ERR_NO_SUCH_TABLE);
@@ -4477,11 +4477,11 @@ table_opened:
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
 	if (ib_table->ibd_file_missing
-	    && !(ib_table->flags2 & DICT_TF2_DISCARDED)
+	    && dict_table_is_discarded(ib_table)
 	    && !thd_tablespace_op(thd)) {
 
 		sql_print_error("MySQL is trying to open a table handle but "
-				"the .ibd file for table %s does not exist."
+				"the .ibd file for table %s does not exist. "
 				"Have you deleted the .ibd file from the "
 				"database directory under the MySQL datadir, "
 				"or have you used DISCARD TABLESPACE? "
