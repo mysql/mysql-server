@@ -1001,6 +1001,4 @@ public:
 };
 #endif // if HAVE_REPLICATION
 
-extern String my_empty_string;
-
 #endif /* ITEM_STRFUNC_INCLUDED */

@@ -1117,7 +1117,7 @@ Events::load_events_from_db(THD *thd)
   while (!(read_record_info.read_record(&read_record_info)))
   {
     Event_queue_element *et;
-    bool created;
+    bool created, dropped;
 
     if (!(et= new Event_queue_element))
       goto end;
@@ -1133,6 +1133,12 @@ Events::load_events_from_db(THD *thd)
       goto end;
     }
 
+    /**
+      Since the Event_queue_element object could be deleted inside
+      Event_queue::create_event we should save the value of dropped flag
+      into the temporary variable.
+    */
+    dropped= et->dropped;
     if (event_queue->create_event(thd, et, &created))
     {
       /* Out of memory */
@@ -1141,7 +1147,7 @@ Events::load_events_from_db(THD *thd)
     }
     if (created)
       count++;
-    else if (et->dropped)
+    else if (dropped)
     {
       /*
         If not created, a stale event - drop if immediately if

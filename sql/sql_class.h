@@ -840,6 +840,7 @@ typedef struct system_status_var
 {
   ulonglong created_tmp_disk_tables;
   ulonglong created_tmp_tables;
+  ulonglong opt_partial_plans;
   ulonglong ha_commit_count;
   ulonglong ha_delete_count;
   ulonglong ha_read_first_count;
@@ -3966,7 +3967,7 @@ class sql_exchange :public Sql_alloc
 public:
   enum enum_filetype filetype; /* load XML, Added by Arnold & Erik */
   char *file_name;
-  String *field_term,*enclosed,*line_term,*line_start,*escaped;
+  const String *field_term, *enclosed, *line_term, *line_start, *escaped;
   bool opt_enclosed;
   bool dumpfile;
   ulong skip_lines;

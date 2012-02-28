@@ -1737,14 +1737,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                             "table": "t1"
                           }
                         ] /* refine_plan */
-                      }
-                    ] /* steps */
-                  } /* join_optimization */
-                },
-                {
-                  "join_execution": {
-                    "select#": 2,
-                    "steps": [
+                      },
                       {
                         "reconsidering_access_paths_for_index_ordering": {
                           "index_order_summary": {
@@ -1757,6 +1750,13 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                           } /* index_order_summary */
                         } /* reconsidering_access_paths_for_index_ordering */
                       }
+                    ] /* steps */
+                  } /* join_optimization */
+                },
+                {
+                  "join_execution": {
+                    "select#": 2,
+                    "steps": [
                     ] /* steps */
                   } /* join_execution */
                 }

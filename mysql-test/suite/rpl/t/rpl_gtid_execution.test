@@ -173,7 +173,7 @@ eval INSERT INTO stmts VALUES
  ,(1062, 1,   'INSERT',         '',      '6:1',   '',      '',      0)
  ,(1063, 1,   'INSERT',         '',      '',      '',      '',      0)
  ,(1064, 1, 'ROLLBACK',         '',      '~6:1',  '~6:1',  '~6:1',  0)
-  # rollback to savepoint
+  # rollback to savepoint, then rollback
  ,(1070, 1, '6:1',              '',      '',      '6:1',   '6:1',   0)
  ,(1071, 1, 'BEGIN',            '',      '',      '',      '',      0)
  ,(1072, 1,   'SAVEPOINT 1',    '',      '',      '',      '',      0)
@@ -255,6 +255,23 @@ eval INSERT INTO stmts VALUES
  ,(1180, 2, 'BEGIN',            '',      '',      '',      '',      0)
  ,(1181, 2, 'INSERT',           '',      '17:1',  '',      '',      0)
  ,(1182, 2, 'COMMIT',           '17:1',  '~17:1', '~17:1', '~17:1', 0)
+  # rollback to savepoint, then commit
+ ,(1190, 1, '19:1',             '',      '',      '19:1',  '19:1',  0)
+ ,(1191, 1, 'BEGIN',            '',      '',      '',      '',      0)
+ ,(1192, 1,   'SAVEPOINT 1',    '',      '',      '',      '',      0)
+ ,(1193, 1,     'SAVEPOINT 2',  '',      '',      '',      '',      0)
+ ,(1194, 1,       'INSERT',     '',      '19:1',  '',      '',      0)
+ ,(1195, 1,       'INSERT',     '',      '',      '',      '',      0)
+ ,(1196, 1,     'ROLLBACK 2',   '',      '~19:1', '',      '',      0)
+ ,(1197, 1,     'SAVEPOINT 3',  '',      '',      '',      '',      0)
+ ,(1198, 1,       'INSERT',     '',      '19:1',  '',      '',      0)
+ ,(1199, 1,       'SAVEPOINT 4','',      '',      '',      '',      0)
+ ,(1200, 1,     'ROLLBACK 3',   '',      '~19:1', '',      '',      0)
+ ,(1201, 1,     'INSERT',       '',      '19:1',  '',      '',      0)
+ ,(1202, 1,     'SAVEPOINT 2',  '',      '',      '',      '',      0)
+ ,(1203, 1,     'ROLLBACK 2',   '',      '',      '',      '',      0)
+ ,(1204, 1,   'ROLLBACK 1',     '',      '~19:1', '',      '',      0)
+ ,(1205, 1, 'COMMIT',           '19:1', '',      '~19:1', '~19:1', 0)
 #
 # The following is waiting for BUG#13687542
 #
@@ -297,6 +314,7 @@ while ($id <= $max_id)
     --let $stmt_type= `SELECT SUBSTR('$stmt_type', 6)`
     --let $send_reap= send
   }
+  --let $stmt=
   if ($stmt_type == 'reap')
   {
     --let $send_reap= reap
@@ -357,6 +375,17 @@ while ($id <= $max_id)
   if (`SELECT '$stmt_type' REGEXP '^[0-9][0-9]*:[0-9][0-9]*'`)
   {
     --let $stmt= `SELECT CONCAT('SET GTID_NEXT = "', NUMBER_TO_UUID('$stmt_type'), '"')`
+  }
+  if ($stmt == '')
+  {
+    if ($stmt_type != reap)
+    {
+      if ($stmt_type != running)
+      {
+        --echo unrecognized statement specification: stmt_type='$stmt_type' orig_stmt_type='$orig_stmt_type' stmt='$stmt'
+        --die error in test: unrecognized statement specification
+      }
+    }
   }
 
   --let $rpl_connection_name= server_1_$connection
