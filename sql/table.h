@@ -674,6 +674,9 @@ enum index_hint_type
   INDEX_HINT_FORCE
 };
 
+#define      CHECK_ROW_FOR_NULLS_TO_REJECT   (1 << 0)
+#define      REJECT_ROW_DUE_TO_NULL_FIELDS   (1 << 1)
+
 struct st_table {
   st_table() {}                               /* Remove gcc warning */
 
@@ -816,6 +819,26 @@ struct st_table {
     NULL, including columns declared as "not null" (see maybe_null).
   */
   bool null_row;
+  /*
+    No rows that contain null values can be placed into this table.
+    Currently this flag can be set to true only for a temporary table
+    that used to store the result of materialization of a subquery.
+  */
+  bool no_rows_with_nulls;
+  /*
+    This field can contain two bit flags: 
+      CHECK_ROW_FOR_NULLS_TO_REJECT
+      REJECT_ROW_DUE_TO_NULL_FIELDS
+    The first flag is set for the dynamic contexts where it is prohibited
+    to write any null into the table.
+    The second flag is set only if the first flag is set on.
+    The informs the outer scope that there was an attept to write null
+    into a field of the table in the context where it is prohibited.
+    This flag should be set off as soon as the first flag is set on.
+    Currently these flags are used only the tables tno_rows_with_nulls set
+    to true. 
+  */       
+  uint8 null_catch_flags;
 
   /*
     TODO: Each of the following flags take up 8 bits. They can just as easily

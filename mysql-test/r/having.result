@@ -571,6 +571,17 @@ f1
 DROP TABLE t1,t2;
 End of 5.1 tests
 #
+# LP bug:938518 HAVING does not reject the result of aggregation
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, a INT);
+INSERT INTO t1 VALUES (2,7), (4,7), (6,2), (17,0);
+SELECT MIN(t.pk) FROM t1, t1 as t WHERE t1.pk = 1;
+MIN(t.pk)
+NULL
+SELECT MIN(t.pk) FROM t1, t1 as t WHERE t1.pk = 1 HAVING MIN(t.pk) < 10;
+MIN(t.pk)
+drop table t1;
+#
 # LP bug #791761: MAX over an empty join + HAVING
 #
 CREATE TABLE t1 (a int, b int , KEY (b)) ;
@@ -594,3 +605,33 @@ SELECT MAX(t1.b) AS f FROM t1 JOIN t2 ON t2.a != 0
 WHERE (SELECT f3 FROM t3) <> 0 HAVING f <> 6 ;
 f
 DROP TABLE t1,t2,t3;
+#
+# LP bug:806955 HAVING not observed with aggregate +subquery
+#
+CREATE TABLE t1 (f3 int, f10 varchar(1), f11 int, KEY (f10) );
+INSERT INTO t1 VALUES (NULL,'a',0),(8,'b',0);
+CREATE TABLE t2 (f2 int);
+INSERT INTO t2 VALUES (7);
+CREATE TABLE t3 (f3 int);
+INSERT INTO t3 VALUES (0),(8);
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin=off,materialization=off';
+SELECT MIN( t1.f10 ) AS field1
+FROM t1 , t2
+WHERE t2.f2 IN ( SELECT f3 FROM t3 )
+HAVING field1 < 's';
+field1
+explain extended 
+SELECT MIN( t1.f10 ) AS field1
+FROM t1 , t2
+WHERE t2.f2 IN ( SELECT f3 FROM t3 )
+HAVING field1 < 's';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t1	index	NULL	f10	4	NULL	2	100.00	Using index
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select min(`test`.`t1`.`f10`) AS `field1` from `test`.`t1` join `test`.`t2` where <expr_cache><7>(<in_optimizer>(7,<exists>(select `test`.`t3`.`f3` from `test`.`t3` where (<cache>(7) = `test`.`t3`.`f3`)))) having (`field1` < 's')
+set optimizer_switch=@save_optimizer_switch;
+drop table t1,t2,t3;
+End of 5.2 tests

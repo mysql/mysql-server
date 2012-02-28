@@ -117,6 +117,11 @@ static void do_outer_field_to_null_str(Copy_field *copy)
 int
 set_field_to_null(Field *field)
 {
+  if (field->table->null_catch_flags & CHECK_ROW_FOR_NULLS_TO_REJECT)
+  {
+    field->table->null_catch_flags|= REJECT_ROW_DUE_TO_NULL_FIELDS;
+    return -1;
+  }
   if (field->real_maybe_null())
   {
     field->set_null();
@@ -160,6 +165,11 @@ set_field_to_null(Field *field)
 int
 set_field_to_null_with_conversions(Field *field, bool no_conversions)
 {
+  if (field->table->null_catch_flags & CHECK_ROW_FOR_NULLS_TO_REJECT)
+  {
+    field->table->null_catch_flags|= REJECT_ROW_DUE_TO_NULL_FIELDS;
+    return -1;
+  }
   if (field->real_maybe_null())
   {
     field->set_null();

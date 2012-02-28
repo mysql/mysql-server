@@ -390,7 +390,6 @@ public:
   {
     return trace_unsupported_by_check_vcol_func_processor(func_name()); 
   }
-  bool clear_sum_processor(uchar *arg) { clear(); return 0; }
 };
 
 

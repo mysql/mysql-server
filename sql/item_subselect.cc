@@ -4180,6 +4180,11 @@ bool subselect_hash_sj_engine::init(List<Item> *tmp_columns, uint subquery_id)
   memcpy(name, buf, len+1);
 
   result_sink->get_tmp_table_param()->materialized_subquery= true;
+  if (item->substype() == Item_subselect::IN_SUBS && 
+      ((Item_in_subselect*)item)->is_jtbm_merged)
+  {
+    result_sink->get_tmp_table_param()->force_not_null_cols= true;
+  }
   if (result_sink->create_result_table(thd, tmp_columns, TRUE,
                                        tmp_create_options,
 				       name, TRUE, TRUE))

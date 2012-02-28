@@ -524,7 +524,7 @@ btr_search_update_hash_ref(
 {
 	dict_index_t*	index;
 	ulint		fold;
-	const rec_t*	rec;
+	rec_t*		rec;
 
 	ut_ad(cursor->flag == BTR_CUR_HASH_FAIL);
 #ifdef UNIV_SYNC_DEBUG

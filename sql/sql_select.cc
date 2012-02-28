@@ -105,7 +105,7 @@ static int return_zero_rows(JOIN *join, select_result *res,
                             List<TABLE_LIST> &tables,
                             List<Item> &fields, bool send_row,
                             ulonglong select_options, const char *info,
-                            Item *having);
+                            Item *having, List<Item> &all_fields);
 static COND *build_equal_items(THD *thd, COND *cond,
                                COND_EQUAL *inherited,
                                List<TABLE_LIST> *join_list,
@@ -2161,6 +2161,15 @@ JOIN::exec()
       !exec_const_cond->val_int())
     zero_result_cause= "Impossible WHERE noticed after reading const tables";
 
+  /* 
+    We've called exec_const_cond->val_int(). This may have caused an error.
+  */
+  if (thd->is_error())
+  {
+    error= thd->is_error();
+    DBUG_VOID_RETURN;
+  }
+
   if (zero_result_cause)
   {
     (void) return_zero_rows(this, result, select_lex->leaf_tables,
@@ -2168,7 +2177,7 @@ JOIN::exec()
 			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
-			    having ? having : tmp_having);
+			    having ? having : tmp_having, all_fields);
     DBUG_VOID_RETURN;
   }
 
@@ -3771,15 +3780,18 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 	{
 	  /* field = expression OR field IS NULL */
 	  old->level= and_level;
-	  old->optimize= KEY_OPTIMIZE_REF_OR_NULL;
-	  /*
-            Remember the NOT NULL value unless the value does not depend
-            on other tables.
-          */
-	  if (!old->val->used_tables() && old->val->is_null())
-	    old->val= new_fields->val;
-          /* The referred expression can be NULL: */ 
-          old->null_rejecting= 0;
+          if (old->field->maybe_null())
+	  {
+	    old->optimize= KEY_OPTIMIZE_REF_OR_NULL;
+	    /*
+              Remember the NOT NULL value unless the value does not depend
+              on other tables.
+            */
+	    if (!old->val->used_tables() && old->val->is_null())
+	      old->val= new_fields->val;
+            /* The referred expression can be NULL: */ 
+            old->null_rejecting= 0;
+	  }
 	}
 	else
 	{
@@ -10444,7 +10456,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
 static int
 return_zero_rows(JOIN *join, select_result *result, List<TABLE_LIST> &tables,
 		 List<Item> &fields, bool send_row, ulonglong select_options,
-		 const char *info, Item *having)
+		 const char *info, Item *having, List<Item> &all_fields)
 {
   DBUG_ENTER("return_zero_rows");
 
@@ -10474,9 +10486,15 @@ return_zero_rows(JOIN *join, select_result *result, List<TABLE_LIST> &tables,
       if (!table->is_jtbm())
         mark_as_null_row(table->table);		// All fields are NULL
     }
-    if (having &&
-        !having->walk(&Item::clear_sum_processor, FALSE, NULL) &&
-        having->val_int() == 0)
+    List_iterator_fast<Item> it(all_fields);
+    Item *item;
+    /*
+      Inform all items (especially aggregating) to calculate HAVING correctly,
+      also we will need it for sending results.
+    */
+    while ((item= it++))
+      item->no_rows_in_result();
+    if (having && having->val_int() == 0)
       send_row=0;
   }
   if (!(result->send_fields(fields,
@@ -10484,13 +10502,7 @@ return_zero_rows(JOIN *join, select_result *result, List<TABLE_LIST> &tables,
   {
     bool send_error= FALSE;
     if (send_row)
-    {
-      List_iterator_fast<Item> it(fields);
-      Item *item;
-      while ((item= it++))
-	item->no_rows_in_result();
       send_error= result->send_data(fields) > 0;
-    }
     if (!send_error)
       result->send_eof();				// Should be safe
   }
@@ -12281,6 +12293,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
           tbl->table->maybe_null= FALSE;
         tbl->join_list= table->join_list;
         repl_list.push_back(tbl);
+        tbl->dep_tables|= table->dep_tables;
       }
       li.replace(repl_list);
       /* Need to update the name resolution table chain when flattening joins */
@@ -13593,6 +13606,7 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
   table->merge_keys.init();
   table->intersect_keys.init();
   table->keys_in_use_for_query.init();
+  table->no_rows_with_nulls= param->force_not_null_cols;
 
   table->s= share;
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname);
@@ -13672,6 +13686,11 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
           thd->mem_root= mem_root_save;
           arg= sum_item->set_arg(i, thd, new Item_field(new_field));
           thd->mem_root= &table->mem_root;
+          if (param->force_not_null_cols)
+	  {
+            new_field->flags|= NOT_NULL_FLAG;
+            new_field->null_ptr= NULL;
+          }
 	  if (!(new_field->flags & NOT_NULL_FLAG))
           {
 	    null_count++;
@@ -13747,6 +13766,11 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
           agg_item->result_field= new_field;
       }
       tmp_from_field++;
+      if (param->force_not_null_cols)
+      {
+        new_field->flags|= NOT_NULL_FLAG;
+        new_field->null_ptr= NULL;
+      }
       reclength+=new_field->pack_length();
       if (!(new_field->flags & NOT_NULL_FLAG))
 	null_count++;

@@ -251,8 +251,8 @@ bool is_materialization_applicable(THD *thd, Item_in_subselect *in_subs,
          Subquery !contains {GROUP BY, ORDER BY [LIMIT],
          aggregate functions}) && subquery predicate is not under "NOT IN"))
 
-    (*) The subquery must be part of a SELECT statement. The current
-         condition also excludes multi-table update statements.
+    (*) The subquery must be part of a SELECT or CREATE TABLE ... SELECT statement.
+        The current condition also excludes multi-table update statements.
   A note about prepared statements: we want the if-branch to be taken on
   PREPARE and each EXECUTE. The rewrites are only done once, but we need 
   select_lex->sj_subselects list to be populated for every EXECUTE. 
@@ -261,7 +261,8 @@ bool is_materialization_applicable(THD *thd, Item_in_subselect *in_subs,
   if (optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION) &&      // 0
         !child_select->is_part_of_union() &&                          // 1
         parent_unit->first_select()->leaf_tables.elements &&          // 2
-        thd->lex->sql_command == SQLCOM_SELECT &&                     // *
+        (thd->lex->sql_command == SQLCOM_SELECT ||                     // *
+         thd->lex->sql_command == SQLCOM_CREATE_TABLE) &&              // *
         child_select->outer_select()->leaf_tables.elements &&           // 2A
         subquery_types_allow_materialization(in_subs) &&
         (in_subs->is_top_level_item() ||                               //3
@@ -3167,6 +3168,7 @@ bool setup_sj_materialization_part1(JOIN_TAB *sjm_tab)
     sjm->sjm_table_cols.push_back(*p_item);
 
   sjm->sjm_table_param.field_count= subq_select->item_list.elements;
+  sjm->sjm_table_param.force_not_null_cols= TRUE;
 
   if (!(sjm->table= create_tmp_table(thd, &sjm->sjm_table_param, 
                                      sjm->sjm_table_cols, (ORDER*) 0, 

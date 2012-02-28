@@ -2518,7 +2518,8 @@ sub setup_vardir() {
   else
   {
     # hm, what paths work for debs and for rpms ?
-    for (<$bindir/lib/mysql/plugin/*.so>,
+    for (<$bindir/lib64/mysql/plugin/*.so>,
+         <$bindir/lib/mysql/plugin/*.so>,
          <$bindir/lib/plugin/*.dll>)
     {
       my $pname=basename($_);
