@@ -503,6 +503,35 @@ def	performance_schema	file_summary_by_instance	MAX_TIMER_MISC	25	NULL	NO	bigint
 def	performance_schema	hosts	HOST	1	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
 def	performance_schema	hosts	CURRENT_CONNECTIONS	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	hosts	TOTAL_CONNECTIONS	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	IP	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	host_cache	HOST	2	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_bin	varchar(255)			select,insert,update,references	
+def	performance_schema	host_cache	HOST_VALIDATED	3	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
+def	performance_schema	host_cache	SUM_CONNECT_ERRORS	4	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_HOST_BLOCKED_ERRORS	5	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_NAMEINFO_TRANSIENT_ERRORS	6	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_NAMEINFO_PERMANENT_ERRORS	7	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_FORMAT_ERRORS	8	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_ADDRINFO_TRANSIENT_ERRORS	9	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_ADDRINFO_PERMANENT_ERRORS	10	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_FCRDNS_ERRORS	11	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_HOST_ACL_ERRORS	12	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_NO_AUTH_PLUGIN_ERRORS	13	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_AUTH_PLUGIN_ERRORS	14	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_HANDSHAKE_ERRORS	15	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_PROXY_USER_ERRORS	16	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_PROXY_USER_ACL_ERRORS	17	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_AUTHENTICATION_ERRORS	18	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_SSL_ERRORS	19	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_MAX_USER_CONNECTION_ERRORS	20	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_MAX_USER_CONNECTION_PER_HOUR_ERRORS	21	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_DEFAULT_DATABASE_ERRORS	22	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_INIT_CONNECT_ERRORS	23	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_LOCAL_ERRORS	24	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_UNKNOWN_ERRORS	25	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	FIRST_SEEN	26	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
+def	performance_schema	host_cache	LAST_SEEN	27	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
+def	performance_schema	host_cache	FIRST_ERROR_SEEN	28	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
+def	performance_schema	host_cache	LAST_ERROR_SEEN	29	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
 def	performance_schema	mutex_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
 def	performance_schema	mutex_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	mutex_instances	LOCKED_BY_THREAD_ID	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	

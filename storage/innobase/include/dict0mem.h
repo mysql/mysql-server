@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -475,7 +475,9 @@ struct dict_index_struct{
 	unsigned	to_be_dropped:1;
 				/*!< TRUE if this index is marked to be
 				dropped in ha_innobase::prepare_drop_index(),
-				otherwise FALSE */
+				otherwise FALSE. Protected by
+				dict_sys->mutex, dict_operation_lock and
+				index->lock.*/
 	dict_field_t*	fields;	/*!< array of field descriptions */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)

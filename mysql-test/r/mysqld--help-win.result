@@ -203,6 +203,7 @@ The following options may be given as the first argument:
  --gtid-mode=name    Whether Global Transaction Identifiers (GTIDs) are
  enabled. Can be ON or OFF.
  -?, --help          Display this help and exit.
+ --host-cache-size=# How many host names should be cached to avoid resolving.
  --ignore-builtin-innodb 
  IGNORED. This option will be removed in future releases.
  Disable initialization of builtin InnoDB plugin
@@ -950,6 +951,7 @@ general-log FALSE
 group-concat-max-len 1024
 gtid-mode OFF
 help TRUE
+host-cache-size 128
 ignore-builtin-innodb FALSE
 init-connect 
 init-file (No default value)
