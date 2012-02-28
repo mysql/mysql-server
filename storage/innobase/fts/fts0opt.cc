@@ -1054,6 +1054,14 @@ fts_bsearch(
 		}
 	}
 
+	if (lower == upper) {
+		if (doc_id == array[lower].doc_id) {
+			return(lower);
+		} else if (lower == 0) {
+			return(-1);
+		}
+	}
+
 	/* Not found. */
 	return( (lower == 0) ? -1 : -lower);
 }

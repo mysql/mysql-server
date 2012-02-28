@@ -390,6 +390,7 @@ extern const struct _ft_vft ft_vft_result;
 typedef struct new_ft_info
 {
 	struct _ft_vft		*please;
+	struct _ft_vft_ext	*could_you;
 	row_prebuilt_t*		ft_prebuilt;
 	fts_result_t*		ft_result;
 } NEW_FT_INFO;
@@ -504,3 +505,29 @@ innobase_fts_check_doc_id_index_in_def(
 /*===================================*/
 	ulint		n_key,		/*!< in: Number of keys */
 	KEY*		key_info);	/*!< in: Key definition */
+
+/***********************************************************************
+@return version of the extended FTS API */
+uint
+innobase_fts_get_version();
+
+/***********************************************************************
+@return Which part of the extended FTS API is supported */
+ulonglong
+innobase_fts_flags();
+
+/***********************************************************************
+Find and Retrieve the FTS doc_id for the current result row
+@return the document ID */
+ulonglong
+innobase_fts_retrieve_docid(
+/*============================*/
+	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
+
+/***********************************************************************
+Find and retrieve the size of the current result
+@return number of matching rows */
+ulonglong
+innobase_fts_count_matches(
+/*============================*/
+	FT_INFO*	fts_hdl);	/*!< in: FTS handler */

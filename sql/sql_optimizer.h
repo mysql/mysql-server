@@ -98,6 +98,13 @@ public:
       - on each fetch iteration we add num_rows to fetch to fetch_limit
   */
   ha_rows  fetch_limit;
+
+  /**
+     Minimum number of matches that is needed to use JT_FT access.
+     @see optimize_fts_limit_query
+  */
+  ha_rows  min_ft_matches;
+
   /* Finally picked QEP. This is result of join optimization */
   POSITION *best_positions;
 
@@ -317,6 +324,7 @@ public:
     send_records= 0;
     found_records= 0;
     fetch_limit= HA_POS_ERROR;
+    min_ft_matches= HA_POS_ERROR;
     examined_rows= 0;
     exec_tmp_table1= 0;
     exec_tmp_table2= 0;
@@ -508,6 +516,39 @@ private:
     In this case we can stop scanning t2 when we have found one t1.a
   */
   void optimize_distinct();
+
+  /** 
+      Optimize FTS queries where JT_FT access has been selected.
+
+      The following optimization is may be applied:
+      1. Skip filesort if FTS result is ordered
+      2. Skip accessing table rows if FTS result contains necessary information
+      Also verifize that LIMIT optimization was sound.
+
+      @note Optimizations are restricted to single table queries, and the table
+            engine needs to support the extended FTS API.
+   */
+  void optimize_fts_query();
+
+
+  /**
+     Optimize FTS queries with ORDER BY/LIMIT, but no WHERE clause.
+   */
+  void optimize_fts_limit_query();
+
+  /**
+     Replace all Item_field objects with the given field name with the
+     given item in all parts of the query.
+
+     @todo So far this function only handles SELECT list and WHERE clause,
+           For more general use, ON clause, ORDER BY list, GROUP BY list and
+	   HAVING clause also needs to be handled.
+
+     @param field_name Name of the field to search for
+     @param new_item Replacement item
+  */
+  void replace_item_field(const char* field_name, Item* new_item);
+
 
   /**
     TRUE if the query contains an aggregate function but has no GROUP

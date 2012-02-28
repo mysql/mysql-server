@@ -160,6 +160,10 @@
   will report ER_TABLE_NEEDS_UPGRADE, otherwise ER_TABLE_NEED_REBUILD.
 */
 #define HA_CAN_REPAIR                    (LL(1) << 37)
+/*
+  Engine supports extended fulltext API
+ */
+#define HA_CAN_FULLTEXT_EXT              (LL(1) << 38)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities

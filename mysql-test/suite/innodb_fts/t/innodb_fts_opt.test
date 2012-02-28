@@ -1,0 +1,366 @@
+#  
+# Tests for optimizations for InnoDB fulltext search (WL#6043)
+#
+
+CREATE TABLE wp(
+  FTS_DOC_ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  title VARCHAR(255) NOT NULL DEFAULT '',
+  text MEDIUMTEXT NOT NULL,
+  dummy INTEGER,
+  PRIMARY KEY (FTS_DOC_ID),
+  UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+  FULLTEXT KEY idx (title,text) 
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;  
+
+INSERT INTO wp (title, text) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+  ('MySQL vs. YourSQL','In the following database to database comparison ...'),
+  ('MySQL Security','When configured properly, MySQL ...');      
+
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 SELECT FTS_DOC_ID FROM wp;
+
+#
+#  Show results of MATCH expressions for reference
+#
+SELECT FTS_DOC_ID, title, MATCH(title, text) AGAINST ('database') AS score1,
+       MATCH(title, text) AGAINST ('mysql') AS score2 
+FROM wp;
+
+#
+# Test that filesort is not used if ordering on same match expression
+# as where clause
+#
+--echo No sorting for this query
+FLUSH STATUS;
+
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score DESC;
+
+SHOW SESSION STATUS LIKE 'Sort%';
+
+--echo No sorting for this query even if MATCH is part of an expression
+FLUSH STATUS;
+
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database') > 0.1
+ORDER BY score DESC;
+
+SHOW SESSION STATUS LIKE 'Sort%';
+
+--echo No sorting even if there are several MATCH expressions as long as the
+--echo right one is used in ORDER BY
+FLUSH STATUS;
+
+SELECT title, MATCH(title, text) AGAINST ('database') AS score1,
+       MATCH(title, text) AGAINST ('mysql') AS score2 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score1 DESC;
+
+SHOW SESSION STATUS LIKE 'Sort%';
+
+--echo Sorting since it is not a single table query
+FLUSH STATUS;
+
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp, t1 
+WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID = t1.i
+ORDER BY score DESC;
+
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+
+--echo Sorting since there is no WHERE clause
+FLUSH STATUS;
+
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC;
+
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+
+--echo Sorting since ordering on multiple columns
+FLUSH STATUS;
+
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score DESC, FTS_DOC_ID;
+  
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+
+--echo Sorting since ordering is not descending
+FLUSH STATUS;
+
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score ASC;
+  
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+
+--echo Sorting because one is ordering on a different MATCH expression
+FLUSH STATUS;
+
+SELECT title, MATCH(title, text) AGAINST ('mysql') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score DESC;
+  
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+
+#
+#  Tests for ORDER BY/LIMIT optimzation
+#
+--echo No sorting for this query
+FLUSH STATUS;
+
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC LIMIT 2;
+
+SHOW SESSION STATUS LIKE 'Sort%';
+
+--echo Revert to table scan and sorting for this query since not
+--echo enough matching rows to satisfy LIMIT clause
+FLUSH STATUS;
+
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC LIMIT 3;
+
+SHOW SESSION STATUS LIKE 'Handler_read%';
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+
+--echo Sorting since no LIMIT clause
+FLUSH STATUS;
+
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC;
+
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+
+--echo Sorting since there is a WHERE clause
+FLUSH STATUS;
+
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp
+WHERE dummy IS NULL
+ORDER BY score DESC LIMIT 2;
+
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+
+--echo Sorting since ordering is not on a simple MATCH expressions
+FLUSH STATUS;
+
+SELECT title, (MATCH(title, text) AGAINST ('database')) * 100 AS score 
+FROM wp 
+ORDER BY score DESC LIMIT 2;
+
+SHOW SESSION STATUS LIKE 'Sort_rows%';
+
+#
+#  Test that there is no row accesses if all necessary information is
+#  available in FTS result
+#
+--echo No ordinary handler accesses when only accessing FTS_DOC_ID and MATCH
+FLUSH STATUS;
+
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database');
+
+SHOW SESSION STATUS LIKE 'Handler_read%';
+
+--echo Still no handler accesses when adding FTS_DOC_ID to WHERE clause
+FLUSH STATUS;
+
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID > 2;
+
+SHOW SESSION STATUS LIKE 'Handler_read%';
+
+--echo Still no handler accesses when ordering by MATCH expression
+FLUSH STATUS;
+
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score;
+
+SHOW SESSION STATUS LIKE 'Handler_read%';
+
+--echo Optimization is disabled when ordering on FTS_DOC_ID
+FLUSH STATUS;
+
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY 1 DESC;
+
+SHOW SESSION STATUS LIKE 'Handler_read%';
+
+--echo Optimization also work with several MATCH expressions
+FLUSH STATUS;
+
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score1,
+       MATCH(title, text) AGAINST ('mysql') AS score2 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database');
+
+SHOW SESSION STATUS LIKE 'Handler_read%';
+
+--echo Optimization does not apply if sorting on a different MATCH expressions
+--echo from the one used to access the 
+FLUSH STATUS;
+
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score1,
+       MATCH(title, text) AGAINST ('mysql') AS score2 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score2 DESC;
+
+SHOW SESSION STATUS LIKE 'Handler_read%';
+
+FLUSH STATUS;
+
+--echo Optimization does not apply for GROUP BY
+SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('database') AS score
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+GROUP BY score;
+
+SHOW SESSION STATUS LIKE 'Handler_read%';
+
+#
+#  Putting all three optimizations together
+#
+--echo No sorting and no table access with LIMIT clause and only information
+--echo from FTS result
+FLUSH STATUS;
+
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC LIMIT 2;
+
+SHOW STATUS LIKE 'Handler_read%';
+SHOW SESSION STATUS LIKE 'Sort%';
+
+#
+# Count optimization
+#
+let $query = 
+SELECT COUNT(*) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+
+--echo If count optimization applies, EXPLAIN shows 
+--echo "Select tables optimized away."
+eval EXPLAIN $query;
+FLUSH STATUS;
+eval $query;
+--echo Verify that there was no table access
+SHOW STATUS LIKE 'Handler_read%';
+
+let $query = 
+SELECT COUNT(title) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+
+--echo Optimization applies also to COUNT(expr) as long as expr is not nullable
+eval EXPLAIN $query;
+eval $query;
+
+let $query = 
+SELECT count(*)
+FROM wp, t1 
+WHERE MATCH(title, text) AGAINST ('database');
+
+--echo Optimization does not apply if not a single table query.
+eval EXPLAIN $query;
+eval $query;
+
+let $query = 
+SELECT COUNT(title) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
+
+--echo Optimization does not apply if MATCH is part of an expression
+eval EXPLAIN $query;
+eval $query;
+
+let $query = 
+SELECT COUNT(title) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
+
+--echo Optimization does not apply if MATCH is part of an expression
+eval EXPLAIN $query;
+eval $query;
+
+let $query = 
+SELECT COUNT(dummy) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+
+--echo Optimization does not apply if COUNT expression is nullable
+eval EXPLAIN $query;
+eval $query;
+
+#
+#  Verify that the queries optimized for InnoDB still works with MyISAM
+#
+ALTER TABLE wp ENGINE=myisam;
+
+# Check avoid sorting query
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database')
+ORDER BY score DESC;
+SHOW SESSION STATUS LIKE 'Sort%';
+
+# Check ORDER BY/LIMIT query with no WHERE clause
+FLUSH STATUS;
+SELECT title, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC LIMIT 2;
+SHOW SESSION STATUS LIKE 'Sort%';
+
+# Check query where FTS result is "covering"
+FLUSH STATUS;
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+WHERE MATCH(title, text) AGAINST ('database');
+SHOW SESSION STATUS LIKE 'Handler_read%';
+
+# Check the combination of all three
+FLUSH STATUS;
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
+FROM wp 
+ORDER BY score DESC LIMIT 2;
+SHOW STATUS LIKE 'Handler_read%';
+SHOW SESSION STATUS LIKE 'Sort%';
+
+# Check the count optimization
+let $query = 
+SELECT COUNT(*) 
+FROM wp 
+WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+eval EXPLAIN $query;
+FLUSH STATUS;
+eval $query;
+--echo Verify that there was no table access
+SHOW STATUS LIKE 'Handler_read%';
+
+DROP TABLE wp, t1;
+
+

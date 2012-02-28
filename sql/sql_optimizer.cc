@@ -274,6 +274,8 @@ JOIN::optimize()
   }
 #endif
 
+  optimize_fts_limit_query();
+
   /* 
      Try to optimize count(*), min() and max() to const fields if
      there is implicit grouping (aggregate functions but no
@@ -719,7 +721,10 @@ JOIN::optimize()
 
   /* Perform FULLTEXT search before all regular searches */
   if (!(select_options & SELECT_DESCRIBE))
+  {
     init_ftfuncs(thd, select_lex, test(order));
+    optimize_fts_query();
+  }
 
   /* Create all structures needed for materialized subquery execution. */
   if (setup_subquery_materialization())
@@ -6837,6 +6842,31 @@ void JOIN::cache_const_exprs()
 }
 
 
+void JOIN::replace_item_field(const char* field_name, Item* new_item)
+{
+  if (conds)
+  {
+    conds= conds->compile(&Item::item_field_by_name_analyzer, 
+                          (uchar **)&field_name,
+                          &Item::item_field_by_name_transformer,
+                          (uchar *)new_item);
+    conds->update_used_tables();
+  }
+
+  List_iterator<Item> it(fields_list);
+  Item *item;
+  while ((item= it++))
+  {
+    item= item->compile(&Item::item_field_by_name_analyzer,
+                        (uchar **)&field_name,
+                        &Item::item_field_by_name_transformer,
+                        (uchar *)new_item);
+    it.replace(item);
+    item->update_used_tables();
+  }
+}
+
+
 /**
   Extract a condition that can be checked after reading given table
   
@@ -8739,6 +8769,156 @@ static void optimize_keyuse(JOIN *join, Key_use_array *keyuse_array)
 }
 
 
+void JOIN::optimize_fts_query()
+{
+  if (tables > 1)
+    return;    // We only optimize single table FTS queries
+
+  JOIN_TAB * const tab= &(join_tab[0]);
+  if (tab->type != JT_FT)
+    return;    // Access is not using FTS result
+
+  if ((tab->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+    return;    // Optimizations requires extended FTS support by table engine
+
+  Item_func_match* fts_result= static_cast<Item_func_match*>(tab->keyuse->val);
+
+  /* If we are ordering on the rank of the same result as is used for access,
+     and the table engine deliver result ordered by rank, we can drop ordering.
+   */
+  if (order && order->next == NULL &&             
+      order->direction == ORDER::ORDER_DESC && 
+      fts_result->eq(*(order->item), true))
+  {
+    Item_func_match* fts_item= static_cast<Item_func_match*>(*(order->item)); 
+
+    /* If we applied the LIMIT optimization @see optimize_fts_limit_query,
+       check that the number of matching rows is sufficient.
+       Otherwise, revert this optimization and use table scan instead.
+    */
+    if (min_ft_matches != HA_POS_ERROR && 
+        min_ft_matches > fts_item->get_count())
+    {
+      // revert to table scan, do things make_join_readinfo would have done
+      tab->type= JT_ALL;
+      tab->read_first_record= join_init_read_record;
+      tab->use_quick= QS_NONE;
+      tab->ref.key= -1;
+
+      // Reset join condition
+      tab->select->cond= NULL;
+      conds= NULL;
+
+      thd->set_status_no_index_used();
+      // make_join_readinfo only calls inc_status_select_scan()
+      // when this is not SELECT_DESCRIBE
+      DBUG_ASSERT((select_options & SELECT_DESCRIBE) == 0);
+      thd->inc_status_select_scan();
+
+      return;
+    }
+    else if (fts_item->ordered_result())
+      order= NULL;
+  }
+  
+  /* Check whether the FTS result is covering.  If only document id
+     and rank is needed, there is no need to access table rows.
+  */
+  List_iterator<Item> it(all_fields);
+  Item *item;
+  bool covering= (order == NULL);  // Optimization does not work with filesort
+  bool docid_found= false;
+  while (covering && (item= it++))
+  {
+    switch (item->type()) {
+    case Item::FIELD_ITEM:
+    {
+      Item_field *item_field= static_cast<Item_field*>(item);
+      if (strcmp(item_field->field_name, FTS_DOC_ID_COL_NAME) == 0)
+      {
+        docid_found= true;
+        covering= fts_result->docid_in_result();
+      }
+      else
+        covering= false;
+      break;
+    }
+    case Item::FUNC_ITEM:
+      if (static_cast<Item_func*>(item)->functype() == Item_func::FT_FUNC)
+      {
+        Item_func_match* fts_item= static_cast<Item_func_match*>(item); 
+        if (fts_item->eq(fts_result, true))
+          break;
+      }
+      // Fall-through when not an equivalent MATCH expression
+    default:
+      covering= false;
+    }
+  }
+
+  if (covering) 
+  {
+    if (docid_found)
+    {
+      replace_item_field(FTS_DOC_ID_COL_NAME, 
+                         new Item_func_docid(reinterpret_cast<FT_INFO_EXT*>
+                                             (fts_result->ft_handler)));
+    }
+    
+    // Tell storage engine that row access is not necessary
+    fts_result->table->set_keyread(true);
+    fts_result->table->covering_keys.set_bit(fts_result->key);
+  }
+}
+
+
+  /**
+     Optimize FTS queries with ORDER BY/LIMIT, but no WHERE clause.
+
+     If MATCH expression is not in WHERE clause, but in ORDER BY,
+     JT_FT access will not apply. However, if we are ordering on rank and
+     there is a limit, normally, only the top ranking rows are needed
+     returned, and one would benefit from the optimizations associated
+     with JT_FT acess (@see optimize_fts_query).  To get JT_FT access we
+     will add the MATCH expression to the WHERE clause.
+
+     @note This optimization will only be applied to single table
+           queries with no existing WHERE clause.
+     @note This transformation is not correct if number of matches 
+           is less than the number of rows requested by limit.
+           If this turns out to be the case, the transformation will
+           be reverted @see optimize_fts_query()
+   */
+void 
+JOIN::optimize_fts_limit_query()
+{
+  /* 
+     Only do this optimization if
+     1. It is a single table query
+     2. There is no WHERE condition
+     3. There is a single ORDER BY element
+     4. Ordering is descending
+     5. There is a LIMIT clause
+     6. Ordering is on a MATCH expression
+   */
+  if (tables == 1 &&                              // 1
+      conds == NULL &&                            // 2
+      order && order->next == NULL &&             // 3
+      order->direction == ORDER::ORDER_DESC &&    // 4
+      m_select_limit != HA_POS_ERROR)             // 5
+  {
+    DBUG_ASSERT(order->item);
+    Item* item= *order->item;
+    DBUG_ASSERT(item);
+
+    if (item->type() == Item::FUNC_ITEM &&
+        static_cast<Item_func*>(item)->functype() == Item_func::FT_FUNC)  // 6
+    {
+      conds= item;
+      min_ft_matches= m_select_limit;
+    }
+  }
+}
 
 /**
   @} (end of group Query_Optimizer)
