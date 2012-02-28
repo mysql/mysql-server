@@ -134,13 +134,16 @@ INSERT INTO t1 VALUES (1);
 --echo ==== Checks performed at server start when GTID_MODE = ON ====
 
 --connection master
-
+--let $saved_innodb_page_size_server1=`SELECT @@innodb_page_size`
+--connection slave
+--let $saved_innodb_page_size_server2=`SELECT @@innodb_page_size`
+--connection master
 --let $rpl_server_number= 2
 --source include/rpl_stop_server.inc
 
---let $server1_cmd= $MYSQLD --defaults-group-suffix=.1 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-output=file --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB
+--let $server1_cmd= $MYSQLD --defaults-group-suffix=.1 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-output=file --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --innodb-page-size=$saved_innodb_page_size_server1
 
---let $server2_cmd= $MYSQLD --defaults-group-suffix=.2 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-output=file --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB
+--let $server2_cmd= $MYSQLD --defaults-group-suffix=.2 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-output=file --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --innodb-page-size=$saved_innodb_page_size_server2
 
 --let $assert_status= 1
 

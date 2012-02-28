@@ -5,10 +5,10 @@
 # Options:
 # (Type of the log: binlog or relaylog)
 # --let $binlog= <type_log>
-# (Check in the current log has <set_ini>-<set_end> in Previous GTids)
+# (Check in the current log has <set_ini>-<set_end> in Previous GTIDs)
 # $gtid_set_ini= <set_ini>
 # $gtid_set_end= <set_end>
-# (Check in the current log has GTids from <gtid_ini> to <gtid_end>)
+# (Check in the current log has GTIDs from <gtid_ini> to <gtid_end>)
 # $gtid_ini= <gtid_ini>
 # $gtid_end= <gtid_end>
 # (Enable or disable debug)
@@ -22,7 +22,7 @@
 # --let $gtid_end= <gtid_end>
 # --source extra/rpl_tests/rpl_check_gtid.inc
 #
-# Example (Checking both Previous GTids and current Gtids in the master's
+# Example (Checking both Previous GTIDs and current Gtids in the master's
 #          current binary log):
 # --connection master
 # --let $binlog= binlog
@@ -32,7 +32,7 @@
 # --let $gtid_end= <gtid_end>
 # --source extra/rpl_tests/rpl_check_gtid.inc
 #
-# Example (Checking Previous GTids in the slave's current binary log):
+# Example (Checking Previous GTIDs in the slave's current binary log):
 # --connection slave
 # --let $binlog= binlog
 # --let $gtid_set_ini= <set_ini>
@@ -41,7 +41,7 @@
 # --let $gtid_end=
 # --source extra/rpl_tests/rpl_check_gtid.inc
 #
-# Example (Checking GTids in the slave's current relay log):
+# Example (Checking GTIDs in the slave's current relay log):
 # --connection slave
 # --let $binlog= relaylog
 # --let $gtid_set_ini=
