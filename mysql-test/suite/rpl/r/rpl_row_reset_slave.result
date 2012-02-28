@@ -28,6 +28,7 @@ include/start_slave.inc
 create temporary table t1 (a int);
 include/stop_slave.inc
 reset slave;
+reset master;
 include/start_slave.inc
 show status like 'slave_open_temp_tables';
 Variable_name	Value

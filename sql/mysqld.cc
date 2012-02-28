@@ -55,6 +55,7 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <my_bit.h>
+#include "rpl_gtid.h"
 #include "rpl_slave.h"
 #include "rpl_master.h"
 #include "rpl_mi.h"
@@ -464,6 +465,13 @@ ulong binlog_checksum_options;
 my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
+my_bool disable_gtid_unsafe_statements;
+ulong gtid_mode;
+const char *gtid_mode_names[]=
+{"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
+TYPELIB gtid_mode_typelib=
+{ array_elements(gtid_mode_names) - 1, "", gtid_mode_names, NULL };
+
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
 #endif
@@ -592,6 +600,9 @@ uint mysql_real_data_home_len, mysql_data_home_len= 1;
 uint reg_ext_length;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
+char logname_path[FN_REFLEN];
+char slow_logname_path[FN_REFLEN];
+char secure_file_real_path[FN_REFLEN];
 
 DATE_TIME_FORMAT global_date_format, global_datetime_format, global_time_format;
 Time_zone *default_tz;
@@ -1650,6 +1661,12 @@ void clean_up(bool print_message)
   my_free(const_cast<char*>(relay_log_index));
 #endif
   free_list(opt_plugin_load_list_ptr);
+
+  if (THR_THD)
+    (void) pthread_key_delete(THR_THD);
+
+  if (THR_MALLOC)
+    (void) pthread_key_delete(THR_MALLOC);
 
   /*
     The following lines may never be executed as the main thread may have
@@ -3228,7 +3245,6 @@ rpl_make_log_name(const char *opt,
 
 int init_common_variables()
 {
-  char buff[FN_REFLEN];
   umask(((~my_umask) & 0666));
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();      // Set tzname
@@ -3603,13 +3619,13 @@ int init_common_variables()
   if (!VAR || !*VAR)                                            \
   {                                                             \
     my_free(VAR); /* it could be an allocated empty string "" */ \
-    VAR= my_strdup(ALT, MYF(0));                                \
+    VAR= ALT;                                                    \
   }
 
   FIX_LOG_VAR(opt_logname,
-              make_default_log_name(buff, ".log"));
+              make_default_log_name(logname_path, ".log"));
   FIX_LOG_VAR(opt_slow_logname,
-              make_default_log_name(buff, "-slow.log"));
+              make_default_log_name(slow_logname_path, "-slow.log"));
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the debug sync facility. See debug_sync.cc. */
@@ -4011,21 +4027,24 @@ static int init_server_auto_options()
   if (handle_options(&argc, &argv, auto_options, mysqld_get_one_option))
     DBUG_RETURN(1);
 
+  DBUG_PRINT("info", ("uuid=%p=%s server_uuid=%s", uuid, uuid, server_uuid));
   if (uuid)
   {
-    if (strlen(uuid) != UUID_LENGTH)
+    if (!Uuid::is_valid(uuid))
     {
-      sql_print_error("The UUID stored in auto.cnf file is the wrong length.");
+      sql_print_error("The server_uuid stored in auto.cnf file is not a valid UUID.");
       goto err;
     }
     strcpy(server_uuid, uuid);
   }
   else
   {
+    DBUG_PRINT("info", ("generating server_uuid"));
     flush= TRUE;
     /* server_uuid will be set in the function */
     if (generate_server_uuid())
       goto err;
+    DBUG_PRINT("info", ("generated server_uuid=%s", server_uuid));
     sql_print_warning("No existing UUID has been found, so we assume that this"
                       " is the first time that this server has been started."
                       " Generating a new UUID: %s.",
@@ -4296,6 +4315,10 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (ha_init_errors())
     DBUG_RETURN(1);
 
+  if (opt_ignore_builtin_innodb)
+    sql_print_warning("ignore-builtin-innodb is ignored "
+                      "and will be removed in future releases.");
+
   if (plugin_init(&remaining_argc, remaining_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
                   (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
@@ -4415,9 +4438,36 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
-  if (opt_bin_log && mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
-                                        WRITE_CACHE, 0, max_binlog_size, 0, TRUE))
+  if (gtid_mode >= 1 && !(opt_bin_log && opt_log_slave_updates))
+  {
+    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates");
     unireg_abort(1);
+  }
+  if (gtid_mode >= 2 && !disable_gtid_unsafe_statements)
+  {
+    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 requires --disable-gtid-unsafe-statements");
+    unireg_abort(1);
+  }
+  if (gtid_mode == 1 || gtid_mode == 2)
+  {
+    sql_print_error("--gtid-mode=UPGRADE_STEP_1 or --gtid-mode=UPGRADE_STEP_2 are not yet supported");
+    unireg_abort(1);
+  }
+
+  if (opt_bin_log)
+  {
+    /*
+      Configures what object is used by the current log to store processed
+      gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
+      corretly compute the set of previous gtids.
+    */
+    mysql_bin_log.set_previous_gtid_set(
+      const_cast<Gtid_set*>(gtid_state.get_logged_gtids()));
+    if (mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
+                                  WRITE_CACHE, 0, max_binlog_size, 0,
+                                  true/*need mutex*/, true/*need sid_lock*/))
+      unireg_abort(1);
+  }
 
 #ifdef HAVE_REPLICATION
   if (opt_bin_log && expire_logs_days)
@@ -4864,13 +4914,71 @@ int mysqld_main(int argc, char **argv)
     Each server should have one UUID. We will create it automatically, if it
     does not exist.
    */
-  if (!opt_bootstrap && init_server_auto_options())
+  if (!opt_bootstrap)
   {
-    sql_print_error("Initialzation of the server's UUID failed because it could"
-                    " not be read from the auto.cnf file. If this is a new"
-                    " server, the initialization failed because it was not"
-                    " possible to generate a new UUID.");
-    unireg_abort(1);
+    if (init_server_auto_options())
+    {
+      sql_print_error("Initialzation of the server's UUID failed because it could"
+                      " not be read from the auto.cnf file. If this is a new"
+                      " server, the initialization failed because it was not"
+                      " possible to generate a new UUID.");
+      unireg_abort(1);
+    }
+
+    if (opt_bin_log)
+    {
+      /*
+        Add server_uuid to the sid_map.  This must be done after
+        server_uuid has been initialized in init_server_auto_options and
+        after the binary log (and sid_map file) has been initialized in
+        init_server_components().
+
+        No error message is needed: init_sid_map() prints a message.
+      */
+      global_sid_lock.rdlock();
+      int ret= gtid_state.init();
+      global_sid_lock.unlock();
+      if (ret)
+        unireg_abort(1);
+
+      if (mysql_bin_log.init_gtid_sets(
+            const_cast<Gtid_set *>(gtid_state.get_logged_gtids()),
+            const_cast<Gtid_set *>(gtid_state.get_lost_gtids()),
+            opt_master_verify_checksum,
+            true/*true=need lock*/))
+        unireg_abort(1);
+
+      /*
+        Write the previous set of gtids at this point because during
+        the creation of the binary log this is not done as we cannot
+        move the init_gtid_sets() to a place before openning the binary
+        log. This requires some investigation.
+
+        /Alfranio
+      */
+      if (gtid_mode > 0)
+      {
+        global_sid_lock.wrlock();
+        const Gtid_set *logged_gtids= gtid_state.get_logged_gtids();
+        if (gtid_mode > 1 || !logged_gtids->is_empty())
+        {
+          Previous_gtids_log_event prev_gtids_ev(logged_gtids);
+          global_sid_lock.unlock();
+
+          prev_gtids_ev.checksum_alg= binlog_checksum_options;
+
+          if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
+            unireg_abort(1);
+          mysql_bin_log.add_bytes_written(prev_gtids_ev.data_written);
+
+          if (flush_io_cache(mysql_bin_log.get_log_file()) ||
+              mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
+            unireg_abort(1);
+        }
+        else
+          global_sid_lock.unlock();
+      }
+    }
   }
 
   init_ssl();
@@ -7077,6 +7185,7 @@ SHOW_VAR status_vars[]= {
   {"Opened_files",             (char*) &my_file_total_opened, SHOW_LONG_NOFLUSH},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONGLONG_STATUS},
   {"Opened_table_definitions", (char*) offsetof(STATUS_VAR, opened_shares), SHOW_LONGLONG_STATUS},
+  {"Opt_partial_plans",        (char*) offsetof(STATUS_VAR, opt_partial_plans), SHOW_LONGLONG_STATUS},
   {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count, SHOW_FUNC},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_NOFLUSH},
@@ -7300,6 +7409,7 @@ static int mysql_init_variables(void)
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
+  opt_secure_file_priv= NULL;
   opt_bootstrap= opt_myisam_log= 0;
   mqh_used= 0;
   kill_in_progress= 0;
@@ -7374,7 +7484,12 @@ static int mysql_init_variables(void)
     relay_log_info_file= (char*) "relay-log.info";
   report_user= report_password = report_host= 0;  /* TO BE DELETED */
   opt_relay_logname= opt_relaylog_index_name= 0;
+  log_bin_basename= NULL;
+  log_bin_index= NULL;
 
+  /* Handler variables */
+  total_ha= 0;
+  total_ha_2pc= 0;
   /* Variables in libraries */
   charsets_dir= 0;
   default_character_set_name= (char*) MYSQL_DEFAULT_CHARSET_NAME;
@@ -8245,10 +8360,7 @@ static int fix_paths(void)
   if (opt_secure_file_priv)
   {
     if (*opt_secure_file_priv == 0)
-    {
-      my_free(opt_secure_file_priv);
-      opt_secure_file_priv= 0;
-    }
+      opt_secure_file_priv= NULL;
     else
     {
       if (strlen(opt_secure_file_priv) >= FN_REFLEN)
@@ -8258,9 +8370,7 @@ static int fix_paths(void)
         sql_print_warning("Failed to normalize the argument for --secure-file-priv.");
         return 1;
       }
-      char *secure_file_real_path= (char *)my_malloc(FN_REFLEN, MYF(MY_FAE));
       convert_dirname(secure_file_real_path, buff, NullS);
-      my_free(opt_secure_file_priv);
       opt_secure_file_priv= secure_file_real_path;
     }
   }
@@ -8400,7 +8510,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
-  key_PARTITION_LOCK_auto_inc, key_LOCK_log_throttle_qni;
+  key_LOCK_log_throttle_qni;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
 
 static PSI_mutex_info all_server_mutexes[]=
@@ -8456,7 +8566,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
   { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
   { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
-  { &key_PARTITION_LOCK_auto_inc, "HA_DATA_PARTITION::LOCK_auto_inc", 0},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL}
 };
 
@@ -8692,6 +8801,7 @@ PSI_stage_info stage_user_lock= { 0, "User lock", 0};
 PSI_stage_info stage_user_sleep= { 0, "User sleep", 0};
 PSI_stage_info stage_verifying_table= { 0, "verifying table", 0};
 PSI_stage_info stage_waiting_for_delay_list= { 0, "waiting for delay_list", 0};
+PSI_stage_info stage_waiting_for_gtid_to_be_written_to_binary_log= { 0, "waiting for GTID to be written to binary log", 0};
 PSI_stage_info stage_waiting_for_handler_insert= { 0, "waiting for handler insert", 0};
 PSI_stage_info stage_waiting_for_handler_lock= { 0, "waiting for handler lock", 0};
 PSI_stage_info stage_waiting_for_handler_open= { 0, "waiting for handler open", 0};

@@ -1,11 +1,40 @@
-################################################################################
-# This is an auxiliary file used by rpl_mixing_engines.test, and that it
+# ==== Purpose ====
+#
+# This is an auxiliary file used by rpl_mixing_engines.test. It
 # executes SQL statements according to a format string, as specified in
 # rpl_mixing_engines.test. In addition, it accepts the special format
 # strings 'configure' and 'clean', used before and after everything else.
-################################################################################
+#
+# ==== Usage ====
+#
+# --let $commands= command1 command2 ...
+# --let $database_name= name
+# [--let $verbose= 1]
+# --source include/rpl_mixing_engines.inc
+#
+#   Parameters:
+#
+#     $commands
+#       Space-separated list of commands. See rpl_mixing_engines.test
+#       for a list of all commands.
+#
+#     $database_name
+#       Name of database to use. If $commands is 'configure' or
+#       'clean', and the database name is not 'test', then the
+#       database is created or dropped, respectively.
+#
+#     $verbose
+#       By default, show_binlog_events.inc is sourced after all
+#       commands have been processed, showing the result of all
+#       commands.  If this flag is set, then show_binlog_events.inc is
+#       also sourced once after each command, showing only the result
+#       of that command.
 
-if (`SELECT HEX(@commands) = HEX('configure')`)
+--echo rpl_mixing_engines.inc [commands=$commands]
+
+--let $rme_initial_commands= $commands
+
+if ($commands == 'configure')
 {
   connection master;
   
@@ -127,13 +156,11 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   let $trans_id= 7;
   let $tb_id= 1;
   let $stmt_id= 1;
-  let $commands= '';
+  --let $commands=
   let $sn= 0;
-
-  SET @commands= '';
 }
 
-if (`SELECT HEX(@commands) = HEX('clean')`)
+if ($commands == 'clean')
 {
   connection master;
 
@@ -169,58 +196,52 @@ if (`SELECT HEX(@commands) = HEX('clean')`)
 
   sync_slave_with_master;
 
-  SET @commands= '';
+  --let $commands=
 }
 
-while (`SELECT HEX(@commands) != HEX('')`)
+while ($commands != '')
 {
   --disable_query_log
   --eval use $database_name
   --enable_query_log
 
   --disable_query_log
-  SET @command= SUBSTRING_INDEX(@commands, ' ', 1);
-  let $command= `SELECT @command`;
-  --eval SET @check_commands= '$commands'
-  if (`SELECT HEX(@check_commands) = HEX('''')`)
-  {
-    let $commands= `SELECT @commands`;
-  }
-  if (`SELECT HEX(@verbose) != HEX('N')`)
+  --let $command= `SELECT SUBSTRING_INDEX('$commands', ' ', 1)`
+  if ($verbose)
   {
     --echo -b-b-b-b-b-b-b-b-b-b-b- >> $command << -b-b-b-b-b-b-b-b-b-b-b-
     let $pos_command= query_get_value("SHOW MASTER STATUS", Position, 1);
   }
   --enable_query_log
-  if (`SELECT HEX(@command) = HEX('B')`)
+  if ($command == 'B')
   {
     eval BEGIN;
   }
-  if (`SELECT HEX(@command) = HEX('T')`)
+  if ($command == 'T')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval INSERT INTO tt_1(trans_id, stmt_id) VALUES ($trans_id, $stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('T-trig')`)
+  if ($command == 'T-trig')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval INSERT INTO tt_5(trans_id, stmt_id) VALUES ($trans_id, $stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('T-func')`)
+  if ($command == 'T-func')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval SELECT fc_i_tt_5_suc ($trans_id, $stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('T-proc')`)
+  if ($command == 'T-proc')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval CALL pc_i_tt_5_suc ($trans_id, $stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('eT')`)
+  if ($command == 'eT')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from tt_1`;
@@ -229,7 +250,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO tt_1(trans_id, stmt_id) VALUES ($old_trans_id, $old_stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('Te')`)
+  if ($command == 'Te')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from tt_1`;
@@ -238,7 +259,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO tt_1(trans_id, stmt_id) VALUES ($trans_id, $stmt_id), ($old_trans_id, $old_stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('Te-trig')`)
+  if ($command == 'Te-trig')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from tt_5`;
@@ -247,7 +268,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO tt_5(trans_id, stmt_id) VALUES ($trans_id, $stmt_id), ($old_trans_id, $old_stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('Te-func')`)
+  if ($command == 'Te-func')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from tt_1`;
@@ -256,31 +277,31 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO tt_1(trans_id, stmt_id, info) VALUES ($trans_id, $stmt_id, ''), ($old_trans_id, $old_stmt_id, fc_i_tt_5_suc ($trans_id, $stmt_id));
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('N')`)
+  if ($command == 'N')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval INSERT INTO nt_1(trans_id, stmt_id) VALUES ($trans_id, $stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('N-trig')`)
+  if ($command == 'N-trig')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval INSERT INTO nt_5(trans_id, stmt_id) VALUES ($trans_id, $stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('N-func')`)
+  if ($command == 'N-func')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval SELECT fc_i_nt_5_suc ($trans_id, $stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('N-proc')`)
+  if ($command == 'N-proc')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval CALL pc_i_nt_5_suc ($trans_id, $stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('eN')`)
+  if ($command == 'eN')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from nt_1`;
@@ -289,7 +310,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO nt_1(trans_id, stmt_id) VALUES ($old_trans_id, $old_stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('Ne')`)
+  if ($command == 'Ne')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from nt_1`;
@@ -298,7 +319,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO nt_1(trans_id, stmt_id) VALUES ($trans_id, $stmt_id), ($old_trans_id, $old_stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('Ne-trig')`)
+  if ($command == 'Ne-trig')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from nt_5`;
@@ -307,7 +328,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO nt_5(trans_id, stmt_id) VALUES ($trans_id, $stmt_id), ($old_trans_id, $old_stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('Ne-func')`)
+  if ($command == 'Ne-func')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from nt_1`;
@@ -316,13 +337,13 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO nt_1(trans_id, stmt_id, info) VALUES ($trans_id, $stmt_id, ''), ($old_trans_id, $old_stmt_id, fc_i_nt_5_suc ($trans_id, $stmt_id));
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('tN')`)
+  if ($command == 'tN')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval INSERT INTO nt_1(trans_id, stmt_id, info) SELECT $trans_id, $stmt_id, COUNT(*) FROM tt_1;
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('tNe')`)
+  if ($command == 'tNe')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from nt_1`;
@@ -331,13 +352,13 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO nt_1(trans_id, stmt_id, info) SELECT $trans_id, $stmt_id, COUNT(*) FROM tt_1 UNION SELECT $old_trans_id, $old_stmt_id, COUNT(*) FROM tt_1;
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('nT')`)
+  if ($command == 'nT')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval INSERT INTO tt_1(trans_id, stmt_id, info) SELECT $trans_id, $stmt_id, COUNT(*) FROM nt_1;
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('nTe')`)
+  if ($command == 'nTe')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from tt_1`;
@@ -346,25 +367,25 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO tt_1(trans_id, stmt_id, info) SELECT $trans_id, $stmt_id, COUNT(*) FROM nt_1 UNION SELECT $old_trans_id, $old_stmt_id, COUNT(*) FROM nt_1;
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('NT')`)
+  if ($command == 'NT')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval UPDATE nt_3, tt_3 SET nt_3.info= "new text $trans_id --> $stmt_id", tt_3.info= "new text $trans_id --> $stmt_id" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('NT-trig')`)
+  if ($command == 'NT-trig')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval INSERT INTO nt_4(trans_id, stmt_id) VALUES ($trans_id, $stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('NT-func')`)
+  if ($command == 'NT-func')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval INSERT INTO nt_5(trans_id, stmt_id, info) VALUES ($trans_id, $stmt_id, fc_i_tt_5_suc($trans_id, $stmt_id));
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('NeT-trig')`)
+  if ($command == 'NeT-trig')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from nt_4`;
@@ -373,7 +394,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO nt_4(trans_id, stmt_id) VALUES ($trans_id, $stmt_id), ($old_trans_id, $old_stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('NeT-func')`)
+  if ($command == 'NeT-func')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from nt_5`;
@@ -382,25 +403,25 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO nt_5(trans_id, stmt_id, info) VALUES ($trans_id, $stmt_id, ''), ($old_trans_id, $old_stmt_id, fc_i_tt_5_suc ($trans_id, $stmt_id));
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('TN')`)
+  if ($command == 'TN')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval UPDATE tt_4, nt_4 SET tt_4.info= "new text $trans_id --> $stmt_id", nt_4.info= "new text $trans_id --> $stmt_id" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('TN-trig')`)
+  if ($command == 'TN-trig')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval INSERT INTO tt_3(trans_id, stmt_id) VALUES ($trans_id, $stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('TN-func')`)
+  if ($command == 'TN-func')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     eval INSERT INTO tt_5(trans_id, stmt_id, info) VALUES ($trans_id, $stmt_id, fc_i_nt_5_suc($trans_id, $stmt_id));
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('TeN-trig')`)
+  if ($command == 'TeN-trig')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from tt_3`;
@@ -409,7 +430,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO tt_3(trans_id, stmt_id) VALUES ($trans_id, $stmt_id), ($old_trans_id, $old_stmt_id);
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('TeN-func')`)
+  if ($command == 'TeN-func')
   {
     #--echo DEBUG-- (trans_id, stmt_id) --> ($trans_id, $stmt_id)
     let $old_trans_id= `SELECT max(trans_id) from tt_5`;
@@ -418,125 +439,125 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval INSERT INTO tt_5(trans_id, stmt_id, info) VALUES ($trans_id, $stmt_id, ''), ($old_trans_id, $old_stmt_id, fc_i_nt_5_suc ($trans_id, $stmt_id));
     inc $stmt_id;
   }
-  if (`SELECT HEX(@command) = HEX('CS-T->T')`)
+  if ($command == 'CS-T->T')
   {
     --eval CREATE TABLE tt_xx_$tb_id (PRIMARY KEY(trans_id, stmt_id)) engine=$engine_type SELECT * FROM tt_1;
   }
-  if (`SELECT HEX(@command) = HEX('CS-N->N')`)
+  if ($command == 'CS-N->N')
   {
     --eval CREATE TABLE nt_xx_$tb_id (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM nt_1;
   }
-  if (`SELECT HEX(@command) = HEX('CS-T->N')`)
+  if ($command == 'CS-T->N')
   {
     --eval CREATE TABLE tt_xx_$tb_id (PRIMARY KEY(trans_id, stmt_id)) engine=$engine_type SELECT * FROM nt_1;
   }
-  if (`SELECT HEX(@command) = HEX('CS-N->T')`)
+  if ($command == 'CS-N->T')
   {
     --eval CREATE TABLE nt_xx_$tb_id (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1;
   }
-  if (`SELECT HEX(@command) = HEX('CSe-T->T')`)
+  if ($command == 'CSe-T->T')
   {
     --error ER_DUP_ENTRY, ER_DUP_KEY
     --eval CREATE TABLE tt_xx_$tb_id (PRIMARY KEY (stmt_id)) engine=$engine_type SELECT stmt_id FROM tt_1;
   }
-  if (`SELECT HEX(@command) = HEX('CSe-N->N')`)
+  if ($command == 'CSe-N->N')
   {
     --error ER_DUP_ENTRY, ER_DUP_KEY
     --eval CREATE TABLE nt_xx_$tb_id (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM nt_1;
   }
-  if (`SELECT HEX(@command) = HEX('CSe-T->N')`)
+  if ($command == 'CSe-T->N')
   {
     --error ER_DUP_ENTRY, ER_DUP_KEY
     --eval CREATE TABLE tt_xx_$tb_id (PRIMARY KEY (stmt_id)) engine=$engine_type SELECT stmt_id FROM nt_1;
   }
-  if (`SELECT HEX(@command) = HEX('CSe-N->T')`)
+  if ($command == 'CSe-N->T')
   {
     --error ER_DUP_ENTRY, ER_DUP_KEY
     --eval CREATE TABLE nt_xx_$tb_id (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM tt_1;
   }
-  if (`SELECT HEX(@command) = HEX('CT')`)
+  if ($command == 'CT')
   {
     --eval CREATE TEMPORARY TABLE tt_xx_$tb_id (a int) engine=$engine_type;
   }
-  if (`SELECT HEX(@command) = HEX('IS-T<-N')`)
+  if ($command == 'IS-T<-N')
   {
     --eval INSERT INTO tt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1;
   }
-  if (`SELECT HEX(@command) = HEX('ISe-T<-N')`)
+  if ($command == 'ISe-T<-N')
   {
     --error ER_DUP_ENTRY, ER_DUP_KEY
     --eval INSERT INTO tt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM nt_1;
   }
-  if (`SELECT HEX(@command) = HEX('IS-N<-T')`)
+  if ($command == 'IS-N<-T')
   {
     --eval INSERT INTO nt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;
   }
-  if (`SELECT HEX(@command) = HEX('ISe-N<-T')`)
+  if ($command == 'ISe-N<-T')
   {
     --error ER_DUP_ENTRY, ER_DUP_KEY
     --eval INSERT INTO nt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM tt_1;
   }
-  if (`SELECT HEX(@command) = HEX('IS-T<-T')`)
+  if ($command == 'IS-T<-T')
   {
     --eval INSERT INTO tt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;
   }
-  if (`SELECT HEX(@command) = HEX('ISe-T<-T')`)
+  if ($command == 'ISe-T<-T')
   {
     --error ER_DUP_ENTRY, ER_DUP_KEY
     --eval INSERT INTO tt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM tt_1;
   }
-  if (`SELECT HEX(@command) = HEX('IS-N<-N')`)
+  if ($command == 'IS-N<-N')
   {
     --eval INSERT INTO nt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1;
   }
-  if (`SELECT HEX(@command) = HEX('ISe-N<-N')`)
+  if ($command == 'ISe-N<-N')
   {
     --error ER_DUP_ENTRY, ER_DUP_KEY
     --eval INSERT INTO nt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM nt_1;
   }
-  if (`SELECT HEX(@command) = HEX('trunc-CS-T')`)
+  if ($command == 'trunc-CS-T')
   {
     eval TRUNCATE TABLE tt_xx_$tb_id;
   }
-  if (`SELECT HEX(@command) = HEX('trunc-CS-N')`)
+  if ($command == 'trunc-CS-N')
   {
     eval TRUNCATE TABLE nt_xx_$tb_id;
   }
-  if (`SELECT HEX(@command) = HEX('trunc-CT')`)
+  if ($command == 'trunc-CT')
   {
     eval TRUNCATE TABLE tt_xx_$tb_id;
   }
-  if (`SELECT HEX(@command) = HEX('drop-CS')`)
+  if ($command == 'drop-CS')
   {
     --disable_warnings
     eval DROP TABLE IF EXISTS tt_xx_$tb_id, nt_xx_$tb_id;
     inc $tb_id;
     --enable_warnings
   }
-  if (`SELECT HEX(@command) = HEX('drop-CT')`)
+  if ($command == 'drop-CT')
   {
     --disable_warnings
     eval DROP TEMPORARY TABLE IF EXISTS tt_xx_$tb_id;
     inc $tb_id;
     --enable_warnings
   }
-  if (`SELECT HEX(@command) = HEX('C')`)
+  if ($command == 'C')
   {
     --error 0, ER_GET_ERRMSG
     eval COMMIT;
   }
-  if (`SELECT HEX(@command) = HEX('R')`)
+  if ($command == 'R')
   {
     --replace_column 2 #
     --error 0, ER_GET_ERRMSG
     eval ROLLBACK;
   }
-  if (`SELECT HEX(@command) = HEX('Sn')`)
+  if ($command == 'Sn')
   {
     eval SAVEPOINT S_$sn;
     --inc $sn 
   }
-  if (`SELECT HEX(@command) = HEX('Rn')`)
+  if ($command == 'Rn')
   {
     if ($sn)
     {
@@ -545,7 +566,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     --replace_column 2 #
     eval ROLLBACK TO S_$sn;
   }
-  if (`SELECT HEX(@command) = HEX('Cn')`)
+  if ($command == 'Cn')
   {
     if ($sn)
     {
@@ -554,25 +575,34 @@ while (`SELECT HEX(@commands) != HEX('')`)
     eval RELEASE SAVEPOINT S_$sn;
   }
   --disable_query_log
-  SET @commands= LTRIM(SUBSTRING(@commands, LENGTH(@command) + 1));
+  --let $commands= `SELECT LTRIM(SUBSTRING('$commands', LENGTH('$command') + 1))`
   inc $stmt_id;
 
   let $binlog_start= $pos_command;
-  if (`SELECT HEX(@verbose) != HEX('N')`)
+  if ($verbose)
   {
+    # Use other connection because include/show_binlog_events.inc
+    # executes SELECT UUID(), which switches to row-logging when
+    # binlog_format=mixed, if there are open temporary tables. This is
+    # due to BUG#13692513.
+    --connection server_1
     --source include/show_binlog_events.inc
+    --connection master
     --echo -e-e-e-e-e-e-e-e-e-e-e- >> $command << -e-e-e-e-e-e-e-e-e-e-e-
   }
-  if (`SELECT HEX(@commands) = HEX('')`)
+  if ($commands == '')
   {
     let $binlog_start= $pos_trans_command;
-    --echo -b-b-b-b-b-b-b-b-b-b-b- >> $commands << -b-b-b-b-b-b-b-b-b-b-b-
+    --echo -b-b-b-b-b-b-b-b-b-b-b- >> $rme_initial_commands << -b-b-b-b-b-b-b-b-b-b-b-
+    --connection server_1
     --source include/show_binlog_events.inc
-    --echo -e-e-e-e-e-e-e-e-e-e-e- >> $commands << -e-e-e-e-e-e-e-e-e-e-e-
+    --connection master
+    --echo -e-e-e-e-e-e-e-e-e-e-e- >> $rme_initial_commands << -e-e-e-e-e-e-e-e-e-e-e-
     --echo
     let $pos_trans_command= query_get_value("SHOW MASTER STATUS", Position, 1);
     let $stmt_id= 1;
     inc $trans_id;
-    let $commands= '';
   }
 }
+
+--let $commands= $rme_initial_commands

@@ -436,7 +436,6 @@ include/check_slave_is_running.inc
 ** Stop and Reset Slave **
 
 STOP SLAVE;
-RESET SLAVE;
 
 ** create table slave side **
 CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
@@ -446,10 +445,9 @@ CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 
 CREATE TABLE t10 (a INT KEY, b BLOB, f DOUBLE DEFAULT '233',
 c CHAR(5), e INT DEFAULT '1')ENGINE='MyISAM';
-RESET MASTER;
 
 *** Start Slave ***
-START SLAVE;
+include/rpl_reset.inc
 
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -475,17 +473,15 @@ DROP TABLE t10;
 
 *** Create t11 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
 ) ENGINE='MyISAM';
 
 *** Create t11 on Master ***
 CREATE TABLE t11 (a INT KEY, b BLOB, f TEXT,
 c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='MyISAM';
-RESET MASTER;
 
 *** Start Slave ***
-START SLAVE;
+include/rpl_reset.inc
 
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -511,17 +507,15 @@ DROP TABLE t11;
 
 *** Create t12 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
 ) ENGINE='MyISAM';
 
 *** Create t12 on Master ***
 CREATE TABLE t12 (a INT KEY, b BLOB, f TEXT,
 c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='MyISAM';
-RESET MASTER;
 
 *** Start Slave ***
-START SLAVE;
+include/rpl_reset.inc
 
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -554,7 +548,6 @@ DROP TABLE t12;
 
 *** Create t14 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 CREATE TABLE t14 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='MyISAM';
 
@@ -563,10 +556,9 @@ CREATE TABLE t14 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
 c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='MyISAM';
-RESET MASTER;
 
 *** Start Slave ***
-START SLAVE;
+include/rpl_reset.inc
 
 *** Master Data Insert ***
 ALTER TABLE t14 ADD COLUMN c2 DECIMAL(8,2) AFTER c1;
@@ -613,13 +605,11 @@ c1	c3	hex(c4)	c5	c6
 include/wait_for_slave_sql_error.inc [errno=1091]
 Last_SQL_Error = 'Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7''
 STOP SLAVE;
-RESET SLAVE;
 
 *** Drop t14  ***
 DROP TABLE t14;
 DROP TABLE t14;
-RESET MASTER;
-START SLAVE;
+include/rpl_reset.inc
 
 *************************************************
 * - Alter Master adding columns at end of table *
@@ -628,7 +618,6 @@ START SLAVE;
 
 *** Create t15 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 CREATE TABLE t15 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='MyISAM';
 
@@ -637,10 +626,9 @@ CREATE TABLE t15 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
 c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='MyISAM';
-RESET MASTER;
 
 *** Start Slave ***
-START SLAVE;
+include/rpl_reset.inc
 
 *** Master Data Insert ***
 ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7;
@@ -662,13 +650,11 @@ c1	hex(c4)	c5	c6	c7	c2
 include/wait_for_slave_sql_error.inc [errno=1054]
 Last_SQL_Error = 'Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7''
 STOP SLAVE;
-RESET SLAVE;
 
 *** Drop t15  ***
 DROP TABLE t15;
 DROP TABLE t15;
-RESET MASTER;
-START SLAVE;
+include/rpl_reset.inc
 
 ************************************************
 * - Create index on Master column not on slave *
@@ -677,7 +663,6 @@ START SLAVE;
 
 *** Create t16 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 CREATE TABLE t16 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='MyISAM';
 
@@ -686,10 +671,9 @@ CREATE TABLE t16 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
 c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='MyISAM';
-RESET MASTER;
 
 *** Start Slave ***
-START SLAVE;
+include/rpl_reset.inc
 
 *** Master Create Index and Data Insert ***
 CREATE INDEX part_of_c6 ON t16 (c6);
@@ -711,13 +695,11 @@ c1	hex(c4)	c5	c6	c7
 include/wait_for_slave_sql_error.inc [errno=1072]
 Last_SQL_Error = 'Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)''
 STOP SLAVE;
-RESET SLAVE;
 
 *** Drop t16  ***
 DROP TABLE t16;
 DROP TABLE t16;
-RESET MASTER;
-START SLAVE;
+include/rpl_reset.inc
 
 *****************************************************
 * - Delete rows using column on Master not on slave *
@@ -726,7 +708,6 @@ START SLAVE;
 
 *** Create t17 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 CREATE TABLE t17 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='MyISAM';
 
@@ -735,10 +716,9 @@ CREATE TABLE t17 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
 c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='MyISAM';
-RESET MASTER;
 
 *** Start Slave ***
-START SLAVE;
+include/rpl_reset.inc
 
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -784,7 +764,6 @@ DROP TABLE t17;
 *** Create t18 on slave  ***
 
 STOP SLAVE;
-RESET SLAVE;
 CREATE TABLE t18 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='MyISAM';
 
@@ -793,10 +772,9 @@ CREATE TABLE t18 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
 c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='MyISAM';
-RESET MASTER;
 
 *** Start Slave ***
-START SLAVE;
+include/rpl_reset.inc
 
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -841,7 +819,6 @@ DROP TABLE t18;
 
 *** Create t5 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 CREATE TABLE t5 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 ) ENGINE='MyISAM';
 
@@ -850,10 +827,9 @@ CREATE TABLE t5 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
 c6 LONG, 
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 )ENGINE='MyISAM';
-RESET MASTER;
 
 *** Start Slave ***
-START SLAVE;
+include/rpl_reset.inc
 
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';

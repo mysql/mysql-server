@@ -67,7 +67,7 @@ class READ_INFO {
 	*end_of_buff;			/* Data in bufferts ends here */
   uint	buff_length,			/* Length of buffert */
 	max_length;			/* Max length of row */
-  char	*field_term_ptr,*line_term_ptr,*line_start_ptr,*line_start_end;
+  const char *field_term_ptr, *line_term_ptr, *line_start_ptr, *line_start_end;
   uint	field_term_length,line_term_length,enclosed_length;
   int	field_term_char,line_term_char,enclosed_char,escape_char;
   int	*stack,*stack_pos;
@@ -84,14 +84,17 @@ public:
   const CHARSET_INFO *read_charset;
 
   READ_INFO(File file,uint tot_length,const CHARSET_INFO *cs,
-	    String &field_term,String &line_start,String &line_term,
-	    String &enclosed,int escape,bool get_it_from_net, bool is_fifo);
+	    const String &field_term,
+            const String &line_start,
+            const String &line_term,
+	    const String &enclosed,
+            int escape,bool get_it_from_net, bool is_fifo);
   ~READ_INFO();
   int read_field();
   int read_fixed_length(void);
   int next_line(void);
   char unescape(char chr);
-  int terminator(char *ptr,uint length);
+  int terminator(const char *ptr,uint length);
   bool find_start_of_fields();
   /* load xml */
   List<XML_TAG> taglist;
@@ -125,13 +128,13 @@ static int read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           List<Item> &fields_vars, List<Item> &set_fields,
                           List<Item> &set_values, READ_INFO &read_info,
-			  String &enclosed, ulong skip_lines,
+			  const String &enclosed, ulong skip_lines,
 			  bool ignore_check_option_errors);
 
 static int read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           List<Item> &fields_vars, List<Item> &set_fields,
                           List<Item> &set_values, READ_INFO &read_info,
-                          String &enclosed, ulong skip_lines,
+                          ulong skip_lines,
                           bool ignore_check_option_errors);
 
 #ifndef EMBEDDED_LIBRARY
@@ -176,8 +179,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   File file;
   TABLE *table= NULL;
   int error= 0;
-  String *field_term=ex->field_term,*escaped=ex->escaped;
-  String *enclosed=ex->enclosed;
+  const String *field_term= ex->field_term;
+  const String *escaped=    ex->escaped;
+  const String *enclosed=   ex->enclosed;
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
@@ -493,7 +497,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (ex->filetype == FILETYPE_XML) /* load xml */
       error= read_xml_field(thd, info, table_list, fields_vars,
                             set_fields, set_values, read_info,
-                            *(ex->line_term), skip_lines, ignore);
+                            skip_lines, ignore);
     else if (!field_term->length() && !enclosed->length())
       error= read_fixed_length(thd, info, table_list, fields_vars,
                                set_fields, set_values, read_info,
@@ -587,7 +591,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	  else
 	  {
 	    Delete_file_log_event d(thd, db, transactional_table);
-	    (void) mysql_bin_log.write(&d);
+	    (void) mysql_bin_log.write_event(&d);
 	  }
 	}
       }
@@ -777,7 +781,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, FALSE, errcode);
-  return mysql_bin_log.write(&e);
+  return mysql_bin_log.write_event(&e);
 }
 
 #endif
@@ -922,7 +926,7 @@ static int
 read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                List<Item> &fields_vars, List<Item> &set_fields,
                List<Item> &set_values, READ_INFO &read_info,
-	       String &enclosed, ulong skip_lines,
+	       const String &enclosed, ulong skip_lines,
 	       bool ignore_check_option_errors)
 {
   List_iterator_fast<Item> it(fields_vars);
@@ -1134,7 +1138,7 @@ static int
 read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                List<Item> &fields_vars, List<Item> &set_fields,
                List<Item> &set_values, READ_INFO &read_info,
-               String &row_tag, ulong skip_lines,
+               ulong skip_lines,
                bool ignore_check_option_errors)
 {
   List_iterator_fast<Item> it(fields_vars);
@@ -1317,16 +1321,18 @@ READ_INFO::unescape(char chr)
 
 
 READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
-		     String &field_term, String &line_start, String &line_term,
-		     String &enclosed_par, int escape, bool get_it_from_net,
-		     bool is_fifo)
+                     const String &field_term,
+                     const String &line_start,
+                     const String &line_term,
+                     const String &enclosed_par,
+                     int escape, bool get_it_from_net, bool is_fifo)
   :file(file_par), buff_length(tot_length), escape_char(escape),
    found_end_of_line(false), eof(false), need_end_io_cache(false),
    error(false), line_cuted(false), found_null(false), read_charset(cs)
 {
-  field_term_ptr=(char*) field_term.ptr();
+  field_term_ptr= field_term.ptr();
   field_term_length= field_term.length();
-  line_term_ptr=(char*) line_term.ptr();
+  line_term_ptr= line_term.ptr();
   line_term_length= line_term.length();
   level= 0; /* for load xml */
   if (line_start.length() == 0)
@@ -1412,7 +1418,7 @@ READ_INFO::~READ_INFO()
 #define PUSH(A) *(stack_pos++)=(A)
 
 
-inline int READ_INFO::terminator(char *ptr,uint length)
+inline int READ_INFO::terminator(const char *ptr,uint length)
 {
   int chr=0;					// Keep gcc happy
   uint i;
@@ -1732,7 +1738,7 @@ bool READ_INFO::find_start_of_fields()
       return 1;
     }
   } while ((char) chr != line_start_ptr[0]);
-  for (char *ptr=line_start_ptr+1 ; ptr != line_start_end ; ptr++)
+  for (const char *ptr=line_start_ptr+1 ; ptr != line_start_end ; ptr++)
   {
     chr=GET;					// Eof will be checked later
     if ((char) chr != *ptr)

@@ -1,0 +1,2 @@
+# Run the start/stop test 17 times (* 64 = 1088 restarts)
+# --silent to avoid printing out server version etc.

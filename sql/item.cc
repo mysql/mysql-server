@@ -617,6 +617,18 @@ uint Item::decimal_precision() const
                                      unsigned_flag);
     return min<uint>(prec, DECIMAL_MAX_PRECISION);
   }
+  switch (field_type())
+  {
+    case MYSQL_TYPE_TIME:
+      return decimals + TIME_INT_DIGITS;
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      return decimals + DATETIME_INT_DIGITS;
+    case MYSQL_TYPE_DATE:
+      return decimals + DATE_INT_DIGITS;
+    default:
+      break;
+  }
   return min<uint>(max_char_length(), DECIMAL_MAX_PRECISION);
 }
 
@@ -1509,7 +1521,7 @@ bool Item_sp_variable::fix_fields(THD *thd, Item **)
   decimals= it->decimals;
   unsigned_flag= it->unsigned_flag;
   fixed= 1;
-  collation.set(it->collation.collation, it->collation.derivation);
+  collation.set(it->collation);
 
   return FALSE;
 }
@@ -1854,7 +1866,8 @@ bool Item_name_const::fix_fields(THD *thd, Item **ref)
   {
     set_name(item_name->ptr(), (uint) item_name->length(), system_charset_info);
   }
-  collation.set(value_item->collation.collation, DERIVATION_IMPLICIT);
+  collation.set(value_item->collation.collation, DERIVATION_IMPLICIT,
+                value_item->collation.repertoire);
   max_length= value_item->max_length;
   decimals= value_item->decimals;
   fixed= 1;

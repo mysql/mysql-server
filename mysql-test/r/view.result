@@ -4145,3 +4145,43 @@ DROP TEMPORARY TABLE t1;
 DROP DATABASE IF EXISTS nodb;
 CREATE VIEW nodb.a AS SELECT 1;
 ERROR 42000: Unknown database 'nodb'
+#
+# Bug#13633549 HANDLE_FATAL_SIGNAL IN 
+#              TEST_IF_SKIP_SORT_ORDER/CREATE_SORT_INDEX
+#
+CREATE TABLE t1 (
+pk        INT AUTO_INCREMENT,
+c_int_key INT,
+PRIMARY KEY (pk),
+KEY (c_int_key)
+) 
+ENGINE=innodb;
+CREATE VIEW v_t1 AS SELECT * FROM t1;
+CREATE TABLE t2 (
+pk              INT auto_increment,
+c_varchar_600_x VARCHAR(600),
+c_int_key       INT,
+c_varchar_600_y VARCHAR(600),
+c_varchar_600_z VARCHAR(600),
+PRIMARY KEY (pk),
+KEY (c_int_key)
+) 
+ENGINE=innodb;
+CREATE VIEW v_t2 AS SELECT * FROM t2;
+INSERT INTO t2 VALUES
+(
+NULL,
+repeat('x', 600),
+3,
+repeat('y', 600),
+repeat('z', 600)
+);
+SELECT a1.pk AS f1
+FROM v_t1 AS a1 LEFT JOIN v_t2 AS a2 ON a1.pk=a2.c_int_key
+WHERE 
+a1.pk > 8
+OR ((a1.pk BETWEEN 9 AND 13) AND a1.pk = 90)
+ORDER BY f1 ;
+f1
+DROP TABLE t1, t2;
+DROP VIEW v_t1, v_t2;

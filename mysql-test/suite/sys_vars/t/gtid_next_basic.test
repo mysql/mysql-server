@@ -1,0 +1,33 @@
+--source include/not_embedded.inc
+
+SET @start_global_value = @@session.gtid_next;
+SELECT @start_global_value;
+
+#
+# exists as session only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@global.gtid_next;
+select @@session.gtid_next;
+show global variables like 'gtid_next';
+show session variables like 'gtid_next';
+select * from information_schema.global_variables where variable_name='gtid_next';
+select * from information_schema.session_variables where variable_name='gtid_next';
+
+#
+# show that it is writable
+#
+--error ER_LOCAL_VARIABLE
+set global gtid_next = 1;
+set session gtid_next = "ANONYMOUS";
+select @@session.gtid_next;
+
+#
+# restore original value
+#
+set session gtid_next = @start_global_value;
+select @@session.gtid_next;
+
+#
+# See rpl_gtid_execution.test for a comprehensive test case.
+#

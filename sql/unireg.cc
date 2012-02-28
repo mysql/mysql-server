@@ -1104,7 +1104,6 @@ static bool make_empty_rec(THD *thd, File file,
 
   table.in_use= thd;
   table.s->db_low_byte_first= handler->low_byte_first();
-  table.s->blob_ptr_size= portable_sizeof_char_ptr;
 
   null_count=0;
   if (!(table_options & HA_OPTION_PACK_RECORD))
