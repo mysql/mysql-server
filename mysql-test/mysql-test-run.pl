@@ -295,7 +295,7 @@ my $opt_valgrind_path;
 my $valgrind_reports= 0;
 my $opt_callgrind;
 my %mysqld_logs;
-my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
+my $opt_debug_sync_timeout= 600; # Default timeout for WAIT_FOR actions.
 
 sub testcase_timeout ($) {
   my ($tinfo)= @_;
