@@ -768,9 +768,9 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
      slave_running briefly switches between 1/0/1.
   */
   init_abort_pos_wait= abort_pos_wait;
-  Gtid_set gtid_set(&global_sid_map);
+  Gtid_set wait_gtid_set(&global_sid_map);
   global_sid_lock.rdlock();
-  if (gtid_set.add_gtid_text(gtid->c_ptr_safe()) != RETURN_STATUS_OK)
+  if (wait_gtid_set.add_gtid_text(gtid->c_ptr_safe()) != RETURN_STATUS_OK)
   { 
     global_sid_lock.unlock();
     goto err;
@@ -792,10 +792,10 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
     const Gtid_set* logged_gtids= gtid_state.get_logged_gtids();
 
     DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d",
-      gtid->c_ptr_safe(), gtid_set.is_subset(logged_gtids)));
+      gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids)));
     logged_gtids->dbug_print("gtid_done:");
 
-    if (gtid_set.is_subset(logged_gtids))
+    if (wait_gtid_set.is_subset(logged_gtids))
     {
       global_sid_lock.unlock();
       break;
