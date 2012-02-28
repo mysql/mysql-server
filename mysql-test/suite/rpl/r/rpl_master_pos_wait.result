@@ -32,7 +32,7 @@ Warnings:
 Note	1003	/* select#1 */ select sql_thread_wait_after_gtids('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1',2) AS `SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 2)`
 SELECT SQL_THREAD_WAIT_AFTER_GTIDS('', 2);
 SQL_THREAD_WAIT_AFTER_GTIDS('', 2)
-NULL
+0
 SELECT SQL_THREAD_WAIT_AFTER_GTIDS('error-gtid', 2);
 ERROR HY000: Malformed GTID set specification 'error-gtid'.
 SELECT SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 2);

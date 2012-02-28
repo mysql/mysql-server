@@ -4625,7 +4625,7 @@ public:
   */
   const rpl_sid* get_sid() const { return &sid; }
   /**
-    Return the SIDNO for this GTID.
+    Return the SIDNO relative to the global sid_map for this GTID.
 
     This requires a lookup and possibly even update of global_sid_map,
     hence global_sid_lock must be held.  If global_sid_lock is not
@@ -4652,6 +4652,20 @@ public:
         global_sid_lock.unlock();
     }
     return spec.gtid.sidno;
+  }
+  /**
+    Return the SIDNO relative to the given Sid_map for this GTID.
+
+    This assumes that the Sid_map is local to the thread, and thus
+    does not use locks.
+
+    @param sid_map The sid_map to use.
+    @retval SIDNO if successful.
+    @negative if adding SID to sid_map causes an error.
+  */
+  rpl_sidno get_sidno(Sid_map *sid_map)
+  {
+    return sid_map->add_sid(sid);
   }
   /// Return the GNO for this GTID.
   rpl_gno get_gno() const { return spec.gtid.gno; }

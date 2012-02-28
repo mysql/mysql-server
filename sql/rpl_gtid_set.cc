@@ -264,6 +264,7 @@ Gtid_set::add_gno_interval(Interval_iterator *ivitp,
   DBUG_ENTER("Gtid_set::add_gno_interval(Interval_iterator*, rpl_gno, rpl_gno)");
   DBUG_ASSERT(start > 0);
   DBUG_ASSERT(start < end);
+  DBUG_PRINT("info", ("start=%lld end=%lld", start, end));
   Interval *iv;
   Interval_iterator ivit= *ivitp;
   cached_string_length= -1;
@@ -668,8 +669,6 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
       sid to sidno. For instance, the IO Thread and the SQL Thread
       may have different mappings in the future.
     */
-    DBUG_ASSERT(0); /*NOTREACHED*/
-#ifdef NON_DISABLED_GTID
     Sid_map *other_sid_map= other->sid_map;
     for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
          other_sidno++)
@@ -686,7 +685,6 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
                                                    &lock));
       }
     }
-#endif
   }
   RETURN_OK;
 }
