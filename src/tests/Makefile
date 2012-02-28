@@ -370,6 +370,14 @@ checkpoint_1.tdb$(BINSUF) checkpoint_stress.tdb$(BINSUF): checkpoint_test.h
 # dependency only, not a rule (do not insert a tab at this line)
 
 DEPENDS_ON_STRESS_HELPERS = \
+ perf_checkpoint_var \
+ perf_cursor_nop \
+ perf_malloc_free \
+ perf_nop \
+ perf_ptquery2 \
+ perf_ptquery \
+ perf_xmalloc_free \
+ perf_checkpoint_var \
  recover-ft1 \
  recover-ft2 \
  recover-ft3 \
