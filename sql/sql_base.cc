@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -224,7 +224,8 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
 static void free_cache_entry(TABLE *entry);
 static bool
 has_write_table_with_auto_increment(TABLE_LIST *tables);
-
+static bool
+has_write_table_with_auto_increment_and_select(TABLE_LIST *tables);
 
 uint cached_open_tables(void)
 {
@@ -1816,7 +1817,7 @@ bool close_temporary_tables(THD *thd)
       thd->variables.character_set_client= cs_save;
 
       thd->get_stmt_da()->set_overwrite_status(true);
-      if ((error= (mysql_bin_log.write(&qinfo) || error)))
+      if ((error= (mysql_bin_log.write_event(&qinfo) || error)))
       {
         /*
           If we're here following THD::cleanup, thence the connection
@@ -5853,9 +5854,20 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
 	*(ptr++)= table->table;
     }
 
+    /*
+    DML statements that modify a table with an auto_increment column based on
+    rows selected from a table are unsafe as the order in which the rows are
+    fetched fron the select tables cannot be determined and may differ on
+    master and slave.
+    */
+    if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables &&
+        has_write_table_with_auto_increment_and_select(tables))
+      thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT);
+
     /* We have to emulate LOCK TABLES if we are statement needs prelocking. */
     if (thd->lex->requires_prelocking())
     {
+
       /*
         A query that modifies autoinc column in sub-statement can make the 
         master and slave inconsistent.
@@ -6072,6 +6084,13 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                                       strlen(path)+1 + key_length,
                                       MYF(MY_WME))))
     DBUG_RETURN(0);				/* purecov: inspected */
+
+#ifndef DBUG_OFF
+  mysql_mutex_lock(&LOCK_open);
+  DBUG_ASSERT(!my_hash_search(&table_def_cache, (uchar*) cache_key,
+                              key_length));
+  mysql_mutex_unlock(&LOCK_open);
+#endif
 
   share= (TABLE_SHARE*) (tmp_table+1);
   tmp_path= (char*) (share+1);
@@ -8069,7 +8088,11 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   */
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
-  thd->lex->current_select->cur_pos_in_select_list= 0;
+  // When we enter, we're "nowhere":
+  DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
+              SELECT_LEX::ALL_FIELDS_UNDEF_POS);
+  // Now we're in the SELECT list:
+  thd->lex->current_select->cur_pos_in_all_fields= 0;
   while (wild_num && (item= it++))
   {
     if (item->type() == Item::FIELD_ITEM &&
@@ -8112,9 +8135,12 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       wild_num--;
     }
     else
-      thd->lex->current_select->cur_pos_in_select_list++;
+      thd->lex->current_select->cur_pos_in_all_fields++;
   }
-  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
+  // We're nowhere again:
+  thd->lex->current_select->cur_pos_in_all_fields=
+    SELECT_LEX::ALL_FIELDS_UNDEF_POS;
+
   if (arena)
   {
     /* make * substituting permanent */
@@ -8190,7 +8216,9 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     var->set_entry(thd, FALSE);
 
   Ref_ptr_array ref= ref_pointer_array;
-  thd->lex->current_select->cur_pos_in_select_list= 0;
+  DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
+              SELECT_LEX::ALL_FIELDS_UNDEF_POS);
+  thd->lex->current_select->cur_pos_in_all_fields= 0;
   while ((item= it++))
   {
     if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
@@ -8212,10 +8240,11 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
     thd->lex->current_select->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();
-    thd->lex->current_select->cur_pos_in_select_list++;
+    thd->lex->current_select->cur_pos_in_all_fields++;
   }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
-  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
+  thd->lex->current_select->cur_pos_in_all_fields=
+    SELECT_LEX::ALL_FIELDS_UNDEF_POS;
 
   thd->lex->allow_sum_func= save_allow_sum_func;
   thd->mark_used_columns= save_mark_used_columns;
@@ -8625,7 +8654,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         thd->lex->current_select->select_list_tables|=
           item->used_tables();
       }
-      thd->lex->current_select->cur_pos_in_select_list++;
+      thd->lex->current_select->cur_pos_in_all_fields++;
     }
     /*
       In case of stored tables, all fields are considered as used,
@@ -9348,6 +9377,41 @@ has_write_table_with_auto_increment(TABLE_LIST *tables)
 
   return 0;
 }
+
+/*
+   checks if we have select tables in the table list and write tables
+   with auto-increment column.
+
+  SYNOPSIS
+   has_two_write_locked_tables_with_auto_increment_and_select
+      tables        Table list
+
+  RETURN VALUES
+
+   -true if the table list has atleast one table with auto-increment column
+
+
+         and atleast one table to select from.
+   -false otherwise
+*/
+
+static bool
+has_write_table_with_auto_increment_and_select(TABLE_LIST *tables)
+{
+  bool has_select= false;
+  bool has_auto_increment_tables = has_write_table_with_auto_increment(tables);
+  for(TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+     if (!table->placeholder() &&
+        (table->lock_type <= TL_READ_NO_INSERT))
+      {
+        has_select= true;
+        break;
+      }
+  }
+  return(has_select && has_auto_increment_tables);
+}
+
 
 
 /*

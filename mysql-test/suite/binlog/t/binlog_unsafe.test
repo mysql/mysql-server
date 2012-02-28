@@ -102,6 +102,7 @@
 --source include/have_udf.inc
 --source include/have_log_bin.inc
 --source include/have_binlog_format_statement.inc
+--source include/not_gtid_enabled.inc
 
 --disable_query_log
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -233,7 +234,7 @@ while ($unsafe_type < 9) {
     --let $value_0=
     --let $sel_sidef_0=
     --let $sel_retval_0=
-    --let $CRC_ARG_expected_number_of_warnings= 6
+    --let $CRC_ARG_expected_number_of_warnings= 7
   }
 
   if ($unsafe_type == 8) {

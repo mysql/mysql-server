@@ -17,6 +17,7 @@ source include/master-slave.inc;
 source include/have_binlog_rows_query.inc;
 source include/have_innodb.inc;
 source include/have_debug.inc;
+source include/not_gtid_enabled.inc;
 
 --echo # Test non-transaction
 let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
@@ -105,15 +106,23 @@ drop table t4, t5;
 --echo # SHOW BINLOG EVENTS ON MASTER before '--exec MYSQL_BINLOG'
 source include/show_binlog_events.inc;
 
---echo # MYSQL_BINLOG output base on master-bin.000001
+FLUSH LOGS;
 let $MYSQLD_DATADIR= `select @@datadir`;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /TIMESTAMP=[0-9]*/TIMESTAMP=t/ /#[0-9]*[ ]*[0-9]*:[0-9]*:[0-9]* server id [0-9]*/#server id #/ /exec_time=[0-9]*/exec_time=#/ /error_code=[0-9]*/error_code=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /Start: binlog v [0-9]*/Start: binlog v#/ /created [0-9]*[ ]*[0-9]*:[0-9]*:[0-9]* at startup/created # #:#:# at startup/ /[	 ]CRC32 0x[abcdef0-9]+//
---exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/$master_binlog
+--let $prefix=`SELECT UUID()`
+--let $binlog_uuid_filename= $MYSQLTEST_VARDIR/tmp/$prefix-bin.log
+--copy_file $MYSQLD_DATADIR/$master_binlog $binlog_uuid_filename
+RESET MASTER;
 
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+--echo # MYSQL_BINLOG output based on a saved copy of master-bin.000001
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_regex /TIMESTAMP=[0-9]*/TIMESTAMP=t/ /#[0-9]*[ ]*[0-9]*:[0-9]*:[0-9]* server id [0-9]*/#server id #/ /exec_time=[0-9]*/exec_time=#/ /error_code=[0-9]*/error_code=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /Start: binlog v [0-9]*/Start: binlog v#/ /created [0-9]*[ ]*[0-9]*:[0-9]*:[0-9]* at startup/created # #:#:# at startup/ /[	 ]CRC32 0x[abcdef0-9]+// /GTID_NEXT= '.+'/GTID_NEXT= 'GTID'/
+--exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $binlog_uuid_filename
+
 --echo # Test the Rows_query log event can be applied
---exec $MYSQL_BINLOG -v -v --stop-position=$end_pos $MYSQLD_DATADIR/$master_binlog | $MYSQL test 2>&1
+--exec $MYSQL_BINLOG -v -v --stop-position=$end_pos $binlog_uuid_filename | $MYSQL test 2>&1
+
+--remove_file $binlog_uuid_filename
 
 --echo # SHOW BINLOG EVENTS ON MASTER after '--exec MYSQL_BINLOG'
 source include/show_binlog_events.inc;

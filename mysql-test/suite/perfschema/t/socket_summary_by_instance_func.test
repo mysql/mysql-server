@@ -118,6 +118,7 @@ let $wait_condition=
 SELECT $my_rules $part;
 let $wait_timeout= 5;
 --source include/wait_condition.inc
+--enable_query_log
 if(!$success)
 {
    --echo # ERROR: There must be only one user connection
@@ -402,6 +403,7 @@ SELECT COUNT(*) = 1
 FROM performance_schema.threads
 WHERE processlist_user = 'root';
 --source include/wait_condition.inc
+--enable_query_log
 if (!$success)
 {
    --enable_query_log

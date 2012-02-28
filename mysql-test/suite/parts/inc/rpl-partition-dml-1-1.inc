@@ -78,3 +78,5 @@ connection master;
 set @@global.binlog_format=  @old_global_binlog_format;
 set @@session.binlog_format=  @old_session_binlog_format;
 DROP TABLE t1;
+
+--disable_connect_log

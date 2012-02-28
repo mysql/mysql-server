@@ -63,7 +63,7 @@ SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 BEGIN;
 UPDATE t1 SET b = 4*a WHERE a > 4;
 COMMIT;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=INNODB
 master-bin.000001	#	Query	#	#	BEGIN
@@ -157,8 +157,7 @@ a	b
 1	1
 4	4
 # There must no UPDATE in binlog;
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 delete from t1;
 delete from t2;
 insert into t1 values (1,2),(3,4),(4,4);
@@ -167,7 +166,6 @@ reset master;
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
 ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
 # There must be no UPDATE query event;
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 drop table t1, t2;
 End of tests

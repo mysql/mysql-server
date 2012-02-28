@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 *****************************************************************************/
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "binlog.h"
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_class.h"
@@ -57,6 +58,8 @@
 #include "sql_parse.h"                          // is_update_query
 #include "sql_callback.h"
 #include "lock.h"
+#include "global_threads.h"
+#include "mysqld.h"
 
 #include <mysql/psi/mysql_statement.h>
 
@@ -803,6 +806,7 @@ THD::THD(bool enable_plugins)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
+   owned_gtid_set(&global_sid_map),
    main_da(0, false),
    m_stmt_da(&main_da)
 {
@@ -1258,6 +1262,9 @@ void THD::init(void)
   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
   debug_sync_init_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+
+  owned_gtid.sidno= 0;
+  owned_gtid.gno= 0;
 }
 
 
@@ -1415,8 +1422,20 @@ THD::~THD()
 #ifndef EMBEDDED_LIBRARY
   if (rli_fake)
   {
+    rli_fake->end_info();
     delete rli_fake;
     rli_fake= NULL;
+  }
+
+  if (variables.gtid_next_list.gtid_set != NULL)
+  {
+#ifdef HAVE_NDB_BINLOG
+    delete variables.gtid_next_list.gtid_set;
+    variables.gtid_next_list.gtid_set= NULL;
+    variables.gtid_next_list.is_non_null= false;
+#else
+    DBUG_ASSERT(0);
+#endif
   }
   
   mysql_audit_free_thd(this);
@@ -2069,17 +2088,6 @@ void THD::close_active_vio()
 #endif
 
 
-struct Item_change_record: public ilink
-{
-  Item **place;
-  Item *old_value;
-  /* Placement new was hidden by `new' in ilink (TODO: check): */
-  static void *operator new(size_t size, void *mem) { return mem; }
-  static void operator delete(void *ptr, size_t size) {}
-  static void operator delete(void *ptr, void *mem) { /* never called */ }
-};
-
-
 /*
   Register an item tree tree transformation, performed by the query
   optimizer. We need a pointer to runtime_memroot because it may be !=
@@ -2176,10 +2184,12 @@ bool select_result::check_simple_select() const
 }
 
 
-static String default_line_term("\n",default_charset_info);
-static String default_escaped("\\",default_charset_info);
-static String default_field_term("\t",default_charset_info);
-static String default_xml_row_term("<row>", default_charset_info);
+static const String default_line_term("\n",default_charset_info);
+static const String default_escaped("\\",default_charset_info);
+static const String default_field_term("\t",default_charset_info);
+static const String default_xml_row_term("<row>", default_charset_info);
+static const String my_empty_string("",default_charset_info);
+
 
 sql_exchange::sql_exchange(char *name, bool flag,
                            enum enum_filetype filetype_arg)
@@ -2978,6 +2988,12 @@ bool select_exists_subselect::send_data(List<Item> &items)
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
+  /*
+    A subquery may be evaluated 1) by executing the JOIN 2) by optimized
+    functions (index_subquery, subquery materialization).
+    It's only in (1) that we get here when we find a row. In (2) "value" is
+    set elsewhere.
+  */
   it->value= 1;
   it->assigned(1);
   DBUG_RETURN(0);

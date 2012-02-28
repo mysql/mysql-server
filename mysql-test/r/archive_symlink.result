@@ -1,0 +1,57 @@
+# 
+# Archive can only use an existing directory for DATA DIRECTORY.
+# 
+CREATE TABLE t1 (a int AUTO_INCREMENT KEY, b char(30))
+ENGINE archive DATA DIRECTORY = 'MYSQL_TMP_DIR/archive' INDEX DIRECTORY = 'MYSQL_TMP_DIR/archive';
+ERROR HY000: Can't create table 'test.t1' (errno: 2)
+# 
+# mkdir MYSQL_TMP_DIR/archive and try again... 
+# Archive will use a symlink for DATA DIRECTORY but ignore INDEX DIRECTORY.
+# 
+CREATE TABLE t1 (a int AUTO_INCREMENT KEY, b char(30))
+ENGINE archive DATA DIRECTORY = 'MYSQL_TMP_DIR/archive' INDEX DIRECTORY = 'MYSQL_TMP_DIR/archive';
+Warnings:
+Warning	1618	<INDEX DIRECTORY> option ignored
+INSERT INTO t1 VALUES (NULL, "blue");
+INSERT INTO t1 VALUES (NULL, "red");
+INSERT INTO t1 VALUES (NULL, "yellow");
+# Checking if archive file exists where we specified in DATA DIRECTORY
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` char(30) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ARCHIVE AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/archive/'
+DROP TABLE t1;
+# 
+# Be sure SQL MODE "NO_DIR_IN_CREATE" prevents the use of DATA DIRECTORY
+# 
+SET @org_mode=@@sql_mode;
+SET @@sql_mode='NO_DIR_IN_CREATE';
+SELECT @@sql_mode;
+@@sql_mode
+NO_DIR_IN_CREATE
+CREATE TABLE t1 (a int AUTO_INCREMENT KEY, b char(30))
+ENGINE archive DATA DIRECTORY = 'MYSQL_TMP_DIR/archive';
+Warnings:
+Warning	1618	<DATA DIRECTORY> option ignored
+INSERT INTO t1 VALUES (NULL, "blue");
+INSERT INTO t1 VALUES (NULL, "red");
+INSERT INTO t1 VALUES (NULL, "yellow");
+# Checking if archive file exists in --datadir since DATA DIRECTORY was ignored.
+DROP TABLE t1;
+set @@sql_mode=@org_mode;
+# 
+# MySQL engine does not allow DATA DIRECTORY to be
+# within --datadir for any engine, including Archive
+# 
+CREATE TABLE t1 (a int AUTO_INCREMENT KEY, b char(30))
+ENGINE archive DATA DIRECTORY 'MYSQLD_DATADIR/test';
+ERROR HY000: Incorrect arguments to DATA DIRECTORY
+CREATE TABLE t1 (c1 int(10), PRIMARY KEY (c1))
+ENGINE archive INDEX DIRECTORY 'MYSQLD_DATADIR/test';
+ERROR HY000: Incorrect arguments to INDEX DIRECTORY
+# 
+# Cleanup
+# 

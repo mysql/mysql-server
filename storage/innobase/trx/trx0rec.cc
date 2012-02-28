@@ -1204,6 +1204,7 @@ trx_undo_report_row_operation(
 	trx_t*		trx;
 	trx_undo_t*	undo;
 	ulint		page_no;
+	buf_block_t*	undo_block;
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
 	ulint		err		= DB_SUCCESS;
@@ -1231,67 +1232,70 @@ trx_undo_report_row_operation(
 	trx = thr_get_trx(thr);
 	rseg = trx->rseg;
 
-	mutex_enter(&(trx->undo_mutex));
+	mtr_start(&mtr);
+	mutex_enter(&trx->undo_mutex);
 
 	/* If the undo log is not assigned yet, assign one */
 
-	if (op_type == TRX_UNDO_INSERT_OP) {
-
-		if (trx->insert_undo == NULL) {
-
-			err = trx_undo_assign_undo(trx, TRX_UNDO_INSERT);
-		}
-
+	switch (op_type) {
+	case TRX_UNDO_INSERT_OP:
 		undo = trx->insert_undo;
 
-		if (UNIV_UNLIKELY(!undo)) {
-			/* Did not succeed */
-			mutex_exit(&(trx->undo_mutex));
+		if (undo == NULL) {
 
-			return(err);
+			err = trx_undo_assign_undo(trx, TRX_UNDO_INSERT);
+			undo = trx->insert_undo;
+
+			if (undo == NULL) {
+				/* Did not succeed */
+				ut_ad(err != DB_SUCCESS);
+				goto err_exit;
+			}
+
+			ut_ad(err == DB_SUCCESS);
 		}
-	} else {
+		break;
+	default:
 		ut_ad(op_type == TRX_UNDO_MODIFY_OP);
-
-		if (trx->update_undo == NULL) {
-
-			err = trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
-
-		}
 
 		undo = trx->update_undo;
 
-		if (UNIV_UNLIKELY(!undo)) {
-			/* Did not succeed */
-			mutex_exit(&(trx->undo_mutex));
-			return(err);
+		if (undo == NULL) {
+			err = trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
+			undo = trx->update_undo;
+
+			if (undo == NULL) {
+				/* Did not succeed */
+				ut_ad(err != DB_SUCCESS);
+				goto err_exit;
+			}
 		}
 
+		ut_ad(err == DB_SUCCESS);
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
 	}
 
 	page_no = undo->last_page_no;
-
-	mtr_start(&mtr);
+	undo_block = buf_page_get_gen(
+		undo->space, undo->zip_size, page_no, RW_X_LATCH,
+		undo->guess_block, BUF_GET, __FILE__, __LINE__, &mtr);
+	buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
 
 	do {
-		buf_block_t*	undo_block;
 		page_t*		undo_page;
 		ulint		offset;
 
-		undo_block = buf_page_get_gen(undo->space, undo->zip_size,
-					      page_no, RW_X_LATCH,
-					      undo->guess_block, BUF_GET,
-					      __FILE__, __LINE__, &mtr);
-		buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
-
 		undo_page = buf_block_get_frame(undo_block);
+		ut_ad(page_no == buf_block_get_page_no(undo_block));
 
-		if (op_type == TRX_UNDO_INSERT_OP) {
+		switch (op_type) {
+		case TRX_UNDO_INSERT_OP:
 			offset = trx_undo_page_report_insert(
 				undo_page, trx, index, clust_entry, &mtr);
-		} else {
+			break;
+		default:
+			ut_ad(op_type == TRX_UNDO_MODIFY_OP);
 			offset = trx_undo_page_report_modify(
 				undo_page, trx, index, rec, offsets, update,
 				cmpl_info, &mtr);
@@ -1363,12 +1367,12 @@ trx_undo_report_row_operation(
 		a pessimistic insert in a B-tree, and we must reserve the
 		counterpart of the tree latch, which is the rseg mutex. */
 
-		mutex_enter(&(rseg->mutex));
+		mutex_enter(&rseg->mutex);
+		undo_block = trx_undo_add_page(trx, undo, &mtr);
+		mutex_exit(&rseg->mutex);
 
-		page_no = trx_undo_add_page(trx, undo, &mtr);
-
-		mutex_exit(&(rseg->mutex));
-	} while (UNIV_LIKELY(page_no != FIL_NULL));
+		page_no = undo->last_page_no;
+	} while (undo_block != NULL);
 
 	/* Did not succeed: out of space */
 	err = DB_OUT_OF_FILE_SPACE;

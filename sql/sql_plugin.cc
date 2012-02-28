@@ -1311,10 +1311,6 @@ int plugin_init(int *argc, char **argv, int flags)
     }
     for (plugin= *builtins; plugin->info; plugin++)
     {
-      if (opt_ignore_builtin_innodb &&
-          !my_strnncoll(&my_charset_latin1, (const uchar*) plugin->name,
-                        6, (const uchar*) "InnoDB", 6))
-        continue;
       memset(&tmp, 0, sizeof(tmp));
       tmp.plugin= plugin;
       tmp.name.str= (char *)plugin->name;

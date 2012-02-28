@@ -4494,12 +4494,12 @@ i_s_innodb_buffer_page_fill(
 			page_info->fix_count));
 
 		if (page_info->hashed) {
-                        OK(field_store_string(
-                                fields[IDX_BUFFER_PAGE_HASHED], "YES"));
-                } else {
-                        OK(field_store_string(
-                                fields[IDX_BUFFER_PAGE_HASHED], "NO"));
-                }
+			OK(field_store_string(
+				fields[IDX_BUFFER_PAGE_HASHED], "YES"));
+		} else {
+			OK(field_store_string(
+				fields[IDX_BUFFER_PAGE_HASHED], "NO"));
+		}
 
 		OK(fields[IDX_BUFFER_PAGE_NEWEST_MOD]->store(
 			(longlong) page_info->newest_mod, true));

@@ -35,6 +35,8 @@ enum enum_mysql_completiontype {
 
 extern "C" int test_if_data_home_dir(const char *dir);
 
+bool stmt_causes_implicit_commit(const THD *thd, uint mask);
+
 bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
                      TABLE_LIST *first_table);
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
@@ -204,6 +206,8 @@ inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 {
   return (cs->mbminlen == 1);
 }
+
+extern "C" bool sqlcom_can_generate_row_events(const THD *thd);
 
 
 #endif /* SQL_PARSE_INCLUDED */

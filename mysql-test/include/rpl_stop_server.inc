@@ -35,7 +35,7 @@ if (!$_include_file_depth)
 if ($rpl_debug)
 {
   --echo $_include_file_indent con='$CURRENT_CONNECTION' warn='$ENABLED_WARNINGS' qlog='$ENABLED_QUERY_LOG' rlog='$ENABLED_RESULT_LOG' aborterr='$ENABLED_ABORT_ON_ERROR'
-  --echo $_include_file_indent==== BEGIN include/$include_filename ====
+  --echo $_include_file_indent==== BEGIN include/rpl_stop_server.inc ====
 }
 
 

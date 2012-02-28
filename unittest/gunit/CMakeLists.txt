@@ -233,6 +233,7 @@ SET(TESTS
   decimal
   dynarray
   filesort_buffer
+  filesort_compare
   mdl
   mdl_mytap
   my_bitmap
@@ -259,6 +260,7 @@ SET(SERVER_TESTS
   sql_table
   get_diagnostics
   segfault
+  join_tab_sort
 )
 
 FOREACH(test ${TESTS})

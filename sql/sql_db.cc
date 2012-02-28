@@ -102,7 +102,7 @@ static inline int write_to_binlog(THD *thd, char *query, uint q_len,
   Query_log_event qinfo(thd, query, q_len, FALSE, TRUE, FALSE, 0);
   qinfo.db= db;
   qinfo.db_len= db_len;
-  return mysql_bin_log.write(&qinfo);
+  return mysql_bin_log.write_event(&qinfo);
 }  
 
 
@@ -666,7 +666,7 @@ not_silent:
         These DDL methods and logging are protected with the exclusive
         metadata lock on the schema
       */
-      if (mysql_bin_log.write(&qinfo))
+      if (mysql_bin_log.write_event(&qinfo))
       {
         error= -1;
         goto exit;
@@ -732,7 +732,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
       These DDL methods and logging are protected with the exclusive
       metadata lock on the schema.
     */
-    if ((error= mysql_bin_log.write(&qinfo)))
+    if ((error= mysql_bin_log.write_event(&qinfo)))
       goto exit;
   }
   my_ok(thd, result);
@@ -911,7 +911,7 @@ update_binlog:
         These DDL methods and logging are protected with the exclusive
         metadata lock on the schema.
       */
-      if (mysql_bin_log.write(&qinfo))
+      if (mysql_bin_log.write_event(&qinfo))
       {
         error= true;
         goto exit;
@@ -1827,7 +1827,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
     Query_log_event qinfo(thd, thd->query(), thd->query_length(),
                           FALSE, TRUE, TRUE, errcode);
     thd->clear_error();
-    error|= mysql_bin_log.write(&qinfo);
+    error|= mysql_bin_log.write_event(&qinfo);
   }
 
   /* Step9: Let's do "use newdb" if we renamed the current database */

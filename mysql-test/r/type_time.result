@@ -1,6 +1,8 @@
 drop table if exists t1;
 create table t1 (t time);
 insert into t1 values("10:22:33"),("12:34:56.78"),(10),(1234),(123456.78),(1234559.99),("1"),("1:23"),("1:23:45"), ("10.22"), ("-10  1:22:33.45"),("20 10:22:33"),("1999-02-03 20:33:34");
+Warnings:
+Note	1265	Data truncated for column 't' at row 13
 insert t1 values (30),(1230),("1230"),("12:30"),("12:30:35"),("1 12:30:31.32");
 select * from t1;
 t
@@ -429,6 +431,2331 @@ SELECT TIME(MIN(a)) FROM t1;
 TIME(MIN(a))
 00:00:00
 DROP TABLE t1;
+#
+# Bug#13623473 "MISSING ROWS ON SELECT AND JOIN WITH
+# TIME/DATETIME COMPARE"
+#
+# Systematic testing of ref access and range scan
+SET TIMESTAMP=UNIX_TIMESTAMP('2012-01-31 10:14:35');
+CREATE TABLE t1 (col_time_key TIME, KEY(col_time_key)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('00:00:00'),('-24:00:00'),('-48:00:00'),('24:00:00'),('48:00:00');
+CREATE TABLE t2 (col_datetime_key DATETIME, KEY(col_datetime_key)) ENGINE=InnoDB;
+INSERT INTO t2 SELECT * FROM t1;
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key = col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` = `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key = col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key = col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` = `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key = col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key = col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	SIMPLE	t2	ref	col_datetime_key	col_datetime_key	6	test.t1.col_time_key	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` = `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key = col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key = col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	SIMPLE	t2	ref	col_datetime_key	col_datetime_key	6	test.t1.col_time_key	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` = `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key = col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key = col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` = `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key = col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key = col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` = `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key = col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key = col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index
+1	SIMPLE	t2	ref	col_datetime_key	col_datetime_key	6	test.t1.col_time_key	1	100.00	Using where; Using index
+Warnings:
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` = `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key = col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key = col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index
+1	SIMPLE	t2	ref	col_datetime_key	col_datetime_key	6	test.t1.col_time_key	1	100.00	Using where; Using index
+Warnings:
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` = `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key = col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key = col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` = `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key = col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key = col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` = `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key = col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key = col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	col_time_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` = `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key = col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key = col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` = `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key = col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key = col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` = `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key = col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key = col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` = `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key = col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key = col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	col_time_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` = `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key = col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key = col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` = `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key = col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key >= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` >= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key >= col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key >= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` >= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key >= col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-29 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-01-31 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-01 00:00:00
+24:00:00	2012-02-02 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key >= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` >= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key >= col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key >= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	col_datetime_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` >= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key >= col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-29 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-01-31 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-01 00:00:00
+24:00:00	2012-02-02 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key >= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` >= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key >= col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key >= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` >= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key >= col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-29 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-01-31 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-01 00:00:00
+24:00:00	2012-02-02 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key >= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` >= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key >= col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key >= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	col_datetime_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` >= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key >= col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-29 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-01-31 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-01 00:00:00
+24:00:00	2012-02-02 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key >= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` >= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key >= col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	-48:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-01 00:00:00	48:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key >= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` >= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key >= col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key >= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	col_time_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` >= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key >= col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	-48:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-01 00:00:00	48:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key >= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` >= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key >= col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key >= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` >= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key >= col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	-48:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-01 00:00:00	48:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key >= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` >= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key >= col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key >= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	col_time_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` >= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key >= col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	-48:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-01 00:00:00	48:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key >= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` >= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key >= col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key > col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` > `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key > col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key > col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` > `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key > col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key > col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` > `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key > col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key > col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	col_datetime_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` > `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key > col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key > col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` > `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key > col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key > col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` > `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key > col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key > col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` > `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key > col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key > col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	col_datetime_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` > `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key > col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key > col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` > `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key > col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key > col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` > `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key > col_time_key;
+col_datetime_key	col_time_key
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key > col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	col_time_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` > `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key > col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key > col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` > `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key > col_time_key;
+col_datetime_key	col_time_key
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key > col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` > `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key > col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key > col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` > `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key > col_time_key;
+col_datetime_key	col_time_key
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key > col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	col_time_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` > `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key > col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key > col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` > `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key > col_time_key;
+col_datetime_key	col_time_key
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key <= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` <= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key <= col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-29 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-01-31 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-01 00:00:00
+24:00:00	2012-02-02 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key <= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` <= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key <= col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key <= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` <= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key <= col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-29 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-01-31 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-01 00:00:00
+24:00:00	2012-02-02 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key <= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	col_datetime_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` <= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key <= col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key <= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` <= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key <= col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-29 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-01-31 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-01 00:00:00
+24:00:00	2012-02-02 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key <= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` <= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key <= col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key <= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` <= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key <= col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-30 00:00:00
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-29 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-01-31 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-01 00:00:00
+24:00:00	2012-02-02 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key <= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	col_datetime_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` <= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key <= col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+-24:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+00:00:00	2012-01-31 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+24:00:00	2012-02-01 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+48:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key <= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` <= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key <= col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key <= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` <= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key <= col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	-48:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-01 00:00:00	48:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key <= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	col_time_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` <= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key <= col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key <= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` <= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key <= col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	-48:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-01 00:00:00	48:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key <= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` <= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key <= col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key <= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` <= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key <= col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	-48:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-01 00:00:00	48:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key <= col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	col_time_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` <= `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key <= col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key <= col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` <= `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key <= col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	-48:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	-24:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	00:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	24:00:00
+2012-02-01 00:00:00	48:00:00
+2012-02-02 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key < col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` < `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key < col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key < col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` < `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key < col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key < col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` < `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key < col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key < col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t2	ALL	col_datetime_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` IGNORE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` < `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 ignore INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key < col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key < col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` < `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_time_key < col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key < col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` < `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 ignore INDEX (col_datetime_key)
+WHERE col_datetime_key < col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key < col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` < `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_time_key < col_datetime_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-31 00:00:00
+-24:00:00	2012-02-01 00:00:00
+-24:00:00	2012-02-02 00:00:00
+-48:00:00	2012-01-30 00:00:00
+-48:00:00	2012-01-31 00:00:00
+-48:00:00	2012-02-01 00:00:00
+-48:00:00	2012-02-02 00:00:00
+00:00:00	2012-02-01 00:00:00
+00:00:00	2012-02-02 00:00:00
+24:00:00	2012-02-02 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key < col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
+1	SIMPLE	t2	ALL	col_datetime_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` < `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t1 force INDEX (col_time_key)
+STRAIGHT_JOIN
+t2 force INDEX (col_datetime_key)
+WHERE col_datetime_key < col_time_key;
+col_time_key	col_datetime_key
+-24:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-29 00:00:00
+00:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-29 00:00:00
+24:00:00	2012-01-30 00:00:00
+24:00:00	2012-01-31 00:00:00
+48:00:00	2012-01-29 00:00:00
+48:00:00	2012-01-30 00:00:00
+48:00:00	2012-01-31 00:00:00
+48:00:00	2012-02-01 00:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key < col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` < `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key < col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key < col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` < `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key < col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key < col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	col_time_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` < `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key < col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key < col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` < `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 ignore INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key < col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key < col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` < `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_time_key < col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key < col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` IGNORE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` < `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 ignore INDEX (col_time_key)
+WHERE col_datetime_key < col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	48:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key < col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	ALL	col_time_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` < `test`.`t2`.`col_datetime_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_time_key < col_datetime_key;
+col_datetime_key	col_time_key
+2012-01-30 00:00:00	-48:00:00
+2012-01-31 00:00:00	-24:00:00
+2012-01-31 00:00:00	-48:00:00
+2012-02-01 00:00:00	-24:00:00
+2012-02-01 00:00:00	-48:00:00
+2012-02-01 00:00:00	00:00:00
+2012-02-02 00:00:00	-24:00:00
+2012-02-02 00:00:00	-48:00:00
+2012-02-02 00:00:00	00:00:00
+2012-02-02 00:00:00	24:00:00
+EXPLAIN EXTENDED SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key < col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
+1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` < `test`.`t1`.`col_time_key`)
+SELECT * FROM
+t2 force INDEX (col_datetime_key)
+STRAIGHT_JOIN
+t1 force INDEX (col_time_key)
+WHERE col_datetime_key < col_time_key;
+col_datetime_key	col_time_key
+2012-01-29 00:00:00	-24:00:00
+2012-01-29 00:00:00	00:00:00
+2012-01-29 00:00:00	24:00:00
+2012-01-29 00:00:00	48:00:00
+2012-01-30 00:00:00	00:00:00
+2012-01-30 00:00:00	24:00:00
+2012-01-30 00:00:00	48:00:00
+2012-01-31 00:00:00	24:00:00
+2012-01-31 00:00:00	48:00:00
+2012-02-01 00:00:00	48:00:00
+DROP TABLE t1,t2;
+
+# Original test of the bug report
+
+CREATE TABLE t1 (
+pk INT NOT NULL AUTO_INCREMENT,
+col_int_nokey INT,
+col_int_key INT NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (10,1,7), (11,7,0), (12,4,9), (13,7,3),
+(14,0,4), (15,2,2), (16,9,5), (17,4,3), (18,0,1), (19,9,3), (20,1,6),
+(21,3,7), (22,8,5), (23,8,1), (24,18,204), (25,84,224), (26,6,9),
+(27,3,5), (28,6,0), (29,6,3);
+CREATE TABLE t2 (
+col_int_nokey INT NOT NULL,
+col_datetime_key DATETIME NOT NULL,
+col_varchar_key VARCHAR(1) NOT NULL,
+KEY col_datetime_key (col_datetime_key),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,'2001-11-04 19:07:55','k');
+CREATE TABLE t3 (
+col_time_key TIME,
+KEY col_time_key (col_time_key)
+) ENGINE=InnoDB;
+INSERT INTO t3 VALUES ('21:22:34'), ('10:50:38'), ('00:21:38'),
+('04:08:02'), ('16:25:11'), ('10:14:58'), ('19:47:59'), ('11:14:24'),
+('00:00:00'), ('00:00:00'), ('15:57:25'), ('07:05:51'), ('19:22:21'),
+('03:53:16'), ('09:16:38'), ('15:37:26'), ('00:00:00'), ('05:03:03'),
+('02:59:24'), ('00:01:58');
+EXPLAIN EXTENDED SELECT * FROM t2 STRAIGHT_JOIN t3 FORCE INDEX (col_time_key)
+ON t3.col_time_key > t2.col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	col_datetime_key	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t3	ALL	col_time_key	NULL	NULL	NULL	20	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_int_nokey` AS `col_int_nokey`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t3`.`col_time_key` AS `col_time_key` from `test`.`t2` straight_join `test`.`t3` FORCE INDEX (`col_time_key`) where (`test`.`t3`.`col_time_key` > `test`.`t2`.`col_datetime_key`)
+SELECT * FROM t2 STRAIGHT_JOIN t3 FORCE INDEX (col_time_key)
+ON t3.col_time_key > t2.col_datetime_key;
+col_int_nokey	col_datetime_key	col_varchar_key	col_time_key
+1	2001-11-04 19:07:55	k	00:00:00
+1	2001-11-04 19:07:55	k	00:00:00
+1	2001-11-04 19:07:55	k	00:00:00
+1	2001-11-04 19:07:55	k	00:01:58
+1	2001-11-04 19:07:55	k	00:21:38
+1	2001-11-04 19:07:55	k	02:59:24
+1	2001-11-04 19:07:55	k	03:53:16
+1	2001-11-04 19:07:55	k	04:08:02
+1	2001-11-04 19:07:55	k	05:03:03
+1	2001-11-04 19:07:55	k	07:05:51
+1	2001-11-04 19:07:55	k	09:16:38
+1	2001-11-04 19:07:55	k	10:14:58
+1	2001-11-04 19:07:55	k	10:50:38
+1	2001-11-04 19:07:55	k	11:14:24
+1	2001-11-04 19:07:55	k	15:37:26
+1	2001-11-04 19:07:55	k	15:57:25
+1	2001-11-04 19:07:55	k	16:25:11
+1	2001-11-04 19:07:55	k	19:22:21
+1	2001-11-04 19:07:55	k	19:47:59
+1	2001-11-04 19:07:55	k	21:22:34
+EXPLAIN EXTENDED SELECT * FROM t2 STRAIGHT_JOIN t3 IGNORE INDEX (col_time_key)
+ON t3.col_time_key > t2.col_datetime_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	col_datetime_key	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col_int_nokey` AS `col_int_nokey`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t3`.`col_time_key` AS `col_time_key` from `test`.`t2` straight_join `test`.`t3` IGNORE INDEX (`col_time_key`) where (`test`.`t3`.`col_time_key` > `test`.`t2`.`col_datetime_key`)
+SELECT * FROM t2 STRAIGHT_JOIN t3 IGNORE INDEX (col_time_key)
+ON t3.col_time_key > t2.col_datetime_key;
+col_int_nokey	col_datetime_key	col_varchar_key	col_time_key
+1	2001-11-04 19:07:55	k	00:00:00
+1	2001-11-04 19:07:55	k	00:00:00
+1	2001-11-04 19:07:55	k	00:00:00
+1	2001-11-04 19:07:55	k	00:01:58
+1	2001-11-04 19:07:55	k	00:21:38
+1	2001-11-04 19:07:55	k	02:59:24
+1	2001-11-04 19:07:55	k	03:53:16
+1	2001-11-04 19:07:55	k	04:08:02
+1	2001-11-04 19:07:55	k	05:03:03
+1	2001-11-04 19:07:55	k	07:05:51
+1	2001-11-04 19:07:55	k	09:16:38
+1	2001-11-04 19:07:55	k	10:14:58
+1	2001-11-04 19:07:55	k	10:50:38
+1	2001-11-04 19:07:55	k	11:14:24
+1	2001-11-04 19:07:55	k	15:37:26
+1	2001-11-04 19:07:55	k	15:57:25
+1	2001-11-04 19:07:55	k	16:25:11
+1	2001-11-04 19:07:55	k	19:22:21
+1	2001-11-04 19:07:55	k	19:47:59
+1	2001-11-04 19:07:55	k	21:22:34
+EXPLAIN EXTENDED SELECT outr.col_int_nokey
+FROM t2 as outr
+STRAIGHT_JOIN t3 AS outr2
+ON outr2.col_time_key > outr.col_datetime_key
+WHERE outr.col_int_nokey IN (
+SELECT col_int_key
+FROM t1 AS innr
+WHERE innr.pk >= innr.col_int_nokey
+) AND (
+outr.col_int_nokey <= 6
+OR
+outr.col_varchar_key IS NULL
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	outr	ALL	col_datetime_key	NULL	NULL	NULL	1	100.00	Using where
+1	PRIMARY	outr2	ALL	col_time_key	NULL	NULL	NULL	20	100.00	Range checked for each record (index map: 0x1)
+2	DEPENDENT SUBQUERY	innr	index_subquery	col_int_key	col_int_key	4	func	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`outr`.`col_int_nokey` AS `col_int_nokey` from `test`.`t2` `outr` straight_join `test`.`t3` `outr2` where (<in_optimizer>(`test`.`outr`.`col_int_nokey`,<exists>(<index_lookup>(<cache>(`test`.`outr`.`col_int_nokey`) in t1 on col_int_key where ((`test`.`innr`.`pk` >= `test`.`innr`.`col_int_nokey`) and (<cache>(`test`.`outr`.`col_int_nokey`) = `test`.`innr`.`col_int_key`))))) and (`test`.`outr`.`col_int_nokey` <= 6) and (`test`.`outr2`.`col_time_key` > `test`.`outr`.`col_datetime_key`))
+SELECT outr.col_int_nokey
+FROM t2 as outr
+STRAIGHT_JOIN t3 AS outr2
+ON outr2.col_time_key > outr.col_datetime_key
+WHERE outr.col_int_nokey IN (
+SELECT col_int_key
+FROM t1 AS innr
+WHERE innr.pk >= innr.col_int_nokey
+) AND (
+outr.col_int_nokey <= 6
+OR
+outr.col_varchar_key IS NULL
+);
+col_int_nokey
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+DROP TABLE t1,t2,t3;
+SET TIMESTAMP=0;
 #
 # End of 5.6 tests
 #

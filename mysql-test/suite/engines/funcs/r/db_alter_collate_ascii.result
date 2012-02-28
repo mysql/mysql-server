@@ -81,6 +81,7 @@ utf8_german2_ci	utf8	212		#	#
 utf8_croatian_ci	utf8	213		#	#
 utf8_unicode_520_ci	utf8	214		#	#
 utf8_vietnamese_ci	utf8	215		#	#
+utf8_general_mysql500_ci	utf8	223		#	#
 ucs2_general_ci	ucs2	35	Yes	#	#
 ucs2_bin	ucs2	90		#	#
 ucs2_unicode_ci	ucs2	128		#	#
@@ -107,6 +108,7 @@ ucs2_german2_ci	ucs2	148		#	#
 ucs2_croatian_ci	ucs2	149		#	#
 ucs2_unicode_520_ci	ucs2	150		#	#
 ucs2_vietnamese_ci	ucs2	151		#	#
+ucs2_general_mysql500_ci	ucs2	159		#	#
 cp866_general_ci	cp866	36	Yes	#	#
 cp866_bin	cp866	68		#	#
 keybcs2_general_ci	keybcs2	37	Yes	#	#

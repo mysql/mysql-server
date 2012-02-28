@@ -1,0 +1,37 @@
+include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+include/stop_slave.inc
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) engine=Innodb;
+SET @@SESSION.AUTOCOMMIT= ON;
+INSERT INTO t1 VALUES (NULL);
+BEGIN;
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES (NULL);
+COMMIT;
+==== FULL FILE ====
+include/diff_tables.inc [master:t1, slave:t1]
+==== --include-gtid ====
+INSERT INTO t1 VALUES (NULL) /* 4 */;
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES (NULL);
+include/diff_tables.inc [master:t1, slave:t1]
+==== --skip-gtid + --exclude-gtid  ====
+INSERT INTO t1 VALUES (NULL) /* 7 */;
+INSERT INTO t1 VALUES (NULL);
+include/diff_tables.inc [master:t1, slave:t1]
+==== --exclude-gtid ====
+INSERT INTO t1 VALUES (NULL) /* 9 */;
+include/diff_tables.inc [master:t1, slave:t1]
+==== --skip-gtid ====
+FLUSH LOGS;
+INSERT INTO t1 VALUES (NULL) /* 10 */;
+include/diff_tables.inc [master:t1, slave:t1]
+==== --read-from-remote-master ====
+FLUSH LOGS;
+==== --read-from-remote-master with --exclude-gtid ====
+==== --read-from-remote-master with --include-gtid ====
+FLUSH LOGS;
+DROP TABLE t1;
