@@ -3965,7 +3965,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
     if (best_key >= 0)
     {
-      if (table->quick_keys.is_set(best_key) &&
+      if (select &&
+          table->quick_keys.is_set(best_key) &&
           !tab->quick_order_tested.is_set(best_key) &&
           best_key != ref_key)
       {

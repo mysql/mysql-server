@@ -1521,7 +1521,7 @@ bool Item_sp_variable::fix_fields(THD *thd, Item **)
   decimals= it->decimals;
   unsigned_flag= it->unsigned_flag;
   fixed= 1;
-  collation.set(it->collation.collation, it->collation.derivation);
+  collation.set(it->collation);
 
   return FALSE;
 }
@@ -1866,7 +1866,8 @@ bool Item_name_const::fix_fields(THD *thd, Item **ref)
   {
     set_name(item_name->ptr(), (uint) item_name->length(), system_charset_info);
   }
-  collation.set(value_item->collation.collation, DERIVATION_IMPLICIT);
+  collation.set(value_item->collation.collation, DERIVATION_IMPLICIT,
+                value_item->collation.repertoire);
   max_length= value_item->max_length;
   decimals= value_item->decimals;
   fixed= 1;

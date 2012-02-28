@@ -1121,7 +1121,7 @@ impossible position";
         if (using_gtid_proto)
         {
           /*
-            The current implementation checks if the GTid was not processed
+            The current implementation checks if the GTID was not processed
             by the slave. This means that everytime a GTID is read, one needs
             to check if it was already processed by the slave. If this is the
             case, the group is not sent. Otherwise, it must be sent.
