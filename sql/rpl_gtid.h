@@ -1173,11 +1173,11 @@ public:
     @param n_intervals The number of intervals to add.
     @param intervals Array of n_intervals intervals.
   */
-  void add_interval_memory(int n_intervals, Interval *intervals)
+  void add_interval_memory(int n_intervals, Interval *intervals_param)
   {
     if (sid_lock != NULL)
       mysql_mutex_lock(&free_intervals_mutex);
-    add_interval_memory_lock_taken(n_intervals, intervals);
+    add_interval_memory_lock_taken(n_intervals, intervals_param);
     if (sid_lock != NULL)
       mysql_mutex_unlock(&free_intervals_mutex);
   }

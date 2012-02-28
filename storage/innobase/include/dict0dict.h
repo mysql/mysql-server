@@ -1190,14 +1190,6 @@ dict_index_get_page(
 /*================*/
 	const dict_index_t*	tree);	/*!< in: index */
 /*********************************************************************//**
-Sets the page number of the root of index tree. */
-UNIV_INLINE
-void
-dict_index_set_page(
-/*================*/
-	dict_index_t*	index,	/*!< in/out: index */
-	ulint		page);	/*!< in: page number */
-/*********************************************************************//**
 Gets the read-write lock of the index tree.
 @return	read-write lock */
 UNIV_INLINE

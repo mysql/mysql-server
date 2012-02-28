@@ -2773,7 +2773,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
                      Key_use_array *keyuse_array, bool first_optimization)
 {
   int error;
-  TABLE *table;
   THD *const thd= join->thd;
   TABLE_LIST *tables= tables_arg;
   uint i,const_count,key;
@@ -2819,7 +2818,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
        s++, tables= tables->next_leaf, i++)
   {
     stat_vector[i]=s;
-    table_vector[i]=s->table=table=tables->table;
+    TABLE *const table= tables->table;
+    table_vector[i]= s->table= table;
     table->pos_in_table_list= tables;
     error= tables->fetch_number_of_rows();
 
@@ -2894,12 +2894,12 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     */
     for (i= 0 ; i < table_count ; i++)
     {
-      uint j;
-      table= stat[i].table;
+      TABLE *const table= stat[i].table;
 
       if (!table->reginfo.join_tab->dependent)
         continue;
 
+      uint j;
       /* Add my dependencies to other tables depending on me */
       for (j= 0, s= stat ; j < table_count ; j++, s++)
       {
@@ -3079,7 +3079,7 @@ const_table_extraction_done:
 
     for (JOIN_TAB **pos=stat_vector+const_count ; (s= *pos) ; pos++)
     {
-      table=s->table;
+      TABLE *const table= s->table;
       TABLE_LIST *const tl= table->pos_in_table_list;
       /* 
         If equi-join condition by a key is null rejecting and after a

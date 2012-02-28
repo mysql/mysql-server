@@ -2571,6 +2571,8 @@ row_merge_drop_indexes(
 				continue;
 			case ONLINE_INDEX_COMPLETE:
 				if (*index->name == TEMP_INDEX_PREFIX) {
+					rw_lock_x_lock(
+						dict_index_get_lock(index));
 					dict_index_set_online_status(
 						index, ONLINE_INDEX_ABORTED);
 					index->type |= DICT_CORRUPT;
@@ -2582,8 +2584,8 @@ row_merge_drop_indexes(
 				rw_lock_x_lock(dict_index_get_lock(index));
 				ut_ad(*index->name == TEMP_INDEX_PREFIX);
 				row_log_free(index);
-				rw_lock_x_unlock(dict_index_get_lock(index));
 			drop_aborted:
+				rw_lock_x_unlock(dict_index_get_lock(index));
 				/* covered by dict_sys->mutex */
 				MONITOR_INC(MONITOR_BACKGROUND_DROP_INDEX);
 				/* fall through */
@@ -2593,8 +2595,10 @@ row_merge_drop_indexes(
 				the tablespace, but keep the object
 				in the data dictionary cache. */
 				row_merge_drop_index_dict(trx, index->id);
+				rw_lock_x_lock(dict_index_get_lock(index));
 				dict_index_set_online_status(
 					index, ONLINE_INDEX_ABORTED_DROPPED);
+				rw_lock_x_unlock(dict_index_get_lock(index));
 				table->drop_aborted = TRUE;
 				continue;
 			}

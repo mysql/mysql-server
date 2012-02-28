@@ -751,6 +751,24 @@ public:
 #endif
 
 
+class Item_char_typecast :public Item_str_func
+{
+  int cast_length;
+  const CHARSET_INFO *cast_cs, *from_cs;
+  bool charset_conversion;
+  String tmp_value;
+public:
+  Item_char_typecast(Item *a, int length_arg, const CHARSET_INFO *cs_arg)
+    :Item_str_func(a), cast_length(length_arg), cast_cs(cs_arg) {}
+  enum Functype functype() const { return CHAR_TYPECAST_FUNC; }
+  bool eq(const Item *item, bool binary_cmp) const;
+  const char *func_name() const { return "cast_as_char"; }
+  String *val_str(String *a);
+  void fix_length_and_dec();
+  virtual void print(String *str, enum_query_type query_type);
+};
+
+
 class Item_func_binary :public Item_str_func
 {
 public:

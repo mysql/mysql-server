@@ -14,7 +14,7 @@ set debug_sync='now WAIT_FOR parked';
 insert into t2 values (1);
 insert into t1 values (1, 1, 1);;
 set debug_sync='now SIGNAL go';
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (1)
@@ -57,7 +57,7 @@ rename table t1 to t3;
 drop table t3;
 set debug_sync='alter_table_before_main_binlog SIGNAL parked WAIT_FOR go';
 set debug_sync='RESET';
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; alter table t1 change i c char(10) default 'Test1'
 master-bin.000001	#	Query	#	#	BEGIN

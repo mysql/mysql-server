@@ -1037,21 +1037,6 @@ dict_index_get_page(
 }
 
 /*********************************************************************//**
-Sets the page number of the root of index tree. */
-UNIV_INLINE
-void
-dict_index_set_page(
-/*================*/
-	dict_index_t*	index,	/*!< in/out: index */
-	ulint		page)	/*!< in: page number */
-{
-	ut_ad(index);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	index->page = page;
-}
-
-/*********************************************************************//**
 Gets the read-write lock of the index tree.
 @return	read-write lock */
 UNIV_INLINE
@@ -1116,6 +1101,9 @@ dict_index_set_online_status(
 	enum online_index_status	status)	/*!< in: status */
 {
 	ut_ad(!dict_index_is_clust(index));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 #ifdef UNIV_DEBUG
 	switch (dict_index_get_online_status(index)) {
 	case ONLINE_INDEX_COMPLETE:

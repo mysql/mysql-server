@@ -44,6 +44,92 @@ enum partition_keywords
 /* offset to the engines array */
 #define PAR_ENGINES_OFFSET 12
 
+/** Struct used for partition_name_hash */
+typedef struct st_part_name_def
+{
+  uchar *partition_name;
+  uint length;
+  uint32 part_id;
+  my_bool is_subpart;
+} PART_NAME_DEF;
+
+/** class where to save partitions Handler_share's */
+class Parts_share_refs
+{
+public:
+  uint num_parts;                              /**< Size of ha_share array */
+  Handler_share **ha_shares;                   /**< Storage for each part */
+  Parts_share_refs()
+  {
+    num_parts= 0;
+    ha_shares= NULL;
+  }
+  ~Parts_share_refs()
+  {
+    uint i;
+    for (i= 0; i < num_parts; i++)
+      if (ha_shares[i])
+        delete ha_shares[i];
+    if (ha_shares)
+      delete [] ha_shares;
+  }
+  bool init(uint arg_num_parts)
+  {
+    DBUG_ASSERT(!num_parts && !ha_shares);
+    num_parts= arg_num_parts;
+    /* Allocate an array of Handler_share pointers */
+    ha_shares= new Handler_share *[num_parts];
+    if (!ha_shares)
+    {
+      num_parts= 0;
+      return true;
+    }
+    memset(ha_shares, 0, sizeof(Handler_share*) * num_parts);
+    return false;
+  }
+};
+
+
+/**
+  Partition specific Handler_share.
+*/
+class Partition_share : public Handler_share
+{
+public:
+  bool auto_inc_initialized;
+  mysql_mutex_t auto_inc_mutex;                /**< protecting auto_inc val */
+  ulonglong next_auto_inc_val;                 /**< first non reserved value */
+  /**
+    Hash of partition names. Initialized in the first ha_partition::open()
+    for the table_share. After that it is read-only, i.e. no locking required.
+  */
+  bool partition_name_hash_initialized;
+  HASH partition_name_hash;
+  /** Storage for each partitions Handler_share */
+  Parts_share_refs *partitions_share_refs;
+  Partition_share() {}
+  ~Partition_share()
+  {
+    DBUG_ENTER("Partition_share::~Partition_share");
+    mysql_mutex_destroy(&auto_inc_mutex);
+    if (partition_name_hash_initialized)
+      my_hash_free(&partition_name_hash);
+    if (partitions_share_refs)
+      delete partitions_share_refs;
+    DBUG_VOID_RETURN;
+  }
+  bool init(uint num_parts);
+  void lock_auto_inc()
+  {
+    mysql_mutex_lock(&auto_inc_mutex);
+  }
+  void unlock_auto_inc()
+  {
+    mysql_mutex_unlock(&auto_inc_mutex);
+  }
+};
+
+
 class ha_partition :public handler
 {
 private:
@@ -175,7 +261,12 @@ private:
   enum_monotonicity_info m_part_func_monotonicity_info;
   /** keep track of locked partitions */
   MY_BITMAP m_locked_partitions;
+  /** Stores shared auto_increment etc. */
+  Partition_share *part_share;
+  /** Temporary storage for new partitions Handler_shares during ALTER */
+  List<Parts_share_refs> m_new_partitions_share_refs;
 public:
+  Partition_share *get_part_share() { return part_share; }
   handler *clone(const char *name, MEM_ROOT *mem_root);
   virtual void set_part_info(partition_info *part_info, bool early)
   {
@@ -251,7 +342,6 @@ public:
   virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
                                           uint table_changes);
 private:
-  int prepare_for_rename();
   int copy_partitions(ulonglong * const copied, ulonglong * const deleted);
   void cleanup_new_partition(uint part_count);
   int prepare_new_partition(TABLE *table, HA_CREATE_INFO *create_info,
@@ -283,6 +373,8 @@ private:
   bool insert_partition_name_in_hash(const char *name, uint part_id,
                                      bool is_subpart);
   bool populate_partition_name_hash();
+  Partition_share *get_share();
+  bool set_ha_share_ref(Handler_share **ha_share);
 
 public:
 
@@ -549,6 +641,7 @@ public:
 private:
   static const uint NO_CURRENT_PART_ID;
   int loop_extra(enum ha_extra_function operation);
+  int loop_extra_alter(enum ha_extra_function operations);
   void late_extra_cache(uint partition_id);
   void late_extra_no_cache(uint partition_id);
   void prepare_extra_cache(uint cachesize);
@@ -954,16 +1047,15 @@ private:
     /* lock already taken */
     if (auto_increment_safe_stmt_log_lock)
       return;
-    DBUG_ASSERT(table_share->ha_part_data && !auto_increment_lock);
+    DBUG_ASSERT(!auto_increment_lock);
     if(table_share->tmp_table == NO_TMP_TABLE)
     {
       auto_increment_lock= TRUE;
-      mysql_mutex_lock(&table_share->ha_part_data->LOCK_auto_inc);
+      part_share->lock_auto_inc();
     }
   }
   virtual void unlock_auto_increment()
   {
-    DBUG_ASSERT(table_share->ha_part_data);
     /*
       If auto_increment_safe_stmt_log_lock is true, we have to keep the lock.
       It will be set to false and thus unlocked at the end of the statement by
@@ -971,7 +1063,7 @@ private:
     */
     if(auto_increment_lock && !auto_increment_safe_stmt_log_lock)
     {
-      mysql_mutex_unlock(&table_share->ha_part_data->LOCK_auto_inc);
+      part_share->unlock_auto_inc();
       auto_increment_lock= FALSE;
     }
   }
@@ -980,10 +1072,10 @@ private:
     ulonglong nr= (((Field_num*) field)->unsigned_flag ||
                    field->val_int() > 0) ? field->val_int() : 0;
     lock_auto_increment();
-    DBUG_ASSERT(table_share->ha_part_data->auto_inc_initialized == TRUE);
+    DBUG_ASSERT(part_share->auto_inc_initialized);
     /* must check when the mutex is taken */
-    if (nr >= table_share->ha_part_data->next_auto_inc_val)
-      table_share->ha_part_data->next_auto_inc_val= nr + 1;
+    if (nr >= part_share->next_auto_inc_val)
+      part_share->next_auto_inc_val= nr + 1;
     unlock_auto_increment();
   }
 

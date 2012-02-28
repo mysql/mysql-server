@@ -916,6 +916,8 @@ static void set_ddl_log_entry_from_global(DDL_LOG_ENTRY *ddl_log_entry,
     inx+= global_ddl_log.name_len;
     ddl_log_entry->tmp_name= &file_entry_buf[inx];
   }
+  else
+    ddl_log_entry->tmp_name= NULL;
 }
 
 
@@ -6881,20 +6883,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   bool partition_changed= false;
-  TABLE *table_for_fast_alter_partition= NULL;
+  bool fast_alter_partition= false;
   {
     if (prep_alter_part_table(thd, table, alter_info, create_info,
                               &alter_ctx, &partition_changed,
-                              &table_for_fast_alter_partition))
+                              &fast_alter_partition))
     {
-      /*
-        If prep_alter_part_table failed but created an intermediate table,
-        close it. If prep_alter_part_table succeeded, the table will be
-        closed by fast_alter_partition_table or if mysql_prepare_alter_table
-        fails.
-      */
-      if (table_for_fast_alter_partition)
-        close_temporary(table_for_fast_alter_partition, true, false);
       DBUG_RETURN(true);
     }
   }
@@ -6903,17 +6897,13 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (mysql_prepare_alter_table(thd, table, create_info, alter_info,
                                 &alter_ctx))
   {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    if (table_for_fast_alter_partition)
-      close_temporary(table_for_fast_alter_partition, true, false);
-#endif
     DBUG_RETURN(true);
   }
 
   set_table_default_charset(thd, create_info, alter_ctx.db);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (table_for_fast_alter_partition)
+  if (fast_alter_partition)
   {
     /*
       ALGORITHM and LOCK clauses are generally not allowed by the
@@ -6926,7 +6916,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         alter_info->requested_algorithm !=
         Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)
     {
-      close_temporary(table_for_fast_alter_partition, true, false);
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
       DBUG_RETURN(true);
     }
@@ -6939,15 +6928,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                              thd->variables.lock_wait_timeout)
         || lock_tables(thd, table_list, alter_ctx.tables_opened, 0))
     {
-      close_temporary(table_for_fast_alter_partition, true, false);
       DBUG_RETURN(true);
     }
 
     // In-place execution of ALTER TABLE for partitioning.
     DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
                                            create_info, table_list,
-                                           alter_ctx.db, alter_ctx.table_name,
-                                           table_for_fast_alter_partition));
+                                           alter_ctx.db,
+                                           alter_ctx.table_name));
   }
 #endif
 

@@ -3470,6 +3470,161 @@ err:
 #endif
 
 
+bool Item_char_typecast::eq(const Item *item, bool binary_cmp) const
+{
+  if (this == item)
+    return 1;
+  if (item->type() != FUNC_ITEM ||
+      functype() != ((Item_func*)item)->functype())
+    return 0;
+
+  Item_char_typecast *cast= (Item_char_typecast*)item;
+  if (cast_length != cast->cast_length ||
+      cast_cs     != cast->cast_cs)
+    return 0;
+
+  if (!args[0]->eq(cast->args[0], binary_cmp))
+      return 0;
+  return 1;
+}
+
+
+void Item_char_typecast::print(String *str, enum_query_type query_type)
+{
+  str->append(STRING_WITH_LEN("cast("));
+  args[0]->print(str, query_type);
+  str->append(STRING_WITH_LEN(" as char"));
+  if (cast_length >= 0)
+    str->append_parenthesized(cast_length);
+  if (cast_cs)
+  {
+    str->append(STRING_WITH_LEN(" charset "));
+    str->append(cast_cs->csname);
+  }
+  str->append(')');
+}
+
+
+String *Item_char_typecast::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  String *res;
+  uint32 length;
+
+  if (cast_length >= 0 &&
+      ((unsigned) cast_length) > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			cast_cs == &my_charset_bin ?
+                        "cast_as_binary" : func_name(),
+                        current_thd->variables.max_allowed_packet);
+    null_value= 1;
+    return 0;
+  }
+
+  if (!charset_conversion)
+  {
+    if (!(res= args[0]->val_str(str)))
+    {
+      null_value= 1;
+      return 0;
+    }
+  }
+  else
+  {
+    // Convert character set if differ
+    uint dummy_errors;
+    if (!(res= args[0]->val_str(str)) ||
+        tmp_value.copy(res->ptr(), res->length(), from_cs,
+                       cast_cs, &dummy_errors))
+    {
+      null_value= 1;
+      return 0;
+    }
+    res= &tmp_value;
+  }
+
+  res->set_charset(cast_cs);
+
+  /*
+    Cut the tail if cast with length
+    and the result is longer than cast length, e.g.
+    CAST('string' AS CHAR(1))
+  */
+  if (cast_length >= 0)
+  {
+    if (res->length() > (length= (uint32) res->charpos(cast_length)))
+    {                                           // Safe even if const arg
+      char char_type[40];
+      my_snprintf(char_type, sizeof(char_type), "%s(%lu)",
+                  cast_cs == &my_charset_bin ? "BINARY" : "CHAR",
+                  (ulong) length);
+
+      if (!res->alloced_length())
+      {                                         // Don't change const str
+        str_value= *res;                        // Not malloced string
+        res= &str_value;
+      }
+      ErrConvString err(res);
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_TRUNCATED_WRONG_VALUE,
+                          ER(ER_TRUNCATED_WRONG_VALUE), char_type,
+                          err.ptr());
+      res->length((uint) length);
+    }
+    else if (cast_cs == &my_charset_bin && res->length() < (uint) cast_length)
+    {
+      if (res->alloced_length() < (uint) cast_length)
+      {
+        str_value.alloc(cast_length);
+        str_value.copy(*res);
+        res= &str_value;
+      }
+      memset(const_cast<char*>(res->ptr() + res->length()), 0,
+             cast_length - res->length());
+      res->length(cast_length);
+    }
+  }
+  null_value= 0;
+  return res;
+}
+
+
+void Item_char_typecast::fix_length_and_dec()
+{
+  /*
+    If we convert between two ASCII compatible character sets and the
+    argument repertoire is MY_REPERTOIRE_ASCII then from_cs is set to cast_cs.
+    This allows just to take over the args[0]->val_str() result
+    and thus avoid unnecessary character set conversion.
+  */
+  from_cs= args[0]->collation.repertoire == MY_REPERTOIRE_ASCII &&
+           my_charset_is_ascii_based(cast_cs) &&
+           my_charset_is_ascii_based(args[0]->collation.collation) ?
+           cast_cs : args[0]->collation.collation;
+
+
+  collation.set(cast_cs, DERIVATION_IMPLICIT);
+  fix_char_length(cast_length >= 0 ? cast_length :
+                  cast_cs == &my_charset_bin ? args[0]->max_length :
+                  args[0]->max_char_length());
+
+  /* 
+     We always force character set conversion if cast_cs
+     is a multi-byte character set. It garantees that the
+     result of CAST is a well-formed string.
+     For single-byte character sets we allow just to copy from the argument.
+     A single-byte character sets string is always well-formed. 
+  */
+  charset_conversion= (cast_cs->mbmaxlen > 1) ||
+                      (!my_charset_same(from_cs, cast_cs) &&
+                       from_cs != &my_charset_bin &&
+                       cast_cs != &my_charset_bin);
+}
+
+
 void Item_func_binary::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("cast("));
