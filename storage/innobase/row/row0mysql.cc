@@ -3400,7 +3400,6 @@ row_drop_table_for_mysql(
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	table;
-	dict_index_t*	index;
 	ulint		space_id;
 	ulint		err;
 	const char*	table_name;
@@ -3408,6 +3407,7 @@ row_drop_table_for_mysql(
 	ibool		locked_dictionary	= FALSE;
 	ibool		fts_bg_thread_exited	= FALSE;
 	pars_info_t*	info			= NULL;
+	mem_heap_t*	heap			= NULL;
 
 	ut_a(name != NULL);
 
@@ -3687,6 +3687,31 @@ check_next_foreign:
 		ut_ad(strstr(table->name, "/FTS_") != NULL);
 	}
 
+	/* Mark all indexes unavailable in the data dictionary cache
+	before starting to drop the table. */
+
+	unsigned*	page_no;
+	unsigned*	page_nos;
+	heap = mem_heap_create(
+		200 + UT_LIST_GET_LEN(table->indexes) * sizeof *page_nos);
+
+	page_no = page_nos = static_cast<unsigned*>(
+		mem_heap_alloc(
+			heap,
+			UT_LIST_GET_LEN(table->indexes) * sizeof *page_no));
+
+	for (dict_index_t* index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+		rw_lock_x_lock(dict_index_get_lock(index));
+		/* Save the page numbers so that we can restore them
+		if the operation fails. */
+		*page_no++ = index->page;
+		/* Mark the index unusable. */
+		index->page = FIL_NULL;
+		rw_lock_x_unlock(dict_index_get_lock(index));
+	}
+
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in deleting the dictionary data from system
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
@@ -3773,26 +3798,10 @@ check_next_foreign:
 			   "END;\n"
 			   , FALSE, trx);
 
-	/* Mark all indexes unavailable in the data dictionary cache
-	before starting to drop the table. */
-
-	for (index = dict_table_get_first_index(table);
-	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
-		rw_lock_x_lock(dict_index_get_lock(index));
-		ut_ad(!dict_index_is_online_ddl(index));
-		index->online_status = ONLINE_INDEX_ABORTED;
-		rw_lock_x_unlock(dict_index_get_lock(index));
-	}
-
 	switch (err) {
 		ibool		is_temp;
-		mem_heap_t*	heap;
 
 	case DB_SUCCESS:
-
-		heap = mem_heap_create(200);
-
 		/* Clone the name, in case it has been allocated
 		from table->heap, which will be freed by
 		dict_table_remove_from_cache(table) below. */
@@ -3865,7 +3874,6 @@ check_next_foreign:
 			}
 		}
 
-		mem_heap_free(heap);
 		break;
 
 	case DB_OUT_OF_FILE_SPACE:
@@ -3900,16 +3908,22 @@ check_next_foreign:
 		/* Mark all indexes available in the data dictionary
 		cache again. */
 
-		for (index = dict_table_get_first_index(table);
+		page_no = page_nos;
+
+		for (dict_index_t* index = dict_table_get_first_index(table);
 		     index != NULL;
 		     index = dict_table_get_next_index(index)) {
 			rw_lock_x_lock(dict_index_get_lock(index));
-			index->online_status = ONLINE_INDEX_COMPLETE;
+			ut_a(index->page == FIL_NULL);
+			index->page = *page_no++;
 			rw_lock_x_unlock(dict_index_get_lock(index));
 		}
 	}
 
 funct_exit:
+	if (heap) {
+		mem_heap_free(heap);
+	}
 
 	if (locked_dictionary) {
 		trx_commit_for_mysql(trx);
