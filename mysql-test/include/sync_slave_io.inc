@@ -8,15 +8,20 @@
 #
 # ==== Usage ====
 #
+# [--let $use_gtids= 1]
+# [--let $rpl_debug= 1]
+# [--let $slave_timeout= NUMBER]
+#
 # On master:
 # --source include/save_master_pos.inc
 #
 # On slave:
-# [--let $slave_timeout= NUMBER]
-# [--let $rpl_debug= 1]
 # --source include/sync_slave_io_with_master.inc
 #
 # Parameters:
+#   $use_gtids
+#     If set, uses GTIDs instead of filename and offset for positions.
+#
 #   $slave_timeout
 #     See include/wait_for_slave_param.inc
 #
@@ -27,17 +32,25 @@
 --let $include_filename= sync_io_with_master.inc
 --source include/begin_include_file.inc
 
-
 --let $_old_slave_error_param= $slave_error_param
 --let $slave_error_param= Last_IO_Errno
 
---let $slave_param= Master_Log_File
---let $slave_param_value= $_master_file
-source include/wait_for_slave_param.inc;
+if ($use_gtids)
+{
+  --let $slave_param= Retrieved_Gtid_set
+  --let $slave_param_value= $_saved_gtids
+  --source include/wait_for_slave_param.inc
+}
+if (!$use_gtids)
+{
+  --let $slave_param= Master_Log_File
+  --let $slave_param_value= $_saved_file
+  --source include/wait_for_slave_param.inc
 
-let $slave_param= Read_Master_Log_Pos;
-let $slave_param_value= $_master_pos;
-source include/wait_for_slave_param.inc;
+  --let $slave_param= Read_Master_Log_Pos
+  --let $slave_param_value= $_saved_pos
+  --source include/wait_for_slave_param.inc
+}
 
 --let $slave_error_param= $_old_slave_error_param
 

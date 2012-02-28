@@ -2,6 +2,7 @@
 -- source include/not_as_root.inc
 -- source include/have_log_bin.inc
 -- source include/not_master_info_table.inc
+-- source include/not_gtid_enabled.inc
 
 #
 # Test is run with max_binlog_size=2048 to force automatic rotation of the
@@ -28,6 +29,7 @@ chmod 0000 $MYSQLD_SLAVE_DATADIR/master.info;
 connection slave;
 
 --disable_result_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
 CALL mtr.add_suppression("Failed to open the existing info file");
 CALL mtr.add_suppression("Error while reading from master info file");
 CALL mtr.add_suppression("Failed to create a new info file");

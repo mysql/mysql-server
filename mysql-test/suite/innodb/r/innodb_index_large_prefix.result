@@ -95,7 +95,7 @@ Level	Code	Message
 Warning	1071	Specified key was too long; max key length is 767 bytes
 Warning	1071	Specified key was too long; max key length is 767 bytes
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 set global innodb_large_prefix=1;
 create index idx2 on worklog5743_1(a2(4000));
@@ -105,14 +105,14 @@ Level	Code	Message
 Warning	1071	Specified key was too long; max key length is 3072 bytes
 Warning	1071	Specified key was too long; max key length is 3072 bytes
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx3 on worklog5743_1(a2(436));
 ERROR HY000: Too big row
 show warnings;
 Level	Code	Message
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx4 on worklog5743_1(a2(434));
 show warnings;
@@ -122,7 +122,7 @@ ERROR HY000: Too big row
 show warnings;
 Level	Code	Message
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx6 on worklog5743_1(a1, a2(428));
 show warnings;
@@ -144,14 +144,14 @@ Level	Code	Message
 Warning	1071	Specified key was too long; max key length is 3072 bytes
 Warning	1071	Specified key was too long; max key length is 3072 bytes
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx3 on worklog5743_2(a2(948));
 ERROR HY000: Too big row
 show warnings;
 Level	Code	Message
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx4 on worklog5743_2(a2(946));
 show warnings;
@@ -161,7 +161,7 @@ ERROR HY000: Too big row
 show warnings;
 Level	Code	Message
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx6 on worklog5743_2(a1, a2(940));
 show warnings;
@@ -183,14 +183,14 @@ Level	Code	Message
 Warning	1071	Specified key was too long; max key length is 3072 bytes
 Warning	1071	Specified key was too long; max key length is 3072 bytes
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx3 on worklog5743_4(a2(1972));
 ERROR HY000: Too big row
 show warnings;
 Level	Code	Message
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx4 on worklog5743_4(a2(1970));
 show warnings;
@@ -200,7 +200,7 @@ ERROR HY000: Too big row
 show warnings;
 Level	Code	Message
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx6 on worklog5743_4(a1, a2(1964));
 show warnings;

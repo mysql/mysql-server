@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -212,19 +212,6 @@ static uchar *get_field_name(Field **buff, size_t *length,
   *length= (uint) strlen((*buff)->field_name);
   return (uchar*) (*buff)->field_name;
 }
-
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-/**
-  A function to return the partition name from a partition element
-*/
-uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
-                            my_bool not_used __attribute__((unused)))
-{
-  *length= part->length;
-  return part->partition_name;
-}
-#endif
 
 
 /*
@@ -455,6 +442,13 @@ void TABLE_SHARE::destroy()
   uint idx;
   KEY *info_it;
 
+  DBUG_ENTER("TABLE_SHARE::destroy");
+  DBUG_PRINT("info", ("db: %s table: %s", db.str, table_name.str));
+  if (ha_share)
+  {
+    delete ha_share;
+    ha_share= NULL;
+  }
   /* The mutex is initialized only for shares that are part of the TDC */
   if (tmp_table == NO_TMP_TABLE)
     mysql_mutex_destroy(&LOCK_ha_data);
@@ -474,19 +468,6 @@ void TABLE_SHARE::destroy()
     }
   }
 
-  if (ha_data_destroy)
-  {
-    ha_data_destroy(ha_data);
-    ha_data_destroy= NULL;
-  }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (ha_part_data_destroy)
-  {
-    ha_part_data_destroy(ha_part_data);
-    ha_part_data_destroy= NULL;
-  }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
-
 #ifdef HAVE_PSI_TABLE_INTERFACE
   PSI_CALL(release_table_share)(m_psi);
 #endif
@@ -497,6 +478,7 @@ void TABLE_SHARE::destroy()
   */
   MEM_ROOT own_root= mem_root;
   free_root(&own_root, MYF(0));
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -930,8 +912,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     share->table_charset= default_charset_info;
   }
   share->db_record_offset= 1;
-  if (db_create_options & HA_OPTION_LONG_BLOB_PTR)
-    share->blob_ptr_size= portable_sizeof_char_ptr;
   /* Set temporarily a good value for db_low_byte_first */
   share->db_low_byte_first= test(legacy_db_type != DB_TYPE_ISAM);
   error=4;
@@ -1386,6 +1366,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
  /* Allocate handler */
   if (!(handler_file= get_new_handler(share, thd->mem_root,
                                       share->db_type())))
+    goto err;
+
+  if (handler_file->set_ha_share_ref(&share->ha_share))
     goto err;
 
   record= share->default_values-1;              /* Fieldstart = 1 */
@@ -1862,18 +1845,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   delete crypted;
   delete handler_file;
   my_hash_free(&share->name_hash);
-  if (share->ha_data_destroy)
-  {
-    share->ha_data_destroy(share->ha_data);
-    share->ha_data_destroy= NULL;
-  }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (share->ha_part_data_destroy)
-  {
-    share->ha_part_data_destroy(share->ha_part_data);
-    share->ha_data_destroy= NULL;
-  }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   open_table_error(share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
@@ -1940,6 +1911,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   {
     if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
                                           share->db_type())))
+      goto err;
+    if (outparam->file->set_ha_share_ref(&share->ha_share))
       goto err;
   }
   else
@@ -3532,7 +3505,8 @@ void TABLE::reset_item_list(List<Item> *item_list) const
 void  TABLE_LIST::calc_md5(char *buffer)
 {
   uchar digest[16];
-  MY_MD5_HASH(digest, (uchar *) select_stmt.str, select_stmt.length);
+  compute_md5_hash((char *) digest, (const char *) select_stmt.str,
+                   select_stmt.length);
   sprintf((char *) buffer,
 	    "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
 	    digest[0], digest[1], digest[2], digest[3],
@@ -4504,10 +4478,14 @@ Item *Field_iterator_table::create_item(THD *thd)
 
   Item_field *item= new Item_field(thd, &select->context, *ptr);
   if (item && thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
-      !thd->lex->in_sum_func && select->cur_pos_in_select_list != UNDEF_POS)
+      !thd->lex->in_sum_func &&
+      select->cur_pos_in_all_fields != SELECT_LEX::ALL_FIELDS_UNDEF_POS)
   {
-    select->non_agg_fields.push_back(item);
-    item->marker= select->cur_pos_in_select_list;
+    /*
+      This function creates Item-s which don't go through fix_fields(), so we
+      need to:
+    */
+    item->push_to_non_agg_fields(select);
     select->set_non_agg_field_used(true);
   }
   return item;

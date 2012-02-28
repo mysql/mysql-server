@@ -3183,6 +3183,10 @@ loop:
 
 	if (active_thd != SRV_NONE) {
 
+		if (active_thd == SRV_PURGE) {
+			srv_purge_wakeup();
+		}
+
 		/* The srv_lock_timeout_thread, srv_error_monitor_thread
 		and srv_monitor_thread should already exit by now. The
 		only threads to be suspended are the master threads
@@ -3211,7 +3215,7 @@ loop:
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr, " InnoDB: Waiting for %s "
-				" to be suspended\n", thread_type);
+				"to be suspended\n", thread_type);
 			count = 0;
 		}
 

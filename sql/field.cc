@@ -1753,7 +1753,7 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
   if (flags & BLOB_FLAG)
   {
     copy->type= CACHE_BLOB;
-    copy->length-= table->s->blob_ptr_size;
+    copy->length-= portable_sizeof_char_ptr;
     return copy->length;
   }
   else if (!zero_pack() &&
@@ -4861,8 +4861,10 @@ Field_temporal::store(const char *str, uint len, const CHARSET_INFO *cs)
   }
   else
   {
-    error= test(status.warnings) |
-           store_internal_with_round(&ltime, &status.warnings);
+    error= test(status.warnings); // Test convert_str_to_TIME warnings
+    const int error2= store_internal_with_round(&ltime, &status.warnings);
+    if (!error)
+      error= error2; 
   }
   if (status.warnings)
     set_warnings(ErrConvString(str, len, cs), status.warnings);
@@ -5142,8 +5144,6 @@ Field_temporal_with_date_and_time::convert_TIME_to_timestamp(THD *thd,
 
 void Field_temporal_with_date_and_time::init_timestamp_flags()
 {
-  /* For 4.0 MYD and 4.0 InnoDB compatibility */
-  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG | BINARY_FLAG;
   if (unireg_check != NONE)
   {
     /*
@@ -5241,6 +5241,8 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32 len_arg,
                                      unireg_check_arg, field_name_arg, 0)
 {
   init_timestamp_flags();
+   /* For 4.0 MYD and 4.0 InnoDB compatibility */
+  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
 }
 
 
@@ -5251,6 +5253,8 @@ Field_timestamp::Field_timestamp(bool maybe_null_arg,
                                      NONE, field_name_arg, 0)
 {
   init_timestamp_flags();
+  /* For 4.0 MYD and 4.0 InnoDB compatibility */
+  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
 }
 
 
@@ -5427,8 +5431,6 @@ Field_timestampf::Field_timestampf(bool maybe_null_arg,
                                       maybe_null_arg ? (uchar*) "": 0, 0,
                                       NONE, field_name_arg, dec_arg)
 {
-  /* For 4.0 MYD and 4.0 InnoDB compatibility */
-  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG | BINARY_FLAG;
   if (unireg_check != TIMESTAMP_DN_FIELD)
     flags|= ON_UPDATE_NOW_FLAG;
 }
@@ -5808,7 +5810,17 @@ longlong Field_timef::val_time_temporal()
 
 int Field_timef::store_internal(const MYSQL_TIME *ltime, int *warnings)
 {
-  return store_packed(TIME_to_longlong_time_packed(ltime));
+  int rc= store_packed(TIME_to_longlong_time_packed(ltime));
+  if (rc == 0 && non_zero_date(ltime))
+  {
+    /*
+      The DATE part got lost; we warn, like in Field_newdate::store_internal,
+      and trigger some code in get_mm_leaf() (see err==3 there).
+    */
+    *warnings|= MYSQL_TIME_NOTE_TRUNCATED;
+    rc= 3;
+  }
+  return rc;
 }
 
 
@@ -9730,6 +9742,9 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     }
     break;
   case MYSQL_TYPE_TIMESTAMP:
+    /* Add flags for TIMESTAMP for 4.0 MYD and 4.0 InnoDB compatibility */
+    flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
+    /* Fall through */
   case MYSQL_TYPE_TIMESTAMP2:
     if (fld_length == NULL)
     {
@@ -9747,7 +9762,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
         length= ((length+1)/2)*2;
       length= min<ulong>(length, MAX_DATETIME_COMPRESSED_WIDTH);
     }
-    flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
+    
     /*
       Since we silently rewrite down to MAX_DATETIME_COMPRESSED_WIDTH bytes,
       the parser should not raise errors unless bizzarely large. 
@@ -10146,10 +10161,6 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   charset(old_field->charset()),		// May be NULL ptr
   field(old_field)
 {
-  /* Fix if the original table had 4 byte pointer blobs */
-  if (flags & BLOB_FLAG)
-    pack_length= (pack_length- old_field->table->s->blob_ptr_size +
-		  portable_sizeof_char_ptr);
 
   switch (sql_type) {
   case MYSQL_TYPE_BLOB:

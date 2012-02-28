@@ -13,7 +13,7 @@ load data infile 'MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2;
 select count(*) from t2 /* 5 000 */;
 count(*)
 5000
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t2 (id int not null primary key auto_increment)
 master-bin.000001	#	Query	#	#	BEGIN

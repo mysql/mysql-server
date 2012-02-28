@@ -18,6 +18,7 @@ sync_slave_with_master;
 STOP SLAVE;
 --source include/wait_for_slave_to_stop.inc
 RESET SLAVE;
+RESET MASTER;
 
 SET @saved_slave_type_conversions = @@slave_type_conversions;
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
@@ -105,7 +106,6 @@ SELECT * FROM t1 ORDER BY a;
 
 --echo *** Select data from slave to compare ***
 sync_slave_with_master;
-connection slave;
 
 # Replace values in columns that display differently between SBR & RBR
 --replace_column 5 # 8 #

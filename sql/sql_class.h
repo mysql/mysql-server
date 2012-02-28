@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,8 @@
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
                                      THR_LOCK_INFO */
 #include "opt_trace_context.h"    /* Opt_trace_context */
+#include "rpl_gtid.h"
+
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_statement.h>
 #include <mysql/psi/mysql_idle.h>
@@ -823,6 +825,9 @@ typedef struct system_variables
 
   double long_query_time_double;
 
+  Gtid_specification gtid_next;
+  Gtid_set_or_null gtid_next_list;
+
 } SV;
 
 
@@ -836,6 +841,7 @@ typedef struct system_status_var
 {
   ulonglong created_tmp_disk_tables;
   ulonglong created_tmp_tables;
+  ulonglong opt_partial_plans;
   ulonglong ha_commit_count;
   ulonglong ha_delete_count;
   ulonglong ha_read_first_count;
@@ -1052,7 +1058,7 @@ class Server_side_cursor;
   be used explicitly.
 */
 
-class Statement: public ilink, public Query_arena
+class Statement: public Query_arena
 {
   Statement(const Statement &rhs);              /* not implemented: */
   Statement &operator=(const Statement &rhs);   /* non-copyable */
@@ -1205,6 +1211,7 @@ public:
     Close all cursors of this connection that use tables of a storage
     engine that has transaction-specific state and therefore can not
     survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
+    CURRENTLY NOT IMPLEMENTED!
   */
   void close_transient_cursors();
   void erase(Statement *statement);
@@ -1214,7 +1221,6 @@ public:
 private:
   HASH st_hash;
   HASH names_hash;
-  I_List<Statement> transient_cursor_list;
   Statement *last_found_statement;
 };
 
@@ -1655,7 +1661,12 @@ extern Log_throttle log_throttle_qni;
   yet another time.
 */
 
-struct Item_change_record;
+struct Item_change_record: public ilink<Item_change_record>
+{
+  Item **place;
+  Item *old_value;
+};
+
 typedef I_List<Item_change_record> Item_change_list;
 
 
@@ -2149,7 +2160,8 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
   a thread/connection descriptor
 */
 
-class THD :public Statement,
+class THD :public ilink<THD>,
+           public Statement,
            public Open_tables_state,
            public MDL_context_owner
 {
@@ -2872,6 +2884,7 @@ public:
   /* scramble - random string sent to client on handshake */
   char	     scramble[SCRAMBLE_LENGTH+1];
 
+  /// @todo: slave_thread is completely redundant, we should use 'system_thread' instead /sven
   bool       slave_thread, one_shot_set;
   bool	     no_errors;
   uchar      password;
@@ -3241,7 +3254,7 @@ public:
     though no active transaction has begun.
     @sa in_active_multi_stmt_transaction()
   */
-  inline bool in_multi_stmt_transaction_mode()
+  inline bool in_multi_stmt_transaction_mode() const
   {
     return variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN);
   }
@@ -3278,7 +3291,7 @@ public:
     BEGIN;
     select * from nontrans_t1; <-- in_active_multi_stmt_transaction() is true
   */
-  inline bool in_active_multi_stmt_transaction()
+  inline bool in_active_multi_stmt_transaction() const
   {
     return server_status & SERVER_STATUS_IN_TRANS;
   }
@@ -3539,6 +3552,53 @@ public:
     DBUG_VOID_RETURN;
   }
 
+  /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
+  Gtid_set *get_gtid_next_list()
+  {
+    return variables.gtid_next_list.is_non_null ?
+      variables.gtid_next_list.gtid_set : NULL;
+  }
+
+  /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
+  const Gtid_set *get_gtid_next_list_const() const
+  {
+    return const_cast<THD *>(this)->get_gtid_next_list();
+  }
+
+  /**
+    Return the statement or transaction group cache for this thread.
+    @param is_transactional if true, return the transaction group cache.
+    If false, return the statement group cache.
+  */
+  Group_cache *get_group_cache(bool is_transactional);
+
+  /**
+    If this thread owns a single GTID, then owned_gtid is set to that
+    group.  If this thread does not own any GTID at all,
+    owned_gtid.sidno==0.  If owned_gtid_set contains the set of owned
+    gtids, owned_gtid.sidno==-1.
+  */
+  Gtid owned_gtid;
+  /**
+    If this thread owns a set of GTIDs (i.e., GTID_NEXT_LIST != NULL),
+    then this member variable contains the subset of those GTIDs that
+    are owned by this thread.
+  */
+  Gtid_set owned_gtid_set;
+
+  void clear_owned_gtids()
+  {
+    if (owned_gtid.sidno == -1)
+    {
+#ifdef HAVE_NDB_BINLOG
+      owned_gtid_set.clear();
+#else
+      DBUG_ASSERT(0);
+#endif
+    }
+    owned_gtid.sidno= 0;
+  }
+
   /**
     Set the current database; use deep copy of C-string.
 
@@ -3773,6 +3833,42 @@ public:
   }
   void leave_locked_tables_mode();
   int decide_logging_format(TABLE_LIST *tables);
+  /**
+    is_dml_gtid_compatible() and is_ddl_gtid_compatible() check if the
+    statement that is about to be processed will safely get a
+    GTID. Currently, the following cases may lead to errors
+    (e.g. duplicated GTIDs) and as such are forbidden:
+
+     1. Statements that could possibly do DML in a non-transactional
+        table;
+
+     2. CREATE...SELECT statement;
+
+     3. CREATE TEMPORARY TABLE or DROP TEMPORARY TABLE within a transaction
+
+    The first condition has to be checked in decide_logging_format,
+    because that's where we know if the table is transactional or not.
+    The second and third conditions have to be checked in
+    mysql_execute_command because (1) that prevents implicit commit
+    from being executed if the statement fails; (2) DROP TEMPORARY
+    TABLE does not invoke decide_logging_format.
+
+    Later, we can relax the first condition as follows:
+     - do not wrap non-transactional updates inside BEGIN ... COMMIT
+       when writing them to the binary log.
+     - allow non-transactional updates that are made outside of
+       transactional context
+
+    Moreover, we can drop the second condition if we fix BUG#11756034.
+
+    @param non_transactional_table true if the statement updates some
+    non-transactional table; false otherwise.
+
+    @retval true if the statement is compatible;
+    @retval false if the statement is not compatible.
+  */
+  bool is_dml_gtid_compatible(bool non_transactional) const;
+  bool is_ddl_gtid_compatible() const;
   void binlog_invoker() { m_binlog_invoker= TRUE; }
   bool need_binlog_invoker() { return m_binlog_invoker; }
   void get_definer(LEX_USER *definer);
@@ -3872,7 +3968,7 @@ class sql_exchange :public Sql_alloc
 public:
   enum enum_filetype filetype; /* load XML, Added by Arnold & Erik */
   char *file_name;
-  String *field_term,*enclosed,*line_term,*line_start,*escaped;
+  const String *field_term, *enclosed, *line_term, *line_start, *escaped;
   bool opt_enclosed;
   bool dumpfile;
   ulong skip_lines;
@@ -4727,7 +4823,7 @@ public:
   be rolled back or that do not expect any previously metadata
   locked tables.
 */
-#define CF_IMPLICT_COMMIT_BEGIN   (1U << 6)
+#define CF_IMPLICIT_COMMIT_BEGIN  (1U << 6)
 /**
   Implicitly commit after the SQL statement.
 
@@ -4740,12 +4836,12 @@ public:
 */
 #define CF_IMPLICIT_COMMIT_END    (1U << 7)
 /**
-  CF_IMPLICT_COMMIT_BEGIN and CF_IMPLICIT_COMMIT_END are used
+  CF_IMPLICIT_COMMIT_BEGIN and CF_IMPLICIT_COMMIT_END are used
   to ensure that the active transaction is implicitly committed
   before and after every DDL statement and any statement that
   modifies our currently non-transactional system tables.
 */
-#define CF_AUTO_COMMIT_TRANS  (CF_IMPLICT_COMMIT_BEGIN | CF_IMPLICIT_COMMIT_END)
+#define CF_AUTO_COMMIT_TRANS  (CF_IMPLICIT_COMMIT_BEGIN | CF_IMPLICIT_COMMIT_END)
 
 /**
   Diagnostic statement.

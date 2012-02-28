@@ -1974,15 +1974,15 @@ i	10
 select sql_big_result v,count(c) from t1 group by v limit 10;
 v	count(c)
 a	1
-a 	10
-b     	10
-c    	10
-d   	10
-e  	10
-f     	10
-g    	10
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
 h	10
-i     	10
+i	10
 select c,count(*) from t1 group by c limit 10;
 c	count(*)
 a	1
@@ -3058,7 +3058,7 @@ c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
 c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
 ) ENGINE = InnoDB;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is {checked_valid}. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is {checked_valid}. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 SET innodb_strict_mode=OFF;
 DROP TABLE IF EXISTS t1;
 Warnings:

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,8 @@
 #ifdef HAVE_EVENT_SCHEDULER
 #include "events.h"
 #endif
+
+#include "global_threads.h"
 
 static const char *lock_descriptions[] =
 {
@@ -570,7 +572,6 @@ Next alarm time: %lu\n",
 	 alarm_info.next_alarm_time);
 #endif
   display_table_locks();
-  fflush(stdout);
 #ifdef HAVE_MALLINFO
   struct mallinfo info= mallinfo();
   printf("\nMemory status:\n\
@@ -602,6 +603,7 @@ Estimated memory (with thread stack):    %ld\n",
   Events::dump_internal_status();
 #endif
   puts("");
+  fflush(stdout);
 }
 
 

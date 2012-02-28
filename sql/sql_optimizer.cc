@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ static Item *optimize_cond(JOIN *join, Item *conds,
                            List<TABLE_LIST> *join_list,
 			   bool build_equalities,
                            Item::cond_result *cond_value);
-static bool list_contains_unique_index(TABLE *table,
+static bool list_contains_unique_index(JOIN_TAB *tab,
                           bool (*find_func) (Field *, void *), void *data);
 static bool find_field_in_item_list (Field *field, void *data);
 static bool find_field_in_order_list (Field *field, void *data);
@@ -377,11 +377,9 @@ JOIN::optimize()
   }
 
   if (const_table_map != found_const_table_map &&
-      !(select_options & SELECT_DESCRIBE) &&
-      (!conds ||
-       !(conds->used_tables() & RAND_TABLE_BIT) ||
-       select_lex->master_unit() == &thd->lex->unit)) // upper level SELECT
+      !(select_options & SELECT_DESCRIBE))
   {
+    // There is at least one empty const table
     zero_result_cause= "no matching row in const table";
     DBUG_PRINT("error",("Error: %s", zero_result_cause));
     goto setup_subq_exit;
@@ -522,7 +520,7 @@ JOIN::optimize()
        QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
   {
     if (group_list && rollup.state == ROLLUP::STATE_NONE &&
-       list_contains_unique_index(join_tab[const_tables].table,
+       list_contains_unique_index(&join_tab[const_tables],
                                  find_field_in_order_list,
                                  (void *) group_list))
     {
@@ -560,7 +558,7 @@ JOIN::optimize()
       group= 0;
     }
     if (select_distinct &&
-       list_contains_unique_index(join_tab[const_tables].table,
+       list_contains_unique_index(&join_tab[const_tables],
                                  find_field_in_item_list,
                                  (void *) &fields_list))
     {
@@ -593,15 +591,21 @@ JOIN::optimize()
     JOIN_TAB *tab= &join_tab[const_tables];
     bool all_order_fields_used;
     if (order)
-      skip_sort_order= test_if_skip_sort_order(tab, order, m_select_limit, 1, 
-        &tab->table->keys_in_use_for_order_by);
+    {
+      skip_sort_order=
+        test_if_skip_sort_order(tab, order, m_select_limit,
+                                true,           // no_changes
+                                &tab->table->keys_in_use_for_order_by);
+    }
     if ((group_list=create_distinct_group(thd, ref_ptrs,
                                           order, fields_list, all_fields,
 				          &all_order_fields_used)))
     {
-      bool skip_group= (skip_sort_order &&
-        test_if_skip_sort_order(tab, group_list, m_select_limit, 1, 
-                                &tab->table->keys_in_use_for_group_by) != 0);
+      const bool skip_group=
+        skip_sort_order &&
+        test_if_skip_sort_order(tab, group_list, m_select_limit,
+                                  true,         // no_changes
+                                  &tab->table->keys_in_use_for_group_by);
       count_field_types(select_lex, &tmp_table_param, all_fields, 0);
       if ((skip_group && all_order_fields_used) ||
 	  m_select_limit == HA_POS_ERROR ||
@@ -770,8 +774,10 @@ JOIN::optimize()
         join_tab[0].type= JT_UNIQUE_SUBQUERY;
         error= 0;
         changed= TRUE;
-        engine= new subselect_uniquesubquery_engine(thd, join_tab, unit->item,
-                                                    where);
+        engine= new subselect_indexsubquery_engine(thd, join_tab, unit->item,
+                                                   where, NULL /* having */,
+                                                   false /* check_null */,
+                                                   true /* unique */);
       }
       else if (join_tab[0].type == JT_REF &&
 	       join_tab[0].ref.items[0]->name == in_left_expr_name)
@@ -782,7 +788,7 @@ JOIN::optimize()
         error= 0;
         changed= TRUE;
         engine= new subselect_indexsubquery_engine(thd, join_tab, unit->item,
-                                                   where, NULL, 0);
+                                                   where, NULL, false, false);
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
 	       join_tab[0].ref.items[0]->name == in_left_expr_name &&
@@ -794,7 +800,13 @@ JOIN::optimize()
       conds= remove_additional_cond(conds);
       save_index_subquery_explain_info(join_tab, conds);
       engine= new subselect_indexsubquery_engine(thd, join_tab, unit->item,
-                                                 conds, having, 1);
+                                                 conds, having, true, false);
+      /**
+         @todo Above we passed unique=false. But for this query:
+          (oe1, oe2) IN (SELECT primary_key, non_key_maybe_null_field FROM tbl)
+         we could use "unique=true" for the first index component and let
+         Item_is_not_null_test(non_key_maybe_null_field) handle the second.
+      */
     }
     if (changed)
       DBUG_RETURN(unit->item->change_engine(engine));
@@ -814,46 +826,10 @@ JOIN::optimize()
 
   if (const_tables != tables)
   {
-    /*
-      Because filesort always does a full table scan or a quick range scan
-      we must add the removed reference to the select for the table.
-      We only need to do this when we have a simple_order or simple_group
-      as in other cases the join is done before the sort.
-    */
-    if ((order || group_list) &&
-        join_tab[const_tables].type != JT_ALL &&
-        join_tab[const_tables].type != JT_FT &&
-        join_tab[const_tables].type != JT_REF_OR_NULL &&
-        ((order && simple_order) || (group_list && simple_group)))
-    {
-      if (add_ref_to_table_cond(thd,&join_tab[const_tables])) {
-        DBUG_RETURN(1);
-      }
-    }
-    
-    if (!(select_options & SELECT_BIG_RESULT) &&
-        ((group_list &&
-          (!simple_group ||
-           !test_if_skip_sort_order(&join_tab[const_tables], group_list,
-                                    unit->select_limit_cnt, 0, 
-                                    &join_tab[const_tables].table->
-                                    keys_in_use_for_group_by))) ||
-         select_distinct) &&
-        tmp_table_param.quick_group && !procedure)
-    {
-      need_tmp=1; simple_order=simple_group=0;	// Force tmp table without sort
-    }
+    JOIN_TAB *tab= &join_tab[const_tables];
+
     if (order)
     {
-      /*
-        Do we need a temporary table due to the ORDER BY not being equal to
-        the GROUP BY? The call to test_if_skip_sort_order above tests for the
-        GROUP BY clause only and hence is not valid in this case. So the
-        estimated number of rows to be read from the first table is not valid.
-        We clear it here so that it doesn't show up in EXPLAIN.
-       */
-      if (need_tmp && (select_options & SELECT_DESCRIBE) != 0)
-        join_tab[const_tables].limit= 0;
       /*
         Force using of tmp table if sorting by a SP or UDF function due to
         their expensive and probably non-deterministic nature.
@@ -867,6 +843,88 @@ JOIN::optimize()
           need_tmp=1; simple_order=simple_group=0;
           break;
         }
+      }
+    }
+
+    /*
+      Because filesort always does a full table scan or a quick range scan
+      we must add the removed reference to the select for the table.
+      We only need to do this when we have a simple_order or simple_group
+      as in other cases the join is done before the sort.
+    */
+    if ((order || group_list) &&
+        tab->type != JT_ALL &&
+        tab->type != JT_FT &&
+        tab->type != JT_REF_OR_NULL &&
+        ((order && simple_order) || (group_list && simple_group)))
+    {
+      if (add_ref_to_table_cond(thd,tab)) {
+        DBUG_RETURN(1);
+      }
+    }
+    
+    /*
+      Investigate whether we may use an ordered index as part of either
+      DISTINCT, GROUP BY or ORDER BY execution. An ordered index may be
+      used for only the first of any of these terms to be executed. This
+      is reflected in the order which we check for test_if_skip_sort_order()
+      below. However we do not check for DISTINCT here, as it would have
+      been transformed to a GROUP BY at this stage if it is a candidate for 
+      ordered index optimization.
+      If a decision was made to use an ordered index, the availability
+      if such an access path is stored in 'ordered_index_usage' for later
+      use by 'execute' or 'explain'
+    */
+    DBUG_ASSERT(ordered_index_usage == ordered_index_void);
+
+    if (group_list)   // GROUP BY honoured first
+                      // (DISTINCT was rewritten to GROUP BY if skippable)
+    {
+      /*
+        When there is SQL_BIG_RESULT do not sort using index for GROUP BY,
+        and thus force sorting on disk unless a group min-max optimization
+        is going to be used as it is applied now only for one table queries
+        with covering indexes.
+      */
+      if (!(select_options & SELECT_BIG_RESULT) ||
+            (tab->select &&
+             tab->select->quick &&
+             tab->select->quick->get_type() ==
+             QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
+      {
+        if (simple_group &&              // GROUP BY is possibly skippable
+            !select_distinct)            // .. if not preceded by a DISTINCT
+        {
+          /*
+            Calculate a possible 'limit' of table rows for 'GROUP BY':
+            A specified 'LIMIT' is relative to the final resultset.
+            'need_tmp' implies that there will be more postprocessing 
+            so the specified 'limit' should not be enforced yet.
+           */
+          const ha_rows limit = need_tmp ? HA_POS_ERROR : m_select_limit;
+
+          if (test_if_skip_sort_order(tab, group_list, limit, false, 
+                                      &tab->table->keys_in_use_for_group_by))
+          {
+            ordered_index_usage= ordered_index_group_by;
+          }
+        }
+
+        if ((ordered_index_usage != ordered_index_group_by) &&
+            tmp_table_param.quick_group && !procedure)
+        {
+          need_tmp=1;
+          simple_order= simple_group= false; // Force tmp table without sort
+        }
+      }
+    }
+    else if (order &&                      // ORDER BY wo/ preceeding GROUP BY
+             (simple_order || skip_sort_order)) // which is possibly skippable
+    {
+      if (test_if_skip_sort_order(tab, order, m_select_limit, false, 
+                                  &tab->table->keys_in_use_for_order_by))
+      {
+        ordered_index_usage= ordered_index_order_by;
       }
     }
   }
@@ -938,7 +996,7 @@ void reset_nj_counters(List<TABLE_LIST> *join_list)
   Return in cond_value FALSE if condition is impossible (1 = 2)
 *****************************************************************************/
 
-class COND_CMP :public ilink {
+class COND_CMP :public ilink<COND_CMP> {
 public:
   static void *operator new(size_t size)
   {
@@ -2715,7 +2773,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
                      Key_use_array *keyuse_array, bool first_optimization)
 {
   int error;
-  TABLE *table;
   THD *const thd= join->thd;
   TABLE_LIST *tables= tables_arg;
   uint i,const_count,key;
@@ -2761,7 +2818,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
        s++, tables= tables->next_leaf, i++)
   {
     stat_vector[i]=s;
-    table_vector[i]=s->table=table=tables->table;
+    TABLE *const table= tables->table;
+    table_vector[i]= s->table= table;
     table->pos_in_table_list= tables;
     error= tables->fetch_number_of_rows();
 
@@ -2836,12 +2894,12 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     */
     for (i= 0 ; i < table_count ; i++)
     {
-      uint j;
-      table= stat[i].table;
+      TABLE *const table= stat[i].table;
 
       if (!table->reginfo.join_tab->dependent)
         continue;
 
+      uint j;
       /* Add my dependencies to other tables depending on me */
       for (j= 0, s= stat ; j < table_count ; j++, s++)
       {
@@ -3021,7 +3079,7 @@ const_table_extraction_done:
 
     for (JOIN_TAB **pos=stat_vector+const_count ; (s= *pos) ; pos++)
     {
-      table=s->table;
+      TABLE *const table= s->table;
       TABLE_LIST *const tl= table->pos_in_table_list;
       /* 
         If equi-join condition by a key is null rejecting and after a
@@ -3195,9 +3253,9 @@ const_table_extraction_done:
       trace_table.add_utf8_table(s->table);
       if (s->type == JT_SYSTEM || s->type == JT_CONST)
       {
-        trace_table.add("rows", 1).add("cost", 1);
-        trace_table.add_alnum("table_type", (s->type == JT_SYSTEM) ?
-                              "system": "const");
+        trace_table.add("rows", 1).add("cost", 1)
+          .add_alnum("table_type", (s->type == JT_SYSTEM) ? "system": "const")
+          .add("empty", static_cast<bool>(s->table->null_row));
 
         /* Only one matching row */
         s->found_records= s->records= s->read_time=1; s->worst_seeks= 1.0;
@@ -3733,24 +3791,31 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
 
   const Item::Type item_type= item->type();
 
-  /* 
-    Don't push down the triggered conditions. Nested outer joins execution 
-    code may need to evaluate a condition several times (both triggered and
-    untriggered), and there is no way to put thi
-    TODO: Consider cloning the triggered condition and using the copies for:
-      1. push the first copy down, to have most restrictive index condition
-         possible
-      2. Put the second copy into tab->m_condition. 
-  */
-  if (item_type == Item::FUNC_ITEM && 
-      ((Item_func*)item)->functype() == Item_func::TRIG_COND_FUNC)
-    return FALSE;
-
   switch (item_type) {
   case Item::FUNC_ITEM:
     {
-      /* This is a function, apply condition recursively to arguments */
       Item_func *item_func= (Item_func*)item;
+      const Item_func::Functype func_type= item_func->functype();
+
+      /*
+        Avoid some function types from being pushed down to storage engine:
+        - Don't push down the triggered conditions. Nested outer joins
+          execution code may need to evaluate a condition several times
+          (both triggered and untriggered).
+          TODO: Consider cloning the triggered condition and using the
+                copies for: 
+                 1. push the first copy down, to have most restrictive
+                    index condition possible.
+                 2. Put the second copy into tab->m_condition.
+        - Stored functions contain a statement that might start new operations
+          against the storage engine. This does not work against all storage
+          engines.
+      */
+      if (func_type == Item_func::TRIG_COND_FUNC ||
+          func_type == Item_func::FUNC_SP)
+        return false;
+
+      /* This is a function, apply condition recursively to arguments */
       if (item_func->argument_count() > 0)
       {        
         Item **item_end= (item_func->arguments()) + item_func->argument_count();
@@ -4561,10 +4626,23 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
             Can't optimize datetime_column=indexed_varchar_column,
             also can't use indexes if the effective collation
             of the operation differ from the field collation.
+            IndexedTimeComparedToDate: can't optimize
+            'indexed_time = temporal_expr_with_date_part' because:
+            - without index, a TIME column with value '48:00:00' is equal to a
+            DATETIME column with value 'CURDATE() + 2 days'
+            - with ref access into the TIME column, CURDATE() + 2 days becomes
+            "00:00:00" (Field_timef::store_internal() simply extracts the time
+            part from the datetime) which is a lookup key which does not match
+            "48:00:00"; so ref access is not be able to give the same result
+            as without index, so is disabled.
+            On the other hand, we can optimize indexed_datetime = time
+            because Field_temporal_with_date::store_time() will convert
+            48:00:00 to CURDATE() + 2 days which is the correct lookup key.
           */
           if ((!field->is_temporal() && value[0]->is_temporal()) ||
               (field->cmp_type() == STRING_RESULT &&
-               field->charset() != cond->compare_collation()))
+               field->charset() != cond->compare_collation()) ||
+              field_time_cmp_date(field, value[0]))
           {
             warn_index_not_applicable(stat->join->thd, field, possible_keys);
             return;
@@ -7111,6 +7189,7 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
 static bool make_join_select(JOIN *join, Item *cond)
 {
   THD *thd= join->thd;
+  Opt_trace_context * const trace= &thd->opt_trace;
   DBUG_ENTER("make_join_select");
   {
     add_not_null_conds(join);
@@ -7171,10 +7250,17 @@ static bool make_join_select(JOIN *join, Item *cond)
               DBUG_RETURN(true);
           }       
         }
-        if (const_cond && !const_cond->val_int())
+        if (const_cond != NULL)
         {
-	  DBUG_PRINT("info",("Found impossible WHERE condition"));
-	  DBUG_RETURN(1);	 // Impossible const condition
+          const bool const_cond_is_true= const_cond->val_int() != 0;
+          Opt_trace_object trace_const_cond(trace);
+          trace_const_cond.add("condition_on_constant_tables", const_cond)
+            .add("condition_value", const_cond_is_true);
+          if (!const_cond_is_true)
+          {
+            DBUG_PRINT("info",("Found impossible WHERE condition"));
+            DBUG_RETURN(1);	 // Impossible const condition
+          }
         }
       }
     }
@@ -7184,7 +7270,6 @@ static bool make_join_select(JOIN *join, Item *cond)
     */
     table_map used_tables= 0;
     table_map save_used_tables= 0;
-    Opt_trace_context * const trace= &thd->opt_trace;
     Opt_trace_object trace_wrapper(trace);
     Opt_trace_object
       trace_conditions(trace, "attaching_conditions_to_tables");
@@ -8069,7 +8154,7 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
         if (!eq_cond)
           return cond;
 
-        if (field->table->pos_in_table_list->outer_join)
+        if (args[0]->is_outer_field())
         {
           // outer join: transform "col IS NULL" to "col IS NULL or col=0"
           Item *or_cond= new(thd->mem_root) Item_cond_or(eq_cond, cond);
@@ -8223,7 +8308,7 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
     can safely remove the GROUP BY/DISTINCT,
     as no result set can be more distinct than an unique key.
 
-  @param table                The table to operate on.
+  @param tab                  The join table to operate on.
   @param find_func            function to iterate over the list and search
                               for a field
 
@@ -8231,13 +8316,19 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
     1                    found
   @retval
     0                    not found.
+
+  @note
+    The function assumes that make_outerjoin_info() has been called in
+    order for the check for outer tables to work.
 */
 
 static bool
-list_contains_unique_index(TABLE *table,
+list_contains_unique_index(JOIN_TAB *tab,
                           bool (*find_func) (Field *, void *), void *data)
 {
-  if (table->pos_in_table_list->outer_join)
+  TABLE *table= tab->table;
+
+  if (tab->is_inner_table_of_outer_join())
     return 0;
   for (uint keynr= 0; keynr < table->s->keys; keynr++)
   {
@@ -8587,8 +8678,7 @@ static Item *remove_additional_cond(Item* conds)
       where     Subquery's WHERE clause
 
   DESCRIPTION
-    For index lookup-based subquery (i.e. one executed with
-    subselect_uniquesubquery_engine or subselect_indexsubquery_engine),
+    For index lookup-based subquery (subselect_indexsubquery_engine),
     check its EXPLAIN output row should contain 
       "Using index" (TAB_INFO_FULL_SCAN_ON_NULL) 
       "Using Where" (TAB_INFO_USING_WHERE)

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -69,9 +69,11 @@ SET(SQL_SHARED_SOURCES
   keycaches.cc
   lock.cc
   log.cc
+  md5.cc
   mdl.cc
   mf_iocache.cc
   my_decimal.cc
+  my_rnd.cc
   net_serv.cc
   opt_explain.cc
   opt_range.cc
@@ -84,9 +86,11 @@ SET(SQL_SHARED_SOURCES
   procedure.cc 
   protocol.cc
   records.cc
+  rpl_constants.cc
   rpl_handler.cc
   scheduler.cc 
   set_var.cc 
+  sha1.cc
   sha2.cc
   signal_handler.cc
   sp.cc
@@ -205,7 +209,11 @@ IF(WIN32)
   TARGET_LINK_LIBRARIES(sql auth_win_client)
 ENDIF()
 
-SET (BINLOG_SOURCE log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
+SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
+                   rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
+                   rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_cache.cc
+                   rpl_gtid_execution.cc rpl_gtid_mutex_cond_array.cc
+                   log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
 		   rpl_injector.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})

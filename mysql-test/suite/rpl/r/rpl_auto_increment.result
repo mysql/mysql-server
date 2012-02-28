@@ -301,6 +301,12 @@ include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1;
 DROP TABLE t2;
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+RESET MASTER;
+FLUSH LOGS;
+include/start_slave.inc
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1;

@@ -2447,3 +2447,9 @@ create temporary table t1 select f();
 ERROR HY000: Can't update table 't2' while 't1' is being created.
 drop view t2;
 drop function f;
+#
+# BUG#11762377 - 54963: ENHANCE THE ERROR MESSAGE TO 
+#                       REDUCE USER CONFUSION 
+#
+CREATE TABLE t1 (v varchar(65535));
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs

@@ -315,11 +315,11 @@ drop table t1;
 create table t1 (a varchar(3070)) partition by key (a);
 ERROR HY000: The total length of the partitioning fields is too large
 create table t1 (a varchar(65533)) partition by key (a);
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 create table t1 (a varchar(65534) not null) partition by key (a);
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 create table t1 (a varchar(65535)) partition by key (a);
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 create table t1 (a bit(27), primary key (a)) engine=myisam
 partition by hash (a)
 (partition p0, partition p1, partition p2);

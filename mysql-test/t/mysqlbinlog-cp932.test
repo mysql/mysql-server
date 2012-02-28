@@ -15,9 +15,14 @@ create table t4 (f text character set cp932);
 --character_set cp932
 --execw $MYSQL --default-character-set=cp932 test -e "insert into t4 values(_cp932'ƒ\');"
 flush logs;
+let $datadir = `SELECT @@DATADIR`;
+copy_file $datadir/master-bin.000001 $datadir/master-bin.saved;
 rename table t3 to t03, t4 to t04;
-let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000001 | $MYSQL --default-character-set=utf8
+
+# Reset GTIDs
+RESET MASTER;
+
+--exec $MYSQL_BINLOG --short-form $datadir/master-bin.saved | $MYSQL --default-character-set=utf8
 # original and recovered data must be equal
 select HEX(f) from t03;
 select HEX(f) from t3;

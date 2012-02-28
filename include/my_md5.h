@@ -22,6 +22,36 @@
  * $FreeBSD: src/contrib/cvs/lib/md5.h,v 1.2 1999/12/11 15:10:02 peter Exp $
  */
 
+#if defined(HAVE_YASSL) || defined(HAVE_OPENSSL)
+/*
+  Use MD5 implementation provided by the SSL libraries.
+*/
+
+#if defined(HAVE_YASSL)
+
+C_MODE_START
+
+void my_md5_hash(char *digest, const char *buf, int len);
+
+C_MODE_END
+
+#else /* HAVE_YASSL */
+
+#include <openssl/md5.h>
+
+#define MY_MD5_HASH(digest, buf, len) \
+do { \
+  MD5_CTX ctx; \
+  MD5_Init (&ctx); \
+  MD5_Update (&ctx, buf, len); \
+  MD5_Final (digest, &ctx); \
+} while (0)
+
+#endif /* HAVE_YASSL */
+
+#else /* HAVE_YASSL || HAVE_OPENSSL */
+/* Fallback to the MySQL's implementation. */
+
 /* Unlike previous versions of this code, uint32 need not be exactly
    32 bits, merely 32 bits or more.  Choosing a data type which is 32
    bits instead of 64 is not important; speed is considerably more
@@ -35,18 +65,15 @@ typedef struct {
   unsigned char in[64];
 } my_MD5Context;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+C_MODE_START
+
 void my_MD5Init (my_MD5Context *context);
 void my_MD5Update (my_MD5Context *context,
                    unsigned char const *buf, unsigned len);
 void my_MD5Final (unsigned char digest[16],
                   my_MD5Context *context);
 
-#ifdef __cplusplus
-}
-#endif
+C_MODE_END
 
 #define MY_MD5_HASH(digest,buf,len) \
 do { \
@@ -56,4 +83,12 @@ do { \
   my_MD5Final (digest, &ctx); \
 } while (0)
 
-#endif /* MY_MD__INCLUDED */
+#endif /* defined(HAVE_YASSL) || defined(HAVE_OPENSSL) */
+
+C_MODE_START
+
+void compute_md5_hash(char *digest, const char *buf, int len);
+
+C_MODE_END
+
+#endif /* MY_MD5_INCLUDED */

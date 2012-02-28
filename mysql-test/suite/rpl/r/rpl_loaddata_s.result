@@ -9,7 +9,6 @@ load data infile '../../std_data/rpl_loaddata.dat' into table test.t1;
 select count(*) from test.t1;
 count(*)
 2
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 drop table test.t1;
 include/rpl_end.inc

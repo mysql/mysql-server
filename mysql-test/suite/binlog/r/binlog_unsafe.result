@@ -1760,7 +1760,7 @@ SELECT COUNT(*) FROM mysql.general_log;
 
 Invoking function func_sidef_1 invoking statement that is unsafe in many ways.
 CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES (47); INSERT DELAYED INTO double_autoinc_table SELECT CONCAT(UUID(), @@hostname, myfunc_int(), NULL) FROM mysql.general_log LIMIT 1; RETURN 0; END;
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 INSERT INTO t1 SELECT func_sidef_1();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1769,12 +1769,13 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking statement that is unsafe in many ways.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1783,13 +1784,14 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking statement that is unsafe in many ways.
 CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INTO ta2 VALUES (47); END;
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 CALL proc_2();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1798,13 +1800,14 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking statement that is unsafe in many ways.
 CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); END;
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1813,6 +1816,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP TRIGGER trig_2;
@@ -1826,7 +1830,8 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-* binlog_format = STATEMENT: expect 6 warnings.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+* binlog_format = STATEMENT: expect 7 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1835,13 +1840,14 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP VIEW view_sidef_2;
 
 Invoking prepared statement prep_2 invoking function func_sidef_1 invoking statement that is unsafe in many ways.
 PREPARE prep_2 FROM "INSERT INTO t1 SELECT func_sidef_1()";
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 EXECUTE prep_2;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1850,6 +1856,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP PREPARE prep_2;
@@ -1857,7 +1864,7 @@ DROP FUNCTION func_sidef_1;
 
 Invoking procedure proc_1 invoking statement that is unsafe in many ways.
 CREATE PROCEDURE proc_1() BEGIN INSERT DELAYED INTO double_autoinc_table SELECT CONCAT(UUID(), @@hostname, myfunc_int(), NULL) FROM mysql.general_log LIMIT 1; INSERT INTO ta1 VALUES (47); END;
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 CALL proc_1();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1866,12 +1873,13 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking statement that is unsafe in many ways.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1880,13 +1888,14 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking statement that is unsafe in many ways.
 CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 CALL proc_2();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1895,13 +1904,14 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking statement that is unsafe in many ways.
 CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); END;
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1910,13 +1920,14 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP TRIGGER trig_2;
 
 Invoking prepared statement prep_2 invoking procedure proc_1 invoking statement that is unsafe in many ways.
 PREPARE prep_2 FROM "CALL proc_1()";
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 EXECUTE prep_2;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1925,6 +1936,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP PREPARE prep_2;
@@ -1932,7 +1944,7 @@ DROP PROCEDURE proc_1;
 
 Invoking trigger trig_1 invoking statement that is unsafe in many ways.
 CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT INTO ta1 VALUES (47); INSERT DELAYED INTO double_autoinc_table SELECT CONCAT(UUID(), @@hostname, myfunc_int(), NULL) FROM mysql.general_log LIMIT 1; END;
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 INSERT INTO trigger_table_1 VALUES (1);
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1941,12 +1953,13 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking statement that is unsafe in many ways.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1955,13 +1968,14 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking statement that is unsafe in many ways.
 CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT INTO ta2 VALUES (47); END;
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 CALL proc_2();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1970,13 +1984,14 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking statement that is unsafe in many ways.
 CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); END;
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -1985,13 +2000,14 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP TRIGGER trig_2;
 
 Invoking prepared statement prep_2 invoking trigger trig_1 invoking statement that is unsafe in many ways.
 PREPARE prep_2 FROM "INSERT INTO trigger_table_1 VALUES (1)";
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 EXECUTE prep_2;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -2000,6 +2016,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP PREPARE prep_2;
@@ -2007,7 +2024,7 @@ DROP TRIGGER trig_1;
 
 Invoking prepared statement prep_1 invoking statement that is unsafe in many ways.
 PREPARE prep_1 FROM "INSERT DELAYED INTO double_autoinc_table SELECT CONCAT(UUID(), @@hostname, myfunc_int(), NULL) FROM mysql.general_log LIMIT 1";
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 EXECUTE prep_1;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -2016,12 +2033,13 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP PREPARE prep_1;
 
 Invoking statement that is unsafe in many ways.
-* binlog_format = STATEMENT: expect 6 warnings.
+* binlog_format = STATEMENT: expect 7 warnings.
 INSERT DELAYED INTO double_autoinc_table SELECT CONCAT(UUID(), @@hostname, myfunc_int(), NULL) FROM mysql.general_log LIMIT 1;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -2030,6 +2048,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 
@@ -2496,7 +2515,7 @@ CALL proc_insert_delayed();
 SELECT func_limit();
 func_limit()
 1
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT DELAYED INTO t1 VALUES (1), (2)
@@ -2526,7 +2545,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 SET SESSION binlog_format = MIXED;
 # Check if the statement is logged in row format.
 INSERT INTO t2 SET a = func_modify_t1();
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -2553,7 +2572,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 SET SESSION binlog_format = MIXED;
 # Check if the statement is logged in row format.
 INSERT INTO t1 SET a = 2;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
