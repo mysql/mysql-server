@@ -32,6 +32,7 @@ performance_schema	events_waits_summary_global_by_event_name	def
 performance_schema	file_instances	def
 performance_schema	file_summary_by_event_name	def
 performance_schema	file_summary_by_instance	def
+performance_schema	host_cache	def
 performance_schema	hosts	def
 performance_schema	mutex_instances	def
 performance_schema	objects_summary_global_by_type	def
@@ -84,6 +85,7 @@ events_waits_summary_global_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 file_instances	BASE TABLE	PERFORMANCE_SCHEMA
 file_summary_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 file_summary_by_instance	BASE TABLE	PERFORMANCE_SCHEMA
+host_cache	BASE TABLE	PERFORMANCE_SCHEMA
 hosts	BASE TABLE	PERFORMANCE_SCHEMA
 mutex_instances	BASE TABLE	PERFORMANCE_SCHEMA
 objects_summary_global_by_type	BASE TABLE	PERFORMANCE_SCHEMA
@@ -136,6 +138,7 @@ events_waits_summary_global_by_event_name	10	Dynamic
 file_instances	10	Dynamic
 file_summary_by_event_name	10	Dynamic
 file_summary_by_instance	10	Dynamic
+host_cache	10	Dynamic
 hosts	10	Fixed
 mutex_instances	10	Dynamic
 objects_summary_global_by_type	10	Dynamic
@@ -188,6 +191,7 @@ events_waits_summary_global_by_event_name	1000	0
 file_instances	1000	0
 file_summary_by_event_name	1000	0
 file_summary_by_instance	1000	0
+host_cache	1000	0
 hosts	1000	0
 mutex_instances	1000	0
 objects_summary_global_by_type	1000	0
@@ -240,6 +244,7 @@ events_waits_summary_global_by_event_name	0	0
 file_instances	0	0
 file_summary_by_event_name	0	0
 file_summary_by_instance	0	0
+host_cache	0	0
 hosts	0	0
 mutex_instances	0	0
 objects_summary_global_by_type	0	0
@@ -292,6 +297,7 @@ events_waits_summary_global_by_event_name	0	0	NULL
 file_instances	0	0	NULL
 file_summary_by_event_name	0	0	NULL
 file_summary_by_instance	0	0	NULL
+host_cache	0	0	NULL
 hosts	0	0	NULL
 mutex_instances	0	0	NULL
 objects_summary_global_by_type	0	0	NULL
@@ -344,6 +350,7 @@ events_waits_summary_global_by_event_name	NULL	NULL	NULL
 file_instances	NULL	NULL	NULL
 file_summary_by_event_name	NULL	NULL	NULL
 file_summary_by_instance	NULL	NULL	NULL
+host_cache	NULL	NULL	NULL
 hosts	NULL	NULL	NULL
 mutex_instances	NULL	NULL	NULL
 objects_summary_global_by_type	NULL	NULL	NULL
@@ -396,6 +403,7 @@ events_waits_summary_global_by_event_name	utf8_general_ci	NULL
 file_instances	utf8_general_ci	NULL
 file_summary_by_event_name	utf8_general_ci	NULL
 file_summary_by_instance	utf8_general_ci	NULL
+host_cache	utf8_general_ci	NULL
 hosts	utf8_general_ci	NULL
 mutex_instances	utf8_general_ci	NULL
 objects_summary_global_by_type	utf8_general_ci	NULL
@@ -448,6 +456,7 @@ events_waits_summary_global_by_event_name
 file_instances	
 file_summary_by_event_name	
 file_summary_by_instance	
+host_cache	
 hosts	
 mutex_instances	
 objects_summary_global_by_type	
