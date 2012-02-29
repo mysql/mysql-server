@@ -456,6 +456,7 @@ interactive_help(void) {
     fprintf(stderr, "bx OFFSET | block_translation OFFSET\n");
     fprintf(stderr, "dumpdata 0|1\n");
     fprintf(stderr, "fragmentation\n");
+    fprintf(stderr, "garbage\n");
     fprintf(stderr, "file OFFSET SIZE [outfilename]\n");
     fprintf(stderr, "quit\n");
 }
