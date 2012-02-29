@@ -2336,8 +2336,10 @@ ib_col_set_value(
 		       pad_char,
 		       dtype_get_len(dtype) - len);
 
+		memcpy(dst, src, len);
+
 		len = dtype_get_len(dtype);
-		/* Fall through */
+		break;
 	}
 	case DATA_BLOB:
 	case DATA_BINARY:
