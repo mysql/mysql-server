@@ -1249,27 +1249,6 @@ ON 1 WHERE t2.f1 > 1 GROUP BY t2.f1;
 
 DROP TABLE t1;
 
-
---echo #
---echo # Bug#12798270: ASSERTION `!TAB->SORTED' FAILED IN JOIN_READ_KEY2
---echo #
-
-CREATE TABLE t1 (i int);
-INSERT INTO t1 VALUES (1);
-
-CREATE TABLE t2 (pk int PRIMARY KEY);
-INSERT INTO t2 VALUES (10);
-
-CREATE VIEW v1 AS SELECT t2.pk FROM t2;
-
-SELECT v1.pk
-FROM t1 LEFT JOIN v1 ON t1.i = v1.pk 
-GROUP BY v1.pk;
-
-DROP VIEW v1;
-DROP TABLE t1,t2;
-
---echo # End of Bug#12798270
 --echo #
 --echo # Bug#59839: Aggregation followed by subquery yields wrong result
 --echo #
