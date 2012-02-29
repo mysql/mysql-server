@@ -84,9 +84,9 @@ a	b
 ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
 explain extended (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 2	UNION	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using filesort
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
 Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` limit 2) union all (/* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`a` limit 1) order by `b` desc
 (select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
@@ -105,9 +105,9 @@ found_rows()
 8
 explain select a,b from t1 union all select a,b from t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
-2	UNION	t2	ALL	NULL	NULL	NULL	NULL	4	
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
+2	UNION	t2	ALL	NULL	NULL	NULL	NULL	4	NULL
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 explain select xx from t1 union select 1;
 ERROR 42S22: Unknown column 'xx' in 'field list'
 explain select a,b from t1 union select 1;
@@ -440,9 +440,9 @@ create table t1 (a int);
 insert into t1 values (0), (3), (1), (2);
 explain (select * from t1) union (select * from t1) order by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
-2	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using filesort
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
+2	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 drop table t1;
 CREATE TABLE t1 (  id int(3) unsigned default '0') ENGINE=MyISAM;
 INSERT INTO t1 (id) VALUES("1");
@@ -476,9 +476,9 @@ insert into t1 (b) values (1),(2),(2),(3);
 insert into t2 (b) values (10),(11),(12),(13);
 explain extended (select * from t1 where a=1) union (select * from t2 where a=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	100.00	
-2	UNION	t2	const	PRIMARY	PRIMARY	4	const	1	100.00	
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
+1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+2	UNION	t2	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1) union (/* select#2 */ select '1' AS `a`,'10' AS `b` from `test`.`t2` where 1)
 (select * from t1 where a=5) union (select * from t2 where a=1);
@@ -501,12 +501,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	UNION	t1	index	PRIMARY	PRIMARY	4	NULL	4	Using index
 2	UNION	t2	index	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index; Using join buffer (Block Nested Loop)
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	
-2	UNION	t1	ref	b	b	5	const	1	
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
+1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
+2	UNION	t1	ref	b	b	5	const	1	NULL
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 drop table t1,t2;
 create table t1 (   id int not null auto_increment, primary key (id)   ,user_name text );
 create table t2 (    id int not null auto_increment, primary key (id)   ,group_name text );
@@ -1543,7 +1543,7 @@ ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 2	UNION	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using filesort
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` union /* select#2 */ select NULL AS `a` from `test`.`t1` order by `a`
 DROP TABLE t1;
@@ -1596,9 +1596,9 @@ INSERT INTO t2 VALUES (1),(2);
 EXPLAIN EXTENDED
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-2	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using filesort
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (`a` + 12)
 # Should not crash
@@ -1626,10 +1626,10 @@ EXPLAIN EXTENDED
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY (SELECT a FROM t2 WHERE b = 12);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-2	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using filesort
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (/* select#3 */ select `test`.`t1`.`a` from `test`.`t2` where (`test`.`t2`.`b` = 12))

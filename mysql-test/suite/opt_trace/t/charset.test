@@ -10,7 +10,8 @@ if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
    --skip Need normal protocol
 }
 
-set @@session.optimizer_trace="enabled=on,end_marker=on";
+set @@session.end_markers_in_json=on;
+set @@session.optimizer_trace="enabled=on";
 create table t1(a int);
 insert into t1 values(1);
 

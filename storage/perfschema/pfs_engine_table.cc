@@ -60,6 +60,7 @@
 #include "table_esms_by_user_by_event_name.h"
 #include "table_esms_by_account_by_event_name.h"
 #include "table_esms_global_by_event_name.h"
+#include "table_esms_by_digest.h"
 
 #include "table_users.h"
 #include "table_accounts.h"
@@ -76,6 +77,7 @@
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 #include "pfs_global.h"
+#include "pfs_digest.h"
 
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
@@ -132,6 +134,7 @@ static PFS_engine_table_share *all_shares[]=
   &table_esms_by_user_by_event_name::m_share,
   &table_esms_by_host_by_event_name::m_share,
   &table_esms_global_by_event_name::m_share,
+  &table_esms_by_digest::m_share,
 
   &table_users::m_share,
   &table_accounts::m_share,
@@ -1315,11 +1318,24 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= socket_max * sizeof(PFS_socket);
       total_memory+= size;
       break;
+    case 134:
+      name= "events_statements_summary_by_digest.row_size";
+      size= sizeof(PFS_statements_digest_stat);
+      break;
+    case 135:
+      name= "events_statements_summary_by_digest.row_count";
+      size= digest_max;
+      break;
+    case 136:
+      name= "events_statements_summary_by_digest.memory";
+      size= digest_max * sizeof(PFS_statements_digest_stat);
+      total_memory+= size;
+      break;    
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 134:
+    case 137:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */

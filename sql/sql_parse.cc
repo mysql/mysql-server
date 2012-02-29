@@ -7787,6 +7787,11 @@ bool parse_sql(THD *thd,
 
   thd->m_parser_state= parser_state;
 
+#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
+  /* Start Digest */
+  thd->m_parser_state->m_lip.m_digest_psi= MYSQL_DIGEST_START(thd->m_statement_psi);
+#endif
+
   /* Parse the query. */
 
   bool mysql_parse_status= MYSQLparse(thd) != 0;

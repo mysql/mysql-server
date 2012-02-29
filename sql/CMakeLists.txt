@@ -76,6 +76,8 @@ SET(SQL_SHARED_SOURCES
   my_rnd.cc
   net_serv.cc
   opt_explain.cc
+  opt_explain_traditional.cc
+  opt_explain_json.cc
   opt_range.cc
   opt_sum.cc 
   opt_trace.cc
