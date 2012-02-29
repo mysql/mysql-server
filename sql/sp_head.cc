@@ -169,7 +169,7 @@ sp_get_item_value(THD *thd, Item *item, String *str)
         buf.append(result->charset()->csname);
         if (cs->escape_with_backslash_is_dangerous)
           buf.append(' ');
-        append_query_string(cs, result, &buf);
+        append_query_string(thd, cs, result, &buf);
         buf.append(" COLLATE '");
         buf.append(item->collation.collation->name);
         buf.append('\'');
