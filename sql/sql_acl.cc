@@ -6461,13 +6461,14 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
 
 /**
   Auxiliary function for constructing a  user list string.
+  @param thd     Current thread.
   @param str     A String to store the user list.
   @param user    A LEX_USER which will be appended into user list.
   @param comma   If TRUE, append a ',' before the the user.
   @param ident   If TRUE, append ' IDENTIFIED BY/WITH...' after the user,
                  if the given user has credentials set with 'IDENTIFIED BY/WITH'
  */
-void append_user(String *str, LEX_USER *user, bool comma= TRUE,
+void append_user(THD *thd, String *str, LEX_USER *user, bool comma= TRUE,
                  bool ident= FALSE)
 {
   String from_user(user->user.str, user->user.length, system_charset_info);
@@ -6477,9 +6478,9 @@ void append_user(String *str, LEX_USER *user, bool comma= TRUE,
 
   if (comma)
     str->append(',');
-  append_query_string(system_charset_info, &from_user, str);
+  append_query_string(thd, system_charset_info, &from_user, str);
   str->append(STRING_WITH_LEN("@"));
-  append_query_string(system_charset_info, &from_host, str);
+  append_query_string(thd, system_charset_info, &from_host, str);
 
   if (ident)
   {
@@ -6491,12 +6492,12 @@ void append_user(String *str, LEX_USER *user, bool comma= TRUE,
           quotes always.
         */
       str->append(STRING_WITH_LEN(" IDENTIFIED WITH "));
-      append_query_string(system_charset_info, &from_plugin, str);
+      append_query_string(thd, system_charset_info, &from_plugin, str);
 
       if (user->auth.str && (user->auth.length > 0))
       {
         str->append(STRING_WITH_LEN(" AS "));
-        append_query_string(system_charset_info, &from_auth, str);
+        append_query_string(thd, system_charset_info, &from_auth, str);
       }
     }
     else if (user->password.str)
@@ -6569,14 +6570,16 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     */
     if (handle_grant_data(tables, 0, user_name, NULL))
     {
-      append_user(&wrong_users, user_name, wrong_users.length() > 0, FALSE);
+      append_user(thd, &wrong_users, user_name, wrong_users.length() > 0, 
+                  FALSE);
       result= TRUE;
       continue;
     }
 
     if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
-      append_user(&wrong_users, user_name, wrong_users.length() > 0, FALSE);
+      append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
+                  FALSE);
       result= TRUE;
       continue;
     }
@@ -6662,7 +6665,8 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }  
     if (handle_grant_data(tables, 1, user_name, NULL) <= 0)
     {
-      append_user(&wrong_users, user_name, wrong_users.length() > 0, FALSE);
+      append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
+                  FALSE);
       result= TRUE;
       continue;
     }
@@ -6758,7 +6762,8 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     if (handle_grant_data(tables, 0, user_to, NULL) ||
         handle_grant_data(tables, 0, user_from, user_to) <= 0)
     {
-      append_user(&wrong_users, user_from, wrong_users.length() > 0, FALSE);
+      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0, 
+                  FALSE);
       result= TRUE;
       continue;
     }
