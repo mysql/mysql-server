@@ -21,7 +21,6 @@
 #include "abstract_query_plan.h"
 
 
-
 namespace AQP
 {
 
@@ -64,76 +63,20 @@ namespace AQP
     return m_join_tabs + join_tab_no;
   }
 
-  void
-  Join_plan::find_skippabable_group_or_order() const
-  {
-    const
-    JOIN* const join= m_join_tabs->join;
-
-    if (join->const_tables < join->tables)
-    {
-      JOIN_TAB* join_head= join->join_tab+join->const_tables;
-  
-      m_group_by_filesort_is_skippable= join->group_optimized_away;
-      m_order_by_filesort_is_skippable= join->skip_sort_order;
-
-      /* A single row don't have to be sorted */
-      if (join_head->type == JT_CONST  || 
-          join_head->type == JT_SYSTEM || 
-          join_head->type == JT_EQ_REF)
-      {
-        m_group_by_filesort_is_skippable= true;
-        m_order_by_filesort_is_skippable= true;
-      }
-      else if (join->select_options & SELECT_BIG_RESULT)
-      {
-        /* Excluded from ordered index optimization */
-      }
-      else if (join->group_list && !m_group_by_filesort_is_skippable)
-      {
-        if (!join->tmp_table_param.quick_group || join->procedure)
-        {
-          /* Unsure how to handle - Is disabled in ::compute_type_and_index() */
-        }
-        if (join->simple_group)
-        {
-          /**
-            test_if_skip_sort_order(...group_list...) already done by JOIN::optimize().
-            As we still have a 'simple_group', GROUP BY has been optimized through an
-            access path providing an ordered sequence as required by GROUP BY:
-
-            Verify this assumption in ASSERT below:
-          */
-          DBUG_ASSERT(test_if_skip_sort_order(join_head, join->group_list,
-                                              join->unit->select_limit_cnt, true, 
-                                              &join_head->table->keys_in_use_for_group_by));
-          m_group_by_filesort_is_skippable= true;
-        }
-      }
-      else if (join->order && !m_order_by_filesort_is_skippable)
-      {
-        if (join->simple_order)
-        {
-          m_order_by_filesort_is_skippable= 
-            test_if_skip_sort_order(join_head,
-                                    join->order,
-                                    join->unit->select_limit_cnt, false, 
-                                    &join_head->table->keys_in_use_for_order_by);
-        }
-      }
-    }
-  }
-
   bool
   Join_plan::group_by_filesort_is_skippable() const
   {
-    return (m_group_by_filesort_is_skippable == true);
+    const JOIN* const join= m_join_tabs->join;
+    return (join->group_list && join->simple_group && 
+            join->ordered_index_usage==JOIN::ordered_index_group_by);
   }
 
   bool
   Join_plan::order_by_filesort_is_skippable() const
   {
-    return (m_order_by_filesort_is_skippable == true);
+    const JOIN* const join= m_join_tabs->join;
+    return (join->order && join->simple_order && 
+            join->ordered_index_usage==JOIN::ordered_index_order_by);
   }
 
   /**
@@ -382,12 +325,6 @@ namespace AQP
       DBUG_PRINT("info", ("Operation %d is const-optimized.", m_tab_no));
       m_access_type= AT_FIXED;
       DBUG_VOID_RETURN;
-    }
-
-    /* First non-const table may provide 'simple' ordering for entire join */
-    if (join_tab == join->join_tab+join->const_tables)
-    {
-      m_join_plan->find_skippabable_group_or_order();
     }
 
     /*
