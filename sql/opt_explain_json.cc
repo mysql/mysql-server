@@ -1164,7 +1164,7 @@ static size_t get_id(List<T> &list, bool hide)
     
   List_iterator<T> it(list);
   T *j;
-  size_t ret;
+  size_t ret= 0;
   while ((j= it++))
     ret= j->id(hide);
   return ret;
