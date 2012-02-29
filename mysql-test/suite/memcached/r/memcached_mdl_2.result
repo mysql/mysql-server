@@ -41,10 +41,6 @@ H	Hamburg	Norderstedt
 send ALTER TABLE t1 DROP c21
 ALTER TABLE t1 DROP c21;
 Here the memcached results with D,B,H,C:
-Darmstadt|City
-Berlin|Mitte
-Hamburg|Norderstedt
-Cottbus|West
 Here the memcached results after set:
 Here the memcached results after add:
 Here the memcached results after replace:

@@ -98,6 +98,9 @@ D	Darmstadt	City
 E	Essen	Ost
 F	NULL	Sachsenhausen
 H	Hamburg	Norderstedt
+Here the memcached results after flush_all:
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;
 SET @@global.tx_isolation= @tx_isolation;
