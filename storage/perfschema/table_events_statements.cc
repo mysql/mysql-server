@@ -411,6 +411,7 @@ int table_events_statements_common::read_row_values(TABLE *table,
   DBUG_ASSERT(table->s->null_bytes == 3);
   buf[0]= 0;
   buf[1]= 0;
+  buf[2]= 0;
 
   for (; (f= *fields) ; fields++)
   {
