@@ -4557,7 +4557,7 @@ private:
 };
 #endif
 
-int append_query_string(const CHARSET_INFO *csinfo,
+int append_query_string(THD *thd, const CHARSET_INFO *csinfo,
                         String const *from, String *to);
 bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
 uint8 get_checksum_alg(const char* buf, ulong len);
