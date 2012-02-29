@@ -481,9 +481,11 @@ SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 
 ALTER TABLE t1 ADD INDEX(a);
 
-SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
-EXPLAIN
-SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
+--let $query=SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a)
+FLUSH STATUS;
+--eval $query
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+--eval EXPLAIN $query
 
 DROP TABLE t1;
 
@@ -1015,7 +1017,9 @@ FROM t2 AS table1 LEFT JOIN t2 AS table2
          );
 
 eval explain $query;
+FLUSH STATUS;
 eval $query;
+SHOW SESSION STATUS LIKE 'Sort_scan%';
 
 DROP TABLE t1, t2;
 

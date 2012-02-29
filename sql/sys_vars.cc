@@ -1935,14 +1935,22 @@ static Sys_var_flagset Sys_optimizer_switch(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(fix_optimizer_switch));
 
+static Sys_var_mybool Sys_var_end_markers_in_json(
+       "end_markers_in_json",
+       "In JSON output (\"EXPLAIN FORMAT=JSON\" and optimizer trace), "
+       "end_marker=on repeats the structure's key (if it has one) "
+       "near the closing bracket",
+       SESSION_VAR(end_markers_in_json), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
+
 #ifdef OPTIMIZER_TRACE
 
 static Sys_var_flagset Sys_optimizer_trace(
        "optimizer_trace",
        "Controls tracing of the Optimizer:"
        " optimizer_trace=option=val[,option=val...], where option is one of"
-       " {enabled, end_marker, one_line}"
-       " and val is one of {on, off, default}",
+       " {enabled, one_line}"
+       " and val is one of {on, default}",
        SESSION_VAR(optimizer_trace), CMD_LINE(REQUIRED_ARG),
        Opt_trace_context::flag_names,
        DEFAULT(Opt_trace_context::FLAG_DEFAULT));
@@ -2152,7 +2160,8 @@ static Sys_var_uint Sys_eq_range_index_dive_limit(
        "eq_range_index_dive_limit",
        "The optimizer will use existing index statistics instead of "
        "doing index dives for equality ranges if the number of equality "
-       "ranges for the index is larger than or equal to this number.",
+       "ranges for the index is larger than or equal to this number. "
+       "If set to 0, index dives are always used.",
        SESSION_VAR(eq_range_index_dive_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(10), BLOCK_SIZE(1));
 
@@ -3303,7 +3312,7 @@ static Sys_var_uint Sys_repl_report_port(
        "port or if you have a special tunnel from the master or other clients "
        "to the slave. If not sure, leave this option unset",
        READ_ONLY GLOBAL_VAR(report_port), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX), DEFAULT(MYSQL_PORT), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
 #endif
 
 static Sys_var_mybool Sys_keep_files_on_create(

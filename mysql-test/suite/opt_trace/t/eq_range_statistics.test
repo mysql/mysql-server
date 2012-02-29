@@ -8,7 +8,8 @@
 --source include/have_debug.inc
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
-SET optimizer_trace="enabled=on,end_marker=on,one_line=off";
+SET optimizer_trace="enabled=on,one_line=off";
+SET end_markers_in_json="on";
 
 SET eq_range_index_dive_limit=default;
 SELECT @@eq_range_index_dive_limit;
@@ -87,6 +88,14 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 --echo
 --echo # 0 equality ranges: should not use index statistics
 EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4);
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+# Turn index statistics off
+SET eq_range_index_dive_limit=0;
+
+--echo
+--echo # 1 equality range: should not use index statistics
+EXPLAIN SELECT * FROM t1 WHERE a=5;
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 DROP TABLE t1;

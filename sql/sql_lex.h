@@ -530,7 +530,8 @@ public:
   st_select_lex_unit()
     : union_result(NULL), table(NULL), result(NULL),
       cleaned(false),
-      fake_select_lex(NULL)
+      fake_select_lex(NULL),
+      explain_marker(0), explain_subselect_engine(NULL)
   {
   }
 
@@ -573,6 +574,21 @@ public:
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
   bool describe; /* union exec() called for EXPLAIN */
   Procedure *last_procedure;	 /* Pointer to procedure, if such exists */
+
+  /**
+    Marker for subqueries in WHERE, HAVING, ORDER BY, GROUP BY and
+    SELECT item lists
+
+   See Item_subselect::explain_subquery_checker
+
+   @note Actually, the type of this variable is Explain_context_enum, but .h
+         files are too interlinked to include "opt_format.h" there
+  */
+  int explain_marker;
+  /**
+    Associated subquery (if any) for EXPLAIN
+  */
+  const subselect_engine *explain_subselect_engine;
 
   void init_query();
   st_select_lex_unit* master_unit();
@@ -682,7 +698,21 @@ public:
     by TABLE_LIST::next_leaf, so leaf_tables points to the left-most leaf.
   */
   TABLE_LIST *leaf_tables;
-  const char *type;               /* type of select for EXPLAIN          */
+  /**
+    SELECT_LEX type enum
+  */
+  enum type_enum {
+    SLT_NONE= 0,
+    SLT_PRIMARY,
+    SLT_SIMPLE,
+    SLT_DERIVED,
+    SLT_SUBQUERY,
+    SLT_UNION,
+    SLT_UNION_RESULT,
+  // Total:
+    SLT_total ///< fake type, total number of all valid types
+  // Don't insert new types below this line!
+  };
 
   SQL_I_List<ORDER> order_list;   /* ORDER clause */
   SQL_I_List<ORDER> *gorder_list;
@@ -795,7 +825,7 @@ public:
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit();
-  st_select_lex_unit* first_inner_unit() 
+  st_select_lex_unit* first_inner_unit()
   { 
     return (st_select_lex_unit*) slave; 
   }
@@ -921,6 +951,20 @@ public:
   void set_non_agg_field_used(bool val) { m_non_agg_field_used= val; }
   void set_agg_func_used(bool val)      { m_agg_func_used= val; }
 
+  /// Lookup for SELECT_LEX type
+  type_enum type(const THD *thd);
+
+  /// Lookup for a type string
+  const char *get_type_str(const THD *thd) { return type_str[type(thd)]; }
+  static const char *get_type_str(type_enum type) { return type_str[type]; }
+
+  bool is_dependent() const { return uncacheable & UNCACHEABLE_DEPENDENT; }
+  bool is_cacheable() const
+  {
+    // drop UNCACHEABLE_EXPLAIN, because it is for internal usage only
+    return !(uncacheable & ~UNCACHEABLE_EXPLAIN);
+  }
+  
 private:
   bool m_non_agg_field_used;
   bool m_agg_func_used;
@@ -930,6 +974,8 @@ private:
   index_clause_map current_index_hint_clause;
   /* a list of USE/FORCE/IGNORE INDEX */
   List<Index_hint> *index_hints;
+
+  static const char *type_str[SLT_total];
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -2402,6 +2448,8 @@ struct LEX: public Query_tables_list
     into the select_lex.
   */
   table_map  used_tables;
+
+  class Explain_format *explain_format;
 
   LEX();
 

@@ -7203,10 +7203,10 @@ void mem_alloc_error(size_t size)
   Return comma-separated list of used partitions in the provided given string.
 
     @param      part_info  Partitioning info
-    @param[out] parts_str  The string to fill
+    @param[out] parts      The resulting list of string to fill
 
     Generate a list of used partitions (from bits in part_info->read_partitions
-    bitmap), asd store it into the provided String object.
+    bitmap), and store it into the provided String object.
     
     @note
     The produced string must not be longer then MAX_PARTITIONS * (1 + FN_LEN).
@@ -7214,13 +7214,15 @@ void mem_alloc_error(size_t size)
     that was written or locked.
 */
 
-void make_used_partitions_str(partition_info *part_info, String *parts_str)
+bool make_used_partitions_str(partition_info *part_info,
+                              List<const char> *parts)
 {
-  parts_str->length(0);
+  parts->empty();
   partition_element *pe;
   uint partition_id= 0;
   List_iterator<partition_element> it(part_info->partitions);
-  
+  StringBuffer<FN_LEN> part_str(system_charset_info);
+
   if (part_info->is_sub_partitioned())
   {
     partition_element *head_pe;
@@ -7231,15 +7233,16 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
       {
         if (bitmap_is_set(&part_info->read_partitions, partition_id))
         {
-          if (parts_str->length())
-            parts_str->append(',');
-          parts_str->append(head_pe->partition_name,
-                           strlen(head_pe->partition_name),
-                           system_charset_info);
-          parts_str->append('_');
-          parts_str->append(pe->partition_name,
-                           strlen(pe->partition_name),
-                           system_charset_info);
+          part_str.length(0);
+          if ((part_str.append(head_pe->partition_name,
+                               strlen(head_pe->partition_name),
+                               system_charset_info)) ||
+              part_str.append('_') ||
+              part_str.append(pe->partition_name,
+                              strlen(pe->partition_name),
+                              system_charset_info) ||
+              parts->push_back(part_str.dup(current_thd->mem_root)))
+            return true;
         }
         partition_id++;
       }
@@ -7251,14 +7254,16 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
     {
       if (bitmap_is_set(&part_info->read_partitions, partition_id))
       {
-        if (parts_str->length())
-          parts_str->append(',');
-        parts_str->append(pe->partition_name, strlen(pe->partition_name),
-                         system_charset_info);
+        part_str.length(0);
+        if (part_str.append(pe->partition_name, strlen(pe->partition_name),
+                            system_charset_info) ||
+            parts->push_back(part_str.dup(current_thd->mem_root)))
+          return true;
       }
       partition_id++;
     }
   }
+  return false;
 }
 #endif
 
