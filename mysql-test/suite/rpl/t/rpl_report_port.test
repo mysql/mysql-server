@@ -1,0 +1,59 @@
+#
+#BUG#13333431 : INCORRECT DEFAULT PORT IN 'SHOW SLAVE HOSTS' OUTPUT 
+#
+# ==== Purpose ====
+#
+# The test show the default value printed for the slave's port number if the 
+# --report-port= <some value> is not set on the slave. This is different from
+# the present scenario which show 3306 as the default value if the report-port 
+# is not set on the slave. 
+#
+#====Method====
+#
+# Start replication with report port not set.This will give the actual port 
+# number of the slave (ie. SLAVE_PORT) for the on doing SHOW SLAVE HOSTS on 
+# the master.
+# Restart the slave server with report port set to 9000 and start the slave.
+# In this case on doing SHOW SLAVE HOSTS on the master, we get the port number
+# of the slave to be 9000.
+
+source include/master-slave.inc;
+
+connection master;
+
+--echo [The default value shown for the slave's port number is the actual port number of the slave]
+source include/show_slave_hosts.inc;
+
+# SLAVE_PORT is the value of the port we should get.
+
+let $show_statement= SHOW SLAVE HOSTS;
+let $field= Port;
+let $condition= 'SLAVE_PORT';
+source include/wait_show_condition.inc; 
+--echo [The default value shown for the slave's port number is the actual port number of the slave]
+
+# Start the server with some value being passed to the report_port= <option>
+# this will be used incase we have to mask the value of the slave's port
+# number in certain situations.
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --report-port=9000
+--source include/rpl_restart_server.inc
+    
+connection slave;
+--source include/start_slave.inc
+
+--echo [Slave restarted with the report-port set to some value]
+connection master;
+
+--echo [The value shown for the slave's port number is 9000 which is the value set for report-port]
+--source include/show_slave_hosts.inc
+
+# 9000 is the value of the port we should get.
+
+let $show_statement= SHOW SLAVE HOSTS;
+let $field= Port;
+let $condition= '9000';
+source include/wait_show_condition.inc;
+
+--source include/rpl_end.inc

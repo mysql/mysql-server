@@ -65,6 +65,8 @@
 #include <myisammrg.h>
 #include "keycaches.h"
 #include "set_var.h"
+#include "opt_explain_traditional.h"
+#include "opt_explain_json.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -1067,6 +1069,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  FORCE_SYM
 %token  FOREIGN                       /* SQL-2003-R */
 %token  FOR_SYM                       /* SQL-2003-R */
+%token  FORMAT_SYM
 %token  FOUND_SYM                     /* SQL-2003-R */
 %token  FROM
 %token  FULL                          /* SQL-2003-R */
@@ -8959,6 +8962,18 @@ function_call_conflict:
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
+        | FORMAT_SYM '(' expr ',' expr ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_format($3, $5);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | FORMAT_SYM '(' expr ',' expr ',' expr ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_format($3, $5, $7);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
         | MICROSECOND_SYM '(' expr ')'
           {
             $$= new (YYTHD->mem_root) Item_func_microsecond($3);
@@ -11809,9 +11824,42 @@ describe_command:
         ;
 
 opt_extended_describe:
-          /* empty */ {}
-        | EXTENDED_SYM   { Lex->describe|= DESCRIBE_EXTENDED; }
-        | PARTITIONS_SYM { Lex->describe|= DESCRIBE_PARTITIONS; }
+          /* empty */ 
+          {
+            if ((Lex->explain_format= new Explain_format_traditional) == NULL)
+              MYSQL_YYABORT;
+          }
+        | EXTENDED_SYM  
+          {
+            if ((Lex->explain_format= new Explain_format_traditional) == NULL)
+              MYSQL_YYABORT;
+            Lex->describe|= DESCRIBE_EXTENDED;
+          }
+        | PARTITIONS_SYM
+          {
+            if ((Lex->explain_format= new Explain_format_traditional) == NULL)
+              MYSQL_YYABORT;
+            Lex->describe|= DESCRIBE_PARTITIONS;
+          }
+        | FORMAT_SYM EQ ident_or_text
+          {
+            if (!my_strcasecmp(system_charset_info, $3.str, "JSON"))
+            {
+              if ((Lex->explain_format= new Explain_format_JSON) == NULL)
+                MYSQL_YYABORT;
+              Lex->describe|= DESCRIBE_EXTENDED | DESCRIBE_PARTITIONS;
+            }
+            else if (!my_strcasecmp(system_charset_info, $3.str, "TRADITIONAL"))
+            {
+              if ((Lex->explain_format= new Explain_format_traditional) == NULL)
+                MYSQL_YYABORT;
+            }
+            else
+            {
+              my_error(ER_UNKNOWN_EXPLAIN_FORMAT, MYF(0), $3.str);
+              MYSQL_YYABORT;
+            }
+          }
         ;
 
 opt_describe_column:
@@ -13010,6 +13058,7 @@ keyword:
         | END                   {}
         | EXECUTE_SYM           {}
         | FLUSH_SYM             {}
+        | FORMAT_SYM            {}
         | HANDLER_SYM           {}
         | HELP_SYM              {}
         | HOST_SYM              {}

@@ -36,6 +36,7 @@
 #include "pfs_user.h"
 #include "pfs_account.h"
 #include "pfs_defaults.h"
+#include "pfs_digest.h"
 
 PFS_global_param pfs_param;
 
@@ -102,7 +103,9 @@ initialize_performance_schema(const PFS_global_param *param)
       init_user(param) ||
       init_user_hash() ||
       init_account(param) ||
-      init_account_hash())
+      init_account_hash() ||
+      init_digest(param) ||
+      init_digest_hash())
   {
     /*
       The performance schema initialization failed.
@@ -126,6 +129,7 @@ initialize_performance_schema(const PFS_global_param *param)
   flag_events_waits_history_long=      param->m_consumer_events_waits_history_long_enabled;
   flag_global_instrumentation=         param->m_consumer_global_instrumentation_enabled;
   flag_thread_instrumentation=         param->m_consumer_thread_instrumentation_enabled;
+  flag_statements_digest=              param->m_consumer_statement_digest_enabled;
 
   install_default_setup(&PFS_bootstrap);
   return &PFS_bootstrap;
@@ -177,6 +181,7 @@ static void cleanup_performance_schema(void)
   cleanup_user_hash();
   cleanup_account();
   cleanup_account_hash();
+  cleanup_digest();
   PFS_atomic::cleanup();
 */
 }

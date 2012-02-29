@@ -32,6 +32,7 @@
 
 #include "mem_root_array.h"
 #include "sql_executor.h"
+#include "opt_explain_format.h" // for Extra_tag
 
 #include <functional>
 /**
@@ -360,7 +361,7 @@ public:
   Item          *pre_idx_push_cond;
   
   /* Special content for EXPLAIN 'Extra' column or NULL if none */
-  const char	*info;
+  Extra_tag     info;
   /* 
     Bitmap of TAB_INFO_* bits that encodes special line for EXPLAIN 'Extra'
     column, or 0 if there is no info.
@@ -589,7 +590,7 @@ st_join_table::st_join_table()
     first_upper(NULL),
     first_unmatched(NULL),
     pre_idx_push_cond(NULL),
-    info(NULL),
+    info(ET_none),
     packed_info(0),
     materialize_table(NULL),
     read_first_record(NULL),

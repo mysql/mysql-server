@@ -357,6 +357,7 @@ create table t22 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08
 update t22 set c = '2005-12-08 15:58:27' where a = 255;
 explain select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
+explain format=json select * from t1 where a in (select a from t11);
 select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 
@@ -390,7 +391,9 @@ select * from t1 where 2 in (select a from t0);
 # 
 # FirstMatch referring to a derived table
 #
-explain select * from (select a from t0) X where a in (select a from t1);
+let $query=select * from (select a from t0) x where a in (select a from t1);
+--eval explain $query
+--eval explain format=json $query
 drop table t0, t1;
 
 #
@@ -496,6 +499,7 @@ create table t2 as select * from t1;
 create table t3 (a int, b int, filler char(100), key(a));
 insert into t3 select A.a + 10*B.a, A.a + 10*B.a, 'filler' from t1 A, t1 B, t1 C;
 explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
+explain format=json select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
 
 #
 # Verify that straight_join modifier in parent or child prevents flattening
@@ -2512,13 +2516,15 @@ INSERT INTO t3 VALUES
 ('BEL','Dutch',59.2),('BLZ','English',50.8);
 --enable_query_log
 
-EXPLAIN
+let $query=
 SELECT Name FROM t2 
   WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
         AND
         t2.Code IN (SELECT Country FROM t3 
                            WHERE Language='English' AND Percentage > 10 AND
                                  t2.Population > 100000);
+--eval EXPLAIN $query
+--eval EXPLAIN FORMAT=JSON $query
 
 DROP TABLE t1,t2,t3;
 
@@ -4346,6 +4352,7 @@ WHERE g1 NOT IN
 );
 
 eval explain $query;
+eval explain format=json $query;
 eval $query;
 
 DROP TABLE t1, t2, t3;
@@ -4799,5 +4806,27 @@ SELECT MIN(int_key) FROM t1 WHERE (4, 4) IN (SELECT 4, 4);
 SELECT MIN(pk) FROM t1 WHERE pk IN (SELECT int_key FROM t1) AND pk = 6;
 
 DROP TABLE t1;
+
+--echo # BUG#13726217: Crash in Item_ident::fix_after_pullout()
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+INSERT INTO t1 VALUES (0);
+
+SELECT 0
+FROM t1
+WHERE 0 IN
+   (SELECT 0
+    FROM t1
+    WHERE 0 LIKE
+       (SELECT elt(a, 0) AS b
+        FROM t1
+        GROUP BY a
+        HAVING b
+       )
+   );
+
+DROP TABLE t1;
+
+--echo # End of test for bug#13726217.
 
 --echo # End of 5.6 tests

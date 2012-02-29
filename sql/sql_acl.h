@@ -187,7 +187,7 @@ extern uint        command_lengths[];
 /* prototypes */
 
 bool hostname_requires_resolving(const char *hostname);
-void append_user(String *str, LEX_USER *user, bool comma, bool passwd);
+void append_user(THD *thd, String *str, LEX_USER *user, bool comma, bool passwd);
 void append_int(String *str, const char *txt, size_t len,
                 long val, int cond);
 my_bool  acl_init(bool dont_read_acl_tables);

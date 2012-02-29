@@ -1174,6 +1174,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_current("
   "TIMER_WAIT BIGINT unsigned,"
   "LOCK_TIME bigint unsigned not null,"
   "SQL_TEXT LONGTEXT,"
+  "DIGEST VARCHAR(32),"
+  "DIGEST_TEXT LONGTEXT,"
   "CURRENT_SCHEMA VARCHAR(64),"
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_SCHEMA VARCHAR(64),"
@@ -1224,6 +1226,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history("
   "TIMER_WAIT BIGINT unsigned,"
   "LOCK_TIME bigint unsigned not null,"
   "SQL_TEXT LONGTEXT,"
+  "DIGEST VARCHAR(32),"
+  "DIGEST_TEXT LONGTEXT,"
   "CURRENT_SCHEMA VARCHAR(64),"
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_SCHEMA VARCHAR(64),"
@@ -1274,6 +1278,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history_long("
   "TIMER_WAIT BIGINT unsigned,"
   "LOCK_TIME bigint unsigned not null,"
   "SQL_TEXT LONGTEXT,"
+  "DIGEST VARCHAR(32),"
+  "DIGEST_TEXT LONGTEXT,"
   "CURRENT_SCHEMA VARCHAR(64),"
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_SCHEMA VARCHAR(64),"
@@ -1545,6 +1551,46 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+--
+-- TABLE EVENTS_STATEMENTS_SUMMARY_BY_DIGEST
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_digest("
+  "DIGEST VARCHAR(32),"
+  "DIGEST_TEXT LONGTEXT,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "SUM_LOCK_TIME BIGINT unsigned not null,"
+  "SUM_ERRORS BIGINT unsigned not null,"
+  "SUM_WARNINGS BIGINT unsigned not null,"
+  "SUM_ROWS_AFFECTED BIGINT unsigned not null,"
+  "SUM_ROWS_SENT BIGINT unsigned not null,"
+  "SUM_ROWS_EXAMINED BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_TABLES BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,"
+  "SUM_SELECT_SCAN BIGINT unsigned not null,"
+  "SUM_SORT_MERGE_PASSES BIGINT unsigned not null,"
+  "SUM_SORT_RANGE BIGINT unsigned not null,"
+  "SUM_SORT_ROWS BIGINT unsigned not null,"
+  "SUM_SORT_SCAN BIGINT unsigned not null,"
+  "SUM_NO_INDEX_USED BIGINT unsigned not null,"
+  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,"
+  "FIRST_SEEN TIMESTAMP(0) default 0,"
+  "LAST_SEEN TIMESTAMP(0) default 0"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(16) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(77) DEFAULT '' NOT NULL, Timestamp timestamp, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges';
 
