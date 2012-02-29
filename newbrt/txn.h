@@ -49,7 +49,15 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
 int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync, YIELDF yield, void *yieldv);
 
 void toku_txn_get_fsync_info(TOKUTXN ttxn, BOOL* do_fsync, LSN* do_fsync_lsn);
+
+// Rollback and destroy a txn
 void toku_txn_close_txn(TOKUTXN txn);
+
+// Remove the txn from any live txn lists
+void toku_txn_rollback_txn(TOKUTXN txn);
+
+// Free the memory of a txn
+void toku_txn_destroy_txn(TOKUTXN txn);
 
 XIDS toku_txn_get_xids (TOKUTXN);
 

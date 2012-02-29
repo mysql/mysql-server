@@ -488,19 +488,26 @@ void toku_txn_get_fsync_info(TOKUTXN ttxn, BOOL* do_fsync, LSN* do_fsync_lsn) {
     *do_fsync_lsn = ttxn->do_fsync_lsn;
 }
 
-
 void toku_txn_close_txn(TOKUTXN txn) {
-    TOKULOGGER logger = txn->logger;
+    toku_txn_rollback_txn(txn);
+    toku_txn_destroy_txn(txn);
+}
 
+void toku_txn_rollback_txn(TOKUTXN txn) {
     toku_rollback_txn_close(txn); 
-    txn = NULL; // txn is no longer valid
+}
 
+void toku_txn_destroy_txn(TOKUTXN txn) {
     if (garbage_collection_debug)
-        verify_snapshot_system(logger);
+        verify_snapshot_system(txn->logger);
+
+    toku_omt_destroy(&txn->open_brts);
+    xids_destroy(&txn->xids);
+    toku_txn_ignore_free(txn); // 2954
+    toku_free(txn);
 
     STATUS_VALUE(TXN_CLOSE)++;
     STATUS_VALUE(TXN_NUM_OPEN)--;
-    return;
 }
 
 XIDS toku_txn_get_xids (TOKUTXN txn) {
@@ -775,6 +782,14 @@ int toku_txn_ignore_contains(TOKUTXN txn, FILENUM filenum)
 TOKUTXN_STATE
 toku_txn_get_state(TOKUTXN txn) {
     return txn->state;
+}
+
+#include <valgrind/drd.h>
+
+void __attribute__((__constructor__)) toku_txn_drd_ignore(void);
+void
+toku_txn_drd_ignore(void) {
+    DRD_IGNORE_VAR(txn_status);
 }
 
 #undef STATUS_VALUE
