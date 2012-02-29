@@ -1962,7 +1962,8 @@ public:
              const char *db_arg,const char *table_name_arg,
 	     const char *field_name_arg);
   /*
-    Constructor needed to process subselect with temporary tables (see Item)
+    Constructor needed to process subquery with temporary tables (see Item).
+    Notice that it will have no name resolution context.
   */
   Item_field(THD *thd, Item_field *item);
   /*

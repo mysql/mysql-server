@@ -4807,4 +4807,26 @@ SELECT MIN(pk) FROM t1 WHERE pk IN (SELECT int_key FROM t1) AND pk = 6;
 
 DROP TABLE t1;
 
+--echo # BUG#13726217: Crash in Item_ident::fix_after_pullout()
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+INSERT INTO t1 VALUES (0);
+
+SELECT 0
+FROM t1
+WHERE 0 IN
+   (SELECT 0
+    FROM t1
+    WHERE 0 LIKE
+       (SELECT elt(a, 0) AS b
+        FROM t1
+        GROUP BY a
+        HAVING b
+       )
+   );
+
+DROP TABLE t1;
+
+--echo # End of test for bug#13726217.
+
 --echo # End of 5.6 tests
