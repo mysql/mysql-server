@@ -480,10 +480,6 @@ innobase_check_index_keys(
 		}
 
 name_ok:
-		/* Check that MySQL does not try to create a column
-		prefix index field on an inappropriate data type and
-		that the same column does not appear twice in the index. */
-
 		for (ulint i = 0; i < key.key_parts; i++) {
 			const KEY_PART_INFO&	key_part1
 				= key.key_part[i];
@@ -499,6 +495,10 @@ name_ok:
 			case DATA_FLOAT:
 			case DATA_DOUBLE:
 			case DATA_DECIMAL:
+				/* Check that MySQL does not try to
+				create a column prefix index field on
+				an inappropriate data type. */
+
 				if (field->type() == MYSQL_TYPE_VARCHAR) {
 					if (key_part1.length
 					    >= field->pack_length()
@@ -517,6 +517,9 @@ name_ok:
 					 field->field_name);
 				return(ER_WRONG_KEY_COLUMN);
 			}
+
+			/* Check that the same column does not appear
+			twice in the index. */
 
 			for (ulint j = 0; j < i; j++) {
 				const KEY_PART_INFO&	key_part2
