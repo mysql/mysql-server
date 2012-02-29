@@ -42,37 +42,43 @@ C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 Here the memcached results after set:
-Essen|OstSELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+Essen|Ost                                     |5|eeeeeeeeeee|5678|2012      
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
-5|eeeeeeeeeee|5678|2012
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
-E	Essen	Ost
+E	Essen	Ost	5	eeeeeeeeeee	5678	2012
+H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 Here the memcached results after add:
-Frankfurt|AirportSELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+Frankfurt|Airport                                 |6|fffffffffff|6789|2012      
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
-5|eeeeeeeeeee|5678|2012
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
-E	Essen	Ost
+E	Essen	Ost	5	eeeeeeeeeee	5678	2012
+F	Frankfurt	Airport	6	fffffffffff	6789	2012
+H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 Here the memcached results after replace:
-Frankfurt a.M.|SachsenhausenSELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+Frankfurt a.M.|Sachsenhausen                           |61|fffff|6789|2012      
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
-5|eeeeeeeeeee|5678|2012
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
-E	Essen	Ost
+E	Essen	Ost	5	eeeeeeeeeee	5678	2012
+F	Frankfurt a.M.	Sachsenhausen	61	fffff	6789	2012
+H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 Here the memcached results after delete:
-Essen|OstSELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+Essen|Ost                                     |5|eeeeeeeeeee|5678|2012      
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
-5|eeeeeeeeeee|5678|2012
 B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
-E	Essen	Ost
+E	Essen	Ost	5	eeeeeeeeeee	5678	2012
+H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;
 SET @@global.tx_isolation= @tx_isolation;
