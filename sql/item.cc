@@ -2856,6 +2856,20 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
                                    st_select_lex *removed_select,
                                    Item **ref)
 {
+  /*
+    Some field items may be created for use in execution only, without
+    a name resolution context. They have already been used in execution,
+    so no transformation is necessary here.
+
+    @todo: Provide strict phase-division in optimizer, to make sure that
+           execution-only objects do not exist during transformation stage.
+           Then, this test would be deemed unnecessary.
+  */
+  if (context == NULL)
+  {
+    DBUG_ASSERT(type() == FIELD_ITEM);
+    return;
+  }
   DBUG_ASSERT(context->select_lex == NULL ||
               context->select_lex != depended_from);
 
