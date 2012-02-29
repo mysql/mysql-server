@@ -107,10 +107,9 @@ tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for
 ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
 COMPRESSED and DYNAMIC, use a file format > Antelope so they should
 have a file format number plus the DICT_TF_COMPACT bit set.
-@return	Same as input after validating it as FSP_SPACE_FLAGS.
-If there is an error, trigger assertion failure. */
+@return	true if check ok */
 UNIV_INLINE
-ulint
+bool
 fsp_flags_validate(
 /*===============*/
 	ulint	flags)		/*!< in: tablespace flags */
@@ -121,16 +120,18 @@ fsp_flags_validate(
 	ulint	page_ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
 	ulint	unused = FSP_FLAGS_GET_UNUSED(flags);
 
-	/* Make sure there are no bits that we do not know about. */
-	ut_a(unused == 0);
-
 	/* fsp_flags is zero unless atomic_blobs is set. */
-	ut_a(flags != 1);
-	if (post_antelope) {
+	/* Make sure there are no bits that we do not know about. */
+	if (unused != 0 || flags == 1) {
+		return(false);
+	} else if (post_antelope) {
 		/* The Antelope row formats REDUNDANT and COMPACT did
 		not use tablespace flags, so this flag and the entire
 		4-byte field is zero for Antelope row formats. */
-		ut_a(atomic_blobs);
+
+		if (!atomic_blobs) {
+			return(false);
+		}
 	}
 
 	if (!atomic_blobs) {
@@ -138,27 +139,30 @@ fsp_flags_validate(
 		the page structure introduced for the COMPACT row format
 		by allowing long fields to be broken into prefix and
 		externally stored parts. */
-		ut_a(!post_antelope);
-		ut_a(zip_ssize == 0);
-	} else {
-		ut_a(post_antelope);
 
-		/* Validate the zip shift size is within allowed range. */
-		ut_a(zip_ssize <= PAGE_ZIP_SSIZE_MAX);
+		if (post_antelope || zip_ssize != 0) {
+			return(false);
+		}
+
+	} else if (!post_antelope || zip_ssize > PAGE_ZIP_SSIZE_MAX) {
+		return(false);
+	} else if (page_ssize > UNIV_PAGE_SSIZE_MAX) {
+
+		/* The page size field can be used for any row type, or it may
+		be zero for an original 16k page size.
+		Validate the page shift size is within allowed range. */
+
+		return(false);
+
+	} else if (UNIV_PAGE_SIZE != UNIV_PAGE_SIZE_ORIG && !page_ssize) {
+		return(false);
 	}
-
-	/* The page size field can be used for any row type, or it may
-	be zero for an original 16k page size.
-	Validate the page shift size is within allowed range. */
-	ut_a(page_ssize <= UNIV_PAGE_SSIZE_MAX);
-	ut_a((UNIV_PAGE_SIZE == UNIV_PAGE_SIZE_ORIG) || (page_ssize));
 
 #if UNIV_FORMAT_MAX != UNIV_FORMAT_B
 # error "UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations."
 #endif
 
-	/* Return the flags sent in if we did not fail an assert. */
-	return(flags);
+	return(true);
 }
 
 /********************************************************************//**
@@ -264,7 +268,7 @@ fsp_flags_set_page_size(
 
 	flags = FSP_FLAGS_SET_PAGE_SSIZE(flags, ssize);
 
-	ut_ad(flags == fsp_flags_validate(flags));
+	ut_ad(fsp_flags_validate(flags));
 
 	return(flags);
 }

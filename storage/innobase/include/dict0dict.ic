@@ -695,7 +695,9 @@ dict_tf_to_fsp_flags(
 	/* In addition, tablespace flags also contain the page size. */
 	flags = fsp_flags_set_page_size(flags, UNIV_PAGE_SIZE);
 
-	return(fsp_flags_validate(flags));
+	ut_a(fsp_flags_validate(flags));
+
+	return(flags);
 }
 
 /********************************************************************//**
