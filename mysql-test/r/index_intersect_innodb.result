@@ -769,15 +769,15 @@ ID	Name	Country	Population
 SELECT * FROM City WHERE
 Name LIKE 'M%' AND Population > 1500000;
 ID	Name	Country	Population
-131	Melbourne	AUS	2865329
-653	Madrid	ESP	2879052
-766	Manila	PHL	1581082
-942	Medan	IDN	1843919
 1024	Mumbai (Bombay)	IND	10500000
+131	Melbourne	AUS	2865329
 1381	Mashhad	IRN	1887405
 2259	Medellín	COL	1861265
 3520	Minsk	BLR	1674000
 3580	Moscow	RUS	8389200
+653	Madrid	ESP	2879052
+766	Manila	PHL	1581082
+942	Medan	IDN	1843919
 SELECT * FROM City 
 WHERE  Name BETWEEN 'G' AND 'J' AND Population > 700000 AND Country LIKE 'B%';
 ID	Name	Country	Population

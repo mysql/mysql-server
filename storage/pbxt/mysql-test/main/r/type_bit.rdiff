@@ -1,0 +1,65 @@
+--- r/type_bit.result	2011-10-21 23:35:26.000000000 +0200
++++ r/type_bit.reject	2012-02-10 16:23:33.000000000 +0100
+@@ -42,7 +42,7 @@
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` bit(1) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ drop table t1;
+ create table t1 (a bit(64));
+ insert into t1 values 
+@@ -233,7 +233,7 @@
+ 127	403
+ explain select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	range	a	a	2	NULL	27	Using where; Using index; Using filesort
++1	SIMPLE	t1	range	a	a	2	NULL	1	Using where; Using index; Using filesort
+ select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
+ a+0	b+0
+ 44	307
+@@ -256,7 +256,7 @@
+ 127	403
+ explain select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	range	a	a	2	NULL	8	Using where; Using index; Using filesort
++1	SIMPLE	t1	range	a	a	2	NULL	1	Using where; Using index; Using filesort
+ select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
+ a+0	b+0
+ 57	135
+@@ -497,7 +497,7 @@
+ Table	Create Table
+ t2	CREATE TABLE `t2` (
+   `a` bit(7) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ drop table t1, t2;
+ create table t1 (id1 int(11), b1 bit(1));
+ create table t2 (id2 int(11), b2 bit(1));
+@@ -679,7 +679,7 @@
+ (65535),(65525),(65535),(65535),(65535),(65535),(65535),(65535),(65535),(65535);
+ EXPLAIN SELECT 1 FROM t1 GROUP BY a;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	range	NULL	a	3	NULL	6	Using index for group-by
++1	SIMPLE	t1	index	NULL	a	3	NULL	10	Using index
+ SELECT 1 FROM t1 GROUP BY a;
+ 1
+ 1
+@@ -757,7 +757,7 @@
+ INSERT INTO t1 VALUES(0, 0), (5, 3), (5, 6), (6, 4), (7, 0);
+ EXPLAIN SELECT a+0, b+0 FROM t1 WHERE a > 4 and b < 7 ORDER BY 2;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	range	a	a	2	NULL	4	Using where; Using index; Using filesort
++1	SIMPLE	t1	index	a	a	5	NULL	5	Using where; Using index; Using filesort
+ DROP TABLE t1;
+ End of 5.0 tests
+ create table t1(a bit(7));
+@@ -783,7 +783,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` bit(8) DEFAULT NULL,
+   KEY `a` (`a`)
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ drop table t1;
+ #
+ # Bug#50591 bit(31) causes Duplicate entry '1-NULL' for key 'group_key'

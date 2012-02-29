@@ -1,0 +1,11 @@
+--- r/type_binary.result	2011-10-21 23:09:08.000000000 +0200
++++ r/type_binary.reject	2012-02-10 16:23:30.000000000 +0100
+@@ -23,7 +23,7 @@
+ t1	CREATE TABLE `t1` (
+   `s1` varbinary(20) DEFAULT NULL,
+   `s2` varbinary(20) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ insert into t1 values (0x41,0x4100),(0x41,0x4120),(0x4100,0x4120);
+ select hex(s1), hex(s2) from t1;
+ hex(s1)	hex(s2)

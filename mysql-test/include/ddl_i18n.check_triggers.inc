@@ -70,6 +70,7 @@ INSERT INTO t1 VALUES(1)|
 
 --echo
 --echo ---> Log:
+--sorted_result
 SELECT msg FROM log|
 
 --echo
@@ -91,6 +92,7 @@ INSERT INTO mysqltest2.t1 VALUES(1)|
 
 --echo
 --echo ---> Log:
+--sorted_result
 SELECT msg FROM mysqltest2.log|
 
 --echo

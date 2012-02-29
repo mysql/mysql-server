@@ -1,0 +1,11 @@
+--- r/ctype_utf8mb4_heap.result	2012-02-10 15:42:03.000000000 +0100
++++ r/ctype_utf8mb4_heap.reject	2012-02-10 15:42:17.000000000 +0100
+@@ -271,7 +271,7 @@
+ t1	CREATE TABLE `t1` (
+   `s1` varchar(64) CHARACTER SET utf8mb4 DEFAULT NULL,
+   `s2` varchar(64) CHARACTER SET utf8mb4 DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ delete from t1;
+ insert into t1 values('aaa','aaa');
+ insert into t1 values('aaa|qqq','qqq');

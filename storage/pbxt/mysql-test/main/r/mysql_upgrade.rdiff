@@ -1,0 +1,58 @@
+--- r/mysql_upgrade.result	2012-01-15 11:27:26.000000000 +0100
++++ r/mysql_upgrade.reject	2012-02-10 16:11:51.000000000 +0100
+@@ -29,6 +29,7 @@
+ mysql.time_zone_transition                         OK
+ mysql.time_zone_transition_type                    OK
+ mysql.user                                         OK
++pbxt
+ performance_schema
+ test
+ Phase 3/3: Running 'mysql_fix_privilege_tables'...
+@@ -66,6 +67,7 @@
+ mysql.time_zone_transition                         OK
+ mysql.time_zone_transition_type                    OK
+ mysql.user                                         OK
++pbxt
+ performance_schema
+ test
+ Phase 3/3: Running 'mysql_fix_privilege_tables'...
+@@ -103,6 +105,7 @@
+ mysql.time_zone_transition                         OK
+ mysql.time_zone_transition_type                    OK
+ mysql.user                                         OK
++pbxt
+ performance_schema
+ test
+ Phase 3/3: Running 'mysql_fix_privilege_tables'...
+@@ -143,6 +146,7 @@
+ mysql.time_zone_transition                         OK
+ mysql.time_zone_transition_type                    OK
+ mysql.user                                         OK
++pbxt
+ performance_schema
+ test
+ Phase 3/3: Running 'mysql_fix_privilege_tables'...
+@@ -186,6 +190,7 @@
+ mysql.time_zone_transition                         OK
+ mysql.time_zone_transition_type                    OK
+ mysql.user                                         OK
++pbxt
+ performance_schema
+ test
+ Phase 3/3: Running 'mysql_fix_privilege_tables'...
+@@ -232,6 +237,7 @@
+ mysql.time_zone_transition                         OK
+ mysql.time_zone_transition_type                    OK
+ mysql.user                                         OK
++pbxt
+ performance_schema
+ test
+ Phase 3/3: Running 'mysql_fix_privilege_tables'...
+@@ -281,6 +287,7 @@
+ mysql.time_zone_transition                         OK
+ mysql.time_zone_transition_type                    OK
+ mysql.user                                         OK
++pbxt
+ performance_schema
+ test
+ Phase 3/3: Running 'mysql_fix_privilege_tables'...

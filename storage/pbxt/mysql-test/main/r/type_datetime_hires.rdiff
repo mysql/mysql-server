@@ -1,0 +1,48 @@
+--- r/type_datetime_hires.result	2011-11-22 18:50:25.000000000 +0100
++++ r/type_datetime_hires.reject	2012-02-10 13:35:17.000000000 +0100
+@@ -109,7 +109,7 @@
+ Table	Create Table
+ t2	CREATE TABLE `t2` (
+   `a` datetime(4) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ show create table t3;
+ Table	Create Table
+ t3	CREATE TABLE `t3` (
+@@ -134,7 +134,7 @@
+   `a-1` decimal(25,4) DEFAULT NULL,
+   `a*1` decimal(25,4) DEFAULT NULL,
+   `a/2` decimal(28,8) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ show create table t3;
+ Table	Create Table
+ t3	CREATE TABLE `t3` (
+@@ -142,7 +142,7 @@
+   `min(a)` datetime(4) DEFAULT NULL,
+   `sum(a)` decimal(46,4) DEFAULT NULL,
+   `avg(a)` decimal(28,8) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ drop table t1, t2, t3;
+ create table t1 (f0_datetime datetime(0), f1_datetime datetime(1), f2_datetime datetime(2), f3_datetime datetime(3), f4_datetime datetime(4), f5_datetime datetime(5), f6_datetime datetime(6));
+ insert t1 values ( '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432');
+@@ -255,7 +255,7 @@
+ t2	CREATE TABLE `t2` (
+   `a` datetime(6) DEFAULT NULL,
+   `b` datetime(6) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ select * from t2;
+ a	b
+ 2010-02-03 04:05:06.000000	2010-02-03 04:05:06.789100
+@@ -290,8 +290,8 @@
+ 1	732946
+ 2	732946
+ 3	732947
+-5	732948
+ 4	732948
++5	732948
+ 6	732949
+ 7	732950
+ 8	732951

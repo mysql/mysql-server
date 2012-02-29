@@ -1,0 +1,123 @@
+--- r/preload.result	2011-10-21 23:09:08.000000000 +0200
++++ r/preload.reject	2012-02-10 16:14:38.000000000 +0100
+@@ -55,15 +55,15 @@
+ 4181
+ show status like "key_read%";
+ Variable_name	Value
+-Key_read_requests	294
+-Key_reads	60
++Key_read_requests	0
++Key_reads	0
+ select count(*) from t1 where b = 'test1';
+ count(*)
+ 4181
+ show status like "key_read%";
+ Variable_name	Value
+-Key_read_requests	588
+-Key_reads	60
++Key_read_requests	0
++Key_reads	0
+ flush tables;
+ flush status;
+ select @@preload_buffer_size;
+@@ -71,18 +71,18 @@
+ 32768
+ load index into cache t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	preload_keys	status	OK
++test.t1	preload_keys	note	The storage engine for the table doesn't support preload_keys
+ show status like "key_read%";
+ Variable_name	Value
+-Key_read_requests	774
+-Key_reads	774
++Key_read_requests	0
++Key_reads	0
+ select count(*) from t1 where b = 'test1';
+ count(*)
+ 4181
+ show status like "key_read%";
+ Variable_name	Value
+-Key_read_requests	1068
+-Key_reads	774
++Key_read_requests	0
++Key_reads	0
+ flush tables;
+ flush status;
+ show status like "key_read%";
+@@ -95,18 +95,18 @@
+ 262144
+ load index into cache t1 ignore leaves;
+ Table	Op	Msg_type	Msg_text
+-test.t1	preload_keys	status	OK
++test.t1	preload_keys	note	The storage engine for the table doesn't support preload_keys
+ show status like "key_read%";
+ Variable_name	Value
+-Key_read_requests	17
+-Key_reads	17
++Key_read_requests	0
++Key_reads	0
+ select count(*) from t1 where b = 'test1';
+ count(*)
+ 4181
+ show status like "key_read%";
+ Variable_name	Value
+-Key_read_requests	311
+-Key_reads	75
++Key_read_requests	0
++Key_reads	0
+ flush tables;
+ flush status;
+ show status like "key_read%";
+@@ -119,12 +119,12 @@
+ 1024
+ load index into cache t1, t2 key (primary,b) ignore leaves;
+ Table	Op	Msg_type	Msg_text
+-test.t1	preload_keys	status	OK
+-test.t2	preload_keys	status	OK
++test.t1	preload_keys	note	The storage engine for the table doesn't support preload_keys
++test.t2	preload_keys	note	The storage engine for the table doesn't support preload_keys
+ show status like "key_read%";
+ Variable_name	Value
+-Key_read_requests	785
+-Key_reads	785
++Key_read_requests	0
++Key_reads	0
+ select count(*) from t1 where b = 'test1';
+ count(*)
+ 4181
+@@ -133,8 +133,8 @@
+ 2584
+ show status like "key_read%";
+ Variable_name	Value
+-Key_read_requests	1266
+-Key_reads	821
++Key_read_requests	0
++Key_reads	0
+ flush tables;
+ flush status;
+ show status like "key_read%";
+@@ -145,11 +145,11 @@
+ Table	Op	Msg_type	Msg_text
+ test.t3	preload_keys	Error	Table 'test.t3' doesn't exist
+ test.t3	preload_keys	status	Operation failed
+-test.t2	preload_keys	status	OK
++test.t2	preload_keys	note	The storage engine for the table doesn't support preload_keys
+ show status like "key_read%";
+ Variable_name	Value
+-Key_read_requests	478
+-Key_reads	478
++Key_read_requests	0
++Key_reads	0
+ flush tables;
+ flush status;
+ show status like "key_read%";
+@@ -160,8 +160,7 @@
+ Table	Op	Msg_type	Msg_text
+ test.t3	preload_keys	Error	Table 'test.t3' doesn't exist
+ test.t3	preload_keys	status	Operation failed
+-test.t2	preload_keys	Error	Key 'c' doesn't exist in table 't2'
+-test.t2	preload_keys	status	Operation failed
++test.t2	preload_keys	note	The storage engine for the table doesn't support preload_keys
+ show status like "key_read%";
+ Variable_name	Value
+ Key_read_requests	0

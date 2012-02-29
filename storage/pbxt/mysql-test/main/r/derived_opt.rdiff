@@ -1,0 +1,47 @@
+--- r/derived_opt.result	2011-10-21 23:35:26.000000000 +0200
++++ r/derived_opt.reject	2012-02-10 15:28:56.000000000 +0100
+@@ -38,8 +38,8 @@
+ 1	a	1
+ explain select * from (select t1.*, t2.a as t2a from t1,t2 where t1.a=t2.a) t1;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	
+-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
++1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	
++1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
+ drop table t1, t2;
+ create table t1(a int not null, t char(8), index(a));
+ SELECT * FROM (SELECT * FROM t1) as b ORDER BY a  ASC LIMIT 0,20;
+@@ -66,7 +66,8 @@
+ 20	20
+ explain select count(*) from t1 as tt1, (select * from t1) as tt2;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
++1	SIMPLE	tt1	index	NULL	a	4	NULL	10000	Using index
++1	SIMPLE	t1	index	NULL	a	4	NULL	10000	Using index; Using join buffer (flat, BNL join)
+ drop table t1;
+ create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, matintnum CHAR(6) NOT NULL, test MEDIUMINT UNSIGNED NULL);
+ create table t2 (mat_id MEDIUMINT UNSIGNED NOT NULL, pla_id MEDIUMINT UNSIGNED NOT NULL);
+@@ -193,9 +194,9 @@
+ EXPLAIN
+ SELECT * FROM (SELECT DISTINCT * FROM t2) t, t1  WHERE t1.a = t.a;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+-1	PRIMARY	t1	ref	a	a	5	const	1	Using index
+-2	DERIVED	t2	system	NULL	NULL	NULL	NULL	1	
++1	PRIMARY	<derived2>	ALL	key0	NULL	NULL	NULL	2	Using where
++1	PRIMARY	t1	ref	a	a	5	t.a	1	Using index
++2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	1	Using temporary
+ SELECT * FROM (SELECT DISTINCT * FROM t2) t, t1  WHERE t1.a = t.a;
+ a	a
+ 3	3
+@@ -230,8 +231,8 @@
+ EXPLAIN
+ SELECT * FROM v1, t1 WHERE v1.b=t1.a  ORDER BY v1.a;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	Using filesort
+-1	PRIMARY	<derived2>	ref	key0	key0	5	const	1	Using where
++1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	Using where; Using temporary; Using filesort
++1	PRIMARY	<derived2>	ref	key0	key0	5	test.t1.a	2	
+ 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
+ SELECT * FROM v1, t1 WHERE v1.b=t1.a  ORDER BY v1.a;
+ a	b	a

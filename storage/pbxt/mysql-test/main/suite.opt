@@ -1,0 +1,3 @@
+--init-file=$MTR_SUITE_DIR/init_file.sql
+--pbxt
+--default-storage-engine=pbxt

@@ -1,0 +1,18 @@
+--- r/drop.result	2011-10-21 23:09:08.000000000 +0200
++++ r/drop.reject	2012-02-10 15:29:08.000000000 +0100
+@@ -50,6 +50,7 @@
+ mtr
+ mysql
+ mysqltest
++pbxt
+ performance_schema
+ test
+ flush tables with read lock;
+@@ -62,6 +63,7 @@
+ information_schema
+ mtr
+ mysql
++pbxt
+ performance_schema
+ test
+ drop database mysqltest;

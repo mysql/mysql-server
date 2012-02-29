@@ -1,0 +1,10 @@
+--- r/1st.result	2011-10-21 23:09:08.000000000 +0200
++++ r/1st.reject	2012-02-10 15:02:56.000000000 +0100
+@@ -3,6 +3,7 @@
+ information_schema
+ mtr
+ mysql
++pbxt
+ performance_schema
+ test
+ show tables in mysql;

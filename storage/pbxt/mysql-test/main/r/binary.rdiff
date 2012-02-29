@@ -1,0 +1,11 @@
+--- r/binary.result	2011-10-21 23:09:08.000000000 +0200
++++ r/binary.reject	2012-02-10 15:09:29.000000000 +0100
+@@ -139,7 +139,7 @@
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` binary(1) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ drop table t1;
+ create table t1 (col1 binary(4));
+ insert into t1 values ('a'),('a ');

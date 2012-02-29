@@ -1,0 +1,29 @@
+--- r/ctype_gbk.result	2011-10-21 23:09:08.000000000 +0200
++++ r/ctype_gbk.reject	2012-02-10 15:27:07.000000000 +0100
+@@ -80,7 +80,7 @@
+ t1	CREATE TABLE `t1` (
+   `name` varchar(10) DEFAULT NULL,
+   `level` smallint(5) unsigned DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=gbk
++) ENGINE=PBXT DEFAULT CHARSET=gbk
+ insert into t1 values ('string',1);
+ select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
+ concat(name,space(level))	concat(name, repeat(' ',level))
+@@ -245,7 +245,7 @@
+ t1	CREATE TABLE `t1` (
+   `c1` mediumtext NOT NULL,
+   `c2` text NOT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=gbk
++) ENGINE=PBXT DEFAULT CHARSET=gbk
+ drop table t1;
+ CREATE TABLE t1(a MEDIUMTEXT CHARACTER SET gbk,
+ b MEDIUMTEXT CHARACTER SET big5);
+@@ -280,7 +280,7 @@
+ t1	CREATE TABLE `t1` (
+   `code` varchar(8) DEFAULT NULL,
+   `a` varchar(1) CHARACTER SET gbk NOT NULL DEFAULT ''
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ UPDATE t1 SET a=unhex(code) ORDER BY code;
+ Warnings:
+ Warning	1366	Incorrect string value: '\x80 ' for column 'a' at row 1

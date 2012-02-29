@@ -1395,18 +1395,18 @@ INSERT INTO t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -1426,18 +1426,18 @@ INSERT INTO mysqltest2.t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM mysqltest2.log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -1668,18 +1668,18 @@ INSERT INTO t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -1699,18 +1699,18 @@ INSERT INTO mysqltest2.t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM mysqltest2.log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -2103,18 +2103,18 @@ INSERT INTO t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -2134,18 +2134,18 @@ INSERT INTO mysqltest2.t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM mysqltest2.log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,

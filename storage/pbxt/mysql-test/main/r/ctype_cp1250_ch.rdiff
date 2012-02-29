@@ -1,0 +1,20 @@
+--- r/ctype_cp1250_ch.result	2011-10-21 23:09:08.000000000 +0200
++++ r/ctype_cp1250_ch.reject	2012-02-10 15:24:12.000000000 +0100
+@@ -84,7 +84,7 @@
+ t1	CREATE TABLE `t1` (
+   `name` varchar(10) DEFAULT NULL,
+   `level` smallint(5) unsigned DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=cp1250
++) ENGINE=PBXT DEFAULT CHARSET=cp1250
+ insert into t1 values ('string',1);
+ select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
+ concat(name,space(level))	concat(name, repeat(' ',level))
+@@ -177,7 +177,7 @@
+ t1	CREATE TABLE `t1` (
+   `name` varchar(10) COLLATE cp1250_czech_cs DEFAULT NULL,
+   `level` smallint(5) unsigned DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=cp1250 COLLATE=cp1250_czech_cs
++) ENGINE=PBXT DEFAULT CHARSET=cp1250 COLLATE=cp1250_czech_cs
+ insert into t1 values ('string',1);
+ select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
+ concat(name,space(level))	concat(name, repeat(' ',level))

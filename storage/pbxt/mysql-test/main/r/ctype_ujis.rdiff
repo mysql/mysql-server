@@ -1,0 +1,20 @@
+--- r/ctype_ujis.result	2011-10-21 23:09:08.000000000 +0200
++++ r/ctype_ujis.reject	2012-02-10 15:27:43.000000000 +0100
+@@ -120,7 +120,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` char(1) NOT NULL DEFAULT '',
+   `b` enum('¤¢','¤¤') DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=ujis
++) ENGINE=PBXT DEFAULT CHARSET=ujis
+ SHOW COLUMNS FROM t1;
+ Field	Type	Null	Key	Default	Extra
+ a	char(1)	NO			
+@@ -2419,7 +2419,7 @@
+ t1	CREATE TABLE `t1` (
+   `code` varchar(6) CHARACTER SET ujis NOT NULL DEFAULT '',
+   `a` varchar(1) CHARACTER SET ujis NOT NULL DEFAULT ''
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ UPDATE t1 SET a=unhex(code) ORDER BY code;
+ Warnings:
+ Warning	1366	Incorrect string value: '\x80 ' for column 'a' at row 1

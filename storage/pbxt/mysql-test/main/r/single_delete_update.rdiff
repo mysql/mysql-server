@@ -1,0 +1,92 @@
+--- r/single_delete_update.result	2012-02-23 15:57:49.000000000 +0100
++++ /usr/home/serg/Abk/mysql/5.5-mtr/storage/pbxt/mysql-test/main/r/single_delete_update.reject	2012-02-23 23:15:49.000000000 +0100
+@@ -81,7 +81,7 @@
+ Handler_read_last	0
+ Handler_read_next	0
+ Handler_read_prev	0
+-Handler_read_rnd	0
++Handler_read_rnd	5
+ Handler_read_rnd_deleted	0
+ Handler_read_rnd_next	17
+ FLUSH STATUS;
+@@ -131,7 +131,7 @@
+ Handler_read_last	0
+ Handler_read_next	0
+ Handler_read_prev	0
+-Handler_read_rnd	0
++Handler_read_rnd	1
+ Handler_read_rnd_deleted	0
+ Handler_read_rnd_next	17
+ FLUSH STATUS;
+@@ -233,7 +233,7 @@
+ Handler_read_last	0
+ Handler_read_next	0
+ Handler_read_prev	0
+-Handler_read_rnd	0
++Handler_read_rnd	1
+ Handler_read_rnd_deleted	0
+ Handler_read_rnd_next	17
+ FLUSH STATUS;
+@@ -328,7 +328,7 @@
+ Handler_read_last	0
+ Handler_read_next	7
+ Handler_read_prev	0
+-Handler_read_rnd	4
++Handler_read_rnd	8
+ Handler_read_rnd_deleted	0
+ Handler_read_rnd_next	0
+ EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+@@ -441,7 +441,7 @@
+ Handler_read_last	0
+ Handler_read_next	0
+ Handler_read_prev	0
+-Handler_read_rnd	0
++Handler_read_rnd	5
+ Handler_read_rnd_deleted	0
+ Handler_read_rnd_next	17
+ FLUSH STATUS;
+@@ -639,7 +639,7 @@
+ Handler_read_last	0
+ Handler_read_next	0
+ Handler_read_prev	0
+-Handler_read_rnd	0
++Handler_read_rnd	5
+ Handler_read_rnd_deleted	0
+ Handler_read_rnd_next	17
+ FLUSH STATUS;
+@@ -694,7 +694,7 @@
+ Handler_read_last	0
+ Handler_read_next	0
+ Handler_read_prev	0
+-Handler_read_rnd	0
++Handler_read_rnd	1
+ Handler_read_rnd_deleted	0
+ Handler_read_rnd_next	17
+ FLUSH STATUS;
+@@ -796,7 +796,7 @@
+ Handler_read_last	0
+ Handler_read_next	0
+ Handler_read_prev	0
+-Handler_read_rnd	0
++Handler_read_rnd	1
+ Handler_read_rnd_deleted	0
+ Handler_read_rnd_next	17
+ FLUSH STATUS;
+@@ -893,7 +893,7 @@
+ Handler_read_last	0
+ Handler_read_next	7
+ Handler_read_prev	0
+-Handler_read_rnd	4
++Handler_read_rnd	8
+ Handler_read_rnd_deleted	0
+ Handler_read_rnd_next	0
+ EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+@@ -1015,7 +1015,7 @@
+ Handler_read_last	0
+ Handler_read_next	0
+ Handler_read_prev	0
+-Handler_read_rnd	0
++Handler_read_rnd	5
+ Handler_read_rnd_deleted	0
+ Handler_read_rnd_next	17
+ FLUSH STATUS;

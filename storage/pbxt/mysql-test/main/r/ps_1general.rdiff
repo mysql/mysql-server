@@ -1,0 +1,24 @@
+--- r/ps_1general.result	2011-12-13 12:00:39.000000000 +0100
++++ r/ps_1general.reject	2012-02-10 16:14:52.000000000 +0100
+@@ -262,6 +262,7 @@
+ information_schema
+ mtr
+ mysql
++pbxt
+ performance_schema
+ test
+ prepare stmt4 from ' show tables from test like ''t2%'' ';
+@@ -292,11 +293,11 @@
+ execute stmt4;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+ t2	0	PRIMARY	1	a	A	0	NULL	NULL		BTREE		
+-t2	1	t2_idx	1	b	A	NULL	NULL	NULL	YES	BTREE		
++t2	1	t2_idx	1	b	A	0	NULL	NULL	YES	BTREE		
+ prepare stmt4 from ' show table status from test like ''t2%'' ';
+ execute stmt4;
+ Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+-t2	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	#	latin1_swedish_ci	NULL		
++t2	PBXT	10	Fixed	0	29	1024	#	4096	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+ prepare stmt4 from ' show table status from test like ''t9%'' ';
+ execute stmt4;
+ Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment

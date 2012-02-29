@@ -1,0 +1,11 @@
+--- r/temp_table.result	2011-10-21 23:09:08.000000000 +0200
++++ r/temp_table.reject	2012-02-10 16:22:43.000000000 +0100
+@@ -109,7 +109,7 @@
+ Table	Create Table
+ v1	CREATE TEMPORARY TABLE `v1` (
+   `A` varchar(19) NOT NULL DEFAULT ''
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ show create view v1;
+ View	Create View	character_set_client	collation_connection
+ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'This is view' AS `A`	latin1	latin1_swedish_ci

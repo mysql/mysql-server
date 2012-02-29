@@ -1,0 +1,11 @@
+--- r/plugin.result	2011-10-21 23:35:26.000000000 +0200
++++ r/plugin.reject	2012-02-10 16:13:46.000000000 +0100
+@@ -1,7 +1,7 @@
+ CREATE TABLE t1(a int) ENGINE=EXAMPLE;
+ Warnings:
+ Warning	1286	Unknown storage engine 'EXAMPLE'
+-Warning	1266	Using storage engine MyISAM for table 't1'
++Warning	1266	Using storage engine PBXT for table 't1'
+ DROP TABLE t1;
+ INSTALL PLUGIN example SONAME 'ha_example.so';
+ INSTALL PLUGIN EXAMPLE SONAME 'ha_example.so';

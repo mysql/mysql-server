@@ -1,0 +1,107 @@
+--- r/information_schema.result	2012-01-09 16:13:21.000000000 +0100
++++ r/information_schema.reject	2012-02-10 16:05:46.000000000 +0100
+@@ -11,6 +11,7 @@
+ CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+ def	mtr	latin1	latin1_swedish_ci	NULL
+ def	mysql	latin1	latin1_swedish_ci	NULL
++def	pbxt	latin1	latin1_swedish_ci	NULL
+ def	performance_schema	utf8	utf8_general_ci	NULL
+ def	test	latin1	latin1_swedish_ci	NULL
+ select schema_name from information_schema.schemata;
+@@ -18,6 +19,7 @@
+ information_schema
+ mtr
+ mysql
++pbxt
+ performance_schema
+ test
+ show databases like 't%';
+@@ -28,6 +30,7 @@
+ information_schema
+ mtr
+ mysql
++pbxt
+ performance_schema
+ test
+ show databases where `database` = 't%';
+@@ -180,10 +183,10 @@
+ t4
+ select * from information_schema.STATISTICS where TABLE_SCHEMA = "mysqltest";
+ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
+-def	mysqltest	t1	1	mysqltest	string_data	1	b	A	NULL	NULL	NULL	YES	BTREE		
++def	mysqltest	t1	1	mysqltest	string_data	1	b	A	0	NULL	NULL	YES	BTREE		
+ show keys from t3 where Key_name = "a_data";
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+-t3	1	a_data	1	a	A	NULL	NULL	NULL	YES	BTREE		
++t3	1	a_data	1	a	A	0	NULL	NULL	YES	BTREE		
+ show tables like 't%';
+ Tables_in_test (t%)
+ t2
+@@ -191,9 +194,9 @@
+ t5
+ show table status;
+ Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+-t2	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+-t3	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+-t5	MyISAM	10	Fixed	1	7	7	#	2048	0	11	#	#	NULL	latin1_swedish_ci	NULL		
++t2	PBXT	10	Fixed	0	19	1024	#	4096	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
++t3	PBXT	10	Fixed	0	19	1024	#	4096	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
++t5	PBXT	10	Fixed	1	19	1043	#	20480	0	11	#	#	NULL	latin1_swedish_ci	NULL		
+ v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+ show full columns from t3 like "a%";
+ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+@@ -377,6 +380,7 @@
+ information_schema
+ mtr
+ mysql
++pbxt
+ performance_schema
+ test
+ explain select * from v0;
+@@ -475,7 +479,7 @@
+   UNIQUE KEY `constraint_1` (`a`),
+   UNIQUE KEY `key_1` (`a`),
+   UNIQUE KEY `key_2` (`a`)
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ select * from information_schema.TABLE_CONSTRAINTS where
+ TABLE_SCHEMA= "test";
+ CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+@@ -571,7 +575,7 @@
+   `DEFAULT_COLLATE_NAME` varchar(32) NOT NULL DEFAULT '',
+   `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
+   `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
+-) ENGINE=MyISAM DEFAULT CHARSET=utf8
++) ENGINE=PBXT DEFAULT CHARSET=utf8
+ drop table t1;
+ create view v1 as select * from information_schema.TABLES;
+ drop view v1;
+@@ -1076,8 +1080,8 @@
+ WHERE name IN ( SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+ WHERE TABLE_SCHEMA='test' AND TABLE_TYPE='BASE TABLE');
+ Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+-t1	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+-t2	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
++t1	PBXT	10	Fixed	0	19	1024	#	4096	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
++t2	PBXT	10	Fixed	0	19	1024	#	4096	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+ DROP TABLE t1,t2;
+ create table t1(f1 int);
+ create view v1 (c) as select f1 from t1;
+@@ -1140,7 +1144,7 @@
+ f1	int(11)	YES	MUL	NULL	
+ show indexes from t1;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+-t1	1	f1	1	f1	A	NULL	NULL	NULL	YES	BTREE		
++t1	1	f1	1	f1	A	0	NULL	NULL	YES	BTREE		
+ drop table t1;
+ create table t1(f1 binary(32), f2 varbinary(64));
+ select character_maximum_length, character_octet_length
+@@ -1387,7 +1391,7 @@
+ End of 5.0 tests.
+ select * from information_schema.engines WHERE ENGINE="MyISAM";
+ ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
+-MyISAM	DEFAULT	MyISAM storage engine	NO	NO	NO
++MyISAM	YES	MyISAM storage engine	NO	NO	NO
+ grant select on *.* to user3148@localhost;
+ select user,db from information_schema.processlist;
+ user	db

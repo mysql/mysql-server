@@ -1,0 +1,269 @@
+--- r/show_check.result	2012-01-09 16:13:21.000000000 +0100
++++ r/show_check.reject	2012-02-10 16:17:06.000000000 +0100
+@@ -15,17 +15,17 @@
+ def					Table	253	128	7	Y	0	31	8
+ def					Op	253	10	5	Y	0	31	8
+ def					Msg_type	253	10	6	Y	0	31	8
+-def					Msg_text	253	255	27	Y	0	31	8
++def					Msg_text	253	255	2	Y	0	31	8
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	Table is already up to date
++test.t1	check	status	OK
+ check table t1 fast;
+ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+ def					Table	253	128	7	Y	0	31	8
+ def					Op	253	10	5	Y	0	31	8
+ def					Msg_type	253	10	6	Y	0	31	8
+-def					Msg_text	253	255	27	Y	0	31	8
++def					Msg_text	253	255	2	Y	0	31	8
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	Table is already up to date
++test.t1	check	status	OK
+ check table t1 changed;
+ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+ def					Table	253	128	7	Y	0	31	8
+@@ -76,7 +76,7 @@
+ def	information_schema	STATISTICS	STATISTICS	INDEX_COMMENT	Index_comment	253	1024	0	N	1	0	8
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+ t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE		
+-t1	1	b	1	b	A	1	NULL	NULL		BTREE		
++t1	1	b	1	b	A	5	NULL	NULL		BTREE		
+ t1	1	b	2	c	A	5	NULL	NULL		BTREE		
+ insert into t1 values (5,5,5);
+ ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+@@ -88,12 +88,14 @@
+ def					Table	253	128	7	Y	0	31	8
+ def					Op	253	10	8	Y	0	31	8
+ def					Msg_type	253	10	6	Y	0	31	8
+-def					Msg_text	253	255	2	Y	0	31	8
++def					Msg_text	253	255	65	Y	0	31	8
+ Table	Op	Msg_type	Msg_text
++test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+ test.t1	optimize	status	OK
+ optimize table t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	optimize	status	Table is already up to date
++test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
++test.t1	optimize	status	OK
+ drop table t1;
+ -- Here we enable metadata just to check that the collation of the
+ -- resultset is non-binary for string type. This should be changed
+@@ -143,6 +145,7 @@
+ information_schema
+ mtr
+ mysql
++pbxt
+ performance_schema
+ test
+ show databases like "test%";
+@@ -165,9 +168,9 @@
+ test.t1	analyze	status	OK
+ show index from t1;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+-t1	0	PRIMARY	1	f1	A	1	NULL	NULL		BTREE		
+-t1	0	PRIMARY	2	f2	A	3	NULL	NULL		BTREE		
+-t1	0	PRIMARY	3	f3	A	9	NULL	NULL		BTREE		
++t1	0	PRIMARY	1	f1	A	18	NULL	NULL		BTREE		
++t1	0	PRIMARY	2	f2	A	18	NULL	NULL		BTREE		
++t1	0	PRIMARY	3	f3	A	18	NULL	NULL		BTREE		
+ t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE		
+ -- Here we enable metadata just to check that the collation of the
+ -- resultset is non-binary for string type. This should be changed
+@@ -177,14 +180,15 @@
+ def					Table	253	128	7	Y	0	31	8
+ def					Op	253	10	6	Y	0	31	8
+ def					Msg_type	253	10	6	Y	0	31	8
+-def					Msg_text	253	255	2	Y	0	31	8
++def					Msg_text	253	255	65	Y	0	31	8
+ Table	Op	Msg_type	Msg_text
++test.t1	repair	note	Table does not support optimize, doing recreate + analyze instead
+ test.t1	repair	status	OK
+ show index from t1;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+-t1	0	PRIMARY	1	f1	A	1	NULL	NULL		BTREE		
+-t1	0	PRIMARY	2	f2	A	3	NULL	NULL		BTREE		
+-t1	0	PRIMARY	3	f3	A	9	NULL	NULL		BTREE		
++t1	0	PRIMARY	1	f1	A	18	NULL	NULL		BTREE		
++t1	0	PRIMARY	2	f2	A	18	NULL	NULL		BTREE		
++t1	0	PRIMARY	3	f3	A	18	NULL	NULL		BTREE		
+ t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE		
+ drop table t1;
+ create temporary table t1 (a int not null);
+@@ -192,13 +196,13 @@
+ Table	Create Table
+ t1	CREATE TEMPORARY TABLE `t1` (
+   `a` int(11) NOT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ alter table t1 rename t2;
+ show create table t2;
+ Table	Create Table
+ t2	CREATE TEMPORARY TABLE `t2` (
+   `a` int(11) NOT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ drop table t2;
+ create table t1 (
+ test_set set( 'val1', 'val2', 'val3' ) not null default '',
+@@ -215,7 +219,7 @@
+   `c` int(11) NOT NULL COMMENT 'int column',
+   `c-b` int(11) DEFAULT NULL COMMENT 'name with a minus',
+   `space 2` int(11) DEFAULT NULL COMMENT 'name with a space'
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='it''s a table'
++) ENGINE=PBXT DEFAULT CHARSET=latin1 COMMENT='it''s a table'
+ set sql_quote_show_create=0;
+ show create table t1;
+ Table	Create Table
+@@ -225,7 +229,7 @@
+   c int(11) NOT NULL COMMENT 'int column',
+   `c-b` int(11) DEFAULT NULL COMMENT 'name with a minus',
+   `space 2` int(11) DEFAULT NULL COMMENT 'name with a space'
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='it''s a table'
++) ENGINE=PBXT DEFAULT CHARSET=latin1 COMMENT='it''s a table'
+ set sql_quote_show_create=1;
+ show full columns from t1;
+ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+@@ -241,7 +245,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) NOT NULL,
+   UNIQUE KEY `aa` (`a`)
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ drop table t1;
+ create table t1 (a int not null, primary key (a));
+ show create table t1;
+@@ -249,7 +253,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) NOT NULL,
+   PRIMARY KEY (`a`)
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ drop table t1;
+ flush tables;
+ show open tables;
+@@ -389,28 +393,28 @@
+ Table	Create Table
+ `ab`cd`	CREATE TABLE ```ab``cd``` (
+   i int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ DROP TABLE ```ab``cd```;
+ CREATE TABLE ```ab````cd``` (i INT);
+ SHOW CREATE TABLE ```ab````cd```;
+ Table	Create Table
+ `ab``cd`	CREATE TABLE ```ab````cd``` (
+   i int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ DROP TABLE ```ab````cd```;
+ CREATE TABLE ```a` (i INT);
+ SHOW CREATE TABLE ```a`;
+ Table	Create Table
+ `a	CREATE TABLE ```a` (
+   i int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ DROP TABLE ```a`;
+ CREATE TABLE `a.1` (i INT);
+ SHOW CREATE TABLE `a.1`;
+ Table	Create Table
+ a.1	CREATE TABLE `a.1` (
+   i int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ DROP TABLE `a.1`;
+ SET sql_mode= 'ANSI_QUOTES';
+ CREATE TABLE """a" (i INT);
+@@ -418,7 +422,7 @@
+ Table	Create Table
+ "a	CREATE TABLE """a" (
+   i int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ DROP TABLE """a";
+ SET sql_mode= '';
+ SET sql_quote_show_create= OFF;
+@@ -427,14 +431,14 @@
+ Table	Create Table
+ t1	CREATE TABLE t1 (
+   i int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ DROP TABLE t1;
+ CREATE TABLE `table` (i INT);
+ SHOW CREATE TABLE `table`;
+ Table	Create Table
+ table	CREATE TABLE `table` (
+   i int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ DROP TABLE `table`;
+ SET sql_quote_show_create= @old_sql_quote_show_create;
+ SET sql_mode= @old_sql_mode;
+@@ -657,7 +661,7 @@
+   `c2` int(11) NOT NULL,
+   PRIMARY KEY (`c1`) USING HASH,
+   KEY `c2` (`c2`) USING BTREE
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ DROP TABLE t1;
+ flush tables;
+ SHOW TABLE STATUS like 't1';
+@@ -887,12 +891,12 @@
+ SHOW CREATE TABLE t1;
+ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+ def					Table	253	192	2	N	1	31	33
+-def					Create Table	253	3072	102	N	1	31	33
++def					Create Table	253	3072	100	N	1	31	33
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `c` int(11) NOT NULL,
+   PRIMARY KEY (`c`)
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ ----------------------------------------------------------------
+ SHOW INDEX FROM t1;
+ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+@@ -929,13 +933,13 @@
+ def	information_schema	TABLES	TABLES	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	1	0	33
+ def	information_schema	TABLES	TABLES	TABLE_NAME	TABLE_NAME	253	192	2	N	1	0	33
+ def	information_schema	TABLES	TABLES	TABLE_TYPE	TABLE_TYPE	253	192	10	N	1	0	33
+-def	information_schema	TABLES	TABLES	ENGINE	ENGINE	253	192	6	Y	0	0	33
++def	information_schema	TABLES	TABLES	ENGINE	ENGINE	253	192	4	Y	0	0	33
+ def	information_schema	TABLES	TABLES	ROW_FORMAT	ROW_FORMAT	253	30	5	Y	0	0	33
+ def	information_schema	TABLES	TABLES	TABLE_COLLATION	TABLE_COLLATION	253	96	17	Y	0	0	33
+ def	information_schema	TABLES	TABLES	CREATE_OPTIONS	CREATE_OPTIONS	253	765	0	Y	0	0	33
+ def	information_schema	TABLES	TABLES	TABLE_COMMENT	TABLE_COMMENT	253	6144	0	N	1	0	33
+ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	ROW_FORMAT	TABLE_COLLATION	CREATE_OPTIONS	TABLE_COMMENT
+-def	test	t1	BASE TABLE	MyISAM	Fixed	latin1_swedish_ci		
++def	test	t1	BASE TABLE	PBXT	Fixed	latin1_swedish_ci		
+ ----------------------------------------------------------------
+ SELECT
+ TABLE_CATALOG,
+@@ -1204,7 +1208,7 @@
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `колонка1` int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ DROP DATABASE mysqltest1;
+ use test;
+ flush status;
+@@ -1476,7 +1480,7 @@
+ t1	CREATE TABLE `t1` (
+   `i` int(11) NOT NULL,
+   PRIMARY KEY (`i`)
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ # Switching to connection 'default'.
+ UNLOCK TABLES;
+ DROP TABLE t1;
+@@ -1494,7 +1498,7 @@
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ # Connection con1
+ ALTER TABLE t1 CHARACTER SET = utf8;
+ UNLOCK TABLES;

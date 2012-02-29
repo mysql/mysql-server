@@ -1,0 +1,137 @@
+--- r/table_options.result	2011-10-21 23:35:26.000000000 +0200
++++ r/table_options.reject	2012-02-10 16:22:40.000000000 +0100
+@@ -11,7 +11,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL `fkey`=vvv,
+   KEY `akey` (`a`) `dff`=vvv
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey1`='1v1'
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey1`='1v1'
+ drop table t1;
+ #reassiginig options in the same line
+ create table t1 (a int fkey=vvv, key akey (a) dff=vvv) tkey1=1v1 TKEY1=DEFAULT tkey1=1v2 tkey2=2v1;
+@@ -25,7 +25,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL `fkey`=vvv,
+   KEY `akey` (`a`) `dff`=vvv
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey1`=1v2 `tkey2`=2v1
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey1`=1v2 `tkey2`=2v1
+ #add option
+ alter table t1 tkey4=4v1;
+ Warnings:
+@@ -35,7 +35,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL `fkey`=vvv,
+   KEY `akey` (`a`) `dff`=vvv
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey1`=1v2 `tkey2`=2v1 `tkey4`=4v1
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey1`=1v2 `tkey2`=2v1 `tkey4`=4v1
+ #remove options 
+ alter table t1 tkey3=DEFAULT tkey4=DEFAULT;
+ Warnings:
+@@ -46,7 +46,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL `fkey`=vvv,
+   KEY `akey` (`a`) `dff`=vvv
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey1`=1v2 `tkey2`=2v1
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey1`=1v2 `tkey2`=2v1
+ drop table t1;
+ create table t1 (a int fkey1=v1, key akey (a) kkey1=v1) tkey1=1v1 tkey1=1v2 TKEY1=DEFAULT tkey2=2v1 tkey3=3v1;
+ Warnings:
+@@ -60,7 +60,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL `fkey1`=v1,
+   KEY `akey` (`a`) `kkey1`=v1
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
+ #change field with option with the same value
+ alter table t1 change a a int `FKEY1`='v1';
+ Warnings:
+@@ -70,7 +70,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL `FKEY1`='v1',
+   KEY `akey` (`a`) `kkey1`=v1
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
+ #change field with option with a different value
+ alter table t1 change a a int fkey1=v2;
+ Warnings:
+@@ -80,7 +80,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL `fkey1`=v2,
+   KEY `akey` (`a`) `kkey1`=v1
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
+ #new column no options
+ alter table t1 add column b int;
+ show create table t1;
+@@ -89,7 +89,7 @@
+   `a` int(11) DEFAULT NULL `fkey1`=v2,
+   `b` int(11) DEFAULT NULL,
+   KEY `akey` (`a`) `kkey1`=v1
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
+ #new key with options
+ alter table t1 add key bkey (b) kkey2=v1;
+ Warnings:
+@@ -101,7 +101,7 @@
+   `b` int(11) DEFAULT NULL,
+   KEY `akey` (`a`) `kkey1`=v1,
+   KEY `bkey` (`b`) `kkey2`=v1
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
+ #new column with options
+ alter table t1 add column c int fkey1=v1 fkey2=v2;
+ Warnings:
+@@ -115,7 +115,7 @@
+   `c` int(11) DEFAULT NULL `fkey1`=v1 `fkey2`=v2,
+   KEY `akey` (`a`) `kkey1`=v1,
+   KEY `bkey` (`b`) `kkey2`=v1
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
+ #new key no options
+ alter table t1 add key ckey (c);
+ show create table t1;
+@@ -127,7 +127,7 @@
+   KEY `akey` (`a`) `kkey1`=v1,
+   KEY `bkey` (`b`) `kkey2`=v1,
+   KEY `ckey` (`c`)
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
+ #drop column
+ alter table t1 drop b;
+ show create table t1;
+@@ -137,7 +137,7 @@
+   `c` int(11) DEFAULT NULL `fkey1`=v1 `fkey2`=v2,
+   KEY `akey` (`a`) `kkey1`=v1,
+   KEY `ckey` (`c`)
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
+ #add column with options after delete
+ alter table t1 add column b int fkey2=v1;
+ Warnings:
+@@ -150,7 +150,7 @@
+   `b` int(11) DEFAULT NULL `fkey2`=v1,
+   KEY `akey` (`a`) `kkey1`=v1,
+   KEY `ckey` (`c`)
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
+ #add key 
+ alter table t1 add key bkey (b) kkey2=v2;
+ Warnings:
+@@ -164,7 +164,7 @@
+   KEY `akey` (`a`) `kkey1`=v1,
+   KEY `ckey` (`c`),
+   KEY `bkey` (`b`) `kkey2`=v2
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey2`=2v1 `tkey3`=3v1
+ drop table t1;
+ create table t1 (a int) tkey1=100;
+ Warnings:
+@@ -173,7 +173,7 @@
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1 `tkey1`=100
++) ENGINE=PBXT DEFAULT CHARSET=latin1 `tkey1`=100
+ drop table t1;
+ #error on unknown option
+ SET SQL_MODE='';

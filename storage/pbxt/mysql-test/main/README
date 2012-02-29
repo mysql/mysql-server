@@ -1,0 +1,22 @@
+There are two ways to make an overlay to test a new storage engine: inclusive
+and exclusive.
+
+In the inclusive approach one would create have_pbxt.inc, and the corresponding
+have_pbxt.opt. And for every test from the main suite that should run in the
+overlay, one would need a wrapper like
+
+=====[create.test]======
+source have_pbxt.inc;
+source create.test;
+drop database pbxt;
+========================
+
+The last line is needed, because pbxt creates 'pbxt' database automatically,
+and we need to remove it to pass the after-test check.
+
+In the exclusive approach, one would create my.cnf or suite.opt - this affects
+all tests, so mtr would run *all* tests of the main suite with the new options.
+And one would use disabled.def to selectively disable tests and
+--init-file option to create the database pbxt before the before-test check
+(then we won't need to drop it at the end of the test).
+

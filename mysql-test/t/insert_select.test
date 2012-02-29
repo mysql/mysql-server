@@ -106,6 +106,7 @@ insert into t1 select * from t2;
 select * from t1;
 # REPLACE .. SELECT is not yet supported by PS
 replace into t1 select * from t2;
+--sorted_result
 select * from t1;
 drop table t1,t2;
 
@@ -320,6 +321,7 @@ INSERT INTO t2 (f1, f2) SELECT f1, f2 FROM t1;
 INSERT INTO t2 (f1, f2)
   SELECT f1, f1 FROM t2 src WHERE f1 < 2
   ON DUPLICATE KEY UPDATE f1 = 100 + src.f1;
+  --sorted_result
 SELECT * FROM t2;
 DROP TABLE t1, t2;
 

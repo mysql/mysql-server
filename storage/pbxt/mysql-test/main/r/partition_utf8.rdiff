@@ -1,0 +1,40 @@
+--- r/partition_utf8.result	2011-10-21 23:09:08.000000000 +0200
++++ r/partition_utf8.reject	2012-02-10 16:13:45.000000000 +0100
+@@ -6,9 +6,9 @@
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` varchar(2) CHARACTER SET cp1250 DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ /*!50500 PARTITION BY LIST  COLUMNS(a)
+-(PARTITION p0 VALUES IN (_cp1250 0x81) ENGINE = MyISAM) */
++(PARTITION p0 VALUES IN (_cp1250 0x81) ENGINE = PBXT) */
+ drop table t1;
+ create table t1 (a varchar(2) character set cp1250)
+ partition by list columns (a)
+@@ -17,9 +17,9 @@
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` varchar(2) CHARACTER SET cp1250 DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ /*!50500 PARTITION BY LIST  COLUMNS(a)
+-(PARTITION p0 VALUES IN ('€') ENGINE = MyISAM) */
++(PARTITION p0 VALUES IN ('€') ENGINE = PBXT) */
+ drop table t1;
+ create table t1 (a varchar(1500), b varchar(1570))
+ partition by list columns(a,b)
+@@ -44,10 +44,10 @@
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ /*!50500 PARTITION BY LIST  COLUMNS(a)
+-(PARTITION p0 VALUES IN ('†') ENGINE = MyISAM,
+- PARTITION p1 VALUES IN ('') ENGINE = MyISAM) */
++(PARTITION p0 VALUES IN ('†') ENGINE = PBXT,
++ PARTITION p1 VALUES IN ('') ENGINE = PBXT) */
+ insert into t1 values ('');
+ insert into t1 values (_ucs2 0x2020);
+ drop table t1;

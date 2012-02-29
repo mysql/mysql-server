@@ -1,0 +1,47 @@
+--- r/type_time_hires.result	2011-11-22 18:50:25.000000000 +0100
++++ r/type_time_hires.reject	2012-02-10 16:24:20.000000000 +0100
+@@ -122,7 +122,7 @@
+ Table	Create Table
+ t2	CREATE TABLE `t2` (
+   `a` time(4) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ show create table t3;
+ Table	Create Table
+ t3	CREATE TABLE `t3` (
+@@ -150,7 +150,7 @@
+   `a-1` decimal(16,4) DEFAULT NULL,
+   `a*1` decimal(16,4) DEFAULT NULL,
+   `a/2` decimal(19,8) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ show create table t3;
+ Table	Create Table
+ t3	CREATE TABLE `t3` (
+@@ -158,7 +158,7 @@
+   `min(a)` time(4) DEFAULT NULL,
+   `sum(a)` decimal(37,4) DEFAULT NULL,
+   `avg(a)` decimal(19,8) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ drop table t1, t2, t3;
+ create table t1 (f0_time time(0), f1_time time(1), f2_time time(2), f3_time time(3), f4_time time(4), f5_time time(5), f6_time time(6));
+ insert t1 values ( '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432');
+@@ -264,7 +264,7 @@
+ end|
+ call bar(1111111, '2011-01-02 3:4:5.123456');
+ Warnings:
+-Note	1265	Data truncated for column 'c' at row 1
++Note	1265	Data truncated for column 'c' at row 2
+ select * from t1;
+ a	b
+ 04:05:06.000000	04:05:06.789100
+@@ -294,7 +294,7 @@
+ t2	CREATE TABLE `t2` (
+   `a` time(6) DEFAULT NULL,
+   `b` time(6) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ select * from t2;
+ a	b
+ 03:04:06.234500	03:04:06.234561

@@ -1,0 +1,11 @@
+--- r/bench_count_distinct.result	2011-10-21 23:09:08.000000000 +0200
++++ r/bench_count_distinct.reject	2012-02-10 15:08:20.000000000 +0100
+@@ -5,7 +5,7 @@
+ 100
+ explain extended select count(distinct n) from t1;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+-1	SIMPLE	t1	range	NULL	n	4	NULL	10	100.00	Using index for group-by
++1	SIMPLE	t1	range	NULL	n	4	NULL	201	99.50	Using index for group-by (scanning)
+ Warnings:
+ Note	1003	select count(distinct `test`.`t1`.`n`) AS `count(distinct n)` from `test`.`t1`
+ drop table t1;

@@ -1,0 +1,20 @@
+--- r/case.result	2011-11-22 18:50:25.000000000 +0100
++++ r/case.reject	2012-02-10 15:12:23.000000000 +0100
+@@ -111,7 +111,7 @@
+   `c10` double NOT NULL DEFAULT '0',
+   `c11` double NOT NULL DEFAULT '0',
+   `c12` varchar(5) NOT NULL DEFAULT ''
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ DROP TABLE t1;
+ SELECT CASE 
+ WHEN 1 
+@@ -158,7 +158,7 @@
+   `COALESCE(1,'1')` varchar(1) NOT NULL DEFAULT '',
+   `COALESCE(1.1,'1')` varchar(4) NOT NULL DEFAULT '',
+   `COALESCE('a' COLLATE latin1_bin,'b')` varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL DEFAULT ''
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ DROP TABLE t1;
+ CREATE TABLE t1 SELECT IFNULL('a' COLLATE latin1_swedish_ci, 'b' COLLATE latin1_bin);
+ ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'ifnull'

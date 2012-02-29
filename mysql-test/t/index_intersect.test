@@ -158,6 +158,7 @@ SELECT * FROM City
 SELECT * FROM City USE INDEX ()
   WHERE Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
 
+--sorted_result
 SELECT * FROM City 
   WHERE Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
 
@@ -165,6 +166,7 @@ SELECT * FROM City
 SELECT * FROM City USE INDEX ()
   WHERE Name BETWEEN 'G' AND 'K' AND Population > 500000 AND Country LIKE 'C%';
 
+--sorted_result
 SELECT * FROM City 
   WHERE Name BETWEEN 'G' AND 'K' AND Population > 500000 AND Country LIKE 'C%';
 
@@ -316,13 +318,15 @@ SELECT * FROM City
 SELECT * FROM City WHERE
   Name LIKE 'C%' AND Population > 1000000; 
 
+--sorted_result
 SELECT * FROM City WHERE
   Name LIKE 'M%' AND Population > 1500000; 
 
-
+--sorted_result
 SELECT * FROM City 
   WHERE  Name BETWEEN 'G' AND 'J' AND Population > 700000 AND Country LIKE 'B%';
 
+--sorted_result
 SELECT * FROM City 
   WHERE  Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
 
@@ -393,6 +397,7 @@ SELECT * FROM City
 SELECT * FROM City USE INDEX ()
   WHERE Country='CHN' AND Population > 1500000 AND Name LIKE 'C%';
 
+--sorted_result
 SELECT * FROM City 
   WHERE Country='CHN' AND Population > 1500000 AND Name LIKE 'C%';
 
@@ -445,6 +450,7 @@ EXPLAIN
 SELECT * FROM t1
 WHERE (f1 < 535  OR  f1 > 985) AND ( f4='r' OR f4 LIKE 'a%' ) ;
 
+--sorted_result
 SELECT * FROM t1
 WHERE (f1 < 535  OR  f1 > 985) AND ( f4='r' OR f4 LIKE 'a%' ) ;
 

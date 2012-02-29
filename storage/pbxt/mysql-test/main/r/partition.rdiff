@@ -1,0 +1,191 @@
+--- r/partition.result	2012-01-09 16:13:21.000000000 +0100
++++ r/partition.reject	2012-02-10 16:13:09.000000000 +0100
+@@ -80,7 +80,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) NOT NULL,
+   `b` int(11) NOT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ /*!50100 PARTITION BY KEY (a)
+ PARTITIONS 2 */
+ SELECT * FROM t1;
+@@ -173,13 +173,13 @@
+   `ddddddddd` int(11) NOT NULL DEFAULT '0',
+   `new_field0` varchar(50) DEFAULT NULL,
+   PRIMARY KEY (`ID`,`aaaa,aaaaa`,`ddddddddd`)
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ /*!50100 PARTITION BY RANGE (ID)
+ SUBPARTITION BY LINEAR KEY (ID,`aaaa,aaaaa`)
+ SUBPARTITIONS 2
+-(PARTITION p01 VALUES LESS THAN (100) ENGINE = MyISAM,
+- PARTITION p11 VALUES LESS THAN (200) ENGINE = MyISAM,
+- PARTITION p21 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
++(PARTITION p01 VALUES LESS THAN (100) ENGINE = PBXT,
++ PARTITION p11 VALUES LESS THAN (200) ENGINE = PBXT,
++ PARTITION p21 VALUES LESS THAN MAXVALUE ENGINE = PBXT) */
+ drop table t1;
+ CREATE TABLE t1 (a INT, b INT)
+ PARTITION BY LIST (a)
+@@ -223,10 +223,10 @@
+ 2007-07-30 17:35:48	p1
+ EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
++1	SIMPLE	t1	p1	range	PRIMARY	PRIMARY	4	NULL	1	Using where
+ EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
+ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
++1	SIMPLE	t1	p1	const	PRIMARY	PRIMARY	4	const	1	
+ ALTER TABLE t1 REORGANIZE PARTITION pmax INTO (
+ PARTITION p3 VALUES LESS THAN (1247688000),
+ PARTITION pmax VALUES LESS THAN MAXVALUE);
+@@ -240,21 +240,21 @@
+ 2007-07-30 17:35:48	p1
+ EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
++1	SIMPLE	t1	p1	range	PRIMARY	PRIMARY	4	NULL	1	Using where
+ EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
+ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
++1	SIMPLE	t1	p1	const	PRIMARY	PRIMARY	4	const	1	
+ SHOW CREATE TABLE t1;
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   `b` varchar(10) DEFAULT NULL,
+   PRIMARY KEY (`a`)
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ /*!50100 PARTITION BY RANGE (UNIX_TIMESTAMP(a))
+-(PARTITION p1 VALUES LESS THAN (1199134800) ENGINE = MyISAM,
+- PARTITION p3 VALUES LESS THAN (1247688000) ENGINE = MyISAM,
+- PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
++(PARTITION p1 VALUES LESS THAN (1199134800) ENGINE = PBXT,
++ PARTITION p3 VALUES LESS THAN (1247688000) ENGINE = PBXT,
++ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = PBXT) */
+ DROP TABLE t1;
+ create table t1 (a int NOT NULL, b varchar(5) NOT NULL)
+ default charset=utf8
+@@ -270,13 +270,13 @@
+ insert into t1 values (1,1),(2,1),(2,2),(2,3);
+ show indexes from t1;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE		
++t1	1	a	1	a	A	4	NULL	NULL	YES	BTREE		
+ analyze table t1;
+ Table	Op	Msg_type	Msg_text
+ test.t1	analyze	status	OK
+ show indexes from t1;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+-t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE		
++t1	1	a	1	a	A	4	NULL	NULL	YES	BTREE		
+ drop table t1;
+ create table t1 (a int)
+ partition by hash (a);
+@@ -307,14 +307,14 @@
+ ENGINE=NonExistentEngine;
+ Warnings:
+ Warning	1286	Unknown storage engine 'NonExistentEngine'
+-Warning	1266	Using storage engine MyISAM for table 't1'
++Warning	1266	Using storage engine PBXT for table 't1'
+ DROP TABLE t1;
+ CREATE TABLE t1 (a INT)
+ ENGINE=NonExistentEngine
+ PARTITION BY HASH (a);
+ Warnings:
+ Warning	1286	Unknown storage engine 'NonExistentEngine'
+-Warning	1266	Using storage engine MyISAM for table 't1'
++Warning	1266	Using storage engine PBXT for table 't1'
+ DROP TABLE t1;
+ CREATE TABLE t1 (a INT)
+ ENGINE=Memory;
+@@ -720,21 +720,21 @@
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ /*!50100 PARTITION BY RANGE (a)
+ SUBPARTITION BY KEY (a)
+-(PARTITION p0 VALUES LESS THAN (1) ENGINE = MyISAM,
+- PARTITION p1 VALUES LESS THAN (2) ENGINE = MyISAM) */
++(PARTITION p0 VALUES LESS THAN (1) ENGINE = PBXT,
++ PARTITION p1 VALUES LESS THAN (2) ENGINE = PBXT) */
+ alter table t1 reorganize partition p1 into (partition p1 values less than (3));
+ show create table t1;
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ /*!50100 PARTITION BY RANGE (a)
+ SUBPARTITION BY KEY (a)
+-(PARTITION p0 VALUES LESS THAN (1) ENGINE = MyISAM,
+- PARTITION p1 VALUES LESS THAN (3) ENGINE = MyISAM) */
++(PARTITION p0 VALUES LESS THAN (1) ENGINE = PBXT,
++ PARTITION p1 VALUES LESS THAN (3) ENGINE = PBXT) */
+ drop table t1;
+ CREATE TABLE t1 (
+ a int not null,
+@@ -752,7 +752,7 @@
+   `b` int(11) NOT NULL,
+   `c` int(11) NOT NULL,
+   PRIMARY KEY (`a`,`b`)
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ /*!50100 PARTITION BY KEY (a) */
+ drop table t1;
+ CREATE TABLE t1 (
+@@ -956,7 +956,7 @@
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ /*!50100 PARTITION BY HASH (a)
+ PARTITIONS 5 */
+ drop table t1;
+@@ -985,11 +985,11 @@
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ /*!50100 PARTITION BY RANGE (a)
+-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
+- PARTITION p1 VALUES LESS THAN (20) ENGINE = MyISAM,
+- PARTITION p2 VALUES LESS THAN (30) ENGINE = MyISAM) */
++(PARTITION p0 VALUES LESS THAN (10) ENGINE = PBXT,
++ PARTITION p1 VALUES LESS THAN (20) ENGINE = PBXT,
++ PARTITION p2 VALUES LESS THAN (30) ENGINE = PBXT) */
+ drop table t1;
+ CREATE TABLE t1 (a int, b int)
+ PARTITION BY RANGE (a)
+@@ -1010,16 +1010,16 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL,
+   `b` int(11) DEFAULT NULL
+-) ENGINE=MyISAM DEFAULT CHARSET=latin1
++) ENGINE=PBXT DEFAULT CHARSET=latin1
+ /*!50100 PARTITION BY RANGE (a)
+-(PARTITION x1 VALUES LESS THAN (6) ENGINE = MyISAM,
+- PARTITION x3 VALUES LESS THAN (8) ENGINE = MyISAM,
+- PARTITION x4 VALUES LESS THAN (10) ENGINE = MyISAM,
+- PARTITION x5 VALUES LESS THAN (12) ENGINE = MyISAM,
+- PARTITION x6 VALUES LESS THAN (14) ENGINE = MyISAM,
+- PARTITION x7 VALUES LESS THAN (16) ENGINE = MyISAM,
+- PARTITION x8 VALUES LESS THAN (18) ENGINE = MyISAM,
+- PARTITION x9 VALUES LESS THAN (20) ENGINE = MyISAM) */
++(PARTITION x1 VALUES LESS THAN (6) ENGINE = PBXT,
++ PARTITION x3 VALUES LESS THAN (8) ENGINE = PBXT,
++ PARTITION x4 VALUES LESS THAN (10) ENGINE = PBXT,
++ PARTITION x5 VALUES LESS THAN (12) ENGINE = PBXT,
++ PARTITION x6 VALUES LESS THAN (14) ENGINE = PBXT,
++ PARTITION x7 VALUES LESS THAN (16) ENGINE = PBXT,
++ PARTITION x8 VALUES LESS THAN (18) ENGINE = PBXT,
++ PARTITION x9 VALUES LESS THAN (20) ENGINE = PBXT) */
+ drop table t1;
+ create table t1 (a int not null, b int not null) partition by LIST (a+b) (
+ partition p0 values in (12),

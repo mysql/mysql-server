@@ -1,0 +1,11 @@
+--- r/ps_11bugs.result	2012-02-23 15:57:49.000000000 +0100
++++ /usr/home/serg/Abk/mysql/5.5-mtr/storage/pbxt/mysql-test/main/r/ps_11bugs.reject	2012-02-23 23:04:34.000000000 +0100
+@@ -120,7 +120,7 @@
+ insert into t1 values (1);
+ explain select * from t1 where 3 in (select (1+1) union select 1);
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
++1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	1	Using index
+ 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+ 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+ NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
