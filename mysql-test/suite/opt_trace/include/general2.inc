@@ -5,7 +5,8 @@
 let $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
 eval set optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
 
-set optimizer_trace="enabled=on,end_marker=on";
+set end_markers_in_json=on;
+set optimizer_trace="enabled=on";
 
 --echo # check that if a sub-statement should not be traced,
 --echo # it is not traced even if inside a traced top statement

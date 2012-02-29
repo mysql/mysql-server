@@ -6708,3 +6708,7 @@ ER_MASTER_HAS_PURGED_REQUIRED_GTIDS
 
 ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
   eng "GTID_NEXT cannot be changed by a client that owns a GTID. The client owns %s. Ownership is released on COMMIT or ROLLBACK."
+
+ER_UNKNOWN_EXPLAIN_FORMAT
+  eng "Unknown EXPLAIN format name: '%s'"
+  rus "Неизвестное имя формата команды EXPLAIN: '%s'"

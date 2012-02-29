@@ -30,6 +30,7 @@
 #include "opt_trace.h"
 #include "sql_base.h"
 #include "sql_acl.h"
+#include "opt_explain_format.h"
 
 static void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex);
 static inline int 
@@ -82,9 +83,16 @@ JOIN::prepare(TABLE_LIST *tables_init,
   if (optimized)
     DBUG_RETURN(0);
 
+  if (order_init)
+    explain_flags.set(ESC_ORDER_BY, ESP_EXISTS);
+  if (group_init)
+    explain_flags.set(ESC_GROUP_BY, ESP_EXISTS);
+  if (select_options & SELECT_DISTINCT)
+    explain_flags.set(ESC_DISTINCT, ESP_EXISTS);
+
   conds= conds_init;
-  order= order_init;
-  group_list= group_init;
+  order= ORDER_with_src(order_init, ESC_ORDER_BY);
+  group_list= ORDER_with_src(group_init, ESC_GROUP_BY);
   having= having_init;
   proc_param= proc_param_init;
   tables_list= tables_init;

@@ -421,6 +421,20 @@ public:
     }
     return TRUE;
   }
+  /**
+    Make a zero-terminated copy of our value,allocated in the specified MEM_ROOT
+
+    @param root         MEM_ROOT to allocate the result
+
+    @return allocated string or NULL
+  */
+  char *dup(MEM_ROOT *root) const
+  {
+    char *ret= static_cast<char *>(memdup_root(root, Ptr, str_length + 1));
+    if (ret != NULL)
+      ret[str_length]= 0;
+    return ret;
+  }
 };
 
 
@@ -445,6 +459,11 @@ public:
   explicit StringBuffer(const CHARSET_INFO *cs) : String(buff, buff_sz, cs)
   {
     length(0);
+  }
+  StringBuffer(const char *str, size_t length, const CHARSET_INFO *cs)
+    : String(buff, buff_sz, cs)
+  {
+    set(str, length, cs);
   }
 };
 
