@@ -1212,7 +1212,7 @@ fil_space_create(
 {
 	fil_space_t*	space;
 
-	ut_a(fsp_flags_validate(flags));
+	fsp_flags_validate(flags);
 
 try_again:
 	/*printf(
@@ -2882,7 +2882,7 @@ fil_create_new_single_table_tablespace(
 	ut_a(space_id > 0);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
-	ut_a(fsp_flags_validate(flags));
+	fsp_flags_validate(flags);
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
