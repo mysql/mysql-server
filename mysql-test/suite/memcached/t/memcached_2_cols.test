@@ -176,6 +176,23 @@ EOF
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11211" ]
+};
+print "Here the memcached results after flush_all:\n";
+$memd->flush_all;
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;
  
