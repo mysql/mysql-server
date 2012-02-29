@@ -30,6 +30,7 @@ LDLIBS+=-lnewbrt -l$(LIBTOKUPORTABILITY)
 
 BINS_RAW= \
   brtdump \
+  brtdump_static \
   tdb_logprint \
   tdb-recover \
 # Intentionally left blank
@@ -178,6 +179,10 @@ clean-local:
 	rm -rf $(NEWBRT)
 	rm -rf test_oexcl.c.tmp *.brt
 	rm -rf log_code.c log_header.h log_print.c logformat
+
+brtdump_static$(BINSUF): DEPEND_LINK = -lpthread -ldl -lz
+brtdump_static$(BINSUF): brtdump.$(OEXT) $(NEWBRT_A) $(LIBPORTABILITY_A) $(DEPEND_COMPILE) $(DEPEND_LINK)
+	$(CC) $< $(NEWBRT_A) $(LIBPORTABILITY_A) $(BIN_FROM_O_FLAGS_NOLIB) $(ALWAYS_LINK) $(LINK_MUST_BE_LAST)
 
 # After doing (cd ../src/tests;make test_log5.recover), run these.  The files should have no differences.
 testdump: brtdump$(BINSUF)
