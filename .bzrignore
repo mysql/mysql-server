@@ -3097,3 +3097,4 @@ Testing
 source_downloads
 client/mysql_plugin
 support-files/plugins.files
+storage/perfschema/pfs_lex_token.h
