@@ -1920,14 +1920,22 @@ static Sys_var_flagset Sys_optimizer_switch(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(fix_optimizer_switch));
 
+static Sys_var_mybool Sys_var_end_markers_in_json(
+       "end_markers_in_json",
+       "In JSON output (\"EXPLAIN FORMAT=JSON\" and optimizer trace), "
+       "end_marker=on repeats the structure's key (if it has one) "
+       "near the closing bracket",
+       SESSION_VAR(end_markers_in_json), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
+
 #ifdef OPTIMIZER_TRACE
 
 static Sys_var_flagset Sys_optimizer_trace(
        "optimizer_trace",
        "Controls tracing of the Optimizer:"
        " optimizer_trace=option=val[,option=val...], where option is one of"
-       " {enabled, end_marker, one_line}"
-       " and val is one of {on, off, default}",
+       " {enabled, one_line}"
+       " and val is one of {on, default}",
        SESSION_VAR(optimizer_trace), CMD_LINE(REQUIRED_ARG),
        Opt_trace_context::flag_names,
        DEFAULT(Opt_trace_context::FLAG_DEFAULT));

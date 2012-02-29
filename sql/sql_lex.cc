@@ -115,6 +115,22 @@ const char * index_hint_type_name[] =
   "FORCE INDEX"
 };
 
+
+/**
+  @note The order of the elements of this array must correspond to
+  the order of elements in type_enum
+*/
+const char *st_select_lex::type_str[SLT_total]=
+{ "NONE",
+  "PRIMARY",
+  "SIMPLE",
+  "DERIVED",
+  "SUBQUERY",
+  "UNION",
+  "UNION RESULT"
+};
+
+
 inline int lex_casecmp(const char *s, const char *t, uint len)
 {
   while (len-- != 0 &&
@@ -445,7 +461,7 @@ void lex_start(THD *thd)
   lex->server_options.socket= 0;
   lex->server_options.owner= 0;
   lex->server_options.port= -1;
-
+  lex->explain_format= NULL;
   lex->is_lex_started= TRUE;
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
@@ -1804,7 +1820,7 @@ void st_select_lex::init_select()
   group_list.empty();
   if (group_list_ptrs)
     group_list_ptrs->clear();
-  type= db= 0;
+  db= 0;
   having= 0;
   table_join_options= 0;
   in_sum_expr= with_wild= 0;
@@ -3710,6 +3726,29 @@ bool st_select_lex::handle_derived(LEX *lex,
       return TRUE;
   }
   return FALSE;
+}
+
+
+st_select_lex::type_enum st_select_lex::type(const THD *thd)
+{
+  if (master_unit()->fake_select_lex == this)
+    return SLT_UNION_RESULT;
+  else if (&thd->lex->select_lex == this) 
+  {
+    if (first_inner_unit() || next_select())
+      return SLT_PRIMARY;
+    else
+      return SLT_SIMPLE;
+  }
+  else if (this == master_unit()->first_select())
+  {
+    if (linkage == DERIVED_TABLE_TYPE) 
+      return SLT_DERIVED;
+    else
+      return SLT_SUBQUERY;
+  }
+  else
+    return SLT_UNION;
 }
 
 

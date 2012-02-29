@@ -157,6 +157,10 @@ The following options may be given as the first argument:
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
+ --end-markers-in-json 
+ In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
+ trace), end_marker=on repeats the structure's key (if it
+ has one) near the closing bracket
  --eq-range-index-dive-limit=# 
  The optimizer will use existing index statistics instead
  of doing index dives for equality ranges if the number of
@@ -458,8 +462,8 @@ The following options may be given as the first argument:
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
- is one of {enabled, end_marker, one_line} and val is one
- of {on, off, default}
+ is one of {enabled, one_line} and val is one of {on,
+ default}
  --optimizer-trace-features=name 
  Enables/disables tracing of selected features of the
  Optimizer:
@@ -922,6 +926,7 @@ delayed-queue-size 1000
 disable-gtid-unsafe-statements FALSE
 disconnect-slave-event-count 0
 div-precision-increment 4
+end-markers-in-json FALSE
 eq-range-index-dive-limit 10
 event-scheduler OFF
 expire-logs-days 0

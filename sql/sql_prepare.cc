@@ -2446,7 +2446,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   {
     if (!sl->first_execution)
     {
-      /* remove option which was put by mysql_explain_union() */
+      /* remove option which was put by mysql_explain_unit() */
       sl->options&= ~SELECT_DESCRIBE;
 
       /* see unique_table() */

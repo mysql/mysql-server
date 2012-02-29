@@ -348,7 +348,7 @@ public:
   inline list_node* first_node() { return first;}
   inline void *head() { return first->info; }
   inline void **head_ref() { return first != &end_of_list ? &first->info : 0; }
-  inline bool is_empty() { return first == &end_of_list ; }
+  inline bool is_empty() const { return first == &end_of_list ; }
   inline list_node *last_ref() { return &end_of_list; }
   friend class base_list_iterator;
   friend class error_list;
@@ -509,10 +509,15 @@ public:
   inline List(const List<T> &tmp) :base_list(tmp) {}
   inline List(const List<T> &tmp, MEM_ROOT *mem_root) :
     base_list(tmp, mem_root) {}
-  inline bool push_back(T *a) { return base_list::push_back(a); }
+  /*
+    Typecasting to (void *) it's necessary if we want to declare List<T> with
+    constant T parameter (like List<const char>), since the untyped storage
+    is "void *", and assignment of const pointer to "void *" is a syntax error.
+  */
+  inline bool push_back(T *a) { return base_list::push_back((void *) a); }
   inline bool push_back(T *a, MEM_ROOT *mem_root)
-  { return base_list::push_back(a, mem_root); }
-  inline bool push_front(T *a) { return base_list::push_front(a); }
+  { return base_list::push_back((void *) a, mem_root); }
+  inline bool push_front(T *a) { return base_list::push_front((void *) a); }
   inline T* head() {return (T*) base_list::head(); }
   inline T** head_ref() {return (T**) base_list::head_ref(); }
   inline T* pop()  {return (T*) base_list::pop(); }
@@ -642,7 +647,7 @@ public:
     sentinel.prev= &first;
   }
   base_ilist() { empty(); }
-  bool is_empty() { return first == static_cast<T*>(&sentinel); }
+  bool is_empty() const { return first == static_cast<const T*>(&sentinel); }
 
   /// Pushes new element in front of list.
   void push_front(T *a)
