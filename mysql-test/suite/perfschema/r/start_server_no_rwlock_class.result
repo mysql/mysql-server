@@ -10,7 +10,7 @@ count(*)
 5
 select count(*) from performance_schema.setup_consumers;
 count(*)
-11
+12
 select count(*) > 3 from performance_schema.setup_instruments;
 count(*) > 3
 1
@@ -70,6 +70,7 @@ show variables like "performance_schema%";
 Variable_name	Value
 performance_schema	ON
 performance_schema_accounts_size	100
+performance_schema_digests_size	200
 performance_schema_events_stages_history_long_size	1000
 performance_schema_events_stages_history_size	10
 performance_schema_events_statements_history_long_size	1000

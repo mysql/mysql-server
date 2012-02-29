@@ -513,10 +513,15 @@ The following options may be given as the first argument:
  Default startup value for the global_instrumentation
  consumer.
  (Defaults to on; use --skip-performance-schema-consumer-global-instrumentation to disable.)
+ --performance-schema-consumer-statements-digest 
+ Default startup value for the statements_digest consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-statements-digest to disable.)
  --performance-schema-consumer-thread-instrumentation 
  Default startup value for the thread_instrumentation
  consumer.
  (Defaults to on; use --skip-performance-schema-consumer-thread-instrumentation to disable.)
+ --performance-schema-digests-size=# 
+ Size of the statement digest.
  --performance-schema-events-stages-history-long-size=# 
  Number of rows in EVENTS_STAGES_HISTORY_LONG.
  --performance-schema-events-stages-history-size=# 
@@ -1055,7 +1060,9 @@ performance-schema-consumer-events-waits-current FALSE
 performance-schema-consumer-events-waits-history FALSE
 performance-schema-consumer-events-waits-history-long FALSE
 performance-schema-consumer-global-instrumentation TRUE
+performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
+performance-schema-digests-size 200
 performance-schema-events-stages-history-long-size 10000
 performance-schema-events-stages-history-size 10
 performance-schema-events-statements-history-long-size 10000

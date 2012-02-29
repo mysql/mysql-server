@@ -2028,7 +2028,7 @@ public:
     DBUG_ASSERT(m_ptr > m_tok_start);
     return (uint) ((m_ptr - m_tok_start) - 1);
   }
-
+   
   /** Get the utf8-body string. */
   const char *get_body_utf8_str()
   {
@@ -2187,6 +2187,11 @@ public:
     NOTE: this member must be used within MYSQLlex() function only.
   */
   CHARSET_INFO *m_underscore_cs;
+
+  /**
+    Current statement digest instrumentation. 
+  */
+  PSI_digest_locker* m_digest_psi;
 };
 
 /* The state of the lex parsing. This is saved in the THD struct */
