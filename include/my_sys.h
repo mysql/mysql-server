@@ -187,7 +187,7 @@ extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
   while(0)
 #else
 #define DEBUG_SYNC_C(_sync_point_name_)
-#define DEBUG_SYNC_C_IF_THD(_sync_point_name_)
+#define DEBUG_SYNC_C_IF_THD(thd, _sync_point_name_)
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
 #ifdef HAVE_LARGE_PAGES
