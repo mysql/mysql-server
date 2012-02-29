@@ -1306,6 +1306,8 @@ public:
       *arg= NULL; 
     return TRUE;     
   }
+  virtual bool explain_subquery_checker(uchar **arg) { return true; }
+  virtual Item *explain_subquery_propagator(uchar *arg) { return this; }
 
   virtual Item *equal_fields_propagator(uchar * arg) { return this; }
   virtual bool set_no_const_sub(uchar *arg) { return FALSE; }
@@ -2969,6 +2971,16 @@ public:
   virtual Item* transform(Item_transformer, uchar *arg);
   virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
                         Item_transformer transformer, uchar *arg_t);
+  virtual bool explain_subquery_checker(uchar **arg)
+  {
+    /*
+      Always return false: we don't need to go deeper into referenced
+      expression tree since we have to mark aliased subqueries at
+      their original places (select list, derived tables), not by
+      references from other expression (order by etc).
+    */
+    return false;
+  }
   virtual void print(String *str, enum_query_type query_type);
   void cleanup();
   Item_field *filed_for_view_update()

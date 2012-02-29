@@ -128,7 +128,7 @@ a	b
 explain select * from t1 where a in (select a from t10 where pk=9);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t10	const	PRIMARY	PRIMARY	4	const	1	
+2	SUBQUERY	t10	const	PRIMARY	PRIMARY	4	const	1	NULL
 select * from t1 where a in (select a from t10 where pk=9);
 a	b
 An empty table inside
@@ -171,7 +171,7 @@ subqueries within outer joins go into ON expr.
 explAin extended
 select * from t1 left join (t2 A, t2 B) on ( A.A= t1.A And B.A in (select pk from t10));
 id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer (Block Nested Loop)
 1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer (Block Nested Loop)
 2	SUBQUERY	t10	index	NULL	PRIMARY	4	NULL	10	100.00	Using index
@@ -181,7 +181,7 @@ t2 should be wrapped into OJ-nest, so we have "t1 LJ (t2 J t10)"
 explAin extended
 select * from t1 left join t2 on (t2.A= t1.A And t2.A in (select pk from t10));
 id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer (Block Nested Loop)
 2	SUBQUERY	t10	index	NULL	PRIMARY	4	NULL	10	100.00	Using index
 Warnings:
@@ -250,7 +250,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	s47	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 1	PRIMARY	s48	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 1	PRIMARY	s49	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
-2	SUBQUERY	m00	ALL	NULL	NULL	NULL	NULL	3	
+2	SUBQUERY	m00	ALL	NULL	NULL	NULL	NULL	3	NULL
 2	SUBQUERY	m01	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 2	SUBQUERY	m02	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 2	SUBQUERY	m03	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
@@ -433,7 +433,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -442,7 +442,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -467,7 +467,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -476,7 +476,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -521,7 +521,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -530,7 +530,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -555,7 +555,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -564,7 +564,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -595,7 +595,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -619,7 +619,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -628,7 +628,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -653,7 +653,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -668,8 +668,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -684,8 +684,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -700,8 +700,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -709,8 +709,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -718,8 +718,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -735,8 +735,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -744,8 +744,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -759,7 +759,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -775,7 +775,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -791,7 +791,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -800,8 +800,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -809,7 +809,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -826,7 +826,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -835,8 +835,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -868,7 +868,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -891,7 +891,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -901,7 +901,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -925,7 +925,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -940,7 +940,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -956,7 +956,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -972,7 +972,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -981,7 +981,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -990,7 +990,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1007,7 +1007,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1016,7 +1016,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -1031,7 +1031,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -1047,7 +1047,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1063,7 +1063,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1072,7 +1072,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -1081,7 +1081,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1098,7 +1098,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1107,7 +1107,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -1125,7 +1125,7 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -1140,7 +1140,7 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1155,7 +1155,7 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1163,7 +1163,7 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -1172,7 +1172,7 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1188,7 +1188,7 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1196,7 +1196,7 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (11) IN 
@@ -1211,7 +1211,7 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -1226,7 +1226,7 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1241,9 +1241,9 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1251,16 +1251,16 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1276,18 +1276,18 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1300,7 +1300,7 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -1315,7 +1315,7 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1330,9 +1330,9 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1340,16 +1340,16 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1365,18 +1365,18 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1391,7 +1391,7 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -1406,8 +1406,8 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1422,7 +1422,7 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1430,8 +1430,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -1439,8 +1439,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1456,7 +1456,7 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1464,8 +1464,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -1479,9 +1479,9 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1498,9 +1498,9 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1517,9 +1517,9 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1527,9 +1527,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1537,9 +1537,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1554,18 +1554,18 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1578,8 +1578,8 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -1597,8 +1597,8 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1616,8 +1616,8 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1626,9 +1626,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1636,8 +1636,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1653,8 +1653,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1662,9 +1662,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1679,7 +1679,7 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -1694,9 +1694,9 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1710,7 +1710,7 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1718,8 +1718,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -1727,9 +1727,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1744,7 +1744,7 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1752,8 +1752,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -1767,8 +1767,8 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -1786,8 +1786,8 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1805,8 +1805,8 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1815,8 +1815,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -1825,8 +1825,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1842,8 +1842,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1851,8 +1851,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -1866,8 +1866,8 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -1885,8 +1885,8 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1904,8 +1904,8 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1914,8 +1914,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -1924,8 +1924,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1942,8 +1942,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1951,8 +1951,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -2088,7 +2088,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2098,7 +2098,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2123,7 +2123,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2132,7 +2132,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2177,7 +2177,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2188,7 +2188,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2213,7 +2213,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2222,7 +2222,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2253,7 +2253,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -2277,7 +2277,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -2286,7 +2286,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -2311,7 +2311,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -2326,8 +2326,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -2345,8 +2345,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2364,8 +2364,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2374,8 +2374,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2384,8 +2384,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2401,8 +2401,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2410,8 +2410,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2425,7 +2425,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -2444,7 +2444,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -2463,7 +2463,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -2474,8 +2474,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2485,7 +2485,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -2502,7 +2502,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -2511,8 +2511,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2544,7 +2544,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2567,7 +2567,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -2577,7 +2577,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2601,7 +2601,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -2616,7 +2616,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -2635,7 +2635,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -2654,7 +2654,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -2664,7 +2664,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -2674,7 +2674,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -2691,7 +2691,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -2700,7 +2700,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -2715,7 +2715,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
@@ -2737,7 +2737,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -2759,7 +2759,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -2770,7 +2770,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -2781,7 +2781,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -2799,7 +2799,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -2808,7 +2808,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -2966,6 +2966,43 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t22	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t11	ALL	NULL	NULL	NULL	NULL	8	Using where
 2	SUBQUERY	t12	ALL	NULL	NULL	NULL	NULL	8	Using where; Using join buffer (Block Nested Loop)
+explain format=json select * from t1 where a in (select a from t11);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows": 32,
+      "filtered": 100,
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (select `test`.`t11`.`a` from `test`.`t11` ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized subselect`.`a`)))))",
+      "attached_subqueries": [
+        {
+          "using_temporary_table": true,
+          "dependent": false,
+          "cacheable": true,
+          "table": {
+            "access_type": "eq_ref",
+            "key": "<auto_key>",
+            "rows": 1
+          },
+          "query_block": {
+            "select_id": 2,
+            "table": {
+              "table_name": "t11",
+              "access_type": "ALL",
+              "rows": 8,
+              "filtered": 100
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t11`.`a` from `test`.`t11` ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized subselect`.`a`)))))
 select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 a	b	c
@@ -2976,9 +3013,9 @@ insert into t1 values (0),(1);
 explain 
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	DEPENDENT SUBQUERY	Y	ALL	NULL	NULL	NULL	NULL	2	Using where
-3	SUBQUERY	Z	ALL	NULL	NULL	NULL	NULL	2	
+3	SUBQUERY	Z	ALL	NULL	NULL	NULL	NULL	2	NULL
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
 subq
 NULL
@@ -2992,7 +3029,7 @@ insert into t0 values(2);
 explain select * from t1 where 2 in (select a from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	Using where
-2	SUBQUERY	t0	ALL	NULL	NULL	NULL	NULL	11	
+2	SUBQUERY	t0	ALL	NULL	NULL	NULL	NULL	11	NULL
 select * from t1 where 2 in (select a from t0);
 a
 0
@@ -3015,11 +3052,62 @@ a
 17
 18
 19
-explain select * from (select a from t0) X where a in (select a from t1);
+explain select * from (select a from t0) x where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	Using where
-3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	20	
-2	DERIVED	t0	ALL	NULL	NULL	NULL	NULL	11	
+3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	20	NULL
+2	DERIVED	t0	ALL	NULL	NULL	NULL	NULL	11	NULL
+explain format=json select * from (select a from t0) x where a in (select a from t1);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "x",
+      "access_type": "ALL",
+      "rows": 11,
+      "filtered": 100,
+      "attached_condition": "<in_optimizer>(`x`.`a`,`x`.`a` in ( <materialize> (select `test`.`t1`.`a` from `test`.`t1` ), <primary_index_lookup>(`x`.`a` in <temporary table> on distinct_key where ((`x`.`a` = `materialized subselect`.`a`)))))",
+      "attached_subqueries": [
+        {
+          "using_temporary_table": true,
+          "dependent": false,
+          "cacheable": true,
+          "table": {
+            "access_type": "eq_ref",
+            "key": "<auto_key>",
+            "rows": 1
+          },
+          "query_block": {
+            "select_id": 3,
+            "table": {
+              "table_name": "t1",
+              "access_type": "ALL",
+              "rows": 20,
+              "filtered": 100
+            }
+          }
+        }
+      ],
+      "materialized_from_subquery": {
+        "using_temporary_table": true,
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 2,
+          "table": {
+            "table_name": "t0",
+            "access_type": "ALL",
+            "rows": 11,
+            "filtered": 100
+          }
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `x`.`a` AS `a` from (/* select#2 */ select `test`.`t0`.`a` AS `a` from `test`.`t0`) `x` where <in_optimizer>(`x`.`a`,`x`.`a` in ( <materialize> (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` ), <primary_index_lookup>(`x`.`a` in <temporary table> on distinct_key where ((`x`.`a` = `materialized subselect`.`a`)))))
 drop table t0, t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -3126,10 +3214,10 @@ explain
 select count(*) from t0 A, t0 B, t0 C
 where C.a in (select a from t1 D);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	
+1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	NULL
 1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (Block Nested Loop)
 1	PRIMARY	C	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	D	ALL	NULL	NULL	NULL	NULL	12	
+2	SUBQUERY	D	ALL	NULL	NULL	NULL	NULL	12	NULL
 flush status;
 select count(*) from t0 A, t0 B, t0 C
 where C.a in (select a from t1 D);
@@ -3157,7 +3245,7 @@ insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
 explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	a	NULL	NULL	NULL	100	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 select * from t3 where a in (select a from t2);
 a	filler
 1	filler
@@ -3177,7 +3265,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t2 where a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 explain select * from t2 where a in (select a from t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
@@ -3192,7 +3280,7 @@ insert into t1 values (1),(2);
 explain select * from t1 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 drop table t1;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -3203,42 +3291,96 @@ explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
 1	PRIMARY	t3	ALL	a	NULL	NULL	NULL	1000	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	NULL
+explain format=json select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows": 10,
+          "filtered": 100,
+          "attached_condition": "(`test`.`t1`.`a` = 3)"
+        }
+      },
+      {
+        "table": {
+          "table_name": "t3",
+          "access_type": "ALL",
+          "possible_keys": [
+            "a"
+          ],
+          "rows": 1000,
+          "filtered": 79.3,
+          "using_join_buffer": "Block Nested Loop",
+          "attached_condition": "(<in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (select `test`.`t2`.`a` from `test`.`t2` ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on distinct_key where ((`test`.`t3`.`a` = `materialized subselect`.`a`))))) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))",
+          "attached_subqueries": [
+            {
+              "using_temporary_table": true,
+              "dependent": false,
+              "cacheable": true,
+              "table": {
+                "access_type": "eq_ref",
+                "key": "<auto_key>",
+                "rows": 1
+              },
+              "query_block": {
+                "select_id": 2,
+                "table": {
+                  "table_name": "t2",
+                  "access_type": "ALL",
+                  "rows": 10,
+                  "filtered": 100
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t1` join `test`.`t3` where ((`test`.`t1`.`a` = 3) and <in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on distinct_key where ((`test`.`t3`.`a` = `materialized subselect`.`a`))))) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))
 explain select straight_join * from t1 A, t1 B where A.a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	Using where
 1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (Block Nested Loop)
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	NULL
 explain select * from t2 where a in (select straight_join A.a from t1 A, t1 B);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
-2	SUBQUERY	A	ALL	NULL	NULL	NULL	NULL	10	
+2	SUBQUERY	A	ALL	NULL	NULL	NULL	NULL	10	NULL
 2	SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (Block Nested Loop)
 explain select * from t2 where a in (select straight_join A.a from t1 A, t1 B);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
-2	SUBQUERY	A	ALL	NULL	NULL	NULL	NULL	10	
+2	SUBQUERY	A	ALL	NULL	NULL	NULL	NULL	10	NULL
 2	SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (Block Nested Loop)
 explain select straight_join * from t2 X, t2 Y 
 where X.a in (select straight_join A.a from t1 A, t1 B);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	10	Using where
 1	PRIMARY	Y	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (Block Nested Loop)
-2	SUBQUERY	A	ALL	NULL	NULL	NULL	NULL	10	
+2	SUBQUERY	A	ALL	NULL	NULL	NULL	NULL	10	NULL
 2	SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (Block Nested Loop)
 create table t0 (a int, b int);
 insert into t0 values(1,1);
 explain select * from t0, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t0	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	t3	ALL	a	NULL	NULL	NULL	1000	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	NULL
 create table t4 as select a as x, a as y from t1;
 explain select * from t0, t3 where (t3.a, t3.b) in (select x,y from t4) and (t3.a < 10 or t3.a >30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t0	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	t3	ALL	a	NULL	NULL	NULL	1000	Using where
-2	SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	10	
+2	SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	10	NULL
 drop table t0,t1,t2,t3,t4;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -3261,7 +3403,7 @@ insert into t2 select A.a + 10*B.a, A.a + 10*B.a from t0 A, t0 B;
 explain select * from t1 where (a,b) in (select a,b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	100	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	100	NULL
 drop table t0, t1, t2;
 create table t0 (a decimal(4,2));
 insert into t0 values (10.24), (22.11);
@@ -3270,7 +3412,7 @@ insert into t1 select * from t0;
 explain select * from t0 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
 select * from t0 where a in (select a from t1);
 a
 10.24
@@ -3283,7 +3425,7 @@ insert into t1 select * from t0;
 explain select * from t0 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
 select * from t0 where a in (select a from t1);
 a
 2008-01-01
@@ -3319,7 +3461,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	32	Using where
-2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	22	
+2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	22	NULL
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
 from t1 ot where a in (select a from t2 it);
@@ -3351,7 +3493,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2)
 from t2 ot where a in (select a from t1 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	22	Using where
-2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	32	
+2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	32	NULL
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) 
 from t2 ot where a in (select a from t1 it);
@@ -3385,7 +3527,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	52	Using where
-2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	22	
+2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	22	NULL
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
 from t1 ot where a in (select a from t2 it);
@@ -3417,7 +3559,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2)
 from t2 ot where a in (select a from t1 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	22	Using where
-2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	52	
+2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	52	NULL
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) 
 from t2 ot where a in (select a from t1 it);
@@ -4115,7 +4257,7 @@ EXPLAIN EXTENDED SELECT vkey FROM t0 WHERE pk IN
 (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 2	SUBQUERY	t2	index	vkey	vkey	4	NULL	5	80.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`pk`,`test`.`t0`.`pk` in ( <materialize> (/* select#2 */ select `test`.`t1`.`pk` from `test`.`t0` `t1` join `test`.`t0` `t2` where (`test`.`t2`.`vkey` = `test`.`t1`.`vnokey`) ), <primary_index_lookup>(`test`.`t0`.`pk` in <temporary table> on distinct_key where ((`test`.`t0`.`pk` = `materialized subselect`.`pk`)))))
@@ -4385,7 +4527,7 @@ SELECT t1_1 .varchar_key
 FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key  
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	20	Using where
 2	SUBQUERY	t1_1	index	NULL	varchar_key	9	NULL	2	Using where; Using index
 2	SUBQUERY	t1_2	index	NULL	int_key	5	NULL	2	Using index; Using join buffer (Block Nested Loop)
@@ -4785,7 +4927,7 @@ WHERE PNUM IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	STAFF	ALL	NULL	NULL	NULL	NULL	5	Using where
 2	SUBQUERY	WORKS	ALL	NULL	NULL	NULL	NULL	12	Using where
-3	SUBQUERY	PROJ	ALL	NULL	NULL	NULL	NULL	6	
+3	SUBQUERY	PROJ	ALL	NULL	NULL	NULL	NULL	6	NULL
 SELECT EMPNUM, EMPNAME
 FROM STAFF
 WHERE EMPNUM IN
@@ -4858,7 +5000,7 @@ WHERE cona.postalStripped='T2H3B2'
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	a	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
 2	SUBQUERY	cona	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	SUBQUERY	c	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	
+2	SUBQUERY	c	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` where <in_optimizer>(`test`.`a`.`idIndividual`,`test`.`a`.`idIndividual` in ( <materialize> (/* select#2 */ select `test`.`c`.`idObj` from `test`.`t3` `cona` join `test`.`t2` `c` where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`cona`.`postalStripped` = 'T2H3B2')) ), <primary_index_lookup>(`test`.`a`.`idIndividual` in <temporary table> on distinct_key where ((`test`.`a`.`idIndividual` = `materialized subselect`.`idObj`)))))
 drop table t1,t2,t3;
@@ -4929,7 +5071,7 @@ one	two	test
 10	10	NULL
 explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0') as 'test' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
@@ -4941,7 +5083,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),(`test`.`t1`.`one`,`test`.`t1`.`two`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where (`test`.`t2`.`flag` = 'N') ), <primary_index_lookup>(`test`.`t1`.`one` in <temporary table> on distinct_key where ((`test`.`t1`.`one` = `materialized subselect`.`one`) and (`test`.`t1`.`two` = `materialized subselect`.`two`)))))
 explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
@@ -5227,7 +5369,7 @@ FROM t3));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
+3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where <in_optimizer>(1,1 in ( <materialize> (/* select#2 */ select 1 from `test`.`t2` where <in_optimizer>(1,1 in ( <materialize> (/* select#3 */ select 1 from `test`.`t3` ), <primary_index_lookup>(1 in <temporary table> on distinct_key where ((1 = `materialized subselect`.`1`))))) ), <primary_index_lookup>(1 in <temporary table> on distinct_key where ((1 = `materialized subselect`.`1`)))))
 delete from t2;
@@ -5266,7 +5408,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	Using where
 3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	9	Using where
-4	SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	9	
+4	SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	9	NULL
 SELECT *
 FROM t1
 WHERE 1 IN(SELECT 1
@@ -5326,9 +5468,9 @@ explain select t2.uid from t2, t1
 where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
 and t2.uid=t1.fid;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t4	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t4	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	ref	uid	uid	5	const	1	Using where
 select t2.uid from t2, t1 
 where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
@@ -5368,7 +5510,7 @@ INSERT INTO t2 VALUES (13, 1.454);
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
 COUNT(*)
 2
@@ -5399,8 +5541,7 @@ Percentage float(3,1) NOT NULL default '0.0',
 PRIMARY KEY  (Country, Language),
 INDEX (Percentage)
 );
-EXPLAIN
-SELECT Name FROM t2 
+EXPLAIN SELECT Name FROM t2 
 WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
 AND
 t2.Code IN (SELECT Country FROM t3 
@@ -5410,6 +5551,79 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	16	Using where
 3	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,Percentage	PRIMARY	33	func,const	1	Using where
 2	SUBQUERY	t1	range	Population	Population	4	NULL	1	Using where
+EXPLAIN FORMAT=JSON SELECT Name FROM t2 
+WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
+AND
+t2.Code IN (SELECT Country FROM t3 
+WHERE Language='English' AND Percentage > 10 AND
+t2.Population > 100000);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t2",
+      "access_type": "ALL",
+      "rows": 16,
+      "filtered": 100,
+      "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on distinct_key where ((`test`.`t2`.`Code` = `materialized subselect`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(select 1 from `test`.`t3` where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`)))))",
+      "attached_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 3,
+            "table": {
+              "table_name": "t3",
+              "access_type": "unique_subquery",
+              "possible_keys": [
+                "PRIMARY",
+                "Percentage"
+              ],
+              "key": "PRIMARY",
+              "key_length": "33",
+              "ref": [
+                "func",
+                "const"
+              ],
+              "rows": 1,
+              "filtered": 100,
+              "attached_condition": "((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))"
+            }
+          }
+        },
+        {
+          "using_temporary_table": true,
+          "dependent": false,
+          "cacheable": true,
+          "table": {
+            "access_type": "eq_ref",
+            "key": "<auto_key>",
+            "rows": 1
+          },
+          "query_block": {
+            "select_id": 2,
+            "table": {
+              "table_name": "t1",
+              "access_type": "range",
+              "possible_keys": [
+                "Population"
+              ],
+              "key": "Population",
+              "key_length": "4",
+              "rows": 1,
+              "filtered": 100,
+              "attached_condition": "(`test`.`t1`.`Population` > 5000000)"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+Warnings:
+Note	1276	Field or reference 'test.t2.Population' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on distinct_key where ((`test`.`t2`.`Code` = `materialized subselect`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (
 Code char(3) NOT NULL DEFAULT '',
@@ -5467,7 +5681,7 @@ where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
 t1.b=t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	ref	a	a	5	func	1	100.00	
+2	DEPENDENT SUBQUERY	t1	ref	a	a	5	func	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
@@ -5621,7 +5835,7 @@ insert into t3 select a,a from t0;
 explain 
 select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t3));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t3	index	NULL	PRIMARY	4	NULL	10	Using index
 drop table t0, t1, t2, t3;
@@ -5875,7 +6089,7 @@ where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
 and t2.uid=t1.fid;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	11	Using where
-1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	NULL
 2	SUBQUERY	t3	ref	uid	uid	5	const	4	Using where
 2	SUBQUERY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t3.fid	1	Using index
 select name from t2, t1 
@@ -5935,7 +6149,7 @@ WHERE user_id = 'nicke'
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	7	Using where
-3	SUBQUERY	t3	system	PRIMARY	NULL	NULL	NULL	1	
+3	SUBQUERY	t3	system	PRIMARY	NULL	NULL	NULL	1	NULL
 SELECT t1.partner_id
 FROM t1
 WHERE t1.id IN (
@@ -5963,12 +6177,12 @@ EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	7	Using where
-3	SUBQUERY	t3	system	PRIMARY	NULL	NULL	NULL	1	
+3	SUBQUERY	t3	system	PRIMARY	NULL	NULL	NULL	1	NULL
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	7	Using where
-3	SUBQUERY	t3	system	PRIMARY	NULL	NULL	NULL	1	
+3	SUBQUERY	t3	system	PRIMARY	NULL	NULL	NULL	1	NULL
 PREPARE stmt FROM
 'SELECT t1.partner_id
 FROM t1
@@ -6001,7 +6215,7 @@ explain extended SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t3 LEFT JOIN t2 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#2 */ select `test`.`t3`.`i` from `test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`)) where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on distinct_key where ((`test`.`t1`.`i` = `materialized subselect`.`i`)))))
@@ -6057,7 +6271,7 @@ insert into t3 values(2),(2);
 explain select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
 a
@@ -6078,7 +6292,7 @@ WHERE t1.a IN (SELECT t2.a
 FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t2inner	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1
@@ -6185,7 +6399,7 @@ FROM t2 JOIN t3
 WHERE t2.i + t3.i = 5);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	NULL
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (Block Nested Loop)
 DROP TABLE t1,t2,t3;
 # End of the test for bug#50019.
@@ -6218,9 +6432,9 @@ explain SELECT * FROM ot1,ot4
 WHERE (ot1.a,ot4.a) IN (SELECT it2.a,it3.a
 FROM it2,it3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	PRIMARY	ot4	ALL	NULL	NULL	NULL	NULL	8	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	it2	ALL	NULL	NULL	NULL	NULL	4	
+2	SUBQUERY	it2	ALL	NULL	NULL	NULL	NULL	4	NULL
 2	SUBQUERY	it3	ALL	NULL	NULL	NULL	NULL	6	Using join buffer (Block Nested Loop)
 DROP TABLE IF EXISTS ot1, ot4, it2, it3;
 # End of the test for bug#52068.
@@ -6241,10 +6455,10 @@ LEFT JOIN
 (ot2 JOIN ot3 on ot2.a=ot3.a)
 ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	8	
+1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	8	NULL
 1	PRIMARY	ot3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	ot2	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	it1	ALL	NULL	NULL	NULL	NULL	8	
+2	SUBQUERY	it1	ALL	NULL	NULL	NULL	NULL	8	NULL
 SELECT *
 FROM   ot1
 LEFT JOIN
@@ -6299,9 +6513,9 @@ WHERE f2 IN (SELECT t1.f1
 FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	b1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	b2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	b2	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT * FROM t2
 WHERE f2 IN (SELECT t1.f1
 FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
@@ -6580,7 +6794,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	grandparent1	ALL	NULL	NULL	NULL	NULL	15	Using where
 1	PRIMARY	grandparent2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	parent1	ALL	NULL	NULL	NULL	NULL	15	Using where
-3	SUBQUERY	child1	ALL	NULL	NULL	NULL	NULL	15	
+3	SUBQUERY	child1	ALL	NULL	NULL	NULL	NULL	15	NULL
 3	SUBQUERY	child2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT grandparent1.col_varchar_nokey
 FROM t1 AS grandparent1 LEFT JOIN t2 AS grandparent2 USING (col_varchar_nokey)
@@ -6707,7 +6921,7 @@ AND grandparent1.col_varchar_key IS NOT NULL
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	grandparent1	ALL	col_varchar_key	NULL	NULL	NULL	20	Using where
-3	SUBQUERY	parent1	ALL	NULL	NULL	NULL	NULL	20	
+3	SUBQUERY	parent1	ALL	NULL	NULL	NULL	NULL	20	NULL
 3	SUBQUERY	parent2	eq_ref	PRIMARY	PRIMARY	4	test.parent1.pk	1	Using index
 SELECT *
 FROM t1
@@ -7023,8 +7237,8 @@ ot2.a IN (SELECT a FROM it2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	ot2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
-3	SUBQUERY	it2	ALL	NULL	NULL	NULL	NULL	5	
-2	SUBQUERY	it1	ALL	NULL	NULL	NULL	NULL	4	
+3	SUBQUERY	it2	ALL	NULL	NULL	NULL	NULL	5	NULL
+2	SUBQUERY	it1	ALL	NULL	NULL	NULL	NULL	4	NULL
 SELECT ot1.a, ot2.a
 FROM ot1, ot2
 WHERE ot1.a IN (SELECT a FROM it1) AND
@@ -7091,10 +7305,97 @@ ON parent1.col_int_nokey = parent2.col_int_key
 AND grandparent1.col_int_key <> 3
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	grandparent1	ALL	col_int_key	NULL	NULL	NULL	11	Using where
-3	SUBQUERY	parent1	ALL	NULL	NULL	NULL	NULL	11	
+3	SUBQUERY	parent1	ALL	NULL	NULL	NULL	NULL	11	NULL
 3	SUBQUERY	parent2	index	col_int_key	col_int_key	4	NULL	1	Using where; Using index; Using join buffer (Block Nested Loop)
+explain format=json SELECT * FROM t3
+WHERE g1 NOT IN
+(SELECT grandparent1.col_int_nokey AS g1
+FROM t1 AS grandparent1
+WHERE (grandparent1.col_int_nokey, grandparent1.col_int_key) IN
+(SELECT parent1.col_int_key AS p1,
+parent1.col_int_key AS p2
+FROM t1 AS parent1
+LEFT JOIN t2 AS parent2
+ON parent1.col_int_nokey = parent2.col_int_key
+)
+AND grandparent1.col_int_key <> 3
+);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t3",
+      "access_type": "system",
+      "rows": 1,
+      "filtered": 100
+    },
+    "optimized_away_subqueries": [
+      {
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 2,
+          "table": {
+            "table_name": "grandparent1",
+            "access_type": "ALL",
+            "possible_keys": [
+              "col_int_key"
+            ],
+            "rows": 11,
+            "filtered": 100,
+            "attached_condition": "(<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`) in ( <materialize> (select `test`.`parent1`.`col_int_key` AS `p1`,`test`.`parent1`.`col_int_key` AS `p2` from (`test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent1`.`col_int_nokey` = `test`.`parent2`.`col_int_key`))) ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on distinct_key where ((`test`.`grandparent1`.`col_int_nokey` = `materialized subselect`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized subselect`.`p2`))))) and (`test`.`grandparent1`.`col_int_key` <> 3))",
+            "attached_subqueries": [
+              {
+                "using_temporary_table": true,
+                "dependent": false,
+                "cacheable": true,
+                "table": {
+                  "access_type": "eq_ref",
+                  "key": "<auto_key>",
+                  "rows": 1
+                },
+                "query_block": {
+                  "select_id": 3,
+                  "nested_loop": [
+                    {
+                      "table": {
+                        "table_name": "parent1",
+                        "access_type": "ALL",
+                        "rows": 11,
+                        "filtered": 100
+                      }
+                    },
+                    {
+                      "table": {
+                        "table_name": "parent2",
+                        "access_type": "index",
+                        "possible_keys": [
+                          "col_int_key"
+                        ],
+                        "key": "col_int_key",
+                        "key_length": "4",
+                        "rows": 1,
+                        "filtered": 100,
+                        "using_index": true,
+                        "using_join_buffer": "Block Nested Loop",
+                        "attached_condition": "trigcond_if(is_not_null_compl(parent2), (`test`.`parent1`.`col_int_nokey` = `test`.`parent2`.`col_int_key`), true)"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select '8' AS `g1` from dual where (not(<in_optimizer>('8','8' in ( <materialize> (/* select#2 */ select `test`.`grandparent1`.`col_int_nokey` AS `g1` from `test`.`t1` `grandparent1` where (<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`) in ( <materialize> (/* select#3 */ select `test`.`parent1`.`col_int_key` AS `p1`,`test`.`parent1`.`col_int_key` AS `p2` from `test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent1`.`col_int_nokey` = `test`.`parent2`.`col_int_key`)) where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on distinct_key where ((`test`.`grandparent1`.`col_int_nokey` = `materialized subselect`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized subselect`.`p2`))))) and (`test`.`grandparent1`.`col_int_key` <> 3)) ), <primary_index_lookup>('8' in <temporary table> on distinct_key where (('8' = `materialized subselect`.`g1`)))))))
 SELECT * FROM t3
 WHERE g1 NOT IN
 (SELECT grandparent1.col_int_nokey AS g1
@@ -7139,7 +7440,7 @@ FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	2	Using where
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT alias1.col_varchar_nokey
 FROM t1 AS alias1
 INNER JOIN v_t2 AS alias2
@@ -7193,8 +7494,8 @@ FROM t1
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1a	ALL	NULL	NULL	NULL	NULL	4	Using where
 1	PRIMARY	t1b	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
 SELECT t1a.*
 FROM t1 AS t1a
 JOIN t1 AS t1b USING ( col_int_nokey )
@@ -7310,7 +7611,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	grandparent1	ALL	col_int_key	NULL	NULL	NULL	3	Using where
 1	PRIMARY	grandparent2	index	col_int_key	col_int_key	5	NULL	3	Using where; Using index; Using join buffer (Block Nested Loop)
 2	SUBQUERY	parent1	ALL	NULL	NULL	NULL	NULL	8	Using where
-3	SUBQUERY	child1	ALL	NULL	NULL	NULL	NULL	8	
+3	SUBQUERY	child1	ALL	NULL	NULL	NULL	NULL	8	NULL
 3	SUBQUERY	child2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT grandparent1.col_varchar_nokey
 FROM t1 AS grandparent1 JOIN t1 AS grandparent2 USING (col_int_key)
@@ -7363,7 +7664,7 @@ t1 AS SQ2_alias1, t1 AS SQ2_alias2
 )
 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	4	NULL
 1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	SQ2_alias1	index	NULL	col_varchar_key	9	NULL	4	Using index
 2	SUBQUERY	SQ2_alias2	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (Block Nested Loop)
@@ -7431,7 +7732,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot1	index	NULL	col_varchar_key	7	NULL	20	Using index
 1	PRIMARY	ot2	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	it1	index	PRIMARY	col_varchar_key	7	NULL	20	Using index
-2	SUBQUERY	it2	ref	col_int_key	col_int_key	4	test.it1.pk	1	
+2	SUBQUERY	it2	ref	col_int_key	col_int_key	4	test.it1.pk	1	NULL
 SELECT ot1.col_int_key AS field1
 FROM t2 AS ot1, t2 AS ot2
 WHERE (ot1.col_varchar_key, ot2.col_varchar_nokey) IN (
@@ -7606,11 +7907,11 @@ FROM t2 LEFT JOIN t3 USING (col_varchar_key) )
 )
 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	GP2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	GP2	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	GP1	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-3	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
-3	SUBQUERY	t3	system	col_varchar_key	NULL	NULL	NULL	1	
+3	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+3	SUBQUERY	t3	system	col_varchar_key	NULL	NULL	NULL	1	NULL
 SELECT GP1.id
 FROM t1 AS GP1 JOIN t3 AS GP2
 ON GP2.col_varchar_key <> GP1.col_varchar_nokey
@@ -7663,7 +7964,7 @@ FROM t2 AS child1 JOIN t1 AS child2 USING (int_key)
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	outr	ALL	NULL	NULL	NULL	NULL	20	Using where
 2	SUBQUERY	middle	ALL	NULL	NULL	NULL	NULL	20	Using where
-3	SUBQUERY	child1	system	int_key	NULL	NULL	NULL	1	
+3	SUBQUERY	child1	system	int_key	NULL	NULL	NULL	1	NULL
 3	SUBQUERY	child2	ref	int_key	int_key	5	const	3	Using index
 SELECT vc_key
 FROM t1 as outr

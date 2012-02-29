@@ -229,6 +229,7 @@ static SYMBOL symbols[] = {
   { "FOR",		SYM(FOR_SYM)},
   { "FORCE",		SYM(FORCE_SYM)},
   { "FOREIGN",		SYM(FOREIGN)},
+  { "FORMAT",		SYM(FORMAT_SYM)},
   { "FOUND",            SYM(FOUND_SYM)},
   { "FROM",		SYM(FROM)},
   { "FULL",		SYM(FULL)},
