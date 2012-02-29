@@ -18,12 +18,29 @@
 
 #define PROBES_MYSQL_H
 
-#include <my_global.h>
 
 #if defined(HAVE_DTRACE) && !defined(DISABLE_DTRACE)
-#include "probes_mysql_dtrace.h"
-#else
-#include "probes_mysql_nodtrace.h"
+
+#ifdef __linux__
+/* 
+  On Linux, generated probes header may include C++ header
+  <limits> which conflicts with min and max macros from my_global.h .
+  To fix, temporarily undefine the macros.
+*/
+#pragma push_macro("min")
+#pragma push_macro("max")
+#undef min
+#undef max
 #endif
 
+#include "probes_mysql_dtrace.h"
+
+#ifdef __linux__
+#pragma pop_macro("min")
+#pragma pop_macro("max")
+#endif
+
+#else  /* no dtrace */
+#include "probes_mysql_nodtrace.h"
+#endif
 #endif /* PROBES_MYSQL_H */
