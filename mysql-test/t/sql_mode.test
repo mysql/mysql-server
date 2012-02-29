@@ -410,54 +410,6 @@ SET @to_var7='wxyz\\ef';
 SET @to_var8='wxyz\%ef';
 SET @to_var9='wxyz\_ef';
 
---echo # USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
-CREATE USER 'user\'s_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\'s_12601974'@'localhost';
-DROP USER 'user\'s_12601974'@'localhost';
-
-CREATE USER 'user\"s_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\"s_12601974'@'localhost';
-DROP USER 'user\"s_12601974'@'localhost';
-
-CREATE USER 'user\bs_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\bs_12601974'@'localhost';
-DROP USER 'user\bs_12601974'@'localhost';
-
-CREATE USER 'user\ns_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\ns_12601974'@'localhost';
-DROP USER 'user\ns_12601974'@'localhost';
-
-CREATE USER 'user\rs_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\rs_12601974'@'localhost';
-DROP USER 'user\rs_12601974'@'localhost';
-
-CREATE USER 'user\ts_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\ts_12601974'@'localhost';
-DROP USER 'user\ts_12601974'@'localhost';
-
-CREATE USER 'user\\s_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\\s_12601974'@'localhost';
-DROP USER 'user\\s_12601974'@'localhost';
-
-CREATE USER 'user\%s_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\%s_12601974'@'localhost';
-DROP USER 'user\%s_12601974'@'localhost';
-
-CREATE USER 'user\_s_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\_s_12601974'@'localhost';
-DROP USER 'user\_s_12601974'@'localhost';
---echo 
---echo # END OF CASE - USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
-
 --echo # STRING LILTERAL WITH BACKSLASH IN PREPARE STATEMENT
 EXECUTE insert_stmt USING @var1;
 EXECUTE insert_stmt USING @var2;
@@ -512,49 +464,6 @@ BEGIN
 END
 $
 DELIMITER ;$
-
---echo # USER NAME CONTAINING BACKSLASH IN DROP USER OPERATION
-CREATE USER 'user\"s_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\"s_12601974'@'localhost';
-DROP USER 'user\"s_12601974'@'localhost';
-
-CREATE USER 'user\bs_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\bs_12601974'@'localhost';
-DROP USER 'user\bs_12601974'@'localhost';
-
-CREATE USER 'user\ns_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\ns_12601974'@'localhost';
-DROP USER 'user\ns_12601974'@'localhost';
-
-CREATE USER 'user\rs_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\rs_12601974'@'localhost';
-DROP USER 'user\rs_12601974'@'localhost';
-
-CREATE USER 'user\ts_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\ts_12601974'@'localhost';
-DROP USER 'user\ts_12601974'@'localhost';
-
-CREATE USER 'user\\s_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\\s_12601974'@'localhost';
-DROP USER 'user\\s_12601974'@'localhost';
-
-CREATE USER 'user\%s_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\%s_12601974'@'localhost';
-DROP USER 'user\%s_12601974'@'localhost';
-
-CREATE USER 'user\_s_12601974'@'localhost';
---error ER_CANNOT_USER
-CREATE USER 'user\_s_12601974'@'localhost';
-DROP USER 'user\_s_12601974'@'localhost';
---echo 
---echo # END OF CASE - USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
 
 --echo # STRING LILTERAL WITH BACKSLASH IN PREPARE STATEMENT
 EXECUTE insert_stmt USING @var1;

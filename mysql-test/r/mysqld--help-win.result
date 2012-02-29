@@ -1116,7 +1116,7 @@ relay-log-space-limit 0
 replicate-same-server-id FALSE
 report-host (No default value)
 report-password (No default value)
-report-port 0 
+report-port 0
 report-user (No default value)
 safe-user-create FALSE
 secure-auth TRUE
