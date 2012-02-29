@@ -14,13 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE                             /* For strndup() */
-#endif
+#define _GNU_SOURCE 1 /* for strndup */
 
 #include <mysql/plugin_auth.h>
 #include <string.h>
-#include <my_config.h>
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 
@@ -123,8 +120,7 @@ static int pam_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
   const char *new_username;
   struct param param;
   /* The following is written in such a way to make also solaris happy */
-  struct pam_conv pam_start_arg = { &conv, NULL };
-  pam_start_arg.appdata_ptr= (char*) &param;
+  struct pam_conv pam_start_arg = { &conv, (char*) &param };
 
   /*
     get the service name, as specified in
