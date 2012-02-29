@@ -6989,7 +6989,7 @@ SHOW_VAR status_vars[]= {
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
 #ifdef HAVE_MMAP
   {"Tc_log_max_pages_used",    (char*) &tc_log_max_pages_used,  SHOW_LONG},
-  {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG},
+  {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG_NOFLUSH},
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
 #endif
 #ifdef HAVE_POOL_OF_THREADS
