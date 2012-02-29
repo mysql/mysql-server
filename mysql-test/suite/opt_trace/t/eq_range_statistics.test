@@ -89,6 +89,14 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4);
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
+# Turn index statistics off
+SET eq_range_index_dive_limit=0;
+
+--echo
+--echo # 1 equality range: should not use index statistics
+EXPLAIN SELECT * FROM t1 WHERE a=5;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
 DROP TABLE t1;
 
 SET eq_range_index_dive_limit=default;

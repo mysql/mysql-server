@@ -161,7 +161,7 @@ The following options may be given as the first argument:
  The optimizer will use existing index statistics instead
  of doing index dives for equality ranges if the number of
  equality ranges for the index is larger than or equal to
- this number.
+ this number. If set to 0, index dives are always used.
  --event-scheduler[=name] 
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
