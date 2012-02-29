@@ -37,7 +37,7 @@ SET DEBUG_SYNC='innodb_row_update_for_mysql_begin
 SET DEBUG_SYNC='innodb_dml_cascade_dict_unfreeze SIGNAL dict_unfreeze
                             WAIT_FOR  foreign_free_cache';
 update ignore t1 set f1 = 20;
-ERROR HY000: Error on rename of './test/t2' to '#sql2-temporary' (errno: 183 - Table is being used in foreign key check)
+ERROR HY000: Error on rename of './test/t2' to '#sql2-temporary' (errno: 181 - Table is being used in foreign key check)
 SET DEBUG_SYNC='now SIGNAL foreign_free_cache';
 drop table t2;
 drop table t1;

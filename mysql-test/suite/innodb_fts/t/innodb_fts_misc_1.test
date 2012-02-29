@@ -48,12 +48,12 @@ INSERT INTO t2 (a2,b2) VALUES
         ('MySQL Security','When configured properly, MySQL ...');
 
 # error on violating fk constraint
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 INSERT INTO t2 (a2,b2) VALUES
         ('MySQL Tricks','1. Never run mysqld as root. 2. ...');
 
 # error on delete from parent table
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 DELETE FROM t1;
 
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ;
@@ -155,7 +155,7 @@ update t1 set s1 = 3 where s1=1;
 select * from t2 where match(s2) against ('sunshine');
 
 # FTS Doc ID cannot be reused
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 update t1 set s1 = 1 where s1=3;
 
 DROP TABLE t2 , t1;
@@ -261,12 +261,12 @@ INSERT INTO t2 (a2,b2) VALUES
         ('MySQL Security','When configured properly, MySQL ...');
 
 # error on violating fk constraint
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 INSERT INTO t2 (a2,b2) VALUES
         ('MySQL Tricks','1. Never run mysqld as root. 2. ...');
 
 # error on DELETE FROM parent table
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 DELETE FROM t1;
 
 # records expected
@@ -724,7 +724,7 @@ CREATE TABLE t1(`FTS_DOC_ID` serial,
 INSERT INTO t1 VALUES (1, 'AAA', 'BBB');
 
 # Doc ID must be updated as well (HA_FTS_INVALID_DOCID).
---error 182
+--error 183
 UPDATE t1 SET fts_field='anychange' where FTS_DOC_ID = 1;
 
 UPDATE t1 SET fts_field='anychange', FTS_DOC_ID = 2 where FTS_DOC_ID = 1;
@@ -739,13 +739,13 @@ UPDATE t1 SET no_fts_field='anychange' where FTS_DOC_ID = 2;
 SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
 
 # "HA_FTS_INVALID_DOCID"
---error 182
+--error 183
 UPDATE t1 SET no_fts_field='anychange', fts_field='other' where FTS_DOC_ID = 2;
 
 SELECT * FROM t1 WHERE MATCH(fts_field) against("other");
 
 # Doc ID must be monotonically increase (HA_FTS_INVALID_DOCID)
---error 182
+--error 183
 UPDATE t1 SET  FTS_DOC_ID = 1 where FTS_DOC_ID = 2;
 
 DROP INDEX f ON t1;

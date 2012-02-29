@@ -161,11 +161,11 @@ CREATE FULLTEXT INDEX idx on articles (title);
 INSERT INTO articles  VALUES (9, 'MySQL Tutorial','DBMS stands for DataBase ...');
 
 # This should fail since we did not supply a new Doc ID
--- error 182
+-- error 183
 UPDATE articles set title = 'bbbb'  WHERE MATCH(title) AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
 
 # This should fail, since the Doc ID supplied is less than the old value 9
--- error 182
+-- error 183
 UPDATE articles set title = 'bbbb', FTS_DOC_ID=8  WHERE MATCH(title) AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
 
 # This should be successful

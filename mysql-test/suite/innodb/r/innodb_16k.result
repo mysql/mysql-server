@@ -607,7 +607,7 @@ UPDATE bug12547647 SET c = REPEAT('b',16928);
 ERROR HY000: Undo log record is too big.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1743	Undo log record is too big.
+Error	1713	Undo log record is too big.
 DROP TABLE bug12547647;
 SET SESSION innodb_strict_mode = off;
 CREATE TABLE t1(
