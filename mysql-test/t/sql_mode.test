@@ -344,3 +344,157 @@ SELECT * FROM mysql.columns_priv WHERE Host = 'localhost' AND User LIKE 'user_%P
 # Cleanup
 DROP TABLE t1;
 DROP TABLE t2;
+
+
+--echo 
+--echo #
+--echo # Test for Bug#12601974 - STORED PROCEDURE SQL_MODE=NO_BACKSLASH_ESCAPES
+--echo # IGNORED AND BREAKS REPLICATION
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS test_table;
+DROP FUNCTION IF EXISTS test_function;
+--enable_warnings
+
+CREATE TABLE test_table (c1 CHAR(50));
+
+SET @org_mode=@@sql_mode;
+
+SET @@sql_mode='';
+
+PREPARE insert_stmt FROM 'INSERT INTO test_table VALUES (?)';
+PREPARE update_stmt FROM 'UPDATE test_table SET c1= ? WHERE c1= ?';
+DELIMITER $;
+CREATE FUNCTION test_function(var CHAR(50)) RETURNS CHAR(50)
+BEGIN
+  DECLARE char_val CHAR(50);
+  SELECT c1 INTO char_val FROM test_table WHERE c1=var;
+  RETURN char_val;
+END
+$
+DELIMITER ;$
+
+SET @var1='abcd\'ef';
+SET @var2='abcd\"ef';
+SET @var3='abcd\bef';
+SET @var4='abcd\nef';
+SET @var5='abcd\ref';
+SET @var6='abcd\tef';
+SET @var7='abcd\\ef';
+SET @var8='abcd\%ef';
+SET @var9='abcd\_ef';
+
+SET @to_var1='wxyz\'ef';
+SET @to_var2='wxyz\"ef';
+SET @to_var3='wxyz\bef';
+SET @to_var4='wxyz\nef';
+SET @to_var5='wxyz\ref';
+SET @to_var6='wxyz\tef';
+SET @to_var7='wxyz\\ef';
+SET @to_var8='wxyz\%ef';
+SET @to_var9='wxyz\_ef';
+
+--echo # STRING LILTERAL WITH BACKSLASH IN PREPARE STATEMENT
+EXECUTE insert_stmt USING @var1;
+EXECUTE insert_stmt USING @var2;
+EXECUTE insert_stmt USING @var3;
+EXECUTE insert_stmt USING @var4;
+EXECUTE insert_stmt USING @var5;
+EXECUTE insert_stmt USING @var6;
+EXECUTE insert_stmt USING @var7;
+EXECUTE insert_stmt USING @var8;
+EXECUTE insert_stmt USING @var9;
+
+SELECT * FROM test_table;
+
+EXECUTE update_stmt USING @to_var1, @var1;
+EXECUTE update_stmt USING @to_var2, @var2;
+EXECUTE update_stmt USING @to_var3, @var3;
+EXECUTE update_stmt USING @to_var4, @var4;
+EXECUTE update_stmt USING @to_var5, @var5;
+EXECUTE update_stmt USING @to_var6, @var6;
+EXECUTE update_stmt USING @to_var7, @var7;
+EXECUTE update_stmt USING @to_var8, @var8;
+EXECUTE update_stmt USING @to_var9, @var9;
+
+SELECT * FROM test_table;
+
+--echo 
+--echo # END OF CASE - STRING LILTERAL WITH BACKSLASH IN PREPARE STATEMENT
+
+--echo # STRING LILTERAL WITH BACKSLASH IN FUNCTION RETURNING STRING
+select test_function(@to_var1);
+SELECT test_function(@to_var2);
+SELECT test_function(@to_var3);
+SELECT test_function(@to_var4);
+SELECT test_function(@to_var5);
+SELECT test_function(@to_var6);
+SELECT test_function(@to_var7);
+SELECT test_function(@to_var8);
+SELECT test_function(@to_var9);
+
+--echo 
+--echo # END OF CASE - STRING LILTERAL WITH BACKSLASH IN FUNCTION RETURNING STRING
+DELETE FROM test_table;
+DROP FUNCTION test_function;
+
+SET @@sql_mode='NO_BACKSLASH_ESCAPES';
+DELIMITER $;
+CREATE FUNCTION test_function(var CHAR(50)) RETURNS CHAR(50)
+BEGIN
+  DECLARE char_val CHAR(50);
+  SELECT c1 INTO char_val FROM test_table WHERE c1=var;
+  RETURN char_val;
+END
+$
+DELIMITER ;$
+
+--echo # STRING LILTERAL WITH BACKSLASH IN PREPARE STATEMENT
+EXECUTE insert_stmt USING @var1;
+EXECUTE insert_stmt USING @var2;
+EXECUTE insert_stmt USING @var3;
+EXECUTE insert_stmt USING @var4;
+EXECUTE insert_stmt USING @var5;
+EXECUTE insert_stmt USING @var6;
+EXECUTE insert_stmt USING @var7;
+EXECUTE insert_stmt USING @var8;
+EXECUTE insert_stmt USING @var9;
+
+SELECT * FROM test_table;
+
+EXECUTE update_stmt USING @to_var1, @var1;
+EXECUTE update_stmt USING @to_var2, @var2;
+EXECUTE update_stmt USING @to_var3, @var3;
+EXECUTE update_stmt USING @to_var4, @var4;
+EXECUTE update_stmt USING @to_var5, @var5;
+EXECUTE update_stmt USING @to_var6, @var6;
+EXECUTE update_stmt USING @to_var7, @var7;
+EXECUTE update_stmt USING @to_var8, @var8;
+EXECUTE update_stmt USING @to_var9, @var9;
+
+SELECT * FROM test_table;
+
+--echo 
+--echo # END OF CASE - STRING LILTERAL WITH BACKSLASH IN PREPARE STATEMENT
+
+--echo # STRING LILTERAL WITH BACKSLASH IN FUNCTION RETURNING STRING
+select test_function(@to_var1);
+SELECT test_function(@to_var2);
+SELECT test_function(@to_var3);
+SELECT test_function(@to_var4);
+SELECT test_function(@to_var5);
+SELECT test_function(@to_var6);
+SELECT test_function(@to_var7);
+SELECT test_function(@to_var8);
+SELECT test_function(@to_var9);
+
+--echo 
+--echo # END OF CASE - STRING LILTERAL WITH BACKSLASH IN FUNCTION RETURNING STRING
+
+DROP TABLE test_table;
+DROP FUNCTION test_function;
+SET @@sql_mode= @org_mode;
+
+--echo 
+--echo #End of Test for Bug#12601974 
