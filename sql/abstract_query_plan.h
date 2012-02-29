@@ -90,11 +90,6 @@ namespace AQP
     const uint m_access_count;
     Table_access* m_table_accesses;
 
-    mutable bool m_group_by_filesort_is_skippable;
-    mutable bool m_order_by_filesort_is_skippable;
-
-    void find_skippabable_group_or_order() const;
-
     const JOIN_TAB* get_join_tab(uint join_tab_no) const;
 
     // No copying.
