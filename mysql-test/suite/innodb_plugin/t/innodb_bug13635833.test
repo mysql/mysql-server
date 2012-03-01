@@ -1,6 +1,8 @@
 --source include/have_innodb_plugin.inc
 --source include/have_debug_sync.inc
 --source include/not_embedded.inc
+# InnoDB Plugin cannot use DEBUG_SYNC on Windows
+--source include/not_windows.inc
 
 SET DEBUG_SYNC='reset';
 
