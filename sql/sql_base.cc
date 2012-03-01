@@ -4678,6 +4678,7 @@ lock_table_names(THD *thd,
   TABLE_LIST *table;
   MDL_request global_request;
   Hash_set<TABLE_LIST, schema_set_get_key> schema_set;
+  DBUG_ENTER("lock_table_names");
 
   DBUG_ASSERT(!thd->locked_tables_mode);
 
@@ -4693,7 +4694,7 @@ lock_table_names(THD *thd,
     {
       if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
           schema_set.insert(table))
-        return TRUE;
+        DBUG_RETURN(TRUE);
       mdl_requests.push_front(&table->mdl_request);
     }
   }
@@ -4710,7 +4711,7 @@ lock_table_names(THD *thd,
     {
       MDL_request *schema_request= new (thd->mem_root) MDL_request;
       if (schema_request == NULL)
-        return TRUE;
+        DBUG_RETURN(TRUE);
       schema_request->init(MDL_key::SCHEMA, table->db, "",
                            MDL_INTENTION_EXCLUSIVE,
                            MDL_TRANSACTION);
@@ -4723,16 +4724,16 @@ lock_table_names(THD *thd,
       duration.
     */
     if (thd->global_read_lock.can_acquire_protection())
-      return TRUE;
+      DBUG_RETURN(TRUE);
     global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
                         MDL_STATEMENT);
     mdl_requests.push_front(&global_request);
   }
 
   if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 

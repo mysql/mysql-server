@@ -1,0 +1,12 @@
+SET GLOBAL innodb_lock_wait_timeout=3;
+CREATE TABLE t1 (col_int_key INT, KEY (col_int_key)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (6);
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+SET AUTOCOMMIT=OFF;
+SELECT col_int_key FROM t1;
+col_int_key
+6
+DELETE IGNORE FROM t1;;
+DELETE FROM t1 WHERE col_int_key IN (1, 40000000);
+drop table t1;
+SET GLOBAL innodb_lock_wait_timeout=default;

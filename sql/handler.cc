@@ -2970,6 +2970,8 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_LOCK_DEADLOCK:
     textno=ER_LOCK_DEADLOCK;
+    /* cannot continue. the statement was already aborted in the engine */
+    SET_FATAL_ERROR;
     break;
   case HA_ERR_READ_ONLY_TRANSACTION:
     textno=ER_READ_ONLY_TRANSACTION;

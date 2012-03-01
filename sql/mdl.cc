@@ -1145,6 +1145,7 @@ MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
   const char *old_msg;
   enum_wait_status result;
   int wait_result= 0;
+  DBUG_ENTER("MDL_wait::timed_wait");
 
   mysql_mutex_lock(&m_LOCK_wait_status);
 
@@ -1183,7 +1184,7 @@ MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
 
   thd_exit_cond(thd, old_msg);
 
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -1937,11 +1938,13 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
   MDL_ticket *ticket;
   struct timespec abs_timeout;
   MDL_wait::enum_wait_status wait_status;
+  DBUG_ENTER("MDL_context::acquire_lock");
+
   /* Do some work outside the critical section. */
   set_timespec(abs_timeout, lock_wait_timeout);
 
   if (try_acquire_lock_impl(mdl_request, &ticket))
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
   if (mdl_request->ticket)
   {
@@ -1950,7 +1953,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       MDL_lock, MDL_context and MDL_request were updated
       accordingly, so we can simply return success.
     */
-    return FALSE;
+    DBUG_RETURN(FALSE);
   }
 
   /*
@@ -2031,7 +2034,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       DBUG_ASSERT(0);
       break;
     }
-    return TRUE;
+    DBUG_RETURN(TRUE);
   }
 
   /*
@@ -2046,7 +2049,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 
   mdl_request->ticket= ticket;
 
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -2085,15 +2088,16 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
   MDL_request **sort_buf, **p_req;
   MDL_savepoint mdl_svp= mdl_savepoint();
   ssize_t req_count= static_cast<ssize_t>(mdl_requests->elements());
+  DBUG_ENTER("MDL_context::acquire_locks");
 
   if (req_count == 0)
-    return FALSE;
+    DBUG_RETURN(FALSE);
 
   /* Sort requests according to MDL_key. */
   if (! (sort_buf= (MDL_request **)my_malloc(req_count *
                                              sizeof(MDL_request*),
                                              MYF(MY_WME))))
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
   for (p_req= sort_buf; p_req < sort_buf + req_count; p_req++)
     *p_req= it++;
@@ -2107,7 +2111,7 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
       goto err;
   }
   my_free(sort_buf);
-  return FALSE;
+  DBUG_RETURN(FALSE);
 
 err:
   /*
@@ -2123,7 +2127,7 @@ err:
     (*p_req)->ticket= NULL;
   }
   my_free(sort_buf);
-  return TRUE;
+  DBUG_RETURN(TRUE);
 }
 
 
