@@ -24,6 +24,8 @@ Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
 #include "dict0dict.h"
+#include "m_string.h"
+#include "my_sys.h"
 
 #ifdef UNIV_NONINL
 #include "dict0dict.ic"
@@ -2272,6 +2274,8 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
+	ut_a(foreign->foreign_table->n_foreign_key_checks_running == 0);
+
 	mem_heap_free(foreign->heap);
 }
 

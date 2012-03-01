@@ -746,6 +746,10 @@ convert_error_code_to_mysql(
 
 		return(HA_ERR_RECORD_FILE_FULL);
 
+	} else if (error == (int) DB_TABLE_IN_FK_CHECK) {
+
+		return(HA_ERR_TABLE_IN_FK_CHECK);
+
 	} else if (error == (int) DB_TABLE_IS_BEING_USED) {
 
 		return(HA_ERR_WRONG_COMMAND);
