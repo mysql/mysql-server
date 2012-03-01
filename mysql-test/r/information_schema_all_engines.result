@@ -15,6 +15,7 @@ GLOBAL_VARIABLES
 INDEX_STATISTICS
 INNODB_CMPMEM
 INNODB_LOCKS
+INNODB_SYS_INDEXES
 INNODB_TRX
 KEY_CACHES
 KEY_COLUMN_USAGE
@@ -69,6 +70,7 @@ GLOBAL_VARIABLES	VARIABLE_NAME
 INDEX_STATISTICS	TABLE_SCHEMA
 INNODB_CMPMEM	page_size
 INNODB_LOCKS	lock_id
+INNODB_SYS_INDEXES	INDEX_ID
 INNODB_TRX	trx_id
 KEY_CACHES	KEY_CACHE_NAME
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
@@ -123,6 +125,7 @@ GLOBAL_VARIABLES	VARIABLE_NAME
 INDEX_STATISTICS	TABLE_SCHEMA
 INNODB_CMPMEM	page_size
 INNODB_LOCKS	lock_id
+INNODB_SYS_INDEXES	INDEX_ID
 INNODB_TRX	trx_id
 KEY_CACHES	KEY_CACHE_NAME
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
@@ -183,6 +186,7 @@ GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
 INDEX_STATISTICS	information_schema.INDEX_STATISTICS	1
 INNODB_CMPMEM	information_schema.INNODB_CMPMEM	1
 INNODB_LOCKS	information_schema.INNODB_LOCKS	1
+INNODB_SYS_INDEXES	information_schema.INNODB_SYS_INDEXES	1
 INNODB_TRX	information_schema.INNODB_TRX	1
 KEY_CACHES	information_schema.KEY_CACHES	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
@@ -226,6 +230,7 @@ Database: information_schema
 | INDEX_STATISTICS                      |
 | INNODB_CMPMEM                         |
 | INNODB_LOCKS                          |
+| INNODB_SYS_INDEXES                    |
 | INNODB_TRX                            |
 | KEY_CACHES                            |
 | KEY_COLUMN_USAGE                      |
@@ -270,6 +275,7 @@ Database: INFORMATION_SCHEMA
 | INDEX_STATISTICS                      |
 | INNODB_CMPMEM                         |
 | INNODB_LOCKS                          |
+| INNODB_SYS_INDEXES                    |
 | INNODB_TRX                            |
 | KEY_CACHES                            |
 | KEY_COLUMN_USAGE                      |
@@ -303,5 +309,5 @@ Wildcard: inf_rmation_schema
 | information_schema |
 SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	39
+information_schema	40
 mysql	23

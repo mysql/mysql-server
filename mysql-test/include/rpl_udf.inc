@@ -9,6 +9,7 @@
 #####################################################################
 
 --source include/have_udf.inc
+--source include/master-slave.inc
 
 #
 # To run this tests the "sql/udf_example.c" need to be compiled into

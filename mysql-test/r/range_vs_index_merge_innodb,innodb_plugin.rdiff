@@ -1,5 +1,5 @@
---- r/range_vs_index_merge_innodb.result	2011-11-23 22:19:38.000000000 +0100
-+++ r/range_vs_index_merge_innodb.reject	2012-02-08 13:04:41.000000000 +0100
+--- r/range_vs_index_merge_innodb.result	2012-02-23 15:57:49.000000000 +0100
++++ r/range_vs_index_merge_innodb,innodb_plugin.reject	2012-02-23 19:46:02.000000000 +0100
 @@ -50,14 +50,14 @@
  WHERE (Population >= 100000 OR Name LIKE 'P%') AND Country='CAN' OR
  (Population < 100000 OR Name Like 'T%') AND Country='ARG';
@@ -87,22 +87,7 @@
  EXPLAIN
  SELECT  * FROM City
  WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
-@@ -328,34 +328,34 @@
- EXPLAIN
- SELECT * FROM City WHERE (ID < 10) OR (ID BETWEEN 100 AND 110);
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	20	Using index condition; Using where
-+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	20	Using where
- EXPLAIN
- SELECT * FROM City WHERE (ID < 200) OR (ID BETWEEN 100 AND 200);
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	200	Using index condition; Using where
-+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	200	Using where
- EXPLAIN
- SELECT * FROM City WHERE (ID < 600) OR (ID BETWEEN 900 AND 1500);
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	1198	Using index condition; Using where
-+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	1198	Using where
+@@ -340,15 +340,15 @@
  EXPLAIN
  SELECT * FROM City WHERE Country > 'A' AND Country < 'ARG';
  id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -121,24 +106,7 @@
  EXPLAIN
  SELECT * FROM City
  WHERE ((ID < 10) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
- OR ((ID BETWEEN 100 AND 110) AND 
- (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	20	Using index condition; Using where
-+1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	20	Using where
- EXPLAIN
- SELECT * FROM City
- WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
-@@ -369,7 +369,7 @@
- OR ((ID BETWEEN 100 AND 200) AND 
- (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	200	Using index condition; Using where
-+1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	200	Using where
- SELECT * FROM City USE INDEX ()
- WHERE ((ID < 10) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
- OR ((ID BETWEEN 100 AND 110) AND 
-@@ -577,39 +577,39 @@
+@@ -577,27 +577,27 @@
  EXPLAIN 
  SELECT * FROM City WHERE Population > 101000 AND Population < 102000;
  id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -172,13 +140,7 @@
  EXPLAIN 
  SELECT * FROM City WHERE ID BETWEEN 3400 AND 3800;
  id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	400	Using index condition
-+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	400	Using where
- EXPLAIN 
- SELECT * FROM City WHERE ID BETWEEN 3790 AND 3800;
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
-+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using where
+@@ -609,7 +609,7 @@
  EXPLAIN 
  SELECT * FROM City WHERE Name LIKE 'P%';
  id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -225,7 +187,7 @@
  SELECT * FROM City 
  WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
  AND Country='USA';
-@@ -753,51 +753,51 @@
+@@ -753,15 +753,15 @@
  EXPLAIN
  SELECT * FROM City WHERE Country='USA';
  id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -244,33 +206,7 @@
  EXPLAIN
  SELECT * FROM City WHERE ID BETWEEN 3790 AND 3800;
  id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
-+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using where
- EXPLAIN
- SELECT * FROM City WHERE ID BETWEEN 4025 AND 4035;
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
-+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using where
- EXPLAIN
- SELECT * FROM City WHERE ID BETWEEN 4028 AND 4032;
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	5	Using index condition
-+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	5	Using where
- EXPLAIN
- SELECT * FROM City WHERE ID BETWEEN 3500 AND 3800;
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	300	Using index condition
-+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	300	Using where
- EXPLAIN
- SELECT * FROM City WHERE ID BETWEEN 4000 AND 4300;
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	80	Using index condition
-+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	80	Using where
- EXPLAIN
- SELECT * FROM City WHERE ID BETWEEN 250 and 260 ;
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
-+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using where
+@@ -789,15 +789,15 @@
  EXPLAIN
  SELECT * FROM City WHERE (Population > 101000 AND Population < 102000);
  id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -315,12 +251,3 @@
  SELECT * FROM City USE INDEX ()
  WHERE ((Population > 101000 AND Population < 11000) OR
  ID BETWEEN 3500 AND 3800) AND Country='USA'
-@@ -1422,7 +1422,7 @@
- WHERE t1.a>300 AND t1.c!=0 AND t1.b>=350 AND t1.b<=400 AND
- (t1.c=0 OR t1.a=500);
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	t1	range	PRIMARY,idx	PRIMARY	4	NULL	1	Using index condition; Using where
-+1	SIMPLE	t1	range	PRIMARY,idx	PRIMARY	4	NULL	1	Using where
- SELECT * FROM t1
- WHERE t1.a>300 AND t1.c!=0 AND t1.b>=350 AND t1.b<=400 AND
- (t1.c=0 OR t1.a=500);

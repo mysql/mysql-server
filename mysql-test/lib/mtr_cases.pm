@@ -333,7 +333,7 @@ sub collect_one_suite
     }
     else
     {
-      @overlays = my_find_dir($::basedir,
+      @overlays = my_find_dir(dirname($::glob_mysql_test_dir),
                               ["mysql-test/suite",
                                "storage/*/mysql-test",
                                "plugin/*/mysql-test"],
@@ -354,7 +354,7 @@ sub collect_one_suite
       $suitedir = shift @overlays;
     }
   } else {
-    @overlays = my_find_dir($::basedir,
+    @overlays = my_find_dir(dirname($::glob_mysql_test_dir),
                             ["storage/*/mysql-test",
                              "plugin/*/mysql-test"],
                             ['main'], NOT_REQUIRED);

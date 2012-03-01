@@ -20,6 +20,8 @@ user_var-binlog: PBXT requires format=row
 
 mysqlbinlog_row: test expects a non-transactional engine
 
+pool_of_threads: unstable
+
 merge_recover: meaningless in overlay
 merge_debug: meaningless in overlay
 myisam: meaningless in overlay

@@ -1,6 +1,6 @@
 # Test for InnoDB sync state flushing.
 
---source include/have_innodb.inc
+--source include/have_xtradb.inc
 --source include/have_debug.inc
 
 --disable_warnings
