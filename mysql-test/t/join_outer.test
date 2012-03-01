@@ -1486,4 +1486,65 @@ SET SESSION join_cache_level=default;
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # LP bug #943543: LEFT JOIN converted to JOIN with 
+--echo #                 ORed IS NULL(primary key) in WHERE clause                
+--echo #
+
+CREATE TABLE t1 (
+  a int, b int NOT NULL, pk int NOT NULL,
+  PRIMARY KEY (pk), INDEX idx(b)
+);
+INSERT INTO t1 VALUES
+  (NULL,1,1), (6,2,2), (5,3,3), (NULL,4,4),
+  (1,9,6), (8,5,7), (NULL,8,8), (8,1,5);
+
+CREATE TABLE t2 (pk int PRIMARY KEY);
+INSERT INTO t2 VALUES (3), (8), (5);
+
+EXPLAIN EXTENDED
+SELECT t1.pk FROM t2 JOIN t1 ON t2.pk = t1.a
+ WHERE t1.b BETWEEN 5 AND 6 AND t1.pk IS NULL OR t1.pk = 5
+ORDER BY t1.pk;
+SELECT t1.pk FROM t2 JOIN t1 ON t2.pk = t1.a
+ WHERE t1.b BETWEEN 5 AND 6 AND t1.pk IS NULL OR t1.pk = 5
+ORDER BY t1.pk;
+
+EXPLAIN EXTENDED
+SELECT t1.pk FROM t2 LEFT JOIN t1 ON t2.pk = t1.a
+ WHERE t1.b BETWEEN 5 AND 6 AND t1.pk IS NULL OR t1.pk = 5
+ORDER BY t1.pk;
+SELECT t1.pk FROM t2 LEFT JOIN t1 ON t2.pk = t1.a
+ WHERE t1.b BETWEEN 5 AND 6 AND t1.pk IS NULL OR t1.pk = 5
+ORDER BY t1.pk;
+
+DROP TABLE t2;
+
+CREATE TABLE t2 (c int, d int, KEY (c));
+INSERT INTO t2 VALUES
+  (3,30), (8,88), (5,50), (8,81),
+  (4,40), (9,90), (7,70), (9,90),
+  (13,130), (18,188), (15,150), (18,181),
+  (14,140), (19,190), (17,170), (19,190);
+
+INSERT INTO t1 VALUES (8,5,9);
+
+EXPLAIN EXTENDED
+SELECT t1.b, t2.c, t2.d FROM t2 JOIN t1 ON t2.c = t1.a
+  WHERE t1.pk BETWEEN 5 AND 6 AND t1.b IS NULL OR t1.b = 5
+ORDER BY t1.b;
+SELECT t1.b, t2.c, t2.d FROM t2 JOIN t1 ON t2.c = t1.a
+  WHERE t1.pk BETWEEN 5 AND 6 AND t1.b IS NULL OR t1.b = 5
+ORDER BY t1.b;
+
+EXPLAIN EXTENDED
+SELECT t1.b, t2.c, t2.d FROM t2 LEFT JOIN t1 ON t2.c = t1.a
+  WHERE t1.pk BETWEEN 5 AND 6 AND t1.b IS NULL OR t1.b = 5
+ORDER BY t1.b;
+SELECT t1.b, t2.c, t2.d FROM t2 LEFT JOIN t1 ON t2.c = t1.a
+  WHERE t1.pk BETWEEN 5 AND 6 AND t1.b IS NULL OR t1.b = 5
+ORDER BY t1.b;
+
+DROP TABLE t1,t2;
+
 SET optimizer_switch=@save_optimizer_switch;

@@ -3458,6 +3458,8 @@ public:
   bool schema_table;
   /* TRUE if the temp table is created for subquery materialization. */
   bool materialized_subquery;
+  /* TRUE if all columns of the table are guaranteed to be non-nullable */
+  bool force_not_null_cols;
   /*
     True if GROUP BY and its aggregate functions are already computed
     by a table access method (e.g. by loose index scan). In this case
@@ -3481,7 +3483,8 @@ public:
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
-    schema_table(0), materialized_subquery(0), precomputed_group_by(0),
+    schema_table(0), materialized_subquery(0), force_not_null_cols(0),
+    precomputed_group_by(0),
     force_copy_fields(0), bit_fields_as_long(0), skip_create_table(0)
   {}
   ~TMP_TABLE_PARAM()

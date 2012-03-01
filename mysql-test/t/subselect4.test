@@ -1371,39 +1371,6 @@ WHERE t2.f2 = (SELECT f2 FROM t3
 drop table t1,t2,t3,t4;
 
 --echo #
---echo # LP BUG#806943 Second crash with select_describe with nested subqueries in maria-5.3
---echo #
-
-CREATE TABLE t1 ( f4 int) ;
-INSERT INTO t1 VALUES (0),(0);
-
-CREATE TABLE t2 ( f2 int) ;
-
-CREATE TABLE t3 ( f1 int NOT NULL );
-
-CREATE TABLE t4 ( f2 int, f3 int) ;
-INSERT INTO t4 VALUES (8,0),(3,0);
-
-EXPLAIN SELECT *
-FROM t2, t3
-WHERE t3.f1 = (
-        SELECT SUM( f2 )
-        FROM t4
-        WHERE EXISTS (
-                SELECT DISTINCT f4
-                FROM t1));
-SELECT *
-FROM t2, t3
-WHERE t3.f1 = (
-        SELECT SUM( f2 )
-        FROM t4
-        WHERE EXISTS (
-                SELECT DISTINCT f4
-                FROM t1));
-
-drop table t1, t2, t3, t4;
-
---echo #
 --echo # LP BUG#611690 Crash in select_describe() with nested subqueries
 --echo #
 
@@ -1664,6 +1631,22 @@ SELECT * FROM t2
 WHERE t2.b IN (SELECT t3.b FROM t3 WHERE t3.a < ANY (SELECT t4.a FROM t4) and t3.a = 7);
 
 drop table t2, t3, t4;
+
+--echo #
+--echo # BUG#934597: Assertion `! is_set()' failed in Diagnostics_area::set_ok_status(THD...
+--echo #
+CREATE TABLE t1 ( a VARCHAR(1) );
+INSERT INTO t1 VALUES ('u'),('k');
+--error ER_SUBQUERY_NO_1_ROW
+CREATE TABLE t2 AS
+ SELECT a AS field1 FROM t1
+ WHERE ( SELECT alias1.a
+         FROM t1 AS alias1
+       ) IS NOT NULL;
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t2;
+DROP TABLE t1;
+
 
 set optimizer_switch=@subselect4_tmp;
 

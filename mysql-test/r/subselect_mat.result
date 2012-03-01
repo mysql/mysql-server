@@ -1473,7 +1473,7 @@ SET @@optimizer_switch='semijoin=on,materialization=on';
 EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
 2	MATERIALIZED	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Rowid-ordered scan
 SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 pk
@@ -1861,6 +1861,58 @@ WHERE 'condition'='impossible'
 MIN(a)
 NULL
 DROP TABLE t1;
+#
+# BUG#938131: Subquery materialization is not used in CREATE TABLE SELECT
+# 
+CREATE TABLE t1(a int);
+INSERT INTO t1 values(1),(2);
+CREATE TABLE t2(a int);
+INSERT INTO t2 values(1),(2);
+# Should use Materialization:
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 GROUP BY a HAVING a > 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	Using temporary
+flush status;
+CREATE TABLE t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 GROUP BY a HAVING a > 1);
+SHOW STATUS LIKE 'Created_tmp_tables';
+Variable_name	Value
+Created_tmp_tables	3
+DROP TABLE t1,t2,t3;
+# 
+# BUG#939009: Crash with aggregate function in IN subquery 
+#
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='materialization=on,semijoin=on';
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (7,1), (4,2), (7,7);
+CREATE TABLE t2 ( c INT );
+INSERT INTO t2 VALUES (4), (7), (6);
+EXPLAIN EXTENDED
+SELECT * FROM t1
+WHERE a IN (SELECT MAX(c) FROM t2) AND b=7 AND (a IS NULL OR a=b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	4	const	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (flat, BNL join)
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from  <materialize> (select max(`test`.`t2`.`c`) from `test`.`t2`) join `test`.`t1` where ((`test`.`t1`.`a` = `<subquery2>`.`MAX(c)`) and (`test`.`t1`.`b` = 7) and (<cache>(isnull(`<subquery2>`.`MAX(c)`)) or (`<subquery2>`.`MAX(c)` = 7)))
+SELECT * FROM t1
+WHERE a IN (SELECT MAX(c) FROM t2) AND b=7 AND (a IS NULL OR a=b);
+a	b
+7	7
+EXPLAIN
+SELECT * FROM t1
+WHERE a IN (SELECT MAX(c) FROM t2 WHERE c < 4) AND b=7 AND (a IS NULL OR a=b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	4	const	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+SELECT * FROM t1
+WHERE a IN (SELECT MAX(c) FROM t2 WHERE c < 4) AND b=7 AND (a IS NULL OR a=b);
+a	b
+SET optimizer_switch=@save_optimizer_switch;
+DROP TABLE t1,t2;
 # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;
@@ -1983,7 +2035,7 @@ SET @@optimizer_switch='default,semijoin=on,materialization=on';
 EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
 2	MATERIALIZED	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition
 SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 pk

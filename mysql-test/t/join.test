@@ -941,7 +941,6 @@ SELECT f1 , MIN(f2) FROM v2 GROUP BY f1;
 drop table t1,t2;
 drop view v1,v2;
 
-
 --echo #
 --echo # BUG#47217 Lost optimization caused slowdown & wrong result.
 --echo #
@@ -962,6 +961,46 @@ SHOW STATUS LIKE 'Handler_read_%';
 DROP TABLE t1, t2;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug #43368: STRAIGHT_JOIN DOESN'T WORK FOR NESTED JOINS 
+--echo #
+
+create table t1(c1 int primary key, c2 char(10)) engine=myisam;
+create table t2(c1 int primary key, c2 char(10), ref_t1 int) engine=myisam;
+create table t3(c1 int primary key, c2 char(10), ref_t1 int) engine=myisam;
+create table t4(c1 int primary key, c2 char(10), ref_t1 int) engine=myisam;
+insert into t1 values(1,'a');
+insert into t2 values(1,'a', 1);
+insert into t3 values(1,'a', 1);
+insert into t3 values(2,'b',2);
+insert into t4 values(1,'a', 1);
+insert into t4 values(2,'a', 2);
+insert into t4 values(3,'a', 3);
+insert into t4 values(4,'a', 4);
+insert into t1 values(2,'b');
+insert into t1 values(3,'c');
+
+EXPLAIN
+SELECT * 
+FROM t4 JOIN
+     (t1 JOIN t3 ON t3.ref_t1=t1.c1 JOIN t2 ON t2.ref_t1=t1.c1)
+     ON t4.ref_t1=t1.c1;
+
+EXPLAIN
+SELECT STRAIGHT_JOIN * 
+FROM t4 JOIN
+     (t1 JOIN t3 ON t3.ref_t1=t1.c1 JOIN t2 ON t2.ref_t1=t1.c1)
+     ON t4.ref_t1=t1.c1;
+
+EXPLAIN
+SELECT * 
+FROM t4 STRAIGHT_JOIN
+     (t1 JOIN t3 ON t3.ref_t1=t1.c1 JOIN t2 ON t2.ref_t1=t1.c1)
+     ON t4.ref_t1=t1.c1;
+
+drop table t1,t2,t3,t4;
+--echo End of 5.2 tests
 
 --echo #
 --echo # BUG#724275: Crash in JOIN::optimize in maria-5.3

@@ -5903,6 +5903,10 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
                         ((PARTITIONED_KEY_CACHE_CB *) keycache_cb)->partitions :
                         0;
   DBUG_ASSERT(partitions <= MAX_KEY_CACHE_PARTITIONS);
+  keycache->key_cache_mem_size=
+    keycache->partitions ?
+    ((PARTITIONED_KEY_CACHE_CB *) keycache_cb)->key_cache_mem_size :
+    ((SIMPLE_KEY_CACHE_CB *) keycache_cb)->key_cache_mem_size;
   if (blocks > 0)
     keycache->can_be_used= 1;
   return blocks;
@@ -5965,6 +5969,11 @@ int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
         keycache->partitions=
           ((PARTITIONED_KEY_CACHE_CB *)(keycache->keycache_cb))->partitions;
     }
+
+    keycache->key_cache_mem_size=
+    keycache->partitions ?
+    ((PARTITIONED_KEY_CACHE_CB *)(keycache->keycache_cb))->key_cache_mem_size :
+    ((SIMPLE_KEY_CACHE_CB *)(keycache->keycache_cb))->key_cache_mem_size;
 
     keycache->can_be_used= (blocks >= 0);
   } 

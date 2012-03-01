@@ -180,7 +180,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2)
 from t2 ot where a in (select a from t1 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	22	
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
 2	MATERIALIZED	it	ALL	NULL	NULL	NULL	NULL	32	
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) 
@@ -248,7 +248,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2)
 from t2 ot where a in (select a from t1 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	22	
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
 2	MATERIALIZED	it	ALL	NULL	NULL	NULL	NULL	52	
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) 
@@ -289,7 +289,7 @@ from t0 where a in
 (select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	9	func	1	Using where
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	8	func	1	Using where
 2	MATERIALIZED	t1	index	a	a	5	NULL	10	Using where; Using index
 2	MATERIALIZED	t2	ref	a	a	5	test.t1.a	1	Using index
 2	MATERIALIZED	t3	ref	a	a	5	test.t1.a	1	Using index
@@ -718,7 +718,7 @@ The following must use loose index scan over t3, key a:
 explain select count(a) from t2 where a in ( SELECT  a FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	a	a	5	NULL	1000	Using index
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
 2	MATERIALIZED	t3	index	a	a	5	NULL	30000	Using index
 select count(a) from t2 where a in ( SELECT  a FROM t3);
 count(a)
@@ -875,7 +875,7 @@ SELECT * FROM t3 LEFT JOIN (v1,t2) ON t3.a = t2.a
 WHERE t3.b IN (SELECT b FROM t4);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
 1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	
 2	MATERIALIZED	t4	ALL	NULL	NULL	NULL	NULL	2	

@@ -3434,6 +3434,11 @@ int select_materialize_with_stats::send_data(List<Item> &items)
 
   if ((res= select_union::send_data(items)))
     return res;
+  if (table->null_catch_flags & REJECT_ROW_DUE_TO_NULL_FIELDS)
+  {
+    table->null_catch_flags&= ~REJECT_ROW_DUE_TO_NULL_FIELDS;
+    return 0;
+  }
   /* Skip duplicate rows. */
   if (write_err == HA_ERR_FOUND_DUPP_KEY ||
       write_err == HA_ERR_FOUND_DUPP_UNIQUE)
@@ -3475,6 +3480,7 @@ void TMP_TABLE_PARAM::init()
   precomputed_group_by= 0;
   bit_fields_as_long= 0;
   materialized_subquery= 0;
+  force_not_null_cols= 0;
   skip_create_table= 0;
   DBUG_VOID_RETURN;
 }

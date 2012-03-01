@@ -1158,7 +1158,6 @@ public:
   virtual bool update_table_bitmaps_processor(uchar *arg) { return 0; }
   virtual bool view_used_tables_processor(uchar *arg) { return 0; }
   virtual bool eval_not_null_tables(uchar *opt_arg) { return 0; }
-  virtual bool clear_sum_processor(uchar *opt_arg) { return 0; }
   virtual bool is_subquery_processor (uchar *opt_arg) { return 0; }
   virtual bool limit_index_condition_pushdown_processor(uchar *opt_arg)
   { 
