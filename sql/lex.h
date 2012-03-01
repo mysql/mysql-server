@@ -400,6 +400,7 @@ static SYMBOL symbols[] = {
   { "OLD_PASSWORD",	SYM(OLD_PASSWORD)},
   { "ON",		SYM(ON)},
   { "ONE",              SYM(ONE_SYM)},
+  { "ONLY",             SYM(ONLY_SYM)},
   { "OPEN",		SYM(OPEN_SYM)},
   { "OPTIMIZE",		SYM(OPTIMIZE)},
   { "OPTIONS",		SYM(OPTIONS_SYM)},

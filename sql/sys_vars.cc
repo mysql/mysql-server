@@ -2713,7 +2713,7 @@ static bool check_tx_isolation(sys_var *self, THD *thd, set_var *var)
   if (var->type == OPT_DEFAULT && thd->in_active_multi_stmt_transaction())
   {
     DBUG_ASSERT(thd->in_multi_stmt_transaction_mode());
-    my_error(ER_CANT_CHANGE_TX_ISOLATION, MYF(0));
+    my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
     return TRUE;
   }
   return FALSE;
@@ -2751,6 +2751,42 @@ static Sys_var_tx_isolation Sys_tx_isolation(
        SESSION_VAR(tx_isolation), NO_CMD_LINE,
        tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation));
+
+
+/**
+  Can't change the tx_read_only state if we are already in a
+  transaction.
+*/
+
+static bool check_tx_read_only(sys_var *self, THD *thd, set_var *var)
+{
+  if (var->type == OPT_DEFAULT && thd->in_active_multi_stmt_transaction())
+  {
+    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode());
+    my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
+    return true;
+  }
+  return false;
+}
+
+
+bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_SESSION && Sys_var_mybool::session_update(thd, var))
+    return true;
+  if (var->type == OPT_DEFAULT || !thd->in_active_multi_stmt_transaction())
+  {
+    // @see Sys_var_tx_isolation::session_update() above for the rules.
+    thd->tx_read_only= var->save_result.ulonglong_value;
+  }
+  return false;
+}
+
+
+static Sys_var_tx_read_only Sys_tx_read_only(
+       "tx_read_only", "Set default transaction access mode to read only.",
+       SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_read_only));
 
 static Sys_var_ulonglong Sys_tmp_table_size(
        "tmp_table_size",

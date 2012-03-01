@@ -8,7 +8,7 @@ CREATE TABLE db1.t1(a INT);
 SELECT CURRENT_USER();
 CURRENT_USER()
 user1@localhost
-SHOW VARIABLES LIKE "%read_only%";
+SHOW VARIABLES LIKE "read_only%";
 Variable_name	Value
 read_only	ON
 INSERT INTO db1.t1 VALUES (1);
