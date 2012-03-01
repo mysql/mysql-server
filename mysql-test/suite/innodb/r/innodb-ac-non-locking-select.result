@@ -17,10 +17,11 @@ c1	c2
 1	1
 2	2
 3	3
+SET DEBUG_SYNC='now WAIT_FOR waiting4';
 SELECT trx_state, trx_query, trx_autocommit_non_locking
 FROM INFORMATION_SCHEMA.INNODB_TRX
 WHERE trx_state = 'LOCK WAIT'
- ORDER BY trx_query;
+ORDER BY trx_query;
 trx_state	trx_query	trx_autocommit_non_locking
 LOCK WAIT	SELECT COUNT(*) FROM t1 LOCK IN SHARE MODE	0
 LOCK WAIT	SELECT COUNT(*) FROM t1 WHERE c1 >= 0	0
@@ -35,4 +36,9 @@ c1	c2
 XA END '1';
 XA PREPARE '1';
 XA ROLLBACK '1';
+COUNT(*)
+5
+COUNT(*)
+5
 DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
