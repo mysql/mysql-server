@@ -231,6 +231,35 @@ static Sys_var_ulonglong Sys_binlog_stmt_cache_size(
        CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONGLONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE));
 
+/*
+  Some variables like @sql_log_bin and @binlog_format change how/if binlogging
+  is done. We must not change them inside a running transaction or statement,
+  otherwise the event group eventually written to the binlog may become
+  incomplete or otherwise garbled.
+
+  This function does the appropriate check.
+
+  It returns true if an error is caused by incorrect usage, false if ok.
+*/
+static bool
+error_if_in_trans_or_substatement(THD *thd, int in_substatement_error,
+                                  int in_transaction_error)
+{
+  if (thd->in_sub_stmt)
+  {
+    my_error(in_substatement_error, MYF(0));
+    return true;
+  }
+
+  if (thd->in_active_multi_stmt_transaction())
+  {
+    my_error(in_transaction_error, MYF(0));
+    return true;
+  }
+
+  return false;
+}
+
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ASSERT(self->scope() != sys_var::GLOBAL);// don't abuse check_has_super()
@@ -271,22 +300,10 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
     return true;
   }
 
-  /*
-    if in a stored function/trigger, it's too late to change mode
-  */
-  if (thd->in_sub_stmt)
-  {
-    my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
+  if (error_if_in_trans_or_substatement(thd,
+         ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT,
+         ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT))
     return true;
-  }
-  /*
-    Make the session variable 'binlog_format' read-only inside a transaction.
-  */
-  if (thd->in_active_multi_stmt_transaction())
-  {
-    my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
-    return true;
-  }
 
   return false;
 }
@@ -322,24 +339,10 @@ static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
   if (var->type == OPT_GLOBAL)
     return false;
 
-   /*
-     Makes the session variable 'binlog_direct_non_transactional_updates'
-     read-only if within a procedure, trigger or function.
-   */
-   if (thd->in_sub_stmt)
-   {
-     my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
+  if (error_if_in_trans_or_substatement(thd,
+          ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT,
+          ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT))
      return true;
-   }
-   /*
-     Makes the session variable 'binlog_direct_non_transactional_updates'
-     read-only inside a transaction.
-   */
-   if (thd->in_active_multi_stmt_transaction())
-   {
-     my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
-     return true;
-   }
 
   return false;
 }
@@ -2630,18 +2633,10 @@ static bool check_sql_log_bin(sys_var *self, THD *thd, set_var *var)
   if (var->type == OPT_GLOBAL)
     return FALSE;
 
-  /* If in a stored function/trigger, it's too late to change sql_log_bin. */
-  if (thd->in_sub_stmt)
-  {
-    my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN, MYF(0));
+  if (error_if_in_trans_or_substatement(thd,
+          ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN,
+          ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN))
     return TRUE;
-  }
-  /* Make the session variable 'sql_log_bin' read-only inside a transaction. */
-  if (thd->in_active_multi_stmt_transaction())
-  {
-    my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN, MYF(0));
-    return TRUE;
-  }
 
   return FALSE;
 }
@@ -2705,35 +2700,6 @@ static Sys_var_ulong Sys_profiling_history_size(
        SESSION_VAR(profiling_history_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 100), DEFAULT(15), BLOCK_SIZE(1));
 #endif
-
-/*
-  Some variables like @sql_log_bin and @binlog_format change how/if binlogging
-  is done. We must not change them inside a running transaction or statement,
-  otherwise the event group eventually written to the binlog may become
-  incomplete or otherwise garbled.
-
-  This function does the appropriate check.
-
-  It returns true if an error is caused by incorrect usage, false if ok.
-*/
-static bool
-error_if_in_trans_or_substatement(THD *thd, int in_substatement_error,
-                                  int in_transaction_error)
-{
-  if (thd->in_sub_stmt)
-  {
-    my_error(in_substatement_error, MYF(0));
-    return true;
-  }
-
-  if (thd->in_active_multi_stmt_transaction())
-  {
-    my_error(in_transaction_error, MYF(0));
-    return true;
-  }
-
-  return false;
-}
 
 /*
   When this is set by a connection, binlogged events will be marked with a
@@ -3645,7 +3611,7 @@ static Sys_var_mybool Sys_query_cache_strip_comments(
 
 static ulonglong in_transaction(THD *thd)
 {
-  return test(thd->server_status & SERVER_STATUS_IN_TRANS);
+  return test(thd->in_active_multi_stmt_transaction());
 }
 static Sys_var_session_special Sys_in_transaction(
        "in_transaction", "Whether there is an active transaction",
