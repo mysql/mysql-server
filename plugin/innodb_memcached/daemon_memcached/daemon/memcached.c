@@ -7001,6 +7001,7 @@ int main (int argc, char **argv) {
 # endif /* ENABLE_MEMCACHED_SASL */
 
     if (option_argc > 0 && option_argv) {
+	    optind = 1;
 	    while (-1 != (c = getopt(option_argc, option_argv,
 		  "a:"  /* access mask for unix socket */
 		  "p:"  /* TCP port number to listen on */

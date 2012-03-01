@@ -32,11 +32,11 @@ SHOW VARIABLES LIKE 'daemon_memcached_option';
 Variable_name	Value
 daemon_memcached_option	-p11212
 Here the memcached results with D,B,H,C:
-Here the memcached results with D,B,H,C:
 Darmstadt|City
 Berlin|Mitte
 Hamburg|Norderstedt
 Cottbus|West
+Here the memcached results with D,B,H,C:
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
