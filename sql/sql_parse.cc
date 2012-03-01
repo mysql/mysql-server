@@ -2378,6 +2378,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SELECT:
   {
     thd->status_var.last_query_cost= 0.0;
+    thd->status_var.last_query_partial_plans= 0;
 
     if ((res= select_precheck(thd, lex, all_tables, first_table)))
       break;

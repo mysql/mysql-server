@@ -198,8 +198,11 @@ select current_user();
 --connection default
 --source ../include/hostcache_dump.inc
 
+# About ER_CON_COUNT_ERROR,
+# See comments in hostcache_ipv4_max_con.test
+
 --disable_query_log
---error ER_CON_COUNT_ERROR
+--error ER_CON_COUNT_ERROR, 9999
 connect (con5c,"::1",quota,,test,$MASTER_MYPORT,);
 --enable_query_log
 
@@ -207,7 +210,7 @@ connect (con5c,"::1",quota,,test,$MASTER_MYPORT,);
 --source ../include/hostcache_dump.inc
 
 --disable_query_log
---error ER_CON_COUNT_ERROR
+--error ER_CON_COUNT_ERROR, 9999
 connect (con5d,"::1",quota,,test,$MASTER_MYPORT,);
 --enable_query_log
 
