@@ -26,6 +26,8 @@ Created 1/8/1996 Heikki Tuuri
 #include "pars0sym.h"
 #include "que0que.h"
 #include "rem0cmp.h"
+#include "m_string.h"
+#include "my_sys.h"
 #ifndef UNIV_HOTBACKUP
 # include "m_ctype.h" /* my_isspace() */
 #endif /* !UNIV_HOTBACKUP */
@@ -1889,6 +1891,8 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/* in, own: foreign key struct */
 {
+	ut_a(foreign->foreign_table->n_foreign_key_checks_running == 0);
+
 	mem_heap_free(foreign->heap);
 }
 
