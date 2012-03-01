@@ -164,6 +164,7 @@ ErrorBundle ErrorCodes[] = {
   { 20015, DMEC, IS, "Query aborted due to out of row memory" },
   { 20016, DMEC, NR, "Query aborted due to node failure" },
   { 20017, DMEC, IE, "Query aborted due to invalid node count" },
+  { 20018, DMEC, IE, "Query aborted due to index fragment not found" },
   
   /**
    * Node shutdown
