@@ -6006,7 +6006,8 @@ lock_sec_rec_modify_check_and_lock(
 				clustered index record first: see the
 				comment below */
 	dict_index_t*	index,	/*!< in: secondary index */
-	que_thr_t*	thr,	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread
+				(can be NULL if BTR_NO_LOCKING_FLAG) */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	ulint	err;

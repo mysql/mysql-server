@@ -1119,7 +1119,7 @@ btr_cur_insert_if_possible(
 /*************************************************************//**
 For an insert, checks the locks and does the undo logging if desired.
 @return	DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
-UNIV_INLINE
+UNIV_INLINE __attribute__((warn_unused_result, nonnull(2,3,5,6)))
 ulint
 btr_cur_ins_lock_and_undo(
 /*======================*/
@@ -1610,7 +1610,7 @@ btr_cur_pessimistic_insert(
 /*************************************************************//**
 For an update, checks the locks and does the undo logging.
 @return	DB_SUCCESS, DB_WAIT_LOCK, or error number */
-UNIV_INLINE
+UNIV_INLINE __attribute__((warn_unused_result, nonnull(2,3,6,7)))
 ulint
 btr_cur_upd_lock_and_undo(
 /*======================*/
@@ -1619,7 +1619,8 @@ btr_cur_upd_lock_and_undo(
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread
+				(can be NULL if BTR_NO_LOCKING_FLAG) */
 	mtr_t*		mtr,	/*!< in/out: mini-transaction */
 	roll_ptr_t*	roll_ptr)/*!< out: roll pointer */
 {
@@ -1627,7 +1628,7 @@ btr_cur_upd_lock_and_undo(
 	rec_t*		rec;
 	ulint		err;
 
-	ut_ad(cursor && update && thr && roll_ptr);
+	ut_ad(thr || (flags & BTR_NO_LOCKING_FLAG));
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
