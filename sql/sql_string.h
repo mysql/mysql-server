@@ -430,9 +430,15 @@ public:
   */
   char *dup(MEM_ROOT *root) const
   {
-    char *ret= static_cast<char *>(memdup_root(root, Ptr, str_length + 1));
+    if (str_length > 0 && Ptr[str_length - 1] == 0)
+      return static_cast<char *>(memdup_root(root, Ptr, str_length));
+
+    char *ret= static_cast<char*>(alloc_root(root, str_length + 1));
     if (ret != NULL)
+    {
+      memcpy(ret, Ptr, str_length);
       ret[str_length]= 0;
+    }
     return ret;
   }
 };
