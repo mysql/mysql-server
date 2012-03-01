@@ -474,7 +474,7 @@ recover_transaction(TOKUTXN *txnp, TXNID xid, TXNID parentxid, TOKULOGGER logger
         assert(r == 0);
         assert(txn==NULL);
     }
-    r = toku_txn_begin_with_xid(parent, &txn, logger, xid, TXN_SNAPSHOT_NONE);
+    r = toku_txn_begin_with_xid(parent, &txn, logger, xid, TXN_SNAPSHOT_NONE, NULL);
     assert(r == 0);
     if (txnp) *txnp = txn;
     return 0;

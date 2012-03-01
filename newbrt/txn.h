@@ -26,8 +26,15 @@ int toku_txn_begin_with_xid (
     TOKUTXN *tokutxn, 
     TOKULOGGER logger, 
     TXNID xid, 
-    TXN_SNAPSHOT_TYPE snapshot_type
+    TXN_SNAPSHOT_TYPE snapshot_type,
+    DB_TXN *container_db_txn
     );
+
+// Allocate and initialize a txn
+int toku_txn_create_txn(TOKUTXN *txn_ptr, TOKUTXN parent, TOKULOGGER logger, TXNID xid, TXN_SNAPSHOT_TYPE snapshot_type, DB_TXN *container_db_txn);
+
+// Assign a txnid. Log the txn begin in the recovery log. Initialize the txn live lists.
+int toku_txn_start_txn(TOKUTXN txn);
 
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
@@ -50,11 +57,11 @@ int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync,
 
 void toku_txn_get_fsync_info(TOKUTXN ttxn, BOOL* do_fsync, LSN* do_fsync_lsn);
 
-// Rollback and destroy a txn
+// Complete and destroy a txn
 void toku_txn_close_txn(TOKUTXN txn);
 
-// Remove the txn from any live txn lists
-void toku_txn_rollback_txn(TOKUTXN txn);
+// Remove a txn from any live txn lists
+void toku_txn_complete_txn(TOKUTXN txn);
 
 // Free the memory of a txn
 void toku_txn_destroy_txn(TOKUTXN txn);
@@ -72,7 +79,6 @@ BOOL toku_txnid_newer(TXNID a, TXNID b);
 
 // Force fsync on commit
 void toku_txn_force_fsync_on_commit(TOKUTXN txn);
-
 
 typedef enum {
     TXN_BEGIN,             // total number of transactions begun (does not include recovered txns)
@@ -108,7 +114,7 @@ typedef struct tokutxn_filenum_ignore_errors {
     FILENUMS filenums;
 } TXN_IGNORE_S, *TXN_IGNORE;
 
-int  toku_txn_ignore_init(TOKUTXN txn);
+void toku_txn_ignore_init(TOKUTXN txn);
 void toku_txn_ignore_free(TOKUTXN txn);
 int  toku_txn_ignore_add(TOKUTXN txn, FILENUM filenum);
 int  toku_txn_ignore_remove(TOKUTXN txn, FILENUM filenum);

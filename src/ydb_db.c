@@ -305,7 +305,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     DB_TXN *child = NULL;
     // begin child (unless transactionless)
     if (using_txns) {
-        r = toku_txn_begin_internal(db->dbenv, txn, &child, DB_TXN_NOSYNC, 1, true);
+        r = toku_txn_begin(db->dbenv, txn, &child, DB_TXN_NOSYNC, 1, true);
         assert(r==0);
     }
 
@@ -641,7 +641,7 @@ toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL UU(just_lock)) {
 	
 	{
 	    // begin child
-	    int rt = toku_txn_begin_internal(env, txn, &child, DB_TXN_NOSYNC, 1, true);
+	    int rt = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
 	    assert(rt==0);
 	}
 
@@ -1090,7 +1090,7 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
 
     // begin child (unless transactionless)
     if (using_txns) {
-	rval = toku_txn_begin_internal(env, txn, &child, DB_TXN_NOSYNC, 1, true);
+	rval = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
 	assert(rval == 0);
 	xid = toku_txn_get_txnid(db_txn_struct_i(child)->tokutxn);
     }
