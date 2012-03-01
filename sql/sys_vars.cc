@@ -2015,6 +2015,67 @@ static Sys_var_mybool Sys_master_verify_checksum(
        "SHOW BINLOG EVENTS",
        GLOBAL_VAR(opt_master_verify_checksum), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
+
+/* These names must match RPL_SKIP_XXX #defines in slave.h. */
+static const char *replicate_events_marked_for_skip_names[]= {
+  "replicate", "filter_on_slave", "filter_on_master", 0
+};
+static bool
+replicate_events_marked_for_skip_check(sys_var *self, THD *thd,
+                                                set_var *var)
+{
+  int thread_mask;
+  DBUG_ENTER("sys_var_replicate_events_marked_for_skip_check");
+
+  /* Slave threads must be stopped to change the variable. */
+  mysql_mutex_lock(&LOCK_active_mi);
+  lock_slave_threads(active_mi);
+  init_thread_mask(&thread_mask, active_mi, 0 /*not inverse*/);
+  unlock_slave_threads(active_mi);
+  mysql_mutex_unlock(&LOCK_active_mi);
+
+  if (thread_mask) // We refuse if any slave thread is running
+  {
+    my_error(ER_SLAVE_MUST_STOP, MYF(0));
+    DBUG_RETURN(true);
+  }
+  DBUG_RETURN(false);
+}
+bool
+Sys_var_replicate_events_marked_for_skip::global_update(THD *thd, set_var *var)
+{
+  bool result;
+  int thread_mask;
+  DBUG_ENTER("Sys_var_replicate_events_marked_for_skip::global_update");
+
+  /* Slave threads must be stopped to change the variable. */
+  mysql_mutex_lock(&LOCK_active_mi);
+  lock_slave_threads(active_mi);
+  init_thread_mask(&thread_mask, active_mi, 0 /*not inverse*/);
+  if (thread_mask) // We refuse if any slave thread is running
+  {
+    my_error(ER_SLAVE_MUST_STOP, MYF(0));
+    result= true;
+  }
+  else
+    result= Sys_var_enum::global_update(thd, var);
+
+  unlock_slave_threads(active_mi);
+  mysql_mutex_unlock(&LOCK_active_mi);
+  DBUG_RETURN(result);
+}
+static Sys_var_replicate_events_marked_for_skip Replicate_events_marked_for_skip
+   ("replicate_events_marked_for_skip",
+   "Whether the slave should replicate events that were created with "
+   "@@skip_replication=1 on the master. Default REPLICATE (no events are "
+   "skipped). Other values are FILTER_ON_SLAVE (events will be sent by the "
+   "master but ignored by the slave) and FILTER_ON_MASTER (events marked with "
+   "@@skip_replication=1 will be filtered on the master and never be sent to "
+   "the slave).",
+   GLOBAL_VAR(opt_replicate_events_marked_for_skip), CMD_LINE(REQUIRED_ARG),
+   replicate_events_marked_for_skip_names, DEFAULT(RPL_SKIP_REPLICATE),
+   NO_MUTEX_GUARD, NOT_IN_BINLOG,
+   ON_CHECK(replicate_events_marked_for_skip_check));
 #endif
 
 
@@ -2644,6 +2705,69 @@ static Sys_var_ulong Sys_profiling_history_size(
        SESSION_VAR(profiling_history_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 100), DEFAULT(15), BLOCK_SIZE(1));
 #endif
+
+/*
+  Some variables like @sql_log_bin and @binlog_format change how/if binlogging
+  is done. We must not change them inside a running transaction or statement,
+  otherwise the event group eventually written to the binlog may become
+  incomplete or otherwise garbled.
+
+  This function does the appropriate check.
+
+  It returns true if an error is caused by incorrect usage, false if ok.
+*/
+static bool
+error_if_in_trans_or_substatement(THD *thd, int in_substatement_error,
+                                  int in_transaction_error)
+{
+  if (thd->in_sub_stmt)
+  {
+    my_error(in_substatement_error, MYF(0));
+    return true;
+  }
+
+  if (thd->in_active_multi_stmt_transaction())
+  {
+    my_error(in_transaction_error, MYF(0));
+    return true;
+  }
+
+  return false;
+}
+
+/*
+  When this is set by a connection, binlogged events will be marked with a
+  corresponding flag. The slave can be configured to not replicate events
+  so marked.
+  In the binlog dump thread on the master, this variable is re-used for a
+  related purpose: The slave sets this flag when connecting to the master to
+  request that the master filter out (ie. not send) any events with the flag
+  set, thus saving network traffic on events that would be ignored by the
+  slave anyway.
+*/
+static bool check_skip_replication(sys_var *self, THD *thd, set_var *var)
+{
+  /*
+    We must not change @@skip_replication in the middle of a transaction or
+    statement, as that could result in only part of the transaction / statement
+    being replicated.
+    (This would be particularly serious if we were to replicate eg.
+    Rows_log_event without Table_map_log_event or transactional updates without
+    the COMMIT).
+  */
+  if (error_if_in_trans_or_substatement(thd,
+          ER_STORED_FUNCTION_PREVENTS_SWITCH_SKIP_REPLICATION,
+          ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SKIP_REPLICATION))
+    return 1;
+
+  return 0;
+}
+
+static Sys_var_bit Sys_skip_replication(
+       "skip_replication", "skip_replication",
+       SESSION_ONLY(option_bits), NO_CMD_LINE, OPTION_SKIP_REPLICATION,
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_skip_replication));
 
 static Sys_var_harows Sys_select_limit(
        "sql_select_limit",

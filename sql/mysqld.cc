@@ -437,6 +437,8 @@ uint   opt_large_page_size= 0;
 MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
+ulong opt_replicate_events_marked_for_skip;
+
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
