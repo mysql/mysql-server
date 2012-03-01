@@ -515,9 +515,23 @@ innobase_fts_check_doc_id_col(
 
 			col = dict_table_get_nth_col(table, i);
 
-			if (col->mtype == DATA_INT && col->len == 8
-			    && col->prtype & DATA_NOT_NULL) {
+			if (col->mtype != DATA_INT || col->len != 8) {
+				fprintf(stderr,
+					" InnoDB: %s column in table %s"
+					" must be of the BIGINT datatype\n",
+					FTS_DOC_ID_COL_NAME, table->name);
+			} else if (!(col->prtype & DATA_NOT_NULL)) {
+				fprintf(stderr,
+					" InnoDB: %s column in table %s"
+					" must be NOT NULL\n",
+					FTS_DOC_ID_COL_NAME, table->name);
 
+			} else if (!(col->prtype & DATA_UNSIGNED)) {
+				fprintf(stderr,
+					" InnoDB: %s column in table %s"
+					" must be UNSIGNED\n",
+					FTS_DOC_ID_COL_NAME, table->name);
+			} else {
 				*fts_doc_col_no = i;
 			}
 
@@ -733,13 +747,16 @@ innobase_create_key_def(
 
 			if (fts_doc_col_no == ULINT_UNDEFINED) {
 
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
+				push_warning_printf(
+					(THD*) trx->mysql_thd,
+					Sql_condition::WARN_LEVEL_WARN,
+					ER_WRONG_COLUMN_NAME,
 					" InnoDB: There exists a column %s "
 					"in table %s, but it is the wrong "
 					"type. Create of FTS index failed.\n",
 					FTS_DOC_ID_COL_NAME, table->name);
-				return(NULL);
+
+				DBUG_RETURN(NULL);
 
 			} else if (!table->fts) {
 				table->fts = fts_create(table);
