@@ -3781,15 +3781,15 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
           if (old->field->maybe_null())
 	  {
 	    old->optimize= KEY_OPTIMIZE_REF_OR_NULL;
-	    /*
-              Remember the NOT NULL value unless the value does not depend
-              on other tables.
-            */
-	    if (!old->val->used_tables() && old->val->is_null())
-	      old->val= new_fields->val;
             /* The referred expression can be NULL: */ 
             old->null_rejecting= 0;
 	  }
+	  /*
+            Remember the NOT NULL value unless the value does not depend
+            on other tables.
+          */
+	  if (!old->val->used_tables() && old->val->is_null())
+	    old->val= new_fields->val;
 	}
 	else
 	{

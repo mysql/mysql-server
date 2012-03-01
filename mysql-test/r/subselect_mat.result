@@ -1892,7 +1892,7 @@ EXPLAIN EXTENDED
 SELECT * FROM t1
 WHERE a IN (SELECT MAX(c) FROM t2) AND b=7 AND (a IS NULL OR a=b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	4	const	1	100.00	Using where
+1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	4	const	1	100.00	
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (flat, BNL join)
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
@@ -1900,11 +1900,12 @@ Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from  <materializ
 SELECT * FROM t1
 WHERE a IN (SELECT MAX(c) FROM t2) AND b=7 AND (a IS NULL OR a=b);
 a	b
+7	7
 EXPLAIN
 SELECT * FROM t1
 WHERE a IN (SELECT MAX(c) FROM t2 WHERE c < 4) AND b=7 AND (a IS NULL OR a=b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	4	const	1	Using where
+1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	4	const	1	
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
 SELECT * FROM t1
