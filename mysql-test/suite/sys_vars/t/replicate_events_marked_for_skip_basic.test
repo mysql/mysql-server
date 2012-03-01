@@ -1,3 +1,5 @@
+source include/not_embedded.inc;
+
 --echo #
 --echo # Basic testing of replicate_events_marked_for_skip.
 --echo #
