@@ -1789,7 +1789,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
 
   for (JOIN_TAB **pos= join->best_ref + idx; *pos; pos++)
   {
-    status_var_increment(thd->status_var.opt_partial_plans);
+    status_var_increment(thd->status_var.last_query_partial_plans);
     JOIN_TAB *const s= *pos;
     const table_map real_table_bit= s->table->map;
 
@@ -2158,7 +2158,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
                           added_to_eq_ref_extension);
       if (added_to_eq_ref_extension)
       {
-        status_var_increment(thd->status_var.opt_partial_plans);
+        status_var_increment(thd->status_var.last_query_partial_plans);
         double current_record_count, current_read_time;
 
         /* Add the cost of extending the plan with 's' */
