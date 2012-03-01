@@ -531,6 +531,7 @@
 #cmakedefine ENABLE_MEMCACHED_SASL 1
 #cmakedefine ENABLE_MEMCACHED_SASL_PWDB 1
 #cmakedefine HAVE_SASL_SASL_H 1
+#cmakedefine HAVE_HTONLL 1
 
 /*
   MySQL features

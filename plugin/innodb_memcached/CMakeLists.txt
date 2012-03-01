@@ -15,7 +15,6 @@
 IF(WITH_INNODB_MEMCACHED)
   ADD_SUBDIRECTORY(daemon_memcached)
   ADD_SUBDIRECTORY(innodb_memcache)
-
-  INSTALL(FILES ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/README-innodb_memcached DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
 ENDIF()
+
 INSTALL_SCRIPT("${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/innodb_memcache/scripts/innodb_memcached_config.sql" DESTINATION ${INSTALL_SCRIPTDIR} COMPONENT Server)

@@ -40,6 +40,7 @@ D	Darmstadt	City
 H	Hamburg	Norderstedt
 send ALTER TABLE t1 DROP c21
 ALTER TABLE t1 DROP c21;
+reap
 Here the memcached results with D,B,H,C:
 Here the memcached results after set:
 Here the memcached results after add:
@@ -49,7 +50,6 @@ Here the memcached results after add Frankfurt|:
 Here the memcached results after add |Airport:
 Here the memcached results after replace Frankfurt a.M.:
 Here the memcached results after replace Sachsenhausen:
-reap
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
