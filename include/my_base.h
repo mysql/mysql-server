@@ -445,7 +445,12 @@ enum ha_base_keytype {
 #define HA_ERR_FILE_TOO_SHORT	  175	 /* File too short */
 #define HA_ERR_WRONG_CRC	  176	 /* Wrong CRC on page */
 #define HA_ERR_TOO_MANY_CONCURRENT_TRXS 177 /*Too many active concurrent transactions */
-#define HA_ERR_LAST               177    /* Copy of last error nr */
+
+/* The error codes from 178 to 180 is not used, because we need to
+maintain forward compatibility with higher versions. */
+
+#define HA_ERR_TABLE_IN_FK_CHECK  181	 /* Table being used in foreign key check */
+#define HA_ERR_LAST               181    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
