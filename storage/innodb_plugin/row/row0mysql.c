@@ -51,8 +51,14 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0sea.h"
 #include "fil0fil.h"
 #include "ibuf0ibuf.h"
-#include "m_string.h"
-#include "my_sys.h"
+
+#ifdef __WIN__
+/* error LNK2001: unresolved external symbol _debug_sync_C_callback_ptr */
+# define DEBUG_SYNC_C(dummy) ((void) 0)
+#else
+# include "m_string.h" /* for my_sys.h */
+# include "my_sys.h" /* DEBUG_SYNC_C */
+#endif
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
