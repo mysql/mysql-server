@@ -935,7 +935,6 @@ typedef struct st_select_check {
 } SELECT_CHECK;
 
 /* Extern functions in sql_select.cc */
-bool store_val_in_field(Field *field, Item *val, enum_check_fields check_flag);
 void count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
                        List<Item> &fields, bool reset_with_sum_func);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);

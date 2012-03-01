@@ -836,6 +836,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_user_hash_pins= NULL;
         pfs->m_account_hash_pins= NULL;
         pfs->m_host_hash_pins= NULL;
+        pfs->m_digest_hash_pins= NULL;
 
         pfs->m_username_length= 0;
         pfs->m_hostname_length= 0;
@@ -1024,6 +1025,11 @@ void destroy_thread(PFS_thread *pfs)
   {
     lf_hash_put_pins(pfs->m_host_hash_pins);
     pfs->m_host_hash_pins= NULL;
+  }
+  if (pfs->m_digest_hash_pins)
+  {
+    lf_hash_put_pins(pfs->m_digest_hash_pins);
+    pfs->m_digest_hash_pins= NULL;
   }
   pfs->m_lock.allocated_to_free();
 }

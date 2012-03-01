@@ -247,6 +247,13 @@ static Sys_var_mybool Sys_pfs_consumer_thread_instrumentation(
        CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);
 
+static Sys_var_mybool Sys_pfs_consumer_statement_digest(
+       "performance_schema_consumer_statements_digest",
+       "Default startup value for the statements_digest consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_statement_digest_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       PFS_TRAILING_PROPERTIES);
+
 static Sys_var_ulong Sys_pfs_events_waits_history_long_size(
        "performance_schema_events_waits_history_long_size",
        "Number of rows in EVENTS_WAITS_HISTORY_LONG.",
@@ -478,6 +485,14 @@ static Sys_var_ulong Sys_pfs_events_statements_history_size(
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_statements_history_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
        DEFAULT(PFS_STATEMENTS_HISTORY_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_digest_size(
+       "performance_schema_digests_size",
+       "Size of the statement digest.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_digest_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 200),
+       DEFAULT(PFS_DIGEST_SIZE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */

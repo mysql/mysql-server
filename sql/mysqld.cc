@@ -5578,6 +5578,18 @@ static void create_new_thread(THD *thd)
     mysql_mutex_unlock(&LOCK_connection_count);
 
     DBUG_PRINT("error",("Too many connections"));
+    /*
+      The server just accepted the socket connection from the network,
+      and we already have too many connections.
+      Note that the server knows nothing of the client yet,
+      and in particular thd->client_capabilities has not been negotiated.
+      ER_CON_COUNT_ERROR is normally associated with SQLSTATE '08004',
+      but sending a SQLSTATE in the network assumes CLIENT_PROTOCOL_41.
+      See net_send_error_packet().
+      The error packet returned here will only contain the error code,
+      with no sqlstate.
+      A client expecting a SQLSTATE will not find any, and assume 'HY000'.
+    */
     close_connection(thd, ER_CON_COUNT_ERROR);
     delete thd;
     statistic_increment(connection_errors_max_connection, &LOCK_status);
@@ -7200,6 +7212,7 @@ SHOW_VAR status_vars[]= {
   {"Key_write_requests",       (char*) offsetof(KEY_CACHE, global_cache_w_requests), SHOW_KEY_CACHE_LONGLONG},
   {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write), SHOW_KEY_CACHE_LONGLONG},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
+  {"Last_query_partial_plans", (char*) offsetof(STATUS_VAR, last_query_partial_plans), SHOW_LONGLONG_STATUS},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_NOFLUSH},
@@ -7209,7 +7222,6 @@ SHOW_VAR status_vars[]= {
   {"Opened_files",             (char*) &my_file_total_opened, SHOW_LONG_NOFLUSH},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONGLONG_STATUS},
   {"Opened_table_definitions", (char*) offsetof(STATUS_VAR, opened_shares), SHOW_LONGLONG_STATUS},
-  {"Opt_partial_plans",        (char*) offsetof(STATUS_VAR, opt_partial_plans), SHOW_LONGLONG_STATUS},
   {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count, SHOW_FUNC},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_NOFLUSH},
