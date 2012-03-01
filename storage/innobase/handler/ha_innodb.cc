@@ -7829,7 +7829,8 @@ create_table_check_doc_id_col(
 	TABLE*		form,		/*!< in: information on table
 					columns and indexes */
 	ulint*		doc_id_col)	/*!< out: Doc ID column number if
-					there exist a FTS_DOC_ID column,						ULINT_UNDEFINED if column is of the
+					there exist a FTS_DOC_ID column,
+					ULINT_UNDEFINED if column is of the
 					wrong type/name/size */
 {
 	ibool		find_doc_id = FALSE;
@@ -7891,7 +7892,8 @@ create_table_def(
 	TABLE*		form,		/*!< in: information on table
 					columns and indexes */
 	const char*	table_name,	/*!< in: table name */
-	const char*	path_of_temp_table,/*!< in: if this is a table explicitly
+	const char*	path_of_temp_table,
+					/*!< in: if this is a table explicitly
 					created by the user with the
 					TEMPORARY keyword, then this
 					parameter is the dir path where the
