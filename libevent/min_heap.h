@@ -29,6 +29,7 @@
 
 #include "event.h"
 #include "evutil.h"
+#include "stdlib.h"
 
 typedef struct min_heap
 {

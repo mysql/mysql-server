@@ -67,6 +67,9 @@ connection mysqltest1;
 echo send ALTER TABLE t1 DROP c21;
 send ALTER TABLE t1 DROP c21;
 
+echo reap;
+reap;
+
 perl;
 use DBI;
 use Cache::Memcached;
@@ -171,8 +174,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-echo reap;
-reap;
 SHOW CREATE TABLE t1;
 --sorted_result
 -- error 1054
