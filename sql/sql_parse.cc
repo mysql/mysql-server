@@ -2436,6 +2436,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SELECT:
   {
     thd->status_var.last_query_cost= 0.0;
+    thd->status_var.last_query_partial_plans= 0;
 
     if ((res= select_precheck(thd, lex, all_tables, first_table)))
       break;
@@ -7848,6 +7849,11 @@ bool parse_sql(THD *thd,
   /* Set parser state. */
 
   thd->m_parser_state= parser_state;
+
+#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
+  /* Start Digest */
+  thd->m_parser_state->m_lip.m_digest_psi= MYSQL_DIGEST_START(thd->m_statement_psi);
+#endif
 
   /* Parse the query. */
 

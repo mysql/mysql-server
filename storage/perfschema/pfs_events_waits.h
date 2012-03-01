@@ -96,6 +96,15 @@ struct PFS_events_waits : public PFS_events
   ulong m_flags;
 };
 
+/** TIMED bit in the state flags bitfield. */
+#define STATE_FLAG_TIMED (1<<0)
+/** THREAD bit in the state flags bitfield. */
+#define STATE_FLAG_THREAD (1<<1)
+/** EVENT bit in the state flags bitfield. */
+#define STATE_FLAG_EVENT (1<<2)
+/** DIGEST bit in the state flags bitfield. */
+#define STATE_FLAG_DIGEST (1<<3)
+
 void insert_events_waits_history(PFS_thread *thread, PFS_events_waits *wait);
 
 void insert_events_waits_history_long(PFS_events_waits *wait);

@@ -5938,7 +5938,7 @@ static bool test_if_ref(Item *root_cond,
 	    field->real_type() != MYSQL_TYPE_VARCHAR &&
 	    (field->type() != MYSQL_TYPE_FLOAT || field->decimals() == 0))
 	{
-	  return !store_val_in_field(field, right_item, CHECK_FIELD_WARN);
+	  return !right_item->save_in_field_no_warnings(field, true);
 	}
       }
     }

@@ -3089,6 +3089,16 @@ public:
   Item_direct_view_ref(THD *thd, Item_direct_ref *item)
     :Item_direct_ref(thd, item) {}
 
+  /*
+    We share one underlying Item_field, so we have to disable
+    build_equal_items_for_cond().
+    TODO: Implement multiple equality optimization for views.
+  */
+  virtual bool subst_argument_checker(uchar **arg)
+  {
+    return false;
+  }
+
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
   Item *get_tmp_table_item(THD *thd)

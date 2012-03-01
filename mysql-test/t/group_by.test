@@ -1944,3 +1944,33 @@ select ifnull(a, 'xyz') from t1 group by a;
 DROP TABLE t1;
 
 SET @@sql_mode = @old_sql_mode;
+
+--echo #
+--echo # BUG#12640437: USING SQL_BUFFER_RESULT RESULTS IN A
+--echo #               DIFFERENT QUERY OUTPUT
+--echo #
+
+CREATE TABLE t1 (
+  a int,
+  b varchar(1),
+  KEY (b,a)
+);
+
+INSERT INTO t1 VALUES (1,NULL),(0,'a');
+
+let $query=
+  SELECT SQL_BUFFER_RESULT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+
+--echo
+--eval EXPLAIN $query
+--echo
+--eval $query
+
+let $query= SELECT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+--echo
+--eval EXPLAIN $query
+--echo
+--eval $query
+
+--echo
+DROP TABLE t1;

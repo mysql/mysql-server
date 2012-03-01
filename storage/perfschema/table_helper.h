@@ -21,6 +21,21 @@
 #include "pfs_timer.h"
 #include "pfs_engine_table.h"
 #include "pfs_instr_class.h"
+#include "pfs_digest.h"
+
+/*
+  Write MD5 hash value in a string to be used 
+  as DIGEST for the statement.
+*/
+#define MD5_HASH_TO_STRING(_hash, _str)                    \
+  sprintf(_str, "%02x%02x%02x%02x%02x%02x%02x%02x"         \
+                "%02x%02x%02x%02x%02x%02x%02x%02x",        \
+          _hash[0], _hash[1], _hash[2], _hash[3],          \
+          _hash[4], _hash[5], _hash[6], _hash[7],          \
+          _hash[8], _hash[9], _hash[10], _hash[11],        \
+          _hash[12], _hash[13], _hash[14], _hash[15])
+
+#define MD5_HASH_TO_STRING_LENGTH 32
 
 struct PFS_host;
 struct PFS_user;
@@ -105,6 +120,24 @@ struct PFS_account_row
 
   /** Build a row from a memory buffer. */
   int make_row(PFS_account *pfs);
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
+};
+
+/** Row fragment for columns DIGEST, DIGEST_TEXT. */
+struct PFS_digest_row
+{
+  /** Column DIGEST. */
+  char m_digest[COL_DIGEST_SIZE];
+  /** Length in bytes of @c m_digest. */
+  uint m_digest_length;
+  /** Column DIGEST_TEXT. */
+  char m_digest_text[COL_DIGEST_TEXT_SIZE];
+  /** Length in bytes of @c m_digest_text. */
+  uint m_digest_text_length;
+
+  /** Build a row from a memory buffer. */
+  int make_row(PFS_statements_digest_stat*);
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
 };
