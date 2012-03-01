@@ -1059,11 +1059,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   first_record= sort_and_group=0;
   send_records= (ha_rows) 0;
 
-  if (!group_optimized_away)
-  {
-    group= false;
-  }
-  else
+  if (group_optimized_away && !tmp_table_param.precomputed_group_by)
   {
     /*
       If grouping has been optimized away, a temporary table is
@@ -1074,12 +1070,18 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
       created without a grouping expression and JOIN::exec() will not
       perform the necessary grouping (by the use of end_send_group()
       or end_write_group()) if JOIN::group is set to false.
+
+      There is one exception: if the loose index scan access method is
+      used to read into the temporary table, grouping and aggregate
+      functions are handled.
     */
     // the temporary table was explicitly requested
     DBUG_ASSERT(test(select_options & OPTION_BUFFER_RESULT));
     // the temporary table does not have a grouping expression
     DBUG_ASSERT(!temp_table->group); 
   }
+  else
+    group= false;
 
   row_limit= unit->select_limit_cnt;
   do_send_rows= row_limit ? 1 : 0;
