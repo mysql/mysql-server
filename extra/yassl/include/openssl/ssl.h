@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005-2007 MySQL AB, 2008 Sun Microsystems, Inc.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -35,7 +35,7 @@
 #include "rsa.h"
 
 
-#define YASSL_VERSION "2.1.4"
+#define YASSL_VERSION "2.2.0"
 
 
 #if defined(__cplusplus)
