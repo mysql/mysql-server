@@ -111,6 +111,7 @@ typedef struct innodb_engine {
 						for InnoDB Memcached */
 	ib_trx_level_t		trx_level;	/*!< transaction isolation
 						level */
+	int			cfg_status;	/*!< configure status */
 	meta_cfg_info_t		meta_info;	/*!< metadata info from
 						configuration */
 	conn_list_t		conn_data;	/*!< list of data specific for

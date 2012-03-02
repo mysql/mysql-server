@@ -6991,16 +6991,10 @@ int main (int argc, char **argv) {
     }
 
 #ifdef INNODB_MEMCACHED
-# ifdef ENABLE_MEMCACHED_SASL
-#  ifndef SASL_ENABLED
-    settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
-                    "This server is not built with SASL support.\n");
-    exit(EX_USAGE);
-#  endif /* !SASL_ENABLED */
-    settings.require_sasl = true;
-# endif /* ENABLE_MEMCACHED_SASL */
 
     if (option_argc > 0 && option_argv) {
+	    /* Always reset the index to 1, since this function can
+	    be invoked multiple times with install/uninstall plugins */
 	    optind = 1;
 	    while (-1 != (c = getopt(option_argc, option_argv,
 		  "a:"  /* access mask for unix socket */
@@ -7201,13 +7195,13 @@ int main (int argc, char **argv) {
 			    " and will decrease your memory efficiency.\n"
 			);
 		    }
-	#ifndef __WIN32__
+#ifndef __WIN32__
 		    old_opts += sprintf(old_opts, "item_size_max=%zu;",
 					settings.item_size_max);
-	#else
+#else
 		    old_opts += sprintf(old_opts, "item_size_max=%lu;", (long unsigned)
 					settings.item_size_max);
-	#endif
+#endif
 		    break;
 		case 'E':
 		    engine = optarg;
@@ -7221,12 +7215,14 @@ int main (int argc, char **argv) {
 		    settings.allow_detailed = false;
 		    break;
 		case 'S': /* set Sasl authentication to true. Default is false */
-	#ifndef SASL_ENABLED
+# ifdef ENABLE_MEMCACHED_SASL
+#  ifndef SASL_ENABLED
 		    settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
 			    "This server is not built with SASL support.\n");
 		    exit(EX_USAGE);
-	#endif
+#  endif /* !SASL_ENABLED */
 		    settings.require_sasl = true;
+# endif /* ENABLE_MEMCACHED_SASL */
 		    break;
 		case 'X' :
 		    {
@@ -7249,6 +7245,8 @@ int main (int argc, char **argv) {
 		    return (void*)1;
 		}
 	}
+
+	free(option_argv);
     }
 #else
     /* process arguments */

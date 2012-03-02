@@ -150,12 +150,7 @@ innodb_api_begin(
 			return(err);
 		}
 
-		if (lock_mode == IB_LOCK_TABLE_X) {
-			/* Table lock only */
-			err = ib_cb_cursor_lock(*crsr, IB_LOCK_X);
-		} else {
-			err = ib_cb_cursor_set_lock(*crsr, lock_mode);
-		}
+		innodb_cb_cursor_lock(engine, *crsr, lock_mode);
 
 		if (err != DB_SUCCESS) {
 			fprintf(stderr, " InnoDB_Memcached: Fail to lock"
@@ -190,7 +185,8 @@ innodb_api_begin(
 					*crsr, meta_index->idx_name,
 					idx_crsr, &index_type, &index_id);
 
-				ib_cb_cursor_set_lock(*idx_crsr, lock_mode);
+				innodb_cb_cursor_lock(engine, *idx_crsr,
+						      lock_mode);
 			}
 
 			/* Create a "Fake" THD if binlog is enabled */
@@ -210,12 +206,7 @@ innodb_api_begin(
 	} else {
 		ib_cb_cursor_new_trx(*crsr, ib_trx);
 
-		if (lock_mode == IB_LOCK_TABLE_X) {
-			/* Table lock only */
-			err = ib_cb_cursor_lock(*crsr, IB_LOCK_X);
-		} else {
-			err = ib_cb_cursor_set_lock(*crsr, lock_mode);
-		}
+		innodb_cb_cursor_lock(engine, *crsr, lock_mode);
 
 		if (err != DB_SUCCESS) {
 			fprintf(stderr, " InnoDB_Memcached: Fail to lock"
@@ -230,7 +221,8 @@ innodb_api_begin(
 			/* set up secondary index cursor */
 			if (meta_index->srch_use_idx == META_USE_SECONDARY) {
 				ib_cb_cursor_new_trx(*idx_crsr, ib_trx);
-				ib_cb_cursor_set_lock(*idx_crsr, lock_mode);
+				innodb_cb_cursor_lock(engine, *idx_crsr,
+						      lock_mode);
 			}
 		}
 	}
@@ -1760,10 +1752,27 @@ Set the Lock an InnoDB cursor/table.
 ib_err_t
 innodb_cb_cursor_lock(
 /*==================*/
+	innodb_engine_t* eng,		/*!< in: InnoDB Memcached engine */
 	ib_crsr_t	ib_crsr,	/*!< in/out: InnoDB cursor */
 	ib_lck_mode_t	ib_lck_mode)	/*!< in: InnoDB lock mode */
 {
-	return(ib_cb_cursor_set_lock(ib_crsr, ib_lck_mode));
+	ib_err_t	err = DB_SUCCESS;
+
+	if (ib_lck_mode == IB_LOCK_TABLE_X) {
+		/* Table lock only */
+		err = ib_cb_cursor_lock(ib_crsr, IB_LOCK_X);
+	} else if (eng && eng->cfg_status & IB_CFG_DISABLE_ROWLOCK) {
+		/* Table lock only */
+		if (ib_lck_mode == IB_LOCK_X) {
+			err = ib_cb_cursor_lock(ib_crsr, IB_LOCK_IX);
+		} else {
+			err = ib_cb_cursor_lock(ib_crsr, IB_LOCK_IS);
+		}
+	} else {
+		err = ib_cb_cursor_set_lock(ib_crsr, ib_lck_mode);
+	}
+
+	return(err);
 }
 
 /*****************************************************************//**
