@@ -76,6 +76,7 @@ struct __toku_lock_tree {
     OMT                dbs; //The extant dbs using this lock tree.
     OMT                lock_requests;
     toku_pthread_mutex_t mutex;
+    toku_rth*          txns_to_unlock; // set of txn's that could not release their locks because there was no db for the comparison function
 
     /** A temporary area where we store the results of various find on 
         the range trees that this lock tree owns 
