@@ -231,8 +231,6 @@ public:
   /**
     Create a new binary log.
     @param log_name Name of binlog
-    @param log_type Always LOG_BIN. This is probably redundant and can
-    be removed
     @param new_name Name of binlog, too. todo: what's the difference
     between new_name and log_name?
     @param io_cache_type_arg Specifies how the IO cache is opened:
@@ -249,7 +247,6 @@ public:
     on global_sid_lock.
   */
   bool open_binlog(const char *log_name,
-                   enum_log_type log_type,
                    const char *new_name,
                    enum cache_type io_cache_type_arg,
                    ulong max_size,
