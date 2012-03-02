@@ -26,6 +26,7 @@
 #include "rpl_master.h"  // reset_master
 #include "rpl_slave.h"   // reset_slave
 #include "rpl_rli.h"     // rotate_relay_log
+#include "rpl_mi.h"
 #include "debug_sync.h"
 
 
@@ -158,8 +159,10 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   {
 #ifdef HAVE_REPLICATION
     mysql_mutex_lock(&LOCK_active_mi);
+    mysql_mutex_lock(&active_mi->data_lock);
     if (rotate_relay_log(active_mi))
       *write_to_binlog= -1;
+    mysql_mutex_unlock(&active_mi->data_lock);
     mysql_mutex_unlock(&LOCK_active_mi);
 #endif
   }

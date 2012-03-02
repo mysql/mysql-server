@@ -1536,6 +1536,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     Free old mi_description_event (that is needed if we are in
     a reconnection).
   */
+  mysql_mutex_lock(&mi->data_lock);
   mi->set_mi_description_event(NULL);
 
   if (!my_isdigit(&my_charset_bin,*mysql->server_version))
@@ -1594,6 +1595,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   /* as we are here, we tried to allocate the event */
   if (mi->get_mi_description_event() == NULL)
   {
+    mysql_mutex_unlock(&mi->data_lock);
     errmsg= "default Format_description_log_event";
     err_code= ER_SLAVE_CREATE_EVENT_FAILURE;
     sprintf(err_buff, ER(err_code), errmsg);
@@ -1642,6 +1644,9 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
               BINLOG_CHECKSUM_ALG_UNDEF);
   DBUG_ASSERT(mi->rli->relay_log.relay_log_checksum_alg !=
               BINLOG_CHECKSUM_ALG_UNDEF); 
+
+  mysql_mutex_unlock(&mi->data_lock);
+
   /*
     Compare the master and slave's clock. Do not die if master's clock is
     unavailable (very old master not supporting UNIX_TIMESTAMP()?).
@@ -2115,7 +2120,9 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
 
 /*
   Builds a Rotate from the ignored events' info and writes it to relay log.
-  
+
+  The caller must hold mi->data_lock before invoking this function.
+
   @param thd pointer to I/O Thread's Thd.
   @param mi  point to I/O Thread metadata class.
 
@@ -2129,6 +2136,7 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
   DBUG_ENTER("write_ignored_events_info_to_relay_log");
 
   DBUG_ASSERT(thd == mi->info_thd);
+  mysql_mutex_assert_owner(&mi->data_lock);
   mysql_mutex_lock(log_lock);
   if (rli->ign_master_log_name_end[0])
   {
@@ -2145,7 +2153,7 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
     if (likely((bool)ev))
     {
       ev->server_id= 0; // don't be ignored by slave SQL thread
-      if (unlikely(rli->relay_log.append_event(ev)))
+      if (unlikely(rli->relay_log.append_event(ev, mi) != 0))
         mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                    ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
                    "failed to write a Rotate event"
@@ -3663,6 +3671,7 @@ pthread_handler_t handle_slave_io(void *arg)
   uint retry_count;
   bool suppress_warnings;
   int ret;
+  int binlog_version;
 #ifndef DBUG_OFF
   uint retry_count_reg= 0, retry_count_dump= 0, retry_count_event= 0;
 #endif
@@ -3792,7 +3801,11 @@ connected:
     goto connected;
   } 
 
-  if (mi->get_mi_description_event()->binlog_version > 1)
+  mysql_mutex_lock(&mi->data_lock);
+  binlog_version= mi->get_mi_description_event()->binlog_version;
+  mysql_mutex_unlock(&mi->data_lock);
+
+  if (binlog_version > 1)
   {
     /*
       Register ourselves with the master.
@@ -4011,7 +4024,9 @@ err:
     mysql_close(mysql);
     mi->mysql=0;
   }
+  mysql_mutex_lock(&mi->data_lock);
   write_ignored_events_info_to_relay_log(thd, mi);
+  mysql_mutex_unlock(&mi->data_lock);
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&mi->run_lock);
   /*
@@ -4020,7 +4035,10 @@ err:
   */
   mi->reset_start_info();
   /* Forget the relay log's format */
+  mysql_mutex_lock(&mi->data_lock);
   mi->set_mi_description_event(NULL);
+  mysql_mutex_unlock(&mi->data_lock);
+
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
   mysql_mutex_lock(&LOCK_thread_count);
@@ -5321,6 +5339,8 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
   NET *net = &mi->mysql->net;
   DBUG_ENTER("process_io_create_file");
 
+  mysql_mutex_assert_owner(&mi->data_lock);
+
   if (unlikely(!cev->is_valid()))
     DBUG_RETURN(1);
 
@@ -5371,7 +5391,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
           break;
         Execute_load_log_event xev(thd,0,0);
         xev.log_pos = cev->log_pos;
-        if (unlikely(mi->rli->relay_log.append_event(&xev)))
+        if (unlikely(mi->rli->relay_log.append_event(&xev, mi) != 0))
         {
           mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                      ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
@@ -5385,7 +5405,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
       {
         cev->block = net->read_pos;
         cev->block_len = num_bytes;
-        if (unlikely(mi->rli->relay_log.append_event(cev)))
+        if (unlikely(mi->rli->relay_log.append_event(cev, mi) != 0))
         {
           mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                      ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
@@ -5400,7 +5420,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
         aev.block = net->read_pos;
         aev.block_len = num_bytes;
         aev.log_pos = cev->log_pos;
-        if (unlikely(mi->rli->relay_log.append_event(&aev)))
+        if (unlikely(mi->rli->relay_log.append_event(&aev, mi) != 0))
         {
           mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                      ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
@@ -5417,28 +5437,22 @@ err:
 }
 
 
-/*
-  Start using a new binary log on the master
+/**
+  Used by the slave IO thread when it receives a rotate event from the
+  master.
 
-  SYNOPSIS
-    process_io_rotate()
-    mi                  master_info for the slave
-    rev                 The rotate log event read from the binary log
+  Updates the master info with the place in the next binary log where
+  we should start reading.  Rotate the relay log to avoid mixed-format
+  relay logs.
 
-  DESCRIPTION
-    Updates the master info with the place in the next binary
-    log where we should start reading.
-    Rotate the relay log to avoid mixed-format relay logs.
+  @param mi master_info for the slave
+  @param rev The rotate log event read from the master
 
-  NOTES
-    We assume we already locked mi->data_lock
+  @note The caller must hold mi->data_lock before invoking this function.
 
-  RETURN VALUES
-    0           ok
-    1           Log event is illegal
-
+  @retval 0 ok
+  @retval 1 error
 */
-
 static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
 {
   DBUG_ENTER("process_io_rotate");
@@ -5483,15 +5497,18 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
     Rotate the relay log makes binlog format detection easier (at next slave
     start or mysqlbinlog)
   */
-  DBUG_RETURN(rotate_relay_log(mi) /* will take the right mutexes */);
+  int ret= rotate_relay_log(mi);
+  DBUG_RETURN(ret);
 }
 
-/*
+/**
   Reads a 3.23 event and converts it to the slave's format. This code was
   copied from MySQL 4.0.
+
+  @note The caller must hold mi->data_lock before invoking this function.
 */
 static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
-                           ulong event_len)
+                                    ulong event_len)
 {
   const char *errmsg = 0;
   ulong inc_pos;
@@ -5499,6 +5516,8 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
   char *tmp_buf = 0;
   Relay_log_info *rli= mi->rli;
   DBUG_ENTER("queue_binlog_ver_1_event");
+
+  mysql_mutex_assert_owner(&mi->data_lock);
 
   /*
     If we get Load event, we need to pass a non-reusable buffer
@@ -5542,7 +5561,6 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     DBUG_RETURN(1);
   }
 
-  mysql_mutex_lock(&mi->data_lock);
   mi->set_master_log_pos(ev->log_pos); /* 3.23 events don't contain log_pos */
   switch (ev->get_type_code()) {
   case STOP_EVENT:
@@ -5553,7 +5571,6 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     if (unlikely(process_io_rotate(mi,(Rotate_log_event*)ev)))
     {
       delete ev;
-      mysql_mutex_unlock(&mi->data_lock);
       DBUG_RETURN(1);
     }
     inc_pos= 0;
@@ -5574,7 +5591,6 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     delete ev;
     mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
     DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-    mysql_mutex_unlock(&mi->data_lock);
     my_free((char*)tmp_buf);
     DBUG_RETURN(error);
   }
@@ -5590,10 +5606,9 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
       Log_event::Log_event(const char* buf...) in log_event.cc).
       */
       ev->log_pos+= event_len; /* make log_pos be the pos of the end of the event */
-    if (unlikely(rli->relay_log.append_event(ev)))
+    if (unlikely(rli->relay_log.append_event(ev, mi) != 0))
     {
       delete ev;
-      mysql_mutex_unlock(&mi->data_lock);
       DBUG_RETURN(1);
     }
     rli->relay_log.harvest_bytes_written(&rli->log_space_total);
@@ -5601,22 +5616,25 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
   delete ev;
   mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
   DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-  mysql_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(0);
 }
 
-/*
+/**
   Reads a 4.0 event and converts it to the slave's format. This code was copied
   from queue_binlog_ver_1_event(), with some affordable simplifications.
+
+  @note The caller must hold mi->data_lock before invoking this function.
 */
 static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
-                           ulong event_len)
+                                    ulong event_len)
 {
   const char *errmsg = 0;
   ulong inc_pos;
   char *tmp_buf = 0;
   Relay_log_info *rli= mi->rli;
   DBUG_ENTER("queue_binlog_ver_3_event");
+
+  mysql_mutex_assert_owner(&mi->data_lock);
 
   /* read_log_event() will adjust log_pos to be end_log_pos */
   Log_event *ev=
@@ -5630,7 +5648,6 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     my_free((char*) tmp_buf);
     DBUG_RETURN(1);
   }
-  mysql_mutex_lock(&mi->data_lock);
   switch (ev->get_type_code()) {
   case STOP_EVENT:
     goto err;
@@ -5638,7 +5655,6 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     if (unlikely(process_io_rotate(mi,(Rotate_log_event*)ev)))
     {
       delete ev;
-      mysql_mutex_unlock(&mi->data_lock);
       DBUG_RETURN(1);
     }
     inc_pos= 0;
@@ -5648,10 +5664,9 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     break;
   }
 
-  if (unlikely(rli->relay_log.append_event(ev)))
+  if (unlikely(rli->relay_log.append_event(ev, mi) != 0))
   {
     delete ev;
-    mysql_mutex_unlock(&mi->data_lock);
     DBUG_RETURN(1);
   }
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
@@ -5659,7 +5674,6 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
   mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
 err:
   DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-  mysql_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(0);
 }
 
@@ -5679,6 +5693,8 @@ static int queue_old_event(Master_info *mi, const char *buf,
                            ulong event_len)
 {
   DBUG_ENTER("queue_old_event");
+
+  mysql_mutex_assert_owner(&mi->data_lock);
 
   switch (mi->get_mi_description_event()->binlog_version)
   {
@@ -5707,7 +5723,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 {
   int error= 0;
   String error_msg;
-  ulong inc_pos;
+  ulong inc_pos= 0;
   Relay_log_info *rli= mi->rli;
   mysql_mutex_t *log_lock= rli->relay_log.get_log_lock();
   ulong s_id;
@@ -5744,9 +5760,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   {
     // checksum behaviour is similar to the pre-checksum FD handling
     mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF;
+    mysql_mutex_lock(&mi->data_lock);
     mi->get_mi_description_event()->checksum_alg=
       mi->rli->relay_log.relay_log_checksum_alg= checksum_alg=
       BINLOG_CHECKSUM_ALG_OFF;
+    mysql_mutex_unlock(&mi->data_lock);
   }
 
   // does not hold always because of old binlog can work with NM 
@@ -5776,14 +5794,15 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     goto err;
   }
 
-  LINT_INIT(inc_pos);
+  mysql_mutex_lock(&mi->data_lock);
 
   if (mi->get_mi_description_event()->binlog_version < 4 &&
       event_type != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
-    DBUG_RETURN(queue_old_event(mi,buf,event_len));
-
-  LINT_INIT(inc_pos);
-  mysql_mutex_lock(&mi->data_lock);
+  {
+    int ret= queue_old_event(mi,buf,event_len);
+    mysql_mutex_unlock(&mi->data_lock);
+    DBUG_RETURN(ret);
+  }
 
   switch (event_type) {
   case STOP_EVENT:
@@ -6093,7 +6112,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   else
   {
     /* write the event to the relay log */
-    if (likely(!(rli->relay_log.append_buffer(buf,event_len))))
+    if (likely(rli->relay_log.append_buffer(buf, event_len, mi) == 0))
     {
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
@@ -7012,10 +7031,12 @@ err:
 int rotate_relay_log(Master_info* mi)
 {
   DBUG_ENTER("rotate_relay_log");
+
+  mysql_mutex_assert_owner(&mi->data_lock);
+  DBUG_EXECUTE_IF("crash_before_rotate_relaylog", DBUG_SUICIDE(););
+
   Relay_log_info* rli= mi->rli;
   int error= 0;
-
-  DBUG_EXECUTE_IF("crash_before_rotate_relaylog", DBUG_SUICIDE(););
 
   /*
      We need to test inited because otherwise, new_file() will attempt to lock
@@ -7028,7 +7049,8 @@ int rotate_relay_log(Master_info* mi)
   }
 
   /* If the relay log is closed, new_file() will do nothing. */
-  if ((error= rli->relay_log.new_file(mi->get_mi_description_event())))
+  error= rli->relay_log.new_file(mi->get_mi_description_event());
+  if (error != 0)
     goto end;
 
   /*

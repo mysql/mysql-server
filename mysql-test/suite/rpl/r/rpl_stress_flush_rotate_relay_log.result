@@ -1,0 +1,20 @@
+==== Configure ====
+==== Initialize ====
+include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+CREATE TABLE t1 (a VARCHAR(600)) ENGINE = InnoDB;
+CREATE TABLE t2 (a INT) ENGINE = InnoDB;
+SET @@GLOBAL.DEBUG='d,rotate_slave_debug_group';
+include/stop_slave.inc
+==== Generate load on master ====
+==== Process load and execute FLUSH RELAY LOGS on slave ====
+include/stop_slave.inc
+include/start_slave.inc
+==== Sanity check ====
+include/diff_tables.inc [master:t1, slave:t1]
+==== Clean up ====
+DROP TABLE t1, t2;
+include/rpl_end.inc
