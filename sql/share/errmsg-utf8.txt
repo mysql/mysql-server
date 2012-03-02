@@ -6557,4 +6557,7 @@ ER_CONNECTION_KILLED 70100
         eng "Connection was killed"
 ER_INTERNAL_ERROR
         eng "Internal error: '%-.192s'"
-
+ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SKIP_REPLICATION
+        eng "Cannot modify @@session.skip_replication inside a transaction"
+ER_STORED_FUNCTION_PREVENTS_SWITCH_SKIP_REPLICATION
+        eng "Cannot modify @@session.skip_replication inside a stored function or trigger"

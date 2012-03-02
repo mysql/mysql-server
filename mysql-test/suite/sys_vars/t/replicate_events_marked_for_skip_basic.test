@@ -1,0 +1,31 @@
+source include/not_embedded.inc;
+
+--echo #
+--echo # Basic testing of replicate_events_marked_for_skip.
+--echo #
+
+SET @save_replicate_events_marked_for_skip = @@GLOBAL.replicate_events_marked_for_skip;
+SELECT @save_replicate_events_marked_for_skip;
+
+--echo # Scope.
+
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.replicate_events_marked_for_skip = "";
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.replicate_events_marked_for_skip;
+
+--echo # Argument syntax.
+
+SET @@GLOBAL.replicate_events_marked_for_skip=filter_on_master;
+SELECT @@GLOBAL.replicate_events_marked_for_skip;
+SET @@GLOBAL.replicate_events_marked_for_skip=filter_on_slave;
+SELECT @@GLOBAL.replicate_events_marked_for_skip;
+SET @@GLOBAL.replicate_events_marked_for_skip=replicate;
+SELECT @@GLOBAL.replicate_events_marked_for_skip;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.replicate_events_marked_for_skip=filter;
+SELECT @@GLOBAL.replicate_events_marked_for_skip;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='replicate_events_marked_for_skip';
+
+--echo # Cleanup.
+SET @@GLOBAL.replicate_events_marked_for_skip = @save_replicate_events_marked_for_skip;

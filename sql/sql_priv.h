@@ -151,6 +151,7 @@
   Note! Reserved for use in MySQL Cluster
 */
 #define OPTION_ALLOW_BATCH              (ULL(1) << 36) // THD, intern (slave)
+#define OPTION_SKIP_REPLICATION         (ULL(1) << 37) // THD, user
 
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT

@@ -620,6 +620,14 @@ The following options may be given as the first argument:
  directive multiple times, once for each table. This will
  work for cross-database updates, in contrast to
  replicate-do-db.
+ --replicate-events-marked-for-skip=name 
+ Whether the slave should replicate events that were
+ created with @@skip_replication=1 on the master. Default
+ REPLICATE (no events are skipped). Other values are
+ FILTER_ON_SLAVE (events will be sent by the master but
+ ignored by the slave) and FILTER_ON_MASTER (events marked
+ with @@skip_replication=1 will be filtered on the master
+ and never be sent to the slave).
  --replicate-ignore-db=name 
  Tells the slave thread to not replicate to the specified
  database. To specify more than one database to ignore,
@@ -1029,6 +1037,7 @@ relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0
 replicate-annotate-row-events FALSE
+replicate-events-marked-for-skip replicate
 replicate-same-server-id FALSE
 report-host (No default value)
 report-password (No default value)

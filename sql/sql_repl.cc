@@ -556,8 +556,60 @@ static int send_heartbeat_event(NET* net, String* packet,
 
 
 /*
-  TODO: Clean up loop to only have one call to send_file()
+  Helper function for mysql_binlog_send() to write an event down the slave
+  connection.
+
+  Returns NULL on success, error message string on error.
 */
+static const char *
+send_event_to_slave(THD *thd, NET *net, String* const packet, ushort flags,
+                    Log_event_type event_type, char *log_file_name,
+                    IO_CACHE *log)
+{
+  my_off_t pos;
+
+  /* Do not send annotate_rows events unless slave requested it. */
+  if (event_type == ANNOTATE_ROWS_EVENT &&
+      !(flags & BINLOG_SEND_ANNOTATE_ROWS_EVENT))
+    return NULL;
+
+  /*
+    Skip events with the @@skip_replication flag set, if slave requested
+    skipping of such events.
+  */
+  if (thd->variables.option_bits & OPTION_SKIP_REPLICATION)
+  {
+    /*
+      The first byte of the packet is a '\0' to distinguish it from an error
+      packet. So the actual event starts at offset +1.
+    */
+    uint16 event_flags= uint2korr(&((*packet)[FLAGS_OFFSET+1]));
+    if (event_flags & LOG_EVENT_SKIP_REPLICATION_F)
+      return NULL;
+  }
+
+  thd_proc_info(thd, "Sending binlog event to slave");
+
+  pos= my_b_tell(log);
+  if (RUN_HOOK(binlog_transmit, before_send_event,
+               (thd, flags, packet, log_file_name, pos)))
+    return "run 'before_send_event' hook failed";
+
+  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
+    return "Failed on my_net_write()";
+
+  DBUG_PRINT("info", ("log event code %d", (*packet)[LOG_EVENT_OFFSET+1] ));
+  if (event_type == LOAD_EVENT)
+  {
+    if (send_file(thd))
+      return "failed in send_file()";
+  }
+
+  if (RUN_HOOK(binlog_transmit, after_send_event, (thd, flags, packet)))
+    return "Failed to run hook 'after_send_event'";
+
+  return NULL;    /* Success */
+}
 
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 		       ushort flags)
@@ -570,9 +622,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 
   IO_CACHE log;
   File file = -1;
-  String* packet = &thd->packet;
+  String* const packet = &thd->packet;
   int error;
-  const char *errmsg = "Unknown error";
+  const char *errmsg = "Unknown error", *tmp_msg;
   const char *fmt= "%s; the last event was read from '%s' at %s, the last byte read was read from '%s' at %s.";
   char llbuff1[22], llbuff2[22];
   char error_text[MAX_SLAVE_ERRMSG]; // to be send to slave via my_message()
@@ -889,51 +941,21 @@ impossible position";
         (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
       }
 
-      if (event_type != ANNOTATE_ROWS_EVENT ||
-          (flags & BINLOG_SEND_ANNOTATE_ROWS_EVENT))
+      if ((tmp_msg= send_event_to_slave(thd, net, packet, flags, event_type,
+                                        log_file_name, &log)))
       {
-        pos = my_b_tell(&log);
-        if (RUN_HOOK(binlog_transmit, before_send_event,
-                     (thd, flags, packet, log_file_name, pos)))
-        {
-          my_errno= ER_UNKNOWN_ERROR;
-          errmsg= "run 'before_send_event' hook failed";
-          goto err;
-        }
-
-        if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
-        {
-          errmsg = "Failed on my_net_write()";
-          my_errno= ER_UNKNOWN_ERROR;
-          goto err;
-        }
-
-        DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
-                        {
-                          if (event_type == XID_EVENT)
-                          {
-                            net_flush(net);
-                          }
-                        });
-
-        DBUG_PRINT("info", ("log event code %d", event_type));
-        if (event_type == LOAD_EVENT)
-        {
-          if (send_file(thd))
-          {
-            errmsg = "failed in send_file()";
-            my_errno= ER_UNKNOWN_ERROR;
-            goto err;
-          }
-        }
-
-        if (RUN_HOOK(binlog_transmit, after_send_event, (thd, flags, packet)))
-        {
-          errmsg= "Failed to run hook 'after_send_event'";
-          my_errno= ER_UNKNOWN_ERROR;
-          goto err;
-        }
+        errmsg= tmp_msg;
+        my_errno= ER_UNKNOWN_ERROR;
+        goto err;
       }
+
+      DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
+                      {
+                        if (event_type == XID_EVENT)
+                        {
+                          net_flush(net);
+                        }
+                      });
 
       /* reset transmit packet for next loop */
       if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
@@ -1078,43 +1100,13 @@ impossible position";
           goto err;
 	}
 
-	if (read_packet &&
-            (event_type != ANNOTATE_ROWS_EVENT ||
-             (flags & BINLOG_SEND_ANNOTATE_ROWS_EVENT)))
+        if (read_packet &&
+            (tmp_msg= send_event_to_slave(thd, net, packet, flags, event_type,
+                                          log_file_name, &log)))
         {
-          thd_proc_info(thd, "Sending binlog event to slave");
-          pos = my_b_tell(&log);
-          if (RUN_HOOK(binlog_transmit, before_send_event,
-                       (thd, flags, packet, log_file_name, pos)))
-          {
-            my_errno= ER_UNKNOWN_ERROR;
-            errmsg= "run 'before_send_event' hook failed";
-            goto err;
-          }
-	  
-	  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) )
-	  {
-	    errmsg = "Failed on my_net_write()";
-	    my_errno= ER_UNKNOWN_ERROR;
-	    goto err;
-	  }
-
-	  if (event_type == LOAD_EVENT)
-	  {
-	    if (send_file(thd))
-	    {
-	      errmsg = "failed in send_file()";
-	      my_errno= ER_UNKNOWN_ERROR;
-	      goto err;
-	    }
-	  }
-
-          if (RUN_HOOK(binlog_transmit, after_send_event, (thd, flags, packet)))
-          {
-            my_errno= ER_UNKNOWN_ERROR;
-            errmsg= "Failed to run hook 'after_send_event'";
-            goto err;
-          }
+          errmsg= tmp_msg;
+          my_errno= ER_UNKNOWN_ERROR;
+          goto err;
 	}
 
 	log.error=0;
