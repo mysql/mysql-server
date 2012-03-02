@@ -1588,7 +1588,8 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     if (relay_log.open_binlog(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
                               (max_relay_log_size ? max_relay_log_size :
                                max_binlog_size), 1,
-                              true/*need mutex*/, true/*need sid_lock*/))
+                              true/*need mutex*/, true/*need sid_lock*/,
+                              mi->get_mi_description_event()))
     {
       sql_print_error("Failed in open_log() called from Relay_log_info::rli_init_info().");
       DBUG_RETURN(1);
