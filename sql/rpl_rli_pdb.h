@@ -345,7 +345,7 @@ public:
   en_running_state volatile running_status;
 
   int init_worker(Relay_log_info*, ulong);
-  int init_info();
+  int rli_init_info();
   void end_info();
   int flush_info(bool force= FALSE);
   size_t get_number_worker_fields();

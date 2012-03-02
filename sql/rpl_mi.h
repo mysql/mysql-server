@@ -41,7 +41,7 @@ class Rpl_info_factory;
   Master_info is initialized once from the master.info repository if such
   exists. Otherwise, data members corresponding to master.info fields
   are initialized with defaults specified by master-* options. The
-  initialization is done through init_info() call.
+  initialization is done through mi_init_info() call.
 
   Logically, the format of master.info repository is presented as follows:
 
@@ -282,7 +282,7 @@ public:
 
   ulong master_gtid_mode;
 
-  int init_info();
+  int mi_init_info();
   void end_info();
   int flush_info(bool force= FALSE);
   void set_relay_log_info(Relay_log_info *info);
