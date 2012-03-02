@@ -291,6 +291,7 @@ Lock the table with specified lock mode
 ib_err_t
 innodb_cb_cursor_lock(
 /*==================*/
+	innodb_engine_t* eng,		/*!< in: InnoDB Memcached engine */
 	ib_crsr_t	ib_crsr,	/*!< in/out: cursor on the table */
 	ib_lck_mode_t	ib_lck_mode);	/*!< in: lock mode */
 

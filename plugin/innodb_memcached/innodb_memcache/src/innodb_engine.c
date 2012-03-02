@@ -204,7 +204,6 @@ innodb_initialize(
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
 	eng_config_info_t*	my_eng_config;
-	int			api_cfg_status;
 
 	my_eng_config = (eng_config_info_t*) config_str;
 
@@ -221,16 +220,16 @@ innodb_initialize(
 
 	innodb_eng->enable_binlog = my_eng_config->eng_enable_binlog;
 
-	api_cfg_status = innodb_cb_get_cfg();
+	innodb_eng->cfg_status = innodb_cb_get_cfg();
 
 	/* If binlog is not enabled by InnoDB memcached plugin, let's
 	check whether innodb_direct_access_enable_binlog is turned on */
 	if (!innodb_eng->enable_binlog) {
-		innodb_eng->enable_binlog = api_cfg_status
+		innodb_eng->enable_binlog = innodb_eng->cfg_status
 					    & IB_CFG_BINLOG_ENABLED;
 	}
 
-	innodb_eng->enable_mdl = api_cfg_status & IB_CFG_MDL_ENABLED;
+	innodb_eng->enable_mdl = innodb_eng->cfg_status & IB_CFG_MDL_ENABLED;
 
 	/* Set the default write batch size to 1 if binlog is turned on */
 	if (innodb_eng->enable_binlog) {
@@ -575,7 +574,7 @@ innodb_conn_init(
 			innodb_cb_cursor_new_trx(crsr, conn_data->crsr_trx);
 			trx_updated = true;
 
-			err = innodb_cb_cursor_lock(crsr, lock_mode);
+			err = innodb_cb_cursor_lock(engine, crsr, lock_mode);
 
 			if (err != DB_SUCCESS) {
 				innodb_cb_cursor_close(
@@ -592,10 +591,10 @@ innodb_conn_init(
 				innodb_cb_cursor_new_trx(
 					idx_crsr, conn_data->crsr_trx);
 				innodb_cb_cursor_lock(
-					idx_crsr, lock_mode);
+					engine, idx_crsr, lock_mode);
 			}
 		} else {
-			err = innodb_cb_cursor_lock(crsr, lock_mode);
+			err = innodb_cb_cursor_lock(engine, crsr, lock_mode);
 
 			if (err != DB_SUCCESS) {
 				innodb_cb_cursor_close(
@@ -668,7 +667,7 @@ innodb_conn_init(
 			}
 				
 			innodb_cb_cursor_lock(
-				conn_data->read_crsr, lock_mode); 
+				engine, conn_data->read_crsr, lock_mode); 
 
 			if (meta_index->srch_use_idx == META_USE_SECONDARY) {
 				ib_crsr_t idx_crsr = conn_data->idx_read_crsr;
@@ -676,7 +675,7 @@ innodb_conn_init(
 				innodb_cb_cursor_new_trx(
 					idx_crsr, conn_data->crsr_trx);
 				innodb_cb_cursor_lock(
-					idx_crsr, lock_mode);
+					engine, idx_crsr, lock_mode);
 			}
 		}
 
