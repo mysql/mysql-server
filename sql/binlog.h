@@ -76,11 +76,6 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   uint file_id;
   uint open_count;				// For replication
   int readers_count;
-  /**
-    Completely redundant flag, always 0.
-    @todo remove this
-  */
-  bool no_auto_events;
 
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
@@ -230,8 +225,6 @@ public:
   void signal_update();
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
   int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
-private:
-  int init(bool no_auto_events_arg, ulong max_size);
 public:
   void init_pthread_objects();
   void cleanup();
@@ -244,7 +237,6 @@ public:
     between new_name and log_name?
     @param io_cache_type_arg Specifies how the IO cache is opened:
     read-only or read-write.
-    @param no_auto_events_arg Do not create Format_description_log_event.
     @param max_size The size at which this binlog will be rotated.
     @param null_created If false, and a Format_description_log_event
     is written, then the Format_description_log_event will have the
@@ -260,7 +252,7 @@ public:
                    enum_log_type log_type,
                    const char *new_name,
                    enum cache_type io_cache_type_arg,
-                   bool no_auto_events_arg, ulong max_size,
+                   ulong max_size,
                    bool null_created,
                    bool need_mutex, bool need_sid_lock,
                    Format_description_log_event *extra_description_event);

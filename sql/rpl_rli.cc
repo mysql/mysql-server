@@ -1585,7 +1585,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
     */
-    if (relay_log.open_binlog(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
+    if (relay_log.open_binlog(ln, LOG_BIN, 0, SEQ_READ_APPEND,
                               (max_relay_log_size ? max_relay_log_size :
                                max_binlog_size), 1,
                               true/*need mutex*/, true/*need sid_lock*/,
