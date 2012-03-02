@@ -1,0 +1,4 @@
+$DAEMON_MEMCACHED_OPT
+$DAEMON_MEMCACHED_LOAD
+--daemon_memcached_engine_lib_path=$INNODB_ENGINE_DIR
+--loose-daemon_memcached_option="-p11231"
