@@ -4916,7 +4916,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
        thread.
     */
   case 1:
-    if (strncmp(rli->relay_log.description_event_for_exec->server_version,
+    if (strncmp(rli->get_rli_description_event()->server_version,
                 "3.23.57",7) >= 0 && created)
     {
       /*
@@ -5377,8 +5377,7 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
   if (!ret)
   {
     /* Save the information describing this binlog */
-    delete rli->relay_log.description_event_for_exec;
-    const_cast<Relay_log_info *>(rli)->relay_log.description_event_for_exec= this;
+    const_cast<Relay_log_info *>(rli)->set_rli_description_event(this);
   }
 
   DBUG_RETURN(ret);
@@ -6509,7 +6508,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
       a master's downgrade from 5.0 to 4.0.
-      However, no need to reset description_event_for_exec: indeed, if the next
+      However, no need to reset rli_description_event: indeed, if the next
       master is 5.0 (even 5.0.1) we will soon get a Format_desc; if the next
       master is 4.0 then the events are in the slave's format (conversion).
     */
@@ -8184,7 +8183,7 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
   if (!(lev= (Load_log_event*)
         Log_event::read_log_event(&file,
                                   (mysql_mutex_t*) 0,
-                                  rli->relay_log.description_event_for_exec,
+                                  rli->get_rli_description_event(),
                                   opt_slave_sql_verify_checksum)) ||
       lev->get_type_code() != NEW_LOAD_EVENT)
   {
