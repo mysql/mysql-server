@@ -1,0 +1,728 @@
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+DROP DATABASE IF EXISTS dbt3_s001;
+SET SESSION STORAGE_ENGINE='InnoDB';
+CREATE DATABASE dbt3_s001;
+use dbt3_s001;
+set @save_ext_key_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='extended_keys=off';
+explain
+select count(*) from lineitem where l_orderkey=130 and l_shipdate='1992-07-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	ref	PRIMARY,i_l_shipdate,i_l_orderkey,i_l_orderkey_quantity	PRIMARY	4	const	5	Using where
+flush status;
+select count(*) from lineitem where l_orderkey=130 and l_shipdate='1992-07-01';
+count(*)
+1
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	5
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=on';
+explain
+select count(*) from lineitem where l_orderkey=130 and l_shipdate='1992-07-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	ref	PRIMARY,i_l_shipdate,i_l_orderkey,i_l_orderkey_quantity	i_l_shipdate	8	const,const	1	Using index
+flush status;
+select count(*) from lineitem where l_orderkey=130 and l_shipdate='1992-07-01';
+count(*)
+1
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	1
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=off';
+explain
+select count(*) from lineitem 
+where l_orderkey=130 and l_linenumber=2 and l_shipdate='1992-07-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	const	PRIMARY,i_l_shipdate,i_l_orderkey,i_l_orderkey_quantity	PRIMARY	8	const,const	1	
+flush status;
+select count(*) from lineitem 
+where l_orderkey=130 and l_linenumber=2 and l_shipdate='1992-07-01';
+count(*)
+1
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=on';
+explain
+select count(*) from lineitem
+where l_orderkey=130 and l_linenumber=2 and l_shipdate='1992-07-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	const	PRIMARY,i_l_shipdate,i_l_orderkey,i_l_orderkey_quantity	PRIMARY	8	const,const	1	
+flush status;
+select count(*) from lineitem 
+where l_orderkey=130 and l_linenumber=2 and l_shipdate='1992-07-01';
+count(*)
+1
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=off';
+explain 
+select count(*) from lineitem
+where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	ref	PRIMARY,i_l_shipdate,i_l_orderkey,i_l_orderkey_quantity	i_l_shipdate	4	const	6	Using where; Using index
+flush status;
+select count(*) from lineitem
+where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000;
+count(*)
+1
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	6
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=on';
+explain 
+select count(*) from lineitem
+where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	range	PRIMARY,i_l_shipdate,i_l_orderkey,i_l_orderkey_quantity	i_l_shipdate	8	NULL	1	Using where; Using index
+flush status;
+select count(*) from lineitem
+where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000;
+count(*)
+1
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	1
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=off';
+explain
+select l_orderkey, l_linenumber from lineitem
+where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	ref	PRIMARY,i_l_shipdate,i_l_orderkey,i_l_orderkey_quantity	i_l_shipdate	4	const	6	Using where; Using index
+flush status;
+select l_orderkey, l_linenumber from lineitem
+where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+l_orderkey	l_linenumber
+1088	3
+1217	1
+1221	3
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	6
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=on';
+explain
+select l_orderkey, l_linenumber from lineitem
+where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	range	PRIMARY,i_l_shipdate,i_l_orderkey,i_l_orderkey_quantity	i_l_shipdate	8	NULL	3	Using where; Using index
+flush status;
+select l_orderkey, l_linenumber from lineitem
+where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+l_orderkey	l_linenumber
+1088	3
+1217	1
+1221	3
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=off';
+explain
+select min(l_orderkey) from lineitem where l_shipdate='1992-07-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	ref	i_l_shipdate	i_l_shipdate	4	const	6	Using index
+flush status;
+select min(l_orderkey) from lineitem where l_shipdate='1992-07-01';
+min(l_orderkey)
+130
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	6
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=on';
+explain
+select min(l_orderkey) from lineitem where l_shipdate='1992-07-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+flush status;
+select min(l_orderkey) from lineitem where l_shipdate='1992-07-01';
+min(l_orderkey)
+130
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=off';
+explain
+select min(l_orderkey) from lineitem 
+where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	ref	PRIMARY,i_l_shipdate,i_l_orderkey,i_l_orderkey_quantity	i_l_shipdate	4	const	6	Using where; Using index
+flush status;
+select min(l_orderkey) from lineitem 
+where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+min(l_orderkey)
+1088
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	6
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=on';
+explain
+select min(l_orderkey) from lineitem 
+where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+flush status;
+select min(l_orderkey) from lineitem 
+where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+min(l_orderkey)
+1088
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=off';
+explain
+select max(l_linenumber) from lineitem 
+where l_shipdate='1992-07-01' and l_orderkey=130;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	ref	PRIMARY,i_l_shipdate,i_l_orderkey,i_l_orderkey_quantity	PRIMARY	4	const	5	Using where
+flush status;
+select max(l_linenumber) from lineitem 
+where l_shipdate='1992-07-01' and l_orderkey=130;
+max(l_linenumber)
+2
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	5
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=on';
+explain
+select max(l_linenumber) from lineitem 
+where l_shipdate='1992-07-01' and l_orderkey=130;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+flush status;
+select max(l_linenumber) from lineitem 
+where l_shipdate='1992-07-01' and l_orderkey=130;
+max(l_linenumber)
+2
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=off';
+explain
+select l_orderkey, l_linenumber 
+from lineitem use index (i_l_shipdate, i_l_receiptdate)
+where l_shipdate='1992-07-01' and l_orderkey=130 
+or l_receiptdate='1992-07-01' and l_orderkey=5603;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	index_merge	i_l_shipdate,i_l_receiptdate	i_l_shipdate,i_l_receiptdate	4,4	NULL	9	Using union(i_l_shipdate,i_l_receiptdate); Using where
+flush status;
+select l_orderkey, l_linenumber 
+from lineitem use index (i_l_shipdate, i_l_receiptdate)
+where l_shipdate='1992-07-01' and l_orderkey=130 
+or l_receiptdate='1992-07-01' and l_orderkey=5603;
+l_orderkey	l_linenumber
+130	2
+5603	2
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	9
+Handler_read_prev	0
+Handler_read_rnd	9
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=on';
+explain
+select l_orderkey, l_linenumber 
+from lineitem use index (i_l_shipdate, i_l_receiptdate)
+where l_shipdate='1992-07-01' and l_orderkey=130 
+or l_receiptdate='1992-07-01' and l_orderkey=5603;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	index_merge	i_l_shipdate,i_l_receiptdate	i_l_shipdate,i_l_receiptdate	8,8	NULL	2	Using sort_union(i_l_shipdate,i_l_receiptdate); Using where
+flush status;
+select l_orderkey, l_linenumber 
+from lineitem use index (i_l_shipdate, i_l_receiptdate)
+where l_shipdate='1992-07-01' and l_orderkey=130 
+or l_receiptdate='1992-07-01' and l_orderkey=5603;
+l_orderkey	l_linenumber
+130	2
+5603	2
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	2
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=off';
+explain
+select l_orderkey, l_linenumber
+from lineitem use index (i_l_shipdate, i_l_receiptdate)
+where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	index_merge	i_l_shipdate,i_l_receiptdate	i_l_shipdate,i_l_receiptdate	4,4	NULL	9	Using union(i_l_shipdate,i_l_receiptdate); Using where
+flush status;
+select l_orderkey, l_linenumber
+from lineitem use index (i_l_shipdate, i_l_receiptdate)
+where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+l_orderkey	l_linenumber
+130	2
+5603	2
+5959	3
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	9
+Handler_read_prev	0
+Handler_read_rnd	9
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=on';
+explain
+select l_orderkey, l_linenumber
+from lineitem use index (i_l_shipdate, i_l_receiptdate)
+where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	index_merge	i_l_shipdate,i_l_receiptdate	i_l_shipdate,i_l_receiptdate	8,8	NULL	3	Using sort_union(i_l_shipdate,i_l_receiptdate); Using where
+flush status;
+select l_orderkey, l_linenumber
+from lineitem use index (i_l_shipdate, i_l_receiptdate)
+where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+l_orderkey	l_linenumber
+130	2
+5603	2
+5959	3
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	3
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=off';
+explain
+select l_orderkey, l_linenumber from lineitem 
+where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	index_merge	PRIMARY,i_l_shipdate,i_l_receiptdate,i_l_orderkey,i_l_orderkey_quantity	i_l_shipdate,PRIMARY,i_l_receiptdate,PRIMARY	4,4,4,4	NULL	2	Using union(intersect(i_l_shipdate,PRIMARY),intersect(i_l_receiptdate,PRIMARY)); Using where
+flush status;
+select l_orderkey, l_linenumber from lineitem 
+where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+l_orderkey	l_linenumber
+130	2
+5603	2
+5959	3
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	9
+Handler_read_prev	0
+Handler_read_rnd	3
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=on';
+explain
+select l_orderkey, l_linenumber from lineitem 
+where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	index_merge	PRIMARY,i_l_shipdate,i_l_receiptdate,i_l_orderkey,i_l_orderkey_quantity	i_l_shipdate,i_l_receiptdate	8,8	NULL	3	Using sort_union(i_l_shipdate,i_l_receiptdate); Using where
+flush status;
+select l_orderkey, l_linenumber from lineitem 
+where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+l_orderkey	l_linenumber
+130	2
+5603	2
+5959	3
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	3
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=off';
+explain 
+select max(l_orderkey) from lineitem
+where l_partkey between 1 and 10 group by l_partkey;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	range	i_l_suppkey_partkey,i_l_partkey	i_l_partkey	5	NULL	#	Using where; Using index
+flush status;
+select max(l_orderkey) from lineitem
+where l_partkey between 1 and 10 group by l_partkey;
+max(l_orderkey)
+5984
+5957
+5892
+5856
+5959
+5957
+5794
+5894
+5859
+5632
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	294
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=on';
+explain 
+select max(l_orderkey) from lineitem
+where l_partkey between 1 and 10 group by l_partkey;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	range	i_l_suppkey_partkey,i_l_partkey	i_l_partkey	5	NULL	#	Using where; Using index for group-by
+flush status;
+select max(l_orderkey) from lineitem
+where l_partkey between 1 and 10 group by l_partkey;
+max(l_orderkey)
+5984
+5957
+5892
+5856
+5959
+5957
+5794
+5894
+5859
+5632
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	21
+Handler_read_last	1
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=off';
+explain 
+select max(l_orderkey) from lineitem
+where l_suppkey in (1,4) group by l_suppkey;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	range	i_l_suppkey	i_l_suppkey	5	NULL	#	Using where; Using index
+flush status;
+select max(l_orderkey) from lineitem
+where l_suppkey in (1,4) group by l_suppkey;
+max(l_orderkey)
+5988
+5984
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	1230
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=on';
+explain 
+select max(l_orderkey) from lineitem
+where l_suppkey in (1,4) group by l_suppkey;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	lineitem	range	i_l_suppkey	i_l_suppkey	5	NULL	#	Using where; Using index for group-by
+flush status;
+select max(l_orderkey) from lineitem
+where l_suppkey in (1,4) group by l_suppkey;
+max(l_orderkey)
+5988
+5984
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	6
+Handler_read_last	1
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+create index i_p_retailprice on part(p_retailprice);
+set optimizer_switch='extended_keys=off';
+explain
+select o_orderkey, p_partkey
+from part use index (i_p_retailprice),
+lineitem use index (i_l_partkey), orders
+where p_retailprice > 1100 and o_orderdate='1997-01-01' 
+and o_orderkey=l_orderkey and p_partkey=l_partkey;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	part	range	i_p_retailprice	i_p_retailprice	9	NULL	#	Using where; Using index
+1	SIMPLE	orders	ref	PRIMARY,i_o_orderdate	i_o_orderdate	4	const	#	Using index
+1	SIMPLE	lineitem	ref	i_l_partkey	i_l_partkey	5	dbt3_s001.part.p_partkey	#	Using where; Using index
+flush status;
+select o_orderkey, p_partkey
+from part use index (i_p_retailprice),
+lineitem use index (i_l_partkey), orders
+where p_retailprice > 1100 and o_orderdate='1997-01-01' 
+and o_orderkey=l_orderkey and p_partkey=l_partkey;
+o_orderkey	p_partkey
+5895	200
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	3
+Handler_read_last	0
+Handler_read_next	26
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='extended_keys=on';
+explain
+select o_orderkey, p_partkey
+from part use index (i_p_retailprice),
+lineitem use index (i_l_partkey), orders
+where p_retailprice > 1100 and o_orderdate='1997-01-01' 
+and o_orderkey=l_orderkey and p_partkey=l_partkey;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	part	range	i_p_retailprice	i_p_retailprice	9	NULL	#	Using where; Using index
+1	SIMPLE	orders	ref	PRIMARY,i_o_orderdate	i_o_orderdate	4	const	#	Using index
+1	SIMPLE	lineitem	ref	i_l_partkey	i_l_partkey	9	dbt3_s001.part.p_partkey,dbt3_s001.orders.o_orderkey	#	Using index
+flush status;
+select o_orderkey, p_partkey
+from part use index (i_p_retailprice),
+lineitem use index (i_l_partkey), orders
+where p_retailprice > 1100 and o_orderdate='1997-01-01' 
+and o_orderkey=l_orderkey and p_partkey=l_partkey;
+o_orderkey	p_partkey
+5895	200
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	3
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+DROP DATABASE dbt3_s001;
+use test;
+#
+# LP Bug #914560: query containing IN subquery
+#                 + extended_keys = on
+#
+set @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='materialization=on,semijoin=on';
+SET optimizer_switch='extended_keys=on';
+CREATE TABLE t1 (a int, b int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1), (2,2);
+SELECT * FROM t1 WHERE 2 IN (SELECT MAX(s1.a) FROM t1 AS s1, t1 AS s2);
+a	b
+1	1
+2	2
+EXPLAIN
+SELECT * FROM t1 WHERE 2 IN (SELECT MAX(s1.a) FROM t1 AS s1, t1 AS s2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	4	const	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+2	MATERIALIZED	s1	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	s2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+DROP TABLE t1;
+set optimizer_switch=@save_optimizer_switch;
+#
+# LP Bug #915291: query using a materialized view
+#                 + extended_keys = on
+# (valgrinf complains fixed by the patch for bug #914560)
+#
+set @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch = 'derived_with_keys=on';
+SET optimizer_switch = 'extended_keys=on';
+CREATE TABLE t1 (a varchar(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('j'), ('v');
+CREATE TABLE t2 (b varchar(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('j'), ('v');
+CREATE TABLE t3 (c varchar(1));
+INSERT INTO t2 VALUES ('m'), ('n');
+CREATE VIEW v
+AS SELECT DISTINCT * FROM t2 STRAIGHT_JOIN t3;
+SELECT * FROM t1, v WHERE a = b;
+a	b	c
+DROP VIEW v;
+DROP TABLE t1,t2,t3;
+set optimizer_switch=@save_optimizer_switch;
+#
+# LP Bug #921167: query containing IN subquery
+#                 + extended_keys = on 
+#
+CREATE TABLE t1 (
+a int NOT NULL, b varchar(1) NOT NULL, KEY(a), KEY(b,a)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+(0,'j'), (8,'v'), (1,'c'), (8,'m'), (9,'d'), 
+(24,'d'), (6,'y'), (1,'t'), (6,'d'), (2,'s');
+CREATE TABLE t2 (
+c int NOT NULL PRIMARY KEY
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES
+(10), (11), (12), (13), (14), 
+(15), (16), (17), (18), (19), (24);
+set @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch = 'extended_keys=off';
+EXPLAIN
+SELECT a FROM t1 AS t, t2 
+WHERE c = a AND b IN (SELECT b FROM t1, t2 WHERE b = t.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t	index	a,b	b	7	NULL	10	Using index
+1	PRIMARY	t1	ref	b	b	3	test.t.b	2	Using index; FirstMatch(t)
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t.a	1	Using index
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	11	Using index; FirstMatch(t2)
+SELECT a FROM t1 AS t, t2 
+WHERE c = a AND b IN (SELECT b FROM t1, t2 WHERE b = t.b);
+a
+24
+SET optimizer_switch = 'extended_keys=on';
+EXPLAIN
+SELECT a FROM t1 AS t, t2 
+WHERE c = a AND b IN (SELECT b FROM t1, t2 WHERE b = t.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t	index	a,b	b	7	NULL	10	Using index
+1	PRIMARY	t1	ref	b	b	3	test.t.b	2	Using index; FirstMatch(t)
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t.a	1	Using index
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	11	Using index; FirstMatch(t2)
+SELECT a FROM t1 AS t, t2 
+WHERE c = a AND b IN (SELECT b FROM t1, t2 WHERE b = t.b);
+a
+24
+set optimizer_switch=@save_optimizer_switch;
+DROP TABLE t1,t2;
+#
+# LP Bug #923236: hash join + extended_keys = on 
+#
+CREATE TABLE t1 (a int) ENGINE=MyISAM;
+CREATE TABLE t2 (b int) ENGINE=MyISAM;
+INSERT INTO t1 (a) VALUES (4), (6);
+INSERT INTO t2 (b) VALUES (0), (8);
+set @save_optimizer_switch=@@optimizer_switch;
+SET join_cache_level=3;
+SET optimizer_switch='join_cache_hashed=on';
+SET optimizer_switch='join_cache_bka=on';
+SET optimizer_switch='extended_keys=on';
+EXPLAIN
+SELECT * FROM t1, t2 WHERE b=a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	hash_ALL	NULL	#hash#$hj	5	test.t1.a	2	Using where; Using join buffer (flat, BNLH join)
+SELECT * FROM t1, t2 WHERE b=a;
+a	b
+set optimizer_switch=@save_optimizer_switch;
+DROP TABLE t1,t2;
+set optimizer_switch=@save_ext_key_optimizer_switch;
+SET SESSION STORAGE_ENGINE=DEFAULT;

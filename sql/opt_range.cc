@@ -2928,9 +2928,10 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
     thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
-    if (!(param.key_parts= (KEY_PART*) alloc_root(&alloc,
-                                                  sizeof(KEY_PART)*
-                                                  head->s->key_parts)) ||
+    if (!(param.key_parts=
+           (KEY_PART*) alloc_root(&alloc,
+                                  sizeof(KEY_PART) *
+	                          head->s->actual_n_key_parts(thd))) ||
         fill_used_fields_bitmap(&param))
     {
       thd->no_errors=0;
@@ -2948,6 +2949,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     for (idx=0 ; idx < head->s->keys ; idx++, key_info++)
     {
       KEY_PART_INFO *key_part_info;
+      uint n_key_parts= head->actual_n_key_parts(key_info);
+
       if (!keys_to_use.is_set(idx))
 	continue;
       if (key_info->flags & HA_FULLTEXT)
@@ -2955,9 +2958,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
       param.key[param.keys]=key_parts;
       key_part_info= key_info->key_part;
-      for (uint part=0 ; part < key_info->key_parts ;
-	   part++, key_parts++, key_part_info++)
-      {
+      for (uint part= 0 ; part < n_key_parts ; 
+           part++, key_parts++, key_part_info++)
+     {
 	key_parts->key=		 param.keys;
 	key_parts->part=	 part;
 	key_parts->length=       key_part_info->length;
@@ -10122,13 +10125,14 @@ get_quick_select(PARAM *param,uint idx,SEL_ARG *key_tree, uint mrr_flags,
     }
     else
     {
+      KEY *keyinfo= param->table->key_info+param->real_keynr[idx];
       quick->mrr_flags= mrr_flags;
       quick->mrr_buf_size= mrr_buf_size;
       quick->key_parts=(KEY_PART*)
         memdup_root(parent_alloc? parent_alloc : &quick->alloc,
                     (char*) param->key[idx],
                     sizeof(KEY_PART)*
-                    param->table->key_info[param->real_keynr[idx]].key_parts);
+                    param->table->actual_n_key_parts(keyinfo));
     }
   }
   DBUG_RETURN(quick);
@@ -11815,6 +11819,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
     KEY_PART_INFO *last_part;
     KEY_PART_INFO *first_non_group_part;
     KEY_PART_INFO *first_non_infix_part;
+    uint key_parts;
     uint key_infix_parts;
     uint cur_group_key_parts= 0;
     uint cur_group_prefix_len= 0;
@@ -11830,6 +11835,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       goto next_index;
 
     /*
+      Unless extended keys can be used for cur_index:
       If the current storage manager is such that it appends the primary key to
       each index, then the above condition is insufficient to check if the
       index is covering. In such cases it may happen that some fields are
@@ -11838,7 +11844,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       does not qualify as covering in our case. If this is the case, below
       we check that all query fields are indeed covered by 'cur_index'.
     */
-    if (pk < MAX_KEY && cur_index != pk &&
+    if (cur_index_info->key_parts == table->actual_n_key_parts(cur_index_info)
+        && pk < MAX_KEY && cur_index != pk &&
         (table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
     {
       /* For each table field */
@@ -11857,13 +11864,14 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
 
     max_key_part= 0;
     used_key_parts_map.clear_all();
+
     /*
       Check (GA1) for GROUP BY queries.
     */
     if (join->group_list)
     {
       cur_part= cur_index_info->key_part;
-      end_part= cur_part + cur_index_info->key_parts;
+      end_part= cur_part + table->actual_n_key_parts(cur_index_info);
       /* Iterate in parallel over the GROUP list and the index parts. */
       for (tmp_group= join->group_list; tmp_group && (cur_part != end_part);
            tmp_group= tmp_group->next, cur_part++)
@@ -11969,8 +11977,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       must form a sequence without any gaps that starts immediately after the
       last group keypart.
     */
-    last_part= cur_index_info->key_part + cur_index_info->key_parts;
-    first_non_group_part= (cur_group_key_parts < cur_index_info->key_parts) ?
+    key_parts= table->actual_n_key_parts(cur_index_info);
+    last_part= cur_index_info->key_part + key_parts;
+    first_non_group_part= (cur_group_key_parts < key_parts) ?
                           cur_index_info->key_part + cur_group_key_parts :
                           NULL;
     first_non_infix_part= min_max_arg_part ?
@@ -12433,7 +12442,9 @@ get_field_keypart(KEY *index, Field *field)
 {
   KEY_PART_INFO *part, *end;
 
-  for (part= index->key_part, end= part + index->key_parts; part < end; part++)
+  for (part= index->key_part,
+         end= part + field->table->actual_n_key_parts(index);
+       part < end; part++)
   {
     if (field->eq(part->field))
       return part - index->key_part + 1;

@@ -2191,11 +2191,12 @@ double handler::keyread_time(uint index, uint ranges, ha_rows rows)
     performs a random seek, thus the cost is proportional to the number of
     blocks read. This model does not take into account clustered indexes -
     engines that support that (e.g. InnoDB) may want to overwrite this method.
+    The model counts in the time to read index entries from cache.
   */
-  double keys_per_block= (stats.block_size/2.0/
-                          (table->key_info[index].key_length +
-                           ref_length) + 1);
-  return (rows + keys_per_block - 1)/ keys_per_block;
+  ulong len= table->key_info[index].key_length + ref_length;
+  double keys_per_block= (stats.block_size/2.0/len+1);
+  return (rows + keys_per_block-1)/ keys_per_block +
+         len*rows/(stats.block_size+1)/TIME_FOR_COMPARE ;
 }
 
 void **handler::ha_data(THD *thd) const

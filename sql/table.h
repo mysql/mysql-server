@@ -639,6 +639,7 @@ struct TABLE_SHARE
   uint stored_fields;                   
   uint rec_buff_length;                 /* Size of table->record[] buffer */
   uint keys, key_parts;
+  uint ext_key_parts;       /* Total number of key parts in extended keys */
   uint max_key_length, max_unique_length, total_key_length;
   uint uniques;                         /* Number of UNIQUE index */
   uint null_fields;			/* number of null fields */
@@ -658,6 +659,7 @@ struct TABLE_SHARE
   uint column_bitmap_size;
   uchar frm_version;
   uint vfields;                         /* Number of computed (virtual) fields */
+  bool use_ext_keys;                    /* Extended keys can be used */
   bool null_field_first;
   bool system;                          /* Set if system table (one record) */
   bool crypted;                         /* If .frm file is crypted */
@@ -895,6 +897,13 @@ struct TABLE_SHARE
                             uint deadlock_weight);
   /** Release resources and free memory occupied by the table share. */
   void destroy();
+
+  void set_use_ext_keys_flag(bool fl) 
+  {
+    use_ext_keys= fl;
+  }
+  
+  uint actual_n_key_parts(THD *thd);
 };
 
 
@@ -1241,6 +1250,8 @@ public:
   }
 
   bool update_const_key_parts(COND *conds);
+  uint actual_n_key_parts(KEY *keyinfo);
+  ulong actual_key_flags(KEY *keyinfo);
 };
 
 
