@@ -26,6 +26,7 @@
 #include "rpl_utility.h"
 #include "debug_sync.h"
 #include "sql_parse.h"
+#include "rpl_mi.h"
 #include <list>
 #include <string>
 
@@ -4043,65 +4044,100 @@ end:
 }
 
 
-bool MYSQL_BIN_LOG::append_event(Log_event* ev)
+#ifdef HAVE_REPLICATION
+/**
+  Called after an event has been written to the relay log by the IO
+  thread.  This flushes and possibly syncs the file (according to the
+  sync options), rotates the file if it has grown over the limit, and
+  finally calls signal_update().
+
+  @note The caller must hold LOCK_log before invoking this function.
+
+  @param mi Master_info for the IO thread.
+  @param need_data_lock If true, mi->data_lock will be acquired if a
+  rotation is needed.  Otherwise, mi->data_lock must be held by the
+  caller.
+
+  @retval false success
+  @retval true error
+*/
+bool MYSQL_BIN_LOG::after_append_to_relay_log(Master_info *mi)
 {
-  bool error = 0;
-  mysql_mutex_lock(&LOCK_log);
+  DBUG_ENTER("MYSQL_BIN_LOG::after_append_to_relay_log");
+  DBUG_PRINT("info",("max_size: %lu",max_size));
+
+  // Check pre-conditions
+  mysql_mutex_assert_owner(&LOCK_log);
+  mysql_mutex_assert_owner(&mi->data_lock);
+  DBUG_ASSERT(is_relay_log);
+  DBUG_ASSERT(current_thd->system_thread == SYSTEM_THREAD_SLAVE_IO);
+
+  // Flush and sync
+  bool error= false;
+  if (flush_and_sync(0) == 0)
+  {
+    // If relay log is too big, rotate
+    if ((uint) my_b_append_tell(&log_file) >
+        DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
+    {
+      error= new_file_without_locking(mi->get_mi_description_event());
+    }
+  }
+
+  signal_update();
+
+  DBUG_RETURN(error);
+}
+
+
+bool MYSQL_BIN_LOG::append_event(Log_event* ev, Master_info *mi)
+{
   DBUG_ENTER("MYSQL_BIN_LOG::append");
 
+  // check preconditions
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
   DBUG_ASSERT(is_relay_log);
 
-  /*
-    Log_event::write() is smart enough to use my_b_write() or
-    my_b_append() depending on the kind of cache we have.
-  */
-  if (ev->write(&log_file))
+  // acquire locks
+  mysql_mutex_lock(&LOCK_log);
+
+  // write data
+  bool error = false;
+  if (ev->write(&log_file) == 0)
   {
-    error=1;
-    goto err;
+    bytes_written+= ev->data_written;
+    error= after_append_to_relay_log(mi);
   }
-  bytes_written+= ev->data_written;
-  DBUG_PRINT("info",("max_size: %lu",max_size));
-  if (flush_and_sync(0))
-    goto err;
-  if ((uint) my_b_append_tell(&log_file) >
-      DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
-    error= new_file_without_locking(active_mi->get_mi_description_event());
-err:
+  else
+    error= true;
+
   mysql_mutex_unlock(&LOCK_log);
-  signal_update();				// Safe as we don't call close
   DBUG_RETURN(error);
 }
 
 
-bool MYSQL_BIN_LOG::append_buffer(const char* buf, uint len)
+bool MYSQL_BIN_LOG::append_buffer(const char* buf, uint len, Master_info *mi)
 {
-  bool error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::append_buffer");
 
+  // check preconditions
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
   DBUG_ASSERT(is_relay_log);
-
   mysql_mutex_assert_owner(&LOCK_log);
-  if (my_b_append(&log_file,(uchar*) buf,len))
-  {
-    error= 1;
-    goto err;
-  }
-  bytes_written += len;
 
-  DBUG_PRINT("info",("max_size: %lu",max_size));
-  if (flush_and_sync(0))
-    goto err;
-  if ((uint) my_b_append_tell(&log_file) >
-      DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
-    error= new_file_without_locking(active_mi->get_mi_description_event());
-err:
-  if (!error)
-    signal_update();
+  // write data
+  bool error= false;
+  if (my_b_append(&log_file,(uchar*) buf,len) == 0)
+  {
+    bytes_written += len;
+    error= after_append_to_relay_log(mi);
+  }
+  else
+    error= true;
+
   DBUG_RETURN(error);
 }
+#endif // ifdef HAVE_REPLICATION
 
 bool MYSQL_BIN_LOG::flush_and_sync(bool *synced, const bool force)
 {

@@ -21,6 +21,7 @@
 #include "log.h"
 
 class Relay_log_info;
+class Master_info;
 
 class Format_description_log_event;
 
@@ -282,8 +283,13 @@ public:
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
-  bool append_buffer(const char* buf, uint len);
-  bool append_event(Log_event* ev);
+#ifdef HAVE_REPLICATION
+  bool append_buffer(const char* buf, uint len, Master_info *mi);
+  bool append_event(Log_event* ev, Master_info *mi);
+private:
+  bool after_append_to_relay_log(Master_info *mi);
+#endif // ifdef HAVE_REPLICATION
+public:
 
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);

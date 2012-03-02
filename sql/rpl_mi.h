@@ -347,10 +347,12 @@ private:
 public:
   Format_description_log_event *get_mi_description_event()
   {
+    mysql_mutex_assert_owner(&data_lock);
     return mi_description_event;
   }
   void set_mi_description_event(Format_description_log_event *fdle)
   {
+    mysql_mutex_assert_owner(&data_lock);
     delete mi_description_event;
     mi_description_event= fdle;
   }
