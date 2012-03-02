@@ -1856,7 +1856,6 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
-   description_event_for_queue(0),
    previous_gtid_set(0)
 {
   /*
@@ -1881,7 +1880,6 @@ void MYSQL_BIN_LOG::cleanup()
   {
     inited= 0;
     close(LOG_CLOSE_INDEX|LOG_CLOSE_STOP_EVENT);
-    delete description_event_for_queue;
     mysql_mutex_destroy(&LOCK_log);
     mysql_mutex_destroy(&LOCK_index);
     mysql_cond_destroy(&update_cond);
@@ -1894,6 +1892,8 @@ void MYSQL_BIN_LOG::cleanup()
 int MYSQL_BIN_LOG::init(bool no_auto_events_arg, ulong max_size_arg)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init");
+  // @todo no_auto_events is redundant, always 0 and should be removed /sven
+  DBUG_ASSERT(!no_auto_events_arg);
   no_auto_events= no_auto_events_arg;
   max_size= max_size_arg;
   DBUG_PRINT("info",("max_size: %lu", max_size));
@@ -2291,12 +2291,16 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
                                 ulong max_size_arg,
                                 bool null_created_arg,
                                 bool need_lock_index,
-                                bool need_sid_lock)
+                                bool need_sid_lock,
+                                Format_description_log_event *extra_description_event)
 {
   File file= -1;
 
   // lock_index must be acquired *before* sid_lock.
   DBUG_ASSERT(need_sid_lock || !need_lock_index);
+  // @todo no_auto_events is redundant, always 0 and should be removed /sven
+  DBUG_ASSERT(!no_auto_events_arg);
+  // @todo log_type_arg is redundant, always LOG_BIN and should be removed /sven
   DBUG_ASSERT(log_type_arg == LOG_BIN);
   DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, enum_log_type, ...)");
   DBUG_PRINT("enter",("log_type: %d name: %s",(int) log_type_arg, log_name));
@@ -2424,8 +2428,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       bytes_written+= prev_gtids_ev.data_written;
     }
   }
-  if (description_event_for_queue &&
-      description_event_for_queue->binlog_version>=4)
+  if (extra_description_event &&
+      extra_description_event->binlog_version>=4)
   {
     /*
       This is a relay log written to by the I/O slave thread.
@@ -2436,9 +2440,9 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       master), so this is suitable to parse the next relay log's event. It
       has been produced by
       Format_description_log_event::Format_description_log_event(char* buf,).
-      Why don't we want to write the description_event_for_queue if this
+      Why don't we want to write the mi_description_event if this
       event is for format<4 (3.23 or 4.x): this is because in that case, the
-      description_event_for_queue describes the data received from the
+      mi_description_event describes the data received from the
       master, but not the data written to the relay log (*conversion*),
       which is in format 4 (slave's).
     */
@@ -2447,13 +2451,13 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       trigger cleaning actions on the slave in
       Format_description_log_event::apply_event_impl().
     */
-    description_event_for_queue->created= 0;
+    extra_description_event->created= 0;
     /* Don't set log_pos in event header */
-    description_event_for_queue->set_artificial_event();
+    extra_description_event->set_artificial_event();
 
-    if (description_event_for_queue->write(&log_file))
+    if (extra_description_event->write(&log_file))
       goto err;
-    bytes_written+= description_event_for_queue->data_written;
+    bytes_written+= extra_description_event->data_written;
   }
   if (flush_io_cache(&log_file) ||
       mysql_file_sync(log_file.file, MYF(MY_WME)))
@@ -3014,7 +3018,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   if (!open_index_file(index_file_name, 0, FALSE))
     if ((error= open_binlog(save_name, log_type, 0, io_cache_type,
                             no_auto_events, max_size, 0,
-                            false/*need mutex*/, false/*need sid_lock*/)))
+                            false/*need mutex*/, false/*need sid_lock*/,
+                            NULL)))
       goto err;
   my_free((void *) save_name);
 
@@ -3847,18 +3852,18 @@ bool MYSQL_BIN_LOG::is_active(const char *log_file_name_arg)
 
 */
 
-int MYSQL_BIN_LOG::new_file()
+int MYSQL_BIN_LOG::new_file(Format_description_log_event *extra_description_event)
 {
-  return new_file_impl(1);
+  return new_file_impl(1, extra_description_event);
 }
 
 /*
   @retval
     nonzero - error
 */
-int MYSQL_BIN_LOG::new_file_without_locking()
+int MYSQL_BIN_LOG::new_file_without_locking(Format_description_log_event *extra_description_event)
 {
-  return new_file_impl(0);
+  return new_file_impl(0, extra_description_event);
 }
 
 
@@ -3873,7 +3878,7 @@ int MYSQL_BIN_LOG::new_file_without_locking()
 
   @note The new file name is stored last in the index file
 */
-int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log)
+int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_event *extra_description_event)
 {
   int error= 0, close_on_error= FALSE;
   char new_name[FN_REFLEN], *new_name_ptr, *old_name, *file_to_open;
@@ -3991,7 +3996,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log)
     error= open_binlog(old_name, log_type, new_name_ptr, io_cache_type,
                        no_auto_events, max_size, 1,
                        false/*need_lock_index=false*/,
-                       true/*need_sid_lock=true*/);
+                       true/*need_sid_lock=true*/,
+                       extra_description_event);
   }
 
   /* handle reopening errors */
@@ -4061,7 +4067,7 @@ bool MYSQL_BIN_LOG::append_event(Log_event* ev)
     goto err;
   if ((uint) my_b_append_tell(&log_file) >
       DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
-    error= new_file_without_locking();
+    error= new_file_without_locking(active_mi->get_mi_description_event());
 err:
   mysql_mutex_unlock(&LOCK_log);
   signal_update();				// Safe as we don't call close
@@ -4090,7 +4096,7 @@ bool MYSQL_BIN_LOG::append_buffer(const char* buf, uint len)
     goto err;
   if ((uint) my_b_append_tell(&log_file) >
       DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
-    error= new_file_without_locking();
+    error= new_file_without_locking(active_mi->get_mi_description_event());
 err:
   if (!error)
     signal_update();
@@ -4420,7 +4426,7 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
 
   if (force_rotate || (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
-    if ((error= new_file_without_locking()))
+    if ((error= new_file_without_locking(NULL)))
       /** 
         Be conservative... There are possible lost events (eg, 
         failing to log the Execute_load_query_log_event
@@ -5156,6 +5162,11 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
   LOG_INFO log_info;
   int      error= 1;
 
+  /*
+    This function is used for 2pc transaction coordination.  Hence, it
+    is never used for relay logs.
+  */
+  DBUG_ASSERT(!is_relay_log);
   DBUG_ASSERT(total_ha_2pc > 1);
   DBUG_ASSERT(opt_name && opt_name[0]);
 
@@ -5174,7 +5185,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
   {
     /* generate a new binlog to mask a corrupted one */
     open_binlog(opt_name, LOG_BIN, 0, WRITE_CACHE, 0, max_binlog_size, 0,
-                true/*need mutex*/, true/*need sid_lock*/);
+                true/*need mutex*/, true/*need sid_lock*/, NULL);
     cleanup();
     return 1;
   }

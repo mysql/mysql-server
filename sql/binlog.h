@@ -75,12 +75,9 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   uint file_id;
   uint open_count;				// For replication
   int readers_count;
-  /*
-    no_auto_events means we don't want any of these automatic events :
-    Start/Rotate/Stop. That is, in 4.x when we rotate a relay log, we don't
-    want a Rotate_log event to be written to the relay log. When we start a
-    relay log etc. So in 4.x this is 1 for relay logs, 0 for binlogs.
-    In 5.0 it's 0 for relay logs too!
+  /**
+    Completely redundant flag, always 0.
+    @todo remove this
   */
   bool no_auto_events;
 
@@ -102,8 +99,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
     new_file() is locking. new_file_without_locking() does not acquire
     LOCK_log.
   */
-  int new_file_without_locking();
-  int new_file_impl(bool need_lock);
+  int new_file_without_locking(Format_description_log_event *extra_description_event);
+  int new_file_impl(bool need_lock, Format_description_log_event *extra_description_event);
 
 public:
   using MYSQL_LOG::generate_name;
@@ -147,15 +144,6 @@ public:
     FD.(A) - the value of (A) in FD
   */
   uint8 relay_log_checksum_alg;
-  /*
-    These describe the log's format. This is used only for relay logs.
-    _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
-    necessary to have 2 distinct objects, because the I/O thread may be reading
-    events in a different format from what the SQL thread is reading (consider
-    the case of a master which has been upgraded from 5.0 to 5.1 without doing
-    RESET MASTER, or from 4.x to 5.0).
-  */
-  Format_description_log_event *description_event_for_queue;
 
   MYSQL_BIN_LOG(uint *sync_period);
   /*
@@ -202,8 +190,8 @@ private:
   Gtid_set* previous_gtid_set;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }
-public:
   int open_binlog(const char *opt_name);
+public:
   void close();
   int log_xid(THD *thd, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
@@ -241,7 +229,9 @@ public:
   void signal_update();
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
   int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
+private:
   int init(bool no_auto_events_arg, ulong max_size);
+public:
   void init_pthread_objects();
   void cleanup();
   /**
@@ -271,11 +261,12 @@ public:
                    enum cache_type io_cache_type_arg,
                    bool no_auto_events_arg, ulong max_size,
                    bool null_created,
-                   bool need_mutex, bool need_sid_lock);
+                   bool need_mutex, bool need_sid_lock,
+                   Format_description_log_event *extra_description_event);
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name, bool need_mutex);
   /* Use this to start writing a new log file */
-  int new_file();
+  int new_file(Format_description_log_event *extra_description_event);
 
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
@@ -375,6 +366,10 @@ bool trans_cannot_safely_rollback(const THD* thd);
 bool stmt_cannot_safely_rollback(const THD* thd);
 
 int log_loaded_block(IO_CACHE* file);
+
+/**
+  Open a single binary log file for reading.
+*/
 File open_binlog_file(IO_CACHE *log, const char *log_file_name,
                       const char **errmsg);
 int check_binlog_magic(IO_CACHE* log, const char** errmsg);
