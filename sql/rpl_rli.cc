@@ -310,23 +310,27 @@ void Relay_log_info::clear_until_condition()
     rli->cur_log to point to the same IO_CACHE entry.
   - If not, opens the 'log' binary file.
 
-  @todo check proper initialization of group_master_log_name/group_master_log_pos.
+  @todo check proper initialization of
+  group_master_log_name/group_master_log_pos. /alfranio
 
+  @param rli[in] Relay information (will be initialized)
+  @param log[in] Name of relay log file to read from. NULL = First log
+  @param pos[in] Position in relay log file
+  @param need_data_lock[in] If true, this function will acquire the
+  relay_log.data_lock(); otherwise the caller should already have
+  acquired it.
+  @param errmsg[out] On error, this function will store a pointer to
+  an error message here
+  @param look_for_description_event[in] If true, this function will
+  look for a Format_description_log_event.  We only need this when the
+  SQL thread starts and opens an existing relay log and has to execute
+  it (possibly from an offset >4); then we need to read the first
+  event of the relay log to be able to parse the events we have to
+  execute.
 
-  @param  rli[in]                 Relay information (will be initialized)
-  @param  log[in]                 Name of relay log file to read from. NULL = First log
-  @param  pos[in]                 Position in relay log file
-  @param  need_data_lock[in]      Set to 1 if this functions should do mutex locks
-  @param  errmsg[out]             Store pointer to error message here
-  @param  look_for_description_event[in]
-                                  1 if we should look for such an event. We only need
-                                  this when the SQL thread starts and opens an existing
-                                  relay log and has to execute it (possibly from an
-                                  offset >4); then we need to read the first event of
-                                  the relay log to be able to parse the events we have
-                                  to execute.
   @retval 0 ok,
-  @retval 1 otherwise error, where errmsg is set to point to the error message.
+  @retval 1 error.  In this case, *errmsg is set to point to the error
+  message.
 */
 
 int Relay_log_info::init_relay_log_pos(const char* log,
@@ -342,6 +346,8 @@ int Relay_log_info::init_relay_log_pos(const char* log,
 
   if (need_data_lock)
     mysql_mutex_lock(&data_lock);
+  else
+    mysql_mutex_assert_owner(&data_lock);
 
   /*
     Slave threads are not the only users of init_relay_log_pos(). CHANGE MASTER
@@ -972,7 +978,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
                                      const char** errmsg)
 {
   int error=0;
-  DBUG_ENTER("purge_relay_logs");
+  DBUG_ENTER("Relay_log_info::purge_relay_logs");
 
   /*
     Even if inited==0, we still try to empty master_log_* variables. Indeed,
@@ -1039,7 +1045,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   if (!just_reset)
     error= init_relay_log_pos(group_relay_log_name,
                               group_relay_log_pos,
-                              0 /* do not need data lock */, errmsg, 0);
+                              false/*need_data_lock=false*/, errmsg, 0);
 
 err:
 #ifndef DBUG_OFF
@@ -1422,13 +1428,15 @@ bool mysql_show_relaylog_events(THD* thd)
 
 #endif
 
-int Relay_log_info::init_info()
+int Relay_log_info::rli_init_info()
 {
   int error= 0;
   enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
   const char *msg= NULL;
 
-  DBUG_ENTER("Relay_log_info::init_info");
+  DBUG_ENTER("Relay_log_info::rli_init_info");
+
+  mysql_mutex_assert_owner(&data_lock);
 
   if (inited)
   {
@@ -1555,7 +1563,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
 
     if (relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE))
     {
-      sql_print_error("Failed in open_index_file() called from Relay_log_info::init_info().");
+      sql_print_error("Failed in open_index_file() called from Relay_log_info::rli_init_info().");
       DBUG_RETURN(1);
     }
 #ifndef DBUG_OFF
@@ -1568,7 +1576,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
                                  opt_slave_sql_verify_checksum,
                                  true/*true=need lock*/))
     {
-      sql_print_error("Failed in init_gtid_sets() called from Relay_log_info::init_info().");
+      sql_print_error("Failed in init_gtid_sets() called from Relay_log_info::rli_init_info().");
       DBUG_RETURN(1);
     }
 #ifndef DBUG_OFF
@@ -1591,7 +1599,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
                                max_binlog_size), 1,
                               true/*need mutex*/, true/*need sid_lock*/))
     {
-      sql_print_error("Failed in open_log() called from Relay_log_info::init_info().");
+      sql_print_error("Failed in open_log() called from Relay_log_info::rli_init_info().");
       DBUG_RETURN(1);
     }
   }
@@ -1619,7 +1627,9 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
   if (check_return == REPOSITORY_DOES_NOT_EXIST)
   {
     /* Init relay log with first entry in the relay index file */
-    if (init_relay_log_pos(NullS, BIN_LOG_HEADER_SIZE, 0 /* no data lock */,
+    if (init_relay_log_pos(NullS, BIN_LOG_HEADER_SIZE,
+                           false/*need_data_lock=false (lock should be held
+                                  prior to invoking this function)*/,
                            &msg, 0))
     {
       error= 1;
@@ -1645,7 +1655,8 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
 
     if (init_relay_log_pos(group_relay_log_name,
                            group_relay_log_pos,
-                           0 /* no data lock*/,
+                           false/*need_data_lock=false (lock should be held
+                                  prior to invoking this function)*/,
                            &msg, 0))
     {
       char llbuf[22];

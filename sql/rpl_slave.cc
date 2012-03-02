@@ -322,7 +322,7 @@ int init_slave()
     This is the startup routine and as such we try to
     configure both the SLAVE_SQL and SLAVE_IO.
   */
-  if (init_info(active_mi, TRUE, thread_mask))
+  if (global_init_info(active_mi, TRUE, thread_mask))
   {
     sql_print_error("Failed to initialize the master info structure");
     error= 1;
@@ -429,7 +429,7 @@ int init_recovery(Master_info* mi, const char** errmsg)
   DBUG_RETURN(error);
 }
 
-int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
+int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
 {
   DBUG_ENTER("init_info");
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
@@ -456,7 +456,7 @@ int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
 
   if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST))
   {
-    if ((thread_mask & SLAVE_IO) != 0 && mi->init_info())
+    if ((thread_mask & SLAVE_IO) != 0 && mi->mi_init_info())
       init_error= 1;
   }
 
@@ -466,7 +466,7 @@ int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
   if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST))
   {
     if (((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited))
-        && mi->rli->init_info())
+        && mi->rli->rli_init_info())
       init_error= 1;
   }
 
@@ -572,7 +572,7 @@ bool remove_workers(Relay_log_info* rli)
           Rpl_info_factory::create_worker(opt_rli_repository_id, id, rli)))
       goto err;
 
-    if (worker->init_info())
+    if (worker->rli_init_info())
     {
       delete worker;
       goto err;
@@ -3437,6 +3437,10 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
 
     /* ptr_ev can change to NULL indicating MTS coorinator passed to a Worker */
     exec_res= apply_event_and_update_pos(ptr_ev, thd, rli);
+    /*
+      Note: the above call to apply_event_and_update_pos executes
+      mysql_mutex_unlock(&rli->data_lock);
+    */
 
     if (*ptr_ev)
     {
@@ -3492,11 +3496,12 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
              We need to figure out if there is a test case that covers
              this part. \Alfranio.
           */
-          if (init_info(rli->mi, FALSE, SLAVE_SQL))
+          if (global_init_info(rli->mi, FALSE, SLAVE_SQL))
             sql_print_error("Failed to initialize the master info structure");
           else if (rli->init_relay_log_pos(rli->get_group_relay_log_name(),
                                            rli->get_group_relay_log_pos(),
-                                           1, &errmsg, 1))
+                                           true/*need_data_lock=true*/,
+                                           &errmsg, 1))
             sql_print_error("Error initializing relay log position: %s",
                             errmsg);
           else
@@ -4280,7 +4285,7 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
       goto err;
     }
 
-    worker->init_info();
+    worker->rli_init_info();
     LOG_POS_COORD w_last= { const_cast<char*>(worker->get_group_master_log_name()),
                             worker->get_group_master_log_pos() };
     if (mts_event_coord_cmp(&w_last, &cp) > 0)
@@ -5031,7 +5036,7 @@ pthread_handler_t handle_slave_sql(void *arg)
 
   if (rli->init_relay_log_pos(rli->get_group_relay_log_name(),
                               rli->get_group_relay_log_pos(),
-                              1 /*need data lock*/, &errmsg,
+                              true/*need_data_lock=true*/, &errmsg,
                               1 /*look for a description_event*/))
   { 
     rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
@@ -7210,7 +7215,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
     thread_mask&= thd->lex->slave_thd_opt;
   if (thread_mask) //some threads are stopped, start them
   {
-    if (init_info(mi, FALSE, thread_mask))
+    if (global_init_info(mi, FALSE, thread_mask))
       slave_errno=ER_MASTER_INFO;
     else if (server_id_supplied && *mi->host)
     {
@@ -7561,7 +7566,7 @@ bool change_master(THD* thd, Master_info* mi)
     unlock_slave_threads(mi);
     DBUG_RETURN(TRUE);
   }
-  if (init_info(mi, FALSE, thread_mask))
+  if (global_init_info(mi, FALSE, thread_mask))
   {
     my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
     ret= true;
@@ -7833,9 +7838,10 @@ bool change_master(THD* thd, Master_info* mi)
     const char* msg;
     relay_log_purge= 0;
     /* Relay log is already initialized */
+    
     if (mi->rli->init_relay_log_pos(mi->rli->get_group_relay_log_name(),
                                     mi->rli->get_group_relay_log_pos(),
-                                    0 /*no data lock*/,
+                                    true/*need_data_lock=true*/,
                                     &msg, 0))
     {
       my_error(ER_RELAY_LOG_INIT, MYF(0), msg);

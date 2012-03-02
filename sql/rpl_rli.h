@@ -685,7 +685,7 @@ public:
 
   int count_relay_log_space();
 
-  int init_info();
+  int rli_init_info();
   void end_info();
   int flush_info(bool force= FALSE);
   int flush_current_log();
