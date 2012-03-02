@@ -4484,7 +4484,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     mysql_bin_log.set_previous_gtid_set(
       const_cast<Gtid_set*>(gtid_state.get_logged_gtids()));
     if (mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
-                                  WRITE_CACHE, 0, max_binlog_size, 0,
+                                  WRITE_CACHE, max_binlog_size, 0,
                                   true/*need mutex*/, true/*need sid_lock*/,
                                   NULL))
       unireg_abort(1);
