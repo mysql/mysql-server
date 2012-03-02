@@ -90,6 +90,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    checkpoint_group(opt_mts_checkpoint_group), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP), reported_unsafe_warning(false),
+   rli_description_event(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
    long_find_row_note_printed(false)
 {
@@ -157,6 +158,7 @@ Relay_log_info::~Relay_log_info()
   mysql_cond_destroy(&pending_jobs_cond);
   my_atomic_rwlock_destroy(&slave_open_temp_tables_lock);
   relay_log.cleanup();
+  set_rli_description_event(NULL);
 
   DBUG_VOID_RETURN;
 }
@@ -350,22 +352,12 @@ int Relay_log_info::init_relay_log_pos(const char* log,
     mysql_mutex_assert_owner(&data_lock);
 
   /*
-    Slave threads are not the only users of init_relay_log_pos(). CHANGE MASTER
-    is, too, and init_slave() too; these 2 functions allocate a description
-    event in init_relay_log_pos, which is not freed by the terminating SQL slave
-    thread as that thread is not started by these functions. So we have to free
-    the description_event here, in case, so that there is no memory leak in
-    running, say, CHANGE MASTER.
-  */
-  delete relay_log.description_event_for_exec;
-  /*
     By default the relay log is in binlog format 3 (4.0).
     Even if format is 4, this will work enough to read the first event
     (Format_desc) (remember that format 4 is just lenghtened compared to format
     3; format 3 is a prefix of format 4).
   */
-  relay_log.description_event_for_exec= new
-    Format_description_log_event(3);
+  set_rli_description_event(new Format_description_log_event(3));
 
   mysql_mutex_lock(log_lock);
 
@@ -445,7 +437,7 @@ int Relay_log_info::init_relay_log_pos(const char* log,
         event
       */
       if (!(ev= Log_event::read_log_event(cur_log, 0,
-                                          relay_log.description_event_for_exec,
+                                          rli_description_event,
                                           opt_slave_sql_verify_checksum)))
       {
         DBUG_PRINT("info",("could not read event, cur_log->error=%d",
@@ -460,8 +452,7 @@ int Relay_log_info::init_relay_log_pos(const char* log,
       else if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
       {
         DBUG_PRINT("info",("found Format_description_log_event"));
-        delete relay_log.description_event_for_exec;
-        relay_log.description_event_for_exec= (Format_description_log_event*) ev;
+        set_rli_description_event((Format_description_log_event *)ev);
         /*
           As ev was returned by read_log_event, it has passed is_valid(), so
           my_malloc() in ctor worked, no need to check again.
@@ -516,7 +507,7 @@ err:
 
   if (need_data_lock)
     mysql_mutex_unlock(&data_lock);
-  if (!relay_log.description_event_for_exec->is_valid() && !*errmsg)
+  if (!rli_description_event->is_valid() && !*errmsg)
     *errmsg= "Invalid Format_description log event; could be out of memory";
 
   DBUG_RETURN ((*errmsg) ? 1 : 0);

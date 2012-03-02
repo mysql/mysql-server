@@ -1856,7 +1856,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
-   description_event_for_exec(0), description_event_for_queue(0),
+   description_event_for_queue(0),
    previous_gtid_set(0)
 {
   /*
@@ -1882,7 +1882,6 @@ void MYSQL_BIN_LOG::cleanup()
     inited= 0;
     close(LOG_CLOSE_INDEX|LOG_CLOSE_STOP_EVENT);
     delete description_event_for_queue;
-    delete description_event_for_exec;
     mysql_mutex_destroy(&LOCK_log);
     mysql_mutex_destroy(&LOCK_index);
     mysql_cond_destroy(&update_cond);
@@ -4045,6 +4044,8 @@ bool MYSQL_BIN_LOG::append_event(Log_event* ev)
   DBUG_ENTER("MYSQL_BIN_LOG::append");
 
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
+  DBUG_ASSERT(is_relay_log);
+
   /*
     Log_event::write() is smart enough to use my_b_write() or
     my_b_append() depending on the kind of cache we have.
@@ -4074,6 +4075,7 @@ bool MYSQL_BIN_LOG::append_buffer(const char* buf, uint len)
   DBUG_ENTER("MYSQL_BIN_LOG::append_buffer");
 
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
+  DBUG_ASSERT(is_relay_log);
 
   mysql_mutex_assert_owner(&LOCK_log);
   if (my_b_append(&log_file,(uchar*) buf,len))
@@ -4410,6 +4412,7 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
   int error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::rotate");
 
+  DBUG_ASSERT(!is_relay_log);
   mysql_mutex_assert_owner(&LOCK_log);
 
   //todo: fix the macro def and restore safe_mutex_assert_owner(&LOCK_log);
@@ -4471,6 +4474,7 @@ int MYSQL_BIN_LOG::rotate_and_purge(bool force_rotate)
   DBUG_ENTER("MYSQL_BIN_LOG::rotate_and_purge");
   bool check_purge= false;
 
+  DBUG_ASSERT(!is_relay_log);
   //todo: fix the macro def and restore safe_mutex_assert_not_owner(&LOCK_log);
   mysql_mutex_lock(&LOCK_log);
   error= rotate(force_rotate, &check_purge);

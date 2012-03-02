@@ -2138,7 +2138,8 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                                                0, rli->ign_master_log_pos_end,
                                                Rotate_log_event::DUP_NAME);
     if (rli->relay_log.description_event_for_queue)
-       ev->checksum_alg= rli->relay_log.description_event_for_queue->checksum_alg;
+      ev->checksum_alg=
+        rli->relay_log.description_event_for_queue->checksum_alg;
     
     rli->ign_master_log_name_end[0]= 0;
     /* can unlock before writing as slave SQL thd will soon see our Rotate */
@@ -5269,8 +5270,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   /* When master_pos_wait() wakes up it will check this and terminate */
   rli->slave_running= 0;
   /* Forget the relay log's format */
-  delete rli->relay_log.description_event_for_exec;
-  rli->relay_log.description_event_for_exec= 0;
+  rli->set_rli_description_event(NULL);
   /* Wake up master_pos_wait() */
   mysql_mutex_unlock(&rli->data_lock);
   DBUG_PRINT("info",("Signaling possibly waiting master_pos_wait() functions"));
@@ -6598,7 +6598,7 @@ static Log_event* next_event(Relay_log_info* rli)
       MYSQL_BIN_LOG::open() will write the buffered description event.
     */
     if ((ev= Log_event::read_log_event(cur_log, 0,
-                                       rli->relay_log.description_event_for_exec,
+                                       rli->get_rli_description_event(),
                                        opt_slave_sql_verify_checksum)))
     {
       DBUG_ASSERT(thd==rli->info_thd);
@@ -7088,9 +7088,9 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
     {37426, { 5, 1,  0 }, { 5, 1, 26 } },
   };
   const uchar *master_ver=
-    rli->relay_log.description_event_for_exec->server_version_split;
+    rli->get_rli_description_event()->server_version_split;
 
-  DBUG_ASSERT(sizeof(rli->relay_log.description_event_for_exec->server_version_split) == 3);
+  DBUG_ASSERT(sizeof(rli->get_rli_description_event()->server_version_split) == 3);
 
   for (uint i= 0;
        i < sizeof(versions_for_all_bugs)/sizeof(*versions_for_all_bugs);i++)
@@ -7113,22 +7113,22 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
       rli->report(ERROR_LEVEL, ER_UNKNOWN_ERROR,
                   "According to the master's version ('%s'),"
                   " it is probable that master suffers from this bug:"
-                      " http://bugs.mysql.com/bug.php?id=%u"
-                      " and thus replicating the current binary log event"
-                      " may make the slave's data become different from the"
-                      " master's data."
-                      " To take no risk, slave refuses to replicate"
-                      " this event and stops."
-                      " We recommend that all updates be stopped on the"
-                      " master and slave, that the data of both be"
-                      " manually synchronized,"
-                      " that master's binary logs be deleted,"
-                      " that master be upgraded to a version at least"
-                      " equal to '%d.%d.%d'. Then replication can be"
-                      " restarted.",
-                      rli->relay_log.description_event_for_exec->server_version,
-                      bug_id,
-                      fixed_in[0], fixed_in[1], fixed_in[2]);
+                  " http://bugs.mysql.com/bug.php?id=%u"
+                  " and thus replicating the current binary log event"
+                  " may make the slave's data become different from the"
+                  " master's data."
+                  " To take no risk, slave refuses to replicate"
+                  " this event and stops."
+                  " We recommend that all updates be stopped on the"
+                  " master and slave, that the data of both be"
+                  " manually synchronized,"
+                  " that master's binary logs be deleted,"
+                  " that master be upgraded to a version at least"
+                  " equal to '%d.%d.%d'. Then replication can be"
+                  " restarted.",
+                  rli->get_rli_description_event()->server_version,
+                  bug_id,
+                  fixed_in[0], fixed_in[1], fixed_in[2]);
       return TRUE;
     }
   }
