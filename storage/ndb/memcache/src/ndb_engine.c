@@ -460,9 +460,11 @@ static ENGINE_ERROR_CODE ndb_get_stats(ENGINE_HANDLE* handle,
   DEBUG_ENTER(); 
   
   if(stat_key && 
-     ((strncasecmp(stat_key, "ndb", 3) == 0) || 
+     ((strncasecmp(stat_key, "ndb", 3) == 0)       || 
       (strncasecmp(stat_key, "scheduler", 9) == 0) ||
-      (strncasecmp(stat_key, "reconf", 6) == 0)))
+      (strncasecmp(stat_key, "reconf", 6) == 0)    ||
+      (strncasecmp(stat_key, "errors", 6) == 0)
+    ))
   {
     /* NDB Engine stats */
     pipeline_add_stats(pipeline, stat_key, add_stat, cookie);
