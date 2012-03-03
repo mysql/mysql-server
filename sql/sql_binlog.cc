@@ -44,6 +44,7 @@
 
 void mysql_client_binlog_statement(THD* thd)
 {
+  ulonglong save_skip_replication;
   DBUG_ENTER("mysql_client_binlog_statement");
   DBUG_PRINT("info",("binlog base64: '%*s'",
                      (int) (thd->lex->comment.length < 2048 ?
@@ -225,7 +226,17 @@ void mysql_client_binlog_statement(THD* thd)
         reporting.
       */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+      save_skip_replication= thd->variables.option_bits&OPTION_SKIP_REPLICATION;
+      thd->variables.option_bits=
+        (thd->variables.option_bits & ~OPTION_SKIP_REPLICATION) |
+        (ev->flags & LOG_EVENT_SKIP_REPLICATION_F ?
+         OPTION_SKIP_REPLICATION : 0);
+
       err= ev->apply_event(rli);
+
+      thd->variables.option_bits=
+        (thd->variables.option_bits & ~OPTION_SKIP_REPLICATION) |
+        save_skip_replication;
 #else
       err= 0;
 #endif

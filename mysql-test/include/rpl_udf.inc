@@ -11,6 +11,10 @@
 --source include/have_udf.inc
 --source include/master-slave.inc
 
+disable_query_log;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
 #
 # To run this tests the "sql/udf_example.c" need to be compiled into
 # udf_example.so and LD_LIBRARY_PATH should be setup to point out where

@@ -152,6 +152,15 @@ extern ulonglong relay_log_space_limit;
 */
 #define SLAVE_FORCE_ALL 4
 
+/*
+  Values for the option --replicate-events-marked-for-skip.
+  Must match the names in replicate_events_marked_for_skip_names in sys_vars.cc
+*/
+#define RPL_SKIP_REPLICATE 0
+#define RPL_SKIP_FILTER_ON_SLAVE 1
+#define RPL_SKIP_FILTER_ON_MASTER 2
+
+
 int init_slave();
 int init_recovery(Master_info* mi, const char** errmsg);
 void init_slave_skip_errors(const char* arg);

@@ -729,7 +729,7 @@ const char* Log_event::get_type_str()
 
 #ifndef MYSQL_CLIENT
 Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
-  :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg),
+  :log_pos(0), temp_buf(0), exec_time(0),
    crc(0), thd(thd_arg),
    checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
@@ -741,6 +741,9 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
     cache_type= Log_event::EVENT_TRANSACTIONAL_CACHE;
   else
     cache_type= Log_event::EVENT_STMT_CACHE;
+  flags= flags_arg |
+    (thd->variables.option_bits & OPTION_SKIP_REPLICATION ?
+     LOG_EVENT_SKIP_REPLICATION_F : 0);
 }
 
 /**
@@ -891,7 +894,9 @@ Log_event::do_shall_skip(Relay_log_info *rli)
                       rli->replicate_same_server_id,
                       rli->slave_skip_counter));
   if ((server_id == ::server_id && !rli->replicate_same_server_id) ||
-      (rli->slave_skip_counter == 1 && rli->is_in_group()))
+      (rli->slave_skip_counter == 1 && rli->is_in_group()) ||
+      (flags & LOG_EVENT_SKIP_REPLICATION_F &&
+       opt_replicate_events_marked_for_skip != RPL_SKIP_REPLICATE))
     return EVENT_SKIP_IGNORE;
   if (rli->slave_skip_counter > 0)
     return EVENT_SKIP_COUNT;
@@ -3900,6 +3905,14 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
   DBUG_ENTER("Query_log_event::do_shall_skip");
   DBUG_PRINT("debug", ("query: %s; q_len: %d", query, q_len));
   DBUG_ASSERT(query && q_len > 0);
+
+  /*
+    An event skipped due to @@skip_replication must not be counted towards the
+    number of events to be skipped due to @@sql_slave_skip_counter.
+  */
+  if (flags & LOG_EVENT_SKIP_REPLICATION_F &&
+      opt_replicate_events_marked_for_skip != RPL_SKIP_REPLICATE)
+    DBUG_RETURN(Log_event::EVENT_SKIP_IGNORE);
 
   if (rli->slave_skip_counter > 0)
   {
@@ -10806,7 +10819,7 @@ st_print_event_info::st_print_event_info()
    auto_increment_increment(0),auto_increment_offset(0), charset_inited(0),
    lc_time_names_number(~0),
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
-   thread_id(0), thread_id_printed(false),
+   thread_id(0), thread_id_printed(false), skip_replication(0),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE)
 {
   /*
