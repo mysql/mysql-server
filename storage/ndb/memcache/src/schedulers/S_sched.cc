@@ -35,6 +35,8 @@
 #include "thread_identifier.h"
 #include "workitem.h"
 #include "ndb_worker.h"
+#include "ndb_engine_errors.h"
+#include "ndb_error_logger.h"
 
 #include "S_sched.h"
 
@@ -296,7 +298,7 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
     pthread_rwlock_unlock(& reconf_lock);
   }
   else {
-    logger->log(LOG_INFO, 0, "S Scheduler could not acquire read lock");
+    log_app_error(& AppError9001_ReconfLock);
     return ENGINE_TMPFAIL;
   }
   /* READ LOCK RELEASED */
@@ -315,7 +317,7 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
      all we can do is return an error. 
      (Or, alternately, the scheduler may be shutting down.)
      */
-    logger->log(LOG_INFO, 0, "No free NDB instances.");
+    log_app_error(& AppError9002_NoNDBs);
     return ENGINE_TMPFAIL;
   }
   
