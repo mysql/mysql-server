@@ -7550,6 +7550,7 @@ ha_innobase::records_in_range(
 	ib_int64_t	n_rows;
 	ulint		mode1;
 	ulint		mode2;
+        uint key_parts;
 	mem_heap_t*	heap;
 
 	DBUG_ENTER("records_in_range");
@@ -7585,14 +7586,19 @@ ha_innobase::records_in_range(
 		goto func_exit;
 	}
 
-	heap = mem_heap_create(2 * (key->key_parts * sizeof(dfield_t)
-				    + sizeof(dtuple_t)));
+        key_parts= key->key_parts;
+        if ((min_key && min_key->keypart_map>=(key_part_map) (1<<key_parts)) ||
+            (max_key && max_key->keypart_map>=(key_part_map) (1<<key_parts)))
+          key_parts= key->ext_key_parts;
 
-	range_start = dtuple_create(heap, key->key_parts);
-	dict_index_copy_types(range_start, index, key->key_parts);
+	heap = mem_heap_create(2 * (key_parts * sizeof(dfield_t)
+ 				    + sizeof(dtuple_t)));
 
-	range_end = dtuple_create(heap, key->key_parts);
-	dict_index_copy_types(range_end, index, key->key_parts);
+        range_start = dtuple_create(heap, key_parts);
+        dict_index_copy_types(range_start, index, key_parts);
+
+        range_end = dtuple_create(heap, key_parts);
+        dict_index_copy_types(range_end, index, key_parts);
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_start,
@@ -7741,11 +7747,6 @@ ha_innobase::read_time(
 	if (index != table->s->primary_key) {
 		/* Not clustered */
 		return(handler::read_time(index, ranges, rows));
-	}
-
-	if (rows <= 2) {
-
-		return((double) rows);
 	}
 
 	/* Assume that the read time is proportional to the scan time for all
@@ -8104,6 +8105,7 @@ ha_innobase::info_low(
 
 		for (i = 0; i < table->s->keys; i++) {
 			ulong	j;
+                        rec_per_key = 1;
 			/* We could get index quickly through internal
 			index mapping with the index translation table.
 			The identity of index (match up index name with
@@ -8157,6 +8159,50 @@ ha_innobase::info_low(
 				  rec_per_key >= ~(ulong) 0 ? ~(ulong) 0 :
 				  (ulong) rec_per_key;
 			}
+
+                        KEY *key_info= table->key_info+i; 
+                        key_part_map ext_key_part_map=
+                                             key_info->ext_key_part_map;                               
+
+                        if (key_info->key_parts != key_info->ext_key_parts) {
+
+                                KEY *pk_key_info= key_info+
+                                                  table->s->primary_key;
+                                uint k = key_info->key_parts;
+                                ha_rows k_rec_per_key = rec_per_key;
+                                uint pk_parts = pk_key_info->key_parts;
+                          
+		                index= innobase_get_index(
+                                        table->s->primary_key);
+                                
+                                n_rows= ib_table->stat_n_rows;
+    
+                                for (j = 0; j < pk_parts; j++) {
+ 
+				         if (ext_key_part_map & 1<<j) {
+
+                                                rec_per_key =
+						innodb_rec_per_key(index,
+                                                        j, stats.records);
+                               
+				                if (rec_per_key == 0) {
+					                rec_per_key = 1;
+				                }
+                                                else if (rec_per_key > 1) {
+                                                        rec_per_key =
+                                                        k_rec_per_key *
+						        (double)rec_per_key /
+							n_rows;
+						}
+                                                
+				                key_info->rec_per_key[k++]=
+				                rec_per_key >= ~(ulong) 0 ?
+                                                ~(ulong) 0 :
+                                                (ulong) rec_per_key;
+
+					} 
+				}
+			}                                         
 		}
 
 		dict_table_stats_unlock(ib_table, RW_S_LATCH);
