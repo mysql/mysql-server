@@ -39,6 +39,7 @@ enum {
 };
 
 int log_ndb_error(const NdbError &);
+int log_app_error(ndberror_struct const *);
 #endif
 
 
