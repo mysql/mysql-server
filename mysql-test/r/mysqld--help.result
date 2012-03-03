@@ -491,8 +491,8 @@ The following options may be given as the first argument:
  mrr_cost_based, mrr_sort_keys, optimize_join_buffer_size,
  outer_join_with_cache, partial_match_rowid_merge,
  partial_match_table_scan, semijoin, semijoin_with_cache,
- subquery_cache, table_elimination } and val is one of
- {on, off, default}
+ subquery_cache, table_elimination, extended_keys } and
+ val is one of {on, off, default}
  --performance-schema 
  Enable the performance schema.
  --performance-schema-events-waits-history-long-size=# 

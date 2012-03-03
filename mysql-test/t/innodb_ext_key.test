@@ -1,0 +1,411 @@
+--source include/have_xtradb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+DROP DATABASE IF EXISTS dbt3_s001;
+--enable_warnings
+
+SET SESSION STORAGE_ENGINE='InnoDB';
+
+CREATE DATABASE dbt3_s001;
+
+use dbt3_s001;
+ 
+--disable_query_log
+--disable_result_log
+--disable_warnings
+--source include/dbt3_s001.inc
+--enable_warnings
+--enable_result_log
+--enable_query_log
+
+set @save_ext_key_optimizer_switch=@@optimizer_switch;
+
+set optimizer_switch='extended_keys=off';
+explain
+select count(*) from lineitem where l_orderkey=130 and l_shipdate='1992-07-01';
+flush status;
+select count(*) from lineitem where l_orderkey=130 and l_shipdate='1992-07-01';
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+explain
+select count(*) from lineitem where l_orderkey=130 and l_shipdate='1992-07-01';
+flush status;
+select count(*) from lineitem where l_orderkey=130 and l_shipdate='1992-07-01';
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=off';
+explain
+select count(*) from lineitem 
+  where l_orderkey=130 and l_linenumber=2 and l_shipdate='1992-07-01';
+flush status;
+select count(*) from lineitem 
+  where l_orderkey=130 and l_linenumber=2 and l_shipdate='1992-07-01';
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+explain
+select count(*) from lineitem
+  where l_orderkey=130 and l_linenumber=2 and l_shipdate='1992-07-01';
+flush status;
+select count(*) from lineitem 
+  where l_orderkey=130 and l_linenumber=2 and l_shipdate='1992-07-01';
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=off';
+explain 
+select count(*) from lineitem
+  where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000;
+flush status;
+select count(*) from lineitem
+  where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+explain 
+select count(*) from lineitem
+  where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000;
+flush status;
+select count(*) from lineitem
+  where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=off';
+explain
+select l_orderkey, l_linenumber from lineitem
+  where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+flush status;
+select l_orderkey, l_linenumber from lineitem
+  where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+explain
+select l_orderkey, l_linenumber from lineitem
+  where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+flush status;
+select l_orderkey, l_linenumber from lineitem
+  where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=off';
+explain
+select min(l_orderkey) from lineitem where l_shipdate='1992-07-01';
+flush status;
+select min(l_orderkey) from lineitem where l_shipdate='1992-07-01';
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+explain
+select min(l_orderkey) from lineitem where l_shipdate='1992-07-01';
+flush status;
+select min(l_orderkey) from lineitem where l_shipdate='1992-07-01';
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=off';
+explain
+select min(l_orderkey) from lineitem 
+  where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+flush status;
+select min(l_orderkey) from lineitem 
+  where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+explain
+select min(l_orderkey) from lineitem 
+  where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+flush status;
+select min(l_orderkey) from lineitem 
+  where l_shipdate='1992-07-01' and l_orderkey between 1001 and 2000;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=off';
+explain
+select max(l_linenumber) from lineitem 
+  where l_shipdate='1992-07-01' and l_orderkey=130;
+flush status;
+select max(l_linenumber) from lineitem 
+  where l_shipdate='1992-07-01' and l_orderkey=130;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+explain
+select max(l_linenumber) from lineitem 
+  where l_shipdate='1992-07-01' and l_orderkey=130;
+flush status;
+select max(l_linenumber) from lineitem 
+  where l_shipdate='1992-07-01' and l_orderkey=130;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=off';
+explain
+select l_orderkey, l_linenumber 
+  from lineitem use index (i_l_shipdate, i_l_receiptdate)
+  where l_shipdate='1992-07-01' and l_orderkey=130 
+        or l_receiptdate='1992-07-01' and l_orderkey=5603;
+flush status;
+select l_orderkey, l_linenumber 
+  from lineitem use index (i_l_shipdate, i_l_receiptdate)
+  where l_shipdate='1992-07-01' and l_orderkey=130 
+        or l_receiptdate='1992-07-01' and l_orderkey=5603;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+explain
+select l_orderkey, l_linenumber 
+  from lineitem use index (i_l_shipdate, i_l_receiptdate)
+  where l_shipdate='1992-07-01' and l_orderkey=130 
+        or l_receiptdate='1992-07-01' and l_orderkey=5603;
+flush status;
+select l_orderkey, l_linenumber 
+  from lineitem use index (i_l_shipdate, i_l_receiptdate)
+  where l_shipdate='1992-07-01' and l_orderkey=130 
+        or l_receiptdate='1992-07-01' and l_orderkey=5603;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=off';
+explain
+select l_orderkey, l_linenumber
+  from lineitem use index (i_l_shipdate, i_l_receiptdate)
+  where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+         or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+flush status;
+select l_orderkey, l_linenumber
+  from lineitem use index (i_l_shipdate, i_l_receiptdate)
+  where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+         or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+explain
+select l_orderkey, l_linenumber
+  from lineitem use index (i_l_shipdate, i_l_receiptdate)
+  where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+         or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+flush status;
+select l_orderkey, l_linenumber
+  from lineitem use index (i_l_shipdate, i_l_receiptdate)
+  where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+         or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=off';
+explain
+select l_orderkey, l_linenumber from lineitem 
+  where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+        or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+flush status;
+select l_orderkey, l_linenumber from lineitem 
+  where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+        or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+explain
+select l_orderkey, l_linenumber from lineitem 
+  where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+        or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+flush status;
+select l_orderkey, l_linenumber from lineitem 
+  where l_shipdate='1992-07-01' and l_orderkey between 1 and 1000
+        or l_receiptdate='1992-07-01' and l_orderkey between 5001 and 6000;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=off';
+--replace_column 9 #
+explain 
+select max(l_orderkey) from lineitem
+  where l_partkey between 1 and 10 group by l_partkey;
+flush status;
+select max(l_orderkey) from lineitem
+  where l_partkey between 1 and 10 group by l_partkey;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+--replace_column 9 #
+explain 
+select max(l_orderkey) from lineitem
+  where l_partkey between 1 and 10 group by l_partkey;
+flush status;
+select max(l_orderkey) from lineitem
+  where l_partkey between 1 and 10 group by l_partkey;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=off';
+--replace_column 9 #
+explain 
+select max(l_orderkey) from lineitem
+  where l_suppkey in (1,4) group by l_suppkey;
+flush status;
+select max(l_orderkey) from lineitem
+  where l_suppkey in (1,4) group by l_suppkey;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+--replace_column 9 #
+explain 
+select max(l_orderkey) from lineitem
+  where l_suppkey in (1,4) group by l_suppkey;
+flush status;
+select max(l_orderkey) from lineitem
+  where l_suppkey in (1,4) group by l_suppkey;
+show status like 'handler_read%';
+
+create index i_p_retailprice on part(p_retailprice);
+
+set optimizer_switch='extended_keys=off';
+--replace_column 9 #
+explain
+select o_orderkey, p_partkey
+  from part use index (i_p_retailprice),
+       lineitem use index (i_l_partkey), orders
+  where p_retailprice > 1100 and o_orderdate='1997-01-01' 
+        and o_orderkey=l_orderkey and p_partkey=l_partkey;
+flush status;
+select o_orderkey, p_partkey
+  from part use index (i_p_retailprice),
+       lineitem use index (i_l_partkey), orders
+  where p_retailprice > 1100 and o_orderdate='1997-01-01' 
+        and o_orderkey=l_orderkey and p_partkey=l_partkey;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+--replace_column 9 #
+explain
+select o_orderkey, p_partkey
+  from part use index (i_p_retailprice),
+       lineitem use index (i_l_partkey), orders
+  where p_retailprice > 1100 and o_orderdate='1997-01-01' 
+        and o_orderkey=l_orderkey and p_partkey=l_partkey;
+flush status;
+select o_orderkey, p_partkey
+  from part use index (i_p_retailprice),
+       lineitem use index (i_l_partkey), orders
+  where p_retailprice > 1100 and o_orderdate='1997-01-01' 
+        and o_orderkey=l_orderkey and p_partkey=l_partkey;
+show status like 'handler_read%';
+
+DROP DATABASE dbt3_s001;
+
+use test;
+
+--echo #
+--echo # LP Bug #914560: query containing IN subquery
+--echo #                 + extended_keys = on
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+SET optimizer_switch='materialization=on,semijoin=on';
+SET optimizer_switch='extended_keys=on';
+
+CREATE TABLE t1 (a int, b int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1), (2,2);
+
+SELECT * FROM t1 WHERE 2 IN (SELECT MAX(s1.a) FROM t1 AS s1, t1 AS s2);
+EXPLAIN
+SELECT * FROM t1 WHERE 2 IN (SELECT MAX(s1.a) FROM t1 AS s1, t1 AS s2);
+
+DROP TABLE t1;
+
+set optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # LP Bug #915291: query using a materialized view
+--echo #                 + extended_keys = on
+--echo # (valgrinf complains fixed by the patch for bug #914560)
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+SET optimizer_switch = 'derived_with_keys=on';
+SET optimizer_switch = 'extended_keys=on';
+
+CREATE TABLE t1 (a varchar(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('j'), ('v');
+
+CREATE TABLE t2 (b varchar(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('j'), ('v');
+
+CREATE TABLE t3 (c varchar(1));
+INSERT INTO t2 VALUES ('m'), ('n');
+
+CREATE VIEW v
+  AS SELECT DISTINCT * FROM t2 STRAIGHT_JOIN t3;
+
+SELECT * FROM t1, v WHERE a = b;
+
+DROP VIEW v;
+DROP TABLE t1,t2,t3;
+
+set optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # LP Bug #921167: query containing IN subquery
+--echo #                 + extended_keys = on 
+--echo #
+
+CREATE TABLE t1 (
+  a int NOT NULL, b varchar(1) NOT NULL, KEY(a), KEY(b,a)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+  (0,'j'), (8,'v'), (1,'c'), (8,'m'), (9,'d'), 
+  (24,'d'), (6,'y'), (1,'t'), (6,'d'), (2,'s');
+
+CREATE TABLE t2 (
+  c int NOT NULL PRIMARY KEY
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES
+  (10), (11), (12), (13), (14), 
+  (15), (16), (17), (18), (19), (24);
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+SET optimizer_switch = 'extended_keys=off';
+EXPLAIN
+SELECT a FROM t1 AS t, t2 
+  WHERE c = a AND b IN (SELECT b FROM t1, t2 WHERE b = t.b);
+SELECT a FROM t1 AS t, t2 
+  WHERE c = a AND b IN (SELECT b FROM t1, t2 WHERE b = t.b);
+
+SET optimizer_switch = 'extended_keys=on';
+EXPLAIN
+SELECT a FROM t1 AS t, t2 
+  WHERE c = a AND b IN (SELECT b FROM t1, t2 WHERE b = t.b);
+SELECT a FROM t1 AS t, t2 
+  WHERE c = a AND b IN (SELECT b FROM t1, t2 WHERE b = t.b);
+
+set optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # LP Bug #923236: hash join + extended_keys = on 
+--echo #
+
+CREATE TABLE t1 (a int) ENGINE=MyISAM;
+
+CREATE TABLE t2 (b int) ENGINE=MyISAM;
+
+INSERT INTO t1 (a) VALUES (4), (6);
+INSERT INTO t2 (b) VALUES (0), (8);
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+SET join_cache_level=3;
+SET optimizer_switch='join_cache_hashed=on';
+SET optimizer_switch='join_cache_bka=on';
+SET optimizer_switch='extended_keys=on';
+
+EXPLAIN
+SELECT * FROM t1, t2 WHERE b=a;
+SELECT * FROM t1, t2 WHERE b=a;
+
+set optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1,t2;
+
+set optimizer_switch=@save_ext_key_optimizer_switch;
+SET SESSION STORAGE_ENGINE=DEFAULT;

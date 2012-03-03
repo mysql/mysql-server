@@ -1459,6 +1459,7 @@ export const char *optimizer_switch_names[]=
   "join_cache_bka",
   "optimize_join_buffer_size",
   "table_elimination",
+  "extended_keys",
   "default", NullS
 };
 /** propagates changes to @@engine_condition_pushdown */
@@ -1499,7 +1500,8 @@ static Sys_var_flagset Sys_optimizer_switch(
         "semijoin, "
         "semijoin_with_cache, "
         "subquery_cache, "
-        "table_elimination "
+        "table_elimination, "
+        "extended_keys "
        "} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
