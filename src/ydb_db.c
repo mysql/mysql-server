@@ -1155,9 +1155,9 @@ locked_ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * ne
 
 #undef STATUS_VALUE
 
-#include <valgrind/drd.h>
-void __attribute__((constructor)) toku_ydb_db_drd_ignore(void);
+#include <valgrind/helgrind.h>
+void __attribute__((constructor)) toku_ydb_db_helgrind_ignore(void);
 void
-toku_ydb_db_drd_ignore(void) {
-    DRD_IGNORE_VAR(ydb_db_layer_status);
+toku_ydb_db_helgrind_ignore(void) {
+    VALGRIND_HG_DISABLE_CHECKING(&ydb_db_layer_status, sizeof ydb_db_layer_status);
 }

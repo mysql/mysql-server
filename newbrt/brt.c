@@ -125,7 +125,7 @@ basement nodes, bulk fetch,  and partial fetch:
 #include "sort.h"
 #include <brt-cachetable-wrappers.h>
 #include <brt-flusher.h>
-#include <valgrind/drd.h>
+#include <valgrind/helgrind.h>
 
 #if defined(HAVE_CILK)
 #include <cilk/cilk.h>
@@ -6686,11 +6686,11 @@ toku_brt_header_init(struct brt_header *h,
     h->root_xid_that_created = root_xid_that_created;
 }
 
-#include <valgrind/drd.h>
-void __attribute__((__constructor__)) toku_brt_drd_ignore(void);
+#include <valgrind/helgrind.h>
+void __attribute__((__constructor__)) toku_brt_helgrind_ignore(void);
 void
-toku_brt_drd_ignore(void) {
-    DRD_IGNORE_VAR(brt_status);
+toku_brt_helgrind_ignore(void) {
+    VALGRIND_HG_DISABLE_CHECKING(&brt_status, sizeof brt_status);
 }
 
 #undef STATUS_VALUE

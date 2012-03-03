@@ -897,6 +897,9 @@ helgrind3.bdbrun: BDBVGRIND=$(HGRIND)
 test_groupcommit_count_hgrind.tdbrun: HGRIND+=--suppressions=helgrind.suppressions
 test_groupcommit_count_hgrind.tdbrun: test_groupcommit_count.tdb$(BINSUF)
 	$(HGRIND) ./test_groupcommit_count.tdb$(BINSUF) $(VERBVERBOSE) -n 1 -p hgrind $(SUMMARIZE_CMD)
+test_groupcommit_count_drd.tdbrun: DRD+=--suppressions=drd.suppressions
+test_groupcommit_count_drd.tdbrun: test_groupcommit_count.tdb$(BINSUF)
+	$(DRD) ./test_groupcommit_count.tdb$(BINSUF) $(VERBVERBOSE) -n 1 -p drd $(SUMMARIZE_CMD)
 test_groupcommit_count_vgrind.tdbrun: test_groupcommit_count.tdb$(BINSUF)
 	$(VGRIND) ./test_groupcommit_count.tdb$(BINSUF) $(VERBVERBOSE) -n 1 -p vgrind $(SUMMARIZE_CMD)
 

@@ -1859,11 +1859,11 @@ flush_node_on_background_thread(BRT brt, BRTNODE parent)
     }
 }
 
-#include <valgrind/drd.h>
-void __attribute__((__constructor__)) toku_brt_flusher_drd_ignore(void);
+#include <valgrind/helgrind.h>
+void __attribute__((__constructor__)) toku_brt_flusher_helgrind_ignore(void);
 void
-toku_brt_flusher_drd_ignore(void) {
-    DRD_IGNORE_VAR(brt_flusher_status);
+toku_brt_flusher_helgrind_ignore(void) {
+    VALGRIND_HG_DISABLE_CHECKING(&brt_flusher_status, sizeof brt_flusher_status);
 }
 
 #undef STATUS_VALUE

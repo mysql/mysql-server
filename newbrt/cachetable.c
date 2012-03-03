@@ -9,7 +9,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdarg.h>
-#include <valgrind/drd.h>
+#include <valgrind/helgrind.h>
 
 #include "memory.h"
 #include "workqueue.h"
@@ -500,12 +500,12 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     CACHETABLE MALLOC(ct);
     if (ct == 0) return ENOMEM;
     memset(ct, 0, sizeof(*ct));
-    DRD_IGNORE_VAR(ct->size_nonleaf); // modified only when the cachetable lock is held, but read by engine status
-    DRD_IGNORE_VAR(ct->size_current);
-    DRD_IGNORE_VAR(ct->size_evicting);
-    DRD_IGNORE_VAR(ct->size_leaf);
-    DRD_IGNORE_VAR(ct->size_rollback);
-    DRD_IGNORE_VAR(ct->size_cachepressure);
+    VALGRIND_HG_DISABLE_CHECKING(&ct->size_nonleaf, sizeof ct->size_nonleaf); // modified only when the cachetable lock is held, but read by engine status
+    VALGRIND_HG_DISABLE_CHECKING(&ct->size_current, sizeof ct->size_current);
+    VALGRIND_HG_DISABLE_CHECKING(&ct->size_evicting, sizeof ct->size_evicting);
+    VALGRIND_HG_DISABLE_CHECKING(&ct->size_leaf, sizeof ct->size_leaf);
+    VALGRIND_HG_DISABLE_CHECKING(&ct->size_rollback, sizeof ct->size_rollback);
+    VALGRIND_HG_DISABLE_CHECKING(&ct->size_cachepressure, sizeof ct->size_cachepressure);
     ct->table_size = 4;
     rwlock_init(&ct->pending_lock);
     XCALLOC_N(ct->table_size, ct->table);
@@ -4042,23 +4042,23 @@ toku_cleaner_thread (void *cachetable_v)
     return 0;
 }
 
-void __attribute__((__constructor__)) toku_cachetable_drd_ignore(void);
+void __attribute__((__constructor__)) toku_cachetable_helgrind_ignore(void);
 void
-toku_cachetable_drd_ignore(void) {
-    DRD_IGNORE_VAR(cachetable_hit);
-    DRD_IGNORE_VAR(cachetable_miss);
-    DRD_IGNORE_VAR(cachetable_misstime);
-    DRD_IGNORE_VAR(cachetable_waittime);
-    DRD_IGNORE_VAR(cachetable_wait_reading);
-    DRD_IGNORE_VAR(cachetable_wait_writing);
-    DRD_IGNORE_VAR(cachetable_wait_checkpoint);
-    DRD_IGNORE_VAR(cachetable_puts);
-    DRD_IGNORE_VAR(cachetable_prefetches);
-    DRD_IGNORE_VAR(cachetable_maybe_get_and_pins);
-    DRD_IGNORE_VAR(cachetable_maybe_get_and_pin_hits);
-    DRD_IGNORE_VAR(cachetable_evictions);
-    DRD_IGNORE_VAR(cleaner_executions);
-    DRD_IGNORE_VAR(ct_status);
+toku_cachetable_helgrind_ignore(void) {
+    VALGRIND_HG_DISABLE_CHECKING(&cachetable_hit, sizeof cachetable_hit);
+    VALGRIND_HG_DISABLE_CHECKING(&cachetable_miss, sizeof cachetable_miss);
+    VALGRIND_HG_DISABLE_CHECKING(&cachetable_misstime, sizeof cachetable_misstime);
+    VALGRIND_HG_DISABLE_CHECKING(&cachetable_waittime, sizeof cachetable_waittime);
+    VALGRIND_HG_DISABLE_CHECKING(&cachetable_wait_reading, sizeof cachetable_wait_reading);
+    VALGRIND_HG_DISABLE_CHECKING(&cachetable_wait_writing, sizeof cachetable_wait_writing);
+    VALGRIND_HG_DISABLE_CHECKING(&cachetable_wait_checkpoint, sizeof cachetable_wait_checkpoint);
+    VALGRIND_HG_DISABLE_CHECKING(&cachetable_puts, sizeof cachetable_puts);
+    VALGRIND_HG_DISABLE_CHECKING(&cachetable_prefetches, sizeof cachetable_prefetches);
+    VALGRIND_HG_DISABLE_CHECKING(&cachetable_maybe_get_and_pins, sizeof cachetable_maybe_get_and_pins);
+    VALGRIND_HG_DISABLE_CHECKING(&cachetable_maybe_get_and_pin_hits, sizeof cachetable_maybe_get_and_pin_hits);
+    VALGRIND_HG_DISABLE_CHECKING(&cachetable_evictions, sizeof cachetable_evictions);
+    VALGRIND_HG_DISABLE_CHECKING(&cleaner_executions, sizeof cleaner_executions);
+    VALGRIND_HG_DISABLE_CHECKING(&ct_status, sizeof ct_status);
 }
 
 #undef STATUS_VALUE

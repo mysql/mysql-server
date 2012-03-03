@@ -915,9 +915,9 @@ toku_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
 
 #undef STATUS_VALUE
 
-#include <valgrind/drd.h>
-void __attribute__((constructor)) toku_ydb_cursor_drd_ignore(void);
+#include <valgrind/helgrind.h>
+void __attribute__((constructor)) toku_ydb_cursor_helgrind_ignore(void);
 void
-toku_ydb_cursor_drd_ignore(void) {
-    DRD_IGNORE_VAR(ydb_c_layer_status);
+toku_ydb_cursor_helgrind_ignore(void) {
+    VALGRIND_HG_DISABLE_CHECKING(&ydb_c_layer_status, sizeof ydb_c_layer_status);
 }

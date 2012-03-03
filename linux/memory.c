@@ -275,9 +275,9 @@ toku_set_func_free(free_fun_t f) {
     t_free = f;
 }
 
-#include <valgrind/drd.h>
-void __attribute__((constructor)) toku_memory_drd_ignore(void);
+#include <valgrind/helgrind.h>
+void __attribute__((constructor)) toku_memory_helgrind_ignore(void);
 void
-toku_memory_drd_ignore(void) {
-    DRD_IGNORE_VAR(status);
+toku_memory_helgrind_ignore(void) {
+    VALGRIND_HG_DISABLE_CHECKING(&status, sizeof status);
 }

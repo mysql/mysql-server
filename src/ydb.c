@@ -2938,9 +2938,9 @@ toku_test_get_checkpointing_user_data_status (void) {
 #undef STATUS_VALUE
 #undef PERSISTENT_UPGRADE_STATUS_VALUE
 
-#include <valgrind/drd.h>
-void __attribute__((constructor)) toku_ydb_drd_ignore(void);
+#include <valgrind/helgrind.h>
+void __attribute__((constructor)) toku_ydb_helgrind_ignore(void);
 void
-toku_ydb_drd_ignore(void) {
-    DRD_IGNORE_VAR(ydb_layer_status);
+toku_ydb_helgrind_ignore(void) {
+    VALGRIND_HG_DISABLE_CHECKING(&ydb_layer_status, sizeof ydb_layer_status);
 }

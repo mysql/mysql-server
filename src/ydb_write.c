@@ -830,9 +830,9 @@ toku_ydb_check_avail_fs_space(DB_ENV *env) {
 }
 #undef STATUS_VALUE
 
-#include <valgrind/drd.h>
-void __attribute__((constructor)) toku_ydb_write_drd_ignore(void);
+#include <valgrind/helgrind.h>
+void __attribute__((constructor)) toku_ydb_write_helgrind_ignore(void);
 void
-toku_ydb_write_drd_ignore(void) {
-    DRD_IGNORE_VAR(ydb_write_layer_status);
+toku_ydb_write_helgrind_ignore(void) {
+    VALGRIND_HG_DISABLE_CHECKING(&ydb_write_layer_status, sizeof ydb_write_layer_status);
 }
