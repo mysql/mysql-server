@@ -45,6 +45,7 @@ int log_ndb_error(const NdbError &);
 DECLARE_FUNCTIONS_WITH_C_LINKAGE
 
 void ndb_error_logger_init(SERVER_CORE_API *, size_t log_level);
+void ndb_error_logger_stats(ADD_STAT add_stat, const void *cookie);
 
 END_FUNCTIONS_WITH_C_LINKAGE
 

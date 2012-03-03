@@ -37,6 +37,7 @@
 
 #include "schedulers/Stockholm.h"
 #include "schedulers/S_sched.h"
+#include "ndb_error_logger.h"
 
 #define DEFAULT_SCHEDULER S::SchedulerWorker
 
@@ -141,6 +142,9 @@ void pipeline_add_stats(ndb_pipeline *self,
       sprintf(key, "cl%d", i);
       conf.getConnectionPoolById(i)->add_stats(key, add_stat, cookie);
     }
+  }
+  else if(strncasecmp(stat_key,"errors",6) == 0) {
+    ndb_error_logger_stats(add_stat, cookie);    
   }
   else if((strncasecmp(stat_key,"scheduler",9) == 0)
           || (strncasecmp(stat_key,"reconf",6) == 0)) {

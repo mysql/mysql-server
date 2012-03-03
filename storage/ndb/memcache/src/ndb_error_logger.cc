@@ -185,4 +185,21 @@ void manage_error(const NdbError & error, const char *type_mesg, rel_time_t inte
                 type_mesg, error.code, error.message, note);
   }
 }
-  
+
+
+void ndb_error_logger_stats(ADD_STAT add_stat, const void *cookie) {
+  char key[128];
+  char val[128];
+  int klen, vlen;
+  unsigned int i;
+  Lock lock(& error_table_lock);
+  ErrorEntry *sym;
+
+  for(i = 0 ; i < ERROR_HASH_TABLE_SIZE; i++) {
+    for(sym = error_hash_table[i] ; sym != 0 ; sym = sym->next) { 
+      klen = sprintf(key, "NDB_Error_%d", sym->error_code);
+      vlen = sprintf(val, "%lu", sym->count);
+      add_stat(key, klen, val, vlen, cookie);
+    }
+  }
+}
