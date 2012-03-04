@@ -40,6 +40,42 @@ Created 2012-02-08 by Sunny Bains.
 #include "srv0start.h"
 #include "row0quiesce.h"
 
+/** Index information required by IMPORT. */
+struct row_index_t {
+	byte*		name;			/*!< Index name */
+	ulint		page_no;		/*!< Root page number */
+};
+
+/** Meta data required by IMPORT. */
+struct row_import_t {
+	dict_table_t*	table;			/*!< Table instance */
+
+	ulint		version;		/*!< Version of config file */
+
+	byte*		hostname;		/*!< Hostname where the
+						tablespace was exported */
+	byte*		table_name;		/*!< Exporting instance table
+						name */
+	ulint		page_size;		/*!< Tablespace page size */
+
+	ulint		flags;			/*!< Table flags */
+
+	ulint		n_cols;			/*!< Number of columns in the
+						meta-data file */
+
+	dict_col_t*	cols;			/*!< Column data */
+
+	byte**		col_names;		/*!< Column names, we store the
+						column naems separately becuase
+						there is no field to store the
+						value in dict_col_t */
+
+	ulint		n_indexes;		/*!< Number of indexes,
+						including cluster index */
+
+	row_index_t*	indexes;		/*!< Index meta data */
+};
+
 /** Class that imports indexes, both secondary and cluster. */
 class IndexImporter {
 public:
@@ -326,7 +362,7 @@ private:
 
 	/** Store the persistent cursor position and reopen the
 	B-tree cursor in BTR_MODIFY_TREE mode, because the
-	tree structure may be changed in pessimistic delete. */
+	tree structure may be changed during a pessimistic delete. */
 	void	purge_pessimistic_delete() throw()
 	{
 		ulint	err;
@@ -416,6 +452,46 @@ private:
 	ulint			m_space_id;	/*!< Tablespace id */
 						/*!< Column offsets */
 };
+
+/*****************************************************************//**
+Free the config file memory representation. */
+static	__attribute__((nonnull))
+void
+row_import_free(
+/*============*/
+	row_import_t*	cfg)		/*!< in/own: memory to free */
+{
+	for (ulint i = 0; i < cfg->n_indexes; ++i) {
+		if (cfg->indexes[i].name != 0) {
+			delete cfg->indexes[i].name;
+			cfg->indexes[i].name = 0;
+		}
+	}
+
+	for (ulint i = 0; i < cfg->n_cols; ++i) {
+		if (cfg->col_names[i] != 0) {
+			delete cfg->col_names[i];
+			cfg->col_names[i] = 0;
+		}
+	}
+
+	if (cfg->cols != 0) {
+		delete [] cfg->cols;
+		cfg->cols = 0;
+	}
+
+	if (cfg->indexes != 0) {
+		delete [] cfg->indexes;
+		cfg->indexes = 0;
+	}
+
+	if (cfg->col_names != 0) {
+		delete [] cfg->col_names;
+		cfg->col_names = 0;
+	}
+
+	delete cfg;
+}
 
 /*****************************************************************//**
 Cleanup after import tablespace. */
@@ -687,15 +763,15 @@ row_import_set_sys_max_row_id(
 }
 
 /*****************************************************************//**
-Read the tablename from the meta data file.
+Read the a string from the meta data file.
 @return DB_SUCCESS or error code. */
 static
 db_err
-row_import_cfg_read_index_name(
-/*===========================*/
+row_import_cfg_read_string(
+/*=======================*/
 	FILE*		file,		/*!< in/out: File to read from */
-	char*		name,		/*!< out: index name */
-	ulint		max_len)	/*!< in: max size of name buffer, this
+	byte*		ptr,		/*!< out: string to read */
+	ulint		max_len)	/*!< in: max size of buffer, this
 					is also the expected length */
 {
 	ulint		len = 0;
@@ -707,7 +783,7 @@ row_import_cfg_read_index_name(
 			break;
 		} else if (ch != 0) {
 			if (len < max_len) {
-				name[len++] = ch;
+				ptr[len++] = ch;
 			} else {
 				break;
 			}
@@ -715,7 +791,7 @@ row_import_cfg_read_index_name(
 		} else if (len != max_len - 1) {
 			break;
 		} else {
-			name[len] = 0;
+			ptr[len] = 0;
 			return(DB_SUCCESS);
 		}
 	}
@@ -729,21 +805,34 @@ Row format [root_page_no, len of str, str ... ]
 @return DB_SUCCESS or error code. */
 static __attribute__((nonnull, warn_unused_result))
 db_err
-row_import_set_index_root_v1(
-/*=========================*/
-	dict_table_t*	table,		/*!< in: table */
-	ulint		n_indexes,	/*!< in: number of indexes */
+row_import_read_index_root_pageno(
+/*==============================*/
 	FILE*		file,		/*!< in: File to read from */
-	void*		thd)		/*!< in: session */
+	void*		thd,		/*!< in: session */
+	row_import_t*	cfg)		/*!< in/out: meta-data read */
 {
 	byte*		ptr;
+	row_index_t*	cfg_index;
 	db_err		err = DB_SUCCESS;
 	byte		row[sizeof(ib_uint32_t) * 2];
 
-	ut_a(n_indexes > 0);
+	/* FIXME: What is the max value? */
+	ut_a(cfg->n_indexes > 0);
+	ut_a(cfg->n_indexes < 1024);
 
-	for (ulint i = 0; i < n_indexes && err == DB_SUCCESS; ++i) {
-		ib_uint32_t	pageno;
+	cfg->indexes = new(std::nothrow) row_index_t[cfg->n_indexes];
+
+	if (cfg->indexes == 0) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	memset(cfg->indexes, 0x0, sizeof(cfg->indexes) * cfg->n_indexes);
+
+	cfg_index = cfg->indexes;
+
+	for (ulint i = 0;
+	     i < cfg->n_indexes && err == DB_SUCCESS;
+	     ++i, ++cfg_index) {
 
 		ptr = row;
 
@@ -756,7 +845,7 @@ row_import_set_index_root_v1(
 			return(DB_IO_ERROR);
 		}
 
-		pageno = mach_read_from_4(ptr);
+		cfg_index->page_no = mach_read_from_4(ptr);
 		ptr += sizeof(ib_uint32_t);
 
 		/* The NUL byte is included in the name length. */
@@ -770,45 +859,13 @@ row_import_set_index_root_v1(
 			return(DB_CORRUPTION);
 		}
 
-		char*	name = static_cast<char*>(ut_malloc(len));
+		cfg_index->name = new(std::nothrow) byte[len];
 
-		err = row_import_cfg_read_index_name(file, name, len);
-
-		if (err == DB_SUCCESS) {
-
-			dict_index_t*	index;
-
-			index = dict_table_get_index_on_name(table, name);
-
-			if (index != 0) {
-				index->page = pageno;
-				index->space = table->space;
-			} else {
-				char index_name[MAX_FULL_NAME_LEN + 1];
-
-				innobase_format_name(
-					index_name, sizeof(index_name),
-					name, TRUE);
-
-				char table_name[MAX_FULL_NAME_LEN + 1];
-
-				innobase_format_name(
-					table_name, sizeof(table_name),
-					table->name, FALSE);
-
-				ib_pushf(thd,
-					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-					 "Index %s not in table %s",
-					 index_name, table_name);
-
-				/* TODO: If the table schema matches, it would
-				be better to just ignore this error. */
-
-				err = DB_ERROR;
-			}
+		if (cfg_index->name == 0) {
+			return(DB_OUT_OF_MEMORY);
 		}
 
-		ut_free(name);
+		err = row_import_cfg_read_string(file, cfg_index->name, len);
 	}
 
 	return(err);
@@ -819,101 +876,323 @@ Set the index root page number for v1 format.
 @return DB_SUCCESS or error code. */
 static
 db_err
-row_import_set_index_root_v1(
-/*=========================*/
-	dict_table_t*	table,		/*!< in: table */
+row_import_read_indexes(
+/*====================*/
 	FILE*		file,		/*!< in: File to read from */
-	void*		thd)		/*!< in: session */
+	void*		thd,		/*!< in: session */
+	row_import_t*	cfg)		/*!< in/out: meta-data read */
 {
-	byte*		ptr;
-	ulint		n_indexes;
-	ulint		page_size;
-	byte		row[sizeof(ib_uint32_t) * 3];
+	byte		row[sizeof(ib_uint32_t)];
 
-	/* Read the tablespace page size. */
+	/* Read the number of indexes. */
 	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-			 "IO error (%lu) while  reading page size",
+			 "I/O error (%lu) while reading number of indexes.",
 			 (ulint) errno);
 
 		return(DB_IO_ERROR);
 	}
 
-	ptr = row;
+	cfg->n_indexes = mach_read_from_4(row);
 
-	page_size = mach_read_from_4(ptr);
+	if (cfg->n_indexes == 0) {
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			 "Number of indexes in meta-data file is 0");
+
+		return(DB_CORRUPTION);
+
+	} else if (cfg->n_indexes > 1024) {
+		// FIXME: What is the upper limit? */
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			 "Number of indexes in meta-data file is too high: %lu",
+			 (ulong) cfg->n_indexes);
+
+		return(DB_CORRUPTION);
+	}
+
+	return(row_import_read_index_root_pageno(file, thd, cfg));
+}
+
+/*********************************************************************//**
+Read the meta data (table columns) config file. Deserialise the contents of
+dict_col_t structure, along with the column name. */
+static	__attribute__((nonnull, warn_unused_result))
+db_err
+row_import_read_columns(
+/*====================*/
+	FILE*			file,	/*!< in: file to write to */
+	void*			thd,	/*!< in/out: session */
+	row_import_t*		cfg)	/*!< in/out: meta-data read */
+{
+	dict_col_t*		col;
+	byte			row[sizeof(ib_uint32_t) * 8];
+
+	/* FIXME: What should the upper limit be? */
+	ut_a(cfg->n_cols > 0);
+	ut_a(cfg->n_cols < 1024);
+
+	cfg->cols = new(std::nothrow) dict_col_t[cfg->n_cols];
+
+	if (cfg->cols == 0) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	cfg->col_names = new(std::nothrow) byte* [cfg->n_cols];
+
+	if (cfg->col_names == 0) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	memset(cfg->cols, 0x0, sizeof(cfg->cols) * cfg->n_cols);
+	memset(cfg->col_names, 0x0, sizeof(cfg->col_names) * cfg->n_cols);
+
+	for (ulint i; i < cfg->n_cols; ++i, ++col) {
+		byte*		ptr = row;
+
+		if (fread(row, 1,  sizeof(row), file) != sizeof(row)) {
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_INDEX_CORRUPT,
+				 "I/O error (%lu), while reading table column "
+				 "data.", (ulint) errno);
+
+			return(DB_IO_ERROR);
+		}
+
+		col->prtype = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		col->mtype = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		col->len = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		col->mbminmaxlen = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		col->ind = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		col->ord_part = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		col->max_prefix = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		ib_uint32_t	len;
+
+		/* Read in the column name as [len, byte array]. The len
+		includes the NUL byte. */
+
+		len = mach_read_from_4(row);
+
+		/* FIXME: What is the maximum column name length? */
+		if (len == 0 || len > 128) {
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_EXCEPTIONS_WRITE_ERROR,
+				 "Column name length is invalid.",
+				 (ulint) errno);
+
+			return(DB_CORRUPTION);
+		}
+
+		cfg->col_names[i] = new(std::nothrow) byte[len];
+
+		if (cfg->col_names[i] == 0) {
+			return(DB_OUT_OF_MEMORY);
+		}
+
+		db_err	err;
+
+		err = row_import_cfg_read_string(file, cfg->col_names[i], len);
+
+		if (err != DB_SUCCESS) {
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_INDEX_CORRUPT,
+				 "While reading table column name: %s.",
+				 ut_strerr(err));
+			return(err);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+
+/*****************************************************************//**
+Read the contents of the <tablespace>.cfg file.
+@return DB_SUCCESS or error code. */
+static
+db_err
+row_import_read_v1(
+/*===============*/
+	FILE*		file,		/*!< in: File to read from */
+	void*		thd,		/*!< in: session */
+	row_import_t*	cfg)		/*!< out: meta data */
+{
+	byte		value[sizeof(ib_uint32_t)];
+
+	/* Read the hostname where the tablespace was exported. */
+	if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
+		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_INDEX_CORRUPT,
+			"I/O error (%lu) while reading meta-data export "
+			"hostname length.", (ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	ulint	len = mach_read_from_4(value);
+
+	/* NUL byte is part of name length. */
+	cfg->hostname = new(std::nothrow) byte[len];
+
+	if (cfg->hostname == 0) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	db_err	err = row_import_cfg_read_string(file, cfg->hostname, len);
+
+	if (err != DB_SUCCESS) {
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			 "While reading export hostname: %s.", ut_strerr(err));
+
+		return(err);
+	}
+
+	/* Read the table name of tablespace that was exported. */
+	if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
+		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_INDEX_CORRUPT,
+			"I/O error (%lu) while reading meta-data "
+			"table name length.", (ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	len = mach_read_from_4(value);
+
+	/* NUL byte is part of name length. */
+	cfg->table_name = new(std::nothrow) byte[len];
+
+	if (cfg->table_name == 0) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	err = row_import_cfg_read_string(file, cfg->table_name, len);
+
+	if (err != DB_SUCCESS) {
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			 "While reading table name: %s.", ut_strerr(err));
+
+		return(err);
+	}
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Importing tablespace for table %s that was exported "
+		"from host %s", cfg->table_name, cfg->hostname);
+
+	byte		row[sizeof(ib_uint32_t) * 3];
+
+	/* Read the tablespace page size. */
+	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			 "I/O error (%lu) while reading meta-data header.",
+			 (ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	byte*		ptr = row;
+
+	cfg->page_size = mach_read_from_4(ptr);
 	ptr += sizeof(ib_uint32_t);
 
-	if (page_size != UNIV_PAGE_SIZE) {
+	if (cfg->page_size != UNIV_PAGE_SIZE) {
 
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-			"Tablespace to be imported has different "
+			"Tablespace to be imported has a different "
 			"page size than this server. Server page size "
-			"is: %lu, whereas tablespace page size is %lu",
-			UNIV_PAGE_SIZE, (ulint) page_size);
+			"is %lu, whereas tablespace page size is %lu",
+			UNIV_PAGE_SIZE, (ulong) cfg->page_size);
 
 		return(DB_ERROR);
 	}
 
-	ulint	flags = mach_read_from_4(ptr);
+	cfg->flags = mach_read_from_4(ptr);
 	ptr += sizeof(ib_uint32_t);
 
-	if (!dict_tf_valid(flags)) {
+	cfg->n_cols = mach_read_from_4(ptr);
+
+	if (!dict_tf_valid(cfg->flags)) {
 		return(DB_CORRUPTION);
+	} if ((err = row_import_read_columns(file, thd, cfg)) != DB_SUCCESS) {
+		return(err);
+	} if ((err = row_import_read_indexes(file, thd, cfg)) != DB_SUCCESS) {
+		return(err);
 	}
 
-	table->flags = flags;
-
-	n_indexes = mach_read_from_4(ptr);
-
-	return(row_import_set_index_root_v1(table, n_indexes, file, thd));
+	ut_a(err == DB_SUCCESS);
+	return(err);
 }
 
 /*****************************************************************//**
-Set the index root <space, pageno> from the meta-data.
+Read the contents of the <tablespace>.cfg file.
 @return DB_SUCCESS or error code. */
 static
 db_err
-row_import_set_index_root(
+row_import_read_meta_data(
 /*======================*/
 	dict_table_t*	table,		/*!< in: table */
 	FILE*		file,		/*!< in: File to read from */
-	void*		thd)		/*!< in: session */
+	void*		thd,		/*!< in: session */
+	row_import_t**	cfg)		/*!< out: contents of the .cfg file */
 {
-	ib_uint32_t	value;
+	byte		row[sizeof(ib_uint32_t)];
 
-	if (fread(&value, sizeof(value), 1, file) != 1) {
+	*cfg = 0;
+
+	if (fread(&row, 1, sizeof(row), file) != sizeof(row)) {
 		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_INDEX_CORRUPT,
-			"IO error (%lu) while reading version",
+			"I/O error (%lu) while reading meta-data version",
 			(ulint) errno);
 
 		return(DB_IO_ERROR);
 	}
 
-	value = mach_read_from_4(reinterpret_cast<const byte*>(&value));
+	*cfg = new(std::nothrow) row_import_t;
+
+	if (*cfg == 0) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	memset(*cfg, 0x0, sizeof(**cfg));
+
+	(*cfg)->version = mach_read_from_4(row);
 
 	/* Check the version number. */
-	switch (value) {
+	switch ((*cfg)->version) {
 	case IB_EXPORT_CFG_VERSION_V1:
-		return(row_import_set_index_root_v1(table, file, thd));
+
+		(*cfg)->table = table;
+
+		return(row_import_read_v1(file, thd, *cfg));
 	default:
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
 			"Unsupported meta-data version number (%lu), "
-			"file ignored", (ulint) value);
+			"file ignored", (ulong) (*cfg)->version);
 	}
 
 	return(DB_ERROR);
 }
 
 /*****************************************************************//**
-Get the index root <space, pageno> from the meta-data.
+Read the contents of the <tablename>.cfg file.
 @return DB_SUCCESS or error code. */
 static
 db_err
-row_import_set_index_root(
-/*======================*/
+row_import_read_cfg(
+/*================*/
 	dict_table_t*	table,	/*!< in: table */
-	void*		thd)	/*!< in: session */
+	void*		thd,	/*!< in: session */
+	row_import_t**	cfg)	/*!< out: contents of the .cfg file */
 {
 	db_err		err;
 	char		name[OS_FILE_MAX_PATH];
@@ -927,8 +1206,77 @@ row_import_set_index_root(
 			 "Error opening: %s", name);
 		err = DB_IO_ERROR;
 	} else {
-		err = row_import_set_index_root(table, file, thd);
+		err = row_import_read_meta_data(table, file, thd, cfg);
 		fclose(file);
+	}
+
+	return(err);
+}
+
+/*****************************************************************//**
+Check if the table schema that was read from the .cfg file matches the
+in memory table definition.
+@return DB_SUCCESS or error code. */
+static
+db_err
+row_import_match_schema(
+/*====================*/
+	void*			thd,		/*!< in: session */
+	const row_import_t*	cfg)		/*!< in: contents of the
+						.cfg file */
+{
+	return(DB_SUCCESS);
+}
+
+/*****************************************************************//**
+Set the index root <space, pageno> from the meta-data.
+@return DB_SUCCESS or error code. */
+static
+db_err
+row_import_index_set_root(
+/*======================*/
+	void*		thd,		/*!< in: session */
+	row_import_t*	cfg)		/*!< out: contents of the .cfg file */
+{
+	db_err		err = DB_SUCCESS;
+	row_index_t*	cfg_index = &cfg->indexes[0];
+
+	for (ulint i = 0; i < cfg->n_indexes; ++i, ++cfg_index) {
+		dict_index_t*	index;
+
+		ut_ad(i < cfg->n_indexes);
+
+		index = dict_table_get_index_on_name(
+			cfg->table,
+			reinterpret_cast<const char*>(cfg_index->name));
+
+		if (index != 0) {
+			index->space = cfg->table->space;
+			index->page = cfg_index->page_no;
+		} else {
+			char index_name[MAX_FULL_NAME_LEN + 1];
+
+			innobase_format_name(
+				index_name, sizeof(index_name),
+				reinterpret_cast<const char*>(cfg_index->name),
+			       	TRUE);
+
+			char table_name[MAX_FULL_NAME_LEN + 1];
+
+			innobase_format_name(
+				table_name, sizeof(table_name),
+				cfg->table->name, FALSE);
+
+			ib_pushf(thd,
+			 	IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			 	"Index %s not in table %s",
+			 	index_name, table_name);
+
+			/* TODO: If the table schema matches, it would
+			be better to just ignore this error. */
+
+			err = DB_ERROR;
+		}
 	}
 
 	return(err);
@@ -1202,11 +1550,30 @@ row_import_for_mysql(
 
 	prebuilt->trx->op_info = "read meta-data file";
 
-	/* Update index->page and SYS_INDEXES.PAGE_NO to match the
-	B-tree root page numbers in the tablespace. Also, check if
-	the tablespace page size is the same as UNIV_PAGE_SIZE. */
+	{
+		row_import_t*	cfg = 0;
 
-	err = row_import_set_index_root(table, trx->mysql_thd);
+		err = row_import_read_cfg(table, trx->mysql_thd, &cfg);
+
+		/* Check if the table column definitions match the contents
+		of the config file. */
+
+		if (err == DB_SUCCESS) {
+			err = row_import_match_schema(trx->mysql_thd, cfg);
+		}
+
+		/* Update index->page and SYS_INDEXES.PAGE_NO to match the
+		B-tree root page numbers in the tablespace. Check if
+		the tablespace page size is the same as UNIV_PAGE_SIZE. */
+
+		if (err == DB_SUCCESS) {
+			err = row_import_index_set_root(trx->mysql_thd, cfg);
+		}
+
+		if (cfg != 0) {
+			row_import_free(cfg);
+		}
+	}
 
 	DBUG_EXECUTE_IF("ib_import_set_index_root_failure",
 			err = DB_TOO_MANY_CONCURRENT_TRXS;);
