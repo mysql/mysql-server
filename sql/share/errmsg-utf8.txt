@@ -5985,9 +5985,8 @@ ER_WRONG_PARTITION_NAME
         eng "Incorrect partition name"
         ger "Falscher Partitionsname"
         swe "Felaktigt partitionsnamn"
-ER_CANT_CHANGE_TX_ISOLATION 25001
-        eng "Transaction isolation level can't be changed while a transaction is in progress"
-        ger "Transaktionsisolationsebene kann während einer laufenden Transaktion nicht geändert werden"
+ER_CANT_CHANGE_TX_CHARACTERISTICS 25001
+        eng "Transaction characteristics can't be changed while a transaction is in progress"
 ER_DUP_ENTRY_AUTOINCREMENT_CASE
         eng "ALTER TABLE causes auto_increment resequencing, resulting in duplicate entry '%-.192s' for key '%-.192s'"
         ger "ALTER TABLE führt zur Neusequenzierung von auto_increment, wodurch der doppelte Eintrag '%-.192s' für Schlüssel '%-.192s' auftritt"
@@ -6712,3 +6711,6 @@ ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
 ER_UNKNOWN_EXPLAIN_FORMAT
   eng "Unknown EXPLAIN format name: '%s'"
   rus "Неизвестное имя формата команды EXPLAIN: '%s'"
+
+ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION 25006
+  eng "Cannot execute statement in a READ ONLY transaction."

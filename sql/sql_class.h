@@ -790,7 +790,10 @@ typedef struct system_variables
     thread the query is being run to replicate temp tables properly
   */
   my_thread_id pseudo_thread_id;
-
+  /**
+    Default transaction access mode. READ ONLY (true) or READ WRITE (false).
+  */
+  my_bool tx_read_only;
   my_bool low_priority_updates;
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
@@ -2861,6 +2864,11 @@ public:
     above.
   */
   enum_tx_isolation tx_isolation;
+  /*
+    Current or next transaction access mode.
+    See comment above regarding tx_isolation.
+  */
+  bool              tx_read_only;
   enum_check_fields count_cuted_fields;
 
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
@@ -4879,6 +4887,12 @@ public:
 
 /** Identifies statements which may generate an optimizer trace */
 #define CF_OPTIMIZER_TRACE        (1U << 14)
+
+/**
+   Identifies statements that should always be disallowed in
+   read only transactions.
+*/
+#define CF_DISALLOW_IN_RO_TRANS   (1U << 15)
 
 /* Bits in server_command_flags */
 

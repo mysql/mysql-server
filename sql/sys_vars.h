@@ -1757,6 +1757,31 @@ public:
   virtual bool session_update(THD *thd, set_var *var);
 };
 
+
+/**
+  Class representing the tx_read_only system variable for setting
+  default transaction access mode.
+
+  Note that there is a special syntax - SET TRANSACTION READ ONLY
+  (or READ WRITE) that sets the access mode for the next transaction
+  only.
+*/
+
+class Sys_var_tx_read_only: public Sys_var_mybool
+{
+public:
+  Sys_var_tx_read_only(const char *name_arg, const char *comment, int flag_args,
+                       ptrdiff_t off, size_t size, CMD_LINE getopt,
+                       my_bool def_val, PolyLock *lock,
+                       enum binlog_status_enum binlog_status_arg,
+                       on_check_function on_check_func)
+    :Sys_var_mybool(name_arg, comment, flag_args, off, size, getopt,
+                    def_val, lock, binlog_status_arg, on_check_func)
+  {}
+  virtual bool session_update(THD *thd, set_var *var);
+};
+
+
 /**
    A class for @@global.binlog_checksum that has
    a specialized update method.
