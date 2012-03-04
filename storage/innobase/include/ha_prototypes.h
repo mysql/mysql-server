@@ -30,6 +30,8 @@ Created 5/11/2006 Osku Salerma
 #include "my_dbug.h"
 #include "mysqld_error.h"
 #include "my_compare.h"
+#include "my_sys.h"
+#include "m_string.h"
 
 #include "trx0types.h"
 #include "m_ctype.h" /* CHARSET_INFO */

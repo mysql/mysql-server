@@ -553,6 +553,51 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_INDEX]|=      CF_HA_CLOSE;
   sql_command_flags[SQLCOM_PRELOAD_KEYS]|=    CF_HA_CLOSE;
   sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]|=  CF_HA_CLOSE;
+
+  /*
+    Mark statements that always are disallowed in read-only
+    transactions. Note that according to the SQL standard,
+    even temporary table DDL should be disallowed.
+  */
+  sql_command_flags[SQLCOM_CREATE_TABLE]|=     CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_ALTER_TABLE]|=      CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_TABLE]|=       CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_RENAME_TABLE]|=     CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_INDEX]|=     CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_INDEX]|=       CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_DB]|=        CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_DB]|=          CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]|= CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_ALTER_DB]|=         CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_VIEW]|=      CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_VIEW]|=        CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_TRIGGER]|=   CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_TRIGGER]|=     CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_EVENT]|=     CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_ALTER_EVENT]|=      CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_EVENT]|=       CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_USER]|=      CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_RENAME_USER]|=      CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_USER]|=        CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_SERVER]|=    CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_ALTER_SERVER]|=     CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_SERVER]|=      CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_FUNCTION]|=  CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_PROCEDURE]|= CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]|=CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_PROCEDURE]|=   CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_FUNCTION]|=    CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=  CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_ALTER_FUNCTION]|=   CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_TRUNCATE]|=         CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_ALTER_TABLESPACE]|= CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_REPAIR]|=           CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_OPTIMIZE]|=         CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_GRANT]|=            CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_REVOKE]|=           CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_REVOKE_ALL]|=       CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_INSTALL_PLUGIN]|=   CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]|= CF_DISALLOW_IN_RO_TRANS;
 }
 
 bool sqlcom_can_generate_row_events(const THD *thd)
@@ -2307,6 +2352,19 @@ mysql_execute_command(THD *thd)
 #endif
 
   /*
+    Check if we are in a read-only transaction and we're trying to
+    execute a statement which should always be disallowed in such cases.
+
+    Note that this check is done after any implicit commits.
+  */
+  if (thd->tx_read_only &&
+      (sql_command_flags[lex->sql_command] & CF_DISALLOW_IN_RO_TRANS))
+  {
+    my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
+    goto error;
+  }
+
+  /*
     Close tables open by HANDLERs before executing DDL statement
     which is going to affect those tables.
 
@@ -4011,8 +4069,9 @@ end_with_restore_list:
     }
     else
     {
-      /* Reset the isolation level if no chaining transaction. */
+      /* Reset the isolation level and access mode if no chaining transaction.*/
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+      thd->tx_read_only= thd->variables.tx_read_only;
     }
     /* Disconnect the current client connection. */
     if (tx_release)
@@ -4041,8 +4100,9 @@ end_with_restore_list:
     }
     else
     {
-      /* Reset the isolation level if no chaining transaction. */
+      /* Reset the isolation level and access mode if no chaining transaction.*/
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+      thd->tx_read_only= thd->variables.tx_read_only;
     }
     /* Disconnect the current client connection. */
     if (tx_release)
@@ -4565,9 +4625,10 @@ create_sp_error:
     thd->mdl_context.release_transactional_locks();
     /*
       We've just done a commit, reset transaction
-      isolation level to the session default.
+      isolation level and access mode to the session default.
     */
     thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+    thd->tx_read_only= thd->variables.tx_read_only;
     my_ok(thd);
     break;
   case SQLCOM_XA_ROLLBACK:
@@ -4576,9 +4637,10 @@ create_sp_error:
     thd->mdl_context.release_transactional_locks();
     /*
       We've just done a rollback, reset transaction
-      isolation level to the session default.
+      isolation level and access mode to the session default.
     */
     thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+    thd->tx_read_only= thd->variables.tx_read_only;
     my_ok(thd);
     break;
   case SQLCOM_XA_RECOVER:
