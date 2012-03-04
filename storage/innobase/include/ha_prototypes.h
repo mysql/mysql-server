@@ -466,4 +466,12 @@ ib_logf(
 	const char*	format,		/*!< printf format */
 	...);				/*!< Args */
 
+/******************************************************************//**
+Returns the NUL terminated value of glob_hostname.
+@return	pointer to glob_hostname. */
+UNIV_INTERN
+const char*
+server_get_hostname();
+/*=================*/
+
 #endif /* HA_INNODB_PROTOTYPES_H */

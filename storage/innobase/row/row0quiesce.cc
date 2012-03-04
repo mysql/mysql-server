@@ -35,6 +35,94 @@ Created 2012-02-08 by Sunny Bains.
 #include "trx0purge.h"
 
 /*********************************************************************//**
+Write the meta data (table columns) config file. Serialise the contents of
+dict_col_t structure, along with the column name. All fields are serialized
+as ib_uint32_t */
+static	__attribute__((nonnull, warn_unused_result))
+db_err
+row_quiesce_write_meta_data_columns(
+/*================================*/
+	const dict_table_t*	table,	/*!< in: write the meta data for
+					this table */
+	FILE*			file,	/*!< in: file to write to */
+	void*			thd)	/*!< in/out: session */
+{
+	dict_col_t*		col;
+	byte			row[sizeof(ib_uint32_t) * 7];
+
+	col = &table->cols[0];
+
+	for (ulint i; i < table->n_cols; ++i, ++col) {
+		byte*		ptr = row;
+
+		mach_write_to_4(ptr, col->prtype);
+		ptr += sizeof(ib_uint32_t);
+
+		mach_write_to_4(ptr, col->mtype);
+		ptr += sizeof(ib_uint32_t);
+
+		mach_write_to_4(ptr, col->len);
+		ptr += sizeof(ib_uint32_t);
+
+		mach_write_to_4(ptr, col->mbminmaxlen);
+		ptr += sizeof(ib_uint32_t);
+
+		mach_write_to_4(ptr, col->ind);
+		ptr += sizeof(ib_uint32_t);
+
+		mach_write_to_4(ptr, col->ord_part);
+		ptr += sizeof(ib_uint32_t);
+
+		mach_write_to_4(ptr, col->max_prefix);
+		ptr += sizeof(ib_uint32_t);
+
+		if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_EXCEPTIONS_WRITE_ERROR,
+				 "I/O error (%lu), writing table column "
+				 "data.", (ulint) errno);
+
+			return(DB_IO_ERROR);
+		}
+
+		/* Write out the column name as [len, byte array]. The len
+		includes the NUL byte. */
+		ib_uint32_t	len;
+		const char*	col_name;
+
+		col_name = dict_table_get_col_name(table, dict_col_get_no(col));
+
+		/* Include the NUL byte in the length. */
+		len = strlen(col_name) + 1;
+
+		mach_write_to_4(row, len);
+		ptr = row;
+
+		if (fwrite(row, 1,  sizeof(len), file) != sizeof(len)) {
+
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_EXCEPTIONS_WRITE_ERROR,
+				 "I/O error (%lu), writing column name length.",
+				 (ulint) errno);
+
+			return(DB_IO_ERROR);
+		}
+
+		if (fwrite(col_name, 1, len, file) != len) {
+
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_EXCEPTIONS_WRITE_ERROR,
+				 "I/O error (%lu), writing column name.",
+				 (ulint) errno);
+
+			return(DB_IO_ERROR);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+
+/*********************************************************************//**
 Write the meta data config file header. */
 static	__attribute__((nonnull, warn_unused_result))
 db_err
@@ -45,14 +133,66 @@ row_quiesce_write_meta_data_header(
 	FILE*			file,	/*!< in: file to write to */
 	void*			thd)	/*!< in/out: session */
 {
-	byte*			ptr;
-	byte			row[sizeof(ib_uint32_t) * 4];
-
-	ptr = row;
+	byte			value[sizeof(ib_uint32_t)];
 
 	/* Write the meta-data version number. */
-	mach_write_to_4(ptr, IB_EXPORT_CFG_VERSION_V1);
-	ptr += sizeof(ib_uint32_t);
+	mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V1);
+
+	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)) {
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_EXCEPTIONS_WRITE_ERROR,
+			"I/O error (%lu), writing meta-data "
+			"version number.", (ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	/* Write the server hostname. */
+	ulint			len;
+	const char*		hostname = server_get_hostname();
+
+	/* Play it safe. */
+	if (hostname == 0) {
+		static const char	NullHostname[] = "Hostname unknown";
+
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Unable to determine server hostname.");
+
+		hostname = NullHostname;
+	}
+
+	/* The server hostname includes the NUL byte. */
+	len = strlen(hostname) + 1;
+	mach_write_to_4(value, len);
+
+	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)
+	    || fwrite(hostname, 1,  len, file) != len) {
+
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_EXCEPTIONS_WRITE_ERROR,
+			"I/O error (%lu), writing meta-data "
+			"table name.", (ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	/* The table name includes the NUL byte. */
+	ut_a(table->name != 0);
+	len = strlen(table->name) + 1;
+
+	/* Write the table name. */
+	mach_write_to_4(value, len);
+
+	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)
+	    || fwrite(table->name, 1,  len, file) != len) {
+
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_EXCEPTIONS_WRITE_ERROR,
+			"I/O error (%lu), writing meta-data "
+			"table name.", (ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	byte			row[sizeof(ib_uint32_t) * 3];
+	byte*			ptr = row;
 
 	/* Write the system page size. */
 	mach_write_to_4(ptr, UNIV_PAGE_SIZE);
@@ -62,13 +202,14 @@ row_quiesce_write_meta_data_header(
 	mach_write_to_4(ptr, table->flags);
 	ptr += sizeof(ib_uint32_t);
 
-	/* Write the number of indexes in the table. */
-	mach_write_to_4(ptr, UT_LIST_GET_LEN(table->indexes));
+	/* Write the number of columns in the table. */
+	mach_write_to_4(ptr, table->n_cols);
+	ptr += sizeof(ib_uint32_t);
 
 	if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_EXCEPTIONS_WRITE_ERROR,
-			"IO error (%lu), writing meta-data "
-			"header.\n", (ulint) errno);
+			"I/O error (%lu), writing meta-data "
+			"header.", (ulint) errno);
 
 		return(DB_IO_ERROR);
 	}
@@ -88,6 +229,22 @@ row_quiesce_write_meta_data_indexes(
 	void*			thd)	/*!< in/out: session */
 {
 	const dict_index_t*	index;
+
+	{
+		byte		row[sizeof(ib_uint32_t)];
+
+		/* Write the number of indexes in the table. */
+		mach_write_to_4(row, UT_LIST_GET_LEN(table->indexes));
+
+		if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_EXCEPTIONS_WRITE_ERROR,
+				 "I/O error (%lu), writing index meta-data "
+				 "header.", (ulint) errno);
+
+			return(DB_IO_ERROR);
+		}
+	}
 
 	/* Write the root page numbers and corresponding index names. */
 	for (index = UT_LIST_GET_FIRST(table->indexes);
@@ -113,8 +270,8 @@ row_quiesce_write_meta_data_indexes(
 
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
 				 ER_EXCEPTIONS_WRITE_ERROR,
-				 "IO error (%lu), writing index "
-				 "meta-data\n", (ulint) errno);
+				 "I/O error (%lu), writing index "
+				 "meta-data", (ulint) errno);
 
 			return(DB_IO_ERROR);
 		}
@@ -123,7 +280,7 @@ row_quiesce_write_meta_data_indexes(
 		if (fwrite(index->name, 1, len + 1, file) != len + 1) {
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
 				 ER_EXCEPTIONS_WRITE_ERROR,
-				 "IO error (%lu), writing index name\n",
+				 "I/O error (%lu), writing index name",
 				 (ulint) errno);
 
 			return(DB_IO_ERROR);
@@ -159,6 +316,11 @@ row_quiesce_write_meta_data(
 		err = DB_IO_ERROR;
 	} else {
 		err = row_quiesce_write_meta_data_header(table, file, thd);
+
+		if (err == DB_SUCCESS) {
+			err = row_quiesce_write_meta_data_columns(
+				table, file, thd);
+		}
 
 		if (err == DB_SUCCESS) {
 			err = row_quiesce_write_meta_data_indexes(

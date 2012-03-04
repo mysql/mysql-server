@@ -1068,6 +1068,17 @@ innobase_srv_conc_force_exit_innodb(
 }
 
 /******************************************************************//**
+Returns the NUL terminated value of glob_hostname.
+@return	pointer to glob_hostname. */
+UNIV_INTERN
+const char*
+server_get_hostname()
+/*=================*/
+{
+	return(glob_hostname);
+}
+
+/******************************************************************//**
 Returns true if the transaction this thread is processing has edited
 non-transactional tables. Used by the deadlock detector when deciding
 which transaction to rollback in case of a deadlock - we try to avoid
