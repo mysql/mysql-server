@@ -19,7 +19,7 @@ echo "running test... output in file: `pwd`/$LOGFILE"
 exec > "$LOGFILE"
 
 # some build configs place binaries in subdirectories
-BIN_DIR="."
+BIN_DIR=${1:-"."}
 echo "all binaries assumed in subdirectory \'$BIN_DIR\'"
 
 TEST="$BIN_DIR/myapi_test"
