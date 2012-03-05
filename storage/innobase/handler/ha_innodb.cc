@@ -4455,21 +4455,25 @@ table_opened:
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
-	if (ib_table->ibd_file_missing
-	    && dict_table_is_discarded(ib_table)
-	    && !thd_tablespace_op(thd)) {
+	if (!thd_tablespace_op(thd)) {
 
-		sql_print_error("MySQL is trying to open a table handle but "
-				"the .ibd file for table %s does not exist. "
-				"Have you deleted the .ibd file from the "
-				"database directory under the MySQL datadir, "
-				"or have you used DISCARD TABLESPACE? "
-				"See " REFMAN "innodb-troubleshooting.html "
-				"how you can resolve the problem.",
+		if (dict_table_is_discarded(ib_table)) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The .ibd file is discarded for table %s",
 				norm_name);
+
+		} else if (ib_table->ibd_file_missing) {
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The .ibd file is missing for table %s, see "
+				REFMAN "innodb-troubleshooting.html for help",
+				norm_name);
+		}
+
 		my_errno = ENOENT;
 
 		dict_table_close(ib_table, FALSE);
+
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
@@ -10414,19 +10418,20 @@ ha_innobase::check(
 		build_template(true);
 	}
 
-	if (prebuilt->table->ibd_file_missing) {
-		sql_print_error("InnoDB: Error:\n"
-			"InnoDB: MySQL is trying to use a table handle"
-			" but the .ibd file for\n"
-			"InnoDB: table %s does not exist.\n"
-			"InnoDB: Have you deleted the .ibd file"
-			" from the database directory under\n"
-			"InnoDB: the MySQL datadir, or have you"
-			" used DISCARD TABLESPACE?\n"
-			"InnoDB: Please refer to\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
-			"InnoDB: how you can resolve the problem.\n",
+	if (dict_table_is_discarded(prebuilt->table)) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The .ibd file is discarded for table %s",
 			prebuilt->table->name);
+
+		DBUG_RETURN(HA_ADMIN_CORRUPT);
+
+	} else if (prebuilt->table->ibd_file_missing) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The .ibd file is missing for table %s, see "
+			REFMAN "innodb-troubleshooting.html for help",
+			prebuilt->table->name);
+
 		DBUG_RETURN(HA_ADMIN_CORRUPT);
 	}
 
@@ -11417,19 +11422,19 @@ ha_innobase::transactional_table_lock(
 
 	update_thd(thd);
 
-	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: MySQL is trying to use a table handle"
-			" but the .ibd file for\n"
-			"InnoDB: table %s does not exist.\n"
-			"InnoDB: Have you deleted the .ibd file"
-			" from the database directory under\n"
-			"InnoDB: the MySQL datadir?"
-			"InnoDB: See " REFMAN
-			"innodb-troubleshooting.html\n"
-			"InnoDB: how you can resolve the problem.\n",
-			prebuilt->table->name);
+	if (!thd_tablespace_op(thd)) {
+
+		if (dict_table_is_discarded(prebuilt->table)) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The .ibd file is discarded for table %s",
+				prebuilt->table->name);
+		} else if (prebuilt->table->ibd_file_missing) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The .ibd file is missing for table %s, see "
+				REFMAN "innodb-troubleshooting.html for help",
+				prebuilt->table->name);
+		}
+
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -11447,11 +11452,12 @@ ha_innobase::transactional_table_lock(
 		prebuilt->select_lock_type = LOCK_S;
 		prebuilt->stored_select_lock_type = LOCK_S;
 	} else {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB error:\n"
-"MySQL is trying to set transactional table lock with corrupted lock type\n"
-"to table %s, lock type %d does not exist.\n",
-				prebuilt->table->name, lock_type);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"MySQL is trying to set transactional table lock "
+			"with corrupted lock type to table %s, lock type "
+			"%d does not exist.\n",
+			prebuilt->table->name, lock_type);
+
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
