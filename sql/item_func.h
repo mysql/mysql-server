@@ -1870,7 +1870,8 @@ public:
     DBUG_ASSERT(ft_handler);
     DBUG_ASSERT(table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT);
 
-    return ((FT_INFO_EXT *)ft_handler)->could_you->count_matches(ft_handler);
+    return ((FT_INFO_EXT *)ft_handler)->could_you->
+      count_matches((FT_INFO_EXT *)ft_handler);
   }
 
   /**
@@ -1937,8 +1938,7 @@ public:
   longlong val_int() 
   { 
     DBUG_ASSERT(ft_handler);
-    return ft_handler->could_you->get_docid(reinterpret_cast<FT_INFO*>
-                                            (ft_handler));
+    return ft_handler->could_you->get_docid(ft_handler);
   }
 };
 
