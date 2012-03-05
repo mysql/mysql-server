@@ -321,8 +321,7 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
     return ENGINE_TMPFAIL;
   }
   
-  inst->wqitem = item;
-  workitem_set_NdbInstance(item, inst);
+  inst->link_workitem(item);
   
   // Fetch the query plan for this prefix.
   item->plan = wc->plan_set->getPlanForPrefix(pfx);
@@ -340,14 +339,14 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
       /* Put the prepared item onto a send queue */
       wc->sendqueue->produce(inst);
       DEBUG_PRINT("%d.%d placed on send queue.", id, inst->wqitem->id);
-      
+
       /* This locking is explained in run_ndb_send_thread() */
       if(pthread_mutex_trylock( & wc->conn->sem.lock) == 0) {  // try the lock
         wc->conn->sem.counter++;                               // increment
         pthread_cond_signal( & wc->conn->sem.not_zero);        // signal
         pthread_mutex_unlock( & wc->conn->sem.lock);           // release
       }
-      
+
       response_code = ENGINE_EWOULDBLOCK;
       break;
    case op_not_supported:
@@ -535,6 +534,7 @@ S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
   int my_ndb_inst = conn->nInst / global->options.n_worker_threads;
   for(int j = 0 ; j < my_ndb_inst ; j++ ) {
     NdbInstance *inst = new NdbInstance(conn->conn, 2);
+    inst->id = ((id.thd + 1) * 10000) + j + 1; 
     inst->next = freelist;
     freelist = inst;
   }
