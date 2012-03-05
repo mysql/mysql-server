@@ -1,5 +1,6 @@
 set optimizer_trace_max_mem_size=1048576;
-set optimizer_trace="enabled=on,end_marker=on";
+set end_markers_in_json=on;
+set optimizer_trace="enabled=on";
 # check that if a sub-statement should not be traced,
 # it is not traced even if inside a traced top statement
 
@@ -204,7 +205,7 @@ set dummy@2 NULL	{
 set optimizer_trace_offset=default, optimizer_trace_limit=default;
 select @@optimizer_trace;
 @@optimizer_trace
-enabled=off,end_marker=on,one_line=off
+enabled=off,one_line=off
 set optimizer_trace="enabled=on";
 drop function f1;
 

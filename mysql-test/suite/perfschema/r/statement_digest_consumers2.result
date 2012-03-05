@@ -1,0 +1,102 @@
+####################################
+# SETUP
+####################################
+CREATE DATABASE statements_digest;
+USE statements_digest;
+CREATE TABLE t1(a int);
+CREATE TABLE t2(a int);
+CREATE TABLE t3(a int, b int);
+CREATE TABLE t4(a int, b int);
+CREATE TABLE t5(a int, b int, c int);
+SELECT * FROM performance_schema.setup_consumers;
+NAME	ENABLED
+events_stages_current	YES
+events_stages_history	YES
+events_stages_history_long	YES
+events_statements_current	YES
+events_statements_history	YES
+events_statements_history_long	YES
+events_waits_current	YES
+events_waits_history	YES
+events_waits_history_long	YES
+global_instrumentation	YES
+thread_instrumentation	YES
+statements_digest	NO
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+####################################
+# EXECUTION
+####################################
+SELECT 1 FROM t1;
+1
+SELECT 1 FROM `t1`;
+1
+SELECT 1,2 FROM t1;
+1	2
+SELECT 1, 2, 3, 4 FROM t1;
+1	2	3	4
+SELECT 1 FROM t2;
+1
+SELECT 1,2 FROM t2;
+1	2
+SELECT 1, 2, 3, 4 FROM t2;
+1	2	3	4
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1, 2);
+INSERT INTO t4 VALUES (1, 2);
+INSERT INTO t5 VALUES (1, 2, 3);
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t3 VALUES (1, 2), (3, 4), (5, 6);
+INSERT INTO t5 VALUES (1, 2, 3), (4, 5, 6), (7, 8, 9);
+SELECT                                          1           +        1;
+1           +        1
+2
+SELECT 1;
+1
+1
+SELECT 1 /* This is an inline comment */ + 1;
+1 /* This is an inline comment */ + 1
+2
+SELECT 1+
+/*
+this is a
+multiple-line comment
+*/
+1;
+1+
+/*
+this is a
+multiple-line comment
+*/
+1
+2
+CREATE SCHEMA statements_digest_temp;
+DROP SCHEMA statements_digest_temp;
+CREATE DATABASE statements_digest_temp;
+DROP DATABASE statements_digest_temp;
+SELECT 1 from t11;
+ERROR 42S02: Table 'statements_digest.t11' doesn't exist
+create table t11 (c char(4));
+create table t11 (c char(4));
+ERROR 42S01: Table 't11' already exists
+insert into t11 values("MySQL");
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 1
+####################################
+# QUERYING PS STATEMENT DIGEST
+####################################
+SELECT digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
+digest	digest_text	count_star
+SELECT digest, digest_text FROM performance_schema.events_statements_current;
+digest	digest_text
+NULL	NULL
+####################################
+# CLEANUP
+####################################
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+DROP TABLE IF EXISTS t4;
+DROP TABLE IF EXISTS t5;
+DROP DATABASE IF EXISTS statements_digest;

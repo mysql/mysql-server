@@ -26,6 +26,7 @@
 #define DISABLE_PSI_STAGE
 #define DISABLE_PSI_STATEMENT
 #define DISABLE_PSI_IDLE
+#define DISABLE_PSI_STATEMENT_DIGEST
 #endif /* EMBEDDED_LIBRARY */
 
 #ifndef MY_GLOBAL_INCLUDED
@@ -42,6 +43,18 @@
 C_MODE_START
 
 struct TABLE_SHARE;
+/*
+  There are 3 known bison parsers in the server:
+  - (1) the SQL parser itself, sql/sql_yacc.yy
+  - (2) storage/innobase/fts/fts0pars.y
+  - (3) storage/innobase/pars/pars0grm.y
+  What is instrumented here are the tokens from the SQL query text (1),
+  to make digests.
+  Now, to avoid name pollution and conflicts with different YYSTYPE definitions,
+  an opaque structure is used here.
+  The real type to use when invoking the digest api is LEX_YYSTYPE.
+*/
+struct OPAQUE_LEX_YYSTYPE;
 
 /**
   @file mysql/psi/psi.h
@@ -244,6 +257,17 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 #endif
 
 /**
+  @def DISABLE_PSI_STATEMENT_DIGEST
+  Compiling option to disable the statement digest instrumentation.
+*/
+
+#ifndef DISABLE_PSI_STATEMENT
+#ifndef DISABLE_PSI_STATEMENT_DIGEST
+#define HAVE_PSI_STATEMENT_DIGEST_INTERFACE
+#endif
+#endif
+
+/**
   @def DISABLE_PSI_SOCKET
   Compiling option to disable the statement instrumentation.
   @sa DISABLE_PSI_MUTEX
@@ -324,6 +348,13 @@ typedef struct PSI_file_locker PSI_file_locker;
 */
 struct PSI_socket_locker;
 typedef struct PSI_socket_locker PSI_socket_locker;
+
+/**
+  Interface for an instrumented statement digest operation.
+  This is an opaque structure.
+*/
+struct PSI_digest_locker;
+typedef struct PSI_digest_locker PSI_digest_locker;
 
 /** Operation performed on an instrumented mutex. */
 enum PSI_mutex_operation
@@ -917,6 +948,27 @@ struct PSI_table_locker_state_v1
   uint m_index;
 };
 
+#define PSI_MAX_DIGEST_STORAGE_SIZE 1024
+
+/**
+  Structure to store token count/array for a statement
+  on which digest is to be calculated.
+*/
+struct PSI_digest_storage
+{
+  my_bool m_full;
+  int m_byte_count;
+  unsigned char m_token_array[PSI_MAX_DIGEST_STORAGE_SIZE];
+};
+typedef struct PSI_digest_storage PSI_digest_storage;
+
+struct PSI_digest_locker_state
+{
+  int m_last_id_index;
+  PSI_digest_storage m_digest_storage;
+};
+typedef struct PSI_digest_locker_state PSI_digest_locker_state;
+
 /**
   State data storage for @c get_thread_statement_locker_v1_t,
   @c get_thread_statement_locker_v1_t.
@@ -975,6 +1027,8 @@ struct PSI_statement_locker_state_v1
   ulong m_sort_rows;
   /** Metric, number of sort scans. */
   ulong m_sort_scan;
+  /** Statement digest. */
+  PSI_digest_locker_state m_digest_state;
 };
 
 /**
@@ -1810,6 +1864,12 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
 */
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 
+typedef struct PSI_digest_locker * (*digest_start_v1_t)
+  (struct PSI_statement_locker *locker);
+
+typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
+  (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
+
 /**
   Performance Schema Interface, version 1.
   @since PSI_VERSION_1
@@ -2001,6 +2061,10 @@ struct PSI_v1
   set_socket_info_v1_t set_socket_info;
   /** @sa set_socket_thread_owner_v1_t. */
   set_socket_thread_owner_v1_t set_socket_thread_owner;
+  /** @sa digest_start_v1_t. */
+  digest_start_v1_t digest_start;
+  /** @sa digest_add_token_v1_t. */
+  digest_add_token_v1_t digest_add_token;
 };
 
 /** @} (end of group Group_PSI_v1) */
