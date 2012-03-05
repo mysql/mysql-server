@@ -245,7 +245,6 @@ row_quiesce_write_table(
 
 		/* Include the NUL byte in the length. */
 		len = strlen(col_name) + 1;
-		fprintf(stderr, "[%s:%lu]\n", col_name, (ulong) len);
 		ut_a(len > 1);
 
 		mach_write_to_4(row, len);
