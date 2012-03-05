@@ -1115,8 +1115,8 @@ pars_function_declaration(
 	sym_node->token_type = SYM_FUNCTION;
 
 	/* Check that the function exists. */
-	ut_a(pars_info_get_user_func(pars_sym_tab_global->info,
-				     sym_node->name));
+	ut_a(pars_info_lookup_user_func(
+		pars_sym_tab_global->info, sym_node->name));
 
 	return(sym_node);
 }
@@ -1782,8 +1782,9 @@ pars_fetch_statement(
 	} else {
 		pars_resolve_exp_variables_and_types(NULL, user_func);
 
-		node->func = pars_info_get_user_func(pars_sym_tab_global->info,
-						     user_func->name);
+		node->func = pars_info_lookup_user_func(
+			pars_sym_tab_global->info, user_func->name);
+
 		ut_a(node->func);
 
 		node->into_list = NULL;
@@ -2629,19 +2630,6 @@ pars_info_get_bound_id(
 	const char*		name)	/* in: bound id name to find */
 {
 	return(pars_info_lookup_bound_id(info, name));
-}
-
-/****************************************************************//**
-Get user function with the given name.
-@return	user func, or NULL if not found */
-UNIV_INTERN
-pars_user_func_t*
-pars_info_get_user_func(
-/*====================*/
-	pars_info_t*		info,	/*!< in: info struct */
-	const char*		name)	/*!< in: function name to find*/
-{
-	return(pars_info_lookup_user_func(info, name));
 }
 
 /****************************************************************//**
