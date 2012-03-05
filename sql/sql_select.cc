@@ -859,52 +859,15 @@ JOIN::explain()
     DBUG_VOID_RETURN;
   }
 
-  /*
-    Check if we managed to optimize ORDER BY away and don't use temporary
-    table to resolve ORDER BY: in that case, we only may need to do
-    filesort for GROUP BY.
-  */
-  bool is_order_by= true;
-  if (!order && !no_order && (!skip_sort_order || !need_tmp))
-  {
-    /*
-      Reset 'order' to 'group_list' and reinit variables describing
-      'order'
-    */
-    order= group_list;
-    simple_order= simple_group;
-    skip_sort_order= 0;
-    is_order_by= false;
-  }
-
   having= tmp_having;
   if (tables)
-  {
-    /*
-      JOIN::optimize may have prepared an access patch which makes
-      either the GROUP BY or ORDER BY sorting obsolete by using an
-      ordered index for the access. If the required 'order' match
-      the available 'ordered_index_usage' we will use ordered index
-      access instead of doing a filesort.
-
-      NOTE: This code is intentional similar to 'is_skippable' code
-            in create_sort_index() which is the ::execute()
-            counterpart of what we 'explain' here.
-    */
-    const bool is_skippable= (is_order_by) ?
-      ( simple_order && ordered_index_usage == ordered_index_order_by )
-      :
-      ( simple_group && ordered_index_usage == ordered_index_group_by );
-
-    explain_query_specification(thd, this, need_tmp,
-                                (order != NULL) && !is_skippable,
-                                select_distinct);
-  }
+    explain_query_specification(thd, this);
   else
     explain_no_table(thd, this, "No tables used");
 
   DBUG_VOID_RETURN;
 }
+
 
 /**
   Clean up and destroy join object.
@@ -1593,36 +1556,6 @@ get_store_key(THD *thd, Key_use *keyuse, table_map used_tables,
 			    maybe_null ? key_buff : 0,
 			    key_part->length,
 			    keyuse->val);
-}
-
-/**
-  This function is only called for const items on fields which are keys.
-
-  @return
-    returns 1 if there was some conversion made when the field was stored.
-*/
-
-bool
-store_val_in_field(Field *field, Item *item, enum_check_fields check_flag)
-{
-  bool error;
-  TABLE *table= field->table;
-  THD *thd= table->in_use;
-  ha_rows cuted_fields=thd->cuted_fields;
-  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
-                                                   table->write_set);
-
-  /*
-    we should restore old value of count_cuted_fields because
-    store_val_in_field can be called from mysql_insert 
-    with select_insert, which make count_cuted_fields= 1
-   */
-  enum_check_fields old_count_cuted_fields= thd->count_cuted_fields;
-  thd->count_cuted_fields= check_flag;
-  error= item->save_in_field(field, 1);
-  thd->count_cuted_fields= old_count_cuted_fields;
-  dbug_tmp_restore_column_map(table->write_set, old_map);
-  return error || cuted_fields != thd->cuted_fields;
 }
 
 
@@ -4697,6 +4630,213 @@ bool JOIN::change_result(select_result *res)
   }
   DBUG_RETURN(FALSE);
 }
+
+
+/**
+  Init tmp tables usage info.
+
+  This function fills JOIN::exec_flags according to how JOIN::exec uses
+  tmp tables and filesort. This info is used for EXPLAIN JSON.
+  In order to remain relevant this info is always calculated and
+  JOIN::exec checks it to be correct at appropriate execution points.
+  After being successfully checked the flag is set to 0 and JOIN::exec
+  at the end checks that all flags were reset.
+
+  @note
+  This is a hack that emulates behavior of JOIN::exec in order to get info
+  on tmp tables and filesort usage for EXPLAIN without calling JOIN::exec.
+  This is a _temporary_ solution and have to be removed on the JOIN::exec
+  refactoring.
+  Advice to bugfixer(s): don't merge 'if's and change their places as this
+  way it's easier to check correlation with JOIN::exec.
+*/
+
+void JOIN::init_tmp_tables_info()
+{
+  bool have_distinct= select_distinct;
+  bool have_group_list= group_list ? true : false;
+  bool have_order= order ? true : false;
+  bool tmp_distinct= false;
+  bool tmp_group= false;
+  bool materialize_join= false;
+
+  DBUG_ENTER("JOIN::init_tmp_tables_info");
+
+  /*
+    Keep track on order/group source.
+    We have to keep JOIN::order.order and JOIN::group_by.order pointers
+    untouched in this function. Use and change when applicable their local
+    copies: loc_order and loc_group_list.
+  */
+  ORDER_with_src loc_order= order;
+  ORDER_with_src loc_group_list= group_list;
+
+  if (!have_distinct && !have_group_list && !have_order)
+  {
+    if (need_tmp)
+      explain_flags.set(ESC_BUFFER_RESULT, ESP_USING_TMPTABLE);
+    exec_flags.set(explain_flags);
+    DBUG_VOID_RETURN;
+  }
+
+  if (loc_order && simple_order)
+    loc_order.set_flag(ESP_IS_SIMPLE);
+  if (loc_group_list && simple_group)
+    loc_group_list.set_flag(ESP_IS_SIMPLE);
+
+  if (need_tmp)
+  {
+    bool using_indirect_summary_function= false;
+    uint field_count= 0, field_count2= 0;
+    // Tmp table #1
+    if (select_options & (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT))
+      explain_flags.set(ESC_BUFFER_RESULT, ESP_USING_TMPTABLE);
+    if (select_distinct)
+      explain_flags.set(ESC_DISTINCT, ESP_USING_TMPTABLE);
+
+    if (!(select_options & TMP_TABLE_ALL_COLUMNS))
+    {
+      List_iterator<Item> li(all_fields);
+      Item *item;
+      int hidden_field_count= tmp_table_param.hidden_field_count=
+        all_fields.elements - fields_list.elements;
+      while ((item= li++))
+      {
+        Item::Type type=item->type();
+        if (item->const_item() && hidden_field_count <= 0)
+          continue; // We don't have to store this
+        field_count2++;
+        if (item->with_sum_func && type != Item::SUM_FUNC_ITEM)
+        {
+          if (type == Item::SUBSELECT_ITEM ||
+              (item->used_tables() & ~OUTER_REF_TABLE_BIT))
+          {
+            /*
+              Mark that the we have ignored an item that refers to a summary
+              function. We need to know this if someone is going to use
+              DISTINCT on the result.
+            */
+            using_indirect_summary_function=1;
+            continue;
+          }
+        }
+        hidden_field_count--;
+        field_count++;
+      }
+    }
+    if (select_distinct && !have_group_list &&
+        field_count != tmp_table_param.hidden_field_count)
+    {
+      tmp_distinct= true;
+      explain_flags.set(ESC_DISTINCT, ESP_USING_TMPTABLE);
+      if (have_order && skip_sort_order)
+        have_order= false;
+    }
+    if (have_group_list && tmp_table_param.quick_group && !simple_group)
+    {
+      tmp_group= true;
+      explain_flags.set(loc_group_list.src, ESP_USING_TMPTABLE);
+    }
+    if (have_group_list && simple_group)
+    {
+      if (ordered_index_usage == ordered_index_void)
+        explain_flags.set(loc_group_list.src, ESP_USING_FILESORT);
+      else
+        DBUG_ASSERT(ordered_index_usage == ordered_index_group_by);
+      have_group_list= false;
+    }
+    else if (!have_group_list && !tmp_distinct && have_order && simple_order)
+    {
+      if (ordered_index_usage == ordered_index_void)
+        explain_flags.set(loc_order.src, ESP_USING_FILESORT);
+      else
+        DBUG_ASSERT(ordered_index_usage == ordered_index_order_by);
+      have_order= false;
+    }
+
+    if (tmp_group)
+    {
+      if (!loc_order && !no_order && !skip_sort_order)
+      {
+        have_order= true;
+        loc_order= loc_group_list;
+      }
+      have_group_list= false;
+      loc_group_list= NULL;
+    }
+    if ((have_group_list &&
+         (!test_if_subpart(loc_group_list, loc_order) || select_distinct)) ||
+        (select_distinct && using_indirect_summary_function))
+    {
+      // 1st table were materializing join result
+      if (!tmp_distinct && !tmp_group)
+      {
+        // This table will materialize join result.
+        // BUG: in some cases it's just single table
+        materialize_join= true;
+        explain_flags.set(ESC_BUFFER_RESULT, ESP_USING_TMPTABLE);
+      }
+      // Tmp table #2
+      if (select_distinct && !have_group_list &&
+          field_count2 != tmp_table_param.hidden_field_count)
+      {
+        DBUG_ASSERT(!tmp_distinct);
+        tmp_distinct= true;
+        explain_flags.set(ESC_DISTINCT, ESP_USING_TMPTABLE);
+      }
+
+      if (!have_group_list && !tmp_distinct && have_order && simple_order)
+      {
+        explain_flags.set(loc_order.src, ESP_USING_FILESORT);
+        explain_flags.set(loc_order.src, ESP_USING_TMPTABLE);
+        have_order= false;
+      }
+      else if (have_group_list)
+      {
+        explain_flags.set(loc_group_list.src, ESP_USING_FILESORT);
+        explain_flags.set(loc_group_list.src, ESP_USING_TMPTABLE);
+        have_group_list= false;
+      }
+    }
+    if (tmp_distinct)
+    {
+      have_distinct= false;
+    }
+
+    if (have_distinct && !have_group_list)
+    {
+      have_distinct= false;
+      explain_flags.set(ESC_DISTINCT, ESP_DUPS_REMOVAL);
+    }
+  }
+  if (have_group_list)
+  {
+    if (ordered_index_usage != ordered_index_group_by)
+      explain_flags.set(loc_group_list.src, ESP_USING_FILESORT);
+    if (need_tmp && !materialize_join)
+      explain_flags.set(loc_group_list.src, ESP_USING_TMPTABLE);
+    have_group_list= false;
+  }
+  else if (have_order)
+  {
+    if (ordered_index_usage != ordered_index_order_by)
+      explain_flags.set(loc_order.src, ESP_USING_FILESORT);
+    if (need_tmp && !materialize_join && !tmp_group)
+      explain_flags.set(loc_order.src, ESP_USING_TMPTABLE);
+    have_order= false;
+  }
+  if (loc_order && loc_order.get_flag(ESP_USING_FILESORT) &&
+      loc_group_list && loc_group_list.get_flag(ESP_USING_FILESORT))
+    DBUG_ASSERT(explain_flags.any(ESP_USING_TMPTABLE));
+
+  // Copy flags for checking by executor
+  exec_flags.set(explain_flags);
+
+  // Ensure ORDER/GROUP BY/DISTINCT were resolved
+  DBUG_ASSERT(!have_group_list && !have_order && !have_distinct);
+  DBUG_VOID_RETURN;
+}
+
 
 /**
   Find a cheaper access key than a given @a key

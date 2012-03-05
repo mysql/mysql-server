@@ -157,11 +157,15 @@ The following options may be given as the first argument:
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
+ --end-markers-in-json 
+ In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
+ trace), end_marker=on repeats the structure's key (if it
+ has one) near the closing bracket
  --eq-range-index-dive-limit=# 
  The optimizer will use existing index statistics instead
  of doing index dives for equality ranges if the number of
  equality ranges for the index is larger than or equal to
- this number.
+ this number. If set to 0, index dives are always used.
  --event-scheduler[=name] 
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
@@ -458,8 +462,8 @@ The following options may be given as the first argument:
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
- is one of {enabled, end_marker, one_line} and val is one
- of {on, off, default}
+ is one of {enabled, one_line} and val is one of {on,
+ default}
  --optimizer-trace-features=name 
  Enables/disables tracing of selected features of the
  Optimizer:
@@ -509,10 +513,15 @@ The following options may be given as the first argument:
  Default startup value for the global_instrumentation
  consumer.
  (Defaults to on; use --skip-performance-schema-consumer-global-instrumentation to disable.)
+ --performance-schema-consumer-statements-digest 
+ Default startup value for the statements_digest consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-statements-digest to disable.)
  --performance-schema-consumer-thread-instrumentation 
  Default startup value for the thread_instrumentation
  consumer.
  (Defaults to on; use --skip-performance-schema-consumer-thread-instrumentation to disable.)
+ --performance-schema-digests-size=# 
+ Size of the statement digest.
  --performance-schema-events-stages-history-long-size=# 
  Number of rows in EVENTS_STAGES_HISTORY_LONG.
  --performance-schema-events-stages-history-size=# 
@@ -867,6 +876,9 @@ The following options may be given as the first argument:
  --transaction-prealloc-size=# 
  Persistent buffer for transactions to be stored in binary
  log
+ --transaction-read-only 
+ Default transaction access mode. True if transactions are
+ read-only.
  --updatable-views-with-limit=name 
  YES = Don't issue an error message (warning only) if a
  VIEW without presence of a key of the underlying table is
@@ -922,6 +934,7 @@ delayed-queue-size 1000
 disable-gtid-unsafe-statements FALSE
 disconnect-slave-event-count 0
 div-precision-increment 4
+end-markers-in-json FALSE
 eq-range-index-dive-limit 10
 event-scheduler OFF
 expire-logs-days 0
@@ -1042,7 +1055,9 @@ performance-schema-consumer-events-waits-current FALSE
 performance-schema-consumer-events-waits-history FALSE
 performance-schema-consumer-events-waits-history-long FALSE
 performance-schema-consumer-global-instrumentation TRUE
+performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
+performance-schema-digests-size 200
 performance-schema-events-stages-history-long-size 10000
 performance-schema-events-stages-history-size 10
 performance-schema-events-statements-history-long-size 10000
@@ -1096,7 +1111,7 @@ relay-log-space-limit 0
 replicate-same-server-id FALSE
 report-host (No default value)
 report-password (No default value)
-report-port 3306
+report-port 0
 report-user (No default value)
 safe-user-create FALSE
 secure-auth TRUE
@@ -1145,6 +1160,7 @@ tmp-table-size 16777216
 transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
+transaction-read-only FALSE
 updatable-views-with-limit YES
 verbose TRUE
 wait-timeout 28800

@@ -2856,6 +2856,20 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
                                    st_select_lex *removed_select,
                                    Item **ref)
 {
+  /*
+    Some field items may be created for use in execution only, without
+    a name resolution context. They have already been used in execution,
+    so no transformation is necessary here.
+
+    @todo: Provide strict phase-division in optimizer, to make sure that
+           execution-only objects do not exist during transformation stage.
+           Then, this test would be deemed unnecessary.
+  */
+  if (context == NULL)
+  {
+    DBUG_ASSERT(type() == FIELD_ITEM);
+    return;
+  }
   DBUG_ASSERT(context->select_lex == NULL ||
               context->select_lex != depended_from);
 
@@ -3863,7 +3877,7 @@ String *Item_param::val_str(String* str)
     that binary log contains wrong statement 
 */
 
-const String *Item_param::query_val_str(String* str) const
+const String *Item_param::query_val_str(THD *thd, String* str) const
 {
   switch (state) {
   case INT_VALUE:
@@ -3902,7 +3916,8 @@ const String *Item_param::query_val_str(String* str) const
   case LONG_DATA_VALUE:
     {
       str->length(0);
-      append_query_string(value.cs_info.character_set_client, &str_value, str);
+      append_query_string(thd, value.cs_info.character_set_client, &str_value,
+                          str);
       break;
     }
   case NULL_VALUE:
@@ -4035,7 +4050,7 @@ void Item_param::print(String *str, enum_query_type query_type)
     char buffer[STRING_BUFFER_USUAL_SIZE];
     String tmp(buffer, sizeof(buffer), &my_charset_bin);
     const String *res;
-    res= query_val_str(&tmp);
+    res= query_val_str(current_thd, &tmp);
     str->append(*res);
   }
 }

@@ -2457,3 +2457,22 @@ SELECT 1 FROM t1 WHERE 1 IN
 );
 
 DROP TABLE t1;
+
+--echo #
+--echo # WL#5855 (EXPLAIN FORMAT=JSON) partition test
+--echo #
+
+CREATE TABLE t1 (c1 int(11) DEFAULT NULL, KEY c1 (c1))
+  PARTITION BY RANGE (c1)
+    (PARTITION a VALUES LESS THAN (10),
+     PARTITION b VALUES LESS THAN (100),
+     PARTITION c VALUES LESS THAN MAXVALUE);
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+
+let $query=SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
+--eval EXPLAIN PARTITIONS $query
+--eval EXPLAIN EXTENDED $query
+--eval EXPLAIN FORMAT=JSON $query
+
+DROP TABLE t1;

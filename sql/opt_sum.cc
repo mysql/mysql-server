@@ -800,7 +800,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     {
       /* Update endpoints for MAX/MIN, see function comment. */
       Item *value= args[between && max_fl ? 2 : 1];
-      store_val_in_field(part->field, value, CHECK_FIELD_IGNORE);
+      value->save_in_field_no_warnings(part->field, true);
       if (part->null_bit) 
         *key_ptr++= (uchar) test(part->field->is_null());
       part->field->get_key_image(key_ptr, part->length, Field::itRAW);

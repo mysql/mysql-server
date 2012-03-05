@@ -65,6 +65,24 @@ SHOW STATUS WHERE (Variable_name LIKE 'Sort%' OR
                    Variable_name = 'Handler_delete') AND Value <> 0;
 --enable_query_log
 
+if ($json) {
+if ($innodb) {
+  if ($no_rows) {
+--replace_regex /"rows": [0-9]+/"rows": "X"/ /"filtered": [0-9.]+/"filtered": "X"/
+  }
+}
+--eval EXPLAIN FORMAT=JSON $query;
+if ($validation) {
+--disable_query_log
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--exec $MYSQL -S $MASTER_MYSOCK -u root -r test -e "EXPLAIN FORMAT=JSON $query;" > $MYSQLTEST_VARDIR/tmp/explain.json
+--replace_regex  /[-]*// /FILE.[\/\\:_\.0-9A-Za-z]*/Validation:/
+--exec python $MYSQL_TEST_DIR/suite/opt_trace/validate_json.py $MYSQLTEST_VARDIR/tmp/explain.json 
+--remove_file '$MYSQLTEST_VARDIR/tmp/explain.json'
+--enable_query_log
+}
+}
+
 if ($select) {
 FLUSH STATUS;
 FLUSH TABLES;
@@ -82,6 +100,23 @@ SHOW STATUS WHERE (Variable_name LIKE 'Sort%' OR
                    Variable_name = 'Handler_update' OR
                    Variable_name = 'Handler_delete') AND Value <> 0;
 --enable_query_log
+if ($json) {
+if ($innodb) {
+  if ($no_rows) {
+--replace_regex /"rows": [0-9]+/"rows": "X"/ /"filtered": [0-9.]+/"filtered": "X"/
+  }
+}
+--eval EXPLAIN FORMAT=JSON $select;
+if ($validation) {
+--disable_query_log
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--exec $MYSQL -S $MASTER_MYSOCK -u root -r test -e "EXPLAIN FORMAT=JSON $select;" > $MYSQLTEST_VARDIR/tmp/explain.json
+--replace_regex  /[-]*// /FILE.[\/\\:_\.0-9A-Za-z]*/Validation:/
+--exec python $MYSQL_TEST_DIR/suite/opt_trace/validate_json.py $MYSQLTEST_VARDIR/tmp/explain.json 
+--remove_file '$MYSQLTEST_VARDIR/tmp/explain.json'
+--enable_query_log
+}
+}
 }
 
 --disable_query_log

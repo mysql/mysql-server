@@ -582,7 +582,7 @@ COUNT_LOCAL_ERRORS	0
 COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
-ERROR 08004: Too many connections
+Got one of the listed errors
 "Dumping performance_schema.host_cache"
 IP	192.0.2.4
 HOST	santa.claus.ipv4.example.com
@@ -611,7 +611,7 @@ COUNT_LOCAL_ERRORS	0
 COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
-ERROR 08004: Too many connections
+Got one of the listed errors
 "Dumping performance_schema.host_cache"
 IP	192.0.2.4
 HOST	santa.claus.ipv4.example.com

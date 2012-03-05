@@ -85,7 +85,7 @@ select - a from t1;
 -1
 explain extended select - a from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select -('1') AS `- a` from dual
 drop table t1;

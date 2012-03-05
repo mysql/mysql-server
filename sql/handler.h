@@ -302,8 +302,24 @@
 #define HA_CACHE_TBL_ASKTRANSACT 2
 #define HA_CACHE_TBL_TRANSACT    4
 
-/* Options of START TRANSACTION statement (and later of SET TRANSACTION stmt) */
-#define MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT 1
+/**
+  Options for the START TRANSACTION statement.
+
+  Note that READ ONLY and READ WRITE are logically mutually exclusive.
+  This is enforced by the parser and depended upon by trans_begin().
+
+  We need two flags instead of one in order to differentiate between
+  situation when no READ WRITE/ONLY clause were given and thus transaction
+  is implicitly READ WRITE and the case when READ WRITE clause was used
+  explicitly.
+*/
+
+// WITH CONSISTENT SNAPSHOT option
+static const uint MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT = 1;
+// READ ONLY option
+static const uint MYSQL_START_TRANS_OPT_READ_ONLY          = 2;
+// READ WRITE option
+static const uint MYSQL_START_TRANS_OPT_READ_WRITE         = 4;
 
 /* Flags for method is_fatal_error */
 #define HA_CHECK_DUP_KEY 1
