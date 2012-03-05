@@ -29,7 +29,6 @@
 #include <ndb_version.h>
 #include <mgmapi_debug.h>
 #include <mgmapi_internal.h>
-#include <md5_hash.hpp>
 #include "NdbImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
 
