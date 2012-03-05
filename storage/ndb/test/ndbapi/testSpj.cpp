@@ -31,7 +31,7 @@ static int faultToInject = 0;
 
 enum faultsToInject {
   FI_START = 17001,
-  FI_END = 17042
+  FI_END = 17063
 };
 
 int
@@ -114,10 +114,13 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
   int lookupFaults[] = {
-      17001, 17005, 17006, 17007, 17008,
+      17001, 17005, 17006, 17008,
+      17012, // testing abort in :execDIH_SCAN_TAB_CONF
       17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
       17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
-      17040, 17041, 17042  // lookup_parent_row -> OutOfQueryMemory
+      17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
+      17050, 17051, 17052, 17053, // parseDA -> outOfSectionMem
+      17060, 17061, 17062, 17063 // scanIndex_parent_row -> outOfSectionMem
   }; 
   loops =  faultToInject ? 1 : sizeof(lookupFaults)/sizeof(int);
 
@@ -197,10 +200,13 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
   int scanFaults[] = {
-      17002, 17004, 17005, 17006, 17007, 17008,
+      17002, 17004, 17005, 17006, 17008,
+      17012, // testing abort in :execDIH_SCAN_TAB_CONF
       17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
       17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
-      17040, 17041, 17042  // lookup_parent_row -> OutOfQueryMemory
+      17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
+      17050, 17051, 17052, 17053, // parseDA -> outOfSectionMem
+      17060, 17061, 17062, 17063 // scanIndex_parent_row -> outOfSectionMem
   }; 
   loops =  faultToInject ? 1 : sizeof(scanFaults)/sizeof(int);
 
