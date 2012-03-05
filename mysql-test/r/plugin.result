@@ -3,15 +3,41 @@ Warnings:
 Warning	1286	Unknown storage engine 'EXAMPLE'
 Warning	1266	Using storage engine MyISAM for table 't1'
 DROP TABLE t1;
-INSTALL PLUGIN example SONAME 'ha_example.so';
-INSTALL PLUGIN EXAMPLE SONAME 'ha_example.so';
+INSTALL PLUGIN example SONAME 'ha_example';
+INSTALL PLUGIN EXAMPLE SONAME 'ha_example';
 ERROR HY000: Function 'EXAMPLE' already exists
 UNINSTALL PLUGIN example;
-INSTALL PLUGIN example SONAME 'ha_example.so';
+INSTALL SONAME 'ha_example';
+select * from information_schema.plugins where plugin_library like 'ha_example%';
+PLUGIN_NAME	EXAMPLE
+PLUGIN_VERSION	0.1
+PLUGIN_STATUS	ACTIVE
+PLUGIN_TYPE	STORAGE ENGINE
+PLUGIN_TYPE_VERSION	#
+PLUGIN_LIBRARY	ha_example.so
+PLUGIN_LIBRARY_VERSION	1.1
+PLUGIN_AUTHOR	Brian Aker, MySQL AB
+PLUGIN_DESCRIPTION	Example storage engine
+PLUGIN_LICENSE	GPL
+LOAD_OPTION	ON
+PLUGIN_MATURITY	Experimental
+PLUGIN_AUTH_VERSION	0.1
+PLUGIN_NAME	UNUSABLE
+PLUGIN_VERSION	3.14
+PLUGIN_STATUS	ACTIVE
+PLUGIN_TYPE	DAEMON
+PLUGIN_TYPE_VERSION	#
+PLUGIN_LIBRARY	ha_example.so
+PLUGIN_LIBRARY_VERSION	1.1
+PLUGIN_AUTHOR	Sergei Golubchik
+PLUGIN_DESCRIPTION	Unusable Daemon
+PLUGIN_LICENSE	GPL
+LOAD_OPTION	ON
+PLUGIN_MATURITY	Experimental
+PLUGIN_AUTH_VERSION	3.14.15.926
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 SELECT * FROM t1;
 a
-DROP TABLE t1;
 set global example_ulong_var=500;
 set global example_enum_var= e1;
 show status like 'example%';
@@ -21,7 +47,24 @@ show variables like 'example%';
 Variable_name	Value
 example_enum_var	e1
 example_ulong_var	500
-UNINSTALL PLUGIN example;
+UNINSTALL SONAME 'ha_example';
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+select * from information_schema.plugins where plugin_library like 'ha_example%';
+PLUGIN_NAME	EXAMPLE
+PLUGIN_VERSION	0.1
+PLUGIN_STATUS	DELETED
+PLUGIN_TYPE	STORAGE ENGINE
+PLUGIN_TYPE_VERSION	#
+PLUGIN_LIBRARY	ha_example.so
+PLUGIN_LIBRARY_VERSION	1.1
+PLUGIN_AUTHOR	Brian Aker, MySQL AB
+PLUGIN_DESCRIPTION	Example storage engine
+PLUGIN_LICENSE	GPL
+LOAD_OPTION	ON
+PLUGIN_MATURITY	Experimental
+PLUGIN_AUTH_VERSION	0.1
+DROP TABLE t1;
 UNINSTALL PLUGIN EXAMPLE;
 ERROR 42000: PLUGIN EXAMPLE does not exist
 UNINSTALL PLUGIN non_exist;
@@ -30,13 +73,13 @@ ERROR 42000: PLUGIN non_exist does not exist
 # Bug#32034: check_func_enum() does not check correct values but set it
 #            to impossible int val
 #
-INSTALL PLUGIN example SONAME 'ha_example.so';
+INSTALL PLUGIN example SONAME 'ha_example';
 SET GLOBAL example_enum_var= e1;
 SET GLOBAL example_enum_var= e2;
 SET GLOBAL example_enum_var= impossible;
 ERROR 42000: Variable 'example_enum_var' can't be set to the value of 'impossible'
 UNINSTALL PLUGIN example;
-INSTALL PLUGIN example SONAME 'ha_example.so';
+INSTALL PLUGIN example SONAME 'ha_example';
 select @@session.sql_mode into @old_sql_mode;
 set session sql_mode='';
 set global example_ulong_var=500;

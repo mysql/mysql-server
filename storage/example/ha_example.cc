@@ -19,17 +19,23 @@
 
   @brief
   The ha_example engine is a stubbed storage engine for example purposes only;
-  it does nothing at this point. Its purpose is to provide a source
+  it does almost nothing at this point. Its purpose is to provide a source
   code illustration of how to begin writing new storage engines; see also
-  /storage/example/ha_example.h.
+  storage/example/ha_example.h.
+
+  Additionally, this file includes an example of a daemon plugin which does
+  nothing at all - absolutely nothing, even less than example storage engine.
+  But it shows that one dll/so can contain more than one plugin.
 
   @details
   ha_example will let you create/open/delete tables, but
   nothing further (for example, indexes are not supported nor can data
-  be stored in the table). Use this example as a template for
-  implementing the same functionality in your own storage engine. You
-  can enable the example storage engine in your build by doing the
-  following during your build process:<br> ./configure
+  be stored in the table). It also provides new status (example_func_example)
+  and system (example_ulong_var and example_enum_var) variables.
+
+  Use this example as a template for implementing the same functionality in
+  your own storage engine. You can enable the example storage engine in your
+  build by doing the following during your build process:<br> ./configure
   --with-example-storage-engine
 
   Once this is done, MySQL will let you create tables with:<br>
@@ -1111,6 +1117,9 @@ static struct st_mysql_show_var func_status[]=
   {0,0,SHOW_UNDEF}
 };
 
+struct st_mysql_daemon unusable_example=
+{ MYSQL_DAEMON_INTERFACE_VERSION };
+
 mysql_declare_plugin(example)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -1138,10 +1147,25 @@ maria_declare_plugin(example)
   PLUGIN_LICENSE_GPL,
   example_init_func,                            /* Plugin Init */
   example_done_func,                            /* Plugin Deinit */
-  0x0001 /* 0.1 */,
+  0x0001,                                       /* version number (0.1) */
   func_status,                                  /* status variables */
   example_system_variables,                     /* system variables */
   "0.1",                                        /* string version */
+  MariaDB_PLUGIN_MATURITY_EXPERIMENTAL          /* maturity */
+},
+{
+  MYSQL_DAEMON_PLUGIN,
+  &unusable_example,
+  "UNUSABLE",
+  "Sergei Golubchik",
+  "Unusable Daemon",
+  PLUGIN_LICENSE_GPL,
+  NULL,                                         /* Plugin Init */
+  NULL,                                         /* Plugin Deinit */
+  0x030E,                                       /* version number (3.14) */
+  NULL,                                         /* status variables */
+  NULL,                                         /* system variables */
+  "3.14.15.926" ,                               /* version, as a string */
   MariaDB_PLUGIN_MATURITY_EXPERIMENTAL          /* maturity */
 }
 maria_declare_plugin_end;

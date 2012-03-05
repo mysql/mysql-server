@@ -4,23 +4,23 @@
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 DROP TABLE t1;
 
---replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME '$HA_EXAMPLE_SO';
+eval INSTALL PLUGIN example SONAME 'ha_example';
 --replace_regex /\.dll/.so/
 --error 1125
-eval INSTALL PLUGIN EXAMPLE SONAME '$HA_EXAMPLE_SO';
+eval INSTALL PLUGIN EXAMPLE SONAME 'ha_example';
 
 UNINSTALL PLUGIN example;
 
+eval INSTALL SONAME 'ha_example';
+--replace_column 5 #
 --replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME '$HA_EXAMPLE_SO';
+--query_vertical select * from information_schema.plugins where plugin_library like 'ha_example%'
 
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 
 # Let's do some advanced ops with the example engine :)
 SELECT * FROM t1;
 
-DROP TABLE t1;
 
 # a couple of tests for variables
 set global example_ulong_var=500;
@@ -28,7 +28,13 @@ set global example_enum_var= e1;
 show status like 'example%';
 show variables like 'example%';
 
-UNINSTALL PLUGIN example;
+eval UNINSTALL SONAME 'ha_example';
+--replace_column 5 #
+--replace_regex /\.dll/.so/
+--query_vertical select * from information_schema.plugins where plugin_library like 'ha_example%'
+
+DROP TABLE t1;
+
 --error 1305
 UNINSTALL PLUGIN EXAMPLE;
 
@@ -40,8 +46,7 @@ UNINSTALL PLUGIN non_exist;
 --echo # Bug#32034: check_func_enum() does not check correct values but set it
 --echo #            to impossible int val
 --echo #
---replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME '$HA_EXAMPLE_SO';
+eval INSTALL PLUGIN example SONAME 'ha_example';
 
 SET GLOBAL example_enum_var= e1;
 SET GLOBAL example_enum_var= e2;
@@ -55,8 +60,7 @@ UNINSTALL PLUGIN example;
 #
 # Bug #32757 hang with sql_mode set when setting some global variables
 #
---replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME '$HA_EXAMPLE_SO';
+eval INSTALL PLUGIN example SONAME 'ha_example';
 
 select @@session.sql_mode into @old_sql_mode;
 

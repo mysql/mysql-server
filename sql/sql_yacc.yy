@@ -15141,6 +15141,13 @@ install:
             lex->comment= $3;
             lex->ident= $5;
           }
+        | INSTALL_SYM SONAME_SYM TEXT_STRING_sys
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_INSTALL_PLUGIN;
+            lex->comment= null_lex_str;
+            lex->ident= $3;
+          }
         ;
 
 uninstall:
@@ -15149,6 +15156,13 @@ uninstall:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;
             lex->comment= $3;
+          }
+        | UNINSTALL_SYM SONAME_SYM TEXT_STRING_sys
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;
+            lex->comment= null_lex_str;
+            lex->ident= $3;
           }
         ;
 

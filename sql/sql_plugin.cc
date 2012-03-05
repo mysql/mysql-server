@@ -297,8 +297,7 @@ public:
 
 /* prototypes */
 static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv);
-static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
-                             const char *list);
+static bool plugin_load_list(MEM_ROOT *, int *, char **, const char *);
 static int test_plugin_options(MEM_ROOT *, struct st_plugin_int *,
                                int *, char **);
 static bool register_builtin(struct st_maria_plugin *, struct st_plugin_int *,
@@ -318,6 +317,7 @@ static void reap_plugins(void);
 static void report_error(int where_to, uint error, ...)
 {
   va_list args;
+  DBUG_ASSERT(where_to & (REPORT_TO_USER | REPORT_TO_LOG));
   if (where_to & REPORT_TO_USER)
   {
     va_start(args, error);
@@ -349,6 +349,20 @@ bool check_valid_path(const char *path, size_t len)
 {
   size_t prefix= my_strcspn(files_charset_info, path, path + len, FN_DIRSEP);
   return  prefix < len;
+}
+
+static void fix_dl_name(MEM_ROOT *root, LEX_STRING *dl)
+{
+  const size_t so_ext_len= sizeof(SO_EXT) - 1;
+  if (my_strcasecmp(&my_charset_latin1, dl->str + dl->length - so_ext_len,
+                    SO_EXT))
+  {
+    char *s= (char*)alloc_root(root, dl->length + so_ext_len + 1);
+    memcpy(s, dl->str, dl->length);
+    strcpy(s + dl->length, SO_EXT);
+    dl->str= s;
+    dl->length+= so_ext_len;
+  }
 }
 
 
@@ -1017,31 +1031,40 @@ static st_plugin_int *plugin_insert_or_reuse(struct st_plugin_int *plugin)
     Requires that a write-lock is held on LOCK_system_variables_hash
 */
 static bool plugin_add(MEM_ROOT *tmp_root,
-                       const LEX_STRING *name, const LEX_STRING *dl,
+                       const LEX_STRING *name, LEX_STRING *dl,
                        int *argc, char **argv, int report)
 {
   struct st_plugin_int tmp;
   struct st_maria_plugin *plugin;
+  uint oks= 0, errs= 0;
   DBUG_ENTER("plugin_add");
-  if (plugin_find_internal(name, MYSQL_ANY_PLUGIN))
+  if (name->str && plugin_find_internal(name, MYSQL_ANY_PLUGIN))
   {
     report_error(report, ER_UDF_EXISTS, name->str);
     DBUG_RETURN(TRUE);
   }
   /* Clear the whole struct to catch future extensions. */
   bzero((char*) &tmp, sizeof(tmp));
+  fix_dl_name(tmp_root, dl);
   if (! (tmp.plugin_dl= plugin_dl_add(dl, report)))
     DBUG_RETURN(TRUE);
   /* Find plugin by name */
   for (plugin= tmp.plugin_dl->plugins; plugin->info; plugin++)
   {
-    uint name_len= strlen(plugin->name);
-    if (plugin->type >= 0 && plugin->type < MYSQL_MAX_PLUGIN_TYPE_NUM &&
-        ! my_strnncoll(system_charset_info,
-                       (const uchar *)name->str, name->length,
-                       (const uchar *)plugin->name,
-                       name_len))
-    {
+    tmp.name.str= (char *)plugin->name;
+    tmp.name.length= strlen(plugin->name);
+
+    if (plugin->type < 0 || plugin->type >= MYSQL_MAX_PLUGIN_TYPE_NUM)
+      continue; // invalid plugin
+
+    if (name->str && my_strnncoll(system_charset_info,
+                                  (const uchar *)name->str, name->length,
+                                  (const uchar *)tmp.name.str, tmp.name.length))
+      continue; // plugin name doesn't match
+
+    if (!name->str && plugin_find_internal(&tmp.name, MYSQL_ANY_PLUGIN))
+      continue; // already installed
+
       struct st_plugin_int *tmp_plugin_ptr;
       if (*(int*)plugin->info <
           min_plugin_info_interface_version[plugin->type] ||
@@ -1051,7 +1074,8 @@ static bool plugin_add(MEM_ROOT *tmp_root,
         char buf[256];
         strxnmov(buf, sizeof(buf) - 1, "API version for ",
                  plugin_type_names[plugin->type].str,
-                 " plugin is too different", NullS);
+                 " plugin ", tmp.name.str,
+                 " not supported by this version of the server", NullS);
         report_error(report, ER_CANT_OPEN_LIBRARY, dl->str, 0, buf);
         goto err;
       }
@@ -1060,40 +1084,49 @@ static bool plugin_add(MEM_ROOT *tmp_root,
         char buf[256];
         strxnmov(buf, sizeof(buf) - 1, "Loading of ",
                  plugin_maturity_names[plugin->maturity],
-                 " plugins is prohibited by --plugin-maturity=",
+                 " plugin ", tmp.name.str,
+                 " is prohibited by --plugin-maturity=",
                  plugin_maturity_names[plugin_maturity],
                  NullS);
         report_error(report, ER_CANT_OPEN_LIBRARY, dl->str, 0, buf);
         goto err;
       }
       tmp.plugin= plugin;
-      tmp.name.str= (char *)plugin->name;
-      tmp.name.length= name_len;
       tmp.ref_count= 0;
       tmp.state= PLUGIN_IS_UNINITIALIZED;
       tmp.load_option= PLUGIN_ON;
       if (test_plugin_options(tmp_root, &tmp, argc, argv))
         tmp.state= PLUGIN_IS_DISABLED;
 
-      if ((tmp_plugin_ptr= plugin_insert_or_reuse(&tmp)))
+      if (!(tmp_plugin_ptr= plugin_insert_or_reuse(&tmp)))
       {
-        plugin_array_version++;
-        if (!my_hash_insert(&plugin_hash[plugin->type], (uchar*)tmp_plugin_ptr))
-        {
-          init_alloc_root(&tmp_plugin_ptr->mem_root, 4096, 4096);
-          DBUG_RETURN(FALSE);
-        }
-        tmp_plugin_ptr->state= PLUGIN_IS_FREED;
+        mysql_del_sys_var_chain(tmp.system_vars);
+        restore_pluginvar_names(tmp.system_vars);
+        goto err;
       }
-      mysql_del_sys_var_chain(tmp.system_vars);
-      restore_pluginvar_names(tmp.system_vars);
-      goto err;
-    }
-  }
-  report_error(report, ER_CANT_FIND_DL_ENTRY, name->str);
+      plugin_array_version++;
+      if (my_hash_insert(&plugin_hash[plugin->type], (uchar*)tmp_plugin_ptr))
+        tmp_plugin_ptr->state= PLUGIN_IS_FREED;
+      init_alloc_root(&tmp_plugin_ptr->mem_root, 4096, 4096);
+
+    if (name->str)
+      DBUG_RETURN(FALSE); // all done
+
+    oks++;
+    tmp.plugin_dl->ref_count++;
+    continue; // otherwise - go on
+
 err:
+    errs++;
+    if (name->str)
+      break;
+  }
+
+  if (errs == 0 && oks == 0) // no plugin was found
+    report_error(report, ER_CANT_FIND_DL_ENTRY, name->str);
+
   plugin_dl_del(dl);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(errs > 0 || oks == 0);
 }
 
 
@@ -1760,8 +1793,6 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
 {
   char buffer[FN_REFLEN];
   LEX_STRING name= {buffer, 0}, dl= {NULL, 0}, *str= &name;
-  struct st_plugin_dl *plugin_dl;
-  struct st_maria_plugin *plugin;
   char *p= buffer;
   DBUG_ENTER("plugin_load_list");
   while (list)
@@ -1791,19 +1822,10 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
 
         dl= name;
         mysql_mutex_lock(&LOCK_plugin);
-        if ((plugin_dl= plugin_dl_add(&dl, REPORT_TO_LOG)))
-        {
-          for (plugin= plugin_dl->plugins; plugin->info; plugin++)
-          {
-            name.str= (char *) plugin->name;
-            name.length= strlen(name.str);
-
-            free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
-            if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
-              goto error;
-          }
-          plugin_dl_del(&dl); // reduce ref count
-        }
+        free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
+        name.str= 0; // load everything
+        if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
+          goto error;
       }
       else
       {
@@ -1970,14 +1992,68 @@ void plugin_shutdown(void)
   DBUG_VOID_RETURN;
 }
 
+/**
+  complete plugin installation (after plugin_add).
 
-bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl)
+  That is, initialize it, and update mysql.plugin table
+*/
+static bool finalize_install(THD *thd, TABLE *table, const LEX_STRING *name)
+{
+  struct st_plugin_int *tmp= plugin_find_internal(name, MYSQL_ANY_PLUGIN);
+  int error;
+  DBUG_ASSERT(tmp);
+  mysql_mutex_assert_owner(&LOCK_plugin);
+
+  if (tmp->state == PLUGIN_IS_DISABLED)
+  {
+    if (global_system_variables.log_warnings)
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_CANT_INITIALIZE_UDF, ER(ER_CANT_INITIALIZE_UDF),
+                          name->str, "Plugin is disabled");
+  }
+  else
+  {
+    DBUG_ASSERT(tmp->state == PLUGIN_IS_UNINITIALIZED);
+    if (plugin_initialize(tmp))
+    {
+      report_error(REPORT_TO_USER, ER_CANT_INITIALIZE_UDF, name->str,
+                   "Plugin initialization function failed.");
+      tmp->state= PLUGIN_IS_DELETED;
+      return 1;
+    }
+  }
+
+  /*
+    We do not replicate the INSTALL PLUGIN statement. Disable binlogging
+    of the insert into the plugin table, so that it is not replicated in
+    row based mode.
+  */
+  tmp_disable_binlog(thd);
+  table->use_all_columns();
+  restore_record(table, s->default_values);
+  table->field[0]->store(name->str, name->length, system_charset_info);
+  table->field[1]->store(tmp->plugin_dl->dl.str, tmp->plugin_dl->dl.length,
+                         files_charset_info);
+  error= table->file->ha_write_row(table->record[0]);
+  reenable_binlog(thd);
+  if (error)
+  {
+    table->file->print_error(error, MYF(0));
+    tmp->state= PLUGIN_IS_DELETED;
+    return 1;
+  }
+  return 0;
+}
+
+bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
+                          const LEX_STRING *dl_arg)
 {
   TABLE_LIST tables;
   TABLE *table;
-  int error, argc=orig_argc;
+  LEX_STRING dl= *dl_arg;
+  bool error;
+  int argc=orig_argc;
   char **argv=orig_argv;
-  struct st_plugin_int *tmp;
   DBUG_ENTER("mysql_install_plugin");
 
   if (opt_noacl)
@@ -2024,53 +2100,34 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
     report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
     goto err;
   }
-  error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
+  error= plugin_add(thd->mem_root, name, &dl, &argc, argv, REPORT_TO_USER);
   if (argv)
     free_defaults(argv);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
-  if (error || !(tmp= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
+  if (error)
     goto err;
 
-  if (tmp->state == PLUGIN_IS_DISABLED)
-  {
-    if (global_system_variables.log_warnings)
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                          ER_CANT_INITIALIZE_UDF, ER(ER_CANT_INITIALIZE_UDF),
-                          name->str, "Plugin is disabled");
-  }
+  if (name->str)
+    error= finalize_install(thd, table, name);
   else
   {
-    if (plugin_initialize(tmp))
+    st_plugin_dl *plugin_dl= plugin_dl_find(&dl);
+    struct st_maria_plugin *plugin;
+    for (plugin= plugin_dl->plugins; plugin->info; plugin++)
     {
-      my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
-               "Plugin initialization function failed.");
-      goto deinit;
+      LEX_STRING str= { const_cast<char*>(plugin->name), strlen(plugin->name) };
+      error|= finalize_install(thd, table, &str);
     }
   }
 
-  /*
-    We do not replicate the INSTALL PLUGIN statement. Disable binlogging
-    of the insert into the plugin table, so that it is not replicated in
-    row based mode.
-  */
-  tmp_disable_binlog(thd);
-  table->use_all_columns();
-  restore_record(table, s->default_values);
-  table->field[0]->store(name->str, name->length, system_charset_info);
-  table->field[1]->store(dl->str, dl->length, files_charset_info);
-  error= table->file->ha_write_row(table->record[0]);
-  reenable_binlog(thd);
   if (error)
-  {
-    table->file->print_error(error, MYF(0));
     goto deinit;
-  }
 
   mysql_mutex_unlock(&LOCK_plugin);
   DBUG_RETURN(FALSE);
+
 deinit:
-  tmp->state= PLUGIN_IS_DELETED;
   reap_needed= true;
   reap_plugins();
 err:
@@ -2079,11 +2136,70 @@ err:
 }
 
 
-bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
+static bool do_uninstall(THD *thd, TABLE *table, const LEX_STRING *name)
+{
+  struct st_plugin_int *plugin;
+  mysql_mutex_assert_owner(&LOCK_plugin);
+
+  if (!(plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
+  {
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
+    return 1;
+  }
+  if (!plugin->plugin_dl)
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 WARN_PLUGIN_DELETE_BUILTIN, ER(WARN_PLUGIN_DELETE_BUILTIN));
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
+    return 1;
+  }
+  if (plugin->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
+  {
+    my_error(ER_PLUGIN_IS_PERMANENT, MYF(0), name->str);
+    return 1;
+  }
+
+  plugin->state= PLUGIN_IS_DELETED;
+  if (plugin->ref_count)
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 WARN_PLUGIN_BUSY, ER(WARN_PLUGIN_BUSY));
+  else
+    reap_needed= true;
+
+  uchar user_key[MAX_KEY_LENGTH];
+  table->use_all_columns();
+  table->field[0]->store(name->str, name->length, system_charset_info);
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+  if (! table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                           HA_WHOLE_KEY, HA_READ_KEY_EXACT))
+  {
+    int error;
+    /*
+      We do not replicate the UNINSTALL PLUGIN statement. Disable binlogging
+      of the delete from the plugin table, so that it is not replicated in
+      row based mode.
+    */
+    tmp_disable_binlog(thd);
+    error= table->file->ha_delete_row(table->record[0]);
+    reenable_binlog(thd);
+    if (error)
+    {
+      table->file->print_error(error, MYF(0));
+      return 1;
+    }
+  }
+  return 0;
+}
+
+
+bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name,
+                            const LEX_STRING *dl_arg)
 {
   TABLE *table;
   TABLE_LIST tables;
-  struct st_plugin_int *plugin;
+  LEX_STRING dl= *dl_arg;
+  bool error= false;
   DBUG_ENTER("mysql_uninstall_plugin");
 
   if (opt_noacl)
@@ -2116,67 +2232,28 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     When audit event is triggered during [UN]INSTALL PLUGIN, plugin
     list iterator acquires the same lock (within the same thread)
     second time.
-
-    This hack should be removed when LOCK_plugin is fixed so it
-    protects only what it supposed to protect.
   */
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
 
   mysql_mutex_lock(&LOCK_plugin);
-  if (!(plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
-  {
-    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
-    goto err;
-  }
-  if (!plugin->plugin_dl)
-  {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                 WARN_PLUGIN_DELETE_BUILTIN, ER(WARN_PLUGIN_DELETE_BUILTIN));
-    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
-    goto err;
-  }
-  if (plugin->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
-  {
-    my_error(ER_PLUGIN_IS_PERMANENT, MYF(0), name->str);
-    goto err;
-  }
 
-  plugin->state= PLUGIN_IS_DELETED;
-  if (plugin->ref_count)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                 WARN_PLUGIN_BUSY, ER(WARN_PLUGIN_BUSY));
+  if (name->str)
+    error= do_uninstall(thd, table, name);
   else
-    reap_needed= true;
-  reap_plugins();
-  mysql_mutex_unlock(&LOCK_plugin);
-
-  uchar user_key[MAX_KEY_LENGTH];
-  table->use_all_columns();
-  table->field[0]->store(name->str, name->length, system_charset_info);
-  key_copy(user_key, table->record[0], table->key_info,
-           table->key_info->key_length);
-  if (! table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
-                                           HA_WHOLE_KEY, HA_READ_KEY_EXACT))
   {
-    int error;
-    /*
-      We do not replicate the UNINSTALL PLUGIN statement. Disable binlogging
-      of the delete from the plugin table, so that it is not replicated in
-      row based mode.
-    */
-    tmp_disable_binlog(thd);
-    error= table->file->ha_delete_row(table->record[0]);
-    reenable_binlog(thd);
-    if (error)
+    fix_dl_name(thd->mem_root, &dl);
+    st_plugin_dl *plugin_dl= plugin_dl_find(&dl);
+    struct st_maria_plugin *plugin;
+    for (plugin= plugin_dl->plugins; plugin->info; plugin++)
     {
-      table->file->print_error(error, MYF(0));
-      DBUG_RETURN(TRUE);
+      LEX_STRING str= { const_cast<char*>(plugin->name), strlen(plugin->name) };
+      error|= do_uninstall(thd, table, &str);
     }
   }
-  DBUG_RETURN(FALSE);
-err:
+  reap_plugins();
+
   mysql_mutex_unlock(&LOCK_plugin);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(error);
 }
 
 

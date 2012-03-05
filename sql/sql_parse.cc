@@ -4363,7 +4363,8 @@ create_sp_error:
       my_ok(thd);
     break;
   case SQLCOM_UNINSTALL_PLUGIN:
-    if (! (res= mysql_uninstall_plugin(thd, &thd->lex->comment)))
+    if (! (res= mysql_uninstall_plugin(thd, &thd->lex->comment,
+                                       &thd->lex->ident)))
       my_ok(thd);
     break;
   case SQLCOM_BINLOG_BASE64_EVENT:
