@@ -1951,6 +1951,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
     rc= mysql_real_query(mysql, query, strlen(query));
     if (rc != 0)
     {
+      mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
       if (check_io_slave_killed(mi->info_thd, mi, NULL))
         goto slave_killed_err;
 
@@ -1993,6 +1994,19 @@ when it try to get the value of TIME_ZONE global variable from master.";
       {
         mi->checksum_alg_before_fd= (uint8)
           find_type(master_row[0], &binlog_checksum_typelib, 1) - 1;
+        
+       DBUG_EXECUTE_IF("undefined_algorithm_on_slave",
+        mi->checksum_alg_before_fd = BINLOG_CHECKSUM_ALG_UNDEF;);
+       if(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_UNDEF) 
+       {
+         errmsg= "The slave I/O thread was stopped because a fatal error is encountered "
+                 "The checksum algorithm used by master is unknown to slave.";
+         err_code= ER_SLAVE_FATAL_ERROR;
+         sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+         mysql_free_result(mysql_store_result(mysql));
+         goto err;
+       }
+
         // valid outcome is either of
         DBUG_ASSERT(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_OFF ||
                     mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_CRC32);
