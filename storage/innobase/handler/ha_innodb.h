@@ -522,7 +522,7 @@ Find and Retrieve the FTS doc_id for the current result row
 ulonglong
 innobase_fts_retrieve_docid(
 /*============================*/
-	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
+	FT_INFO_EXT*	fts_hdl);	/*!< in: FTS handler */
 
 /***********************************************************************
 Find and retrieve the size of the current result
@@ -530,4 +530,4 @@ Find and retrieve the size of the current result
 ulonglong
 innobase_fts_count_matches(
 /*============================*/
-	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
+	FT_INFO_EXT*	fts_hdl);	/*!< in: FTS handler */

@@ -45,8 +45,8 @@ struct _ft_vft_ext
 {
   uint      (*get_version)();        // Extended API version
   ulonglong (*get_flags)();
-  ulonglong (*get_docid)(FT_INFO *);
-  ulonglong (*count_matches)(FT_INFO *);
+  ulonglong (*get_docid)(FT_INFO_EXT *);
+  ulonglong (*count_matches)(FT_INFO_EXT *);
 };
 
 /* Flags for extended FT API */
