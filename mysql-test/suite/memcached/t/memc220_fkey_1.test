@@ -189,9 +189,14 @@ EOF
 --sorted_result
 SELECT t1.c1,t1.c2,t1.c21,t2.c2,t2.c21 FROM t1,t2 WHERE t1.c11=t2.c1;
 
+#uninstall the plugin before dropping mapped table
+UNINSTALL PLUGIN daemon_memcached;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 DROP DATABASE innodb_memcache;
  
+# This is just to keep the entry/exit state to remain to be the same
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
 SET @@global.tx_isolation= @tx_isolation;
 

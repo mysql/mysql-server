@@ -944,9 +944,6 @@ innodb_api_insert(
 					     cursor_data->mysql_tbl);
 		}
 
-	} else {
-		ib_cb_trx_rollback(cursor_data->crsr_trx);
-		cursor_data->crsr_trx = NULL;
 	}
 
 	ib_cb_tuple_delete(tpl);
@@ -1019,9 +1016,6 @@ innodb_api_update(
                                              cursor_data->mysql_tbl);
 		}
 
-	} else {
-		ib_cb_trx_rollback(cursor_data->crsr_trx);
-		cursor_data->crsr_trx = NULL;
 	}
 
 	ib_cb_tuple_delete(new_tpl);
@@ -1558,7 +1552,8 @@ innodb_api_cursor_reset(
 						engine */
 	innodb_conn_data_t*	conn_data,	/*!< in/out: cursor affiliated
 						with a connection */
-	conn_op_type_t		op_type)	/*!< in: type of DML performed */
+	conn_op_type_t		op_type,	/*!< in: type of DML performed */
+	bool			commit)		/*!< in: commit or abort trx */
 {
 	bool		commit_trx = false;
 
@@ -1596,8 +1591,14 @@ innodb_api_cursor_reset(
 		if (conn_data->crsr_trx) {
 			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						engine);
-			ib_cb_cursor_commit_trx(
-				conn_data->crsr, conn_data->crsr_trx);
+
+			if (commit) {
+				ib_cb_cursor_commit_trx(
+					conn_data->crsr, conn_data->crsr_trx);
+			} else {
+				ib_cb_trx_rollback(conn_data->crsr_trx);
+			}
+
 			conn_data->crsr_trx = NULL;
 
 			if (conn_data->read_crsr) {
@@ -1646,9 +1647,15 @@ innodb_api_cursor_reset(
 		if (conn_data->crsr_trx) {
 			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						engine);
-			ib_cb_cursor_commit_trx(
-				conn_data->read_crsr,
+
+			if (commit) {
+				ib_cb_cursor_commit_trx(
+					conn_data->read_crsr,
 				conn_data->crsr_trx);
+			} else {
+				ib_cb_trx_rollback(conn_data->crsr_trx);
+			}
+
 			conn_data->crsr_trx = NULL;
 			commit_trx = true;
 			if (conn_data->crsr) {
