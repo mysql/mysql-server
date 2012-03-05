@@ -8712,8 +8712,13 @@ void JOIN::drop_unused_derived_keys()
       continue;
     if (table->max_keys > 1)
       table->use_index(tab->ref.key);
-    if (table->s->keys && tab->ref.key >= 0)
-      tab->ref.key= 0;
+    if (table->s->keys)
+    {
+      if (tab->ref.key >= 0)
+        tab->ref.key= 0;
+      else
+        table->s->keys= 0;
+    }
     tab->keys= (key_map) (table->s->keys ? 1 : 0);
   }
 }
