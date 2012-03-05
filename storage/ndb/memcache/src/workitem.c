@@ -182,13 +182,6 @@ const char * workitem_get_operation(workitem *item) {
 }
 
 
-void workitem_set_NdbInstance(workitem *item, CPP_NDBINSTANCE * _Ndb_instance)
-{
-  assert(item->ndb_instance == NULL);
-  item->ndb_instance = _Ndb_instance;
-}
-
-
 void workitem_free(workitem *item)
 {
   /* It's OK to free all of these; a free() with class_id 0 is a no-op */
@@ -196,11 +189,6 @@ void workitem_free(workitem *item)
   pipeline_free(item->pipeline, item->row_buffer_2, item->rowbuf2_cls);
   pipeline_free(item->pipeline, item->ndb_key_buffer, item->keybuf1_cls);
   pipeline_free(item->pipeline, item->key_buffer_2, item->keybuf2_cls);
-
-  if (item->ndb_instance != NULL)
-  {
-    assert(false); // TODO Not thread safe, investigate path
-  }
 
   pipeline_free(item->pipeline, item, workitem_class_id);
 }
