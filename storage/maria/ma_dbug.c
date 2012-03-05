@@ -186,7 +186,7 @@ my_bool _ma_check_table_is_closed(const char *name, const char *where)
     MARIA_SHARE *share= info->s;
     if (!strcmp(share->unique_file_name.str, filename))
     {
-      if (share->last_version)
+      if (share->last_version > 1)
       {
 	fprintf(stderr,"Warning:  Table: %s is open on %s\n", name,where);
 	DBUG_PRINT("warning",("Table: %s is open on %s", name,where));

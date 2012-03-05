@@ -643,7 +643,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     NOTE: The filename is compared against unique_file_name of every
     open table. Hence we need a real path here.
   */
-  if (test_if_reopen(filename))
+  if (test_if_reopen(filename, 1))
   {
     my_printf_error(0, "MyISAM table '%s' is in use "
                     "(most likely by a MERGE table). Try FLUSH TABLES.",

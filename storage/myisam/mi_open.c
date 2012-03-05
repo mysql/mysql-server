@@ -52,7 +52,8 @@ if (pos > end_pos)             \
 ** In MySQL the server will handle version issues.
 ******************************************************************************/
 
-MI_INFO *test_if_reopen(char *filename)
+MI_INFO *test_if_reopen(char *filename,
+                        my_bool ignore_last_version __attribute__((unused)))
 {
   LIST *pos;
 
@@ -61,8 +62,8 @@ MI_INFO *test_if_reopen(char *filename)
     MI_INFO *info=(MI_INFO*) pos->data;
     MYISAM_SHARE *share=info->s;
     DBUG_ASSERT(strcmp(share->unique_file_name,filename) ||
-                share->last_version);
-    if (!strcmp(share->unique_file_name,filename) && share->last_version)
+                share->last_version > 1 || ignore_last_version);
+    if (!strcmp(share->unique_file_name,filename) && share->last_version > 1)
       return info;
   }
   return 0;
@@ -109,7 +110,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   }
 
   pthread_mutex_lock(&THR_LOCK_myisam);
-  if (!(old_info=test_if_reopen(name_buff)))
+  if (!(old_info=test_if_reopen(name_buff,
+                                test(open_flags & HA_OPEN_FOR_STATUS))))
   {
     share= &share_buff;
     bzero((uchar*) &share_buff,sizeof(share_buff));
@@ -511,7 +513,12 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     share->base.key_parts=key_parts;
     share->base.all_key_parts=key_parts+unique_key_parts;
     if (!(share->last_version=share->state.version))
-      share->last_version=1;			/* Safety */
+      share->last_version= 2;			/* Safety */
+    if (open_flags & HA_OPEN_FOR_STATUS)
+    {
+      share->last_version= 1;                  /* Not reusable version */
+      share->options|= HA_OPTION_READ_ONLY_DATA;
+    }
     share->rec_reflength=share->base.rec_reflength; /* May be changed */
     share->base.margin_key_file_length=(share->base.max_key_file_length -
 					(keys ? MI_INDEX_BLOCK_MARGIN *
