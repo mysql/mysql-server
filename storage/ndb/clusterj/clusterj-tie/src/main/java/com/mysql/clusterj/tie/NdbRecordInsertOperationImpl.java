@@ -17,47 +17,33 @@
 
 package com.mysql.clusterj.tie;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-
 import com.mysql.clusterj.core.store.Table;
 
 public class NdbRecordInsertOperationImpl extends NdbRecordOperationImpl {
 
-    /** The number of columns for this operation */
-    protected int numberOfColumns;
-
     public NdbRecordInsertOperationImpl(ClusterTransactionImpl clusterTransaction, Table storeTable) {
-        super(clusterTransaction);
+        super(clusterTransaction, storeTable);
         this.ndbRecordValues = clusterTransaction.getCachedNdbRecordImpl(storeTable);
         this.ndbRecordKeys = ndbRecordValues;
         this.valueBufferSize = ndbRecordValues.getBufferSize();
         this.numberOfColumns = ndbRecordValues.getNumberOfColumns();
         this.blobs = new NdbRecordBlobImpl[this.numberOfColumns];
+        resetMask();
     }
 
     public void beginDefinition() {
         // allocate a buffer for the operation data
-        valueBuffer = ByteBuffer.allocateDirect(valueBufferSize);
-        // use platform's native byte ordering
-        valueBuffer.order(ByteOrder.nativeOrder());
-        // use value buffer for key buffer also
+        valueBuffer = ndbRecordValues.newBuffer();
         keyBuffer = valueBuffer;
-        mask = new byte[1 + (numberOfColumns/8)];
     }
 
     public void endDefinition() {
-        // position the buffer at the beginning for ndbjtie
-        valueBuffer.position(0);
-        valueBuffer.limit(valueBufferSize);
-        // create the insert operation
-        ndbOperation = clusterTransaction.insertTuple(ndbRecordValues.getNdbRecord(), valueBuffer, mask, null);
-        // now set the NdbBlob into the blobs
-        for (NdbRecordBlobImpl blob: activeBlobs) {
-            if (blob != null) {
-                blob.setNdbBlob();
-            }
-        }
+        ndbOperation = insert(clusterTransaction);
+    }
+
+    @Override
+    public String toString() {
+        return " insert " + tableName;
     }
 
 }

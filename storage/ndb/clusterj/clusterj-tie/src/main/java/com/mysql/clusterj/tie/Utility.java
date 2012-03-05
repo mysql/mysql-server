@@ -101,6 +101,19 @@ public class Utility {
 
     static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
+    /* Error codes that are not severe, and simply reflect expected conditions */
+    private static Set<Integer> NonSevereErrorCodes = new HashSet<Integer>();
+
+    public static final int SET_NOT_NULL_TO_NULL = 4203;
+    public static final int INDEX_NOT_FOUND = 4243;
+    public static final int ROW_NOT_FOUND = 626;
+
+    static {
+        NonSevereErrorCodes.add(SET_NOT_NULL_TO_NULL); // Attempt to set a NOT NULL attribute to NULL
+        NonSevereErrorCodes.add(INDEX_NOT_FOUND); // Index not found
+        NonSevereErrorCodes.add(ROW_NOT_FOUND); // Tuple did not exist
+    }
+
     // TODO: this is intended to investigate a class loader issue with Sparc java
     // The idea is to force loading the CharsetMap native class prior to calling the static create method
     static Class<?> charsetMapClass = loadClass("com.mysql.ndbjtie.mysql.CharsetMap");
@@ -862,15 +875,6 @@ public class Utility {
         }
 
     };
-
-    /* Error codes that are not severe, and simply reflect expected conditions */
-    private static Set<Integer> NonSevereErrorCodes = new HashSet<Integer>();
-
-    static {
-        NonSevereErrorCodes.add(4203); // Trying to set a NOT NULL attribute to NULL
-        NonSevereErrorCodes.add(4243); // Index not found
-        NonSevereErrorCodes.add(626); // Tuple did not exist
-    }
 
     protected static interface EndianManager {
         public void put3byteInt(ByteBuffer byteBuffer, int value);
@@ -1640,6 +1644,10 @@ public class Utility {
      */
     public static ByteBuffer encode(String input, Column storeColumn, BufferManager bufferManager) {
         int collation = storeColumn.getCharsetNumber();
+//        System.out.println("Utility.encode storeColumn: " + storeColumn.getName() + 
+//                " charsetName " + storeColumn.getCharsetName() +
+//                " charsetNumber " + collation +
+//                " input '" + input + "'");
         CharsetConverter charsetConverter = getCharsetConverter(collation);
         CharSequence chars = input;
         int prefixLength = storeColumn.getPrefixLength();

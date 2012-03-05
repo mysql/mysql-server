@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 package com.mysql.clusterj.jdbc;
 
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Date;
@@ -28,6 +29,7 @@ import java.util.List;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.ColumnMetadata;
+import com.mysql.clusterj.core.CacheManager;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.ValueHandlerBatching;
 import com.mysql.clusterj.core.util.I18NHelper;
@@ -176,6 +178,11 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
 
     @Override
     public byte[] getBytes(int fieldNumber) {
+        throw new ClusterJFatalInternalException(local.message("ERR_Should_Not_Occur"));
+    }
+
+    @Override
+    public byte[] getLobBytes(int fieldNumber) {
         throw new ClusterJFatalInternalException(local.message("ERR_Should_Not_Occur"));
     }
 
@@ -400,6 +407,18 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
     }
 
     @Override
+    public String getLobString(int fieldNumber) {
+        BindValue bindValue = bindValues[getIndex(fieldNumber)];
+        Object value = bindValue.value;
+        if (value instanceof String) {
+            return (String) value;
+        } else {
+            throw new ClusterJUserException(
+                    local.message("ERR_Parameter_Wrong_Type", "String", value.getClass().getName()));
+        }
+    }
+
+    @Override
     public boolean isNull(int fieldNumber) {
         return bindValues[getIndex(fieldNumber)].isNull;
     }
@@ -451,6 +470,11 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
 
     @Override
     public void setBytes(int fieldNumber, byte[] value) {
+        throw new ClusterJFatalInternalException(local.message("ERR_Should_Not_Occur"));
+    }
+
+    @Override
+    public void setLobBytes(int fieldNumber, byte[] value) {
         throw new ClusterJFatalInternalException(local.message("ERR_Should_Not_Occur"));
     }
 
@@ -544,6 +568,11 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
     }
 
     @Override
+    public void setLobString(int fieldNumber, String value) {
+        throw new ClusterJFatalInternalException(local.message("ERR_Should_Not_Occur"));
+    }
+
+    @Override
     public ColumnMetadata[] columnMetadata() {
         throw new ClusterJFatalInternalException(local.message("ERR_Should_Not_Occur"));
     }
@@ -566,6 +595,27 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
     @Override
     public void set(int columnNumber, Object value) {
         throw new ClusterJFatalInternalException(local.message("ERR_Should_Not_Occur"));
+    }
+
+    @Override
+    public void setCacheManager(CacheManager cm) {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Unsupported_Method",
+                "setCacheManager(CacheManager)", "ValueHandlerBindValuesImpl"));
+    }
+
+    @Override
+    public void setProxy(Object proxy) {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Unsupported_Method",
+                "setProxy(Object)", "ValueHandlerBindValuesImpl"));
+    }
+
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Unsupported_Method",
+                "invoke(Object, Method, Object[])", "ValueHandlerBindValuesImpl"));
     }
 
 }

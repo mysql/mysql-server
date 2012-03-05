@@ -313,4 +313,20 @@ class OperationImpl implements Operation {
         // nothing to do
     }
 
+    public int getErrorCode() {
+        return ndbOperation.getNdbError().code();
+    }
+
+    public int getClassification() {
+        return ndbOperation.getNdbError().classification();
+    }
+
+    public int getMysqlCode() {
+        return ndbOperation.getNdbError().mysql_code();
+    }
+
+    public int getStatus() {
+        return ndbOperation.getNdbError().status();
+    }
+
 }

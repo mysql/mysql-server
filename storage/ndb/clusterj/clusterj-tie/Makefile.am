@@ -46,6 +46,8 @@ clusterj_tie_java= \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordKeyOperationImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordOperationImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordResultDataImpl.java \
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordSmartValueHandlerFactoryImpl.java \
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordSmartValueHandlerImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/OperationImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/ResultDataImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/ScanFilterImpl.java \

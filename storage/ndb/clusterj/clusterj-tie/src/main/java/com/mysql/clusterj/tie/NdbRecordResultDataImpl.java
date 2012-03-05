@@ -20,7 +20,6 @@ package com.mysql.clusterj.tie;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-import java.nio.ByteBuffer;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 
 import com.mysql.clusterj.core.store.Blob;
@@ -30,7 +29,6 @@ import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
-import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 /**
  *
@@ -53,29 +51,16 @@ class NdbRecordResultDataImpl implements ResultData {
     /** The NdbOperation that defines the result */
     private NdbRecordOperationImpl operation = null;
 
-    /** The NdbRecordImpl that defines the buffer layout */
-    private NdbRecordImpl record = null;
-
     /** The flag indicating that there are no more results */
     private boolean nextDone;
-
-    /** The ByteBuffer containing the results */
-    private ByteBuffer buffer = null;
-
-    /** The buffer manager */
-    private BufferManager bufferManager;
 
     /** Construct the ResultDataImpl based on an NdbRecordOperationImpl, and the 
      * buffer manager to help with string columns.
      * @param operation the NdbRecordOperationImpl
      * @param bufferManager the buffer manager
      */
-    public NdbRecordResultDataImpl(NdbRecordOperationImpl operation, NdbRecordImpl ndbRecordImpl,
-            ByteBuffer buffer, BufferManager bufferManager) {
+    public NdbRecordResultDataImpl(NdbRecordOperationImpl operation) {
         this.operation = operation;
-        this.record = ndbRecordImpl;
-        this.bufferManager = bufferManager;
-        this.buffer = buffer;
     }
 
     public boolean next() {
@@ -103,11 +88,11 @@ class NdbRecordResultDataImpl implements ResultData {
     }
 
     public boolean getBoolean(int columnId) {
-        return record.getBoolean(buffer, columnId);
+        return operation.getBoolean(columnId);
     }
 
     public boolean getBoolean(Column storeColumn) {
-        return record.getBoolean(buffer, storeColumn.getColumnId());
+        return operation.getBoolean(storeColumn.getColumnId());
     }
 
     public boolean[] getBooleans(int column) {
@@ -121,23 +106,23 @@ class NdbRecordResultDataImpl implements ResultData {
     }
 
     public byte getByte(int columnId) {
-        return record.getByte(buffer, columnId);
+        return operation.getByte(columnId);
     }
 
     public byte getByte(Column storeColumn) {
-        return record.getByte(buffer, storeColumn.getColumnId());
+        return operation.getByte(storeColumn.getColumnId());
     }
 
     public short getShort(int columnId) {
-        return record.getShort(buffer, columnId);
+        return operation.getShort(columnId);
     }
 
     public short getShort(Column storeColumn) {
-        return record.getShort(buffer, storeColumn.getColumnId());
+        return operation.getShort(storeColumn.getColumnId());
      }
 
     public int getInt(int columnId) {
-        return record.getInt(buffer, columnId);
+        return operation.getInt(columnId);
     }
 
     public int getInt(Column storeColumn) {
@@ -145,7 +130,7 @@ class NdbRecordResultDataImpl implements ResultData {
     }
 
     public long getLong(int columnId) {
-        return record.getLong(buffer, columnId);
+        return operation.getLong(columnId);
     }
 
     public long getLong(Column storeColumn) {
@@ -153,7 +138,7 @@ class NdbRecordResultDataImpl implements ResultData {
      }
 
     public float getFloat(int columnId) {
-        return record.getFloat(buffer, columnId);
+        return operation.getFloat(columnId);
     }
 
     public float getFloat(Column storeColumn) {
@@ -161,7 +146,7 @@ class NdbRecordResultDataImpl implements ResultData {
     }
 
     public double getDouble(int columnId) {
-        return record.getDouble(buffer, columnId);
+        return operation.getDouble(columnId);
     }
 
     public double getDouble(Column storeColumn) {
@@ -169,19 +154,19 @@ class NdbRecordResultDataImpl implements ResultData {
     }
 
     public String getString(int columnId) {
-        return record.getString(buffer, columnId, bufferManager);
+        return operation.getString(columnId);
     }
 
     public String getString(Column storeColumn) {
-        return record.getString(buffer, storeColumn.getColumnId(), bufferManager);
+        return operation.getString(storeColumn.getColumnId());
     }
 
     public byte[] getBytes(int column) {
-        return record.getBytes(buffer, column);
+        return operation.getBytes(column);
     }
 
     public byte[] getBytes(Column storeColumn) {
-        return record.getBytes(buffer, storeColumn);
+        return operation.getBytes(storeColumn);
      }
 
     public Object getObject(int column) {
@@ -200,75 +185,75 @@ class NdbRecordResultDataImpl implements ResultData {
     }
 
     public Boolean getObjectBoolean(int column) {
-        return record.getObjectBoolean(buffer, column);
+        return operation.getObjectBoolean(column);
     }
 
     public Boolean getObjectBoolean(Column storeColumn) {
-        return record.getObjectBoolean(buffer, storeColumn.getColumnId());
+        return operation.getObjectBoolean(storeColumn.getColumnId());
     }
 
     public Byte getObjectByte(int columnId) {
-        return record.getObjectByte(buffer, columnId);
+        return operation.getObjectByte(columnId);
     }
 
     public Byte getObjectByte(Column storeColumn) {
-        return record.getObjectByte(buffer, storeColumn.getColumnId());
+        return operation.getObjectByte(storeColumn.getColumnId());
     }
 
     public Float getObjectFloat(int column) {
-        return record.getObjectFloat(buffer, column);
+        return operation.getObjectFloat(column);
     }
 
     public Float getObjectFloat(Column storeColumn) {
-        return record.getObjectFloat(buffer, storeColumn.getColumnId());
+        return operation.getObjectFloat(storeColumn.getColumnId());
     }
 
     public Double getObjectDouble(int column) {
-        return record.getObjectDouble(buffer, column);
+        return operation.getObjectDouble(column);
     }
 
     public Double getObjectDouble(Column storeColumn) {
-        return record.getObjectDouble(buffer, storeColumn.getColumnId());
+        return operation.getObjectDouble(storeColumn.getColumnId());
     }
 
     public Integer getObjectInteger(int columnId) {
-        return record.getObjectInteger(buffer, columnId);
+        return operation.getObjectInteger(columnId);
     }
 
     public Integer getObjectInteger(Column storeColumn) {
-        return record.getObjectInteger(buffer, storeColumn.getColumnId());
+        return operation.getObjectInteger(storeColumn.getColumnId());
     }
 
     public Long getObjectLong(int column) {
-        return record.getObjectLong(buffer, column);
+        return operation.getObjectLong(column);
     }
 
     public Long getObjectLong(Column storeColumn) {
-        return record.getObjectLong(buffer, storeColumn.getColumnId());
+        return operation.getObjectLong(storeColumn.getColumnId());
     }
 
     public Short getObjectShort(int columnId) {
-        return record.getObjectShort(buffer, columnId);
+        return operation.getObjectShort(columnId);
     }
 
     public Short getObjectShort(Column storeColumn) {
-        return record.getObjectShort(buffer, storeColumn.getColumnId());
+        return operation.getObjectShort(storeColumn.getColumnId());
     }
 
     public BigInteger getBigInteger(int column) {
-        return record.getBigInteger(buffer, column);
+        return operation.getBigInteger(column);
     }
 
     public BigInteger getBigInteger(Column storeColumn) {
-        return record.getBigInteger(buffer, storeColumn);
+        return operation.getBigInteger(storeColumn);
     }
 
     public BigDecimal getDecimal(int column) {
-        return record.getDecimal(buffer, column);
+        return operation.getDecimal(column);
     }
 
     public BigDecimal getDecimal(Column storeColumn) {
-        return record.getDecimal(buffer, storeColumn);
+        return operation.getDecimal(storeColumn);
     }
 
     public void setNoResult() {

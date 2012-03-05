@@ -1,4 +1,4 @@
-#   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+#   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -64,7 +64,9 @@ clusterj_core_java = \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/DomainTypeHandlerFactory.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/QueryExecutionContext.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/SessionSPI.java \
+  $(clusterj_core_src)/com/mysql/clusterj/core/spi/SmartValueHandler.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/ValueHandler.java \
+  $(clusterj_core_src)/com/mysql/clusterj/core/spi/ValueHandlerFactory.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/ValueHandlerBatching.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/StateManager.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/store/Blob.java \

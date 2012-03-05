@@ -21,7 +21,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import java.nio.ByteBuffer;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,8 +28,10 @@ import com.mysql.clusterj.ClusterJFatalInternalException;
 
 import com.mysql.clusterj.core.store.Blob;
 import com.mysql.clusterj.core.store.Column;
+import com.mysql.clusterj.core.store.Db;
 import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.ResultData;
+import com.mysql.clusterj.core.store.Table;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
@@ -44,7 +45,7 @@ import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 /**
  * Implementation of store operation that uses NdbRecord.
  */
-public abstract class NdbRecordOperationImpl implements Operation {
+public class NdbRecordOperationImpl implements Operation {
 
     /** My message translator */
     static final I18NHelper local = I18NHelper
@@ -55,7 +56,7 @@ public abstract class NdbRecordOperationImpl implements Operation {
             .getInstance(NdbRecordOperationImpl.class);
 
     /** The ClusterTransaction that this operation belongs to */
-    protected ClusterTransactionImpl clusterTransaction;
+    protected ClusterTransactionImpl clusterTransaction = null;
 
     /** The NdbOperation wrapped by this object */
     protected NdbOperationConst ndbOperation = null;
@@ -93,13 +94,103 @@ public abstract class NdbRecordOperationImpl implements Operation {
     /** The buffer manager for string encode and decode */
     protected BufferManager bufferManager;
 
+    /** The table name */
+    protected String tableName;
+
+    /** The store columns. */
+    protected Column[] storeColumns;
+
+    /** The number of columns */
+    int numberOfColumns;
+
+    /** Constructor used for smart value handler.
+     * 
+     * @param clusterConnection the cluster connection
+     * @param storeTable the store table
+     */
+    public NdbRecordOperationImpl(ClusterConnectionImpl clusterConnection, Db db, Table storeTable) {
+        this.tableName = storeTable.getName();
+        this.ndbRecordValues = clusterConnection.getCachedNdbRecordImpl(storeTable);
+        this.ndbRecordKeys = ndbRecordValues;
+        this.valueBufferSize = ndbRecordValues.getBufferSize();
+        this.keyBufferSize = ndbRecordKeys.getBufferSize();
+        this.valueBuffer = ndbRecordValues.newBuffer();
+        this.keyBuffer = valueBuffer;
+        this.storeColumns = ndbRecordValues.storeColumns;
+        this.numberOfColumns = storeColumns.length;
+        this.blobs = new NdbRecordBlobImpl[this.numberOfColumns];
+        this.bufferManager = ((DbImpl)db).getBufferManager();
+        resetMask();
+    }
+
+    protected void resetMask() {
+        this.mask = new byte[1 + (numberOfColumns/8)];
+    }
+
     /** Constructor used for insert and delete operations that do not need to read data.
      * 
      * @param clusterTransaction the cluster transaction
      */
-    public NdbRecordOperationImpl(ClusterTransactionImpl clusterTransaction) {
+    public NdbRecordOperationImpl(ClusterTransactionImpl clusterTransaction, Table storeTable) {
+        this.tableName = storeTable.getName();
         this.clusterTransaction = clusterTransaction;
         this.bufferManager = clusterTransaction.getBufferManager();
+    }
+
+    public NdbOperationConst insert(ClusterTransactionImpl clusterTransactionImpl) {
+        // position the buffer at the beginning for ndbjtie
+        valueBuffer.limit(valueBufferSize);
+        valueBuffer.position(0);
+        ndbOperation = clusterTransactionImpl.insertTuple(ndbRecordValues.getNdbRecord(), valueBuffer, mask, null);
+        clusterTransactionImpl.addOperationToCheck(this);
+        // for each blob column set, get the blob handle and write the values
+        for (NdbRecordBlobImpl blob: activeBlobs) {
+            // activate the blob
+            blob.setNdbBlob();
+            // set values into the blob
+            blob.setValue();
+        }
+        return ndbOperation;
+    }
+
+    public NdbOperationConst delete(ClusterTransactionImpl clusterTransactionImpl) {
+        // position the buffer at the beginning for ndbjtie
+        keyBuffer.limit(keyBufferSize);
+        keyBuffer.position(0);
+        ndbOperation = clusterTransactionImpl.deleteTuple(ndbRecordKeys.getNdbRecord(), keyBuffer, mask, null);
+        return ndbOperation;
+    }
+
+    public void update(ClusterTransactionImpl clusterTransactionImpl) {
+        // position the buffer at the beginning for ndbjtie
+        valueBuffer.limit(valueBufferSize);
+        valueBuffer.position(0);
+        ndbOperation = clusterTransactionImpl.updateTuple(ndbRecordValues.getNdbRecord(), valueBuffer, mask, null);
+        clusterTransactionImpl.addOperationToCheck(this);
+        // for each blob column set, get the blob handle and write the values
+        for (NdbRecordBlobImpl blob: activeBlobs) {
+            // activate the blob
+            blob.setNdbBlob();
+            // set values into the blob
+            blob.setValue();
+        }
+        return;
+    }
+
+    public void write(ClusterTransactionImpl clusterTransactionImpl) {
+        // position the buffer at the beginning for ndbjtie
+        valueBuffer.limit(valueBufferSize);
+        valueBuffer.position(0);
+        ndbOperation = clusterTransactionImpl.writeTuple(ndbRecordValues.getNdbRecord(), valueBuffer, mask, null);
+        clusterTransactionImpl.addOperationToCheck(this);
+        // for each blob column set, get the blob handle and write the values
+        for (NdbRecordBlobImpl blob: activeBlobs) {
+            // activate the blob
+            blob.setNdbBlob();
+            // set values into the blob
+            blob.setValue();
+        }
+        return;
     }
 
     public void equalBigInteger(Column storeColumn, BigInteger value) {
@@ -142,13 +233,13 @@ public abstract class NdbRecordOperationImpl implements Operation {
         columnSet(columnId);
     }
 
-    public void equalShort(Column storeColumn, short value) {
-        int columnId = ndbRecordKeys.setShort(keyBuffer, storeColumn, value);
+    public void equalLong(Column storeColumn, long value) {
+        int columnId = ndbRecordKeys.setLong(keyBuffer, storeColumn, value);
         columnSet(columnId);
     }
 
-    public void equalLong(Column storeColumn, long value) {
-        int columnId = ndbRecordKeys.setLong(keyBuffer, storeColumn, value);
+    public void equalShort(Column storeColumn, short value) {
+        int columnId = ndbRecordKeys.setShort(keyBuffer, storeColumn, value);
         columnSet(columnId);
     }
 
@@ -209,8 +300,16 @@ public abstract class NdbRecordOperationImpl implements Operation {
     }
 
     public void setBigInteger(Column storeColumn, BigInteger value) {
-        int columnId = ndbRecordValues.setBigInteger(valueBuffer, storeColumn, value);
-        columnSet(columnId);
+        if (value == null) {
+            setNull(storeColumn);
+        } else {
+            int columnId = ndbRecordValues.setBigInteger(valueBuffer, storeColumn, value);
+            columnSet(columnId);
+        }
+    }
+
+    public void setBigInteger(int columnId, BigInteger value) {
+        setBigInteger(storeColumns[columnId], value);
     }
 
     public void setBoolean(Column storeColumn, Boolean booleanValue) {
@@ -218,19 +317,43 @@ public abstract class NdbRecordOperationImpl implements Operation {
         setByte(storeColumn, value);
     }
 
+    public void setBoolean(int columnId, boolean value) {
+        setBoolean(storeColumns[columnId], value);
+    }
+
     public void setByte(Column storeColumn, byte value) {
         int columnId = ndbRecordValues.setByte(valueBuffer, storeColumn, value);
         columnSet(columnId);
     }
 
+    public void setByte(int columnId, byte value) {
+        setByte(storeColumns[columnId], value);
+    }
+
     public void setBytes(Column storeColumn, byte[] value) {
-        int columnId = ndbRecordValues.setBytes(valueBuffer, storeColumn, value);
-        columnSet(columnId);
+        if (value == null) {
+            setNull(storeColumn);
+        } else {
+            int columnId = ndbRecordValues.setBytes(valueBuffer, storeColumn, value);
+            columnSet(columnId);
+        }
+    }
+
+    public void setBytes(int columnId, byte[] value) {
+        setBytes(storeColumns[columnId], value);
     }
 
     public void setDecimal(Column storeColumn, BigDecimal value) {
-        int columnId = ndbRecordValues.setDecimal(valueBuffer, storeColumn, value);
-        columnSet(columnId);
+        if (value == null) {
+            setNull(storeColumn);
+        } else {
+            int columnId = ndbRecordValues.setDecimal(valueBuffer, storeColumn, value);
+            columnSet(columnId);
+        }
+    }
+
+    public void setDecimal(int columnId, BigDecimal value) {
+        setDecimal(storeColumns[columnId], value);
     }
 
     public void setDouble(Column storeColumn, Double value) {
@@ -238,9 +361,17 @@ public abstract class NdbRecordOperationImpl implements Operation {
         columnSet(columnId);
     }
 
+    public void setDouble(int columnId, double value) {
+        setDouble(storeColumns[columnId], value);
+    }
+
     public void setFloat(Column storeColumn, Float value) {
         int columnId = ndbRecordValues.setFloat(valueBuffer, storeColumn, value);
         columnSet(columnId);
+    }
+
+    public void setFloat(int columnId, float value) {
+        setFloat(storeColumns[columnId], value);
     }
 
     public void setInt(Column storeColumn, Integer value) {
@@ -248,9 +379,17 @@ public abstract class NdbRecordOperationImpl implements Operation {
         columnSet(columnId);
     }
 
+    public void setInt(int columnId, int value) {
+        setInt(storeColumns[columnId], value);
+    }
+
     public void setLong(Column storeColumn, long value) {
         int columnId = ndbRecordValues.setLong(valueBuffer, storeColumn, value);
         columnSet(columnId);
+    }
+
+    public void setLong(int columnId, long value) {
+        setLong(storeColumns[columnId], value);
     }
 
     public void setNull(Column storeColumn) {
@@ -258,14 +397,93 @@ public abstract class NdbRecordOperationImpl implements Operation {
         columnSet(columnId);
     }
 
+    public void setNull(int columnId) {
+        setNull(storeColumns[columnId]);
+    }
+
     public void setShort(Column storeColumn, Short value) {
         int columnId = ndbRecordValues.setShort(valueBuffer, storeColumn, value);
         columnSet(columnId);
     }
 
+    public void setShort(int columnId, short value) {
+        setShort(storeColumns[columnId], value);
+    }
+
+    public void setObjectBoolean(int columnId, Boolean value) {
+        Column storeColumn = storeColumns[columnId];
+        if (value == null) {
+            setNull(storeColumn);
+        } else {
+            setBoolean(storeColumn, value);
+        }
+    }
+
+    public void setObjectByte(int columnId, Byte value) {
+        Column storeColumn = storeColumns[columnId];
+        if (value == null) {
+            setNull(storeColumn);
+        } else {
+            setByte(storeColumn, value);
+        }
+    }
+
+    public void setObjectDouble(int columnId, Double value) {
+        Column storeColumn = storeColumns[columnId];
+        if (value == null) {
+            setNull(storeColumn);
+        } else {
+            setDouble(storeColumn, value);
+        }
+    }
+
+    public void setObjectFloat(int columnId, Float value) {
+        Column storeColumn = storeColumns[columnId];
+        if (value == null) {
+            setNull(storeColumn);
+        } else {
+            setFloat(storeColumn, value);
+        }
+    }
+
+    public void setObjectInt(int columnId, Integer value) {
+        Column storeColumn = storeColumns[columnId];
+        if (value == null) {
+            setNull(storeColumn);
+        } else {
+            setInt(storeColumn, value);
+        }
+    }
+
+    public void setObjectLong(int columnId, Long value) {
+        Column storeColumn = storeColumns[columnId];
+        if (value == null) {
+            setNull(storeColumn);
+        } else {
+            setLong(storeColumn, value);
+        }
+    }
+
+    public void setObjectShort(int columnId, Short value) {
+        Column storeColumn = storeColumns[columnId];
+        if (value == null) {
+            setNull(storeColumn);
+        } else {
+            setShort(storeColumn, value);
+        }
+    }
+
     public void setString(Column storeColumn, String value) {
-        int columnId = ndbRecordValues.setString(valueBuffer, bufferManager, storeColumn, value);
-        columnSet(columnId);
+        if (value == null) {
+            setNull(storeColumn);
+        } else {
+            int columnId = ndbRecordValues.setString(valueBuffer, bufferManager, storeColumn, value);
+            columnSet(columnId);
+        }
+    }
+
+    public void setString(int columnId, String value) {
+        setString(storeColumns[columnId], value);
     }
 
     public int errorCode() {
@@ -315,6 +533,230 @@ public abstract class NdbRecordOperationImpl implements Operation {
 
     public NdbRecordImpl getValueNdbRecord() {
         return ndbRecordValues;
+    }
+
+    public boolean getBoolean(int columnId) {
+        return ndbRecordValues.getBoolean(valueBuffer, columnId);
+    }
+
+    public boolean getBoolean(Column storeColumn) {
+        return ndbRecordValues.getBoolean(valueBuffer, storeColumn.getColumnId());
+    }
+
+    public boolean[] getBooleans(int column) {
+        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
+                "NdbRecordResultDataImpl.getBooleans(int)"));
+    }
+
+    public boolean[] getBooleans(Column storeColumn) {
+        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
+                "NdbRecordResultDataImpl.getBooleans(Column)"));
+    }
+
+    public byte getByte(int columnId) {
+        return ndbRecordValues.getByte(valueBuffer, columnId);
+    }
+
+    public byte getByte(Column storeColumn) {
+        return ndbRecordValues.getByte(valueBuffer, storeColumn.getColumnId());
+    }
+
+    public short getShort(int columnId) {
+        return ndbRecordValues.getShort(valueBuffer, columnId);
+    }
+
+    public short getShort(Column storeColumn) {
+        return ndbRecordValues.getShort(valueBuffer, storeColumn.getColumnId());
+     }
+
+    public int getInt(int columnId) {
+        return ndbRecordValues.getInt(valueBuffer, columnId);
+    }
+
+    public int getInt(Column storeColumn) {
+        return getInt(storeColumn.getColumnId());
+    }
+
+    public long getLong(int columnId) {
+        return ndbRecordValues.getLong(valueBuffer, columnId);
+    }
+
+    public long getLong(Column storeColumn) {
+        return getLong(storeColumn.getColumnId());
+     }
+
+    public float getFloat(int columnId) {
+        return ndbRecordValues.getFloat(valueBuffer, columnId);
+    }
+
+    public float getFloat(Column storeColumn) {
+        return getFloat(storeColumn.getColumnId());
+    }
+
+    public double getDouble(int columnId) {
+        return ndbRecordValues.getDouble(valueBuffer, columnId);
+    }
+
+    public double getDouble(Column storeColumn) {
+        return getDouble(storeColumn.getColumnId());
+    }
+
+    public String getString(int columnId) {
+        return ndbRecordValues.getString(valueBuffer, columnId, bufferManager);
+    }
+
+    public String getString(Column storeColumn) {
+        return ndbRecordValues.getString(valueBuffer, storeColumn.getColumnId(), bufferManager);
+    }
+
+    public byte[] getBytes(int column) {
+        return ndbRecordValues.getBytes(valueBuffer, column);
+    }
+
+    public byte[] getBytes(Column storeColumn) {
+        return ndbRecordValues.getBytes(valueBuffer, storeColumn);
+     }
+
+    public Object getObject(int column) {
+        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
+        "NdbRecordResultDataImpl.getObject(int)"));
+    }
+
+    public Object getObject(Column storeColumn) {
+        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
+        "NdbRecordResultDataImpl.getObject(Column)"));
+    }
+
+    public boolean wasNull(Column storeColumn) {
+        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
+        "NdbRecordResultDataImpl.wasNull(Column)"));
+    }
+
+    public Boolean getObjectBoolean(int column) {
+        return ndbRecordValues.getObjectBoolean(valueBuffer, column);
+    }
+
+    public Boolean getObjectBoolean(Column storeColumn) {
+        return ndbRecordValues.getObjectBoolean(valueBuffer, storeColumn.getColumnId());
+    }
+
+    public Byte getObjectByte(int columnId) {
+        return ndbRecordValues.getObjectByte(valueBuffer, columnId);
+    }
+
+    public Byte getObjectByte(Column storeColumn) {
+        return ndbRecordValues.getObjectByte(valueBuffer, storeColumn.getColumnId());
+    }
+
+    public Float getObjectFloat(int column) {
+        return ndbRecordValues.getObjectFloat(valueBuffer, column);
+    }
+
+    public Float getObjectFloat(Column storeColumn) {
+        return ndbRecordValues.getObjectFloat(valueBuffer, storeColumn.getColumnId());
+    }
+
+    public Double getObjectDouble(int column) {
+        return ndbRecordValues.getObjectDouble(valueBuffer, column);
+    }
+
+    public Double getObjectDouble(Column storeColumn) {
+        return ndbRecordValues.getObjectDouble(valueBuffer, storeColumn.getColumnId());
+    }
+
+    public Integer getObjectInteger(int columnId) {
+        return ndbRecordValues.getObjectInteger(valueBuffer, columnId);
+    }
+
+    public Integer getObjectInteger(Column storeColumn) {
+        return ndbRecordValues.getObjectInteger(valueBuffer, storeColumn.getColumnId());
+    }
+
+    public Long getObjectLong(int column) {
+        return ndbRecordValues.getObjectLong(valueBuffer, column);
+    }
+
+    public Long getObjectLong(Column storeColumn) {
+        return ndbRecordValues.getObjectLong(valueBuffer, storeColumn.getColumnId());
+    }
+
+    public Short getObjectShort(int columnId) {
+        return ndbRecordValues.getObjectShort(valueBuffer, columnId);
+    }
+
+    public Short getObjectShort(Column storeColumn) {
+        return ndbRecordValues.getObjectShort(valueBuffer, storeColumn.getColumnId());
+    }
+
+    public BigInteger getBigInteger(int column) {
+        return ndbRecordValues.getBigInteger(valueBuffer, column);
+    }
+
+    public BigInteger getBigInteger(Column storeColumn) {
+        return ndbRecordValues.getBigInteger(valueBuffer, storeColumn);
+    }
+
+    public BigDecimal getDecimal(int column) {
+        return ndbRecordValues.getDecimal(valueBuffer, column);
+    }
+
+    public BigDecimal getDecimal(Column storeColumn) {
+        return ndbRecordValues.getDecimal(valueBuffer, storeColumn);
+    }
+
+    public void beginDefinition() {
+        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
+        "NdbRecordResultDataImpl.beginDefinition()"));
+    }
+
+    public void endDefinition() {
+        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
+        "NdbRecordResultDataImpl.endDefinition()"));
+    }
+
+    public String dumpValues() {
+        return ndbRecordValues.dumpValues(valueBuffer, mask);
+    }
+
+    public boolean isModified(int columnId) {
+        return ndbRecordValues.isPresent(mask, columnId);
+    }
+
+    public boolean isNull(int columnId) {
+        return ndbRecordValues.isNull(valueBuffer, columnId);
+    }
+
+    public void markModified(int columnId) {
+        ndbRecordValues.markPresent(mask, columnId);
+    }
+
+    public void resetModified() {
+        this.mask = new byte[1 + (numberOfColumns/8)];
+    }
+
+    public NdbRecordBlobImpl getBlobHandle(int columnId) {
+        return (NdbRecordBlobImpl) getBlobHandle(storeColumns[columnId]);
+    }
+
+    public int getErrorCode() {
+        return ndbOperation.getNdbError().code();
+    }
+
+    public int getClassification() {
+        return ndbOperation.getNdbError().classification();
+    }
+
+    public int getMysqlCode() {
+        return ndbOperation.getNdbError().mysql_code();
+    }
+
+    public int getStatus() {
+        return ndbOperation.getNdbError().status();
+    }
+
+    @Override
+    public String toString() {
+        return tableName;
     }
 
 }

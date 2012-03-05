@@ -41,6 +41,9 @@ class NdbRecordBlobImpl extends BlobImpl {
     /** The store column for this blob */
     private Column storeColumn;
 
+    /** The data for this blob */
+    private byte[] data;
+
     /** The operation */
     private NdbRecordOperationImpl operation;
 
@@ -51,6 +54,26 @@ class NdbRecordBlobImpl extends BlobImpl {
 
     protected void setNdbBlob() {
         this.ndbBlob = operation.getNdbBlob(storeColumn);
+    }
+
+    public void setValue() {
+        setValue(data);
+    }
+
+    public void setData(byte[] bytes) {
+        data = bytes;
+    }
+
+    public void setData(String string) {
+        data = storeColumn.encode(string);
+    }
+
+    public byte[] getBytesData() {
+        return data;
+    }
+
+    public String getStringData() {
+        return storeColumn.decode(data);
     }
 
 }
