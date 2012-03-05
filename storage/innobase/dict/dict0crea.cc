@@ -684,18 +684,27 @@ dict_create_index_tree_step(
 
 	zip_size = dict_table_zip_size(index->table);
 
-	node->page_no = btr_create(index->type, index->space, zip_size,
-				   index->id, index, &mtr);
-	/* printf("Created a new index tree in space %lu root page %lu\n",
-	index->space, node->page_no); */
+	if (!(node->index->table->ibd_file_missing
+	     || dict_table_is_discarded(node->index->table))) {
 
-	page_rec_write_field(btr_pcur_get_rec(&pcur),
-			     DICT_FLD__SYS_INDEXES__PAGE_NO,
-			     node->page_no, &mtr);
+		node->page_no = btr_create(
+			index->type, index->space, zip_size,
+			index->id, index, &mtr);
+	} else {
+		node->page_no = FIL_NULL;
+	}
+
+	page_rec_write_field(
+		btr_pcur_get_rec(&pcur), DICT_FLD__SYS_INDEXES__PAGE_NO,
+		node->page_no, &mtr);
+
 	btr_pcur_close(&pcur);
+
 	mtr_commit(&mtr);
 
-	if (node->page_no == FIL_NULL) {
+	if (node->page_no == FIL_NULL
+	    && !(node->index->table->ibd_file_missing
+		 || dict_table_is_discarded(index->table))) {
 
 		return(DB_OUT_OF_FILE_SPACE);
 	}
