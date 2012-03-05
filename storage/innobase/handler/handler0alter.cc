@@ -1288,11 +1288,17 @@ ha_innobase::add_index(
 		}
 	}
 
-	/* Read the clustered index of the table and build indexes
-	based on this information using temporary files and merge sort. */
-	error = row_merge_build_indexes(prebuilt->trx,
-					prebuilt->table, indexed_table,
-					index, num_of_idx, table);
+	if (!(prebuilt->table->ibd_file_missing
+	     || dict_table_is_discarded(prebuilt->table))) {
+
+		/* Read the clustered index of the table and build
+		indexes based on this information using temporary
+		files and merge sort. */
+
+		error = row_merge_build_indexes(
+			prebuilt->trx, prebuilt->table, indexed_table,
+			index, num_of_idx, table);
+	}
 
 error_handling:
 
