@@ -1040,12 +1040,15 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
                 rootOrder == NdbQueryOptions::ScanOrdering_descending,
                 QRY_MULTIPLE_SCAN_SORTED);
 
-    // A child scan should not be sorted.
-    const NdbQueryOptions::ScanOrdering order =
-      options->getImpl().getOrdering();
-    returnErrIf(order == NdbQueryOptions::ScanOrdering_ascending ||
-                order == NdbQueryOptions::ScanOrdering_descending,
-                QRY_MULTIPLE_SCAN_SORTED);
+    if (options != NULL)
+    {
+      // A child scan should not be sorted.
+      const NdbQueryOptions::ScanOrdering order =
+        options->getImpl().getOrdering();
+      returnErrIf(order == NdbQueryOptions::ScanOrdering_ascending ||
+                  order == NdbQueryOptions::ScanOrdering_descending,
+                  QRY_MULTIPLE_SCAN_SORTED);
+    }
   }
 
   const NdbIndexImpl& indexImpl = NdbIndexImpl::getImpl(*index);
