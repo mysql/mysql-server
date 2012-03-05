@@ -37,7 +37,6 @@ sub add_opt_values {
 
   # add auto-options
   $config->insert('OPT', 'port'   => sub { fix_port($self, $config) });
-  $config->insert('OPT', 'vardir' => sub { $self->{ARGS}->{vardir} });
   $config->insert('mysqld', "loose-skip-$_" => undef) for (@::optional_plugins);
 }
 

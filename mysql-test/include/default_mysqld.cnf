@@ -23,7 +23,7 @@ character-set-server=      latin1
 # disconnects when test servers are put under load see BUG#28359
 connect-timeout=            60
 
-secure-file-priv= @OPT.vardir
+secure-file-priv= @ENV.MYSQLTEST_VARDIR
 
 log-basename=mysqld
 debug-no-sync
