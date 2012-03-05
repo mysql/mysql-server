@@ -27,7 +27,7 @@
 #include <dbtup/Dbtup.hpp>
 
 #include <DebuggerNames.hpp>
-#include <sha1.h>
+#include <md5_hash.hpp>
 
 /**
  * Requests that make page dirty
@@ -2629,21 +2629,13 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
     if (pe.m_state & Pgman::Page_entry::MAPPED) {
       Ptr<GlobalPage> gptr;
       pe.m_this->m_global_page_pool.getPtr(gptr, pe.m_real_page_i);
-      SHA1_CONTEXT c;
-      uint8 digest[SHA1_HASH_SIZE];
-      mysql_sha1_reset(&c);
-      mysql_sha1_input(&c, (uchar*)gptr.p->data, sizeof(gptr.p->data));
-      mysql_sha1_result(&c, digest);
-      char buf[100];
-      int i;
-      for (i = 0; i < 20; i++) {
-        const char* const hexdigit = "0123456789abcdef";
-        uint8 x = digest[i];
-        buf[2*i + 0] = hexdigit[x >> 4];
-        buf[2*i + 1] = hexdigit[x & 0xF];
-      }
-      buf[2*i] = 0;
-      out << " sha1=" << buf;
+      Uint32 hash_result[4];      
+      /* NOTE: Assuming "data" is 64 bit aligned as required by 'md5_hash' */
+      md5_hash(hash_result,
+               (Uint64*)gptr.p->data, sizeof(gptr.p->data)/sizeof(Uint32));
+      out.print(" md5=%08x%08x%08x%08x",
+                hash_result[0], hash_result[1],
+                hash_result[2], hash_result[3]);
     }
 #endif
   }
