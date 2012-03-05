@@ -662,7 +662,41 @@ int runTestNoConfigCache(NDBT_Context* ctx, NDBT_Step* step)
                                         "ndb_1_config.bin.1", 
                                         NULL).c_str());
   CHECK(bin_conf_file == false);
-  
+
+  mgmd->stop();
+  return NDBT_OK;
+}
+
+
+/* Test for BUG#13428853 */
+int runTestNoConfigCache_DontCreateConfigDir(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd"); // temporary working directory
+
+  g_err << "** Create config.ini" << endl;
+  Properties config = ConfigFactory::create();
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+
+  // Start ndb_mgmd  from config.ini
+  Mgmd* mgmd = new Mgmd(1);
+  CHECK(mgmd->start_from_config_ini(wd.path(),
+                                    "--skip-config-cache",
+                                    "--config-dir=dir37",
+                                    NULL));
+
+  // Connect the ndb_mgmd(s)
+  CHECK(mgmd->connect(config));
+
+  // wait for confirmed config
+  CHECK(mgmd->wait_confirmed_config());
+
+  // Check configdir not created
+  bool conf_dir_exist = file_exists(path(wd.path(), "dir37", NULL).c_str());
+  CHECK(conf_dir_exist == false);
+
   mgmd->stop();  
   return NDBT_OK;
 }  
@@ -1185,7 +1219,13 @@ TESTCASE("NoCfgCache",
 {
   INITIALIZER(runTestNoConfigCache);
 }
-
+TESTCASE("NoCfgCacheOrConfigDir",
+         "Test that when an mgmd is started with --skip-config-cache, "
+         "no ndb_xx_config.xx.bin file is created, but you can "
+         "connect to the mgm node and retrieve the config.")
+{
+  INITIALIZER(runTestNoConfigCache_DontCreateConfigDir);
+}
 TESTCASE("Bug45495",
          "Test that mgmd can be restarted in any order")
 {
