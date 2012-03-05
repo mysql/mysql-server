@@ -43,7 +43,28 @@ Created 2012-02-08 by Sunny Bains.
 /** Index information required by IMPORT. */
 struct row_index_t {
 	byte*		name;			/*!< Index name */
+
+	ulint		space;			/*!< Space where it is placed */
+
 	ulint		page_no;		/*!< Root page number */
+
+	ulint		type;			/*!< Index type */
+
+	ulint		trx_id_offset;		/*!< Relevant only for clustered
+						indexes, offset of transaction
+						id system column */
+
+	ulint		n_user_defined_cols;	/*!< User defined columns */
+
+	ulint		n_uniq;			/*!< Number of columns that can
+						uniquely identify the row */
+
+	ulint		n_nullable;		/*!< Number of nullable
+						columns */
+
+	ulint		n_fields;		/*!< Total number of fields */
+
+	dict_field_t*	fields;			/*!< Index fields */
 };
 
 /** Meta data required by IMPORT. */
@@ -466,6 +487,22 @@ row_import_free(
 			delete cfg->indexes[i].name;
 			cfg->indexes[i].name = 0;
 		}
+
+		if (cfg->indexes[i].fields == 0) {
+			continue;
+		}
+
+		ulint	n_fields = cfg->indexes[i].n_user_defined_cols;
+
+		for (ulint j = 0; j < n_fields; ++j) {
+			if (cfg->indexes[i].fields[j].name != 0) {
+				delete cfg->indexes[i].fields[j].name;
+				cfg->indexes[i].fields[j].name = 0;
+			}
+		}
+
+		delete [] cfg->indexes[i].fields;
+		cfg->indexes[i].fields = 0;
 	}
 
 	for (ulint i = 0; i < cfg->n_cols; ++i) {
@@ -799,22 +836,86 @@ row_import_cfg_read_string(
 	return(DB_IO_ERROR);
 }
 
+/*********************************************************************//**
+Write the meta data (index user fields) config file.
+@return DB_SUCCESS or error code. */
+static	__attribute__((nonnull, warn_unused_result))
+db_err
+row_quiesce_cfg_read_index_fields(
+/*==============================*/
+	FILE*			file,	/*!< in: file to write to */
+	void*			thd,	/*!< in/out: session */
+	row_index_t*		index,	/*!< Index being read in */
+	row_import_t*		cfg)	/*!< in/out: meta-data read */
+{
+	byte			row[sizeof(ib_uint32_t) * 3];
+	ulint			n_fields = index->n_fields;
+
+	index->fields = new(std::nothrow) dict_field_t[n_fields];
+
+	if (index->fields == 0) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	dict_field_t*	field = index->fields;
+
+	memset(field, 0x0, sizeof(dict_field_t) * n_fields);
+
+	for (ulint i = 0; i < n_fields; ++i, ++field) {
+		byte*		ptr = row;
+
+		if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
+
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_EXCEPTIONS_WRITE_ERROR,
+				 "I/O error (%lu), while reading index fields.",
+				 (ulint) errno);
+
+			return(DB_IO_ERROR);
+		}
+
+		field->prefix_len = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		field->fixed_len = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		/* Include the NUL byte in the length. */
+		ulint	len = mach_read_from_4(ptr);
+
+		byte*	name = new(std::nothrow) byte[len];
+
+		if (name == 0) {
+			return(DB_OUT_OF_MEMORY);
+		}
+
+		field->name = reinterpret_cast<const char*>(name);
+
+		db_err	err = row_import_cfg_read_string(file, name, len);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+
 /*****************************************************************//**
 Read the index names and root page numbers of the indexes and set the values.
 Row format [root_page_no, len of str, str ... ]
 @return DB_SUCCESS or error code. */
 static __attribute__((nonnull, warn_unused_result))
 db_err
-row_import_read_index_root_pageno(
-/*==============================*/
+row_import_read_index_data(
+/*=======================*/
 	FILE*		file,		/*!< in: File to read from */
 	void*		thd,		/*!< in: session */
 	row_import_t*	cfg)		/*!< in/out: meta-data read */
 {
 	byte*		ptr;
 	row_index_t*	cfg_index;
-	db_err		err = DB_SUCCESS;
-	byte		row[sizeof(ib_uint32_t) * 2];
+	byte		row[sizeof(ib_uint32_t) * 9];
 
 	/* FIXME: What is the max value? */
 	ut_a(cfg->n_indexes > 0);
@@ -830,13 +931,9 @@ row_import_read_index_root_pageno(
 
 	cfg_index = cfg->indexes;
 
-	for (ulint i = 0;
-	     i < cfg->n_indexes && err == DB_SUCCESS;
-	     ++i, ++cfg_index) {
+	for (ulint i = 0; i < cfg->n_indexes; ++i, ++cfg_index) {
 
-		ptr = row;
-
-		/* Read the root page number of the index. */
+		/* Read the index data. */
 		if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
 				"I/O error (%lu) while reading index "
@@ -845,7 +942,30 @@ row_import_read_index_root_pageno(
 			return(DB_IO_ERROR);
 		}
 
+		ptr = row;
+
+		cfg_index->space = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
 		cfg_index->page_no = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		cfg_index->type = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		cfg_index->trx_id_offset = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		cfg_index->n_user_defined_cols = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		cfg_index->n_uniq = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		cfg_index->n_nullable = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		cfg_index->n_fields = mach_read_from_4(ptr);
 		ptr += sizeof(ib_uint32_t);
 
 		/* The NUL byte is included in the name length. */
@@ -865,10 +985,24 @@ row_import_read_index_root_pageno(
 			return(DB_OUT_OF_MEMORY);
 		}
 
+		db_err	err;
+
 		err = row_import_cfg_read_string(file, cfg_index->name, len);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+
+		err = row_quiesce_cfg_read_index_fields(
+			file, thd, cfg_index, cfg);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+
 	}
 
-	return(err);
+	return(DB_SUCCESS);
 }
 
 /*****************************************************************//**
@@ -910,7 +1044,7 @@ row_import_read_indexes(
 		return(DB_CORRUPTION);
 	}
 
-	return(row_import_read_index_root_pageno(file, thd, cfg));
+	return(row_import_read_index_data(file, thd, cfg));
 }
 
 /*********************************************************************//**
@@ -946,14 +1080,16 @@ row_import_read_columns(
 	memset(cfg->cols, 0x0, sizeof(cfg->cols) * cfg->n_cols);
 	memset(cfg->col_names, 0x0, sizeof(cfg->col_names) * cfg->n_cols);
 
-	for (ulint i; i < cfg->n_cols; ++i, ++col) {
+	col = cfg->cols;
+
+	for (ulint i = 0; i < cfg->n_cols; ++i, ++col) {
 		byte*		ptr = row;
 
 		if (fread(row, 1,  sizeof(row), file) != sizeof(row)) {
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
 				 ER_INDEX_CORRUPT,
 				 "I/O error (%lu), while reading table column "
-				 "data.", (ulint) errno);
+				 "meta-data.", (ulint) errno);
 
 			return(DB_IO_ERROR);
 		}
@@ -979,12 +1115,10 @@ row_import_read_columns(
 		col->max_prefix = mach_read_from_4(ptr);
 		ptr += sizeof(ib_uint32_t);
 
-		ib_uint32_t	len;
-
 		/* Read in the column name as [len, byte array]. The len
 		includes the NUL byte. */
 
-		len = mach_read_from_4(row);
+		ulint		len = mach_read_from_4(ptr);
 
 		/* FIXME: What is the maximum column name length? */
 		if (len == 0 || len > 128) {
