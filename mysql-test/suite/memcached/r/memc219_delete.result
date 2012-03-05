@@ -46,7 +46,7 @@ H	Hamburg
 Here the memcached results with E,H:
 Hamburg
 Delete D|Darmstadt:
-Error: D|Darmstatd doesn't  exist.
+Ok.
 SELECT c1,c2 FROM t1;
 c1	c2
 B	Berlin

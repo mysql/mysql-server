@@ -748,7 +748,8 @@ innodb_remove(
 
 	err = innodb_api_delete(innodb_eng, conn_data, key, nkey);
 
-	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_DELETE);
+	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_DELETE,
+				err == ENGINE_SUCCESS);
 
 	return(err);
 }
@@ -908,7 +909,7 @@ innodb_get(
 
 func_exit:
 
-	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_READ);
+	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_READ, true);
 
 	return(err_ret);
 }
@@ -996,7 +997,8 @@ innodb_store(
 	result = innodb_api_store(innodb_eng, conn_data, value, len, val_len,
 				  exptime, cas, input_cas, flags, op);
 
-	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_WRITE);
+	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_WRITE,
+				result == ENGINE_SUCCESS);
 
 	return(result);
 }
@@ -1056,7 +1058,8 @@ innodb_arithmetic(
 			      increment, cas, exptime, create, initial,
 			      result);
 
-	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_WRITE);
+	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_WRITE,
+				true);
 
 	return(ENGINE_SUCCESS);
 }
@@ -1131,7 +1134,7 @@ innodb_flush(
 
 	if (conn_data) {
 		innodb_api_cursor_reset(innodb_eng, conn_data,
-					CONN_OP_FLUSH);
+					CONN_OP_FLUSH, true);
 	}
 
 	innodb_conn_clean(innodb_eng, false, true);

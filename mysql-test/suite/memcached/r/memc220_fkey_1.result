@@ -6,13 +6,14 @@ INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 INSERT INTO config_options VALUES("separator", "|");
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 "c1", "c11,c2,c21", "c3", "c4", "c5", "it1");
-CREATE USER mysqltest1@localhost;
 USE test;
+DROP TABLE IF EXISTS t2;
 CREATE TABLE t2        (c1 VARCHAR(32),
 c2 VARCHAR(255),
 c21 VARCHAR(255),
 c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
+DROP TABLE IF EXISTS t1;
 CREATE TABLE t1        (c1  VARCHAR(32),
 c11 VARCHAR(32),
 c2  VARCHAR(1024),
@@ -30,7 +31,6 @@ INSERT INTO t1 VALUES ('B','Bb', 'Berlin', 'Mitte', 0, 0, 0);
 INSERT INTO t1 VALUES ('C','Cc', 'Cottbus', 'West', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H','Hh', 'Hamburg', 'Norderstedt', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-USE test;
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -105,6 +105,9 @@ D	Darmstadt	City	Hessen	M
 E	Essen	Ost	Hessen	M
 F	Frankfurt	Airport	Brandenburg	M
 H	Hamburg	Norderstedt	Schleswig-Holstein	S
+UNINSTALL PLUGIN daemon_memcached;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
 DROP DATABASE innodb_memcache;
-DROP USER mysqltest1@localhost;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 SET @@global.tx_isolation= @tx_isolation;

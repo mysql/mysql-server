@@ -227,8 +227,9 @@ innodb_api_cursor_reset(
 						engine */
 	innodb_conn_data_t*	conn_data,	/*!< in/out: cursor affiliated
 						with a connection */
-	conn_op_type_t		op_type);	/*!< in: type of DML
+	conn_op_type_t		op_type,	/*!< in: type of DML
 						performed */
+	bool			commit);	/*!< in: commit or abort trx */
 
 /**********************************************************************//**
 This function verifies the table configuration information on an opened
