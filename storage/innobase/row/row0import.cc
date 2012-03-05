@@ -1728,17 +1728,34 @@ row_import_update_index_root(
 	     index != 0;
 	     index = dict_table_get_next_index(index)) {
 
-		pars_info_t*		info;
+		pars_info_t*	info;
+		ib_uint32_t	page;
+		ib_uint32_t	space;
+		index_id_t	index_id;
+		table_id_t	table_id;
 
 		info = (graph != 0) ? graph->info : pars_info_create();
 
-		ib_uint32_t	page = (reset) ? FIL_NULL : index->page;
-		ib_uint32_t	space = (reset) ? FIL_NULL : index->space;
+		mach_write_to_4(
+			reinterpret_cast<byte*>(&page),
+		       	reset ? FIL_NULL : index->page);
+
+		mach_write_to_4(
+			reinterpret_cast<byte*>(&space),
+		       	reset ? FIL_NULL : index->space);
+
+		mach_write_to_8(
+			reinterpret_cast<byte*>(&index_id),
+			index->id);
+
+		mach_write_to_8(
+			reinterpret_cast<byte*>(&table_id),
+			table->id);
 
 		pars_info_bind_int4_literal(info, "space", &space);
 		pars_info_bind_int4_literal(info, "page", &page);
-		pars_info_bind_ull_literal(info, "index_id", &index->id);
-		pars_info_bind_ull_literal(info, "table_id", &table->id);
+		pars_info_bind_ull_literal(info, "index_id", &index_id);
+		pars_info_bind_ull_literal(info, "table_id", &table_id);
 
 		if (graph == 0) {
 			graph = pars_sql(info, sql);
@@ -1797,7 +1814,7 @@ struct discard_t {
 Fetch callback that sets or unsets the DISCARDED tablespace flag in
 SYS_TABLES. The flags is stored in MIX_LEN column.
 @return FALSE if all OK */
-static	__attribute__((nonnull, warn_unused_result))
+static
 ibool
 row_import_set_discarded(
 /*=====================*/
@@ -1853,30 +1870,31 @@ row_import_update_discarded_flag(
 	pars_info_t*		info;
 	discard_t		discard;
 
-	static const char	sql[] = {
+	static const char	sql[] =
 		"PROCEDURE UPDATE_DISCARDED_FLAG() IS\n"
-		"DECLARE FUNCTION row_import_set_discarded;\n"
+		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS\n"
-		" SELECT MIX_LEN\n"
-		" FROM SYS_TABLES\n"
-		" WHERE ID = :table_id FOR UPDATE;\n"
+		" SELECT MIX_LEN "
+		" FROM SYS_TABLES "
+		" WHERE ID = :table_id FOR UPDATE;"
 		"\n"
 		"BEGIN\n"
 		"OPEN c;\n"
 		"WHILE 1 = 1 LOOP\n"
-		"  FETCH c INTO row_import_set_discarded();\n"
+		"  FETCH c INTO my_func();\n"
 		"  IF c % NOTFOUND THEN\n"
 		"    EXIT;\n"
 		"  END IF;\n"
 		"END LOOP;\n"
-		"UPDATE SYS_TABLES\n"
-		"SET MIX_LEN = :flags2\n"
-		"WHERE ID = :table_id;\n"
+		"UPDATE SYS_TABLES"
+		" SET MIX_LEN = :flags2"
+		" WHERE ID = :table_id;\n"
 		"CLOSE c;\n"
-		"END;\n"};
+		"END;\n";
 
 	discard.n_recs = 0;
 	discard.state = discarded;
+	discard.flags2 = ULINT32_UNDEFINED;
 
 	info = pars_info_create();
 
@@ -1884,11 +1902,14 @@ row_import_update_discarded_flag(
 	pars_info_bind_int4_literal(info, "flags2", &discard.flags2);
 
 	pars_info_bind_function(
-		info,
-		"row_import_set_discarded", row_import_set_discarded,
-		&discard);
+		info, "my_func", row_import_set_discarded, &discard);
 
-	return(que_eval_sql(info, sql, !dict_locked, trx));
+	db_err	err = que_eval_sql(info, sql, !dict_locked, trx);
+
+	ut_a(discard.n_recs == 1);
+	ut_a(discard.flags2 != ULINT32_UNDEFINED);
+	
+	return(err);
 }
 
 /*****************************************************************//**
