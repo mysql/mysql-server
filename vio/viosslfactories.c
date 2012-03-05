@@ -164,7 +164,7 @@ static void check_ssl_init()
 static struct st_VioSSLFd *
 new_VioSSLFd(const char *key_file, const char *cert_file,
              const char *ca_file, const char *ca_path,
-             const char *cipher, SSL_METHOD *method, 
+             const char *cipher, const SSL_METHOD *method, 
              enum enum_ssl_init_error *error,
              const char *crl_file, const char *crl_path)
 {
