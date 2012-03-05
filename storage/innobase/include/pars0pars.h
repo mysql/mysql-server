@@ -640,16 +640,6 @@ pars_info_add_id(
 	const char*	id);		/*!< in: id */
 
 /****************************************************************//**
-Get user function with the given name.
-@return	user func, or NULL if not found */
-UNIV_INTERN
-pars_user_func_t*
-pars_info_get_user_func(
-/*====================*/
-	pars_info_t*		info,	/*!< in: info struct */
-	const char*		name);	/*!< in: function name to find*/
-
-/****************************************************************//**
 Get bound literal with the given name.
 @return	bound literal, or NULL if not found */
 UNIV_INTERN
