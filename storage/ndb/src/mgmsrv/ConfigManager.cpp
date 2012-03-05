@@ -123,7 +123,8 @@ ConfigManager::find_nodeid_from_configdir(void)
   BaseString config_name;
   NdbDir::Iterator iter;
 
-  if (iter.open(m_configdir) != 0)
+  if (!m_configdir ||
+      iter.open(m_configdir) != 0)
     return 0;
 
   const char* name;
@@ -2102,8 +2103,9 @@ ConfigManager::delete_saved_configs(void) const
 {
   NdbDir::Iterator iter;
 
-  if (iter.open(m_configdir) != 0)
-    return false;
+  if (!m_configdir ||
+      iter.open(m_configdir) != 0)
+    return 0;
 
   bool result = true;
   const char* name;
@@ -2144,8 +2146,9 @@ ConfigManager::saved_config_exists(BaseString& config_name) const
 {
   NdbDir::Iterator iter;
 
-  if (iter.open(m_configdir) != 0)
-    return false;
+  if (!m_configdir ||
+      iter.open(m_configdir) != 0)
+    return 0;
 
   const char* name;
   unsigned nodeid;
@@ -2182,8 +2185,9 @@ ConfigManager::failed_config_change_exists() const
 {
   NdbDir::Iterator iter;
 
-  if (iter.open(m_configdir) != 0)
-    return false;
+  if (!m_configdir ||
+      iter.open(m_configdir) != 0)
+    return 0;
 
   const char* name;
   char tmp;
