@@ -586,7 +586,7 @@ row_import_cleanup(
 
 /*****************************************************************//**
 Report error during tablespace import. */
-static
+static	__attribute__((nonnull, warn_unused_result))
 db_err
 row_import_error(
 /*=============*/
@@ -614,7 +614,7 @@ row_import_error(
 /*****************************************************************//**
 Adjust the root on the table's secondary indexes.
 @return error code */
-static
+static	__attribute__((nonnull, warn_unused_result))
 db_err
 row_import_adjust_root_pages(
 /*=========================*/
@@ -841,8 +841,8 @@ Write the meta data (index user fields) config file.
 @return DB_SUCCESS or error code. */
 static	__attribute__((nonnull, warn_unused_result))
 db_err
-row_quiesce_cfg_read_index_fields(
-/*==============================*/
+row_import_cfg_read_index_fields(
+/*=============================*/
 	FILE*			file,	/*!< in: file to write to */
 	void*			thd,	/*!< in/out: session */
 	row_index_t*		index,	/*!< Index being read in */
@@ -993,7 +993,7 @@ row_import_read_index_data(
 			return(err);
 		}
 
-		err = row_quiesce_cfg_read_index_fields(
+		err = row_import_cfg_read_index_fields(
 			file, thd, cfg_index, cfg);
 
 		if (err != DB_SUCCESS) {
@@ -1155,7 +1155,7 @@ row_import_read_columns(
 /*****************************************************************//**
 Read the contents of the <tablespace>.cfg file.
 @return DB_SUCCESS or error code. */
-static
+static	__attribute__((nonnull, warn_unused_result))
 db_err
 row_import_read_v1(
 /*===============*/
@@ -1270,7 +1270,7 @@ row_import_read_v1(
 /*****************************************************************//**
 Read the contents of the <tablespace>.cfg file.
 @return DB_SUCCESS or error code. */
-static
+static	__attribute__((nonnull, warn_unused_result))
 db_err
 row_import_read_meta_data(
 /*======================*/
@@ -1320,7 +1320,7 @@ row_import_read_meta_data(
 /*****************************************************************//**
 Read the contents of the <tablename>.cfg file.
 @return DB_SUCCESS or error code. */
-static
+static	__attribute__((nonnull, warn_unused_result))
 db_err
 row_import_read_cfg(
 /*================*/
@@ -1336,7 +1336,7 @@ row_import_read_cfg(
 	FILE*	file = fopen(name, "r");
 
 	if (file == NULL) {
-		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
 			 "Error opening: %s", name);
 		err = DB_IO_ERROR;
 	} else {
@@ -1348,8 +1348,255 @@ row_import_read_cfg(
 }
 
 /*****************************************************************//**
+Find the ordinal value of the column name in the cfg table columns.
+@return ULINT_UNDEFINED if not found. */
+static	__attribute__((nonnull, warn_unused_result))
+ulint
+row_import_find_col(
+/*================*/
+	const row_import_t*	cfg,		/*!< in: contents of the
+						.cfg file */
+	const char*		name)		/*!< in: name of column to
+						look for */
+{
+	for (ulint i = 0; i < cfg->n_cols; ++i) {
+
+		if (strcmp(reinterpret_cast<const char*>(cfg->col_names[i]),
+			   name) == 0) {
+
+			return(i);
+		}
+	}
+
+	return(ULINT_UNDEFINED);
+}
+
+/*****************************************************************//**
+Find the index entry in in the cfg indexes.
+@return instance if found else 0. */
+static	__attribute__((nonnull, warn_unused_result))
+const row_index_t*
+row_import_find_index(
+/*==================*/
+	const row_import_t*	cfg,		/*!< in: contents of the
+						.cfg file */
+	const char*		name)		/*!< in: name of index to
+						look for */
+{
+	for (ulint i = 0; i < cfg->n_indexes; ++i) {
+		const row_index_t*	cfg_index = &cfg->indexes[i];
+
+		if (strcmp(reinterpret_cast<const char*>(cfg_index->name),
+			   name) == 0) {
+
+			return(cfg_index);
+		}
+	}
+
+	return(0);
+}
+
+/*****************************************************************//**
+Find the index field entry in in the cfg indexes fields.
+@return instance if found else 0. */
+static	__attribute__((nonnull, warn_unused_result))
+const dict_field_t*
+row_import_find_field(
+/*==================*/
+	const row_index_t*	cfg_index,	/*!< in: index definition read
+						from the .cfg file */
+	const char*		name)		/*!< in: name of index field to
+						look for */
+{
+	const dict_field_t*	field = cfg_index->fields;
+
+	for (ulint i = 0; i < cfg_index->n_fields; ++i, ++field) {
+		if (strcmp(reinterpret_cast<const char*>(field->name),
+			   name) == 0) {
+
+			return(field);
+		}
+	}
+
+	return(0);
+}
+
+/*****************************************************************//**
+Check if the index schema that was read from the .cfg file matches the
+in memory index definition.
+@return DB_SUCCESS or error code. */
+static	__attribute__((nonnull, warn_unused_result))
+db_err
+row_import_match_index_columns(
+/*===========================*/
+	void*			thd,		/*!< in: session */
+	const row_import_t*	cfg,		/*!< in: contents of the
+						.cfg file */
+	const dict_index_t*	index)		/*!< in: index to match */
+{
+	const row_index_t*	cfg_index;
+	db_err			err = DB_SUCCESS;
+
+	cfg_index = row_import_find_index(cfg, index->name);
+
+	if (cfg_index == 0) {
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			 "Index %s not found in tablespace meta-data file.",
+			 index->name);
+
+		return(DB_ERROR);
+	}
+
+	const dict_field_t*	field = index->fields;
+
+	for (ulint i = 0; i < index->n_fields; ++i, ++field) {
+
+		const dict_field_t*	cfg_field;
+
+		cfg_field = row_import_find_field(cfg_index, field->name);
+
+		if (cfg_field == 0) {
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+				 "Index %s field %s not found in tablespace "
+				 "meta-data file.",
+				 index->name, field->name);
+
+			err = DB_ERROR;
+		} else {
+
+			if (cfg_field->prefix_len != field->prefix_len) {
+				ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+					 ER_INDEX_CORRUPT,
+					 "Index %s field %s prefix len %lu "
+					 "doesn't match meta-data file value "
+					 "%lu",
+					 index->name, field->name,
+					 (ulong) field->prefix_len,
+					 (ulong) cfg_field->prefix_len);
+
+				err = DB_ERROR;
+			}
+
+			if (cfg_field->fixed_len != field->fixed_len) {
+				ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+					 ER_INDEX_CORRUPT,
+					 "Index %s field %s fixed len %lu "
+					 "doesn't match meta-data file value "
+					 "%lu",
+					 index->name, field->name,
+					 (ulong) field->fixed_len,
+					 (ulong) cfg_field->fixed_len);
+
+				err = DB_ERROR;
+			}
+		}
+	}
+
+	return(err);
+}
+
+/*****************************************************************//**
 Check if the table schema that was read from the .cfg file matches the
 in memory table definition.
+@return DB_SUCCESS or error code. */
+static	__attribute__((nonnull, warn_unused_result))
+db_err
+row_import_match_table_columns(
+/*===========================*/
+	void*			thd,		/*!< in: session */
+	const row_import_t*	cfg)		/*!< in: contents of the
+						.cfg file */
+{
+	db_err			err = DB_SUCCESS;
+	const dict_col_t*	col = cfg->table->cols;
+
+	for (ulint i = 0; i < cfg->table->n_cols; ++i, ++col) {
+
+		const char*	col_name;
+		ulint		cfg_col_index;
+
+		col_name = dict_table_get_col_name(
+			cfg->table, dict_col_get_no(col));
+
+		cfg_col_index = row_import_find_col(cfg, col_name);
+
+		if (cfg_col_index == ULINT_UNDEFINED) {
+
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+				 "Column %s not found in tablespace.",
+				 col_name);
+
+			err = DB_ERROR;
+		} else if (cfg_col_index != col->ind) {
+
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+				 "Column %s ordinal value mismatch, it's at ",
+				 "%lu in the table and %lu in the tablespace "
+				 "meta-data file",
+				 col_name,
+				 (ulong) col->ind, (ulong) cfg_col_index);
+
+			err = DB_ERROR;
+		} else {
+			const dict_col_t*	cfg_col;
+
+			cfg_col = &cfg->cols[cfg_col_index];
+			ut_a(cfg_col->ind == cfg_col_index);
+
+			if (cfg_col->prtype != col->prtype) {
+				ib_pushf(thd,
+					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+					 "Column %s precise type mismatch.");
+				err = DB_ERROR;
+			}
+
+			if (cfg_col->mtype != col->mtype) {
+				ib_pushf(thd,
+					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+					 "Column %s main type mismatch.");
+				err = DB_ERROR;
+			}
+
+			if (cfg_col->len != col->len) {
+				ib_pushf(thd,
+					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+					 "Column %s length mismatch.");
+				err = DB_ERROR;
+			}
+
+			if (cfg_col->mbminmaxlen != col->mbminmaxlen) {
+				ib_pushf(thd,
+					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+					 "Column %s multi-byte len mismatch.");
+				err = DB_ERROR;
+			}
+
+			if (cfg_col->ind != col->ind) {
+				err = DB_ERROR;
+			}
+
+			if (cfg_col->ord_part != col->ord_part) {
+				ib_pushf(thd,
+					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+					 "Column %s ordering mismatch.");
+				err = DB_ERROR;
+			}
+
+			if (cfg_col->max_prefix != col->max_prefix) {
+				ib_pushf(thd,
+					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+					 "Column %s max prefix mismatch.");
+				err = DB_ERROR;
+			}
+		}
+	}
+
+	return(err);
+}
+
+/*****************************************************************//**
+Check if the table (and index) schema that was read from the .cfg file
+matches the in memory table definition.
 @return DB_SUCCESS or error code. */
 static
 db_err
@@ -1359,7 +1606,55 @@ row_import_match_schema(
 	const row_import_t*	cfg)		/*!< in: contents of the
 						.cfg file */
 {
-	return(DB_SUCCESS);
+
+	/* Do some simple checks. */
+
+	if (cfg->table->n_cols != cfg->n_cols) {
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			 "Number of columns don't match, table has %lu "
+			 "columns but the tablespace meta-data file has "
+			 "%lu columns",
+			 (ulong) cfg->table->n_cols, (ulong) cfg->n_cols);
+
+		return(DB_ERROR);
+	} else if (UT_LIST_GET_LEN(cfg->table->indexes) != cfg->n_indexes) {
+
+		/* If the number of indexes don't match then it is better
+		to abort the IMPORT. It is easy for the user to create a
+		table matching the IMPORT definition. */
+
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			 "Number of indexes don't match, table has %lu "
+			 "indexes but the tablespace meta-data file has "
+			 "%lu indexes",
+			 (ulong) UT_LIST_GET_LEN(cfg->table->indexes),
+			 (ulong) cfg->n_indexes);
+
+		return(DB_ERROR);
+	}
+
+	db_err	err = row_import_match_table_columns(thd, cfg);
+
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+	/* Check if the index definitions match. */
+
+	for (const dict_index_t* index = UT_LIST_GET_FIRST(cfg->table->indexes);
+	     index != 0;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+		db_err	index_err;
+
+		index_err = row_import_match_index_columns(thd, cfg, index);
+
+		if (index_err != DB_SUCCESS) {
+			err = index_err;
+		}
+	}
+
+	return(err);
 }
 
 /*****************************************************************//**
@@ -1384,33 +1679,10 @@ row_import_index_set_root(
 			cfg->table,
 			reinterpret_cast<const char*>(cfg_index->name));
 
-		if (index != 0) {
-			index->space = cfg->table->space;
-			index->page = cfg_index->page_no;
-		} else {
-			char index_name[MAX_FULL_NAME_LEN + 1];
-
-			innobase_format_name(
-				index_name, sizeof(index_name),
-				reinterpret_cast<const char*>(cfg_index->name),
-			       	TRUE);
-
-			char table_name[MAX_FULL_NAME_LEN + 1];
-
-			innobase_format_name(
-				table_name, sizeof(table_name),
-				cfg->table->name, FALSE);
-
-			ib_pushf(thd,
-			 	IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-			 	"Index %s not in table %s",
-			 	index_name, table_name);
-
-			/* TODO: If the table schema matches, it would
-			be better to just ignore this error. */
-
-			err = DB_ERROR;
-		}
+		/* We've already checked that it exists. */
+		ut_a(index != 0);
+		index->space = cfg->table->space;
+		index->page = cfg_index->page_no;
 	}
 
 	return(err);
@@ -1687,6 +1959,11 @@ row_import_for_mysql(
 	{
 		row_import_t*	cfg = 0;
 
+		/* Prevent DDL operations while we are checking. */
+
+		rw_lock_s_lock_func(
+			&dict_operation_lock, 0, __FILE__, __LINE__);
+
 		err = row_import_read_cfg(table, trx->mysql_thd, &cfg);
 
 		/* Check if the table column definitions match the contents
@@ -1697,8 +1974,7 @@ row_import_for_mysql(
 		}
 
 		/* Update index->page and SYS_INDEXES.PAGE_NO to match the
-		B-tree root page numbers in the tablespace. Check if
-		the tablespace page size is the same as UNIV_PAGE_SIZE. */
+		B-tree root page numbers in the tablespace. */
 
 		if (err == DB_SUCCESS) {
 			err = row_import_index_set_root(trx->mysql_thd, cfg);
@@ -1707,6 +1983,8 @@ row_import_for_mysql(
 		if (cfg != 0) {
 			row_import_free(cfg);
 		}
+
+		rw_lock_s_unlock_gen(&dict_operation_lock, 0);
 	}
 
 	DBUG_EXECUTE_IF("ib_import_set_index_root_failure",

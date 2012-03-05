@@ -105,7 +105,7 @@ c2 INT, INDEX x(c2)) ENGINE=InnoDB;
 ALTER TABLE t1 DISCARD TABLESPACE;
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Index "idx" not in table "test"."t1"
+ERROR HY000: InnoDB: Index x not found in tablespace meta-data file.
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
