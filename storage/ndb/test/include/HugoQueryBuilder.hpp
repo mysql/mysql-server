@@ -60,9 +60,15 @@ public:
     /**
      * Query might table scan
      */
-    O_TABLE_SCAN = 0x20
+    O_TABLE_SCAN = 0x20,
+
+    /**
+     * Column referrences may also include grandparents (Default 'on')
+     */
+    O_GRANDPARENT = 0x100
   };
-  static const OptionMask OM_RANDOM_OPTIONS = (OptionMask)(O_PK_INDEX | O_UNIQUE_INDEX | O_ORDERED_INDEX | O_TABLE_SCAN);
+  static const OptionMask OM_RANDOM_OPTIONS = 
+       (OptionMask)(O_PK_INDEX | O_UNIQUE_INDEX | O_ORDERED_INDEX | O_TABLE_SCAN | O_GRANDPARENT);
 
   HugoQueryBuilder(Ndb* ndb, const NdbDictionary::Table**tabptr, 
                    OptionMask om = OM_RANDOM_OPTIONS){
