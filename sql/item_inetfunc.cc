@@ -242,7 +242,7 @@ static bool str_to_ipv4(const char *str, int str_length, in_addr *ipv4_address)
   int dot_count= 0;
   char c= 0;
 
-  while (*p && ((p - str) < str_length))
+  while (((p - str) < str_length) && *p)
   {
     c= *p++;
 

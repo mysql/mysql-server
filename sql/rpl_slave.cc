@@ -4683,7 +4683,8 @@ err:
   if (error && w)
   {
     w->end_info();
-    delete_dynamic(&w->jobs.Q);
+    if (w->jobs.inited_queue)
+      delete_dynamic(&(w->jobs.Q));
     delete w;
     /*
       Any failure after dynarray inserted must follow with deletion
