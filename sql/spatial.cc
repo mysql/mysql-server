@@ -609,7 +609,8 @@ int Gis_line_string::is_closed(int *closed) const
     return 0;
   }
   data+= 4;
-  if (no_data(data, SIZEOF_STORED_DOUBLE * 2 * n_points))
+  if (n_points == 0 ||
+      no_data(data, SIZEOF_STORED_DOUBLE * 2 * n_points))
     return 1;
 
   /* Get first point */
