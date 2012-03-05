@@ -26,14 +26,15 @@ create temporary table spj_counts_at_startup
        where block_name='DBSPJ' 
        group by counter_name;
 
-# Save old counter values.
-let $scan_count_at_startup = query_get_value(show status like 'Ndb_scan_count', Value, 1);
-let $pruned_scan_count_at_startup = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
-let $sorted_scan_count_at_startup = query_get_value(show status like 'Ndb_sorted_scan_count', Value, 1);
-let $pushed_queries_defined_at_startup = query_get_value(show status like 'Ndb_pushed_queries_defined', Value, 1);
-let $pushed_queries_dropped_at_startup = query_get_value(show status like 'Ndb_pushed_queries_dropped', Value, 1);
-let $pushed_queries_executed_at_startup = query_get_value(show status like 'Ndb_pushed_queries_executed', Value, 1);
-let $pushed_reads_at_startup = query_get_value(show status like 'Ndb_pushed_reads', Value, 1);
+# Save old mysqld counter values.
+create temporary table server_counts_at_startup
+       select * from information_schema.global_status 
+       where variable_name in 
+       ('Ndb_pruned_scan_count',
+        'Ndb_sorted_scan_count',
+        'Ndb_pushed_queries_defined',
+        'Ndb_pushed_queries_dropped',
+        'Ndb_pushed_queries_executed');
 
 ##############
 # Test start
@@ -2665,13 +2666,17 @@ select * from t1 t1, t1 t2
       	     t2.a = t1.c and t2.b = t1.c; 
 
 # Save old counter values.
-let $old_scan_count = query_get_value(show status like 'Ndb_scan_count', Value, 1);
-let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
-let $old_sorted_scan_count = query_get_value(show status like 'Ndb_sorted_scan_count', Value, 1);
-let $old_pushed_queries_defined = query_get_value(show status like 'Ndb_pushed_queries_defined', Value, 1);
-let $old_pushed_queries_dropped = query_get_value(show status like 'Ndb_pushed_queries_dropped', Value, 1);
-let $old_pushed_queries_executed = query_get_value(show status like 'Ndb_pushed_queries_executed', Value, 1);
-let $old_pushed_reads = query_get_value(show status like 'Ndb_pushed_reads', Value, 1);
+# Save old mysqld counter values.
+create temporary table server_counts
+       select * from information_schema.global_status 
+       where variable_name in 
+       ('Ndb_scan_count',
+        'Ndb_pruned_scan_count',
+        'Ndb_sorted_scan_count',
+        'Ndb_pushed_queries_defined',
+        'Ndb_pushed_queries_dropped',
+        'Ndb_pushed_queries_executed',
+	'Ndb_pushed_reads');
 
 # Run some queries that should increment the counters.
 # This query should push a single read.
@@ -2690,25 +2695,14 @@ select count(*) from t1 t1, t1 t2
        where t1.a = 11 and 
        	     t2.a = t1.c and t2.b = t1.c; 
 
-# Get the new values;
-let $new_scan_count = query_get_value(show status like 'Ndb_scan_count', Value, 1);
-let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
-let $new_sorted_scan_count = query_get_value(show status like 'Ndb_sorted_scan_count', Value, 1);
-let $new_pushed_queries_defined = query_get_value(show status like 'Ndb_pushed_queries_defined', Value, 1);
-let $new_pushed_queries_dropped = query_get_value(show status like 'Ndb_pushed_queries_dropped', Value, 1);
-let $new_pushed_queries_executed = query_get_value(show status like 'Ndb_pushed_queries_executed', Value, 1);
-let $new_pushed_reads = query_get_value(show status like 'Ndb_pushed_reads', Value, 1);
+# Calculate the change in mysqld counters.
+select new.variable_name, new.variable_value - old.variable_value
+       from server_counts as old,
+         information_schema.global_status as new
+       where new.variable_name = old.variable_name
+       order by new.variable_name;
 
-# Calculate the change.
---disable_query_log
---eval select $new_scan_count - $old_scan_count as scan_count
---eval select $new_pruned_scan_count - $old_pruned_scan_count as pruned_scan_count
---eval select $new_sorted_scan_count - $old_sorted_scan_count as sorted_scan_count
---eval select $new_pushed_queries_defined - $old_pushed_queries_defined as pushed_queries_defined
---eval select $new_pushed_queries_dropped - $old_pushed_queries_dropped as pushed_queries_dropped
---eval select $new_pushed_queries_executed - $old_pushed_queries_executed as pushed_queries_executed
---eval select $new_pushed_reads - $old_pushed_reads as pushed_reads
---enable_query_log
+drop table server_counts;
 
 connection ddl;
 drop table t1;
@@ -3922,41 +3916,26 @@ connection spj;
 select spj_counts_at_end.counter_name, spj_counts_at_end.val - spj_counts_at_startup.val 
        from spj_counts_at_end, spj_counts_at_startup 
        where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
-       and spj_counts_at_end.counter_name <> 'READS_NOT_FOUND'
-       and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
-       and spj_counts_at_end.counter_name <> 'REMOTE_READS_SENT'
-       and spj_counts_at_end.counter_name <> 'LOCAL_RANGE_SCANS_SENT'
-       and spj_counts_at_end.counter_name <> 'REMOTE_RANGE_SCANS_SENT'
-       and spj_counts_at_end.counter_name <> 'SCAN_ROWS_RETURNED'
-       and spj_counts_at_end.counter_name <> 'SCAN_BATCHES_RETURNED';
+       and spj_counts_at_end.counter_name not in 
+       ('READS_NOT_FOUND',
+        'LOCAL_READS_SENT',
+        'REMOTE_READS_SENT',
+        'LOCAL_RANGE_SCANS_SENT',
+        'REMOTE_RANGE_SCANS_SENT',
+        'SCAN_ROWS_RETURNED',
+        'SCAN_BATCHES_RETURNED');
 
-connection spj;
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 
-connection spj;
-# Similar for the SPJ specific 'STATUS' counters
-let $scan_count_at_end = query_get_value(show status like 'Ndb_scan_count', Value, 1);
-let $pruned_scan_count_at_end = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
-let $sorted_scan_count_at_end = query_get_value(show status like 'Ndb_sorted_scan_count', Value, 1);
-let $pushed_queries_defined_at_end = query_get_value(show status like 'Ndb_pushed_queries_defined', Value, 1);
-let $pushed_queries_dropped_at_end = query_get_value(show status like 'Ndb_pushed_queries_dropped', Value, 1);
-let $pushed_queries_executed_at_end = query_get_value(show status like 'Ndb_pushed_queries_executed', Value, 1);
-let $pushed_reads_at_end = query_get_value(show status like 'Ndb_pushed_reads', Value, 1);
+# Calculate the change in mysqld counters.
+select new.variable_name, new.variable_value - old.variable_value
+       from server_counts_at_startup as old,
+         information_schema.global_status as new
+       where new.variable_name = old.variable_name
+       order by new.variable_name;
 
-# Calculate the change.
---disable_query_log
-# There is some random variation in scan_count, probably due to statistics
-# being updated at unpredictable intervals. Therefore, we only test for 
-# deviations greater than an tenth of the expected value.
-#--eval select round(($scan_count_at_end - $scan_count_at_startup)/2524, 1) as scan_count_derived
---eval select $pruned_scan_count_at_end - $pruned_scan_count_at_startup as pruned_scan_count
---eval select $sorted_scan_count_at_end - $sorted_scan_count_at_startup as sorted_scan_count
---eval select $pushed_queries_defined_at_end - $pushed_queries_defined_at_startup as pushed_queries_defined
---eval select $pushed_queries_dropped_at_end - $pushed_queries_dropped_at_startup as pushed_queries_dropped
---eval select $pushed_queries_executed_at_end - $pushed_queries_executed_at_startup as pushed_queries_executed
-#--eval select $pushed_reads_at_end - $pushed_reads_at_startup as pushed_reads
---enable_query_log
+drop table server_counts_at_startup;
 
 --source ndbinfo_drop.inc
 

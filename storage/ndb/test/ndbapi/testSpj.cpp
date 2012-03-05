@@ -27,6 +27,13 @@
 #include <HugoQueries.hpp>
 #include <NdbSchemaCon.hpp>
 
+static int faultToInject = 0;
+
+enum faultsToInject {
+  FI_START = 17001,
+  FI_END = 17063
+};
+
 int
 runLoadTable(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -92,6 +99,66 @@ runLookupJoin(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int
+runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops();
+  int joinlevel = ctx->getProperty("JoinLevel", 8);
+  int records = ctx->getNumRecords();
+  int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
+  Uint32 stepNo = step->getStepNo();
+
+  int i = 0;
+  HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
+  qb.setJoinLevel(joinlevel);
+  const NdbQueryDef * query = qb.createQuery(GETNDB(step));
+  HugoQueries hugoTrans(*query);
+
+  NdbRestarter restarter;
+  int lookupFaults[] = {
+      17001, 17005, 17006, 17008,
+      17012, // testing abort in :execDIH_SCAN_TAB_CONF
+      17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
+      17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
+      17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
+      17050, 17051, 17052, 17053, // parseDA -> outOfSectionMem
+      17060, 17061, 17062, 17063 // scanIndex_parent_row -> outOfSectionMem
+  }; 
+  loops =  faultToInject ? 1 : sizeof(lookupFaults)/sizeof(int);
+
+  while ((i<loops || until_stopped) && !ctx->isTestStopped())
+  {
+    g_info << i << ": ";
+
+    int inject_err = faultToInject ? faultToInject : lookupFaults[i];
+    int randomId = rand() % restarter.getNumDbNodes();
+    int nodeId = restarter.getDbNodeId(randomId);
+
+    ndbout << "LookupJoinError: Injecting error "<<  inject_err <<
+      " in node " << nodeId << " loop "<< i << endl;
+
+    if (restarter.insertErrorInNode(nodeId, inject_err) != 0)
+    {
+      ndbout << "Could not insert error in node "<< nodeId <<endl;
+      g_info << endl;
+      return NDBT_FAILED;
+    }
+
+    // It'd be better if test could differentiates failures from
+    // fault injection and others.
+    // We expect to fail, and it's a failure if we don't
+    if (!hugoTrans.runLookupQuery(GETNDB(step), records))
+    {
+      g_info << "LookUpJoinError didn't fail as expected."<< endl;
+      // return NDBT_FAILED;
+    }
+
+    addMask(ctx, (1 << stepNo), "Running");
+    i++;
+  }
+  g_info << endl;
+  return NDBT_OK;
+}
+
+int
 runScanJoin(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
   int joinlevel = ctx->getProperty("JoinLevel", 3);
@@ -114,6 +181,65 @@ runScanJoin(NDBT_Context* ctx, NDBT_Step* step){
     addMask(ctx, (1 << stepNo), "Running");
     i++;
   }
+  g_info << endl;
+  return NDBT_OK;
+}
+
+int
+runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops();
+  int joinlevel = ctx->getProperty("JoinLevel", 3);
+  int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
+  Uint32 stepNo = step->getStepNo();
+
+  int i = 0;
+  HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_SCAN);
+  qb.setJoinLevel(joinlevel);
+  const NdbQueryDef * query = qb.createQuery(GETNDB(step));
+  HugoQueries hugoTrans(* query);
+
+  NdbRestarter restarter;
+  int scanFaults[] = {
+      17002, 17004, 17005, 17006, 17008,
+      17012, // testing abort in :execDIH_SCAN_TAB_CONF
+      17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
+      17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
+      17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
+      17050, 17051, 17052, 17053, // parseDA -> outOfSectionMem
+      17060, 17061, 17062, 17063 // scanIndex_parent_row -> outOfSectionMem
+  }; 
+  loops =  faultToInject ? 1 : sizeof(scanFaults)/sizeof(int);
+
+  while ((i<loops || until_stopped) && !ctx->isTestStopped())
+  {
+    g_info << i << ": ";
+
+    int inject_err = faultToInject ? faultToInject : scanFaults[i];
+    int randomId = rand() % restarter.getNumDbNodes();
+    int nodeId = restarter.getDbNodeId(randomId);
+
+    ndbout << "ScanJoin: Injecting error "<<  inject_err <<
+              " in node " << nodeId << " loop "<< i<< endl;
+
+    if (restarter.insertErrorInNode(nodeId, inject_err) != 0)
+    {
+      ndbout << "Could not insert error in node "<< nodeId <<endl;
+      return NDBT_FAILED;
+    }
+
+    // It'd be better if test could differentiates failures from
+    // fault injection and others.
+    // We expect to fail, and it's a failure if we don't
+    if (!hugoTrans.runScanQuery(GETNDB(step)))
+    {
+      g_info << "ScanJoinError didn't fail as expected."<< endl;
+      // return NDBT_FAILED;
+    }
+
+    addMask(ctx, (1 << stepNo), "Running");
+    i++;
+  }
+
   g_info << endl;
   return NDBT_OK;
 }
@@ -1229,12 +1355,36 @@ TESTCASE("NF_Join", ""){
   STEP(runRestarter);
   FINALIZER(runClearTable);
 }
+
+TESTCASE("LookupJoinError", ""){
+  INITIALIZER(runLoadTable);
+  STEP(runLookupJoinError);
+  VERIFIER(runClearTable);
+}
+TESTCASE("ScanJoinError", ""){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("NodeNumber", 2);
+  STEP(runScanJoinError);
+  FINALIZER(runClearTable);
+}
 NDBT_TESTSUITE_END(testSpj);
 
 
 int main(int argc, const char** argv){
   ndb_init();
+
+  /* To inject a single fault, for testing fault injection.
+     Add the required fault number at the end
+     of the command line. */
+
+  if (argc > 0) sscanf(argv[argc-1], "%d",  &faultToInject);
+  if (faultToInject && (faultToInject < FI_START || faultToInject > FI_END))
+  {
+    ndbout_c("Illegal fault to inject: %d. Legal range is between %d and %d",
+             faultToInject, FI_START, FI_END);
+    exit(1);
+  }
+
   NDBT_TESTSUITE_INSTANCE(testSpj);
   return testSpj.execute(argc, argv);
 }
-
