@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2012 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,15 +15,17 @@
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 
+## files to be distributed and not covered in the automatic rules
+EXTRA_DIST = 	test_myapi.sh.in \
+		test_myapi.cmd.in \
+		CMakeLists.txt
+
 ## ----------------------------------------------------------------------
 
 ## automake flags (overridden by per-target flags, added before user flags)
 AM_CPPFLAGS = -I../../../utils -I$(top_srcdir)/storage/ndb/include
 
 ## ----------------------------------------------------------------------
-
-## create the unit test scripts during build already
-all-local:	scripts
 
 ## build a libtool convenience (i.e., non-installed) library
 ##   prefixes check_, noinst_ result in no -rpath option being passed,
@@ -73,27 +75,15 @@ myapi_test_LDFLAGS += @ndb_cxx_runtime_libs@ ## need to link with C++ runtime
 ## ----------------------------------------------------------------------
 
 ## programs or scripts to run for testing
-TESTS = $(UNIT_TESTS)
+TESTS = test_myapi.sh
 TESTS_ENVIRONMENT = $(SHELL)
 #TESTS_ENVIRONMENT = $(SHELL) -x
 
-UNIT_TESTS = test_myapi.sh
-
-scripts:	$(UNIT_TESTS)
-
-test_myapi.sh: Makefile
-	@ echo "#!/bin/sh" > $@
-	@ echo "echo \"for test output see file: test_myapi.log\"" >> $@
-	@ echo "test -f test_myapi.log && rm test_myapi.log" >> $@
-	@ echo "./myapi_test > test_myapi.log 2>&1" >> $@
-	@CHMOD@ +x $@
-
 ## ----------------------------------------------------------------------
-
-EXTRA_DIST = myapi.hpp
 
 ## cleanup
 MOSTLYCLEANFILES = *.log
-CLEANFILES = $(TESTS)
+CLEANFILES =
+DISTCLEANFILES = $(TESTS)
 
 ## ----------------------------------------------------------------------

@@ -461,7 +461,7 @@ public class MyLoadUnloadTest {
         // run test
         out.println();
         out.println("    load class ...");
-        Class cls = ucl.loadClass(cname);
+        Class<?> cls = ucl.loadClass(cname);
         out.println("    ... loaded " + cls
                     + " <" + cls.getClassLoader() + ">");
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,6 +13,20 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+# set common Java variables for ndbjtie unit tests
+# neither wildcards (nor line breaks) for clean targets supported by cmake
+#SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "*.log")
+IF(HAVE_JAVA)
+
+  # the native path to the JVM
+  FILE(TO_NATIVE_PATH ${Java_JAVA_EXECUTABLE} Java_JAVA_EXECUTABLE_PATH)
+
+  # the JVM arch option when loading native libraries
+  MATH(EXPR Java_JAVA_ARCH "${CMAKE_SIZEOF_VOID_P} * 8")
+  SET(Java_JAVA_ARCH_OPT "-d${Java_JAVA_ARCH}")
+
+ENDIF(HAVE_JAVA)
+
 ADD_SUBDIRECTORY(jtie)
 ADD_SUBDIRECTORY(mysql)
 ADD_SUBDIRECTORY(test)
@@ -21,22 +35,36 @@ IF(HAVE_JDK)
 
   INCLUDE_DIRECTORIES(${JNI_INCLUDE_DIRS})
 
-  INCLUDE_DIRECTORIES(mysql 
-                      utils 
+  INCLUDE_DIRECTORIES(mysql
+                      utils
                       jtie)
 
   ADD_LIBRARY(ndbjtie STATIC ndbjtie_lib.cpp)
 
 ENDIF(HAVE_JDK)
 
-SET ( JAVA_SOURCE_DIRS
- ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/mysql/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/mgmapi/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/ndbapi/*.java)
+# the NdbJTie Java API
+SET(JAVA_SOURCE_DIRS
+  ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/mysql
+  ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/mgmapi
+  ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/ndbapi)
 
-SET ( CLASSPATH jtie/target/classes)
+SET(JAVA_SOURCES "")
+FOREACH(D ${JAVA_SOURCE_DIRS})
+  FILE(GLOB tmp ${D}/*.java)
+  LIST(APPEND JAVA_SOURCES ${tmp})
+ENDFOREACH()
 
-CREATE_JAR(ndbjtie ${JAVA_SOURCE_DIRS} 
-  CLASSPATH ${CLASSPATH} 
+SET(CLASSPATH
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes)
+
+CREATE_JAR(ndbjtie ${JAVA_SOURCES}
+  CLASSPATH ${CLASSPATH}
   DEPENDENCIES jtie.jar)
 
+# add the jtie dependencies for a self-contained jar
+LIST(APPEND JAVA_CLASS_DIRS
+  "${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes"
+  "com/mysql/jtie")
+ADD_FILES_TO_JAR(ndbjtie ${JAVA_CLASS_DIRS})

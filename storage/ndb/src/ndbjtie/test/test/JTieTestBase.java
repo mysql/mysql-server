@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2010 Sun Microsystems, Inc.
- Use is subject to license terms.
+ Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -29,19 +28,16 @@ import java.io.PrintWriter;
 public abstract class JTieTestBase {
 
     static protected final PrintWriter out = new PrintWriter(System.out, true);
-
     static protected final PrintWriter err = new PrintWriter(System.err, true);
 
     /**
-     * Loads a dynamically linked system library and reports any failures.
+     * Loads a dynamically linked library.
      */
     static protected void loadSystemLibrary(String name) {
         out.println("--> JTieTestBase.loadSystemLibrary(String)");
 
         final Class cls = JTieTestBase.class;
         out.println("    " + cls + " <" + cls.getClassLoader() + ">");
-
-        out.println();
         out.println("    loading libary " + name + " ...");
         try {
             System.loadLibrary(name);
@@ -62,7 +58,6 @@ public abstract class JTieTestBase {
         }
         out.println("    ... loaded " + name);
 
-        out.println();
         out.println("<-- JTieTestBase.loadSystemLibrary(String)");
     }
 
