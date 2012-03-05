@@ -1202,24 +1202,22 @@ row_insert_for_mysql(
 
 	ut_ad(trx);
 
-	if (table->ibd_file_missing) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error:\n"
-			"InnoDB: MySQL is trying to use a table handle"
-			" but the .ibd file for\n"
-			"InnoDB: table %s does not exist.\n"
-			"InnoDB: Have you deleted the .ibd file"
-			" from the database directory under\n"
-			"InnoDB: the MySQL datadir, or have you"
-			" used DISCARD TABLESPACE?\n"
-			"InnoDB: Look from\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
-			"InnoDB: how you can resolve the problem.\n",
+	if (dict_table_is_discarded(prebuilt->table)) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The .ibd file is DISCARDed for table %s",
 			prebuilt->table->name);
-		return(DB_ERROR);
-	}
 
-	if (UNIV_UNLIKELY(prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {
+		return(DB_TABLESPACE_DELETED);
+
+	} else if (prebuilt->table->ibd_file_missing) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			".ibd file is missing for table %s",
+			prebuilt->table->name);
+
+		return(DB_TABLESPACE_NOT_FOUND);
+
+	} else if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
 			"InnoDB: table handle. Magic n %lu, table name ",
@@ -1230,9 +1228,7 @@ row_insert_for_mysql(
 		mem_analyze_corruption(prebuilt);
 
 		ut_error;
-	}
-
-	if (UNIV_UNLIKELY(srv_created_new_raw || srv_force_recovery)) {
+	} else if (srv_created_new_raw || srv_force_recovery) {
 		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
@@ -2767,11 +2763,11 @@ row_discard_tablespace_for_mysql(
 
 	table_id_t	new_id;
 
-	if (row_mysql_table_id_reassign(table, trx, &new_id)
-	    != DB_SUCCESS
-	    || row_import_update_discarded_flag(trx, table, true, true)
+	if (row_import_update_discarded_flag(trx, table, true, true)
 	    != DB_SUCCESS
 	    || row_import_update_index_root(trx, table, true, true)
+	    != DB_SUCCESS
+	    || row_mysql_table_id_reassign(table, trx, &new_id)
 	    != DB_SUCCESS
 	    || ((err = fil_discard_tablespace(table->space, TRUE)) != DB_SUCCESS
 		&& err != DB_TABLESPACE_NOT_FOUND
@@ -2791,6 +2787,8 @@ row_discard_tablespace_for_mysql(
 		data dictionary memory cache. */
 
 		table->ibd_file_missing = TRUE;
+
+		table->flags2 |= DICT_TF2_DISCARDED;
 
 		dict_table_change_id_in_cache(table, new_id);
 
