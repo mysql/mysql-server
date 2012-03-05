@@ -3699,43 +3699,33 @@ row_search_for_mysql(
 
 	ut_ad(index && pcur && search_tuple);
 
-	if (UNIV_UNLIKELY(prebuilt->table->ibd_file_missing)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error:\n"
-			"InnoDB: MySQL is trying to use a table handle"
-			" but the .ibd file for\n"
-			"InnoDB: table %s does not exist.\n"
-			"InnoDB: Have you deleted the .ibd file"
-			" from the database directory under\n"
-			"InnoDB: the MySQL datadir, or have you used"
-			" DISCARD TABLESPACE?\n"
-			"InnoDB: Look from\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
-			"InnoDB: how you can resolve the problem.\n",
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
+
+	if (dict_table_is_discarded(prebuilt->table)) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The .ibd file is DISCARDed for table %s",
 			prebuilt->table->name);
 
-#ifdef UNIV_SYNC_DEBUG
-		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
-		return(DB_ERROR);
-	}
+		return(DB_TABLESPACE_DELETED);
 
-	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
+	} else if (prebuilt->table->ibd_file_missing) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			".ibd file is missing for table %s",
+			prebuilt->table->name);
 
-#ifdef UNIV_SYNC_DEBUG
-		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+		return(DB_TABLESPACE_NOT_FOUND);
+
+	} else if (!prebuilt->index_usable) {
+
 		return(DB_MISSING_HISTORY);
-	}
 
-	if (dict_index_is_corrupted(index)) {
-#ifdef UNIV_SYNC_DEBUG
-		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	} else if (dict_index_is_corrupted(index)) {
+
 		return(DB_CORRUPTION);
-	}
 
-	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
+	} else if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
 			"InnoDB: table handle. Magic n %lu, table name ",
