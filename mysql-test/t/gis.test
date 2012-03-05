@@ -812,4 +812,11 @@ CREATE TABLE t3 (
 # cleanup
 DROP TABLE t0, t1, t2;
 
+
+--echo #
+--echo # BUG#12414917 - ISCLOSED() CRASHES ON 64-BIT BUILDS
+--echo #
+SELECT ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)));
+
+
 --echo End of 5.1 tests
