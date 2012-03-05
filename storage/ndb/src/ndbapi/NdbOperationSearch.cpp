@@ -34,7 +34,6 @@ Adjust:  971022  UABMNST   First version.
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyReq.hpp>
 #include <signaldata/KeyInfo.hpp>
-#include <md5_hash.hpp>
 
 /******************************************************************************
 CondIdType equal(const char* anAttrName, char* aValue, Uint32 aVarKeylen);
