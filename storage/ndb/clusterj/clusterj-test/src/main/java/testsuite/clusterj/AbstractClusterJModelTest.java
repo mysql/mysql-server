@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -496,13 +496,18 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
             int j = 0;
             for (ColumnDescriptor columnDescriptor: columnDescriptors) {
                 Object value = getColumnValue(i, j);
+                if (debug) System.out.println("generateInstances set field " + columnDescriptor.getColumnName()
+                        + " to value "  + value);
                 // set the column value in the instance
                 columnDescriptor.setFieldValue(instance, value);
-                // set the column value in the expected result
-                if (debug) System.out.println("generateInstances set field " + columnDescriptor.getColumnName() + " to value "  + value);
+                // check that the value was set correctly
+                Object actual = columnDescriptor.getFieldValue(instance);
+                errorIfNotEqual("generateInstances value mismatch for " + columnDescriptor.getColumnName(),
+                        dump(value), dump(actual));
                 ++j;
             }
             instances.add(instance);
+            // set the column values in the expected result
             Object[] expectedRow = createRow(columnDescriptors, instance);
             expected.add(expectedRow);
         }

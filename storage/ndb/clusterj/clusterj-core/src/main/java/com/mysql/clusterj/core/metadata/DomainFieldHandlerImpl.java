@@ -75,6 +75,9 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
     /** Lob annotation is not null if annotated with @Lob. */
     protected Lob lobAnnotation;
 
+    /** Lob is true if annotated or mapped to a text or blob column. */
+    protected boolean lob = false;
+
     /** The NotPersistent annotation indicates that this field is not
      * persistent, but can be used as a property that holds data not
      * stored in the datastore.
@@ -171,6 +174,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                         local.message("ERR_Primary_Field_Type", domainTypeHandler.getName(), name, printableName(type)));
             }
         } else if (lobAnnotation != null) {
+            this.lob = true;
             // large object support for byte[]
             if (type.equals(byte[].class)) {
                 objectOperationHandlerDelegate = objectOperationHandlerBytesLob;
@@ -370,6 +374,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     }
                     break;
                 case Blob:
+                    this.lob = true;
                     this.objectOperationHandlerDelegate = objectOperationHandlerBytesLob;
                     this.type = byte[].class;
                     break;
@@ -454,6 +459,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     }
                     break;
                 case Text:
+                    this.lob = true;
                     this.objectOperationHandlerDelegate = objectOperationHandlerStringLob;
                     this.type = String.class;
                     break;
@@ -581,5 +587,14 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
             return false;
         };
     };
+
+    public boolean isLob() {
+        return lob;
+    }
+
+    public Object getDefaultValue() {
+        Object value = objectOperationHandlerDelegate.getDefaultValueFor(this, null);
+        return value;
+    }
 
 }

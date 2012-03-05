@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,9 +57,15 @@ public interface DomainFieldHandler {
 
     void objectSetValue(ResultData rs, ValueHandler handler);
 
+    void objectSetValue(Object value, ValueHandler handler);
+
+    Object objectGetValue(ValueHandler handler);
+
     Class<?> getType();
 
     String getName();
+
+    String getColumnName();
 
     int getFieldNumber();
 
@@ -75,6 +81,8 @@ public interface DomainFieldHandler {
             String indexName);
 
     boolean isPrimaryKey();
+
+    boolean isLob();
 
     Object getValue(QueryExecutionContext context, String parameterName);
 

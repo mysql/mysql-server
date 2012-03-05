@@ -21,15 +21,19 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJFatalUserException;
+import com.mysql.clusterj.ClusterJUserException;
 
 import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.store.Table;
+
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
@@ -89,8 +93,11 @@ public class NdbRecordImpl {
     /** The lengths of the column data */
     protected int[] lengths;
 
-    /** Values for setting column mask and null bit mask */
+    /** Values for setting column mask and null bit mask: 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 */
     protected final static byte[] BIT_IN_BYTE_MASK = new byte[] {1, 2, 4, 8, 16, 32, 64, -128};
+
+    /** Values for resetting column mask and null bit mask: 0xfe, 0xfd, 0xfb, 0xf7, 0xef, 0xdf, 0xbf, 0x7f */
+    protected static final byte[] RESET_BIT_IN_BYTE_MASK = new byte[] {-2, -3, -5, -9, -17, -33, -65, 127};
 
     /** The null indicator for the field bit in the byte */
     protected int nullbitBitInByte[] = null;
@@ -113,6 +120,7 @@ public class NdbRecordImpl {
     /** These fields are only used during construction of the RecordSpecificationArray */
     int offset = 0;
     int nullablePosition = 0;
+    byte[] defaultValues;
 
     /** Constructor used for insert operations that do not need to read data.
      * 
@@ -130,18 +138,84 @@ public class NdbRecordImpl {
         this.nullbitByteOffset = new int[numberOfColumns];
         this.storeColumns = new Column[numberOfColumns];
         this.ndbRecord = createNdbRecord(storeTable, ndbDictionary);
+        initializeDefaultBuffer();
+    }
+
+    /** Initialize the byte buffer containing default values for all columns.
+     * Non-null columns are initialized to zero. Nullable columns are initialized to null.
+     * When a new byte buffer is required, the byte buffer is used for initialization.
+     */
+    private void initializeDefaultBuffer() {
+        // create the default value for the buffer: null values or zeros for all columns
+        defaultValues = new byte[bufferSize];
+        ByteBuffer zeros = ByteBuffer.allocateDirect(bufferSize);
+        zeros.order(ByteOrder.nativeOrder());
+        // just to be sure, initialize with zeros
+        zeros.put(defaultValues);
+        for (Column storeColumn: storeColumns) {
+            // nullable columns get the null bit set
+            if (storeColumn.getNullable()) {
+                setNull(zeros, storeColumn);
+            }
+        }
+        zeros.position(0);
+        zeros.limit(bufferSize);
+        zeros.get(defaultValues);
+        // default values is now immutable and can be used thread-safe
+    }
+
+    /** Initialize a new direct buffer with default values for all columns.
+     * The buffer returned is positioned at 0 with the limit set to the buffer size.
+     * @return a new byte buffer for use with this NdbRecord.
+     */
+    protected ByteBuffer newBuffer() {
+        ByteBuffer result = ByteBuffer.allocateDirect(bufferSize);
+        result.order(ByteOrder.nativeOrder());
+        result.put(defaultValues);
+        result.limit(bufferSize);
+        result.position(0);
+        return result;
+    }
+
+    public int setNull(ByteBuffer buffer, Column storeColumn) {
+        int columnId = storeColumn.getColumnId();
+        if (!storeColumn.getNullable()) {
+            return columnId;
+        }
+        int index = nullbitByteOffset[columnId];
+        byte mask = BIT_IN_BYTE_MASK[nullbitBitInByte[columnId]];
+        byte nullbyte = buffer.get(index);
+        buffer.put(index, (byte)(nullbyte|mask));
+        return columnId;
+    }
+
+    public int resetNull(ByteBuffer buffer, Column storeColumn) {
+        int columnId = storeColumn.getColumnId();
+        if (!storeColumn.getNullable()) {
+            return columnId;
+        }
+        int index = nullbitByteOffset[columnId];
+        byte mask = RESET_BIT_IN_BYTE_MASK[nullbitBitInByte[columnId]];
+        byte nullbyte = buffer.get(index);
+        buffer.put(index, (byte)(nullbyte & mask));
+        return columnId;
     }
 
     public int setBigInteger(ByteBuffer buffer, Column storeColumn, BigInteger value) {
+        resetNull(buffer, storeColumn);
         int columnId = storeColumn.getColumnId();
         int newPosition = offsets[columnId];
         buffer.position(newPosition);
+        // TODO provide the buffer to Utility.convertValue to avoid copying
         ByteBuffer bigIntegerBuffer = Utility.convertValue(storeColumn, value);
         buffer.put(bigIntegerBuffer);
+        buffer.limit(bufferSize);
+        buffer.position(0);
         return columnId;
     }
 
     public int setByte(ByteBuffer buffer, Column storeColumn, byte value) {
+        resetNull(buffer, storeColumn);
         int columnId = storeColumn.getColumnId();
         if (storeColumn.getLength() == 4) {
             // the byte is stored as a BIT array of four bytes
@@ -149,18 +223,26 @@ public class NdbRecordImpl {
         } else {
             buffer.put(offsets[columnId], (byte)value);
         }
+        buffer.limit(bufferSize);
+        buffer.position(0);
         return columnId;
     }
 
     public int setBytes(ByteBuffer buffer, Column storeColumn, byte[] value) {
+        resetNull(buffer, storeColumn);
         int columnId = storeColumn.getColumnId();
-        int newPosition = offsets[columnId];
-        buffer.position(newPosition);
+        int offset = offsets[columnId];
+        int length = storeColumn.getLength() + storeColumn.getPrefixLength();
+        buffer.limit(offset + length);
+        buffer.position(offset);
         Utility.convertValue(buffer, storeColumn, value);
+        buffer.limit(bufferSize);
+        buffer.position(0);
         return columnId;
     }
 
     public int setDecimal(ByteBuffer buffer, Column storeColumn, BigDecimal value) {
+        resetNull(buffer, storeColumn);
         int columnId = storeColumn.getColumnId();
         int newPosition = offsets[columnId];
         buffer.position(newPosition);
@@ -170,19 +252,22 @@ public class NdbRecordImpl {
         return columnId;
     }
 
-    public int setDouble(ByteBuffer buffer, Column storeColumn, Double value) {
+    public int setDouble(ByteBuffer buffer, Column storeColumn, double value) {
+        resetNull(buffer, storeColumn);
         int columnId = storeColumn.getColumnId();
         buffer.putDouble(offsets[columnId], value);
         return columnId;
     }
 
-    public int setFloat(ByteBuffer buffer, Column storeColumn, Float value) {
+    public int setFloat(ByteBuffer buffer, Column storeColumn, float value) {
+        resetNull(buffer, storeColumn);
         int columnId = storeColumn.getColumnId();
         buffer.putFloat(offsets[columnId], value);
         return columnId;
     }
 
-    public int setInt(ByteBuffer buffer, Column storeColumn, Integer value) {
+    public int setInt(ByteBuffer buffer, Column storeColumn, int value) {
+        resetNull(buffer, storeColumn);
         int columnId = storeColumn.getColumnId();
         int storageValue = Utility.convertIntValueForStorage(storeColumn, value);
         buffer.putInt(offsets[columnId], storageValue);
@@ -190,22 +275,15 @@ public class NdbRecordImpl {
     }
 
     public int setLong(ByteBuffer buffer, Column storeColumn, long value) {
+        resetNull(buffer, storeColumn);
         int columnId = storeColumn.getColumnId();
         long storeValue = Utility.convertLongValueForStorage(storeColumn, value);
         buffer.putLong(offsets[columnId], storeValue);
         return columnId;
     }
 
-    public int setNull(ByteBuffer buffer, Column storeColumn) {
-        int columnId = storeColumn.getColumnId();
-        int index = nullbitByteOffset[columnId];
-        byte mask = BIT_IN_BYTE_MASK[nullbitBitInByte[columnId]];
-        byte nullbyte = buffer.get(index);
-        buffer.put(index, (byte)(nullbyte|mask));
-        return columnId;
-    }
-
-    public int setShort(ByteBuffer buffer, Column storeColumn, Short value) {
+    public int setShort(ByteBuffer buffer, Column storeColumn, short value) {
+        resetNull(buffer, storeColumn);
         int columnId = storeColumn.getColumnId();
         if (storeColumn.getLength() == 4) {
             // the short is stored as a BIT array of four bytes
@@ -217,12 +295,22 @@ public class NdbRecordImpl {
     }
 
     public int setString(ByteBuffer buffer, BufferManager bufferManager, Column storeColumn, String value) {
+        resetNull(buffer, storeColumn);
         int columnId = storeColumn.getColumnId();
-        buffer.position(offsets[columnId]);
+        int offset = offsets[columnId];
+        int length = storeColumn.getLength() + storeColumn.getPrefixLength();
+        buffer.limit(offset + length);
+        buffer.position(offset);
         // TODO provide the buffer to Utility.encode to avoid copying
         // for now, use the encode method to encode the value then copy it
         ByteBuffer converted = Utility.encode(value, storeColumn, bufferManager);
+        if (length < converted.remaining()) {
+            throw new ClusterJUserException(local.message("ERR_Data_Too_Large",
+                    storeColumn.getName(), length, converted.remaining()));
+        }
         buffer.put(converted);
+        buffer.limit(bufferSize);
+        buffer.position(0);
         return columnId;
     }
 
@@ -274,30 +362,28 @@ public class NdbRecordImpl {
         byteBuffer.position(offset);
         byte[] result = new byte[actualLength];
         byteBuffer.get(result);
+        byteBuffer.limit(bufferSize);
+        byteBuffer.position(0);
         return result;
      }
 
     public double getDouble(ByteBuffer buffer, int columnId) {
-        buffer.position(offsets[columnId]);
-        double result = buffer.getDouble();
+        double result = buffer.getDouble(offsets[columnId]);
         return result;
     }
 
     public float getFloat(ByteBuffer buffer, int columnId) {
-        buffer.position(offsets[columnId]);
-        float result = buffer.getFloat();
+        float result = buffer.getFloat(offsets[columnId]);
         return result;
     }
 
     public int getInt(ByteBuffer buffer, int columnId) {
-        buffer.position(offsets[columnId]);
-        int value = buffer.getInt();
+        int value = buffer.getInt(offsets[columnId]);
         return Utility.getInt(storeColumns[columnId], value);
     }
 
     public long getLong(ByteBuffer buffer, int columnId) {
-        buffer.position(offsets[columnId]);
-        long value = buffer.getLong();
+        long value = buffer.getLong(offsets[columnId]);
         return Utility.getLong(storeColumns[columnId], value);
     }
 
@@ -343,6 +429,8 @@ public class NdbRecordImpl {
       byteBuffer.limit(offset + actualLength);
 
       String result = Utility.decode(byteBuffer, storeColumn.getCharsetNumber(), bufferManager);
+      byteBuffer.limit(bufferSize);
+      byteBuffer.position(0);
       return result;
     }
 
@@ -354,7 +442,10 @@ public class NdbRecordImpl {
         int scale = storeColumn.getScale();
         int length = Utility.getDecimalColumnSpace(precision, scale);
         byteBuffer.position(offset);
-        return Utility.getBigInteger(byteBuffer, length, precision, scale);
+        BigInteger result = Utility.getBigInteger(byteBuffer, length, precision, scale);
+        byteBuffer.limit(bufferSize);
+        byteBuffer.position(0);
+        return result;
     }
 
     public BigInteger getBigInteger(ByteBuffer byteBuffer, Column storeColumn) {
@@ -364,7 +455,10 @@ public class NdbRecordImpl {
         int scale = storeColumn.getScale();
         int length = Utility.getDecimalColumnSpace(precision, scale);
         byteBuffer.position(offset);
-        return Utility.getBigInteger(byteBuffer, length, precision, scale);
+        BigInteger result = Utility.getBigInteger(byteBuffer, length, precision, scale);
+        byteBuffer.limit(bufferSize);
+        byteBuffer.position(0);
+        return result;
     }
 
     public BigDecimal getDecimal(ByteBuffer byteBuffer, int columnId) {
@@ -375,7 +469,10 @@ public class NdbRecordImpl {
         int scale = storeColumn.getScale();
         int length = Utility.getDecimalColumnSpace(precision, scale);
         byteBuffer.position(offset);
-        return Utility.getDecimal(byteBuffer, length, precision, scale);
+        BigDecimal result = Utility.getDecimal(byteBuffer, length, precision, scale);
+        byteBuffer.limit(bufferSize);
+        byteBuffer.position(0);
+        return result;
       }
 
     public BigDecimal getDecimal(ByteBuffer byteBuffer, Column storeColumn) {
@@ -385,7 +482,10 @@ public class NdbRecordImpl {
       int scale = storeColumn.getScale();
       int length = Utility.getDecimalColumnSpace(precision, scale);
       byteBuffer.position(offset);
-      return Utility.getDecimal(byteBuffer, length, precision, scale);
+      BigDecimal result = Utility.getDecimal(byteBuffer, length, precision, scale);
+      byteBuffer.limit(bufferSize);
+      byteBuffer.position(0);
+      return result;
     }
 
     public Boolean getObjectBoolean(ByteBuffer byteBuffer, int columnId) {
@@ -469,10 +569,25 @@ public class NdbRecordImpl {
         if (!storeColumns[columnId].getNullable()) {
             return false;
         }
-        int index = nullbitByteOffset[columnId];
-        byte mask = BIT_IN_BYTE_MASK[nullbitBitInByte[columnId]];
-        byte nullbyte = buffer.get(index);
-        boolean result = (nullbyte & mask) != 0;
+        byte nullbyte = buffer.get(nullbitByteOffset[columnId]);
+        boolean result = isSet(nullbyte, nullbitBitInByte[columnId]);
+        return result;
+    }
+
+    public boolean isPresent(byte[] mask, int columnId) {
+        byte present = mask[columnId/8];
+        return isSet(present, columnId % 8);
+    }
+
+    public void markPresent(byte[] mask, int columnId) {
+        int offset = columnId/8;
+        int bitMask = BIT_IN_BYTE_MASK[columnId % 8];
+        mask[offset] |= (byte)bitMask;
+    }
+
+    protected boolean isSet(byte test, int bitInByte) {
+        int mask = BIT_IN_BYTE_MASK[bitInByte];
+        boolean result = (test & mask) != 0;
         return result;
     }
 
@@ -494,6 +609,7 @@ public class NdbRecordImpl {
         int i = 0;
         for (String columnName: columnNames) {
             Column storeColumn = storeTable.getColumn(columnName);
+            if (logger.isDetailEnabled()) logger.detail("storeColumn: " + storeColumn.getName() + " id: " + storeColumn.getColumnId() + " index: " + i);
             lengths[i] = storeColumn.getLength();
             storeColumns[i++] = storeColumn;
             // for each column, put into alignment bucket
@@ -568,7 +684,7 @@ public class NdbRecordImpl {
         }
         bufferSize = offset;
 
-        if (logger.isDebugEnabled()) logger.debug(dump());
+        if (logger.isDebugEnabled()) logger.debug(dumpDefinition());
 
         // now create an NdbRecord
         NdbRecord result = ndbDictionary.createRecord(tableConst, recordSpecificationArray,
@@ -608,7 +724,7 @@ public class NdbRecordImpl {
         }
     }
 
-    private String dump() {
+    private String dumpDefinition() {
         StringBuilder builder = new StringBuilder(tableConst.getName());
         builder.append(" numberOfColumns: ");
         builder.append(numberOfColumns);
@@ -627,6 +743,45 @@ public class NdbRecordImpl {
             builder.append(nullbitByteOffset[columnId]);
             builder.append('\n');
         }
+        return builder.toString();
+    }
+
+    public String dumpValues(ByteBuffer data, byte[] mask) {
+        StringBuilder builder = new StringBuilder(tableConst.getName());
+        builder.append(" numberOfColumns: ");
+        builder.append(numberOfColumns);
+        builder.append('\n');
+        for (int columnId = 0; columnId < numberOfColumns; ++columnId) {
+            Column storeColumn = storeColumns[columnId];
+            builder.append(" column: ");
+            builder.append(storeColumn.getName());
+            builder.append(" offset: ");
+            builder.append(offsets[columnId]);
+            builder.append(" length: ");
+            builder.append(lengths[columnId]);
+            builder.append(" nullbitBitInByte: ");
+            int nullBitInByte = nullbitBitInByte[columnId];
+            builder.append(nullBitInByte);
+            builder.append(" nullbitByteOffset: ");
+            int nullByteOffset = nullbitByteOffset[columnId];
+            builder.append(nullByteOffset);
+            builder.append(" data: ");
+            int size = storeColumn.getColumnSpace() != 0 ? storeColumn.getColumnSpace():storeColumn.getSize();
+            int offset = offsets[columnId];
+            data.limit(bufferSize);
+            data.position(0);
+            for (int index = offset; index < offset + size; ++index) {
+                builder.append(String.format("%2x ", data.get(index)));
+            }
+            builder.append(" null: ");
+            builder.append(isNull(data, columnId));
+            builder.append(" present: ");
+            if (mask != null) {
+                builder.append(isPresent(mask, columnId));
+            }
+            builder.append('\n');
+        }
+        data.position(0);
         return builder.toString();
     }
 

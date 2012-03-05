@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -626,6 +626,31 @@ public abstract class AbstractClusterJTest extends TestCase {
             result.append('\n');
         }
         return result.toString();
+    }
+
+    /** Convert the byte[] into a String to be used for logging and debugging.
+     * 
+     * @param bytes the byte[] to be dumped
+     * @return the String representation
+     */
+    public static String dumpBytes (byte[] bytes) {
+        StringBuffer buffer = new StringBuffer("byte[");
+        buffer.append(bytes.length);
+        buffer.append("]: [");
+        for (int i = 0; i < bytes.length; ++i) {
+            buffer.append((int)bytes[i]);
+            buffer.append(" ");
+        }
+        buffer.append("]");
+        return buffer.toString();
+    }
+
+    public static String dump(Object object) {
+        if (object instanceof byte[]) {
+            return dumpBytes((byte[])object);
+        } else {
+            return object.toString();
+        }
     }
 
     /** Catch otherwise uncaught exceptions and maintain a list of them.

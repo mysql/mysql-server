@@ -17,6 +17,8 @@
 
 package com.mysql.clusterj.core.store;
 
+import com.mysql.clusterj.core.spi.ValueHandlerFactory;
+
 /**
  *
  */
@@ -35,5 +37,7 @@ public interface ClusterConnection {
     public void close(Db db);
 
     public void unloadSchema(String tableName);
+
+    public ValueHandlerFactory getSmartValueHandlerFactory();
 
 }
