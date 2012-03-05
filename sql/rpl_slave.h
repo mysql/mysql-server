@@ -57,7 +57,14 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 #define MTS_WORKER_UNDEF ((ulong) -1)
 #define MTS_MAX_WORKERS  1024
-#define MTS_MAX_BITS_IN_GROUP ((1L << 19) - 1) /* 524287 */
+
+/* 
+   When using tables to store the slave workers bitmaps,
+   we use a BLOB field. The maximum size of a BLOB is:
+
+   2^16-1 = 65535 bytes => (2^16-1) * 8 = 524280 bits
+*/
+#define MTS_MAX_BITS_IN_GROUP ((1L << 19) - 8) /* 524280 */
 
 // Forward declarations
 class Relay_log_info;
