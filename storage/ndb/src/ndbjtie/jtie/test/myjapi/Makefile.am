@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2012 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,14 @@
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/java_support.mk.am
 
-## ----------------------------------------------------------------------
+## files to be distributed and not covered in the automatic rules
+EXTRA_DIST = 	$(MYJAPI_DIR)/*.java  \
+		$(TEST_DIR)/*.java \
+		test_myjapi.sh.in \
+		test_myjapi.cmd.in \
+		CMakeLists.txt
 
-## create the unit test scripts during build already
-all-local:	scripts
+## ----------------------------------------------------------------------
 
 ## list of jar files to install
 ##   cannot use _LIBRARIES primary, which does not recognize .jar files;
@@ -54,15 +58,6 @@ MYJAPI_java = \
 TEST_DIR = $(srcdir)/test
 TEST_java = \
 		$(TEST_DIR)/MyJapiTest.java
-
-## files to be distributed and not covered in the automatic rules
-EXTRA_DIST = $(MYJAPI_DIR)/*.java  \
-		$(TEST_DIR)/*.java \
-		MyApiWrapper.hpp \
-		myjapi_MyJapi.hpp \
-		myjapi_MyJapiCtypes.hpp \
-		myjapi_classes.hpp \
-		CMakeLists.txt
 
 classmyjapi.stamp: $(MYJAPI_java) $(TEST_java)
 	mkdir -p $(JAVAROOT)
@@ -138,46 +133,18 @@ libmyjapi_la_LDFLAGS += @ndb_cxx_runtime_libs@ ## need to link with C++ runtime
 ## ----------------------------------------------------------------------
 
 ## programs or scripts to run for testing
-TESTS = $(UNIT_TESTS)
+TESTS = test_myjapi.sh
 TESTS_ENVIRONMENT = $(SHELL)
 #TESTS_ENVIRONMENT = $(SHELL) -x
-
-UNIT_TESTS = test_myjapi.sh
-
-scripts:	$(UNIT_TESTS)
-
-# better enable asserts for these tests
-#SUN_JAVAFLAGS = -ea -Xcheck:jni -XX:+UseParallelGC -XX:+UseParallelOldGC
-#SUN_JAVAFLAGS = -ea -Xcheck:jni -XX:+UseSerialGC
-SUN_JAVAFLAGS = -ea -Xcheck:jni
-JAVAFLAGS_DEFAULT = $(SUN_JAVAFLAGS)
-JAVA_DEFAULT64 = java -d64
-JAVA_DEFAULT32 = java -d32
-
-## dependencies
-# test uninstalled jars and libraries as a pre-install sanity test
-RUN_CLASSPATH = "$(MYJAPI_JAR)"
-JAVA_CLASSPATH = -classpath "\"$(RUN_CLASSPATH)\""
-JAVA_LIBPATH = -Djava.library.path="\"./.libs\""
-#JAVA_LIBPATH = -Djava.library.path="\"$(ndblibdir)\""
-
-test_myjapi.sh: Makefile
-	@ echo "#!/bin/sh" > $@
-	@ echo "echo \"for test output see file: test_myjapi.log\"" >> $@
-	@ echo "test -f test_myjapi.log && rm test_myjapi.log" >> $@
-	if file .libs/myjapi_lib.o | grep 64 > /dev/null 2>&1; then echo "$(JAVA_DEFAULT64) \\" >> $@; else echo "$(JAVA_DEFAULT32) \\" >> $@; fi
-	@ echo "  $(JAVAFLAGS_DEFAULT) \\" >> $@
-	@ echo "  $(JAVA_LIBPATH) $(JAVA_CLASSPATH) \\" >> $@
-	@ echo "  test.MyJapiTest > test_myjapi.log 2>&1" >> $@
-	@CHMOD@ +x $@
 
 ## ----------------------------------------------------------------------
 
 ## cleanup
 MOSTLYCLEANFILES = *.log
-CLEANFILES = classmyjapi.stamp $(MYJAPI_JAR) $(TESTS)
+CLEANFILES = classmyjapi.stamp $(MYJAPI_JAR)
+DISTCLEANFILES = $(TESTS)
 
-mostlyclean-local: 
+mostlyclean-local:
 	rm -rf $(top_srcdir)/storage/ndb/src/ndbjtie/jtie/test/myjapi/target
 
 ## ----------------------------------------------------------------------
