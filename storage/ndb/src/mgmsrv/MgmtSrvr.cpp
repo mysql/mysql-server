@@ -333,8 +333,18 @@ MgmtSrvr::init()
   DBUG_ENTER("MgmtSrvr::init");
 
   const char* configdir;
-  if (!(configdir= check_configdir()))
-    DBUG_RETURN(false);
+
+  if (!m_opts.config_cache)
+  {
+    g_eventLogger->info("Skipping check of config directory since "
+                        "config cache is disabled.");
+    configdir = NULL;
+  }
+  else
+  {
+    if (!(configdir= check_configdir()))
+      DBUG_RETURN(false);
+  }
 
   if (!(m_config_manager= new ConfigManager(m_opts, configdir)))
   {
@@ -4311,6 +4321,7 @@ MgmtSrvr::show_variables(NdbOut& out)
   out << "no_nodeid_checks: " << yes_no(m_opts.no_nodeid_checks) << endl;
   out << "print_full_config: " << yes_no(m_opts.print_full_config) << endl;
   out << "configdir: " << str_null(m_opts.configdir) << endl;
+  out << "config_cache: " << yes_no(m_opts.config_cache) << endl;
   out << "verbose: " << yes_no(m_opts.verbose) << endl;
   out << "reload: " << yes_no(m_opts.reload) << endl;
 
