@@ -310,6 +310,10 @@ class ColumnImpl implements Column {
         }
     }
 
+    public int getSize() {
+        return size;
+    }
+
     public int getColumnId() {
         return columnId;
     }

@@ -160,7 +160,6 @@ public class BinaryPKTest extends AbstractClusterJTest {
     }
 
     protected void verifyStorage(String where, BinaryPK instance, int index, boolean updated) {
-        errorIfNotEqual(where + "mismatch on id", toString(getStoragePK(index)), toString(instance.getId()));
         errorIfNotEqual(where + "mismatch on number", index, instance.getNumber());
         if (updated) {
             errorIfNotEqual(where + "mismatch on name", getValue(NUMBER_OF_INSTANCES - index), instance.getName());

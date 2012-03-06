@@ -26,6 +26,7 @@ import com.mysql.clusterj.Query;
 import com.mysql.clusterj.Transaction;
 
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
+import com.mysql.clusterj.core.spi.SmartValueHandler;
 import com.mysql.clusterj.core.spi.ValueHandler;
 
 import com.mysql.clusterj.core.query.QueryDomainTypeImpl;
@@ -131,8 +132,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
 
     /** Create a SessionImpl with factory, properties, Db, and dictionary
      */
-    SessionImpl(SessionFactoryImpl factory, Map properties, 
-            Db db, Dictionary dictionary) {
+    SessionImpl(SessionFactoryImpl factory, Map properties, Db db, Dictionary dictionary) {
         this.factory = factory;
         this.db = db;
         this.dictionary = dictionary;
@@ -195,7 +195,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                 if (instanceHandler == null) {
                     if (logger.isDetailEnabled()) logger.detail("Creating instanceHandler for class " + domainTypeHandler.getName() + " table: " + domainTypeHandler.getTableName() + keyHandler.pkToString(domainTypeHandler));
                     // we need both a new instance and its handler
-                    instance = domainTypeHandler.newInstance();
+                    instance = domainTypeHandler.newInstance(db);
                     instanceHandler = domainTypeHandler.getValueHandler(instance);
                 } else if (instance == null) {
                 if (logger.isDetailEnabled()) logger.detail("Creating instance for class " + domainTypeHandler.getName() + " table: " + domainTypeHandler.getTableName() + keyHandler.pkToString(domainTypeHandler));
@@ -249,7 +249,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return a new instance that can be used with makePersistent
      */
     public <T> T newInstance(Class<T> cls) {
-        return factory.newInstance(cls, dictionary);
+        return factory.newInstance(cls, dictionary, db);
     }
 
     /** Create an instance of a class to be persisted and set the primary key.
@@ -260,7 +260,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      */
     public <T> T newInstance(Class<T> cls, Object key) {
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
-        T instance = factory.newInstance(cls, dictionary);
+        T instance = factory.newInstance(cls, dictionary, db);
         domainTypeHandler.objectSetKeys(key, instance);
         return instance;
     }
@@ -384,10 +384,21 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         return object;
     }
 
-    public Operation insert(
-            DomainTypeHandler<?> domainTypeHandler, ValueHandler valueHandler) {
+    public Operation insert( DomainTypeHandler<?> domainTypeHandler, ValueHandler valueHandler) {
         startAutoTransaction();
         setPartitionKey(domainTypeHandler, valueHandler);
+        if (valueHandler instanceof SmartValueHandler) {
+            try {
+            SmartValueHandler smartValueHandler = (SmartValueHandler)valueHandler;
+            Operation result = smartValueHandler.insert(clusterTransaction);
+            valueHandler.resetModified();
+            endAutoTransaction();
+            return result;
+            } catch (ClusterJException cjex) {
+                failAutoTransaction();
+                throw cjex;
+            }
+        }
         Operation op = null;
         Table storeTable = null;
         try {
@@ -464,6 +475,17 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         startAutoTransaction();
         Table storeTable = domainTypeHandler.getStoreTable();
         setPartitionKey(domainTypeHandler, valueHandler);
+        if (valueHandler instanceof SmartValueHandler) {
+            try {
+            SmartValueHandler smartValueHandler = (SmartValueHandler)valueHandler;
+            Operation result = smartValueHandler.delete(clusterTransaction);
+            endAutoTransaction();
+            return result;
+            } catch (ClusterJException cjex) {
+                failAutoTransaction();
+                throw cjex;
+            }
+        }
         Operation op = null;
         try {
             op = clusterTransaction.getDeleteOperation(storeTable);
@@ -573,7 +595,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param fields the fields to select; null to select all fields
      * @return the ResultData from the database
      */
-    public ResultData selectUnique(DomainTypeHandler domainTypeHandler,
+    public ResultData selectUnique(DomainTypeHandler<?> domainTypeHandler,
             ValueHandler keyHandler, BitSet fields) {
         assertActive();
         setPartitionKey(domainTypeHandler, keyHandler);
@@ -601,15 +623,26 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         if (object == null) {
             return;
         }
-        DomainTypeHandler domainTypeHandler = getDomainTypeHandler(object);
+        DomainTypeHandler<?> domainTypeHandler = getDomainTypeHandler(object);
         if (logger.isDetailEnabled()) logger.detail("UpdatePersistent on object " + object);
         ValueHandler valueHandler = domainTypeHandler.getValueHandler(object);
         update(domainTypeHandler, valueHandler);
     }
 
-    public Operation update(DomainTypeHandler domainTypeHandler, ValueHandler valueHandler) {
+    public Operation update(DomainTypeHandler<?> domainTypeHandler, ValueHandler valueHandler) {
         startAutoTransaction();
         setPartitionKey(domainTypeHandler, valueHandler);
+        if (valueHandler instanceof SmartValueHandler) {
+            try {
+            SmartValueHandler smartValueHandler = (SmartValueHandler)valueHandler;
+            Operation result = smartValueHandler.update(clusterTransaction);
+            endAutoTransaction();
+            return result;
+            } catch (ClusterJException cjex) {
+                failAutoTransaction();
+                throw cjex;
+            }
+        }
         Table storeTable = null;
         Operation op = null;
         try {
@@ -643,11 +676,23 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param instance the instance to save
      */
     public <T> T savePersistent(T instance) {
-        DomainTypeHandler domainTypeHandler = getDomainTypeHandler(instance);
+        DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(instance);
         if (logger.isDetailEnabled()) logger.detail("UpdatePersistent on object " + instance);
         ValueHandler valueHandler = domainTypeHandler.getValueHandler(instance);
         startAutoTransaction();
         setPartitionKey(domainTypeHandler, valueHandler);
+        if (valueHandler instanceof SmartValueHandler) {
+            try {
+            SmartValueHandler smartValueHandler = (SmartValueHandler)valueHandler;
+            smartValueHandler.write(clusterTransaction);
+            valueHandler.resetModified();
+            endAutoTransaction();
+            return instance;
+            } catch (ClusterJException cjex) {
+                failAutoTransaction();
+                throw cjex;
+            }
+        }
         Table storeTable = null;
         try {
             storeTable = domainTypeHandler.getStoreTable();
@@ -655,8 +700,6 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             op = clusterTransaction.getWriteOperation(storeTable);
             domainTypeHandler.operationSetKeys(valueHandler, op);
             domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
-            if (logger.isDetailEnabled()) logger.detail("Wrote object " +
-                    valueHandler);
         } catch (ClusterJException ex) {
             failAutoTransaction();
             throw new ClusterJException(

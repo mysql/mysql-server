@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,14 +17,21 @@
 
 package com.mysql.clusterj.core.spi;
 
-import com.mysql.clusterj.core.store.Dictionary;
+import com.mysql.clusterj.core.store.ClusterTransaction;
+import com.mysql.clusterj.core.store.Operation;
 
-/**
- *
+/** SmartValueHandler is the interface that must be implemented for
+ * operations that bypass the normal value handler and directly
+ * perform database operations.
  */
-public interface DomainTypeHandlerFactory {
+public interface SmartValueHandler extends ValueHandler {
 
-    public <T> DomainTypeHandler<T> createDomainTypeHandler(Class<T> domainClass, Dictionary dictionary,
-            ValueHandlerFactory valueHandlerFactory);
+    Operation insert(ClusterTransaction clusterTransaction);
+
+    Operation delete(ClusterTransaction clusterTransaction);
+
+    Operation update(ClusterTransaction clusterTransaction);
+
+    Operation write(ClusterTransaction clusterTransaction);
 
 }

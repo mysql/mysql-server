@@ -22,7 +22,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
+import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
+import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.LockMode;
 
 import com.mysql.clusterj.core.store.ClusterTransaction;
@@ -68,7 +70,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
             .getInstance(ClusterTransactionImpl.class);
 
     protected final static String USE_NDBRECORD_NAME = "com.mysql.clusterj.UseNdbRecord";
-    private static boolean USE_NDBRECORD = getUseNdbRecord();
+    private static boolean USE_NDBRECORD = ClusterJHelper.getBooleanProperty(USE_NDBRECORD_NAME, "true");
 
     protected NdbTransaction ndbTransaction;
     private List<Runnable> postExecuteCallbacks = new ArrayList<Runnable>();
@@ -113,6 +115,8 @@ class ClusterTransactionImpl implements ClusterTransaction {
     private String joinTransactionId;
 
     private BufferManager bufferManager;
+
+    private List<Operation> operationsToCheck = new ArrayList<Operation>();
 
     public ClusterTransactionImpl(ClusterConnectionImpl clusterConnectionImpl,
             DbImpl db, Dictionary ndbDictionary, String joinTransactionId) {
@@ -400,11 +404,11 @@ class ClusterTransactionImpl implements ClusterTransaction {
      * @param buffer the buffer with data for the operation
      * @param mask the mask of column values already set in the buffer
      * @param options the OperationOptions for this operation
-     * @param i 
-     * @return
+     * @return the insert operation
      */
     public NdbOperationConst insertTuple(NdbRecordConst ndbRecord,
             ByteBuffer buffer, byte[] mask, OperationOptionsConst options) {
+        enlist();
         NdbOperationConst operation = ndbTransaction.insertTuple(ndbRecord, buffer, mask, options, 0);
         handleError(operation, ndbTransaction);
         return operation;
@@ -420,7 +424,40 @@ class ClusterTransactionImpl implements ClusterTransaction {
      */
     public NdbOperationConst deleteTuple(NdbRecordConst ndbRecord,
             ByteBuffer buffer, byte[] mask, OperationOptionsConst options) {
+        enlist();
         NdbOperationConst operation = ndbTransaction.deleteTuple(ndbRecord, buffer, ndbRecord, null, mask, options, 0);
+        handleError(operation, ndbTransaction);
+        return operation;
+    }
+
+    /** Create an NdbOperation for update using NdbRecord.
+     * 
+     * @param ndbRecord the NdbRecord
+     * @param buffer the buffer with data for the operation
+     * @param mask the mask of column values already set in the buffer
+     * @param options the OperationOptions for this operation
+     * @return the update operation
+     */
+    public NdbOperationConst updateTuple(NdbRecordConst ndbRecord,
+            ByteBuffer buffer, byte[] mask, OperationOptionsConst options) {
+        enlist();
+        NdbOperationConst operation = ndbTransaction.updateTuple(ndbRecord, buffer, ndbRecord, buffer, mask, options, 0);
+        handleError(operation, ndbTransaction);
+        return operation;
+    }
+
+    /** Create an NdbOperation for write using NdbRecord.
+     * 
+     * @param ndbRecord the NdbRecord
+     * @param buffer the buffer with data for the operation
+     * @param mask the mask of column values already set in the buffer
+     * @param options the OperationOptions for this operation
+     * @return the update operation
+     */
+    public NdbOperationConst writeTuple(NdbRecordConst ndbRecord,
+            ByteBuffer buffer, byte[] mask, OperationOptionsConst options) {
+        enlist();
+        NdbOperationConst operation = ndbTransaction.writeTuple(ndbRecord, buffer, ndbRecord, buffer, mask, options, 0);
         handleError(operation, ndbTransaction);
         return operation;
     }
@@ -460,19 +497,36 @@ class ClusterTransactionImpl implements ClusterTransaction {
     }
 
     private void performPostExecuteCallbacks() {
-        // TODO this will abort on the first postExecute failure
+        // check completed operations
+        StringBuilder exceptionMessages = new StringBuilder();
+        for (Operation op: operationsToCheck) {
+            int code = op.getErrorCode();
+            if (code != 0) {
+                int mysqlCode = op.getMysqlCode();
+                int status = op.getStatus();
+                int classification = op.getClassification();
+                String message = local.message("ERR_Datastore", -1, code, mysqlCode, status, classification,
+                        op.toString());
+                exceptionMessages.append(message);
+                exceptionMessages.append('\n');
+            }
+        }
+        operationsToCheck.clear();
         // TODO should this set rollback only?
         try {
             for (Runnable runnable: postExecuteCallbacks) {
                 try {
                     runnable.run();
                 } catch (Throwable t) {
-                    throw new ClusterJDatastoreException(
-                            local.message("ERR_Datastore"), t);
+                    exceptionMessages.append(t.getMessage());
+                    exceptionMessages.append('\n');
                 }
             }
         } finally {
             clearPostExecuteCallbacks();
+        }
+        if (exceptionMessages.length() > 0) {
+            throw new ClusterJDatastoreException(exceptionMessages.toString());
         }
     }
 
@@ -591,21 +645,21 @@ class ClusterTransactionImpl implements ClusterTransaction {
         return bufferManager;
     }
 
+    /** Get the cached NdbRecordImpl for this table. The NdbRecordImpl is cached in the
+     * cluster connection.
+     * @param storeTable the table
+     * @return
+     */
     protected NdbRecordImpl getCachedNdbRecordImpl(Table storeTable) {
         return clusterConnectionImpl.getCachedNdbRecordImpl(storeTable);
     }
 
-    /** Get the UseNdbRecord property from either the environment or system properties.
-     * 
-     * @return the system property if it is set via -D or the system environment
+    /** 
+     * Add an operation to check for errors after execute.
+     * @param op the operation to check
      */
-    protected static boolean getUseNdbRecord() {
-        String useNdbRecordENV = System.getenv(USE_NDBRECORD_NAME);
-        // system property overrides environment variable
-        boolean result = System.getProperty(USE_NDBRECORD_NAME, useNdbRecordENV==null?"true":useNdbRecordENV)
-                .equals("true")?true:false;
-        logger.info("useNdbRecordENV: " + useNdbRecordENV + " UseNdbRecord: " + result);
-        return result;
+    public void addOperationToCheck(Operation op) {
+        operationsToCheck.add(op);
     }
 
 }

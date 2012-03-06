@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 package com.mysql.clusterj.core.metadata;
 
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
+import com.mysql.clusterj.core.spi.ValueHandlerFactory;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
@@ -31,6 +32,7 @@ import com.mysql.clusterj.annotation.PersistenceCapable;
 import com.mysql.clusterj.core.CacheManager;
 
 import com.mysql.clusterj.core.store.Column;
+import com.mysql.clusterj.core.store.Db;
 import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.store.Operation;
@@ -49,8 +51,8 @@ import java.util.List;
 import java.util.Map;
 
 /** This instance manages a persistence-capable type.
- * Currently, only interfaces can be persistence-capable. Persistent
- * properties consist of a pair of bean-pattern methods for which the
+ * Currently, only interfaces or subclasses of DynamicObject can be persistence-capable.
+ * Persistent properties consist of a pair of bean-pattern methods for which the
  * get method returns the same type as the parameter of the 
  * similarly-named set method.
  * @param T the class of the persistence-capable type
@@ -76,22 +78,41 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
     /** The PersistenceCapable annotation for this class. */
     PersistenceCapable persistenceCapable;
 
+    /** The smart value handler factory */
+    ValueHandlerFactory valueHandlerFactory;
+
+    /* The column number is the entry indexed by field number */
+    private int[] fieldNumberToColumnNumberMap;
+
+    /* The number of transient (non-persistent) fields in the domain model */
+    private int numberOfTransientFields;
+
+    /* The field handlers for transient fields */
+    private DomainFieldHandlerImpl[] transientFieldHandlers;
+
     /** Helper parameter for constructor. */
     protected static final Class<?>[] invocationHandlerClassArray = 
             new Class[]{InvocationHandler.class};
 
     /** Initialize DomainTypeHandler for a class.
      * 
-     * @param cls the domain class (this is the only class 
-     * known to the rest of the implementation)
+     * @param cls the domain class (this is the only class known to the rest of the implementation)
      * @param dictionary NdbDictionary instance used for metadata access
      */
-    @SuppressWarnings( "unchecked" )
     public DomainTypeHandlerImpl(Class<T> cls, Dictionary dictionary) {
+        this(cls, dictionary, null);
+    }
+
+    @SuppressWarnings( "unchecked" )
+    public DomainTypeHandlerImpl(Class<T> cls, Dictionary dictionary,
+            ValueHandlerFactory smartValueHandlerFactory) {
+        this.valueHandlerFactory = smartValueHandlerFactory!=null?
+                smartValueHandlerFactory:
+                defaultInvocationHandlerFactory;
         this.cls = cls;
         this.name = cls.getName();
-        this.dynamic = DynamicObject.class.isAssignableFrom(cls);
-        if (dynamic) {
+        if (DynamicObject.class.isAssignableFrom(cls)) {
+            this.dynamic = true;
             // Dynamic object has a handler but no proxy
             this.tableName = getTableNameForDynamicObject((Class<DynamicObject>)cls);
         } else {
@@ -130,6 +151,7 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         IndexHandlerImpl primaryIndexHandler =
             new IndexHandlerImpl(this, dictionary, primaryIndex, primaryKeyColumnNames);
         indexHandlerImpls.add(primaryIndexHandler);
+        List<DomainFieldHandler> fieldHandlerList = new ArrayList<DomainFieldHandler>();
 
         String[] indexNames = table.getIndexNames();
         for (String indexName: indexNames) {
@@ -153,6 +175,7 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                 fieldNameList.add(fieldName);
                 fieldNameToNumber.put(domainFieldHandler.getName(), domainFieldHandler.getFieldNumber());
                 persistentFieldHandlers.add(domainFieldHandler);
+                fieldHandlerList.add(domainFieldHandler);
                 if (!storeColumn.isPrimaryKey()) {
                     nonPKFieldHandlers.add(domainFieldHandler);
                 }
@@ -219,6 +242,7 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                     if (domainFieldHandler.isPrimitive()) {
                         primitiveFieldHandlers.add(domainFieldHandler);
                     }
+                    fieldHandlerList.add(domainFieldHandler);
                 }
             }
             fieldNames = fieldNameList.toArray(new String[fieldNameList.size()]);
@@ -248,12 +272,45 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
             logger.debug(toString());
             logger.debug("DomainTypeHandlerImpl " + name + "Indices " + indexHandlerImpls);
         }
+
+        // Compute the column for each field handler. 
+        // If no column for this field, increment the transient field counter.
+        // For persistent fields, column number is positive.
+        // For transient fields, column number is negative (index into transient field handler).
+        fieldNumberToColumnNumberMap = new int[numberOfFields];
+        String[] columnNames = table.getColumnNames();
+        this.fieldHandlers = fieldHandlerList.toArray(new DomainFieldHandlerImpl[numberOfFields]);
+
+        int transientFieldNumber = 0;
+        List<DomainFieldHandlerImpl> transientFieldHandlerList = new ArrayList<DomainFieldHandlerImpl>();
+        for (int fieldNumber = 0; fieldNumber < numberOfFields; ++fieldNumber) {
+            DomainFieldHandler fieldHandler = fieldHandlerList.get(fieldNumber);
+            // find the column name for the field
+            String columnName = fieldHandler.getColumnName();
+            boolean found = false;
+            for (int columnNumber = 0; columnNumber < columnNames.length; ++columnNumber) {
+                if (columnNames[columnNumber].equals(columnName)) {
+                    fieldNumberToColumnNumberMap[fieldNumber] = columnNumber;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                // no column for this field; it is a transient field
+                fieldNumberToColumnNumberMap[fieldNumber] = --transientFieldNumber;
+                transientFieldHandlerList.add((DomainFieldHandlerImpl) fieldHandler);
+            }
+        }
+        numberOfTransientFields = 0 - transientFieldNumber;
+        transientFieldHandlers = 
+            transientFieldHandlerList.toArray(new DomainFieldHandlerImpl[transientFieldHandlerList.size()]);
     }
 
     /** Get the table name mapped to the domain class.
      * @param cls the domain class
      * @return the table name for the domain class
      */
+    @SuppressWarnings("unchecked")
     protected static String getTableName(Class<?> cls) {
         String tableName = null;
         if (DynamicObject.class.isAssignableFrom(cls)) {
@@ -358,17 +415,14 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         handler.resetModified();
     }
 
-    @SuppressWarnings("unchecked")
     public void objectSetCacheManager(CacheManager cm, Object instance) {
-        InvocationHandlerImpl<T> handler =
-                (InvocationHandlerImpl<T>)getValueHandler(instance);
-        handler.setCacheManager(cm);
+        getValueHandler(instance).setCacheManager(cm);
     }
 
-    public T newInstance() {
+    public T newInstance(Db db) {
         T instance;
         try {
-            InvocationHandlerImpl<T> handler = new InvocationHandlerImpl<T>(this);
+            ValueHandler handler = valueHandlerFactory.getValueHandler(this, db);
             if (dynamic) {
                 instance = cls.newInstance();
                 ((DynamicObject)instance).delegate((DynamicObjectDelegate)handler);
@@ -396,10 +450,11 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
     }
 
 
-    public void initializeNotPersistentFields(InvocationHandlerImpl<T> handler) {
+    public void initializePrimitiveFields(ValueHandler handler) {
         for (DomainFieldHandler fmd:primitiveFieldHandlers) {
             ((AbstractDomainFieldHandlerImpl) fmd).objectSetDefaultValue(handler);
         }
+        handler.resetModified();
     }
 
     /** Convert a method name to a javabeans property name.
@@ -519,9 +574,38 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    protected ColumnMetadata[] columnMetadata() {
+    public ColumnMetadata[] columnMetadata() {
         ColumnMetadata[] result = new ColumnMetadata[numberOfFields];
         return persistentFieldHandlers.toArray(result);
+    }
+
+    /** Factory for default InvocationHandlerImpl */
+    protected ValueHandlerFactory defaultInvocationHandlerFactory = new ValueHandlerFactory()  {
+        public <V> ValueHandler getValueHandler(DomainTypeHandlerImpl<V> domainTypeHandler, Db db) {
+            return new InvocationHandlerImpl<V>(domainTypeHandler);
+        }
+    };
+
+    public int getNumberOfTransientFields() {
+        return numberOfTransientFields;
+    }
+
+    public int[] getFieldNumberToColumnNumberMap() {
+        return fieldNumberToColumnNumberMap;
+    }
+
+    /** Create a new object array containing default values for all transient fields.
+     * 
+     * @return default transient field values
+     */
+    public Object[] newTransientValues() {
+        Object[] result = new Object[numberOfTransientFields];
+        int i = 0;
+        for (DomainFieldHandlerImpl transientFieldHandler: transientFieldHandlers) {
+            Object value = transientFieldHandler.getDefaultValue();
+            result[i++] = value;
+        }
+        return result;
     }
 
 }
