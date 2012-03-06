@@ -3,7 +3,7 @@
 <RegistrySearch Id="HeidiSQL"
           Root="HKLM"
           Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\HeidiSQL_is1"
-          Name="Install"
+          Name="UninstallString"
           Type="raw"
           Win64="no"
 />
@@ -30,10 +30,14 @@
     <Component Id="component.HeidiSQL_MenuShortcut" Guid="*" Win64="no">
       <RegistryValue  Root="HKCU" Key="Software\@CPACK_WIX_PACKAGE_NAME@\Uninstall" Name="shortcuts.heidisql" Value="1" Type="string" KeyPath="yes"  />
       <Shortcut Id="startmenuHeidiSQL" Directory="ShortcutFolder" Name="HeidiSQL"  Target="[D.HeidiSQL]\heidisql.exe"/>
-      <RemoveRegistryKey Id="HeidiSQL_RegistryCleanup" Root="HKCU" Key="SOFTWARE\HeidiSQL" Action="removeOnUninstall" />
     </Component>
     <Component Id="component.HeidiSQL_libmysql.dll" Guid="*" Win64="no">
       <File Id="heidisql.libmysql.dll" Name="libmysql.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libmysql.dll" />
+    </Component>
+    <Component Id="component.HeidiSQL_CleanupSettings" Guid="*" Win64="no">
+     <Condition>HEIDISQLINSTALLED</Condition>
+     <RegistryValue  Root="HKCU" Key="Software\@CPACK_WIX_PACKAGE_NAME@\UninstallCleanupHeidiSQLSettings" Name="cleanup.heidisql" Value="1" Type="string" KeyPath="yes"  />
+     <RemoveRegistryKey Id="HeidiSQL_RegistryCleanup" Root="HKCU" Key="SOFTWARE\HeidiSQL" Action="removeOnUninstall" />
     </Component>
   </Directory>
 </DirectoryRef>
@@ -42,5 +46,6 @@
   <ComponentRef Id="component.HeidiSQL"/>
   <ComponentRef Id="component.HeidiSQL_MenuShortcut"/>
   <ComponentRef Id="component.HeidiSQL_libmysql.dll"/>
+  <ComponentRef Id="component.HeidiSQL_CleanupSettings"/>
 </ComponentGroup>
 </Include>
