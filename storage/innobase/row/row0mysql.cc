@@ -2763,7 +2763,7 @@ row_discard_tablespace_for_mysql(
 
 	table_id_t	new_id;
 
-	if (row_import_update_discarded_flag(trx, table, true, true)
+	if (row_import_update_discarded_flag(trx, table->id, true, true)
 	    != DB_SUCCESS
 	    || row_import_update_index_root(trx, table, true, true)
 	    != DB_SUCCESS

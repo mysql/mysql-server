@@ -28,6 +28,7 @@ Created 2012-02-08 by Sunny Bains
 
 #include "univ.i"
 #include "db0err.h"
+#include "dict0types.h"
 
 // Forward declarations
 struct trx_struct;
@@ -53,15 +54,15 @@ UNIV_INTERN
 db_err
 row_import_update_discarded_flag(
 /*=============================*/
-	trx_struct*		trx,		/*!< in/out: transaction that
-						covers the update */
-	const dict_table_struct*table,		/*!< in: Table for which we want
-						to set the root table->flags2 */
-	bool			discarded,	/*!< in: set MIX_LEN column bit
-						to discarded, if true */
-	bool			dict_locked)	/*!< Set to TRUE if the
-						caller already owns the
-						dict_sys_t::mutex. */
+	trx_struct*	trx,		/*!< in/out: transaction that
+					covers the update */
+	table_id_t	table_id,	/*!< in: Table for which we want
+					to set the root table->flags2 */
+	bool		discarded,	/*!< in: set MIX_LEN column bit
+					to discarded, if true */
+	bool		dict_locked)	/*!< Set to TRUE if the 
+					caller already owns the 
+					dict_sys_t:: mutex. */
 	__attribute__((nonnull, warn_unused_result));
 
 /*****************************************************************//**
