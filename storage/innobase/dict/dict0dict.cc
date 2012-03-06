@@ -1409,7 +1409,7 @@ dict_table_rename_in_cache(
 	/* If the table is stored in a single-table tablespace, rename the
 	.ibd file */
 
-	if (table->space != 0) {
+	if (!dict_table_is_discarded(table) && table->space != TRX_SYS_SPACE) {
 		if (table->dir_path_of_temp_table != NULL) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: trying to rename a"
