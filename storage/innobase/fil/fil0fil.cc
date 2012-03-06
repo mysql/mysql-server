@@ -3272,18 +3272,9 @@ fil_reset_space_and_lsn(
 
 	if (table->space != fil_space_id) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Tablespace file with id %lu is to be imported as "
-			"space %lu. Current system lsn is " LSN_PF ", flush "
-			"lsn in the file is " LSN_PF ". Reset the space id "
-			"and lsn in the file ",
-			(ulong) fil_space_id, (ulong) table->space,
-			current_lsn, flush_lsn);
+			"Reset the tablespace id and LSN");
 	} else {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Flush lsn in the tablespace file to be imported is "
-			"%lu is " LSN_PF ", which exceeds current system lsn "
-			LSN_PF ". We reset the lsn's in the file ",
-			flush_lsn, current_lsn);
+		ib_logf(IB_LOG_LEVEL_INFO, "Space id matches reset the LSN");
 	}
 
 	ut_a(ut_is_2pow(zip_size));
