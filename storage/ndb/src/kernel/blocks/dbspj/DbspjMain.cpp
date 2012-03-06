@@ -3191,7 +3191,7 @@ Dbspj::lookup_execTRANSID_AI(Signal* signal,
 
     for (list.first(it); !it.isNull(); list.next(it))
     {
-      if (likely(requestPtr.p->m_state & Request::RS_RUNNING))
+      if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
       {
         jam();
         Ptr<TreeNode> childPtr;
@@ -3245,7 +3245,7 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
    * terminate the query execution, or a 'soft error' which 
    * should be signaled NDBAPI, and execution continued.
    */
-  if (likely(requestPtr.p->m_state & Request::RS_RUNNING))
+  if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
   {
     switch(errCode){
     case 626: // 'Soft error' : Row not found
@@ -4210,7 +4210,7 @@ Dbspj::scanFrag_execTRANSID_AI(Signal* signal,
 
     for (list.first(it); !it.isNull(); list.next(it))
     {
-      if (likely(requestPtr.p->m_state & Request::RS_RUNNING))
+      if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
       {
         jam();
         Ptr<TreeNode> childPtr;
@@ -5592,7 +5592,7 @@ Dbspj::scanIndex_execTRANSID_AI(Signal* signal,
 
     for (list.first(it); !it.isNull(); list.next(it))
     {
-      if (likely(requestPtr.p->m_state & Request::RS_RUNNING))
+      if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
       {
         jam();
         Ptr<TreeNode> childPtr;
