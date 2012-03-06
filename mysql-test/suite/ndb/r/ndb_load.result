@@ -1,0 +1,147 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=NDB;
+LOAD DATA INFILE '../../../std_data/words.dat' INTO TABLE t1 ;
+ERROR 23000: Can't write; duplicate key in table 't1'
+DROP TABLE t1;
+CREATE TABLE t1 (word CHAR(20) NOT NULL) ENGINE=NDB;
+LOAD DATA INFILE '../../../std_data/words.dat' INTO TABLE t1 ;
+SELECT * FROM t1 ORDER BY word;
+word
+Aarhus
+Aarhus
+Aaron
+Aaron
+Ababa
+Ababa
+aback
+aback
+abaft
+abaft
+abandon
+abandon
+abandoned
+abandoned
+abandoning
+abandoning
+abandonment
+abandonment
+abandons
+abandons
+abase
+abased
+abasement
+abasements
+abases
+abash
+abashed
+abashes
+abashing
+abasing
+abate
+abated
+abatement
+abatements
+abater
+abates
+abating
+Abba
+abbe
+abbey
+abbeys
+abbot
+abbots
+Abbott
+abbreviate
+abbreviated
+abbreviates
+abbreviating
+abbreviation
+abbreviations
+Abby
+abdomen
+abdomens
+abdominal
+abduct
+abducted
+abduction
+abductions
+abductor
+abductors
+abducts
+Abe
+abed
+Abel
+Abelian
+Abelson
+Aberdeen
+Abernathy
+aberrant
+aberration
+DROP TABLE t1;
+Test single statement load from MyISAM table with and
+without ndb_use_transactions
+(Bug#43236)
+ndb_use_transactions = 0 should allow bulk inserts to 
+succeed by automatically splitting into smaller 
+transactions.
+CREATE TABLE t1 (a int) engine=MyIsam;
+show tables;
+Tables_in_test
+t1
+CREATE PROCEDURE bulkinsert (in num int)
+BEGIN
+set @total= num;
+repeat
+insert into t1 values (@total);
+set @total= @total -1;
+until @total = 0 end repeat;
+end %
+Insert 15000 rows which should exceed default number
+of concurrent operations (include/default_ndbd.cnf)
+when trying to move over to ndb.
+CALL bulkinsert(15000);
+show tables;
+Tables_in_test
+t1
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+15000
+SET ndb_use_transactions= 1;
+CREATE TABLE t2 (a int) engine=Ndb;
+Will fail with too many concurrent operations error
+INSERT INTO t2 SELECT * FROM t1;
+ERROR HY000: Got temporary error 233 'Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)' from NDBCLUSTER
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+0
+SET ndb_use_transactions= 0;
+Should pass as insert is split
+into multiple transactions
+INSERT INTO t2 SELECT * FROM t1;
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+15000
+DROP PROCEDURE bulkinsert;
+DROP TABLE t2;
+Now check bulk insert using create .. as select.
+SHOW VARIABLES LIKE 'storage_engine';
+Variable_name	Value
+storage_engine	MyISAM
+SET default_storage_engine="ndb";
+CREATE TABLE t2 AS SELECT * FROM t1;
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+15000
+DROP TABLE t2;
+SET default_storage_engine="MyIsam";
+Now check Alter table to Ndb
+ALTER TABLE t1 ENGINE= Ndb;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+15000
+Now check Alter table within Ndb
+ALTER TABLE t1 ADD COLUMN extra int default 6;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+15000
+DROP TABLE t1;

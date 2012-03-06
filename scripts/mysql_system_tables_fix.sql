@@ -655,6 +655,25 @@ INSERT INTO proxies_priv SELECT * FROM tmp_proxies_priv WHERE @had_proxies_priv_
 DROP TABLE tmp_proxies_priv;
 
 
+#
+# mysql.ndb_binlog_index
+#
+# Change type from BIGINT to INT
+ALTER TABLE ndb_binlog_index
+  MODIFY inserts INT UNSIGNED NOT NULL,
+  MODIFY updates INT UNSIGNED NOT NULL,
+  MODIFY deletes INT UNSIGNED NOT NULL,
+  MODIFY schemaops INT UNSIGNED NOT NULL;
+# Add new columns
+ALTER TABLE ndb_binlog_index
+  ADD orig_server_id INT UNSIGNED NOT NULL,
+  ADD orig_epoch BIGINT UNSIGNED NOT NULL,
+  ADD gci INT UNSIGNED NOT NULL;
+# New primary key
+ALTER TABLE ndb_binlog_index
+  DROP PRIMARY KEY,
+  ADD PRIMARY KEY(epoch, orig_server_id, orig_epoch);
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct

@@ -1,0 +1,73 @@
+-- source include/have_multi_ndb.inc
+
+--disable_warnings
+connection server2;
+drop table if exists t1, t2, t3, t4;
+flush status;
+connection server1;
+drop table if exists t1, t2, t3, t4;
+flush status;
+--enable_warnings
+
+
+# Create test tables on server1
+create table t1 (a int) engine=ndbcluster;
+create table t2 (a int) engine=ndbcluster;
+insert into t1 value (2);
+insert into t2 value (3);
+select * from t1;
+select * from t2;
+show status like 'handler_discover%';
+
+# Check dropping and recreating table on same server
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+connection con1;
+select * from t1;
+connection con2;
+drop table t1;
+create table t1 (a int) engine=ndbcluster;
+insert into t1 value (2);
+connection con1;
+select * from t1;
+
+# Check dropping and recreating table on different server
+connection server2;
+show status like 'handler_discover%';
+drop table t1;
+create table t1 (a int) engine=ndbcluster;
+insert into t1 value (2);
+connection server1;
+## Currently a retry is required remotely
+#--error 1412
+#select * from t1;
+#show warnings;
+#flush table t1;
+# Table definition change should be propagated automatically
+select * from t1;
+
+# Connect to server2 and use the tables from there
+connection server2;
+flush status;
+select * from t1;
+update t1 set a=3 where a=2;
+show status like 'handler_discover%';
+
+# Create a new table on server2
+create table t3 (a int not null primary key, b varchar(22),
+c int, last_col text) engine=ndb;
+insert into t3 values(1, 'Hi!', 89, 'Longtext column');
+create table t4 (pk int primary key, b int) engine=ndb;
+
+# Check that the tables are accessible from server1
+connection server1;
+select * from t1;
+select * from t3;
+show tables like 't4';
+show tables;
+
+drop table t1, t2, t3, t4;
+connection server2;
+drop table if exists t1, t3, t4;
+
+# End of 4.1 tests

@@ -1,0 +1,318 @@
+#
+# config.ini -- MySQL Cluster configuration file
+#
+# Cluster parameter names are case-insensitive (in contrast to my.cnf, my.ini).
+
+#
+# READ: http://johanandersson.blogspot.com/2007/05/good-configuration.html
+#
+
+# [computer]: defines cluster hosts.
+#
+# normally, not required; allows to define host Ids as shortcuts for HostNames.
+
+[ndbd default]
+
+# number of data copies; no default value, must always must be set explicitly
+# 1 = no data redundancy, 2 = high availability (higher values not recommended)
+NoOfReplicas=1
+
+# size of memory segments used to store the actual records and their indexes
+# use ndb_size.pl to calculate memory consumption and allow extra 20%;
+# sum of DataMemory, IndexMemory should not exceed the physical memory;
+# DataMemory is allocated as 32KB pages; once a page is assigned to a table,
+# this memory cannot be freed except by dropping the table.
+# It is highly recommended that DataMemory and IndexMemory be set to the same
+# values for all nodes (the smallest node determines maximum amount).
+#
+# memory allocated to store both the actual records and indexes;
+# the default value for DataMemory is 80MB, the minimum is 1MB.
+DataMemory=256M
+#
+# memory allocated for hash indexes (primary keys indexes, unique indexes,
+# and unique constraints);
+# the default value for IndexMemory is 18MB, the minimum is 1MB.
+IndexMemory=32M
+
+# lock the data node process into memory to prevent them from swapping to disk
+# (supported on Linux and Solaris).  Values:
+#   0: Disables locking. This is the default value. 
+#   1: Performs the lock after allocating memory for the process. 
+#   2: Performs the lock before memory for the process is allocated.
+#LockPagesInMainMemory=1
+
+# make an ndbd process exit or perform an automatic restart when an error
+# condition is encountered. 
+# This default value is enabled.
+#StopOnError=
+
+# make the entire cluster operate in diskless mode;
+# no checkpointing to disk and no logging occurs (i.e., neither the tables
+# nor the records in those tables survive a crash); Cluster online backup
+# is disabled. In addition, a partial start of the cluster is not possible. 
+# This default value is disabled.
+Diskless=1
+
+# use O_DIRECT writes for local checkpoints, backups, and redo logs;
+# often lowers kswapd and CPU usage.  Recommend for NDB >=6.2.3 on Linux
+# kernel >=2.6.  Disabled by default.
+#ODirect=1
+
+# number of parallel transactions possible in a node;
+# must be the same for all data nodes; a change requires cluster restart.
+# The default value is 4096. A reasonable minimum is
+#  (1 + max number of tables accessed in any single transaction) 
+#  * number SQL or API nodes in the cluster
+#MaxNoOfConcurrentTransactions=
+
+# number of records that can be in update phase or locked simultaneously
+# (= operation records to be placed with the transaction coordinator).
+# The default value is 32768.  Should be set to
+#   (number of records to be updated simultaneously)
+#   / number of cluster data nodes
+# Each operation record consumes about 1KB.
+#MaxNoOfConcurrentOperations=100000
+
+# number of operation records to be local to the database
+# The default value is: (1.1 * MaxNoOfConcurrentOperations)
+#MaxNoOfLocalOperations=
+
+# size of the pool of temporary records used for a unique hash index;
+# allocated only while executing a part of a query.
+# The default value is 8192. Only in rare cases of high parallelism using
+# unique hash indexes should it be necessary to increase this value.
+#MaxNoOfConcurrentIndexOperations=
+
+# size of the pool of temporary records used for inserts and deletes on a
+# base table containing a set of unique hash indexes.
+# The default value is 4000, which is sufficient for most situations.
+#MaxNoOfFiredTriggers=
+
+# memory used for tracking operations fired when updating index tables and
+# reading unique indexes. 
+# The default value is 1MB, which is sufficient for most situations.
+#TransactionBufferMemory=
+
+# number of parallel scans that can be performed in the cluster
+# (= scan records in each data node); used for each full-table scan and
+# parallel range scan (ordered index, but no hash index) in the cluster;
+# The default value is 256. Legal values are between 2 and 500. 
+#MaxNoOfConcurrentScans=256
+
+# number of local records for scans not fully parallelized;
+# The default value is (MaxNoOfConcurrentScans * number of data nodes).
+# The minimum value is 32.
+#MaxNoOfLocalScans=64
+
+# number of lock records used for concurrent scan operations;
+# The default value is 64.  See also ScanBatchSize defined in the SQL nodes. 
+#BatchSizePerLocalScan=
+
+# size of buffer used for passing messages within and between nodes.
+# The default value is 1MB (NDB <=6.4.3) and 4MB (NDB >=7.0.4), which is
+# unlikely to be needed to change.
+#LongMessageBuffer=
+
+# maximum size of the memory unit to use when allocating memory for tables
+#MaxAllocate=
+
+# number of REDO log files for the node and space allocated to REDO logging;
+# requires restarting the data nodes with --initial.
+# The default value is 16, which means 16 sets of 4 FragmentLogFileSize (16MB)
+# files for a total of 1024MB.  Scenarios with many updates may require a
+# value 300 or higher.
+#NoOfFragmentLogFiles=300
+
+# size of redo log files;
+# The default value is 16M.  Increase when data nodes are unable to close
+# fragment log files quickly enough before attempting to open new ones.
+#FragmentLogFileSize=
+
+# maximum number of attributes that can be defined in the cluster
+# Each attribute consumes around 200 bytes of storage per data node.
+# The default value is 1000.  Legal values are between 32 and 4294967039.
+# Allow for 6 * the number of anticipated attributes.
+#MaxNoOfAttributes=
+
+# maximum number of table objects that can be defined in the cluster;
+# a table object is allocated for each table, unique hash index, ordered
+# index, for each attribute that has a BLOB data type.  Each table object
+# consumes approximately 20KB per node. 
+# The default value is 128. Legals values are between 8 and 1600.
+#MaxNoOfTables=1024
+
+# maximum number of ordered index objects in the cluster;
+# by default, each unique index and primary key has both an ordered index and
+# a hash index.  Each object consumes approximately 10KB of data per node.  
+# The default value is 128. 
+#MaxNoOfOrderedIndexes=256
+
+# maximum number of unique hash indexes in the cluster;
+# for each unique index that is not a primary key, a special table is
+# allocated that maps the unique key to the primary key of the indexed table.
+# By default, an ordered index is also defined for each unique index.  To
+# prevent this, you must specify the USING HASH option when defining the
+# unique index.  Each index consumes approximately 15KB per node.
+# The default value is 64.
+#MaxNoOfUniqueHashIndexes=
+
+# maximum number of trigger objects in the cluster;
+# for each unique hash index, three internal triggers (for insert, update,
+# and delete) are allocated; an ordered index requires a single trigger
+# object; backups use three trigger objects for each normal table;
+# replication between clusters also makes use of internal triggers. 
+# The default value is 768. 
+#MaxNoOfTriggers=
+
+# interval between global checkpoints;
+# transaction log records are not flushed to disk as part of the commit; to
+# ensure durability of the data even in an entire cluster crash, all
+# transactions taking place within the given interval are put into a global
+# checkpoint, (i.e., the set ofcommitted transactions that has been flushed
+# to disk.
+# The default value is 2000 milliseconds. 
+#TimeBetweenGlobalCheckpoints=1000
+
+# maximum number of bytes to store before flushing data to disk;
+# may prevent write buffering, which can impede performance significantly;
+# ignored, when ODirect is enabled.
+# The default value is 4M (4MB).
+#DiskSyncSize=
+
+# rate in bytes per second of data sent to disk during a local checkpoint
+# The default value is 10M (10 MB/s).
+#DiskCheckpointSpeed=10M
+
+# rate in bytes per second of data sent to disk during a local checkpoint
+# as part of a restart operation.
+# The default value is 100M (100 MB/s). 
+#DiskCheckpointSpeedInRestart=100M
+
+# size of the UNDO index buffer;
+# it is not safe to decrease the value during a rolling restart.
+# The default value is 2MB. The minimum value is 1MB, which is sufficient
+# for most applications.  If this buffer is too small, the NDB storage engine
+# issues internal error code 677 (Index UNDO buffers overloaded).
+#UndoIndexBuffer=
+
+# size of the UNDO data buffer;
+# it is not safe to decrease the value during a rolling restart.
+# The default value is 16MB.  This value may be unnecessarily large for some
+# applications.  The minimum value is 1MB.  It is rarely necessary to
+# increase the size of this buffer.  If this buffer is too small, the NDB
+# storage engine issues internal error code 891 (Data UNDO buffers overloaded).
+#UndoDataBuffer=
+
+# size of the REDO buffer
+# it is not safe to decrease the value during a rolling restart.
+# The default is 8MB (NDB <=6.4.3) and 32MB (NDB >=7.0.4). The minimum value
+# is 1MB.  If this buffer is too small, the NDB storage engine issues error
+# code 1221 (REDO log buffers overloaded). 
+#RedoBuffer=32M
+
+[ndb_mgmd default]
+
+[mysqld default]
+
+[tcp default]
+
+# size of the buffer for seinding data to the TCP/IP socket
+# Before NDB 6.3, this memory is allocated at startup for each configured
+# TCP connection; since NDB 7.0, this value denotes the limit for memory
+# (up to TotalSendBufferMemory) that may be used by a single transporter;
+# In NDB <=6.4.3, the default value is 256 KB; since NDB >=7.0.4, it is
+# 2MB, which is the size recommended in most situations.  Legal values are
+# between 64 KB and 4 GB. 
+SendBufferMemory=2M
+#sendBufferMemory=8M
+
+# size of the buffer for receiving data from the TCP/IP socket
+# In NDB <=6.4.3, the default value is 256 KB; since NDB >=7.0.4, it is
+# 2MB, which is the size recommended in most situations.  Legal values are
+# between 64 KB and 4 GB. 
+ReceiveBufferMemory=2M
+
+# amount of unsent data in bytes before the connection is considered overloaded
+# Used in the [tcp] section.  When such an overload condition occurs,
+# transactions that affect the overloaded connection fail with NDB API Error
+# 1218 (Send buffers overloaded in NDB kernel) until the overload status
+# passes.
+# The default value is 0; there is no defined maximum value. 
+#OverloadLimit=
+
+# memory for shared send buffer memory among all configured transporters
+# can be set for all types of cluster nodes ([ndbd], [mgm], and [api/mysql])
+# Since NDB >=6.4.0. Legal values are between 256K and 4294967039. 
+# For backwards-compatibility, the default value is the sum of the maximum
+# send buffer sizes of all configured transporters, plus an additional 32KB
+# (one page) per transporter. The maximum value depends on the 
+# type of transporter (TCP: SendBufferMemory (default = 2M)).
+#TotalSendBufferMemory=
+
+# memory (in bytes) reserved for connections between data nodes
+# can be set for all types of cluster nodes ([ndbd], [mgm], and [api/mysql])
+# Since NDB >=6.4.0. The minimum value is 256K; the maxmimum is 4294967039. 
+#ReservedSendBufferMemory=
+
+# [mgm] or [ndb_mgmd]: defines a cluster management server (MGM) node.
+
+# Options for (first) management node
+[ndb_mgmd]
+HostName=127.0.0.1		# hostname or IP address (default: localhost)
+#DataDir=/Users/mz/crund/ndblog	# directory for log files (default is cwd)
+#PortNumber=1186
+#PortNumber=9311
+
+
+# [ndbd]: defines a cluster data node (ndbd process).
+#
+# A section is required for every data node in the cluster; must include a
+# HostName, may specify an Id (otherwise, dynamically assigned).
+
+# Options for 1st data node
+[ndbd]
+HostName=127.0.0.1		# hostname or IP address
+#DataDir=/Users/mz/crund/ndblog	# directory for data files (default is cwd)
+
+
+# [mysqld] or [api]: defines the cluster's MySQL server nodes or API nodes.
+#
+# A section is required for each API or SQL node that connects to the cluster;
+# there is no performance or other penalty for having extra slots available.
+# A HostName in a [mysqld] section restricts that slot to connections from
+# API or SQL nodes on that host only.
+
+# Options for 1st SQL or API node
+[mysqld]
+#HostName=127.0.0.1		# hostname or IP address (not needed)
+
+# Options for 2nd SQL or API node
+[mysqld]
+#HostName=127.0.0.1		# hostname or IP address (not needed)
+
+
+# [tcp]: defines a TCP/IP connection between cluster nodes;
+# normally, not required
+
+# [shm]: defines shared-memory connections between nodes;
+# Enabled by default in MySQL 5.1, but should still be considered experimental.
+
+# [sci]: defines Scalable Coherent Interface connections between data nodes;
+# requires special software and hardware.
+
+# 5.1 Reference Manual, NDB Cluster Configuration (16.3), Limitations (16.14)
+#
+# The total maximum number of nodes in a cluster is 255 (since NDB 6.1.1;
+# this includes all SQL nodes, API nodes, data nodes, and management servers)
+#
+# All machines in a cluster hosting nodes must have the same architecture
+# (i.e. either big-endian or little-endian, no mix)
+#
+# Adding or dropping of data nodes requires to restart the entire cluster
+#
+# There are issues with running multiple management servers.
+#
+# Multiple network addresses per data node are not supported.  Multiple
+# network hardware interfaces can be used for a single data node if they
+# are bound to the same address.  There can be only than one [tcp] section
+# per connection in the config.ini file.

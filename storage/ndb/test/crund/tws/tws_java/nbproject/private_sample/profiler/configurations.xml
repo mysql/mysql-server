@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<!--
+
+   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+-->
+<properties>
+<entry key="2_profiler.settings.code.region.cpu.res.buf.size">1000</entry>
+<entry key="2_profiler.settings.sort.results.by.thread.cpu.time">false</entry>
+<entry key="0_profiler.settings.instrumentation.filter.selectedprofiler.filter.type">profiler.simple.filter</entry>
+<entry key="0_profiler.settings.instrument.empty.methods">false</entry>
+<entry key="0_profiler.settings.instrumentation.filter.selectedprofiler.simple.filter.name"/>
+<entry key="1_profiler.settings.profiling.type">8</entry>
+<entry key="0_profiler.settings.cpu.exclude.wait.time">true</entry>
+<entry key="0_profiler.settings.override.working.dir"/>
+<entry key="1_profiler.settings.thread.cpu.timer.on">false</entry>
+<entry key="1_profiler.settings.instrumentation.root.methods.size">0</entry>
+<entry key="2_profiler.settings.override">false</entry>
+<entry key="profiler.settings.lastselected">1</entry>
+<entry key="2_profiler.settings.instrument.spawned.threads">false</entry>
+<entry key="0_profiler.settings.threads.monitoring.enabled">false</entry>
+<entry key="0_profiler.settings.istrument.getter.setter.methods">false</entry>
+<entry key="2_profiler.settings.instrumentation.filter.selectedprofiler.filter.type">profiler.simple.filter</entry>
+<entry key="2_profiler.settings.n.profiled.threads.limit">32</entry>
+<entry key="1_profiler.settings.sort.results.by.thread.cpu.time">false</entry>
+<entry key="2_profiler.settings.instr.scheme">1</entry>
+<entry key="1_profiler.settings.instrument.method.invoke">true</entry>
+<entry key="1_profiler.settings.instr.scheme">3</entry>
+<entry key="2_profiler.settings.sampling.interval">10</entry>
+<entry key="0_profiler.settings.instr.scheme">1</entry>
+<entry key="1_profiler.settings.run.gc.on.get.results.in.memory.profiling">true</entry>
+<entry key="2_profiler.settings.settings.name">Analyze Memory</entry>
+<entry key="0_profiler.settings.sort.results.by.thread.cpu.time">false</entry>
+<entry key="0_profiler.settings.profiling.type">1</entry>
+<entry key="1_profiler.settings.cpu.exclude.wait.time">true</entry>
+<entry key="2_profiler.settings.obj.alloc.stack.sampling.interval">10</entry>
+<entry key="1_profiler.settings.obj.alloc.stack.sampling.depth">0</entry>
+<entry key="1_profiler.settings.cpu.quick.filterprofiler.filter.type">profiler.simple.filter</entry>
+<entry key="1_profiler.settings.instrumentation.marker.methods.size">0</entry>
+<entry key="2_profiler.settings.thread.cpu.timer.on">false</entry>
+<entry key="0_profiler.settigns.ispreset">true</entry>
+<entry key="0_profiler.settings.instrumentation.filter.selectedprofiler.simple.filter.value"/>
+<entry key="2_profiler.settings.override.working.dir"/>
+<entry key="0_profiler.settings.cpu.quick.filterprofiler.simple.filter.type">1</entry>
+<entry key="2_profiler.settings.cpu.quick.filterprofiler.simple.filter.value"/>
+<entry key="2_profiler.settings.override.jvm.args"/>
+<entry key="0_profiler.settings.profile.underlying.framework">false</entry>
+<entry key="2_profiler.settings.profile.underlying.framework">false</entry>
+<entry key="2_profiler.settings.cpu.exclude.wait.time">true</entry>
+<entry key="2_profiler.settings.threads.monitoring.enabled">false</entry>
+<entry key="1_profiler.settings.instrumentation.filter.selectedFilterSet-type">false</entry>
+<entry key="1_profiler.settings.instrument.spawned.threads">false</entry>
+<entry key="1_profiler.settings.n.profiled.threads.limit">32</entry>
+<entry key="0_profiler.settings.cpu.quick.filterprofiler.simple.filter.name">Quick filter...</entry>
+<entry key="2_profiler.settings.instrumentation.root.methods.size">0</entry>
+<entry key="2_profiler.settings.instrument.empty.methods">false</entry>
+<entry key="2_profiler.settings.instrumentation.filter.selectedprofiler.simple.filter.type">0</entry>
+<entry key="1_profiler.settings.instrumentation.filter.selectedFilterSet-name">Exclude Java core classes</entry>
+<entry key="1_profiler.settings.sampling.interval">10</entry>
+<entry key="2_profiler.settings.cpu.profiling.type">0</entry>
+<entry key="0_profiler.settings.run.gc.on.get.results.in.memory.profiling">true</entry>
+<entry key="1_profiler.settigns.ispreset">true</entry>
+<entry key="2_profiler.settings.instrumentation.filter.selectedprofiler.simple.filter.name"/>
+<entry key="0_profiler.settings.instrument.method.invoke">true</entry>
+<entry key="0_profiler.settings.obj.alloc.stack.sampling.interval">10</entry>
+<entry key="1_profiler.settings.cpu.quick.filterprofiler.simple.filter.value"/>
+<entry key="1_profiler.settings.code.region.cpu.res.buf.size">1000</entry>
+<entry key="0_profiler.settings.instrumentation.marker.methods.size">0</entry>
+<entry key="1_profiler.settings.instrumentation.filter.selectedprofiler.filter.type">profiler.filter.set</entry>
+<entry key="0_profiler.settings.override">false</entry>
+<entry key="1_profiler.settings.settings.name">Analyze Performance</entry>
+<entry key="2_profiler.settings.instrumentation.filter.selectedprofiler.simple.filter.value"/>
+<entry key="1_profiler.settings.cpu.quick.filterprofiler.simple.filter.type">1</entry>
+<entry key="1_profiler.settings.cpu.profiling.type">0</entry>
+<entry key="1_profiler.settings.override.jvm.args"/>
+<entry key="2_profiler.settings.obj.alloc.stack.sampling.depth">0</entry>
+<entry key="1_profiler.settings.instrument.empty.methods">false</entry>
+<entry key="0_profiler.settings.cpu.quick.filterprofiler.filter.type">profiler.simple.filter</entry>
+<entry key="1_profiler.settings.cpu.quick.filterprofiler.simple.filter.name">Quick filter...</entry>
+<entry key="2_profiler.settigns.ispreset">true</entry>
+<entry key="1_profiler.settings.threads.monitoring.enabled">false</entry>
+<entry key="0_profiler.settings.instrumentation.root.methods.size">0</entry>
+<entry key="1_profiler.settings.override.working.dir"/>
+<entry key="0_profiler.settings.n.profiled.threads.limit">32</entry>
+<entry key="0_profiler.settings.cpu.quick.filterprofiler.simple.filter.value"/>
+<entry key="0_profiler.settings.cpu.profiling.type">0</entry>
+<entry key="0_profiler.settings.instrument.spawned.threads">false</entry>
+<entry key="2_profiler.settings.instrumentation.marker.methods.size">0</entry>
+<entry key="0_profiler.settings.obj.alloc.stack.sampling.depth">0</entry>
+<entry key="2_profiler.settings.cpu.quick.filterprofiler.filter.type">profiler.simple.filter</entry>
+<entry key="0_profiler.settings.profilingpoints.enabled">true</entry>
+<entry key="2_profiler.settings.cpu.quick.filterprofiler.simple.filter.type">1</entry>
+<entry key="1_profiler.settings.override">false</entry>
+<entry key="1_profiler.settings.obj.alloc.stack.sampling.interval">10</entry>
+<entry key="1_profiler.settings.instrumentation.filter.selectedFilterSet-active_filter-1">Java Core Classes</entry>
+<entry key="1_profiler.settings.instrumentation.filter.selectedFilterSet-active_filter-0">Java Lang/IO/Net Classes</entry>
+<entry key="2_profiler.settings.istrument.getter.setter.methods">false</entry>
+<entry key="0_profiler.settings.sampling.interval">10</entry>
+<entry key="1_profiler.settings.profile.underlying.framework">false</entry>
+<entry key="2_profiler.settings.instrument.method.invoke">true</entry>
+<entry key="1_profiler.settings.profilingpoints.enabled">true</entry>
+<entry key="1_profiler.settings.istrument.getter.setter.methods">false</entry>
+<entry key="2_profiler.settings.cpu.quick.filterprofiler.simple.filter.name">Quick filter...</entry>
+<entry key="0_profiler.settings.instrumentation.filter.selectedprofiler.simple.filter.type">0</entry>
+<entry key="0_profiler.settings.thread.cpu.timer.on">false</entry>
+<entry key="0_profiler.settings.override.jvm.args"/>
+<entry key="2_profiler.settings.profiling.type">2</entry>
+<entry key="0_profiler.settings.settings.name">Monitor Application</entry>
+<entry key="0_profiler.settings.code.region.cpu.res.buf.size">1000</entry>
+<entry key="2_profiler.settings.profilingpoints.enabled">true</entry>
+<entry key="2_profiler.settings.run.gc.on.get.results.in.memory.profiling">true</entry>
+</properties>
