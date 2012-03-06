@@ -89,7 +89,7 @@ a
 9
 explain select a,b from t1 where b > 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	b	b	5	NULL	NULL;	Using where; Using index
+1	SIMPLE	t1	NA	b	b	5	NULL	NULL;	Using where; Using index
 select a,b from t1 where b > 30;
 a	b
 4	45
