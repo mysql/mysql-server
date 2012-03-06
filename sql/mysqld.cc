@@ -2468,10 +2468,6 @@ static void check_data_home(const char *path)
 
 #endif /*__WIN__ || __NETWARE */
 
-#ifdef HAVE_LINUXTHREADS
-#define UNSAFE_DEFAULT_LINUX_THREADS 200
-#endif
-
 
 #if BACKTRACE_DEMANGLE
 #include <cxxabi.h>
