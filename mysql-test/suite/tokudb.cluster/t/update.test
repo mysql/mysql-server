@@ -68,7 +68,7 @@ explain select a from t1 where a > 8;
 select a from t1 where a > 8;
 
 # ignore rows column
---replace_column 9 NULL;
+--replace_column 4 NA 9 NULL;
 explain select a,b from t1 where b > 30;
 select a,b from t1 where b > 30;
 
