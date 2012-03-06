@@ -1856,15 +1856,15 @@ UNIV_INTERN
 db_err
 row_import_update_discarded_flag(
 /*=============================*/
-	trx_t*			trx,		/*!< in/out: transaction that
-						covers the update */
-	const dict_table_t*	table,		/*!< in: Table for which we want
-						to set the root table->flags2 */
-	bool			discarded,	/*!< in: set MIX_LEN column bit
-						to discarded, if true */
-	bool			dict_locked)	/*!< Set to TRUE if the 
-						caller already owns the 
-						dict_sys_t:: mutex. */
+	trx_t*		trx,		/*!< in/out: transaction that
+					covers the update */
+	table_id_t	table_id,	/*!< in: Table for which we want
+					to set the root table->flags2 */
+	bool		discarded,	/*!< in: set MIX_LEN column bit
+					to discarded, if true */
+	bool		dict_locked)	/*!< Set to TRUE if the 
+					caller already owns the 
+					dict_sys_t:: mutex. */
 
 {
 	pars_info_t*		info;
@@ -1898,7 +1898,7 @@ row_import_update_discarded_flag(
 
 	info = pars_info_create();
 
-	pars_info_add_ull_literal(info, "table_id", table->id);
+	pars_info_add_ull_literal(info, "table_id", table_id);
 	pars_info_bind_int4_literal(info, "flags2", &discard.flags2);
 
 	pars_info_bind_function(
@@ -2030,15 +2030,13 @@ row_import_for_mysql(
 	are referring to the tablespace that was discarded before the
 	import was initiated. */
 
-	{
-		table_id_t	new_id;
+	table_id_t	new_id;
 
-		mutex_enter(&dict_sys->mutex);
+	mutex_enter(&dict_sys->mutex);
 
-		err = row_mysql_table_id_reassign(table, trx, &new_id);
+	err = row_mysql_table_id_reassign(table, trx, &new_id);
 
-		mutex_exit(&dict_sys->mutex);
-	}
+	mutex_exit(&dict_sys->mutex);
 
 	DBUG_EXECUTE_IF("ib_import_table_id_reassign_failure",
 			err = DB_TOO_MANY_CONCURRENT_TRXS;);
@@ -2170,11 +2168,18 @@ row_import_for_mysql(
 	}
 
 	/* Update the table's discarded flag, unset it. */
-	err = row_import_update_discarded_flag(trx, table, false, false);
+	err = row_import_update_discarded_flag(trx, new_id, false, false);
 
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));
 	}
+
+	mutex_enter(&dict_sys->mutex);
+
+	table->flags2 &= ~DICT_TF2_DISCARDED;
+	dict_table_change_id_in_cache(table, new_id);
+
+	mutex_exit(&dict_sys->mutex);
 
 	DBUG_EXECUTE_IF("ib_import_before_checkpoint_crash", DBUG_SUICIDE(););
 
@@ -2185,7 +2190,7 @@ row_import_for_mysql(
 
 	ut_a(err == DB_SUCCESS);
 
-	table->ibd_file_missing = FALSE;
+	table->ibd_file_missing = false;
 
 	return(row_import_cleanup(prebuilt, trx, err));
 }
