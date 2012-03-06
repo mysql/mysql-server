@@ -1872,7 +1872,7 @@ err_exit:
 	} else if (table->flags2 & DICT_TF2_DISCARDED) {
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Tablespace for table %s was discarded.\n",
+			"Tablespace for table %s was discarded.",
 			table->name);
 
 		table->ibd_file_missing = TRUE;
