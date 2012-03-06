@@ -10313,7 +10313,7 @@ ha_innobase::info_low(
 			errkey = (unsigned int) (
 				(prebuilt->trx->error_key_num
 				 == ULINT_UNDEFINED)
-					? -1
+					? ~0
 					: prebuilt->trx->error_key_num);
 		}
 	}
