@@ -54,7 +54,7 @@
 #endif
 
 #if 1
-#define DEBUG_CRASH() { if (ERROR_INSERTED(0)) ndbrequire(false) }
+#define DEBUG_CRASH() ndbrequire(false)
 #else
 #define DEBUG_CRASH()
 #endif
@@ -398,7 +398,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
     if (unlikely(!m_arenaAllocator.seize(ah)))
       break;
 
-    if (ERROR_INSERTED(17001))
+    if (ERROR_INSERTED_CLEAR(17001))
     {
       ndbout_c("Injecting OutOfQueryMem error 17001 at line %d file %s",
                 __LINE__,  __FILE__);
@@ -700,7 +700,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
     if (unlikely(!m_arenaAllocator.seize(ah)))
       break;
 
-    if (ERROR_INSERTED(17002))
+    if (ERROR_INSERTED_CLEAR(17002))
     {
       ndbout_c("Injecting OutOfQueryMem error 17002 at line %d file %s",
                 __LINE__,  __FILE__);
@@ -1017,7 +1017,7 @@ Dbspj::createNode(Build_context& ctx, Ptr<Request> requestPtr,
    *   that can be setup using the Build_context
    *
    */
-  if (ERROR_INSERTED(17005))
+  if (ERROR_INSERTED_CLEAR(17005))
   {
     ndbout_c("Injecting OutOfOperations error 17005 at line %d file %s",
              __LINE__,  __FILE__);
@@ -1827,7 +1827,6 @@ Dbspj::complete(Signal* signal, Ptr<Request> requestPtr)
 void
 Dbspj::cleanup(Ptr<Request> requestPtr)
 {
-  CLEAR_ERROR_INSERT_VALUE; // clear any injected error
   ndbrequire(requestPtr.p->m_cnt_active == 0);
   {
     Ptr<TreeNode> nodePtr;
@@ -2686,7 +2685,7 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
   if (m_free_page_list.firstItem == RNIL)
   {
     jam();
-    if (ERROR_INSERTED(17003))
+    if (ERROR_INSERTED_CLEAR(17003))
     {
       ndbout_c("Injecting failed '::allocPage', error 17003 at line %d file %s",
                __LINE__,  __FILE__);
@@ -3942,7 +3941,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
 
     treeNodePtr.p->m_scanfrag_data.m_scanFragHandlePtrI = RNIL;
     Ptr<ScanFragHandle> scanFragHandlePtr;
-    if (ERROR_INSERTED(17004))
+    if (ERROR_INSERTED_CLEAR(17004))
     {
       ndbout_c("Injecting OutOfQueryMemory error 17004 at line %d file %s",
                __LINE__,  __FILE__);
@@ -5106,10 +5105,10 @@ Dbspj::scanIndex_parent_row(Signal* signal,
      * - 
      */
 
-      if (ERROR_INSERTED(17060) ||
-          (rand() % 7) == 0 && ERROR_INSERTED(17061) ||
-          (treeNodePtr.p->isLeaf() &&  ERROR_INSERTED(17062)) ||
-          (treeNodePtr.p->m_parentPtrI != RNIL &&  ERROR_INSERTED(17063)))
+      if (ERROR_INSERTED_CLEAR(17060) ||
+          (rand() % 7) == 0 && ERROR_INSERTED_CLEAR(17061) ||
+          (treeNodePtr.p->isLeaf() &&  ERROR_INSERTED_CLEAR(17062)) ||
+          (treeNodePtr.p->m_parentPtrI != RNIL &&  ERROR_INSERTED_CLEAR(17063)))
       {
         ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
                  __LINE__,  __FILE__);
@@ -6436,7 +6435,7 @@ Dbspj::appendToPattern(Local_pattern_store & pattern,
   if (unlikely(tree.ptr + len > tree.end))
     return DbspjErr::InvalidTreeNodeSpecification;
 
-  if (ERROR_INSERTED(17008))
+  if (ERROR_INSERTED_CLEAR(17008))
   {
     ndbout_c("Injecting OutOfQueryMemory error 17008 at line %d file %s",
              __LINE__,  __FILE__);
@@ -6464,7 +6463,7 @@ Dbspj::appendParamToPattern(Local_pattern_store& dst,
   /* Param COL's converted to DATA when appended to pattern */
   Uint32 info = QueryPattern::data(len);
 
-  if (ERROR_INSERTED(17009))
+  if (ERROR_INSERTED_CLEAR(17009))
   {
     ndbout_c("Injecting OutOfQueryMemory error 17009 at line %d file %s",
              __LINE__,  __FILE__);
@@ -6489,7 +6488,7 @@ Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
   /* Param COL's converted to DATA when appended to pattern */
   Uint32 info = QueryPattern::data(len+1);
 
-  if (ERROR_INSERTED(17010))
+  if (ERROR_INSERTED_CLEAR(17010))
   {
     ndbout_c("Injecting OutOfQueryMemory error 17010 at line %d file %s",
              __LINE__,  __FILE__);
@@ -7190,10 +7189,10 @@ Dbspj::parseDA(Build_context& ctx,
      * -
      */
 
-     if (ERROR_INSERTED(17050) ||
-        (treeNodePtr.p->isLeaf() &&  ERROR_INSERTED(17051)) ||
-        (treeNodePtr.p->m_parentPtrI != RNIL &&  ERROR_INSERTED(17052)) ||
-	 (rand() % 7) == 0 && ERROR_INSERTED(17053))
+     if (ERROR_INSERTED_CLEAR(17050) ||
+        (treeNodePtr.p->isLeaf() &&  ERROR_INSERTED_CLEAR(17051)) ||
+        (treeNodePtr.p->m_parentPtrI != RNIL &&  ERROR_INSERTED_CLEAR(17052)) ||
+	 (rand() % 7) == 0 && ERROR_INSERTED_CLEAR(17053))
     {
       ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
                 __LINE__,  __FILE__);
