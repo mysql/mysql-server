@@ -46,6 +46,9 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0mon.h"
 #include "mtr0log.h"
 
+/** Define this to disable purge altogether. */
+/* #define TRX_PURGE_DISABLED */
+
 /** Maximum allowable purge history length.  <=0 means 'infinite'. */
 UNIV_INTERN ulong		srv_max_purge_lag = 0;
 
@@ -68,20 +71,6 @@ UNIV_INTERN mysql_pfs_key_t	trx_purge_latch_key;
 /* Key to register purge_sys_bh_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	purge_sys_bh_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
-
-/********************************************************************//**
-Fetches the next undo log record from the history list to purge. It must be
-released with the corresponding release function.
-@return copy of an undo log record or pointer to trx_purge_dummy_rec,
-if the whole undo log can skipped in purge; NULL if none left */
-static
-trx_undo_rec_t*
-trx_purge_fetch_next_rec(
-/*=====================*/
-	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
-	ulint*		n_pages_handled,/*!< in/out: number of UNDO log pages
-					handled */
-	mem_heap_t*	heap);		/*!< in: memory heap where copied */
 
 /****************************************************************//**
 Builds a purge 'query' graph. The actual purge is performed by executing
@@ -291,6 +280,7 @@ trx_purge_add_update_undo_to_history(
 	}
 }
 
+#ifndef TRX_PURGE_DISABLED
 /**********************************************************************//**
 Frees an undo log segment which is in the history list. Cuts the end of the
 history list at the youngest undo log in this segment. */
@@ -538,7 +528,6 @@ trx_purge_truncate_history(
 		}
 	}
 }
-
 
 /***********************************************************************//**
 Updates the last not yet purged history log info in rseg when we have purged
@@ -924,7 +913,7 @@ Fetches the next undo log record from the history list to purge. It must be
 released with the corresponding release function.
 @return copy of an undo log record or pointer to trx_purge_dummy_rec,
 if the whole undo log can skipped in purge; NULL if none left */
-static
+static __attribute__((warn_unused_result, nonnull))
 trx_undo_rec_t*
 trx_purge_fetch_next_rec(
 /*=====================*/
@@ -1187,6 +1176,7 @@ trx_purge_truncate(void)
 		trx_purge_truncate_history(&purge_sys->limit, purge_sys->view);
 	}
 }
+#endif /* !TRX_PURGE_DISABLED */
 
 /*******************************************************************//**
 This function runs a purge batch.
@@ -1200,11 +1190,13 @@ trx_purge(
 	ulint	batch_size)		/*!< in: the maximum number of records
 					to purge in one batch */
 {
+#ifdef TRX_PURGE_DISABLED
+	return(0);
+#else /* TRX_PURGE_DISABLED */
 	que_thr_t*	thr = NULL;
 	ulint		n_pages_handled;
 
 	ut_a(n_purge_threads > 0);
-
 	srv_dml_needed_delay = trx_purge_dml_delay();
 
 	/* The number of tasks submitted should be completed. */
@@ -1273,8 +1265,8 @@ run_synchronously:
 
 	MONITOR_INC_VALUE(MONITOR_PURGE_INVOKED, 1);
 	MONITOR_INC_VALUE(MONITOR_PURGE_N_PAGE_HANDLED, n_pages_handled);
-
 	return(n_pages_handled);
+#endif /* TRX_PURGE_DISABLED */
 }
 
 /*******************************************************************//**
