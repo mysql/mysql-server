@@ -1204,7 +1204,8 @@ row_insert_for_mysql(
 
 	if (dict_table_is_discarded(prebuilt->table)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The .ibd file is DISCARDed for table %s",
+			"The table %s doesn't have a corresponding "
+			"tablespace, it was discarded.",
 			prebuilt->table->name);
 
 		return(DB_TABLESPACE_DELETED);
@@ -4287,17 +4288,15 @@ row_rename_table_for_mysql(
 		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 		      stderr);
 		goto funct_exit;
-	} else if (table->ibd_file_missing) {
-		err = DB_TABLE_NOT_FOUND;
-		ut_print_timestamp(stderr);
+	} else if (!dict_table_is_discarded(table) && table->ibd_file_missing) {
 
-		fputs("  InnoDB: Error: table ", stderr);
-		ut_print_name(stderr, trx, TRUE, old_name);
-		fputs(" does not have an .ibd file"
-		      " in the database directory.\n"
-		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
-		      stderr);
+		err = DB_TABLE_NOT_FOUND;
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Table %s does not have an .ibd file in the database "
+			"directory. See " REFMAN "innodb-troubleshooting.html",
+			old_name);
+
 		goto funct_exit;
 	} else if (new_is_tmp) {
 		/* MySQL is doing an ALTER TABLE command and it renames the
