@@ -233,10 +233,141 @@ INSERT INTO t1(c2) SELECT c2 FROM t1;
 
 SELECT COUNT(*) FROM t1;
 
+SHOW CREATE TABLE t1;
+
 # This should fail, InnoDB should return a warning
 FLUSH TABLES t1 WITH READ LOCK;
 
 UNLOCK TABLES;
+
+DROP TABLE t1;
+
+#
+# Tests that check for schema mismatch during IMPORT
+#
+
+SET GLOBAL innodb_file_per_table = 1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB;
+
+INSERT INTO t1(c2) VALUES(1);
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+FLUSH TABLES t1 WITH READ LOCK;
+
+perl;
+do 'include/innodb-util.inc';
+ib_backup_tablespaces("test", "t1");
+EOF
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+# Table without the secondary index
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT) ENGINE=InnoDB;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+# This should fail because of a missing secondary index
+-- error ER_INDEX_CORRUPT
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test", "t1");
+EOF
+
+DROP TABLE t1;
+
+# Table with an additional column
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT,
+	c3 INT, INDEX idx(c2)) ENGINE=InnoDB;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+# This should fail because the table has an additional column
+-- error ER_INDEX_CORRUPT
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test", "t1");
+EOF
+
+DROP TABLE t1;
+
+# Change the column type of c2
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 BIGINT, INDEX idx(c2)) ENGINE=InnoDB;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+# This should fail because c2 is now a BIGINT and not INT
+-- error ER_INDEX_CORRUPT
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test", "t1");
+EOF
+
+DROP TABLE t1;
+
+# This should be OK.
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_cleanup("test", "t1");
+EOF
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
 
 DROP TABLE t1;
 
