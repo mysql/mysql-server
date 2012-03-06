@@ -4455,21 +4455,40 @@ table_opened:
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
-	if (!thd_tablespace_op(thd)) {
+	bool	no_tablespace;
 
-		if (dict_table_is_discarded(ib_table)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The .ibd file is discarded for table %s",
-				norm_name);
+	if (dict_table_is_discarded(ib_table)) {
 
-		} else if (ib_table->ibd_file_missing) {
+		ib_pushf(thd,
+			IB_LOG_LEVEL_WARN,
+			ER_NO_SUCH_TABLE,
+			"The table %s doesn't have a corresponding "
+			"tablespace, it was discarded.",
+			norm_name);
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The .ibd file is missing for table %s, see "
-				REFMAN "innodb-troubleshooting.html for help",
-				norm_name);
-		}
+		/* Allow an open because a proper DISCARD should have set
+		all the flags and index root page numbers to FIL_NULL that
+		should prevent any DML from running but it should allow DDL
+		operations. */
 
+		no_tablespace = false;
+
+	} else if (ib_table->ibd_file_missing) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The .ibd file is missing for table %s, see "
+			REFMAN "innodb-troubleshooting.html for help",
+			norm_name);
+
+		/* This means we have no idea what happened to the tablespace
+		file, best to play it safe. */
+
+		no_tablespace = true;
+	} else {
+		no_tablespace = false;
+	}
+
+	if (!thd_tablespace_op(thd) && no_tablespace) {
 		my_errno = ENOENT;
 
 		dict_table_close(ib_table, FALSE);
