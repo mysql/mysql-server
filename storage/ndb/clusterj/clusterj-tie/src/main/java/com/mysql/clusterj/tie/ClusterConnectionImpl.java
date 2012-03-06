@@ -73,7 +73,7 @@ public class ClusterConnectionImpl
     private static final String USE_SMART_VALUE_HANDLER_NAME = "com.mysql.clusterj.UseSmartValueHandler";
 
     private static final boolean USE_SMART_VALUE_HANDLER =
-            ClusterJHelper.getBooleanProperty(USE_SMART_VALUE_HANDLER_NAME, "true");
+            ClusterJHelper.getBooleanProperty(USE_SMART_VALUE_HANDLER_NAME, "false");
 
     /** Connect to the MySQL Cluster
      * 
