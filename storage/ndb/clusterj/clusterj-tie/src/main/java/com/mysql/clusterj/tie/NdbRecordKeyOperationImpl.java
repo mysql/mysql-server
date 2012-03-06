@@ -26,17 +26,15 @@ import com.mysql.clusterj.core.store.Table;
 
 public class NdbRecordKeyOperationImpl extends NdbRecordOperationImpl {
 
-    /** The number of columns in the table */
-    protected int numberOfColumns;
-
     public NdbRecordKeyOperationImpl(ClusterTransactionImpl clusterTransaction, Table storeTable) {
-        super(clusterTransaction);
+        super(clusterTransaction, storeTable);
         this.ndbRecordKeys = clusterTransaction.getCachedNdbRecordImpl(storeTable);
         this.keyBufferSize = ndbRecordKeys.getBufferSize();
         this.ndbRecordValues = clusterTransaction.getCachedNdbRecordImpl(storeTable);
         this.valueBufferSize = ndbRecordValues.getBufferSize();
         this.numberOfColumns = ndbRecordValues.getNumberOfColumns();
         this.blobs = new NdbRecordBlobImpl[this.numberOfColumns];
+        resetMask();
     }
 
     public void beginDefinition() {
@@ -44,9 +42,9 @@ public class NdbRecordKeyOperationImpl extends NdbRecordOperationImpl {
         keyBuffer = ByteBuffer.allocateDirect(keyBufferSize);
         keyBuffer.order(ByteOrder.nativeOrder());
         // allocate a buffer for the value result data
+        // TODO: we should not need another buffer
         valueBuffer = ByteBuffer.allocateDirect(valueBufferSize);
         valueBuffer.order(ByteOrder.nativeOrder());
-        mask = new byte[1 + (numberOfColumns/8)];
     }
 
     /** Specify the columns to be used for the operation.
@@ -104,11 +102,16 @@ public class NdbRecordKeyOperationImpl extends NdbRecordOperationImpl {
     @Override
     public ResultData resultData(boolean execute) {
         NdbRecordResultDataImpl result =
-            new NdbRecordResultDataImpl(this, ndbRecordValues, valueBuffer, bufferManager);
+            new NdbRecordResultDataImpl(this);
         if (execute) {
             clusterTransaction.executeNoCommit(false, true);
         }
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return " key " + tableName;
     }
 
 }

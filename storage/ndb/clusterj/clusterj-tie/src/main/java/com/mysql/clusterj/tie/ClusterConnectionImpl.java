@@ -29,7 +29,9 @@ import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
+import com.mysql.clusterj.ClusterJHelper;
 
+import com.mysql.clusterj.core.spi.ValueHandlerFactory;
 import com.mysql.clusterj.core.store.Db;
 import com.mysql.clusterj.core.store.Table;
 
@@ -67,6 +69,11 @@ public class ClusterConnectionImpl
 
     /** The dictionary used to create NdbRecords */
     Dictionary dictionaryForNdbRecord = null;
+
+    private static final String USE_SMART_VALUE_HANDLER_NAME = "com.mysql.clusterj.UseSmartValueHandler";
+
+    private static final boolean USE_SMART_VALUE_HANDLER =
+            ClusterJHelper.getBooleanProperty(USE_SMART_VALUE_HANDLER_NAME, "false");
 
     /** Connect to the MySQL Cluster
      * 
@@ -235,4 +242,16 @@ public class ClusterConnectionImpl
         dictionaryForNdbRecord.removeCachedTable(tableName);
     }
 
+    public ValueHandlerFactory getSmartValueHandlerFactory() {
+        ValueHandlerFactory result = null;
+        if (USE_SMART_VALUE_HANDLER) {
+            result = new NdbRecordSmartValueHandlerFactoryImpl();
+        }
+        return result;
+    }
+
+    public NdbRecordOperationImpl newNdbRecordOperationImpl(DbImpl db, Table storeTable) {
+        return new NdbRecordOperationImpl(this, db, storeTable);
+    }
+            
 }
