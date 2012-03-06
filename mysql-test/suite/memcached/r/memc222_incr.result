@@ -8,8 +8,6 @@ INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
 USE test;
 DROP TABLE IF EXISTS t1;
-Warnings:
-Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1        (c1 VARCHAR(255),
 c2 VARCHAR(1024),
 c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))

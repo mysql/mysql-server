@@ -4,9 +4,11 @@ CALL mtr.add_suppression("Could not obtain server's UPN to be used as target ser
 CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
 --enable_query_log
 
+--enable_connect_log
 SET @tx_isolation= @@global.tx_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
+source include/not_windows.inc;
 source include/have_innodb.inc;
 
 # Stop plugin befor innodb_memcached configuration
@@ -28,6 +30,9 @@ INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 
 USE test;
 
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
 CREATE TABLE t1        (c1 VARCHAR(32),
 			c2 VARCHAR(1024),
 			c21 VARCHAR(1024),
