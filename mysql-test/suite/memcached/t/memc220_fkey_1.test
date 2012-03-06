@@ -5,9 +5,11 @@ CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
 CALL mtr.add_suppression("InnoDB: Error: MySQL is freeing a thd");
 --enable_query_log
 
+--enable_connect_log
 SET @tx_isolation= @@global.tx_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
+source include/not_windows.inc;
 source include/have_innodb.inc;
 
 # Stop plugin befor innodb_memcached configuration
