@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_THREAD_H
 #define NDB_THREAD_H
@@ -29,6 +31,12 @@ typedef enum NDB_THREAD_PRIO_ENUM {
   NDB_THREAD_PRIO_LOW,
   NDB_THREAD_PRIO_LOWEST
 } NDB_THREAD_PRIO;
+
+typedef enum NDB_THREAD_TLS_ENUM {
+  NDB_THREAD_TLS_JAM,           /* Jam buffer pointer. */
+  NDB_THREAD_TLS_THREAD,        /* Thread self pointer. */
+  NDB_THREAD_TLS_MAX
+} NDB_THREAD_TLS;
 
 typedef void* (NDB_THREAD_FUNC)(void*);
 typedef void* NDB_THREAD_ARG;
@@ -49,15 +57,22 @@ void NdbThread_set_shm_sigmask(my_bool block);
  *
  *  * p_thread_func: pointer of the function to run in the thread
  *  * p_thread_arg: pointer to argument to be passed to the thread 
- *  * thread_stack_size: stack size for this thread
+ *  * thread_stack_size: stack size for this thread, 0 => default size
  *  * p_thread_name: pointer to name of this thread
  *  * returnvalue: pointer to the created thread
  */
 struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
-                      NDB_THREAD_ARG *p_thread_arg,
-  		      const NDB_THREAD_STACKSIZE thread_stack_size,
-		      const char* p_thread_name,
-                      NDB_THREAD_PRIO thread_prio);
+                                   NDB_THREAD_ARG *p_thread_arg,
+                                   const NDB_THREAD_STACKSIZE thread_stack_size,
+                                   const char* p_thread_name,
+                                   NDB_THREAD_PRIO thread_prio);
+
+
+/**
+ * Create a thread-object for "main" that can be used with
+ *   other NdbThread_*-functions
+ */
+struct NdbThread* NdbThread_CreateObject(const char * name);
 
 /**
  * Destroy a thread
@@ -66,7 +81,6 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
  *
  */
 void NdbThread_Destroy(struct NdbThread** p_thread);
-
  
 /**
  * Waitfor a thread, suspend the execution of the calling thread
@@ -92,18 +106,45 @@ void NdbThread_Exit(void *status);
  */
 int NdbThread_SetConcurrencyLevel(int level);
 
+/**
+ * Get "Tid" for thread
+ *   should only be used for printing etc...
+ *   return -1, if not supported on platform
+ */
+int NdbThread_GetTid(struct NdbThread*);
+
+/**
+ * Set Scheduler for thread
+ */
+int NdbThread_SetScheduler(struct NdbThread*, my_bool rt_prio, my_bool high_prio);
+
+/**
+ * Lock Thread to CPU
+ */
+int NdbThread_LockCPU(struct NdbThread*, Uint32 cpu);
+
+/**
+ * Fetch and set thread-local storage entry.
+ */
+void *NdbThread_GetTlsKey(NDB_THREAD_TLS key);
+void NdbThread_SetTlsKey(NDB_THREAD_TLS key, void *value);
+
+/**
+ * Set properties for NDB_THREAD_PRIO_HIGH
+ *
+ * NOTE 1: should be set *prior* to starting thread
+ * NOTE 2: if these properties *can* be applied is not checked
+ *         if they can not, then it will be silently ignored
+ *
+ * @param spec <fifo | rr>[,<prio>]
+ *
+ * @return 0  - parse ok
+ *  return -1 - Invalid spec
+ */
+int NdbThread_SetHighPrioProperties(const char * spec);
 
 #ifdef	__cplusplus
 }
 #endif
 
 #endif
-
-
-
-
-
-
-
-
-

@@ -1,0 +1,10 @@
+#
+# config to use for running testMgmd(which start
+# ndb_mgmd serves on its own)
+#
+!include include/default_my.cnf
+
+[ENV]
+# The started ndb_mgmd's will be started from base + 1
+NDBT_BASE_PORT= @mysqld.1.port
+NDBAPITEST_MAXLINES=512

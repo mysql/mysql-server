@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006, 2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef TUP_KEY_H
 #define TUP_KEY_H
@@ -35,7 +38,7 @@ class TupKeyReq {
   friend bool printTUPKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 18 );
+  STATIC_CONST( SignalLength = 20 );
 
 private:
 
@@ -60,6 +63,8 @@ private:
   Uint32 disk_page;
   Uint32 m_row_id_page_no;
   Uint32 m_row_id_page_idx;
+  Uint32 attrInfoIVal;
+  Uint32 deferred_constraints;
 };
 
 class TupKeyConf {

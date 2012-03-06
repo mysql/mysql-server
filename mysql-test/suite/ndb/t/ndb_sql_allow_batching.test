@@ -1,0 +1,49 @@
+-- source include/have_ndb.inc
+
+# bug#36341
+-- source include/not_embedded.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+create table t1 (a int key, b int) engine ndb;
+create table t2 (a int key, b int) engine ndb;
+
+insert into t1 values (0,0),(1,1),(2,2);
+insert into t2 select * from t1;
+
+--source suite/ndb/include/ndb_init_execute_count.inc
+begin;
+set transaction_allow_batching=1;
+update t1 set b=0 where a=2;
+commit;
+--source suite/ndb/include/ndb_execute_count.inc
+select * from t1 order by a;
+
+--echo
+--echo With batching only 1 roundtrip
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+begin;
+set transaction_allow_batching=1;
+insert into t1 values (10,10);
+insert into t2 values (10,10);
+commit;
+--source suite/ndb/include/ndb_execute_count.inc
+select * from t1 order by a;
+
+--echo
+--echo Without batching only 3 roundtrips
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+begin;
+set transaction_allow_batching=0;
+insert into t1 values (11,11);
+insert into t2 values (11,11);
+commit;
+--source suite/ndb/include/ndb_execute_count.inc
+select * from t1 order by a;
+
+# cleanup
+drop table t1, t2;

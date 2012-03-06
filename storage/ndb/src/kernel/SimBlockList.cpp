@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "SimBlockList.hpp"
 #include <Emulator.hpp>
@@ -22,6 +24,7 @@
 #include <Dbdict.hpp>
 #include <Dbdih.hpp>
 #include <Dblqh.hpp>
+#include <Dbspj.hpp>
 #include <Dbtc.hpp>
 #include <Dbtup.hpp>
 #include <Ndbcntr.hpp>
@@ -35,7 +38,18 @@
 #include <lgman.hpp>
 #include <pgman.hpp>
 #include <restore.hpp>
+#include <Dbinfo.hpp>
 #include <NdbEnv.h>
+#include <LocalProxy.hpp>
+#include <DblqhProxy.hpp>
+#include <DbspjProxy.hpp>
+#include <DbaccProxy.hpp>
+#include <DbtupProxy.hpp>
+#include <DbtuxProxy.hpp>
+#include <BackupProxy.hpp>
+#include <RestoreProxy.hpp>
+#include <PgmanProxy.hpp>
+#include <mt.hpp>
 
 #ifndef VM_TRACE
 #define NEW_BLOCK(B) new B
@@ -44,6 +58,8 @@ enum SIMBLOCKLIST_DUMMY { A_VALUE = 0 };
 
 void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
   char * tmp = (char *)malloc(sz);
+  if (!tmp)
+    abort();
 
 #ifndef NDB_PURIFY
 #ifdef VM_TRACE
@@ -68,15 +84,15 @@ void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
 #define NEW_BLOCK(B) new(A_VALUE) B
 #endif
 
-void 
+void
 SimBlockList::load(EmulatorData& data){
   noOfBlocks = NO_OF_BLOCKS;
   theList = new SimulatedBlock * [noOfBlocks];
-  Dbdict* dbdict = 0;
-  Dbdih* dbdih = 0;
-  Pgman* pg = 0;
-  Lgman* lg = 0;
-  Tsman* ts = 0;
+  if (!theList)
+  {
+    ERROR_SET(fatal, NDBD_EXIT_MEMALLOC,
+              "Failed to create the block list", "");
+  }
 
   Block_context ctx(*data.theConfiguration, *data.m_mem_manager);
   
@@ -91,27 +107,71 @@ SimBlockList::load(EmulatorData& data){
       fs = NEW_BLOCK(Ndbfs)(ctx);
     }
   }
-  
-  theList[0]  = pg = NEW_BLOCK(Pgman)(ctx);
-  theList[1]  = lg = NEW_BLOCK(Lgman)(ctx);
-  theList[2]  = ts = NEW_BLOCK(Tsman)(ctx, pg, lg);
-  theList[3]  = NEW_BLOCK(Dbacc)(ctx);
+
+  const bool mtLqh = globalData.isNdbMtLqh;
+
+  if (!mtLqh)
+    theList[0] = NEW_BLOCK(Pgman)(ctx);
+  else
+    theList[0] = NEW_BLOCK(PgmanProxy)(ctx);
+  theList[1]  = NEW_BLOCK(Lgman)(ctx);
+  theList[2]  = NEW_BLOCK(Tsman)(ctx);
+  if (!mtLqh)
+    theList[3]  = NEW_BLOCK(Dbacc)(ctx);
+  else
+    theList[3]  = NEW_BLOCK(DbaccProxy)(ctx);
   theList[4]  = NEW_BLOCK(Cmvmi)(ctx);
   theList[5]  = fs;
-  theList[6]  = dbdict = NEW_BLOCK(Dbdict)(ctx);
-  theList[7]  = dbdih = NEW_BLOCK(Dbdih)(ctx);
-  theList[8]  = NEW_BLOCK(Dblqh)(ctx);
+  theList[6]  = NEW_BLOCK(Dbdict)(ctx);
+  theList[7]  = NEW_BLOCK(Dbdih)(ctx);
+  if (!mtLqh)
+    theList[8]  = NEW_BLOCK(Dblqh)(ctx);
+  else
+    theList[8]  = NEW_BLOCK(DblqhProxy)(ctx);
   theList[9]  = NEW_BLOCK(Dbtc)(ctx);
-  theList[10] = NEW_BLOCK(Dbtup)(ctx, pg);
+  if (!mtLqh)
+    theList[10] = NEW_BLOCK(Dbtup)(ctx);
+  else
+    theList[10] = NEW_BLOCK(DbtupProxy)(ctx);
   theList[11] = NEW_BLOCK(Ndbcntr)(ctx);
   theList[12] = NEW_BLOCK(Qmgr)(ctx);
   theList[13] = NEW_BLOCK(Trix)(ctx);
-  theList[14] = NEW_BLOCK(Backup)(ctx);
+  if (!mtLqh)
+    theList[14] = NEW_BLOCK(Backup)(ctx);
+  else
+    theList[14] = NEW_BLOCK(BackupProxy)(ctx);
   theList[15] = NEW_BLOCK(DbUtil)(ctx);
   theList[16] = NEW_BLOCK(Suma)(ctx);
-  theList[17] = NEW_BLOCK(Dbtux)(ctx);
-  theList[18] = NEW_BLOCK(Restore)(ctx);
-  assert(NO_OF_BLOCKS == 19);
+  if (!mtLqh)
+    theList[17] = NEW_BLOCK(Dbtux)(ctx);
+  else
+    theList[17] = NEW_BLOCK(DbtuxProxy)(ctx);
+  if (!mtLqh)
+    theList[18] = NEW_BLOCK(Restore)(ctx);
+  else
+    theList[18] = NEW_BLOCK(RestoreProxy)(ctx);
+  theList[19] = NEW_BLOCK(Dbinfo)(ctx);
+  theList[20]  = NEW_BLOCK(Dbspj)(ctx);
+  assert(NO_OF_BLOCKS == 21);
+
+  if (globalData.isNdbMt) {
+    add_main_thr_map();
+    if (globalData.isNdbMtLqh) {
+      for (int i = 0; i < noOfBlocks; i++)
+        theList[i]->loadWorkers();
+    }
+    finalize_thr_map();
+  }
+
+  // Check that all blocks could be created
+  for (int i = 0; i < noOfBlocks; i++)
+  {
+    if (!theList[i])
+    {
+      ERROR_SET(fatal, NDBD_EXIT_MEMALLOC,
+                "Failed to create block", "");
+    }
+  }
 }
 
 void

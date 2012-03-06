@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,12 +12,14 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef TC_KEY_REQ_H
 #define TC_KEY_REQ_H
 
 #include "SignalData.hpp"
+#include <transporter/TransporterDefinitions.hpp>
 
 /**
  * @class TcKeyReq
@@ -24,6 +27,21 @@
  *
  * - SENDER:    API, NDBCNTR
  * - RECEIVER:  TC
+ *
+ * Short TCKEYREQ
+ * Prior to NDB 6.4.0, TCKEYREQ was always sent as a short signal train with 
+ * up to 8 words of KeyInfo and 5 words of AttrInfo in the TCKEYREQ signal, and 
+ * all other Key and AttrInfo sent in separate signal trains.  This format is 
+ * supported for non NdbRecord operations, backwards compatibility, and for 
+ * internal TCKEYREQ signals received from non-API clients.
+ * 
+ * Long TCKEYREQ
+ * From NDB 6.4.0, for NdbRecord operations the API nodes send long TCKEYREQ 
+ * signals with all KeyInfo and AttrInfo in long sections sent with the 
+ * TCKEYREQ signal.  As each section has a section length, and no Key/AttrInfo 
+ * is sent in the TCKEYREQ signal itself, the KeyLength, AttrInfoLen and 
+ * AIInTcKeyReq fields of the header are no longer required, and their bits 
+ * can be reused in future.
  */
 class TcKeyReq {
   /**
@@ -34,12 +52,14 @@ class TcKeyReq {
   /**
    * Sender(s)
    */
-  friend class Ndbcntr;      
-  friend class NdbOperation; 
+  friend class Ndbcntr;
+  friend class NdbQueryImpl;
+  friend class NdbOperation;
   friend class NdbIndexOperation;
   friend class NdbScanOperation;
   friend class NdbBlob;
   friend class DbUtil;
+  friend class Trix;
 
   /**
    * For printing
@@ -55,7 +75,16 @@ public:
   STATIC_CONST( SignalLength = 25 );
   STATIC_CONST( MaxKeyInfo = 8 );
   STATIC_CONST( MaxAttrInfo = 5 );
-  STATIC_CONST( MaxTotalAttrInfo = 0xFFFF );
+  STATIC_CONST( MaxTotalAttrInfo = ((MAX_SEND_MESSAGE_BYTESIZE / 4) - 
+                                    SignalLength ));
+
+  /**
+   * Long signal variant of TCKEYREQ
+   */
+  STATIC_CONST( KeyInfoSectionNum = 0 );
+  STATIC_CONST( AttrInfoSectionNum = 1 );
+
+  STATIC_CONST( UnlockKeyLen = 2 );
 
 private:
 
@@ -79,11 +108,19 @@ private:
     UintR apiOperationPtr;      // DATA 1
   };
   /**
-   * ATTRIBUTE INFO (attrinfo) LENGTH
-   * This is the total length of all attribute info that is sent from
-   * the application as part of this operation. 
-   * It includes all attribute info sent in possible attrinfo 
-   * signals as well as the attribute info sent in TCKEYREQ.
+   * Short TCKEYREQ only : 
+   *   ATTRIBUTE INFO (attrinfo) LENGTH
+   *   This is the total length of all attribute info that is sent from
+   *   the application as part of this operation. 
+   *   It includes all attribute info sent in possible attrinfo 
+   *   signals as well as the attribute info sent in TCKEYREQ.
+   *
+   *   (APIVERSION << 16 | ATTRINFOLEN)
+   *
+   * Long TCKEYREQ
+   *   (APIVERSION << 16)
+   *   Get AttrInfoLength from length of section 1, if present.
+   *
    */
   UintR attrLen;              // DATA 2   (also stores API Version)
   UintR tableId;              // DATA 3
@@ -96,7 +133,7 @@ private:
   //  Conditional part = can be present in signal. 
   //  These four words will be sent only if their indicator is set.
   // ----------------------------------------------------------------------
-  UintR scanInfo;             // DATA 8   Various flags for scans
+  UintR scanInfo;             // DATA 8   Various flags for scans, see below
   UintR distrGroupHashValue;  // DATA 9
   UintR distributionKeySize;  // DATA 10
   UintR storedProcId;         // DATA 11
@@ -128,14 +165,16 @@ private:
   static Uint8 getDirtyFlag(const UintR & requestInfo);
   static Uint8 getInterpretedFlag(const UintR & requestInfo);
   static Uint8 getDistributionKeyFlag(const UintR & requestInfo);
+  static Uint8 getViaSPJFlag(const UintR & requestInfo);
   static Uint8 getScanIndFlag(const UintR & requestInfo);
   static Uint8 getOperationType(const UintR & requestInfo);
   static Uint8 getExecuteFlag(const UintR & requestInfo);
 
   static Uint16 getKeyLength(const UintR & requestInfo);
   static Uint8  getAIInTcKeyReq(const UintR & requestInfo);
-  static Uint8  getExecutingTrigger(const UintR & requestInfo);
   static UintR  getNoDiskFlag(const UintR & requestInfo);
+
+  static UintR getCoordinatedTransactionFlag(const UintR & requestInfo);
 
   /**
    * Get:ers for scanInfo
@@ -156,14 +195,26 @@ private:
   static void setDirtyFlag(UintR & requestInfo, Uint32 flag);
   static void setInterpretedFlag(UintR & requestInfo, Uint32 flag);
   static void setDistributionKeyFlag(UintR & requestInfo, Uint32 flag);
+  static void setViaSPJFlag(UintR & requestInfo, Uint32 flag);
   static void setScanIndFlag(UintR & requestInfo, Uint32 flag);
   static void setExecuteFlag(UintR & requestInfo, Uint32 flag);  
   static void setOperationType(UintR & requestInfo, Uint32 type);
   
   static void setKeyLength(UintR & requestInfo, Uint32 len);
   static void setAIInTcKeyReq(UintR & requestInfo, Uint32 len);
-  static void setExecutingTrigger(UintR & requestInfo, Uint32 flag);
   static void setNoDiskFlag(UintR & requestInfo, UintR val);
+
+  static void setReorgFlag(UintR & requestInfo, UintR val);
+  static UintR getReorgFlag(const UintR & requestInfo);
+  static void setCoordinatedTransactionFlag(UintR & requestInfo, UintR val);
+  static void setQueueOnRedoProblemFlag(UintR & requestInfo, UintR val);
+  static UintR getQueueOnRedoProblemFlag(const UintR & requestInfo);
+
+  /**
+   * Check constraints deferred
+   */
+  static UintR getDeferredConstraints(const UintR & requestInfo);
+  static void setDeferredConstraints(UintR & requestInfo, UintR val);
 
   /**
    * Set:ers for scanInfo
@@ -177,23 +228,31 @@ private:
  * Request Info
  *
  a = Attr Info in TCKEYREQ - 3  Bits -> Max 7 (Bit 16-18)
+     (Short TCKEYREQ only, for long req a == 0)
  b = Distribution Key Ind  - 1  Bit 2
+ v = Via SPJ               - 1  Bit 3
  c = Commit Indicator      - 1  Bit 4
  d = Dirty Indicator       - 1  Bit 0
  e = Scan Indicator        - 1  Bit 14
- f = Execute fired trigger - 1  Bit 19 
  i = Interpreted Indicator - 1  Bit 15
  k = Key length            - 12 Bits -> Max 4095 (Bit 20 - 31)
+     (Short TCKEYREQ only, for long req use length of
+      section 0)
  o = Operation Type        - 3  Bits -> Max 7 (Bit 5-7)
  l = Execute               - 1  Bit 10
  p = Simple Indicator      - 1  Bit 8
  s = Start Indicator       - 1  Bit 11
  y = Commit Type           - 2  Bit 12-13
  n = No disk flag          - 1  Bit 1
+ r = reorg flag            - 1  Bit 19
+ x = Coordinated Tx flag   - 1  Bit 16
+ q = Queue on redo problem - 1  Bit 9
+ D = deferred constraint   - 1  Bit 17
 
            1111111111222222222233
  01234567890123456789012345678901
- dnb cooop lsyyeiaaafkkkkkkkkkkkk
+ dnb cooop lsyyeiaaarkkkkkkkkkkkk  (Short TCKEYREQ)
+ dnbvcooopqlsyyeixD r              (Long TCKEYREQ)
 */
 
 #define TCKEY_NODISK_SHIFT (1)
@@ -204,6 +263,7 @@ private:
 #define EXECUTE_SHIFT      (10)
 #define INTERPRETED_SHIFT  (15)
 #define DISTR_KEY_SHIFT    (2)
+#define VIA_SPJ_SHIFT      (3)
 #define SCAN_SHIFT         (14)
 
 #define OPERATION_SHIFT   (5)
@@ -218,14 +278,27 @@ private:
 #define COMMIT_TYPE_SHIFT  (12)
 #define COMMIT_TYPE_MASK   (3)
 
-#define EXECUTING_TRIGGER_SHIFT (19)
+#define TC_REORG_SHIFT     (19)
+#define QUEUE_ON_REDO_SHIFT (9)
+
+#define TC_COORDINATED_SHIFT (16)
+#define TC_DEFERRED_CONSTAINTS_SHIFT (17)
 
 /**
  * Scan Info
  *
+ * Scan Info is used to identify the row and lock to take over from a scan.
+ *
+ * If "Scan take over indicator" is set, this operation will take over a lock
+ * currently held on a row being scanned.
+ * Scan locks not taken over in this way (by same or other transaction) are
+ * released when fetching the next batch of rows (SCAN_NEXTREQ signal).
+ * The value for "take over node" and "scan info" are obtained from the
+ * KEYINFO20 signal sent to NDB API by LQH if requested in SCAN_TABREQ.
+ *
  t = Scan take over indicator -  1 Bit
- n = Take over node           - 12 Bits -> max 65535
- p = Scan Info                - 18 Bits -> max 4095
+ n = Take over node           - 12 Bits -> max 4095
+ p = Scan Info                - 18 Bits -> max 0x3ffff
 
            1111111111222222222233
  01234567890123456789012345678901
@@ -238,17 +311,18 @@ private:
 #define TAKE_OVER_FRAG_MASK  (4095)
 
 #define SCAN_INFO_SHIFT      (1)
-#define SCAN_INFO_MASK       (262143)
+#define SCAN_INFO_MASK       (0x3ffff)
 
 /**
  * Attr Len
  *
- n = Attrinfo length(words)   - 16 Bits -> max 65535
+ n = Attrinfo length(words)   - 16 Bits -> max 65535 (Short TCKEYREQ only)
  a = API version no           - 16 Bits -> max 65535
 
            1111111111222222222233
  01234567890123456789012345678901
- aaaaaaaaaaaaaaaannnnnnnnnnnnnnnn
+ aaaaaaaaaaaaaaaannnnnnnnnnnnnnnn   (Short TCKEYREQ)
+ aaaaaaaaaaaaaaaa                   (Long TCKEYREQ)
 */
 
 #define API_VER_NO_SHIFT     (16)
@@ -306,6 +380,18 @@ TcKeyReq::getDistributionKeyFlag(const UintR & requestInfo){
 }
 
 inline
+UintR
+TcKeyReq::getCoordinatedTransactionFlag(const UintR & requestInfo){
+  return (UintR)((requestInfo >> TC_COORDINATED_SHIFT) & 1);
+}
+
+inline
+Uint8
+TcKeyReq::getViaSPJFlag(const UintR & requestInfo){
+  return (Uint8)((requestInfo >> VIA_SPJ_SHIFT) & 1);
+}
+
+inline
 Uint8
 TcKeyReq::getScanIndFlag(const UintR & requestInfo){
   return (Uint8)((requestInfo >> SCAN_SHIFT) & 1);
@@ -327,12 +413,6 @@ inline
 Uint8
 TcKeyReq::getAIInTcKeyReq(const UintR & requestInfo){
   return (Uint8)((requestInfo >> AINFO_SHIFT) & AINFO_MASK);
-}
-
-inline
-Uint8
-TcKeyReq::getExecutingTrigger(const UintR & requestInfo){
-  return (Uint8)((requestInfo >> EXECUTING_TRIGGER_SHIFT) & 1);
 }
 
 inline
@@ -406,7 +486,23 @@ TcKeyReq::setDistributionKeyFlag(UintR & requestInfo, Uint32 flag){
 }
 
 inline
+void
+TcKeyReq::setCoordinatedTransactionFlag(UintR & requestInfo, UintR flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setCoordinatedTransactionFlag");
+  requestInfo &= ~(1 << TC_COORDINATED_SHIFT);
+  requestInfo |= (flag << TC_COORDINATED_SHIFT);
+}
+
+inline
 void 
+TcKeyReq::setViaSPJFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setViaSPJFlag");
+  requestInfo &= ~(1 << VIA_SPJ_SHIFT);
+  requestInfo |= (flag << VIA_SPJ_SHIFT);
+}
+
+inline
+void
 TcKeyReq::setScanIndFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setScanIndFlag");
   requestInfo &= ~(1 << SCAN_SHIFT);
@@ -435,14 +531,6 @@ TcKeyReq::setAIInTcKeyReq(UintR & requestInfo, Uint32 len){
   ASSERT_MAX(len, AINFO_MASK, "TcKeyReq::setAIInTcKeyReq");
   requestInfo &= ~(AINFO_MASK << AINFO_SHIFT);
   requestInfo |= (len << AINFO_SHIFT);
-}
-
-inline
-void 
-TcKeyReq::setExecutingTrigger(UintR & requestInfo, Uint32 flag){
-  ASSERT_BOOL(flag, "TcKeyReq::setExecutingTrigger");
-  requestInfo &= ~(1 << EXECUTING_TRIGGER_SHIFT);
-  requestInfo |= (flag << EXECUTING_TRIGGER_SHIFT);
 }
 
 inline
@@ -525,5 +613,45 @@ TcKeyReq::setNoDiskFlag(UintR & requestInfo, Uint32 flag){
   requestInfo &= ~(1 << TCKEY_NODISK_SHIFT);
   requestInfo |= (flag << TCKEY_NODISK_SHIFT);
 }
+
+inline
+UintR
+TcKeyReq::getReorgFlag(const UintR & requestInfo){
+  return (requestInfo >> TC_REORG_SHIFT) & 1;
+}
+
+inline
+void
+TcKeyReq::setReorgFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setReorgFlag");
+  requestInfo |= (flag << TC_REORG_SHIFT);
+}
+
+inline
+UintR
+TcKeyReq::getQueueOnRedoProblemFlag(const UintR & requestInfo){
+  return (requestInfo >> QUEUE_ON_REDO_SHIFT) & 1;
+}
+
+inline
+void
+TcKeyReq::setQueueOnRedoProblemFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setNoDiskFlag");
+  requestInfo |= (flag << QUEUE_ON_REDO_SHIFT);
+}
+
+inline
+void
+TcKeyReq::setDeferredConstraints(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "TcKeyReq::setDeferredConstraints");
+  requestInfo |= (val << TC_DEFERRED_CONSTAINTS_SHIFT);
+}
+
+inline
+UintR
+TcKeyReq::getDeferredConstraints(const UintR & requestInfo){
+  return (requestInfo >> TC_DEFERRED_CONSTAINTS_SHIFT) & 1;
+}
+
 
 #endif

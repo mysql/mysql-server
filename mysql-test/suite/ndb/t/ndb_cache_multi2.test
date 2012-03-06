@@ -1,0 +1,128 @@
+# query cache is local to each mysqld, so counting hits
+# will not be the same when using one and several mysqld's
+# hence disable test for embedded
+-- source include/not_embedded.inc
+-- source include/have_query_cache.inc
+-- source include/have_multi_ndb.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+
+# Turn on and reset query cache on server1
+connection server1;
+echo == Connected to server1 ==;
+set GLOBAL query_cache_type=on;
+set GLOBAL query_cache_size=1355776;
+set GLOBAL ndb_cache_check_time=1;
+reset query cache;
+flush status;
+
+# Turn on and reset query cache on server2
+connection server2;
+echo == Connected to server2 ==;
+set GLOBAL query_cache_type=on;
+set GLOBAL query_cache_size=1355776;
+set GLOBAL ndb_cache_check_time=1;
+reset query cache;
+flush status;
+
+# Create test tables in NDB and load them into cache
+# on server1
+connection server1;
+echo == Connected to server1 ==;
+create table t1 (a int) engine=ndbcluster;
+create table t2 (a int) engine=ndbcluster;
+insert into t1 value (2);
+insert into t2 value (3);
+select * from t1;
+# Run the check query once to load it into qc on server1
+# See at the end of this test why we need to disable ps-protocol for
+# this query (*)
+--disable_ps_protocol
+select a != 3 from t1;
+--enable_ps_protocol
+select * from t2;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+
+# Connect server2, load table in to cache, then update the table
+connection server2;
+echo == Connected to server2 ==;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+select * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+update t1 set a=3 where a=2;
+
+# Connect to server1 and check that cache is invalidated
+# and correct data is returned
+connection server1;
+echo == Connected to server1 ==;
+
+# Loop and wait for max 10 seconds until query cache thread
+# has invalidated the cache and the column a in t1 is equal to 3
+let $retries=20;
+while (`select a != 3 from t1`)
+{
+  dec $retries;
+  if (!$retries)
+  {
+     The query_cache thread failed to invalidate query_cache in 10 seconds;
+  }
+  sleep 0.5;
+}
+
+# Select from t1 one last time for the result file
+# Column a should be 3
+select * from t1;
+
+# There should now be three queries in the cache
+show status like "Qcache_queries_in_cache";
+
+drop table t1, t2;
+
+# Turn off and reset query cache on server1 and server2
+connection server1;
+set GLOBAL query_cache_size=0;
+set GLOBAL ndb_cache_check_time=0;
+reset query cache;
+flush status;
+connection server2;
+set GLOBAL query_cache_size=0;
+set GLOBAL ndb_cache_check_time=0;
+reset query cache;
+flush status;
+
+# (*) Why we need to execute the query in non-ps mode.
+# The principle of this test is: two mysqlds connected to one cluster,
+# both using their query cache. Queries are cached in server1
+# ("select a!=3 from t1", "select * from t1"),
+# table t1 is modified in server2, we want to see that this invalidates
+# the query cache of server1. Invalidation with NDB works like this:
+# when a query is found in the query cache, NDB is asked if the tables
+# have changed. In this test, ha_ndbcluster calls NDB every millisecond
+# to collect change information about tables.
+# Due to this millisecond delay, there is need for a loop ("while...")
+# in this test, which waits until a query1 ("select a!=3 from t1") is
+# invalidated (which is equivalent to it returning
+# up-to-date results), and then expects query2 ("select * from t1")
+# to have been invalidated (see up-to-date results).
+# But when enabling --ps-protocol in this test, the logic breaks,
+# because query1 is still done via mysql_real_query() (see mysqltest.c:
+# eval_expr() always uses mysql_real_query()). So, query1 returning
+# up-to-date results is not a sign of it being invalidated in the cache,
+# because it was NOT in the cache ("select a!=3 from t1" on line 39
+# was done with prep stmts, while `select a!=3 from t1` is not,
+# thus the second does not see the first in the cache). Thus, we may run
+# query2 when cache still has not been invalidated.
+# The solution is to make the initial "select a!=3 from t1" run
+# as a normal query, this repairs the broken logic.
+# But note, "select * from t1" is still using prepared statements
+# which was the goal of this test with --ps-protocol.

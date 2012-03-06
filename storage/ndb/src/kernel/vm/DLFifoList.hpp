@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2007 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DLFIFOLIST_HPP
 #define DLFIFOLIST_HPP
@@ -83,14 +86,14 @@ public:
   /**
    * Update ptr to first element in list
    *
-   * Return i
+   * Return true if ok, false if empty
    */
   bool first(Ptr<T> &) const ;
 
   /**
-   * Update ptr to first element in list
+   * Update ptr to last element in list
    *
-   * Return i
+   * Return true if ok, false if empty
    */
   bool last(Ptr<T> &) const ;
 
@@ -174,11 +177,16 @@ template <typename P, typename T, typename U>
 inline
 DLFifoListImpl<P,T,U>::Head::Head()
 {
+  // Require user defined constructor on T since we fiddle
+  // with T's members
+  ASSERT_TYPE_HAS_CONSTRUCTOR(T);
+
   firstItem = RNIL;
   lastItem = RNIL;
 #ifdef VM_TRACE
   in_use = false;
 #endif
+
 }
 
 template <typename P, typename T, typename U>

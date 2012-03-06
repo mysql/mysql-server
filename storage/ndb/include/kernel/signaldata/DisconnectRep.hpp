@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005, 2006, 2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DISCONNECT_REP_HPP
 #define DISCONNECT_REP_HPP
@@ -21,25 +24,27 @@
 /**
  * 
  */
-class DisconnectRep {
+struct DisconnectRep
+{
   /**
    * Receiver(s)
    */
   friend class Qmgr;
   friend class Cmvmi; // Cmvmi
+  friend class ClusterMgr;
 
   /**
    * Senders
    */
   friend class Dbtc;
-  friend void reportDisconnect(void * , NodeId, Uint32); // TransporterCallback
-  
+  friend class TransporterFacade;
+  friend class TransporterCallbackKernel;
+
   /**
    * For printing
    */
   friend bool printDISCONNECT_REP(FILE *, const Uint32 *, Uint32, Uint16);
 
-public:
   STATIC_CONST( SignalLength = 2 );
 
   enum ErrCode {
@@ -50,8 +55,6 @@ public:
     TcReportNodeFailed = 0xFF000001
   };
 
-private:
-  
   Uint32 nodeId;
   Uint32 err;
 };
