@@ -10439,7 +10439,8 @@ ha_innobase::check(
 
 	if (dict_table_is_discarded(prebuilt->table)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The .ibd file is discarded for table %s",
+			"The table %s doesn't have a corresponding "
+			"tablespace, it was discarded.",
 			prebuilt->table->name);
 
 		DBUG_RETURN(HA_ADMIN_CORRUPT);
@@ -11445,7 +11446,8 @@ ha_innobase::transactional_table_lock(
 
 		if (dict_table_is_discarded(prebuilt->table)) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The .ibd file is discarded for table %s",
+				"The table %s doesn't have a corresponding "
+				"tablespace, it was discarded.",
 				prebuilt->table->name);
 		} else if (prebuilt->table->ibd_file_missing) {
 			ib_logf(IB_LOG_LEVEL_ERROR,

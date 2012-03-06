@@ -3704,8 +3704,9 @@ row_search_for_mysql(
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (dict_table_is_discarded(prebuilt->table)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The .ibd file is DISCARDed for table %s",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"The table %s doesn't have a corresponding "
+			"tablespace, it was discarded.",
 			prebuilt->table->name);
 
 		return(DB_TABLESPACE_DELETED);
