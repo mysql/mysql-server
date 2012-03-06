@@ -944,7 +944,7 @@ Dbspj::build(Build_context& ctx,
     err = (this->*(info->m_build))(ctx, requestPtr, qn, qp);
     if (unlikely(err != 0))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
 
@@ -2809,7 +2809,7 @@ Dbspj::lookup_build(Build_context& ctx,
     err = createNode(ctx, requestPtr, treeNodePtr);
     if (unlikely(err != 0))
     {
-      DEBUG_CRASH();
+      jam();
       break;
     }
 
@@ -2887,7 +2887,7 @@ Dbspj::lookup_build(Build_context& ctx,
                   nodeDA, treeBits, paramDA, paramBits);
     if (unlikely(err != 0))
     {
-      DEBUG_CRASH();
+      jam();
       break;
     }
 
@@ -3814,6 +3814,7 @@ Dbspj::computePartitionHash(Signal* signal,
                   NDB_ARRAY_SIZE(signal->theData) - 24);
         if (unlikely(attrLen == 0))
         {
+          DEBUG_CRASH();
           return 290;  // 'Corrupt key in TC, unable to xfrm'
         }
       }
@@ -3856,8 +3857,10 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
 
   jamEntry();
   if (unlikely(err != 0))
+  {
+    jam();
     goto error;
-
+  }
   dst.fragId = conf->fragId;
   dst.fragDistKey = (Tdata2 >> 16) & 255;
   dst.receiverRef = numberToRef(DBLQH, instanceKey, nodeId);
@@ -3932,7 +3935,10 @@ Dbspj::scanFrag_build(Build_context& ctx,
 
     err = createNode(ctx, requestPtr, treeNodePtr);
     if (unlikely(err != 0))
+    {
+      jam();
       break;
+    }
 
     treeNodePtr.p->m_scanfrag_data.m_scanFragHandlePtrI = RNIL;
     Ptr<ScanFragHandle> scanFragHandlePtr;
@@ -4002,7 +4008,6 @@ Dbspj::scanFrag_build(Build_context& ctx,
     if (unlikely(err != 0))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -4497,7 +4502,10 @@ Dbspj::scanIndex_build(Build_context& ctx,
 
     err = createNode(ctx, requestPtr, treeNodePtr);
     if (unlikely(err != 0))
+    {
+      jam();
       break;
+    }
 
     Uint32 batchSize = param->batchSize;
 
@@ -4555,7 +4563,6 @@ Dbspj::scanIndex_build(Build_context& ctx,
     if (unlikely(err != 0))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -4710,7 +4717,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
     return 0;
   } while(0);
 
-  DEBUG_CRASH();
+  jam();
   return err;
 }
 
@@ -5019,7 +5026,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       err = expand(pruneKeyPtrI, pattern, rowRef, hasNull);
       if (unlikely(err != 0))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
 
@@ -5044,14 +5051,14 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       releaseSection(pruneKeyPtrI);
       if (unlikely(err != 0))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
 
       err = getNodes(signal, tmp, tableId);
       if (unlikely(err != 0))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
 
@@ -5113,7 +5120,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       err = expand(ptrI, pattern, rowRef, hasNull);
       if (unlikely(err != 0))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
     }
@@ -6759,32 +6766,29 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
   case QueryPattern::P_COL:
     jam();
     return appendColToSection(dst, targetRow.m_row_data.m_linear, val, hasNull);
-    break;
   case QueryPattern::P_UNQ_PK:
     jam();
     return appendPkColToSection(dst, targetRow.m_row_data.m_linear, val);
-    break;
   case QueryPattern::P_ATTRINFO:
     jam();
     return appendAttrinfoToSection(dst, targetRow.m_row_data.m_linear, val, hasNull);
-    break;
   case QueryPattern::P_DATA:
     jam();
     // retreiving DATA from parent...is...an error
-    break;
+    DEBUG_CRASH();
+    return DbspjErr::InvalidPattern;
   case QueryPattern::P_PARENT:
     jam();
     // no point in nesting P_PARENT...an error
-    break;
+    DEBUG_CRASH();
+    return DbspjErr::InvalidPattern;
   case QueryPattern::P_PARAM:
   case QueryPattern::P_PARAM_HEADER:
     jam();
     // should have been expanded during build
-    break;
+    DEBUG_CRASH();
+    return DbspjErr::InvalidPattern;
   }
-
-  DEBUG_CRASH();
-  return DbspjErr::InvalidPattern;
 }
 
 Uint32
@@ -6831,7 +6835,7 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
     {
       if (!appendToSection(ptrI, tmp, dstIdx))
       {
-        DEBUG_CRASH();
+        jam();
         return DbspjErr::OutOfSectionMemory;
       }
       dstIdx = 0;
@@ -6840,7 +6844,7 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
   if (remaining > 0)
   {
     DEBUG_CRASH();
-    return DbspjErr::OutOfSectionMemory;
+    return DbspjErr::InvalidPattern;
   }
   else
   {
@@ -6918,7 +6922,6 @@ Dbspj::expandS(Uint32 & _dst, Local_pattern_store& pattern,
     if (unlikely(err != 0))
     {
       jam();
-      DEBUG_CRASH();
       goto error;
     }
   }
@@ -6983,7 +6986,6 @@ Dbspj::expandL(Uint32 & _dst, Local_pattern_store& pattern,
     if (unlikely(err != 0))
     {
       jam();
-      DEBUG_CRASH();
       goto error;
     }
   }
@@ -7063,7 +7065,6 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
     if (unlikely(err != 0))
     {
       jam();
-      DEBUG_CRASH();
       goto error;
     }
   }
@@ -7149,14 +7150,13 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
       break;
     }
     default:
-      jam();
       err = DbspjErr::InvalidPattern;
       DEBUG_CRASH();
     }
 
     if (unlikely(err != 0))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
   }
@@ -7249,7 +7249,7 @@ Dbspj::parseDA(Build_context& ctx,
         if (unlikely(!map.append(&treeNodePtr.i, 1)))
         {
           err = DbspjErr::OutOfQueryMemory;
-          DEBUG_CRASH();
+          jam();
           break;
         }
         parentPtr.p->m_bits &= ~(Uint32)TreeNode::T_LEAF;
@@ -7339,7 +7339,7 @@ Dbspj::parseDA(Build_context& ctx,
 
       if (unlikely(err != 0))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
     } // DABits::NI_KEY_...
@@ -7396,7 +7396,7 @@ Dbspj::parseDA(Build_context& ctx,
         err = DbspjErr::OutOfSectionMemory;
         if (unlikely(!appendToSection(attrInfoPtrI, sections, 5)))
         {
-          DEBUG_CRASH();
+          jam();
           break;
         }
 
@@ -7425,7 +7425,7 @@ Dbspj::parseDA(Build_context& ctx,
           err = DbspjErr::OutOfSectionMemory;
           if (unlikely(!appendToSection(attrInfoPtrI, tree.ptr, len_prg)))
           {
-            DEBUG_CRASH();
+            jam();
             break;
           }
 
@@ -7447,7 +7447,7 @@ Dbspj::parseDA(Build_context& ctx,
             err = expand(pattern, treeNodePtr, tree, len_pattern, param, cnt);
             if (unlikely(err))
             {
-              DEBUG_CRASH();
+              jam();
               break;
             }
             /**
@@ -7466,7 +7466,7 @@ Dbspj::parseDA(Build_context& ctx,
             err = expand(attrParamPtrI, tree, len_pattern, param, cnt, hasNull);
             if (unlikely(err))
             {
-              DEBUG_CRASH();
+              jam();
               break;
             }
 //          ndbrequire(!hasNull);
@@ -7497,7 +7497,7 @@ Dbspj::parseDA(Build_context& ctx,
             err = DbspjErr::OutOfSectionMemory;
             if (unlikely(!appendToSection(attrInfoPtrI, &tmp, 1)))
             {
-              DEBUG_CRASH();
+              jam();
               break;
             }
             sectionptrs[1] = 1;
@@ -7518,7 +7518,7 @@ Dbspj::parseDA(Build_context& ctx,
         err = DbspjErr::OutOfSectionMemory;
         if (unlikely(!appendToSection(attrInfoPtrI, param.ptr, program_len)))
         {
-          DEBUG_CRASH();
+          jam();
           break;
         }
         /**
@@ -7535,7 +7535,7 @@ Dbspj::parseDA(Build_context& ctx,
           if (unlikely(!appendToSection(attrParamPtrI,
                                         param.ptr, subroutine_len)))
           {
-            DEBUG_CRASH();
+            jam();
             break;
           }
           sectionptrs[4] = subroutine_len;
@@ -7557,7 +7557,7 @@ Dbspj::parseDA(Build_context& ctx,
         err = DbspjErr::OutOfSectionMemory;
         if (!appendToSection(attrInfoPtrI, param.ptr, len))
         {
-          DEBUG_CRASH();
+          jam();
           break;
         }
 
@@ -7573,7 +7573,7 @@ Dbspj::parseDA(Build_context& ctx,
         flush[3] = ctx.m_senderRef; // RouteRef
         if (!appendToSection(attrInfoPtrI, flush, 4))
         {
-          DEBUG_CRASH();
+          jam();
           break;
         }
 
@@ -7606,7 +7606,7 @@ Dbspj::parseDA(Build_context& ctx,
         err = DbspjErr::OutOfSectionMemory;
         if (!appendToSection(attrInfoPtrI, dst, cnt))
         {
-          DEBUG_CRASH();
+          jam();
           break;
         }
 
@@ -7635,7 +7635,7 @@ Dbspj::parseDA(Build_context& ctx,
             sectionptrs[4] = ptr.sz;
             if (unlikely(err != 0))
             {
-              DEBUG_CRASH();
+              jam();
               break;
             }
           }
@@ -7656,7 +7656,7 @@ Dbspj::parseDA(Build_context& ctx,
       err = DbspjErr::OutOfSectionMemory;
       if (unlikely(!appendToSection(treeNodePtr.p->m_send.m_attrInfoPtrI, &tmp, 1)))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
     }
