@@ -6,9 +6,13 @@ DROP TABLE IF EXISTS t1;
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+let $innodb_file_format = `SELECT @@innodb_file_format`;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
+
+SET GLOBAL innodb_file_format = `Barracuda`;
+SELECT @@innodb_file_format;
 
 # Export/import on the same instance, with --innodb-file-per-table=1
 CREATE TABLE t1(
@@ -36,6 +40,8 @@ CREATE TABLE t1(
 	c2 INT) ENGINE=InnoDB;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -81,6 +87,8 @@ CREATE TABLE t1(
 	c2 INT) ENGINE=InnoDB;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -126,6 +134,8 @@ CREATE TABLE t1(
 	c2 INT, INDEX(c2)) ENGINE=InnoDB;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -173,6 +183,8 @@ CREATE TABLE t1(
 	c2 INT, INDEX x(c2)) ENGINE=InnoDB;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -198,6 +210,8 @@ CREATE TABLE t1(
 	c2 INT, INDEX idx(c2)) ENGINE=InnoDB;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -279,6 +293,8 @@ CREATE TABLE t1(
 	c2 INT) ENGINE=InnoDB;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -304,6 +320,8 @@ CREATE TABLE t1(
 	c3 INT, INDEX idx(c2)) ENGINE=InnoDB;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -328,6 +346,8 @@ CREATE TABLE t1(
 	c2 BIGINT, INDEX idx(c2)) ENGINE=InnoDB;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -352,6 +372,8 @@ CREATE TABLE t1(
 	c2 INT, INDEX idx(c2)) ENGINE=InnoDB;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -371,7 +393,9 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
-# Row format tests
+#
+# Row format tests [EXPORT REDUNDANT - IMPORT COMPACT & DYNAMIC]
+#
 CREATE TABLE t1(
 	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
@@ -402,6 +426,8 @@ CREATE TABLE t1(
 	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -426,6 +452,8 @@ CREATE TABLE t1(
 	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=COMPACT;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -433,7 +461,6 @@ ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
 
-# This should fail
 --error ER_NOT_KEYFILE
 ALTER TABLE t1 IMPORT TABLESPACE;
 
@@ -449,6 +476,8 @@ CREATE TABLE t1(
 	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -456,8 +485,7 @@ ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
 
-# This should fail
---error ER_NOT_KEYFILE
+--error ER_FILE_NOT_FOUND
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
@@ -473,6 +501,8 @@ CREATE TABLE t1(
 	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
 
 ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -492,5 +522,268 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
+#
+# Row format tests [EXPORT COMPACT - IMPORT REDUNDANT & DYNAMIC]
+#
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+
+INSERT INTO t1(c2) VALUES(1);
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+FLUSH TABLES t1 WITH READ LOCK;
+
+perl;
+do 'include/innodb-util.inc';
+ib_backup_tablespaces("test", "t1");
+EOF
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_cleanup("test", "t1");
+EOF
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+--error ER_NOT_KEYFILE
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test", "t1");
+EOF
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+--error ER_FILE_NOT_FOUND
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test", "t1");
+EOF
+
+DROP TABLE t1;
+
+# This should be OK.
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_cleanup("test", "t1");
+EOF
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+#
+# Row format tests [EXPORT DYNAMIC- IMPORT REDUNDANT & DYNAMIC]
+#
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+
+INSERT INTO t1(c2) VALUES(1);
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+FLUSH TABLES t1 WITH READ LOCK;
+
+perl;
+do 'include/innodb-util.inc';
+ib_backup_tablespaces("test", "t1");
+EOF
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_cleanup("test", "t1");
+EOF
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+--error ER_FILE_NOT_FOUND
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test", "t1");
+EOF
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+--error ER_FILE_NOT_FOUND
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test", "t1");
+EOF
+
+DROP TABLE t1;
+
+# This should be OK.
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_GET_ERRNO
+SELECT * FROM t1;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_cleanup("test", "t1");
+EOF
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+call mtr.add_suppression("Got error -1 when reading table './test/t1'");
+call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file './test/t1.ibd'.*");
+call mtr.add_suppression("InnoDB: The table test/t1 doesn't have a corresponding tablespace, it was discarded");
+
+eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
 
