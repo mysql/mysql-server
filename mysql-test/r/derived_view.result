@@ -429,7 +429,7 @@ join
 (select * from (select * from t1 where f1 < 7 group by f1) tt where f1 > 2) z
 on x.f1 = z.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<derived3>	ALL	key0	NULL	NULL	NULL	11	100.00	Using where
+1	SIMPLE	<derived3>	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
 1	SIMPLE	<derived5>	ref	key0	key0	5	tt.f1	2	100.00	
 5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
@@ -488,7 +488,7 @@ join
 (select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) z
 on x.f1 = z.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	key0	NULL	NULL	NULL	11	100.00	Using where
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
 1	PRIMARY	<derived4>	ref	key0	key0	5	x.f1	2	100.00	
 4	DERIVED	<derived5>	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
 5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
@@ -1595,7 +1595,7 @@ a
 EXPLAIN
 SELECT v1.a FROM v1,v2 WHERE v2.b = v1.b ORDER BY 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	key0	NULL	NULL	NULL	3	Using where; Using filesort
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using where; Using filesort
 1	PRIMARY	<derived3>	ref	key0	key0	5	v1.b	2	
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	5	Using temporary; Using filesort
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
@@ -1938,6 +1938,38 @@ a
 x
 y
 drop table t1,t2,t3;
+set SESSION optimizer_switch= @save_optimizer_switch;
+#
+# LP BUG#944782: derived table from an information schema table
+#
+SET @save_optimizer_switch=@@optimizer_switch;
+SET SESSION optimizer_switch='derived_merge=on';
+SET SESSION optimizer_switch='derived_with_keys=on';
+CREATE TABLE t1 (c1 int PRIMARY KEY, c2 char(5));
+EXPLAIN
+SELECT COUNT(*) > 0
+FROM INFORMATION_SCHEMA.COLUMNS
+INNER JOIN
+(SELECT TABLE_SCHEMA,
+GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX ASC) AS COL_NAMES
+FROM INFORMATION_SCHEMA.STATISTICS
+GROUP BY TABLE_SCHEMA) AS UNIQUES
+ON ( COLUMNS.TABLE_SCHEMA = UNIQUES.TABLE_SCHEMA);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	COLUMNS	ALL	NULL	NULL	NULL	NULL	NULL	Open_frm_only; Scanned all databases
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+2	DERIVED	STATISTICS	ALL	NULL	NULL	NULL	NULL	NULL	Open_frm_only; Scanned all databases; Using filesort
+SELECT COUNT(*) > 0
+FROM INFORMATION_SCHEMA.COLUMNS
+INNER JOIN
+(SELECT TABLE_SCHEMA,
+GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX ASC) AS COL_NAMES
+FROM INFORMATION_SCHEMA.STATISTICS
+GROUP BY TABLE_SCHEMA) AS UNIQUES
+ON ( COLUMNS.TABLE_SCHEMA = UNIQUES.TABLE_SCHEMA);
+COUNT(*) > 0
+1
+DROP TABLE t1;
 set SESSION optimizer_switch= @save_optimizer_switch;
 set optimizer_switch=@exit_optimizer_switch;
 set join_cache_level=@exit_join_cache_level;

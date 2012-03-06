@@ -1313,6 +1313,40 @@ drop table t1,t2,t3;
 
 set SESSION optimizer_switch= @save_optimizer_switch;
 
+--echo #
+--echo # LP BUG#944782: derived table from an information schema table
+--echo #
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET SESSION optimizer_switch='derived_merge=on'; 
+SET SESSION optimizer_switch='derived_with_keys=on'; 
+
+CREATE TABLE t1 (c1 int PRIMARY KEY, c2 char(5));
+
+EXPLAIN
+SELECT COUNT(*) > 0
+  FROM INFORMATION_SCHEMA.COLUMNS
+       INNER JOIN
+       (SELECT TABLE_SCHEMA,
+               GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX ASC) AS COL_NAMES
+          FROM INFORMATION_SCHEMA.STATISTICS
+        GROUP BY TABLE_SCHEMA) AS UNIQUES
+        ON ( COLUMNS.TABLE_SCHEMA = UNIQUES.TABLE_SCHEMA);
+
+#  this query crashed in mariadb-5.5.20
+SELECT COUNT(*) > 0
+  FROM INFORMATION_SCHEMA.COLUMNS
+       INNER JOIN
+       (SELECT TABLE_SCHEMA,
+               GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX ASC) AS COL_NAMES
+          FROM INFORMATION_SCHEMA.STATISTICS
+        GROUP BY TABLE_SCHEMA) AS UNIQUES
+        ON ( COLUMNS.TABLE_SCHEMA = UNIQUES.TABLE_SCHEMA);
+
+DROP TABLE t1;
+
+set SESSION optimizer_switch= @save_optimizer_switch;
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
 set join_cache_level=@exit_join_cache_level;

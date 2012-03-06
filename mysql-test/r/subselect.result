@@ -6462,6 +6462,7 @@ SELECT ( SELECT b FROM t2 WHERE b = a OR rand() * 0) FROM t1;
 1
 NULL
 drop table t1,t2,t3;
+set optimizer_switch=@subselect_tmp;
 #
 # LP BUG#905353 Wrong non-empty result with a constant table,
 # aggregate function in subquery, MyISAM or Aria

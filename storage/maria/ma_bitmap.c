@@ -370,7 +370,7 @@ static inline void _ma_bitmap_mark_file_changed(MARIA_SHARE *share,
     if (flush_translog && share->now_transactional)
       (void) translog_flush(share->state.logrec_file_id);
 
-    _ma_mark_file_changed(share);
+    _ma_mark_file_changed_now(share);
     mysql_mutex_lock(&share->bitmap.bitmap_lock);
     /* purecov: end */
   }
