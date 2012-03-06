@@ -371,5 +371,126 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
+# Row format tests
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+
+INSERT INTO t1(c2) VALUES(1);
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+FLUSH TABLES t1 WITH READ LOCK;
+
+perl;
+do 'include/innodb-util.inc';
+ib_backup_tablespaces("test", "t1");
+EOF
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_cleanup("test", "t1");
+EOF
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+# This should fail
+--error ER_NOT_KEYFILE
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test", "t1");
+EOF
+
+DROP TABLE t1;
+
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+# This should fail
+--error ER_NOT_KEYFILE
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test", "t1");
+EOF
+
+DROP TABLE t1;
+
+# This should be OK.
+CREATE TABLE t1(
+	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_cleanup("test", "t1");
+EOF
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
 
