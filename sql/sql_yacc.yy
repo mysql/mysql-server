@@ -13551,6 +13551,7 @@ set:
             sp_create_assignment_lex(YYTHD, yychar == YYEMPTY);
           }
           start_option_value_list
+          {}
         ;
 
 
