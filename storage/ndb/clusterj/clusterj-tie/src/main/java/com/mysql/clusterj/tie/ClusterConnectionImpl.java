@@ -73,7 +73,7 @@ public class ClusterConnectionImpl
     private static final String USE_SMART_VALUE_HANDLER_NAME = "com.mysql.clusterj.UseSmartValueHandler";
 
     private static final boolean USE_SMART_VALUE_HANDLER =
-            ClusterJHelper.getBooleanProperty(USE_SMART_VALUE_HANDLER_NAME, "false");
+            ClusterJHelper.getBooleanProperty(USE_SMART_VALUE_HANDLER_NAME, "true");
 
     /** Connect to the MySQL Cluster
      * 
@@ -196,6 +196,7 @@ public class ClusterConnectionImpl
 
     /** 
      * Get the cached NdbRecord implementation for this cluster connection.
+     * Use a ConcurrentHashMap for best multithread performance.
      * There are three possibilities:
      * <ul><li>Case 1: return the already-cached NdbRecord
      * </li><li>Case 2: return a new instance created by this method
@@ -214,7 +215,16 @@ public class ClusterConnectionImpl
             if (logger.isDebugEnabled())logger.debug("NdbRecordImpl found for " + tableName);
             return result;
         } else {
-            NdbRecordImpl newNdbRecordImpl = new NdbRecordImpl(storeTable, dictionaryForNdbRecord);
+            // dictionary is single thread
+            NdbRecordImpl newNdbRecordImpl;
+            synchronized (dictionaryForNdbRecord) {
+                // try again; another thread might have beat us
+                result = ndbRecordImplMap.get(tableName);
+                if (result != null) {
+                    return result;
+                }
+                newNdbRecordImpl = new NdbRecordImpl(storeTable, dictionaryForNdbRecord);   
+            }
             NdbRecordImpl winner = ndbRecordImplMap.putIfAbsent(tableName, newNdbRecordImpl);
             if (winner == null) {
                 // case 2: the previous value was null, so return the new (winning) value
