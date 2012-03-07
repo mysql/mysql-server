@@ -132,8 +132,10 @@ typedef enum meta_cache_opt {
 	META_CACHE_OPT_INNODB = 1,	/*!< Use InnoDB Memcached Engine only */
 	META_CACHE_OPT_DEFAULT,		/*!< Use Default Memcached Engine
 					only */
-	META_CACHE_OPT_MIX		/*!< Use both, first use default
+	META_CACHE_OPT_MIX,		/*!< Use both, first use default
 					memcached engine */
+	META_CACHE_OPT_DISABLE,		/*!< This operation is disabled */
+	META_CACHE_NUM_OPT		/*!< Number of options */
 } meta_cache_opt_t;
 
 /** In memory structure contains most necessary metadata info
