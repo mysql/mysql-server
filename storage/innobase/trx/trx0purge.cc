@@ -1162,13 +1162,7 @@ void
 trx_purge_truncate(void)
 /*====================*/
 {
-	static ulint	count;
-
 	ut_ad(trx_purge_check_limit());
-
-	if (++count % TRX_SYS_N_RSEGS) {
-		return;
-	}
 
 	if (purge_sys->limit.trx_no == 0) {
 		trx_purge_truncate_history(&purge_sys->iter, purge_sys->view);
@@ -1187,8 +1181,9 @@ trx_purge(
 /*======*/
 	ulint	n_purge_threads,	/*!< in: number of purge tasks
 					to submit to the work queue */
-	ulint	batch_size)		/*!< in: the maximum number of records
+	ulint	batch_size,		/*!< in: the maximum number of records
 					to purge in one batch */
+	bool	truncate)		/*!< in: truncate history if true */
 {
 #ifdef TRX_PURGE_DISABLED
 	return(0);
@@ -1255,11 +1250,9 @@ run_synchronously:
 		}
 	}
 
-	/* When shutdown is triggered it is possible for the worker threads
-        to have already exited via os_event_wait(). We only truncate the UNDO
-	log when we are 100% sure that all submitted tasks have completed. */
+	ut_a(purge_sys->n_submitted == purge_sys->n_completed);
 
-	if (purge_sys->n_submitted == purge_sys->n_completed) {
+	if (truncate) {
 		trx_purge_truncate();
 	}
 
