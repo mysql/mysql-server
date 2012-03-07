@@ -8588,13 +8588,18 @@ static Item_cond_and *create_cond_for_const_ref(THD *thd, JOIN_TAB *join_tab)
     Field *field= table->field[table->key_info[join_tab->ref.key].key_part[i].
                                fieldnr-1];
     Item *value= join_tab->ref.items[i];
-    cond->add(new Item_func_equal(new Item_field(field), value));
+    Item *item= new Item_field(field);
+    if (!item)
+      DBUG_RETURN(NULL);
+    item= join_tab->ref.null_rejecting & (1 << i) ?
+            (Item *)new Item_func_eq(item, value) :
+            (Item *)new Item_func_equal(item, value);
+    if (!item)
+      DBUG_RETURN(NULL);
+    if (cond->add(item))
+      DBUG_RETURN(NULL);
   }
-  if (thd->is_fatal_error)
-    DBUG_RETURN(NULL);
-
-  if (!cond->fixed)
-    cond->fix_fields(thd, (Item**)&cond);
+  cond->fix_fields(thd, (Item**)&cond);
 
   DBUG_RETURN(cond);
 }
