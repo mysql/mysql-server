@@ -867,7 +867,7 @@ row_import_cfg_read_index_fields(
 		if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
 
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
-				 ER_EXCEPTIONS_WRITE_ERROR,
+				 ER_IO_READ_ERROR,
 				 "I/O error (%lu), while reading index fields.",
 				 (ulint) errno);
 
@@ -935,7 +935,7 @@ row_import_read_index_data(
 
 		/* Read the index data. */
 		if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 				"I/O error (%lu) while reading index "
 				"meta-data", (ulint) errno);
 
@@ -1020,7 +1020,7 @@ row_import_read_indexes(
 
 	/* Read the number of indexes. */
 	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 			 "I/O error (%lu) while reading number of indexes.",
 			 (ulint) errno);
 
@@ -1037,7 +1037,7 @@ row_import_read_indexes(
 
 	} else if (cfg->n_indexes > 1024) {
 		// FIXME: What is the upper limit? */
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 			 "Number of indexes in meta-data file is too high: %lu",
 			 (ulong) cfg->n_indexes);
 
@@ -1087,7 +1087,7 @@ row_import_read_columns(
 
 		if (fread(row, 1,  sizeof(row), file) != sizeof(row)) {
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
-				 ER_INDEX_CORRUPT,
+				 ER_IO_READ_ERROR,
 				 "I/O error (%lu), while reading table column "
 				 "meta-data.", (ulint) errno);
 
@@ -1167,7 +1167,7 @@ row_import_read_v1(
 
 	/* Read the hostname where the tablespace was exported. */
 	if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
-		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_IO_READ_ERROR,
 			"I/O error (%lu) while reading meta-data export "
 			"hostname length.", (ulint) errno);
 
@@ -1194,7 +1194,7 @@ row_import_read_v1(
 
 	/* Read the table name of tablespace that was exported. */
 	if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
-		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_IO_READ_ERROR,
 			"I/O error (%lu) while reading meta-data "
 			"table name length.", (ulint) errno);
 
@@ -1227,7 +1227,7 @@ row_import_read_v1(
 
 	/* Read the tablespace page size. */
 	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 			 "I/O error (%lu) while reading meta-data header.",
 			 (ulint) errno);
 
@@ -1241,7 +1241,7 @@ row_import_read_v1(
 
 	if (cfg->page_size != UNIV_PAGE_SIZE) {
 
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
 			"Tablespace to be imported has a different "
 			"page size than this server. Server page size "
 			"is %lu, whereas tablespace page size is %lu",
@@ -1284,7 +1284,7 @@ row_import_read_meta_data(
 	*cfg = 0;
 
 	if (fread(&row, 1, sizeof(row), file) != sizeof(row)) {
-		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_IO_READ_ERROR,
 			"I/O error (%lu) while reading meta-data version",
 			(ulint) errno);
 
@@ -1440,7 +1440,8 @@ row_import_match_index_columns(
 	cfg_index = row_import_find_index(cfg, index->name);
 
 	if (cfg_index == 0) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+			 ER_TABLE_SCHEMA_MISMATCH,
 			 "Index %s not found in tablespace meta-data file.",
 			 index->name);
 
@@ -1456,7 +1457,8 @@ row_import_match_index_columns(
 		cfg_field = row_import_find_field(cfg_index, field->name);
 
 		if (cfg_field == 0) {
-			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_TABLE_SCHEMA_MISMATCH,
 				 "Index %s field %s not found in tablespace "
 				 "meta-data file.",
 				 index->name, field->name);
@@ -1466,7 +1468,7 @@ row_import_match_index_columns(
 
 			if (cfg_field->prefix_len != field->prefix_len) {
 				ib_pushf(thd, IB_LOG_LEVEL_ERROR,
-					 ER_INDEX_CORRUPT,
+					 ER_TABLE_SCHEMA_MISMATCH,
 					 "Index %s field %s prefix len %lu "
 					 "doesn't match meta-data file value "
 					 "%lu",
@@ -1479,7 +1481,7 @@ row_import_match_index_columns(
 
 			if (cfg_field->fixed_len != field->fixed_len) {
 				ib_pushf(thd, IB_LOG_LEVEL_ERROR,
-					 ER_INDEX_CORRUPT,
+					 ER_TABLE_SCHEMA_MISMATCH,
 					 "Index %s field %s fixed len %lu "
 					 "doesn't match meta-data file value "
 					 "%lu",
@@ -1522,14 +1524,16 @@ row_import_match_table_columns(
 
 		if (cfg_col_index == ULINT_UNDEFINED) {
 
-			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_TABLE_SCHEMA_MISMATCH,
 				 "Column %s not found in tablespace.",
 				 col_name);
 
 			err = DB_ERROR;
 		} else if (cfg_col_index != col->ind) {
 
-			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_TABLE_SCHEMA_MISMATCH,
 				 "Column %s ordinal value mismatch, it's at ",
 				 "%lu in the table and %lu in the tablespace "
 				 "meta-data file",
@@ -1545,28 +1549,32 @@ row_import_match_table_columns(
 
 			if (cfg_col->prtype != col->prtype) {
 				ib_pushf(thd,
-					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+					 IB_LOG_LEVEL_ERROR,
+					 ER_TABLE_SCHEMA_MISMATCH,
 					 "Column %s precise type mismatch.");
 				err = DB_ERROR;
 			}
 
 			if (cfg_col->mtype != col->mtype) {
 				ib_pushf(thd,
-					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+					 IB_LOG_LEVEL_ERROR,
+					 ER_TABLE_SCHEMA_MISMATCH,
 					 "Column %s main type mismatch.");
 				err = DB_ERROR;
 			}
 
 			if (cfg_col->len != col->len) {
 				ib_pushf(thd,
-					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+					 IB_LOG_LEVEL_ERROR,
+					 ER_TABLE_SCHEMA_MISMATCH,
 					 "Column %s length mismatch.");
 				err = DB_ERROR;
 			}
 
 			if (cfg_col->mbminmaxlen != col->mbminmaxlen) {
 				ib_pushf(thd,
-					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+					 IB_LOG_LEVEL_ERROR,
+					 ER_TABLE_SCHEMA_MISMATCH,
 					 "Column %s multi-byte len mismatch.");
 				err = DB_ERROR;
 			}
@@ -1577,14 +1585,16 @@ row_import_match_table_columns(
 
 			if (cfg_col->ord_part != col->ord_part) {
 				ib_pushf(thd,
-					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+					 IB_LOG_LEVEL_ERROR,
+					 ER_TABLE_SCHEMA_MISMATCH,
 					 "Column %s ordering mismatch.");
 				err = DB_ERROR;
 			}
 
 			if (cfg_col->max_prefix != col->max_prefix) {
 				ib_pushf(thd,
-					 IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+					 IB_LOG_LEVEL_ERROR,
+					 ER_TABLE_SCHEMA_MISMATCH,
 					 "Column %s max prefix mismatch.");
 				err = DB_ERROR;
 			}
@@ -1610,7 +1620,7 @@ row_import_match_schema(
 	/* Do some simple checks. */
 
 	if (cfg->table->n_cols != cfg->n_cols) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
 			 "Number of columns don't match, table has %lu "
 			 "columns but the tablespace meta-data file has "
 			 "%lu columns",
@@ -1623,7 +1633,7 @@ row_import_match_schema(
 		to abort the IMPORT. It is easy for the user to create a
 		table matching the IMPORT definition. */
 
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
 			 "Number of indexes don't match, table has %lu "
 			 "indexes but the tablespace meta-data file has "
 			 "%lu indexes",
@@ -1780,12 +1790,8 @@ row_import_update_index_root(
 				index_name, sizeof(index_name),
 				index->name, TRUE);
 
-			/* Note: This is really an internal InnoDB error. The
-			problem is that we don't have any InnoDB specific error
-			codes in mysqld_error.h. */
-
 			ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-				 ER_INDEX_CORRUPT,
+				 ER_INTERNAL_ERROR,
 				 "While updating the <space, root page number> "
 				 "of index %s - %s",
 				 index_name, ut_strerr(err));
@@ -2059,7 +2065,7 @@ row_import_for_mysql(
 
 	if (err != DB_SUCCESS) {
 		ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			 ER_INDEX_CORRUPT,
+			 ER_GET_ERRNO,
 			 "Cannot reset LSN's in table %s : %s",
 			 table_name, ut_strerr(err));
 

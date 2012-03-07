@@ -3704,7 +3704,9 @@ row_search_for_mysql(
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (dict_table_is_discarded(prebuilt->table)) {
-		ib_logf(IB_LOG_LEVEL_WARN,
+		ib_pushf(trx->mysql_thd,
+			 IB_LOG_LEVEL_WARN,
+			 ER_TABLESPACE_DISCARDED,
 			"The table %s doesn't have a corresponding "
 			"tablespace, it was discarded.",
 			prebuilt->table->name);
@@ -3712,8 +3714,11 @@ row_search_for_mysql(
 		return(DB_TABLESPACE_DELETED);
 
 	} else if (prebuilt->table->ibd_file_missing) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			".ibd file is missing for table %s",
+		ib_pushf(trx->mysql_thd,
+			 IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
+			"The table %s doesn't have a corresponding "
+			"tablespace, the .ibd file is missing. See " REFMAN 
+			"innodb-troubleshooting.html for help",
 			prebuilt->table->name);
 
 		return(DB_TABLESPACE_NOT_FOUND);
