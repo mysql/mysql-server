@@ -1861,6 +1861,14 @@ END_OF_INPUT
         '-' '+' '*' '/' '%' '(' ')'
         ',' '!' '{' '}' '&' '|' AND_SYM OR_SYM OR_OR_SYM BETWEEN_SYM CASE_SYM
         THEN_SYM WHEN_SYM DIV_SYM MOD_SYM OR2_SYM AND_AND_SYM DELETE_SYM
+
+/*
+  A bit field of SLAVE_IO, SLAVE_SQL flags.
+*/
+%type <num> opt_slave_thread_option_list
+%type <num> slave_thread_option_list
+%type <num> slave_thread_option
+
 %%
 
 /*
@@ -7339,17 +7347,16 @@ opt_to:
         ;
 
 slave:
-          START_SYM SLAVE slave_thread_opts
+          START_SYM SLAVE opt_slave_thread_option_list
           {
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_SLAVE_START;
             lex->type = 0;
             /* We'll use mi structure for UNTIL options */
             lex->mi.set_unspecified();
-            /* If you change this code don't forget to update SLAVE START too */
+            lex->slave_thd_opt= $3;
           }
           slave_until
-          {}
           slave_connection_opts
           {
             /*
@@ -7367,12 +7374,12 @@ slave:
               MYSQL_YYABORT;
             }
           }
-        | STOP_SYM SLAVE slave_thread_opts
+        | STOP_SYM SLAVE opt_slave_thread_option_list
           {
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_SLAVE_STOP;
             lex->type = 0;
-            /* If you change this code don't forget to update SLAVE STOP too */
+            lex->slave_thd_opt= $3;
           }
         ;
 
@@ -7459,21 +7466,37 @@ slave_plugin_dir_opt:
           }
         ;
 
-slave_thread_opts:
-          { Lex->slave_thd_opt= 0; }
-          slave_thread_opt_list
-          {}
+opt_slave_thread_option_list:
+          /* empty */
+          {
+            $$= 0;
+          }
+        | slave_thread_option_list
+          {
+            $$= $1;
+          }
         ;
 
-slave_thread_opt_list:
-          slave_thread_opt
-        | slave_thread_opt_list ',' slave_thread_opt
+slave_thread_option_list:
+          slave_thread_option
+          {
+            $$= $1;
+          }
+        | slave_thread_option_list ',' slave_thread_option
+          {
+            $$= $1 | $3;
+          }
         ;
 
-slave_thread_opt:
-          /*empty*/ {}
-        | SQL_THREAD   { Lex->slave_thd_opt|=SLAVE_SQL; }
-        | RELAY_THREAD { Lex->slave_thd_opt|=SLAVE_IO; }
+slave_thread_option:
+          SQL_THREAD
+          {
+            $$= SLAVE_SQL;
+          }
+        | RELAY_THREAD
+          {
+            $$= SLAVE_IO;
+          }
         ;
 
 slave_until:
