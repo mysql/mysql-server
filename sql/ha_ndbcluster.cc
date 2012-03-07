@@ -4444,7 +4444,8 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     m_skip_auto_increment= FALSE;
     if ((error= update_auto_increment()))
       DBUG_RETURN(error);
-    m_skip_auto_increment= (insert_id_for_cur_row == 0);
+    m_skip_auto_increment= (insert_id_for_cur_row == 0 ||
+                            thd->auto_inc_intervals_forced.nb_elements());
   }
 
   /*
