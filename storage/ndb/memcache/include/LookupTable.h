@@ -28,9 +28,11 @@
 template<typename T> class LookupTable {
 public:
   int elements;
+  bool do_free_values;
 
   LookupTable(int sz = 128) : 
     elements(0),
+    do_free_values(false),
     size(sz), 
     symtab(new Entry *[sz]) 
   {
@@ -43,11 +45,13 @@ public:
     for(int i = 0 ; i < size ; i++) {
       Entry *sym = symtab[i];
       while(sym) {
+        if(do_free_values) free((void *) sym->value);
         Entry *next = sym->next;
         delete sym;
         sym = next;
       }
     }
+    delete[] symtab;
   }
 
 
@@ -58,7 +62,7 @@ public:
         return sym->value;
     return 0;
   }
-
+  
   void insert(const char *name, T * value) { 
     Uint32 h = do_hash(name) % size;
     Entry *sym = new Entry(name, value);    
