@@ -43,7 +43,7 @@ public:
   NdbInstance(Ndb_cluster_connection *, int);
   ~NdbInstance();
   void link_workitem(workitem *);
-  void unlink_workitem();
+  void unlink_workitem(workitem *);
 
   /* Public Instance Variables */  
   int id;
@@ -65,7 +65,8 @@ inline void NdbInstance::link_workitem(workitem *item) {
 }
 
 
-inline void NdbInstance::unlink_workitem() {
+inline void NdbInstance::unlink_workitem(workitem *item) {
+  assert(wqitem == item);
   wqitem->ndb_instance = NULL;
   wqitem = NULL;
 }

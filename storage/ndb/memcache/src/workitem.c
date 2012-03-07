@@ -184,7 +184,7 @@ const char * workitem_get_operation(workitem *item) {
 
 void workitem_free(workitem *item)
 {
-  /* It's OK to free all of these; a free() with class_id 0 is a no-op */
+  /* It's OK to free all of these; pipeline_free() with class_id 0 is a no-op */
   pipeline_free(item->pipeline, item->row_buffer_1, item->rowbuf1_cls);
   pipeline_free(item->pipeline, item->row_buffer_2, item->rowbuf2_cls);
   pipeline_free(item->pipeline, item->ndb_key_buffer, item->keybuf1_cls);
