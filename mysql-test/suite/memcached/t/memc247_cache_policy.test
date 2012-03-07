@@ -7,6 +7,7 @@ CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
 SET @tx_isolation= @@global.tx_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
+source include/not_windows.inc;
 source include/have_innodb.inc;
 
 # Stop plugin befor innodb_memcached configuration
