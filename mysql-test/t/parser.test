@@ -785,3 +785,15 @@ CREATE TABLE t (id INT PRIMARY KEY);
 --error ER_PARSE_ERROR
 --query ALTER TABLE t RENAME TO `t1';
 DROP TABLE t;
+
+#
+# Bug#13819100 BROKEN SYNTAX ACCEPTED FOR START SLAVE, STOP SLAVE
+#
+
+--error ER_PARSE_ERROR
+STOP SLAVE ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, ;
+--error ER_PARSE_ERROR
+STOP SLAVE ,,,,,,,,,,,,, sql_thread, ,,,,,,,,,,,,,,,,,,, ;
+--error ER_PARSE_ERROR
+STOP SLAVE ,,,,,,,,,,,,, io_thread, ,,,,,,,,,,,,,,,,,,, ;
+

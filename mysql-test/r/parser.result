@@ -655,3 +655,9 @@ CREATE TABLE t (id INT PRIMARY KEY);
 ALTER TABLE t RENAME TO `t1';;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '`t1'' at line 1
 DROP TABLE t;
+STOP SLAVE ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,' at line 1
+STOP SLAVE ,,,,,,,,,,,,, sql_thread, ,,,,,,,,,,,,,,,,,,, ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',,,,,,,,,,,, sql_thread, ,,,,,,,,,,,,,,,,,,,' at line 1
+STOP SLAVE ,,,,,,,,,,,,, io_thread, ,,,,,,,,,,,,,,,,,,, ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',,,,,,,,,,,, io_thread, ,,,,,,,,,,,,,,,,,,,' at line 1
