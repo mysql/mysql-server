@@ -22,11 +22,11 @@
 
 ndberror_struct AppError9001_ReconfLock = 
   { ndberror_st_temporary , ndberror_cl_application , 9001, -1,
-    "Could not obtain configuration read lock" 
+    "Could not obtain configuration read lock", 0
   };
 
 ndberror_struct AppError9002_NoNDBs =
   { ndberror_st_temporary , ndberror_cl_application , 9002, -1,
-    "No Ndb Instances in freelist" 
+    "No Ndb Instances in freelist", 0
   };
 
