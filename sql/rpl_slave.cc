@@ -4381,13 +4381,17 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
       */
       if (!checksum_detected)
       {
-        for (int i=0; i < 4; i++)
+        int i= 0;
+        while (i < 4 && (ev= Log_event::read_log_event(&log,
+               (mysql_mutex_t*) 0, p_fdle, 0)))
         {
-          if ((ev= Log_event::read_log_event(&log,
-                                             (mysql_mutex_t*) 0, p_fdle, 0))
-              && ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+          if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+          {
             p_fdle->checksum_alg= ev->checksum_alg;
-          checksum_detected= TRUE;
+            checksum_detected= TRUE;
+          }
+          delete ev;
+          i++;
         }
         if (!checksum_detected)
         {
