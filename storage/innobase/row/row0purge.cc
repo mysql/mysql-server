@@ -515,7 +515,8 @@ row_purge_del_mark(
 
 		if (node->index->type != DICT_FTS) {
 			/* Build the index entry */
-			entry = row_build_index_entry(node->row, NULL, index, heap);
+			entry = row_build_index_entry(
+				node->row, NULL, index, heap);
 			ut_a(entry);
 			row_purge_remove_sec_if_poss(node, index, entry);
 		}
