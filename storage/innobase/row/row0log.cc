@@ -681,7 +681,7 @@ corrupted:
 
 	mrec += extra_size;
 
-	if (mrec >= mrec_end) {
+	if (mrec > mrec_end) {
 		return(NULL);
 	}
 
