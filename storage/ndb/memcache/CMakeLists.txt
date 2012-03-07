@@ -92,6 +92,7 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/debug.c
     src/hash_item_util.c
     src/ndb_configuration.cc
+    src/ndb_engine_errors.cc
     src/ndb_engine_private.h
     src/ndb_error_logger.cc
     src/ndb_flush.cc

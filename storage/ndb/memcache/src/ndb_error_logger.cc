@@ -53,7 +53,8 @@ class ErrorEntry;
 ErrorEntry * error_hash_table[ERROR_HASH_TABLE_SIZE];
 
 /* Prototypes */
-void manage_error(const NdbError &, const char * mesg, rel_time_t interval);
+void manage_error(int err_code, const char * err_mesg,
+                  const char * extra_mesg, rel_time_t interval);
 
 
 
@@ -70,18 +71,28 @@ void ndb_error_logger_init(SERVER_CORE_API * api, size_t level) {
 }
 
 
+int log_app_error(ndberror_struct const * error) {
+  if(error->code < 9100) 
+    manage_error(error->code, error->message, "Scheduler Error", 10);
+  else
+    manage_error(error->code, error->message, "Memcached Error", 10);
+    
+  return error->status;
+}
+
+
 int log_ndb_error(const NdbError &error) {
   switch(error.status) {
     case ndberror_st_success:
       break;
 
     case ndberror_st_temporary:
-      manage_error(error, "NDB Temporary Error", 10);
+      manage_error(error.code, error.message, "NDB Temporary Error", 10);
       break;
 
     case ndberror_st_permanent:
     case ndberror_st_unknown:
-      manage_error(error, "NDB Error", 10);
+      manage_error(error.code, error.message, "NDB Error", 10);
       break;
   }
   /* NDB classifies "Out Of Memory" (827) errors as permament errors, but we 
@@ -147,33 +158,32 @@ ErrorEntry * error_table_lookup(int code, rel_time_t now) {
 
 
 /* Record the error message, and possibly log it. */
-void manage_error(const NdbError & error, const char *type_mesg, rel_time_t interval) {
+void manage_error(int err_code, const char * err_mesg, 
+                  const char *type_mesg, rel_time_t interval) {
   char note[256];
   ErrorEntry *entry = 0;
   bool first_ever, interval_passed, flood = false;
   int current = 0, prior = 0;  // array indexes
 
-  if(verbose_logging == 0) { 
-    entry = error_table_lookup(error.code, core_api->get_current_time());
+  entry = error_table_lookup(err_code, core_api->get_current_time());
 
-    if((entry->count | 1) == entry->count)
-      current = 1;  // odd count
-    else
-      prior   = 1;  // even count
+  if((entry->count | 1) == entry->count)
+    current = 1;  // odd count
+  else
+    prior   = 1;  // even count
 
-    /* We have four pieces of information: the first timestamp, the two 
-       most recent timestamps, and the error count. When to write a log message?
-       (A) On the first occurrence of an error. 
-       (B) If a time > interval has passed since the previous message.
-       (C) At certain count numbers in error flood situations
-    */
-    first_ever = (entry->count == 1);
-    interval_passed = (entry->time[current] - entry->time[prior] > interval);
-    if(! interval_passed) 
-      for(Uint32 i = 10 ; i <= entry->count ; i *= 10) 
-        if(entry->count < (10 * i) && (entry->count % i == 0))
-          { flood = true; break; }
-  }
+  /* We have four pieces of information: the first timestamp, the two 
+     most recent timestamps, and the error count. When to write a log message?
+     (A) On the first occurrence of an error. 
+     (B) If a time > interval has passed since the previous message.
+     (C) At certain count numbers in error flood situations
+  */
+  first_ever = (entry->count == 1);
+  interval_passed = (entry->time[current] - entry->time[prior] > interval);
+  if(! interval_passed) 
+    for(Uint32 i = 10 ; i <= entry->count ; i *= 10) 
+      if(entry->count < (10 * i) && (entry->count % i == 0))
+        { flood = true; break; }
   
   if(verbose_logging || first_ever || interval_passed || flood) 
   {
@@ -181,8 +191,26 @@ void manage_error(const NdbError & error, const char *type_mesg, rel_time_t inte
       snprintf(note, 256, "[occurrence %d of this error]", entry->count);
     else
       note[0] = '\0';
+
     logger->log(LOG_WARNING, 0, "%s %d: %s %s\n", 
-                type_mesg, error.code, error.message, note);
+                type_mesg, err_code, err_mesg, note);
   }
 }
-  
+
+
+void ndb_error_logger_stats(ADD_STAT add_stat, const void *cookie) {
+  char key[128];
+  char val[128];
+  int klen, vlen;
+  unsigned int i;
+  Lock lock(& error_table_lock);
+  ErrorEntry *sym;
+
+  for(i = 0 ; i < ERROR_HASH_TABLE_SIZE; i++) {
+    for(sym = error_hash_table[i] ; sym != 0 ; sym = sym->next) { 
+      klen = sprintf(key, "NDB_Error_%d", sym->error_code);
+      vlen = sprintf(val, "%lu", sym->count);
+      add_stat(key, klen, val, vlen, cookie);
+    }
+  }
+}

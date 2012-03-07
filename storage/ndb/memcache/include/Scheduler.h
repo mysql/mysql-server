@@ -67,9 +67,10 @@ public:
       requires the scheduler to send & poll an additional operation. */
   virtual void reschedule(workitem *) const = 0;
  
-  /** io_completed() is called from the NDB Engine thread when an IO
-      completion notification has been received */
-  virtual void io_completed(workitem *) = 0;
+  /** release() is called from the NDB Engine thread after an operation has
+      completed.  It allows the scheduler to release any resources (such as
+      the Ndb object) that were allocated in schedule(). */
+  virtual void release(workitem *) = 0;
   
   /** add_stats() allows the engine to delegate certain statistics
       to the scheduler. */
