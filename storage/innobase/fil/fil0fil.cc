@@ -2563,10 +2563,7 @@ memory cache. Discarding is like deleting a tablespace, but
  2. We remove all insert buffer entries for the tablespace immediately;
     in DROP TABLE they are only removed gradually in the background;
 
- 3. when the user does IMPORT TABLESPACE, the tablespace will have the
-    same id as it originally had.
-
- 4. Free all the pages in use by the tablespace if rename=TRUE.
+ 3. Free all the pages in use by the tablespace if rename=TRUE.
 @return	DB_SUCCESS or error */
 UNIV_INTERN
 db_err
