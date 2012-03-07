@@ -524,7 +524,9 @@ Remove all dirty pages belonging to a given tablespace inside a specific
 buffer pool instance when we are deleting the data file(s) of that
 tablespace. The pages still remain a part of LRU and are evicted from
 the list as they age towards the tail of the LRU.
-@return DB_SUCCESS if all freed, DB_FAIL if not all freed or DB_INTERRUPTED */
+@retval DB_SUCCESS if all freed
+@retval DB_FAIL if not all freed
+@retval DB_INTERRUPTED if the transaction was interrupted */
 static	__attribute__((nonnull(1), warn_unused_result))
 db_err
 buf_flush_or_remove_pages(

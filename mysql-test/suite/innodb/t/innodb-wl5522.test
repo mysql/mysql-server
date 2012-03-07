@@ -195,7 +195,7 @@ EOF
 # This is really a name mismatch error, need better error codes, the problem
 # now is that we can't do an ALTER TABLE and drop the index :-(, so we have
 # to recreate the table.
--- error ER_INDEX_CORRUPT
+-- error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
@@ -303,7 +303,7 @@ ib_restore_tablespaces("test", "t1");
 EOF
 
 # This should fail because of a missing secondary index
--- error ER_INDEX_CORRUPT
+-- error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
@@ -330,7 +330,7 @@ ib_restore_tablespaces("test", "t1");
 EOF
 
 # This should fail because the table has an additional column
--- error ER_INDEX_CORRUPT
+-- error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
@@ -356,7 +356,7 @@ ib_restore_tablespaces("test", "t1");
 EOF
 
 # This should fail because c2 is now a BIGINT and not INT
--- error ER_INDEX_CORRUPT
+-- error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;

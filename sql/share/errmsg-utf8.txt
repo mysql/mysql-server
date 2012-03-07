@@ -6714,3 +6714,24 @@ ER_UNKNOWN_EXPLAIN_FORMAT
 
 ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION 25006
   eng "Cannot execute statement in a READ ONLY transaction."
+
+ER_TABLE_SCHEMA_MISMATCH
+  eng "Table schema doesn't match."
+
+ER_TABLE_IN_SYSTEM_TABLESPACE
+  eng "Table %s is in the system tablespace"
+
+ER_IO_READ_ERROR
+  eng "Read error during I/O: %s"
+
+ER_IO_WRITE_ERROR
+  eng "Write error during I/O: %s"
+
+ER_TABLESPACE_MISSING
+  eng "Tablespace is missing for table '%s'"
+
+ER_TABLESPACE_DISCARDED
+  eng "Tablespace has been discarded for table '%s'"
+
+ER_INTERNAL_ERROR
+  eng "Internal error"

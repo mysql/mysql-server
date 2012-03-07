@@ -60,7 +60,7 @@ row_quiesce_write_index_fields(
 		if (fwrite(row, 1, sizeof(row), file) != sizeof(row)) {
 
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
-				 ER_EXCEPTIONS_WRITE_ERROR,
+				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing index fields.",
 				 (ulint) errno);
 
@@ -77,7 +77,7 @@ row_quiesce_write_index_fields(
 		    || fwrite(field->name, 1, len, file) != len) {
 
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
-				 ER_EXCEPTIONS_WRITE_ERROR,
+				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing index column "
 				 "name.", (ulint) errno);
 
@@ -108,7 +108,7 @@ row_quiesce_write_indexes(
 
 		if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
-				 ER_EXCEPTIONS_WRITE_ERROR,
+				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing index count.",
 				 (ulint) errno);
 
@@ -154,7 +154,7 @@ row_quiesce_write_indexes(
 		if (fwrite(row, 1, sizeof(row), file) != sizeof(row)) {
 
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
-				 ER_EXCEPTIONS_WRITE_ERROR,
+				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing index "
 				 "meta-data", (ulint) errno);
 
@@ -172,7 +172,7 @@ row_quiesce_write_indexes(
 		    || fwrite(index->name, 1, len, file) != len) {
 
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
-				 ER_EXCEPTIONS_WRITE_ERROR,
+				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing index "
 				 "name", (ulint) errno);
 
@@ -229,7 +229,7 @@ row_quiesce_write_table(
 
 		if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
-				 ER_EXCEPTIONS_WRITE_ERROR,
+				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing table column "
 				 "data.", (ulint) errno);
 
@@ -253,7 +253,7 @@ row_quiesce_write_table(
 		    || fwrite(col_name, 1, len, file) != len) {
 
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
-				 ER_EXCEPTIONS_WRITE_ERROR,
+				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing column name",
 				 (ulint) errno);
 
@@ -282,7 +282,7 @@ row_quiesce_write_header(
 	mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V1);
 
 	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_EXCEPTIONS_WRITE_ERROR,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_WRITE_ERROR,
 			"I/O error (%lu), while writing meta-data "
 			"version number.", (ulint) errno);
 
@@ -310,7 +310,7 @@ row_quiesce_write_header(
 	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)
 	    || fwrite(hostname, 1,  len, file) != len) {
 
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_EXCEPTIONS_WRITE_ERROR,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_WRITE_ERROR,
 			"I/O error (%lu), while writing hostname.",
 			(ulint) errno);
 
@@ -327,7 +327,7 @@ row_quiesce_write_header(
 	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)
 	    || fwrite(table->name, 1,  len, file) != len) {
 
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_EXCEPTIONS_WRITE_ERROR,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_WRITE_ERROR,
 			"I/O error (%lu), while writing table name.",
 			(ulint) errno);
 
@@ -349,7 +349,7 @@ row_quiesce_write_header(
 	mach_write_to_4(ptr, table->n_cols);
 
 	if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_EXCEPTIONS_WRITE_ERROR,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_WRITE_ERROR,
 			"I/O error (%lu), while writing table meta-data",
 			(ulint) errno);
 

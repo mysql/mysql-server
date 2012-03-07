@@ -4459,12 +4459,11 @@ table_opened:
 
 	if (dict_table_is_discarded(ib_table)) {
 
-		ib_pushf(thd,
-			IB_LOG_LEVEL_WARN,
-			ER_NO_SUCH_TABLE,
-			"The table %s doesn't have a corresponding "
-			"tablespace, it was discarded.",
-			norm_name);
+		ib_pushf(prebuilt->trx->mysql_thd,
+			 IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
+			 "The table %s doesn't have a corresponding "
+			 "tablespace, it was discarded.",
+			 norm_name);
 
 		/* Allow an open because a proper DISCARD should have set
 		all the flags and index root page numbers to FIL_NULL that
@@ -4475,10 +4474,12 @@ table_opened:
 
 	} else if (ib_table->ibd_file_missing) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The .ibd file is missing for table %s, see "
-			REFMAN "innodb-troubleshooting.html for help",
-			norm_name);
+		ib_pushf(prebuilt->trx->mysql_thd,
+			 IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
+			 "The table %s doesn't have a corresponding "
+			 "tablespace, the .ibd file is missing. See " REFMAN 
+			 "innodb-troubleshooting.html for help",
+			 norm_name);
 
 		/* This means we have no idea what happened to the tablespace
 		file, best to play it safe. */
@@ -9121,11 +9122,8 @@ ha_innobase::discard_or_import_tablespace(
 	dict_table = prebuilt->table;
 
 	if (dict_table->space == TRX_SYS_SPACE) {
-		err = HA_ERR_TABLE_NEEDS_UPGRADE;
-		ib_pushf(user_thd, IB_LOG_LEVEL_WARN, err,
-			 "Table %s is in the system tablespace "
-			 "which cannot be imported or exported.",
-			dict_table->name);
+		my_error(ER_TABLE_IN_SYSTEM_TABLESPACE, MYF(0),
+			 dict_table->name);
 		return(HA_ERR_TABLE_NEEDS_UPGRADE);
 	}
 
@@ -9151,9 +9149,12 @@ ha_innobase::discard_or_import_tablespace(
 		a new tablespace. */
 
 		if (dict_table->ibd_file_missing) {
-			ib_pushf(user_thd, IB_LOG_LEVEL_WARN, err,
-				 "Tablespace for %s doesn't exist.",
-				 dict_table->name);
+			ib_pushf(prebuilt->trx->mysql_thd,
+			 	IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
+				"The table %s doesn't have a corresponding "
+				"tablespace, the .ibd file is missing. See "
+				REFMAN "innodb-troubleshooting.html for help",
+				dict_table->name);
 		}
 
 		error = row_discard_tablespace_for_mysql(
@@ -9161,7 +9162,8 @@ ha_innobase::discard_or_import_tablespace(
 
 	} else if (!dict_table->ibd_file_missing) {
 		err = HA_ERR_TABLE_EXIST;
-		ib_pushf(user_thd, IB_LOG_LEVEL_WARN, err,
+		ib_pushf(user_thd, IB_LOG_LEVEL_WARN,
+			 ER_TABLE_EXISTS_ERROR,
 			 "Tablespace for table %s exists. "
 			 "Please DISCARD the tablespace before IMPORT.",
 			 dict_table->name);
@@ -10435,19 +10437,23 @@ ha_innobase::check(
 	}
 
 	if (dict_table_is_discarded(prebuilt->table)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The table %s doesn't have a corresponding "
-			"tablespace, it was discarded.",
-			prebuilt->table->name);
+
+		ib_pushf(prebuilt->trx->mysql_thd,
+			 IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
+			 "The table %s doesn't have a corresponding "
+			 "tablespace, it was discarded.",
+			 prebuilt->table->name);
 
 		DBUG_RETURN(HA_ADMIN_CORRUPT);
 
 	} else if (prebuilt->table->ibd_file_missing) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The .ibd file is missing for table %s, see "
-			REFMAN "innodb-troubleshooting.html for help",
-			prebuilt->table->name);
+		ib_pushf(prebuilt->trx->mysql_thd,
+			 IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
+			 "The table %s doesn't have a corresponding "
+			 "tablespace, the .ibd file is missing. See " REFMAN
+			 "innodb-troubleshooting.html for help",
+			 prebuilt->table->name);
 
 		DBUG_RETURN(HA_ADMIN_CORRUPT);
 	}
@@ -11442,13 +11448,19 @@ ha_innobase::transactional_table_lock(
 	if (!thd_tablespace_op(thd)) {
 
 		if (dict_table_is_discarded(prebuilt->table)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The table %s doesn't have a corresponding "
+
+			ib_pushf(prebuilt->trx->mysql_thd,
+			 	IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
+			 	"The table %s doesn't have a corresponding "
 				"tablespace, it was discarded.",
 				prebuilt->table->name);
+
 		} else if (prebuilt->table->ibd_file_missing) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The .ibd file is missing for table %s, see "
+
+			ib_pushf(prebuilt->trx->mysql_thd,
+			 	IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
+				"The table %s doesn't have a corresponding "
+				"tablespace, the .ibd file is missing. See "
 				REFMAN "innodb-troubleshooting.html for help",
 				prebuilt->table->name);
 		}
