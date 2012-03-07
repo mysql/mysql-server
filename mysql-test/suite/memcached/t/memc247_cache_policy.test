@@ -60,7 +60,7 @@ use DBI;
 use Cache::Memcached;
 print "----- Test get (cache_only) -----\n";
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
@@ -82,7 +82,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with B:\n";
 $val = $memd->get("B");
@@ -98,7 +98,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with D,H:\n";
 $val = $memd->get("D");
@@ -136,7 +136,7 @@ use Cache::Memcached;
 print "----- Test get (caching) -----\n";
 
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
@@ -177,7 +177,7 @@ use Cache::Memcached;
 print "----- Test insert (cache_only) -----\n";
 
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Add E|Essen:\n";
 if ($memd->add("E","Essen")) {
@@ -197,7 +197,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with E:\n";
 $val = $memd->get("E");
@@ -230,7 +230,7 @@ use Cache::Memcached;
 print "----- Test insert (caching) -----\n";
 
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Add G|Gossen:\n";
 if ($memd->add("G","Gossen")) {
@@ -250,7 +250,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with G:\n";
 $val = $memd->get("G");
@@ -263,7 +263,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Delete G|Gossen:\n";
 if ($memd->delete("G")) {
@@ -282,7 +282,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with G:\n";
 $val = $memd->get("G");
@@ -316,7 +316,7 @@ use Cache::Memcached;
 print "----- Test delete (cache_only) -----\n";
 
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Delete G|Gossen:\n";
 if ($memd->delete("G","Gossen")) {
@@ -336,7 +336,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with G:\n";
 $val = $memd->get("G");
@@ -349,7 +349,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Delete E|Essen:\n";
 if ($memd->delete("E")) {
@@ -368,7 +368,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with E:\n";
 $val = $memd->get("E");
@@ -403,7 +403,7 @@ use Cache::Memcached;
 print "----- Test delete (caching) -----\n";
 
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "add G|Gossen:\n";
 if ($memd->add("G","Gossen")) {
@@ -423,7 +423,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with G:\n";
 $val = $memd->get("G");
@@ -436,7 +436,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Delete G|Gossen:\n";
 if ($memd->delete("G")) {
@@ -455,7 +455,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with G:\n";
 $val = $memd->get("G");
@@ -491,7 +491,7 @@ use Cache::Memcached;
 print "----- Test flush (cache_only) -----\n";
 
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "add G|Gossen:\n";
 if ($memd->add("G","Gossen")) {
@@ -511,7 +511,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with G:\n";
 $val = $memd->get("G");
@@ -526,7 +526,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results after flush_all:\n";
 $memd->flush_all;
@@ -543,7 +543,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with G:\n";
 $val = $memd->get("G");
@@ -579,7 +579,7 @@ use Cache::Memcached;
 print "----- Test flush (cache_only) -----\n";
 
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "add G|Gossen:\n";
 if ($memd->add("G","Gossen")) {
@@ -599,7 +599,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with G:\n";
 $val = $memd->get("G");
@@ -614,7 +614,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results after flush_all:\n";
 $memd->flush_all;
@@ -631,7 +631,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with G:\n";
 $val = $memd->get("G");
@@ -675,7 +675,7 @@ use Cache::Memcached;
 print "----- Test all operations disabled -----\n";
 
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "add G|Gossen:\n";
 if ($memd->add("G","Gossen")) {
@@ -695,7 +695,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with G:\n";
 $val = $memd->get("G");
@@ -710,7 +710,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results after flush_all:\n";
 $memd->flush_all;
@@ -727,7 +727,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with G:\n";
 $val = $memd->get("G");
@@ -758,7 +758,7 @@ use Cache::Memcached;
 print "----- Test with wrong policy name -----\n";
 
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "add G|Gossen:\n";
 if ($memd->add("G","Gossen")) {
@@ -778,7 +778,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with G:\n";
 $val = $memd->get("G");
@@ -793,7 +793,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results after flush_all (flush disabled):\n";
 $memd->flush_all;
@@ -810,7 +810,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11245" ]
+  'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results with G:\n";
 $val = $memd->get("G");
