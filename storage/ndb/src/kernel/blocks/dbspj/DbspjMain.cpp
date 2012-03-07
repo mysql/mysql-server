@@ -6787,6 +6787,10 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
     // should have been expanded during build
     DEBUG_CRASH();
     return DbspjErr::InvalidPattern;
+  default:
+    jam();
+    DEBUG_CRASH();
+    return DbspjErr::InvalidPattern;
   }
 }
 
