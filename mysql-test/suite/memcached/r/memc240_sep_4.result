@@ -40,6 +40,9 @@ C	Cottbus	West	3	cccccccccccccc	3456	0
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 UNINSTALL PLUGIN daemon_memcached;
+select sleep(10);
+sleep(10)
+0
 UPDATE innodb_memcache.config_options SET value='|' WHERE name='separator';
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 Here the memcached results after set:

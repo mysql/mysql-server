@@ -79,6 +79,9 @@ SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 
 # Unload and reload the plugin for updating the options
 UNINSTALL PLUGIN daemon_memcached;
+
+# Let uninstall completes
+select sleep(10);
 UPDATE innodb_memcache.config_options SET value='|' WHERE name='separator';
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 

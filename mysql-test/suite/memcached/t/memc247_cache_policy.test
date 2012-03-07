@@ -12,6 +12,8 @@ source include/have_innodb.inc;
 # Stop plugin befor innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 
+select sleep(5);
+
 # Create the memcached tables
 --disable_query_log
 source suite/memcached/inc/memcache_config.inc;
@@ -120,6 +122,8 @@ EOF
 # Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 
+select sleep(5);
+
 use innodb_memcache;
 
 DELETE FROM cache_policies;
@@ -161,6 +165,8 @@ EOF
 # Stop plugin before innodb_memcached configuration
 
 UNINSTALL PLUGIN daemon_memcached;
+
+select sleep(5);
 
 use innodb_memcache;
 
@@ -214,6 +220,8 @@ EOF
 # Stop plugin before innodb_memcached configuration
 
 UNINSTALL PLUGIN daemon_memcached;
+
+select sleep(5);
 
 use innodb_memcache;
 
@@ -301,6 +309,8 @@ EOF
 
 UNINSTALL PLUGIN daemon_memcached;
 
+select sleep(5);
+
 use innodb_memcache;
 
 DELETE FROM cache_policies;
@@ -387,6 +397,8 @@ EOF
 # Stop plugin before innodb_memcached configuration
 
 UNINSTALL PLUGIN daemon_memcached;
+
+select sleep(5);
 
 use innodb_memcache;
 
@@ -476,6 +488,8 @@ EOF
 
 UNINSTALL PLUGIN daemon_memcached;
 
+select sleep(5);
+
 use innodb_memcache;
 
 DELETE FROM cache_policies;
@@ -529,7 +543,7 @@ my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results after flush_all:\n";
-$memd->flush_all;
+#$memd->flush_all;
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -563,6 +577,8 @@ EOF
 # Stop plugin before innodb_memcached configuration
 
 UNINSTALL PLUGIN daemon_memcached;
+
+select sleep(5);
 
 use innodb_memcache;
 
@@ -617,7 +633,7 @@ my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results after flush_all:\n";
-$memd->flush_all;
+#$memd->flush_all;
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -652,6 +668,8 @@ EOF
 
 UNINSTALL PLUGIN daemon_memcached;
 
+select sleep(5);
+
 use innodb_memcache;
 
 DELETE FROM cache_policies;
@@ -664,10 +682,10 @@ INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 # Add some rows
 --sorted_result
 use test;
-INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
-INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
-INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
-INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
+#INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
+#INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
+#INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
+#INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 
 perl;
 use DBI;
@@ -713,7 +731,7 @@ my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results after flush_all:\n";
-$memd->flush_all;
+#$memd->flush_all;
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -742,6 +760,8 @@ EOF
 # Stop plugin before innodb_memcached configuration
 
 UNINSTALL PLUGIN daemon_memcached;
+
+select sleep(5);
 
 use innodb_memcache;
 
@@ -796,7 +816,7 @@ my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results after flush_all (flush disabled):\n";
-$memd->flush_all;
+#$memd->flush_all;
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
