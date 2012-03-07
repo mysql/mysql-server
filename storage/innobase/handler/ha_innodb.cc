@@ -9120,13 +9120,11 @@ ha_innobase::discard_or_import_tablespace(
 
 	dict_table = prebuilt->table;
 
-	if (dict_table->space == 0) {
-		push_warning_printf(
-			user_thd,
-			Sql_condition::WARN_LEVEL_WARN,
-			HA_ERR_TABLE_NEEDS_UPGRADE,
-			"InnoDB: Table %s is in the system tablespace"
-			" which cannot be imported or exported.",
+	if (dict_table->space == TRX_SYS_SPACE) {
+		err = HA_ERR_TABLE_NEEDS_UPGRADE;
+		ib_pushf(user_thd, IB_LOG_LEVEL_WARN, err,
+			 "Table %s is in the system tablespace "
+			 "which cannot be imported or exported.",
 			dict_table->name);
 		return(HA_ERR_TABLE_NEEDS_UPGRADE);
 	}
@@ -9146,48 +9144,47 @@ ha_innobase::discard_or_import_tablespace(
 	if (error != DB_SUCCESS) {
 		/* unable to lock the table: do nothing */
 	} else if (discard) {
+
+		/* Discarding an already discarded tablespace should be an
+		idempotent operation. Also, if the .ibd file is missing the
+		user may want to set the DISCARD flag in order to IMPORT
+		a new tablespace. */
+
 		if (dict_table->ibd_file_missing) {
-			err = HA_ERR_RECORD_DELETED;
-			push_warning_printf(
-				user_thd, Sql_condition::WARN_LEVEL_WARN, err,
-				"InnoDB: Tablespace for %s doesn't exist.",
-				dict_table->name);
-			goto func_exit;
+			ib_pushf(user_thd, IB_LOG_LEVEL_WARN, err,
+				 "Tablespace for %s doesn't exist.",
+				 dict_table->name);
 		}
 
 		error = row_discard_tablespace_for_mysql(
 			dict_table->name, prebuilt->trx);
 
+	} else if (!dict_table->ibd_file_missing) {
+		err = HA_ERR_TABLE_EXIST;
+		ib_pushf(user_thd, IB_LOG_LEVEL_WARN, err,
+			 "Tablespace for table %s exists. "
+			 "Please DISCARD the tablespace before IMPORT.",
+			 dict_table->name);
 	} else {
-		if (!dict_table->ibd_file_missing) {
-			err = HA_ERR_TABLE_EXIST;
-			push_warning_printf(
-				user_thd, Sql_condition::WARN_LEVEL_WARN, err,
-				"InnoDB: Tablespace for table %s exists. "
-				"Please DISCARD the tablespace before IMPORT.",
-				dict_table->name);
-		} else {
-			error = row_import_for_mysql(dict_table, prebuilt);
+		error = row_import_for_mysql(dict_table, prebuilt);
 
-			if (error == DB_SUCCESS) {
+		if (error == DB_SUCCESS) {
 
-				if (table->found_next_number_field) {
-					dict_table_autoinc_lock(dict_table);
-					innobase_initialize_autoinc();
-					dict_table_autoinc_unlock(dict_table);
-				}
-
-				info(HA_STATUS_TIME
-				     | HA_STATUS_CONST
-				     | HA_STATUS_VARIABLE
-				     | HA_STATUS_AUTO);
+			if (table->found_next_number_field) {
+				dict_table_autoinc_lock(dict_table);
+				innobase_initialize_autoinc();
+				dict_table_autoinc_unlock(dict_table);
 			}
+
+			info(HA_STATUS_TIME
+			     | HA_STATUS_CONST
+			     | HA_STATUS_VARIABLE
+			     | HA_STATUS_AUTO);
 		}
 	}
 
 	err = convert_error_code_to_mysql(error, dict_table->flags, NULL);
 
-func_exit:
 	/* Commit the transaction in order to release the table lock. */
 	trx_commit_for_mysql(prebuilt->trx);
 
