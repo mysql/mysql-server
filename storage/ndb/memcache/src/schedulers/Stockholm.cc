@@ -184,8 +184,8 @@ ENGINE_ERROR_CODE Scheduler_stockholm::schedule(workitem *newitem) {
   {
     return ENGINE_TMPFAIL;
   }
-
-  workitem_set_NdbInstance(newitem, inst);
+  
+  inst->link_workitem(newitem);
   
   // Fetch the query plan for this prefix.
   newitem->plan = cluster[c].plan_set->getPlanForPrefix(pfx);
@@ -216,12 +216,12 @@ ENGINE_ERROR_CODE Scheduler_stockholm::schedule(workitem *newitem) {
 }
 
 
-void Scheduler_stockholm::io_completed(workitem *item) {
+void Scheduler_stockholm::release(workitem *item) {
   DEBUG_ENTER();
   NdbInstance* inst = item->ndb_instance;
-  item->ndb_instance  = NULL;
   
   if(inst) {    
+    inst->unlink_workitem(item);
     int c = item->prefix_info.cluster_id;
     inst->next = cluster[c].nextFree;
     cluster[c].nextFree = inst;

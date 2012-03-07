@@ -35,6 +35,8 @@
 #include "thread_identifier.h"
 #include "workitem.h"
 #include "ndb_worker.h"
+#include "ndb_engine_errors.h"
+#include "ndb_error_logger.h"
 
 #include "S_sched.h"
 
@@ -283,6 +285,7 @@ void S::SchedulerWorker::attach_thread(thread_identifier *parent) {
 
 ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
   int c = item->prefix_info.cluster_id;
+  ENGINE_ERROR_CODE response_code;
   NdbInstance *inst;
   S::WorkerConnection *wc;
   const KeyPrefix *pfx;
@@ -296,7 +299,7 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
     pthread_rwlock_unlock(& reconf_lock);
   }
   else {
-    logger->log(LOG_INFO, 0, "S Scheduler could not acquire read lock");
+    log_app_error(& AppError9001_ReconfLock);
     return ENGINE_TMPFAIL;
   }
   /* READ LOCK RELEASED */
@@ -315,12 +318,11 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
      all we can do is return an error. 
      (Or, alternately, the scheduler may be shutting down.)
      */
-    logger->log(LOG_INFO, 0, "No free NDB instances.");
+    log_app_error(& AppError9002_NoNDBs);
     return ENGINE_TMPFAIL;
   }
   
-  inst->wqitem = item;
-  workitem_set_NdbInstance(item, inst);
+  inst->link_workitem(item);
   
   // Fetch the query plan for this prefix.
   item->plan = wc->plan_set->getPlanForPrefix(pfx);
@@ -331,39 +333,44 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
   
   // Build the NDB transaction
   op_status_t op_status = worker_prepare_operation(item);
-  ENGINE_ERROR_CODE response_code;
-  
-  switch(op_status) {
-    case op_async_prepared:
-      /* Put the prepared item onto a send queue */
-      wc->sendqueue->produce(inst);
-      DEBUG_PRINT("%d.%d placed on send queue.", id, inst->wqitem->id);
-      
-      /* This locking is explained in run_ndb_send_thread() */
-      if(pthread_mutex_trylock( & wc->conn->sem.lock) == 0) {  // try the lock
-        wc->conn->sem.counter++;                               // increment
-        pthread_cond_signal( & wc->conn->sem.not_zero);        // signal
-        pthread_mutex_unlock( & wc->conn->sem.lock);           // release
-      }
-      
-      response_code = ENGINE_EWOULDBLOCK;
-      break;
-   case op_not_supported:
-      DEBUG_PRINT("op_status is op_not_supported");
-      response_code = ENGINE_ENOTSUP;
-      break;
-    case op_overflow:
-      DEBUG_PRINT("op_status is op_overflow");
-      response_code = ENGINE_E2BIG;
-      break;
-    case op_async_sent:
-      DEBUG_PRINT("op_async_sent could be a bug");
-      response_code = ENGINE_FAILED;
-      break;      
-    case op_failed:
-      DEBUG_PRINT("op_status is op_failed");
-      response_code = ENGINE_FAILED;
-      break;
+
+  // Success; put the workitem on the send queue and return ENGINE_EWOULDBLOCK.
+  if(op_status == op_async_prepared) {
+    /* Put the prepared item onto a send queue */
+    wc->sendqueue->produce(inst);
+    DEBUG_PRINT("%d.%d placed on send queue.", id, inst->wqitem->id);
+    
+    /* This locking is explained in run_ndb_send_thread() */
+    if(pthread_mutex_trylock( & wc->conn->sem.lock) == 0) {  // try the lock
+      wc->conn->sem.counter++;                               // increment
+      pthread_cond_signal( & wc->conn->sem.not_zero);        // signal
+      pthread_mutex_unlock( & wc->conn->sem.lock);           // release
+    }
+        
+    response_code = ENGINE_EWOULDBLOCK;
+  }
+  else {  
+    switch(op_status) {
+     case op_not_supported:
+        DEBUG_PRINT("op_status is op_not_supported");
+        response_code = ENGINE_ENOTSUP;
+        break;
+      case op_overflow:
+        DEBUG_PRINT("op_status is op_overflow");
+        response_code = ENGINE_E2BIG;
+        break;
+      case op_async_sent:
+        DEBUG_PRINT("op_async_sent could be a bug");
+        response_code = ENGINE_FAILED;
+        break;      
+      case op_failed:
+        DEBUG_PRINT("op_status is op_failed");
+        response_code = ENGINE_FAILED;
+        break;
+      default:
+        DEBUG_PRINT("UNEXPECTED: op_status is %d", op_status);
+        response_code = ENGINE_FAILED;
+    }
   }
   
   return response_code;
@@ -376,18 +383,19 @@ void S::SchedulerWorker::reschedule(workitem *item) const {
 }
 
 
-void S::SchedulerWorker::io_completed(workitem *item) {
+/* Release the resources used by an operation.  
+   Unlink the NdbInstance from the workitem, and return it to the free list 
+   (or free it, if the scheduler is shutting down).
+*/
+void S::SchedulerWorker::release(workitem *item) {
   DEBUG_ENTER();
   NdbInstance *inst = item->ndb_instance;
-  item->ndb_instance = NULL;
   
   if(inst) {
-    assert(inst->wqitem == item);
+    inst->unlink_workitem(item);
     int c = item->prefix_info.cluster_id;
     S::WorkerConnection * wc = * (s_global->getWorkerConnectionPtr(id, c));
     if(wc && ! wc->sendqueue->is_aborted()) {
-      // assert(inst->sched_gen_number == s_global->generation);
-      inst->wqitem = NULL;
       inst->next = wc->freelist;
       wc->freelist = inst;
       DEBUG_PRINT("Returned NdbInstance to freelist.");
@@ -533,6 +541,7 @@ S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
   int my_ndb_inst = conn->nInst / global->options.n_worker_threads;
   for(int j = 0 ; j < my_ndb_inst ; j++ ) {
     NdbInstance *inst = new NdbInstance(conn->conn, 2);
+    inst->id = ((id.thd + 1) * 10000) + j + 1; 
     inst->next = freelist;
     freelist = inst;
   }
