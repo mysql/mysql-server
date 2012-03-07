@@ -717,18 +717,24 @@ innodb_remove(
 	ENGINE_ERROR_CODE	err = ENGINE_SUCCESS;
 	innodb_conn_data_t*	conn_data;
 	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
+	ENGINE_ERROR_CODE	cacher_err = ENGINE_KEY_ENOENT;
 
-	if (meta_info->set_option == META_CACHE_OPT_DEFAULT
-	    || meta_info->set_option == META_CACHE_OPT_MIX) {
+	if (meta_info->del_option == META_CACHE_OPT_DISABLE) {
+		return(ENGINE_SUCCESS);
+	}
+
+	if (meta_info->del_option == META_CACHE_OPT_DEFAULT
+	    || meta_info->del_option == META_CACHE_OPT_MIX) {
 		hash_item*	item = item_get(def_eng, key, nkey);
 
 		if (item != NULL) {
 			item_unlink(def_eng, item);
 			item_release(def_eng, item);
+			cacher_err = ENGINE_SUCCESS;
 		}
 
-		if (meta_info->set_option == META_CACHE_OPT_DEFAULT) {
-			return(ENGINE_SUCCESS);
+		if (meta_info->del_option == META_CACHE_OPT_DEFAULT) {
+			return(cacher_err);
 		}
 	}
 
@@ -751,7 +757,7 @@ innodb_remove(
 	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_DELETE,
 				err == ENGINE_SUCCESS);
 
-	return(err);
+	return((cacher_err == ENGINE_SUCCESS) ? ENGINE_SUCCESS : err);
 }
 
 
@@ -803,15 +809,19 @@ innodb_get(
 	int			total_len = 0;
 	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
 
-	if (meta_info->set_option == META_CACHE_OPT_DEFAULT
-	    || meta_info->set_option == META_CACHE_OPT_MIX) {
+	if (meta_info->get_option == META_CACHE_OPT_DISABLE) {
+		return(ENGINE_SUCCESS);
+	}
+
+	if (meta_info->get_option == META_CACHE_OPT_DEFAULT
+	    || meta_info->get_option == META_CACHE_OPT_MIX) {
 		*item = item_get(default_handle(innodb_eng), key, nkey);
 
 		if (*item != NULL) {
 			return(ENGINE_SUCCESS);
 		}
 
-		if (meta_info->set_option == META_CACHE_OPT_DEFAULT) {
+		if (meta_info->get_option == META_CACHE_OPT_DEFAULT) {
 			return(ENGINE_KEY_ENOENT);
 		}
 	}
@@ -975,6 +985,10 @@ innodb_store(
 	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
 	uint32_t		val_len = ((hash_item*)item)->nbytes;
 
+	if (meta_info->set_option == META_CACHE_OPT_DISABLE) {
+		return(ENGINE_SUCCESS);
+	}
+
 	if (meta_info->set_option == META_CACHE_OPT_DEFAULT
 	    || meta_info->set_option == META_CACHE_OPT_MIX) {
 		result = store_item(default_handle(innodb_eng), item, cas,
@@ -1032,6 +1046,10 @@ innodb_arithmetic(
 	innodb_conn_data_t*	conn_data;
 	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
 	ENGINE_ERROR_CODE	err;
+
+	if (meta_info->set_option == META_CACHE_OPT_DISABLE) {
+		return(ENGINE_SUCCESS);
+	}
 
 	if (meta_info->set_option == META_CACHE_OPT_DEFAULT
 	    || meta_info->set_option == META_CACHE_OPT_MIX) {
@@ -1117,13 +1135,17 @@ innodb_flush(
 	ib_err_t		ib_err = DB_SUCCESS;
 	innodb_conn_data_t*	conn_data;
 
-	if (meta_info->set_option == META_CACHE_OPT_DEFAULT
-	    || meta_info->set_option == META_CACHE_OPT_MIX) {
+	if (meta_info->flush_option == META_CACHE_OPT_DISABLE) {
+		return(ENGINE_SUCCESS);
+	}
+
+	if (meta_info->flush_option == META_CACHE_OPT_DEFAULT
+	    || meta_info->flush_option == META_CACHE_OPT_MIX) {
 		/* default engine flush */
 		err = def_eng->engine.flush(innodb_eng->default_engine,
 					    cookie, when);
 
-		if (meta_info->set_option == META_CACHE_OPT_DEFAULT) {
+		if (meta_info->flush_option == META_CACHE_OPT_DEFAULT) {
 			return(err);
 		}
 	}

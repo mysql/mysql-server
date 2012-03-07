@@ -1571,10 +1571,12 @@ innodb_api_cursor_reset(
 		break;
 	}
 
-	if (conn_data->crsr
-	    && (conn_data->n_writes_since_commit >= engine->write_batch_size
-	        || (op_type == CONN_OP_FLUSH))) {
-		ib_cb_cursor_reset(conn_data->crsr);
+	if (conn_data->n_reads_since_commit >= engine->read_batch_size
+	    || conn_data->n_writes_since_commit >= engine->write_batch_size
+	    || (op_type == CONN_OP_FLUSH) || !commit) {
+		if (conn_data->crsr) {
+			ib_cb_cursor_reset(conn_data->crsr);
+		}
 
 		if (conn_data->read_crsr) {
 			ib_cb_cursor_reset(conn_data->read_crsr);
@@ -1589,17 +1591,42 @@ innodb_api_cursor_reset(
 		}
 
 		if (conn_data->crsr_trx) {
+			ib_crsr_t	ib_crsr;
+			meta_cfg_info_t* meta_info = &engine->meta_info;
+                        meta_index_t*	meta_index = &meta_info->index_info;
+
 			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
 						engine);
 
+			if (meta_index->srch_use_idx == META_USE_SECONDARY) {
+				assert(conn_data->idx_crsr
+				       || conn_data->idx_read_crsr);
+
+				ib_crsr = conn_data->idx_crsr
+					  ? conn_data->idx_crsr
+					  : conn_data->idx_read_crsr;
+			} else {
+				assert(conn_data->crsr
+				       || conn_data->read_crsr);
+
+				ib_crsr = conn_data->crsr
+					  ? conn_data->crsr
+					  : conn_data->read_crsr;
+			}
+
 			if (commit) {
 				ib_cb_cursor_commit_trx(
-					conn_data->crsr, conn_data->crsr_trx);
+					ib_crsr, conn_data->crsr_trx);
 			} else {
 				ib_cb_trx_rollback(conn_data->crsr_trx);
 			}
 
 			conn_data->crsr_trx = NULL;
+
+			if (conn_data->crsr) {
+				ib_cb_cursor_clear_trx(
+					conn_data->crsr);
+			}
 
 			if (conn_data->read_crsr) {
 				ib_cb_cursor_clear_trx(
@@ -1625,60 +1652,6 @@ innodb_api_cursor_reset(
 
 		conn_data->n_writes_since_commit = 0;
 		conn_data->n_reads_since_commit = 0;
-	}
-
-	if (conn_data->read_crsr
-	    && (conn_data->n_reads_since_commit >= engine->read_batch_size
-	        || (op_type == CONN_OP_FLUSH))) {
-		ib_cb_cursor_reset(conn_data->read_crsr);
-
-		if (conn_data->crsr) {
-			ib_cb_cursor_reset(conn_data->crsr);
-		}
-
-		if (conn_data->idx_read_crsr) {
-			ib_cb_cursor_reset(conn_data->idx_read_crsr);
-		}
-
-		if (conn_data->idx_crsr) {
-			ib_cb_cursor_reset(conn_data->idx_crsr);
-		}
-
-		if (conn_data->crsr_trx) {
-			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
-						engine);
-
-			if (commit) {
-				ib_cb_cursor_commit_trx(
-					conn_data->read_crsr,
-				conn_data->crsr_trx);
-			} else {
-				ib_cb_trx_rollback(conn_data->crsr_trx);
-			}
-
-			conn_data->crsr_trx = NULL;
-			commit_trx = true;
-			if (conn_data->crsr) {
-				ib_cb_cursor_clear_trx(
-					conn_data->crsr);
-			}
-
-			if (conn_data->idx_crsr) {
-				ib_cb_cursor_clear_trx(
-					conn_data->idx_crsr);
-			}
-
-			if (conn_data->idx_read_crsr) {
-				ib_cb_cursor_clear_trx(
-					conn_data->idx_read_crsr);
-			}
-
-			conn_data->in_use = false;
-			UNLOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
-						  engine);
-		}
-		conn_data->n_reads_since_commit = 0;
-		conn_data->n_writes_since_commit = 0;
 	}
 
 	if (!commit_trx) {

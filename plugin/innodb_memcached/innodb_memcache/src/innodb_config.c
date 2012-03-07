@@ -225,6 +225,14 @@ innodb_read_cache_policy(
 			opt_val = (meta_cache_opt_t) opt_name;
 		}
 
+		if (opt_val >= META_CACHE_NUM_OPT
+		    || opt_val < META_CACHE_OPT_INNODB) {
+			fprintf(stderr, " InnoDB_Memcached: Invalid Cache"
+					" Policy %d. Reset to innodb_only\n",
+				(int) opt_val);
+			opt_val = META_CACHE_OPT_INNODB;
+		}
+
 		switch (i) {
 		case CACHE_POLICY_GET:
 			item->get_option = opt_val;
