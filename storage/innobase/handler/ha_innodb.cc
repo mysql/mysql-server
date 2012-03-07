@@ -7820,24 +7820,21 @@ See http://bugs.mysql.com/32710 for expl. why we choose PROCESS. */
 /*****************************************************************//**
 Check whether there exist a column named as "FTS_DOC_ID", which is
 reserved for InnoDB FTS Doc ID
-@return TRUE if there exist a "FTS_DOC_ID" column */
+@return true if there exist a "FTS_DOC_ID" column */
 static
-ibool
+bool
 create_table_check_doc_id_col(
 /*==========================*/
 	trx_t*		trx,		/*!< in: InnoDB transaction handle */
-	TABLE*		form,		/*!< in: information on table
+	const TABLE*	form,		/*!< in: information on table
 					columns and indexes */
 	ulint*		doc_id_col)	/*!< out: Doc ID column number if
 					there exist a FTS_DOC_ID column,
 					ULINT_UNDEFINED if column is of the
 					wrong type/name/size */
 {
-	ibool		find_doc_id = FALSE;
-	ulint		i;
-
-	for (i = 0; i < form->s->fields; i++) {
-		Field*		field;
+	for (ulint i = 0; i < form->s->fields; i++) {
+		const Field*	field;
 		ulint		col_type;
 		ulint		col_len;
 		ulint		unsigned_type;
@@ -7851,8 +7848,6 @@ create_table_check_doc_id_col(
 
 		if (innobase_strcasecmp(field->field_name,
 					FTS_DOC_ID_COL_NAME) == 0) {
-
-			find_doc_id = TRUE;
 
 			/* Note the name is case sensitive due to
 			our internal query parser */
@@ -7875,11 +7870,11 @@ create_table_check_doc_id_col(
 				*doc_id_col = ULINT_UNDEFINED;
 			}
 
-			break;
+			return(true);
 		}
 	}
 
-	return(find_doc_id);
+	return(false);
 }
 
 /*****************************************************************//**
@@ -7889,7 +7884,7 @@ int
 create_table_def(
 /*=============*/
 	trx_t*		trx,		/*!< in: InnoDB transaction handle */
-	TABLE*		form,		/*!< in: information on table
+	const TABLE*	form,		/*!< in: information on table
 					columns and indexes */
 	const char*	table_name,	/*!< in: table name */
 	const char*	path_of_temp_table,
@@ -7904,7 +7899,6 @@ create_table_def(
 	ulint		flags,		/*!< in: table flags */
 	ulint		flags2)		/*!< in: table flags2 */
 {
-	Field*		field;
 	dict_table_t*	table;
 	ulint		n_cols;
 	int		error;
@@ -7988,7 +7982,7 @@ create_table_def(
 	}
 
 	for (i = 0; i < n_cols; i++) {
-		field = form->field[i];
+		Field*	field = form->field[i];
 
 		col_type = get_innobase_type_from_mysql_type(&unsigned_type,
 							     field);
@@ -8007,17 +8001,8 @@ create_table_def(
 			goto err_col;
 		}
 
-		if (field->null_ptr) {
-			nulls_allowed = 0;
-		} else {
-			nulls_allowed = DATA_NOT_NULL;
-		}
-
-		if (field->binary()) {
-			binary_type = DATA_BINARY_TYPE;
-		} else {
-			binary_type = 0;
-		}
+		nulls_allowed = field->null_ptr ? 0 : DATA_NOT_NULL;
+		binary_type = field->binary() ? DATA_BINARY_TYPE : 0;
 
 		charset_no = 0;
 
@@ -8114,108 +8099,111 @@ int
 create_index(
 /*=========*/
 	trx_t*		trx,		/*!< in: InnoDB transaction handle */
-	TABLE*		form,		/*!< in: information on table
+	const TABLE*	form,		/*!< in: information on table
 					columns and indexes */
 	ulint		flags,		/*!< in: InnoDB table flags */
 	const char*	table_name,	/*!< in: table name */
 	uint		key_num)	/*!< in: index number */
 {
-	Field*		field;
 	dict_index_t*	index;
 	int		error;
-	ulint		n_fields;
-	KEY*		key;
-	KEY_PART_INFO*	key_part;
+	const KEY*	key;
 	ulint		ind_type;
-	ulint		col_type;
-	ulint		prefix_len = 0;
-	ulint		is_unsigned;
-	ulint		i;
-	ulint		j;
-	ulint*		field_lengths = NULL;
+	ulint*		field_lengths;
 
 	DBUG_ENTER("create_index");
 
 	key = form->key_info + key_num;
 
-	n_fields = key->key_parts;
-
 	/* Assert that "GEN_CLUST_INDEX" cannot be used as non-primary index */
 	ut_a(innobase_strcasecmp(key->name, innobase_index_reserve_name) != 0);
 
+	if (key->flags & HA_FULLTEXT) {
+		index = dict_mem_index_create(table_name, key->name, 0,
+					      DICT_FTS, key->key_parts);
+
+		for (ulint i = 0; i < key->key_parts; i++) {
+			KEY_PART_INFO*	key_part = key->key_part + i;
+			dict_mem_index_add_field(
+				index, key_part->field->field_name, 0);
+		}
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+				    row_create_index_for_mysql(
+					    index, trx, NULL),
+				    flags, NULL));
+
+	}
+
 	ind_type = 0;
 
-	if (key->flags & HA_FULLTEXT) {
-		ind_type = DICT_FTS;
-	} else {
-		if (key_num == form->s->primary_key) {
-			ind_type = ind_type | DICT_CLUSTERED;
-		}
-
-		if (key->flags & HA_NOSAME ) {
-			ind_type = ind_type | DICT_UNIQUE;
-		}
+	if (key_num == form->s->primary_key) {
+		ind_type |= DICT_CLUSTERED;
 	}
+
+	if (key->flags & HA_NOSAME) {
+		ind_type |= DICT_UNIQUE;
+	}
+
+	field_lengths = (ulint*) my_malloc(
+		key->key_parts * sizeof *field_lengths, MYF(MY_FAE));
 
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
 	index = dict_mem_index_create(table_name, key->name, 0,
-				      ind_type, n_fields);
+				      ind_type, key->key_parts);
 
-	if (ind_type != DICT_FTS) {
-		field_lengths = (ulint*) my_malloc(
-			sizeof(ulint) * n_fields, MYF(MY_FAE));
+	for (ulint i = 0; i < key->key_parts; i++) {
+		KEY_PART_INFO*	key_part = key->key_part + i;
+		ulint		prefix_len;
+		ulint		col_type;
+		ulint		is_unsigned;
 
-		ut_ad(!(index->type & DICT_FTS));
-	}
 
-	for (i = 0; i < n_fields; i++) {
-		key_part = key->key_part + i;
+		/* (The flag HA_PART_KEY_SEG denotes in MySQL a
+		column prefix field in an index: we only store a
+		specified number of first bytes of the column to
+		the index field.) The flag does not seem to be
+		properly set by MySQL. Let us fall back on testing
+		the length of the key part versus the column. */
 
-		if (ind_type != DICT_FTS) {
+		Field*	field = NULL;
 
-			/* (The flag HA_PART_KEY_SEG denotes in MySQL a
-			column prefix field in an index: we only store a
-			specified number of first bytes of the column to
-			the index field.) The flag does not seem to be
-			properly set by MySQL. Let us fall back on testing
-			the length of the key part versus the column. */
+		for (ulint j = 0; j < form->s->fields; j++) {
 
-			field = NULL;
+			field = form->field[j];
 
-			for (j = 0; j < form->s->fields; j++) {
+			if (0 == innobase_strcasecmp(
+				    field->field_name,
+				    key_part->field->field_name)) {
+				/* Found the corresponding column */
 
-				field = form->field[j];
-
-				if (0 == innobase_strcasecmp(
-						field->field_name,
-						key_part->field->field_name)) {
-					/* Found the corresponding column */
-
-					break;
-				}
+				goto found;
 			}
+		}
 
-			ut_a(j < form->s->fields);
+		ut_error;
+found:
+		col_type = get_innobase_type_from_mysql_type(
+			&is_unsigned, key_part->field);
 
-			col_type = get_innobase_type_from_mysql_type(
-						&is_unsigned, key_part->field);
+		if (DATA_BLOB == col_type
+		    || (key_part->length < field->pack_length()
+			&& field->type() != MYSQL_TYPE_VARCHAR)
+		    || (field->type() == MYSQL_TYPE_VARCHAR
+			&& key_part->length < field->pack_length()
+			- ((Field_varstring*) field)->length_bytes)) {
 
-			if (DATA_BLOB == col_type
-				|| (key_part->length < field->pack_length()
-					&& field->type() != MYSQL_TYPE_VARCHAR)
-				|| (field->type() == MYSQL_TYPE_VARCHAR
-					&& key_part->length < field->pack_length()
-					- ((Field_varstring*) field)->length_bytes)) {
-
+			switch (col_type) {
+			default:
 				prefix_len = key_part->length;
-
-				if (col_type == DATA_INT
-					|| col_type == DATA_FLOAT
-					|| col_type == DATA_DOUBLE
-					|| col_type == DATA_DECIMAL) {
-					sql_print_error(
+				break;
+			case DATA_INT:
+			case DATA_FLOAT:
+			case DATA_DOUBLE:
+			case DATA_DECIMAL:
+				sql_print_error(
 					"MySQL is trying to create a column "
 					"prefix index field, on an "
 					"inappropriate data type. Table "
@@ -8223,17 +8211,16 @@ create_index(
 					table_name,
 					key_part->field->field_name);
 
-					prefix_len = 0;
-				}
-			} else {
 				prefix_len = 0;
 			}
-
-			field_lengths[i] = key_part->length;
+		} else {
+			prefix_len = 0;
 		}
 
-		dict_mem_index_add_field(index,
-			(char*) key_part->field->field_name, prefix_len);
+		field_lengths[i] = key_part->length;
+
+		dict_mem_index_add_field(
+			index, key_part->field->field_name, prefix_len);
 	}
 
 	ut_ad(key->flags & HA_FULLTEXT || !(index->type & DICT_FTS));
@@ -8241,9 +8228,10 @@ create_index(
 	/* Even though we've defined max_supported_key_part_length, we
 	still do our own checking using field_lengths to be absolutely
 	sure we don't create too long indexes. */
-	error = row_create_index_for_mysql(index, trx, field_lengths);
 
-	error = convert_error_code_to_mysql(error, flags, NULL);
+	error = convert_error_code_to_mysql(
+		row_create_index_for_mysql(index, trx, field_lengths),
+		flags, NULL);
 
 	my_free(field_lengths);
 
@@ -8765,8 +8753,8 @@ ha_innobase::create(
 
 	/* Look for a primary key */
 	primary_key_no = (form->s->primary_key != MAX_KEY ?
-			 (int) form->s->primary_key :
-			 -1);
+			  (int) form->s->primary_key :
+			  -1);
 
 	/* Our function innobase_get_mysql_key_number_for_index assumes
 	the primary key is always number 0, if it exists */
@@ -12226,7 +12214,7 @@ ha_innobase::get_foreign_dup_key(
 	/* else */
 
 	/* copy table name (and convert from filename-safe encoding to
-	system_charset_info, e.g. "foo_@0J@00b6" -> "foo_ö") */
+	system_charset_info) */
 	char*	p;
 	p = strchr(err_index->table->name, '/');
 	/* strip ".../" prefix if any */
