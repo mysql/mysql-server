@@ -67,8 +67,11 @@ SignalLoggerManager::~SignalLoggerManager()
 FILE *
 SignalLoggerManager::setOutputStream(FILE * output)
 {
-  if(outputStream != 0){
+  if (outputStream != 0)
+  {
+    lock();
     fflush(outputStream);
+    unlock();
   }
 
   FILE * out = outputStream;
@@ -85,8 +88,12 @@ SignalLoggerManager::getOutputStream() const
 void
 SignalLoggerManager::flushSignalLog()
 {
-  if(outputStream != 0)
+  if (outputStream != 0)
+  {
+    lock();
     fflush(outputStream);
+    unlock();
+  }
 }
 
 void
