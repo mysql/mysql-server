@@ -36,4 +36,24 @@ select * from ts where q=';groupby=attr:gid';
 id	w	q	gid	_sph_count
 3	1	;groupby=attr:gid	2	2
 1	1	;groupby=attr:gid	1	2
+explain select * from ts where q=';groupby=attr:gid';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	ts	ref	q	q	257	const	3	Using where with pushed condition
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='index_condition_pushdown=off';
+explain select * from ts where q=';groupby=attr:gid';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	ts	ref	q	q	257	const	3	Using where with pushed condition
+SET optimizer_switch=@save_optimizer_switch;
 drop table ts;
+show status like "sphinx_%";
+Variable_name	Value
+sphinx_error_commits	0
+sphinx_error_group_commits	0
+sphinx_error_snapshot_file	
+sphinx_error_snapshot_position	0
+sphinx_time	0
+sphinx_total	2
+sphinx_total_found	2
+sphinx_word_count	0
+sphinx_words	

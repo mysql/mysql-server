@@ -1,5 +1,5 @@
 //
-// $Id: ha_sphinx.h 1428 2008-09-05 18:06:30Z xale $
+// $Id: ha_sphinx.h 2921 2011-08-21 21:35:02Z tomat $
 //
 
 #ifdef USE_PRAGMA_INTERFACE
@@ -7,8 +7,10 @@
 #endif
 
 
-#if MYSQL_VERSION_ID>50100
+#if MYSQL_VERSION_ID>=50515
 #define TABLE_ARG	TABLE_SHARE
+#elif MYSQL_VERSION_ID>50100
+#define TABLE_ARG	st_table_share
 #else
 #define TABLE_ARG	st_table
 #endif
@@ -18,7 +20,6 @@
 typedef uchar byte;
 #endif
 
-#include "handler.h"
 
 /// forward decls
 class THD;
@@ -48,18 +49,19 @@ protected:
 
 public:
 #if MYSQL_VERSION_ID<50100
-					ha_sphinx ( TABLE_ARG * table_arg );
+					ha_sphinx ( TABLE_ARG * table_arg ); // NOLINT
 #else
 					ha_sphinx ( handlerton * hton, TABLE_ARG * table_arg );
 #endif
-					~ha_sphinx () {}
+					~ha_sphinx ();
 
 	const char *	table_type () const		{ return "SPHINX"; }	///< SE name for display purposes
 	const char *	index_type ( uint )		{ return "HASH"; }		///< index type name for display purposes
 	const char **	bas_ext () const;								///< my file extensions
 
 	#if MYSQL_VERSION_ID>50100
-	ulonglong		table_flags () const	{ return HA_CAN_INDEX_BLOBS; }			///< bitmap of implemented flags (see handler.h for more info)
+	ulonglong		table_flags () const	{ return HA_CAN_INDEX_BLOBS | 
+                                                                 HA_MUST_USE_TABLE_CONDITION_PUSHDOWN; } ///< bitmap of implemented flags (see handler.h for more info)
 	#else
 	ulong			table_flags () const	{ return HA_CAN_INDEX_BLOBS; }			///< bitmap of implemented flags (see handler.h for more info)
 	#endif
@@ -77,21 +79,22 @@ public:
 	virtual double	scan_time ()	{ return (double)( records+deleted )/20.0 + 10; }				///< called in test_quick_select to determine if indexes should be used
 	#endif
 
-	virtual double	read_time(uint index, uint ranges, ha_rows rows)
-        { return (double)rows/20.0 + 1; }					///< index read time estimate
+        virtual double read_time(uint index, uint ranges, ha_rows rows)
+	{ return ranges + (double)rows/20.0 + 1; }					///< index read time estimate
 
 public:
 	int				open ( const char * name, int mode, uint test_if_locked );
 	int				close ();
 
-	int				write_row ( uchar * buf );
-	int				update_row ( const uchar * old_data, uchar * new_data );
-	int				delete_row ( const uchar * buf );
+	int				write_row ( byte * buf );
+	int				update_row ( const byte * old_data, byte * new_data );
+	int				delete_row ( const byte * buf );
+	int				extra ( enum ha_extra_function op );
 
 	int				index_init ( uint keynr, bool sorted ); // 5.1.x
 	int				index_init ( uint keynr ) { return index_init ( keynr, false ); } // 5.0.x
 
-	int				index_end (); 
+	int				index_end ();
 	int				index_read ( byte * buf, const byte * key, uint key_len, enum ha_rkey_function find_flag );
 	int				index_read_idx ( byte * buf, uint idx, const byte * key, uint key_len, enum ha_rkey_function find_flag );
 	int				index_next ( byte * buf );
@@ -123,7 +126,7 @@ public:
 	int				rename_table ( const char * from, const char * to );
 	int				create ( const char * name, TABLE * form, HA_CREATE_INFO * create_info );
 
-	THR_LOCK_DATA **store_lock ( THD * thd, THR_LOCK_DATA ** to, enum thr_lock_type lock_type );
+	THR_LOCK_DATA **		store_lock ( THD * thd, THR_LOCK_DATA ** to, enum thr_lock_type lock_type );
 
 public:
 	virtual const COND *	cond_push ( const COND *cond );
@@ -140,12 +143,15 @@ private:
 	int *			m_dUnboundFields;
 
 private:
-	int				ConnectToSearchd ( const char * sQueryHost, int iQueryPort );
+	int				Connect ( const char * sQueryHost, ushort uPort );
+	int				ConnectAPI ( const char * sQueryHost, int iQueryPort );
+	int				HandleMysqlError ( struct st_mysql * pConn, int iErrCode );
 
 	uint32			UnpackDword ();
 	char *			UnpackString ();
 	bool			UnpackSchema ();
 	bool			UnpackStats ( CSphSEStats * pStats );
+	bool			CheckResponcePtr ( int iLen );
 
 	CSphSEThreadData *	GetTls ();
 };
@@ -155,6 +161,12 @@ private:
 bool sphinx_show_status ( THD * thd );
 #endif
 
+int sphinx_showfunc_total_found ( THD *, SHOW_VAR *, char * );
+int sphinx_showfunc_total ( THD *, SHOW_VAR *, char * );
+int sphinx_showfunc_time ( THD *, SHOW_VAR *, char * );
+int sphinx_showfunc_word_count ( THD *, SHOW_VAR *, char * );
+int sphinx_showfunc_words ( THD *, SHOW_VAR *, char * );
+
 //
-// $Id: ha_sphinx.h 1428 2008-09-05 18:06:30Z xale $
+// $Id: ha_sphinx.h 2921 2011-08-21 21:35:02Z tomat $
 //

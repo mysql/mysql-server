@@ -176,6 +176,19 @@
 #define HA_RECORD_MUST_BE_CLEAN_ON_WRITE (LL(1) << 41)
 
 /*
+  Table condition pushdown must be performed regardless of
+  'engine_condition_pushdown' setting.
+
+  This flag is aimed at storage engines that come with "special" predicates
+  that can only be evaluated inside the storage engine.  
+  For example, when one does 
+    select * from sphinx_table where query='{fulltext_query}'
+  then the "query=..." condition must be always pushed down into storage
+  engine.
+*/
+#define HA_MUST_USE_TABLE_CONDITION_PUSHDOWN (LL(1) << 42)
+
+/*
   Set of all binlog flags. Currently only contain the capabilities
   flags.
  */

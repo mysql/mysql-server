@@ -8364,8 +8364,10 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           if (tab->table)
           {
             tab->table->file->pushed_cond= NULL;
-            if ((thd->variables.optimizer_switch &
-                               OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
+            if (((thd->variables.optimizer_switch &
+                               OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) ||
+                 (tab->table->file->ha_table_flags() &
+                  HA_MUST_USE_TABLE_CONDITION_PUSHDOWN)) &&
                 !first_inner_tab)
             {
               COND *push_cond= 
@@ -21270,8 +21272,11 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           {
             const COND *pushed_cond= tab->table->file->pushed_cond;
 
-            if ((thd->variables.optimizer_switch &
-                 OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) && pushed_cond)
+            if (((thd->variables.optimizer_switch &
+                 OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) ||
+                 (tab->table->file->ha_table_flags() &
+                  HA_MUST_USE_TABLE_CONDITION_PUSHDOWN)) &&
+                pushed_cond)
             {
               extra.append(STRING_WITH_LEN("; Using where with pushed "
                                            "condition"));

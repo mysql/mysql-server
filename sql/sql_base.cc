@@ -226,7 +226,7 @@ uint cached_open_tables(void)
 
 
 #ifdef EXTRA_DEBUG
-static void check_unused(void)
+static void check_unused(THD *thd)
 {
   uint count= 0, open_files= 0, idx= 0;
   TABLE *cur_link, *start_link, *entry;
@@ -255,15 +255,20 @@ static void check_unused(void)
     I_P_List_iterator<TABLE, TABLE_share> it(share->free_tables);
     while ((entry= it++))
     {
-      /* We must not have TABLEs in the free list that have their file closed. */
+      /*
+        We must not have TABLEs in the free list that have their file closed.
+      */
       DBUG_ASSERT(entry->db_stat && entry->file);
       /* Merge children should be detached from a merge parent */
-      DBUG_ASSERT(! entry->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
-
       if (entry->in_use)
       {
         DBUG_PRINT("error",("Used table is in share's list of unused tables")); /* purecov: inspected */
       }
+      /* extra() may assume that in_use is set */
+      entry->in_use= thd;
+      DBUG_ASSERT(! entry->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+      entry->in_use= 0;
+
       count--;
       open_files++;
     }
@@ -284,7 +289,7 @@ static void check_unused(void)
   }
 }
 #else
-#define check_unused()
+#define check_unused(A)
 #endif
 
 
@@ -473,7 +478,7 @@ static void table_def_remove_table(TABLE *table)
       if (table == unused_tables)
 	unused_tables=0;
     }
-    check_unused();
+    check_unused(current_thd);
   }
   table_cache_count--;
 }
@@ -498,7 +503,7 @@ static void table_def_use_table(THD *thd, TABLE *table)
   }
   table->prev->next=table->next;		/* Remove from unused list */
   table->next->prev=table->prev;
-  check_unused();
+  check_unused(thd);
   /* Add table to list of used tables for this share. */
   table->s->used_tables.push_front(table);
   table->in_use= thd;
@@ -515,6 +520,7 @@ static void table_def_use_table(THD *thd, TABLE *table)
 
 static void table_def_unuse_table(TABLE *table)
 {
+  THD *thd= table->in_use;
   DBUG_ASSERT(table->in_use);
 
   /* We shouldn't put the table to 'unused' list if the share is old. */
@@ -535,7 +541,7 @@ static void table_def_unuse_table(TABLE *table)
   }
   else
     unused_tables=table->next=table->prev=table;
-  check_unused();
+  check_unused(thd);
 }
 
 

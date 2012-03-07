@@ -19,5 +19,11 @@ eval create table ts ( id bigint unsigned not null, w int not null, q varchar(25
 select * from ts;
 select * from ts where q='';
 select * from ts where q=';groupby=attr:gid';
+explain select * from ts where q=';groupby=attr:gid';
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='index_condition_pushdown=off';
+explain select * from ts where q=';groupby=attr:gid';
+SET optimizer_switch=@save_optimizer_switch;
 drop table ts;
 
+show status like "sphinx_%";
