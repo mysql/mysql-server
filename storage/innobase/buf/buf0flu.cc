@@ -2520,3 +2520,41 @@ buf_flush_validate(
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_DEBUG
+/******************************************************************//**
+Check if there are any dirty pages that belong to a space id in the flush list.
+@return	number of dirty pages present */
+UNIV_INTERN
+bool
+buf_flush_get_dirty_pages(
+/*======================*/
+	ulint		id)		/*!< in: space id to check */
+
+{
+	ulint		count = 0;
+
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+		buf_pool_t*	buf_pool;
+
+		buf_pool = buf_pool_from_array(i);
+
+		buf_flush_list_mutex_enter(buf_pool);
+
+		buf_page_t*	bpage;
+
+		for (bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
+		     bpage != 0;
+		     bpage = UT_LIST_GET_NEXT(list, bpage)) {
+
+			if (buf_page_get_space(bpage) == id) {
+				++count;
+			}
+		}
+
+		buf_flush_list_mutex_exit(buf_pool);
+	}
+
+	return(count);
+}
+#endif /* UNIV_DEBUG */

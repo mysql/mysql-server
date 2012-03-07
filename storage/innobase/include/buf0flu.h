@@ -254,6 +254,18 @@ buf_flush_page(
 	buf_page_t*	bpage,		/*!< in: buffer control block */
 	buf_flush	flush_type)	/*!< in: type of flush */
 	__attribute__((nonnull));
+
+#ifdef UNIV_DEBUG
+/******************************************************************//**
+Check if there are any dirty pages that belong to a space id in the flush list.
+@return	number of dirty pages present */
+UNIV_INTERN
+bool
+buf_flush_get_dirty_pages(
+/*======================*/
+	ulint		id);		/*!< in: space id to check */
+#endif /* UNIV_DEBUG */
+
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
