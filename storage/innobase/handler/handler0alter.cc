@@ -871,8 +871,14 @@ innobase_create_key_defs(
 		new_primary = TRUE;
 
 		while (key_part--) {
-			if (key_info[*add].key_part[key_part].key_type
-			    & FIELDFLAG_MAYBE_NULL) {
+			const uint	maybe_null
+				= key_info[*add].key_part[key_part].key_type
+				& FIELDFLAG_MAYBE_NULL;
+			DBUG_ASSERT(!maybe_null
+				    == !key_info[*add].key_part[key_part].
+				    field->null_ptr);
+
+			if (maybe_null) {
 				new_primary = FALSE;
 				break;
 			}
