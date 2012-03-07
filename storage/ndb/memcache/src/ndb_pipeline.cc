@@ -153,7 +153,14 @@ void pipeline_add_stats(ndb_pipeline *self,
 }
   
 
-void * initialize_scheduler(const char *cf, int nthreads, int athread) {
+ENGINE_ERROR_CODE pipeline_flush_all(ndb_pipeline *self) {
+  return ndb_flush_all(self);
+}
+
+
+/* The scheduler API */
+
+void * scheduler_initialize(const char *cf, int nthreads, int athread) {
   Scheduler *s = 0;
   const char *sched_options = 0;
   
@@ -179,27 +186,20 @@ void * initialize_scheduler(const char *cf, int nthreads, int athread) {
 }
 
 
-void shutdown_scheduler(void *v) {
-  Scheduler *s = (Scheduler *) v;
-  
-  s->shutdown();
+void scheduler_shutdown(ndb_pipeline *self) {  
+  self->scheduler->shutdown();
 }
 
 
-ENGINE_ERROR_CODE pipeline_schedule_operation(ndb_pipeline *self, 
-                                              struct workitem *item) {
+ENGINE_ERROR_CODE scheduler_schedule(ndb_pipeline *self, struct workitem *item) {
   return self->scheduler->schedule(item);
 }
 
 
-ENGINE_ERROR_CODE pipeline_flush_all(ndb_pipeline *self) {
-  return ndb_flush_all(self);
+void scheduler_release(ndb_pipeline *self, struct workitem *item) {
+  self->scheduler->release(item);
 }
 
-
-void pipeline_io_completed(ndb_pipeline *self, struct workitem *item) {
-  self->scheduler->io_completed(item);
-}
 
 
 /* The slab allocator API */
