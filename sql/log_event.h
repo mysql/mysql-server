@@ -1075,6 +1075,13 @@ public:
   */
   uint32 server_id;
 
+  /*
+    The server id read from the Binlog.  server_id above has
+    lowest bits of this only according to the value of
+    opt_server_id_bits
+  */
+  uint32 unmasked_server_id;
+
   /**
     Some 16 flags. See the definitions above for LOG_EVENT_TIME_F,
     LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F, and
@@ -4557,7 +4564,7 @@ private:
 };
 #endif
 
-int append_query_string(const CHARSET_INFO *csinfo,
+int append_query_string(THD *thd, const CHARSET_INFO *csinfo,
                         String const *from, String *to);
 bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
 uint8 get_checksum_alg(const char* buf, ulong len);

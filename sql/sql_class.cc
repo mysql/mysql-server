@@ -644,6 +644,12 @@ int thd_tx_isolation(const THD *thd)
 }
 
 extern "C"
+int thd_tx_is_read_only(const THD *thd)
+{
+  return (int) thd->tx_read_only;
+}
+
+extern "C"
 void thd_inc_row_count(THD *thd)
 {
   thd->get_stmt_da()->inc_current_row_for_warning();
@@ -882,6 +888,7 @@ THD::THD(bool enable_plugins)
   proc_info="login";
   where= THD::DEFAULT_WHERE;
   server_id = ::server_id;
+  unmasked_server_id = server_id;
   slave_net = 0;
   set_command(COM_CONNECT);
   *scramble= '\0';
@@ -1249,6 +1256,7 @@ void THD::init(void)
 			TL_WRITE_LOW_PRIORITY :
 			TL_WRITE);
   tx_isolation= (enum_tx_isolation) variables.tx_isolation;
+  tx_read_only= variables.tx_read_only;
   update_charset();
   reset_current_stmt_binlog_format_row();
   memset(&status_var, 0, sizeof(status_var));
@@ -2060,13 +2068,14 @@ int THD::send_explain_fields(select_result *result)
   item->maybe_null=1;
   field_list.push_back(item= new Item_return_int("rows", 10,
                                                  MYSQL_TYPE_LONGLONG));
+  item->maybe_null= 1;
   if (lex->describe & DESCRIBE_EXTENDED)
   {
     field_list.push_back(item= new Item_float("filtered", 0.1234, 2, 4));
     item->maybe_null=1;
   }
-  item->maybe_null= 1;
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
+  item->maybe_null= 1;
   return (result->send_result_set_metadata(field_list,
                                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }

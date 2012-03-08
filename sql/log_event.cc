@@ -554,7 +554,7 @@ char *str_to_hex(char *to, const char *from, uint len)
 */
 
 int
-append_query_string(const CHARSET_INFO *csinfo,
+append_query_string(THD *thd, const CHARSET_INFO *csinfo,
                     String const *from, String *to)
 {
   char *beg, *ptr;
@@ -569,9 +569,26 @@ append_query_string(const CHARSET_INFO *csinfo,
   else
   {
     *ptr++= '\'';
-    ptr+= escape_string_for_mysql(csinfo, ptr, 0,
-                                  from->ptr(), from->length());
-    *ptr++='\'';
+    if (!(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES))
+    {
+      ptr+= escape_string_for_mysql(csinfo, ptr, 0,
+                                    from->ptr(), from->length());
+    }
+    else
+    {
+      const char *frm_str= from->ptr();
+
+      for (; frm_str < (from->ptr() + from->length()); frm_str++)
+      {
+        /* Using '' way to represent "'" */
+        if (*frm_str == '\'')
+          *ptr++= *frm_str;
+
+        *ptr++= *frm_str;
+      }
+    }
+
+    *ptr++= '\'';
   }
   to->length(orig_len + ptr - beg);
   return 0;
@@ -665,6 +682,7 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
   crc(0), thd(thd_arg), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id= thd->server_id;
+  unmasked_server_id= server_id;
   when= thd->start_time;
 }
 
@@ -682,6 +700,7 @@ Log_event::Log_event(enum_event_cache_type cache_type_arg,
   checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id=	::server_id;
+  unmasked_server_id= server_id;
   /*
     We can't call my_time() here as this would cause a call before
     my_init() is called
@@ -710,6 +729,15 @@ Log_event::Log_event(const char* buf,
   when.tv_sec= uint4korr(buf);
   when.tv_usec= 0;
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
+  unmasked_server_id = server_id;
+  /*
+     Mask out any irrelevant parts of the server_id
+  */
+#ifdef HAVE_REPLICATION
+  server_id = unmasked_server_id & opt_server_id_mask;
+#else
+  server_id = unmasked_server_id;
+#endif
   data_written= uint4korr(buf + EVENT_LEN_OFFSET);
   if (description_event->binlog_version==1)
   {
@@ -8917,6 +8945,16 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         thd->variables.option_bits|= OPTION_RELAXED_UNIQUE_CHECKS;
     else
         thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+
+    /*
+      Note that unlike the other thd options set here, this one
+      comes from a global, and not from the incoming event.
+    */
+    if (opt_slave_allow_batching)
+      thd->variables.option_bits|= OPTION_ALLOW_BATCH;
+    else
+      thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
+
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
@@ -9200,7 +9238,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     }
   } // if (table)
 
-  
+  /* reset OPTION_ALLOW_BATCH as not affect later events */
+  thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
+
   if (error)
   {
     slave_rows_error_report(ERROR_LEVEL, error, rli, thd, table,
@@ -10924,6 +10964,23 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
 
   if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
   {
+
+    if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL))
+    {
+      /*
+        Read removal is possible since the engine supports write without
+        previous read using full primary key
+      */
+      DBUG_PRINT("info", ("using read before write removal"));
+
+      /*
+        Tell the handler to ignore if key exists or not, since it's
+        not yet known if the key does exist(when using rbwr)
+      */
+      table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
+      DBUG_RETURN(0);
+    }
+
     /*
       Use a more efficient method to fetch the record given by
       table->record[0] if the engine allows it.  We first compute a
@@ -10942,6 +10999,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
                                  table->s->reclength) == 0);
 
     */
+
     DBUG_PRINT("info",("locating record using primary key (position)"));
     int error;
     if (table->file->inited && (error= table->file->ha_index_end()))

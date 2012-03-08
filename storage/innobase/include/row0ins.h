@@ -95,16 +95,26 @@ of a clustered index entry.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
 ulint
-row_ins_index_entry_big_rec(
-/*========================*/
+row_ins_index_entry_big_rec_func(
+/*=============================*/
 	const dtuple_t*		entry,	/*!< in/out: index entry to insert */
 	const big_rec_t*	big_rec,/*!< in: externally stored fields */
 	ulint*			offsets,/*!< in/out: rec offsets */
 	mem_heap_t**		heap,	/*!< in/out: memory heap */
 	dict_index_t*		index,	/*!< in: index */
 	const char*		file,	/*!< in: file name of caller */
+#ifndef DBUG_OFF
+	const void*		thd,	/*!< in: connection, or NULL */
+#endif /* DBUG_OFF */
 	ulint			line)	/*!< in: line number of caller */
 	__attribute__((nonnull(1,2,4,5,6), warn_unused_result));
+#ifdef DBUG_OFF
+# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
+	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,line)
+#else /* DBUG_OFF */
+# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
+	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,thd,line)
+#endif /* DBUG_OFF */
 /***********************************************************//**
 Inserts a row to a table. This is a high-level function used in
 SQL execution graphs.

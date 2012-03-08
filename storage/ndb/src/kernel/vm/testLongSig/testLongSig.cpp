@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,12 +12,14 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
-#include <editline/editline.h>
-#include <SignalSender.hpp>
+#include <NdbApi.hpp>
+#include <readline/readline.h>
+#include <../../ndbapi/SignalSender.hpp>
 
 void
 print_help(){
@@ -38,11 +41,13 @@ print_help(){
   ndbout << "11 - Sending of CONTINUEB fragmented signals w/ linear sections" 
 	 << endl;
   ndbout << "12 - As but using receiver group" << endl;
-  ndbout << "13 - Send 100 * 1000 25 len signals wo/ sections" << endl;
+  ndbout << "13 - As 5 but with no release" << endl;
+  ndbout << "14 - As 13 but using receiver group" << endl;
+  ndbout << "15 - Send 100 * 1000 25 len signals wo/ sections" << endl;
   ndbout << "r - Recive signal from anyone" << endl;
-  ndbout << "a - Run tests 1 - 12 with variable sizes - 10 loops" << endl;
-  ndbout << "b - Run tests 1 - 12 with variable sizes - 100 loops" << endl;
-  ndbout << "c - Run tests 1 - 12 with variable sizes - 1000k loops" << endl;
+  ndbout << "a - Run tests 1 - 14 with variable sizes - 10 loops" << endl;
+  ndbout << "b - Run tests 1 - 14 with variable sizes - 100 loops" << endl;
+  ndbout << "c - Run tests 1 - 14 with variable sizes - 1000k loops" << endl;
 }
 
 void runTest(SignalSender &, Uint32 i, bool verbose);
@@ -70,8 +75,17 @@ randRange(const Uint32 odds[], Uint32 count){
   return i - 1;
 }
 
+/**
+ * testLongSignals
+ * To run this code :
+ *   cd storage/ndb/src/kernel
+ *   make testLongSignals
+ *   ./testLongSignals <connectstring>
+ *
+ */
 int
-main(void){
+main(int argc, char** argv) {
+  ndb_init();
 
   srand(NdbTick_CurrentMillisecond());
 #if 0
@@ -79,14 +93,30 @@ main(void){
     ndbout_c("randRange(0, 3) = %d", randRange(0, 3));
   return 0;
 #endif
-  SignalSender ss;
+
+  if (argc != 2)
+  {
+    ndbout << "No connectstring given, usage : " << argv[0] 
+           << " <connectstring>" << endl;
+    return -1;
+  }
+  Ndb_cluster_connection con(argv[1]);
   
   ndbout << "Connecting...";
-  if(!ss.connect(30)){
-    ndbout << "failed" << endl << "Exiting" << endl;
-    return 0;
+  if (con.connect(12,5,1) != 0)
+  {
+    ndbout << "Unable to connect to management server." << endl;
+    return -1;
+  }
+  if (con.wait_until_ready(30,0) < 0)
+  {
+    ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+    return -1;
   }
   ndbout << "done" << endl;
+
+  SignalSender ss(&con);
+
   ndbout_c("Connected as block=%d node=%d",
 	   refToBlock(ss.getOwnRef()), refToNode(ss.getOwnRef()));
   
@@ -155,7 +185,6 @@ main(void){
     if(strcmp(buf, "r") == 0){
       SimpleSignal * ret1 = ss.waitFor();
       (* ret1).print();
-      delete ret1;
       continue;
     }
     if(strcmp(buf, "a") == 0){
@@ -174,7 +203,7 @@ main(void){
       continue;
     }
     
-    if(data[1] >= 1 && data[1] <= 12){
+    if(data[1] >= 1 && data[1] <= 14){
       Uint32 nodeId = ss.getAliveNode();
       ndbout_c("Sending 2 fragmented to node %d", nodeId);
       ss.sendSignal(nodeId, &signal1);
@@ -188,17 +217,15 @@ main(void){
       SimpleSignal * ret1 = ss.waitFor((Uint16)nodeId);
       (* ret1).print();
       Uint32 count = ret1->theData[4] - 1;
-      delete ret1;
       while(count > 0){
 	ndbout << "Waiting for " << count << " signals... ";
 	SimpleSignal * ret1 = ss.waitFor();
 	ndbout_c("received from node %d", 
 		 refToNode(ret1->header.theSendersBlockRef));
 	(* ret1).print();
-	delete ret1;
 	count--;
       }
-    } else if (data[1] == 13) {
+    } else if (data[1] == 15) {
       const Uint32 count = 3500;
       const Uint32 loop = 1000;
 
@@ -219,7 +246,6 @@ main(void){
 	ndbout_c("received from node %d", 
 		 refToNode(ret1->header.theSendersBlockRef));
 	total = ret1->theData[10] - 1;
-	delete ret1;
       }
 
       do {
@@ -227,7 +253,6 @@ main(void){
 	SimpleSignal * ret1 = ss.waitFor((Uint16)nodeId);
 	ndbout_c("received from node %d", 
 		 refToNode(ret1->header.theSendersBlockRef));
-	delete ret1;
 	total --;
       } while(total > 0);
     } else {
@@ -235,6 +260,7 @@ main(void){
     }
   }
   ndbout << "Exiting" << endl;
+  ndb_end(0);
 };
 
 void
@@ -282,7 +308,7 @@ runTest(SignalSender & ss, Uint32 count, bool verbose){
       sig.theData[5+i] = sz;
     }
     ndbout_c("] len = %d", len);
-    for(int test = 1; test <= 12; test++){
+    for(int test = 1; test <= 14; test++){
       sig.theData[1] = test;
       Uint32 nodeId = ss.getAliveNode();
       if(verbose){
@@ -294,11 +320,9 @@ runTest(SignalSender & ss, Uint32 count, bool verbose){
       if(test < 5){
 	SimpleSignal * ret1 = ss.waitFor((Uint16)nodeId);
 	Uint32 count = ret1->theData[4] - 1;
-	delete ret1;
 
 	while(count > 0){
-	  SimpleSignal * ret1 = ss.waitFor();
-	  delete ret1;
+	  ret1 = ss.waitFor();
 	  count--;
 	}
 	if(verbose)
@@ -322,7 +346,6 @@ runTest(SignalSender & ss, Uint32 count, bool verbose){
 	     ret->header.m_fragmentInfo == 3){
 	    nodes--;
 	  }
-	  delete ret;
 	}
 	if(verbose)
 	  ndbout_c("done sum=%d sum2=%d", sum, sum2);

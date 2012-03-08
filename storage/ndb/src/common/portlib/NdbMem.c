@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
@@ -80,3 +82,11 @@ int NdbMem_MemUnlockAll(){
 #endif
 }
 
+int NdbMem_MemLock(const void * ptr, size_t len)
+{
+#if defined(HAVE_MLOCK)
+  return mlock(ptr, len);
+#else
+  return -1;
+#endif
+}

@@ -85,8 +85,8 @@ x	y	x	y
 2	6	2	2
 explain select * from t1,t1 as t2 where t1.x=t2.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	x	NULL	NULL	NULL	6	
-1	SIMPLE	t2	eq_ref	y	y	4	test.t1.x	1	
+1	SIMPLE	t1	ALL	x	NULL	NULL	NULL	6	NULL
+1	SIMPLE	t2	eq_ref	y	y	4	test.t1.x	1	NULL
 drop table t1;
 create table t1 (a int) engine=heap;
 insert into t1 values(1);

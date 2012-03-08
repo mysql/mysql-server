@@ -1,0 +1,56 @@
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+#--disable_result_log 
+select * from performance_schema.events_statements_summary_by_digest
+  where digest like 'XXYYZZ%' limit 1;
+
+select * from performance_schema.events_statements_summary_by_digest
+  where digest='XXYYZZ';
+#--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.events_statements_summary_by_digest
+  set digest='XXYYZZ', count_star=1, sum_timer_wait=2, min_timer_wait=3,
+  avg_timer_wait=4, max_timer_wait=5;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_statements_summary_by_digest
+  set count_star=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_statements_summary_by_digest
+  set count_star=12 where digest like "XXYYZZ";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_statements_summary_by_digest
+  where count_star=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_statements_summary_by_digest;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_statements_summary_by_digest READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_statements_summary_by_digest WRITE;
+UNLOCK TABLES;
+

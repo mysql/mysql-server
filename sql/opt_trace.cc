@@ -878,7 +878,7 @@ void Buffer::prealloc()
 
 const char *Opt_trace_context::flag_names[]=
 {
-  "enabled", "end_marker", "one_line", "default", NullS
+  "enabled", "one_line", "default", NullS
 };
 
 const char *Opt_trace_context::feature_names[]=

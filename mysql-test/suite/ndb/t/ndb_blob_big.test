@@ -1,0 +1,75 @@
+--source include/have_ndb.inc
+
+# Some tests with larger blobs
+
+--echo Larger MaxAllowedPacket as this limits the size of Blob MySQLD can handle
+show variables like '%max_allowed_packet%';
+
+use test;
+
+create table t1 (a int primary key, b longtext) engine=ndb;
+
+delimiter %;
+
+create procedure heavy_insert(times int, bytes int)
+begin
+  set @x = 0;
+  repeat
+    insert into t1 values (1, repeat('B', bytes));
+    delete from t1 where a=1;
+    set @x = @x + 1;
+  until @x = times
+  end repeat;
+  insert into t1 values (1, repeat('B', bytes));
+end %
+
+create procedure heavy_read(times int)
+begin
+  set @x = 0;
+  repeat
+    select a, length(b) from t1 where a=1;
+    set @x = @x + 1;
+  until @x = times
+  end repeat;
+end %
+
+delimiter ;%
+
+--echo Set unlimited batch size for reads+writes
+
+set ndb_blob_read_batch_bytes = 0;
+set ndb_blob_write_batch_bytes = 0;
+
+--echo Now try a heavy insert - idea is to show SendBuffer overload on insert
+
+--error 0,1297,1297
+call heavy_insert(20, 5*1024*1024);
+# NOTE don't check for warnings...as it doesnt fail consistenly
+
+delete from t1;
+
+set ndb_blob_write_batch_bytes=100 * 1024;
+
+--echo Now heavy insert should succeed
+call heavy_insert(10, 5*1024*1024);
+
+--echo Now heavy read should fail
+
+--disable_result_log
+--error 0,1297,1297
+call heavy_read(100);
+--enable_result_log
+# NOTE don't check for warnings...as it doesnt fail consistenly
+
+set ndb_blob_read_batch_bytes=100 * 1024;
+
+--echo Now heavy read should succeed
+--disable_result_log
+call heavy_read(100);
+--enable_result_log
+
+set ndb_blob_write_batch_bytes=0;
+set ndb_blob_read_batch_bytes=0;
+drop procedure heavy_insert;
+drop procedure heavy_read;
+drop table t1;

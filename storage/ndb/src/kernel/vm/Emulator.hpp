@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef EMULATOR_H
 #define EMULATOR_H
@@ -37,16 +39,16 @@ extern class SignalLoggerManager globalSignalLoggers;
 #endif
 
 #ifndef NO_EMULATED_JAM
-  #define EMULATED_JAM_SIZE 1024
-  #define JAM_MASK ((EMULATED_JAM_SIZE * 4) - 1)
+/* EMULATED_JAM_SIZE must be a power of two, so JAM_MASK will work. */
+#define EMULATED_JAM_SIZE 1024
+#define JAM_MASK (EMULATED_JAM_SIZE - 1)
 
-  extern Uint8 theEmulatedJam[];
-  extern Uint32 theEmulatedJamIndex;
+struct EmulatedJamBuffer {
+  Uint32 theEmulatedJamIndex;
   // last block entry, used in dumpJam() if jam contains no block entries
-  extern Uint32 theEmulatedJamBlockNumber;
-#else
-  const Uint8 theEmulatedJam[]=0;
-  const Uint32 theEmulatedJamIndex=0;
+  Uint32 theEmulatedJamBlockNumber;
+  Uint32 theEmulatedJam[EMULATED_JAM_SIZE];
+};
 #endif
 
 struct EmulatorData {
@@ -77,32 +79,9 @@ struct EmulatorData {
 
 extern struct EmulatorData globalEmulatorData;
 
-enum NdbShutdownType {
-  NST_Normal,
-  NST_Watchdog,
-  NST_ErrorHandler,
-  NST_ErrorHandlerSignal,
-  NST_Restart,
-  NST_ErrorInsert,
-  NST_ErrorHandlerStartup
-};
-
-enum NdbRestartType {
-  NRT_Default               = 0,
-  NRT_NoStart_Restart       = 1, // -n
-  NRT_DoStart_Restart       = 2, //
-  NRT_NoStart_InitialStart  = 3, // -n -i
-  NRT_DoStart_InitialStart  = 4  // -i
-};
-
 /**
- * Shutdown/restart Ndb
- *
- * @param type        - Type of shutdown/restart
- * @param restartType - Type of restart (only valid if type == NST_Restart)
+ * Compute no of pages to be used as job-buffer
  */
-void 
-NdbShutdown(NdbShutdownType type, 
-	    NdbRestartType restartType = NRT_Default);
+Uint32 compute_jb_pages(struct EmulatorData* ed);
 
 #endif 

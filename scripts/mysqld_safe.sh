@@ -30,6 +30,7 @@ syslog_tag_mysqld=mysqld
 syslog_tag_mysqld_safe=mysqld_safe
 
 trap '' 1 2 3 15			# we shouldn't let anyone kill us
+trap '' 13                              # not even SIGPIPE
 
 umask 007
 

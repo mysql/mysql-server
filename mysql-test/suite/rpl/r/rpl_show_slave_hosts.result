@@ -12,7 +12,7 @@ START SLAVE IO_THREAD;
 include/wait_for_slave_io_to_start.inc
 SHOW SLAVE HOSTS;
 Server_id	Host	Port	Master_id	Slave_UUID
-3	slave2	DEFAULT_PORT	1	SLAVE_UUID
+3	slave2	SLAVE_PORT	1	SLAVE_UUID
 2		SLAVE_PORT	1	SLAVE_UUID
 include/stop_slave_io.inc
 SHOW SLAVE HOSTS;

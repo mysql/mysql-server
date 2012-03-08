@@ -247,6 +247,13 @@ static Sys_var_mybool Sys_pfs_consumer_thread_instrumentation(
        CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);
 
+static Sys_var_mybool Sys_pfs_consumer_statement_digest(
+       "performance_schema_consumer_statements_digest",
+       "Default startup value for the statements_digest consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_statement_digest_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       PFS_TRAILING_PROPERTIES);
+
 static Sys_var_ulong Sys_pfs_events_waits_history_long_size(
        "performance_schema_events_waits_history_long_size",
        "Number of rows in EVENTS_WAITS_HISTORY_LONG.",
@@ -478,6 +485,14 @@ static Sys_var_ulong Sys_pfs_events_statements_history_size(
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_statements_history_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
        DEFAULT(PFS_STATEMENTS_HISTORY_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_digest_size(
+       "performance_schema_digests_size",
+       "Size of the statement digest.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_digest_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 200),
+       DEFAULT(PFS_DIGEST_SIZE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -1920,14 +1935,22 @@ static Sys_var_flagset Sys_optimizer_switch(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(fix_optimizer_switch));
 
+static Sys_var_mybool Sys_var_end_markers_in_json(
+       "end_markers_in_json",
+       "In JSON output (\"EXPLAIN FORMAT=JSON\" and optimizer trace), "
+       "end_marker=on repeats the structure's key (if it has one) "
+       "near the closing bracket",
+       SESSION_VAR(end_markers_in_json), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
+
 #ifdef OPTIMIZER_TRACE
 
 static Sys_var_flagset Sys_optimizer_trace(
        "optimizer_trace",
        "Controls tracing of the Optimizer:"
        " optimizer_trace=option=val[,option=val...], where option is one of"
-       " {enabled, end_marker, one_line}"
-       " and val is one of {on, off, default}",
+       " {enabled, one_line}"
+       " and val is one of {on, default}",
        SESSION_VAR(optimizer_trace), CMD_LINE(REQUIRED_ARG),
        Opt_trace_context::flag_names,
        DEFAULT(Opt_trace_context::FLAG_DEFAULT));
@@ -2137,7 +2160,8 @@ static Sys_var_uint Sys_eq_range_index_dive_limit(
        "eq_range_index_dive_limit",
        "The optimizer will use existing index statistics instead of "
        "doing index dives for equality ranges if the number of equality "
-       "ranges for the index is larger than or equal to this number.",
+       "ranges for the index is larger than or equal to this number. "
+       "If set to 0, index dives are always used.",
        SESSION_VAR(eq_range_index_dive_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(10), BLOCK_SIZE(1));
 
@@ -2403,6 +2427,12 @@ static Sys_var_charptr Sys_server_uuid(
        "Uniquely identifies the server instance in the universe",
        READ_ONLY GLOBAL_VAR(server_uuid_ptr),
        NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
+
+static Sys_var_uint Sys_server_id_bits(
+       "server_id_bits",
+       "Set number of significant bits in server-id",
+       GLOBAL_VAR(opt_server_id_bits), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 32), DEFAULT(32), BLOCK_SIZE(1));
 
 static Sys_var_mybool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
@@ -2704,7 +2734,7 @@ static bool check_tx_isolation(sys_var *self, THD *thd, set_var *var)
   if (var->type == OPT_DEFAULT && thd->in_active_multi_stmt_transaction())
   {
     DBUG_ASSERT(thd->in_multi_stmt_transaction_mode());
-    my_error(ER_CANT_CHANGE_TX_ISOLATION, MYF(0));
+    my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
     return TRUE;
   }
   return FALSE;
@@ -2742,6 +2772,42 @@ static Sys_var_tx_isolation Sys_tx_isolation(
        SESSION_VAR(tx_isolation), NO_CMD_LINE,
        tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation));
+
+
+/**
+  Can't change the tx_read_only state if we are already in a
+  transaction.
+*/
+
+static bool check_tx_read_only(sys_var *self, THD *thd, set_var *var)
+{
+  if (var->type == OPT_DEFAULT && thd->in_active_multi_stmt_transaction())
+  {
+    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode());
+    my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
+    return true;
+  }
+  return false;
+}
+
+
+bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_SESSION && Sys_var_mybool::session_update(thd, var))
+    return true;
+  if (var->type == OPT_DEFAULT || !thd->in_active_multi_stmt_transaction())
+  {
+    // @see Sys_var_tx_isolation::session_update() above for the rules.
+    thd->tx_read_only= var->save_result.ulonglong_value;
+  }
+  return false;
+}
+
+
+static Sys_var_tx_read_only Sys_tx_read_only(
+       "tx_read_only", "Set default transaction access mode to read only.",
+       SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_read_only));
 
 static Sys_var_ulonglong Sys_tmp_table_size(
        "tmp_table_size",
@@ -3288,7 +3354,7 @@ static Sys_var_uint Sys_repl_report_port(
        "port or if you have a special tunnel from the master or other clients "
        "to the slave. If not sure, leave this option unset",
        READ_ONLY GLOBAL_VAR(report_port), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX), DEFAULT(MYSQL_PORT), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
 #endif
 
 static Sys_var_mybool Sys_keep_files_on_create(
@@ -3584,6 +3650,11 @@ static Sys_var_mybool Sys_relay_log_recovery(
        "starts re-fetching from the master right after the last transaction "
        "processed",
        GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_slave_allow_batching(
+       "slave_allow_batching", "Allow slave to batch requests",
+       GLOBAL_VAR(opt_slave_allow_batching),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_charptr Sys_slave_load_tmpdir(
        "slave_load_tmpdir", "The location where the slave should put "
