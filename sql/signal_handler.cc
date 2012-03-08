@@ -131,6 +131,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
     "Hope that's ok; if not, decrease some variables in the equation.\n\n");
 
 #if defined(HAVE_LINUXTHREADS)
+#define UNSAFE_DEFAULT_LINUX_THREADS 200
   if (sizeof(char*) == 4 && thread_count > UNSAFE_DEFAULT_LINUX_THREADS)
   {
     my_safe_printf_stderr(
