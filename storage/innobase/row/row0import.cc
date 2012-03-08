@@ -638,7 +638,6 @@ row_import_adjust_root_pages(
 
 	/* Adjust the root pages of the secondary indexes only. */
 	while ((index = dict_table_get_next_index(index)) != NULL) {
-		ulint		n_rows;
 		char		index_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
@@ -681,7 +680,7 @@ row_import_adjust_root_pages(
 				"Index %s contains %lu entries, should be "
 				"%lu, you should recreate this index.",
 				index_name,
-				(ulong) n_rows,
+				(ulong) importer.get_n_recs(),
 				(ulong) n_rows_in_table);
 
 			/* Do not bail out, so that the data
