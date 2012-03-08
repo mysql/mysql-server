@@ -810,7 +810,7 @@ innodb_get(
 	meta_cfg_info_t*	meta_info = &innodb_eng->meta_info;
 
 	if (meta_info->get_option == META_CACHE_OPT_DISABLE) {
-		return(ENGINE_SUCCESS);
+		return(ENGINE_KEY_ENOENT);
 	}
 
 	if (meta_info->get_option == META_CACHE_OPT_DEFAULT

@@ -228,7 +228,7 @@ Gossen
 UNINSTALL PLUGIN daemon_memcached;
 use innodb_memcache;
 DELETE FROM cache_policies;
-INSERT INTO cache_policies VALUES("cache_policy", "disabled",
+INSERT INTO cache_policies VALUES("cache_policy", "caching",
 "disabled", "disabled", "disabled");
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 use test;
@@ -248,7 +248,6 @@ C	Cottbus
 D	Darmstadt
 H	Hamburg
 Here the memcached results with G:
-Gossen
 SELECT c1,c2 FROM test.t1;
 c1	c2
 B	Berlin
@@ -262,7 +261,6 @@ C	Cottbus
 D	Darmstadt
 H	Hamburg
 Here the memcached results with G:
-Gossen
 UNINSTALL PLUGIN daemon_memcached;
 use innodb_memcache;
 DELETE FROM cache_policies;
