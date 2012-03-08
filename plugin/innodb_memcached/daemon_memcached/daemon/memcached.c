@@ -173,6 +173,8 @@ static time_t process_started;     /* when the process was started */
 
 /** file scope variables **/
 static conn *listen_conn = NULL;
+static int  udp_socket[100];
+static int  num_udp_socket;
 static struct event_base *main_base;
 static struct independent_stats *default_independent_stats;
 
@@ -5734,6 +5736,7 @@ static int server_socket(const char *interface,
     int error;
     int success = 0;
     int flags =1;
+    num_udp_socket = 0;
 
     hints.ai_socktype = IS_UDP(transport) ? SOCK_DGRAM : SOCK_STREAM;
 
@@ -5778,6 +5781,8 @@ static int server_socket(const char *interface,
         setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (void *)&flags, sizeof(flags));
         if (IS_UDP(transport)) {
             maximize_sndbuf(sfd);
+	    udp_socket[num_udp_socket] = sfd;
+	    num_udp_socket++;
         } else {
             error = setsockopt(sfd, SOL_SOCKET, SO_KEEPALIVE, (void *)&flags, sizeof(flags));
             if (error != 0) {
@@ -6637,6 +6642,18 @@ void shutdown_server(void) {
 #else
 static void shutdown_server(void) {
 #endif /* INNODB_MEMCACHED */
+#ifdef INNODB_MEMCACHED
+    int i;
+    /* Clean up connections */
+    while (listen_conn) {
+	conn_closing(listen_conn);
+	listen_conn = listen_conn->next;
+    }
+
+    for (i = 0; i < num_udp_socket; i++) {
+	safe_close(udp_socket[i]);
+    }
+#endif
     memcached_shutdown = 1;
 }
 
@@ -7821,11 +7838,6 @@ int main (int argc, char **argv) {
     }
 
 func_exit:
-    /* Clean up connections */
-    while (listen_conn) {
-	conn_closing(listen_conn);
-	listen_conn = listen_conn->next;
-    }
 
     if (settings.engine.v1)
       settings.engine.v1->destroy(settings.engine.v0, false);

@@ -1,9 +1,6 @@
 SET @tx_isolation= @@global.tx_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 UNINSTALL PLUGIN daemon_memcached;
-select sleep(5);
-sleep(5)
-0
 INSERT INTO cache_policies VALUES("cache_policy", "cache_only",
 "innodb_only", "innodb_only", "innodb_only");
 INSERT INTO config_options VALUES("separator", "|");
@@ -42,9 +39,6 @@ D	Darmstadt
 H	Hamburg
 Here the memcached results with D,H:
 UNINSTALL PLUGIN daemon_memcached;
-select sleep(5);
-sleep(5)
-0
 use innodb_memcache;
 DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
@@ -57,9 +51,6 @@ Berlin
 Hamburg
 Cottbus
 UNINSTALL PLUGIN daemon_memcached;
-select sleep(5);
-sleep(5)
-0
 use innodb_memcache;
 DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "cache_only",
@@ -78,9 +69,6 @@ H	Hamburg
 Here the memcached results with E:
 Essen
 UNINSTALL PLUGIN daemon_memcached;
-select sleep(5);
-sleep(5)
-0
 use innodb_memcache;
 DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
@@ -110,9 +98,6 @@ H	Hamburg
 Here the memcached results with G:
 Gossen
 UNINSTALL PLUGIN daemon_memcached;
-select sleep(5);
-sleep(5)
-0
 use innodb_memcache;
 DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
@@ -139,9 +124,6 @@ D	Darmstadt
 H	Hamburg
 Here the memcached results with E:
 UNINSTALL PLUGIN daemon_memcached;
-select sleep(5);
-sleep(5)
-0
 use innodb_memcache;
 DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
@@ -170,9 +152,6 @@ D	Darmstadt
 H	Hamburg
 Here the memcached results with G:
 UNINSTALL PLUGIN daemon_memcached;
-select sleep(5);
-sleep(5)
-0
 use innodb_memcache;
 DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "cache_only",
@@ -210,9 +189,6 @@ H	Hamburg
 Here the memcached results with G:
 Gossen
 UNINSTALL PLUGIN daemon_memcached;
-select sleep(5);
-sleep(5)
-0
 use innodb_memcache;
 DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
@@ -250,15 +226,17 @@ H	Hamburg
 Here the memcached results with G:
 Gossen
 UNINSTALL PLUGIN daemon_memcached;
-select sleep(5);
-sleep(5)
-0
 use innodb_memcache;
 DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "disabled",
 "disabled", "disabled", "disabled");
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 use test;
+delete from t1;
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 ----- Test all operations disabled -----
 add G|Gossen:
 Ok.
@@ -268,7 +246,6 @@ c1	c2
 B	Berlin
 C	Cottbus
 D	Darmstadt
-G	Gossen
 H	Hamburg
 Here the memcached results with G:
 Gossen
@@ -277,22 +254,16 @@ c1	c2
 B	Berlin
 C	Cottbus
 D	Darmstadt
-G	Gossen
 H	Hamburg
-Here the memcached results after flush_all:
-Gossen
 SELECT c1,c2 FROM test.t1;
 c1	c2
 B	Berlin
 C	Cottbus
 D	Darmstadt
-G	Gossen
 H	Hamburg
 Here the memcached results with G:
+Gossen
 UNINSTALL PLUGIN daemon_memcached;
-select sleep(5);
-sleep(5)
-0
 use innodb_memcache;
 DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("junk", "junk",
@@ -302,7 +273,7 @@ Warning	1265	Data truncated for column 'get_policy' at row 1
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 ----- Test with wrong policy name -----
 add G|Gossen:
-Error: fail to add.
+Ok.
 use test;
 SELECT c1,c2 FROM t1;
 c1	c2
