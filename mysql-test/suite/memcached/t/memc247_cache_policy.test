@@ -657,7 +657,7 @@ use innodb_memcache;
 
 DELETE FROM cache_policies;
 
-INSERT INTO cache_policies VALUES("cache_policy", "disabled",
+INSERT INTO cache_policies VALUES("cache_policy", "caching",
 				  "disabled", "disabled", "disabled");
 
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
