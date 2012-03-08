@@ -353,7 +353,7 @@ int hot_poll_fun(void *extra, float progress) {
         sprintf(context->write_status_msg, "The process has been killed, aborting hot optimize.");
         return ER_ABORTING_CONNECTION;
     }
-    sprintf(context->write_status_msg, "Optimization of index %u of %u about %.lf%% done", context->current_table, context->num_tables, progress*100);
+    sprintf(context->write_status_msg, "Optimization of index %u of %u about %.lf%% done", context->current_table + 1, context->num_tables, progress*100);
     thd_proc_info(context->thd, context->write_status_msg);
     return 0;
 }
