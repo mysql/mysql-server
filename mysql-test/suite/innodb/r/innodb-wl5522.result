@@ -155,7 +155,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=latin1
 FLUSH TABLES t1 WITH READ LOCK;
 Warnings:
-Warning	1235	InnoDB: Can't quiesce table 'test/t1' it is in the system tablespace
+Warning	1793	InnoDB: Can't quiesce table 'test/t1', it is in the system tablespace
 UNLOCK TABLES;
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = 1;
@@ -247,7 +247,7 @@ SELECT * FROM t1;
 ERROR HY000: Got error -1 from storage engine
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Column  precise type mismatch.
+ERROR HY000: InnoDB: Column c2 precise type mismatch.
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -430,7 +430,7 @@ SELECT * FROM t1;
 ERROR HY000: Got error -1 from storage engine
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Cannot find or open in the database directory the .ibd file of "test"."t1" : Data structure corruption
+ERROR HY000: InnoDB: Cannot open './test/t1.ibd' file of "test"."t1" : Data structure corruption
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -613,7 +613,7 @@ SELECT * FROM t1;
 ERROR HY000: Got error -1 from storage engine
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Cannot find or open in the database directory the .ibd file of "test"."t1" : Data structure corruption
+ERROR HY000: InnoDB: Cannot open './test/t1.ibd' file of "test"."t1" : Data structure corruption
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -784,7 +784,7 @@ SELECT * FROM t1;
 ERROR HY000: Got error -1 from storage engine
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Cannot find or open in the database directory the .ibd file of "test"."t1" : Data structure corruption
+ERROR HY000: InnoDB: Cannot open './test/t1.ibd' file of "test"."t1" : Data structure corruption
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -796,7 +796,7 @@ SELECT * FROM t1;
 ERROR HY000: Got error -1 from storage engine
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Cannot find or open in the database directory the .ibd file of "test"."t1" : Data structure corruption
+ERROR HY000: InnoDB: Cannot open './test/t1.ibd' file of "test"."t1" : Data structure corruption
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
