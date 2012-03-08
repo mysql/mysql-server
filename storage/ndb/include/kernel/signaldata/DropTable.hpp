@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005-2007 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,43 +13,47 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DROP_TABLE_HPP
 #define DROP_TABLE_HPP
 
 #include "SignalData.hpp"
 
-class DropTableReq {
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Dbdict;
+struct DropTableReq {
+  STATIC_CONST( SignalLength = 7 );
+
+  union { Uint32 clientRef, senderRef; };
+  union { Uint32 clientData, senderData; };
+  Uint32 requestInfo;
+  Uint32 transId;
+  Uint32 transKey;
+  Uint32 tableId;
+  Uint32 tableVersion;
+};
+
+struct DropTableConf {
+  STATIC_CONST( SignalLength = 5 );
   
-public:
-  STATIC_CONST( SignalLength = 4 );
-public:
-  Uint32 senderData; 
   Uint32 senderRef;
+  union { Uint32 clientData, senderData; };
+  Uint32 transId;
   Uint32 tableId; 
   Uint32 tableVersion;
 };
 
-class DropTableRef {
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Dbdict;
+struct DropTableRef {
+  STATIC_CONST( SignalLength = 9 );
   
-public:
-  STATIC_CONST( SignalLength = 6 );
-  
-public:
-  Uint32 senderData; 
   Uint32 senderRef;
+  union { Uint32 clientData, senderData; };
+  Uint32 transId;
   Uint32 tableId; 
   Uint32 tableVersion;
   Uint32 errorCode; 
+  Uint32 errorLine;
+  Uint32 errorNodeId;
   Uint32 masterNodeId;
   
   enum ErrorCode {
@@ -59,24 +65,9 @@ public:
     DropInProgress      = 283,
     NoDropTableRecordAvailable = 1229,
     BackupInProgress = 761,
-    SingleUser = 299
+    SingleUser = 299,
+    ActiveSchemaTrans = 785
   };
-};
-
-class DropTableConf {
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Dbdict;
-  
-public:
-  STATIC_CONST( SignalLength = 4 );
-  
-public:
-  Uint32 senderData; 
-  Uint32 senderRef;
-  Uint32 tableId; 
-  Uint32 tableVersion;
 };
 
 #endif

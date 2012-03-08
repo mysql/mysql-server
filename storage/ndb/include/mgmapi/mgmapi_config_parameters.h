@@ -1,4 +1,5 @@
-/* Copyright (C) 2004-2006 MySQL AB
+/*
+   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef MGMAPI_CONFIG_PARAMTERS_H
 #define MGMAPI_CONFIG_PARAMTERS_H
@@ -26,6 +28,7 @@
 #define CFG_NODE_HOST                 5
 #define CFG_NODE_SYSTEM               6
 #define CFG_NODE_DATADIR              7
+#define CFG_TOTAL_SEND_BUFFER_MEMORY  9
 
 /**
  * DB config parameters
@@ -58,6 +61,7 @@
 #define CFG_DB_LCP_INTERVAL           120
 #define CFG_DB_GCP_INTERVAL           121
 #define CFG_DB_ARBIT_TIMEOUT          122
+#define CFG_DB_ARBIT_METHOD           142
 
 #define CFG_DB_WATCHDOG_INTERVAL      123
 #define CFG_DB_STOP_ON_ERROR          124
@@ -115,16 +119,87 @@
 #define CFG_DB_CHECKPOINT_SPEED_SR    165
 
 #define CFG_DB_MEMREPORT_FREQUENCY    166
+#define CFG_DB_BACKUP_REPORT_FREQUENCY    167
 
 #define CFG_DB_O_DIRECT               168
 
 #define CFG_DB_MAX_ALLOCATE           169
+#define CFG_DB_MICRO_GCP_INTERVAL     170 /* micro gcp */
+#define CFG_DB_MICRO_GCP_TIMEOUT      171
+
+#define CFG_DB_COMPRESSED_BACKUP      172
+#define CFG_DB_COMPRESSED_LCP         173
+
+#define CFG_DB_SCHED_EXEC_TIME        174
+#define CFG_DB_SCHED_SPIN_TIME        175
+#define CFG_DB_REALTIME_SCHEDULER     176
+#define CFG_DB_EXECUTE_LOCK_CPU       177
+#define CFG_DB_MAINT_LOCK_CPU         178
+
+#define CFG_DB_SUBSCRIPTIONS          179
+#define CFG_DB_SUBSCRIBERS            180
+#define CFG_DB_SUB_OPERATIONS         181
+#define CFG_DB_MAX_BUFFERED_EPOCHS    182
+#define CFG_DB_SUMA_HANDOVER_TIMEOUT  183
+
+#define CFG_DB_STARTUP_REPORT_FREQUENCY 184
+
+#define CFG_DB_NODEGROUP              185
+#define CFG_DB_MT_THREADS             186
+#define CFG_NDBMT_LQH_THREADS         187
+#define CFG_NDBMT_LQH_WORKERS         188
+
+#define CFG_DB_INIT_REDO              189
+#define CFG_DB_THREAD_POOL            190
+
+#define CFG_NDBMT_CLASSIC             191
+
+#define CFG_DB_DD_FILESYSTEM_PATH     193
+#define CFG_DB_DD_DATAFILE_PATH       194
+#define CFG_DB_DD_UNDOFILE_PATH       195
+#define CFG_DB_DD_LOGFILEGROUP_SPEC   196
+#define CFG_DB_DD_TABLEPACE_SPEC      197
 
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
 
+#define CFG_DB_LCP_TRY_LOCK_TIMEOUT   605
+#define CFG_DB_MT_BUILD_INDEX         606
+#define CFG_DB_HB_ORDER               607
+
+#define CFG_DB_DICT_TRACE             608
+
+#define CFG_DB_MAX_START_FAIL         609 /* For StopOnError=0 */
+#define CFG_DB_START_FAIL_DELAY_SECS  610 /* For StopOnError=0 */
+
+#define CFG_DB_REDO_OVERCOMMIT_LIMIT  611
+#define CFG_DB_REDO_OVERCOMMIT_COUNTER 612
+
+#define CFG_DB_EVENTLOG_BUFFER_SIZE   613
+#define CFG_DB_NUMA                   614
+#define CFG_DB_LATE_ALLOC             615
+
+#define CFG_DB_2PASS_INR              616
+#define CFG_DB_PARALLEL_SCANS_PER_FRAG 617
+
+#define CFG_DB_CONNECT_CHECK_DELAY    618
+
+#define CFG_DB_START_NO_NODEGROUP_TIMEOUT 619
+
+#define CFG_DB_INDEX_STAT_AUTO_CREATE    620
+#define CFG_DB_INDEX_STAT_AUTO_UPDATE    621
+#define CFG_DB_INDEX_STAT_SAVE_SIZE      622
+#define CFG_DB_INDEX_STAT_SAVE_SCALE     623
+#define CFG_DB_INDEX_STAT_TRIGGER_PCT    624
+#define CFG_DB_INDEX_STAT_TRIGGER_SCALE  625
+#define CFG_DB_INDEX_STAT_UPDATE_DELAY   626
+
+#define CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION 627
+#define CFG_DB_MT_THREAD_CONFIG          628
+
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
+#define CFG_RESERVED_SEND_BUFFER_MEMORY 202
 
 #define CFG_MIN_LOGLEVEL          250
 #define CFG_LOGLEVEL_STARTUP      250
@@ -139,7 +214,8 @@
 #define CFG_LOGLEVEL_CONGESTION   259
 #define CFG_LOGLEVEL_DEBUG        260
 #define CFG_LOGLEVEL_BACKUP       261
-#define CFG_MAX_LOGLEVEL          261
+#define CFG_LOGLEVEL_SCHEMA       262
+#define CFG_MAX_LOGLEVEL          262
 
 #define CFG_MGM_PORT                  300
 
@@ -154,11 +230,16 @@
 #define CFG_CONNECTION_HOSTNAME_2     408
 #define CFG_CONNECTION_GROUP          409
 #define CFG_CONNECTION_NODE_ID_SERVER 410
+#define CFG_CONNECTION_OVERLOAD       411
 
 #define CFG_TCP_SERVER                452
 #define CFG_TCP_SEND_BUFFER_SIZE      454
 #define CFG_TCP_RECEIVE_BUFFER_SIZE   455
 #define CFG_TCP_PROXY                 456
+#define CFG_TCP_RCV_BUF_SIZE          457
+#define CFG_TCP_SND_BUF_SIZE          458
+#define CFG_TCP_MAXSEG_SIZE           459
+#define CFG_TCP_BIND_INADDR_ANY       460
 
 #define CFG_SHM_SEND_SIGNAL_ID        500
 #define CFG_SHM_CHECKSUM              501
@@ -173,9 +254,9 @@
 #define CFG_SCI_SEND_LIMIT            554
 #define CFG_SCI_BUFFER_MEM            555
 
-#define CFG_602                       602 // Removed: was OSE
-#define CFG_603                       603 // Removed: was OSE
-#define CFG_604                       604 // Removed: was OSE
+#define CFG_602                       602 /* Removed: was OSE */
+#define CFG_603                       603 /* Removed: was OSE */
+#define CFG_604                       604 /* Removed: was OSE */
 
 /**
  * API Config variables
@@ -184,6 +265,9 @@
 #define CFG_MAX_SCAN_BATCH_SIZE       800
 #define CFG_BATCH_BYTE_SIZE           801
 #define CFG_BATCH_SIZE                802
+#define CFG_AUTO_RECONNECT            803
+#define CFG_HB_THREAD_PRIO            804
+#define CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION 805
 
 /**
  * Internal
@@ -202,6 +286,13 @@
 #define CONNECTION_TYPE_TCP           0
 #define CONNECTION_TYPE_SHM           1
 #define CONNECTION_TYPE_SCI           2
-#define CONNECTION_TYPE_OSE           3 // Removed.
+#define CONNECTION_TYPE_OSE           3 /* Removed. */
+
+#define ARBIT_METHOD_DISABLED         0
+#define ARBIT_METHOD_DEFAULT          1
+#define ARBIT_METHOD_WAITEXTERNAL     2
+
+#define OPERATION_REDO_PROBLEM_ACTION_ABORT 0
+#define OPERATION_REDO_PROBLEM_ACTION_QUEUE 1
 
 #endif

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,24 +12,28 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "LocalConfig.hpp"
 #include <NdbEnv.h>
 #include <NdbConfig.h>
 #include <NdbAutoPtr.hpp>
-#include <NdbMem.h>
+#include <util/NdbOut.hpp>
+
+#define _STR_VALUE(x) #x
+#define STR_VALUE(x) _STR_VALUE(x)
 
 LocalConfig::LocalConfig(){
   error_line = 0; error_msg[0] = 0;
   _ownNodeId= 0;
+  bind_address_port= 0;
 }
 
 bool
 LocalConfig::init(const char *connectString,
 		  const char *fileName)
 {
-  DBUG_ENTER("LocalConfig::init");
   /** 
    * Escalation:
    *  1. Check connectString
@@ -45,19 +50,19 @@ LocalConfig::init(const char *connectString,
   if(connectString != 0 && connectString[0] != 0){
     if(readConnectString(connectString, "connect string")){
       if (ids.size())
-	DBUG_RETURN(true);
+	return true;
       // only nodeid given, continue to find hosts
     } else
-      DBUG_RETURN(false);
+      return false;
   }
 
   //2. Check given filename
   if (fileName && strlen(fileName) > 0) {
     bool fopenError;
     if(readFile(fileName, fopenError)){
-      DBUG_RETURN(true);
+      return true;
     }
-    DBUG_RETURN(false);
+    return false;
   }
 
   //3. Check environment variable
@@ -65,9 +70,9 @@ LocalConfig::init(const char *connectString,
   if(NdbEnv_GetEnv("NDB_CONNECTSTRING", buf, sizeof(buf)) &&
      strlen(buf) != 0){
     if(readConnectString(buf, "NDB_CONNECTSTRING")){
-      DBUG_RETURN(true);
+      return true;
     }
-    DBUG_RETURN(false);
+    return false;
   }
   
   //4. Check Ndb.cfg in NDB_HOME
@@ -76,9 +81,9 @@ LocalConfig::init(const char *connectString,
     char *buf2= NdbConfig_NdbCfgName(1 /*true*/);
     NdbAutoPtr<char> tmp_aptr(buf2);
     if(readFile(buf2, fopenError))
-      DBUG_RETURN(true);
+      return true;
     if (!fopenError)
-      DBUG_RETURN(false);
+      return false;
   }
 
   //5. Check Ndb.cfg in cwd
@@ -87,22 +92,21 @@ LocalConfig::init(const char *connectString,
     char *buf2= NdbConfig_NdbCfgName(0 /*false*/);
     NdbAutoPtr<char> tmp_aptr(buf2);
     if(readFile(buf2, fopenError))
-      DBUG_RETURN(true);
+      return true;
     if (!fopenError)
-      DBUG_RETURN(false);
+      return false;
   }
 
-  //7. Check
+  //7. Use default connect string
   {
-    char buf2[256];
-    BaseString::snprintf(buf2, sizeof(buf2), "host=localhost:%s", NDB_PORT);
-    if(readConnectString(buf2, "default connect string"))
-      DBUG_RETURN(true);
+    if(readConnectString("host=localhost:" STR_VALUE(NDB_PORT),
+                         "default connect string"))
+      return true;
   }
 
   setError(0, "");
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 LocalConfig::~LocalConfig(){
@@ -153,6 +157,11 @@ const char *hostNameTokens[] = {
   0
 };
 
+const char *bindAddressTokens[] = {
+  "bind-address=%[^:]:%i",
+  0
+};
+
 const char *fileNameTokens[] = {
   "file://%s",
   "file=%s",
@@ -179,6 +188,10 @@ LocalConfig::parseHostName(const char * buf){
 	mgmtSrvrId.type = MgmId_TCP;
 	mgmtSrvrId.name.assign(tempString);
 	mgmtSrvrId.port = port;
+        /* assign default bind_address if available */
+        if (bind_address.length())
+          mgmtSrvrId.bind_address.assign(bind_address);
+	mgmtSrvrId.bind_address_port = bind_address_port;
 	ids.push_back(mgmtSrvrId);
 	return true;
       }
@@ -186,7 +199,43 @@ LocalConfig::parseHostName(const char * buf){
     if (buf == tempString2)
       break;
     // try to add default port to see if it works
-    snprintf(tempString2, sizeof(tempString2),"%s:%s", buf, NDB_PORT);
+    BaseString::snprintf(tempString2, sizeof(tempString2),
+                         "%s:%d", buf, NDB_PORT);
+    buf= tempString2;
+  } while(1);
+  return false;
+}
+
+bool
+LocalConfig::parseBindAddress(const char * buf)
+{
+  char tempString[1024];
+  char tempString2[1024];
+  int port;
+  do
+  {
+    for(int i = 0; bindAddressTokens[i] != 0; i++)
+    {
+      if (sscanf(buf, bindAddressTokens[i], tempString, &port) == 2)
+      {
+        if (ids.size() == 0)
+        {
+          /* assign default bind_address */
+          bind_address.assign(tempString);
+          bind_address_port = port;
+          return true;
+        }
+        /* override bind_address on latest mgmd */
+        MgmtSrvrId &mgmtSrvrId= ids[ids.size()-1];
+	mgmtSrvrId.bind_address.assign(tempString);
+	mgmtSrvrId.bind_address_port = port;
+	return true;
+      }
+    }
+    if (buf == tempString2)
+      break;
+    // try to add port 0 to see if it works
+    BaseString::snprintf(tempString2, sizeof(tempString2),"%s:0", buf);
     buf= tempString2;
   } while(1);
   return false;
@@ -222,13 +271,16 @@ LocalConfig::parseString(const char * connectString, BaseString &err){
 	continue;
     if (parseHostName(tok))
       continue;
+    if (parseBindAddress(tok))
+      continue;
     if (parseFileName(tok))
       continue;
     
     err.assfmt("Unexpected entry: \"%s\"", tok);
     return false;
   }
-
+  bind_address_port= 0;
+  bind_address.assign("");
   return true;
 }
 
@@ -286,7 +338,7 @@ LocalConfig::readConnectString(const char * connectString,
   bool return_value = parseString(connectString, err);
   if (!return_value) {
     BaseString err2;
-    err2.assfmt("Reading %d \"%s\": %s", info, connectString, err.c_str());
+    err2.assfmt("Reading %s \"%s\": %s", info, connectString, err.c_str());
     setError(0,err2.c_str());
   }
   return return_value;
@@ -296,6 +348,15 @@ char *
 LocalConfig::makeConnectString(char *buf, int sz)
 {
   int p= BaseString::snprintf(buf,sz,"nodeid=%d", _ownNodeId);
+  if (p < sz && bind_address.length())
+  {
+    int new_p= p+BaseString::snprintf(buf+p,sz-p,",bind-address=%s:%d",
+                                      bind_address.c_str(), bind_address_port);
+    if (new_p < sz)
+      p= new_p;
+    else 
+      buf[p]= 0;
+  }
   if (p < sz)
     for (unsigned i = 0; i < ids.size(); i++)
     {
@@ -309,6 +370,18 @@ LocalConfig::makeConnectString(char *buf, int sz)
       {
 	buf[p]= 0;
 	break;
+      }
+      if (!bind_address.length() && ids[i].bind_address.length())
+      {
+        new_p= p+BaseString::snprintf(buf+p,sz-p,",bind-address=%s:%d",
+                                      ids[i].bind_address.c_str(), ids[i].bind_address_port);
+        if (new_p < sz)
+          p= new_p;
+        else 
+        {
+            buf[p]= 0;
+            break;
+        }
       }
     }
   buf[sz-1]=0;

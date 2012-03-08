@@ -1,35 +1,17 @@
-# Copyright (C) 2004, 2005 MySQL AB
-# 
+# Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
-#
-# INDEX
-#
-max-time: 1500
-cmd: testIndex
-args: -n CreateAll T1 T6 T13
-
-#-m 7200 1: testIndex -n InsertDeleteGentle T7
-max-time: 3600
-cmd: testIndex
-args: -n InsertDelete T1 T10 
-
-#-m 3600 1: testIndex -n CreateLoadDropGentle T7
-max-time: 3600
-cmd: testIndex
-args: -n CreateLoadDrop T1 T10 
-
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #
 # BACKUP
 #
@@ -37,12 +19,33 @@ max-time: 1000
 cmd: atrt-testBackup
 args: -n BackupBank T6 
 
-#
-# MGMAPI AND MGSRV
-#
-max-time: 1800
-cmd: testMgm
-args: -n SingleUserMode T1 
+max-time: 500
+cmd: testNdbApi
+args: -n MaxOperations T1 T6 T13 
+
+max-time: 1500
+cmd: testDict
+args: -n CreateTableWhenDbIsFull T6 
+
+max-time: 1500
+cmd: testDict
+args: -n CreateMaxTables T6 
+
+max-time: 500
+cmd: testIndex
+args: -n Bug25059 -r 3000 T1
+
+max-time: 1000
+cmd: testSRBank
+args: -n SR -l 300 -r 15 T1
+
+max-time: 1000
+cmd: testSRBank
+args: -n NR -l 300 -r 15 T1
+
+max-time: 1000
+cmd: testSRBank
+args: -n Mix -l 300 -r 15 T1
 
 #
 #
@@ -66,27 +69,11 @@ args: -n SR_FULLDB T6
 #
 max-time: 2500
 cmd: testNodeRestart
-args: -n NoLoad T6
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n MixedPkRead T6 T8 T13 
-
-max-time: 2500
-cmd: testNodeRestart
 args: -l 1 -n MixedPkReadPkUpdate 
 
 max-time: 2500
 cmd: testNodeRestart
 args: -l 1 -n MixedReadUpdateScan 
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n CommittedRead T1
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n LateCommit T1
 
 max-time: 2500
 cmd: testNodeRestart
@@ -96,25 +83,9 @@ max-time: 2500
 cmd: testNodeRestart
 args: -n FullDb T6 T13 
 
-max-time: 2500
-cmd: testNodeRestart
-args: -n RestartRandomNode T6 T13 
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n RestartRandomNodeError T6 T13 
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n RestartRandomNodeInitial T6 T13 
-
 max-time: 3600
 cmd: testNodeRestart
 args: -l 1 -n RestartNFDuringNR T6 T13 
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n RestartMasterNodeError T6 T8 T13 
 
 max-time: 3600
 cmd: testNodeRestart
@@ -122,41 +93,17 @@ args: -n RestartNodeDuringLCP T6
 
 max-time: 2500
 cmd: testNodeRestart
-args: -n TwoNodeFailure T6 T8 T13 
+args: -n FiftyPercentStopAndWait T6 T13 
 
-max-time: 2500
+max-time: 500
 cmd: testNodeRestart
-args: -n TwoMasterNodeFailure T6 T8 T13 
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n FiftyPercentFail T6 T8 T13 
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n RestartAllNodes T6 T8 T13 
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n RestartAllNodesAbort T6 T8 T13 
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n RestartAllNodesError9999 T6 T8 T13 
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n FiftyPercentStopAndWait T6 T8 T13 
+args: -n Bug16772 T1
 
 #max-time: 500
 #cmd: testNodeRestart
 #args: -n StopOnError T1 
 #
 #
-max-time: 2500
-cmd: testIndex
-args: -n NFNR1 T6 T13 
-
 max-time: 2500
 cmd: testIndex
 args: -n NFNR2 T6 T13 
@@ -167,19 +114,7 @@ args: -n NFNR3 T6 T13
 
 max-time: 2500
 cmd: testIndex
-args: -n BuildDuring T6 
-
-max-time: 2500
-cmd: testIndex
 args: -l 2 -n SR1 T6 T13 
-
-max-time: 2500
-cmd: testIndex
-args: -n NFNR1_O T6 T13 
-
-max-time: 2500
-cmd: testIndex
-args: -n NFNR2_O T6 T13 
 
 max-time: 2500
 cmd: testIndex
@@ -187,73 +122,10 @@ args: -n NFNR3_O T6 T13
 
 max-time: 2500
 cmd: testIndex
-args: -n BuildDuring_O T6 
-
-max-time: 2500
-cmd: testIndex
 args: -l 2 -n SR1_O T6 T13 
 
-max-time: 500
-cmd: testIndex
-args: -n MixedTransaction T1 
-
-max-time: 2500
+# dict trans
+max-time: 1800
 cmd: testDict
-args: -n NF1 T1 T6 T13 
-
-#
-max-time: 1500
-cmd: testSystemRestart
-args: -l 1 -n SR6 T1 
-
-max-time: 1500
-cmd: testSystemRestart
-args: -l 1 -n SR7 T1 
-
-max-time: 1500
-cmd: testSystemRestart
-args: -l 1 -n SR8 T1 
-
-max-time: 1500
-cmd: testSystemRestart
-args: -l 1 -n SR9 T1 
-
-#
-max-time: 3600
-cmd: test_event
-args: -n EventOperationApplier -l 2
-
-#
-max-time: 3600
-cmd: test_event
-args: -n EventOperationApplier_NR -l 2
-
-#
-max-time: 3600
-cmd: test_event
-args: -n MergeEventOperationApplier_NR -l 2
-
-#
-max-time: 2500
-cmd: test_event
-args: -n Multi
-
-#
-max-time: 3600
-cmd: test_event
-args: -n CreateDropNR -l 1
-
-#
-max-time: 600
-cmd: test_event_merge
-args: --no-implicit-nulls --separate-events --maxops 10000
-
-#
-max-time: 600
-cmd: test_event_merge
-args: --no-implicit-nulls --no-multiops
-
-max-time: 600
-cmd: testBasic
-args: -n PkRead T1
+args: -n SchemaTrans -l 1
 

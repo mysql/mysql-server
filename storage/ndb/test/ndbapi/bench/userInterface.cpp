@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2005, 2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /***************************************************************
 * I N C L U D E D   F I L E S                                  *
@@ -45,8 +48,6 @@
 ***************************************************************/
 
 extern int localDbPrepare(UserHandle *uh);
-
-static int dbCreate(UserHandle *uh);
 
 /***************************************************************
 * L O C A L   D A T A                                          *
@@ -106,7 +107,7 @@ double userGetTimeSync(void)
 int 
 userDbCommit(UserHandle *uh){
   if(uh->pCurrTrans != 0){
-    int check = uh->pCurrTrans->execute( Commit ); 
+    /* int check = */ uh->pCurrTrans->execute( Commit ); 
     NdbError err = uh->pCurrTrans->getNdbError();
     uh->pNDB->closeTransaction(uh->pCurrTrans);
     uh->pCurrTrans = 0;
@@ -286,7 +287,7 @@ create_table_group(Ndb * pNdb){
     error_handler("createAttribute (group id)", 
 		  MySchemaTransaction->getNdbError(), 0);
 
-  check = MySchemaOp->createAttribute( GROUP_NAME,
+  check = MySchemaOp->createAttribute( NDB_GROUP_NAME,
 				       NoKey,
 				       sizeof(char) << 3,
 				       GROUP_NAME_LENGTH,
@@ -560,7 +561,7 @@ static int dbCreate(Ndb * pNdb)
 #endif
 
 UserHandle*
-userDbConnect(uint32 createDb, char *dbName)
+userDbConnect(uint32 createDb, const char *dbName)
 {
   Ndb_cluster_connection *con= new Ndb_cluster_connection();
   if(con->connect(12, 5, 1) != 0)
@@ -657,8 +658,10 @@ int userDbInsertSubscriber(UserHandle      *uh,
   int check;
   uint32 activeSessions = 0;
   Location l = 0;
-  ChangedBy changedBy; snprintf(changedBy, sizeof(changedBy), "ChangedBy");
-  ChangedTime changedTime; snprintf(changedTime, sizeof(changedTime), "ChangedTime"); 
+  ChangedBy changedBy;
+  ChangedTime changedTime;
+  BaseString::snprintf(changedBy, sizeof(changedBy), "ChangedBy");
+  BaseString::snprintf(changedTime, sizeof(changedTime), "ChangedTime");
 
   NdbConnection * MyTransaction = 0;
   if(uh->pCurrTrans != 0){
@@ -726,7 +729,7 @@ int userDbInsertGroup(UserHandle *uh,
   check = MyOperation->equal(GROUP_ID, (char*)&groupId);
   CHECK_MINUS_ONE(check, "equal", MyTransaction);  
   
-  check = MyOperation->setValue(GROUP_NAME, name);
+  check = MyOperation->setValue(NDB_GROUP_NAME, name);
   CHECK_MINUS_ONE(check, "setValue name", MyTransaction);  
 
   check = MyOperation->setValue(GROUP_ALLOW_READ, (char*)&allowRead);

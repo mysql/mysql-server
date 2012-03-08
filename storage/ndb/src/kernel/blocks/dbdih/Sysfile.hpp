@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006, 2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef SYSFILE_HPP
 #define SYSFILE_HPP
@@ -98,12 +101,11 @@ public:
     ,NS_ActiveMissed_1         = 1
     ,NS_ActiveMissed_2         = 2
     ,NS_ActiveMissed_3         = 3
-    ,NS_HotSpare               = 4
     ,NS_NotActive_NotTakenOver = 5
     ,NS_TakeOver               = 6
     ,NS_NotActive_TakenOver    = 7
     ,NS_NotDefined             = 8
-    ,NS_Standby                = 9
+    ,NS_Configured             = 9
   };
   STATIC_CONST( NODE_STATUS_SIZE = NODE_ARRAY_SIZE(MAX_NDB_NODES, 4) );
   Uint32 nodeStatus[NODE_STATUS_SIZE];
