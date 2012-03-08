@@ -1,0 +1,1 @@
+!include suite/ndb_rpl/t/ndb_rpl_multi_binlog_update.cnf

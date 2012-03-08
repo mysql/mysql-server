@@ -80,8 +80,7 @@ CREATE VIEW v1 AS SELECT id FROM t2;
 CREATE TABLE IF NOT EXISTS v1(a int, b int) SELECT id, id FROM t1;
 Warnings:
 Note	1050	Table 'v1' already exists
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 SHOW CREATE TABLE v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t2`.`id` AS `id` from `t2`	latin1	latin1_swedish_ci
@@ -98,8 +97,7 @@ CREATE TEMPORARY TABLE tt1 AS SELECT id FROM t2;
 CREATE TEMPORARY TABLE IF NOT EXISTS tt1(a int, b int) SELECT id, id FROM t1;
 Warnings:
 Note	1050	Table 'tt1' already exists
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 SELECT * FROM t2;
 id
 2
@@ -116,8 +114,7 @@ CREATE VIEW v1 AS SELECT 1 as a;
 CREATE TABLE IF NOT EXISTS v1 SELECT 2 as a;
 Warnings:
 Note	1050	Table 'v1' already exists
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 DROP VIEW v1;
 DROP TABLE t1, t2;
 #

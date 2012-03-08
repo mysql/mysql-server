@@ -26,13 +26,18 @@
 #
 # [--let $rpl_server_count= 7]
 # --let $rpl_topology= 1->2->3->1->4, 2->5, 6->7
+# [--let $use_gtids= 1]
 # [--let $rpl_skip_change_master= 1]
 # [--let $rpl_master_log_file= 1:master-bin.000001,3:master-bin.000003]
 # [--let $rpl_master_log_pos= 1:4711,3:107]
 # [--let $rpl_debug= 1]
+# [--let $rpl_unconditional_change_master= 1]
 # --source include/rpl_change_topology.inc
 #
 # Parameters:
+#   $use_gtids
+#     Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER.
+#
 #   $rpl_master_log_file
 #     By default, CHANGE MASTER is executed with MASTER_LOG_FILE set
 #     to the name of the last binlog file on the master (retrieved by
@@ -58,6 +63,16 @@
 #     (see above).  For example, to specify that server_3 should start
 #     replicate from position 4711 of its master, do:
 #       --let $rpl_master_log_pos= 3:4711
+#
+#   $rpl_unconditional_change_master
+#     This script remembers the topology set by previous invokations
+#     of either rpl_init.inc or of this script.  By default, this
+#     script only executes CHANGE MASTER on servers that actually have
+#     a new master.  If $rpl_unconditiona_change_master is set, then
+#     this script unconditionally executes CHANGE MASTER on all
+#     servers that have a master.  This is useful either if you have
+#     changed the topology without invoking the scripts or if you want
+#     to set some other parameters of CHANGE MASTER.
 #
 #   $rpl_server_count, $rpl_topology, $rpl_debug, $rpl_skip_change_master
 #     See include/rpl_init.inc
@@ -184,48 +199,77 @@ if (!$rpl_skip_change_master)
   --let $_rpl_server= $rpl_server_count
   while ($_rpl_server)
   {
-    # The following statement evaluates to:
-    #  0, if server_$_rpl_server has the same master as before.
-    #  The master's server, if server_$_rpl_server is a slave.
-    #  The empty string, if server_$_rpl_server is not a slave.
-    --let $_rpl_master= `SELECT TRIM(IFNULL(NULLIF(SUBSTRING('$rpl_master_list', 1 + ($_rpl_server - 1) * $rpl_server_count_length, $rpl_server_count_length), SUBSTRING('$_rpl_old_master_list', 1 + ($_rpl_server - 1) * $rpl_server_count_length, $rpl_server_count_length)), 0))`
+    if (!$rpl_unconditional_change_master)
+    {
+      # The following statement evaluates to:
+      #  - The master server, if we need to execute CHANGE MASTER on
+      #    server_$_rpl_server.
+      #  - The empty string otherwise; i.e., if server_$_rpl_server is
+      #    not a slave or if server_$_rpl_server has the same master
+      #    as before.
+      let $_rpl_master=
+       `SELECT TRIM(IFNULL(NULLIF(
+          SUBSTRING('$rpl_master_list',
+                    1 + ($_rpl_server - 1) * $rpl_server_count_length,
+                    $rpl_server_count_length),
+          SUBSTRING('$_rpl_old_master_list',
+                    1 + ($_rpl_server - 1) * $rpl_server_count_length,
+                    $rpl_server_count_length)
+                             ), ''))`;
+    }
+    if ($rpl_unconditional_change_master)
+    {
+      # The following statement evaluates to the master server, or to
+      # the empty string if the server_$_rpl_server is not a slave.
+      let $_rpl_master= `SELECT TRIM(
+          SUBSTRING('$rpl_master_list',
+                    1 + ($_rpl_server - 1) * $rpl_server_count_length,
+                    $rpl_server_count_length)
+                                     )`;
+    }
     if ($rpl_debug)
     {
       --echo \$_rpl_server='$_rpl_server' \$_rpl_master='$_rpl_master'
     }
-    if ($_rpl_master)
+    if ($_rpl_master != '')
     {
       # Get port number
       --let $_rpl_port= \$SERVER_MYPORT_$_rpl_master
-      # Get MASTER_LOG_FILE
-      --let $_rpl_master_log_file_index= `SELECT LOCATE('$_rpl_server:', '$rpl_master_log_file')`
-      if ($_rpl_master_log_file_index)
+      if ($use_gtids)
       {
-        # Get text from after ':' and before ',', starting at
-        # $_rpl_master_log_file
-        --let $_rpl_master_log_file= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING('$rpl_master_log_file', $_rpl_master_log_file_index), ',', 1), ':', -1)`
-      }
-      if (!$_rpl_master_log_file_index)
-      {
-        --let $rpl_connection_name= server_$_rpl_master
+        --let $_rpl_change_master_position= MASTER_AUTO_POSITION = 1
+        --let $rpl_connection_name= server_$_rpl_server
         --source include/rpl_connection.inc
-        --let $_rpl_master_log_file= query_get_value(SHOW MASTER STATUS, File, 1)
       }
-      # Change connection.
-      --let $rpl_connection_name= server_$_rpl_server
-      --source include/rpl_connection.inc
-      # Get MASTER_LOG_POS
-      --let $_rpl_master_log_pos_index= `SELECT LOCATE('$_rpl_server:', '$rpl_master_log_pos')`
-      if ($_rpl_master_log_pos_index)
+      if (!$use_gtids)
       {
-        --let $_rpl_master_log_pos= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING('$rpl_master_log_pos', $_rpl_master_log_pos_index), ',', 1), ':', -1)`
-        --let $_rpl_master_log_pos= , MASTER_LOG_POS = $_rpl_master_log_pos
+        # Get MASTER_LOG_FILE
+        --let $_rpl_master_log_file_index= `SELECT LOCATE('$_rpl_server:', '$rpl_master_log_file')`
+        if ($_rpl_master_log_file_index)
+        {
+          # Get text from after ':' and before ',', starting at
+          # $_rpl_master_log_file
+          --let $_rpl_master_log_file= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING('$rpl_master_log_file', $_rpl_master_log_file_index), ',', 1), ':', -1)`
+        }
+        if (!$_rpl_master_log_file_index)
+        {
+          --let $rpl_connection_name= server_$_rpl_master
+          --source include/rpl_connection.inc
+          --let $_rpl_master_log_file= query_get_value(SHOW MASTER STATUS, File, 1)
+        }
+        --let $_rpl_change_master_position= MASTER_LOG_FILE = '$_rpl_master_log_file'
+        # Change connection.
+        --let $rpl_connection_name= server_$_rpl_server
+        --source include/rpl_connection.inc
+        # Get MASTER_LOG_POS
+        --let $_rpl_master_log_pos_index= `SELECT LOCATE('$_rpl_server:', '$rpl_master_log_pos')`
+        if ($_rpl_master_log_pos_index)
+        {
+          --let $_rpl_master_log_pos= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING('$rpl_master_log_pos', $_rpl_master_log_pos_index), ',', 1), ':', -1)`
+          --let $_rpl_change_master_position= $_rpl_change_master_position, MASTER_LOG_POS = $_rpl_master_log_pos
+        }
       }
-      if (!$_rpl_master_log_pos_index)
-      {
-        --let $_rpl_master_log_pos=
-      }
-      eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_port, MASTER_USER = 'root', MASTER_LOG_FILE = '$_rpl_master_log_file'$_rpl_master_log_pos, MASTER_CONNECT_RETRY = 1;
+      eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_port, MASTER_USER = 'root', $_rpl_change_master_position, MASTER_CONNECT_RETRY = 1;
     }
     if ($_rpl_master == '')
     {

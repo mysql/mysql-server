@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DBLQH_H
 #define DBLQH_H
@@ -19,6 +21,7 @@
 #include <pc.hpp>
 #include <ndb_limits.h>
 #include <SimulatedBlock.hpp>
+#include <SectionReader.hpp>
 #include <SLList.hpp>
 #include <DLList.hpp>
 #include <DLFifoList.hpp>
@@ -27,14 +30,17 @@
 #include <NodeBitmask.hpp>
 #include <signaldata/LCP.hpp>
 #include <signaldata/LqhTransConf.hpp>
+#include <signaldata/CreateTab.hpp>
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/FsOpenReq.hpp>
+#include <signaldata/DropTab.hpp>
 
 // primary key is stored in TUP
 #include "../dbtup/Dbtup.hpp"
 
 class Dbacc;
 class Dbtup;
+class Lgman;
 
 #ifdef DBLQH_C
 // Constants
@@ -232,9 +238,12 @@ class Dbtup;
 #define ZCHECK_LCP_STOP_BLOCKED 17
 #define ZSCAN_MARKERS 18
 #define ZOPERATION_EVENT_REP 19
-#define ZPREP_DROP_TABLE 20
+#define ZDROP_TABLE_WAIT_USAGE 20
 #define ZENABLE_EXPAND_CHECK 21
 #define ZRETRY_TCKEYREF 22
+#define ZWAIT_REORG_SUMA_FILTER_ENABLED 23
+#define ZREBUILD_ORDERED_INDEXES 24
+#define ZWAIT_READONLY 25
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -292,6 +301,7 @@ class Dbtup;
 #define ZTOO_MANY_COPY_ACTIVE_ERROR 1208 // COPY_FRAG and COPY_ACTIVEREF code
 #define ZCOPY_ACTIVE_ERROR 1210          // COPY_ACTIVEREF error code
 #define ZNO_TC_CONNECT_ERROR 1217        // Simple Read + SCAN
+#define ZTRANSPORTER_OVERLOADED_ERROR 1218
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES ADDED IN VERSION 1.X                                    */
 /* ------------------------------------------------------------------------- */
@@ -304,11 +314,15 @@ class Dbtup;
 #define ZTABLE_NOT_DEFINED 1225
 #define ZDROP_TABLE_IN_PROGRESS 1226
 #define ZINVALID_SCHEMA_VERSION 1227
+#define ZTABLE_READ_ONLY 1233
+#define ZREDO_IO_PROBLEM 1234
 
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES ADDED IN VERSION 2.X                                    */
 /* ------------------------------------------------------------------------- */
 #define ZNODE_FAILURE_ERROR 400
+#define ZBAD_UNLOCK_STATE 416
+#define ZBAD_OP_REF 417
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES FROM ACC                                                */
 /* ------------------------------------------------------------------------- */
@@ -397,6 +411,8 @@ class Dbtup;
  *  - LOG 
  */
 class Dblqh: public SimulatedBlock {
+  friend class DblqhProxy;
+
 public:
   enum LcpCloseState {
     LCP_IDLE = 0,
@@ -422,72 +438,29 @@ public:
       TUP_ATTR_WAIT = 7,
       TUX_ATTR_WAIT = 9
     };
-    LqhAddAttrReq::Entry attributes[LqhAddAttrReq::MAX_ATTRIBUTES];
-    UintR accConnectptr;
     AddFragStatus addfragStatus;
-    UintR dictConnectptr;
     UintR fragmentPtr;
     UintR nextAddfragrec;
-    UintR schemaVer;
+    UintR accConnectptr;
     UintR tupConnectptr;
     UintR tuxConnectptr;
-    UintR checksumIndicator;
-    UintR GCPIndicator;
-    BlockReference dictBlockref;
-    Uint32 m_senderAttrPtr;
+
+    CreateTabReq m_createTabReq;
+    LqhFragReq m_lqhFragReq;
+    LqhAddAttrReq m_addAttrReq;
+    DropFragReq m_dropFragReq;
+    DropTabReq m_dropTabReq;
+
     Uint16 addfragErrorCode;
     Uint16 attrSentToTup;
     Uint16 attrReceived;
-    Uint16 addFragid;
-    Uint16 noOfAttr;
-    Uint16 noOfNull;
-    Uint16 tabId;
     Uint16 totalAttrReceived;
     Uint16 fragCopyCreation;
-    Uint16 noOfKeyAttr;
-    Uint16 noOfCharsets;
-    Uint16 lh3DistrBits;
-    Uint16 tableType;
-    Uint16 primaryTableId;
-    Uint32 tablespace_id;
-    Uint32 maxRowsLow;
-    Uint32 maxRowsHigh;
-    Uint32 minRowsLow;
-    Uint32 minRowsHigh;
-    Uint32 forceVarPartFlag;
+    Uint16 defValNextPos;
+    Uint32 defValSectionI;
   };
   typedef Ptr<AddFragRecord> AddFragRecordPtr;
   
-  /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
-  /* $$$$$$$               ATTRIBUTE INFORMATION RECORD              $$$$$$$ */
-  /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
-  /**
-   *       Can contain one (1) attrinfo signal. 
-   *       One signal contains 24 attr. info words. 
-   *       But 32 elements are used to make plex happy.  
-   *       Some of the elements are used to the following things:
-   *       - Data length in this record is stored in the
-   *         element indexed by ZINBUF_DATA_LEN.  
-   *       - Next attrinbuf is pointed out by the element 
-   *         indexed by ZINBUF_NEXT.
-   */
-  struct Attrbuf {
-    UintR attrbuf[32];
-  }; // Size 128 bytes
-  typedef Ptr<Attrbuf> AttrbufPtr;
-
-  /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
-  /* $$$$$$$                         DATA BUFFER                     $$$$$$$ */
-  /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
-  /**
-   *       This buffer is used as a general data storage.                     
-   */
-  struct Databuf {
-    UintR data[4];
-    UintR nextDatabuf;
-  }; // size 20 bytes
-  typedef Ptr<Databuf> DatabufPtr;
-
   struct ScanRecord {
     ScanRecord() {}
     enum ScanState {
@@ -514,9 +487,21 @@ public:
       COPY = 2
     };
 
-    UintR scan_acc_op_ptr[32];
+    /* A single scan of each fragment can have MAX_PARALLEL_OP_PER_SCAN
+     * read operations in progress at one time
+     * We must store ACC ptrs for each read operation.  They are stored
+     * in SegmentedSections linked in the array below.
+     * The main oddity is that the first element of scan_acc_op_ptr is
+     * an ACC ptr, but all others are refs to SectionSegments containing
+     * ACC ptrs.
+     */
+    STATIC_CONST( MaxScanAccSegments= (
+                 (MAX_PARALLEL_OP_PER_SCAN + SectionSegment::DataLength - 1) /
+                 SectionSegment::DataLength) + 1);
+
+    UintR scan_acc_op_ptr[ MaxScanAccSegments ];
     Uint32 scan_acc_index;
-    Uint32 scan_acc_attr_recs;
+    Uint32 scan_acc_segments;
     UintR scanApiOpPtr;
     Local_key m_row_id;
     
@@ -547,6 +532,7 @@ public:
     UintR scanAiLength;
     UintR scanErrorCounter;
     UintR scanSchemaVersion;
+    Uint32 scanTcWaiting; // When the request came from TC, 0 is no request
 
     /**
      * This is _always_ main table, even in range scan
@@ -574,9 +560,11 @@ public:
     Uint8 descending;
     Uint8 tupScan;
     Uint8 lcpScan;
-    Uint8 scanTcWaiting;
     Uint8 scanKeyinfoFlag;
     Uint8 m_last_row;
+    Uint8 m_reserved;
+    Uint8 statScan;
+    Uint8 dummy[3]; // align?
   }; // Size 272 bytes
   typedef Ptr<ScanRecord> ScanRecordPtr;
 
@@ -703,10 +691,12 @@ public:
      *       fragment operations on the fragment. 
      *       A maximum of four concurrently active is allowed.
      */
-    typedef Bitmask<4> ScanNumberMask;
+
+    typedef Bitmask<8> ScanNumberMask; // Max 255 KeyInfo20::ScanNo
     ScanNumberMask m_scanNumberMask;
     DLList<ScanRecord>::Head m_activeScans;
     DLFifoList<ScanRecord>::Head m_queuedScans;
+    DLFifoList<ScanRecord>::Head m_queuedTupScans;
 
     Uint16 srLqhLognode[4];
     /**
@@ -887,6 +877,11 @@ public:
      * Log part
      */
     Uint32 m_log_part_ptr_i;
+
+    /**
+     * Instance key for fast access.
+     */
+    Uint16 lqhInstanceKey;
   };
   typedef Ptr<Fragrecord> FragrecordPtr;
   
@@ -943,7 +938,9 @@ public:
   typedef Ptr<GcpRecord> GcpRecordPtr;
 
   struct HostRecord {
-    bool inPackedList;
+    Uint8 inPackedList;
+    Uint8 nodestatus;
+    Uint8 _unused[2];
     UintR noOfPackedWordsLqh;
     UintR packedWordsLqh[30];
     UintR noOfPackedWordsTc;
@@ -1027,6 +1024,54 @@ public:
     Uint32 m_outstanding;
   }; // Size 76 bytes
   typedef Ptr<LcpRecord> LcpRecordPtr;
+
+  struct IOTracker
+  {
+    STATIC_CONST( SAMPLE_TIME = 128 );              // millis
+    STATIC_CONST( SLIDING_WINDOW_LEN = 1024 );      // millis
+    STATIC_CONST( SLIDING_WINDOW_HISTORY_LEN = 8 );
+
+    void init(Uint32 partNo);
+    Uint32 m_log_part_no;
+    Uint32 m_current_time;
+
+    /**
+     * Keep sliding window of measurement
+     */
+    Uint32 m_save_pos; // current pos in array
+    Uint32 m_save_written_bytes[SLIDING_WINDOW_HISTORY_LEN];
+    Uint32 m_save_elapsed_millis[SLIDING_WINDOW_HISTORY_LEN];
+
+    /**
+     * Current sum of sliding window
+     */
+    Uint32 m_curr_written_bytes;
+    Uint32 m_curr_elapsed_millis;
+
+    /**
+     * Currently outstanding bytes
+     */
+    Uint32 m_sum_outstanding_bytes;
+
+    /**
+     * How many times did we pass lag-threshold
+     */
+    Uint32 m_lag_cnt;
+
+    /**
+     * bytes send during current sample
+     */
+    Uint32 m_sample_sent_bytes;
+
+    /**
+     * bytes completed during current sample
+     */
+    Uint32 m_sample_completed_bytes;
+
+    int tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt);
+    void send_io(Uint32 bytes);
+    void complete_io(Uint32 bytes);
+  };
     
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
@@ -1067,15 +1112,7 @@ public:
       SR_THIRD_PHASE_COMPLETED = 5,
       SR_FOURTH_PHASE_STARTED = 6,    ///< Finding the log tail and head 
                                       ///< is the fourth phase.
-      SR_FOURTH_PHASE_COMPLETED = 7,
-      FILE_CHANGE_PROBLEM = 8,        ///< For some reason the write to 
-                                      ///< page zero in file zero have not   
-                                      ///< finished after 15 mbyte of 
-                                      ///< log data have been written
-      TAIL_PROBLEM = 9                ///< Only 1 mbyte of log left. 
-                                      ///< No operations allowed to enter the 
-                                      ///< log. Only special log records 
-                                      ///< are allowed
+      SR_FOURTH_PHASE_COMPLETED = 7
     };
     enum WaitWriteGciLog {
       WWGL_TRUE = 0,
@@ -1137,10 +1174,6 @@ public:
      *       Contains a reference to the first log file, file number 0.
      */
     UintR firstLogfile;
-    /**
-     *       The head of the operations queued for logging.
-     */
-    UintR firstLogQueue;
     /** 
      *       This variable contains the oldest operation in this log
      *       part which have not been committed yet.
@@ -1163,10 +1196,25 @@ public:
      *       are in memory and which are not.
      */
     UintR lastPageRef;
+
+    struct OperationQueue
+    {
+      void init() { firstElement = lastElement = RNIL;}
+      bool isEmpty() const { return firstElement == RNIL; }
+      Uint32 firstElement;
+      Uint32 lastElement;
+    };
+
     /**
-     *       The tail of the operations queued for logging.                   
+     * operations queued waiting on REDO to prepare
      */
-    UintR lastLogQueue;
+    struct OperationQueue m_log_prepare_queue;
+
+    /**
+     * operations queued waiting on REDO to commit/abort
+     */
+    struct OperationQueue m_log_complete_queue;
+
     /**
      *       This variable contains the newest operation in this log
      *       part which have not been committed yet.
@@ -1207,6 +1255,17 @@ public:
      *       The current state of this log part.                               
      */
     LogPartState logPartState;
+
+    /**
+     * does current log-part have tail-problem (i.e 410)
+     */
+    enum {
+      P_TAIL_PROBLEM        = 0x1,// 410
+      P_REDO_IO_PROBLEM     = 0x2,// 1234
+      P_FILE_CHANGE_PROBLEM = 0x4 // 1220
+    };
+    Uint32 m_log_problems;
+
     /**
      *       A timer that is set every time a log page is sent to disk.
      *       Ensures that log pages are not kept in main memory for
@@ -1332,17 +1391,17 @@ public:
      *       invalidated.
      */
     Uint16 savePageIndex;
-    Uint8 logTailMbyte;
+    Uint16 logTailMbyte;
     /**
      *       The mbyte within the starting log file where to start 
      *       executing the log.                
      */
-    Uint8 startMbyte;
+    Uint16 startMbyte;
     /**
      *       The last mbyte in which to execute the log during system
      *       restart.
      */
-    Uint8 stopMbyte;
+    Uint16 stopMbyte;
    /**
      *       This variable refers to the file where invalidation is
      *       occuring during system/node restart.
@@ -1353,6 +1412,15 @@ public:
      *       occuring during system/node restart.
      */
     Uint16 invalidatePageNo;
+    /**
+     *       For MT LQH the log part (0-3).
+     */
+    Uint16 logPartNo;
+
+    /**
+     * IO tracker...
+     */
+    struct IOTracker m_io_tracker;
   }; // Size 164 Bytes
   typedef Ptr<LogPartRecord> LogPartRecordPtr;
   
@@ -1371,6 +1439,8 @@ public:
    *              configurable.                                               
    */
   struct LogFileRecord {
+    LogFileRecord() {}
+
     enum FileChangeState {
       NOT_ONGOING = 0,
       BOTH_WRITES_ONGOING = 1,
@@ -1413,8 +1483,17 @@ public:
       CLOSING_EXEC_LOG = 18,
       OPEN_INIT = 19,
       OPEN = 20,                         ///< Log file open
-      OPEN_SR_INVALIDATE_PAGES = 21,
-      CLOSE_SR_INVALIDATE_PAGES = 22
+      OPEN_SR_READ_INVALIDATE_PAGES = 21,
+      CLOSE_SR_READ_INVALIDATE_PAGES = 22,
+      OPEN_SR_WRITE_INVALIDATE_PAGES = 23,
+      CLOSE_SR_WRITE_INVALIDATE_PAGES = 24,
+      OPEN_SR_READ_INVALIDATE_SEARCH_FILES = 25,
+      CLOSE_SR_READ_INVALIDATE_SEARCH_FILES = 26,
+      CLOSE_SR_READ_INVALIDATE_SEARCH_LAST_FILE = 27
+#ifndef NO_REDO_OPEN_FILE_CACHE
+      ,OPEN_EXEC_LOG_CACHED = 28
+      ,CLOSING_EXEC_LOG_CACHED = 29
+#endif
     };
     
     /**
@@ -1543,6 +1622,11 @@ public:
      *       LOG_PAGE_BUFFER.
      */
     Uint16 noLogpagesInBuffer;
+
+#ifndef NO_REDO_OPEN_FILE_CACHE
+    Uint32 nextList;
+    Uint32 prevList;
+#endif
   }; // Size 288 bytes
   typedef Ptr<LogFileRecord> LogFileRecordPtr;
   
@@ -1582,6 +1666,7 @@ public:
       READ_SR_INVALIDATE_PAGES = 18,
       WRITE_SR_INVALIDATE_PAGES = 19,
       WRITE_SR_INVALIDATE_PAGES_UPDATE_PAGE0 = 20
+      ,READ_SR_INVALIDATE_SEARCH_FILES = 21
     };
     /**
      * We have to remember the log pages read. 
@@ -1828,8 +1913,13 @@ public:
       TABLE_DEFINED = 0,
       NOT_DEFINED = 1,
       ADD_TABLE_ONGOING = 2,
-      PREP_DROP_TABLE_ONGOING = 3,
-      PREP_DROP_TABLE_DONE = 4
+      PREP_DROP_TABLE_DONE = 3,
+      DROP_TABLE_WAIT_USAGE = 4,
+      DROP_TABLE_WAIT_DONE = 5,
+      DROP_TABLE_ACC = 6,
+      DROP_TABLE_TUP = 7,
+      DROP_TABLE_TUX = 8
+      ,TABLE_READ_ONLY = 9
     };
     
     UintR fragrec[MAX_FRAG_PER_NODE];
@@ -1846,9 +1936,8 @@ public:
     Uint32 schemaVersion;
     Uint8 m_disk_table;
 
-    Uint32 usageCount;
-    NdbNodeBitmask waitingTC;
-    NdbNodeBitmask waitingDIH;
+    Uint32 usageCountR; // readers
+    Uint32 usageCountW; // writers
   }; // Size 100 bytes
   typedef Ptr<Tablerec> TablerecPtr;
 
@@ -1933,9 +2022,9 @@ public:
       LOG_CONNECTED = 3
     };
     ConnectState connectState;
-    UintR copyCountWords;    
-    UintR firstAttrinfo[5];
-    UintR tupkeyData[4];
+    UintR copyCountWords;
+    Uint32 keyInfoIVal;
+    Uint32 attrInfoIVal;
     UintR transid[2];
     AbortState abortState;
     UintR accConnectrec;
@@ -1944,14 +2033,11 @@ public:
     UintR tcTimer;
     UintR currReclenAi;
     UintR currTupAiLen;
-    UintR firstAttrinbuf;
-    UintR firstTupkeybuf;
     UintR fragmentid;
     UintR fragmentptr;
-    UintR gci;
+    UintR gci_hi;
+    UintR gci_lo;
     UintR hashValue;
-    UintR lastTupkeybuf;
-    UintR lastAttrinbuf;
     /**
      * Each operation (TcConnectrec) can be stored in max one out of many 
      * lists.
@@ -1977,6 +2063,7 @@ public:
     UintR simpleTcConnect;
     UintR tableref;
     UintR tcOprec;
+    Uint32 tcHashKeyHi;
     UintR tcScanInfo;
     UintR tcScanRec;
     UintR totReclenAi;
@@ -1997,6 +2084,9 @@ public:
       Uint32 m_scan_curr_range_no;
       UintR noFiredTriggers;
     };
+    Uint32 m_corrFactorLo; // For result correlation for linked operations.
+    Uint32 m_corrFactorHi;
+    Uint64 lqhKeyReqId;
     Uint16 errorCode;
     Uint16 logStartPageIndex;
     Uint16 logStartPageNo;
@@ -2016,15 +2106,24 @@ public:
     Uint8 opSimple;
     Uint8 opExec;
     Uint8 operation;
+    Uint8 m_reorg;
     Uint8 reclenAiLqhkey;
-    Uint8 m_offset_current_keybuf;
     Uint8 replicaType;
     Uint8 seqNoReplica;
     Uint8 tcNodeFailrec;
     Uint8 m_disk_table;
     Uint8 m_use_rowid;
     Uint8 m_dealloc;
+    Uint8 m_fire_trig_pass;
+    enum op_flags {
+      OP_ISLONGREQ              = 0x1,
+      OP_SAVEATTRINFO           = 0x2,
+      OP_SCANKEYINFOPOSSAVED    = 0x4,
+      OP_DEFERRED_CONSTRAINTS   = 0x8
+    };
+    Uint32 m_flags;
     Uint32 m_log_part_ptr_i;
+    SectionReader::PosInfo scanKeyInfoPos;
     Local_key m_row_id;
 
     struct {
@@ -2058,9 +2157,17 @@ public:
     Uint32 stopPageNo;
     Uint32 fileNo;
   };
-  
+  //for statistic information about redo log initialization
+  Uint32 totalLogFiles;
+  Uint32 logFileInitDone;
+  Uint32 totallogMBytes;
+  Uint32 logMBytesInitDone;
+
+  Uint32 m_startup_report_frequency;
+  NDB_TICKS m_next_report_time;
+ 
 public:
-  Dblqh(Block_context& ctx);
+  Dblqh(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dblqh();
 
   void receive_keyinfo(Signal*, Uint32 * data, Uint32 len);
@@ -2090,7 +2197,9 @@ private:
   void execEXEC_SRREQ(Signal* signal);
   void execEXEC_SRCONF(Signal* signal);
   void execREAD_PSEUDO_REQ(Signal* signal);
+  void execSIGNAL_DROPPED_REP(Signal* signal);
 
+  void execDBINFO_SCANREQ(Signal* signal); 
   void execDUMP_STATE_ORD(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
@@ -2098,14 +2207,24 @@ private:
   void execSEND_PACKED(Signal* signal);
   void execTUP_ATTRINFO(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
-  void execLQHFRAGREQ(Signal* signal);
+
+  void execCREATE_TAB_REQ(Signal* signal);
+  void execCREATE_TAB_REF(Signal* signal);
+  void execCREATE_TAB_CONF(Signal* signal);
   void execLQHADDATTREQ(Signal* signal);
   void execTUP_ADD_ATTCONF(Signal* signal);
   void execTUP_ADD_ATTRREF(Signal* signal);
+
+  void execLQHFRAGREQ(Signal* signal);
   void execACCFRAGCONF(Signal* signal);
   void execACCFRAGREF(Signal* signal);
   void execTUPFRAGCONF(Signal* signal);
   void execTUPFRAGREF(Signal* signal);
+
+  void execDROP_FRAG_REQ(Signal*);
+  void execDROP_FRAG_REF(Signal*);
+  void execDROP_FRAG_CONF(Signal*);
+
   void execTAB_COMMITREQ(Signal* signal);
   void execACCSEIZECONF(Signal* signal);
   void execACCSEIZEREF(Signal* signal);
@@ -2134,6 +2253,8 @@ private:
   void execSTORED_PROCCONF(Signal* signal);
   void execSTORED_PROCREF(Signal* signal);
   void execCOPY_FRAGREQ(Signal* signal);
+  void execCOPY_FRAGREF(Signal* signal);
+  void execCOPY_FRAGCONF(Signal* signal);
   void execPREPARE_COPY_FRAG_REQ(Signal* signal);
   void execUPDATE_FRAG_DIST_KEY_ORD(Signal*);
   void execCOPY_ACTIVEREQ(Signal* signal);
@@ -2142,6 +2263,7 @@ private:
   void execTRANSID_AI(Signal* signal);
   void execINCL_NODEREQ(Signal* signal);
 
+  void force_lcp(Signal* signal);
   void execLCP_FRAG_ORD(Signal* signal);
   void execEMPTY_LCP_REQ(Signal* signal);
   
@@ -2149,6 +2271,7 @@ private:
   void execSTART_RECREF(Signal* signal);
 
   void execGCP_SAVEREQ(Signal* signal);
+  void execSUB_GCP_COMPLETE_REP(Signal* signal);
   void execFSOPENREF(Signal* signal);
   void execFSOPENCONF(Signal* signal);
   void execFSCLOSECONF(Signal* signal);
@@ -2156,24 +2279,26 @@ private:
   void execFSWRITEREF(Signal* signal);
   void execFSREADCONF(Signal* signal);
   void execFSREADREF(Signal* signal);
-  void execSCAN_HBREP(Signal* signal);
+  void execFSWRITEREQ(Signal*);
   void execTIME_SIGNAL(Signal* signal);
   void execFSSYNCCONF(Signal* signal);
 
   void execALTER_TAB_REQ(Signal* signal);
   void execALTER_TAB_CONF(Signal* signal);
 
-  void execCREATE_TRIG_CONF(Signal* signal);
-  void execCREATE_TRIG_REF(Signal* signal);
-  void execCREATE_TRIG_REQ(Signal* signal);
+  void execCREATE_TRIG_IMPL_CONF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REQ(Signal* signal);
 
-  void execDROP_TRIG_CONF(Signal* signal);
-  void execDROP_TRIG_REF(Signal* signal);
-  void execDROP_TRIG_REQ(Signal* signal);
+  void execDROP_TRIG_IMPL_CONF(Signal* signal);
+  void execDROP_TRIG_IMPL_REF(Signal* signal);
+  void execDROP_TRIG_IMPL_REQ(Signal* signal);
 
   void execPREP_DROP_TAB_REQ(Signal* signal);
-  void execWAIT_DROP_TAB_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
+  void execDROP_TAB_REF(Signal*);
+  void execDROP_TAB_CONF(Signal*);
+  void dropTable_nextStep(Signal*, AddFragRecordPtr);
 
   void execLQH_ALLOCREQ(Signal* signal);
   void execTUP_DEALLOCREQ(Signal* signal);
@@ -2184,10 +2309,15 @@ private:
   void execTUX_ADD_ATTRCONF(Signal* signal);
   void execTUX_ADD_ATTRREF(Signal* signal);
 
+  void execBUILD_INDX_IMPL_REF(Signal* signal);
+  void execBUILD_INDX_IMPL_CONF(Signal* signal);
+
+  void execFIRE_TRIG_REQ(Signal*);
+
   // Statement blocks
 
   void init_acc_ptr_list(ScanRecord*);
-  bool seize_acc_ptr_list(ScanRecord*, Uint32);
+  bool seize_acc_ptr_list(ScanRecord*, Uint32, Uint32);
   void release_acc_ptr_list(ScanRecord*);
   Uint32 get_acc_ptr_from_scan_record(ScanRecord*, Uint32, bool);
   void set_acc_ptr_in_scan_record(ScanRecord*, Uint32, Uint32);
@@ -2197,7 +2327,8 @@ private:
   void sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId);
   void sendEMPTY_LCP_CONF(Signal* signal, bool idle);
   void sendLCP_FRAGIDREQ(Signal* signal);
-  void sendLCP_FRAG_REP(Signal * signal, const LcpRecord::FragOrd &) const;
+  void sendLCP_FRAG_REP(Signal * signal, const LcpRecord::FragOrd &,
+                        const Fragrecord*) const;
 
   void updatePackedList(Signal* signal, HostRecord * ahostptr, Uint16 hostId);
   void LQHKEY_abort(Signal* signal, int errortype);
@@ -2218,12 +2349,14 @@ private:
   void sendAttrinfoSignal(Signal* signal);
   void sendLqhAttrinfoSignal(Signal* signal);
   void sendKeyinfoAcc(Signal* signal, Uint32 pos);
-  Uint32 initScanrec(const class ScanFragReq *);
+  Uint32 initScanrec(const class ScanFragReq *,
+                     Uint32 aiLen);
   void initScanTc(const class ScanFragReq *,
                   Uint32 transid1,
                   Uint32 transid2,
                   Uint32 fragId,
-                  Uint32 nodeId);
+                  Uint32 nodeId,
+                  Uint32 hashHi);
   void finishScanrec(Signal* signal);
   void releaseScanrec(Signal* signal);
   void seizeScanrec(Signal* signal);
@@ -2243,13 +2376,13 @@ private:
   void setLogTail(Signal* signal, Uint32 keepGci);
   Uint32 remainingLogSize(const LogFileRecordPtr &sltCurrLogFilePtr,
 			  const LogPartRecordPtr &sltLogPartPtr);
-  void checkGcpCompleted(Signal* signal, Uint32 pageWritten, Uint32 wordWritten);
+  bool checkGcpCompleted(Signal* signal, Uint32 pageWritten, Uint32 wordWritten);
   void initFsopenconf(Signal* signal);
   void initFsrwconf(Signal* signal, bool write);
   void initLfo(Signal* signal);
   void initLogfile(Signal* signal, Uint32 fileNo);
   void initLogpage(Signal* signal);
-  void openFileRw(Signal* signal, LogFileRecordPtr olfLogFilePtr);
+  void openFileRw(Signal* signal, LogFileRecordPtr olfLogFilePtr, bool writeBuffer = true);
   void openLogfileInit(Signal* signal);
   void openNextLogfile(Signal* signal);
   void releaseLfo(Signal* signal);
@@ -2262,7 +2395,8 @@ private:
   void writeFileHeaderOpen(Signal* signal, Uint32 type);
   void writeInitMbyte(Signal* signal);
   void writeSinglePage(Signal* signal, Uint32 pageNo,
-                       Uint32 wordWritten, Uint32 place);
+                       Uint32 wordWritten, Uint32 place,
+                       bool sync = true);
   void buildLinkedLogPageList(Signal* signal);
   void changeMbyte(Signal* signal);
   Uint32 checkIfExecLog(Signal* signal);
@@ -2271,6 +2405,10 @@ private:
   void checkScanTcCompleted(Signal* signal);
   void closeFile(Signal* signal, LogFileRecordPtr logFilePtr, Uint32 place);
   void completedLogPage(Signal* signal, Uint32 clpType, Uint32 place);
+
+  void commit_reorg(TablerecPtr tablePtr);
+  void wait_reorg_suma_filter_enabled(Signal*);
+
   void deleteFragrec(Uint32 fragId);
   void deleteTransidHash(Signal* signal);
   void findLogfile(Signal* signal,
@@ -2278,12 +2416,10 @@ private:
                    LogPartRecordPtr flfLogPartPtr,
                    LogFileRecordPtr* parLogFilePtr);
   void findPageRef(Signal* signal, CommitLogRecord* commitLogRecord);
-  int  findTransaction(UintR Transid1, UintR Transid2, UintR TcOprec);
-  void getFirstInLogQueue(Signal* signal);
+  int  findTransaction(UintR Transid1, UintR Transid2, UintR TcOprec, UintR hi);
+  void getFirstInLogQueue(Signal* signal, Ptr<TcConnectionrec>&dst);
   bool getFragmentrec(Signal* signal, Uint32 fragId);
   void initialiseAddfragrec(Signal* signal);
-  void initialiseAttrbuf(Signal* signal);
-  void initialiseDatabuf(Signal* signal);
   void initialiseFragrec(Signal* signal);
   void initialiseGcprec(Signal* signal);
   void initialiseLcpRec(Signal* signal);
@@ -2313,7 +2449,7 @@ private:
   void initReqinfoExecSr(Signal* signal);
   bool insertFragrec(Signal* signal, Uint32 fragId);
   void linkFragQueue(Signal* signal);
-  void linkWaitLog(Signal* signal, LogPartRecordPtr regLogPartPtr);
+  void linkWaitLog(Signal*, LogPartRecordPtr, LogPartRecord::OperationQueue &);
   void logNextStart(Signal* signal);
   void moveToPageRef(Signal* signal);
   void readAttrinfo(Signal* signal);
@@ -2322,7 +2458,7 @@ private:
   void readExecSrNewMbyte(Signal* signal);
   void readExecSr(Signal* signal);
   void readKey(Signal* signal);
-  void readLogData(Signal* signal, Uint32 noOfWords, Uint32* dataPtr);
+  void readLogData(Signal* signal, Uint32 noOfWords, Uint32& sectionIVal);
   void readLogHeader(Signal* signal);
   Uint32 readLogword(Signal* signal);
   Uint32 readLogwordExec(Signal* signal);
@@ -2340,17 +2476,14 @@ private:
   void removeLogTcrec(Signal* signal);
   void removePageRef(Signal* signal);
   Uint32 returnExecLog(Signal* signal);
-  int saveTupattrbuf(Signal* signal, Uint32* dataPtr, Uint32 length);
+  int saveAttrInfoInSection(const Uint32* dataPtr, Uint32 len);
   void seizeAddfragrec(Signal* signal);
-  void seizeAttrinbuf(Signal* signal);
-  Uint32 seize_attrinbuf();
-  Uint32 release_attrinbuf(Uint32);
-  Uint32 copy_bounds(Uint32 * dst, TcConnectionrec*);
+  Uint32 seizeSegment();
+  Uint32 copyNextRange(Uint32 * dst, TcConnectionrec*);
 
   void seizeFragmentrec(Signal* signal);
   void seizePageRef(Signal* signal);
   void seizeTcrec();
-  void seizeTupkeybuf(Signal* signal);
   void sendAborted(Signal* signal);
   void sendLqhTransconf(Signal* signal, LqhTransConf::OperationStatus);
   void sendTupkey(Signal* signal);
@@ -2368,14 +2501,21 @@ private:
   void writeKey(Signal* signal);
   void writeLogHeader(Signal* signal);
   void writeLogWord(Signal* signal, Uint32 data);
+  void writeLogWords(Signal* signal, const Uint32* data, Uint32 len);
   void writeNextLog(Signal* signal);
   void errorReport(Signal* signal, int place);
   void warningReport(Signal* signal, int place);
   void invalidateLogAfterLastGCI(Signal *signal);
-  void readFileInInvalidate(Signal *signal, bool stepNext);
+  Uint32 nextLogFilePtr(Uint32 logFilePtrI);
+  void readFileInInvalidate(Signal *signal, int stepNext);
+  void writeFileInInvalidate(Signal *signal, int stepPrev);
+  bool invalidateCloseFile(Signal*, Ptr<LogPartRecord>, Ptr<LogFileRecord>,
+                           LogFileRecord::LogFileStatus status);
   void exitFromInvalidate(Signal* signal);
   Uint32 calcPageCheckSum(LogPageRecordPtr logP);
   Uint32 handleLongTupKey(Signal* signal, Uint32* dataPtr, Uint32 len);
+
+  void rebuildOrderedIndexes(Signal* signal, Uint32 tableId);
 
   // Generated statement blocks
   void systemErrorLab(Signal* signal, int line);
@@ -2390,7 +2530,7 @@ private:
   void srPhase3Start(Signal* signal);
   void checkStartCompletedLab(Signal* signal);
   void continueAbortLab(Signal* signal);
-  void abortContinueAfterBlockedLab(Signal* signal, bool canBlock);
+  void abortContinueAfterBlockedLab(Signal* signal);
   void abortCommonLab(Signal* signal);
   void localCommitLab(Signal* signal);
   void abortErrorLab(Signal* signal);
@@ -2401,11 +2541,16 @@ private:
   void abort_scan(Signal* signal, Uint32 scan_ptr_i, Uint32 errcode);
   void localAbortStateHandlerLab(Signal* signal);
   void logLqhkeyreqLab(Signal* signal);
+  void logLqhkeyreqLab_problems(Signal* signal);
+  void update_log_problem(Signal*, LogPartRecordPtr, Uint32 problem, bool);
   void lqhAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length);
   void rwConcludedAiLab(Signal* signal);
   void aiStateErrorCheckLab(Signal* signal, Uint32* dataPtr, Uint32 length);
   void takeOverErrorLab(Signal* signal);
   void endgettupkeyLab(Signal* signal);
+  bool checkTransporterOverloaded(Signal* signal,
+                                  const NodeBitmask& all,
+                                  const class LqhKeyReq* req);
   void noFreeRecordLab(Signal* signal, 
 		       const class LqhKeyReq * lqhKeyReq, 
 		       Uint32 errorCode);
@@ -2437,8 +2582,7 @@ private:
   void continueCloseScanAfterBlockedLab(Signal* signal);
   void continueCloseCopyAfterBlockedLab(Signal* signal);
   void sendExecFragRefLab(Signal* signal);
-  void fragrefLab(Signal* signal, BlockReference retRef,
-                  Uint32 retPtr, Uint32 errorCode);
+  void fragrefLab(Signal* signal, Uint32 errorCode, const LqhFragReq* req);
   void abortAddFragOps(Signal* signal);
   void rwConcludedLab(Signal* signal);
   void sendsttorryLab(Signal* signal);
@@ -2452,7 +2596,7 @@ private:
   void closeScanLab(Signal* signal);
   void nextScanConfLoopLab(Signal* signal);
   void scanNextLoopLab(Signal* signal);
-  void commitReqLab(Signal* signal, Uint32 gci);
+  void commitReqLab(Signal* signal, Uint32 gci_hi, Uint32 gci_lo);
   void completeTransLastLab(Signal* signal);
   void tupScanCloseConfLab(Signal* signal);
   void tupCopyCloseConfLab(Signal* signal);
@@ -2461,7 +2605,7 @@ private:
   void nextScanConfScanLab(Signal* signal);
   void nextScanConfCopyLab(Signal* signal);
   void continueScanNextReqLab(Signal* signal);
-  void keyinfoLab(const Uint32 * src, const Uint32 * end);
+  bool keyinfoLab(const Uint32 * src, Uint32 len);
   void copySendTupkeyReqLab(Signal* signal);
   void storedProcConfScanLab(Signal* signal);
   void storedProcConfCopyLab(Signal* signal);
@@ -2486,9 +2630,10 @@ private:
   void closingSrLab(Signal* signal);
   void closeExecSrLab(Signal* signal);
   void execLogComp(Signal* signal);
+  void execLogComp_extra_files_closed(Signal* signal);
   void closeWriteLogLab(Signal* signal);
   void closeExecLogLab(Signal* signal);
-  void writePageZeroLab(Signal* signal);
+  void writePageZeroLab(Signal* signal, Uint32 from);
   void lastWriteInFileLab(Signal* signal);
   void initWriteEndLab(Signal* signal);
   void initFirstPageLab(Signal* signal);
@@ -2510,6 +2655,7 @@ private:
   void restartOperationsAfterStopLab(Signal* signal);
   void startphase1Lab(Signal* signal, Uint32 config, Uint32 nodeId);
   void tupkeyConfLab(Signal* signal);
+  void copyTupkeyRefLab(Signal* signal);
   void copyTupkeyConfLab(Signal* signal);
   void scanTupkeyConfLab(Signal* signal);
   void scanTupkeyRefLab(Signal* signal);
@@ -2521,14 +2667,26 @@ private:
   void closeExecSrCompletedLab(Signal* signal);
   void readSrFrontpageLab(Signal* signal);
   
-  void sendAddFragReq(Signal* signal);
+  void sendCreateTabReq(Signal*, AddFragRecordPtr);
   void sendAddAttrReq(Signal* signal);
-  void checkDropTab(Signal*);
-  Uint32 checkDropTabState(Tablerec::TableStatus, Uint32) const;
-  
+  void sendAddFragReq(Signal* signal);
+  void dropTab_wait_usage(Signal*);
+  Uint32 get_table_state_error(Ptr<Tablerec> tabPtr) const;
+  void wait_readonly(Signal*);
+  int check_tabstate(Signal * signal, const Tablerec * tablePtrP, Uint32 op);
+
+  void remove_commit_marker(TcConnectionrec * const regTcPtr);
   // Initialisation
   void initData();
   void initRecords();
+protected:
+  virtual bool getParam(const char* name, Uint32* count);
+  
+private:
+  
+
+  bool validate_filter(Signal*);
+  bool match_and_print(Signal*, Ptr<TcConnectionrec>);
 
   void define_backup(Signal*);
   void execDEFINE_BACKUP_REF(Signal*);
@@ -2544,9 +2702,28 @@ private:
   void send_restore_lcp(Signal * signal);
   void execRESTORE_LCP_REF(Signal* signal);
   void execRESTORE_LCP_CONF(Signal* signal);
+
+  /**
+   * For periodic redo log file initialization status reporting 
+   * and explicit redo log file status reporting
+   */
+  /* Init at start of redo log file initialization, timers etc... */
+  void initReportStatus(Signal* signal);
+  /* Check timers for reporting at certain points */
+  void checkReportStatus(Signal* signal);
+  /* Send redo log file initialization status, invoked either periodically, or explicitly */
+  void reportStatus(Signal* signal);
+  /* redo log file initialization completed report*/
+  void logfileInitCompleteReport(Signal* signal);
+ 
+  void check_send_scan_hb_rep(Signal* signal, ScanRecord*, TcConnectionrec*);
+
+  void unlockError(Signal* signal, Uint32 error);
+  void handleUserUnlockRequest(Signal* signal);
   
   Dbtup* c_tup;
   Dbacc* c_acc;
+  Lgman* c_lgman;
 
   /**
    * Read primary key from tup
@@ -2560,19 +2737,24 @@ public:
   Uint32 readPrimaryKeys(Uint32 opPtrI, Uint32 * dst, bool xfrm);
 private:
 
-  void acckeyconf_tupkeyreq(Signal*, TcConnectionrec*, Fragrecord*, Uint32, Uint32);
-  void acckeyconf_load_diskpage(Signal*,TcConnectionrecPtr,Fragrecord*,Uint32);
-  
+  void acckeyconf_tupkeyreq(Signal*, TcConnectionrec*, Fragrecord*,
+                            Uint32, Uint32, Uint32);
+  void acckeyconf_load_diskpage(Signal*,TcConnectionrecPtr,Fragrecord*,
+                                Uint32, Uint32);
+
   void handle_nr_copy(Signal*, Ptr<TcConnectionrec>);
   void exec_acckeyreq(Signal*, Ptr<TcConnectionrec>);
   int compare_key(const TcConnectionrec*, const Uint32 * ptr, Uint32 len);
   void nr_copy_delete_row(Signal*, Ptr<TcConnectionrec>, Local_key*, Uint32);
+  Uint32 getKeyInfoWordOrZero(const TcConnectionrec* regTcPtr, 
+                              Uint32 offset);
 public:
   struct Nr_op_info
   {
     Uint32 m_ptr_i;
     Uint32 m_tup_frag_ptr_i;
-    Uint32 m_gci;
+    Uint32 m_gci_hi;
+    Uint32 m_gci_lo;
     Uint32 m_page_id;
     Local_key m_disk_ref;
   };
@@ -2619,25 +2801,12 @@ private:
   AddFragRecordPtr addfragptr;
   UintR cfirstfreeAddfragrec;
   UintR caddfragrecFileSize;
-
-#define ZATTRINBUF_FILE_SIZE 12288  // 1.5 MByte
-#define ZINBUF_DATA_LEN 24            /* POSITION OF 'DATA LENGHT'-VARIABLE. */
-#define ZINBUF_NEXT 25                /* POSITION OF 'NEXT'-VARIABLE.        */
-  Attrbuf *attrbuf;
-  AttrbufPtr attrinbufptr;
-  UintR cfirstfreeAttrinbuf;
-  UintR cattrinbufFileSize;
-  Uint32 c_no_attrinbuf_recs;
-
-#define ZDATABUF_FILE_SIZE 10000    // 200 kByte
-  Databuf *databuf;
-  DatabufPtr databufptr;
-  UintR cfirstfreeDatabuf;
-  UintR cdatabufFileSize;
+  Uint32 c_active_add_frag_ptr_i;
 
 // Configurable
   FragrecordPtr fragptr;
   ArrayPool<Fragrecord> c_fragment_pool;
+  RSS_AP_SNAPSHOT(c_fragment_pool);
 
 #define ZGCPREC_FILE_SIZE 1
   GcpRecord *gcpRecord;
@@ -2675,10 +2844,10 @@ private:
   UintR clfoFileSize;
 
   LogPageRecord *logPageRecord;
-  void *logPageRecordUnaligned;
   LogPageRecordPtr logPagePtr;
   UintR cfirstfreeLogPage;
   UintR clogPageFileSize;
+  Uint32 clogPageCount;
 
 #define ZPAGE_REF_FILE_SIZE 20
   PageRefRecord *pageRefRecord;
@@ -2689,8 +2858,8 @@ private:
 // Configurable
   ArrayPool<ScanRecord> c_scanRecordPool;
   ScanRecordPtr scanptr;
-  UintR cscanNoFreeRec;
   Uint32 cscanrecFileSize;
+  DLList<ScanRecord> m_reserved_scans; // LCP + NR
 
 // Configurable
   Tablerec *tablerec;
@@ -2718,6 +2887,9 @@ private:
 // ------------------------------------------------------------------------
   Uint32 c_lcpId;
   Uint32 cnoOfFragsCheckpointed;
+  Uint32 c_last_force_lcp_time;
+  Uint32 c_free_mb_force_lcp_limit; // Force lcp when less than this free mb
+  Uint32 c_free_mb_tail_problem_limit; // Set TAIL_PROBLEM when less than this..
 
 /* ------------------------------------------------------------------------- */
 // cmaxWordsAtNodeRec keeps track of how many words that currently are
@@ -2765,7 +2937,14 @@ private:
 /*RECEPTION OF THIS SIGNAL INDICATES THAT ALL FRAGMENTS THAT THIS NODE       */
 /*SHOULD START HAVE BEEN RECEIVED.                                           */
 /* ------------------------------------------------------------------------- */
-  Uint8 cstartRecReq;
+  enum { 
+    SRR_INITIAL                = 0
+    ,SRR_START_REC_REQ_ARRIVED = 1
+    ,SRR_REDO_COMPLETE         = 2
+    ,SRR_FIRST_LCP_DONE        = 3
+  } cstartRecReq;
+  Uint32 cstartRecReqData;
+  
 /* ------------------------------------------------------------------------- */
 /*THIS VARIABLE KEEPS TRACK OF HOW MANY FRAGMENTS THAT PARTICIPATE IN        */
 /*EXECUTING THE LOG. IF ZERO WE DON'T NEED TO EXECUTE THE LOG AT ALL.        */
@@ -2846,6 +3025,7 @@ private:
   BlockReference ctupBlockref;
   BlockReference ctuxBlockref;
   BlockReference cownref;
+  Uint32 cTransactionDeadlockDetectionTimeout;
   UintR cLqhTimeOutCount;
   UintR cLqhTimeOutCheckCount;
   UintR cnoOfLogPages;
@@ -2885,12 +3065,104 @@ private:
   
   Uint32 c_diskless;
   Uint32 c_o_direct;
+  Uint32 m_use_om_init;
   Uint32 c_error_insert_table_id;
-  
+
+#ifndef NO_REDO_PAGE_CACHE
+  /***********************************************************
+   * MODULE: Redo Page Cache
+   *
+   *   When running redo, current codes scan log until finding a commit
+   *     record (for an operation). The commit record contains a back-pointer
+   *     to a prepare-record.
+   *
+   *   If the prepare record is inside the 512k window that is being read
+   *     from redo-log, the access is quick.
+   *
+   *   But it's not, then the following sequence is performed
+   *     [file-open]?[page-read][execute-log-record][file-close]?[release-page]
+   *
+   *   For big (or long running) transactions this becomes very inefficient
+   *
+   *   The RedoPageCache changes this so that the pages that are not released
+   *     in sequence above, but rather put into a LRU (using RedoBuffer)
+   */
+
+  /**
+   * This is a "dummy" struct that is used when
+   *  putting LogPageRecord-entries into lists/hashes
+   */
+  struct RedoCacheLogPageRecord
+  {
+    RedoCacheLogPageRecord() {}
+    /**
+     * NOTE: These numbers must match page-header definition
+     */
+    Uint32 header0[15];
+    Uint32 m_page_no;
+    Uint32 m_file_no;
+    Uint32 header1[5];
+    Uint32 m_part_no;
+    Uint32 nextList;
+    Uint32 nextHash;
+    Uint32 prevList;
+    Uint32 prevHash;
+    Uint32 rest[8192-27];
+
+    inline bool equal(const RedoCacheLogPageRecord & p) const {
+      return
+        (p.m_part_no == m_part_no) &&
+        (p.m_page_no == m_page_no) &&
+        (p.m_file_no == m_file_no);
+    }
+
+    inline Uint32 hashValue() const {
+      return (m_part_no << 24) + (m_file_no << 16) + m_page_no;
+    }
+  };
+  struct RedoPageCache
+  {
+    RedoPageCache() : m_hash(m_pool), m_lru(m_pool),
+                      m_hits(0),m_multi_page(0), m_multi_miss(0) {}
+    DLHashTable<RedoCacheLogPageRecord> m_hash;
+    DLCFifoList<RedoCacheLogPageRecord> m_lru;
+    ArrayPool<RedoCacheLogPageRecord> m_pool;
+    Uint32 m_hits;
+    Uint32 m_multi_page;
+    Uint32 m_multi_miss;
+  } m_redo_page_cache;
+
+  void evict(RedoPageCache&, Uint32 cnt);
+  void do_evict(RedoPageCache&, Ptr<RedoCacheLogPageRecord>);
+  void addCachePages(RedoPageCache&,
+                     Uint32 partNo,
+                     Uint32 startPageNo,
+                     LogFileOperationRecord*);
+  void release(RedoPageCache&);
+#endif
+
+#ifndef NO_REDO_OPEN_FILE_CACHE
+  struct RedoOpenFileCache
+  {
+    RedoOpenFileCache() : m_lru(m_pool), m_hits(0), m_close_cnt(0) {}
+
+    DLCFifoList<LogFileRecord> m_lru;
+    ArrayPool<LogFileRecord> m_pool;
+    Uint32 m_hits;
+    Uint32 m_close_cnt;
+  } m_redo_open_file_cache;
+
+  void openFileRw_cache(Signal* signal, LogFileRecordPtr olfLogFilePtr);
+  void closeFile_cache(Signal* signal, LogFileRecordPtr logFilePtr, Uint32);
+  void release(Signal*, RedoOpenFileCache&);
+#endif
+
 public:
   bool is_same_trans(Uint32 opId, Uint32 trid1, Uint32 trid2);
-  void get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci);
+  void get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo,
+                   Uint32* transId1, Uint32* transId2);
   void accminupdate(Signal*, Uint32 opPtrI, const Local_key*);
+  void accremoverow(Signal*, Uint32 opPtrI, const Local_key*);
 
   /**
    *
@@ -2905,6 +3177,7 @@ public:
     Uint32 tcNodeId;  
     union { Uint32 nextPool; Uint32 nextHash; };
     Uint32 prevHash;
+    Uint32 reference_count;
 
     inline bool equal(const CommitAckMarker & p) const {
       return ((p.transid1 == transid1) && (p.transid2 == transid2));
@@ -2922,17 +3195,63 @@ public:
   void execREMOVE_MARKER_ORD(Signal* signal);
   void scanMarkers(Signal* signal, Uint32 tcNodeFail, Uint32 bucket, Uint32 i);
 
-  struct Counters {
-    Counters() {}
-    Uint32 operations;
-    
-    inline void clear(){
-      operations = 0;
-    }
-  };
+  void ndbdFailBlockCleanupCallback(Signal* signal, Uint32 failedNodeID, Uint32 ignoredRc);
 
-  Counters c_Counters;
-  
+  struct MonotonicCounters {
+    MonotonicCounters() :
+      operations(0) {}
+
+    Uint64 operations;
+
+    Uint32 build_event_rep(Signal* signal) const
+    {
+      /*
+        Read saved value from CONTINUEB, subtract from
+        counter and write to EVENT_REP
+      */
+      struct { const Uint64* ptr; Uint64 old; } vars[] = {
+        { &operations, 0 }
+      };
+      const size_t num = sizeof(vars)/sizeof(vars[0]);
+
+      signal->theData[0] = NDB_LE_OperationReportCounters;
+
+      // Read old values from signal
+      for (size_t i = 0; i < num ; i++)
+      {
+        vars[i].old =
+          (signal->theData[1+(2*i)+1] |(Uint64(signal->theData[1+(2*i)])<< 32));
+      }
+
+      // Write difference back to signal
+      for (size_t i = 0; i < num ; i++)
+      {
+        signal->theData[1 + i] = (Uint32)(*vars[i].ptr - vars[i].old);
+      }
+      return 1 + num;
+    }
+
+    Uint32 build_continueB(Signal* signal) const
+    {
+      /* Save current value of counters to CONTINUEB */
+      const Uint64* vars[] = { &operations };
+      const size_t num = sizeof(vars)/sizeof(vars[0]);
+
+      for (size_t i = 0; i < num ; i++)
+      {
+        signal->theData[1+i*2] = Uint32(*vars[i] >> 32);
+        signal->theData[1+i*2+1] = Uint32(*vars[i]);
+      }
+      return 1 + num * 2;
+    }
+
+  } c_Counters;
+
+  Uint32 c_max_redo_lag;
+  Uint32 c_max_redo_lag_counter;
+  Uint64 cTotalLqhKeyReqCount;
+  Uint32 c_max_parallel_scans_per_frag;
+
   inline bool getAllowRead() const {
     return getNodeState().startLevel < NodeState::SL_STOPPING_3;
   }
@@ -2943,6 +3262,21 @@ public:
 #ifdef ERROR_INSERT
   void TRACE_OP_DUMP(const TcConnectionrec* regTcPtr, const char * pos);
 #endif
+
+#ifdef ERROR_INSERT
+  Uint32 c_master_node_id;
+#endif
+
+  Uint32 get_node_status(Uint32 nodeId) const;
+  bool check_ndb_versions() const;
+
+  void suspendFile(Signal* signal, Uint32 filePtrI, Uint32 millis);
+  void suspendFile(Signal* signal, Ptr<LogFileRecord> logFile, Uint32 millis);
+
+  void send_runredo_event(Signal*, LogPartRecord *, Uint32 currgci);
+
+  void sendFireTrigConfTc(Signal* signal, BlockReference ref, Uint32 Tdata[]);
+  bool check_fire_trig_pass(Uint32 op, Uint32 pass);
 };
 
 inline
@@ -2960,18 +3294,29 @@ inline
 void
 Dblqh::i_get_acc_ptr(ScanRecord* scanP, Uint32* &acc_ptr, Uint32 index)
 {
+  /* Return ptr to place where acc ptr for operation with given
+   * index is stored.
+   * If index == 0, it's stored in the ScanRecord, otherwise it's 
+   * stored in a segment linked from the ScanRecord.
+   */
   if (index == 0) {
     acc_ptr= (Uint32*)&scanP->scan_acc_op_ptr[0];
   } else {
-    Uint32 attr_buf_index, attr_buf_rec;
-    
-    AttrbufPtr regAttrPtr;
     jam();
-    attr_buf_rec= (index + 31) / 32;
-    attr_buf_index= (index - 1) & 31;
-    regAttrPtr.i= scanP->scan_acc_op_ptr[attr_buf_rec];
-    ptrCheckGuard(regAttrPtr, cattrinbufFileSize, attrbuf);
-    acc_ptr= (Uint32*)&regAttrPtr.p->attrbuf[attr_buf_index];
+    
+    Uint32 segmentIVal, segment, segmentOffset;
+    SegmentedSectionPtr segPtr;
+
+    segment= (index + SectionSegment::DataLength -1) / 
+      SectionSegment::DataLength;
+    segmentOffset= (index - 1) % SectionSegment::DataLength;
+
+    ndbassert( segment < ScanRecord::MaxScanAccSegments );
+
+    segmentIVal= scanP->scan_acc_op_ptr[ segment ];
+    getSection(segPtr, segmentIVal);
+
+    acc_ptr= &segPtr.p->theData[ segmentOffset ];
   }
 }
 
@@ -2988,13 +3333,17 @@ Dblqh::is_same_trans(Uint32 opId, Uint32 trid1, Uint32 trid2)
 
 inline
 void
-Dblqh::get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci)
+Dblqh::get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo,
+                   Uint32* transId1, Uint32* transId2)
 {
   TcConnectionrecPtr regTcPtr;  
   regTcPtr.i= opId;
   ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
-  *hash= regTcPtr.p->hashValue;
-  *gci= regTcPtr.p->gci;
+  *hash = regTcPtr.p->hashValue;
+  *gci_hi = regTcPtr.p->gci_hi;
+  *gci_lo = regTcPtr.p->gci_lo;
+  *transId1 = regTcPtr.p->transid[0];
+  *transId2 = regTcPtr.p->transid[1];
 }
 
 #include "../dbacc/Dbacc.hpp"
@@ -3007,18 +3356,46 @@ Dblqh::accminupdate(Signal* signal, Uint32 opId, const Local_key* key)
   regTcPtr.i= opId;
   ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
   signal->theData[0] = regTcPtr.p->accConnectrec;
-  signal->theData[1] = key->m_page_no << MAX_TUPLES_BITS | key->m_page_idx;
+  signal->theData[1] = key->m_page_no;
+  signal->theData[2] = key->m_page_idx;
   c_acc->execACCMINUPDATE(signal);
-  
+
+  if (ERROR_INSERTED(5714))
+  {
+    FragrecordPtr regFragptr;
+    regFragptr.i = regTcPtr.p->fragmentptr;
+    c_fragment_pool.getPtr(regFragptr);
+    if (regFragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY)
+      ndbout << " LK: " << *key;
+  }
+
   if (ERROR_INSERTED(5712) || ERROR_INSERTED(5713))
     ndbout << " LK: " << *key;
   regTcPtr.p->m_row_id = *key;
 }
 
 inline
+void
+Dblqh::accremoverow(Signal* signal, Uint32 opId, const Local_key* key)
+{
+  TcConnectionrecPtr regTcPtr;
+  regTcPtr.i= opId;
+  ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
+  c_acc->removerow(regTcPtr.p->accConnectrec, key);
+}
+
+inline
 bool
 Dblqh::TRACE_OP_CHECK(const TcConnectionrec* regTcPtr)
 {
+  if (ERROR_INSERTED(5714))
+  {
+    FragrecordPtr regFragptr;
+    regFragptr.i = regTcPtr->fragmentptr;
+    c_fragment_pool.getPtr(regFragptr);
+    return regFragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY;
+  }
+
   return (ERROR_INSERTED(5712) && 
 	  (regTcPtr->operation == ZINSERT ||
 	   regTcPtr->operation == ZDELETE)) ||

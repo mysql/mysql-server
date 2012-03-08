@@ -129,3 +129,12 @@ Warnings:
 Note	1050	Table 't2' already exists
 DROP DATABASE testdb;
 End of 5.1 tests
+#
+# BUG#13489996 valgrind:conditional jump or move depends on
+# uninitialised values-field_blob
+#
+CREATE FUNCTION sf() RETURNS BLOB RETURN "";
+SELECT sf();
+sf()
+
+DROP FUNCTION sf;

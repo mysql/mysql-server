@@ -46,6 +46,9 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0mon.h"
 #include "mtr0log.h"
 
+/** Define this to disable purge altogether. */
+/* #define TRX_PURGE_DISABLED */
+
 /** Maximum allowable purge history length.  <=0 means 'infinite'. */
 UNIV_INTERN ulong		srv_max_purge_lag = 0;
 
@@ -68,20 +71,6 @@ UNIV_INTERN mysql_pfs_key_t	trx_purge_latch_key;
 /* Key to register purge_sys_bh_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	purge_sys_bh_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
-
-/********************************************************************//**
-Fetches the next undo log record from the history list to purge. It must be
-released with the corresponding release function.
-@return copy of an undo log record or pointer to trx_purge_dummy_rec,
-if the whole undo log can skipped in purge; NULL if none left */
-static
-trx_undo_rec_t*
-trx_purge_fetch_next_rec(
-/*=====================*/
-	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
-	ulint*		n_pages_handled,/*!< in/out: number of UNDO log pages
-					handled */
-	mem_heap_t*	heap);		/*!< in: memory heap where copied */
 
 /****************************************************************//**
 Builds a purge 'query' graph. The actual purge is performed by executing
@@ -291,6 +280,7 @@ trx_purge_add_update_undo_to_history(
 	}
 }
 
+#ifndef TRX_PURGE_DISABLED
 /**********************************************************************//**
 Frees an undo log segment which is in the history list. Cuts the end of the
 history list at the youngest undo log in this segment. */
@@ -538,7 +528,6 @@ trx_purge_truncate_history(
 		}
 	}
 }
-
 
 /***********************************************************************//**
 Updates the last not yet purged history log info in rseg when we have purged
@@ -924,7 +913,7 @@ Fetches the next undo log record from the history list to purge. It must be
 released with the corresponding release function.
 @return copy of an undo log record or pointer to trx_purge_dummy_rec,
 if the whole undo log can skipped in purge; NULL if none left */
-static
+static __attribute__((warn_unused_result, nonnull))
 trx_undo_rec_t*
 trx_purge_fetch_next_rec(
 /*=====================*/
@@ -1173,13 +1162,7 @@ void
 trx_purge_truncate(void)
 /*====================*/
 {
-	static ulint	count;
-
 	ut_ad(trx_purge_check_limit());
-
-	if (++count % TRX_SYS_N_RSEGS) {
-		return;
-	}
 
 	if (purge_sys->limit.trx_no == 0) {
 		trx_purge_truncate_history(&purge_sys->iter, purge_sys->view);
@@ -1187,6 +1170,7 @@ trx_purge_truncate(void)
 		trx_purge_truncate_history(&purge_sys->limit, purge_sys->view);
 	}
 }
+#endif /* !TRX_PURGE_DISABLED */
 
 /*******************************************************************//**
 This function runs a purge batch.
@@ -1197,14 +1181,17 @@ trx_purge(
 /*======*/
 	ulint	n_purge_threads,	/*!< in: number of purge tasks
 					to submit to the work queue */
-	ulint	batch_size)		/*!< in: the maximum number of records
+	ulint	batch_size,		/*!< in: the maximum number of records
 					to purge in one batch */
+	bool	truncate)		/*!< in: truncate history if true */
 {
+#ifdef TRX_PURGE_DISABLED
+	return(0);
+#else /* TRX_PURGE_DISABLED */
 	que_thr_t*	thr = NULL;
 	ulint		n_pages_handled;
 
 	ut_a(n_purge_threads > 0);
-
 	srv_dml_needed_delay = trx_purge_dml_delay();
 
 	/* The number of tasks submitted should be completed. */
@@ -1263,18 +1250,16 @@ run_synchronously:
 		}
 	}
 
-	/* When shutdown is triggered it is possible for the worker threads
-        to have already exited via os_event_wait(). We only truncate the UNDO
-	log when we are 100% sure that all submitted tasks have completed. */
+	ut_a(purge_sys->n_submitted == purge_sys->n_completed);
 
-	if (purge_sys->n_submitted == purge_sys->n_completed) {
+	if (truncate) {
 		trx_purge_truncate();
 	}
 
 	MONITOR_INC_VALUE(MONITOR_PURGE_INVOKED, 1);
 	MONITOR_INC_VALUE(MONITOR_PURGE_N_PAGE_HANDLED, n_pages_handled);
-
 	return(n_pages_handled);
+#endif /* TRX_PURGE_DISABLED */
 }
 
 /*******************************************************************//**

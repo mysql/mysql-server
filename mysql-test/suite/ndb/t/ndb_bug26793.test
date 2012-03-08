@@ -1,0 +1,35 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE `test` (
+`id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY ,
+`t` VARCHAR( 10 ) NOT NULL
+) ENGINE = ndbcluster;
+
+# Add user1@localhost with a specific password
+# and connect as that user
+GRANT USAGE ON *.* TO user1@localhost IDENTIFIED BY 'pass';
+connect (user1,localhost,user1,pass,*NO-ONE*);
+
+# Run the query 100 times
+disable_query_log;
+disable_result_log;
+let $i= 100;
+while ($i)
+{
+select count(*) from information_schema.tables union all select count(*) from information_schema.tables union all select count(*) from information_schema.tables;
+dec $i;
+}
+enable_query_log;
+enable_result_log;
+
+disconnect user1;
+
+# Switch back to the default connection and cleanup
+connection default;
+DROP TABLE `test`.`test`;
+drop user user1@localhost;
+

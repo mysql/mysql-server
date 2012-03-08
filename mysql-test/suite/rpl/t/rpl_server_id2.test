@@ -3,6 +3,8 @@
 
 source include/master-slave.inc;
 connection slave;
+--let $saved_slave_gtid_next= `SELECT @@GTID_NEXT`
+SET GTID_NEXT=ANONYMOUS;
 create table t1 (n int);
 reset master;
 # replicate ourselves
@@ -36,10 +38,10 @@ reset master;
 # setting the until position to correspond to the first following create table
 # which will make the event executed and the slave sql thread stopped
 # right after that.
-let $until_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
-inc $until_pos;
 
 create table t1(n int);
+let $until_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+dec $until_pos;
 create table t2(n int);
 
 connection slave;
@@ -64,6 +66,8 @@ connection master;
 drop table t1;
 drop table t2;
 sync_slave_with_master;
+
+--eval SET GTID_NEXT=$saved_slave_gtid_next
 
 # End of tests
 --source include/rpl_end.inc

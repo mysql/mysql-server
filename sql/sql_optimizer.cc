@@ -36,6 +36,7 @@
 #include "sql_parse.h"
 #include "my_bit.h"
 #include "lock.h"
+#include "opt_explain_format.h"  // Explain_format_flags
 
 #include <algorithm>
 using std::max;
@@ -485,7 +486,7 @@ JOIN::optimize()
   /* Optimize distinct away if possible */
   {
     ORDER *org_order= order;
-    order= remove_const(this, order, conds, 1, &simple_order, "ORDER BY");
+    order= ORDER_with_src(remove_const(this, order, conds, 1, &simple_order, "ORDER BY"), order.src);;
     if (thd->is_error())
     {
       error= 1;
@@ -591,15 +592,23 @@ JOIN::optimize()
     JOIN_TAB *tab= &join_tab[const_tables];
     bool all_order_fields_used;
     if (order)
-      skip_sort_order= test_if_skip_sort_order(tab, order, m_select_limit, 1, 
-        &tab->table->keys_in_use_for_order_by);
-    if ((group_list=create_distinct_group(thd, ref_ptrs,
-                                          order, fields_list, all_fields,
-				          &all_order_fields_used)))
     {
-      bool skip_group= (skip_sort_order &&
-        test_if_skip_sort_order(tab, group_list, m_select_limit, 1, 
-                                &tab->table->keys_in_use_for_group_by) != 0);
+      skip_sort_order=
+        test_if_skip_sort_order(tab, order, m_select_limit,
+                                true,           // no_changes
+                                &tab->table->keys_in_use_for_order_by);
+    }
+    ORDER *o;
+    if ((o= create_distinct_group(thd, ref_ptrs,
+                                  order, fields_list, all_fields,
+				  &all_order_fields_used)))
+    {
+      group_list= ORDER_with_src(o, ESC_DISTINCT);
+      const bool skip_group=
+        skip_sort_order &&
+        test_if_skip_sort_order(tab, group_list, m_select_limit,
+                                true,         // no_changes
+                                &tab->table->keys_in_use_for_group_by);
       count_field_types(select_lex, &tmp_table_param, all_fields, 0);
       if ((skip_group && all_order_fields_used) ||
 	  m_select_limit == HA_POS_ERROR ||
@@ -630,10 +639,12 @@ JOIN::optimize()
   }
   simple_group= 0;
   {
-    ORDER *old_group_list;
-    group_list= remove_const(this, (old_group_list= group_list), conds,
-                             rollup.state == ROLLUP::STATE_NONE,
-                             &simple_group, "GROUP BY");
+    ORDER *old_group_list= group_list;
+    group_list= ORDER_with_src(remove_const(this, group_list, conds,
+                                            rollup.state == ROLLUP::STATE_NONE,
+                                            &simple_group, "GROUP BY"),
+                               group_list.src);
+
     if (thd->is_error())
     {
       error= 1;
@@ -653,10 +664,17 @@ JOIN::optimize()
 
   calc_group_buffer(this, group_list);
   send_group_parts= tmp_table_param.group_parts; /* Save org parts */
+
   if (procedure && procedure->group)
   {
-    group_list= procedure->group= remove_const(this, procedure->group, conds,
-                                               1, &simple_group, "PROCEDURE");
+    /*
+      Dead code since PROCEDURE ANALYSE() always has procedure->group == 0
+    */
+    DBUG_ASSERT(0);
+    procedure->group= group_list=
+      ORDER_with_src(remove_const(this, procedure->group, conds,
+                                  1, &simple_group, "PROCEDURE"),
+                     group_list.src); // should be procedure->group.src
     if (thd->is_error())
     {
       error= 1;
@@ -820,46 +838,10 @@ JOIN::optimize()
 
   if (const_tables != tables)
   {
-    /*
-      Because filesort always does a full table scan or a quick range scan
-      we must add the removed reference to the select for the table.
-      We only need to do this when we have a simple_order or simple_group
-      as in other cases the join is done before the sort.
-    */
-    if ((order || group_list) &&
-        join_tab[const_tables].type != JT_ALL &&
-        join_tab[const_tables].type != JT_FT &&
-        join_tab[const_tables].type != JT_REF_OR_NULL &&
-        ((order && simple_order) || (group_list && simple_group)))
-    {
-      if (add_ref_to_table_cond(thd,&join_tab[const_tables])) {
-        DBUG_RETURN(1);
-      }
-    }
-    
-    if (!(select_options & SELECT_BIG_RESULT) &&
-        ((group_list &&
-          (!simple_group ||
-           !test_if_skip_sort_order(&join_tab[const_tables], group_list,
-                                    unit->select_limit_cnt, 0, 
-                                    &join_tab[const_tables].table->
-                                    keys_in_use_for_group_by))) ||
-         select_distinct) &&
-        tmp_table_param.quick_group && !procedure)
-    {
-      need_tmp=1; simple_order=simple_group=0;	// Force tmp table without sort
-    }
+    JOIN_TAB *tab= &join_tab[const_tables];
+
     if (order)
     {
-      /*
-        Do we need a temporary table due to the ORDER BY not being equal to
-        the GROUP BY? The call to test_if_skip_sort_order above tests for the
-        GROUP BY clause only and hence is not valid in this case. So the
-        estimated number of rows to be read from the first table is not valid.
-        We clear it here so that it doesn't show up in EXPLAIN.
-       */
-      if (need_tmp && (select_options & SELECT_DESCRIBE) != 0)
-        join_tab[const_tables].limit= 0;
       /*
         Force using of tmp table if sorting by a SP or UDF function due to
         their expensive and probably non-deterministic nature.
@@ -875,6 +857,88 @@ JOIN::optimize()
         }
       }
     }
+
+    /*
+      Because filesort always does a full table scan or a quick range scan
+      we must add the removed reference to the select for the table.
+      We only need to do this when we have a simple_order or simple_group
+      as in other cases the join is done before the sort.
+    */
+    if ((order || group_list) &&
+        tab->type != JT_ALL &&
+        tab->type != JT_FT &&
+        tab->type != JT_REF_OR_NULL &&
+        ((order && simple_order) || (group_list && simple_group)))
+    {
+      if (add_ref_to_table_cond(thd,tab)) {
+        DBUG_RETURN(1);
+      }
+    }
+    
+    /*
+      Investigate whether we may use an ordered index as part of either
+      DISTINCT, GROUP BY or ORDER BY execution. An ordered index may be
+      used for only the first of any of these terms to be executed. This
+      is reflected in the order which we check for test_if_skip_sort_order()
+      below. However we do not check for DISTINCT here, as it would have
+      been transformed to a GROUP BY at this stage if it is a candidate for 
+      ordered index optimization.
+      If a decision was made to use an ordered index, the availability
+      if such an access path is stored in 'ordered_index_usage' for later
+      use by 'execute' or 'explain'
+    */
+    DBUG_ASSERT(ordered_index_usage == ordered_index_void);
+
+    if (group_list)   // GROUP BY honoured first
+                      // (DISTINCT was rewritten to GROUP BY if skippable)
+    {
+      /*
+        When there is SQL_BIG_RESULT do not sort using index for GROUP BY,
+        and thus force sorting on disk unless a group min-max optimization
+        is going to be used as it is applied now only for one table queries
+        with covering indexes.
+      */
+      if (!(select_options & SELECT_BIG_RESULT) ||
+            (tab->select &&
+             tab->select->quick &&
+             tab->select->quick->get_type() ==
+             QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
+      {
+        if (simple_group &&              // GROUP BY is possibly skippable
+            !select_distinct)            // .. if not preceded by a DISTINCT
+        {
+          /*
+            Calculate a possible 'limit' of table rows for 'GROUP BY':
+            A specified 'LIMIT' is relative to the final resultset.
+            'need_tmp' implies that there will be more postprocessing 
+            so the specified 'limit' should not be enforced yet.
+           */
+          const ha_rows limit = need_tmp ? HA_POS_ERROR : m_select_limit;
+
+          if (test_if_skip_sort_order(tab, group_list, limit, false, 
+                                      &tab->table->keys_in_use_for_group_by))
+          {
+            ordered_index_usage= ordered_index_group_by;
+          }
+        }
+
+        if ((ordered_index_usage != ordered_index_group_by) &&
+            tmp_table_param.quick_group && !procedure)
+        {
+          need_tmp=1;
+          simple_order= simple_group= false; // Force tmp table without sort
+        }
+      }
+    }
+    else if (order &&                      // ORDER BY wo/ preceeding GROUP BY
+             (simple_order || skip_sort_order)) // which is possibly skippable
+    {
+      if (test_if_skip_sort_order(tab, order, m_select_limit, false, 
+                                  &tab->table->keys_in_use_for_order_by))
+      {
+        ordered_index_usage= ordered_index_order_by;
+      }
+    }
   }
 
   tmp_having= having;
@@ -882,7 +946,9 @@ JOIN::optimize()
   {
     having= NULL;
   }
-   
+
+  init_tmp_tables_info();
+
   error= 0;
   DBUG_RETURN(0);
 
@@ -2721,7 +2787,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
                      Key_use_array *keyuse_array, bool first_optimization)
 {
   int error;
-  TABLE *table;
   THD *const thd= join->thd;
   TABLE_LIST *tables= tables_arg;
   uint i,const_count,key;
@@ -2767,7 +2832,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
        s++, tables= tables->next_leaf, i++)
   {
     stat_vector[i]=s;
-    table_vector[i]=s->table=table=tables->table;
+    TABLE *const table= tables->table;
+    table_vector[i]= s->table= table;
     table->pos_in_table_list= tables;
     error= tables->fetch_number_of_rows();
 
@@ -2842,12 +2908,12 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     */
     for (i= 0 ; i < table_count ; i++)
     {
-      uint j;
-      table= stat[i].table;
+      TABLE *const table= stat[i].table;
 
       if (!table->reginfo.join_tab->dependent)
         continue;
 
+      uint j;
       /* Add my dependencies to other tables depending on me */
       for (j= 0, s= stat ; j < table_count ; j++, s++)
       {
@@ -3027,7 +3093,7 @@ const_table_extraction_done:
 
     for (JOIN_TAB **pos=stat_vector+const_count ; (s= *pos) ; pos++)
     {
-      table=s->table;
+      TABLE *const table= s->table;
       TABLE_LIST *const tl= table->pos_in_table_list;
       /* 
         If equi-join condition by a key is null rejecting and after a
@@ -3278,7 +3344,7 @@ const_table_extraction_done:
           if (*s->on_expr_ref)
           {
             /* Generate empty row */
-            s->info= "Impossible ON condition";
+            s->info= ET_IMPOSSIBLE_ON_CONDITION;
             trace_table.add("returning_empty_null_row", true).
               add_alnum("cause", "impossible_on_condition");
             join->found_const_table_map|= s->table->map;
@@ -5872,7 +5938,7 @@ static bool test_if_ref(Item *root_cond,
 	    field->real_type() != MYSQL_TYPE_VARCHAR &&
 	    (field->type() != MYSQL_TYPE_FLOAT || field->decimals() == 0))
 	{
-	  return !store_val_in_field(field, right_item, CHECK_FIELD_WARN);
+	  return !right_item->save_in_field_no_warnings(field, true);
 	}
       }
     }
@@ -8522,13 +8588,18 @@ static Item_cond_and *create_cond_for_const_ref(THD *thd, JOIN_TAB *join_tab)
     Field *field= table->field[table->key_info[join_tab->ref.key].key_part[i].
                                fieldnr-1];
     Item *value= join_tab->ref.items[i];
-    cond->add(new Item_func_equal(new Item_field(field), value));
+    Item *item= new Item_field(field);
+    if (!item)
+      DBUG_RETURN(NULL);
+    item= join_tab->ref.null_rejecting & (1 << i) ?
+            (Item *)new Item_func_eq(item, value) :
+            (Item *)new Item_func_equal(item, value);
+    if (!item)
+      DBUG_RETURN(NULL);
+    if (cond->add(item))
+      DBUG_RETURN(NULL);
   }
-  if (thd->is_fatal_error)
-    DBUG_RETURN(NULL);
-
-  if (!cond->fixed)
-    cond->fix_fields(thd, (Item**)&cond);
+  cond->fix_fields(thd, (Item**)&cond);
 
   DBUG_RETURN(cond);
 }

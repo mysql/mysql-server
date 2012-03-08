@@ -11,6 +11,8 @@ call mtr.add_suppression('Slave: Error dropping database');
 include/stop_slave.inc
 start slave;
 stop slave sql_thread;
+insert into test0.benchmark set state='slave is processing load';
+start slave sql_thread;
 use test;
 select * from test0.benchmark into outfile 'benchmark.out';
 select ts from test0.benchmark where state like 'master started load' into @m_0;

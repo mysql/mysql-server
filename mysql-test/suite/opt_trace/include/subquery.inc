@@ -4,7 +4,8 @@
 --source include/have_64bit.inc
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
-SET optimizer_trace="enabled=on,end_marker=on,one_line=off";
+SET end_markers_in_json=on;
+SET optimizer_trace="enabled=on,one_line=off";
 
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT, b INT);

@@ -1,0 +1,721 @@
+drop table if exists t1;
+drop database if exists test2;
+set autocommit=0;
+create table t1 (
+a int not null primary key,
+b text not null,
+c int not null,
+d longblob,
+key (c)
+) engine=ndbcluster;
+set @x0 = '01234567012345670123456701234567';
+set @x0 = concat(@x0,@x0,@x0,@x0,@x0,@x0,@x0,@x0);
+set @b1 = 'b1';
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@x0);
+set @d1 = 'dd1';
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @b2 = 'b2';
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @d2 = 'dd2';
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+select length(@x0),length(@b1),length(@d1) from dual;
+length(@x0)	length(@b1)	length(@d1)
+256	2256	3000
+select length(@x0),length(@b2),length(@d2) from dual;
+length(@x0)	length(@b2)	length(@d2)
+256	20000	30000
+insert into t1 values(1,@b1,111,@d1);
+insert into t1 values(2,@b2,222,@d2);
+commit;
+explain select * from t1 where a = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	#	
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a=1;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+1	2256	b1	3000	dd1
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where a=2;
+a	length(b)	substr(b,1+2*9000,2)	length(d)	substr(d,1+3*9000,3)
+2	20000	b2	30000	dd2
+update t1 set b=@b2,d=@d2 where a=1;
+update t1 set b=@b1,d=@d1 where a=2;
+commit;
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where a=1;
+a	length(b)	substr(b,1+2*9000,2)	length(d)	substr(d,1+3*9000,3)
+1	20000	b2	30000	dd2
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a=2;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+2	2256	b1	3000	dd1
+update t1 set b=concat(b,b),d=concat(d,d) where a=1;
+update t1 set b=concat(b,b),d=concat(d,d) where a=2;
+commit;
+select a,length(b),substr(b,1+4*9000,2),length(d),substr(d,1+6*9000,3)
+from t1 where a=1;
+a	length(b)	substr(b,1+4*9000,2)	length(d)	substr(d,1+6*9000,3)
+1	40000	b2	60000	dd2
+select a,length(b),substr(b,1+4*900,2),length(d),substr(d,1+6*900,3)
+from t1 where a=2;
+a	length(b)	substr(b,1+4*900,2)	length(d)	substr(d,1+6*900,3)
+2	4512	b1	6000	dd1
+update t1 set d=null where a=1;
+commit;
+select a from t1 where d is null;
+a
+1
+delete from t1 where a=45567;
+commit;
+delete from t1 where a=1;
+delete from t1 where a=2;
+commit;
+select count(*) from t1;
+count(*)
+0
+replace t1 set a=1,b=@b1,c=111,d=@d1;
+replace t1 set a=2,b=@b2,c=222,d=@d2;
+commit;
+explain select * from t1 where a = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	#	
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a=1;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+1	2256	b1	3000	dd1
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where a=2;
+a	length(b)	substr(b,1+2*9000,2)	length(d)	substr(d,1+3*9000,3)
+2	20000	b2	30000	dd2
+replace t1 set a=1,b=@b2,c=111,d=@d2;
+replace t1 set a=2,b=@b1,c=222,d=@d1;
+commit;
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where a=1;
+a	length(b)	substr(b,1+2*9000,2)	length(d)	substr(d,1+3*9000,3)
+1	20000	b2	30000	dd2
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a=2;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+2	2256	b1	3000	dd1
+replace t1 set a=1,b=concat(@b2,@b2),c=111,d=concat(@d2,@d2);
+replace t1 set a=2,b=concat(@b1,@b1),c=222,d=concat(@d1,@d1);
+commit;
+select a,length(b),substr(b,1+4*9000,2),length(d),substr(d,1+6*9000,3)
+from t1 where a=1;
+a	length(b)	substr(b,1+4*9000,2)	length(d)	substr(d,1+6*9000,3)
+1	40000	b2	60000	dd2
+select a,length(b),substr(b,1+4*900,2),length(d),substr(d,1+6*900,3)
+from t1 where a=2;
+a	length(b)	substr(b,1+4*900,2)	length(d)	substr(d,1+6*900,3)
+2	4512	b1	6000	dd1
+replace t1 set a=1,b='xyz',c=111,d=null;
+commit;
+select a,b from t1 where d is null;
+a	b
+1	xyz
+delete from t1 where a=1;
+delete from t1 where a=2;
+commit;
+select count(*) from t1;
+count(*)
+0
+insert into t1 values(1,@b1,111,@d1);
+insert into t1 values(2,@b2,222,@d2);
+commit;
+explain select * from t1 where c = 111;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	c	c	4	const	#	
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where c=111;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+1	2256	b1	3000	dd1
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where c=222;
+a	length(b)	substr(b,1+2*9000,2)	length(d)	substr(d,1+3*9000,3)
+2	20000	b2	30000	dd2
+update t1 set b=@b2,d=@d2 where c=111;
+update t1 set b=@b1,d=@d1 where c=222;
+commit;
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where c=111;
+a	length(b)	substr(b,1+2*9000,2)	length(d)	substr(d,1+3*9000,3)
+1	20000	b2	30000	dd2
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where c=222;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+2	2256	b1	3000	dd1
+update t1 set d=null where c=111;
+commit;
+select a from t1 where d is null;
+a
+1
+delete from t1 where c=111;
+delete from t1 where c=222;
+commit;
+select count(*) from t1;
+count(*)
+0
+insert into t1 values(1,'b1',111,'dd1');
+insert into t1 values(2,'b2',222,'dd2');
+insert into t1 values(3,'b3',333,'dd3');
+insert into t1 values(4,'b4',444,'dd4');
+insert into t1 values(5,'b5',555,'dd5');
+insert into t1 values(6,'b6',666,'dd6');
+insert into t1 values(7,'b7',777,'dd7');
+insert into t1 values(8,'b8',888,'dd8');
+insert into t1 values(9,'b9',999,'dd9');
+commit;
+explain select * from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	
+select * from t1 order by a;
+a	b	c	d
+1	b1	111	dd1
+2	b2	222	dd2
+3	b3	333	dd3
+4	b4	444	dd4
+5	b5	555	dd5
+6	b6	666	dd6
+7	b7	777	dd7
+8	b8	888	dd8
+9	b9	999	dd9
+update t1 set b=concat(a,'x',b),d=concat(a,'x',d);
+commit;
+select * from t1 order by a;
+a	b	c	d
+1	1xb1	111	1xdd1
+2	2xb2	222	2xdd2
+3	3xb3	333	3xdd3
+4	4xb4	444	4xdd4
+5	5xb5	555	5xdd5
+6	6xb6	666	6xdd6
+7	7xb7	777	7xdd7
+8	8xb8	888	8xdd8
+9	9xb9	999	9xdd9
+delete from t1;
+commit;
+select count(*) from t1;
+count(*)
+0
+insert into t1 values(1,@b1,111,@d1);
+insert into t1 values(2,@b2,222,@d2);
+commit;
+explain select * from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 order by a;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+1	2256	b1	3000	dd1
+2	20000	b2	30000	dd2
+update t1 set b=concat(b,b),d=concat(d,d);
+commit;
+select a,length(b),substr(b,1+4*9000,2),length(d),substr(d,1+6*9000,3)
+from t1 order by a;
+a	length(b)	substr(b,1+4*9000,2)	length(d)	substr(d,1+6*9000,3)
+1	4512		6000	
+2	40000	b2	60000	dd2
+delete from t1;
+commit;
+select count(*) from t1;
+count(*)
+0
+insert into t1 values(1,'b1',111,'dd1');
+insert into t1 values(2,'b2',222,'dd2');
+insert into t1 values(3,'b3',333,'dd3');
+insert into t1 values(4,'b4',444,'dd4');
+insert into t1 values(5,'b5',555,'dd5');
+insert into t1 values(6,'b6',666,'dd6');
+insert into t1 values(7,'b7',777,'dd7');
+insert into t1 values(8,'b8',888,'dd8');
+insert into t1 values(9,'b9',999,'dd9');
+commit;
+explain select * from t1 where c >= 100 order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	4	NULL	#	Using where with pushed condition; Using filesort
+select * from t1 where c >= 100 order by a;
+a	b	c	d
+1	b1	111	dd1
+2	b2	222	dd2
+3	b3	333	dd3
+4	b4	444	dd4
+5	b5	555	dd5
+6	b6	666	dd6
+7	b7	777	dd7
+8	b8	888	dd8
+9	b9	999	dd9
+update t1 set b=concat(a,'x',b),d=concat(a,'x',d)
+where c >= 100;
+commit;
+select * from t1 where c >= 100 order by a;
+a	b	c	d
+1	1xb1	111	1xdd1
+2	2xb2	222	2xdd2
+3	3xb3	333	3xdd3
+4	4xb4	444	4xdd4
+5	5xb5	555	5xdd5
+6	6xb6	666	6xdd6
+7	7xb7	777	7xdd7
+8	8xb8	888	8xdd8
+9	9xb9	999	9xdd9
+delete from t1 where c >= 100;
+commit;
+select count(*) from t1;
+count(*)
+0
+insert into t1 values(1,@b1,111,@d1);
+insert into t1 values(2,@b2,222,@d2);
+commit;
+explain select * from t1 where c >= 100 order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	c	PRIMARY	4	NULL	#	Using where with pushed condition
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where c >= 100 order by a;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+1	2256	b1	3000	dd1
+2	20000	b2	30000	dd2
+update t1 set b=concat(b,b),d=concat(d,d);
+commit;
+select a,length(b),substr(b,1+4*9000,2),length(d),substr(d,1+6*9000,3)
+from t1 where c >= 100 order by a;
+a	length(b)	substr(b,1+4*9000,2)	length(d)	substr(d,1+6*9000,3)
+1	4512		6000	
+2	40000	b2	60000	dd2
+delete from t1 where c >= 100;
+commit;
+select count(*) from t1;
+count(*)
+0
+insert into t1 values(1,@b1,111,@d1);
+insert into t1 values(2,@b2,222,@d2);
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a = 0;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a = 1;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+1	2256	b1	3000	dd1
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a = 2;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+2	20000	b2	30000	dd2
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 order by a;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+1	2256	b1	3000	dd1
+2	20000	b2	30000	dd2
+rollback;
+select count(*) from t1;
+count(*)
+0
+insert into t1 values(1,'b1',111,'dd1');
+insert into t1 values(2,'b2',222,'dd2');
+insert into t1 values(3,'b3',333,'dd3');
+insert into t1 values(4,'b4',444,'dd4');
+insert into t1 values(5,'b5',555,'dd5');
+insert into t1 values(6,'b6',666,'dd6');
+insert into t1 values(7,'b7',777,'dd7');
+insert into t1 values(8,'b8',888,'dd8');
+insert into t1 values(9,'b9',999,'dd9');
+commit;
+select * from t1 order by a;
+a	b	c	d
+1	b1	111	dd1
+2	b2	222	dd2
+3	b3	333	dd3
+4	b4	444	dd4
+5	b5	555	dd5
+6	b6	666	dd6
+7	b7	777	dd7
+8	b8	888	dd8
+9	b9	999	dd9
+alter table t1 add x int;
+select * from t1 order by a;
+a	b	c	d	x
+1	b1	111	dd1	NULL
+2	b2	222	dd2	NULL
+3	b3	333	dd3	NULL
+4	b4	444	dd4	NULL
+5	b5	555	dd5	NULL
+6	b6	666	dd6	NULL
+7	b7	777	dd7	NULL
+8	b8	888	dd8	NULL
+9	b9	999	dd9	NULL
+alter table t1 drop x;
+select * from t1 order by a;
+a	b	c	d
+1	b1	111	dd1
+2	b2	222	dd2
+3	b3	333	dd3
+4	b4	444	dd4
+5	b5	555	dd5
+6	b6	666	dd6
+7	b7	777	dd7
+8	b8	888	dd8
+9	b9	999	dd9
+create database test2;
+use test2;
+CREATE TABLE t2 (
+a bigint unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned
+) engine=ndbcluster;
+insert into t2 values (1,1,1),(2,2,2);
+select * from test.t1,t2 where test.t1.a = t2.a order by test.t1.a;
+a	b	c	d	a	b	c
+1	b1	111	dd1	1	1	1
+2	b2	222	dd2	2	2	2
+drop table t2;
+use test;
+select * from t1 order by a;
+a	b	c	d
+1	b1	111	dd1
+2	b2	222	dd2
+3	b3	333	dd3
+4	b4	444	dd4
+5	b5	555	dd5
+6	b6	666	dd6
+7	b7	777	dd7
+8	b8	888	dd8
+9	b9	999	dd9
+alter table t1 add x int;
+select * from t1 order by a;
+a	b	c	d	x
+1	b1	111	dd1	NULL
+2	b2	222	dd2	NULL
+3	b3	333	dd3	NULL
+4	b4	444	dd4	NULL
+5	b5	555	dd5	NULL
+6	b6	666	dd6	NULL
+7	b7	777	dd7	NULL
+8	b8	888	dd8	NULL
+9	b9	999	dd9	NULL
+alter table t1 drop x;
+select * from t1 order by a;
+a	b	c	d
+1	b1	111	dd1
+2	b2	222	dd2
+3	b3	333	dd3
+4	b4	444	dd4
+5	b5	555	dd5
+6	b6	666	dd6
+7	b7	777	dd7
+8	b8	888	dd8
+9	b9	999	dd9
+drop table t1;
+drop database test2;
+set autocommit=0;
+create table t1 (
+a int not null primary key,
+b tinytext
+) engine=ndbcluster;
+insert into t1 values(1, 'x');
+update t1 set b = 'y';
+select * from t1;
+a	b
+1	y
+delete from t1;
+select * from t1;
+a	b
+commit;
+replace t1 set a=2, b='y';
+select * from t1;
+a	b
+2	y
+delete from t1;
+select * from t1;
+a	b
+drop table t1;
+set autocommit=0;
+create table t1 (
+a int not null primary key,
+b text not null
+) engine=ndbcluster;
+insert into t1 values(1, '');
+select * from t1;
+a	b
+1	
+commit;
+begin;
+insert into t1 values (3, repeat("w", 8000));
+insert into t1 values (2, repeat("x", 10000)),
+(3, repeat("y", 5000)),
+(4, repeat("z", 15000));
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+commit;
+drop table t1;
+set autocommit=1;
+use test;
+CREATE TABLE t1 (
+a int,
+b text,
+PRIMARY KEY  (a)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES 
+(1,'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+INSERT INTO t1 VALUES 
+(2,'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB');
+select * from t1 order by a;
+a	b
+1	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+2	BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+alter table t1 engine=ndb;
+select * from t1 order by a;
+a	b
+1	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+2	BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+set autocommit=1;
+alter table t1 engine=myisam;
+select * from t1 order by a;
+a	b
+1	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+2	BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+drop table t1;
+create table t1 (
+id int(11) unsigned primary key NOT NULL auto_increment,
+msg text NOT NULL
+) engine=ndbcluster default charset=utf8;
+insert into t1 (msg) values(
+'Tries to validate (8 byte length + inline bytes) as UTF8 :(
+Fast fix: removed validation for Text.  It is not yet indexable
+so bad data will not crash kernel.');
+select * from t1;
+id	msg
+1	Tries to validate (8 byte length + inline bytes) as UTF8 :(
+Fast fix: removed validation for Text.  It is not yet indexable
+so bad data will not crash kernel.
+drop table t1;
+create table t1 (
+a int primary key not null auto_increment,
+b text
+) engine=ndbcluster;
+select count(*) from t1;
+count(*)
+500
+truncate t1;
+select count(*) from t1;
+count(*)
+0
+drop table t1;
+create table t1 (
+a varchar(40) not null,
+b mediumint not null,
+t text,
+c varchar(2) not null,
+d bigint not null,
+primary key (a,b,c),
+key (c,a),
+unique key (d)
+) engine=ndb;
+insert into t1 (a,b,c,d,t) values ('a',1110,'a',1,@v1);
+insert into t1 (a,b,c,d,t) values ('b',1110,'a',2,@v2);
+insert into t1 (a,b,c,d,t) values ('a',1110,'b',3,@v3);
+insert into t1 (a,b,c,d,t) values ('b',1110,'b',4,@v4);
+select a,b,c,d,sha1(t) from t1 order by c,a;
+a	b	c	d	sha1(t)
+a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
+b	1110	a	2	b238654911689bfb626a3ef9dba4a1ca074e6a5e
+a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
+b	1110	b	4	NULL
+select a,b,c,d,sha1(t) from t1 where a='a' and b=1110 and c='a';
+a	b	c	d	sha1(t)
+a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
+select a,b,c,d,sha1(t) from t1 where a='a' and b=1110 and c='b';
+a	b	c	d	sha1(t)
+a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
+update t1 set t=@v4 where a='b' and b=1110 and c='a';
+update t1 set t=@v2 where a='b' and b=1110 and c='b';
+select a,b,c,d,sha1(t) from t1 order by c,a;
+a	b	c	d	sha1(t)
+a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
+b	1110	a	2	NULL
+a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
+b	1110	b	4	b238654911689bfb626a3ef9dba4a1ca074e6a5e
+update t1 set t=@v2 where d=2;
+update t1 set t=@v4 where d=4;
+select a,b,c,d,sha1(t) from t1 order by c,a;
+a	b	c	d	sha1(t)
+a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
+b	1110	a	2	b238654911689bfb626a3ef9dba4a1ca074e6a5e
+a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
+b	1110	b	4	NULL
+update t1 set t=@v4 where a='b' and c='a';
+update t1 set t=@v2 where a='b' and c='b';
+select a,b,c,d,sha1(t) from t1 order by c,a;
+a	b	c	d	sha1(t)
+a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
+b	1110	a	2	NULL
+a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
+b	1110	b	4	b238654911689bfb626a3ef9dba4a1ca074e6a5e
+update t1 set t=@v2 where b+d=1112;
+update t1 set t=@v4 where b+d=1114;
+select a,b,c,d,sha1(t) from t1 order by c,a;
+a	b	c	d	sha1(t)
+a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
+b	1110	a	2	b238654911689bfb626a3ef9dba4a1ca074e6a5e
+a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
+b	1110	b	4	NULL
+delete from t1 where a='a' and b=1110 and c='a';
+delete from t1 where a='b' and c='a';
+delete from t1 where d=3;
+delete from t1 where b+d=1114;
+select count(*) from t1;
+count(*)
+0
+drop table t1;
+create table t1(
+a int,
+blob_nn blob not null,
+text_nn text not null,
+blob_nl blob,
+text_nl text,
+primary key(a)
+) engine=ndb;
+insert into t1(a) values (1);
+Warnings:
+Warning	1364	Field 'blob_nn' doesn't have a default value
+Warning	1364	Field 'text_nn' doesn't have a default value
+insert into t1(a, text_nl) values (2, 'MySQL Cluster NDB');
+Warnings:
+Warning	1364	Field 'blob_nn' doesn't have a default value
+Warning	1364	Field 'text_nn' doesn't have a default value
+select a, length(blob_nn), length(text_nn), blob_nl, text_nl from t1 order by a;
+a	length(blob_nn)	length(text_nn)	blob_nl	text_nl
+1	0	0	NULL	NULL
+2	0	0	NULL	MySQL Cluster NDB
+drop table t1;
+create table `t1` (
+`f1` int(11) not null default -1,
+`f11` text,
+unique key `i1` (`f1`)
+) engine=ndbcluster default charset=utf8;
+insert into `t1` values (123,null);
+create table `t2` (
+`f1` int(11) not null default -1,
+unique key `i2` (`f1`)
+) engine=ndbcluster default charset=utf8;
+begin;
+delete from t2 where f1=5;
+delete from t1 where f1=123;
+delete from t2 where f1=5;
+commit;
+show warnings;
+Level	Code	Message
+drop table t1;
+drop table t2;
+create table t1 (
+a    int primary key,
+giga longblob) 
+engine=ndb;
+set @stuff = '1234567890';
+insert into t1 values (0, repeat(@stuff, 2000));
+select sha1(repeat(@stuff, 2000));
+sha1(repeat(@stuff, 2000))
+c8d94eb4127361ac22cf1c8a8f1178a37fb25e41
+select sha1(giga) from t1;
+sha1(giga)
+c8d94eb4127361ac22cf1c8a8f1178a37fb25e41
+select (giga = repeat(@stuff, 2000)) from t1 where a=0;
+(giga = repeat(@stuff, 2000))
+1
+drop table t1;
+Test that automatic lock upgrade on Blobs behaves as expected
+w.r.t other operations on the table.
+create table t1 (a int primary key, b longblob, c int, unique(c)) engine=ndb;
+insert into t1 values (1, repeat('1', 256), 1);
+insert into t1 values (2, repeat('2', 2256), 2);
+insert into t1 values (3, repeat('3', 4256), 3);
+insert into t1 values (4, repeat('4', 8256), 4);
+insert into t1 values (5, repeat('5', 20000), 5);
+No Deadlock scenarios
+Transaction 1 reading PK with no lock.  Transaction 2 reading PK with EX lock
+begin;
+select a, length(b) from t1 where a=2;
+a	length(b)
+2	2256
+select a, length(b) from t1 where a=2 FOR UPDATE;
+a	length(b)
+2	2256
+Transaction 2 scanning with EX lock - will not deadlock with transaction 1
+select a, length(b) from t1 ORDER BY a FOR UPDATE;
+a	length(b)
+1	256
+2	2256
+3	4256
+4	8256
+5	20000
+commit;
+Transaction1 reading PK with SH lock.  Transaction 2 reading PK with no lock
+begin;
+select a, length(b) from t1 where a=3 LOCK IN SHARE MODE;
+a	length(b)
+3	4256
+select a, length(b) from t1 where a=3;
+a	length(b)
+3	4256
+Transaction 2 scanning with SH lock - will not deadlock with transaction 1
+select a, length(b) from t1 ORDER BY a;
+a	length(b)
+1	256
+2	2256
+3	4256
+4	8256
+5	20000
+commit;
+Transaction1 reading PK with SH lock.  Transaction 2 reading PK with SH lock
+begin;
+select a, length(b) from t1 where a=4 LOCK IN SHARE MODE;
+a	length(b)
+4	8256
+select a, length(b) from t1 where a=4 LOCK IN SHARE MODE;
+a	length(b)
+4	8256
+Transaction 2 scanning with SH lock - will not deadlock with transaction 1
+select a, length(b) from t1 ORDER BY a LOCK IN SHARE MODE;
+a	length(b)
+1	256
+2	2256
+3	4256
+4	8256
+5	20000
+commit;
+Deadlock scenarios on PK access : 
+Transaction 1 reading PK with EX lock.  Transaction 2 reading PK with no lock
+begin;
+select a, length(b) from t1 where a=5 FOR UPDATE;
+a	length(b)
+5	20000
+select a, length(b) from t1 where a=5;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+Transaction 1 reading PK with EX lock.  Transaction 2 reading PK with SH lock
+begin;
+select a, length(b) from t1 where a=1 FOR UPDATE;
+a	length(b)
+1	256
+select a, length(b) from t1 where a=1 LOCK IN SHARE MODE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+Verify that Nolock Unique index access still deadlocks
+as unique index accesses always upgrade to SH
+begin;
+select a, length(b) from t1 where c=2;
+a	length(b)
+2	2256
+select a, length(b) from t1 FOR UPDATE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+drop table t1;

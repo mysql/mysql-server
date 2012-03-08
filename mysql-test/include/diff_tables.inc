@@ -9,6 +9,7 @@
 #
 # --let $diff_tables= [con1:][db1.]t1, [con2:][db2.]t2, ... , [conN:][dbN.]tN
 # [--let $rpl_debug= 1]
+# [--let $diff_tables_silent= 1]
 # --source include/diff_tables.inc
 #
 # Parameters:
@@ -23,6 +24,9 @@
 #     table).  If DATABASE is given, the table is read in that
 #     database. If DATABASE is not given, the table is read in the
 #     connection's current database.
+#
+#   $diff_tables_silent
+#     Do not print table names to result log.
 #
 #   $rpl_debug
 #     See include/rpl_init.inc
@@ -56,7 +60,11 @@
 #   by character case.
 
 
---let $include_filename= diff_tables.inc [$diff_tables]
+--let $include_filename= diff_tables.inc
+if (!$diff_tables_silent)
+{
+  --let $include_filename= diff_tables.inc [$diff_tables]
+}
 --source include/begin_include_file.inc
 
 

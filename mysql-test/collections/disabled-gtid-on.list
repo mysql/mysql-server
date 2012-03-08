@@ -1,0 +1,169 @@
+rpl_loaddata_s : Skipped and the reason requires further analysis.
+rpl_server_id2 : Skipped and the reason requires furhter analysis.
+rpl_server_id_ignore : Skipped and the reason requires further analysis.
+rpl_insert : Skipped and the reason requires furhter analysis.
+rpl_mix_insert_delayed : Skipped and the reason requires furhter analysis.
+rpl_row_mysqlbinlog : Skipped and the reason requires furhter analysis.
+rpl_typeconv : Skipped and the reason requires furhter analysis.
+rpl_slave_start: Skipped and the reason requires furhter analysis.
+rpl_change_master_crash_safe : Skipped and the reason requires furhter analysis.
+rpl_change_master : Skipped and the reason requires furhter analysis.
+rpl_extra_col_slave_innodb : Skipped and the reason requires furhter analysis..
+rpl_extra_col_slave_myisam : Skipped and the reason requires furhter analysis.
+rpl_seconds_behind_master : Skipped and the reason requires furhter analysis.
+rpl_loaddata_fatal : Skipped and the reason requires furhter analysis.
+rpl_row_delayed_ins : Skipped and the reason requires furhter analysis.
+rpl_row_max_relay_size : Skipped and the reason requires furhter analysis.
+rpl_stm_000001 : Skipped and the reason requires furhter analysis.
+rpl_filter_tables_not_exist : Skipped and the reason requires furhter analysis.
+rpl_ssl1 :  Skipped and the reason requires furhter analysis.
+rpl_circular_for_4_hosts : Skipped and the reason requires furhter analysis.
+rpl_loaddata : Skipped and the reason requires furhter analysis.
+rpl_heartbeat_2slaves : Skipped and the reason requires furhter analysis.
+mysql_client_test : Skipped and the reason requires furhter analysis.
+binlog_base64_flag : Skipped and the reason requires furhter analysis.
+binlog_old_versions : Skipped and the reason requires furhter analysis.
+rpl_row_img_eng_full : Skipped and the reason requires furhter analysis.
+skip_log_bin : Skipped and the reason requires furhter analysis.
+flush2 : Skipped and the reason requires furhter analysis.
+mysqldump-no-binlog : Skipped and the reason requires furhter analysis.
+delayed: Skipped and the reason requires further analysis.
+no_binlog: Skipped and the reason requires further analysis.
+openssl_1: Skipped and the reason requires further analysis.
+innodb-replace: Skipped and the reason requires further analysis.
+read_only_innodb: Skipped and the reason requires further analysis.
+sys_vars.delayed_insert_limit_func: Skipped and the reason requires further analysis.
+sp-lock: Skipped and the reason requires further analysis.
+lock_sync: Skipped and the reason requires further analysis.
+
+
+
+rpl_gtid_mode : Skipped due to problems in the test.
+binlog_gtid_errors : Skipped due to problems in the test.
+binlog_disable_gtid_unsafe_statements : Skipped due to problems in the test.
+rpl_gtid_execution : Skipped due to problems in the test.
+
+
+
+rpl_get_master_version_and_clock : Skipped due to clashes in debug. 
+rpl_init_slave_errors : Skipped due to clashes in debug.
+rpl_corruption : Skipped due to clashes in debug.
+rpl_show_slave_running : Skipped due to clashes in debug.
+rpl_mysqlbinlog_gtid_on : Skipped due to clashes in debug.
+rpl_mts_debug : Skipped due to clashes in debug.
+rpl_row_4_bytes : Skipped due to clashes in debug.
+rpl_row_find_row_debug : Skipped due to clashes in debug.
+rpl_known_bugs_detection : Skipped due to clashes in debug.
+rpl_slave_load_remove_tmpfile : Skipped due to clashes in debug.
+binlog_index : Skipped due to clashes in debug.
+binlog_write_error : Skipped due to clashes in debug.
+rpl_show_errors : Skipped due to clashes in debug.
+rpl_bug33931    : Skipped due to clashes in debug.
+rpl_checksum : Skipped due to clashes in debug.
+rpl_checksum_cache: Skipped due to clashes in debug.
+
+
+
+rpl_row_crash_safe : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_stm_mixed_crash_safe : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+flush_block_commit_notembedded : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+multi_update : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+mysqlbinlog_start_stop : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+partition_binlog : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+user_var-binlog : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_checksum : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_crash_safe_master_checksum : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_database : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_delete_and_flush_index : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_drop_if_exists : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_implicit_commit : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_innodb : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_innodb_row : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_killed : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_mixed_load_data : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_mysqlbinlog_filter : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_rewrite : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_row_ctype_ucs : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_row_drop_tbl : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_row_drop_tmp_tbl : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_server_id : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_statement_insert_delayed : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_stm_blackhole : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_stm_ctype_ucs : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_stm_do_db : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_stm_drop_tbl : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_stm_drop_tmp_tbl : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_stm_ps : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_stm_row : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_stm_user_variables : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_mix : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_row : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_stm : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+relaylog : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_auto_increment_update_failure : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_conditional_comments : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_do_db_filter : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_do_grant : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_do_table_filter_insensitive : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_do_table_filter_sensitive : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_drop_temp : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_ignore_db_filter : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_ignore_table_filter_insensitive : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_ignore_table_filter_sensitive : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_innodb_mixed_ddl : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_innodb_mixed_dml : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_loaddata_map : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_mixed_mts_crash_safe : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_row_mts_crash_safe : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_stm_mts_crash_safe : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_mixed_mts_rec_crash_safe : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_row_mts_rec_crash_safe : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_stm_mts_rec_crash_safe : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_mixed_mts_rec_crash_safe_checksum : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_rbr_to_sbr : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_rewrt_db : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_rewrite_db_filter : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_row_drop : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_row_event_max_size : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_row_flsh_tbls : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_stm_flsh_tbls : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_slave_skip : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_stm_auto_increment_bug33029 : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_stm_loaddata_concurrent : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_stm_multi_query : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_stm_user_variables : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_user : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_row_basic_11bugs : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+rpl_crash_safe_master : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+binlog_truncate_myisam : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
+
+
+
+rpl_stm_insert_delayed : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions. Check extra/rpl_tests/rpl_insert_delayed.test.
+rpl_row_insert_delayed : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions. Check extra/rpl_tests/rpl_insert_delayed.test.
+rpl_mixed_insert_delayed : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions. Check extra/rpl_tests/rpl_insert_delayed.test.
+
+
+
+rpl_insert_ignore : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions. Check mysql-test/extra/rpl_tests/rpl_insert_ignore.test.
+
+
+
+rpl_row_log : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions. Check mysql-test/extra/rpl_tests/rpl_log.test.
+rpl_stm_log : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions. Check mysql-test/extra/rpl_tests/rpl_log.test.
+rpl_row_log_innodb : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions. Check mysql-test/extra/rpl_tests/rpl_log.test.
+
+
+
+binlog_killed : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions.
+binlog_killed_simulate : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions.
+rpl_binlog_errors : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions.
+rpl_dual_pos_advance : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions.
+rpl_grant_plugin : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions.
+rpl_stm_mix_show_relaylog_events : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions.
+rpl_row_show_relaylog_events : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions.
+
+
+
+rpl_cross_version : Disabled because the not_gtid_enabled.inc does not work.
+rpl_server_uuid : Disabled because the not_gtid_enabled.inc does not work.

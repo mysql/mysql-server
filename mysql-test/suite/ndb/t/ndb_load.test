@@ -1,0 +1,102 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# Basic test for different types of loading data
+#
+
+# should give duplicate key
+CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=NDB;
+--error 1022
+LOAD DATA INFILE '../../../std_data/words.dat' INTO TABLE t1 ;
+DROP TABLE t1;
+
+# now without a primary key we should be ok
+CREATE TABLE t1 (word CHAR(20) NOT NULL) ENGINE=NDB;
+LOAD DATA INFILE '../../../std_data/words.dat' INTO TABLE t1 ;
+SELECT * FROM t1 ORDER BY word;
+DROP TABLE t1;
+
+# End of 4.1 tests
+
+--echo Test single statement load from MyISAM table with and
+--echo without ndb_use_transactions
+--echo (Bug#43236)
+--echo ndb_use_transactions = 0 should allow bulk inserts to 
+--echo succeed by automatically splitting into smaller 
+--echo transactions.
+
+CREATE TABLE t1 (a int) engine=MyIsam;
+
+show tables;
+
+DELIMITER %;
+
+CREATE PROCEDURE bulkinsert (in num int)
+BEGIN
+  set @total= num;
+  repeat
+    insert into t1 values (@total);
+    set @total= @total -1;
+  until @total = 0 end repeat;
+end %
+
+DELIMITER ;%
+
+
+--echo Insert 15000 rows which should exceed default number
+--echo of concurrent operations (include/default_ndbd.cnf)
+--echo when trying to move over to ndb.
+CALL bulkinsert(15000);
+
+show tables;
+
+SELECT COUNT(*) FROM t1;
+
+SET ndb_use_transactions= 1;
+
+CREATE TABLE t2 (a int) engine=Ndb;
+
+--echo Will fail with too many concurrent operations error
+--error 1297
+INSERT INTO t2 SELECT * FROM t1;
+
+SELECT COUNT(*) FROM t2;
+
+SET ndb_use_transactions= 0;
+
+--echo Should pass as insert is split
+--echo into multiple transactions
+INSERT INTO t2 SELECT * FROM t1;
+
+SELECT COUNT(*) FROM t2;
+
+DROP PROCEDURE bulkinsert;
+DROP TABLE t2;
+
+--echo Now check bulk insert using create .. as select.
+SHOW VARIABLES LIKE 'storage_engine';
+SET default_storage_engine="ndb";
+
+CREATE TABLE t2 AS SELECT * FROM t1;
+
+SELECT COUNT(*) FROM t2;
+
+DROP TABLE t2;
+
+SET default_storage_engine="MyIsam";
+
+--echo Now check Alter table to Ndb
+ALTER TABLE t1 ENGINE= Ndb;
+
+SELECT COUNT(*) FROM t1;
+
+--echo Now check Alter table within Ndb
+ALTER TABLE t1 ADD COLUMN extra int default 6;
+
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;

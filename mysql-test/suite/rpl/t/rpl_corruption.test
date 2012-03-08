@@ -91,7 +91,7 @@ SET GLOBAL master_verify_checksum=0;
 SET GLOBAL debug="d,corrupt_read_log_event";
 --connection slave
 START SLAVE IO_THREAD;
-let $slave_io_errno= 1595,1722;
+let $slave_io_errno= 1595,1721;
 --source include/wait_for_slave_io_error.inc
 --connection master
 SET GLOBAL debug="";

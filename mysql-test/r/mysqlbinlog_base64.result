@@ -10,6 +10,7 @@ load data infile '../../std_data/words.dat' into table t2;
 flush logs;
 drop table t1;
 drop table t2;
+RESET MASTER;
 select * from t1;
 a
 1
@@ -104,6 +105,7 @@ select count(*) from t2;
 count(*)
 35840
 flush logs;
+RESET MASTER;
 select count(*) from t2;
 count(*)
 35840

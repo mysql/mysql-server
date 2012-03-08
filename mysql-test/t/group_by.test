@@ -991,8 +991,20 @@ EXPLAIN SELECT a FROM t1 WHERE a < 2 ORDER BY a;
 EXPLAIN SELECT a FROM t1 WHERE a < 2 GROUP BY a;
 EXPLAIN SELECT a FROM t1 IGNORE INDEX (PRIMARY,i2);
 EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR JOIN (PRIMARY,i2);
-EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (PRIMARY,i2) GROUP BY a;
-EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a;
+--let $query=SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (PRIMARY,i2) GROUP BY a
+--eval EXPLAIN $query
+FLUSH STATUS;
+--disable_result_log
+--eval $query
+--enable_result_log
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+--let $query=SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a
+--eval EXPLAIN $query
+FLUSH STATUS;
+--disable_result_log
+--eval $query
+--enable_result_log
+SHOW SESSION STATUS LIKE 'Sort_scan%';
 SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a;
 EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY)
   IGNORE INDEX FOR GROUP BY (i2) GROUP BY a;
@@ -1249,6 +1261,27 @@ ON 1 WHERE t2.f1 > 1 GROUP BY t2.f1;
 
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#12798270: ASSERTION `!TAB->SORTED' FAILED IN JOIN_READ_KEY2
+--echo #
+
+CREATE TABLE t1 (i int);
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (pk int PRIMARY KEY);
+INSERT INTO t2 VALUES (10);
+
+CREATE VIEW v1 AS SELECT t2.pk FROM t2;
+
+SELECT v1.pk
+FROM t1 LEFT JOIN v1 ON t1.i = v1.pk 
+GROUP BY v1.pk;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+--echo # End of Bug#12798270
 --echo #
 --echo # Bug#59839: Aggregation followed by subquery yields wrong result
 --echo #
@@ -1523,7 +1556,9 @@ let $query=SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
 
 # Needs to be range to exercise bug
 --eval EXPLAIN $query;
+FLUSH STATUS;
 --eval $query;
+SHOW SESSION STATUS LIKE 'Sort_scan%';
 
 CREATE VIEW v1 AS SELECT * FROM t1;
 
@@ -1930,3 +1965,33 @@ select ifnull(a, 'xyz') from t1 group by a;
 DROP TABLE t1;
 
 SET @@sql_mode = @old_sql_mode;
+
+--echo #
+--echo # BUG#12640437: USING SQL_BUFFER_RESULT RESULTS IN A
+--echo #               DIFFERENT QUERY OUTPUT
+--echo #
+
+CREATE TABLE t1 (
+  a int,
+  b varchar(1),
+  KEY (b,a)
+);
+
+INSERT INTO t1 VALUES (1,NULL),(0,'a');
+
+let $query=
+  SELECT SQL_BUFFER_RESULT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+
+--echo
+--eval EXPLAIN $query
+--echo
+--eval $query
+
+let $query= SELECT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+--echo
+--eval EXPLAIN $query
+--echo
+--eval $query
+
+--echo
+DROP TABLE t1;

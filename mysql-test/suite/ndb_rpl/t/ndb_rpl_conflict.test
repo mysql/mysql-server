@@ -1,0 +1,320 @@
+#
+# Test engine native conflict resolution for ndb
+#
+#
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--disable_query_log
+--connection master
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+--enable_query_log
+
+# only test with binlog_type = 7, as everything else feels insane in context of conflict resolution
+insert into mysql.ndb_replication values ("test", "t1_old", 0, 7, "NDB$OLD(X)");
+insert into mysql.ndb_replication values ("test", "t1_max", 0, 7, "NDB$MAX(X)");
+insert into mysql.ndb_replication values ("test", "t1_max_delete_win", 0, 7, "NDB$MAX_DELETE_WIN(X)");
+
+create table `t1_old$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+
+create table `t1_max$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+
+create table `t1_max_delete_win$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+
+create table t1_old (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+create table t1_max (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+create table t1_max_delete_win (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+--sync_slave_with_master
+
+###############
+--echo "Test 1"
+
+--connection master
+insert into t1_old values (1, 'Initial X=1', 1);
+insert into t1_max values (1, 'Initial X=1', 1);
+insert into t1_max_delete_win values (1, 'Initial X=1', 1);
+--sync_slave_with_master
+
+--connection slave
+update t1_old set X = 2, b='Slave X=2';
+update t1_max set X = 2, b='Slave X=2';
+update t1_max_delete_win set X = 2, b='Slave X=2';
+
+--connection master
+update t1_old set X = 3, b='Master X=3';
+update t1_max set X = 3, b='Master X=3';
+update t1_max_delete_win set X = 3, b='Master X=3';
+--sync_slave_with_master
+
+--connection slave
+--echo "Expect t1_old to contain slave row, and t1_max* to contain master row"
+select * from t1_old;
+select * from t1_max;
+select * from t1_max_delete_win;
+
+# syncronize
+update t1_old set X = 3, b='Master X=3';
+
+###############
+--echo "Test 2"
+
+--connection slave
+update t1_old set X = 4, b='Slave X=4';
+update t1_max set X = 4, b='Slave X=4';
+update t1_max_delete_win set X = 4, b='Slave X=4';
+
+--connection master
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+--sync_slave_with_master
+
+--connection slave
+--echo "Expect t1_old and t1_max to contain slave row, and t1_max_delete_win to be empty(as master)"
+select * from t1_old;
+select * from t1_max;
+select * from t1_max_delete_win;
+
+# syncronize
+delete from t1_old;
+delete from t1_max;
+
+--connection master
+
+# Now test with Blobs
+drop table t1_old, t1_max, t1_max_delete_win;
+delete from t1_old$EX;
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+
+--sync_slave_with_master
+--connection slave
+# Delete on slave, as $EX table ops don't replicate
+delete from t1_old$EX;
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+
+--connection master
+
+create table t1_old (a int primary key, b longtext, X int unsigned) engine = ndb;
+create table t1_max (a int primary key, b longtext, X int unsigned) engine = ndb;
+create table t1_max_delete_win (a int primary key, b longtext, X int unsigned) engine = ndb;
+
+--sync_slave_with_master
+
+###############
+--echo "Test 3"
+
+--connection master
+insert into t1_old values (1, repeat('Initial X=1',1000), 1);
+insert into t1_max values (1, repeat('Initial X=1',1000), 1);
+insert into t1_max_delete_win values (1, repeat('Initial X=1',1000), 1);
+--sync_slave_with_master
+
+--connection slave
+update t1_old set X = 2, b=repeat('Slave X=2',1001);
+update t1_max set X = 2, b=repeat('Slave X=2',1001);
+update t1_max_delete_win set X = 2, b=repeat('Slave X=2',1001);
+
+--connection master
+update t1_old set X = 3, b=repeat('Master X=3',1002);
+update t1_max set X = 3, b=repeat('Master X=3',1002);
+update t1_max_delete_win set X = 3, b=repeat('Master X=3',1002);
+--sync_slave_with_master
+
+--connection slave
+--echo "Expect t1_old to contain slave row, and t1_max* to contain master row"
+select a, left(b, 20), length(b), X from t1_old;
+select a, left(b, 20), length(b), X from t1_max;
+select a, left(b, 20), length(b), X from t1_max_delete_win;
+
+--echo Expect t1_old to have 1 entry, and t1_max* to have no entries
+select server_id, master_server_id, count, a from t1_old$EX order by count;
+select server_id, master_server_id, count, a from t1_max$EX order by count;
+select server_id, master_server_id, count, a from t1_max_delete_win$EX order by count;
+
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+delete from t1_old$EX;
+
+# syncronize
+update t1_old set X = 3, b=repeat('Master X=3', 1002);
+
+###############
+--echo "Test 4"
+
+--connection slave
+update t1_old set X = 4, b=repeat('Slave X=4',2000);
+update t1_max set X = 4, b=repeat('Slave X=4',2000);
+update t1_max_delete_win set X = 4, b=repeat('Slave X=4',2000);
+
+--connection master
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+--sync_slave_with_master
+
+--connection slave
+--echo "Expect t1_old and t1_max to contain slave row, and t1_max_delete_win to be empty(as master)"
+select a, left(b, 20), length(b), X from t1_old;
+select a, left(b, 20), length(b), X from t1_max;
+select a, left(b, 20), length(b), X from t1_max_delete_win;
+
+--echo Expect t1_old and t1_max to contain 1 entry, and t1_max_delete_win to be empty
+select server_id, master_server_id, count, a from t1_old$EX order by count;
+select server_id, master_server_id, count, a from t1_max$EX order by count;
+select server_id, master_server_id, count, a from t1_max_delete_win$EX order by count;
+
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+delete from t1_old$EX;
+
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+
+--connection master
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+
+#################
+--echo "Test 5"
+
+--echo Test that Updates affecting Blobs are rejected
+--echo correctly on the slave
+drop table t1_max;
+create table t1_max (a int primary key, b int, c longtext, d longtext, X int unsigned) engine = ndb;
+
+insert into t1_max values (1, 1, repeat("B", 10000), repeat("E", 10001), 1);
+insert into t1_max values (2, 2, repeat("A", 10002), repeat("T", 10003), 1);
+
+--sync_slave_with_master
+--connection slave
+
+# Bump up tuple versions
+update t1_max set X=20;
+
+--echo Initial values on Slave
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
+
+--connection master
+--echo Originate update which will be rejected
+update t1_max set c=repeat("Z", 10006), d=repeat("I", 10005), X=2 where a=1;
+
+--sync_slave_with_master
+--connection slave
+--echo Check slave has rejected due to lower version
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
+
+--connection master
+--echo Originate delete which will be rejected (due to NDB-OLD) algorith
+delete from t1_max where a=1;
+
+--sync_slave_with_master
+--connection slave
+--echo Check slave has rejected due to before image mismatch
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
+
+--connection master
+--echo Originate insert which will be rejected (as row exists)
+insert into t1_max values (1, 1, repeat("R", 10004), repeat("A", 10007), 1);
+
+--sync_slave_with_master
+--connection slave
+--echo Check slave has rejected due to row existing already
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
+
+--echo Expect t1_max to have 3 entries
+select server_id, master_server_id, count, a from t1_old$EX order by count;
+select server_id, master_server_id, count, a from t1_max$EX order by count;
+select server_id, master_server_id, count, a from t1_max_delete_win$EX order by count;
+
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+delete from t1_old$EX;
+
+--connection master
+
+#######
+--echo Test 6
+--echo Check that non-Blob related operations in a batch with a Blob
+--echo operation are still subject to conflict detection.
+--echo
+insert into mysql.ndb_replication values ("test", "t2_max", 0, 7, "NDB$MAX(X)");
+
+create table `t2_max$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+
+create table t2_max (a int primary key, b int, X bigint unsigned) engine=ndb;
+
+insert into t2_max values (1,1,10), (2,2,10), (3,3,10), (4,4,10), (5,5,10);
+
+--sync_slave_with_master
+
+--connection master
+--echo Now issue a transaction with a successful Blob op, and unsuccessful
+--echo non-Blob op.  Check that the Blob op succeeds, and the unsuccessful
+--echo non-Blob op is handled as expected.
+
+begin;
+update t2_max set b=b+1, X=1 where a=3; # conflicts
+update t1_max set c=repeat("R", 10008), d=repeat("A", 10009), X = 21 where a=1; # ok
+commit;
+
+--sync_slave_with_master
+
+--connection slave
+--echo Contents on Slave
+--echo Expect Blob data applied to t1_max, no update applied to t2_max
+select a,b,left(c,1), length(c), left(d,1), length(d), X from t1_max where a=1;
+select * from t2_max order by a;
+
+--echo Expect No conflict in t1_max, 1 conflict in t2_max$EX
+select server_id, master_server_id, count, a from t1_max$EX order by count;
+select server_id, master_server_id, count, a from t2_max$EX order by count;
+
+--connection master
+drop table t2_max, t2_max$EX;
+
+
+###############
+--echo "Cleanup"
+
+--connection master
+drop table mysql.ndb_replication;
+drop table t1_old, `t1_old$EX`, t1_max, `t1_max$EX`, t1_max_delete_win, `t1_max_delete_win$EX`;
+--sync_slave_with_master
+
+--source include/rpl_end.inc

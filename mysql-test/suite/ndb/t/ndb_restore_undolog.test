@@ -1,0 +1,517 @@
+-- source include/have_ndb.inc
+-- source include/ndb_default_cluster.inc
+
+# Directory containing the saved backup files
+let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
+
+#
+# The table structure and data list below
+#
+##############################################
+#####  for basic test with all data type #####
+##############################################
+# CREATE TABLE  t_num (
+#   t_pk                INT PRIMARY KEY,
+#   t_test		INT,
+#   t_bit               BIT(64),
+#   t_tinyint   TINYINT,
+#   t_bool      BOOL,
+#   t_smallint  SMALLINT,
+#   t_mediumint MEDIUMINT,
+#   t_int               INT,
+#   t_bigint    BIGINT,
+#   t_float     FLOAT,
+#   t_double    DOUBLE,
+#   t_decimal   DECIMAL (37, 16)
+# ) ENGINE=NDBCLUSTER;
+#
+# INSERT INTO t_num VALUE (
+#   1,
+#   1,
+#   b'1010101010101010101010101010101010101010101010101010101010101010',
+#   125,
+#   1,
+#   32765,
+#   8388606,
+#   2147483647,
+#   9223372036854775807,
+#   1e+20,
+#   1e+150,
+#   '331.0000000000'
+# );
+# INSERT INTO t_num VALUE (
+#   2,
+#   1,
+#   b'1010101010101010101010101010101010101010101010101010101010101010',
+#   125,
+#   1,
+#   32765,
+#   8388606,
+#   2147483647,
+#   9223372036854775807,
+#   1e+20,
+#   1e+150,
+#   '331.0000000000'
+# );
+# CREATE TABLE  t_datetime (
+#   t_pk                INT PRIMARY KEY,
+#   t_test		INT,
+#   t_date      DATE,
+#   t_datetime  DATETIME,
+#   t_timestamp TIMESTAMP,
+#   t_time      TIME,
+#   t_year      YEAR
+# ) ENGINE=NDBCLUSTER;
+#
+# INSERT INTO t_datetime VALUE (
+#   1,
+#   1,
+#   '1998-01-01',
+#   '2006-08-10 10:11:12',
+#   20021029165106,
+#   '19:38:34',
+#   2155
+# );
+# INSERT INTO t_datetime VALUE (
+#   2,
+#   1,
+#   '1998-01-01',
+#   '2006-08-10 10:11:12',
+#   20021029165106,
+#   '19:38:34',
+#   2155
+# );
+#
+#  CREATE TABLE  t_string_1 (
+#   t_pk                INT PRIMARY KEY,
+#   t_test		INT,
+#   t_char      CHAR(255),
+#   t_varchar   VARCHAR(655),
+#   t_binary    BINARY(255),
+#   t_varbinary VARBINARY(6553)
+# ) ENGINE=NDBCLUSTER;
+#
+# CREATE TABLE  t_string_2 (
+#   t_pk                INT PRIMARY KEY,
+#   t_test		INT,
+#   t_tinyblob  TINYBLOB,
+#   t_tinytext  TINYTEXT,
+#   t_blob      BLOB,
+#   t_text      TEXT,
+#   t_mediumblob        MEDIUMBLOB,
+#   t_mediumtext        MEDIUMTEXT,
+#   t_longblob  LONGBLOB,
+#   t_longtext  LONGTEXT,
+#   t_enum      ENUM('001001','001004','001010','001018','001019','001020','001021','001027','001028','001029','001030','001031','001100','002003','002004','002005','002007')DEFAULT '001001' NOT NULL,
+#   t_set               SET('a','B')
+# ) ENGINE=NDBCLUSTER;
+#
+# INSERT INTO t_string_1 VALUE (
+#   1,
+#   1,
+#   'abcdefghijklmn',
+#   'abcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmn',
+#   0x612020,
+#   0x4100
+# );
+# INSERT INTO t_string_1 VALUE (
+#   2,
+#   1,
+#   'abcdefghijklmn',
+#   'abcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmn',
+#   0x612020,
+#   0x4100
+# );
+#
+# INSERT INTO t_string_2 VALUE (
+#   1,
+#   1,
+#   'abcdefghijklmnabcdefghijklmn',
+#   'abcdefghijklmnabcdefghijklmn',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   '001001',
+#   'a'
+# );
+#
+# INSERT INTO t_string_2 VALUE (
+#   2,
+#   1,
+#   'abcdefghijklmnabcdefghijklmn',
+#   'abcdefghijklmnabcdefghijklmn',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   '001001',
+#   'a'
+# );
+#
+# CREATE TABLE t_gis (
+#   t_pk                        INT PRIMARY KEY,
+#   t_test		INT,
+#   t_point             POINT,
+#   t_linestring                LINESTRING,
+#   t_polygon           POLYGON,
+#   t_multipoint                MULTIPOINT,
+#   t_multilinestring   MULTILINESTRING,
+#   t_multipolygon      MULTIPOLYGON,
+#   t_geometrycollection        GEOMETRYCOLLECTION,
+#   t_geometry          GEOMETRY
+# ) ENGINE=NDBCLUSTER;
+#
+# INSERT INTO t_gis VALUE (
+#   1,
+#   1,
+#   PointFromText('POINT(10 10)'),
+#   LineStringFromText('LINESTRING(10 10,20 10,20 20,10 20,10 10)'),
+#   PolyFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))'),
+#   MPointFromText('MULTIPOINT(1 1,11 11,11 21,21 21)'),
+#   MLineFromText('MULTILINESTRING((10 48,10 21,10 0))'),
+#   MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))'),
+#   GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))'),
+#   MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')
+# );
+#
+# INSERT INTO t_gis VALUE (
+#   3,
+#   1,
+#   PointFromText('POINT(10 10)'),
+#   LineStringFromText('LINESTRING(10 10,20 10,20 20,10 20,10 10)'),
+#   PolyFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))'),
+#   MPointFromText('MULTIPOINT(1 1,11 11,11 21,21 21)'),
+#   MLineFromText('MULTILINESTRING((10 48,10 21,10 0))'),
+#   MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))'),
+#   GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))'),
+#   MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')
+# );
+#
+# INSERT INTO t_gis VALUE (
+#   2,
+#   1,
+#   PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))),
+#   LineStringFromWKB(LineString(Point(10, 10), Point(40, 10))),
+#   PolyFromWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0)))),
+#   MPointFromWKB(MultiPoint(Point(3, 6), Point(4, 10))),
+#   MLineFromWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7)))),
+#   MPolyFromWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3))))),
+#   GeometryFromWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9)))),
+#   GeometryFromWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9))))
+# );
+#
+# INSERT INTO t_gis VALUE (
+#   4,
+#   1,
+#   PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))),
+#   LineStringFromWKB(LineString(Point(10, 10), Point(40, 10))),
+#   PolyFromWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0)))),
+#   MPointFromWKB(MultiPoint(Point(3, 6), Point(4, 10))),
+#   MLineFromWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7)))),
+#   MPolyFromWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3))))),
+#   GeometryFromWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9)))),
+#   GeometryFromWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9))))
+# );
+#
+#
+#######################################
+######  for multi entries #############
+#######################################
+# CREATE TABLE  t_string_3 (
+#   t_pk INT NOT NULL PRIMARY KEY,
+#   t_longblob  LONGBLOB
+# ) ENGINE=NDB;
+#
+#delimiter |;
+#
+# CREATE PROCEDURE test_proc1()
+# BEGIN
+#   DECLARE tmp INT DEFAULT 5000;
+#   WHILE tmp > 1 DO
+#     INSERT INTO t_string_3 VALUES (
+#       tmp,
+#       'a123456789b123456789c123456789d123456789e123456789f123456789g123456789');
+#     SET tmp = tmp -1;
+#   END WHILE; 
+# END;
+#
+# delimiter ;|
+#
+# INSERT INTO t_string_3 VALUE (
+#  1,
+#  'a123456789b123456789c123456789d123456789e123456789f123456789g123456789');
+#
+# call test_proc1();
+#
+##########################################
+#####  for disk data and order index #####
+##########################################
+# CREATE LOGFILE GROUP lg1
+# ADD UNDOFILE 'undofile.dat'
+# INITIAL_SIZE 16M
+# UNDO_BUFFER_SIZE = 1M
+# ENGINE=NDB;
+#
+# CREATE TABLESPACE ts1
+# ADD DATAFILE 'datafile.dat'
+# USE LOGFILE GROUP lg1
+# INITIAL_SIZE 12M
+# ENGINE NDB;
+#
+# CREATE TABLE t_string_4 (
+#   t_pk INT NOT NULL PRIMARY KEY,
+#   t_test INT,
+#   t_name CHAR(30),
+#   t_blob BLOB,
+#   t_text TEXT,
+#   INDEX (t_pk,t_name)
+# )
+# TABLESPACE ts1 STORAGE DISK
+# ENGINE=NDB;
+#
+# INSERT INTO t_string_4 VALUE (
+#   1,
+#   1,
+#   'name1',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789');
+#  INSERT INTO t_string_4 VALUE (
+#    2,
+#    1,
+#    'name2',
+#    'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#    'a123456789b123456789c123456789d123456789e123456789f123456789g123456789');
+#
+##########################################
+##############  for long blob ############
+##########################################
+#
+# CREATE TABLE  t_string_5 (
+#   t_pk INT NOT NULL PRIMARY KEY,
+#   t_longblob  LONGBLOB,
+#   t_longtext  LONGTEXT
+#  ) ENGINE=NDB;
+#
+##### b1 length 128k ######
+#
+# set @b1 = '01234567012345670123456701234567';
+# set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+# set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+# set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+# set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+#
+# INSERT INTO t_string_5 VALUES(1,@b1,@b1);
+# INSERT INTO t_string_5 VALUES(2,@b1,@b1);
+#
+#######################################
+###   Operations during backup     ####
+#######################################
+#
+######## for basic test with all data type ########
+#
+# DELETE FROM t_num WHERE t_pk=2;
+# DELETE FROM t_datetime WHERE t_pk=2;
+# DELETE FROM t_string_1 WHERE t_pk=2;
+# DELETE FROM t_string_2 WHERE t_pk=2;
+# DELETE FROM t_gis WHERE t_pk=3;
+# DELETE FROM t_gis WHERE t_pk=4;
+#
+#
+# INSERT INTO t_num VALUE (
+#   2,
+#   2,
+#   b'1010101010101010101010101010101010101010101010101010101010101010',
+#   125,
+#   1,
+#   32765,
+#   8388606,
+#   2147483647,
+#   9223372036854775807,
+#   1e+20,
+#   1e+150,
+#   '331.0000000000'
+# );
+# INSERT INTO t_datetime VALUE (
+#   2,
+#   2,
+#   '1998-01-01',
+#   '2006-08-10 10:11:12',
+#   20021029165106,
+#   '19:38:34',
+#   2155
+# );
+#
+# INSERT INTO t_string_1 VALUE (
+#   2,
+#   2,
+#   'abcdefghijklmn',
+#   'abcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmn',
+#   0x612020,
+#   0x4100
+# );
+#
+# INSERT INTO t_string_2 VALUE (
+#   2,
+#   2,
+#   'abcdefghijklmnabcdefghijklmn',
+#   'abcdefghijklmnabcdefghijklmn',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   '001001',
+#   'a'
+# );
+#
+#
+# INSERT INTO t_gis VALUE (
+#   3,
+#   2,
+#   PointFromText('POINT(10 10)'),
+#   LineStringFromText('LINESTRING(10 10,20 10,20 20,10 20,10 10)'),
+#   PolyFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))'),
+#   MPointFromText('MULTIPOINT(1 1,11 11,11 21,21 21)'),
+#   MLineFromText('MULTILINESTRING((10 48,10 21,10 0))'),
+#   MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))'),
+#   GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))'),
+#   MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')
+# );
+#
+#
+# INSERT INTO t_gis VALUE (
+#   4,
+#   2,
+#   PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))),
+#   LineStringFromWKB(LineString(Point(10, 10), Point(40, 10))),
+#   PolyFromWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0)))),
+#   MPointFromWKB(MultiPoint(Point(3, 6), Point(4, 10))),
+#   MLineFromWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7)))),
+#   MPolyFromWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3))))),
+#   GeometryFromWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9)))),
+#   GeometryFromWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9))))
+# );
+#
+#
+# UPDATE t_num SET t_test=3 WHERE t_pk=1;
+# UPDATE t_datetime SET t_test=3 WHERE t_pk=1;
+# UPDATE t_string_1 SET t_test=3 WHERE t_pk=1;
+# UPDATE t_string_2 SET t_test=3 WHERE t_pk=1;
+# UPDATE t_gis SET t_test=3 WHERE t_pk=1;
+# UPDATE t_gis SET t_test=3 WHERE t_pk=2;
+#
+#
+######### multi undo log entries ########
+#
+# DELETE FROM t_string_3 WHERE t_pk>1;
+#
+######### disk table and ordered index ########
+#
+# DELETE FROM t_string_4 WHERE t_pk=2;
+# INSERT INTO t_string_4 VALUE (
+#   2,
+#   2,
+#   'name2',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789',
+#   'a123456789b123456789c123456789d123456789e123456789f123456789g123456789'
+# );
+# UPDATE t_string_4 SET t_test=3 WHERE t_pk=1;
+#
+######## long blob ########
+#
+# DELETE FROM t_string_5 WHERE t_pk>1;
+#
+#
+#
+#
+#
+#
+######################################################
+##### Restore backup files (from little endian) ######
+######################################################
+
+--disable_warnings
+USE test;
+DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis,t_string_3,t_string_4,t_string_5;
+--enable_warnings
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m -r $backup_data_dir/51_undolog_le >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $backup_data_dir/51_undolog_le >> $NDB_TOOLS_OUTPUT
+--sorted_result
+SHOW TABLES;
+SHOW CREATE TABLE t_num;
+SHOW CREATE TABLE t_datetime;
+SHOW CREATE TABLE t_string_1;
+SHOW CREATE TABLE t_string_2;
+SHOW CREATE TABLE t_gis;
+SHOW CREATE TABLE t_string_3;
+SHOW CREATE TABLE t_string_4;
+SHOW CREATE TABLE t_string_5;
+SELECT * FROM t_datetime ORDER by t_pk;
+SELECT t_pk,t_test,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num ORDER by t_pk;
+SELECT t_pk,t_test,t_char,t_varchar,hex(t_binary),hex(t_varbinary) FROM t_string_1 ORDER by t_pk;
+SELECT * FROM t_string_2 ORDER by t_pk;
+SELECT t_pk,t_test,AsText(t_point), AsText(t_linestring),AsText(t_polygon) FROM t_gis ORDER by t_pk;
+SELECT t_pk,t_test,AsText(t_multipoint), AsText(t_multilinestring),AsText(t_multipolygon) FROM t_gis ORDER by t_pk;
+SELECT t_pk,t_test,AsText(t_geometrycollection), AsText(t_geometry) FROM t_gis ORDER by t_pk;
+SELECT COUNT(*) FROM t_string_3 ORDER BY t_pk;
+SELECT *  FROM t_string_4 ORDER BY t_pk;
+SELECT t_pk,LENGTH(t_longblob),LENGTH(t_longtext) FROM t_string_5 ORDER BY t_pk;
+
+DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis,t_string_3,t_string_4,t_string_5;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE = NDB;
+
+DROP TABLESPACE ts1
+ENGINE = NDB;
+
+DROP LOGFILE GROUP lg1
+ENGINE =NDB;
+
+
+#
+# Restore backup files (from big endian)
+#
+
+USE test;
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m -r $backup_data_dir/51_undolog_be >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $backup_data_dir/51_undolog_be >> $NDB_TOOLS_OUTPUT
+--sorted_result
+SHOW TABLES;
+SHOW CREATE TABLE t_num;
+SHOW CREATE TABLE t_datetime;
+SHOW CREATE TABLE t_string_1;
+SHOW CREATE TABLE t_string_2;
+SHOW CREATE TABLE t_gis;
+SHOW CREATE TABLE t_string_3;
+SHOW CREATE TABLE t_string_4;
+SHOW CREATE TABLE t_string_5;
+SELECT * FROM t_datetime ORDER by t_pk;
+SELECT t_pk,t_test,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num ORDER by t_pk;
+SELECT t_pk,t_test,t_char,t_varchar,hex(t_binary),hex(t_varbinary) FROM t_string_1 ORDER by t_pk;
+SELECT * FROM t_string_2 ORDER by t_pk;
+SELECT t_pk,t_test,AsText(t_point), AsText(t_linestring),AsText(t_polygon) FROM t_gis ORDER by t_pk;
+SELECT t_pk,t_test,AsText(t_multipoint), AsText(t_multilinestring),AsText(t_multipolygon) FROM t_gis ORDER by t_pk;
+SELECT t_pk,t_test,AsText(t_geometrycollection), AsText(t_geometry) FROM t_gis ORDER by t_pk;
+SELECT COUNT(*) FROM t_string_3 ORDER BY t_pk;
+SELECT *  FROM t_string_4 ORDER BY t_pk;
+SELECT t_pk,LENGTH(t_longblob),LENGTH(t_longtext) FROM t_string_5 ORDER BY t_pk;
+
+DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis,t_string_3,t_string_4,t_string_5;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE = NDB;
+
+DROP TABLESPACE ts1
+ENGINE = NDB;
+
+DROP LOGFILE GROUP lg1
+ENGINE =NDB;
+
+## end of test ##

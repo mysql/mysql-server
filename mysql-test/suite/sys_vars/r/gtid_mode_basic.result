@@ -1,0 +1,28 @@
+SET @start_global_value = @@global.gtid_mode;
+SELECT @start_global_value;
+@start_global_value
+OFF
+select @@global.gtid_mode;
+@@global.gtid_mode
+OFF
+select @@session.gtid_mode;
+ERROR HY000: Variable 'gtid_mode' is a GLOBAL variable
+show global variables like 'gtid_mode';
+Variable_name	Value
+gtid_mode	OFF
+show session variables like 'gtid_mode';
+Variable_name	Value
+gtid_mode	OFF
+select * from information_schema.global_variables where variable_name='gtid_mode';
+VARIABLE_NAME	VARIABLE_VALUE
+GTID_MODE	OFF
+select * from information_schema.session_variables where variable_name='gtid_mode';
+VARIABLE_NAME	VARIABLE_VALUE
+GTID_MODE	OFF
+set global gtid_mode = "ON";
+ERROR HY000: Variable 'gtid_mode' is a read only variable
+select @@global.gtid_mode;
+@@global.gtid_mode
+OFF
+set session gtid_mode = 1;
+ERROR HY000: Variable 'gtid_mode' is a read only variable

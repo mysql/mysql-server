@@ -1,45 +1,45 @@
 SET @start_global_value = @@global.optimizer_trace;
 SELECT @start_global_value;
 @start_global_value
-enabled=off,end_marker=off,one_line=off
+enabled=off,one_line=off
 select @@global.optimizer_trace;
 @@global.optimizer_trace
-enabled=off,end_marker=off,one_line=off
+enabled=off,one_line=off
 select @@session.optimizer_trace;
 @@session.optimizer_trace
-enabled=off,end_marker=off,one_line=off
+enabled=off,one_line=off
 show global variables like 'optimizer_trace';
 Variable_name	Value
-optimizer_trace	enabled=off,end_marker=off,one_line=off
+optimizer_trace	enabled=off,one_line=off
 show session variables like 'optimizer_trace';
 Variable_name	Value
-optimizer_trace	enabled=off,end_marker=off,one_line=off
+optimizer_trace	enabled=off,one_line=off
 select * from information_schema.global_variables where variable_name='optimizer_trace';
 VARIABLE_NAME	VARIABLE_VALUE
-OPTIMIZER_TRACE	enabled=off,end_marker=off,one_line=off
+OPTIMIZER_TRACE	enabled=off,one_line=off
 select * from information_schema.session_variables where variable_name='optimizer_trace';
 VARIABLE_NAME	VARIABLE_VALUE
-OPTIMIZER_TRACE	enabled=off,end_marker=off,one_line=off
-set global optimizer_trace=10;
+OPTIMIZER_TRACE	enabled=off,one_line=off
+set global optimizer_trace=1;
 select @@global.optimizer_trace;
 @@global.optimizer_trace
-enabled=off,end_marker=on,one_line=off
-set session optimizer_trace=10;
+enabled=on,one_line=off
+set session optimizer_trace=1;
 select @@session.optimizer_trace;
 @@session.optimizer_trace
-enabled=off,end_marker=on,one_line=off
+enabled=on,one_line=off
 set global optimizer_trace=0;
 select @@global.optimizer_trace;
 @@global.optimizer_trace
-enabled=off,end_marker=off,one_line=off
+enabled=off,one_line=off
 set session optimizer_trace=0;
 select @@session.optimizer_trace;
 @@session.optimizer_trace
-enabled=off,end_marker=off,one_line=off
+enabled=off,one_line=off
 set session optimizer_trace=default;
 select @@session.optimizer_trace;
 @@session.optimizer_trace
-enabled=off,end_marker=off,one_line=off
+enabled=off,one_line=off
 set global optimizer_trace=1.1;
 ERROR 42000: Incorrect argument type to variable 'optimizer_trace'
 set global optimizer_trace=1e1;
@@ -49,4 +49,4 @@ ERROR 42000: Variable 'optimizer_trace' can't be set to the value of 'foobar'
 SET @@global.optimizer_trace = @start_global_value;
 SELECT @@global.optimizer_trace;
 @@global.optimizer_trace
-enabled=off,end_marker=off,one_line=off
+enabled=off,one_line=off

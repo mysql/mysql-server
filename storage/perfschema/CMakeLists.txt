@@ -21,11 +21,30 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
+# Gen_pfs_lex_token
+ADD_EXECUTABLE(gen_pfs_lex_token gen_pfs_lex_token.cc)
+# gen_pfs_lex_token itself depends on ${CMAKE_CURRENT_BINARY_DIR}/sql/sql_yacc.h
+ADD_DEPENDENCIES(gen_pfs_lex_token GenServerSource)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pfs_lex_token.h
+  COMMAND gen_pfs_lex_token > pfs_lex_token.h
+  DEPENDS gen_pfs_lex_token
+)
+
+SET(PFS_GEN_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/pfs_lex_token.h
+)
+
+SET_SOURCE_FILES_PROPERTIES(${PFS_GEN_SOURCES} PROPERTIES GENERATED 1)
+
 #
 # Maintainer: keep this list sorted, to avoid merge collisions.
 # Tip: ls -1 *.h, ls -1 *.cc
 #
-SET(PERFSCHEMA_SOURCES ha_perfschema.h
+SET(PERFSCHEMA_SOURCES
+${PFS_GEN_SOURCES}
+ha_perfschema.h
 cursor_by_account.h
 cursor_by_host.h
 cursor_by_thread.h
@@ -37,6 +56,7 @@ pfs_column_types.h
 pfs_column_values.h
 pfs_con_slice.h
 pfs_defaults.h
+pfs_digest.h
 pfs_engine_table.h
 pfs_events.h
 pfs_events_stages.h
@@ -63,6 +83,7 @@ table_esgs_by_user_by_event_name.h
 table_esgs_global_by_event_name.h
 table_esms_by_account_by_event_name.h
 table_esms_by_host_by_event_name.h
+table_esms_by_digest.h
 table_esms_by_thread_by_event_name.h
 table_esms_by_user_by_event_name.h
 table_esms_global_by_event_name.h
@@ -82,6 +103,7 @@ table_socket_instances.h
 table_socket_summary_by_instance.h
 table_socket_summary_by_event_name.h
 table_helper.h
+table_host_cache.h
 table_hosts.h
 table_os_global_by_type.h
 table_performance_timers.h
@@ -108,6 +130,7 @@ pfs_check.cc
 pfs_column_values.cc
 pfs_con_slice.cc
 pfs_defaults.cc
+pfs_digest.cc
 pfs_engine_table.cc
 pfs_events_stages.cc
 pfs_events_statements.cc
@@ -131,6 +154,7 @@ table_esgs_by_user_by_event_name.cc
 table_esgs_global_by_event_name.cc
 table_esms_by_account_by_event_name.cc
 table_esms_by_host_by_event_name.cc
+table_esms_by_digest.cc
 table_esms_by_thread_by_event_name.cc
 table_esms_by_user_by_event_name.cc
 table_esms_global_by_event_name.cc
@@ -150,6 +174,7 @@ table_socket_instances.cc
 table_socket_summary_by_instance.cc
 table_socket_summary_by_event_name.cc
 table_helper.cc
+table_host_cache.cc
 table_hosts.cc
 table_os_global_by_type.cc
 table_performance_timers.cc

@@ -617,6 +617,18 @@ uint Item::decimal_precision() const
                                      unsigned_flag);
     return min<uint>(prec, DECIMAL_MAX_PRECISION);
   }
+  switch (field_type())
+  {
+    case MYSQL_TYPE_TIME:
+      return decimals + TIME_INT_DIGITS;
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      return decimals + DATETIME_INT_DIGITS;
+    case MYSQL_TYPE_DATE:
+      return decimals + DATE_INT_DIGITS;
+    default:
+      break;
+  }
   return min<uint>(max_char_length(), DECIMAL_MAX_PRECISION);
 }
 
@@ -1509,7 +1521,7 @@ bool Item_sp_variable::fix_fields(THD *thd, Item **)
   decimals= it->decimals;
   unsigned_flag= it->unsigned_flag;
   fixed= 1;
-  collation.set(it->collation.collation, it->collation.derivation);
+  collation.set(it->collation);
 
   return FALSE;
 }
@@ -1854,7 +1866,8 @@ bool Item_name_const::fix_fields(THD *thd, Item **ref)
   {
     set_name(item_name->ptr(), (uint) item_name->length(), system_charset_info);
   }
-  collation.set(value_item->collation.collation, DERIVATION_IMPLICIT);
+  collation.set(value_item->collation.collation, DERIVATION_IMPLICIT,
+                value_item->collation.repertoire);
   max_length= value_item->max_length;
   decimals= value_item->decimals;
   fixed= 1;
@@ -2843,6 +2856,20 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
                                    st_select_lex *removed_select,
                                    Item **ref)
 {
+  /*
+    Some field items may be created for use in execution only, without
+    a name resolution context. They have already been used in execution,
+    so no transformation is necessary here.
+
+    @todo: Provide strict phase-division in optimizer, to make sure that
+           execution-only objects do not exist during transformation stage.
+           Then, this test would be deemed unnecessary.
+  */
+  if (context == NULL)
+  {
+    DBUG_ASSERT(type() == FIELD_ITEM);
+    return;
+  }
   DBUG_ASSERT(context->select_lex == NULL ||
               context->select_lex != depended_from);
 
@@ -3850,7 +3877,7 @@ String *Item_param::val_str(String* str)
     that binary log contains wrong statement 
 */
 
-const String *Item_param::query_val_str(String* str) const
+const String *Item_param::query_val_str(THD *thd, String* str) const
 {
   switch (state) {
   case INT_VALUE:
@@ -3889,7 +3916,8 @@ const String *Item_param::query_val_str(String* str) const
   case LONG_DATA_VALUE:
     {
       str->length(0);
-      append_query_string(value.cs_info.character_set_client, &str_value, str);
+      append_query_string(thd, value.cs_info.character_set_client, &str_value,
+                          str);
       break;
     }
   case NULL_VALUE:
@@ -4022,7 +4050,7 @@ void Item_param::print(String *str, enum_query_type query_type)
     char buffer[STRING_BUFFER_USUAL_SIZE];
     String tmp(buffer, sizeof(buffer), &my_charset_bin);
     const String *res;
-    res= query_val_str(&tmp);
+    res= query_val_str(current_thd, &tmp);
     str->append(*res);
   }
 }

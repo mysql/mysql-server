@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
  * list_tables
@@ -129,6 +131,9 @@ list(const char * tabname,
         case NdbDictionary::Object::ReadOnlyConstraint:
             strcpy(type, "ReadOnlyConstraint");
             break;
+        case NdbDictionary::Object::ReorgTrigger:
+            strcpy(type, "ReorgTrigger");
+            break;
 	case NdbDictionary::Object::Tablespace:
 	  strcpy(type, "Tablespace");
 	  break;
@@ -141,6 +146,9 @@ list(const char * tabname,
 	case NdbDictionary::Object::Undofile:
 	  strcpy(type, "Undofile");
 	  break;
+        case NdbDictionary::Object::TableEvent:
+            strcpy(type, "TableEvent");
+            break;
         default:
 	  sprintf(type, "%d", (int)elt.type);
             break;
@@ -243,59 +251,48 @@ list(const char * tabname,
       exit(0);
 }
 
-NDB_STD_OPTS_VARS;
-
 static const char* _dbname = "TEST_DB";
 static int _loops;
 static int _type;
-enum options_ndb_show_tables
-{
-  OPT_SHOW_TMP_STATUS=256
-};
+
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_show_tables"),
   { "database", 'd', "Name of database table is in",
-    &_dbname, &_dbname, 0,
+    (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "loops", 'l', "loops",
-    &_loops, &_loops, 0,
+    (uchar**) &_loops, (uchar**) &_loops, 0,
     GET_INT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0 }, 
   { "type", 't', "type",
-    &_type, &_type, 0,
+    (uchar**) &_type, (uchar**) &_type, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "unqualified", 'u', "Use unqualified table names",
-    &_unqualified, &_unqualified, 0,
+    (uchar**) &_unqualified, (uchar**) &_unqualified, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "parsable", 'p', "Return output suitable for mysql LOAD DATA INFILE",
-    &_parsable, &_parsable, 0,
+    (uchar**) &_parsable, (uchar**) &_parsable, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "show-temp-status", OPT_SHOW_TMP_STATUS, "Show table temporary flag",
-    &show_temp_status, &show_temp_status, 0,
+  { "show-temp-status", NDB_OPT_NOSHORT, "Show table temporary flag",
+    (uchar**) &show_temp_status, (uchar**) &show_temp_status, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(NULL);
+}
+
 static void usage()
 {
-#ifdef NOT_USED
-  char desc[] = 
-    "tabname\n"\
-    "This program list all system objects in  NDB Cluster.\n"\
-    "Type of objects to display can be limited with -t option\n"\
-    " ex: ndb_show_tables -t 2 would show all UserTables\n"\
-    "To show all indexes for a table write table name as final argument\n"\
-    "  ex: ndb_show_tables T1\n";
-#endif
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   const char* _tabname;
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF
@@ -306,7 +303,11 @@ int main(int argc, char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   _tabname = argv[0];
 
-  ndb_cluster_connection = new Ndb_cluster_connection(opt_connect_str);
+  ndb_cluster_connection = new Ndb_cluster_connection(opt_ndb_connectstring,
+                                                      opt_ndb_nodeid);
+  if (ndb_cluster_connection == NULL)
+    fatal("Unable to create cluster connection");
+
   ndb_cluster_connection->set_name("ndb_show_tables");
   if (ndb_cluster_connection->connect(12,5,1))
     fatal("Unable to connect to management server.");

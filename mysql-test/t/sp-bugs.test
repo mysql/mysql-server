@@ -163,3 +163,12 @@ CALL p1();
 DROP DATABASE testdb;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # BUG#13489996 valgrind:conditional jump or move depends on
+--echo # uninitialised values-field_blob
+--echo #
+
+CREATE FUNCTION sf() RETURNS BLOB RETURN "";
+SELECT sf();
+DROP FUNCTION sf;

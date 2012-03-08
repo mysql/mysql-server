@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -919,6 +919,8 @@ static void set_ddl_log_entry_from_global(DDL_LOG_ENTRY *ddl_log_entry,
     inx+= global_ddl_log.name_len;
     ddl_log_entry->tmp_name= &file_entry_buf[inx];
   }
+  else
+    ddl_log_entry->tmp_name= NULL;
 }
 
 
@@ -6058,8 +6060,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   handlerton *old_db_type, *new_db_type, *save_old_db_type;
   enum_alter_table_change_level need_copy_table= ALTER_TABLE_METADATA_ONLY;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  TABLE *table_for_fast_alter_partition= NULL;
-  bool partition_changed= FALSE;
+  bool fast_alter_partition= false;
+  bool partition_changed= false;
 #endif
   bool need_lock_for_indexes= TRUE;
   KEY  *key_info_buffer;
@@ -6448,7 +6450,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (prep_alter_part_table(thd, table, alter_info, create_info, old_db_type,
                             &partition_changed,
                             db, table_name, path,
-                            &table_for_fast_alter_partition))
+                            &fast_alter_partition))
     goto err;
 #endif
   /*
@@ -6709,12 +6711,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->frm_only= 1;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (table_for_fast_alter_partition)
+  if (fast_alter_partition)
   {
     DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
                                            create_info, table_list,
-                                           db, table_name,
-                                           table_for_fast_alter_partition));
+                                           db, table_name));
   }
 #endif
 
@@ -7244,11 +7245,6 @@ err_new_table_cleanup:
                           create_info->frm_only ? FN_IS_TMP | FRM_ONLY : FN_IS_TMP);
 
 err:
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  /* If prep_alter_part_table created an intermediate table, destroy it. */
-  if (table_for_fast_alter_partition)
-    close_temporary(table_for_fast_alter_partition, 1, 0);
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
   /*
     No default value was provided for a DATE/DATETIME field, the
     current sql_mode doesn't allow the '0000-00-00' value and

@@ -22,3 +22,7 @@ volatile bool ready_to_exit= false;
 uint lower_case_table_names= 0;
 CHARSET_INFO *files_charset_info= NULL;
 
+extern "C" void compute_md5_hash(char *, const char *, int)
+{
+}
+

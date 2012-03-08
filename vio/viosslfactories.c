@@ -164,7 +164,7 @@ static void check_ssl_init()
 static struct st_VioSSLFd *
 new_VioSSLFd(const char *key_file, const char *cert_file,
              const char *ca_file, const char *ca_path,
-             const char *cipher, SSL_METHOD *method, 
+             const char *cipher, my_bool is_client,
              enum enum_ssl_init_error *error,
              const char *crl_file, const char *crl_path)
 {
@@ -188,7 +188,9 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
                  my_malloc(sizeof(struct st_VioSSLFd),MYF(0)))))
     DBUG_RETURN(0);
 
-  if (!(ssl_fd->ssl_context= SSL_CTX_new(method)))
+  if (!(ssl_fd->ssl_context= SSL_CTX_new(is_client ?
+                                         TLSv1_client_method() :
+                                         TLSv1_server_method())))
   {
     *error= SSL_INITERR_MEMFAIL;
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
@@ -290,7 +292,7 @@ new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
     verify= SSL_VERIFY_NONE;
 
   if (!(ssl_fd= new_VioSSLFd(key_file, cert_file, ca_file,
-                             ca_path, cipher, TLSv1_client_method(), error,
+                             ca_path, cipher, TRUE, error,
                              crl_file, crl_path)))
   {
     return 0;
@@ -314,7 +316,7 @@ new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
   struct st_VioSSLFd *ssl_fd;
   int verify= SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
   if (!(ssl_fd= new_VioSSLFd(key_file, cert_file, ca_file,
-                             ca_path, cipher, TLSv1_server_method(), error,
+                             ca_path, cipher, FALSE, error,
                              crl_file, crl_path)))
   {
     return 0;

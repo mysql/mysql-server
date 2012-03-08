@@ -1,0 +1,178 @@
+Test ndb_restore ability to ignore some schema differences
+use test;
+create table t1 (
+a int,
+b int,
+c int,
+d int,
+e varchar(200),
+f int,
+g char(20),
+h text,
+i int,
+primary key(a,b)) TABLESPACE ts1 engine = ndb;
+insert into t1 values
+(1, 1, 1, 1, '1', 1, 'Rankin', 'Rebus', 1),
+(2, 2, 2, 2, '2', 2, 'Doyle', 'Holmes', 2),
+(3, 3, 3, 3, '3', 3, 'Burns', 'Mouse', 3),
+(4, 4, 4, 4, '4', 4, 'Gibbon', 'Chris', 4),
+(5, 5, 5, 5, '5', 5, 'Gray', 'Lanark', 5);
+select * from t1 order by a;
+a	b	c	d	e	f	g	h	i
+1	1	1	1	1	1	Rankin	Rebus	1
+2	2	2	2	2	2	Doyle	Holmes	2
+3	3	3	3	3	3	Burns	Mouse	3
+4	4	4	4	4	4	Gibbon	Chris	4
+5	5	5	5	5	5	Gray	Lanark	5
+Backing up data
+drop table t1;
+Normal restore
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) NOT NULL DEFAULT '0',
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` varchar(200) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  `g` char(20) DEFAULT NULL,
+  `h` text,
+  `i` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`,`b`)
+) /*!50100 TABLESPACE ts1 */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+select * from t1 order by a;
+a	b	c	d	e	f	g	h	i
+1	1	1	1	1	1	Rankin	Rebus	1
+2	2	2	2	2	2	Doyle	Holmes	2
+3	3	3	3	3	3	Burns	Mouse	3
+4	4	4	4	4	4	Gibbon	Chris	4
+5	5	5	5	5	5	Gray	Lanark	5
+truncate t1;
+Column name change, should fail without --exclude-missing-columns
+alter table t1 change c cc int;
+Retry with --exclude-missing-columns
+select * from t1 order by a;
+a	b	cc	d	e	f	g	h	i
+1	1	NULL	1	1	1	Rankin	Rebus	1
+2	2	NULL	2	2	2	Doyle	Holmes	2
+3	3	NULL	3	3	3	Burns	Mouse	3
+4	4	NULL	4	4	4	Gibbon	Chris	4
+5	5	NULL	5	5	5	Gray	Lanark	5
+truncate t1;
+Column type change, should fail
+alter table t1 change cc c bigint;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) NOT NULL DEFAULT '0',
+  `c` bigint(20) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` varchar(200) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  `g` char(20) DEFAULT NULL,
+  `h` text,
+  `i` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`,`b`)
+) /*!50100 TABLESPACE ts1 */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Retry with --promote-attribute
+select * from t1 order by a;
+a	b	c	d	e	f	g	h	i
+1	1	1	1	1	1	Rankin	Rebus	1
+2	2	2	2	2	2	Doyle	Holmes	2
+3	3	3	3	3	3	Burns	Mouse	3
+4	4	4	4	4	4	Gibbon	Chris	4
+5	5	5	5	5	5	Gray	Lanark	5
+truncate t1;
+Column nullability change, should fail
+alter table t1 change c c int not null;
+alter table t1 change c c int;
+Column length change, should fail
+alter table t1 change g g char(22);
+Character set difference, should fail
+alter table t1 change g g char(20) character set binary;
+alter table t1 change g g char(20);
+AutoIncrement difference, should fail
+alter table t1 change b b int auto_increment;
+Default difference, should pass 
+alter table t1 change b b int default 22;
+select * from t1 order by a;
+a	b	c	d	e	f	g	h	i
+1	1	1	1	1	1	Rankin	Rebus	1
+2	2	2	2	2	2	Doyle	Holmes	2
+3	3	3	3	3	3	Burns	Mouse	3
+4	4	4	4	4	4	Gibbon	Chris	4
+5	5	5	5	5	5	Gray	Lanark	5
+truncate t1;
+alter table t1 change b b int;
+ArrayType difference, should fail
+alter table t1 change e e varchar(300);
+alter table t1 change e e varchar(200);
+StorageType difference, should pass
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+alter table t1 change i i int storage disk;
+select * from t1 order by a;
+a	b	c	d	e	f	g	h	i
+1	1	1	1	1	1	Rankin	Rebus	1
+2	2	2	2	2	2	Doyle	Holmes	2
+3	3	3	3	3	3	Burns	Mouse	3
+4	4	4	4	4	4	Gibbon	Chris	4
+5	5	5	5	5	5	Gray	Lanark	5
+alter table t1 change i i int storage memory;
+truncate t1;
+Dynamic property difference, should pass
+alter table t1 change c c int column_format dynamic;
+select * from t1 order by a;
+a	b	c	d	e	f	g	h	i
+1	1	1	1	1	1	Rankin	Rebus	1
+2	2	2	2	2	2	Doyle	Holmes	2
+3	3	3	3	3	3	Burns	Mouse	3
+4	4	4	4	4	4	Gibbon	Chris	4
+5	5	5	5	5	5	Gray	Lanark	5
+drop table t1;
+alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
+drop tablespace ts1 engine=ndb;
+drop logfile group lg1 engine=ndb;
+Different PK columns, should fail
+create table t1 (
+a int,
+b int,
+c int,
+d int,
+e varchar(200),
+f int,
+g char(20),
+h text,
+i int,
+primary key (a)) TABLESPACE ts1 engine = ndb;
+drop table t1;
+Different distribution keys, should pass
+create table t1 (
+a int,
+b int,
+c int,
+d int,
+e varchar(200),
+f int,
+g char(20),
+h text,
+i int,
+primary key(a,b)) TABLESPACE ts1 engine = ndb partition by key(a);
+select * from t1 order by a;
+a	b	c	d	e	f	g	h	i
+1	1	1	1	1	1	Rankin	Rebus	1
+2	2	2	2	2	2	Doyle	Holmes	2
+3	3	3	3	3	3	Burns	Mouse	3
+4	4	4	4	4	4	Gibbon	Chris	4
+5	5	5	5	5	5	Gray	Lanark	5
+drop table t1;

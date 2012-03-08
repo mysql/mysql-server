@@ -178,7 +178,6 @@ public:
   /**
      Names of flags for @@@@optimizer_trace variable of @c sys_vars.cc :
      @li "enabled" = tracing enabled
-     @li "end_marker" = see parameter of @ref Opt_trace_context::start
      @li "one_line"= see parameter of @ref Opt_trace_context::start
      @li "default".
   */
@@ -188,8 +187,7 @@ public:
   enum {
     FLAG_DEFAULT=    0,
     FLAG_ENABLED=    1 << 0,
-    FLAG_END_MARKER= 1 << 1,
-    FLAG_ONE_LINE=   1 << 2
+    FLAG_ONE_LINE=   1 << 1
   };
 
   /**
@@ -424,8 +422,7 @@ public:
   enum {
     FLAG_DEFAULT=    0,
     FLAG_ENABLED=    1 << 0,
-    FLAG_END_MARKER= 1 << 1,
-    FLAG_ONE_LINE=   1 << 2
+    FLAG_ONE_LINE=   1 << 1
   };
   static bool is_started() { return false; }
 };

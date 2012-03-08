@@ -4825,8 +4825,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
                      rec_per_key[tuple_arg->part]))    // (3)
       {
         DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
-        // Fails - reintroduce when fixed
-        // DBUG_ASSERT(min_range.length > 0);
+        DBUG_ASSERT(min_range.length > 0);
         records= (table->file->
                   records_in_range(scan->keynr, &min_range, &max_range));
       }
@@ -7649,11 +7648,15 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
         cur_key1= last;
 
         /*
-          We need the minimum endpoint of first so we can compare it
-          with the minimum endpoint of the enclosing cur_key2 range.
+          Extend last to cover the entire range of
+          [min(first.min_value,cur_key2.min_value)...last.max_value].
+          If this forms a full range (the range covers all possible
+          values) we return no SEL_ARG RB-tree.
         */
-        last->copy_min(first);
-        bool full_range= last->copy_min(cur_key2);
+        bool full_range= last->copy_min(first);
+        if (!full_range)
+          full_range= last->copy_min(cur_key2);
+
         if (!full_range)
         {
           if (last->next && cur_key2->cmp_max_to_min(last->next) >= 0)
@@ -12898,18 +12901,26 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths(String *key_names,
   @param count[in,out]  The number of equality ranges found so far
   @param limit          The number of ranges 
 
-  @retval true if 'limit' or more equality ranges have been found in the 
-          range R-B trees
+  @retval true if limit > 0 and 'limit' or more equality ranges have been 
+          found in the range R-B trees
   @retval false otherwise         
 
 */
 static bool eq_ranges_exceeds_limit(SEL_ARG *keypart_root, uint* count, uint limit)
 {
-  if (limit == UINT_MAX32)
-    return false;
+  // "Statistics instead of index dives" feature is turned off
   if (limit == 0)
-    return true;
+    return false;
   
+  /*
+    Optimization: if there is at least one equality range, index
+    statistics will be used when limit is 1. It's safe to return true
+    even without checking that there is an equality range because if
+    there are none, index statistics will not be used anyway.
+  */
+  if (limit == 1)
+    return true;
+
   for(SEL_ARG *keypart_range= keypart_root->first(); 
       keypart_range; keypart_range= keypart_range->next)
   {

@@ -111,13 +111,16 @@ def	mysql	innodb_table_stats	last_update	3	CURRENT_TIMESTAMP	NO	timestamp	NULL	N
 def	mysql	innodb_table_stats	n_rows	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	mysql	innodb_table_stats	sum_of_other_index_sizes	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	mysql	innodb_table_stats	table_name	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references	
-def	mysql	ndb_binlog_index	deletes	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	mysql	ndb_binlog_index	deletes	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
 def	mysql	ndb_binlog_index	epoch	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references	
 def	mysql	ndb_binlog_index	File	2	NULL	NO	varchar	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)			select,insert,update,references	
-def	mysql	ndb_binlog_index	inserts	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	mysql	ndb_binlog_index	gci	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
+def	mysql	ndb_binlog_index	inserts	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
+def	mysql	ndb_binlog_index	orig_epoch	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references	
+def	mysql	ndb_binlog_index	orig_server_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI		select,insert,update,references	
 def	mysql	ndb_binlog_index	Position	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	mysql	ndb_binlog_index	schemaops	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	mysql	ndb_binlog_index	updates	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	mysql	ndb_binlog_index	schemaops	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
+def	mysql	ndb_binlog_index	updates	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
 def	mysql	plugin	dl	2		NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
 def	mysql	plugin	name	1		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references	
 def	mysql	proc	body	11	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
@@ -166,6 +169,7 @@ def	mysql	servers	Username	4		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci
 def	mysql	servers	Wrapper	8		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
 def	mysql	slave_master_info	Bind	18	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	Displays which interface is employed when connecting to the MySQL server
 def	mysql	slave_master_info	Connect_retry	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	The period (in seconds) that the slave will wait before trying to reconnect to the master.
+def	mysql	slave_master_info	Enabled_auto_position	24	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Indicates whether GTIDs will be used to retrieve events from the master.
 def	mysql	slave_master_info	Enabled_ssl	10	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Indicates whether the server supports SSL connections.
 def	mysql	slave_master_info	Heartbeat	17	NULL	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references	
 def	mysql	slave_master_info	Host	5	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The host name of the master.
@@ -468,10 +472,13 @@ NULL	mysql	innodb_table_stats	sum_of_other_index_sizes	bigint	NULL	NULL	NULL	NUL
 NULL	mysql	ndb_binlog_index	Position	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 1.0000	mysql	ndb_binlog_index	File	varchar	255	255	latin1	latin1_swedish_ci	varchar(255)
 NULL	mysql	ndb_binlog_index	epoch	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	ndb_binlog_index	inserts	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	ndb_binlog_index	updates	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	ndb_binlog_index	deletes	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	ndb_binlog_index	schemaops	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	mysql	ndb_binlog_index	inserts	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	ndb_binlog_index	updates	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	ndb_binlog_index	deletes	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	ndb_binlog_index	schemaops	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	ndb_binlog_index	orig_server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	ndb_binlog_index	orig_epoch	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	mysql	ndb_binlog_index	gci	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	mysql	plugin	name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	mysql	plugin	dl	varchar	128	384	utf8	utf8_general_ci	varchar(128)
 3.0000	mysql	proc	db	char	64	192	utf8	utf8_bin	char(64)
@@ -541,6 +548,7 @@ NULL	mysql	slave_master_info	Heartbeat	float	NULL	NULL	NULL	NULL	float
 NULL	mysql	slave_master_info	Retry_count	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 1.0000	mysql	slave_master_info	Ssl_crl	text	65535	65535	utf8	utf8_bin	text
 1.0000	mysql	slave_master_info	Ssl_crlpath	text	65535	65535	utf8	utf8_bin	text
+NULL	mysql	slave_master_info	Enabled_auto_position	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 NULL	mysql	slave_relay_log_info	Master_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	slave_relay_log_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slave_relay_log_info	Relay_log_name	text	65535	65535	utf8	utf8_bin	text
