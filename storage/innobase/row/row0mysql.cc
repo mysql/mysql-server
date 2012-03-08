@@ -3371,6 +3371,7 @@ row_drop_table_for_mysql(
 	ulint		err;
 	ibool		print_msg;
 	const char*	table_name;
+	bool		ibd_file_missing;
 	ulint		namelen;
 	ibool		locked_dictionary	= FALSE;
 	ibool		fts_bg_thread_exited	= FALSE;
@@ -3759,6 +3760,7 @@ check_next_foreign:
 		dict_table_remove_from_cache(table) below. */
 		name = mem_heap_strdup(heap, name);
 		space_id = table->space;
+		ibd_file_missing = table->ibd_file_missing;
 
 		is_temp = table->flags2 & DICT_TF2_TEMPORARY;
 		ut_a(table->dir_path_of_temp_table == NULL || is_temp);
@@ -3799,7 +3801,7 @@ check_next_foreign:
 		/* Don't spam the log if we can't find the tablespace of
 		a temp table or if the tablesace has been discarded. */
 
-		print_msg = !(is_temp || table->ibd_file_missing);
+		print_msg = !(is_temp || ibd_file_missing);
 
 		if (err == DB_SUCCESS && space_id > 0) {
 			if (!fil_space_for_table_exists_in_mem(
