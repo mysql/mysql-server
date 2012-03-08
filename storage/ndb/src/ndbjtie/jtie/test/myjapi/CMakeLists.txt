@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2012 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,9 +13,59 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-CREATE_JAR(jtie-test-myjapi 
-  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/*.java 
-  ${CMAKE_CURRENT_SOURCE_DIR}/test/*.java
-  CLASSPATH ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes
+# neither wildcards (nor line breaks) for clean targets supported by cmake
+SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES
+  "test_myjapi.sh.log;test_myjapi.cmd.log")
+
+# the Java API wrapper and test
+SET(JAVA_SOURCE_DIRS
+  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi
+  ${CMAKE_CURRENT_SOURCE_DIR}/test)
+
+SET(JAVA_SOURCES "")
+FOREACH(D ${JAVA_SOURCE_DIRS})
+  FILE(GLOB tmp ${D}/*.java)
+  LIST(APPEND JAVA_SOURCES ${tmp})
+ENDFOREACH()
+
+SET(CLASSPATH
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/test/myjapi/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes)
+
+CREATE_JAR(jtie-test-myjapi ${JAVA_SOURCES}
+  CLASSPATH ${CLASSPATH}
   DEPENDENCIES jtie.jar)
 
+# add the jtie dependencies for a self-contained jar
+LIST(APPEND JAVA_CLASS_DIRS
+  "${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes"
+  "com/mysql/jtie")
+ADD_FILES_TO_JAR(jtie-test-myjapi ${JAVA_CLASS_DIRS})
+
+IF(HAVE_JDK)
+
+  INCLUDE_DIRECTORIES(
+  	${JNI_INCLUDE_DIRS}
+  	${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/utils
+  	${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie
+  	${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/test/myapi)
+
+  # enable safety behaviour, expected by a myjapi subtest
+  SET(CMAKE_CXX_FLAGS
+  	"${CMAKE_CXX_FLAGS} -DJTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE")
+
+  # the Java API's JNI implementation
+  ADD_LIBRARY(libmyjapi SHARED myjapi_lib.cpp)
+  SET_TARGET_PROPERTIES(libmyjapi PROPERTIES OUTPUT_NAME "myjapi")
+  TARGET_LINK_LIBRARIES(libmyjapi libmyapi)
+
+ENDIF(HAVE_JDK)
+
+IF(WIN32)
+
+  # build the unit-test script for win
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_myjapi.cmd.in
+                 ${CMAKE_CURRENT_BINARY_DIR}/test_myjapi.cmd
+		 @ONLY NEWLINE_STYLE WIN32)
+
+ENDIF(WIN32)
