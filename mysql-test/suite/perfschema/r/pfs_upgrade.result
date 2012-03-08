@@ -60,7 +60,7 @@ ERROR 1050 (42S01) at line 1125: Table 'hosts' already exists
 ERROR 1050 (42S01) at line 1134: Table 'users' already exists
 ERROR 1050 (42S01) at line 1144: Table 'accounts' already exists
 ERROR 1050 (42S01) at line 1178: Table 'events_statements_summary_by_digest' already exists
-ERROR 1644 (HY000) at line 1598: Unexpected content found in the performance_schema database.
+ERROR 1644 (HY000) at line 1803: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_table";
 Tables_in_performance_schema (user_table)
@@ -125,7 +125,7 @@ ERROR 1050 (42S01) at line 1125: Table 'hosts' already exists
 ERROR 1050 (42S01) at line 1134: Table 'users' already exists
 ERROR 1050 (42S01) at line 1144: Table 'accounts' already exists
 ERROR 1050 (42S01) at line 1178: Table 'events_statements_summary_by_digest' already exists
-ERROR 1644 (HY000) at line 1598: Unexpected content found in the performance_schema database.
+ERROR 1644 (HY000) at line 1803: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_view";
 Tables_in_performance_schema (user_view)
@@ -188,7 +188,7 @@ ERROR 1050 (42S01) at line 1125: Table 'hosts' already exists
 ERROR 1050 (42S01) at line 1134: Table 'users' already exists
 ERROR 1050 (42S01) at line 1144: Table 'accounts' already exists
 ERROR 1050 (42S01) at line 1178: Table 'events_statements_summary_by_digest' already exists
-ERROR 1644 (HY000) at line 1598: Unexpected content found in the performance_schema database.
+ERROR 1644 (HY000) at line 1803: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.proc where db='performance_schema';
 name
@@ -251,7 +251,7 @@ ERROR 1050 (42S01) at line 1125: Table 'hosts' already exists
 ERROR 1050 (42S01) at line 1134: Table 'users' already exists
 ERROR 1050 (42S01) at line 1144: Table 'accounts' already exists
 ERROR 1050 (42S01) at line 1178: Table 'events_statements_summary_by_digest' already exists
-ERROR 1644 (HY000) at line 1598: Unexpected content found in the performance_schema database.
+ERROR 1644 (HY000) at line 1803: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.proc where db='performance_schema';
 name
@@ -314,7 +314,7 @@ ERROR 1050 (42S01) at line 1125: Table 'hosts' already exists
 ERROR 1050 (42S01) at line 1134: Table 'users' already exists
 ERROR 1050 (42S01) at line 1144: Table 'accounts' already exists
 ERROR 1050 (42S01) at line 1178: Table 'events_statements_summary_by_digest' already exists
-ERROR 1644 (HY000) at line 1598: Unexpected content found in the performance_schema database.
+ERROR 1644 (HY000) at line 1803: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.event where db='performance_schema';
 name

@@ -1,0 +1,137 @@
+drop table if exists t1,t2;
+CREATE TABLE t1 (
+gesuchnr int(11) DEFAULT '0' NOT NULL,
+benutzer_id int(11) DEFAULT '0' NOT NULL,
+PRIMARY KEY (gesuchnr,benutzer_id)
+) engine=ndbcluster;
+replace into t1 (gesuchnr,benutzer_id) values (2,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+insert into t1 (gesuchnr, benutzer_id) value (3,2);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+insert into t1 (gesuchnr,benutzer_id) values (1,1);
+ERROR 23000: Duplicate entry '1-1' for key 'PRIMARY'
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+select * from t1 order by gesuchnr;
+gesuchnr	benutzer_id
+1	1
+2	1
+3	2
+drop table t1;
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, 
+j INT, 
+k INT, 
+UNIQUE INDEX(j)
+) ENGINE = ndb;
+INSERT  INTO t1 VALUES (1,1,23),(2,2,24);
+REPLACE INTO t1 (j,k) VALUES (1,42);
+REPLACE INTO t1 (i,j) VALUES (17,2);
+SELECT * from t1 ORDER BY i;
+i	j	k
+3	1	42
+17	2	NULL
+DROP TABLE t1;
+CREATE TABLE t2 (a INT(11) NOT NULL,
+b INT(11) NOT NULL,
+c INT(11) NOT NULL,
+x TEXT,
+y TEXT,
+z TEXT,
+id INT(10) unsigned NOT NULL AUTO_INCREMENT,
+i INT(11) DEFAULT NULL,
+PRIMARY KEY (id),
+UNIQUE KEY a (a,b,c)
+) ENGINE=ndbcluster;
+REPLACE INTO t2 (a,b,c,x,y,z,i) VALUES (1,1,1,'a','a','a',1),(1,1,1,'b','b','b',2), (1,1,1,'c','c','c',3);
+SELECT * FROM t2 ORDER BY id;
+a	b	c	x	y	z	id	i
+1	1	1	c	c	c	3	3
+REPLACE INTO t2(a,b,c,x,y,z,i) values (1,1,1,'a','a','a',1);
+REPLACE INTO t2(a,b,c,x,y,z,i) values (1,1,1,'b','b','b',2);
+SELECT * FROM t2 ORDER BY id;
+a	b	c	x	y	z	id	i
+1	1	1	b	b	b	5	2
+DROP TABLE t2;
+drop table if exists t1;
+create table t1 (pk int primary key, apk int unique, data int) engine=ndbcluster;
+insert into t1 values (1, 1, 1), (2, 2, 2), (3, 3, 3);
+replace into t1 (pk, apk) values (4, 1), (5, 2);
+select * from t1 order by pk;
+pk	apk	data
+3	3	3
+4	1	NULL
+5	2	NULL
+delete from t1;
+insert into t1 values (1, 1, 1), (2, 2, 2), (3, 3, 3);
+replace into t1 (pk, apk) values (1, 4), (2, 5);
+select * from t1 order by pk;
+pk	apk	data
+1	4	NULL
+2	5	NULL
+3	3	3
+delete from t1;
+insert into t1 values (1, 1, 1), (4, 4, 4), (6, 6, 6);
+load data infile '../../../std_data/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
+pk	apk	data
+1	1	1
+3	4	NULL
+5	6	NULL
+delete from t1;
+insert into t1 values (1, 1, 1), (3, 3, 3), (5, 5, 5);
+load data infile '../../../std_data/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
+pk	apk	data
+1	1	1
+3	4	NULL
+5	6	NULL
+delete from t1;
+insert into t1 values (1, 1, 1), (2, 2, 2), (3, 3, 3);
+replace into t1 (pk, apk) select 4, 1;
+replace into t1 (pk, apk) select 2, 4;
+select * from t1 order by pk;
+pk	apk	data
+2	4	NULL
+3	3	3
+4	1	NULL
+drop table t1;
+End of 5.0 tests.
+CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY,
+c2 INT NOT NULL DEFAULT 3,
+c3 INT NULL DEFAULT 7,
+c4 INT NOT NULL
+) ENGINE = NDB;
+REPLACE INTO t1 (c1) VALUES (5);
+Warnings:
+Warning	1364	Field 'c4' doesn't have a default value
+SELECT * FROM t1;
+c1	c2	c3	c4
+5	3	7	0
+DELETE FROM t1;
+INSERT INTO t1 (c1) VALUES (5);
+Warnings:
+Warning	1364	Field 'c4' doesn't have a default value
+SELECT * FROM t1;
+c1	c2	c3	c4
+5	3	7	0
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT NOT NULL,
+c2 INT NOT NULL DEFAULT 3,
+c3 INT NULL DEFAULT 7,
+c4 INT NOT NULL
+) ENGINE = NDB;
+REPLACE INTO t1 (c1) VALUES (5);
+Warnings:
+Warning	1364	Field 'c4' doesn't have a default value
+SELECT * FROM t1;
+c1	c2	c3	c4
+5	3	7	0
+DELETE FROM t1;
+INSERT INTO t1 (c1) VALUES (5);
+Warnings:
+Warning	1364	Field 'c4' doesn't have a default value
+SELECT * FROM t1;
+c1	c2	c3	c4
+5	3	7	0
+DROP TABLE t1;

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <NdbOut.hpp>
@@ -38,6 +40,42 @@ struct Trans_arg
 Vector< Vector<NdbRecAttr*> > event_values;
 Vector< Vector<NdbRecAttr*> > event_pre_values;
 Vector<struct Table_info> table_infos;
+
+static char* event_name(uint etype, char * buf)
+{
+  switch(etype){
+  case NdbDictionary::Event::TE_INSERT:
+    strcpy(buf, "TE_INSERT");
+    break;
+  case NdbDictionary::Event::TE_DELETE:
+    strcpy(buf, "TE_DELETE");
+    break;
+  case NdbDictionary::Event::TE_UPDATE:
+    strcpy(buf, "TE_UPDATE");
+    break;
+  case NdbDictionary::Event::TE_CLUSTER_FAILURE:
+    strcpy(buf, "TE_CLUSTER_FAILURE");
+    break;
+  case NdbDictionary::Event::TE_ALTER:
+    strcpy(buf, "TE_ALTER");
+    break;
+  case NdbDictionary::Event::TE_DROP:
+    strcpy(buf, "TE_DROP");
+    break;
+  case NdbDictionary::Event::TE_NODE_FAILURE:
+    strcpy(buf, "TE_NODE_FAILURE");
+    break;
+  case NdbDictionary::Event::TE_SUBSCRIBE:
+    strcpy(buf, "TE_SUBSCRIBE");
+    break;
+  case NdbDictionary::Event::TE_UNSUBSCRIBE:
+    strcpy(buf, "TE_UNSUBSCRIBE");
+    break;
+  default:
+    strcpy(buf, "unknown");
+  }
+  return buf;
+}
 
 static void do_begin(Ndb *ndb, struct Trans_arg &trans_arg)
 {
@@ -235,6 +273,9 @@ main(int argc, const char** argv){
     for(int a = 0; a < table->getNoOfColumns(); a++){
       myEvent->addEventColumn(a);
     }
+    myEvent->setReport((NdbDictionary::Event::EventReport)
+                       (NdbDictionary::Event::ER_UPDATED |
+                        NdbDictionary::Event::ER_DDL));
 
     if (myDict->createEvent(* myEvent))
     {
@@ -303,6 +344,8 @@ main(int argc, const char** argv){
   }
 
   struct Trans_arg trans_arg;
+  char buf[64];
+
   while(true)
   {
     while(MyNdb.pollEvents(100) == 0);
@@ -334,15 +377,20 @@ main(int argc, const char** argv){
             do_update(trans_arg, pOp);
 	  break;
 	case NdbDictionary::Event::TE_CLUSTER_FAILURE:
+          ndbout_c("Received event: %s", event_name(pOp->getEventType(), buf));
 	  break;
 	case NdbDictionary::Event::TE_ALTER:
+          ndbout_c("Received event: %s", event_name(pOp->getEventType(), buf));
 	  break;
 	case NdbDictionary::Event::TE_DROP:
+          ndbout_c("Received event: %s", event_name(pOp->getEventType(), buf));
 	  break;
 	case NdbDictionary::Event::TE_NODE_FAILURE:
+          ndbout_c("Received event: %s", event_name(pOp->getEventType(), buf));
 	  break;
 	case NdbDictionary::Event::TE_SUBSCRIBE:
 	case NdbDictionary::Event::TE_UNSUBSCRIBE:
+          ndbout_c("Received event: %s", event_name(pOp->getEventType(), buf));
 	  break;
 	default:
 	  /* We should REALLY never get here. */
@@ -353,7 +401,8 @@ main(int argc, const char** argv){
       } while ((pOp= MyNdb.nextEvent()) && gci == pOp->getGCI());
       if (ndb2)
         do_commit(trans_arg);
-      ndbout_c("GCI: %lld events: %lld(I) %lld(U) %lld(D)", gci, cnt_i, cnt_u, cnt_d);
+      ndbout_c("GCI: %u/%u events: %lld(I) %lld(U) %lld(D)",
+               Uint32(gci >> 32), Uint32(gci), cnt_i, cnt_u, cnt_d);
     }
   }
 end:

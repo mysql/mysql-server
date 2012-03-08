@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
@@ -25,52 +27,58 @@ int desc_undofile(Ndb_cluster_connection &con, Ndb *myndb, char* name);
 int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char* name);
 int desc_tablespace(Ndb *myndb,char* name);
 int desc_table(Ndb *myndb,char* name);
-
-NDB_STD_OPTS_VARS;
+int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char* name);
 
 static const char* _dbname = "TEST_DB";
 static int _unqualified = 0;
 static int _partinfo = 0;
+static int _blobinfo = 0;
+static int _nodeinfo = 0;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
 
 static int _retries = 0;
+
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
   { "database", 'd', "Name of database table is in",
-    &_dbname, &_dbname, 0,
+    (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "unqualified", 'u', "Use unqualified table names",
-    &_unqualified, &_unqualified, 0,
+    (uchar**) &_unqualified, (uchar**) &_unqualified, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "extra-partition-info", 'p', "Print more info per partition",
-    &_partinfo, &_partinfo, 0,
+    (uchar**) &_partinfo, (uchar**) &_partinfo, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "retries", 'r', "Retry every second for # retries",
-    &_retries, &_retries, 0,
+    (uchar**) &_retries, (uchar**) &_retries, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "blob-info", 'b', "Show information for hidden blob tables (requires -p)",
+    (uchar**) &_blobinfo, (uchar**) &_blobinfo, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "extra-node-info", 'n', "Print node info for partitions (requires -p)",
+    (uchar**) &_nodeinfo, (uchar**) &_nodeinfo, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(NULL);
+}
+
 static void usage()
 {
-#ifdef NOT_USED
-  char desc[] = 
-    "tabname\n"\
-    "This program list all properties of table(s) in NDB Cluster.\n"\
-    "  ex: desc T1 T2 T4\n";
-#endif
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 static void print_part_info(Ndb* pNdb, NDBT_Table* pTab);
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
+
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF
@@ -80,7 +88,7 @@ int main(int argc, char** argv){
 			       ndb_std_get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
-  Ndb_cluster_connection con(opt_connect_str);
+  Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_desc");
   if(con.connect(12, 5, 1) != 0)
   {
@@ -110,6 +118,8 @@ int main(int argc, char** argv){
     else if(desc_datafile(con, &MyNdb, argv[i]))
       ;
     else if(desc_undofile(con, &MyNdb, argv[i]))
+      ;
+    else if (desc_hashmap(con, &MyNdb, argv[i]))
       ;
     else
       ndbout << "No such object: " << argv[i] << endl << endl;
@@ -278,7 +288,24 @@ int desc_table(Ndb *myndb, char* name)
   ndbout << endl;
 
   if (_partinfo)
+  {
     print_part_info(myndb, pTab);
+    ndbout << endl;
+    if (_blobinfo)
+    {
+      int noOfAttributes = pTab->getNoOfColumns();
+      for (int i = 0; i < noOfAttributes; i++)
+      {
+        const NdbDictionary::Column* column = pTab->getColumn(i);
+        if ((column->getType() == NdbDictionary::Column::Blob) || 
+          (column->getType() == NdbDictionary::Column::Text))
+        {
+          print_part_info(myndb, (NDBT_Table*) column->getBlobTable());
+          ndbout << endl;
+        }
+      }
+    }
+  }
 	
   return 1;
 }
@@ -300,11 +327,31 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
     { "Commit count", 0, NdbDictionary::Column::COMMIT_COUNT },
     { "Frag fixed memory", 0, NdbDictionary::Column::FRAGMENT_FIXED_MEMORY },
     { "Frag varsized memory", 0, NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY },
+    { "Extent_space", 0, NdbDictionary::Column::FRAGMENT_EXTENT_SPACE },
+    { "Free extent_space", 0, NdbDictionary::Column::FRAGMENT_FREE_EXTENT_SPACE },
+
     { 0, 0, 0 }
   };
+  const Uint32 FragmentIdOffset = 0;
 
-  ndbout << "-- Per partition info -- " << endl;
+  ndbout << "-- Per partition info";
+
+  if (_blobinfo && _partinfo)
+    ndbout << " for " << pTab->getName();
+
+  ndbout << " -- " << endl;
   
+  const Uint32 codeWords= 1;
+  Uint32 codeSpace[ codeWords ];
+  NdbInterpretedCode code(NULL, // Table is irrelevant
+                          &codeSpace[0],
+                          codeWords);
+  if ((code.interpret_exit_last_row() != 0) ||
+      (code.finalise() != 0))
+  {
+    return;
+  }
+
   NdbConnection* pTrans = pNdb->startTransaction();
   if (pTrans == 0)
     return;
@@ -319,7 +366,7 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
     if (rs != 0)
       break;
     
-    if (pOp->interpret_exit_last_row() != 0)
+    if (pOp->setInterpretedCode(&code) != 0)
       break;
     
     Uint32 i = 0;
@@ -337,17 +384,87 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
 	
     for (i = 0; g_part_info[i].m_title != 0; i++)
       ndbout << g_part_info[i].m_title << "\t";
+
+    if (_nodeinfo)
+    {
+      ndbout << "Nodes\t";
+    }
+    
     ndbout << endl;
     
     while(pOp->nextResult() == 0)
     {
       for(i = 0; g_part_info[i].m_title != 0; i++)
       {
-	ndbout << *g_part_info[i].m_rec_attr << "\t";
+        NdbRecAttr &r= *g_part_info[i].m_rec_attr;
+        unsigned long long val;
+        switch (r.getType()) {
+        case NdbDictionary::Column::Bigunsigned:
+          val= r.u_64_value();
+          break;
+        case NdbDictionary::Column::Unsigned:
+          val= r.u_32_value();
+          break;
+        default:
+          abort();
+        }
+        if (val != 0)
+          printf("%-*.llu\t", (int)strlen(g_part_info[i].m_title), val);
+        else
+          printf("0%*.s\t", (int)strlen(g_part_info[i].m_title), "");
       }
-      ndbout << endl;
+
+      if (_nodeinfo)
+      {
+        Uint32 partId = g_part_info[ FragmentIdOffset ].m_rec_attr -> u_32_value();
+        
+        const Uint32 MaxReplicas = 4;
+        Uint32 nodeIds[ MaxReplicas ];
+        Uint32 nodeCnt = pTab->getFragmentNodes(partId, &nodeIds[0], MaxReplicas);
+        
+        if (nodeCnt)
+        {
+          for (Uint32 n = 0; n < nodeCnt; n++)
+          {
+            if (n > 0)
+              printf(",");
+            printf("%u", nodeIds[n]);
+          }
+          printf("\t");
+        }
+        else
+        {
+          printf("-\t");
+        }
+      }
+        
+      printf("\n");
     }
   } while(0);
-  
   pTrans->close();
+}
+
+int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char* name)
+{
+  NdbDictionary::Dictionary *dict= myndb->getDictionary();
+  assert(dict);
+
+  NdbDictionary::HashMap hm;
+  if (dict->getHashMap(hm, name) == 0)
+  {
+    Uint32 len = hm.getMapLen();
+    Uint32 * tmp = new Uint32[len];
+    hm.getMapValues(tmp, len);
+    for (Uint32 i = 0; i<len; i++)
+    {
+      printf("%.2u ", tmp[i]);
+      if (((i+1) % 25) == 0)
+        printf("\n");
+    }
+    if (((len + 1) % 25) != 0)
+      printf("\n");
+    delete [] tmp;
+    return 1;
+  }
+  return 0;
 }

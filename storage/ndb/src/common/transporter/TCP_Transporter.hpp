@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +12,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef TCP_TRANSPORTER_HPP
 #define TCP_TRANSPORTER_HPP
 
 #include "Transporter.hpp"
-#include "SendBuffer.hpp"
 
 #include <NdbTCP.h>
 
@@ -43,39 +44,26 @@ struct ReceiveBuffer {
 
 class TCP_Transporter : public Transporter {
   friend class TransporterRegistry;
+  friend class Loopback_Transporter;
 private:
   // Initialize member variables
-  TCP_Transporter(TransporterRegistry&,
-		  int sendBufferSize, int maxReceiveSize,
-		  const char *lHostName,
-		  const char *rHostName, 
-		  int r_port,
-		  bool isMgmConnection,
-		  NodeId lHostId,
-		  NodeId rHostId,
-		  NodeId serverNodeId,
-		  bool checksum, bool signalId,
-		  Uint32 reportFreq = 4096);
-  
+  TCP_Transporter(TransporterRegistry&, const TransporterConfiguration* conf);
+
   // Disconnect, delete send buffers and receive buffer
   virtual ~TCP_Transporter();
+
+  virtual bool configure_derived(const TransporterConfiguration* conf);
 
   /**
    * Allocate buffers for sending and receiving
    */
   bool initTransporter();
 
-  Uint32 * getWritePtr(Uint32 lenBytes, Uint32 prio);
-  void updateWritePtr(Uint32 lenBytes, Uint32 prio);
-  
-  bool hasDataToSend() const ;
-
   /**
-   * Retrieves the contents of the send buffers and writes it on 
-   * the external TCP/IP interface until the send buffers are empty
-   * and as long as write is possible.
+   * Retrieves the contents of the send buffers and writes it on
+   * the external TCP/IP interface.
    */
-  bool doSend();
+  int doSend();
   
   /**
    * It reads the external TCP/IP interface once 
@@ -101,8 +89,6 @@ private:
    */
   virtual void updateReceiveDataPtr(Uint32 bytesRead);
 
-  virtual Uint32 get_free_buffer() const;
-
   inline bool hasReceiveData () const {
     return receiveBuffer.sizeOfData > 0;
   }
@@ -118,16 +104,11 @@ protected:
   bool connect_common(NDB_SOCKET_TYPE sockfd);
   
   /**
-   * Disconnects a TCP/IP node. Empty send and receivebuffer.
+   * Disconnects a TCP/IP node. Empty receivebuffer.
    */
   virtual void disconnectImpl();
   
 private:
-  /**
-   * Send buffers
-   */
-  SendBuffer m_sendBuffer;
-  
   // Sending/Receiving socket used by both client and server
   NDB_SOCKET_TYPE theSocket;   
   
@@ -141,11 +122,13 @@ private:
   int sockOptNodelay;
   int sockOptTcpMaxSeg;
 
-  void setSocketOptions();
+  void setSocketOptions(NDB_SOCKET_TYPE socket);
 
   static bool setSocketNonBlocking(NDB_SOCKET_TYPE aSocket);
+  virtual int pre_connect_options(NDB_SOCKET_TYPE aSocket);
   
-  bool sendIsPossible(struct timeval * timeout);
+  bool send_is_possible(int timeout_millisec) const;
+  bool send_is_possible(NDB_SOCKET_TYPE fd, int timeout_millisec) const;
 
   /**
    * Statistics
@@ -157,6 +140,8 @@ private:
   Uint64 sendSize;
 
   ReceiveBuffer receiveBuffer;
+
+  bool send_limit_reached(int bufsize) { return bufsize > TCP_SEND_LIMIT; }
 };
 
 inline
@@ -180,12 +165,6 @@ TCP_Transporter::updateReceiveDataPtr(Uint32 bytesRead){
   receiveBuffer.readPtr = (Uint32*)ptr;
   receiveBuffer.sizeOfData -= bytesRead;
   receiveBuffer.incompleteMessage();
-}
-
-inline
-bool
-TCP_Transporter::hasDataToSend() const {
-  return m_sendBuffer.dataSize > 0;
 }
 
 inline

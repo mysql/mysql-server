@@ -1,0 +1,235 @@
+include/master-slave.inc
+[connection master]
+insert into mysql.ndb_replication values ("test", "t1_old", 0, 7, "NDB$OLD(X)");
+insert into mysql.ndb_replication values ("test", "t1_max", 0, 7, "NDB$MAX(X)");
+insert into mysql.ndb_replication values ("test", "t1_max_delete_win", 0, 7, "NDB$MAX_DELETE_WIN(X)");
+create table `t1_old$EX`
+  (server_id int unsigned,
+master_server_id int unsigned,
+master_epoch bigint unsigned,
+count int unsigned,
+a int not null,
+primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+create table `t1_max$EX`
+  (server_id int unsigned,
+master_server_id int unsigned,
+master_epoch bigint unsigned,
+count int unsigned,
+a int not null,
+primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+create table `t1_max_delete_win$EX`
+  (server_id int unsigned,
+master_server_id int unsigned,
+master_epoch bigint unsigned,
+count int unsigned,
+a int not null,
+primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+create table t1_old (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+create table t1_max (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+create table t1_max_delete_win (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+"Test 1"
+insert into t1_old values (1, 'Initial X=1', 1);
+insert into t1_max values (1, 'Initial X=1', 1);
+insert into t1_max_delete_win values (1, 'Initial X=1', 1);
+update t1_old set X = 2, b='Slave X=2';
+update t1_max set X = 2, b='Slave X=2';
+update t1_max_delete_win set X = 2, b='Slave X=2';
+update t1_old set X = 3, b='Master X=3';
+update t1_max set X = 3, b='Master X=3';
+update t1_max_delete_win set X = 3, b='Master X=3';
+"Expect t1_old to contain slave row, and t1_max* to contain master row"
+select * from t1_old;
+a	b	X
+1	Slave X=2	2
+select * from t1_max;
+a	b	X
+1	Master X=3	3
+select * from t1_max_delete_win;
+a	b	X
+1	Master X=3	3
+update t1_old set X = 3, b='Master X=3';
+"Test 2"
+update t1_old set X = 4, b='Slave X=4';
+update t1_max set X = 4, b='Slave X=4';
+update t1_max_delete_win set X = 4, b='Slave X=4';
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+"Expect t1_old and t1_max to contain slave row, and t1_max_delete_win to be empty(as master)"
+select * from t1_old;
+a	b	X
+1	Slave X=4	4
+select * from t1_max;
+a	b	X
+1	Slave X=4	4
+select * from t1_max_delete_win;
+a	b	X
+delete from t1_old;
+delete from t1_max;
+drop table t1_old, t1_max, t1_max_delete_win;
+delete from t1_old$EX;
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+delete from t1_old$EX;
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+create table t1_old (a int primary key, b longtext, X int unsigned) engine = ndb;
+create table t1_max (a int primary key, b longtext, X int unsigned) engine = ndb;
+create table t1_max_delete_win (a int primary key, b longtext, X int unsigned) engine = ndb;
+"Test 3"
+insert into t1_old values (1, repeat('Initial X=1',1000), 1);
+insert into t1_max values (1, repeat('Initial X=1',1000), 1);
+insert into t1_max_delete_win values (1, repeat('Initial X=1',1000), 1);
+update t1_old set X = 2, b=repeat('Slave X=2',1001);
+update t1_max set X = 2, b=repeat('Slave X=2',1001);
+update t1_max_delete_win set X = 2, b=repeat('Slave X=2',1001);
+update t1_old set X = 3, b=repeat('Master X=3',1002);
+update t1_max set X = 3, b=repeat('Master X=3',1002);
+update t1_max_delete_win set X = 3, b=repeat('Master X=3',1002);
+"Expect t1_old to contain slave row, and t1_max* to contain master row"
+select a, left(b, 20), length(b), X from t1_old;
+a	left(b, 20)	length(b)	X
+1	Slave X=2Slave X=2Sl	9009	2
+select a, left(b, 20), length(b), X from t1_max;
+a	left(b, 20)	length(b)	X
+1	Master X=3Master X=3	10020	3
+select a, left(b, 20), length(b), X from t1_max_delete_win;
+a	left(b, 20)	length(b)	X
+1	Master X=3Master X=3	10020	3
+Expect t1_old to have 1 entry, and t1_max* to have no entries
+select server_id, master_server_id, count, a from t1_old$EX order by count;
+server_id	master_server_id	count	a
+2	1	1	1
+select server_id, master_server_id, count, a from t1_max$EX order by count;
+server_id	master_server_id	count	a
+select server_id, master_server_id, count, a from t1_max_delete_win$EX order by count;
+server_id	master_server_id	count	a
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+delete from t1_old$EX;
+update t1_old set X = 3, b=repeat('Master X=3', 1002);
+"Test 4"
+update t1_old set X = 4, b=repeat('Slave X=4',2000);
+update t1_max set X = 4, b=repeat('Slave X=4',2000);
+update t1_max_delete_win set X = 4, b=repeat('Slave X=4',2000);
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+"Expect t1_old and t1_max to contain slave row, and t1_max_delete_win to be empty(as master)"
+select a, left(b, 20), length(b), X from t1_old;
+a	left(b, 20)	length(b)	X
+1	Slave X=4Slave X=4Sl	18000	4
+select a, left(b, 20), length(b), X from t1_max;
+a	left(b, 20)	length(b)	X
+1	Slave X=4Slave X=4Sl	18000	4
+select a, left(b, 20), length(b), X from t1_max_delete_win;
+a	left(b, 20)	length(b)	X
+Expect t1_old and t1_max to contain 1 entry, and t1_max_delete_win to be empty
+select server_id, master_server_id, count, a from t1_old$EX order by count;
+server_id	master_server_id	count	a
+2	1	2	1
+select server_id, master_server_id, count, a from t1_max$EX order by count;
+server_id	master_server_id	count	a
+2	1	1	1
+select server_id, master_server_id, count, a from t1_max_delete_win$EX order by count;
+server_id	master_server_id	count	a
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+delete from t1_old$EX;
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+"Test 5"
+Test that Updates affecting Blobs are rejected
+correctly on the slave
+drop table t1_max;
+create table t1_max (a int primary key, b int, c longtext, d longtext, X int unsigned) engine = ndb;
+insert into t1_max values (1, 1, repeat("B", 10000), repeat("E", 10001), 1);
+insert into t1_max values (2, 2, repeat("A", 10002), repeat("T", 10003), 1);
+update t1_max set X=20;
+Initial values on Slave
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
+a	b	SHA1(c)	length(c)	SHA1(d)	length(d)	X
+1	1	4a222e18b539cdefbf0960eaa7f4362a4976e1e0	10000	9641d473ab1bd921263190eee074397084933e2d	10001	20
+2	2	f833241322c062495632923d74314a6a5c23034d	10002	2dad269dfa115f6c7e53e91a73251e597aab8fe9	10003	20
+Originate update which will be rejected
+update t1_max set c=repeat("Z", 10006), d=repeat("I", 10005), X=2 where a=1;
+Check slave has rejected due to lower version
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
+a	b	SHA1(c)	length(c)	SHA1(d)	length(d)	X
+1	1	4a222e18b539cdefbf0960eaa7f4362a4976e1e0	10000	9641d473ab1bd921263190eee074397084933e2d	10001	20
+2	2	f833241322c062495632923d74314a6a5c23034d	10002	2dad269dfa115f6c7e53e91a73251e597aab8fe9	10003	20
+Originate delete which will be rejected (due to NDB-OLD) algorith
+delete from t1_max where a=1;
+Check slave has rejected due to before image mismatch
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
+a	b	SHA1(c)	length(c)	SHA1(d)	length(d)	X
+1	1	4a222e18b539cdefbf0960eaa7f4362a4976e1e0	10000	9641d473ab1bd921263190eee074397084933e2d	10001	20
+2	2	f833241322c062495632923d74314a6a5c23034d	10002	2dad269dfa115f6c7e53e91a73251e597aab8fe9	10003	20
+Originate insert which will be rejected (as row exists)
+insert into t1_max values (1, 1, repeat("R", 10004), repeat("A", 10007), 1);
+Check slave has rejected due to row existing already
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
+a	b	SHA1(c)	length(c)	SHA1(d)	length(d)	X
+1	1	4a222e18b539cdefbf0960eaa7f4362a4976e1e0	10000	9641d473ab1bd921263190eee074397084933e2d	10001	20
+2	2	f833241322c062495632923d74314a6a5c23034d	10002	2dad269dfa115f6c7e53e91a73251e597aab8fe9	10003	20
+Expect t1_max to have 3 entries
+select server_id, master_server_id, count, a from t1_old$EX order by count;
+server_id	master_server_id	count	a
+select server_id, master_server_id, count, a from t1_max$EX order by count;
+server_id	master_server_id	count	a
+2	1	1	1
+2	1	2	1
+2	1	3	1
+select server_id, master_server_id, count, a from t1_max_delete_win$EX order by count;
+server_id	master_server_id	count	a
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+delete from t1_old$EX;
+Test 6
+Check that non-Blob related operations in a batch with a Blob
+operation are still subject to conflict detection.
+
+insert into mysql.ndb_replication values ("test", "t2_max", 0, 7, "NDB$MAX(X)");
+create table `t2_max$EX`
+  (server_id int unsigned,
+master_server_id int unsigned,
+master_epoch bigint unsigned,
+count int unsigned,
+a int not null,
+primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+create table t2_max (a int primary key, b int, X bigint unsigned) engine=ndb;
+insert into t2_max values (1,1,10), (2,2,10), (3,3,10), (4,4,10), (5,5,10);
+Now issue a transaction with a successful Blob op, and unsuccessful
+non-Blob op.  Check that the Blob op succeeds, and the unsuccessful
+non-Blob op is handled as expected.
+begin;
+update t2_max set b=b+1, X=1 where a=3;
+update t1_max set c=repeat("R", 10008), d=repeat("A", 10009), X = 21 where a=1;
+commit;
+Contents on Slave
+Expect Blob data applied to t1_max, no update applied to t2_max
+select a,b,left(c,1), length(c), left(d,1), length(d), X from t1_max where a=1;
+a	b	left(c,1)	length(c)	left(d,1)	length(d)	X
+1	1	R	10008	A	10009	21
+select * from t2_max order by a;
+a	b	X
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+Expect No conflict in t1_max, 1 conflict in t2_max
+select server_id, master_server_id, count, a from t1_max$EX order by count;
+server_id	master_server_id	count	a
+select server_id, master_server_id, count, a from t2_max$EX order by count;
+server_id	master_server_id	count	a
+2	1	1	3
+drop table t2_max, t2_max$EX;
+"Cleanup"
+drop table mysql.ndb_replication;
+drop table t1_old, `t1_old$EX`, t1_max, `t1_max$EX`, t1_max_delete_win, `t1_max_delete_win$EX`;
+include/rpl_end.inc
