@@ -436,6 +436,11 @@ a limited buffer. */
 # define ut_snprintf	snprintf
 #endif /* __WIN__ */
 
+#ifndef HAVE_VASPRINTF
+int vasprintf(char **str, const char *format, va_list ap);
+int asprintf(char **str, const char *format, ...);
+#endif /* !HAVE_VASPRINTF */
+
 /*************************************************************//**
 Convert an error number to a human readable text message. The
 returned string is static and should not be freed or modified.
