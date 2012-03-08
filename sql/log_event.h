@@ -4082,7 +4082,7 @@ private:
 };
 #endif
 
-int append_query_string(CHARSET_INFO *csinfo,
+int append_query_string(THD *thd, CHARSET_INFO *csinfo,
                         String const *from, String *to);
 
 /**

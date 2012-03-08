@@ -656,7 +656,7 @@ int mysqld_server_started= 0;
 File_parser_dummy_hook file_parser_dummy_hook;
 
 /* replication parameters, if master_host is not NULL, we are a slave */
-uint report_port= MYSQL_PORT;
+uint report_port= 0;
 ulong master_retry_count=0;
 char *master_info_file;
 char *relay_log_info_file, *report_user, *report_password, *report_host;
@@ -1784,6 +1784,11 @@ static void network_init(void)
 
   set_ports();
 
+  if (report_port == 0)
+  {
+    report_port= mysqld_port;
+  }
+  DBUG_ASSERT(report_port != 0);
   if (mysqld_port != 0 && !opt_disable_networking && !opt_bootstrap)
   {
     struct addrinfo *ai, *a;
@@ -2405,10 +2410,6 @@ static void check_data_home(const char *path)
 {}
 
 #endif /* __WIN__ */
-
-#ifdef HAVE_LINUXTHREADS
-#define UNSAFE_DEFAULT_LINUX_THREADS 200
-#endif
 
 
 #if BACKTRACE_DEMANGLE

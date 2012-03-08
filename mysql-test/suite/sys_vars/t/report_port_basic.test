@@ -2,18 +2,19 @@
 #
 # only global
 #
---replace_result $DEFAULT_MASTER_PORT DEFAULT_MASTER_PORT
+--replace_regex s/[0-9]+/DEFAULT_MASTER_PORT/
 select @@global.report_port;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.report_port;
---replace_result $DEFAULT_MASTER_PORT DEFAULT_MASTER_PORT
+--replace_column 2 'DEFAULT_MASTER_PORT'
 show global variables like 'report_port';
---replace_result $DEFAULT_MASTER_PORT DEFAULT_MASTER_PORT
+--replace_column 2 'DEFAULT_MASTER_PORT'
 show session variables like 'report_port';
---replace_result $DEFAULT_MASTER_PORT DEFAULT_MASTER_PORT
+--replace_column 2 'DEFAULT_MASTER_PORT'
 select * from information_schema.global_variables where variable_name='report_port';
---replace_result $DEFAULT_MASTER_PORT DEFAULT_MASTER_PORT
+--replace_column 2 'DEFAULT_MASTER_PORT'
 select * from information_schema.session_variables where variable_name='report_port';
+--replace_column 2 'DEFAULT_MASTER_PORT'
 
 #
 # show that it's read-only
