@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,15 +13,51 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-SET ( JAVA_SOURCE_DIRS
- ${CMAKE_CURRENT_SOURCE_DIR}/test/*.java)
+# neither wildcards (nor line breaks) for clean targets supported by cmake
+SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES
+  "test_mutils.sh.log;test_mutils.cmd.log;test_ndbjtie_multilib.sh.log;test_ndbjtie_multilib.cmd.log;test_ndbjtie_smoke.sh.log;test_ndbjtie_smoke.cmd.log;test_unload_mutils.sh.log;test_unload_mutils.cmd.log;test_unload_ndbjtie_multilib.sh.log;test_unload_ndbjtie_multilib.cmd.log;test_unload_ndbjtie_smoke.sh.log;test_unload_ndbjtie_smoke.cmd.log;")
 
-SET ( CLASSPATH 
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/test/myjapi/target/classes)
+# the test classes
+FILE(GLOB JAVA_SOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/*.java)
 
-CREATE_JAR(ndbjtie-test ${JAVA_SOURCE_DIRS} 
-  CLASSPATH ${CLASSPATH} 
-  DEPENDENCIES ndbjtie.jar jtie-test-myjapi.jar)
+SET(CLASSPATH
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/test/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/test/myjapi/target/classes)
 
+CREATE_JAR(ndbjtie-test ${JAVA_SOURCES}
+  CLASSPATH ${CLASSPATH}
+  DEPENDENCIES ndbjtie.jar jtie.jar jtie-test-myjapi.jar)
+
+# ndb71@win32: compile issues with including <NdbTap.hpp>
+#INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/util
+#		${CMAKE_SOURCE_DIR}/unittest/mytap)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/unittest/mytap)
+
+ADD_EXECUTABLE(ndbjtie_unit_tests-t ndbjtie_unit_tests-t.cpp)
+
+IF(WIN32)
+
+  # build the unit-test scripts for win
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_mutils.cmd.in
+                 ${CMAKE_CURRENT_BINARY_DIR}/test_mutils.cmd
+		 @ONLY NEWLINE_STYLE WIN32)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_ndbjtie_multilib.cmd.in
+                 ${CMAKE_CURRENT_BINARY_DIR}/test_ndbjtie_multilib.cmd
+		 @ONLY NEWLINE_STYLE WIN32)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_ndbjtie_smoke.cmd.in
+                 ${CMAKE_CURRENT_BINARY_DIR}/test_ndbjtie_smoke.cmd
+		 @ONLY NEWLINE_STYLE WIN32)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_unload_mutils.cmd.in
+                 ${CMAKE_CURRENT_BINARY_DIR}/test_unload_mutils.cmd
+		 @ONLY NEWLINE_STYLE WIN32)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_unload_ndbjtie_multilib.cmd.in
+                 ${CMAKE_CURRENT_BINARY_DIR}/test_unload_ndbjtie_multilib.cmd
+		 @ONLY NEWLINE_STYLE WIN32)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_unload_ndbjtie_smoke.cmd.in
+                 ${CMAKE_CURRENT_BINARY_DIR}/test_unload_ndbjtie_smoke.cmd
+		 @ONLY NEWLINE_STYLE WIN32)
+
+ENDIF(WIN32)

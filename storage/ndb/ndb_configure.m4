@@ -215,6 +215,14 @@ AC_DEFUN([MYSQL_CHECK_JAVA], [
     AC_PATH_PROG(JAVA, java, no, ${NDB_JAVA_BIN})
     AC_SUBST(JNI_INCLUDE_DIRS)
 
+    # generated java unit tests need to know whether to run 32 or 64 bit
+    JAVA_ARCH=`expr $ac_cv_sizeof_charp \* 8`
+    AC_SUBST([JAVA_ARCH])
+    Java_JAVA_ARCH_OPT=-d${JAVA_ARCH}
+    AC_SUBST([Java_JAVA_ARCH_OPT])
+    Java_JAVA_EXECUTABLE_PATH=${JAVA}
+    AC_SUBST([Java_JAVA_EXECUTABLE_PATH])
+
     if test X"$JAVAC" != Xno &&
       test X"$JAVAH" != Xno && 
       test X"$JAR" != Xno && 
@@ -523,6 +531,28 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   then
     NDBJTIE_OPT="ndbjtie"
     NDBJTIE_LIBS="ndbjtie/libndbjtie.la ndbjtie/mysql/libmysqlutils.la"
+
+    # generate jtie unit tests:
+    AC_CONFIG_FILES([storage/ndb/src/ndbjtie/jtie/test/myapi/test_myapi.sh],
+           [chmod +x storage/ndb/src/ndbjtie/jtie/test/myapi/test_myapi.sh])
+    AC_CONFIG_FILES([storage/ndb/src/ndbjtie/jtie/test/myjapi/test_myjapi.sh],
+           [chmod +x storage/ndb/src/ndbjtie/jtie/test/myjapi/test_myjapi.sh])
+    AC_CONFIG_FILES([storage/ndb/src/ndbjtie/jtie/test/unload/test_unload.sh],
+           [chmod +x storage/ndb/src/ndbjtie/jtie/test/unload/test_unload.sh])
+
+    # generate ndbjtie unit tests:
+    AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_mutils.sh],
+           [chmod +x storage/ndb/src/ndbjtie/test/test_mutils.sh])
+    AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_ndbjtie_multilib.sh],
+           [chmod +x storage/ndb/src/ndbjtie/test/test_ndbjtie_multilib.sh])
+    AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_ndbjtie_smoke.sh],
+           [chmod +x storage/ndb/src/ndbjtie/test/test_ndbjtie_smoke.sh])
+    AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_unload_mutils.sh],
+           [chmod +x storage/ndb/src/ndbjtie/test/test_unload_mutils.sh])
+    AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_unload_ndbjtie_multilib.sh],
+           [chmod +x storage/ndb/src/ndbjtie/test/test_unload_ndbjtie_multilib.sh])
+    AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_unload_ndbjtie_smoke.sh],
+           [chmod +x storage/ndb/src/ndbjtie/test/test_unload_ndbjtie_smoke.sh])
   fi
 
   if test x"$have_openjpa" = xyes  
