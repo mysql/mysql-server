@@ -1951,6 +1951,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
     rc= mysql_real_query(mysql, query, strlen(query));
     if (rc != 0)
     {
+      mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
       if (check_io_slave_killed(mi->info_thd, mi, NULL))
         goto slave_killed_err;
 
@@ -1993,6 +1994,19 @@ when it try to get the value of TIME_ZONE global variable from master.";
       {
         mi->checksum_alg_before_fd= (uint8)
           find_type(master_row[0], &binlog_checksum_typelib, 1) - 1;
+        
+       DBUG_EXECUTE_IF("undefined_algorithm_on_slave",
+        mi->checksum_alg_before_fd = BINLOG_CHECKSUM_ALG_UNDEF;);
+       if(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_UNDEF) 
+       {
+         errmsg= "The slave I/O thread was stopped because a fatal error is encountered "
+                 "The checksum algorithm used by master is unknown to slave.";
+         err_code= ER_SLAVE_FATAL_ERROR;
+         sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+         mysql_free_result(mysql_store_result(mysql));
+         goto err;
+       }
+
         // valid outcome is either of
         DBUG_ASSERT(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_OFF ||
                     mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_CRC32);
@@ -3084,8 +3098,11 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
     log (remember that now the relay log starts with its Format_desc,
     has a Rotate etc).
   */
-
+  /*
+     Set the unmasked and actual server ids from the event
+   */
   thd->server_id = ev->server_id; // use the original server id for logging
+  thd->unmasked_server_id = ev->unmasked_server_id;
   thd->set_time();                            // time the query
   thd->lex->current_select= 0;
   if (!ev->when.tv_sec)
@@ -4367,13 +4384,17 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
       */
       if (!checksum_detected)
       {
-        for (int i=0; i < 4; i++)
+        int i= 0;
+        while (i < 4 && (ev= Log_event::read_log_event(&log,
+               (mysql_mutex_t*) 0, p_fdle, 0)))
         {
-          if ((ev= Log_event::read_log_event(&log,
-                                             (mysql_mutex_t*) 0, p_fdle, 0))
-              && ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+          if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+          {
             p_fdle->checksum_alg= ev->checksum_alg;
-          checksum_detected= TRUE;
+            checksum_detected= TRUE;
+          }
+          delete ev;
+          i++;
         }
         if (!checksum_detected)
         {
@@ -4683,7 +4704,8 @@ err:
   if (error && w)
   {
     w->end_info();
-    delete_dynamic(&w->jobs.Q);
+    if (w->jobs.inited_queue)
+      delete_dynamic(&(w->jobs.Q));
     delete w;
     /*
       Any failure after dynarray inserted must follow with deletion
@@ -4909,6 +4931,7 @@ end:
   *mts_inited= false;
 }
 
+
 /**
   Slave SQL thread entry point.
 
@@ -5064,6 +5087,16 @@ pthread_handler_t handle_slave_sql(void *arg)
   }
 #endif
   DBUG_ASSERT(rli->info_thd == thd);
+
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  /* engine specific hook, to be made generic */
+  if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
+  {
+    sql_print_warning("Slave SQL thread : NDB : Tables not available after %lu"
+                      " seconds.  Consider increasing --ndb-wait-setup value",
+                      opt_ndb_wait_setup);
+  }
+#endif
 
   DBUG_PRINT("master_info",("log_file_name: %s  position: %s",
                             rli->get_group_master_log_name(),
@@ -6046,6 +6079,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   mysql_mutex_lock(log_lock);
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
+
+  /*
+    If server_id_bits option is set we need to mask out irrelevant bits
+    when checking server_id, but we still put the full unmasked server_id
+    into the Relay log so that it can be accessed when applying the event
+  */
+  s_id&= opt_server_id_mask;
+
   if ((s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
       /*
         the following conjunction deals with IGNORE_SERVER_IDS, if set

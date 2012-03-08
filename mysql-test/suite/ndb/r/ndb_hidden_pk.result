@@ -1,0 +1,265 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+attr1 INT
+) ENGINE=ndbcluster;
+insert into t1 values (0), (1), (2), (3), (4), (1), (1), (1), (2), (2), (2), (3), (3), (3), (NULL), (NULL), (NULL);
+select * from t1 order by attr1;
+attr1
+NULL
+NULL
+NULL
+0
+1
+1
+1
+1
+2
+2
+2
+2
+3
+3
+3
+3
+4
+select * from t1 where attr1 = 1;
+attr1
+1
+1
+1
+1
+select * from t1 where attr1 IS NULL;
+attr1
+NULL
+NULL
+NULL
+select * from t1 where attr1 = 4;
+attr1
+4
+select * from t1 where attr1 = 1000;
+attr1
+update t1 set attr1=7 where attr1=4;
+select * from t1 order by attr1;
+attr1
+NULL
+NULL
+NULL
+0
+1
+1
+1
+1
+2
+2
+2
+2
+3
+3
+3
+3
+7
+update t1 set attr1=10 where attr1=1;
+select * from t1 order by attr1;
+attr1
+NULL
+NULL
+NULL
+0
+2
+2
+2
+2
+3
+3
+3
+3
+7
+10
+10
+10
+10
+update t1 set attr1=20 where attr1 IS NULL;
+select * from t1 order by attr1;
+attr1
+0
+2
+2
+2
+2
+3
+3
+3
+3
+7
+10
+10
+10
+10
+20
+20
+20
+update t1 set attr1=NULL where attr1=20;
+select * from t1 order by attr1;
+attr1
+NULL
+NULL
+NULL
+0
+2
+2
+2
+2
+3
+3
+3
+3
+7
+10
+10
+10
+10
+delete from t1 where attr1=0;
+select * from t1 order by attr1;
+attr1
+NULL
+NULL
+NULL
+2
+2
+2
+2
+3
+3
+3
+3
+7
+10
+10
+10
+10
+delete from t1 where attr1 IS NULL;
+select * from t1 order by attr1;
+attr1
+2
+2
+2
+2
+3
+3
+3
+3
+7
+10
+10
+10
+10
+drop table t1;
+CREATE TABLE t1 (
+b blob
+) ENGINE=ndbcluster;
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+insert into t1 values (NULL), (NULL), ('Something'), (''), (REPEAT('Lots', 2000));
+select * from t1 order by b;
+b
+NULL
+NULL
+
+LotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLotsLots
+Something
+select * from t1 where b IS NULL;
+b
+NULL
+NULL
+select * from t1 where b='Something';
+b
+Something
+select count(*) from t1 where b=REPEAT('Lots', 2000);
+count(*)
+1
+select * from t1 where b='Imaginary';
+b
+drop table t1;
+CREATE TABLE t1 (
+a int,
+b int, 
+UNIQUE(a)
+) ENGINE=NDBCLUSTER;
+insert into t1 values (NULL, NULL), (NULL, NULL), (NULL, 1), (1, 1), (2, 2), (3, 3);
+select * from t1 order by a, b;
+a	b
+NULL	NULL
+NULL	NULL
+NULL	1
+1	1
+2	2
+3	3
+select * from t1 where a IS NULL order by b;
+a	b
+NULL	NULL
+NULL	NULL
+NULL	1
+select * from t1 where a=2;
+a	b
+2	2
+select * from t1 where a=10;
+a	b
+update t1 set b=12 where a=12;
+select * from t1 order by a, b;
+a	b
+NULL	NULL
+NULL	NULL
+NULL	1
+1	1
+2	2
+3	3
+update t1 set b=4 where a=3;
+select * from t1 order by a, b;
+a	b
+NULL	NULL
+NULL	NULL
+NULL	1
+1	1
+2	2
+3	4
+update t1 set b=2 where a=1;
+select * from t1 order by a, b;
+a	b
+NULL	NULL
+NULL	NULL
+NULL	1
+1	2
+2	2
+3	4
+update t1 set b=14 where a IS NULL;
+select * from t1 order by a,b;
+a	b
+NULL	14
+NULL	14
+NULL	14
+1	2
+2	2
+3	4
+delete from t1 where a = 999;
+select * from t1 order by a, b;
+a	b
+NULL	14
+NULL	14
+NULL	14
+1	2
+2	2
+3	4
+delete from t1 where a=3;
+select * from t1 order by a, b;
+a	b
+NULL	14
+NULL	14
+NULL	14
+1	2
+2	2
+delete from t1 where a IS NULL;
+select * from t1 order by a, b;
+a	b
+1	2
+2	2
+drop table t1;

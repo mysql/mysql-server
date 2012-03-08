@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBTUX_NODE_CPP
 #include "Dbtux.hpp"
@@ -20,7 +22,7 @@
  * Allocate index node in TUP.
  */
 int
-Dbtux::allocNode(Signal* signal, NodeHandle& node)
+Dbtux::allocNode(TuxCtx& ctx, NodeHandle& node)
 {
   if (ERROR_INSERTED(12007)) {
     jam();
@@ -31,10 +33,12 @@ Dbtux::allocNode(Signal* signal, NodeHandle& node)
   Uint32 pageId = NullTupLoc.getPageId();
   Uint32 pageOffset = NullTupLoc.getPageOffset();
   Uint32* node32 = 0;
-  int errorCode = c_tup->tuxAllocNode(signal, frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
-  jamEntry();
+  int errorCode = c_tup->tuxAllocNode(ctx.jamBuffer,
+                                      frag.m_tupIndexFragPtrI,
+                                      pageId, pageOffset, node32);
+  thrjamEntry(ctx.jamBuffer);
   if (errorCode == 0) {
-    jam();
+    thrjam(ctx.jamBuffer);
     node.m_loc = TupLoc(pageId, pageOffset);
     node.m_node = reinterpret_cast<TreeNode*>(node32);
     ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
@@ -49,6 +53,24 @@ Dbtux::allocNode(Signal* signal, NodeHandle& node)
 }
 
 /*
+ * Free index node in TUP
+ */
+void
+Dbtux::freeNode(NodeHandle& node)
+{
+  Frag& frag = node.m_frag;
+  Uint32 pageId = node.m_loc.getPageId();
+  Uint32 pageOffset = node.m_loc.getPageOffset();
+  Uint32* node32 = reinterpret_cast<Uint32*>(node.m_node);
+  c_tup->tuxFreeNode(frag.m_tupIndexFragPtrI,
+                     pageId, pageOffset, node32);
+  jamEntry();
+  // invalidate the handle
+  node.m_loc = NullTupLoc;
+  node.m_node = 0;
+}
+
+/*
  * Set handle to point to existing node.
  */
 void
@@ -60,7 +82,6 @@ Dbtux::selectNode(NodeHandle& node, TupLoc loc)
   Uint32 pageOffset = loc.getPageOffset();
   Uint32* node32 = 0;
   c_tup->tuxGetNode(frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
-  jamEntry();
   node.m_loc = loc;
   node.m_node = reinterpret_cast<TreeNode*>(node32);
   ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
@@ -73,45 +94,87 @@ void
 Dbtux::insertNode(NodeHandle& node)
 {
   Frag& frag = node.m_frag;
-  // unlink from freelist
+  // use up pre-allocated node
   selectNode(node, frag.m_freeLoc);
-  frag.m_freeLoc = node.getLink(0);
+  frag.m_freeLoc = NullTupLoc;
   new (node.m_node) TreeNode();
 #ifdef VM_TRACE
   TreeHead& tree = frag.m_tree;
   memset(node.getPref(), DataFillByte, tree.m_prefSize << 2);
   TreeEnt* entList = tree.getEntList(node.m_node);
-  memset(entList, NodeFillByte, (tree.m_maxOccup + 1) * (TreeEntSize << 2));
+  memset(entList, NodeFillByte, tree.m_maxOccup * (TreeEntSize << 2));
 #endif
 }
 
 /*
- * Delete existing node.  Simply put it on the freelist.
+ * Delete existing node.  Make it the pre-allocated free node if there
+ * is none.  Otherwise return it to fragment's free list.
  */
 void
 Dbtux::deleteNode(NodeHandle& node)
 {
   Frag& frag = node.m_frag;
   ndbrequire(node.getOccup() == 0);
-  // link to freelist
-  node.setLink(0, frag.m_freeLoc);
-  frag.m_freeLoc = node.m_loc;
-  // invalidate the handle
-  node.m_loc = NullTupLoc;
-  node.m_node = 0;
+  if (frag.m_freeLoc == NullTupLoc)
+  {
+    jam();
+    frag.m_freeLoc = node.m_loc;
+    // invalidate the handle
+    node.m_loc = NullTupLoc;
+    node.m_node = 0;
+  }
+  else
+  {
+    jam();
+    freeNode(node);
+  }
 }
 
 /*
- * Set prefix.  Copies the number of words that fits.  Includes
- * attribute headers for now.  XXX use null mask instead
+ * Free the pre-allocated node, called when tree is empty.  This avoids
+ * leaving any used pages in DataMemory.
  */
 void
-Dbtux::setNodePref(NodeHandle& node)
+Dbtux::freePreallocatedNode(Frag& frag)
+{
+  if (frag.m_freeLoc != NullTupLoc)
+  {
+    jam();
+    NodeHandle node(frag);
+    selectNode(node, frag.m_freeLoc);
+    freeNode(node);
+    frag.m_freeLoc = NullTupLoc;
+  }
+}
+
+/*
+ * Set prefix.  Copies the defined number of attributes.
+ */
+void
+Dbtux::setNodePref(TuxCtx & ctx, NodeHandle& node)
 {
   const Frag& frag = node.m_frag;
-  const TreeHead& tree = frag.m_tree;
-  readKeyAttrs(frag, node.getMinMax(0), 0, c_entryKey);
-  copyAttrs(frag, c_entryKey, node.getPref(), tree.m_prefSize);
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  /*
+   * bug#12873640
+   * Node prefix exists if it has non-zero number of attributes.  It is
+   * then a partial instance of KeyData.  If the prefix does not exist
+   * then set_buf() could overwrite m_pageId1 in first entry, causing
+   * random crash in TUP via readKeyAttrs().
+   */
+  if (index.m_prefAttrs > 0) {
+    KeyData prefKey(index.m_keySpec, false, 0);
+    prefKey.set_buf(node.getPref(), index.m_prefBytes);
+    jam();
+    readKeyAttrs(ctx, frag, node.getEnt(0), prefKey, index.m_prefAttrs);
+#ifdef VM_TRACE
+    if (debugFlags & DebugMaint) {
+      debugOut << "setNodePref: " << node;
+      debugOut << " " << prefKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+      debugOut << endl;
+    }
+#endif
+  }
 }
 
 // node operations
@@ -128,7 +191,7 @@ Dbtux::setNodePref(NodeHandle& node)
  * Add list of scans at the new entry.
  */
 void
-Dbtux::nodePushUp(NodeHandle& node, unsigned pos, const TreeEnt& ent, Uint32 scanList)
+Dbtux::nodePushUp(TuxCtx & ctx, NodeHandle& node, unsigned pos, const TreeEnt& ent, Uint32 scanList)
 {
   Frag& frag = node.m_frag;
   TreeHead& tree = frag.m_tree;
@@ -139,21 +202,18 @@ Dbtux::nodePushUp(NodeHandle& node, unsigned pos, const TreeEnt& ent, Uint32 sca
     nodePushUpScans(node, pos);
   // fix node
   TreeEnt* const entList = tree.getEntList(node.m_node);
-  entList[occup] = entList[0];
-  TreeEnt* const tmpList = entList + 1;
   for (unsigned i = occup; i > pos; i--) {
-    jam();
-    tmpList[i] = tmpList[i - 1];
+    thrjam(ctx.jamBuffer);
+    entList[i] = entList[i - 1];
   }
-  tmpList[pos] = ent;
-  entList[0] = entList[occup + 1];
+  entList[pos] = ent;
   node.setOccup(occup + 1);
   // add new scans
   if (scanList != RNIL)
     addScanList(node, pos, scanList);
   // fix prefix
   if (occup == 0 || pos == 0)
-    setNodePref(node);
+    setNodePref(ctx, node);
 }
 
 void
@@ -194,7 +254,7 @@ Dbtux::nodePushUpScans(NodeHandle& node, unsigned pos)
  * else moved forward.
  */
 void
-Dbtux::nodePopDown(NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32* scanList)
+Dbtux::nodePopDown(TuxCtx& ctx, NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32* scanList)
 {
   Frag& frag = node.m_frag;
   TreeHead& tree = frag.m_tree;
@@ -212,18 +272,15 @@ Dbtux::nodePopDown(NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32* scanLis
   }
   // fix node
   TreeEnt* const entList = tree.getEntList(node.m_node);
-  entList[occup] = entList[0];
-  TreeEnt* const tmpList = entList + 1;
-  ent = tmpList[pos];
+  ent = entList[pos];
   for (unsigned i = pos; i < occup - 1; i++) {
-    jam();
-    tmpList[i] = tmpList[i + 1];
+    thrjam(ctx.jamBuffer);
+    entList[i] = entList[i + 1];
   }
-  entList[0] = entList[occup - 1];
   node.setOccup(occup - 1);
   // fix prefix
   if (occup != 1 && pos == 0)
-    setNodePref(node);
+    setNodePref(ctx, node);
 }
 
 void
@@ -265,7 +322,7 @@ Dbtux::nodePopDownScans(NodeHandle& node, unsigned pos)
  * Return list of scans at the removed position 0.
  */
 void
-Dbtux::nodePushDown(NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32& scanList)
+Dbtux::nodePushDown(TuxCtx& ctx, NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32& scanList)
 {
   Frag& frag = node.m_frag;
   TreeHead& tree = frag.m_tree;
@@ -280,19 +337,16 @@ Dbtux::nodePushDown(NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32& scanLi
   }
   // fix node
   TreeEnt* const entList = tree.getEntList(node.m_node);
-  entList[occup] = entList[0];
-  TreeEnt* const tmpList = entList + 1;
-  TreeEnt oldMin = tmpList[0];
+  TreeEnt oldMin = entList[0];
   for (unsigned i = 0; i < pos; i++) {
-    jam();
-    tmpList[i] = tmpList[i + 1];
+    thrjam(ctx.jamBuffer);
+    entList[i] = entList[i + 1];
   }
-  tmpList[pos] = ent;
+  entList[pos] = ent;
   ent = oldMin;
-  entList[0] = entList[occup];
   // fix prefix
   if (true)
-    setNodePref(node);
+    setNodePref(ctx, node);
 }
 
 void
@@ -335,7 +389,7 @@ Dbtux::nodePushDownScans(NodeHandle& node, unsigned pos)
  * Move scans at removed entry and add scans at the new entry.
  */
 void
-Dbtux::nodePopUp(NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32 scanList)
+Dbtux::nodePopUp(TuxCtx& ctx, NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32 scanList)
 {
   Frag& frag = node.m_frag;
   TreeHead& tree = frag.m_tree;
@@ -350,22 +404,19 @@ Dbtux::nodePopUp(NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32 scanList)
   }
   // fix node
   TreeEnt* const entList = tree.getEntList(node.m_node);
-  entList[occup] = entList[0];
-  TreeEnt* const tmpList = entList + 1;
   TreeEnt newMin = ent;
-  ent = tmpList[pos];
+  ent = entList[pos];
   for (unsigned i = pos; i > 0; i--) {
-    jam();
-    tmpList[i] = tmpList[i - 1];
+    thrjam(ctx.jamBuffer);
+    entList[i] = entList[i - 1];
   }
-  tmpList[0] = newMin;
-  entList[0] = entList[occup];
+  entList[0] = newMin;
   // add scans
   if (scanList != RNIL)
     addScanList(node, 0, scanList);
   // fix prefix
   if (true)
-    setNodePref(node);
+    setNodePref(ctx, node);
 }
 
 void
@@ -399,14 +450,14 @@ Dbtux::nodePopUpScans(NodeHandle& node, unsigned pos)
  * (i=0) or after the max (i=1).  Expensive but not often used.
  */
 void
-Dbtux::nodeSlide(NodeHandle& dstNode, NodeHandle& srcNode, unsigned cnt, unsigned i)
+Dbtux::nodeSlide(TuxCtx& ctx, NodeHandle& dstNode, NodeHandle& srcNode, unsigned cnt, unsigned i)
 {
   ndbrequire(i <= 1);
   while (cnt != 0) {
     TreeEnt ent;
     Uint32 scanList = RNIL;
-    nodePopDown(srcNode, i == 0 ? srcNode.getOccup() - 1 : 0, ent, &scanList);
-    nodePushUp(dstNode, i == 0 ? 0 : dstNode.getOccup(), ent, scanList);
+    nodePopDown(ctx, srcNode, i == 0 ? srcNode.getOccup() - 1 : 0, ent, &scanList);
+    nodePushUp(ctx, dstNode, i == 0 ? 0 : dstNode.getOccup(), ent, scanList);
     cnt--;
   }
 }

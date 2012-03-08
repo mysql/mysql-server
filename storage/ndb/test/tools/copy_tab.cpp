@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -26,7 +29,6 @@ int main(int argc, const char** argv){
   ndb_init();
 
   const char* _tabname = NULL;
-  const char* _to_tabname = NULL;
   const char* _dbname = "TEST_DB";
   const char* _connectstr = NULL;
   int _copy_data = true;
@@ -53,7 +55,6 @@ int main(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   _tabname = argv[optind];
-  _to_tabname = argv[optind+1];
   
   Ndb_cluster_connection con(_connectstr);
   if(con.connect(12, 5, 1) != 0)
@@ -68,35 +69,99 @@ int main(int argc, const char** argv){
   
   while(MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
-  
-  ndbout << "Copying table " <<  _tabname << " to " << _to_tabname << "...";
+
   const NdbDictionary::Table* ptab = MyNdb.getDictionary()->getTable(_tabname);
-  if (ptab){
+  if (ptab == 0)
+  {
+    ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+
+  Vector<NdbDictionary::Index*> indexes;
+  {
+    NdbDictionary::Dictionary::List list;
+    if (MyNdb.getDictionary()->listIndexes(list, *ptab) != 0)
+    {
+      ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
+    for (unsigned i = 0; i<list.count; i++)
+    {
+      const NdbDictionary::Index* idx = 
+        MyNdb.getDictionary()->getIndex(list.elements[i].name,
+                                        _tabname);
+      if (idx)
+      {
+        ndbout << " found index " << list.elements[i].name << endl;
+        NdbDictionary::Index * copy = new NdbDictionary::Index();
+        copy->setName(idx->getName());
+        copy->setType(idx->getType());
+        copy->setLogging(idx->getLogging());
+        for (unsigned j = 0; j<idx->getNoOfColumns(); j++)
+        {
+          copy->addColumn(idx->getColumn(j)->getName());
+        }
+        indexes.push_back(copy);
+      }
+    }
+  }
+  for (int i = optind + 1; i<argc; i++)
+  {
+    const char *_to_tabname = argv[i];
+    ndbout << "Copying table " <<  _tabname << " to " << _to_tabname << "...";
     NdbDictionary::Table tab2(*ptab);
     tab2.setName(_to_tabname);
+    if (MyNdb.getDictionary()->beginSchemaTrans() != 0)
+    {
+      ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
     if (MyNdb.getDictionary()->createTable(tab2) != 0){
       ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
     }
-  } else {
-    ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
-    return NDBT_ProgramExit(NDBT_FAILED);
-  }
-  ndbout << "OK" << endl;
-  if (_copy_data){
-    ndbout << "Copying data..."<<endl;
-    const NdbDictionary::Table * tab3 = 
-      NDBT_Table::discoverTableFromDb(&MyNdb, 
-				      _tabname);
-    //    if (!tab3)
 
-    UtilTransactions util(*tab3);
-
-    if(util.copyTableData(&MyNdb,
-			  _to_tabname) != NDBT_OK){
+    for (unsigned j = 0; j<indexes.size(); j++)
+    {
+      NdbDictionary::Index * idx = indexes[j];
+      idx->setTable(_to_tabname);
+      int res = MyNdb.getDictionary()->createIndex(*idx);
+      if (res != 0)
+      {
+        ndbout << "Failed to create index: " << idx->getName() << " : " 
+               << MyNdb.getDictionary()->getNdbError() << endl;
+        return NDBT_ProgramExit(NDBT_FAILED);
+      }
+    }
+    
+    if (MyNdb.getDictionary()->endSchemaTrans() != 0)
+    {
+      ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
     }
+
     ndbout << "OK" << endl;
+    if (_copy_data){
+      ndbout << "Copying data..."<<endl;
+      const NdbDictionary::Table * tab3 = 
+        NDBT_Table::discoverTableFromDb(&MyNdb, 
+                                        _tabname);
+      UtilTransactions util(*tab3);
+      
+      if(util.copyTableData(&MyNdb,
+                            _to_tabname) != NDBT_OK){
+        return NDBT_ProgramExit(NDBT_FAILED);
+      }
+      ndbout << "OK" << endl;
+    }
   }
+  
+  for (unsigned j = 0; j<indexes.size(); j++)
+  {
+    delete indexes[j];
+  }
+
   return NDBT_ProgramExit(NDBT_OK);
 }
+
+template class Vector<NdbDictionary::Index*>;

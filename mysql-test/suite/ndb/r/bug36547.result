@@ -1,0 +1,12 @@
+SET NDB_EXTRA_LOGGING=1;
+ERROR HY000: Variable 'ndb_extra_logging' is a GLOBAL variable and should be set with SET GLOBAL
+SET @SAVE_NDB_EXTRA_LOGGING= @@NDB_EXTRA_LOGGING;
+SET GLOBAL NDB_EXTRA_LOGGING=1;
+SHOW VARIABLES LIKE 'ndb_extra_logging';
+Variable_name	Value
+ndb_extra_logging	1
+SET GLOBAL NDB_EXTRA_LOGGING=0;
+SHOW VARIABLES LIKE 'ndb_extra_logging';
+Variable_name	Value
+ndb_extra_logging	0
+SET @@GLOBAL.NDB_EXTRA_LOGGING= @SAVE_NDB_EXTRA_LOGGING;

@@ -1,4 +1,6 @@
-/* Copyright (C) 2004 MySQL AB
+/*
+   Copyright (C) 2004-2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DB_CONFIG_PARAMTERS_H
 #define DB_CONFIG_PARAMTERS_H
@@ -32,9 +35,7 @@
 #define CFG_DICT_TABLE        (PRIVATE_BASE + 13)
 
 #define CFG_DIH_API_CONNECT   (PRIVATE_BASE + 15)
-#define CFG_DIH_CONNECT       (PRIVATE_BASE + 16)
 #define CFG_DIH_FRAG_CONNECT  (PRIVATE_BASE + 17)
-#define CFG_DIH_MORE_NODES    (PRIVATE_BASE + 18)
 #define CFG_DIH_REPLICAS      (PRIVATE_BASE + 19)
 #define CFG_DIH_TABLE         (PRIVATE_BASE + 20)
 
@@ -53,9 +54,9 @@
 #define CFG_TUP_FRAG          (PRIVATE_BASE + 33)
 #define CFG_TUP_OP_RECS       (PRIVATE_BASE + 34)
 #define CFG_TUP_PAGE          (PRIVATE_BASE + 35)
-#define CFG_TUP_PAGE_RANGE    (PRIVATE_BASE + 36)
+#define _CFG_TUP_PAGE_RANGE   (PRIVATE_BASE + 36)
 #define CFG_TUP_TABLE         (PRIVATE_BASE + 37)
-#define CFG_TUP_TABLE_DESC    (PRIVATE_BASE + 38)
+#define _CFG_TUP_TABLE_DESC   (PRIVATE_BASE + 38)
 #define CFG_TUP_STORED_PROC   (PRIVATE_BASE + 39)
 
 #define CFG_TUX_INDEX         (PRIVATE_BASE + 40)

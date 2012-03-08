@@ -988,19 +988,6 @@ protected:
 };
 
 
-class Create_func_format : public Create_native_func
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
-
-  static Create_func_format s_singleton;
-
-protected:
-  Create_func_format() {}
-  virtual ~Create_func_format() {}
-};
-
-
 class Create_func_found_rows : public Create_func_arg0
 {
 public:
@@ -3735,40 +3722,6 @@ Create_func_floor::create(THD *thd, Item *arg1)
 }
 
 
-Create_func_format Create_func_format::s_singleton;
-
-Item*
-Create_func_format::create_native(THD *thd, LEX_STRING name,
-                                  List<Item> *item_list)
-{
-  Item *func= NULL;
-  int arg_count= item_list ? item_list->elements : 0;
-
-  switch (arg_count) {
-  case 2:
-  {
-    Item *param_1= item_list->pop();
-    Item *param_2= item_list->pop();
-    func= new (thd->mem_root) Item_func_format(param_1, param_2);
-    break;
-  }
-  case 3:
-  {
-    Item *param_1= item_list->pop();
-    Item *param_2= item_list->pop();
-    Item *param_3= item_list->pop();
-    func= new (thd->mem_root) Item_func_format(param_1, param_2, param_3);
-    break;
-  }
-  default:
-    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
-    break;
-  }
-
-  return func;
-}
-
-
 Create_func_found_rows Create_func_found_rows::s_singleton;
 
 Item*
@@ -5446,7 +5399,6 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("FIELD") }, BUILDER(Create_func_field)},
   { { C_STRING_WITH_LEN("FIND_IN_SET") }, BUILDER(Create_func_find_in_set)},
   { { C_STRING_WITH_LEN("FLOOR") }, BUILDER(Create_func_floor)},
-  { { C_STRING_WITH_LEN("FORMAT") }, BUILDER(Create_func_format)},
   { { C_STRING_WITH_LEN("FOUND_ROWS") }, BUILDER(Create_func_found_rows)},
   { { C_STRING_WITH_LEN("FROM_BASE64") }, BUILDER(Create_func_from_base64)},
   { { C_STRING_WITH_LEN("FROM_DAYS") }, BUILDER(Create_func_from_days)},

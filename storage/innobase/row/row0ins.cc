@@ -24,7 +24,7 @@ Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
 #include "m_string.h" /* for my_sys.h */
-#include "my_sys.h" /* DEBUG_SYNC_C */
+#include "my_sys.h" /* DEBUG_SYNC_C_IF_THD */
 #include "row0ins.h"
 
 #ifdef UNIV_NONINL
@@ -2267,12 +2267,16 @@ row_ins_index_entry_low(
 					rec, index, NULL,
 					ULINT_UNDEFINED, &heap);
 
-				DEBUG_SYNC_C("before_row_ins_upd_extern");
+				DEBUG_SYNC_C_IF_THD(
+					thr_get_trx(thr)->mysql_thd,
+					"before_row_ins_upd_extern");
 				err = btr_store_big_rec_extern_fields(
 					index, btr_cur_get_block(&cursor),
 					rec, offsets, big_rec, &mtr,
 					BTR_STORE_INSERT_UPDATE);
-				DEBUG_SYNC_C("after_row_ins_upd_extern");
+				DEBUG_SYNC_C_IF_THD(
+					thr_get_trx(thr)->mysql_thd,
+					"after_row_ins_upd_extern");
 				/* If writing big_rec fails (for
 				example, because of DB_OUT_OF_FILE_SPACE),
 				the record will be corrupted. Even if
@@ -2327,7 +2331,7 @@ function_exit:
 			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE););
 		err = row_ins_index_entry_big_rec(
 			entry, big_rec, NULL, &heap, index,
-			__FILE__, __LINE__);
+			thr_get_trx(thr)->mysql_thd, __FILE__, __LINE__);
 stored_big_rec:
 		if (modify) {
 			dtuple_big_rec_free(big_rec);
@@ -2348,14 +2352,17 @@ of a clustered index entry.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
 ulint
-row_ins_index_entry_big_rec(
-/*========================*/
+row_ins_index_entry_big_rec_func(
+/*=============================*/
 	const dtuple_t*		entry,	/*!< in/out: index entry to insert */
 	const big_rec_t*	big_rec,/*!< in: externally stored fields */
 	ulint*			offsets,/*!< in/out: rec offsets */
 	mem_heap_t**		heap,	/*!< in/out: memory heap */
 	dict_index_t*		index,	/*!< in: index */
 	const char*		file,	/*!< in: file name of caller */
+#ifndef DBUG_OFF
+	const void*		thd,	/*!< in: connection, or NULL */
+#endif /* DBUG_OFF */
 	ulint			line)	/*!< in: line number of caller */
 {
 	mtr_t		mtr;
@@ -2375,11 +2382,11 @@ row_ins_index_entry_big_rec(
 	offsets = rec_get_offsets(rec, index, offsets,
 				  ULINT_UNDEFINED, heap);
 
-	DEBUG_SYNC_C("before_row_ins_extern");
+	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern");
 	error = btr_store_big_rec_extern_fields(
 		index, btr_cur_get_block(&cursor),
 		rec, offsets, big_rec, &mtr, BTR_STORE_INSERT);
-	DEBUG_SYNC_C("after_row_ins_extern");
+	DEBUG_SYNC_C_IF_THD(thd, "after_row_ins_extern");
 
 	mtr_commit(&mtr);
 

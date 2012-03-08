@@ -197,8 +197,30 @@ select current_user();
 --connection default
 --source ../include/hostcache_dump.inc
 
+# About error ER_CON_COUNT_ERROR:
+# - this error is associated with SQLSTATE 08004,
+#   and returned from 2 places in the server code.
+# - which path returns the error is not predictable,
+#   as it depends on the server load and thread scheduling
+# - one path returns a SQLSTATE of 08004
+# - another path returns no SQLSTATE at all,
+#   and then the client sets a default value of HY000 for SQLSTATE
+#
+# Testing for error ER_CON_COUNT_ERROR alone causes this to
+# be printed in the result file:
+# - ERROR 08004: Too many connections
+# which in turn causes spurious test failures.
+#
+# To work around this, this scripts expect to see either
+# the error number ER_CON_COUNT_ERROR (it always does)
+# or the error number 9999 (it never does, this error does not exist).
+# The exact error number and SQLSTATE is not printed in the result file,
+# makig this test robust for both cases:
+# - ERROR 08004: Too many connections
+# - ERROR HY000: Too many connections
+
 --disable_query_log
---error ER_CON_COUNT_ERROR
+--error ER_CON_COUNT_ERROR, 9999
 connect (con5c,"127.0.0.1",quota,,test,$MASTER_MYPORT,);
 --enable_query_log
 
@@ -206,7 +228,7 @@ connect (con5c,"127.0.0.1",quota,,test,$MASTER_MYPORT,);
 --source ../include/hostcache_dump.inc
 
 --disable_query_log
---error ER_CON_COUNT_ERROR
+--error ER_CON_COUNT_ERROR, 9999
 connect (con5d,"127.0.0.1",quota,,test,$MASTER_MYPORT,);
 --enable_query_log
 

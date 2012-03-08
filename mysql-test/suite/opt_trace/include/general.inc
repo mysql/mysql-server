@@ -53,7 +53,8 @@ select (1-length(replace(TRACE, " ", ""))/length(TRACE))*100
   from information_schema.OPTIMIZER_TRACE;
 
 # From now on, use end markers, easier to read
-set optimizer_trace="one_line=off,end_marker=on";
+set end_markers_in_json=on;
+set optimizer_trace="one_line=off";
 
 # trace should be produced by EXPLAIN too
 EXPLAIN SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESULT FROM t5 ;
@@ -527,7 +528,7 @@ select * from information_schema.OPTIMIZER_TRACE;
 
 # test that DUMPFILE does no escaping of \n
 # otherwise a JSON parser could not read
-set optimizer_trace="end_marker=off";
+set end_markers_in_json=off;
 select 1 union select 2;
 --let $file=$MYSQLTEST_VARDIR/tmp/optimizer_trace.txt
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR

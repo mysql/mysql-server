@@ -40,6 +40,7 @@
 #include "sql_test.h"
 #include "sql_join_buffer.h"                    // JOIN_CACHE
 #include "sql_optimizer.h"                      // JOIN
+#include "opt_explain_format.h"
 
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), traced_before(false),
@@ -296,6 +297,83 @@ bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
                           uchar *argument)
 {
   return walk_body(processor, walk_subquery, argument);
+}
+
+
+/**
+  Mark a subquery unit with information provided
+
+  A subquery may belong to WHERE, HAVING, ORDER BY or GROUP BY item trees.
+  This "processor" qualifies subqueries by outer clause type.
+  
+  @note For the WHERE clause of the JOIN query this function also associates
+        a related table with the unit.
+
+  @param arg    Explain_subquery_marker structure
+
+  @retval false
+
+  @note We always return "false" as far as we don't want to dive deeper because
+        we explain inner subqueries in their joins contexts.
+*/
+
+bool Item_subselect::explain_subquery_checker(uchar **arg)
+{
+  Explain_subquery_marker *m= 
+    *reinterpret_cast<Explain_subquery_marker **>(arg);
+
+  if (unit->explain_marker == CTX_NONE)
+      unit->explain_subselect_engine= engine;
+
+  if (m->type == CTX_WHERE)
+  {
+    /*
+      A subquery in the WHERE clause may be associated with a few JOIN_TABs
+      simultaneously.
+    */
+    if (unit->explain_marker == CTX_NONE)
+      unit->explain_marker= CTX_WHERE;
+    else
+      DBUG_ASSERT(unit->explain_marker == CTX_WHERE);
+    m->destination->register_where_subquery(unit);
+    return false;
+  }
+
+  if (unit->explain_marker == CTX_NONE)
+    goto overwrite;
+
+  if (unit->explain_marker == m->type)
+    return false;
+
+  /*
+    GROUP BY subqueries may be listed in different item trees simultaneously:
+     1) in GROUP BY items,
+     2) in ORDER BY items and/or
+     3) in SELECT list.
+    If such a subquery in the SELECT list, we mark the subquery as if it
+    belongs to SELECT list, otherwise we mark it as "GROUP BY" subquery.
+
+    ORDER BY subqueries may be listed twice in SELECT list and ORDER BY list.
+    In this case we mark such a subquery as "SELECT list" subquery.
+  */
+  if (unit->explain_marker == CTX_GROUP_BY_SQ && m->type == CTX_ORDER_BY_SQ)
+    return false;
+  if (unit->explain_marker == CTX_ORDER_BY_SQ && m->type == CTX_GROUP_BY_SQ)
+    goto overwrite;
+
+  if (unit->explain_marker == CTX_SELECT_LIST &&
+      (m->type == CTX_ORDER_BY_SQ || m->type == CTX_GROUP_BY_SQ))
+    return false;
+  if ((unit->explain_marker == CTX_ORDER_BY_SQ ||
+       unit->explain_marker == CTX_GROUP_BY_SQ) && m->type == CTX_SELECT_LIST)
+    goto overwrite;
+
+  DBUG_ASSERT(!"Unexpected combination of item trees!");
+  return false;
+
+overwrite:
+  unit->explain_marker= m->type;
+  return false;
 }
 
 

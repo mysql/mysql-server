@@ -1,6 +1,6 @@
 /* -*- c-basic-offset: 4; -*- */
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (C) 2003-2005 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -473,6 +473,7 @@ arg_match_long(struct getargs *args, size_t num_args,
 
     default:
 	abort ();
+	return ARG_ERR_BAD_ARG;
     }
 }
 
@@ -554,7 +555,7 @@ getarg(struct getargs *args, size_t num_args,
     int i;
     int ret = 0;
 
-    srand (time(NULL));
+    srand ((unsigned int)time(NULL));
     (*optind)++;
     for(i = *optind; i < argc; i++) {
 	if(argv[i][0] != '-')

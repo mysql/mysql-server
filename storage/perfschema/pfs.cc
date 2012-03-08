@@ -39,6 +39,7 @@
 #include "pfs_setup_object.h"
 #include "sql_error.h"
 #include "sp_head.h"
+#include "pfs_digest.h"
 
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
@@ -964,7 +965,12 @@ static inline int mysql_mutex_lock(...)
   - [E] EVENTS_STAGES_SUMMARY_GLOBAL_BY_EVENT_NAME,
         @c table_esgs_global_by_event_name::make_row()
 
-  @section IMPL_STATEMENT Implementation for statements aggregates
+@section IMPL_STATEMENT Implementation for statements consumers
+
+  For statements, the tables that contains individual event data are:
+  - EVENTS_STATEMENTS_CURRENT
+  - EVENTS_STATEMENTS_HISTORY
+  - EVENTS_STATEMENTS_HISTORY_LONG
 
   For statements, the tables that contains aggregated data are:
   - EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
@@ -972,6 +978,7 @@ static inline int mysql_mutex_lock(...)
   - EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME
   - EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME
   - EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME
+  - EVENTS_STATEMENTS_SUMMARY_BY_DIGEST
 
 @verbatim
   statement_locker(T, S)
@@ -992,12 +999,25 @@ static inline int mysql_mutex_lock(...)
    |    .    .    |
    |    .    .    | [4-RESET]
    | 2d .    .    |
-1b |----+----+----+-> pfs_stage_class(S)      =====>> [E]
+1b |----+----+----+-> pfs_statement_class(S)  =====>> [E]
+   |
+1c |-> pfs_thread(T).statement_current(S)     =====>> [F]
+   |
+1d |-> pfs_thread(T).statement_history(S)     =====>> [G]
+   |
+1e |-> statement_history_long(S)              =====>> [H]
+   |
+1f |-> statement_digest(S)                    =====>> [I]
 
 @endverbatim
 
   Implemented as:
   - [1] @c start_statement_v1(), end_statement_v1()
+       (1a, 1b) is an aggregation by EVENT_NAME,
+        (1c, 1d, 1e) is an aggregation by TIME,
+        (1f) is an aggregation by DIGEST
+        all of these are orthogonal,
+        and implemented in end_statement_v1().
   - [2] @c delete_thread_v1(), @c aggregate_thread_statements()
   - [3] @c PFS_account::aggregate_statements()
   - [4] @c PFS_host::aggregate_statements()
@@ -1011,6 +1031,17 @@ static inline int mysql_mutex_lock(...)
         @c table_esms_by_host_by_event_name::make_row()
   - [E] EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME,
         @c table_esms_global_by_event_name::make_row()
+  - [F] EVENTS_STATEMENTS_CURRENT,
+        @c table_events_statements_current::rnd_next(),
+        @c table_events_statements_common::make_row()
+  - [G] EVENTS_STATEMENTS_HISTORY,
+        @c table_events_statements_history::rnd_next(),
+        @c table_events_statements_common::make_row()
+  - [H] EVENTS_STATEMENTS_HISTORY_LONG,
+        @c table_events_statements_history_long::rnd_next(),
+        @c table_events_statements_common::make_row()
+  - [I] EVENTS_STATEMENTS_SUMMARY_BY_DIGEST
+        @c table_esms_by_digest::make_row()
 */
 
 /**
@@ -1025,13 +1056,6 @@ static inline int mysql_mutex_lock(...)
   @defgroup Performance_schema_tables Performance Schema Tables
   @ingroup Performance_schema_implementation
 */
-
-/** TIMED bit in the state flags bitfield. */
-#define STATE_FLAG_TIMED (1<<0)
-/** THREAD bit in the state flags bitfield. */
-#define STATE_FLAG_THREAD (1<<1)
-/** EVENT bit in the state flags bitfield. */
-#define STATE_FLAG_EVENT (1<<2)
 
 pthread_key(PFS_thread*, THR_PFS);
 bool THR_PFS_initialized= false;
@@ -4210,6 +4234,7 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       pfs->m_sort_scan= 0;
       pfs->m_no_index_used= 0;
       pfs->m_no_good_index_used= 0;
+      digest_reset(& pfs->m_digest_storage);
 
       /* New stages will have this statement as parent */
       PFS_events_stages *child_stage= & pfs_thread->m_stage_current;
@@ -4233,6 +4258,13 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       flags= STATE_FLAG_TIMED;
     else
       flags= 0;
+  }
+
+  if (flag_statements_digest)
+  {
+    flags|= STATE_FLAG_DIGEST;
+    state->m_digest_state.m_last_id_index= 0;
+    digest_reset(& state->m_digest_state.m_digest_storage);
   }
 
   state->m_discarded= false;
@@ -4513,6 +4545,13 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   PFS_statement_stat *event_name_array;
   uint index= klass->m_event_name_index;
   PFS_statement_stat *stat;
+  
+  /*
+   Capture statement stats by digest.
+  */
+  PSI_digest_storage *digest_storage= NULL;
+  PFS_statement_stat *digest_stat= NULL;
+
   if (flags & STATE_FLAG_THREAD)
   {
     PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
@@ -4520,6 +4559,16 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     event_name_array= thread->m_instr_class_statements_stats;
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     stat= & event_name_array[index];
+
+    if (flags & STATE_FLAG_DIGEST)
+    {
+      digest_storage= &state->m_digest_state.m_digest_storage;
+
+      /* 
+        Populate PFS_statements_digest_stat with computed digest information.
+      */
+      digest_stat= find_or_create_digest(thread, digest_storage);
+    }
 
     if (flags & STATE_FLAG_EVENT)
     {
@@ -4552,6 +4601,18 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
       pfs->m_timer_end= timer_end;
       pfs->m_end_event_id= thread->m_event_id;
+
+      if (flags & STATE_FLAG_DIGEST)
+      {
+        /*
+          The following columns in events_statement_current:
+          - DIGEST,
+          - DIGEST_TEXT
+          are computed from the digest storage.
+        */
+        digest_copy(& pfs->m_digest_storage, digest_storage);
+      }
+
       if (flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
       if (flag_events_statements_history_long)
@@ -4563,6 +4624,23 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   }
   else
   {
+    if (flags & STATE_FLAG_DIGEST)
+    {
+      PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+      /* An instrumented thread is required, for LF_PINS. */
+      if (thread != NULL)
+      {
+        /* Set digest stat. */
+        digest_storage= &state->m_digest_state.m_digest_storage;
+
+        /* 
+          Populate PFS_statements_digest_stat with computed digest information.
+        */
+        digest_stat= find_or_create_digest(thread, digest_storage);
+      }
+    }
+
     event_name_array= global_instr_class_statements_array;
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME */
     stat= & event_name_array[index];
@@ -4596,19 +4674,61 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   stat->m_no_index_used+= state->m_no_index_used;
   stat->m_no_good_index_used+= state->m_no_good_index_used;
 
-  switch(da->status())
+  if (digest_stat != NULL)
+  {
+    if (flags & STATE_FLAG_TIMED)
+    {
+      digest_stat->aggregate_value(wait_time);
+    }
+    else
+    {
+      digest_stat->aggregate_counted();
+    }
+  
+    digest_stat->m_lock_time+= state->m_lock_time;
+    digest_stat->m_rows_sent+= state->m_rows_sent;
+    digest_stat->m_rows_examined+= state->m_rows_examined;
+    digest_stat->m_created_tmp_disk_tables+= state->m_created_tmp_disk_tables;
+    digest_stat->m_created_tmp_tables+= state->m_created_tmp_tables;
+    digest_stat->m_select_full_join+= state->m_select_full_join;
+    digest_stat->m_select_full_range_join+= state->m_select_full_range_join;
+    digest_stat->m_select_range+= state->m_select_range;
+    digest_stat->m_select_range_check+= state->m_select_range_check;
+    digest_stat->m_select_scan+= state->m_select_scan;
+    digest_stat->m_sort_merge_passes+= state->m_sort_merge_passes;
+    digest_stat->m_sort_range+= state->m_sort_range;
+    digest_stat->m_sort_rows+= state->m_sort_rows;
+    digest_stat->m_sort_scan+= state->m_sort_scan;
+    digest_stat->m_no_index_used+= state->m_no_index_used;
+    digest_stat->m_no_good_index_used+= state->m_no_good_index_used;
+  }
+
+  switch (da->status())
   {
     case Diagnostics_area::DA_EMPTY:
       break;
     case Diagnostics_area::DA_OK:
       stat->m_rows_affected+= da->affected_rows();
       stat->m_warning_count+= da->statement_warn_count();
+      if (digest_stat != NULL)
+      {
+        digest_stat->m_rows_affected+= da->affected_rows();
+        digest_stat->m_warning_count+= da->statement_warn_count();
+      }
       break;
     case Diagnostics_area::DA_EOF:
       stat->m_warning_count+= da->statement_warn_count();
+      if (digest_stat != NULL)
+      {
+        digest_stat->m_warning_count+= da->statement_warn_count();
+      }
       break;
     case Diagnostics_area::DA_ERROR:
       stat->m_error_count++;
+      if (digest_stat != NULL)
+      {
+        digest_stat->m_error_count++;
+      }
       break;
     case Diagnostics_area::DA_DISABLED:
       break;
@@ -4846,7 +4966,9 @@ PSI_v1 PFS_v1=
   end_socket_wait_v1,
   set_socket_state_v1,
   set_socket_info_v1,
-  set_socket_thread_owner_v1
+  set_socket_thread_owner_v1,
+  pfs_digest_start_v1,
+  pfs_digest_add_token_v1
 };
 
 static void* get_interface(int version)

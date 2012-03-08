@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,11 +12,11 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
-#include <my_pthread.h>
 
 #include <SocketServer.hpp>
 
@@ -23,26 +24,27 @@
 #include <NdbOut.hpp>
 #include <NdbThread.h>
 #include <NdbSleep.h>
-
-#define DEBUG(x) ndbout << x << endl;
+#include <NdbTick.h>
 
 SocketServer::SocketServer(unsigned maxSessions) :
   m_sessions(10),
-  m_services(5)
+  m_services(5),
+  m_maxSessions(maxSessions),
+  m_stopThread(false),
+  m_thread(0)
 {
-  m_thread = 0;
-  m_stopThread = false;
-  m_maxSessions = maxSessions;
 }
 
 SocketServer::~SocketServer() {
   unsigned i;
   for(i = 0; i<m_sessions.size(); i++){
-    delete m_sessions[i].m_session;
+    Session* session= m_sessions[i].m_session;
+    assert(session->m_refCount == 0);
+    delete session;
   }
   for(i = 0; i<m_services.size(); i++){
-    if(m_services[i].m_socket)
-      NDB_CLOSE_SOCKET(m_services[i].m_socket);
+    if(my_socket_valid(m_services[i].m_socket))
+      my_socket_close(m_services[i].m_socket);
     delete m_services[i].m_service;
   }
 }
@@ -59,22 +61,21 @@ SocketServer::tryBind(unsigned short port, const char * intface) {
     if(Ndb_getInAddr(&servaddr.sin_addr, intface))
       return false;
   }
-  
-  const NDB_SOCKET_TYPE sock  = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock == NDB_INVALID_SOCKET) {
-    return false;
-  }
-  
-  DBUG_PRINT("info",("NDB_SOCKET: %d", sock));
 
-  const int on = 1;
-  if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, 
-		 (const char*)&on, sizeof(on)) == -1) {
+  const NDB_SOCKET_TYPE sock = my_socket_create(AF_INET, SOCK_STREAM, 0);
+  if (!my_socket_valid(sock))
+    return false;
+
+  DBUG_PRINT("info",("NDB_SOCKET: " MY_SOCKET_FORMAT,
+                     MY_SOCKET_FORMAT_VALUE(sock)));
+
+  if (my_socket_reuseaddr(sock, true) == -1)
+  {
     NDB_CLOSE_SOCKET(sock);
     return false;
   }
   
-  if (bind(sock, (struct sockaddr*) &servaddr, sizeof(servaddr)) == -1) {
+  if (my_bind_inet(sock, &servaddr) == -1) {
     NDB_CLOSE_SOCKET(sock);
     return false;
   }
@@ -100,107 +101,126 @@ SocketServer::setup(SocketServer::Service * service,
       DBUG_RETURN(false);
   }
   
-  const NDB_SOCKET_TYPE sock  = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock == NDB_INVALID_SOCKET) {
+  const NDB_SOCKET_TYPE sock = my_socket_create(AF_INET, SOCK_STREAM, 0);
+  if (!my_socket_valid(sock))
+  {
     DBUG_PRINT("error",("socket() - %d - %s",
-			errno, strerror(errno)));
+			socket_errno, strerror(socket_errno)));
     DBUG_RETURN(false);
   }
-  
-  DBUG_PRINT("info",("NDB_SOCKET: %d", sock));
- 
-  const int on = 1;
-  if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, 
-		 (const char*)&on, sizeof(on)) == -1) {
+
+  DBUG_PRINT("info",("NDB_SOCKET: " MY_SOCKET_FORMAT,
+                     MY_SOCKET_FORMAT_VALUE(sock)));
+
+  if (my_socket_reuseaddr(sock, true) == -1)
+  {
     DBUG_PRINT("error",("setsockopt() - %d - %s",
 			errno, strerror(errno)));
     NDB_CLOSE_SOCKET(sock);
     DBUG_RETURN(false);
   }
-  
-  if (bind(sock, (struct sockaddr*) &servaddr, sizeof(servaddr)) == -1) {
+
+  if (my_bind_inet(sock, &servaddr) == -1) {
     DBUG_PRINT("error",("bind() - %d - %s",
-			errno, strerror(errno)));
+			socket_errno, strerror(socket_errno)));
     NDB_CLOSE_SOCKET(sock);
     DBUG_RETURN(false);
   }
 
   /* Get the port we bound to */
-  SOCKET_SIZE_TYPE sock_len = sizeof(servaddr);
-  if(getsockname(sock,(struct sockaddr*)&servaddr,&sock_len)<0) {
+  if(my_socket_get_port(sock, port))
+  {
     ndbout_c("An error occurred while trying to find out what"
-	     " port we bound to. Error: %s",strerror(errno));
-    NDB_CLOSE_SOCKET(sock);
+	     " port we bound to. Error: %d - %s",
+             socket_errno, strerror(socket_errno));
+    my_socket_close(sock);
     DBUG_RETURN(false);
   }
 
-  DBUG_PRINT("info",("bound to %u",ntohs(servaddr.sin_port)));
-  if (listen(sock, m_maxSessions > 32 ? 32 : m_maxSessions) == -1){
+  DBUG_PRINT("info",("bound to %u", *port));
+
+  if (my_listen(sock, m_maxSessions > 32 ? 32 : m_maxSessions) == -1)
+  {
     DBUG_PRINT("error",("listen() - %d - %s",
-			errno, strerror(errno)));
-    NDB_CLOSE_SOCKET(sock);
+			socket_errno, strerror(socket_errno)));
+    my_socket_close(sock);
     DBUG_RETURN(false);
   }
-  
+
   ServiceInstance i;
   i.m_socket = sock;
   i.m_service = service;
   m_services.push_back(i);
 
-  *port = ntohs(servaddr.sin_port);
+  // Increase size to allow polling all listening ports
+  m_services_poller.set_max_count(m_services.size());
 
   DBUG_RETURN(true);
 }
 
-void
-SocketServer::doAccept(){
-  fd_set readSet, exceptionSet;
-  FD_ZERO(&readSet);
-  FD_ZERO(&exceptionSet);
-  
+
+bool
+SocketServer::doAccept()
+{
   m_services.lock();
-  int maxSock = 0;
-  for (unsigned i = 0; i < m_services.size(); i++){
-    const NDB_SOCKET_TYPE s = m_services[i].m_socket;
-    FD_SET(s, &readSet);
-    FD_SET(s, &exceptionSet);
-    maxSock = (maxSock > s ? maxSock : s);
+
+  m_services_poller.clear();
+  for (unsigned i = 0; i < m_services.size(); i++)
+  {
+    m_services_poller.add(m_services[i].m_socket, true, false, true);
   }
-  struct timeval timeout;
-  timeout.tv_sec  = 1;
-  timeout.tv_usec = 0;
-  
-  if(select(maxSock + 1, &readSet, 0, &exceptionSet, &timeout) > 0){
-    for (unsigned i = 0; i < m_services.size(); i++){
-      ServiceInstance & si = m_services[i];
-      
-      if(FD_ISSET(si.m_socket, &readSet)){
-	NDB_SOCKET_TYPE childSock = accept(si.m_socket, 0, 0);
-	if(childSock == NDB_INVALID_SOCKET){
-	  continue;
-	}
-	
-	SessionInstance s;
-	s.m_service = si.m_service;
-	s.m_session = si.m_service->newSession(childSock);
-	if(s.m_session != 0)
-	{
-	  m_session_mutex.lock();
-	  m_sessions.push_back(s);
-	  startSession(m_sessions.back());
-	  m_session_mutex.unlock();
-	}
-	
-	continue;
-      }      
-      
-      if(FD_ISSET(si.m_socket, &exceptionSet)){
-	DEBUG("socket in the exceptionSet");
-	continue;
-      }
+  assert(m_services.size() == m_services_poller.count());
+
+  const int accept_timeout_ms = 1000;
+  const int ret = m_services_poller.poll(accept_timeout_ms);
+  if (ret < 0)
+  {
+    // Error occured, indicate error to caller by returning false
+    m_services.unlock();
+    return false;
+  }
+
+  if (ret == 0)
+  {
+    // Timeout occured
+    m_services.unlock();
+    return true;
+  }
+
+  bool result = true;
+  for (unsigned i = 0; i < m_services_poller.count(); i++)
+  {
+    const bool has_read = m_services_poller.has_read(i);
+
+    if (!has_read)
+      continue; // Ignore events where read flag wasn't set
+
+    ServiceInstance & si = m_services[i];
+    assert(m_services_poller.is_socket_equal(i, si.m_socket));
+
+    const NDB_SOCKET_TYPE childSock = my_accept(si.m_socket, 0, 0);
+    if (!my_socket_valid(childSock))
+    {
+      // Could not 'accept' socket(maybe at max fds), indicate error
+      // to caller by returning false
+      result = false;
+      continue;
+    }
+
+    SessionInstance s;
+    s.m_service = si.m_service;
+    s.m_session = si.m_service->newSession(childSock);
+    if (s.m_session != 0)
+    {
+      m_session_mutex.lock();
+      m_sessions.push_back(s);
+      startSession(m_sessions.back());
+      m_session_mutex.unlock();
     }
   }
+
   m_services.unlock();
+  return result;
 }
 
 extern "C"
@@ -211,17 +231,20 @@ socketServerThread_C(void* _ss){
   return 0;
 }
 
-void
-SocketServer::startServer(){
+struct NdbThread*
+SocketServer::startServer()
+{
   m_threadLock.lock();
-  if(m_thread == 0 && m_stopThread == false){
+  if(m_thread == 0 && m_stopThread == false)
+  {
     m_thread = NdbThread_Create(socketServerThread_C,
 				(void**)this,
-				32768,
+                                0, // default stack size
 				"NdbSockServ",
 				NDB_THREAD_PRIO_LOW);
   }
   m_threadLock.unlock();
+  return m_thread;
 }
 
 void
@@ -244,11 +267,16 @@ SocketServer::doRun(){
   while(!m_stopThread){
     m_session_mutex.lock();
     checkSessionsImpl();
-    if(m_sessions.size() < m_maxSessions){
-      m_session_mutex.unlock();
-      doAccept();
-    } else {
-      m_session_mutex.unlock();
+    m_session_mutex.unlock();
+
+    if(m_sessions.size() >= m_maxSessions){
+      // Don't accept more connections yet
+      NdbSleep_MilliSleep(200);
+      continue;
+    }
+
+    if (!doAccept()){
+      // accept failed, step back
       NdbSleep_MilliSleep(200);
     }
   }
@@ -258,18 +286,39 @@ void
 SocketServer::startSession(SessionInstance & si){
   si.m_thread = NdbThread_Create(sessionThread_C,
 				 (void**)si.m_session,
-				 32768,
+                                 0, // default stack size
 				 "NdbSock_Session",
 				 NDB_THREAD_PRIO_LOW);
 }
 
 void
-SocketServer::foreachSession(void (*func)(SocketServer::Session*, void *), void *data)
+SocketServer::foreachSession(void (*func)(SocketServer::Session*, void *),
+                             void *data)
 {
+  // Build a list of pointers to all active sessions
+  // and increase refcount on the sessions
   m_session_mutex.lock();
-  for(int i = m_sessions.size() - 1; i >= 0; i--){
-    (*func)(m_sessions[i].m_session, data);
+  Vector<Session*> session_pointers(m_sessions.size());
+  for(unsigned i= 0; i < m_sessions.size(); i++){
+    Session* session= m_sessions[i].m_session;
+    session_pointers.push_back(session);
+    session->m_refCount++;
   }
+  m_session_mutex.unlock();
+
+  // Call the function on each session
+  for(unsigned i= 0; i < session_pointers.size(); i++){
+    (*func)(session_pointers[i], data);
+  }
+
+  // Release the sessions pointers and any stopped sessions
+  m_session_mutex.lock();
+  for(unsigned i= 0; i < session_pointers.size(); i++){
+    Session* session= session_pointers[i];
+    assert(session->m_refCount > 0);
+    session->m_refCount--;
+  }
+  checkSessionsImpl();
   m_session_mutex.unlock();
 }
 
@@ -286,14 +335,15 @@ SocketServer::checkSessionsImpl()
 {
   for(int i = m_sessions.size() - 1; i >= 0; i--)
   {
-    if(m_sessions[i].m_session->m_stopped)
+    if(m_sessions[i].m_session->m_thread_stopped &&
+       (m_sessions[i].m_session->m_refCount == 0))
     {
       if(m_sessions[i].m_thread != 0)
       {
 	void* ret;
 	NdbThread_WaitFor(m_sessions[i].m_thread, &ret);
 	NdbThread_Destroy(&m_sessions[i].m_thread);
-      } 
+      }
       m_sessions[i].m_session->stopSession();
       delete m_sessions[i].m_session;
       m_sessions.erase(i);
@@ -301,31 +351,39 @@ SocketServer::checkSessionsImpl()
   }
 }
 
-void
-SocketServer::stopSessions(bool wait){
+bool
+SocketServer::stopSessions(bool wait, unsigned wait_timeout){
   int i;
   m_session_mutex.lock();
   for(i = m_sessions.size() - 1; i>=0; i--)
   {
     m_sessions[i].m_session->stopSession();
-    m_sessions[i].m_session->m_stop = true; // to make sure
   }
   m_session_mutex.unlock();
   
   for(i = m_services.size() - 1; i>=0; i--)
     m_services[i].m_service->stopSessions();
   
-  if(wait){
-    m_session_mutex.lock();
-    while(m_sessions.size() > 0){
-      checkSessionsImpl();
-      m_session_mutex.unlock();
-      NdbSleep_MilliSleep(100);
-      m_session_mutex.lock();
-    }
+  if(!wait)
+    return false; // No wait
+
+  NDB_TICKS start = NdbTick_CurrentMillisecond();
+  m_session_mutex.lock();
+  while(m_sessions.size() > 0){
+    checkSessionsImpl();
     m_session_mutex.unlock();
+
+    if (wait_timeout > 0 &&
+        (NdbTick_CurrentMillisecond() - start) > wait_timeout)
+      return false; // Wait abandoned
+
+    NdbSleep_MilliSleep(100);
+    m_session_mutex.lock();
   }
+  m_session_mutex.unlock();
+  return true; // All sessions gone
 }
+
 
 /***** Session code ******/
 
@@ -334,23 +392,19 @@ void*
 sessionThread_C(void* _sc){
   SocketServer::Session * si = (SocketServer::Session *)_sc;
 
-  /**
-   * may have m_stopped set if we're transforming a mgm
-   * connection into a transporter connection.
-   */
-  if(!si->m_stopped)
-  {
-    if(!si->m_stop){
-      si->m_stopped = false;
-      si->runSession();
-    } else {
-      NDB_CLOSE_SOCKET(si->m_socket);
-    }
-  }
-  
-  si->m_stopped = true;
+  assert(si->m_thread_stopped == false);
+
+  if(!si->m_stop)
+    si->runSession();
+  else
+    NDB_CLOSE_SOCKET(si->m_socket);
+
+  // Mark the thread as stopped to allow the
+  // session resources to be released
+  si->m_thread_stopped = true;
   return 0;
 }
 
 template class MutexVector<SocketServer::ServiceInstance>;
 template class Vector<SocketServer::SessionInstance>;
+template class Vector<SocketServer::Session*>;

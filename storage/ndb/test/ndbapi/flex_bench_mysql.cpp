@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* ***************************************************
@@ -187,7 +189,7 @@ statReport(enum StartType st, int ops)
   static int nodeid;
   // open connection
   if (statState != statOpen) {
-    char *p = getenv("NDB_NODEID");		// ndbnet sets NDB_NODEID
+    char *p = getenv("NDB_NODEID");
     nodeid = p == 0 ? 0 : atoi(p);
     if ((statSock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
       if (statState != statError) {
@@ -250,7 +252,7 @@ statReport(enum StartType st, int ops)
   sprintf(buf, "%d %s %d\n", nodeid, text, ops);
   int len = strlen(buf);
   // assume SIGPIPE already ignored
-  if (write(statSock, buf, len) != len) {
+  if (send(statSock, buf, len, 0) != len) {
     if (statState != statError) {
       ndbout_c("stat: write failed: %s", strerror(errno));
       statState = statError;

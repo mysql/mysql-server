@@ -1463,13 +1463,19 @@ end:
         NOTE: even if we run in read-only mode, we should be able to lock
         the mysql.event table for writing. In order to achieve this, we
         should call mysql_lock_tables() under the super-user.
+
+        Same goes for transaction access mode.
+        Temporarily reset it to read-write.
       */
 
       saved_master_access= thd->security_ctx->master_access;
       thd->security_ctx->master_access |= SUPER_ACL;
+      bool save_tx_read_only= thd->tx_read_only;
+      thd->tx_read_only= false;
 
       ret= Events::drop_event(thd, dbname, name, FALSE);
 
+      thd->tx_read_only= save_tx_read_only;
       thd->security_ctx->master_access= saved_master_access;
     }
   }

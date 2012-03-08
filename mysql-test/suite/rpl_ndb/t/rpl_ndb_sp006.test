@@ -1,0 +1,11 @@
+#################################
+# Wrapper for rpl_row_sp006.test#
+# These tests have been wrapped #
+# so the same code can be used  #
+# For different engines         #
+#################################
+-- source include/have_ndb.inc
+-- source include/master-slave.inc
+let $engine_type=NDBCLUSTER;
+-- source extra/rpl_tests/rpl_row_sp006.test
+--source include/rpl_end.inc

@@ -2300,7 +2300,7 @@ row_merge_insert_index_tuples(
 				ut_ad(error == DB_SUCCESS);
 				error = (db_err) row_ins_index_entry_big_rec(
 					dtuple, big_rec, NULL, &tuple_heap,
-					index, __FILE__, __LINE__);
+					index, NULL, __FILE__, __LINE__);
 				dtuple_convert_back_big_rec(
 					index, dtuple, big_rec);
 			}

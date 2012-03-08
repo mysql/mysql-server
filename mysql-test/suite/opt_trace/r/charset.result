@@ -1,10 +1,11 @@
-set @@session.optimizer_trace="enabled=on,end_marker=on";
+set @@session.end_markers_in_json=on;
+set @@session.optimizer_trace="enabled=on";
 create table t1(a int);
 insert into t1 values(1);
 set names latin1;
 explain extended select 'абцде', _latin1'абцде' from t1 limit 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select 'абцде' AS `абцде`,_latin1'\xC1\xC2\xC3\xC4\xC5' AS `абцде` from dual limit 1
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;

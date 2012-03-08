@@ -32,6 +32,7 @@
 
 #include "mem_root_array.h"
 #include "sql_executor.h"
+#include "opt_explain_format.h" // for Extra_tag
 
 #include <functional>
 /**
@@ -360,7 +361,7 @@ public:
   Item          *pre_idx_push_cond;
   
   /* Special content for EXPLAIN 'Extra' column or NULL if none */
-  const char	*info;
+  Extra_tag     info;
   /* 
     Bitmap of TAB_INFO_* bits that encodes special line for EXPLAIN 'Extra'
     column, or 0 if there is no info.
@@ -589,7 +590,7 @@ st_join_table::st_join_table()
     first_upper(NULL),
     first_unmatched(NULL),
     pre_idx_push_cond(NULL),
-    info(NULL),
+    info(ET_none),
     packed_info(0),
     materialize_table(NULL),
     read_first_record(NULL),
@@ -934,7 +935,6 @@ typedef struct st_select_check {
 } SELECT_CHECK;
 
 /* Extern functions in sql_select.cc */
-bool store_val_in_field(Field *field, Item *val, enum_check_fields check_flag);
 void count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
                        List<Item> &fields, bool reset_with_sum_func);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);

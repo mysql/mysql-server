@@ -36,6 +36,7 @@
 #include "sql_parse.h"
 #include "my_bit.h"
 #include "lock.h"
+#include "opt_explain_format.h"  // Explain_format_flags
 
 #include <algorithm>
 using std::max;
@@ -485,7 +486,7 @@ JOIN::optimize()
   /* Optimize distinct away if possible */
   {
     ORDER *org_order= order;
-    order= remove_const(this, order, conds, 1, &simple_order, "ORDER BY");
+    order= ORDER_with_src(remove_const(this, order, conds, 1, &simple_order, "ORDER BY"), order.src);;
     if (thd->is_error())
     {
       error= 1;
@@ -597,15 +598,17 @@ JOIN::optimize()
                                 true,           // no_changes
                                 &tab->table->keys_in_use_for_order_by);
     }
-    if ((group_list=create_distinct_group(thd, ref_ptrs,
-                                          order, fields_list, all_fields,
-				          &all_order_fields_used)))
+    ORDER *o;
+    if ((o= create_distinct_group(thd, ref_ptrs,
+                                  order, fields_list, all_fields,
+				  &all_order_fields_used)))
     {
+      group_list= ORDER_with_src(o, ESC_DISTINCT);
       const bool skip_group=
         skip_sort_order &&
         test_if_skip_sort_order(tab, group_list, m_select_limit,
-                                  true,         // no_changes
-                                  &tab->table->keys_in_use_for_group_by);
+                                true,         // no_changes
+                                &tab->table->keys_in_use_for_group_by);
       count_field_types(select_lex, &tmp_table_param, all_fields, 0);
       if ((skip_group && all_order_fields_used) ||
 	  m_select_limit == HA_POS_ERROR ||
@@ -636,10 +639,12 @@ JOIN::optimize()
   }
   simple_group= 0;
   {
-    ORDER *old_group_list;
-    group_list= remove_const(this, (old_group_list= group_list), conds,
-                             rollup.state == ROLLUP::STATE_NONE,
-                             &simple_group, "GROUP BY");
+    ORDER *old_group_list= group_list;
+    group_list= ORDER_with_src(remove_const(this, group_list, conds,
+                                            rollup.state == ROLLUP::STATE_NONE,
+                                            &simple_group, "GROUP BY"),
+                               group_list.src);
+
     if (thd->is_error())
     {
       error= 1;
@@ -659,10 +664,17 @@ JOIN::optimize()
 
   calc_group_buffer(this, group_list);
   send_group_parts= tmp_table_param.group_parts; /* Save org parts */
+
   if (procedure && procedure->group)
   {
-    group_list= procedure->group= remove_const(this, procedure->group, conds,
-                                               1, &simple_group, "PROCEDURE");
+    /*
+      Dead code since PROCEDURE ANALYSE() always has procedure->group == 0
+    */
+    DBUG_ASSERT(0);
+    procedure->group= group_list=
+      ORDER_with_src(remove_const(this, procedure->group, conds,
+                                  1, &simple_group, "PROCEDURE"),
+                     group_list.src); // should be procedure->group.src
     if (thd->is_error())
     {
       error= 1;
@@ -934,7 +946,9 @@ JOIN::optimize()
   {
     having= NULL;
   }
-   
+
+  init_tmp_tables_info();
+
   error= 0;
   DBUG_RETURN(0);
 
@@ -3330,7 +3344,7 @@ const_table_extraction_done:
           if (*s->on_expr_ref)
           {
             /* Generate empty row */
-            s->info= "Impossible ON condition";
+            s->info= ET_IMPOSSIBLE_ON_CONDITION;
             trace_table.add("returning_empty_null_row", true).
               add_alnum("cause", "impossible_on_condition");
             join->found_const_table_map|= s->table->map;
@@ -5924,7 +5938,7 @@ static bool test_if_ref(Item *root_cond,
 	    field->real_type() != MYSQL_TYPE_VARCHAR &&
 	    (field->type() != MYSQL_TYPE_FLOAT || field->decimals() == 0))
 	{
-	  return !store_val_in_field(field, right_item, CHECK_FIELD_WARN);
+	  return !right_item->save_in_field_no_warnings(field, true);
 	}
       }
     }
@@ -8574,13 +8588,18 @@ static Item_cond_and *create_cond_for_const_ref(THD *thd, JOIN_TAB *join_tab)
     Field *field= table->field[table->key_info[join_tab->ref.key].key_part[i].
                                fieldnr-1];
     Item *value= join_tab->ref.items[i];
-    cond->add(new Item_func_equal(new Item_field(field), value));
+    Item *item= new Item_field(field);
+    if (!item)
+      DBUG_RETURN(NULL);
+    item= join_tab->ref.null_rejecting & (1 << i) ?
+            (Item *)new Item_func_eq(item, value) :
+            (Item *)new Item_func_equal(item, value);
+    if (!item)
+      DBUG_RETURN(NULL);
+    if (cond->add(item))
+      DBUG_RETURN(NULL);
   }
-  if (thd->is_fatal_error)
-    DBUG_RETURN(NULL);
-
-  if (!cond->fixed)
-    cond->fix_fields(thd, (Item**)&cond);
+  cond->fix_fields(thd, (Item**)&cond);
 
   DBUG_RETURN(cond);
 }

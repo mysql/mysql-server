@@ -1,0 +1,47 @@
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+-- source include/not_windows.inc
+
+--disable_warnings
+drop table if exists t1,t2;
+--disable_query_log
+set ndb_table_temporary=0;
+--enable_query_log
+--enable_warnings
+
+#
+# Bug #14516 Restart of cluster can cause NDB API replication failure
+#
+create table t2 (a int key) engine=ndb;
+#
+# Unreported bug, online altered table causes system restart to fail
+#
+alter table t2 rename t1;
+reset master;
+--exec $NDB_MGM --no-defaults -e "all restart -n" > /dev/null
+--exec $NDB_WAITER --no-defaults --not-started > /dev/null
+--exec $NDB_MGM --no-defaults -e "all start" > /dev/null
+--exec $NDB_WAITER --no-defaults > /dev/null
+
+--disable_query_log
+let $mysql_errno= 1;
+while ($mysql_errno)
+{
+  # Table t1 is readonly until the mysqld has reconnected properly
+  --error 0,1036,1296
+  insert into t1 values(1);
+  if ($mysql_errno)
+  {
+    --sleep 0.1
+  }
+}
+--enable_query_log
+
+# check that data went in ok
+select * from t1;
+
+--source include/show_binlog_events2.inc
+PURGE MASTER LOGS TO 'mysqld-bin.000002';
+
+--source include/show_binlog_events2.inc
+drop table t1;

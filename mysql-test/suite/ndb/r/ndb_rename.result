@@ -1,0 +1,31 @@
+DROP TABLE IF EXISTS t1,t2;
+drop database if exists mysqltest;
+CREATE TABLE t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL,
+attr2 INT,
+attr3 VARCHAR(10),
+INDEX i1(attr1)
+) ENGINE=ndbcluster;
+INSERT INTO t1 VALUES (0,0,0,"zero"),(1,1,1,"one"),(2,2,2,"two");
+SELECT * FROM t1 WHERE attr1 = 1;
+pk1	attr1	attr2	attr3
+1	1	1	one
+alter table t1 rename t2;
+SELECT * FROM t2 WHERE attr1 = 1;
+pk1	attr1	attr2	attr3
+1	1	1	one
+create database ndbtest;
+alter table t2 rename ndbtest.t2;
+SELECT * FROM ndbtest.t2 WHERE attr1 = 1;
+pk1	attr1	attr2	attr3
+1	1	1	one
+drop table ndbtest.t2;
+create table t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+b blob
+) engine = ndbcluster;
+alter table t1 rename ndbtest.t1;
+alter table ndbtest.t1 rename test.t1;
+drop table test.t1;
+drop database ndbtest;
