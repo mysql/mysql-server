@@ -455,7 +455,8 @@ ib_pushf(
 	ib_log_level_t	level,		/*!< in: warning level */
 	ib_uint32_t	code,		/*!< MySQL error code */
 	const char*	format,		/*!< printf format */
-	...);				/*!< Args */
+	...)				/*!< Args */
+	__attribute__((format(printf, 4, 5)));
 
 /******************************************************************//**
 Write a message to the MySQL log, prefixed with "InnoDB: ".
@@ -466,7 +467,8 @@ ib_logf(
 /*====*/
 	ib_log_level_t	level,		/*!< in: warning level */
 	const char*	format,		/*!< printf format */
-	...);				/*!< Args */
+	...)				/*!< Args */
+	__attribute__((format(printf, 2, 3)));
 
 /******************************************************************//**
 Returns the NUL terminated value of glob_hostname.
