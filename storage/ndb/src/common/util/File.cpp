@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,14 +12,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
-#include <File.hpp>
-
+#include <util/File.hpp>
 #include <NdbOut.hpp>
-#include <my_dir.h>
 
 //
 // PUBLIC
@@ -26,33 +26,27 @@
 time_t 
 File_class::mtime(const char* aFileName)
 {
-  MY_STAT stmp;
-  time_t rc = 0;
-
-  if (my_stat(aFileName, &stmp, MYF(0)) != NULL) {
-    rc = stmp.st_mtime;
-  }
-
-  return rc;
+  struct stat s;
+  if (stat(aFileName, &s) != 0)
+    return 0;
+  return s.st_mtime;
 }
 
 bool 
 File_class::exists(const char* aFileName)
 {
-  MY_STAT stmp;
-
-  return (my_stat(aFileName, &stmp, MYF(0))!=NULL);
+  struct stat s;
+  if (stat(aFileName, &s) != 0)
+    return false;
+  return true;
 }
 
 off_t
 File_class::size(FILE* f)
 {
-  MY_STAT s;
-
-  // Note that my_fstat behaves *differently* than my_stat. ARGGGHH!
-  if (my_fstat(fileno(f), &s, MYF(0)))
+  struct stat s;
+  if (fstat(fileno(f), &s) != 0)
     return 0;
-
   return s.st_size;
 }
 
@@ -77,7 +71,7 @@ File_class::File_class(const char* aFileName, const char* mode) :
   m_file(NULL), 
   m_fileMode(mode)
 {
-  BaseString::snprintf(m_fileName, PATH_MAX, aFileName);
+  BaseString::snprintf(m_fileName, PATH_MAX, "%s", aFileName);
 }
 
 bool
@@ -89,11 +83,12 @@ File_class::open()
 bool 
 File_class::open(const char* aFileName, const char* mode) 
 {
+  assert(m_file == NULL); // Not already open
   if(m_fileName != aFileName){
     /**
      * Only copy if it's not the same string
      */
-    BaseString::snprintf(m_fileName, PATH_MAX, aFileName);
+    BaseString::snprintf(m_fileName, PATH_MAX, "%s", aFileName);
   }
   m_fileMode = mode;
   bool rc = true;
@@ -104,6 +99,13 @@ File_class::open(const char* aFileName, const char* mode)
   
   return rc;
 }
+
+bool
+File_class::is_open()
+{
+  return (m_file != NULL);
+}
+
 File_class::~File_class()
 {
   close();  
@@ -158,7 +160,7 @@ File_class::readChar(char* buf, long start, long length) const
 int 
 File_class::readChar(char* buf)
 {
-  return readChar(buf, 0, strlen(buf));
+  return readChar(buf, 0, (long)strlen(buf));
 }
 
 int 
@@ -176,7 +178,7 @@ File_class::writeChar(const char* buf, long start, long length)
 int 
 File_class::writeChar(const char* buf)
 {
-  return writeChar(buf, 0, ::strlen(buf));
+  return writeChar(buf, 0, (long)::strlen(buf));
 }
 
 off_t

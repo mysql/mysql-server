@@ -1,0 +1,33 @@
+[atrt]
+basedir = CHOOSE_dir
+baseport = 14000
+clusters = .4node
+mysqld = CHOOSE_host1
+fix-nodeid=1
+
+[ndb_mgmd]
+
+[mysqld]
+skip-innodb
+loose-skip-bdb
+socket=mysql.sock
+skip-grant-tables
+
+[client]
+protocol=tcp
+
+[cluster_config.4node]
+ndb_mgmd = CHOOSE_host1,CHOOSE_host1
+ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host2,CHOOSE_host3
+ndbapi= CHOOSE_host1,CHOOSE_host1,CHOOSE_host1
+
+NoOfReplicas = 2
+IndexMemory = 50M 
+DataMemory = 100M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+SendBufferMemory = 2M
+NoOfFragmentLogFiles = 4
+FragmentLogFileSize = 64M
+

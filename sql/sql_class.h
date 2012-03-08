@@ -2328,6 +2328,7 @@ private:
   enum enum_server_command m_command;
 
 public:
+  uint32     unmasked_server_id;
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */

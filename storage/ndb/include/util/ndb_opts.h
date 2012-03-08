@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,36 +12,38 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef _NDB_OPTS_H
 #define _NDB_OPTS_H
 
 #include <ndb_global.h>
-#include <my_sys.h>
+
+#include <my_sys.h> /* loglevel needed by my_getopt.h */
 #include <my_getopt.h>
-#include <mysql_version.h>
-#include <ndb_version.h>
-#include <ndb_opt_defaults.h>
 
-#define NDB_STD_OPTS_VARS \
-my_bool	opt_ndb_optimized_node_selection
-
-int opt_ndb_nodeid;
-bool opt_endinfo= 0;
-my_bool opt_ndb_shm;
-my_bool opt_core;
-const char *opt_ndb_connectstring= 0;
-const char *opt_connect_str= 0;
-const char *opt_ndb_mgmd= 0;
-char opt_ndb_constrbuf[1024];
-unsigned opt_ndb_constrbuf_len= 0;
-
-#ifndef DBUG_OFF
-const char *opt_debug= 0;
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-#define OPT_NDB_CONNECTSTRING 'c'
+#ifdef OPTEXPORT
+#define OPT_EXTERN(T,V,I) T V I
+#else
+#define OPT_EXTERN(T,V,I) extern T V
+#endif
+
+#define NONE
+OPT_EXTERN(int,opt_ndb_nodeid,NONE);
+OPT_EXTERN(my_bool,opt_ndb_endinfo,=0);
+OPT_EXTERN(my_bool,opt_core,NONE);
+OPT_EXTERN(my_bool,opt_ndb_optimized_node_selection,NONE);
+OPT_EXTERN(const char *,opt_ndb_connectstring,=0);
+
+#ifndef DBUG_OFF
+OPT_EXTERN(const char *,opt_debug,= 0);
+#endif
+
 #if defined VM_TRACE
 #define OPT_WANT_CORE_DEFAULT 1
 #else
@@ -58,125 +61,79 @@ const char *opt_debug= 0;
     "Set connect string for connecting to ndb_mgmd. " \
     "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " \
     "Overrides specifying entries in NDB_CONNECTSTRING and my.cnf", \
-    &opt_ndb_connectstring, &opt_ndb_connectstring, \
+    (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, \
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
-  { "ndb-mgmd-host", OPT_NDB_MGMD, \
-    "Set host and port for connecting to ndb_mgmd. " \
-    "Syntax: <hostname>[:<port>].", \
-    &opt_ndb_mgmd, &opt_ndb_mgmd, 0, \
+  { "ndb-mgmd-host", NDB_OPT_NOSHORT, \
+    "same as --ndb-connectstring", \
+    (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, 0, \
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
-  { "ndb-nodeid", OPT_NDB_NODEID, \
-    "Set node id for this node.", \
-    &opt_ndb_nodeid, &opt_ndb_nodeid, 0, \
+  { "ndb-nodeid", NDB_OPT_NOSHORT, \
+    "Set node id for this node. Overrides node id specified " \
+    "in --ndb-connectstring.", \
+    (uchar**) &opt_ndb_nodeid, (uchar**) &opt_ndb_nodeid, 0, \
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
-  { "ndb-shm", OPT_NDB_SHM,\
-    "Allow optimizing using shared memory connections when available",\
-    &opt_ndb_shm, &opt_ndb_shm, 0,\
-    GET_BOOL, NO_ARG, OPT_NDB_SHM_DEFAULT, 0, 0, 0, 0, 0 },\
-  {"ndb-optimized-node-selection", OPT_NDB_OPTIMIZED_NODE_SELECTION,\
+  {"ndb-optimized-node-selection", NDB_OPT_NOSHORT,\
     "Select nodes for transactions in a more optimal way",\
-    &opt_ndb_optimized_node_selection,\
-    &opt_ndb_optimized_node_selection, 0,\
+    (uchar**) &opt_ndb_optimized_node_selection,\
+    (uchar**) &opt_ndb_optimized_node_selection, 0,\
     GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},\
   { "connect-string", OPT_NDB_CONNECTSTRING, "same as --ndb-connectstring",\
-    &opt_ndb_connectstring, &opt_ndb_connectstring, \
+    (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, \
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
-  { "core-file", OPT_WANT_CORE, "Write core on errors.",\
-    &opt_core, &opt_core, 0,\
+  { "core-file", NDB_OPT_NOSHORT, "Write core on errors.",\
+    (uchar**) &opt_core, (uchar**) &opt_core, 0,\
     GET_BOOL, NO_ARG, OPT_WANT_CORE_DEFAULT, 0, 0, 0, 0, 0},\
-  {"character-sets-dir", OPT_CHARSETS_DIR,\
-     "Directory where character sets are.", &charsets_dir,\
-     &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0}\
+  {"character-sets-dir", NDB_OPT_NOSHORT,\
+     "Directory where character sets are.", (uchar**) &charsets_dir,\
+     (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0}\
 
 #ifndef DBUG_OFF
 #define NDB_STD_OPTS(prog_name) \
   { "debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", \
-    &opt_debug, &opt_debug, \
+    (uchar**) &opt_debug, (uchar**) &opt_debug, \
     0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0 }, \
   NDB_STD_OPTS_COMMON
 #else
 #define NDB_STD_OPTS(prog_name) NDB_STD_OPTS_COMMON
 #endif
 
-static void ndb_std_print_version()
-{
-  printf("MySQL distrib %s, for %s (%s)\n",
-	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
-
-static void usage();
+void ndb_std_print_version();
 
 enum ndb_std_options {
-  OPT_NDB_SHM= 256,
-  OPT_NDB_SHM_SIGNUM,
-  OPT_NDB_OPTIMIZED_NODE_SELECTION,
-  OPT_WANT_CORE,
-  OPT_NDB_MGMD,
-  OPT_NDB_NODEID,
-  OPT_CHARSETS_DIR,
-  NDB_STD_OPTIONS_LAST /* should always be last in this enum */
+  /*
+    --ndb-connectstring=<connectstring> has short form 'c'
+  */
+  OPT_NDB_CONNECTSTRING = 'c',
+
+  /*
+    For arguments that have neither a short form option or need
+    special processing in 'get_one_option' callback
+  */
+  NDB_OPT_NOSHORT = 256,
+
+ /*
+   should always be last in this enum and will be used as the
+   start value by programs which use 'ndb_std_get_one_option' and
+   need to define their own arguments with special processing
+ */
+  NDB_STD_OPTIONS_LAST
 };
 
-static my_bool
+void ndb_opt_set_usage_funcs(void (*short_usage)(void),
+                             void (*usage)(void));
+my_bool
 ndb_std_get_one_option(int optid,
 		       const struct my_option *opt __attribute__((unused)),
-		       char *argument)
-{
-  switch (optid) {
-#ifndef DBUG_OFF
-  case '#':
-    if (opt_debug)
-    {
-      DBUG_PUSH(opt_debug);
-    }
-    else
-    {
-      DBUG_PUSH("d:t");
-    }
-    opt_endinfo= 1;
-    break;
-#endif
-  case 'V':
-    ndb_std_print_version();
-    exit(0);
-  case '?':
-    usage();
-    exit(0);
-  case OPT_NDB_SHM:
-    if (opt_ndb_shm)
-    {
-#ifndef NDB_SHM_TRANSPORTER
-      printf("Warning: binary not compiled with shared memory support,\n"
-	     "Tcp connections will now be used instead\n");
-      opt_ndb_shm= 0;
-#endif
-    }
-    break;
-  case OPT_NDB_MGMD:
-  case OPT_NDB_NODEID:
-  {
-    int len= my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
-			 sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
-			 "%s%s%s",opt_ndb_constrbuf_len > 0 ? ",":"",
-			 optid == OPT_NDB_NODEID ? "nodeid=" : "",
-			 argument);
-    opt_ndb_constrbuf_len+= len;
-  }
-  /* fall through to add the connectstring to the end
-   * and set opt_ndbcluster_connectstring
-   */
-  case OPT_NDB_CONNECTSTRING:
-    if (opt_ndb_connectstring && opt_ndb_connectstring[0])
-      my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
-		  sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
-		  "%s%s", opt_ndb_constrbuf_len > 0 ? ",":"",
-		  opt_ndb_connectstring);
-    else
-      opt_ndb_constrbuf[opt_ndb_constrbuf_len]= 0;
-    opt_connect_str= opt_ndb_constrbuf;
-    break;
-  }
-  return 0;
+                       char *argument);
+
+void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
+               struct my_option *my_long_options);
+void ndb_short_usage_sub(const char* extra);
+
+my_bool ndb_is_load_default_arg_separator(const char* arg);
+
+#ifdef __cplusplus
 }
+#endif
 
 #endif /*_NDB_OPTS_H */

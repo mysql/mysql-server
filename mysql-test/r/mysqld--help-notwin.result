@@ -739,6 +739,7 @@ The following options may be given as the first argument:
  files within specified directory
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
+ --server-id-bits=#  Set number of significant bits in server-id
  --show-slave-auth-info 
  Show user and password in SHOW SLAVE HOSTS on this
  master.
@@ -753,6 +754,8 @@ The following options may be given as the first argument:
  Don't allow 'SHOW DATABASE' commands
  --skip-slave-start  If set, slave is not autostarted.
  --skip-stack-trace  Don't print a stack trace on failure.
+ --slave-allow-batching 
+ Allow slave to batch requests
  --slave-checkpoint-group=# 
  Maximum number of processed transactions by
  Multi-threaded slave before a checkpoint operation is
@@ -1117,12 +1120,14 @@ safe-user-create FALSE
 secure-auth TRUE
 secure-file-priv (No default value)
 server-id 0
+server-id-bits 32
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
 skip-name-resolve FALSE
 skip-networking FALSE
 skip-show-database FALSE
 skip-slave-start FALSE
+slave-allow-batching FALSE
 slave-checkpoint-group 512
 slave-checkpoint-period 300
 slave-compressed-protocol FALSE

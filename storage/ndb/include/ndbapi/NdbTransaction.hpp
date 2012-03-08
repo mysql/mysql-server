@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NdbTransaction_H
 #define NdbTransaction_H
@@ -21,15 +23,21 @@
 #include "NdbDictionary.hpp"
 #include "Ndb.hpp"
 #include "NdbOperation.hpp"
+#include "NdbIndexScanOperation.hpp"
 
 class NdbTransaction;
-class NdbOperation;
 class NdbScanOperation;
 class NdbIndexScanOperation;
 class NdbIndexOperation;
 class NdbApiSignal;
 class Ndb;
 class NdbBlob;
+class NdbInterpretedCode;
+class NdbQueryImpl;
+class NdbQueryDef;
+class NdbQuery;
+class NdbQueryParamValue;
+class NdbLockHandle;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 // to be documented later
@@ -132,6 +140,8 @@ enum ExecType {
  *
  */
 
+class NdbRecord;
+
 class NdbTransaction
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -142,9 +152,22 @@ class NdbTransaction
   friend class NdbIndexScanOperation;
   friend class NdbBlob;
   friend class ha_ndbcluster;
+  friend class NdbQueryImpl;
+  friend class NdbQueryOperationImpl;
 #endif
 
 public:
+#ifdef NDBAPI_50_COMPAT
+  enum AbortOption {
+    DefaultAbortOption = NdbOperation::DefaultAbortOption,
+    CommitIfFailFree = NdbOperation::AbortOnError,         
+    TryCommit = NdbOperation::AbortOnError,
+    AbortOnError= NdbOperation::AbortOnError,
+    CommitAsMuchAsPossible = NdbOperation::AO_IgnoreError,
+    AO_IgnoreError= NdbOperation::AO_IgnoreError
+  };
+#endif
+
 
   /**
    * Execution type of transaction
@@ -235,8 +258,8 @@ public:
    * get the NdbTransaction object which
    * was fetched by startTransaction pointing to this operation.
    *
-   * @param  anIndexName  The index name.
-   * @param  aTableName  The table name.
+   * @param  anIndexName  The name of the index to use for scanning
+   * @param  aTableName  The name of the table to scan
    * @return pointer to an NdbOperation object if successful, otherwise NULL
    */
   NdbIndexScanOperation* getNdbIndexScanOperation(const char* anIndexName,
@@ -302,7 +325,8 @@ public:
    *                     ExecType::Rollback rollbacks the entire transaction.
    * @param abortOption  Handling of error while excuting
    *                     AbortOnError - Abort transaction if an operation fail
-   *                     IgnoreError  - Accept failing operations
+   *                     AO_IgnoreError  - Accept failing operations
+   *                     DefaultAbortOption - Use per-operation abort option
    * @param force        When operations should be sent to NDB Kernel.
    *                     (See @ref secAdapt.)
    *                     - 0: non-force, adaptive algorithm notices it 
@@ -312,6 +336,7 @@ public:
    *                          the send.
    * @return 0 if successful otherwise -1.
    */
+#ifndef NDBAPI_50_COMPAT
   int execute(ExecType execType,
 	      NdbOperation::AbortOption = NdbOperation::DefaultAbortOption,
 	      int force = 0 );
@@ -322,6 +347,26 @@ public:
     return execute ((ExecType)execType,
 		    (NdbOperation::AbortOption)abortOption,
 		    force); }
+#endif
+#else
+  /**
+   * 50 compability layer
+   *   Check 50-docs for sematics
+   */
+
+  int execute(ExecType execType, NdbOperation::AbortOption, int force);
+  
+  int execute(NdbTransaction::ExecType execType,
+              NdbTransaction::AbortOption abortOption = AbortOnError,
+              int force = 0) 
+    {
+      int ret = execute ((ExecType)execType,
+                         (NdbOperation::AbortOption)abortOption,
+                         force); 
+      if (ret || (abortOption != AO_IgnoreError && theError.code))
+        return -1;
+      return 0;
+    }
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -349,6 +394,7 @@ public:
    *                        to decide on the use of this pointer.
    * @param abortOption     see @ref execute
    */
+#ifndef NDBAPI_50_COMPAT
   void executeAsynchPrepare(ExecType          execType,
 			    NdbAsynchCallback callback,
 			    void*             anyObject,
@@ -360,6 +406,25 @@ public:
 			    ::AbortOption ao = ::DefaultAbortOption) {
     executeAsynchPrepare((ExecType)execType, callback, anyObject,
 			 (NdbOperation::AbortOption)ao); }
+#endif
+#else
+  /**
+   * 50 compability layer
+   *   Check 50-docs for sematics
+   */
+  void executeAsynchPrepare(ExecType          execType,
+			    NdbAsynchCallback callback,
+			    void*             anyObject,
+			    NdbOperation::AbortOption);
+
+  void executeAsynchPrepare(NdbTransaction::ExecType execType,
+			    NdbAsynchCallback callback,
+			    void *anyObject,
+			    NdbTransaction::AbortOption abortOption = NdbTransaction::AbortOnError)
+    {
+      executeAsynchPrepare((ExecType)execType, callback, anyObject,
+                           (NdbOperation::AbortOption)abortOption);
+    }
 #endif
 
   /**
@@ -375,6 +440,7 @@ public:
    * See @ref secAsync for more information on
    * how to use this method.
    */
+#ifndef NDBAPI_50_COMPAT
   void executeAsynch(ExecType            aTypeOfExec,
 		     NdbAsynchCallback   aCallback,
 		     void*               anyObject,
@@ -389,7 +455,27 @@ public:
   { executeAsynch((ExecType)aTypeOfExec, aCallback, anyObject,
 		  (NdbOperation::AbortOption)abortOption, forceSend); }
 #endif
+#else
+  /**
+   * 50 compability layer
+   *   Check 50-docs for sematics
+   */
+  void executeAsynch(ExecType            aTypeOfExec,
+		     NdbAsynchCallback   aCallback,
+		     void*               anyObject,
+		     NdbOperation::AbortOption = NdbOperation::DefaultAbortOption,
+                     int forceSend= 0);
+  void executeAsynch(NdbTransaction::ExecType aTypeOfExec,
+		     NdbAsynchCallback aCallback,
+		     void* anyObject,
+		     NdbTransaction::AbortOption abortOption = AbortOnError)
+    {
+      executeAsynch((ExecType)aTypeOfExec, aCallback, anyObject,
+                    (NdbOperation::AbortOption)abortOption, 0);
+    }
 #endif
+#endif
+
   /**
    * Refresh
    * Update timeout counter of this transaction 
@@ -462,11 +548,17 @@ public:
    * @note Global Checkpoint Identity is undefined for scan transactions 
    *       (This is because no updates are performed in scan transactions.)
    *
-   * @return GCI of transaction or -1 if GCI is not available.
+   * @return 0 if GCI is available, and stored in <em>gciptr</em>
+             -1 if GCI is not available.
    *         (Note that there has to be an NdbTransaction::execute call 
    *         with Ndb::Commit for the GCI to be available.)
    */
-  int		getGCI();
+  int getGCI(Uint64 * gciptr);
+
+  /**
+   * Deprecated...in favor of getGCI(Uint64*)
+   */
+  int getGCI();
 			
   /**
    * Get transaction identity.
@@ -516,8 +608,21 @@ public:
    * on the returned NdbOperation object.
    *
    * @return The NdbOperation causing the latest error.
+   * @deprecated Use the const NdbOperation returning variant.
    */
   NdbOperation*	getNdbErrorOperation();
+
+  /**
+   * Get the latest NdbOperation which had an error. 
+   * This method is used on the NdbTransaction object to find the
+   * NdbOperation causing an error.  
+   * To find more information about the
+   * actual error, use method NdbOperation::getNdbError()
+   * on the returned NdbOperation object.
+   *
+   * @return The NdbOperation causing the latest error.
+   */
+  const NdbOperation* getNdbErrorOperation() const;
 
   /** 
    * Get the method number where the latest error occured.
@@ -569,11 +674,266 @@ public:
   Uint32 getConnectedNodeId(); // Get Connected node id
 #endif
 
+  /*
+   * NdbRecord primary key and unique key operations.
+   *
+   * If the key_rec passed in is for a table, the operation will be a primary
+   * key operation. If it is for an index, it will be a unique key operation
+   * using that index.
+   *
+   * The key_row passed in defines the primary or unique key of the affected
+   * tuple, and must remain valid until execute() is called. The key_rec must
+   * include all columns of the key.
+   *
+   * The mask, if != NULL, defines a subset of attributes to read, update, or
+   * insert. Only if (mask[attrId >> 3] & (1<<(attrId & 7))) is set is the
+   * column affected. The mask is copied by the methods, so need not remain
+   * valid after the call returns.
+   *
+   * For unique index operations, the attr_rec must refer to the underlying
+   * table of the index.
+   *
+   * OperationOptions can be used to give finer-grained control of operation
+   * definition.  An OperationOptions structure is passed with flags
+   * indicating which operation definition options are present.  Not all
+   * operation types support all operation options.  See the definition of
+   * the OperationOptions structure for more information on individual options.
+   *
+   *   Operation type        Supported OperationOptions flags
+   *   --------------        --------------------------------
+   *   readTuple             OO_ABORTOPTION, OO_GETVALUE,
+   *                         OO_PARTITION_ID, OO_INTERPRETED
+   *   insertTuple           OO_ABORTOPTION, OO_SETVALUE, 
+   *                         OO_PARTITION_ID, OO_ANYVALUE
+   *   updateTuple           OO_ABORTOPTION, OO_SETVALUE,
+   *                         OO_PARTITION_ID, OO_INTERPRETED,
+   *                         OO_ANYVALUE
+   *   writeTuple            OO_ABORTOPTION, OO_SETVALUE,
+   *                         OO_PARTITION_ID, OO_ANYVALUE
+   *   deleteTuple           OO_ABORTOPTION, OO_GETVALUE,
+   *                         OO_PARTITION_ID, OO_INTERPRETED,
+   *                         OO_ANYVALUE
+   *
+   * The sizeOfOptions optional parameter is used to allow this interface
+   * to be backwards compatible with previous definitions of the OperationOptions
+   * structure.  If an unusual size is detected by the interface implementation, 
+   * it can use this to determine how to interpret the passed OperationOptions 
+   * structure.  To enable this functionality, the caller should pass 
+   * sizeof(NdbOperation::OperationOptions) for this argument.
+   */
+  const NdbOperation *readTuple(const NdbRecord *key_rec, const char *key_row,
+                                const NdbRecord *result_rec, char *result_row,
+                                NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
+                                const unsigned char *result_mask= 0,
+                                const NdbOperation::OperationOptions *opts = 0,
+                                Uint32 sizeOfOptions = 0);
+  const NdbOperation *insertTuple(const NdbRecord *key_rec, const char *key_row,
+                                  const NdbRecord *attr_rec, const char *attr_row,
+                                  const unsigned char *mask= 0,
+                                  const NdbOperation::OperationOptions *opts = 0,
+                                  Uint32 sizeOfOptions = 0);
+  const NdbOperation *insertTuple(const NdbRecord *combined_rec, const char *combined_row,
+                                  const unsigned char *mask = 0,
+                                  const NdbOperation::OperationOptions *opts = 0,
+                                  Uint32 sizeOfOptions = 0);
+  const NdbOperation *updateTuple(const NdbRecord *key_rec, const char *key_row,
+                                  const NdbRecord *attr_rec, const char *attr_row,
+                                  const unsigned char *mask= 0,
+                                  const NdbOperation::OperationOptions *opts = 0,
+                                  Uint32 sizeOfOptions = 0);
+  const NdbOperation *writeTuple(const NdbRecord *key_rec, const char *key_row,
+                                 const NdbRecord *attr_rec, const char *attr_row,
+                                 const unsigned char *mask= 0,
+                                 const NdbOperation::OperationOptions *opts = 0,
+                                 Uint32 sizeOfOptions = 0);
+  const NdbOperation *deleteTuple(const NdbRecord *key_rec, const char *key_row,
+                                  const NdbRecord *result_rec, char *result_row = 0,
+                                  const unsigned char *result_mask = 0,
+                                  const NdbOperation::OperationOptions *opts = 0,
+                                  Uint32 sizeOfOptions = 0);
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  const NdbOperation *refreshTuple(const NdbRecord *key_rec, const char *key_row,
+                                   const NdbOperation::OperationOptions *opts = 0,
+                                   Uint32 sizeOfOptions = 0);
+#endif
+
+  /**
+   * Scan a table, using NdbRecord to read out column data.
+   *
+   * The NdbRecord pointed to by result_record must remain valid until 
+   * the scan operation is closed.
+   *
+   * The result_mask pointer is optional, if present only columns for
+   * which the corresponding bit (by attribute id order) in result_mask
+   * is set will be retrieved in the scan. The result_mask is copied
+   * internally, so in contrast to result_record need not be valid at
+   * execute().
+   * 
+   * A ScanOptions structure can be passed, specifying extra options.  See
+   * the definition of the NdbScanOperation::ScanOptions structure for 
+   * more information.
+   *
+   * To enable backwards compatability of this interface, a sizeOfOptions
+   * parameter can be passed.  This parameter indicates the size of the
+   * ScanOptions structure at the time the client was compiled, and enables
+   * detection of the use of an old ScanOptions structure.  If this 
+   * functionality is not required, it can be left set to zero.
+   */
+  NdbScanOperation *
+  scanTable(const NdbRecord *result_record,
+            NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
+            const unsigned char *result_mask= 0,
+            const NdbScanOperation::ScanOptions *options = 0,
+            Uint32 sizeOfOptions = 0);
+
+  /**
+   * Do an index range scan (optionally ordered) of a table.
+   *
+   * The key_record describes the index to be scanned. It must be a key record
+   * for the index, ie. it must specify (at least) all the key columns of the
+   * index. And it must be created from the index to be scanned (not from the
+   * underlying table).
+   *
+   * The result_record describes the rows to be returned from the scan. For an
+   * ordered index scan, result_record must be a key record for the index to
+   * be scanned, that is it must include at least all of the columns in the
+   * index (the reason is that the full index key is needed by NDBAPI for merge 
+   * sorting the ordered rows returned from each fragment).  The result_record
+   * must be created from the underlying table, not from the index to be scanned.
+   *
+   * Both the key_record and result_record NdbRecord structures must stay
+   * in-place until the scan operation is closed.
+   *
+   * A single IndexBound can either be specified in this call or in a separate
+   * call to NdbIndexScanOperation::setBound().  To perform a multi range read, 
+   * the scan_flags in the ScanOptions structure must include SF_MULTIRANGE.  
+   * Additional bounds can then be added using multiple calls to 
+   * NdbIndexScanOperation::setBound().
+   * 
+   * To specify an equals bound, use the same row pointer for the low_key and
+   * high_key with the low and high inclusive bits set.
+   *
+   * A ScanOptions structure can be passed, specifying extra options.  See
+   * the definition of the ScanOptions structure for more information.
+   *
+   * To enable backwards compatability of this interface, a sizeOfOptions
+   * parameter can be passed.  This parameter indicates the size of the
+   * ScanOptions structure at the time the client was compiled, and enables
+   * detection of the use of an old ScanOptions structure.  If this functionality
+   * is not required, it can be left set to zero.
+   * 
+   */
+  NdbIndexScanOperation *
+  scanIndex(const NdbRecord *key_record,
+            const NdbRecord *result_record,
+            NdbOperation::LockMode lock_mode = NdbOperation::LM_Read,
+            const unsigned char *result_mask = 0,
+            const NdbIndexScanOperation::IndexBound *bound = 0,
+            const NdbScanOperation::ScanOptions *options = 0,
+            Uint32 sizeOfOptions = 0);
+
+  /**
+   * Add a prepared NdbQueryDef to transaction for execution.
+   *
+   * If the NdbQueryDef contains parameters,
+   * (built with NdbQueryBilder::paramValue()) the value of these
+   * parameters are specified in the 'paramValue' array. Parameter values
+   * Should be supplied in the same order as the related paramValue's
+   * was defined.
+   */
+  NdbQuery*
+  createQuery(const NdbQueryDef* query,
+              const NdbQueryParamValue paramValue[]= 0,
+              NdbOperation::LockMode lock_mode= NdbOperation::LM_Read);
+
+  /* LockHandle methods */
+  /*
+   * Shared or Exclusive locks taken by read operations in a transaction
+   * are normally held until the transaction commits or aborts.
+   * Shared or Exclusive *read* locks can be released before transaction
+   * commit or abort time by requesting a LockHandle when defining the
+   * read operation.  Any time after the read operation has been executed,
+   * the LockHandle can be used to create a new Unlock operation.  When
+   * the Unlock operation is executed, the row lock placed by the read
+   * operation will be released.
+   * 
+   * The steps are :
+   *  1) Define the primary key read operation in the normal way
+   *     with lockmode LM_Read or LM_Exclusive
+   *
+   *  2) Call NdbOperation::getLockHandle() during operation definition
+   *     (Or set the OO_LOCKHANDLE operation option when calling
+   *      NdbTransaction::readTuple() for NdbRecord)
+   *  
+   *  3) Call NdbTransaction::execute()
+   *                         (Row will be locked from here as normal)
+   *  
+   *  4) Use the read data, make zero or more calls to 
+   *     NdbTransaction::execute() etc.
+   *  
+   *  5) Call NdbTransaction::unlock(NdbLockHandle*), passing in the
+   *     const LockHandle* from 2) to create an Unlock operation.
+   *  
+   *  6) Call NdbTransaction::execute()
+   *                         (Row will be unlocked from here)
+   * 
+   * Notes
+   * - As with other operation types, Unlock operations can be batched.
+   * - Each LockHandle object refers to a lock placed on a row by a single 
+   *   primary key read operation.  A single row in the database may have 
+   *   concurrent multiple lock holders (of mode LM_Read) and may have 
+   *   multiple lock holders pending (LM_Exclusive), so releasing the
+   *   claim of one lock holder may not result in a change to the 
+   *   observable lock status of the row.
+   * - LockHandles are supported for Scan lock takeover operations - the
+   *   lockhandle must be requested before the locktakeover is executed.
+   * - LockHandles and Unlock operations are not supported for Unique Index
+   *   read operations.
+   */
+
+  /* unlock
+   * 
+   * This method creates an Unlock operation on the current transaction.
+   * When executed, the Unlock operation will remove the lock referenced
+   * by the passed LockHandle.
+   * 
+   * The unlock operation can fail, for example due to the row being 
+   * unlocked already.  In this scenario, the AbortOption specifies how 
+   * this will be handled.
+   * The default is that errors will cause transaction abort.
+   */
+  const NdbOperation* unlock(const NdbLockHandle* lockHandle,
+                             NdbOperation::AbortOption ao = NdbOperation::DefaultAbortOption);
+  
+  /* releaseLockHandle
+   * This method is used to release a LockHandle object once it
+   * is no longer required.
+   * For NdbRecord primary key read operations, this cannot be
+   * called until the associated read operation has executed.
+   * All LockHandles associated with a transaction are released
+   * when it is closed.
+   */
+  int releaseLockHandle(const NdbLockHandle* lockHandle);
+
+  /* Get maximum number of pending Blob read/write bytes before
+   * an automatic execute() occurs 
+   */
+  Uint32 getMaxPendingBlobReadBytes() const;
+  Uint32 getMaxPendingBlobWriteBytes() const;
+
+  /* Set maximum number of pending Blob read/write bytes before
+   * an automatic execute() occurs
+   */
+  void setMaxPendingBlobReadBytes(Uint32 bytes);
+  void setMaxPendingBlobWriteBytes(Uint32 bytes);
+
 private:						
   /**
    * Release completed operations
    */
   void releaseCompletedOperations();
+  void releaseCompletedQueries();
 
   typedef Uint64 TimeMillis_t;
   /**************************************************************************
@@ -619,23 +979,21 @@ private:
   Uint32        get_send_size();                  // Get size to send
   void          set_send_size(Uint32);            // Set size to send;
   
-  int  receiveDIHNDBTAMPER(NdbApiSignal* anApiSignal);
-  int  receiveTCSEIZECONF(NdbApiSignal* anApiSignal); 
-  int  receiveTCSEIZEREF(NdbApiSignal* anApiSignal);	
-  int  receiveTCRELEASECONF(NdbApiSignal* anApiSignal);	
-  int  receiveTCRELEASEREF(NdbApiSignal* anApiSignal);	
-  int  receiveTC_COMMITCONF(const class TcCommitConf *);
+  int  receiveTCSEIZECONF(const NdbApiSignal* anApiSignal);
+  int  receiveTCSEIZEREF(const NdbApiSignal* anApiSignal);
+  int  receiveTCRELEASECONF(const NdbApiSignal* anApiSignal);
+  int  receiveTCRELEASEREF(const NdbApiSignal* anApiSignal);
+  int  receiveTC_COMMITCONF(const class TcCommitConf *, Uint32 len);
   int  receiveTCKEYCONF(const class TcKeyConf *, Uint32 aDataLength);
   int  receiveTCKEY_FAILCONF(const class TcKeyFailConf *);
-  int  receiveTCKEY_FAILREF(NdbApiSignal* anApiSignal);
-  int  receiveTC_COMMITREF(NdbApiSignal* anApiSignal);		    	
-  int  receiveTCROLLBACKCONF(NdbApiSignal* anApiSignal); // Rec TCPREPARECONF ?
-  int  receiveTCROLLBACKREF(NdbApiSignal* anApiSignal);  // Rec TCPREPAREREF ?
-  int  receiveTCROLLBACKREP(NdbApiSignal* anApiSignal);
-  int  receiveTCINDXCONF(const class TcIndxConf *, Uint32 aDataLength);
-  int  receiveTCINDXREF(NdbApiSignal*);
-  int  receiveSCAN_TABREF(NdbApiSignal*);
-  int  receiveSCAN_TABCONF(NdbApiSignal*, const Uint32*, Uint32 len);
+  int  receiveTCKEY_FAILREF(const NdbApiSignal* anApiSignal);
+  int  receiveTC_COMMITREF(const NdbApiSignal* anApiSignal);
+  int  receiveTCROLLBACKCONF(const NdbApiSignal* anApiSignal);
+  int  receiveTCROLLBACKREF(const NdbApiSignal* anApiSignal);
+  int  receiveTCROLLBACKREP(const NdbApiSignal* anApiSignal);
+  int  receiveTCINDXREF(const NdbApiSignal*);
+  int  receiveSCAN_TABREF(const NdbApiSignal*);
+  int  receiveSCAN_TABCONF(const NdbApiSignal*, const Uint32*, Uint32 len);
 
   int 	doSend();	                // Send all operations
   int 	sendROLLBACK();	                // Send of an ROLLBACK
@@ -643,9 +1001,8 @@ private:
   int 	sendCOMMIT();                   // Send a TC_COMMITREQ signal;
   void	setGCI(int GCI);		// Set the global checkpoint identity
  
-  int	OpCompleteFailure(NdbOperation*);
+  int	OpCompleteFailure();
   int	OpCompleteSuccess();
-  void	CompletedOperations();	        // Move active ops to list of completed
  
   void	OpSent();			// Operation Sent with success
   
@@ -657,11 +1014,12 @@ private:
 
   // Release all cursor operations in connection
   void releaseOps(NdbOperation*);	
+  void releaseQueries(NdbQueryImpl*);
   void releaseScanOperations(NdbIndexScanOperation*);	
   bool releaseScanOperation(NdbIndexScanOperation** listhead,
 			    NdbIndexScanOperation** listtail,
 			    NdbIndexScanOperation* op);
-  void releaseExecutedScanOperation(NdbIndexScanOperation*);
+  void          releaseLockHandles();
   
   // Set the transaction identity of the transaction
   void		setTransactionId(Uint64 aTransactionId);
@@ -677,14 +1035,29 @@ private:
 
   int		checkMagicNumber();		       // Verify correct object
   NdbOperation* getNdbOperation(const class NdbTableImpl* aTable,
-                                NdbOperation* aNextOp = 0);
+                                NdbOperation* aNextOp = 0,
+                                bool useRec= false);
+
   NdbIndexScanOperation* getNdbScanOperation(const class NdbTableImpl* aTable);
   NdbIndexOperation* getNdbIndexOperation(const class NdbIndexImpl* anIndex, 
                                           const class NdbTableImpl* aTable,
-                                          NdbOperation* aNextOp = 0);
+                                          NdbOperation* aNextOp = 0,
+                                          bool useRec= false);
   NdbIndexScanOperation* getNdbIndexScanOperation(const NdbIndexImpl* index,
 						  const NdbTableImpl* table);
   
+  NdbOperation *setupRecordOp(NdbOperation::OperationType type,
+                              NdbOperation::LockMode lock_mode,
+                              NdbOperation::AbortOption default_ao,
+                              const NdbRecord *key_record,
+                              const char *key_row,
+                              const NdbRecord *attribute_record,
+                              const char *attribute_row,
+                              const unsigned char *mask,
+                              const NdbOperation::OperationOptions *opts,
+                              Uint32 sizeOfOptions,
+                              const NdbLockHandle* lh = 0);
+
   void		handleExecuteCompletion();
   
   /****************************************************************************
@@ -736,7 +1109,7 @@ private:
   Uint32	theMyRef;				// Our block reference		
   Uint32	theTCConPtr;				// Transaction Co-ordinator connection pointer.
   Uint64	theTransactionId;			// theTransactionId of the transaction
-  Uint32	theGlobalCheckpointId;			// The gloabl checkpoint identity of the transaction
+  Uint64	theGlobalCheckpointId;			// The gloabl checkpoint identity of the transaction
   Uint64 *p_latest_trans_gci;                           // Reference to latest gci for connection
   ConStatusType	theStatus;				// The status of the connection		
   enum CompletionStatus { 
@@ -747,7 +1120,11 @@ private:
   } theCompletionStatus;	  // The Completion status of the transaction
   CommitStatusType theCommitStatus;			// The commit status of the transaction
   Uint32	theMagicNumber;				// Magic Number to verify correct object
-
+                                                        // Current meanings :
+                                                        //   0x00FE11DC : NdbTransaction not in use
+                                                        //   0x37412619 : NdbTransaction in use
+                                                        //   0x00FE11DF : NdbTransaction for scan operation
+                                                        //                scan definition not yet complete
   Uint32	thePriority;				// Transaction Priority
 
   enum ReturnType {  ReturnSuccess,  ReturnFailure };
@@ -787,16 +1164,23 @@ private:
   
   NdbIndexScanOperation* m_firstExecutedScanOp;
 
-  // Scan operations
-  // The operation actually performing the scan
-  NdbScanOperation* theScanningOp; 
+  // Scan operations or queries:
+  // The operation or query actually performing the scan.
+  // (Only one of theScanningOp/m_scanningQuery be non-NULL,
+  //  which indirectly indicates the type)
+  NdbScanOperation* theScanningOp;
+
   Uint32 theBuddyConPtr;
   // optim: any blobs
   bool theBlobFlag;
   Uint8 thePendingBlobOps;
+  Uint32 maxPendingBlobReadBytes;
+  Uint32 maxPendingBlobWriteBytes;
+  Uint32 pendingBlobReadBytes;
+  Uint32 pendingBlobWriteBytes;
   inline bool hasBlobOperation() { return theBlobFlag; }
 
-  static void sendTC_COMMIT_ACK(class TransporterFacade *, NdbApiSignal *,
+  static void sendTC_COMMIT_ACK(class NdbImpl *, NdbApiSignal *,
 				Uint32 transId1, Uint32 transId2, 
 				Uint32 aBlockRef);
 
@@ -809,8 +1193,29 @@ private:
   void remove_list(NdbOperation*& head, NdbOperation*);
   void define_scan_op(NdbIndexScanOperation*);
 
+  NdbLockHandle* m_theFirstLockHandle;
+  NdbLockHandle* m_theLastLockHandle;
+
+  NdbLockHandle* getLockHandle();
+
   friend class HugoOperations;
   friend struct Ndb_free_list_t<NdbTransaction>;
+
+  NdbTransaction(const NdbTransaction&); // Not impl.
+  NdbTransaction&operator=(const NdbTransaction&);
+
+  // Query operation (aka multicursor)
+  NdbQueryImpl* m_firstQuery;        // First query in defining list.
+  NdbQueryImpl* m_firstExecQuery;    // First query to send for execution
+  NdbQueryImpl* m_firstActiveQuery;  // First query actively executing, or completed
+
+  // Scan operations or queries:
+  // The operation or query actually performing the scan.
+  // (Only one of theScanningOp/m_scanningQuery be non-NULL,
+  //  which indirectly indicates the type)
+  NdbQueryImpl* m_scanningQuery;
+
+  Uint32 m_tcRef;
 };
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -826,6 +1231,7 @@ inline
 void
 NdbTransaction::set_send_size(Uint32 send_size)
 {
+  (void)send_size; //unused
   return;
 }
 
@@ -1007,18 +1413,6 @@ NdbTransaction::Status( ConStatusType aStatus )
 
 
 /******************************************************************************
- void    	setGCI();
-
-Remark:		Set global checkpoint identity of the transaction
-******************************************************************************/
-inline
-void
-NdbTransaction::setGCI(int aGlobalCheckpointId)
-{
-  theGlobalCheckpointId = aGlobalCheckpointId;
-}
-
-/******************************************************************************
 void OpSent();
 
 Remark:       An operation was sent with success that expects a response.
@@ -1033,7 +1427,6 @@ NdbTransaction::OpSent()
 /******************************************************************************
 void executePendingBlobOps();
 ******************************************************************************/
-#include <stdlib.h>
 inline
 int
 NdbTransaction::executePendingBlobOps(Uint8 flags)

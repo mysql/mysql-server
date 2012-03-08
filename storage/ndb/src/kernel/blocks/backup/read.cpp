@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
@@ -22,25 +24,26 @@
 #include <AttributeHeader.hpp>
 #include <SimpleProperties.hpp>
 #include <ndb_version.h>
+#include <util/ndbzio.h>
 
-bool readHeader(FILE*, BackupFormat::FileHeader *);
-bool readFragHeader(FILE*, BackupFormat::DataFile::FragmentHeader *);
-bool readFragFooter(FILE*, BackupFormat::DataFile::FragmentFooter *);
-Int32 readRecord(FILE*, Uint32 **);
+bool readHeader(ndbzio_stream*, BackupFormat::FileHeader *);
+bool readFragHeader(ndbzio_stream*, BackupFormat::DataFile::FragmentHeader *);
+bool readFragFooter(ndbzio_stream*, BackupFormat::DataFile::FragmentFooter *);
+Int32 readRecord(ndbzio_stream*, Uint32 **);
 
 NdbOut & operator<<(NdbOut&, const BackupFormat::FileHeader &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::DataFile::FragmentHeader &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::DataFile::FragmentFooter &); 
 
-bool readTableList(FILE*, BackupFormat::CtlFile::TableList **);
-bool readTableDesc(FILE*, BackupFormat::CtlFile::TableDescription **);
-bool readGCPEntry(FILE*, BackupFormat::CtlFile::GCPEntry **);
+bool readTableList(ndbzio_stream*, BackupFormat::CtlFile::TableList **);
+bool readTableDesc(ndbzio_stream*, BackupFormat::CtlFile::TableDescription **);
+bool readGCPEntry(ndbzio_stream*, BackupFormat::CtlFile::GCPEntry **);
 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::TableList &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::TableDescription &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::GCPEntry &); 
 
-Int32 readLogEntry(FILE*, Uint32**);
+Int32 readLogEntry(ndbzio_stream*, Uint32**);
 
 static Uint32 recNo;
 static Uint32 logEntryNo;
@@ -53,11 +56,19 @@ main(int argc, const char * argv[]){
     printf("Usage: %s <filename>\n", argv[0]);
     exit(1);
   }
-  FILE * f = fopen(argv[1], "rb");
-  if(!f){
-    ndbout << "No such file!" << endl;
+
+  ndbzio_stream fo;
+  bzero(&fo, sizeof(fo));
+  int r= ndbzopen(&fo,argv[1], O_RDONLY);
+
+  if(r != 1)
+  {
+    ndbout_c("Failed to open file '%s', error: %d",
+             argv[1], r);
     exit(1);
   }
+
+  ndbzio_stream* f = &fo;
 
   BackupFormat::FileHeader fileHeader;
   if(!readHeader(f, &fileHeader)){
@@ -68,7 +79,7 @@ main(int argc, const char * argv[]){
 
   switch(fileHeader.FileType){
   case BackupFormat::DATA_FILE:
-    while(!feof(f)){
+    while(f->z_eof){
       BackupFormat::DataFile::FragmentHeader fragHeader;
       if(!readFragHeader(f, &fragHeader))
 	break;
@@ -175,7 +186,7 @@ main(int argc, const char * argv[]){
       ndbout << (* tabDesc) << endl;
     }
 
-    while(!feof(f)){
+    while(!f->z_eof){
       BackupFormat::DataFile::FragmentHeader fragHeader;
       if(!readFragHeader(f, &fragHeader))
 	break;
@@ -204,7 +215,7 @@ main(int argc, const char * argv[]){
 	   << fileHeader.FileType << endl;
     break;
   }
-  fclose(f);
+  ndbzclose(f);
   return 0;
 }
 
@@ -212,19 +223,49 @@ main(int argc, const char * argv[]){
 
 static bool endian = false;
 
+static
+inline
+size_t
+aread(void * buf, size_t sz, size_t n, ndbzio_stream* f)
+{
+  int error = 0;
+  unsigned r = ndbzread(f, buf, (sz * n), &error);
+  if (error || r != (sz * n))
+  {
+    printf("Failed to read!!");
+    exit(1);
+  }
+  return r / sz;
+}
+
 bool 
-readHeader(FILE* f, BackupFormat::FileHeader * dst){
-  if(fread(dst, 4, 3, f) != 3)
+readHeader(ndbzio_stream* f, BackupFormat::FileHeader * dst){
+  if(aread(dst, 4, 3, f) != 3)
     RETURN_FALSE();
 
   if(memcmp(dst->Magic, BACKUP_MAGIC, sizeof(BACKUP_MAGIC)) != 0)
+  {
+    ndbout_c("Incorrect file-header!");
+    printf("Found:  ");
+    for (unsigned i = 0; i<sizeof(BACKUP_MAGIC); i++)
+      printf("0x%.2x ", (Uint32)(Uint8)dst->Magic[i]);
+    printf("\n");
+    printf("Expect: ");
+    for (unsigned i = 0; i<sizeof(BACKUP_MAGIC); i++)
+      printf("0x%.2x ", (Uint32)(Uint8)BACKUP_MAGIC[i]);
+    printf("\n");
+    
     RETURN_FALSE();
+  }
 
-  dst->NdbVersion = ntohl(dst->NdbVersion);
-  if(dst->NdbVersion != NDB_VERSION)
+  dst->BackupVersion = ntohl(dst->BackupVersion);
+  if(dst->BackupVersion >= NDB_VERSION)
+  {
+    printf("incorrect versions, file: 0x%x expect: 0x%x\n", dst->NdbVersion, NDB_VERSION);
     RETURN_FALSE();
+  }
 
-  if(fread(&dst->SectionType, 4, 2, f) != 2)
+  if(aread(&dst->SectionType, 4, 2, f) != 2)
     RETURN_FALSE();
   dst->SectionType = ntohl(dst->SectionType);
   dst->SectionLength = ntohl(dst->SectionLength);
@@ -235,7 +276,7 @@ readHeader(FILE* f, BackupFormat::FileHeader * dst){
   if(dst->SectionLength != ((sizeof(BackupFormat::FileHeader) - 12) >> 2))
     RETURN_FALSE();
 
-  if(fread(&dst->FileType, 4, dst->SectionLength - 2, f) != 
+  if(aread(&dst->FileType, 4, dst->SectionLength - 2, f) != 
      (dst->SectionLength - 2))
     RETURN_FALSE();
 
@@ -251,8 +292,8 @@ readHeader(FILE* f, BackupFormat::FileHeader * dst){
 }
 
 bool 
-readFragHeader(FILE* f, BackupFormat::DataFile::FragmentHeader * dst){
-  if(fread(dst, 1, sizeof(* dst), f) != sizeof(* dst))
+readFragHeader(ndbzio_stream* f, BackupFormat::DataFile::FragmentHeader * dst){
+  if(aread(dst, 1, sizeof(* dst), f) != sizeof(* dst))
     return false;
 
   dst->SectionType = ntohl(dst->SectionType);
@@ -273,8 +314,8 @@ readFragHeader(FILE* f, BackupFormat::DataFile::FragmentHeader * dst){
 }
 
 bool 
-readFragFooter(FILE* f, BackupFormat::DataFile::FragmentFooter * dst){
-  if(fread(dst, 1, sizeof(* dst), f) != sizeof(* dst))
+readFragFooter(ndbzio_stream* f, BackupFormat::DataFile::FragmentFooter * dst){
+  if(aread(dst, 1, sizeof(* dst), f) != sizeof(* dst))
     RETURN_FALSE();
   
   dst->SectionType = ntohl(dst->SectionType);
@@ -292,17 +333,24 @@ readFragFooter(FILE* f, BackupFormat::DataFile::FragmentFooter * dst){
   return true;
 }
 
-static Uint32 buf[8192];
+
+static union {
+  Uint32 buf[8192];
+  BackupFormat::CtlFile::TableList TableList;
+  BackupFormat::CtlFile::GCPEntry GcpEntry;
+  BackupFormat::CtlFile::TableDescription TableDescription;
+  BackupFormat::LogFile::LogEntry LogEntry;
+} theData;
 
 Int32
-readRecord(FILE* f, Uint32 **dst){
+readRecord(ndbzio_stream* f, Uint32 **dst){
   Uint32 len;
-  if(fread(&len, 1, 4, f) != 4)
+  if(aread(&len, 1, 4, f) != 4)
     RETURN_FALSE();
 
   len = ntohl(len);
   
-  if(fread(buf, 4, len, f) != len)
+  if(aread(theData.buf, 4, len, f) != len)
   {
     return -1;
   }
@@ -312,29 +360,29 @@ readRecord(FILE* f, Uint32 **dst){
   else
     ndbout_c("Found %d records", recNo);
   
-  * dst = &buf[0];
+  * dst = &theData.buf[0];
 
   
   return len;
 }
 
 Int32
-readLogEntry(FILE* f, Uint32 **dst){
+readLogEntry(ndbzio_stream* f, Uint32 **dst){
   Uint32 len;
-  if(fread(&len, 1, 4, f) != 4)
+  if(aread(&len, 1, 4, f) != 4)
     RETURN_FALSE();
   
   len = ntohl(len);
   
-  if(fread(&buf[1], 4, len, f) != len)
+  if(aread(&theData.buf[1], 4, len, f) != len)
     return -1;
   
-  buf[0] = len;
+  theData.buf[0] = len;
   
   if(len > 0)
     logEntryNo++;
   
-  * dst = &buf[0];
+  * dst = &theData.buf[0];
   
   return len;
 }
@@ -349,7 +397,7 @@ operator<<(NdbOut& ndbout, const BackupFormat::FileHeader & hf){
 
   ndbout << "-- FileHeader:" << endl;
   ndbout << "Magic: " << buf << endl;
-  ndbout << "NdbVersion: " << hf.NdbVersion << endl;
+  ndbout << "BackupVersion: " << hex << hf.BackupVersion << endl;
   ndbout << "SectionType: " << hf.SectionType << endl;
   ndbout << "SectionLength: " << hf.SectionLength << endl;
   ndbout << "FileType: " << hf.FileType << endl;
@@ -387,11 +435,10 @@ NdbOut & operator<<(NdbOut& ndbout,
 } 
 
 bool 
-readTableList(FILE* f, BackupFormat::CtlFile::TableList **ret){
-  BackupFormat::CtlFile::TableList * dst = 
-    (BackupFormat::CtlFile::TableList *)&buf[0];
+readTableList(ndbzio_stream* f, BackupFormat::CtlFile::TableList **ret){
+  BackupFormat::CtlFile::TableList * dst = &theData.TableList;
   
-  if(fread(dst, 4, 2, f) != 2)
+  if(aread(dst, 4, 2, f) != 2)
     RETURN_FALSE();
 
   dst->SectionType = ntohl(dst->SectionType);
@@ -401,7 +448,7 @@ readTableList(FILE* f, BackupFormat::CtlFile::TableList **ret){
     RETURN_FALSE();
   
   const Uint32 len = dst->SectionLength - 2;
-  if(fread(&dst->TableIds[0], 4, len, f) != len)
+  if(aread(&dst->TableIds[0], 4, len, f) != len)
     RETURN_FALSE();
 
   for(Uint32 i = 0; i<len; i++){
@@ -414,21 +461,21 @@ readTableList(FILE* f, BackupFormat::CtlFile::TableList **ret){
 }
 
 bool 
-readTableDesc(FILE* f, BackupFormat::CtlFile::TableDescription **ret){
-  BackupFormat::CtlFile::TableDescription * dst = 
-    (BackupFormat::CtlFile::TableDescription *)&buf[0];
+readTableDesc(ndbzio_stream* f, BackupFormat::CtlFile::TableDescription **ret){
+  BackupFormat::CtlFile::TableDescription * dst = &theData.TableDescription;
   
-  if(fread(dst, 4, 2, f) != 2)
+  if(aread(dst, 4, 3, f) != 3)
     RETURN_FALSE();
 
   dst->SectionType = ntohl(dst->SectionType);
   dst->SectionLength = ntohl(dst->SectionLength);
-  
+  dst->TableType = ntohl(dst->TableType);
+
   if(dst->SectionType != BackupFormat::TABLE_DESCRIPTION)
     RETURN_FALSE();
   
-  const Uint32 len = dst->SectionLength - 2;
-  if(fread(&dst->DictTabInfo[0], 4, len, f) != len)
+  const Uint32 len = dst->SectionLength - 3;
+  if(aread(&dst->DictTabInfo[0], 4, len, f) != len)
     RETURN_FALSE();
   
   * ret = dst;
@@ -437,11 +484,10 @@ readTableDesc(FILE* f, BackupFormat::CtlFile::TableDescription **ret){
 }
 
 bool 
-readGCPEntry(FILE* f, BackupFormat::CtlFile::GCPEntry **ret){
-  BackupFormat::CtlFile::GCPEntry * dst = 
-    (BackupFormat::CtlFile::GCPEntry *)&buf[0];
+readGCPEntry(ndbzio_stream* f, BackupFormat::CtlFile::GCPEntry **ret){
+  BackupFormat::CtlFile::GCPEntry * dst = &theData.GcpEntry;
   
-  if(fread(dst, 4, 4, f) != 4)
+  if(aread(dst, 4, 4, f) != 4)
     RETURN_FALSE();
 
   dst->SectionType = ntohl(dst->SectionType);
@@ -477,8 +523,9 @@ operator<<(NdbOut& ndbout, const BackupFormat::CtlFile::TableDescription & hf){
   ndbout << "-- Table Description:" << endl;
   ndbout << "SectionType: " << hf.SectionType << endl;
   ndbout << "SectionLength: " << hf.SectionLength << endl;
+  ndbout << "TableType: " << hf.TableType << endl;
 
-  SimplePropertiesLinearReader it(&hf.DictTabInfo[0],  hf.SectionLength - 2);
+  SimplePropertiesLinearReader it(&hf.DictTabInfo[0],  hf.SectionLength - 3);
   char buf[1024];
   for(it.first(); it.valid(); it.next()){
     switch(it.getValueType()){
