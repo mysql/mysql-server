@@ -19,6 +19,7 @@
   Handler-calling-functions
 */
 
+#include "binlog.h"
 #include "sql_priv.h"
 #include "unireg.h"
 #include "rpl_handler.h"
@@ -519,6 +520,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     the switch below and hton->state should be removed when
     command-line options for plugins will be implemented
   */
+  DBUG_PRINT("info", ("hton->state=%d", hton->state));
   switch (hton->state) {
   case SHOW_OPTION_NO:
     break;
@@ -1015,11 +1017,14 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   {
     trans= &thd->transaction.all;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
+    if (thd->tx_read_only)
+      thd->server_status|= SERVER_STATUS_IN_TRANS_READONLY;
+    DBUG_PRINT("info", ("setting SERVER_STATUS_IN_TRANS"));
   }
   else
     trans= &thd->transaction.stmt;
 
-  ha_info= thd->ha_data[ht_arg->slot].ha_info + static_cast<unsigned>(all);
+  ha_info= thd->ha_data[ht_arg->slot].ha_info + (all ? 1 : 0);
 
   if (ha_info->is_started())
     DBUG_VOID_RETURN; /* already registered, return */
@@ -1169,6 +1174,8 @@ int ha_commit_trans(THD *thd, bool all)
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
   DBUG_ENTER("ha_commit_trans");
 
+  DBUG_PRINT("info", ("all=%d thd->in_sub_stmt=%d ha_info=%p is_real_trans=%d",
+                      all, thd->in_sub_stmt, ha_info, is_real_trans));
   /*
     We must not commit the normal transaction if a statement
     transaction is pending. Otherwise statement transaction
@@ -1449,6 +1456,8 @@ int ha_rollback_trans(THD *thd, bool all)
   if (all)
     thd->transaction_rollback_request= FALSE;
 
+  gtid_rollback(thd);
+
   /*
     If the transaction cannot be rolled back safely, warn; don't warn if this
     is a slave thread (because when a slave thread executes a ROLLBACK, it has
@@ -1496,7 +1505,7 @@ static my_bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
 }
 
 
-int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
+int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
 {
   struct xahton_st xaop;
   xaop.xid= xid;
@@ -1504,6 +1513,8 @@ int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
 
   plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &xaop);
+
+  gtid_rollback(thd);
 
   return xaop.result;
 }
@@ -2137,26 +2148,33 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
   handler *new_handler= get_new_handler(table->s, mem_root, ht);
+
+  if (!new_handler)
+    return NULL;
+  if (new_handler->set_ha_share_ref(ha_share))
+    goto err;
+
   /*
     Allocate handler->ref here because otherwise ha_open will allocate it
     on this->table->mem_root and we will not be able to reclaim that memory 
     when the clone handler object is destroyed.
   */
-  if (new_handler &&
-     !(new_handler->ref= (uchar*) alloc_root(mem_root,
-                                             ALIGN_SIZE(ref_length)*2)))
-    new_handler= NULL;
+  if (!(new_handler->ref= (uchar*) alloc_root(mem_root,
+                                              ALIGN_SIZE(ref_length)*2)))
+    goto err;
   /*
     TODO: Implement a more efficient way to have more than one index open for
     the same table instance. The ha_open call is not cachable for clone.
   */
-  if (new_handler && new_handler->ha_open(table,
-                                          name,
-                                          table->db_stat,
-                                          HA_OPEN_IGNORE_IF_LOCKED))
-    new_handler= NULL;
+  if (new_handler->ha_open(table, name, table->db_stat,
+                           HA_OPEN_IGNORE_IF_LOCKED))
+    goto err;
 
   return new_handler;
+
+err:
+  delete new_handler;
+  return NULL;
 }
 
 
@@ -3756,7 +3774,13 @@ int
 handler::ha_create_handler_files(const char *name, const char *old_name,
                         int action_flag, HA_CREATE_INFO *info)
 {
-  DBUG_ASSERT(m_lock_type == F_UNLCK);
+  /*
+    Normally this is done when unlocked, but in fast_alter_partition_table,
+    it is done on an already locked handler when preparing to alter/rename
+    partitions.
+  */
+  DBUG_ASSERT(m_lock_type == F_UNLCK ||
+              (!old_name && strcmp(name, table_share->path.str)));
   mark_trx_read_write();
 
   return create_handler_files(name, old_name, action_flag, info);
@@ -3777,8 +3801,12 @@ handler::ha_change_partitions(HA_CREATE_INFO *create_info,
                      const uchar *pack_frm_data,
                      size_t pack_frm_len)
 {
+  /*
+    Must have at least RDLCK or be a TMP table. Read lock is needed to read
+    from current partitions and write lock will be taken on new partitions.
+  */
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
-              m_lock_type == F_WRLCK);
+              m_lock_type != F_UNLCK);
   mark_trx_read_write();
 
   return change_partitions(create_info, path, copied, deleted,
@@ -3795,8 +3823,8 @@ handler::ha_change_partitions(HA_CREATE_INFO *create_info,
 int
 handler::ha_drop_partitions(const char *path)
 {
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
-              m_lock_type == F_WRLCK);
+  DBUG_ASSERT(!table->db_stat);
+
   mark_trx_read_write();
 
   return drop_partitions(path);
@@ -3812,8 +3840,7 @@ handler::ha_drop_partitions(const char *path)
 int
 handler::ha_rename_partitions(const char *path)
 {
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
-              m_lock_type == F_WRLCK);
+  DBUG_ASSERT(!table->db_stat);
   mark_trx_read_write();
 
   return rename_partitions(path);
@@ -4621,8 +4648,7 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     else
     {
       DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
-      // Fails - reintroduce when fixed
-      // DBUG_ASSERT(min_endp || max_endp);
+      DBUG_ASSERT(min_endp || max_endp);
       if (HA_POS_ERROR == (rows= this->records_in_range(keyno, min_endp, 
                                                         max_endp)))
       {
@@ -6150,6 +6176,78 @@ void handler::use_hidden_primary_key()
 {
   /* fallback to use all columns in the table to identify row */
   table->use_all_columns();
+}
+
+
+/**
+  Get an initialized ha_share.
+
+  @return Initialized ha_share
+    @retval NULL    ha_share is not yet initialized.
+    @retval != NULL previous initialized ha_share.
+
+  @note
+  If not a temp table, then LOCK_ha_data must be held.
+*/
+
+Handler_share *handler::get_ha_share_ptr()
+{
+  DBUG_ENTER("handler::get_ha_share_ptr");
+  DBUG_ASSERT(ha_share && table_share);
+
+#ifndef DBUG_OFF
+  if (table_share->tmp_table == NO_TMP_TABLE)
+    mysql_mutex_assert_owner(&table_share->LOCK_ha_data);
+#endif
+
+  DBUG_RETURN(*ha_share);
+}
+
+
+/**
+  Set ha_share to be used by all instances of the same table/partition.
+
+  @param ha_share    Handler_share to be shared.
+
+  @note
+  If not a temp table, then LOCK_ha_data must be held.
+*/
+
+void handler::set_ha_share_ptr(Handler_share *arg_ha_share)
+{
+  DBUG_ENTER("handler::set_ha_share_ptr");
+  DBUG_ASSERT(ha_share);
+#ifndef DBUG_OFF
+  if (table_share->tmp_table == NO_TMP_TABLE)
+    mysql_mutex_assert_owner(&table_share->LOCK_ha_data);
+#endif
+
+  *ha_share= arg_ha_share;
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Take a lock for protecting shared handler data.
+*/
+
+void handler::lock_shared_ha_data()
+{
+  DBUG_ASSERT(table_share);
+  if (table_share->tmp_table == NO_TMP_TABLE)
+    mysql_mutex_lock(&table_share->LOCK_ha_data);
+}
+
+
+/**
+  Release lock for protecting ha_share.
+*/
+
+void handler::unlock_shared_ha_data()
+{
+  DBUG_ASSERT(table_share);
+  if (table_share->tmp_table == NO_TMP_TABLE)
+    mysql_mutex_unlock(&table_share->LOCK_ha_data);
 }
 
 

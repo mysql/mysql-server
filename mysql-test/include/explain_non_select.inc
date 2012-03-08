@@ -1,6 +1,8 @@
 # This file is a collection of regression and coverage tests
 # for WL#4897: Add EXPLAIN INSERT/UPDATE/DELETE.
 
+set end_markers_in_json=on;
+
 --echo #1
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -754,6 +756,25 @@ INSERT INTO t1 VALUES (1), (2);
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USING(id) GROUP BY t1.id;
 
 DROP TABLE t1,t2;
+
+--echo #74
+
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+
+--echo # used key is modified & Using temporary
+
+--let $query = UPDATE t1 SET a=a+1 WHERE a>10
+--let $select = SELECT a t1 FROM t1 WHERE a>10
+--source include/explain_utils.inc
+
+--echo # used key is modified & Using filesort
+
+--let $query = UPDATE t1 SET a=a+1 WHERE a>10 ORDER BY a+20
+--let $select = SELECT a t1 FROM t1 WHERE a>10 ORDER BY a+20
+--source include/explain_utils.inc
+
+DROP TABLE t1;
 
 --echo #
 --echo # Bug #12949629: CLIENT LOSES CONNECTION AFTER EXECUTING A PROCEDURE WITH

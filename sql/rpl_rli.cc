@@ -74,10 +74,15 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    is_relay_log_recovery(is_slave_recovery),
    save_temporary_tables(0),
    cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
-   group_master_log_pos(0), log_space_total(0), ignore_log_space_limit(0),
+   group_master_log_pos(0),
+   gtid_set(&global_sid_map, &global_sid_lock),
+   log_space_total(0), ignore_log_space_limit(0),
    last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), until_condition(UNTIL_NONE),
-   until_log_pos(0), retried_trans(0),
+   until_log_pos(0),
+   until_gtids_obj(&global_sid_map),
+   request_gtids_obj(&global_sid_map),
+   retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0),
    slave_parallel_workers(0),
@@ -292,6 +297,8 @@ void Relay_log_info::clear_until_condition()
   until_condition= Relay_log_info::UNTIL_NONE;
   until_log_name[0]= 0;
   until_log_pos= 0;
+  request_gtids_obj.clear();
+  until_gtids_obj.clear();
   DBUG_VOID_RETURN;
 }
 
@@ -404,8 +411,8 @@ int Relay_log_info::init_relay_log_pos(const char* log,
     /*
       Open the relay log and set cur_log to point at this one
     */
-    if ((cur_log_fd=open_binlog(&cache_buf,
-                                linfo.log_file_name,errmsg)) < 0)
+    if ((cur_log_fd=open_binlog_file(&cache_buf,
+                                     linfo.log_file_name,errmsg)) < 0)
       goto err;
     cur_log = &cache_buf;
   }
@@ -686,6 +693,151 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     DBUG_PRINT("info",("Got signal of master update or timed out"));
     if (error == ETIMEDOUT || error == ETIME)
     {
+#ifndef DBUG_OFF
+      /*
+        Doing this to generate a stack trace and make debugging
+        easier. 
+      */
+      if (DBUG_EVALUATE_IF("debug_crash_slave_time_out", 1, 0))
+        DBUG_ASSERT(0);
+#endif
+      error= -1;
+      break;
+    }
+    error=0;
+    event_count++;
+    DBUG_PRINT("info",("Testing if killed or SQL thread not running"));
+  }
+
+err:
+  thd->EXIT_COND(&old_stage);
+  DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d \
+improper_arguments: %d  timed_out: %d",
+                     thd->killed_errno(),
+                     (int) (init_abort_pos_wait != abort_pos_wait),
+                     (int) slave_running,
+                     (int) (error == -2),
+                     (int) (error == -1)));
+  if (thd->killed || init_abort_pos_wait != abort_pos_wait ||
+      !slave_running)
+  {
+    error= -2;
+  }
+  DBUG_RETURN( error ? error : event_count );
+}
+
+/*
+  TODO: This is a duplicated code that needs to be simplified.
+  This will be done while developing all possible sync options.
+  See WL#3584's specification.
+
+  /Alfranio
+*/
+int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
+                                      longlong timeout)
+{
+  int event_count = 0;
+  ulong init_abort_pos_wait;
+  int error=0;
+  struct timespec abstime; // for timeout checking
+  PSI_stage_info old_stage;
+  DBUG_ENTER("Relay_log_info::wait_for_gtid_set");
+
+  if (!inited)
+    DBUG_RETURN(-2);
+
+  DBUG_PRINT("info", ("Waiting for %s timeout %lld", gtid->c_ptr_safe(),
+             timeout));
+
+  set_timespec(abstime, timeout);
+  mysql_mutex_lock(&data_lock);
+  thd->ENTER_COND(&data_cond, &data_lock,
+                  &stage_waiting_for_the_slave_thread_to_advance_position,
+                  &old_stage);
+  /*
+     This function will abort when it notices that some CHANGE MASTER or
+     RESET MASTER has changed the master info.
+     To catch this, these commands modify abort_pos_wait ; We just monitor
+     abort_pos_wait and see if it has changed.
+     Why do we have this mechanism instead of simply monitoring slave_running
+     in the loop (we do this too), as CHANGE MASTER/RESET SLAVE require that
+     the SQL thread be stopped?
+     This is becasue if someones does:
+     STOP SLAVE;CHANGE MASTER/RESET SLAVE; START SLAVE;
+     the change may happen very quickly and we may not notice that
+     slave_running briefly switches between 1/0/1.
+  */
+  init_abort_pos_wait= abort_pos_wait;
+  Gtid_set wait_gtid_set(&global_sid_map);
+  global_sid_lock.rdlock();
+  if (wait_gtid_set.add_gtid_text(gtid->c_ptr_safe()) != RETURN_STATUS_OK)
+  { 
+    global_sid_lock.unlock();
+    goto err;
+  }
+  global_sid_lock.unlock();
+
+  /* The "compare and wait" main loop */
+  while (!thd->killed &&
+         init_abort_pos_wait == abort_pos_wait &&
+         slave_running)
+  {
+    DBUG_PRINT("info",
+               ("init_abort_pos_wait: %ld  abort_pos_wait: %ld",
+                init_abort_pos_wait, abort_pos_wait));
+
+    //wait for master update, with optional timeout.
+
+    global_sid_lock.wrlock();
+    const Gtid_set* logged_gtids= gtid_state.get_logged_gtids();
+
+    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d",
+      gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids)));
+    logged_gtids->dbug_print("gtid_done:");
+
+    if (wait_gtid_set.is_subset(logged_gtids))
+    {
+      global_sid_lock.unlock();
+      break;
+    }
+    global_sid_lock.unlock();
+
+    DBUG_PRINT("info",("Waiting for master update"));
+
+    /*
+      We are going to mysql_cond_(timed)wait(); if the SQL thread stops it
+      will wake us up.
+    */
+    thd_wait_begin(thd, THD_WAIT_BINLOG);
+    if (timeout > 0)
+    {
+      /*
+        Note that mysql_cond_timedwait checks for the timeout
+        before for the condition ; i.e. it returns ETIMEDOUT
+        if the system time equals or exceeds the time specified by abstime
+        before the condition variable is signaled or broadcast, _or_ if
+        the absolute time specified by abstime has already passed at the time
+        of the call.
+        For that reason, mysql_cond_timedwait will do the "timeoutting" job
+        even if its condition is always immediately signaled (case of a loaded
+        master).
+      */
+      error= mysql_cond_timedwait(&data_cond, &data_lock, &abstime);
+    }
+    else
+      mysql_cond_wait(&data_cond, &data_lock);
+    thd_wait_end(thd);
+    DBUG_PRINT("info",("Got signal of master update or timed out"));
+    if (error == ETIMEDOUT || error == ETIME)
+    {
+#ifndef DBUG_OFF
+      /*
+        Doing this to generate a stack trace and make debugging
+        easier. 
+      */
+      if (DBUG_EVALUATE_IF("debug_crash_slave_time_out", 1, 0))
+        DBUG_ASSERT(0);
+#endif
       error= -1;
       break;
     }
@@ -751,10 +903,9 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
   */
   DBUG_PRINT("info", ("log_pos: %lu  group_master_log_pos: %lu",
                       (long) log_pos, (long) group_master_log_pos));
-  if (log_pos) // 3.23 binlogs don't have log_posx
-  {
+
+  if (log_pos > 0)  // 3.23 binlogs don't have log_posx
     group_master_log_pos= log_pos;
-  }
 
   /*
     In MTS mode FD or Rotate event commit their solitary group to
@@ -932,87 +1083,121 @@ err:
 
 bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
 {
-  const char *log_name;
-  ulonglong log_pos;
+  char error_msg[]= "Slave SQL thread is stopped because UNTIL "
+                    "condition is bad.";
   DBUG_ENTER("Relay_log_info::is_until_satisfied");
 
   DBUG_ASSERT(until_condition != UNTIL_NONE);
 
-  if (until_condition == UNTIL_MASTER_POS)
+  if (until_condition == UNTIL_MASTER_POS || until_condition == UNTIL_RELAY_POS)
   {
-    if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
-      DBUG_RETURN(FALSE);
-    log_name= group_master_log_name;
-    log_pos= (!ev)? group_master_log_pos :
-      ((thd->variables.option_bits & OPTION_BEGIN || !ev->log_pos) ?
-       group_master_log_pos : ev->log_pos - ev->data_written);
-  }
-  else
-  { /* until_condition == UNTIL_RELAY_POS */
-    log_name= group_relay_log_name;
-    log_pos= group_relay_log_pos;
-  }
+    const char *log_name= NULL;
+    ulonglong log_pos= 0;
 
-#ifndef DBUG_OFF
-  {
-    char buf[32];
-    DBUG_PRINT("info", ("group_master_log_name='%s', group_master_log_pos=%s",
-                        group_master_log_name, llstr(group_master_log_pos, buf)));
-    DBUG_PRINT("info", ("group_relay_log_name='%s', group_relay_log_pos=%s",
-                        group_relay_log_name, llstr(group_relay_log_pos, buf)));
-    DBUG_PRINT("info", ("(%s) log_name='%s', log_pos=%s",
-                        until_condition == UNTIL_MASTER_POS ? "master" : "relay",
-                        log_name, llstr(log_pos, buf)));
-    DBUG_PRINT("info", ("(%s) until_log_name='%s', until_log_pos=%s",
-                        until_condition == UNTIL_MASTER_POS ? "master" : "relay",
-                        until_log_name, llstr(until_log_pos, buf)));
-  }
-#endif
-
-  if (until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_UNKNOWN)
-  {
-    /*
-      We have no cached comparison results so we should compare log names
-      and cache result.
-      If we are after RESET SLAVE, and the SQL slave thread has not processed
-      any event yet, it could be that group_master_log_name is "". In that case,
-      just wait for more events (as there is no sensible comparison to do).
-    */
-
-    if (*log_name)
+    if (until_condition == UNTIL_MASTER_POS)
     {
-      const char *basename= log_name + dirname_length(log_name);
-
-      const char *q= (const char*)(fn_ext(basename)+1);
-      if (strncmp(basename, until_log_name, (int)(q-basename)) == 0)
-      {
-        /* Now compare extensions. */
-        char *q_end;
-        ulong log_name_extension= strtoul(q, &q_end, 10);
-        if (log_name_extension < until_log_name_extension)
-          until_log_names_cmp_result= UNTIL_LOG_NAMES_CMP_LESS;
-        else
-          until_log_names_cmp_result=
-            (log_name_extension > until_log_name_extension) ?
-            UNTIL_LOG_NAMES_CMP_GREATER : UNTIL_LOG_NAMES_CMP_EQUAL ;
-      }
-      else
-      {
-        /* Probably error so we aborting */
-        sql_print_error("Slave SQL thread is stopped because UNTIL "
-                        "condition is bad.");
-        DBUG_RETURN(TRUE);
-      }
+      if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
+        DBUG_RETURN(FALSE);
+      log_name= group_master_log_name;
+      log_pos= (!ev)? group_master_log_pos :
+        ((thd->variables.option_bits & OPTION_BEGIN || !ev->log_pos) ?
+         group_master_log_pos : ev->log_pos - ev->data_written);
     }
     else
-      DBUG_RETURN(until_log_pos == 0);
+    { /* until_condition == UNTIL_RELAY_POS */
+      log_name= group_relay_log_name;
+      log_pos= group_relay_log_pos;
+    }
+
+#ifndef DBUG_OFF
+    {
+      char buf[32];
+      DBUG_PRINT("info", ("group_master_log_name='%s', group_master_log_pos=%s",
+                          group_master_log_name, llstr(group_master_log_pos, buf)));
+      DBUG_PRINT("info", ("group_relay_log_name='%s', group_relay_log_pos=%s",
+                          group_relay_log_name, llstr(group_relay_log_pos, buf)));
+      DBUG_PRINT("info", ("(%s) log_name='%s', log_pos=%s",
+                          until_condition == UNTIL_MASTER_POS ? "master" : "relay",
+                          log_name, llstr(log_pos, buf)));
+      DBUG_PRINT("info", ("(%s) until_log_name='%s', until_log_pos=%s",
+                          until_condition == UNTIL_MASTER_POS ? "master" : "relay",
+                          until_log_name, llstr(until_log_pos, buf)));
+    }
+#endif
+
+    if (until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_UNKNOWN)
+    {
+      /*
+        We have no cached comparison results so we should compare log names
+        and cache result.
+        If we are after RESET SLAVE, and the SQL slave thread has not processed
+        any event yet, it could be that group_master_log_name is "". In that case,
+        just wait for more events (as there is no sensible comparison to do).
+      */
+
+      if (*log_name)
+      {
+        const char *basename= log_name + dirname_length(log_name);
+
+        const char *q= (const char*)(fn_ext(basename)+1);
+        if (strncmp(basename, until_log_name, (int)(q-basename)) == 0)
+        {
+          /* Now compare extensions. */
+          char *q_end;
+          ulong log_name_extension= strtoul(q, &q_end, 10);
+          if (log_name_extension < until_log_name_extension)
+            until_log_names_cmp_result= UNTIL_LOG_NAMES_CMP_LESS;
+          else
+            until_log_names_cmp_result=
+              (log_name_extension > until_log_name_extension) ?
+              UNTIL_LOG_NAMES_CMP_GREATER : UNTIL_LOG_NAMES_CMP_EQUAL ;
+        }
+        else
+        {
+          /* Probably error so we aborting */
+          sql_print_error("%s", error_msg);
+          DBUG_RETURN(TRUE);
+        }
+      }
+      else
+        DBUG_RETURN(until_log_pos == 0);
+    }
+
+    DBUG_RETURN(((until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_EQUAL &&
+             log_pos >= until_log_pos) ||
+            until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_GREATER));
+  }
+  else if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
+  {
+    global_sid_lock.wrlock();
+    if (until_gtids_obj._remove_gtid(((Gtid_log_event *)(ev))->get_sidno(false),
+                                     ((Gtid_log_event *)(ev))->get_gno())
+        != RETURN_STATUS_OK || until_gtids_obj.is_empty())
+    {
+      global_sid_lock.unlock();
+      DBUG_RETURN(true);
+    }
+
+#ifndef DBUG_OFF
+    char* buffer= NULL;
+    if (!(buffer= (char *) my_malloc(until_gtids_obj.get_string_length() + 1,
+                                     MYF(MY_WME))))
+    {
+      global_sid_lock.unlock();
+      DBUG_RETURN(true);
+    }
+    else
+    {
+      until_gtids_obj.to_string(buffer);
+      DBUG_PRINT("info", ("Waiting for %s to be processed.", buffer));
+      my_free(buffer);
+    }
+#endif
+    global_sid_lock.unlock();
   }
 
-  DBUG_RETURN(((until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_EQUAL &&
-           log_pos >= until_log_pos) ||
-          until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_GREATER));
+  DBUG_RETURN(false);
 }
-
 
 void Relay_log_info::cached_charset_invalidate()
 {
@@ -1098,7 +1283,7 @@ int Relay_log_info::stmt_done(my_off_t event_master_log_pos)
       error= mts_checkpoint_routine(this, 0, FALSE, FALSE);
     }
     if (!error)
-      error= inc_group_relay_log_pos(event_master_log_pos);
+      error= inc_group_relay_log_pos(event_master_log_pos, false);
   }
 
   return error;
@@ -1388,14 +1573,43 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
 
     relay_log.is_relay_log= TRUE;
 
+    if (relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE))
+    {
+      sql_print_error("Failed in open_index_file() called from Relay_log_info::init_info().");
+      DBUG_RETURN(1);
+    }
+#ifndef DBUG_OFF
+    global_sid_lock.wrlock();
+    gtid_set.dbug_print("set of GTIDs in relay log before initialization");
+    global_sid_lock.unlock();
+#endif
+    if (!current_thd &&
+        relay_log.init_gtid_sets(&gtid_set, NULL,
+                                 opt_slave_sql_verify_checksum,
+                                 true/*true=need lock*/))
+    {
+      sql_print_error("Failed in init_gtid_sets() called from Relay_log_info::init_info().");
+      DBUG_RETURN(1);
+    }
+#ifndef DBUG_OFF
+    global_sid_lock.wrlock();
+    gtid_set.dbug_print("set of GTIDs in relay log after initialization");
+    global_sid_lock.unlock();
+#endif
+    /*
+      Configures what object is used by the current log to store processed
+      gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
+      corretly compute the set of previous gtids.
+    */
+    relay_log.set_previous_gtid_set(&gtid_set);
     /*
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
     */
-    if (relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE) ||
-        relay_log.open(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
-                       (max_relay_log_size ? max_relay_log_size :
-                        max_binlog_size), 1, TRUE))
+    if (relay_log.open_binlog(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
+                              (max_relay_log_size ? max_relay_log_size :
+                               max_binlog_size), 1,
+                              true/*need mutex*/, true/*need sid_lock*/))
     {
       sql_print_error("Failed in open_log() called from Relay_log_info::init_info().");
       DBUG_RETURN(1);
@@ -1748,11 +1962,3 @@ bool Relay_log_info::write_info(Rpl_info_handler *to)
 
   DBUG_RETURN(FALSE);
 }
-
-
-THD* mts_get_coordinator_thd()
-{
-  return (!active_mi || !active_mi->rli || !active_mi->rli->is_parallel_exec()) ?
-    NULL : active_mi->rli->info_thd;
-}
-

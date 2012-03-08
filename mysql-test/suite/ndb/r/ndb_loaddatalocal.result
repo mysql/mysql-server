@@ -1,0 +1,46 @@
+DROP TABLE IF EXISTS t1;
+create table t1(a int) engine=myisam;
+select * into outfile 'MYSQLD_DATADIR/ndb_loaddatalocal.select_outfile' from t1;
+drop table t1;
+create table t1(a int) engine=ndb;
+load data local infile 'MYSQLD_DATADIR/ndb_loaddatalocal.select_outfile' into table t1;
+select count(*) from t1;
+count(*)
+10000
+drop table t1;
+create table t1(a int) engine=myisam;
+insert into t1 values (1), (2), (2), (3);
+select * into outfile 'MYSQLD_DATADIR/ndb_loaddatalocal.select_outfile' from t1;
+drop table t1;
+create table t1(a int primary key) engine=ndb;
+load data local infile 'MYSQLD_DATADIR/ndb_loaddatalocal.select_outfile' into table t1;
+select * from t1 order by a;
+a
+1
+2
+3
+drop table t1;
+create table t1(a int) engine=myisam;
+insert into t1 values (1), (1), (2), (3);
+select * into outfile 'MYSQLD_DATADIR/ndb_loaddatalocal.select_outfile' from t1;
+drop table t1;
+create table t1(a int primary key) engine=ndb;
+load data local infile 'MYSQLD_DATADIR/ndb_loaddatalocal.select_outfile' into table t1;
+select * from t1 order by a;
+a
+1
+2
+3
+drop table t1;
+create table t1(a int) engine=myisam;
+insert into t1 values (1), (2), (3), (3);
+select * into outfile 'MYSQLD_DATADIR/ndb_loaddatalocal.select_outfile' from t1;
+drop table t1;
+create table t1(a int primary key) engine=ndb;
+load data local infile 'MYSQLD_DATADIR/ndb_loaddatalocal.select_outfile' into table t1;
+select * from t1 order by a;
+a
+1
+2
+3
+drop table t1;

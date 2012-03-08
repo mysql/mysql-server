@@ -180,7 +180,7 @@ explain extended
 select * from t1 where (a1, a2) in (select b1, b2 from t2 order by b1, b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`)))))
 select * from t1 where (a1, a2) in (select b1, b2 from t2 order by b1, b2);
@@ -349,7 +349,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 9	SUBQUERY	t3i	index	NULL	it3i3	18	NULL	4	100.00	Using where; Using index
 10	SUBQUERY	t2i	index	it2i2	it2i3	18	NULL	5	100.00	Using where; Using index
 8	SUBQUERY	t2i	index	it2i1,it2i3	it2i3	18	NULL	5	100.00	Using where; Using index
-NULL	UNION RESULT	<union1,7>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
+NULL	UNION RESULT	<union1,7>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	(/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`)))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`))))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#5 */ select `test`.`t3`.`c1`,`test`.`t3`.`c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#6 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on distinct_key where ((`test`.`t3`.`c1` = `materialized subselect`.`b1`) and (`test`.`t3`.`c2` = `materialized subselect`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`c1`) and (`test`.`t1`.`a2` = `materialized subselect`.`c2`))))))) union (/* select#7 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where (<in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#8 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on distinct_key where ((`test`.`t1i`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1i`.`a2` = `materialized subselect`.`b2`))))) and <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#9 */ select `test`.`t3i`.`c1`,`test`.`t3i`.`c2` from `test`.`t3i` where <in_optimizer>((`test`.`t3i`.`c1`,`test`.`t3i`.`c2`),(`test`.`t3i`.`c1`,`test`.`t3i`.`c2`) in ( <materialize> (/* select#10 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3i`.`c1` in <temporary table> on distinct_key where ((`test`.`t3i`.`c1` = `materialized subselect`.`b1`) and (`test`.`t3i`.`c2` = `materialized subselect`.`b2`))))) ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on distinct_key where ((`test`.`t1i`.`a1` = `materialized subselect`.`c1`) and (`test`.`t1i`.`a2` = `materialized subselect`.`c2`)))))))
 (select * from t1
@@ -378,7 +378,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 5	SUBQUERY	t2i	index	it2i2	it2i3	18	NULL	5	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT UNION	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select `test`.`t1`.`a1`,`test`.`t1`.`a2` from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union /* select#3 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#4 */ select `test`.`t3`.`c1`,`test`.`t3`.`c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#5 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on distinct_key where ((`test`.`t3`.`c1` = `materialized subselect`.`b1`) and (`test`.`t3`.`c2` = `materialized subselect`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`c1`) and (`test`.`t1`.`a2` = `materialized subselect`.`c2`))))))
 select * from t1
@@ -401,7 +401,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 5	SUBQUERY	t2i	index	it2i2	it2i3	18	NULL	5	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT UNION	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`c1` = `test`.`t1`.`a1`) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select `test`.`t1`.`a1`,`test`.`t1`.`a2` from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union /* select#3 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#4 */ select `test`.`t3`.`c1`,`test`.`t3`.`c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#5 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on distinct_key where ((`test`.`t3`.`c1` = `materialized subselect`.`b1`) and (`test`.`t3`.`c2` = `materialized subselect`.`b2`))))) ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on distinct_key where ((`test`.`t3`.`c1` = `materialized subselect`.`c1`) and (`test`.`t3`.`c2` = `materialized subselect`.`c2`))))))
 select * from t1, t3
@@ -423,7 +423,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT UNION	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`c1`,<exists>(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t3`.`c1`) = `test`.`t1`.`a1`)) union /* select#3 */ select 1 from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t3`.`c1`) = `test`.`t2`.`b1`))))
 select * from t3
@@ -485,7 +485,7 @@ insert into columns values (1), (2);
 explain extended
 select * from t1 group by (select col from columns limit 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	SUBQUERY	columns	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` group by (/* select#2 */ select `test`.`columns`.`col` from `test`.`columns` limit 1)
@@ -506,7 +506,7 @@ a1	a2
 explain extended
 select * from t1 order by (select col from columns limit 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	SUBQUERY	columns	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` order by (/* select#2 */ select `test`.`columns`.`col` from `test`.`columns` limit 1)
@@ -532,7 +532,7 @@ from t1bit
 where (a1, a2) in (select b1, b2 from t2bit);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1bit	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2bit	ALL	NULL	NULL	NULL	NULL	3	100.00	
+2	SUBQUERY	t2bit	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select conv(`test`.`t1bit`.`a1`,10,2) AS `bin(a1)`,conv(`test`.`t1bit`.`a2`,10,2) AS `bin(a2)` from `test`.`t1bit` where <in_optimizer>((`test`.`t1bit`.`a1`,`test`.`t1bit`.`a2`),(`test`.`t1bit`.`a1`,`test`.`t1bit`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2bit`.`b1`,`test`.`t2bit`.`b2` from `test`.`t2bit` ), <primary_index_lookup>(`test`.`t1bit`.`a1` in <temporary table> on distinct_key where ((`test`.`t1bit`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1bit`.`a2` = `materialized subselect`.`b2`)))))
 select bin(a1), bin(a2)
@@ -732,7 +732,7 @@ insert into t1 values ('aa', 'aaaa');
 explain select a,b from t1 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 select a,b from t1 where b in (select a from t1);
 a	b
 prepare st1 from "select a,b from t1 where b in (select a from t1)";
@@ -756,13 +756,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 ALTER TABLE t1 ADD INDEX(a);
+FLUSH STATUS;
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 a	b
 BBB	4
 CCC	7
 AAA	8
-EXPLAIN
-SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+Variable_name	Value
+Sort_scan	1
+EXPLAIN SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
@@ -772,7 +775,7 @@ INSERT INTO t1 VALUES (1),(2);
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where <in_optimizer>(1,1 in ( <materialize> (/* select#2 */ select 1 from `test`.`t1` ), <primary_index_lookup>(1 in <temporary table> on distinct_key where ((1 = `materialized subselect`.`1`)))))
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 WHERE a > 3 GROUP BY a);
@@ -808,10 +811,10 @@ GROUP BY t3i
 )  
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
 DROP TABLE t1,t2,t3,t4;
 #
 # BUG#46680 - Assertion failed in file item_subselect.cc, 
@@ -855,7 +858,7 @@ SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'j'
 
@@ -881,7 +884,7 @@ SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 
 #
 # 3) Test that subquery materialization is setup for query with
@@ -905,7 +908,7 @@ SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 
 #
 # 4) Test that subquery materialization is setup for query with
@@ -928,7 +931,7 @@ SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
-3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 
 #
@@ -954,7 +957,7 @@ SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
-3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 #
 # Cleanup for BUG#46680
@@ -972,7 +975,7 @@ CREATE TABLE t3 (k INTEGER);
 EXPLAIN
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
@@ -981,7 +984,7 @@ i	j
 EXPLAIN
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
@@ -1090,7 +1093,7 @@ explain SELECT a FROM (
 SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
 ) table1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT a FROM (
@@ -1118,9 +1121,9 @@ INSERT INTO t2 VALUES (10,0),(11,0);
 explain SELECT * FROM t1 JOIN t2 USING (f1)
 WHERE t1.f1 IN (SELECT t1.pk FROM t1 ORDER BY t1.f1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 JOIN t2 USING (f1)
 WHERE t1.f1 IN (SELECT t1.pk FROM t1 ORDER BY t1.f1);
 f1	pk	pk
@@ -1191,7 +1194,7 @@ INSERT INTO t2 values(1),(2);
 EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT * FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 FLUSH STATUS;
 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2);
 a
@@ -1224,7 +1227,7 @@ explain SELECT STRAIGHT_JOIN *
 FROM t1 LEFT JOIN t2 ON t1.col_varchar_nokey IN (SELECT col_varchar_nokey
 FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT STRAIGHT_JOIN *
@@ -1277,9 +1280,10 @@ GROUP BY col_int_key
 HAVING COUNT(*) > 0
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	table1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	table1	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	table2	const	PRIMARY	PRIMARY	4	const	1	Using where
 2	SUBQUERY	innr	ALL	NULL	NULL	NULL	NULL	2	Using where; Using temporary; Using filesort
+FLUSH STATUS;
 SELECT table1.pk, table2.pk
 FROM t2 AS table1 LEFT JOIN t2 AS table2
 ON table2.pk = table1.pk AND
@@ -1292,6 +1296,9 @@ HAVING COUNT(*) > 0
 );
 pk	pk
 1	NULL
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+Variable_name	Value
+Sort_scan	1
 DROP TABLE t1, t2;
 # End of test for bug#13607423.
 
@@ -1307,8 +1314,8 @@ Test in SELECT list
 cols not nullable => subq materialization
 explain extended select a, (a,a) in (select a,a from t2) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`a`),(`test`.`t1`.`a`,`test`.`t1`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`a`,`test`.`t2`.`a` from `test`.`t2` ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized subselect`.`a`) and (`test`.`t1`.`a` = `materialized subselect`.`a`))))) AS `(a,a) in (select a,a from t2)` from `test`.`t1`
 select a, (a,a) in (select a,a from t2) from t1;
@@ -1320,9 +1327,9 @@ cols not nullable => subq materialization
 explain extended select t1.a, t2.a, (t1.a,t1.a) in (select a,a from t2 as t3)
 from t1 join t2 on t1.a+t2.a=1000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`a`),(`test`.`t1`.`a`,`test`.`t1`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t3`.`a`,`test`.`t3`.`a` from `test`.`t2` `t3` ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized subselect`.`a`) and (`test`.`t1`.`a` = `materialized subselect`.`a`))))) AS `(t1.a,t1.a) in (select a,a from t2 as t3)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)
 select t1.a, t2.a, (t1.a,t1.a) in (select a,a from t2 as t3)
@@ -1334,7 +1341,7 @@ as it's in an outer join. So, no materialization.
 explain extended select t1.a, t2.a, (t2.a,t2.a) in (select a,a from t2 as t3)
 from t1 left join t2 on t1.a+t2.a=1000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
@@ -1350,7 +1357,7 @@ two nullable inner cols => no subq materialization
 explain extended select t1.a, t2.a, (t1.a,t1.a) in (select a,a from t2 as t3)
 from t1 join t2 on t1.a+t2.a=1000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
@@ -1370,9 +1377,9 @@ explain extended select t1.a, t2.a
 from t1 join t2 on t1.a+t2.a=3
 where (t2.a,t2.a) in (select a,a from t2 as t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),(`test`.`t2`.`a`,`test`.`t2`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t3`.`a`,`test`.`t3`.`a` from `test`.`t2` `t3` ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on distinct_key where ((`test`.`t2`.`a` = `materialized subselect`.`a`) and (`test`.`t2`.`a` = `materialized subselect`.`a`))))) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3))
 select t1.a, t2.a
@@ -1387,9 +1394,9 @@ explain extended select t1.a, t2.a
 from t1 join t2 on t1.a+t2.a=3
 where (t2.a,t2.a) not in (select a,a from t2 as t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where ((not(<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),(`test`.`t2`.`a`,`test`.`t2`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t3`.`a`,`test`.`t3`.`a` from `test`.`t2` `t3` ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on distinct_key where ((`test`.`t2`.`a` = `materialized subselect`.`a`) and (`test`.`t2`.`a` = `materialized subselect`.`a`))))))) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3))
 select t1.a, t2.a
@@ -1409,8 +1416,8 @@ insert into t2 values(1),(2);
 one col => subq materialization
 explain extended select a, a in (select a from t2) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized subselect`.`a`))))) AS `a in (select a from t2)` from `test`.`t1`
 select a, a in (select a from t2) from t1;
@@ -1424,9 +1431,9 @@ materialization is possible
 explain extended select t1.a, t2.a, t2.a in (select * from t2 as t3)
 from t1 left join t2 on t1.a+t2.a=1000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t3`.`a` from `test`.`t2` `t3` ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on distinct_key where ((`test`.`t2`.`a` = `materialized subselect`.`a`))))) AS `t2.a in (select * from t2 as t3)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)) where 1
 select t1.a, t2.a, t2.a in (select * from t2 as t3)
@@ -1439,7 +1446,7 @@ _two_ outer columns, nullable => no materialization
 explain extended select t1.a, t2.a, (t2.a,t2.a) in (select a,a from t2 as t3)
 from t1 left join t2 on t1.a+t2.a=1000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
@@ -1461,7 +1468,7 @@ explain extended select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `sum(t1.b)` from `test`.`t1` group by `test`.`t1`.`a` having isnull(<in_optimizer>(`z`,`z` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` ), <primary_index_lookup>(`z` in <temporary table> on distinct_key where ((`z` = `materialized subselect`.`a`))))))
 select t1.a as z, sum(t1.b) from t1 group by t1.a
@@ -1473,7 +1480,7 @@ explain extended select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary; Using filesort
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `sum(t1.b)` from `test`.`t1` group by `test`.`t1`.`a` having isnull(<in_optimizer>(`z`,`z` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` ), <primary_index_lookup>(`z` in <temporary table> on distinct_key where ((`z` = `materialized subselect`.`a`))))))
 select t1.a as z, sum(t1.b) from t1 group by t1.a
@@ -1486,7 +1493,7 @@ explain extended select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary; Using filesort
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `sum(t1.b)` from `test`.`t1` group by `test`.`t1`.`a` having isnull(<in_optimizer>(`z`,`z` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` ), <primary_index_lookup>(`z` in <temporary table> on distinct_key where ((`z` = `materialized subselect`.`a`))))))
 select t1.a as z, sum(t1.b) from t1 group by t1.a
@@ -1501,7 +1508,7 @@ explain extended select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `sum(t1.b)` from `test`.`t1` group by `test`.`t1`.`a` having isnull(<in_optimizer>(`z`,`z` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` ), <primary_index_lookup>(`z` in <temporary table> on distinct_key where ((`z` = `materialized subselect`.`a`))))))
 select t1.a as z, sum(t1.b) from t1 group by t1.a
@@ -1520,8 +1527,8 @@ insert into t1 select * from t1;
 insert into t2 values(10),(20),(NULL);
 explain extended select a, (a in (select * from t2)) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	12	100.00	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized subselect`.`a`))))) AS `(a in (select * from t2))` from `test`.`t1`
 flush status;
@@ -1604,7 +1611,7 @@ a
 EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT * FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	7	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 EXPLAIN UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	7	Using where
@@ -1640,12 +1647,12 @@ UPDATE t2 SET a=3 WHERE a=0;
 # Used for multi-table UPDATE, DELETE:
 EXPLAIN SELECT * FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 EXPLAIN UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
@@ -1659,7 +1666,7 @@ a
 4
 EXPLAIN DELETE t2.* FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 DELETE t2.* FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
@@ -1688,7 +1695,7 @@ insert into t2 values('aa'), ('aa');
 explain select * from t1 where a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 flush status;
 select * from t1 where a in (select a from t2);
 a
@@ -1745,10 +1752,10 @@ ON (INNR2.col_int_key >= INNR.pk)
 XOR OUTR.pk < 6
 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	OUTR	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	OUTR	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	OUTR2	ALL	NULL	NULL	NULL	NULL	5	Using where
-2	SUBQUERY	INNR2	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	INNR	system	PRIMARY	NULL	NULL	NULL	1	
+2	SUBQUERY	INNR2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	INNR	system	PRIMARY	NULL	NULL	NULL	1	NULL
 FLUSH STATUS;
 SELECT OUTR.pk, OUTR.col_varchar_nokey, OUTR2.col_varchar_nokey
 FROM t2 AS OUTR2
@@ -1774,5 +1781,43 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	9
 DROP TABLE t1,t2,t3,t4;
+#
+# Bug#13727407: Assert !item->const_item() || !item->not_null_tables()
+#
+CREATE TABLE t1 (
+col_int_key INT,
+KEY col_int_key (col_int_key)
+);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (
+col_int_key INT,
+col_time_key TIME,
+col_datetime_nokey DATETIME,
+KEY col_int_key (col_int_key),
+KEY col_time_key (col_time_key)
+);
+INSERT INTO t2 VALUES
+(7,'14:03:03','2001-11-28 00:50:27'), (1,'01:46:09','2007-10-09 19:53:04');
+EXPLAIN SELECT col_datetime_nokey AS x
+FROM t2 AS outr
+WHERE col_int_key IN (
+SELECT STRAIGHT_JOIN col_int_key
+FROM t1
+) AND outr.col_int_key = 0
+HAVING x = '2000-09-09'
+ORDER BY col_time_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	outr	ref	col_int_key	col_int_key	5	const	1	Using where; Using filesort
+2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+SELECT col_datetime_nokey AS x
+FROM t2 AS outr
+WHERE col_int_key IN (
+SELECT STRAIGHT_JOIN col_int_key
+FROM t1
+) AND outr.col_int_key = 0
+HAVING x = '2000-09-09'
+ORDER BY col_time_key;
+x
+DROP TABLE t1, t2;
 # End of 5.6 tests
 set optimizer_switch=default;

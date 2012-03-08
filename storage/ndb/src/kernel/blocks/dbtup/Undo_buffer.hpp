@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2005-2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef __UNDO_BUFFER_HPP
 #define __UNDO_BUFFER_HPP
@@ -21,7 +24,7 @@
 
 struct Undo_buffer 
 {
-  Undo_buffer(class Dbtup*);
+  Undo_buffer(class Ndbd_mem_manager*);
   
   /**
    * Alloc space for a copy tuple of size <em>words</em>
@@ -46,10 +49,10 @@ struct Undo_buffer
   /**
    * Get pointer to copy tuple
    */
-  Uint32 * get_ptr(Local_key* key);
+  Uint32 * get_ptr(const Local_key* key);
   
 private:
-  class Dbtup* m_tup;
+  class Ndbd_mem_manager* m_mm;
   Uint32 m_first_free;
 };
 

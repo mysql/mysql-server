@@ -27,6 +27,8 @@
    Only such indexes are involved in range analysis.
 */
 
+#include "opt_explain_format.h"
+
 typedef struct st_sargable_param
 {
   Field *field;              /* field against which to check sargability */
@@ -43,7 +45,6 @@ typedef struct st_rollup
   List<Item> *fields;
 } ROLLUP;
 
-
 class JOIN :public Sql_alloc
 {
   JOIN(const JOIN &rhs);                        /**< not implemented */
@@ -51,7 +52,13 @@ class JOIN :public Sql_alloc
 public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
-  JOIN_TAB *join_tab_save; ///< saved join_tab for subquery reexecution
+  /**
+    Saved join_tab for:
+     1) subquery reexecution and
+     2) for EXPLAIN to backup join_tabs before and restore after JOIN::execute()
+        call that may substitute data with intermediate values.
+  */
+  JOIN_TAB *join_tab_save;
   TABLE    **table,**all_tables;
   /*
     The table which has an index that allows to produce the requried ordering.
@@ -187,6 +194,19 @@ public:
     GROUP/ORDER BY.
   */
   bool simple_order, simple_group;
+
+  /*
+    ordered_index_usage is set if an ordered index access
+    should be used instead of a filesort when computing 
+    ORDER/GROUP BY.
+  */
+  enum
+  {
+    ordered_index_void,       // No ordered index avail.
+    ordered_index_group_by,   // Use index for GROUP BY
+    ordered_index_order_by    // Use index for ORDER BY
+  } ordered_index_usage;
+
   /**
     Is set only in case if we have a GROUP BY clause
     and no ORDER BY after constant elimination of 'order'.
@@ -208,7 +228,100 @@ public:
   List<Item> procedure_fields_list;
   int error;
 
-  ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
+  ORDER *proc_param; //hold parameters of mysql_select
+
+  /**
+    Wrapper for ORDER* pointer to trace origins of ORDER list 
+    
+    As far as ORDER is just a head object of ORDER expression
+    chain, we need some wrapper object to associate flags with
+    the whole ORDER list.
+  */
+  class ORDER_with_src
+  {
+    /**
+      Private empty class to implement type-safe NULL assignment
+
+      This private utility class allows us to implement a constructor
+      from NULL and only NULL (or 0 -- this is the same thing) and
+      an assignment operator from NULL.
+      Assignments from other pointers still prohibited since other
+      pointer types are incompatible with the "null" type, and the
+      casting is impossible outside of ORDER_with_src class, since
+      the "null" type is private.
+    */
+    struct null {};
+
+  public:
+    ORDER *order;  //< ORDER expression that we are wrapping with this class
+    Explain_sort_clause src; //< origin of order list
+
+  private:
+    int flags; //< bitmap of Explain_sort_property
+
+  public:
+    ORDER_with_src() { clean(); }
+
+    ORDER_with_src(ORDER *order_arg, Explain_sort_clause src_arg)
+    : order(order_arg), src(src_arg), flags(order_arg ? ESP_EXISTS : ESP_none)
+    {}
+
+    /**
+      Type-safe NULL assignment
+
+      See a commentary for the "null" type above.
+    */
+    ORDER_with_src &operator=(null *) { clean(); return *this; }
+
+    /**
+      Type-safe constructor from NULL
+
+      See a commentary for the "null" type above.
+    */
+    ORDER_with_src(null *) { clean(); }
+
+    /**
+      Transparent access to the wrapped order list
+
+      These operators are safe, since we don't do any conversion of
+      ORDER_with_src value, but just an access to the wrapped
+      ORDER pointer value. 
+      We can use ORDER_with_src objects instead ORDER pointers in
+      a transparent way without accessor functions.
+
+      @note     This operator also implements safe "operator bool()"
+                functionality.
+    */
+    operator       ORDER *()       { return order; }
+    operator const ORDER *() const { return order; }
+
+    void clean() { order= NULL; src= ESC_none; flags= ESP_none; }
+
+    void set_flag(Explain_sort_property flag)
+    {
+      DBUG_ASSERT(order);
+      flags|= flag;
+    }
+    void reset_flag(Explain_sort_property flag) { flags&= ~flag; }
+    bool get_flag(Explain_sort_property flag) const {
+      DBUG_ASSERT(order);
+      return flags & flag;
+    }
+    int get_flags() const { DBUG_ASSERT(order); return flags; }
+  };
+
+  /**
+    ORDER BY and GROUP BY lists, to transform with prepare,optimize and exec
+  */
+  ORDER_with_src order, group_list;
+
+  /**
+    Buffer to gather GROUP BY, ORDER BY and DISTINCT QEP details for EXPLAIN
+    These are exactly same flags, but explain flags are used for explain,
+    while exec_flags are (destructively) checked by executor.
+  */
+  Explain_format_flags explain_flags, exec_flags;
+
   /** 
     JOIN::having is initially equal to select_lex->having, but may
     later be changed by optimizations performed by JOIN.
@@ -323,6 +436,7 @@ public:
     no_order= 0;
     simple_order= 0;
     simple_group= 0;
+    ordered_index_usage= ordered_index_void;
     skip_sort_order= 0;
     need_tmp= 0;
     hidden_group_fields= 0; /*safety*/
@@ -425,6 +539,7 @@ public:
   void cleanup(bool full);
   void clear();
   bool save_join_tab();
+  void restore_join_tab();
   bool init_save_join_tab();
   /**
     Return whether the caller should send a row even if the join 
@@ -468,6 +583,12 @@ private:
                   copy. @c NULL, otherwise
   */
   void execute(JOIN *parent);
+  /**
+    Send current query result set to the client. To be called from JOIN::execute
+
+    @note       Explain skips this call during JOIN::execute() execution
+  */
+  void send_data();
   
   /**
     Create a temporary table to be used for processing DISTINCT/ORDER
@@ -485,8 +606,12 @@ private:
     @returns Pointer to temporary table on success, NULL on failure
   */
   TABLE* create_intermediate_table(List<Item> *tmp_table_fields,
-                                   ORDER *tmp_table_group, bool save_sum_fields);
-
+                                   ORDER_with_src &tmp_table_group, bool save_sum_fields);
+  /**
+    Create the first temporary table to be used for processing DISTINCT/ORDER
+    BY/GROUP BY.
+  */
+  bool create_first_intermediate_table();
   /**
     Optimize distinct when used on a subset of the tables.
 
@@ -504,6 +629,7 @@ private:
   void cleanup_item_list(List<Item> &items) const;
   void set_semijoin_info();
   bool set_access_methods();
+  void init_tmp_tables_info();
 };
 
 

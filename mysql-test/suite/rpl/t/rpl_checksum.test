@@ -186,6 +186,7 @@ select count(*) as 'must be zero' from t2;
 connection slave;
 stop slave;
 reset slave;
+reset master;
 
 # randomize slave server's own checksum policy
 set @@global.binlog_checksum= IF(floor((rand()*1000)%2), "CRC32", "NONE");

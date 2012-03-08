@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1817,7 +1817,7 @@ bool close_temporary_tables(THD *thd)
       thd->variables.character_set_client= cs_save;
 
       thd->get_stmt_da()->set_overwrite_status(true);
-      if ((error= (mysql_bin_log.write(&qinfo) || error)))
+      if ((error= (mysql_bin_log.write_event(&qinfo) || error)))
       {
         /*
           If we're here following THD::cleanup, thence the connection
@@ -2871,6 +2871,14 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
   {
+    /* Check if we're trying to take a write lock in a read only transaction. */
+    if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
+        thd->tx_read_only)
+    {
+      my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
+      DBUG_RETURN(true);
+    }
+
     /*
       We are not under LOCK TABLES and going to acquire write-lock/
       modify the base table. We need to acquire protection against
@@ -4771,6 +4779,13 @@ lock_table_names(THD *thd,
       continue;
     }
 
+    /* Write lock on normal tables is not allowed in a read only transaction. */
+    if (thd->tx_read_only)
+    {
+      my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
+      return true;
+    }
+
     if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && schema_set.insert(table))
       return TRUE;
 
@@ -6084,6 +6099,13 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                                       strlen(path)+1 + key_length,
                                       MYF(MY_WME))))
     DBUG_RETURN(0);				/* purecov: inspected */
+
+#ifndef DBUG_OFF
+  mysql_mutex_lock(&LOCK_open);
+  DBUG_ASSERT(!my_hash_search(&table_def_cache, (uchar*) cache_key,
+                              key_length));
+  mysql_mutex_unlock(&LOCK_open);
+#endif
 
   share= (TABLE_SHARE*) (tmp_table+1);
   tmp_path= (char*) (share+1);

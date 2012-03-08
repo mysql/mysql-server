@@ -1,0 +1,7 @@
+# Test does not need to run with embedded
+# since mysqld/libmysqld is not involved
+--source include/not_embedded.inc
+
+let NDBAPITEST_NAME=testMgmd;
+--source suite/ndb/include/run_ndbapitest.inc
+

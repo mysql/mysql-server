@@ -539,7 +539,7 @@ bool String::append_with_prefill(const char *s,uint32 arg_length,
   return FALSE;
 }
 
-uint32 String::numchars()
+uint32 String::numchars() const
 {
   return str_charset->cset->numchars(str_charset, Ptr, Ptr+str_length);
 }

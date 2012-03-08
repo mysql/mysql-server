@@ -1916,7 +1916,7 @@ bool Old_rows_log_event::write_data_body(IO_CACHE*file)
 
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-void Old_rows_log_event::pack_info(Protocol *protocol)
+int Old_rows_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
   char const *const flagstr=
@@ -1924,6 +1924,7 @@ void Old_rows_log_event::pack_info(Protocol *protocol)
   size_t bytes= my_snprintf(buf, sizeof(buf),
                                "table_id: %lu%s", m_table_id, flagstr);
   protocol->store(buf, bytes, &my_charset_bin);
+  return 0;
 }
 #endif
 

@@ -5822,3 +5822,71 @@ flush status;
 eval $query;
 show status like "handler_read%";
 drop table t1,t2;
+
+--echo #
+--echo # Bug#13735980 Difference in number of rows when using subqueries
+--echo #
+
+CREATE TABLE m (c1 VARCHAR(1), c2 INTEGER, c3 INTEGER);
+INSERT INTO m VALUES ('',6,8), ('',75,NULL);
+
+CREATE TABLE o (c1 VARCHAR(1));
+INSERT INTO o VALUES ('S'), ('S'), ('S');
+
+CREATE VIEW v1 AS
+SELECT m.c1 AS c1,m.c2 AS c2,m.c3 AS c3 FROM m;
+
+CREATE VIEW v2 AS
+SELECT o.c1 AS c1 FROM o;
+
+SELECT t1.c3
+FROM v1 AS t1 JOIN v2 AS t2 ON t1.c1 < t2.c1
+WHERE t1.c3 BETWEEN 2 AND 6 OR
+      (t1.c3 IN(4) AND t1.c3 <> 2) OR t1.c2 >= 8;
+
+CREATE TABLE integers (i1 INTEGER);
+INSERT IGNORE INTO integers VALUES (2),(4),(6),(8);
+
+SELECT t1.c3
+FROM v1 AS t1 JOIN v2 AS t2 ON t1.c1 < t2.c1
+WHERE t1.c3 BETWEEN (SELECT i1 FROM integers WHERE i1 = 2) AND
+                    (SELECT i1 FROM integers WHERE i1 = 6)  OR
+      t1.c3 IN((SELECT i1 FROM integers WHERE i1 = 4)) AND
+      t1.c3 <>(SELECT i1 FROM integers WHERE i1 = 2) OR
+      t1.c2 >=(SELECT i1 FROM integers WHERE i1 = 8);
+
+# Outcome is unaffected when replacing views with tables:
+
+SELECT t1.c3
+FROM m AS t1 JOIN o AS t2 ON t1.c1 < t2.c1
+WHERE t1.c3 BETWEEN (SELECT i1 FROM integers WHERE i1 = 2) AND
+                    (SELECT i1 FROM integers WHERE i1 = 6)  OR
+      t1.c3 IN((SELECT i1 FROM integers WHERE i1 = 4)) AND
+      t1.c3 <>(SELECT i1 FROM integers WHERE i1 = 2) OR
+      t1.c2 >=(SELECT i1 FROM integers WHERE i1 = 8);
+
+DROP VIEW v1, v2;
+DROP TABLE m, o, integers;
+
+--echo #
+--echo # Bug #13736664 RIGHT JOIN+WHERE QUERY GIVES DIFF RESULTS WHEN USING
+--echo # SELECT * SUBQ FOR TABLES
+--echo #
+
+CREATE TABLE t1(a INT, b CHAR(1));
+INSERT INTO t1 VALUES (NULL, 'x');
+
+CREATE TABLE t2(c INT, d CHAR(1));
+INSERT INTO t2 VALUES (NULL, 'y'), (9, 'z');
+
+SELECT d
+FROM t2 AS a2 RIGHT JOIN t1 AS a1 ON c = a
+WHERE d LIKE '_'
+ORDER BY d;
+
+SELECT d
+FROM (SELECT * FROM t2) AS a2 RIGHT JOIN (SELECT * FROM t1) AS a1 ON c = a
+WHERE d LIKE '_'
+ORDER BY d;
+
+DROP TABLE t1, t2;

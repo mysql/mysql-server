@@ -194,3 +194,36 @@ create fulltext index `FTS_DOC_ID_INDEX` on `articles`(`a`);
 create unique index `a` on `articles`(`a`);
 
 drop table articles;
+
+# We will check validity of FTS_DOC_ID, which must be of an UNSIGNED
+# NOT NULL bigint 
+CREATE TABLE wp(
+   FTS_DOC_ID bigint PRIMARY KEY,
+   title VARCHAR(255) NOT NULL DEFAULT '',
+   text MEDIUMTEXT NOT NULL ) ENGINE=InnoDB;
+
+INSERT INTO wp (FTS_DOC_ID, title, text) VALUES
+   (1, 'MySQL Tutorial','DBMS stands for DataBase ...'),
+   (2, 'How To Use MySQL Well','After you went through a ...');
+
+--error ER_UNSUPPORTED_EXTENSION
+CREATE FULLTEXT INDEX idx ON wp(title, text);
+
+DROP TABLE wp;
+CREATE TABLE wp(
+   FTS_DOC_ID bigint unsigned PRIMARY KEY,
+   title VARCHAR(255) NOT NULL DEFAULT '',
+   text MEDIUMTEXT NOT NULL ) ENGINE=InnoDB;
+
+INSERT INTO wp (FTS_DOC_ID, title, text) VALUES
+   (1, 'MySQL Tutorial','DBMS stands for DataBase ...'),
+   (2, 'How To Use MySQL Well','After you went through a ...');
+
+CREATE FULLTEXT INDEX idx ON wp(title, text);
+
+SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('database')
+
+FROM wp;
+
+DROP TABLE wp;
+

@@ -176,19 +176,32 @@ dict_stats_update_transient(
 		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
 		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
 			 && dict_index_is_clust(index)))) {
+			mtr_t	mtr;
 			ulint	size;
-			size = btr_get_size(index, BTR_TOTAL_SIZE);
 
-			index->stat_index_size = size;
+			mtr_start(&mtr);
+			mtr_s_lock(dict_index_get_lock(index), &mtr);
 
-			sum_of_index_sizes += size;
+			size = btr_get_size(index, BTR_TOTAL_SIZE, &mtr);
 
-			size = btr_get_size(index, BTR_N_LEAF_PAGES);
+			if (size != ULINT_UNDEFINED) {
+				index->stat_index_size = size;
 
-			if (size == 0) {
+				size = btr_get_size(
+					index, BTR_N_LEAF_PAGES, &mtr);
+			}
+
+			mtr_commit(&mtr);
+
+			switch (size) {
+			case ULINT_UNDEFINED:
+				goto fake_statistics;
+			case 0:
 				/* The root node of the tree is a leaf */
 				size = 1;
 			}
+
+			sum_of_index_sizes += index->stat_index_size;
 
 			index->stat_n_leaf_pages = size;
 
@@ -202,6 +215,7 @@ dict_stats_update_transient(
 			various means, also via secondary indexes. */
 			ulint	i;
 
+fake_statistics:
 			sum_of_index_sizes++;
 			index->stat_index_size = index->stat_n_leaf_pages = 1;
 
@@ -1159,10 +1173,9 @@ dict_stats_analyze_index_for_n_prefix(
 Calculates new statistics for a given index and saves them to the index
 members stat_n_diff_key_vals[], stat_n_sample_sizes[], stat_index_size and
 stat_n_leaf_pages. This function could be slow.
-dict_stats_analyze_index() @{
-@return DB_SUCCESS or error code */
+dict_stats_analyze_index() @{ */
 static
-enum db_err
+void
 dict_stats_analyze_index(
 /*=====================*/
 	dict_index_t*	index)	/*!< in/out: index to analyze */
@@ -1177,21 +1190,42 @@ dict_stats_analyze_index(
 	ib_uint64_t	total_pages;
 	dyn_array_t*	n_diff_boundaries;
 	mtr_t		mtr;
+	ulint		size;
 	ulint		i;
 
 	DEBUG_PRINTF("  %s(index=%s)\n", __func__, index->name);
 
-	index->stat_index_size = btr_get_size(index, BTR_TOTAL_SIZE);
-
-	index->stat_n_leaf_pages = btr_get_size(index, BTR_N_LEAF_PAGES);
-	if (index->stat_n_leaf_pages == 0) {
-		/* The root node of the tree is a leaf */
-		index->stat_n_leaf_pages = 1;
-	}
-
 	mtr_start(&mtr);
 
 	mtr_s_lock(dict_index_get_lock(index), &mtr);
+
+	size = btr_get_size(index, BTR_TOTAL_SIZE, &mtr);
+
+	if (size != ULINT_UNDEFINED) {
+		index->stat_index_size = size;
+		size = btr_get_size(index, BTR_N_LEAF_PAGES, &mtr);
+	}
+
+	switch (size) {
+	case ULINT_UNDEFINED:
+		mtr_commit(&mtr);
+		/* Fake some statistics. */
+		index->stat_index_size = index->stat_n_leaf_pages = 1;
+
+		for (i = dict_index_get_n_unique(index); i; ) {
+			index->stat_n_diff_key_vals[i--] = 1;
+		}
+
+		memset(index->stat_n_non_null_key_vals, 0,
+		       (1 + dict_index_get_n_unique(index))
+		       * sizeof(*index->stat_n_non_null_key_vals));
+		return;
+	case 0:
+		/* The root node of the tree is a leaf */
+		size = 1;
+	}
+
+	index->stat_n_leaf_pages = size;
 
 	root_level = btr_page_get_level(btr_root_get(index, &mtr), &mtr);
 
@@ -1233,7 +1267,7 @@ dict_stats_analyze_index(
 			index->stat_n_sample_sizes[i] = total_pages;
 		}
 
-		return(DB_SUCCESS);
+		return;
 	}
 	/* else */
 
@@ -1383,8 +1417,6 @@ found_level:
 	mem_free(n_diff_boundaries);
 
 	mem_free(n_diff_on_level);
-
-	return(DB_SUCCESS);
 }
 /* @} */
 

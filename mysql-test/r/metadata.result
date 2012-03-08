@@ -21,7 +21,7 @@ def	test	t1	t1	g	g	5	4	0	Y	32768	3	63
 def	test	t1	t1	h	h	246	7	0	Y	32768	4	63
 def	test	t1	t1	i	i	13	4	0	Y	32864	0	63
 def	test	t1	t1	j	j	10	10	0	Y	128	0	63
-def	test	t1	t1	k	k	7	19	0	N	9441	0	63
+def	test	t1	t1	k	k	7	19	0	N	9345	0	63
 def	test	t1	t1	l	l	12	19	0	Y	128	0	63
 def	test	t1	t1	m	m	254	1	0	Y	256	0	8
 def	test	t1	t1	n	n	254	3	0	Y	2048	0	8
@@ -284,7 +284,7 @@ def	test	t1	t1	double_precision_col	double_precision_col	5	22	0	Y	32768	31	63
 def	test	t1	t1	dcol_uns	dcol_uns	5	22	0	Y	32800	31	63
 def	test	t1	t1	date_col	date_col	10	10	0	Y	128	0	63
 def	test	t1	t1	time_col	time_col	11	10	0	Y	128	0	63
-def	test	t1	t1	timestamp_col	timestamp_col	7	19	0	N	9441	0	63
+def	test	t1	t1	timestamp_col	timestamp_col	7	19	0	N	9345	0	63
 def	test	t1	t1	year_col	year_col	13	4	0	Y	32864	0	63
 def	test	t1	t1	datetime_col	datetime_col	12	19	0	Y	128	0	63
 def	test	t1	t1	char_col	char_col	254	5	0	Y	0	0	8
@@ -332,12 +332,12 @@ def	test	t1	t1	dt3	dt3	12	23	0	Y	128	3	63
 def	test	t1	t1	dt2	dt2	12	22	0	Y	128	2	63
 def	test	t1	t1	dt1	dt1	12	21	0	Y	128	1	63
 def	test	t1	t1	dt0	dt0	12	19	0	Y	128	0	63
-def	test	t1	t1	ts6	ts6	7	26	0	N	9441	6	63
-def	test	t1	t1	ts5	ts5	7	25	0	N	225	5	63
-def	test	t1	t1	ts4	ts4	7	24	0	N	225	4	63
-def	test	t1	t1	ts3	ts3	7	23	0	N	225	3	63
-def	test	t1	t1	ts2	ts2	7	22	0	N	225	2	63
-def	test	t1	t1	ts1	ts1	7	21	0	N	225	1	63
-def	test	t1	t1	ts0	ts0	7	19	0	N	225	0	63
+def	test	t1	t1	ts6	ts6	7	26	0	N	9345	6	63
+def	test	t1	t1	ts5	ts5	7	25	0	N	129	5	63
+def	test	t1	t1	ts4	ts4	7	24	0	N	129	4	63
+def	test	t1	t1	ts3	ts3	7	23	0	N	129	3	63
+def	test	t1	t1	ts2	ts2	7	22	0	N	129	2	63
+def	test	t1	t1	ts1	ts1	7	21	0	N	129	1	63
+def	test	t1	t1	ts0	ts0	7	19	0	N	129	0	63
 t6	t5	t4	t3	t2	t1	t0	dt6	dt5	dt4	dt3	dt2	dt1	dt0	ts6	ts5	ts4	ts3	ts2	ts1	ts0
 DROP TABLE t1;

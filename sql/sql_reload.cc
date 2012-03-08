@@ -23,7 +23,8 @@
 #include "sql_base.h"    // close_cached_tables
 #include "sql_db.h"      // my_dbopt_cleanup
 #include "hostname.h"    // hostname_cache_refresh
-#include "rpl_master.h"  // reset_master, reset_slave
+#include "rpl_master.h"  // reset_master
+#include "rpl_slave.h"   // reset_slave
 #include "rpl_rli.h"     // rotate_relay_log
 #include "debug_sync.h"
 

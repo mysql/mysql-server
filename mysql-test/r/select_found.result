@@ -84,19 +84,24 @@ UNIQUE KEY e_n (email,name)
 EXPLAIN SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL LIMIT 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	kid	NULL	NULL	NULL	0	const row not found
-1	SIMPLE	t2	index	NULL	e_n	104	NULL	10	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	200	Using temporary
+FLUSH STATUS;
+SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL LIMIT 10;
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+Variable_name	Value
+Sort_scan	0
 SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL LIMIT 10;
 email
 email1
+email2
+email3
+email4
+email5
+email6
+email7
+email8
+email9
 email10
-email100
-email101
-email102
-email103
-email104
-email105
-email106
-email107
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 200

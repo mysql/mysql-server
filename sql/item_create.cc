@@ -988,19 +988,6 @@ protected:
 };
 
 
-class Create_func_format : public Create_native_func
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
-
-  static Create_func_format s_singleton;
-
-protected:
-  Create_func_format() {}
-  virtual ~Create_func_format() {}
-};
-
-
 class Create_func_found_rows : public Create_func_arg0
 {
 public:
@@ -1152,6 +1139,34 @@ protected:
   Create_func_greatest() {}
   virtual ~Create_func_greatest() {}
 };
+
+
+#ifdef HAVE_REPLICATION
+class Create_func_gtid_subtract : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_gtid_subtract s_singleton;
+
+protected:
+  Create_func_gtid_subtract() {}
+  virtual ~Create_func_gtid_subtract() {}
+};
+
+
+class Create_func_gtid_subset : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_gtid_subset s_singleton;
+
+protected:
+  Create_func_gtid_subset() {}
+  virtual ~Create_func_gtid_subset() {}
+};
+#endif
 
 
 class Create_func_hex : public Create_func_arg1
@@ -1737,6 +1752,17 @@ protected:
   virtual ~Create_func_master_pos_wait() {}
 };
 
+class Create_func_master_gtid_set_wait : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+
+  static Create_func_master_gtid_set_wait s_singleton;
+
+protected:
+  Create_func_master_gtid_set_wait() {}
+  virtual ~Create_func_master_gtid_set_wait() {}
+};
 
 class Create_func_md5 : public Create_func_arg1
 {
@@ -3696,40 +3722,6 @@ Create_func_floor::create(THD *thd, Item *arg1)
 }
 
 
-Create_func_format Create_func_format::s_singleton;
-
-Item*
-Create_func_format::create_native(THD *thd, LEX_STRING name,
-                                  List<Item> *item_list)
-{
-  Item *func= NULL;
-  int arg_count= item_list ? item_list->elements : 0;
-
-  switch (arg_count) {
-  case 2:
-  {
-    Item *param_1= item_list->pop();
-    Item *param_2= item_list->pop();
-    func= new (thd->mem_root) Item_func_format(param_1, param_2);
-    break;
-  }
-  case 3:
-  {
-    Item *param_1= item_list->pop();
-    Item *param_2= item_list->pop();
-    Item *param_3= item_list->pop();
-    func= new (thd->mem_root) Item_func_format(param_1, param_2, param_3);
-    break;
-  }
-  default:
-    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
-    break;
-  }
-
-  return func;
-}
-
-
 Create_func_found_rows Create_func_found_rows::s_singleton;
 
 Item*
@@ -3942,6 +3934,26 @@ Create_func_greatest::create_native(THD *thd, LEX_STRING name,
 
   return new (thd->mem_root) Item_func_max(*item_list);
 }
+
+
+#ifdef HAVE_REPLICATION
+Create_func_gtid_subtract Create_func_gtid_subtract::s_singleton;
+
+Item*
+Create_func_gtid_subtract::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_gtid_subtract(arg1, arg2);
+}
+
+
+Create_func_gtid_subset Create_func_gtid_subset::s_singleton;
+
+Item*
+Create_func_gtid_subset::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_gtid_subset(arg1, arg2);
+}
+#endif
 
 
 Create_func_hex Create_func_hex::s_singleton;
@@ -4513,6 +4525,46 @@ Create_func_master_pos_wait::create_native(THD *thd, LEX_STRING name,
   return func;
 }
 
+Create_func_master_gtid_set_wait Create_func_master_gtid_set_wait::s_singleton;
+
+Item*
+Create_func_master_gtid_set_wait::create_native(THD *thd, LEX_STRING name,
+                                                List<Item> *item_list)
+
+{
+  Item *func= NULL;
+  int arg_count= 0;
+
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+
+  if (item_list != NULL)
+    arg_count= item_list->elements;
+
+  switch (arg_count) {
+  case 1:
+  {
+    Item *param_1= item_list->pop();
+    func= new (thd->mem_root) Item_master_gtid_set_wait(param_1);
+    thd->lex->safe_to_cache_query= 0;
+    break;
+  }
+  case 2:
+  {
+    Item *param_1= item_list->pop();
+    Item *param_2= item_list->pop();
+    func= new (thd->mem_root) Item_master_gtid_set_wait(param_1, param_2);
+    thd->lex->safe_to_cache_query= 0;
+    break;
+  }
+  default:
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    break;
+  }
+  }
+
+  return func;
+}
 
 Create_func_md5 Create_func_md5::s_singleton;
 
@@ -5347,7 +5399,6 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("FIELD") }, BUILDER(Create_func_field)},
   { { C_STRING_WITH_LEN("FIND_IN_SET") }, BUILDER(Create_func_find_in_set)},
   { { C_STRING_WITH_LEN("FLOOR") }, BUILDER(Create_func_floor)},
-  { { C_STRING_WITH_LEN("FORMAT") }, BUILDER(Create_func_format)},
   { { C_STRING_WITH_LEN("FOUND_ROWS") }, BUILDER(Create_func_found_rows)},
   { { C_STRING_WITH_LEN("FROM_BASE64") }, BUILDER(Create_func_from_base64)},
   { { C_STRING_WITH_LEN("FROM_DAYS") }, BUILDER(Create_func_from_days)},
@@ -5365,6 +5416,10 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("GET_LOCK") }, BUILDER(Create_func_get_lock)},
   { { C_STRING_WITH_LEN("GLENGTH") }, GEOM_BUILDER(Create_func_glength)},
   { { C_STRING_WITH_LEN("GREATEST") }, BUILDER(Create_func_greatest)},
+#ifdef HAVE_REPLICATION
+  { { C_STRING_WITH_LEN("GTID_SUBTRACT") }, BUILDER(Create_func_gtid_subtract) },
+  { { C_STRING_WITH_LEN("GTID_SUBSET") }, BUILDER(Create_func_gtid_subset) },
+#endif
   { { C_STRING_WITH_LEN("HEX") }, BUILDER(Create_func_hex)},
   { { C_STRING_WITH_LEN("IFNULL") }, BUILDER(Create_func_ifnull)},
   { { C_STRING_WITH_LEN("INET_ATON") }, BUILDER(Create_func_inet_aton)},
@@ -5469,6 +5524,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("SLEEP") }, BUILDER(Create_func_sleep)},
   { { C_STRING_WITH_LEN("SOUNDEX") }, BUILDER(Create_func_soundex)},
   { { C_STRING_WITH_LEN("SPACE") }, BUILDER(Create_func_space)},
+  { { C_STRING_WITH_LEN("SQL_THREAD_WAIT_AFTER_GTIDS") }, BUILDER(Create_func_master_gtid_set_wait)},
   { { C_STRING_WITH_LEN("SQRT") }, BUILDER(Create_func_sqrt)},
   { { C_STRING_WITH_LEN("SRID") }, GEOM_BUILDER(Create_func_srid)},
   { { C_STRING_WITH_LEN("STARTPOINT") }, GEOM_BUILDER(Create_func_startpoint)},

@@ -1,0 +1,112 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+
+#
+# Basic test of UPDATE in NDB 
+#
+
+#
+# Create a normal table with primary key
+#
+CREATE TABLE t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  b INT NOT NULL,
+  c INT NOT NULL UNIQUE
+) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES (0, 1, 0),(1,2,1),(2,3,2);
+UPDATE t1 set b = c;
+select * from t1 order by pk1;
+UPDATE t1 set pk1 = 4 where pk1 = 1;
+select * from t1 order by pk1;
+--error ER_DUP_ENTRY
+UPDATE t1 set pk1 = 4 where pk1 = 2;
+UPDATE IGNORE t1 set pk1 = 4 where pk1 = 2;
+select * from t1 order by pk1;
+--enable_info
+UPDATE t1 set pk1 = 2 where pk1 = 2;
+--disable_info
+--error ER_DUP_ENTRY
+UPDATE t1 set c = 1 WHERE b IN(0,1,2,3,4);
+UPDATE IGNORE t1 set c = 1 WHERE b IN(0,1,2,3,4);
+--error ER_DUP_ENTRY
+UPDATE t1 set pk1 = 1, c = 2 where pk1 = 4;
+UPDATE IGNORE t1 set pk1 = 1, c = 2 where pk1 = 4;
+select * from t1 order by pk1;
+UPDATE t1 set pk1 = pk1 + 10;
+select * from t1 order by pk1;
+# bug#25817
+create unique index ib on t1(b);
+update t1 set c = 4 where pk1 = 12;
+update ignore t1 set b = 55 where pk1 = 14;
+select * from t1 order by pk1;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# End of 4.1 tests
+
+#
+# Bug#28158: table->read_set is set incorrectly,
+#            causing wrong error message in Falcon
+#
+CREATE TABLE t1 (a int, b int, KEY (a, b)) ENGINE=ndbcluster;
+CREATE TABLE t2 (a int, b int, UNIQUE KEY (a, b)) ENGINE=ndbcluster;
+CREATE TABLE t3 (a int, b int, PRIMARY KEY (a, b)) ENGINE=ndbcluster;
+#
+INSERT INTO t1 VALUES (1, 2);
+INSERT INTO t1 VALUES (2, 2);
+#
+INSERT INTO t2 VALUES (1, 2);
+INSERT INTO t2 VALUES (2, 2);
+#
+INSERT INTO t3 VALUES (1, 2);
+INSERT INTO t3 VALUES (2, 2);
+#
+UPDATE t1 SET a = 1;
+UPDATE t1 SET a = 1 ORDER BY a;
+#
+--error ER_DUP_ENTRY
+UPDATE t2 SET a = 1;
+--error ER_DUP_ENTRY
+UPDATE t2 SET a = 1 ORDER BY a;
+#
+--error ER_DUP_ENTRY
+UPDATE t3 SET a = 1;
+--error ER_DUP_ENTRY
+UPDATE t3 SET a = 1 ORDER BY a;
+#
+SELECT count(*) FROM t1;
+SELECT count(*) FROM t2;
+SELECT count(*) FROM t3;
+SELECT * FROM t1 ORDER by a;
+SELECT * FROM t2 ORDER by a;
+SELECT * FROM t3 ORDER by a;
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+
+# Bug#40081 UPDATE....ORDER BY cannot find rows in cluster
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT,
+                 mytext CHAR(30) DEFAULT NULL,
+                 PRIMARY KEY (`id`) ) ENGINE=ndbcluster;
+insert into t1 values(NULL,"hello"),(NULL,"world"),(NULL,"hello"),(NULL,"world");
+select * from t1 order by id;
+update t1 set mytext = "goodbye" where mytext = "world" order by mytext;
+select * from t1 order by id;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo End of 5.1 tests
+

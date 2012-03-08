@@ -1,0 +1,30 @@
+--source include/not_embedded.inc
+--source include/have_ndb.inc
+
+SET @start_global_value = @@session.gtid_next_list;
+SELECT @start_global_value;
+--let $ida= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+
+#
+# exists as session only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@global.gtid_next_list;
+select @@session.gtid_next_list;
+show global variables like 'gtid_next_list';
+show session variables like 'gtid_next_list';
+select * from information_schema.global_variables where variable_name='gtid_next_list';
+select * from information_schema.session_variables where variable_name='gtid_next_list';
+
+#
+# show that it isn't writable now.
+#
+--error ER_LOCAL_VARIABLE
+set global gtid_next_list = 1;
+--error ER_NOT_SUPPORTED_YET
+--eval set session gtid_next_list = "$ida:1-10"
+select @@session.gtid_next_list;
+
+#
+# See rpl_gtid_execution.tesst for a comprehensive test case.
+#

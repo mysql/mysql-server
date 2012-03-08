@@ -172,7 +172,7 @@ sp_get_item_value(THD *thd, Item *item, String *str)
         buf.append(result->charset()->csname);
         if (cs->escape_with_backslash_is_dangerous)
           buf.append(' ');
-        append_query_string(cs, result, &buf);
+        append_query_string(thd, cs, result, &buf);
         buf.append(" COLLATE '");
         buf.append(item->collation.collation->name);
         buf.append('\'');
@@ -1900,7 +1900,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
       Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
                             thd->binlog_evt_union.unioned_events_trans, FALSE, FALSE, errcode);
-      if (mysql_bin_log.write(&qinfo) &&
+      if (mysql_bin_log.write_event(&qinfo) &&
           thd->binlog_evt_union.unioned_events_trans)
       {
         push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
