@@ -2656,7 +2656,7 @@ fil_rename_tablespace_in_mem(
 Allocates a file name for a single-table tablespace. The string must be freed
 by caller with mem_free().
 @return	own: file name */
-static
+UNIV_INTERN
 char*
 fil_make_ibd_name(
 /*==============*/

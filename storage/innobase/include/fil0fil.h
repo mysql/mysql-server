@@ -749,6 +749,17 @@ ibool
 fil_tablespace_is_being_deleted(
 /*============================*/
 	ulint		id);	/*!< in: space id */
+/*******************************************************************//**
+Allocates a file name for a single-table tablespace. The string must be freed
+by caller with mem_free().
+@return	own: file name */
+UNIV_INTERN
+char*
+fil_make_ibd_name(
+/*==============*/
+	const char*	name,		/*!< in: table name or a dir path of a
+					TEMPORARY table */
+	ibool		is_temp);	/*!< in: TRUE if it is a dir path */
 
 typedef	struct fil_space_struct	fil_space_t;
 

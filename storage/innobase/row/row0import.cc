@@ -1124,8 +1124,8 @@ row_import_read_columns(
 		if (len == 0 || len > 128) {
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
 				 ER_EXCEPTIONS_WRITE_ERROR,
-				 "Column name length is invalid.",
-				 (ulint) errno);
+				 "Column name length %lu, is invalid",
+				 (ulong) len);
 
 			return(DB_CORRUPTION);
 		}
@@ -1534,7 +1534,7 @@ row_import_match_table_columns(
 
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
 				 ER_TABLE_SCHEMA_MISMATCH,
-				 "Column %s ordinal value mismatch, it's at ",
+				 "Column %s ordinal value mismatch, it's at "
 				 "%lu in the table and %lu in the tablespace "
 				 "meta-data file",
 				 col_name,
@@ -1551,7 +1551,8 @@ row_import_match_table_columns(
 				ib_pushf(thd,
 					 IB_LOG_LEVEL_ERROR,
 					 ER_TABLE_SCHEMA_MISMATCH,
-					 "Column %s precise type mismatch.");
+					 "Column %s precise type mismatch.",
+					 col_name);
 				err = DB_ERROR;
 			}
 
@@ -1559,7 +1560,8 @@ row_import_match_table_columns(
 				ib_pushf(thd,
 					 IB_LOG_LEVEL_ERROR,
 					 ER_TABLE_SCHEMA_MISMATCH,
-					 "Column %s main type mismatch.");
+					 "Column %s main type mismatch.",
+					 col_name);
 				err = DB_ERROR;
 			}
 
@@ -1567,7 +1569,8 @@ row_import_match_table_columns(
 				ib_pushf(thd,
 					 IB_LOG_LEVEL_ERROR,
 					 ER_TABLE_SCHEMA_MISMATCH,
-					 "Column %s length mismatch.");
+					 "Column %s length mismatch.",
+					 col_name);
 				err = DB_ERROR;
 			}
 
@@ -1575,7 +1578,8 @@ row_import_match_table_columns(
 				ib_pushf(thd,
 					 IB_LOG_LEVEL_ERROR,
 					 ER_TABLE_SCHEMA_MISMATCH,
-					 "Column %s multi-byte len mismatch.");
+					 "Column %s multi-byte len mismatch.",
+					 col_name);
 				err = DB_ERROR;
 			}
 
@@ -1587,7 +1591,8 @@ row_import_match_table_columns(
 				ib_pushf(thd,
 					 IB_LOG_LEVEL_ERROR,
 					 ER_TABLE_SCHEMA_MISMATCH,
-					 "Column %s ordering mismatch.");
+					 "Column %s ordering mismatch.",
+					 col_name);
 				err = DB_ERROR;
 			}
 
@@ -1595,7 +1600,8 @@ row_import_match_table_columns(
 				ib_pushf(thd,
 					 IB_LOG_LEVEL_ERROR,
 					 ER_TABLE_SCHEMA_MISMATCH,
-					 "Column %s max prefix mismatch.");
+					 "Column %s max prefix mismatch.",
+					 col_name);
 				err = DB_ERROR;
 			}
 		}
@@ -2086,12 +2092,16 @@ row_import_for_mysql(
 			err = DB_TABLESPACE_NOT_FOUND;);
 
 	if (err != DB_SUCCESS) {
+		char*	ibd_filename;
+
+		ibd_filename = fil_make_ibd_name(table->name, FALSE);
 
 		ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			 ER_FILE_NOT_FOUND,
-			 "Cannot find or open in the database directory "
-			 "the .ibd file of %s : %s",
-			 table_name, ut_strerr(err));
+			 "Cannot open '%s' file of %s : %s",
+			 ibd_filename, table_name, ut_strerr(err));
+
+		mem_free(ibd_filename);
 
 		return(row_import_cleanup(prebuilt, trx, err));
 	}

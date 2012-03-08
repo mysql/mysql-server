@@ -6719,13 +6719,13 @@ ER_TABLE_SCHEMA_MISMATCH
   eng "Table schema doesn't match."
 
 ER_TABLE_IN_SYSTEM_TABLESPACE
-  eng "Table %s is in the system tablespace"
+  eng "Table '%s' is in the system tablespace"
 
 ER_IO_READ_ERROR
-  eng "Read error during I/O: %s"
+  eng "Read error during I/O: '%s'"
 
 ER_IO_WRITE_ERROR
-  eng "Write error during I/O: %s"
+  eng "Write error during I/O: '%s'"
 
 ER_TABLESPACE_MISSING
   eng "Tablespace is missing for table '%s'"
