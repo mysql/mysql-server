@@ -915,7 +915,7 @@ relay-log-space-limit 0
 replicate-same-server-id FALSE
 report-host (No default value)
 report-password (No default value)
-report-port 3306
+report-port 0
 report-user (No default value)
 rpl-recovery-rank 0
 safe-user-create FALSE
