@@ -888,6 +888,7 @@ THD::THD(bool enable_plugins)
   proc_info="login";
   where= THD::DEFAULT_WHERE;
   server_id = ::server_id;
+  unmasked_server_id = server_id;
   slave_net = 0;
   set_command(COM_CONNECT);
   *scramble= '\0';

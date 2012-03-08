@@ -1,0 +1,7 @@
+Connected to Management Server at: localhost:x
+Waiting for started, this may take several minutes
+Node x: Backup x started from node x
+Node x: Backup x started from node x completed
+ StartGCP: x StopGCP: x
+ #Records: x #LogRecords: x
+ Data: x bytes Log: x bytes

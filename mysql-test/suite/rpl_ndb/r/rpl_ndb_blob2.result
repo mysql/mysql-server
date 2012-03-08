@@ -1,0 +1,153 @@
+include/master-slave.inc
+[connection master]
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+*****  Table Create Section ****
+
+CREATE TABLE test.t1 (c1 int not null auto_increment, 
+data LONGBLOB, PRIMARY KEY(c1))ENGINE=#;
+
+**** Data Insert Section test.t1 *****
+
+INSERT INTO test.t1 VALUES (NULL, NULL);
+INSERT INTO test.t1 VALUES (NULL, repeat('a',1*1024));
+INSERT INTO test.t1 VALUES (NULL, repeat('b',16*1024));
+
+**** Data Insert Validation Master Section test.t1 ****
+
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 1;
+LENGTH(data)
+NULL
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 2;
+LENGTH(data)
+1024
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 3;
+LENGTH(data)
+16384
+
+**** Data Insert Validation Slave Section test.t1 ****
+
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 1;
+LENGTH(data)
+NULL
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 2;
+LENGTH(data)
+1024
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 3;
+LENGTH(data)
+16384
+
+**** Data Update Section test.t1 ****
+
+UPDATE test.t1 set data=repeat('a',18*1024) where c1 = 1;
+UPDATE t1 set data=repeat('c',17*1024) where c1 = 2;
+
+**** Data Update Validation Master Section test.t1 ****
+
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 1;
+LENGTH(data)
+18432
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 2;
+LENGTH(data)
+17408
+
+**** Data Update Validation Slave Section test.t1 ****
+
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 1;
+LENGTH(data)
+18432
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 2;
+LENGTH(data)
+17408
+
+**** End Test Section test.t1 ****
+
+**** Create Table test.t2 ****
+
+CREATE TABLE test.t2 (
+c1 INT NOT NULL PRIMARY KEY,
+c2 TEXT,
+c3 INT,
+c4 LONGBLOB,
+KEY(c3))ENGINE=#;
+
+*** Setup Values For test.t2 ***
+set @x0 = '01234567012345670123456701234567';
+set @x0 = concat(@x0,@x0,@x0,@x0,@x0,@x0,@x0,@x0);
+set @b1 = 'b1';
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@x0);
+set @d1 = 'dd1';
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @b2 = 'b2';
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @d2 = 'dd2';
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+
+**** Data Insert Section test.t2 *****
+
+INSERT INTO test.t2 VALUES(1,@b1,111,@d1);
+INSERT INTO test.t2 VALUES(2,@b2,222,@d2);
+
+**** Data Insert Validation Master Section test.t2 ****
+
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=1;
+c1	LENGTH(c2)	SUBSTR(c2,1+2*900,2)	LENGTH(c4)	SUBSTR(c4,1+3*900,3)
+1	2256	b1	3000	dd1
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=2;
+c1	LENGTH(c2)	SUBSTR(c2,1+2*900,2)	LENGTH(c4)	SUBSTR(c4,1+3*900,3)
+2	20000	b2	30000	dd2
+
+**** Data Insert Validation Slave Section test.t2 ****
+
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=1;
+c1	LENGTH(c2)	SUBSTR(c2,1+2*900,2)	LENGTH(c4)	SUBSTR(c4,1+3*900,3)
+1	2256	b1	3000	dd1
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=2;
+c1	LENGTH(c2)	SUBSTR(c2,1+2*900,2)	LENGTH(c4)	SUBSTR(c4,1+3*900,3)
+2	20000	b2	30000	dd2
+
+**** Data Update Section test.t2 ****
+
+UPDATE test.t2 SET c2=@b2, c4=@d2 WHERE c1=1;
+UPDATE test.t2 SET c2=@b1, c4=@d1 WHERE c1=2;
+
+**** Data Update Validation Master Section test.t2 ****
+
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=1;
+c1	LENGTH(c2)	SUBSTR(c2,1+2*900,2)	LENGTH(c4)	SUBSTR(c4,1+3*900,3)
+1	20000	b2	30000	dd2
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=2;
+c1	LENGTH(c2)	SUBSTR(c2,1+2*900,2)	LENGTH(c4)	SUBSTR(c4,1+3*900,3)
+2	2256	b1	3000	dd1
+
+**** Data Update Validation Slave Section test.t2 ****
+
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=1;
+c1	LENGTH(c2)	SUBSTR(c2,1+2*900,2)	LENGTH(c4)	SUBSTR(c4,1+3*900,3)
+1	20000	b2	30000	dd2
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=2;
+c1	LENGTH(c2)	SUBSTR(c2,1+2*900,2)	LENGTH(c4)	SUBSTR(c4,1+3*900,3)
+2	2256	b1	3000	dd1
+
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+include/rpl_end.inc

@@ -1,0 +1,36 @@
+create table t1 (a int primary key)
+engine NDB
+comment='NDB_TABLE=NOLOGGING';
+show warnings;
+Level	Code	Message
+drop table t1;
+create table t1 (a int primary key)
+engine NDB
+comment='NDB_TABLE=NOLOGGING=1,NOLOGGING';
+show warnings;
+Level	Code	Message
+Warning	1478	NDB_TABLE= : modifier NOLOGGING specified twice
+drop table t1;
+create table t1 (a int primary key)
+engine NDB
+comment='NDB_TABLE=NOLOGGING=a,NOLOGGING';
+show warnings;
+Level	Code	Message
+Warning	1478	NDB_TABLE= : invalid value 'a' for NOLOGGING
+drop table t1;
+create table t1 (a int primary key)
+engine NDB
+comment='NDB_TABLE=NOLOGGING,NOLOGGINGa';
+show warnings;
+Level	Code	Message
+Warning	1478	NDB_TABLE= : unknown modifier: NOLOGGINGa
+drop table t1;
+create table t1 (a int primary key,
+b blob comment 'NDB_COLUMN=MAX_BLOB_PART_SIZE',
+c blob)
+engine NDB;
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Blob(256,13948,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_#_#
+c Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_#_#
+drop table t1;

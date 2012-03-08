@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDBT_BACKUP_HPP
 #define NDBT_BACKUP_HPP
@@ -26,7 +29,11 @@ public:
   NdbBackup(int _own_id, const char* _addr = 0) 
     : NdbConfig(_own_id, _addr) {};
 
-  int start(unsigned & _backup_id);
+  int start(unsigned & _backup_id,
+	    int flags = 2,
+	    unsigned int user_backup_id= 0,
+	    unsigned int logtype= 0);
+  int start() { unsigned unused =0; return start(unused); }
   int restore(unsigned _backup_id);
 
   int NFMaster(NdbRestarter& _restarter);
@@ -38,6 +45,10 @@ public:
   int FailMasterAsSlave(NdbRestarter& _restarter);
   int FailSlave(NdbRestarter& _restarter);
   int Fail(NdbRestarter& _restarter, int *Fail_codes, const int sz, bool onMaster);
+  int startLogEvent();
+  int checkBackupStatus();
+
+  int clearOldBackups();
 
 private:
 
@@ -47,6 +58,7 @@ private:
 		  unsigned _backup_id);
 
   const char * getBackupDataDirForNode(int _node_id);
+  NdbLogEventHandle log_handle;
   
 };
 

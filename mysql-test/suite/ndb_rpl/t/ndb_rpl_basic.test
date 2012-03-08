@@ -1,0 +1,352 @@
+--source include/have_ndb.inc
+--source include/ndb_have_online_alter.inc
+#error message differs slightly with statement based replication
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+-- disable_query_log
+call mtr.add_suppression("Slave: Got error 146 during COMMIT Error_code: 1180");
+-- enable_query_log
+
+#
+# Bug #11087
+#
+# connect to the master and create tabe t1 in gotoslave database
+--connection master
+CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
+ 	            `nom` char(4) default NULL,
+  		    `prenom` char(4) default NULL,
+		    PRIMARY KEY  (`nid`)) 
+    ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+INSERT INTO t1 VALUES(1,"XYZ1","ABC1");
+select * from t1 order by nid;
+
+--sync_slave_with_master
+# connect to slave and ensure data it there.
+--connection slave
+select * from t1 order by nid;
+
+--connection master
+delete from t1;
+INSERT INTO t1 VALUES(1,"XYZ2","ABC2");
+# Make sure all rows are on the master
+select * from t1 order by nid;
+
+# make sure all rows are on the slave.
+--sync_slave_with_master
+--connection slave
+# Bug #11087 would have row with nid 2 missing
+select * from t1 order by nid;
+
+--connection master
+delete from t1;
+insert into t1 values(1,"AA", "AA");
+insert into t1 values(2,"BB", "BB");
+insert into t1 values(3,"CC", "CC");
+insert into t1 values(4,"DD", "DD");
+
+begin;
+# delete+insert = update
+delete from t1 where nid = 1;
+insert into t1 values (1,"A2", "A2");
+
+# update+delete = delete
+update t1 set nom="B2" where nid = 2;
+delete from t1 where nid = 2;
+
+# multi-update
+update t1 set nom = "D2" where nid = 4;
+delete from t1 where nid = 4;
+insert into t1 values (4, "D3", "D3");
+update t1 set nom = "D4" where nid = 4;
+
+# insert+delete = nothing
+insert into t1 values (5, "EE", "EE");
+delete from t1 where nid = 5;
+
+commit;
+select * from t1 order by 1;
+--sync_slave_with_master
+--connection slave
+select * from t1 order by 1;
+--connection master
+DROP table t1;
+
+#
+# Test replication of table with no primary key 
+#
+--connection master
+CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
+ 	            `nom` char(4) default NULL,
+  		    `prenom` char(4) default NULL)
+    ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+INSERT INTO t1 VALUES(1,"XYZ1","ABC1"),(2,"AAA","BBB"),(3,"CCC","DDD");
+select * from t1 order by nid;
+
+--sync_slave_with_master
+# connect to slave and ensure data it there.
+--connection slave
+select * from t1 order by nid;
+
+--connection master
+delete from t1 where nid = 2;
+INSERT INTO t1 VALUES(4,"EEE","FFF");
+# Make sure all rows are on the master
+select * from t1 order by nid;
+
+# make sure all rows are on the slave.
+--sync_slave_with_master
+--connection slave
+select * from t1 order by nid;
+
+--connection master
+UPDATE t1 set nid=nid+1;
+UPDATE t1 set nom="CCP" where nid = 4;
+select * from t1 order by nid;
+
+# make sure all rows are on the slave.
+--sync_slave_with_master
+--connection slave
+select * from t1 order by nid;
+
+--connection master
+DROP table t1;
+
+#
+# Bug #27378 update becomes delete on slave
+#
+
+--connection master
+CREATE TABLE `t1` (
+  `prid` int(10) unsigned NOT NULL,
+  `id_type` enum('IMSI','SIP') NOT NULL,
+  `fkimssub` varchar(50) NOT NULL,
+  `user_id` varchar(20) DEFAULT NULL,
+  `password` varchar(20) DEFAULT NULL,
+  `ptg_nbr` varchar(20) DEFAULT NULL,
+  `old_tmsi` int(10) unsigned DEFAULT NULL,
+  `new_tmsi` int(10) unsigned DEFAULT NULL,
+  `dev_capability` int(10) unsigned DEFAULT NULL,
+  `dev_oid` bigint(20) unsigned DEFAULT NULL,
+  `lac_cell_id` bigint(20) unsigned DEFAULT NULL,
+  `ms_classmark1` int(10) unsigned DEFAULT NULL,
+  `cipher_key` int(10) unsigned DEFAULT NULL,
+  `priid_master` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`prid`),
+  UNIQUE KEY `fkimssub` (`fkimssub`,`ptg_nbr`) USING HASH
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+INSERT INTO `t1` VALUES (183342,'IMSI','config3_sub_2Privates_3Publics_imssub_36668','user_id_73336','user_id_73336','73336',NULL,NULL,NULL,123456789,NULL,NULL,NULL,NULL),(47617,'IMSI','config3_sub_2Privates_3Publics_imssub_9523','user_id_19046','user_id_19046','19046',NULL,NULL,NULL,123456789,NULL,NULL,NULL,NULL),(200332,'IMSI','config3_sub_2Privates_3Publics_imssub_40066','user_id_80132','user_id_80132','80132',NULL,NULL,NULL,123456789,NULL,NULL,NULL,NULL),(478882,'IMSI','config3_sub_2Privates_3Publics_imssub_95776','user_id_191552','user_id_191552','191552',NULL,NULL,NULL,123456789,NULL,NULL,NULL,NULL),(490146,'IMSI','config3_sub_2Privates_3Publics_imssub_98029','user_id_196057','user_id_196057','196057',NULL,NULL,NULL,1010,NULL,NULL,NULL,NULL),(499301,'IMSI','config3_sub_2Privates_3Publics_imssub_99860','user_id_199719','user_id_199719','199719',NULL,NULL,NULL,123456789,NULL,NULL,NULL,NULL),(506101,'IMSI','config3_sub_2Privates_3Publics_imssub_101220','user_id_202439','user_id_202439','202439',NULL,NULL,NULL,1010,NULL,NULL,NULL,NULL),(510142,'IMSI','config3_sub_2Privates_3Publics_imssub_102028','user_id_204056','user_id_204056','204056',NULL,NULL,NULL,1010,NULL,NULL,NULL,NULL),(515871,'IMSI','config3_sub_2Privates_3Publics_imssub_103174','user_id_206347','user_id_206347','206347',NULL,NULL,NULL,1010,NULL,NULL,NULL,NULL),(209842,'IMSI','config3_sub_2Privates_3Publics_imssub_41968','user_id_83936','user_id_83936','83936',NULL,NULL,NULL,123456789,NULL,NULL,NULL,NULL),(365902,'IMSI','config3_sub_2Privates_3Publics_imssub_73180','user_id_146360','user_id_146360','146360',NULL,NULL,NULL,1010,NULL,NULL,NULL,NULL),(11892,'IMSI','config3_sub_2Privates_3Publics_imssub_2378','user_id_4756','user_id_4756','4756',NULL,NULL,NULL,123456789,NULL,NULL,NULL,NULL);
+
+select count(*) from t1;
+
+--sync_slave_with_master
+--connection slave
+select count(*) from t1;
+
+--connection master
+update t1 set dev_oid=dev_oid+1;
+select count(*) from t1;
+
+--sync_slave_with_master
+--connection slave
+select count(*) from t1;
+
+--connection master
+DROP table t1;
+
+##################################################################
+#
+# Check that retries are made on the slave on some temporary errors
+#
+
+#
+# 1. Deadlock
+#
+--connection master
+CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
+ 	            `nom` char(4) default NULL,
+  		    `prenom` char(4) default NULL,
+		    PRIMARY KEY USING HASH (`nid`)) 
+    ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES(1,"XYZ1","ABC1");
+
+# cause a lock on that row on the slave
+--sync_slave_with_master
+--connection slave
+--echo **** On Slave ****
+BEGIN;
+UPDATE t1 SET `nom`="LOCK" WHERE `nid`=1;
+
+# set number of retries low so we fail the retries
+set GLOBAL slave_transaction_retries=1;
+
+# now do a change to this row on the master
+# will deadlock on the slave because of lock above
+--connection master
+--echo **** On Master ****
+UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
+
+--echo **** On Slave ****
+# Wait for deadlock to be detected.
+# When detected, the slave will stop, so we just wait for it to stop.
+connection slave;
+
+# Replication should have stopped, since max retries were not enough.
+# verify with show slave status
+# 1205 = ER_LOCK_WAIT_TIMEOUT 
+--let $slave_sql_errno= 1205 
+--let $show_slave_sql_error= 0
+--source include/wait_for_slave_sql_error.inc
+
+# now set max retries high enough to succeed, and start slave again
+set GLOBAL slave_transaction_retries=10;
+source include/start_slave.inc;
+# Wait for deadlock to be detected and retried.
+# We want to wait until at least one retry has been made, but before
+# the slave stops. currently, there is no safe way to do that: we
+# would need to access the retry counter, but that is not exposed.
+# Failing that, we just wait sufficiently long that one but not all
+# retries have been made. See BUG#35183.
+sleep 5;
+
+# commit transaction to release lock on row and let replication succeed
+select * from t1 order by nid;
+COMMIT;
+
+# verify that the row succeded to be applied on the slave
+--connection master
+--sync_slave_with_master
+--connection slave
+select * from t1 order by nid;
+
+# cleanup
+--connection master
+DROP TABLE t1;
+
+
+#
+# BUG#18094
+# Slave caches invalid table definition after atlters causes select failure
+#
+--connection master
+CREATE TABLE t1 (c1 INT KEY) ENGINE=NDB;
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+
+ALTER TABLE t1 ADD c2 INT;
+
+--sync_slave_with_master
+connection slave;
+SELECT * FROM t1 ORDER BY c1;
+
+connection master;
+
+INSERT INTO t1 VALUES (11,11),(12,12),(13,13),(14,14);
+
+--sync_slave_with_master
+connection slave;
+SELECT * FROM t1 ORDER BY c1;
+
+connection master;
+ALTER TABLE t1 CHANGE c2 c2 TEXT CHARACTER SET utf8;
+ALTER TABLE t1 CHANGE c2 c2 BLOB;
+
+--sync_slave_with_master
+connection slave;
+# here we would get error 1412 prior to bug
+SELECT * FROM t1 ORDER BY c1 LIMIT 5;
+
+--connection master
+TRUNCATE t1;
+SELECT count(*) FROM t1;
+INSERT INTO t1 VALUES (101,NULL),(102,NULL),(103,NULL),(104,NULL),(105,NULL),(106,NULL),(107,NULL),(108,NULL),(109,NULL),(1010,NULL);
+--sync_slave_with_master
+connection slave;
+SELECT count(*) FROM t1;
+SELECT c1 FROM t1 ORDER BY c1 LIMIT 5;
+
+# cleanup
+--connection master
+DROP TABLE t1;
+
+# bug#35208
+# NOTE: should use ndb_log_updated_only
+create table t1 (a int primary key,
+b00 int,b01 int,b02 int,b03 int,b04 int,b05 int,b06 int,b07 int,
+b08 int,b09 int,b10 int,b11 int,b12 int,b13 int,b14 int,b15 int,
+b16 int,b17 int,b18 int,b19 int,b20 int,b21 int,b22 int,b23 int,
+b24 int,b25 int,b26 int,b27 int,b28 int,b29 int,b30 int,b31 int,
+b32 int,b33 int,b34 int,b35 int,b36 int,b37 int,b38 int,b39 int,
+b40 int,b41 int,b42 int,b43 int,b44 int,b45 int,b46 int,b47 int,
+b48 int,b49 int,b50 int,b51 int,b52 int,b53 int,b54 int,b55 int,
+b56 int,b57 int,b58 int,b59 int,b60 int,b61 int,b62 int,b63 int,
+b64 int,b65 int,b66 int,b67 int,b68 int,b69 int,b70 int) engine=ndb;
+
+insert into t1 (a,b00) values (1,1);
+--sync_slave_with_master
+--connection slave
+update t1 set b00 = 2 where a = 1;
+--connection master
+update t1 set b66 = 1 where a = 1;
+--sync_slave_with_master
+# after bug fix result *should* be different on master/slave
+--connection master
+select b00 from t1;
+--connection slave
+select b00 from t1;
+
+--connection master
+DROP TABLE t1;
+
+#
+# test the limit of no of attributes in one table
+#  - use while loop to build dynamic sql string
+#
+let $i=499;
+let $separator=;
+let $sql=create table t1 (;
+while ($i)
+{
+  let $sql=$sql$separator c$i int;
+  let $separator=,;
+  dec $i;
+}
+let $sql=$sql, c500 varchar(10000);
+let $sql=$sql, primary key using hash(c1)) engine=ndb;
+let $sql=$sql partition by key(c1);
+eval $sql; # eval the sql and create the table
+
+set @v10 = '0123456789';
+set @v100 = concat(@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10);
+set @v1000 =concat(@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100);
+set @v10000 = concat(@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000);
+set @v13000 = concat(@v10000, @v1000,@v1000,@v1000);
+
+insert into t1 (c1,c500) values (1,@v10000), (2,@v10000), (3,@v10000);
+alter offline table t1 modify c1 int auto_increment;
+alter online table t1 add column c501 bit(1) column_format DYNAMIC;
+--error ER_TOO_BIG_ROWSIZE
+alter online table t1 add column c502 varchar(2000);
+--sync_slave_with_master
+--connection slave
+select length(c500) from t1 order by 1;
+--connection master
+delete from t1;
+drop table t1;
+--sync_slave_with_master
+--connection master
+
+create table t1 (a int primary key, b varchar(13000)) engine = ndb;
+insert into t1 values (1,@v13000), (2,@v13000);
+--sync_slave_with_master
+--connection slave
+select length(b) from t1 order by 1;
+--connection master
+drop table t1;
+--sync_slave_with_master
+--connection master
+
+--source include/rpl_end.inc

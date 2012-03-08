@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,77 +12,225 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
-#include <my_net.h>
 #include <NdbTCP.h>
 
-extern "C"
-int 
-Ndb_getInAddr(struct in_addr * dst, const char *address) {
-  //  DBUG_ENTER("Ndb_getInAddr");
-  {
-    int tmp_errno;
-    struct hostent tmp_hostent, *hp;
-    char buff[GETHOSTBYNAME_BUFF_SIZE];
-    hp = my_gethostbyname_r(address,&tmp_hostent,buff,sizeof(buff),
-			    &tmp_errno);
-    if (hp)
-    {
-      memcpy(dst, hp->h_addr, min(sizeof(*dst), (size_t) hp->h_length));
-      my_gethostbyname_r_free();
-      return 0; //DBUG_RETURN(0);
-    }
-    my_gethostbyname_r_free();
-  }
-  /* Try it as aaa.bbb.ccc.ddd. */
-  dst->s_addr = inet_addr(address);
-  if (dst->s_addr != 
-#ifdef INADDR_NONE
-      INADDR_NONE
-#else
-      -1
-#endif
-      )
-  {
-    return 0; //DBUG_RETURN(0);
-  }
-  //  DBUG_PRINT("error",("inet_addr(%s) - %d - %s",
-  //		      address, errno, strerror(errno)));
-  return -1; //DBUG_RETURN(-1);
-}
 
-#ifndef DBUG_OFF
+/* On some operating systems (e.g. Solaris) INADDR_NONE is not defined */
+#ifndef INADDR_NONE
+#define INADDR_NONE -1                          /* Error value from inet_addr */
+#endif
+
+
 extern "C"
-int NDB_CLOSE_SOCKET(int fd)
+int
+Ndb_getInAddr(struct in_addr * dst, const char *address)
 {
-  DBUG_PRINT("info", ("NDB_CLOSE_SOCKET(%d)", fd));
-  return _NDB_CLOSE_SOCKET(fd);
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET; // Only IPv4 address
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+
+  struct addrinfo* ai_list;
+  if (getaddrinfo(address, NULL, &hints, &ai_list) != 0)
+  {
+    dst->s_addr = INADDR_NONE;
+    return -1;
+  }
+
+  /* Return sin_addr for the first address returned */
+  struct sockaddr_in* sin = (struct sockaddr_in*)ai_list->ai_addr;
+  memcpy(dst, &sin->sin_addr, sizeof(struct in_addr));
+
+  freeaddrinfo(ai_list);
+  return 0;
+}
+
+#ifdef TEST_NDBGETINADDR
+#include <NdbTap.hpp>
+
+static void
+CHECK(const char* address, int expected_res, bool is_numeric= false)
+{
+  struct in_addr addr;
+
+  fprintf(stderr, "Testing '%s'\n", address);
+
+  int res= Ndb_getInAddr(&addr, address);
+
+  if (res != expected_res)
+  {
+    fprintf(stderr, "> unexpected result: %d, expected: %d\n",
+            res, expected_res);
+    abort();
+  }
+
+  if (res != 0)
+  {
+    fprintf(stderr, "> returned -1, checking INADDR_NONE\n");
+
+    // Should return INADDR_NONE when when lookup fails
+    struct in_addr none;
+    none.s_addr = INADDR_NONE;
+    if (memcmp(&addr, &none, sizeof(none)) != 0)
+    {
+      fprintf(stderr, "> didn't return INADDR_NONE after failure, "
+             "got: '%s', expected; '%s'\n",
+             inet_ntoa(addr), inet_ntoa(none));
+      abort();
+    }
+    fprintf(stderr, "> ok\n");
+    return;
+  }
+
+  fprintf(stderr, "> '%s' -> '%s'\n", address, inet_ntoa(addr));
+
+  if (is_numeric)
+  {
+    // Check that numeric address always map back to itself
+    // ie. compare to value returned by 'inet_aton'
+    fprintf(stderr, "> Checking numeric address against inet_addr\n");
+    struct in_addr addr2;
+    addr2.s_addr = inet_addr(address);
+    fprintf(stderr, "> inet_addr(%s) -> '%s'\n", address, inet_ntoa(addr2));
+
+    if (memcmp(&addr, &addr2, sizeof(struct in_addr)) != 0)
+    {
+      fprintf(stderr, "> numeric address '%s' didn't map to same value as "
+              "inet_addr: '%s'", address, inet_ntoa(addr2));
+      abort();
+    }
+    fprintf(stderr, "> ok\n");
+  }
+}
+
+
+/*
+  socket_library_init
+   - Normally done by ndb_init(), but to avoid
+     having to link with "everything", implement it locally
+*/
+
+static void
+socket_library_init(void)
+{
+#ifdef _WIN32
+  WORD requested_version = MAKEWORD( 2, 0 );
+  WSADATA wsa_data;
+  if (WSAStartup( requested_version, &wsa_data ))
+  {
+    fprintf(stderr, "failed to init Winsock\n");
+    abort();
+  }
+
+  // Confirm that the requested version of the library was loaded
+  if (wsa_data.wVersion != requested_version)
+  {
+    (void)WSACleanup();
+    fprintf(stderr, "Wrong version of Winsock loaded\n");
+    abort();
+  }
+#endif
+}
+
+
+static void
+socket_library_end()
+{
+#ifdef _WIN32
+  (void)WSACleanup();
+#endif
+}
+
+static bool
+can_resolve_hostname(const char* name)
+{
+  fprintf(stderr, "Checking if '%s' can be used for testing\n", name);
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET; // Only IPv4 address
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+
+  struct addrinfo* ai_list;
+  int err = getaddrinfo(name, NULL, &hints, &ai_list);
+
+  if (err)
+  {
+    fprintf(stderr, "> '%s' -> error: %d '%s'\n",
+             name, err, gai_strerror(err));
+
+    if (err == EAI_NODATA ||
+	err == EAI_NONAME)
+    {
+      // An OK error 
+      fprintf(stderr, ">  skipping tests with this name...\n");
+      return false;
+    }
+
+    // Another unhandled error
+    abort();
+  }
+
+  freeaddrinfo(ai_list);
+
+  return true;
+}
+
+
+TAPTEST(NdbGetInAddr)
+{
+  socket_library_init();
+
+  if (can_resolve_hostname("localhost"))
+    CHECK("localhost", 0);
+  CHECK("127.0.0.1", 0, true);
+
+  char hostname_buf[256];
+  if (gethostname(hostname_buf, sizeof(hostname_buf)) == 0 &&
+      can_resolve_hostname(hostname_buf))
+  {
+    // Check this machines hostname
+    CHECK(hostname_buf, 0);
+
+    struct in_addr addr;
+    Ndb_getInAddr(&addr, hostname_buf);
+    // Convert hostname to dotted decimal string ip and check
+    CHECK(inet_ntoa(addr), 0, true);
+  }
+  CHECK("unknown_?host", -1); // Does not exist
+  CHECK("3ffe:1900:4545:3:200:f8ff:fe21:67cf", -1); // No IPv6
+  CHECK("fe80:0:0:0:200:f8ff:fe21:67cf", -1);
+  CHECK("fe80::200:f8ff:fe21:67cf", -1);
+  CHECK("::1", -1); // the loopback, but still No IPv6
+
+  socket_library_end();
+
+  return 1; // OK
 }
 #endif
 
-#if 0
-int 
-Ndb_getInAddr(struct in_addr * dst, const char *address) {
-  struct hostent host, * hostPtr;
-  char buf[1024];
-  int h_errno;
-  hostPtr = gethostbyname_r(address, &host, &buf[0], 1024, &h_errno);
-  if (hostPtr != NULL) {
-    dst->s_addr = ((struct in_addr *) *hostPtr->h_addr_list)->s_addr;
-    return 0;
-  }
-  
-  /* Try it as aaa.bbb.ccc.ddd. */
-  dst->s_addr = inet_addr(address);
-  if (dst->s_addr != -1) {
-    return 0;
-  }
-  return -1;
-}
+
+static inline
+int my_socket_nfds(ndb_socket_t s, int nfds)
+{
+#ifdef _WIN32
+  (void)s;
+#else
+  if(s.fd > nfds)
+    return s.fd;
 #endif
+  return nfds;
+}
+
+#define my_FD_SET(sock,set)   FD_SET(ndb_socket_get_native(sock), set)
+#define my_FD_ISSET(sock,set) FD_ISSET(ndb_socket_get_native(sock), set)
+
 
 int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
 {
@@ -89,7 +238,7 @@ int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
   struct pollfd pfd[1];
   int r;
 
-  pfd[0].fd= sock;
+  pfd[0].fd= sock.fd; // FIXME: THIS IS A BUG
   pfd[0].events= POLLHUP | POLLIN | POLLOUT | POLLNVAL;
   pfd[0].revents= 0;
   r= poll(pfd,1,0);
@@ -101,24 +250,24 @@ int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
   fd_set readfds, writefds, errorfds;
   struct timeval tv= {0,0};
   int s_err;
-  int s_err_size= sizeof(s_err);
+  SOCKET_SIZE_TYPE s_err_size= sizeof(s_err);
 
   FD_ZERO(&readfds);
   FD_ZERO(&writefds);
   FD_ZERO(&errorfds);
 
-  FD_SET(sock, &readfds);
-  FD_SET(sock, &writefds);
-  FD_SET(sock, &errorfds);
+  my_FD_SET(sock, &readfds);
+  my_FD_SET(sock, &writefds);
+  my_FD_SET(sock, &errorfds);
 
-  if(select(1, &readfds, &writefds, &errorfds, &tv)<0)
+  if(select(my_socket_nfds(sock,0)+1, &readfds, &writefds, &errorfds, &tv)<0)
     return 1;
 
-  if(FD_ISSET(sock,&errorfds))
+  if(my_FD_ISSET(sock,&errorfds))
     return 1;
 
   s_err=0;
-  if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
+  if (my_getsockopt(sock, SOL_SOCKET, SO_ERROR, &s_err, &s_err_size) != 0)
     return(1);
 
   if (s_err)

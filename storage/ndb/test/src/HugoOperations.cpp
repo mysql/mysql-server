@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,9 +12,17 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <HugoOperations.hpp>
+
+#undef ERR
+#define ERR(error) \
+{ \
+  const NdbError &_error= (error); \
+  if (!m_quiet) ERR_OUT(g_err, _error); \
+}
 
 int HugoOperations::startTransaction(Ndb* pNdb,
                                      const NdbDictionary::Table *table,
@@ -27,6 +36,7 @@ int HugoOperations::startTransaction(Ndb* pNdb,
   if (pTrans == NULL) {
     const NdbError err = pNdb->getNdbError();
     ERR(err);
+    setNdbError(err);
     return NDBT_FAILED;
   }
   return NDBT_OK;
@@ -69,9 +79,11 @@ NdbConnection* HugoOperations::getTransaction(){
 int HugoOperations::pkReadRecord(Ndb* pNdb,
 				 int recordNo,
 				 int numRecords,
-				 NdbOperation::LockMode lm){
+				 NdbOperation::LockMode lm,
+                                 NdbOperation::LockMode *lmused){
   int a;  
   allocRows(numRecords);
+  indexScans.clear();  
   int check;
 
   NdbOperation* pOp = 0;
@@ -85,6 +97,7 @@ int HugoOperations::pkReadRecord(Ndb* pNdb,
     }
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -94,11 +107,19 @@ rand_lock_mode:
     case NdbOperation::LM_Exclusive:
     case NdbOperation::LM_CommittedRead:
     case NdbOperation::LM_SimpleRead:
-      if(idx && idx->getType() == NdbDictionary::Index::OrderedIndex && 
-	 pIndexScanOp == 0)
+      if (lmused)
+        * lmused = lm;
+      if(idx && idx->getType() == NdbDictionary::Index::OrderedIndex)
       {
-	pIndexScanOp = ((NdbIndexScanOperation*)pOp);
-	check = pIndexScanOp->readTuples(lm);
+        if (pIndexScanOp == 0)
+        {
+          pIndexScanOp = ((NdbIndexScanOperation*)pOp);
+          bool mrrScan= (numRecords > 1);
+          Uint32 flags= mrrScan? NdbScanOperation::SF_MultiRange : 0; 
+          check = pIndexScanOp->readTuples(lm, flags);
+          /* Record NdbIndexScanOperation ptr for later... */
+          indexScans.push_back(pIndexScanOp);
+        }
       }
       else
 	check = pOp->readTuple(lm);
@@ -110,12 +131,21 @@ rand_lock_mode:
     
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
       return NDBT_FAILED;
+
+    Uint32 partId;
+    /* Do we need to set the partitionId for this operation? */
+    if (getPartIdForRow(pOp, r+recordNo, partId))
+    {
+      g_info << "Setting operation partition Id" << endl;
+      pOp->setPartitionId(partId);
+    }
 
     if(pIndexScanOp)
       pIndexScanOp->end_of_bound(r);
@@ -127,12 +157,217 @@ rand_lock_mode:
 	if((rows[r]->attributeStore(a) = 
 	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	  ERR(pTrans->getNdbError());
+          setNdbError(pTrans->getNdbError());
 	  return NDBT_FAILED;
 	}
       } 
     }
+    /* Note pIndexScanOp will point to the 'last' index scan op
+     * we used.  The full list is in the indexScans vector
+     */
     pOp = pIndexScanOp;
   }
+  return NDBT_OK;
+}
+
+int HugoOperations::pkReadRandRecord(Ndb* pNdb,
+                                     int records,
+                                     int numRecords,
+                                     NdbOperation::LockMode lm,
+                                     NdbOperation::LockMode *lmused){
+  int a;  
+  allocRows(numRecords);
+  indexScans.clear();
+  int check;
+
+  NdbOperation* pOp = 0;
+  pIndexScanOp = 0;
+
+  for(int r=0; r < numRecords; r++){
+    
+    if(pOp == 0)
+    {
+      pOp = getOperation(pTrans, NdbOperation::ReadRequest);
+    }
+    if (pOp == NULL) {
+      ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+rand_lock_mode:
+    switch(lm){
+    case NdbOperation::LM_Read:
+    case NdbOperation::LM_Exclusive:
+    case NdbOperation::LM_CommittedRead:
+    case NdbOperation::LM_SimpleRead:
+      if (lmused)
+        * lmused = lm;
+      if(idx && idx->getType() == NdbDictionary::Index::OrderedIndex && 
+	 pIndexScanOp == 0)
+      {
+	pIndexScanOp = ((NdbIndexScanOperation*)pOp);
+	check = pIndexScanOp->readTuples(lm);
+        /* Record NdbIndexScanOperation ptr for later... */
+        indexScans.push_back(pIndexScanOp);
+      }
+      else
+	check = pOp->readTuple(lm);
+      break;
+    default:
+      lm = (NdbOperation::LockMode)((rand() >> 16) & 3);
+      goto rand_lock_mode;
+    }
+    
+    if( check == -1 ) {
+      ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    int rowid= rand() % records;
+
+    // Define primary keys
+    if (equalForRow(pOp, rowid) != 0)
+      return NDBT_FAILED;
+
+    Uint32 partId;
+    /* Do we need to set the partitionId for this operation? */
+    if (getPartIdForRow(pOp, rowid, partId))
+    {
+      g_info << "Setting operation partition Id" << endl;
+      pOp->setPartitionId(partId);
+    }
+
+    if(pIndexScanOp)
+      pIndexScanOp->end_of_bound(r);
+    
+    if(r == 0 || pIndexScanOp == 0)
+    {
+      // Define attributes to read  
+      for(a = 0; a<tab.getNoOfColumns(); a++){
+	if((rows[r]->attributeStore(a) = 
+	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
+	  ERR(pTrans->getNdbError());
+          setNdbError(pTrans->getNdbError());
+	  return NDBT_FAILED;
+	}
+      } 
+    }
+    /* Note pIndexScanOp will point to the 'last' index scan op
+     * we used.  The full list is in the indexScans vector
+     */
+    pOp = pIndexScanOp;
+  }
+  return NDBT_OK;
+}
+
+int HugoOperations::pkReadRecordLockHandle(Ndb* pNdb,
+                                           Vector<const NdbLockHandle*>& lockHandles,
+                                           int recordNo,
+                                           int numRecords,
+                                           NdbOperation::LockMode lm,
+                                           NdbOperation::LockMode *lmused){
+  if (idx)
+  {
+    g_err << "ERROR : Cannot call pkReadRecordLockHandle on an index"
+          << endl;
+    return NDBT_FAILED;
+  }
+
+  /* If something other than LM_Read or LM_Exclusive is 
+   * passed in then we'll choose, and PkReadRecord
+   * will update lm_used
+   */
+  while (lm != NdbOperation::LM_Read &&
+         lm != NdbOperation::LM_Exclusive)
+  {
+    lm = (NdbOperation::LockMode)((rand() >> 16) & 1);
+  }
+
+  const NdbOperation* prevOp = pTrans->getLastDefinedOperation();
+
+  int readRc = pkReadRecord(pNdb,
+                            recordNo,
+                            numRecords,
+                            lm,
+                            lmused);
+
+  if (readRc == NDBT_OK)
+  {
+    /* Now traverse operations added, requesting
+     * LockHandles
+     */
+    const NdbOperation* definedOp = (prevOp)? prevOp->next() : 
+      pTrans->getFirstDefinedOperation();
+    
+    while (definedOp)
+    {
+      /* Look away now */
+      const NdbLockHandle* lh = 
+        (const_cast<NdbOperation*>(definedOp))->getLockHandle();
+      
+      if (lh == NULL)
+      {
+        ERR(definedOp->getNdbError());
+        setNdbError(definedOp->getNdbError());
+        return NDBT_FAILED;
+      }
+
+      lockHandles.push_back(lh);
+      definedOp = definedOp->next();
+    }
+  }
+
+  return readRc;
+}
+
+int HugoOperations::pkUnlockRecord(Ndb* pNdb,
+                                   Vector<const NdbLockHandle*>& lockHandles,
+                                   int offset,
+                                   int numRecords,
+                                   NdbOperation::AbortOption ao)
+{
+  if (numRecords == ~(0))
+  {
+    numRecords = lockHandles.size() - offset;
+  }
+
+  if (lockHandles.size() < (unsigned)(offset + numRecords))
+  {
+    g_err << "ERROR : LockHandles size is "
+          << lockHandles.size()
+          << " offset (" 
+          << offset
+          << ") and/or numRecords ("
+          << numRecords
+          << ") too large." << endl;
+    return NDBT_FAILED;
+  }
+  
+  for (int i = 0; i < numRecords; i++)
+  {
+    const NdbLockHandle* lh = lockHandles[offset + i];
+    if (lh != NULL)
+    {
+      const NdbOperation* unlockOp = pTrans->unlock(lh, ao);
+      
+      if (unlockOp == NULL)
+      {
+        ERR(pTrans->getNdbError());
+        setNdbError(pTrans->getNdbError());
+        return NDBT_FAILED;
+      }
+    }
+    else
+    {
+      g_err << "ERROR : LockHandle number "
+            << i+offset << " is NULL. "
+            << " offset is " << offset << endl;
+      return NDBT_FAILED;
+    }
+  }
+
   return NDBT_OK;
 }
 
@@ -146,12 +381,14 @@ int HugoOperations::pkUpdateRecord(Ndb* pNdb,
     NdbOperation* pOp = getOperation(pTrans, NdbOperation::UpdateRequest);
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
     check = pOp->updateTuple();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -159,6 +396,13 @@ int HugoOperations::pkUpdateRecord(Ndb* pNdb,
     {
       return NDBT_FAILED;
     }
+
+    Uint32 partId;
+    if(getPartIdForRow(pOp, r+recordNo, partId))
+      pOp->setPartitionId(partId);
+
+    pOp->setAnyValue(getAnyValueForRowUpd(r+recordNo, updatesValue));
+    
   }
   return NDBT_OK;
 }
@@ -175,6 +419,7 @@ HugoOperations::setValues(NdbOperation* pOp, int rowId, int updateId)
     if (tab.getColumn(a)->getPrimaryKey() == false){
       if(setValueForAttr(pOp, a, rowId, updateId ) != 0){ 
 	ERR(pTrans->getNdbError());
+        setNdbError(pTrans->getNdbError());
 	return NDBT_FAILED;
       }
     }
@@ -193,19 +438,27 @@ int HugoOperations::pkInsertRecord(Ndb* pNdb,
     NdbOperation* pOp = getOperation(pTrans, NdbOperation::InsertRequest);
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
     check = pOp->insertTuple();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
     if(setValues(pOp, r+recordNo, updatesValue) != NDBT_OK)
     {
+      m_error.code = pTrans->getNdbError().code;
       return NDBT_FAILED;
     }
+
+    Uint32 partId;
+    if(getPartIdForRow(pOp, r+recordNo, partId))
+      pOp->setPartitionId(partId);
+    
   }
   return NDBT_OK;
 }
@@ -214,18 +467,19 @@ int HugoOperations::pkWriteRecord(Ndb* pNdb,
 				  int recordNo,
 				  int numRecords,
 				  int updatesValue){
-  
   int a, check;
   for(int r=0; r < numRecords; r++){
     NdbOperation* pOp = pTrans->getNdbOperation(tab.getName());	
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
     check = pOp->writeTuple();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -233,11 +487,17 @@ int HugoOperations::pkWriteRecord(Ndb* pNdb,
     if (equalForRow(pOp, r+recordNo) != 0)
       return NDBT_FAILED;
     
+    Uint32 partId;
+    if(getPartIdForRow(pOp, r+recordNo, partId))
+      pOp->setPartitionId(partId);
+    
+
     // Define attributes to update
     for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == false){
 	if(setValueForAttr(pOp, a, recordNo+r, updatesValue ) != 0){ 
 	  ERR(pTrans->getNdbError());
+          setNdbError(pTrans->getNdbError());
 	  return NDBT_FAILED;
 	}
       }
@@ -255,18 +515,25 @@ int HugoOperations::pkWritePartialRecord(Ndb* pNdb,
     NdbOperation* pOp = pTrans->getNdbOperation(tab.getName());	
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
     check = pOp->writeTuple();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
       return NDBT_FAILED;
+
+    Uint32 partId;
+    if(getPartIdForRow(pOp, r+recordNo, partId))
+      pOp->setPartitionId(partId);
+    
   }
   return NDBT_OK;
 }
@@ -280,18 +547,65 @@ int HugoOperations::pkDeleteRecord(Ndb* pNdb,
     NdbOperation* pOp = getOperation(pTrans, NdbOperation::DeleteRequest);
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
     check = pOp->deleteTuple();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
       return NDBT_FAILED;
+
+    Uint32 partId;
+    if(getPartIdForRow(pOp, r+recordNo, partId))
+      pOp->setPartitionId(partId);
+  }
+  return NDBT_OK;
+}
+
+int HugoOperations::pkRefreshRecord(Ndb* pNdb,
+                                    int recordNo,
+                                    int numRecords,
+                                    int anyValueInfo){
+
+  char buffer[NDB_MAX_TUPLE_SIZE];
+  const NdbDictionary::Table * pTab =
+    pNdb->getDictionary()->getTable(tab.getName());
+
+  if (pTab == 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  const NdbRecord * record = pTab->getDefaultRecord();
+  NdbOperation::OperationOptions opts;
+  opts.optionsPresent = NdbOperation::OperationOptions::OO_ANYVALUE;
+  for(int r=0; r < numRecords; r++)
+  {
+    bzero(buffer, sizeof(buffer));
+    if (calc.equalForRow((Uint8*)buffer, record, r + recordNo))
+    {
+      return NDBT_FAILED;
+    }
+
+    opts.anyValue = anyValueInfo?
+      (anyValueInfo << 16) | (r+recordNo) :
+      0;
+
+    const NdbOperation* pOp = pTrans->refreshTuple(record, buffer,
+                                                   &opts, sizeof(opts));
+    if (pOp == NULL)
+    {
+      ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
+      return NDBT_FAILED;
+    }
   }
   return NDBT_OK;
 }
@@ -305,17 +619,19 @@ int HugoOperations::execute_Commit(Ndb* pNdb,
   const NdbError err = pTrans->getNdbError();
   if( check == -1 || err.code) {
     ERR(err);
+    setNdbError(err);
     NdbOperation* pOp = pTrans->getNdbErrorOperation();
     if (pOp != NULL){
       const NdbError err2 = pOp->getNdbError();
       ERR(err2);
+      setNdbError(err2);
     }
     if (err.code == 0)
       return NDBT_FAILED;
     return err.code;
   }
 
-  for(int i = 0; i<m_result_sets.size(); i++){
+  for(unsigned int i = 0; i<m_result_sets.size(); i++){
     m_executed_result_sets.push_back(m_result_sets[i]);
 
     int rows = m_result_sets[i].records;
@@ -327,6 +643,7 @@ int HugoOperations::execute_Commit(Ndb* pNdb,
     case -1:
       const NdbError err = pTrans->getNdbError();
       ERR(err);
+      setNdbError(err);
       return (err.code > 0 ? err.code : NDBT_FAILED);
     }
 
@@ -354,12 +671,16 @@ int HugoOperations::execute_NoCommit(Ndb* pNdb, AbortOption eao){
   const NdbError err = pTrans->getNdbError();
   if( check == -1 || err.code) {
     ERR(err);
+    setNdbError(err);
     const NdbOperation* pOp = pTrans->getNdbErrorOperation();
     while (pOp != NULL)
     {
       const NdbError err2 = pOp->getNdbError();
       if (err2.code)
+      {
 	ERR(err2);
+        setNdbError(err2);
+      }
       pOp = pTrans->getNextCompletedOperation(pOp);
     }
     if (err.code == 0)
@@ -367,7 +688,7 @@ int HugoOperations::execute_NoCommit(Ndb* pNdb, AbortOption eao){
     return err.code;
   }
 
-  for(int i = 0; i<m_result_sets.size(); i++){
+  for(unsigned int i = 0; i<m_result_sets.size(); i++){
     m_executed_result_sets.push_back(m_result_sets[i]);
 
     int rows = m_result_sets[i].records;
@@ -379,6 +700,7 @@ int HugoOperations::execute_NoCommit(Ndb* pNdb, AbortOption eao){
     case -1:
       const NdbError err = pTrans->getNdbError();
       ERR(err);
+      setNdbError(err);
       return (err.code > 0 ? err.code : NDBT_FAILED);
     }
 
@@ -404,6 +726,7 @@ int HugoOperations::execute_Rollback(Ndb* pNdb){
   if( check == -1 ) {
     const NdbError err = pTrans->getNdbError();
     ERR(err);
+    setNdbError(err);
     return NDBT_FAILED;
   }
   return NDBT_OK;
@@ -480,7 +803,10 @@ HugoOperations::wait_async(Ndb* pNdb, int timeout)
 HugoOperations::HugoOperations(const NdbDictionary::Table& _tab,
 			       const NdbDictionary::Index* idx):
   UtilTransactions(_tab, idx),
-  calc(_tab)
+  pIndexScanOp(NULL),
+  calc(_tab),
+  m_quiet(false),
+  avCallback(NULL)
 {
 }
 
@@ -503,6 +829,7 @@ HugoOperations::equalForRow(NdbOperation* pOp, int row)
       if(equalForAttr(pOp, a, row) != 0)
       {
         ERR(pOp->getNdbError());
+        setNdbError(pOp->getNdbError());
         return NDBT_FAILED;
       }
     }
@@ -510,18 +837,47 @@ HugoOperations::equalForRow(NdbOperation* pOp, int row)
   return NDBT_OK;
 }
 
+bool HugoOperations::getPartIdForRow(const NdbOperation* pOp,
+                                     int rowid,
+                                     Uint32& partId)
+{
+  if (tab.getFragmentType() == NdbDictionary::Object::UserDefined)
+  {
+    /* Primary keys and Ordered indexes are partitioned according
+     * to the row number
+     * PartitionId must be set for PK access.  Ordered indexes
+     * can scan all partitions.
+     */
+    if (pOp->getType() == NdbOperation::PrimaryKeyAccess)
+    {
+      /* Need to set the partitionId for this op
+       * For Hugo, we use 'HASH' partitioning, which is probably
+       * better called 'MODULO' partitioning with
+       * FragId == rowNum % NumPartitions
+       * This gives a good balance with the normal Hugo data, but different
+       * row to partition assignments than normal key partitioning.
+       */
+      const Uint32 numFrags= tab.getFragmentCount();
+      partId= rowid % numFrags;
+      g_info << "Returning partition Id of " << partId << endl;
+      return true;
+    }
+  }
+  partId= ~0;
+  return false;
+}
+
 int HugoOperations::equalForAttr(NdbOperation* pOp,
 				   int attrId, 
 				   int rowId){
-  int check = -1;
   const NdbDictionary::Column* attr = tab.getColumn(attrId);  
   if (attr->getPrimaryKey() == false){
     g_info << "Can't call equalForAttr on non PK attribute" << endl;
     return NDBT_FAILED;
   }
-    
+  
   int len = attr->getSizeInBytes();
-  char buf[8000];
+  char buf[NDB_MAX_TUPLE_SIZE];
   memset(buf, 0, sizeof(buf));
   Uint32 real_len;
   const char * value = calc.calcValue(rowId, attrId, 0, buf, len, &real_len);
@@ -532,16 +888,34 @@ int HugoOperations::setValueForAttr(NdbOperation* pOp,
 				      int attrId, 
 				      int rowId,
 				      int updateId){
-  int check = -1;
   const NdbDictionary::Column* attr = tab.getColumn(attrId);     
   
-  int len = attr->getSizeInBytes();
-  char buf[8000];
-  memset(buf, 0, sizeof(buf));
-  Uint32 real_len;
-  const char * value = calc.calcValue(rowId, attrId, 
-				      updateId, buf, len, &real_len);
-  return pOp->setValue( attr->getName(), value, real_len);
+  if (! (attr->getType() == NdbDictionary::Column::Blob))
+  {
+    int len = attr->getSizeInBytes();
+    char buf[NDB_MAX_TUPLE_SIZE];
+    memset(buf, 0, sizeof(buf));
+    Uint32 real_len;
+    const char * value = calc.calcValue(rowId, attrId,
+                                        updateId, buf, len, &real_len);
+    return pOp->setValue( attr->getName(), value, real_len);
+  }
+  else
+  {
+    char buf[32000];
+    int len = (int)sizeof(buf);
+    Uint32 real_len;
+    const char * value = calc.calcValue(rowId, attrId,
+                                        updateId, buf, len, &real_len);
+    NdbBlob * b = pOp->getBlobHandle(attrId);
+    if (b == 0)
+      return -1;
+
+    if (real_len == 0)
+      return b->setNull();
+    else
+      return b->setValue(value, real_len);
+  }
 }
 
 int
@@ -654,6 +1028,7 @@ int HugoOperations::indexReadRecords(Ndb*, const char * idxName, int recordNo,
     NdbOperation* pOp = pTrans->getNdbIndexOperation(idxName, tab.getName());
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -663,6 +1038,7 @@ int HugoOperations::indexReadRecords(Ndb*, const char * idxName, int recordNo,
       check = pOp->readTuple();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -675,6 +1051,7 @@ int HugoOperations::indexReadRecords(Ndb*, const char * idxName, int recordNo,
       if((rows[r]->attributeStore(a) = 
 	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	ERR(pTrans->getNdbError());
+        setNdbError(pTrans->getNdbError());
 	return NDBT_FAILED;
       }
     } 
@@ -695,12 +1072,14 @@ HugoOperations::indexUpdateRecord(Ndb*,
     NdbOperation* pOp = pTrans->getNdbIndexOperation(idxName, tab.getName());
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
     check = pOp->updateTuple();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -713,6 +1092,7 @@ HugoOperations::indexUpdateRecord(Ndb*,
       if (tab.getColumn(a)->getPrimaryKey() == false){
 	if(setValueForAttr(pOp, a, recordNo+r, updatesValue ) != 0){ 
 	  ERR(pTrans->getNdbError());
+          setNdbError(pTrans->getNdbError());
 	  return NDBT_FAILED;
 	}
       }
@@ -739,6 +1119,7 @@ HugoOperations::scanReadRecords(Ndb* pNdb, NdbScanOperation::LockMode lm,
     if((rows[0]->attributeStore(a) = 
 	pOp->getValue(tab.getColumn(a)->getName())) == 0) {
       ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
   } 
@@ -749,4 +1130,95 @@ HugoOperations::scanReadRecords(Ndb* pNdb, NdbScanOperation::LockMode lm,
   return 0;
 }
 
+int
+HugoOperations::releaseLockHandles(Ndb* pNdb,
+                                   Vector<const NdbLockHandle*>& lockHandles,
+                                   int offset,
+                                   int numRecords)
+{
+  int totalSize = lockHandles.size();
+  if (numRecords == ~(0))
+  {
+    numRecords = totalSize - offset;
+  }
+
+  if (totalSize < (offset + numRecords))
+  {
+    g_err << "ERROR : LockHandles size is "
+          << lockHandles.size()
+          << " offset (" 
+          << offset
+          << ") and/or numRecords ("
+          << numRecords
+          << ") too large." << endl;
+    return NDBT_FAILED;
+  }
+
+  for (int i = 0; i < numRecords; i++)
+  {
+    const NdbLockHandle* lh = lockHandles[offset + i];
+    if (lh != NULL)
+    {
+      if (pTrans->releaseLockHandle(lh) != 0)
+      {
+        ERR(pTrans->getNdbError());
+        setNdbError(pTrans->getNdbError());
+        return NDBT_FAILED;
+      }
+      const NdbLockHandle* nullPtr = NULL;
+      (void)nullPtr; // ??
+      //lockHandles.set(nullPtr, offset + i, nullPtr);
+    }
+    else
+    {
+      g_err << "ERROR : LockHandle number "
+            << i+offset << " is NULL. "
+            << " offset is " << offset << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+
+}
+
+static void
+update(const NdbError & _err)
+{
+  NdbError & error = (NdbError &) _err;
+  ndberror_struct ndberror = (ndberror_struct)error;
+  ndberror_update(&ndberror);
+  error = NdbError(ndberror);
+}
+
+const NdbError &
+HugoOperations::getNdbError() const
+{
+  update(m_error);
+  return m_error;
+}
+
+void
+HugoOperations::setNdbError(const NdbError& error)
+{
+  m_error.code = error.code ? error.code : 1;
+}
+
+void
+HugoOperations::setAnyValueCallback(AnyValueCallback avc)
+{
+  avCallback = avc;
+}
+
+Uint32
+HugoOperations::getAnyValueForRowUpd(int row, int update)
+{
+  if (avCallback == NULL)
+    return 0;
+
+  return (avCallback)(pTrans->getNdb(), pTrans,
+                      row, update);
+}
+
 template class Vector<HugoOperations::RsPair>;
+template class Vector<const NdbLockHandle*>;

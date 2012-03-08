@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DUMP_STATE_ORD_HPP
 #define DUMP_STATE_ORD_HPP
@@ -51,6 +53,20 @@ class DumpStateOrd {
 
 public:
   enum DumpStateType {
+    /* any dumps above this value should go to one block only */
+    OneBlockOnly = 100000,
+
+    _BackupMin   = 100000,
+    BackupStatus = 100000,
+    _BackupMax   = 100999,
+
+    _TCMin       = 101000,
+    _TCMax       = 101999,
+
+    _LQHMin = 102000,
+    LQHLogFileInitStatus = 102000,
+    _LQHMax = 102999,
+
     // 1 QMGR Dump information about phase 1 variables
     // 13 CMVMI Dump signal counter
     // 13 NDBCNTR Dump start phase information
@@ -72,6 +88,11 @@ public:
     NdbfsDumpAllFiles = 401,
     NdbfsDumpOpenFiles = 402,
     NdbfsDumpIdleFiles = 403,
+    CmvmiSchedulerExecutionTimer = 502,
+    CmvmiRealtimeScheduler = 503,
+    CmvmiExecuteLockCPU = 504,
+    CmvmiMaintLockCPU = 505,
+    CmvmiSchedulerSpinTimer = 506,
     // 1222-1225 DICT
     LqhDumpAllDefinedTabs = 1332,
     LqhDumpNoLogPages = 1333,
@@ -98,9 +119,6 @@ public:
     TcDumpAllApiConnectRec = 2506,
     TcSetTransactionTimeout = 2507,
     TcSetApplTransactionTimeout = 2508,
-    StartTcTimer = 2509,
-    StopTcTimer = 2510,
-    StartPeriodicTcTimer = 2511,
     TcStartDumpIndexOpCount = 2512,
     TcDumpIndexOpCount = 2513,
     CmvmiDumpConnections = 2600,
@@ -111,6 +129,8 @@ public:
                                       to be able to debug if events
                                       for some reason does not end up
                                       in clusterlog */
+    CmvmiTestLongSig = 2605,  /* Long signal testing trigger */
+    DumpEventLog = 2606,
     LCPContinue = 5900,
     // 7000 DIH
     // 7001 DIH
@@ -146,7 +166,19 @@ public:
     
     DumpTsman = 9800, 
     DumpLgman = 10000,
-    DumpPgman = 11000
+    DumpPgman = 11000,
+    DumpBackup = 13000,
+    DumpBackupSetCompressed = 13001,
+    DumpBackupSetCompressedLCP = 13002,
+    BackupErrorInsert = 13003,
+
+    DumpDbinfo = 14000,
+    DbinfoListTables = 14001,
+    DbinfoListColumns = 14002,
+    DbinfoScanTable = 14003,
+
+    SchemaResourceSnapshot = 4000, // Save resource consumption
+    SchemaResourceCheckLeak = 4001 // check same as snapshot
   };
 public:
   
