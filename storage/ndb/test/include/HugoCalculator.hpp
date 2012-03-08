@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDBT_CALC_HPP
 #define NDBT_CALC_HPP
@@ -34,10 +36,18 @@ public:
 			int len, Uint32* real_len) const;
 
   int verifyRowValues(NDBT_ResultRow* const  pRow) const;
+  int verifyRecAttr(int record, int updates, const NdbRecAttr* recAttr);
+  int verifyColValue(int record, int attrib, int updates, 
+                     const char* valPtr, Uint32 valLen);
   int getIdValue(NDBT_ResultRow* const pRow) const;
   int getUpdatesValue(NDBT_ResultRow* const pRow) const;
   int isIdCol(int colId) { return m_idCol == colId; };
   int isUpdateCol(int colId){ return m_updatesCol == colId; };
+
+  const NdbDictionary::Table& getTable() const { return m_tab;}
+
+  int equalForRow(Uint8 *, const NdbRecord*, int rowid);
+  int setValues(Uint8*, const NdbRecord*, int rowid, int updateval);
 private:
   const NdbDictionary::Table& m_tab;
   int m_idCol;

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,37 +12,42 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <pc.hpp>
 #define DBLQH_C
 #include "Dblqh.hpp"
 #include <ndb_limits.h>
+#include "DblqhCommon.hpp"
 
 #define DEBUG(x) { ndbout << "LQH::" << x << endl; }
 
 void Dblqh::initData() 
 {
+#ifdef ERROR_INSERT
+  c_master_node_id = RNIL;
+#endif
+
   caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
-  cattrinbufFileSize = ZATTRINBUF_FILE_SIZE;
-  c_no_attrinbuf_recs= ZATTRINBUF_FILE_SIZE;
-  cdatabufFileSize = ZDATABUF_FILE_SIZE;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;
   chostFileSize = MAX_NDB_NODES;
   clcpFileSize = ZNO_CONCURRENT_LCP;
   clfoFileSize = 0;
   clogFileFileSize = 0;
-  clogPartFileSize = ZLOG_PART_FILE_SIZE;
+
+  NdbLogPartInfo lpinfo(instance());
+  clogPartFileSize = lpinfo.partCount;
+
   cpageRefFileSize = ZPAGE_REF_FILE_SIZE;
   cscanrecFileSize = 0;
   ctabrecFileSize = 0;
   ctcConnectrecFileSize = 0;
   ctcNodeFailrecFileSize = MAX_NDB_NODES;
+  cTransactionDeadlockDetectionTimeout = 100;
 
   addFragRecord = 0;
-  attrbuf = 0;
-  databuf = 0;
   gcpRecord = 0;
   hostRecord = 0;
   lcpRecord = 0;
@@ -49,7 +55,6 @@ void Dblqh::initData()
   logFileRecord = 0;
   logFileOperationRecord = 0;
   logPageRecord = 0;
-  logPageRecordUnaligned= 0;
   pageRefRecord = 0;
   tablerec = 0;
   tcConnectionrec = 0;
@@ -60,9 +65,31 @@ void Dblqh::initData()
   cLqhTimeOutCount = 0;
   cLqhTimeOutCheckCount = 0;
   cbookedAccOps = 0;
+  cpackedListIndex = 0;
   m_backup_ptr = RNIL;
   clogFileSize = 16;
   cmaxLogFilesInPageZero = 40;
+
+   totalLogFiles = 0;
+   logFileInitDone = 0;
+   totallogMBytes = 0;
+   logMBytesInitDone = 0;
+   m_startup_report_frequency = 0;
+
+  c_active_add_frag_ptr_i = RNIL;
+  for (Uint32 i = 0; i < 1024; i++) {
+    ctransidHash[i] = RNIL;
+  }//for
+
+  c_last_force_lcp_time = 0;
+  c_free_mb_force_lcp_limit = 16;
+  c_free_mb_tail_problem_limit = 4;
+
+  cTotalLqhKeyReqCount = 0;
+  c_max_redo_lag = 30; // seconds
+  c_max_redo_lag_counter = 3; // 3 strikes and you're out
+
+  c_max_parallel_scans_per_frag = 32;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
@@ -71,13 +98,6 @@ void Dblqh::initRecords()
   addFragRecord = (AddFragRecord*)allocRecord("AddFragRecord",
 					      sizeof(AddFragRecord), 
 					      caddfragrecFileSize);
-  attrbuf = (Attrbuf*)allocRecord("Attrbuf",
-				  sizeof(Attrbuf), 
-				  cattrinbufFileSize);
-
-  databuf = (Databuf*)allocRecord("Databuf",
-				  sizeof(Databuf), 
-				  cdatabufFileSize);
 
   gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
 				      sizeof(GcpRecord), 
@@ -108,19 +128,68 @@ void Dblqh::initRecords()
 		sizeof(LogFileOperationRecord), 
 		clfoFileSize);
 
-  logPageRecord =
-    (LogPageRecord*)allocRecordAligned("LogPageRecord",
-                                       sizeof(LogPageRecord),
-                                       clogPageFileSize,
-                                       &logPageRecordUnaligned,
-                                       NDB_O_DIRECT_WRITE_ALIGNMENT,
-                                       false);
+  {
+    AllocChunk chunks[16];
+    const Uint32 chunkcnt = allocChunks(chunks, 16, RG_FILE_BUFFERS,
+                                        clogPageFileSize, CFG_DB_REDO_BUFFER);
+
+    {
+      Ptr<GlobalPage> pagePtr;
+      m_shared_page_pool.getPtr(pagePtr, chunks[0].ptrI);
+      logPageRecord = (LogPageRecord*)pagePtr.p;
+    }
+
+    cfirstfreeLogPage = RNIL;
+    clogPageFileSize = 0;
+    clogPageCount = 0;
+    for (Int32 i = chunkcnt - 1; i >= 0; i--)
+    {
+      const Uint32 cnt = chunks[i].cnt;
+      ndbrequire(cnt != 0);
+
+      Ptr<GlobalPage> pagePtr;
+      m_shared_page_pool.getPtr(pagePtr, chunks[i].ptrI);
+      LogPageRecord * base = (LogPageRecord*)pagePtr.p;
+      ndbrequire(base >= logPageRecord);
+      const Uint32 ptrI = Uint32(base - logPageRecord);
+
+      for (Uint32 j = 0; j<cnt; j++)
+      {
+        refresh_watch_dog();
+        base[j].logPageWord[ZNEXT_PAGE] = ptrI + j + 1;
+        base[j].logPageWord[ZPOS_IN_FREE_LIST]= 1;
+        base[j].logPageWord[ZPOS_IN_WRITING]= 0;
+      }
+
+      base[cnt-1].logPageWord[ZNEXT_PAGE] = cfirstfreeLogPage;
+      cfirstfreeLogPage = ptrI;
+
+      clogPageCount += cnt;
+      if (ptrI + cnt > clogPageFileSize)
+        clogPageFileSize = ptrI + cnt;
+    }
+    cnoOfLogPages = clogPageCount;
+  }
+
+#ifndef NO_REDO_PAGE_CACHE
+  m_redo_page_cache.m_pool.set((RedoCacheLogPageRecord*)logPageRecord,
+                               clogPageFileSize);
+  m_redo_page_cache.m_hash.setSize(63);
+
+  const Uint32 * base = (Uint32*)logPageRecord;
+  const RedoCacheLogPageRecord* tmp1 = (RedoCacheLogPageRecord*)logPageRecord;
+  ndbrequire(&base[ZPOS_PAGE_NO] == &tmp1->m_page_no);
+  ndbrequire(&base[ZPOS_PAGE_FILE_NO] == &tmp1->m_file_no);
+#endif
+
+#ifndef NO_REDO_OPEN_FILE_CACHE
+  m_redo_open_file_cache.m_pool.set(logFileRecord, clogFileFileSize);
+#endif
 
   pageRefRecord = (PageRefRecord*)allocRecord("PageRefRecord",
 					      sizeof(PageRefRecord),
 					      cpageRefFileSize);
 
-  cscanNoFreeRec = cscanrecFileSize;
   c_scanRecordPool.setSize(cscanrecFileSize);
   c_scanTakeOverHash.setSize(64);
 
@@ -163,8 +232,35 @@ void Dblqh::initRecords()
   bat[1].bits.v = 5;
 }//Dblqh::initRecords()
 
-Dblqh::Dblqh(Block_context& ctx):
-  SimulatedBlock(DBLQH, ctx),
+bool
+Dblqh::getParam(const char* name, Uint32* count)
+{
+  if (name != NULL && count != NULL)
+  {
+    /* FragmentInfoPool
+     * We increase the size of the fragment info pool
+     * to handle fragmented SCANFRAGREQ signals from 
+     * TC
+     */
+    if (strcmp(name, "FragmentInfoPool") == 0)
+    {
+      /* Worst case is every TC block sending
+       * a single fragmented request concurrently
+       * This could change in future if TCs can
+       * interleave fragments from different 
+       * requests
+       */
+      const Uint32 TC_BLOCKS_PER_NODE = 1;
+      *count= ((MAX_NDB_NODES -1) * TC_BLOCKS_PER_NODE) + 10;
+      return true;
+    }
+  }
+  return false;
+}
+
+Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
+  SimulatedBlock(DBLQH, ctx, instanceNumber),
+  m_reserved_scans(c_scanRecordPool),
   c_lcp_waiting_fragments(c_fragment_pool),
   c_lcp_restoring_fragments(c_fragment_pool),
   c_lcp_complete_fragments(c_fragment_pool),
@@ -194,23 +290,27 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_START_EXEC_SR, &Dblqh::execSTART_EXEC_SR);
   addRecSignal(GSN_EXEC_SRREQ, &Dblqh::execEXEC_SRREQ);
   addRecSignal(GSN_EXEC_SRCONF, &Dblqh::execEXEC_SRCONF);
-  addRecSignal(GSN_SCAN_HBREP, &Dblqh::execSCAN_HBREP);
 
   addRecSignal(GSN_ALTER_TAB_REQ, &Dblqh::execALTER_TAB_REQ);
 
-  // Trigger signals, transit to from TUP
-  addRecSignal(GSN_CREATE_TRIG_REQ, &Dblqh::execCREATE_TRIG_REQ);
-  addRecSignal(GSN_CREATE_TRIG_CONF, &Dblqh::execCREATE_TRIG_CONF);
-  addRecSignal(GSN_CREATE_TRIG_REF, &Dblqh::execCREATE_TRIG_REF);
+  addRecSignal(GSN_SIGNAL_DROPPED_REP, &Dblqh::execSIGNAL_DROPPED_REP, true);
 
-  addRecSignal(GSN_DROP_TRIG_REQ, &Dblqh::execDROP_TRIG_REQ);
-  addRecSignal(GSN_DROP_TRIG_CONF, &Dblqh::execDROP_TRIG_CONF);
-  addRecSignal(GSN_DROP_TRIG_REF, &Dblqh::execDROP_TRIG_REF);
+  // Trigger signals, transit to from TUP
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dblqh::execCREATE_TRIG_IMPL_REQ);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Dblqh::execCREATE_TRIG_IMPL_CONF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &Dblqh::execCREATE_TRIG_IMPL_REF);
+
+  addRecSignal(GSN_DROP_TRIG_IMPL_REQ, &Dblqh::execDROP_TRIG_IMPL_REQ);
+  addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Dblqh::execDROP_TRIG_IMPL_CONF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Dblqh::execDROP_TRIG_IMPL_REF);
+
+  addRecSignal(GSN_BUILD_INDX_IMPL_REF, &Dblqh::execBUILD_INDX_IMPL_REF);
+  addRecSignal(GSN_BUILD_INDX_IMPL_CONF, &Dblqh::execBUILD_INDX_IMPL_CONF);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
   addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);
   addRecSignal(GSN_CHECK_LCP_STOP, &Dblqh::execCHECK_LCP_STOP);
-  addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED);
+  addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED, true);
   addRecSignal(GSN_TUP_ATTRINFO, &Dblqh::execTUP_ATTRINFO);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dblqh::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_LQHFRAGREQ, &Dblqh::execLQHFRAGREQ);
@@ -250,6 +350,8 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_STORED_PROCCONF, &Dblqh::execSTORED_PROCCONF);
   addRecSignal(GSN_STORED_PROCREF, &Dblqh::execSTORED_PROCREF);
   addRecSignal(GSN_COPY_FRAGREQ, &Dblqh::execCOPY_FRAGREQ);
+  addRecSignal(GSN_COPY_FRAGREF, &Dblqh::execCOPY_FRAGREF);
+  addRecSignal(GSN_COPY_FRAGCONF, &Dblqh::execCOPY_FRAGCONF);
   addRecSignal(GSN_COPY_ACTIVEREQ, &Dblqh::execCOPY_ACTIVEREQ);
   addRecSignal(GSN_COPY_STATEREQ, &Dblqh::execCOPY_STATEREQ);
   addRecSignal(GSN_LQH_TRANSREQ, &Dblqh::execLQH_TRANSREQ);
@@ -277,10 +379,14 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_FSSYNCCONF,  &Dblqh::execFSSYNCCONF);
   addRecSignal(GSN_REMOVE_MARKER_ORD, &Dblqh::execREMOVE_MARKER_ORD);
 
-  //addRecSignal(GSN_DROP_TAB_REQ, &Dblqh::execDROP_TAB_REQ);
+  addRecSignal(GSN_CREATE_TAB_REQ, &Dblqh::execCREATE_TAB_REQ);
+  addRecSignal(GSN_CREATE_TAB_REF, &Dblqh::execCREATE_TAB_REF);
+  addRecSignal(GSN_CREATE_TAB_CONF, &Dblqh::execCREATE_TAB_CONF);
+
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dblqh::execPREP_DROP_TAB_REQ);
-  addRecSignal(GSN_WAIT_DROP_TAB_REQ, &Dblqh::execWAIT_DROP_TAB_REQ);
   addRecSignal(GSN_DROP_TAB_REQ, &Dblqh::execDROP_TAB_REQ);
+  addRecSignal(GSN_DROP_TAB_REF, &Dblqh::execDROP_TAB_REF);
+  addRecSignal(GSN_DROP_TAB_CONF, &Dblqh::execDROP_TAB_CONF);
 
   addRecSignal(GSN_LQH_ALLOCREQ, &Dblqh::execLQH_ALLOCREQ);
   addRecSignal(GSN_LQH_WRITELOG_REQ, &Dblqh::execLQH_WRITELOG_REQ);
@@ -309,14 +415,23 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_PREPARE_COPY_FRAG_REQ,
 	       &Dblqh::execPREPARE_COPY_FRAG_REQ);
   
+  addRecSignal(GSN_DROP_FRAG_REQ, &Dblqh::execDROP_FRAG_REQ);
+  addRecSignal(GSN_DROP_FRAG_REF, &Dblqh::execDROP_FRAG_REF);
+  addRecSignal(GSN_DROP_FRAG_CONF, &Dblqh::execDROP_FRAG_CONF);
+
+  addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dblqh::execSUB_GCP_COMPLETE_REP);
+  addRecSignal(GSN_FSWRITEREQ,
+               &Dblqh::execFSWRITEREQ);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dblqh::execDBINFO_SCANREQ);
+
+  addRecSignal(GSN_FIRE_TRIG_REQ, &Dblqh::execFIRE_TRIG_REQ);
+
   initData();
 
 #ifdef VM_TRACE
   {
     void* tmp[] = { 
       &addfragptr,
-      &attrinbufptr,
-      &databufptr,
       &fragptr,
       &gcpPtr,
       &lcpPtr,
@@ -338,20 +453,18 @@ Dblqh::Dblqh(Block_context& ctx):
 
 Dblqh::~Dblqh() 
 {
+#ifndef NO_REDO_PAGE_CACHE
+  m_redo_page_cache.m_pool.clear();
+#endif
+
+#ifndef NO_REDO_OPEN_FILE_CACHE
+  m_redo_open_file_cache.m_pool.clear();
+#endif
+
   // Records with dynamic sizes
   deallocRecord((void **)&addFragRecord, "AddFragRecord",
 		sizeof(AddFragRecord), 
 		caddfragrecFileSize);
-
-  deallocRecord((void**)&attrbuf,
-		"Attrbuf",
-		sizeof(Attrbuf), 
-		cattrinbufFileSize);
-
-  deallocRecord((void**)&databuf,
-		"Databuf",
-		sizeof(Databuf), 
-		cdatabufFileSize);
 
   deallocRecord((void**)&gcpRecord,
 		"GcpRecord",
@@ -383,11 +496,6 @@ Dblqh::~Dblqh()
 		sizeof(LogFileOperationRecord), 
 		clfoFileSize);
   
-  deallocRecord((void**)&logPageRecordUnaligned,
-		"LogPageRecord",
-		sizeof(LogPageRecord),
-		clogPageFileSize);
-
   deallocRecord((void**)&pageRefRecord,
 		"PageRefRecord",
 		sizeof(PageRefRecord),

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef __SAFE_COUNTER_HPP
 #define __SAFE_COUNTER_HPP
@@ -64,6 +66,7 @@ public:
   
   bool setSize(Uint32 maxNoOfActiveMutexes, bool exit_on_error = true);
   Uint32 getSize() const ;
+  Uint32 getNoOfFree() const;
 
   void execNODE_FAILREP(Signal*); 
   void printNODE_FAILREP(); 
@@ -72,7 +75,7 @@ private:
   struct ActiveCounter { /** sizeof = 7words = 28bytes */ 
   public:
     Uint32 m_senderData;
-    NodeBitmask m_nodes;
+    NdbNodeBitmask m_nodes;
     struct SignalDesc {
     public:
       Uint16 m_gsn; 
@@ -154,7 +157,7 @@ public:
   SafeCounter& operator=(const NodeReceiverGroup&);
 private:
   Uint32 m_count;
-  NodeBitmask m_nodes;
+  NdbNodeBitmask m_nodes;
   
   SafeCounterManager & m_mgr;
   SafeCounterManager::ActiveCounterPtr m_ptr;
@@ -233,6 +236,12 @@ SafeCounter::init(NodeReceiverGroup rg, Uint16 GSN, Uint32 senderData){
   {
     m_nodes = rg.m_nodes;
     m_count = m_nodes.count();
+
+    if (unlikely(m_count == 0))
+    {
+      ErrorReporter::handleAssert("SafeCounter::empty node list",
+                                  __FILE__, __LINE__);
+    }
     return true;
   }
   return false;
@@ -241,12 +250,18 @@ SafeCounter::init(NodeReceiverGroup rg, Uint16 GSN, Uint32 senderData){
 template<typename Ref>
 inline
 bool
-SafeCounter::init(NodeReceiverGroup rg, Uint32 senderData){
-  
+SafeCounter::init(NodeReceiverGroup rg, Uint32 senderData)
+{
   if (init<Ref>(rg.m_block, Ref::GSN, senderData))
   {
     m_nodes = rg.m_nodes;
     m_count = m_nodes.count();
+
+    if (unlikely(m_count == 0))
+    {
+      ErrorReporter::handleAssert("SafeCounter::empty node list",
+                                  __FILE__, __LINE__);
+    }
     return true;
   }
   return false;

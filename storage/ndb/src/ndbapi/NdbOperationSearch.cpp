@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /******************************************************************************
@@ -28,18 +30,10 @@ Adjust:  971022  UABMNST   First version.
  *****************************************************************************/
 #include "API.hpp"
 
-#include <NdbOperation.hpp>
-#include "NdbApiSignal.hpp"
-#include <NdbTransaction.hpp>
-#include <Ndb.hpp>
-#include "NdbImpl.hpp"
-#include <NdbOut.hpp>
 
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyReq.hpp>
 #include <signaldata/KeyInfo.hpp>
-#include "NdbDictionaryImpl.hpp"
-#include <md5_hash.hpp>
 
 /******************************************************************************
 CondIdType equal(const char* anAttrName, char* aValue, Uint32 aVarKeylen);
@@ -57,11 +51,14 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 {
   DBUG_ENTER("NdbOperation::equal_impl");
   DBUG_PRINT("enter", ("col: %s  op: %d  val: 0x%lx",
-                       tAttrInfo->m_name.c_str(), theOperationType,
+                       (tAttrInfo == NULL) ? "NULL" :
+                       tAttrInfo->m_name.c_str(), 
+                       theOperationType,
                        (long) aValuePassed));
   
   const char* aValue = aValuePassed;
-  Uint64 tempData[512];
+  const Uint32 MaxKeyLenInLongWords= (NDB_MAX_KEY_SIZE + 7)/8;
+  Uint64 tempData[ MaxKeyLenInLongWords ];
 
   if ((theStatus == OperationDefined) &&
       (aValue != NULL) &&
@@ -148,7 +145,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       const bool tDistrKey = tAttrInfo->m_distributionKey;
       const int attributeSize = sizeInBytes;
       const int slack = sizeInBytes & 3;
-      const int align = UintPtr(aValue) & 7;
+      const int align = Uint32(UintPtr(aValue)) & 7;
 
       if (((align & 3) != 0) || (slack != 0) || (tDistrKey && (align != 0)))
       {
@@ -383,11 +380,12 @@ NdbOperation::insertKEYINFO(const char* aValue,
       setErrorCodeAbort(4000);
       return -1;
     }
-    if (tSignal->setSignal(m_keyInfoGSN) == -1)
+    if (tSignal->setSignal(m_keyInfoGSN, refToBlock(theNdbCon->m_tcRef)) == -1)
     {
       setErrorCodeAbort(4001);
       return -1;
     }
+    tSignal->setLength(KeyInfo::MaxSignalLength);
     if (theTCREQ->next() != NULL)
        theLastKEYINFO->next(tSignal);
     else
@@ -464,9 +462,10 @@ LastWordLabel:
 void
 NdbOperation::reorderKEYINFO()
 {
-  Uint32 data[4000];
-  Uint32 size = 4000;
-  getKeyFromTCREQ(data, size);
+  Uint32 data[ NDB_MAX_KEYSIZE_IN_WORDS ];
+  Uint32 size = NDB_MAX_KEYSIZE_IN_WORDS;
+  int rc = getKeyFromTCREQ(data, size);
+  assert(rc == 0);
   Uint32 pos = 1;
   Uint32 k;
   for (k = 0; k < m_accessTable->m_noOfKeys; k++) {
@@ -479,7 +478,8 @@ NdbOperation::reorderKEYINFO()
           if (theTupleKeyDefined[j][0] == i) {
             Uint32 off = theTupleKeyDefined[j][1] - 1;
             Uint32 len = theTupleKeyDefined[j][2];
-            assert(off < 4000 && off + len <= 4000);
+            assert(off < NDB_MAX_KEYSIZE_IN_WORDS && 
+                   off + len <= NDB_MAX_KEYSIZE_IN_WORDS);
             int ret = insertKEYINFO((char*)&data[off], pos, len);
             assert(ret == 0);
             pos += len;
@@ -497,7 +497,10 @@ NdbOperation::reorderKEYINFO()
 int
 NdbOperation::getKeyFromTCREQ(Uint32* data, Uint32 & size)
 {
-  assert(size >= theTupKeyLen && theTupKeyLen > 0);
+  /* Check that we can correctly return a valid key */
+  if ((size < theTupKeyLen) || (theTupKeyLen == 0))
+    return -1;
+  
   size = theTupKeyLen;
   unsigned pos = 0;
   while (pos < 8 && pos < size) {
@@ -507,129 +510,42 @@ NdbOperation::getKeyFromTCREQ(Uint32* data, Uint32 & size)
   NdbApiSignal* tSignal = theTCREQ->next();
   unsigned n = 0;
   while (pos < size) {
-    if (n == 20) {
+    if (n == KeyInfo::DataLength) {
       tSignal = tSignal->next();
       n = 0;
     }
-    data[pos++] = tSignal->getDataPtrSend()[3 + n++];
+    data[pos++] = 
+      tSignal->getDataPtrSend()[KeyInfo::HeaderLength + n++];
   }
   return 0;
-}
-
-int
-NdbOperation::handle_distribution_key(const Uint64* value, Uint32 len)
-{
-  if(theDistrKeyIndicator_ == 1 || 
-     (theNoOfTupKeyLeft > 0 && m_accessTable->m_noOfDistributionKeys > 1))
-  {
-    return 0;
-  }
-  
-  if(m_accessTable->m_noOfDistributionKeys == 1)
-  {
-    setPartitionHash(value, len);
-  }
-  else if(theTCREQ->readSignalNumber() == GSN_TCKEYREQ)
-  {
-    // No support for combined distribution key and scan
-
-    /**
-     * Copy distribution key to linear memory
-     */
-    NdbColumnImpl* const * cols = m_accessTable->m_columns.getBase();
-    Uint64 tmp[1000];
-
-    Uint32 chunk = 8;
-    Uint32* dst = (Uint32*)tmp;
-    NdbApiSignal* tSignal = theTCREQ;
-    Uint32* src = ((TcKeyReq*)tSignal->getDataPtrSend())->keyInfo;
-    if(tSignal->readSignalNumber() == GSN_SCAN_TABREQ)
-    {
-      tSignal = tSignal->next();
-      src = ((KeyInfo*)tSignal->getDataPtrSend())->keyData;
-      chunk = KeyInfo::DataLength;
-    }
-
-    for(unsigned i = m_accessTable->m_columns.size(); i>0; cols++, i--)
-    {
-      if (!(* cols)->getPrimaryKey())
-	continue;
-      
-      NdbColumnImpl* tAttrInfo = * cols;
-      Uint32 sizeInBytes;
-      switch(tAttrInfo->m_arrayType){
-      default:
-      case NDB_ARRAYTYPE_FIXED:
-	sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
-	break;
-      case NDB_ARRAYTYPE_SHORT_VAR:
-	sizeInBytes = 1 + *(char*)src;
-	break;
-      case NDB_ARRAYTYPE_MEDIUM_VAR:
-	sizeInBytes = 2 + uint2korr((char*)src);
-	break;
-      }
-      
-      Uint32 currLen = (sizeInBytes + 3) >> 2;
-      if (tAttrInfo->getDistributionKey())
-      {
-	while (currLen >= chunk)
-	{
-	  memcpy(dst, src, 4*chunk);
-	  dst += chunk;
-	  tSignal = tSignal->next();
-	  src = ((KeyInfo*)tSignal->getDataPtrSend())->keyData;
-	  currLen -= chunk;
-	  chunk = KeyInfo::DataLength;
-	}
-
-	memcpy(dst, src, 4*currLen);
-	dst += currLen;
-	src += currLen;
-	chunk -= currLen;
-      }
-      else
-      {
-	while (currLen >= chunk)
-	{
-	  tSignal = tSignal->next();
-	  src = ((KeyInfo*)tSignal->getDataPtrSend())->keyData;
-	  currLen -= chunk;
-	  chunk = KeyInfo::DataLength;
-	}
-	
-	src += currLen;
-	chunk -= currLen;
-      }
-    }
-    setPartitionHash(tmp, dst - (Uint32*)tmp);
-  }
-  return 0;
-}
-
-void
-NdbOperation::setPartitionHash(Uint32 value)
-{
-  union {
-    Uint32 tmp32;
-    Uint64 tmp64;
-  };
-
-  tmp32 = value;
-  setPartitionHash(&tmp64, 1);
-}
-
-void
-NdbOperation::setPartitionHash(const Uint64* value, Uint32 len)
-{
-  Uint32 buf[4];
-  md5_hash(buf, value, len);
-  setPartitionId(buf[1]);
 }
 
 void
 NdbOperation::setPartitionId(Uint32 value)
 {
+  if (theStatus == UseNdbRecord)
+  {
+    /* Method not allowed for NdbRecord, use OperationOptions or 
+       ScanOptions structure instead */
+    setErrorCodeAbort(4515);
+    return; // TODO : Consider adding int rc for error
+  }
+
+  /* We only allow setPartitionId() for :
+   *   PrimaryKey ops on a UserDefined partitioned table
+   *   Ordered index scans
+   *   Table scans
+   *
+   * It is not allowed on :
+   *   Primary key access to Natively partitioned tables
+   *   Any unique key access
+   */
+  assert(((m_type == PrimaryKeyAccess) && 
+          (m_currentTable->getFragmentType() ==
+           NdbDictionary::Object::UserDefined)) ||
+         (m_type == OrderedIndexScan) ||
+         (m_type == TableScan));
+  
   theDistributionKey = value;
   theDistrKeyIndicator_ = 1;
   DBUG_PRINT("info", ("NdbOperation::setPartitionId: %u",

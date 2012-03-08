@@ -1,0 +1,644 @@
+CREATE TABLE `t1_c` (
+`capgoaledatta` mediumint(5) unsigned NOT NULL auto_increment,
+`goaledatta` char(2) NOT NULL default '',
+`maturegarbagefa` varchar(32) NOT NULL default '',
+PRIMARY KEY  (`capgoaledatta`,`goaledatta`,`maturegarbagefa`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t1_c` VALUES (2,'3','q3plus.qt'),(400,'4','q3plus.qt'),(1,'3','q3.net'),(3,'4','q3.net'),(3000,'20','threetrees.qt');
+CREATE TABLE `t2_c` (
+`capgotod` smallint(5) unsigned NOT NULL auto_increment,
+`gotod` smallint(5) unsigned NOT NULL default '0',
+`goaledatta` char(2) default NULL,
+`maturegarbagefa` varchar(32) default NULL,
+`descrpooppo` varchar(64) default NULL,
+`svcutonsa` varchar(64) NOT NULL default '',
+PRIMARY KEY  (`capgotod`),
+KEY `i quadaddsvr` (`gotod`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t2_c` VALUES (500,4,'','q3.net','addavp:MK_CASELECTOR=1','postorod rattoaa'),(2,1,'4','','addavp:MK_BRANDTAD=345','REDS Brandtad'),(3,2,'4','q3.net','execorder','fixedRatediPO REDS'),(1,1,'3','','addavp:MK_BRANDTAD=123','TEST Brandtad'),(6,5,'','told.q3.net','addavp:MK_BRANDTAD=123','Brandtad Toldzone'),(4,3,'3','q3.net','addavp:MK_POOLHINT=2','ratedi PO TEST'),(5,0,'',NULL,NULL,'');
+CREATE TABLE `t3_c` (
+`CapGoaledatta` smallint(5) unsigned NOT NULL default '0',
+`capgotod` smallint(5) unsigned NOT NULL default '0',
+PRIMARY KEY  (`capgotod`,`CapGoaledatta`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED;
+INSERT INTO `t3_c` VALUES (5,3),(2,4),(5,4),(1,3);
+CREATE TABLE `t4_c` (
+`capfa` bigint(20) unsigned NOT NULL auto_increment,
+`realm` varchar(32) NOT NULL default '',
+`authpwchap` varchar(32) default NULL,
+`fa` varchar(32) NOT NULL default '',
+`payyingatta` tinyint(4) NOT NULL default '0',
+`status` char(1) default NULL,
+PRIMARY KEY  (`fa`,`realm`),
+KEY `capfa` (`capfa`),
+KEY `i_quadentity` (`fa`,`realm`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t4_c` VALUES (18,'john.smith','q3.net','dessjohn.smith',0,NULL),(21,'quad_katt_with_brandtad','q3.net','acne',0,NULL),(2200,'quad_katt_carattoaa','q3.net','acne',0,NULL),(26,'436462612809','sqasdt.q3.net','N/A',0,'6'),(19,'john','smith.qt','dessjohn',0,NULL),(33,'436643196120','sqasdt.q3.net','N/A',1,'6'),(28,'436642900019','sqasdt.q3.net','N/A',0,'6'),(30,'436462900209','sqasdt.q3.net','N/A',0,'6'),(16,'436640006666','sqasdt.q3.net','',0,NULL),(19,'dette','el-redun.com','dessdette',0,NULL),(12,'quad_kattPP','q3.net','acne',2,NULL),(14,'436640008888','sqasdt.q3.net','',0,NULL),(29,'463624900028','sqasdt.q3.net','N/A',0,'6'),(15,'436640099099','sqasdt.q3.net','',0,NULL),(13,'pap','q3plus.qt','acne',1,NULL),(19,'436642612091','sqasdt.q3.net','N/A',0,'6'),(12,'quad_katt','q3.net','acne',0,NULL),(11,'quad_kattVK','q3.net','acne',1,NULL),(32000,'463641969502','sqasdt.q3.net','N/A',1,'6'),(20,'joe','q3.net','joedesswd',0,NULL),(290000000,'436642900034','sqasdt.q3.net','N/A',0,'6'),(25,'contind','armerde.qt','acne',1,NULL);
+CREATE TABLE `t5_c` (
+`capfa` bigint(20) unsigned NOT NULL default '0',
+`gotod` smallint(5) unsigned NOT NULL default '0',
+`orderutonsa` varchar(64) NOT NULL default '',
+PRIMARY KEY  (`capfa`,`gotod`,`orderutonsa`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t5_c` VALUES (21,2,''),(21,1,''),(22,4,'');
+CREATE TABLE `t6_c` (
+`capfa_parent` bigint(20) unsigned NOT NULL default '0',
+`capfa_child` bigint(20) unsigned NOT NULL default '0',
+`relatta` smallint(5) unsigned NOT NULL default '0',
+PRIMARY KEY  (`capfa_child`,`capfa_parent`,`relatta`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t6_c` VALUES (15,16,0),(19,20,0),(18326932092909551615,30,0),(26,29,0),(18326932092909551615,29,0),(19,18,0),(26,28,0),(12,14,0);
+CREATE TABLE `t7_c` (
+`dardpo` char(15) NOT NULL default '',
+`dardtestard` tinyint(3) unsigned NOT NULL auto_increment,
+`FastFA` char(5) NOT NULL default '',
+`FastCode` char(6) NOT NULL default '',
+`Fastca` char(1) NOT NULL default '',
+`Fastmag` char(1) NOT NULL default '',
+`Beareratta` char(2) NOT NULL default '',
+PRIMARY KEY  (`dardpo`,`dardtestard`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t7_c` VALUES ('2.6.2.4',24,'CECHP','54545','0','0','5'),('2.2.5.4',26,'CANFA','33223','1','1','4'),('4.3.2.4',28,'ITALD','54222','1','0','5'),('129..0.0.eins',28,'G','99999','1','1','5'),('1.1.1.1',24,'AUTPT','32323','0','1','3');
+CREATE TABLE `t8_c` (
+`kattjame` varchar(32) NOT NULL default '',
+`realm` varchar(32) NOT NULL default '',
+`realm_entered` varchar(32) NOT NULL default '',
+`maturegarbagefa` varchar(32) NOT NULL default '',
+`hunderaaarbagefa_parent` varchar(32) NOT NULL default '',
+`kattjame_entered` varchar(32) NOT NULL default '',
+`hunderaaarbagefa` varchar(32) NOT NULL default '',
+`gest` varchar(16) default NULL,
+`hassetino` varchar(16) NOT NULL default '',
+`aaaproxysessfa` varchar(255) default NULL,
+`autologonallowed` char(1) default NULL,
+`squardporoot` varchar(15) NOT NULL default '',
+`naspo` varchar(15) default NULL,
+`beareratta` char(2) default NULL,
+`fastCode` varchar(6) default NULL,
+`fastFA` varchar(5) default NULL,
+`fastca` char(1) default NULL,
+`fastmag` char(1) default NULL,
+`lastupdate` datetime default NULL,
+`hassetistart` datetime NOT NULL default '0000-00-00 00:00:00',
+`accthassetitime` int(10) unsigned default NULL,
+`acctoutputoctets` bigint(20) unsigned default NULL,
+`acctinputoctets` bigint(20) unsigned default NULL,
+PRIMARY KEY  (`kattjame`,`hunderaaarbagefa`,`hassetistart`,`hassetino`),
+KEY `squardporoot` (`squardporoot`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t8_c` VALUES ('4tt45345235','pap','q3plus.qt','q3plus.qt','q3.net','436643196120','436643196929','8956234534568968','5524595699','uxasmt21.net.acne.qt/481889229462692422','','1.1.1.1','2.2.4.6','4','86989','34','x','x','2012-03-12 12:55:34','2012-12-05 11:20:04',3223433,3369,9565),('4545435545','john','q3.net','q3.net','acne.li','436643196120','436643196929','45345234568968','995696699','uxasmt21.net.acne.qt/481889229462692423','','1.1.1.1','2.2.9.8','2','86989','34','x','x','2012-03-12 11:35:03','2012-12-05 08:50:04',8821923,169,3565),('versteckter_q3net_katt','joe','q3.net','elredun.com','q3.net','436643196120','436643196939','91341234568968','695595699','uxasmt21.net.acne.qt/481889229462692421','','1.1.1.1','2.5.2.5','3','86989','34','x','x','2012-03-12 18:35:04','2012-12-05 12:35:04',1923123,9569,6565);
+CREATE TABLE `t9_c` (
+`kattjame` varchar(32) NOT NULL default '',
+`kattjame_entered` varchar(32) NOT NULL default '',
+`realm` varchar(32) NOT NULL default '',
+`realm_entered` varchar(32) NOT NULL default '',
+`maturegarbagefa` varchar(32) NOT NULL default '',
+`hunderaaarbagefa` varchar(32) NOT NULL default '',
+`hunderaaarbagefa_parent` varchar(32) NOT NULL default '',
+`gest` varchar(16) default NULL,
+`hassetino` varchar(16) NOT NULL default '',
+`squardporoot` varchar(15) NOT NULL default '',
+`naspo` varchar(15) default NULL,
+`beareratta` char(2) default NULL,
+`fastCode` varchar(6) default NULL,
+`fastFA` varchar(5) default NULL,
+`fastca` char(1) default NULL,
+`fastmag` char(1) default NULL,
+`lastupdate` datetime default NULL,
+`hassetistart` datetime NOT NULL default '0000-00-00 00:00:00',
+`accthassetitime` int(10) unsigned default NULL,
+`actcoutpuocttets` bigint(20) unsigned default NULL,
+`actinputocctets` bigint(20) unsigned default NULL,
+`terminateraste` tinyint(3) unsigned default NULL,
+PRIMARY KEY  (`kattjame`,`hunderaaarbagefa`,`hassetistart`,`hassetino`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t9_c` VALUES ('3g4jh8gar2t','joe','q3.net','elredun.com','q3.net','436643316120','436643316939','91341234568968','695595699','1.1.1.1','2.2.6.2','3','86989','34','x','x','2012-03-12 18:35:04','2012-12-05 12:35:04',3123123,9569,6565,1),('4tt45345235','pap','q3plus.qt','q3plus.qt','q3.net','436643316120','436643316939','8956234534568968','5254595969','1.1.1.1','8.6.2.2','4','86989','34','x','x','2012-03-12 12:55:34','2012-12-05 11:20:04',3223433,3369,9565,2),('4545435545','john','q3.net','q3.net','acne.li','436643316120','436643316939','45345234568968','995696699','1.1.1.1','2.9.9.2','2','86998','34','x','x','2012-03-12 11:35:03','2012-12-05 08:50:04',8823123,169,3565,3);
+CREATE TABLE t10_c (a INT AUTO_INCREMENT KEY) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t10_c VALUES (1),(2),(3);
+insert into t10_c values (10000),(2000),(3000);
+CREATE TABLE t11_c (a int, b00 int null, b01 int null,b02 int null,b03 int null,b04 int null,b05 int null,b06 int null,b07 int null,b08 int null,b90 int null,b10 int null,b11 int null,b12 int null,b13 int null,b14 int null,b15 int null,b16 int null,b17 int null,b18 int null,b19 int null,b20 int null,b21 int null,b22 int null,b23 int null,b24 int null,b25 int null,b26 int null,b27 int null,b28 int null,b29 int null,b30 int null,b31 int null,b32 int null) engine = ndb;
+insert into t11_c values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
+create table t1 engine=myisam as select * from t1_c;
+create table t2 engine=myisam as select * from t2_c;
+create table t3 engine=myisam as select * from t3_c;
+create table t4 engine=myisam as select * from t4_c;
+create table t5 engine=myisam as select * from t5_c;
+create table t6 engine=myisam as select * from t6_c;
+create table t7 engine=myisam as select * from t7_c;
+create table t8 engine=myisam as select * from t8_c;
+create table t9 engine=myisam as select * from t9_c;
+create table t10 engine=myisam as select * from t10_c;
+create table t11 engine=myisam as select * from t11_c;
+ForceVarPart: 0
+ForceVarPart: 1
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
+ForceVarPart: 0
+ForceVarPart: 1
+select * from information_schema.columns where table_name = "t1_c";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+def	test	t1_c	capgoaledatta	1	NULL	NO	mediumint	NULL	NULL	7	0	NULL	NULL	mediumint(5) unsigned	PRI	auto_increment	#	
+def	test	t1_c	goaledatta	2		NO	char	2	2	NULL	NULL	latin1	latin1_swedish_ci	char(2)	PRI		#	
+def	test	t1_c	maturegarbagefa	3		NO	varchar	32	32	NULL	NULL	latin1	latin1_swedish_ci	varchar(32)	PRI		#	
+select count(*) from t1;
+count(*)
+5
+select count(*) from t1_c;
+count(*)
+5
+select count(*)
+from (select * from t1 union 
+select * from t1_c) a;
+count(*)
+5
+select count(*) from t2;
+count(*)
+7
+select count(*) from t2_c;
+count(*)
+7
+select count(*)
+from (select * from t2 union 
+select * from t2_c) a;
+count(*)
+7
+select count(*) from t3;
+count(*)
+4
+select count(*) from t3_c;
+count(*)
+4
+select count(*)
+from (select * from t3 union 
+select * from t3_c) a;
+count(*)
+4
+select count(*) from t4;
+count(*)
+22
+select count(*) from t4_c;
+count(*)
+22
+select count(*)
+from (select * from t4 union 
+select * from t4_c) a;
+count(*)
+22
+select count(*) from t5;
+count(*)
+3
+select count(*) from t5_c;
+count(*)
+3
+select count(*)
+from (select * from t5 union 
+select * from t5_c) a;
+count(*)
+3
+select count(*) from t6;
+count(*)
+8
+select count(*) from t6_c;
+count(*)
+8
+select count(*)
+from (select * from t6 union 
+select * from t6_c) a;
+count(*)
+8
+select count(*) from t7;
+count(*)
+5
+select count(*) from t7_c;
+count(*)
+5
+select count(*)
+from (select * from t7 union 
+select * from t7_c) a;
+count(*)
+5
+select count(*) from t8;
+count(*)
+3
+select count(*) from t8_c;
+count(*)
+3
+select count(*)
+from (select * from t8 union 
+select * from t8_c) a;
+count(*)
+3
+select count(*) from t9;
+count(*)
+3
+select count(*) from t9_c;
+count(*)
+3
+select count(*)
+from (select * from t9 union 
+select * from t9_c) a;
+count(*)
+3
+select count(*) from t10;
+count(*)
+6
+select count(*) from t10_c;
+count(*)
+6
+select count(*)
+from (select * from t10 union 
+select * from t10_c) a;
+count(*)
+6
+select count(*) from t11;
+count(*)
+1
+select count(*) from t11_c;
+count(*)
+1
+select count(*)
+from (select * from t11 union 
+select * from t11_c) a;
+count(*)
+1
+select * from t10_c order by a;
+a
+1
+2
+3
+2000
+3000
+10000
+select max(capgoaledatta) from t1_c;
+max(capgoaledatta)
+3000
+select auto_increment from information_schema.tables
+where table_name = 't1_c';
+auto_increment
+3001
+select max(capgotod) from t2_c;
+max(capgotod)
+500
+select auto_increment from information_schema.tables
+where table_name = 't2_c';
+auto_increment
+501
+select max(capfa) from t4_c;
+max(capfa)
+290000000
+select auto_increment from information_schema.tables
+where table_name = 't4_c';
+auto_increment
+290000001
+select max(dardtestard) from t7_c;
+max(dardtestard)
+28
+select auto_increment from information_schema.tables
+where table_name = 't7_c';
+auto_increment
+29
+select max(a) from t10_c;
+max(a)
+10000
+select auto_increment from information_schema.tables
+where table_name = 't10_c';
+auto_increment
+10001
+ALTER TABLE t7_c
+PARTITION BY LINEAR KEY (`dardtestard`);
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
+select count(*) from t1;
+count(*)
+5
+select count(*) from t1_c;
+count(*)
+5
+select count(*)
+from (select * from t1 union 
+select * from t1_c) a;
+count(*)
+5
+select count(*) from t2;
+count(*)
+7
+select count(*) from t2_c;
+count(*)
+7
+select count(*)
+from (select * from t2 union 
+select * from t2_c) a;
+count(*)
+7
+select count(*) from t3;
+count(*)
+4
+select count(*) from t3_c;
+count(*)
+4
+select count(*)
+from (select * from t3 union 
+select * from t3_c) a;
+count(*)
+4
+select count(*) from t4;
+count(*)
+22
+select count(*) from t4_c;
+count(*)
+22
+select count(*)
+from (select * from t4 union 
+select * from t4_c) a;
+count(*)
+22
+select count(*) from t5;
+count(*)
+3
+select count(*) from t5_c;
+count(*)
+3
+select count(*)
+from (select * from t5 union 
+select * from t5_c) a;
+count(*)
+3
+select count(*) from t6;
+count(*)
+8
+select count(*) from t6_c;
+count(*)
+8
+select count(*)
+from (select * from t6 union 
+select * from t6_c) a;
+count(*)
+8
+select count(*) from t7;
+count(*)
+5
+select count(*) from t7_c;
+count(*)
+5
+select count(*)
+from (select * from t7 union 
+select * from t7_c) a;
+count(*)
+5
+select count(*) from t8;
+count(*)
+3
+select count(*) from t8_c;
+count(*)
+3
+select count(*)
+from (select * from t8 union 
+select * from t8_c) a;
+count(*)
+3
+select count(*) from t9;
+count(*)
+3
+select count(*) from t9_c;
+count(*)
+3
+select count(*)
+from (select * from t9 union 
+select * from t9_c) a;
+count(*)
+3
+select count(*) from t10;
+count(*)
+6
+select count(*) from t10_c;
+count(*)
+6
+select count(*)
+from (select * from t10 union 
+select * from t10_c) a;
+count(*)
+6
+select count(*) from t11;
+count(*)
+1
+select count(*) from t11_c;
+count(*)
+1
+select count(*)
+from (select * from t11 union 
+select * from t11_c) a;
+count(*)
+1
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
+select count(*) from t1;
+count(*)
+5
+select count(*) from t1_c;
+count(*)
+5
+select count(*)
+from (select * from t1 union 
+select * from t1_c) a;
+count(*)
+5
+select count(*) from t2;
+count(*)
+7
+select count(*) from t2_c;
+count(*)
+7
+select count(*)
+from (select * from t2 union 
+select * from t2_c) a;
+count(*)
+7
+select count(*) from t3;
+count(*)
+4
+select count(*) from t3_c;
+count(*)
+4
+select count(*)
+from (select * from t3 union 
+select * from t3_c) a;
+count(*)
+4
+select count(*) from t4;
+count(*)
+22
+select count(*) from t4_c;
+count(*)
+22
+select count(*)
+from (select * from t4 union 
+select * from t4_c) a;
+count(*)
+22
+select count(*) from t5;
+count(*)
+3
+select count(*) from t5_c;
+count(*)
+3
+select count(*)
+from (select * from t5 union 
+select * from t5_c) a;
+count(*)
+3
+select count(*) from t6;
+count(*)
+8
+select count(*) from t6_c;
+count(*)
+8
+select count(*)
+from (select * from t6 union 
+select * from t6_c) a;
+count(*)
+8
+select count(*) from t7;
+count(*)
+5
+select count(*) from t7_c;
+count(*)
+5
+select count(*)
+from (select * from t7 union 
+select * from t7_c) a;
+count(*)
+5
+select count(*) from t8;
+count(*)
+3
+select count(*) from t8_c;
+count(*)
+3
+select count(*)
+from (select * from t8 union 
+select * from t8_c) a;
+count(*)
+3
+select count(*) from t9;
+count(*)
+3
+select count(*) from t9_c;
+count(*)
+3
+select count(*)
+from (select * from t9 union 
+select * from t9_c) a;
+count(*)
+3
+select count(*) from t10;
+count(*)
+6
+select count(*) from t10_c;
+count(*)
+6
+select count(*)
+from (select * from t10 union 
+select * from t10_c) a;
+count(*)
+6
+select count(*) from t11;
+count(*)
+1
+select count(*) from t11_c;
+count(*)
+1
+select count(*)
+from (select * from t11 union 
+select * from t11_c) a;
+count(*)
+1
+drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
+Backup Id = the_backup_id
+Nodeid = 1
+Analyse node group map
+Create table `test/def/t2_c` failed: 721: Schema object with given name already exists
+Restore: Failed to restore table: `test/def/t2_c` ... Exiting 
+
+NDBT_ProgramExit: 1 - Failed
+
+CREATE TABLE t11_c (
+c1 int primary key, c2 char(10), c3 varchar(10)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t12_c (
+c1 int primary key, c2 char(10), c3 varchar(10)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t11_c VALUES(1, "aaaaa", "bbbbb"), (2, "ccccc", "ddddd"), (3, "eeeee","fffff");
+INSERT INTO t12_c VALUES(4, "ggggg", "hhhhh"), (5, "iiiii", "jjjjj"), (6, "kkkkk","lllll");
+drop table t2_c,t11_c,t12_c;
+SELECT * FROM t11_c ORDER BY c1;
+c1	c2	c3
+1	aaaaa	bbbbb
+2	ccccc	ddddd
+3	eeeee	fffff
+drop table t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t11_c;
+select epoch from mysql.ndb_apply_status where server_id=0;
+epoch
+332
+select epoch from mysql.ndb_apply_status where server_id=0;
+epoch
+152
+select epoch > (1 << 32) from mysql.ndb_apply_status where server_id=0;
+epoch > (1 << 32)
+1
+create table t1 (a int not null primary key auto_increment, b int) auto_increment=200
+engine=ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=200 DEFAULT CHARSET=latin1
+drop table t1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=200 DEFAULT CHARSET=latin1
+drop table t1;
+drop table t1;
+create table t1 (a int, b int, c int not null, 
+primary key (a) using hash, unique(c) using hash)
+engine = ndb;
+insert into t1 values (1,1,1), (2,2,2), (3,3,3);
+select * from t1 order by 1;
+a	b	c
+1	1	1
+2	2	2
+3	3	3
+drop table t1;
+CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
+id INT,
+type VARCHAR(20),
+state VARCHAR(20),
+logging VARCHAR(20),
+_database VARCHAR(255),
+_schema VARCHAR(20),
+name VARCHAR(255)
+);
+
+ndb_show_tables completed.....
+
+select id into @tmp1 from ndb_show_tables_results
+where name like '%ndb_index_stat_sample_x1%';
+select * from ndb_show_tables_results
+where type like '%Index%'
+and name not like '%ndb_index_stat_sample_x1%'
+and name not like concat('%NDB$INDEX_',@tmp1,'_CUSTOM%')
+order by 1,2,3,4,5,6,7;
+id	type	state	logging	_database	_schema	name
+drop table ndb_show_tables_results;
+create table t1 (a int primary key) engine = ndb;
+drop table t1;
+create table t1 ( c499 int, c498 int, c497 int, c496 int, c495 int, c494 int, c493 int, c492 int, c491 int, c490 int, c489 int, c488 int, c487 int, c486 int, c485 int, c484 int, c483 int, c482 int, c481 int, c480 int, c479 int, c478 int, c477 int, c476 int, c475 int, c474 int, c473 int, c472 int, c471 int, c470 int, c469 int, c468 int, c467 int, c466 int, c465 int, c464 int, c463 int, c462 int, c461 int, c460 int, c459 int, c458 int, c457 int, c456 int, c455 int, c454 int, c453 int, c452 int, c451 int, c450 int, c449 int, c448 int, c447 int, c446 int, c445 int, c444 int, c443 int, c442 int, c441 int, c440 int, c439 int, c438 int, c437 int, c436 int, c435 int, c434 int, c433 int, c432 int, c431 int, c430 int, c429 int, c428 int, c427 int, c426 int, c425 int, c424 int, c423 int, c422 int, c421 int, c420 int, c419 int, c418 int, c417 int, c416 int, c415 int, c414 int, c413 int, c412 int, c411 int, c410 int, c409 int, c408 int, c407 int, c406 int, c405 int, c404 int, c403 int, c402 int, c401 int, c400 int, c399 int, c398 int, c397 int, c396 int, c395 int, c394 int, c393 int, c392 int, c391 int, c390 int, c389 int, c388 int, c387 int, c386 int, c385 int, c384 int, c383 int, c382 int, c381 int, c380 int, c379 int, c378 int, c377 int, c376 int, c375 int, c374 int, c373 int, c372 int, c371 int, c370 int, c369 int, c368 int, c367 int, c366 int, c365 int, c364 int, c363 int, c362 int, c361 int, c360 int, c359 int, c358 int, c357 int, c356 int, c355 int, c354 int, c353 int, c352 int, c351 int, c350 int, c349 int, c348 int, c347 int, c346 int, c345 int, c344 int, c343 int, c342 int, c341 int, c340 int, c339 int, c338 int, c337 int, c336 int, c335 int, c334 int, c333 int, c332 int, c331 int, c330 int, c329 int, c328 int, c327 int, c326 int, c325 int, c324 int, c323 int, c322 int, c321 int, c320 int, c319 int, c318 int, c317 int, c316 int, c315 int, c314 int, c313 int, c312 int, c311 int, c310 int, c309 int, c308 int, c307 int, c306 int, c305 int, c304 int, c303 int, c302 int, c301 int, c300 int, c299 int, c298 int, c297 int, c296 int, c295 int, c294 int, c293 int, c292 int, c291 int, c290 int, c289 int, c288 int, c287 int, c286 int, c285 int, c284 int, c283 int, c282 int, c281 int, c280 int, c279 int, c278 int, c277 int, c276 int, c275 int, c274 int, c273 int, c272 int, c271 int, c270 int, c269 int, c268 int, c267 int, c266 int, c265 int, c264 int, c263 int, c262 int, c261 int, c260 int, c259 int, c258 int, c257 int, c256 int, c255 int, c254 int, c253 int, c252 int, c251 int, c250 int, c249 int, c248 int, c247 int, c246 int, c245 int, c244 int, c243 int, c242 int, c241 int, c240 int, c239 int, c238 int, c237 int, c236 int, c235 int, c234 int, c233 int, c232 int, c231 int, c230 int, c229 int, c228 int, c227 int, c226 int, c225 int, c224 int, c223 int, c222 int, c221 int, c220 int, c219 int, c218 int, c217 int, c216 int, c215 int, c214 int, c213 int, c212 int, c211 int, c210 int, c209 int, c208 int, c207 int, c206 int, c205 int, c204 int, c203 int, c202 int, c201 int, c200 int, c199 int, c198 int, c197 int, c196 int, c195 int, c194 int, c193 int, c192 int, c191 int, c190 int, c189 int, c188 int, c187 int, c186 int, c185 int, c184 int, c183 int, c182 int, c181 int, c180 int, c179 int, c178 int, c177 int, c176 int, c175 int, c174 int, c173 int, c172 int, c171 int, c170 int, c169 int, c168 int, c167 int, c166 int, c165 int, c164 int, c163 int, c162 int, c161 int, c160 int, c159 int, c158 int, c157 int, c156 int, c155 int, c154 int, c153 int, c152 int, c151 int, c150 int, c149 int, c148 int, c147 int, c146 int, c145 int, c144 int, c143 int, c142 int, c141 int, c140 int, c139 int, c138 int, c137 int, c136 int, c135 int, c134 int, c133 int, c132 int, c131 int, c130 int, c129 int, c128 int, c127 int, c126 int, c125 int, c124 int, c123 int, c122 int, c121 int, c120 int, c119 int, c118 int, c117 int, c116 int, c115 int, c114 int, c113 int, c112 int, c111 int, c110 int, c109 int, c108 int, c107 int, c106 int, c105 int, c104 int, c103 int, c102 int, c101 int, c100 int, c99 int, c98 int, c97 int, c96 int, c95 int, c94 int, c93 int, c92 int, c91 int, c90 int, c89 int, c88 int, c87 int, c86 int, c85 int, c84 int, c83 int, c82 int, c81 int, c80 int, c79 int, c78 int, c77 int, c76 int, c75 int, c74 int, c73 int, c72 int, c71 int, c70 int, c69 int, c68 int, c67 int, c66 int, c65 int, c64 int, c63 int, c62 int, c61 int, c60 int, c59 int, c58 int, c57 int, c56 int, c55 int, c54 int, c53 int, c52 int, c51 int, c50 int, c49 int, c48 int, c47 int, c46 int, c45 int, c44 int, c43 int, c42 int, c41 int, c40 int, c39 int, c38 int, c37 int, c36 int, c35 int, c34 int, c33 int, c32 int, c31 int, c30 int, c29 int, c28 int, c27 int, c26 int, c25 int, c24 int, c23 int, c22 int, c21 int, c20 int, c19 int, c18 int, c17 int, c16 int, c15 int, c14 int, c13 int, c12 int, c11 int, c10 int, c9 int, c8 int, c7 int, c6 int, c5 int, c4 int, c3 int, c2 int, c1 int, c500 varchar(11000), primary key using hash(c1)) engine=ndb;
+set @v10 = '0123456789';
+set @v100 = concat(@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10);
+set @v1000 =concat(@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100);
+set @v10000 = concat(@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000);
+set @v11000 = concat(@v10000, @v1000);
+insert into t1 (c1,c500) values (1,@v11000), (2,@v11000), (3,@v11000);
+drop table t1;

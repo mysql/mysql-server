@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005-2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include "SimulatedBlock.hpp"
@@ -31,6 +34,11 @@ SafeCounterManager::setSize(Uint32 maxNoOfActiveMutexes, bool exit_on_error) {
 Uint32
 SafeCounterManager::getSize() const {
   return m_counterPool.getSize();
+}
+
+Uint32
+SafeCounterManager::getNoOfFree() const {
+  return m_counterPool.getNoOfFree();
 }
 
 bool
@@ -53,7 +61,7 @@ void
 SafeCounterManager::printNODE_FAILREP(){
   ActiveCounterPtr ptr;
 
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   nodes.clear();
   //  nodes.bitORC(nodes);
 
@@ -66,9 +74,9 @@ SafeCounterManager::printNODE_FAILREP(){
     Uint32 len = MAX(MAX(desc.m_senderDataOffset, desc.m_errorCodeOffset),
 		     desc.m_senderRefOffset);
     
-    NodeBitmask overlapping = ptr.p->m_nodes;
+    NdbNodeBitmask overlapping = ptr.p->m_nodes;
     Uint32 i = 0;
-    while((i = overlapping.find(i)) != NodeBitmask::NotFound){
+    while((i = overlapping.find(i)) != NdbNodeBitmask::NotFound){
       ndbout_c("  theData[desc.m_senderRefOffset=%u] = %x",
 	       desc.m_senderRefOffset, numberToRef(desc.m_block, i));
       ndbout_c("  sendSignal(%x,%u,signal,%u,JBB",
@@ -82,8 +90,8 @@ void
 SafeCounterManager::execNODE_FAILREP(Signal* signal){
   Uint32 * theData = signal->getDataPtrSend();
   ActiveCounterPtr ptr;
-  NodeBitmask nodes;
-  nodes.assign(NodeBitmask::Size, 
+  NdbNodeBitmask nodes;
+  nodes.assign(NdbNodeBitmask::Size, 
 	       ((const NodeFailRep*)signal->getDataPtr())->theNodes);
 
   for(m_activeCounters.first(ptr); !ptr.isNull(); m_activeCounters.next(ptr)){
@@ -94,10 +102,10 @@ SafeCounterManager::execNODE_FAILREP(Signal* signal){
       Uint32 len = MAX(MAX(desc.m_senderDataOffset, desc.m_errorCodeOffset),
 		       desc.m_senderRefOffset);
       
-      NodeBitmask overlapping = ptr.p->m_nodes;
+      NdbNodeBitmask overlapping = ptr.p->m_nodes;
       overlapping.bitAND(nodes);
       Uint32 i = 0;
-      while((i = overlapping.find(i)) != NodeBitmask::NotFound){
+      while((i = overlapping.find(i)) != NdbNodeBitmask::NotFound){
 	theData[desc.m_senderRefOffset] = numberToRef(desc.m_block, i);
 	m_block.sendSignal(m_block.reference(), desc.m_gsn, signal, len+1,JBB);
 	i++;

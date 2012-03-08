@@ -1,0 +1,54 @@
+-- source include/have_ndb.inc
+
+# Test will produce this error in server log file -> ignore
+call mtr.add_suppression("Could not acquire global schema lock");
+
+#
+# Run all the commands which should take the global schema lock
+# against a mysqld "connected" to stopped NDB nodes
+#
+
+# Restart NDB nodes into "no start"
+--source ndb_restart_nostart.inc
+
+# Database DDL, works but generate a warning
+# about failure to acquire global schema lock
+CREATE DATABASE test2;
+ALTER DATABASE test2 CHARACTER SET latin2;
+DROP DATABASE test2;
+
+# Table DDL, works since they don't work with NDB tables
+# but generate warnings about failure to acquire global schema lock
+# NOTE! The CREATE's all generate three warnings each, global
+# schema lock, ha_discover and ha_table_exists_in_engine
+# NOTE2! When using ps protocol a fourth warning pops up due to different
+# code path -> turn ps off
+#
+--disable_ps_protocol
+CREATE TABLE t1(a int not null primary key);
+RENAME TABLE t1 TO t2;
+CREATE TABLE t3 LIKE t2;
+ALTER TABLE t3 ADD COLUMN b int default NULL;
+INSERT INTO t2 VALUES(1);
+TRUNCATE TABLE t2;
+CREATE TABLE t4 AS SELECT * FROM t2;
+DROP TABLE t2;
+DROP TABLE t3, t4;
+--enable_ps_protocol
+
+
+# Start NDB nodes back up again
+--source ndb_restart_start.inc
+
+
+
+# NOTE! this is a workaround so that check-testcase after test
+# see the mysql.ndb_schema table(if not connected, 'find_files'
+# will hide the table)
+#
+# Wait until mysqld has connected properly to cluster
+--disable_result_log
+--disable_query_log
+source include/ndb_not_readonly.inc;
+--enable_query_log
+--enable_result_log

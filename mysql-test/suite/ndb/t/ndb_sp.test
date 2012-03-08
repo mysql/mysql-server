@@ -1,0 +1,41 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (
+  a int not null primary key,
+  b int not null
+) engine=ndb;
+insert into t1 values (1,10), (2,20), (3,100), (4, 100);
+
+delimiter //;
+create procedure test_proc1 (in var_in int)
+begin
+  select * from t1 where a = var_in;
+end;
+create procedure test_proc2 (out var_out int)
+begin
+  select b from t1 where a = 1 into var_out;
+end;
+create procedure test_proc3 (inout var_inout int)
+begin
+  select b from t1 where a = var_inout into var_inout;
+end;
+//
+delimiter ;//
+call test_proc1(1);
+call test_proc2(@test_var);
+select @test_var;
+set @test_var = 1;
+call test_proc3(@test_var);
+select @test_var;
+alter procedure test_proc1 comment 'new comment';
+show create procedure test_proc1;
+drop procedure test_proc1;
+drop procedure test_proc2;
+drop procedure test_proc3;
+drop table t1;
+
+--echo End of 5.1 tests
