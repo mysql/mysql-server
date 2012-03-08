@@ -3080,6 +3080,7 @@ row_drop_table_for_mysql(
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	table;
+	dict_index_t*	index;
 	ulint		space_id;
 	ulint		err;
 	const char*	table_name;
@@ -3287,6 +3288,18 @@ check_next_foreign:
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 	trx->table_id = table->id;
 
+	/* Mark all indexes unavailable in the data dictionary cache
+	before starting to drop the table. */
+
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+		rw_lock_x_lock(dict_index_get_lock(index));
+		ut_ad(!index->to_be_dropped);
+		index->to_be_dropped = TRUE;
+		rw_lock_x_unlock(dict_index_get_lock(index));
+	}
+
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in deleting the dictionary data from system
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
@@ -3452,6 +3465,17 @@ check_next_foreign:
 		the undo log. We can directly exit here
 		and return the DB_TOO_MANY_CONCURRENT_TRXS
 		error. */
+
+		/* Mark all indexes available in the data dictionary
+		cache again. */
+
+		for (index = dict_table_get_first_index(table);
+		     index != NULL;
+		     index = dict_table_get_next_index(index)) {
+			rw_lock_x_lock(dict_index_get_lock(index));
+			index->to_be_dropped = FALSE;
+			rw_lock_x_unlock(dict_index_get_lock(index));
+		}
 		break;
 
 	case DB_OUT_OF_FILE_SPACE:
