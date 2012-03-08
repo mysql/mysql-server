@@ -484,7 +484,7 @@ row_import_free(
 {
 	for (ulint i = 0; i < cfg->n_indexes; ++i) {
 		if (cfg->indexes[i].name != 0) {
-			delete cfg->indexes[i].name;
+			delete [] cfg->indexes[i].name;
 			cfg->indexes[i].name = 0;
 		}
 
@@ -496,7 +496,7 @@ row_import_free(
 
 		for (ulint j = 0; j < n_fields; ++j) {
 			if (cfg->indexes[i].fields[j].name != 0) {
-				delete cfg->indexes[i].fields[j].name;
+				delete [] cfg->indexes[i].fields[j].name;
 				cfg->indexes[i].fields[j].name = 0;
 			}
 		}
@@ -507,7 +507,7 @@ row_import_free(
 
 	for (ulint i = 0; i < cfg->n_cols; ++i) {
 		if (cfg->col_names[i] != 0) {
-			delete cfg->col_names[i];
+			delete [] cfg->col_names[i];
 			cfg->col_names[i] = 0;
 		}
 	}

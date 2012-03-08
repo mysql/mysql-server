@@ -15435,7 +15435,7 @@ ib_pushf(
 
 	va_start(args, format);
 
-#if defined(__WIN__) && defined(HAVE_VSCPRINTF) && defined(HAVE_VCNPRINTF)
+#ifdef __WIN__
 	int		size = _vscprintf(format, args);
 	str = static_cast<char*>(malloc(size));
 	vsnprintf(str, size, format, args);
@@ -15490,7 +15490,7 @@ ib_logf(
 
 	va_start(args, format);
 
-#if defined(__WIN__) && defined(HAVE_VSCPRINTF) && defined(HAVE_VCNPRINTF)
+#ifdef __WIN__
 	int		size = _vscprintf(format, args);
 	str = static_cast<char*>(malloc(size));
 	vsnprintf(str, size, format, args);
