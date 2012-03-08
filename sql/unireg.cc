@@ -403,8 +403,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     List_iterator<Create_field> it(create_fields);
     while ((field=it++))
     {
-      const uchar field_storage= 0; /* Used in MySQL Cluster */
-      const uchar field_column_format= 0; /* Used in MySQL Cluster */
+      const uchar field_storage= field->field_storage_type();
+      const uchar field_column_format= field->column_format();
       const uchar field_flags=
         field_storage + (field_column_format << COLUMN_FORMAT_SHIFT);
       *ptr= field_flags;
