@@ -763,8 +763,7 @@ ut_strerr(
 }
 #endif /* !UNIV_INNOCHECKSUM */
 
-#if !defined(HAVE_VASPRINTF)						\
-    || (defined(WIN) && !(defined(HAVE_VSNPRINTF) && defined(HAVE_VSCPRINTF)))
+#if !defined(HAVE_VASPRINTF) && !defined(__WIN__)
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
