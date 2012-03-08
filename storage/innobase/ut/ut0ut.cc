@@ -788,7 +788,6 @@ ut_strerr(
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <lint.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -813,7 +812,7 @@ vasprintf(char **str, const char *format, va_list ap)
  		return (-1);
  	if (ret < INIT_SZ) {
  		len = ret + 1;
- 		if ((newstr = malloc(len)) == NULL)
+ 		if ((newstr = (char*) malloc(len)) == NULL)
  			return (-1);	/* retain errno from malloc() */
  		(void) strlcpy(newstr, string, len);
  		*str = newstr;
@@ -830,7 +829,7 @@ vasprintf(char **str, const char *format, va_list ap)
  			return (-1);
  		}
  		len = ret + 1;
- 		if ((newstr = malloc(len)) == NULL)
+ 		if ((newstr = (char*) malloc(len)) == NULL)
  			return (-1);	/* retain errno from malloc() */
  		ret = vsnprintf(newstr, len, format, ap);
  		if (ret < 0) {		/* retain errno from vsnprintf() */
