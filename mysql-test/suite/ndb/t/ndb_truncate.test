@@ -1,0 +1,40 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (
+  a bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned
+) engine=ndbcluster;
+
+
+#
+# insert records into table
+#
+let $1=500;
+disable_query_log;
+while ($1)
+{
+ eval insert into t1 values(NULL, $1+9, 5*$1), (NULL, $1+10, 7),(NULL, $1+10, 7*$1), (NULL, $1+10, 10+$1), (NULL, $1+10, 70*$1), (NULL, $1+10, 7), (NULL, $1+10, 9), (NULL, $1+299, 899), (NULL, $1+10, 12), (NULL, $1+10, 14*$1);
+ dec $1;
+}
+enable_query_log;
+
+select count(*) from t1;
+
+select * from t1 order by a limit 2;
+
+truncate table t1;
+
+select count(*) from t1;
+
+insert into t1 values(NULL,1,1),(NULL,2,2);
+
+select * from t1 order by a;
+
+drop table t1;
+
+# End of 4.1 tests

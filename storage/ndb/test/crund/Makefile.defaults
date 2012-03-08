@@ -1,0 +1,341 @@
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#------------------------------------------------------------------------------
+
+# Default Variables Section:
+
+# to avoid problems where SHELL is inherited from the environment
+  SHELL = /bin/sh
+
+######	Target:
+  TARGET_ARCH	=
+
+######	C Preprocessor:
+#  CPP		= cpp
+  CPP		= $(CC) -E
+  CPPFLAGS	= $(DDEFINES) $(INCLUDES)
+
+# gnu ccp:
+# -M Generates make dependencies.
+# -MM Similar to -M, but ignores system header files.
+# -MD Similar to -M, but puts output in a .d file.
+# -MMD Similar to -MD, but ignores system header files.
+# -MG Treats missing header files as generated files.
+  MAKEDEPEND	= $(CPP) -MM $(CPPFLAGS)
+#  MAKEDEPEND	= makedepend
+
+######	C Compiler:
+
+  CC	   	= gcc
+# plain cc, debug:
+#  CFLAGS	= -g -DDEBUG
+# gnu gcc, general: -pedantic -ansi -std=c89 -std=c99 -std=gnu89 -std=gnu99
+  CFLAGS.gen	= -Wall
+# gnu gcc, default:
+  CFLAGS	= $(CFLAGS.gen) -g -O
+# gnu gcc, debug:
+  CFLAGS.dbg	= $(CFLAGS.gen) -g -DDEBUG
+# gnu gcc, optimize: -funroll-all-loops -fomit-frame-pointer
+  CFLAGS.opt 	= $(CFLAGS.gen) -DNDEBUG -O3
+# gnu gcc, profile:
+  CFLAGS.prf 	= $(CFLAGS.opt) -pg
+
+#  CC	   	= cc
+# Sun cc, debug:
+#  CFLAGS	= -g -v -Xc -DDEBUG
+# Sun cc, optimize:
+#  CFLAGS	= -fast -xO4 -Xc -DNDEBUG
+
+######	C++ Compiler:
+
+  CXX  		= g++
+# gnu g++, general: -pedantic -ansi -std=c++98 -std=gnu++98
+#   -fabi-version=2 -fabi-version=1 -fabi-version=0
+#   -fno-implicit-templates -fno-implicit-inline-templates -frepo
+#   -Weffc++
+#      Unfortunately, -Weffc++ issues broad warnings that cannot be
+#      individually suppressed by -Wno-... (e.g. -Wno-non-virtual-dtor);
+#      therefore, we generally leave out -Weffc++
+#   -Wold-style-cast
+#   -Woverloaded-virtual
+#      Unfortunately, too many warnings from NDB includes
+  CXXFLAGS.gen	= -ansi -Wall -Wstrict-null-sentinel \
+		  -Wsign-promo
+# gnu g++, default:
+  CXXFLAGS	= $(CXXFLAGS.gen) -g -O
+  CXXFLAGS.dbg	= $(CXXFLAGS.gen) -g -DDEBUG
+# gnu g++, optimize: -fomit-frame-pointer
+  CXXFLAGS.opt 	= $(CXXFLAGS.gen) -O3 -DNDEBUG
+# gnu g++, profile:
+  CXXFLAGS.prf 	= $(CXXFLAGS.opt) -pg
+
+#  CXX  	= CC
+# Sun CC, debug: not used: -ptv, particularly -pta !
+#  CXXFLAGS 	= -g +d +w +p -DDEBUG
+# Sun CC, optimize:
+#  CXXFLAGS 	=  -fast -O4 -DNDEBUG
+
+######	Java Compiler:
+
+  JAVAC  	= javac
+  JAVACFLAGS  	= 
+
+  JAVAH  	= javah
+  JAVAHFLAGS  	= -jni -force
+
+  JAVA  	= java
+  JAVAFLAGS  	=
+
+  JAR		= jar
+  JARFLAGS  	=
+
+######	Linker:
+#  LD		= ld
+  LD		= $(CC)
+#  LD		= $(CXX)
+# gnu ld, general: -static
+  LDFLAGS.gen	=
+# gnu ld, default:
+  LDFLAGS	= $(LDFLAGS.gen)
+# gnu ld, debug:
+  LDFLAGS.dbg	= $(LDFLAGS.gen)
+# gnu ld, optimize: -s
+  LDFLAGS.opt	= $(LDFLAGS.gen)
+# gnu ld, profile: -S
+  LDFLAGS.prf	= $(LDFLAGS.gen)
+
+# -Bdynamic, -dy, -call_shared
+# link against dynamic libraries.
+
+# -Bstatic, -dn, -non_shared, -static
+# do not link against shared libraries; can be used with -shared;
+# means that a shared library is being created but that all of the
+# library’s external references must be resolved by pulling in
+# entries from static libraries.
+
+# -shared, -Bshareable
+# create a shared library. On SunOS, the linker will automatically
+# create a shared library if the -e option is not used and there are
+# undefined symbols in the link.
+
+# can link some libraries statically and others dynamically:
+#  gcc -o some-program some-program.c -Xlinker
+#      -Bstatic -llib1 -lib2 -Xlinker -Bdynamic -llib3
+
+# to check the dynamic load library: use ldd to invoke executables, which
+# dumps their library dependencies
+#
+# by default (Linux) only /lib and /usr/lib are searched for shared libs;
+# can use -W1, -rpath option when linking or set the LD_LIBRARY_PATH
+# environment variable when running the program
+
+######	Library-Archiver:
+  AR		= ar
+  ARFLAGS	= rv
+#  ARFLAGS	= rvu
+#  RANLIB	= ranlib
+
+# r	insert the files member... into archive (with replacement)
+# u	only insert those files newer than existing members of the same names
+# v	request the verbose version of an operation
+
+# ranlib updates '__.SYMDEF' member (directory of the external symbol names)
+# not needed with GNU ar, which updates the `__.SYMDEF' member automatically
+
+#------------------------------------------------------------------------------
+
+# Default Targets Section:
+
+.PHONY:	dep depend dbg opt prf clean mostlyclean clobber distclean check
+
+help:
+
+dep depend:
+	@set -e; \
+	rm -f .depend .depend$$$$ ; touch _dummy.c _dummy.cc _dummy.cpp; \
+	$(MAKEDEPEND) *.c *.cc *.cpp > .depend.$$$$; \
+	rm -f _dummy.c _dummy.cc _dummy.cpp; mv .depend.$$$$ .depend
+
+# other options:
+#	$(CXX) -E -MM $(CPPFLAGS) *.cpp > .tmp
+
+dbg:
+	@$(MAKE) $(MFLAGS) \
+		CFLAGS='$(CFLAGS.dbg)' \
+		CXXFLAGS='$(CXXFLAGS.dbg)' \
+		LDFLAGS='$(LDFLAGS.dbg)' \
+		all
+opt:
+	@$(MAKE) $(MFLAGS) \
+		CFLAGS='$(CFLAGS.opt)' \
+		CXXFLAGS='$(CXXFLAGS.opt)' \
+		LDFLAGS='$(LDFLAGS.opt)' \
+		all
+
+prf:
+	@$(MAKE) $(MFLAGS) \
+		CFLAGS='$(CFLAGS.prf)' \
+		CXXFLAGS='$(CXXFLAGS.prf)' \
+		LDFLAGS='$(LDFLAGS.prf)' \
+		all
+
+clean:
+	rm -rf $(CLEAN) .tmp
+
+# library-archiving removes .o files with empty .depend file,
+# so, better delete it only as part of mostlyclean
+mostlyclean clobber:	clean
+	rm -rf $(MOSTLYCLEAN) .depend
+
+distclean:	mostlyclean
+	rm -rf $(DISTCLEAN)
+
+#------------------------------------------------------------------------------
+
+# Default Rules Section:
+
+# for Solaris make compatibility check:
+#   http://www.ibm.com/developerworks/eserver/articles/porting_linux/
+
+# good idea to clear&set the suffix list explicitly with only the ones needed
+.SUFFIXES:
+.SUFFIXES: .h .c .cc .cpp .o .a .so .dylib
+
+# use "$<" and "$@", not hardcoded names for `VPATH' to work correctly
+
+# better not use single- or double-suffix rules, for:
+#	".c.o:" == "%.o: %.c"
+#	".c"	== "% : %.c"
+# but:	".c.o: foo.h" != "%.o: %.c foo.h"
+
+######	Generate Dependencies:
+  ADD_D_TARGET	= sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g'
+
+  GENERATE.c	= @set -e; rm -f $@; \
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) $< | \
+		$(ADD_D_TARGET) > $@
+
+  GENERATE.cc	= @set -e; rm -f $@; \
+		$(CXX) -MM $(CXXFLAGS) $(CPPFLAGS) $< | \
+		$(ADD_D_TARGET) > $@
+
+  GENERATE.cpp	= $(GENERATE.cc)
+
+%.d: %.c
+	$(GENERATE.c)
+
+%.d: %.cc
+	$(GENERATE.cc)
+
+%.d: %.cpp
+	$(GENERATE.cpp)
+
+######	Compile:
+  COMPILE.c	= $(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
+
+  COMPILE.cc	= $(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
+
+  COMPILE.cpp	= $(COMPILE.cc)
+
+  OUTPUT_OPTION	= -o $@
+
+  COMPILE.java	= $(JAVAC) $(JAVACFLAGS) -classpath $(CLASSPATH)
+
+  COMPILE.javah	= $(JAVAH) $(JAVAHFLAGS) -classpath $(CLASSPATH)
+
+%.o: %.c
+	$(COMPILE.c) $(OUTPUT_OPTION) $<
+
+%.o: %.cc
+	$(COMPILE.cc) $(OUTPUT_OPTION) $<
+
+%.o: %.cpp
+	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
+
+%.class: %.java
+	$(COMPILE.java) $<
+
+######	Link:
+  LINK.c	= $(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(TARGET_ARCH)
+
+  LINK.cc	= $(CXX) $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS) $(TARGET_ARCH)
+
+  LINK.cpp	= $(LINK.cc)
+
+  LINK.o	= $(CC) $(LDFLAGS) $(TARGET_ARCH)
+
+%: %.c
+	$(LINK.c) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+%: %.cc
+	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+%: %.cpp
+	$(LINK.cpp) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+%: %.o
+	$(LINK.o) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+# support shared libraries:
+
+#DLL_SUFFIX=dylib
+#DLL_SUFFIX=so
+DLL_SUFFIX=$(if $(findstring Darwin,$(shell uname)),dylib,so)
+
+# XXX unify shared lib rules in makefile using DLL_FLAGS
+# however, it might be, that .so is/works the same on MacOS X
+ifeq (findstring Darwin,$(shell uname))
+DLL_FLAGS=-fPIC -dynamiclib
+else
+DLL_FLAGS=-fPIC -shared
+endif
+#
+# XXX check against compiler/linker flags descriptions above...
+# GCC man on -fPIC v -fpic:
+# to build shared libraries with -fast, specify -fPIC at compilation
+#   XXX cannot use -fast, not supported on MacOS X gcc
+# Mac OS X: -fpic is not supported, -fPIC is the default
+# SPARC, m68k, PowerPC: -fpic has size limits but faster (?) than -fPIC
+# 386: -fpic (if supported) same (?) performance as -fPIC
+#
+# XXX try:
+#xxx.dylib:
+#	libtool -dynamic -undefined dynamic_lookup -o $@ yyy.o ...
+#
+#xxx.so:
+#	$(LINK.cpp) -shared -o $@ yyy.o ... VERSION
+
+######	Library-Archive:
+
+# general form
+# lib.a: $(OBJ)
+#        $(AR) rvu $@ $<
+#        $(RANLIB) $@
+
+# gnu make has special support for lib(o) targets; this rule
+# (%): %
+#	$(AR) $(ARFLAGS) $@ $<
+# allows to specify lib targets simply as:
+# lib.a: lib.a(a.o b.o ...) lib.a(c.o)...
+#
+# !!! be careful when using parallel make execution and archives !!!
+# If multiple ar commands run at the same time on the same archive file,
+# they will not know about each other and can corrupt the file.
+# May be fixed in future.
+
+(%): %
+	$(AR) $(ARFLAGS) $@ $<
+
+#------------------------------------------------------------------------------

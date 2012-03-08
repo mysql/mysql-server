@@ -1,4 +1,7 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+
+   All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +14,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef __CPCCLIENT_HPP_INCLUDED__
 #define __CPCCLIENT_HPP_INCLUDED__
@@ -21,16 +25,13 @@
 #include <util/InputStream.hpp>
 #include <util/OutputStream.hpp>
 
-/**
- * Simple CPC client class. The whole management client should be replaced
- * something smarter and more worked through.
- */
+/*
+  Simple CPC client class.
+*/
 class SimpleCpcClient {
 public:
   SimpleCpcClient(const char *host, int port);
   ~SimpleCpcClient();
-
-  static void run(SimpleCpcClient &);
 
   int getPort() const { return port;}
   const char * getHost() const { return host;}
@@ -73,12 +74,6 @@ private:
 
 public:  
   int connect();
-
-  void cmd_list(char *arg);
-  void cmd_start(char *arg);
-  void cmd_stop(char *arg);
-  void cmd_help(char *arg);
-
   int list_processes(Vector<Process>&, Properties &reply);
   int start_process(Uint32 id, Properties& reply);
   int stop_process(Uint32 id, Properties& reply);

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef MemoryChannel_H
 #define MemoryChannel_H
@@ -64,8 +66,6 @@
 //                      T : item from the channel or zero if channel is empty.
 //
 
-#include "ErrorHandlingMacros.hpp"
-#include "CircularIndex.hpp"
 #include "NdbMutex.h"
 #include "NdbCondition.h"
 #include <NdbOut.hpp>
@@ -75,19 +75,26 @@ template <class T>
 class MemoryChannel
 {
 public:
-  MemoryChannel( int size= 512);
-  virtual ~MemoryChannel( );
+  MemoryChannel();
+  virtual ~MemoryChannel();
 
-  void writeChannel( T *t);
-  void writeChannelNoSignal( T *t);
+  void writeChannel(T *t);
+  void writeChannelNoSignal(T *t);
   T* readChannel();
   T* tryReadChannel();
 
+  /**
+   * Should be made class using MemoryChannel
+   */
+  struct ListMember
+  {
+    T* m_next;
+  };
+
 private:
-  int theSize;
-  T **theChannel;
-  CircularIndex theWriteIndex;
-  CircularIndex theReadIndex;
+  Uint32 m_occupancy;
+  T* m_head; // First element in list (e.g will be read by readChannel)
+  T* m_tail;
   NdbMutex* theMutexPtr;
   NdbCondition* theConditionPtr;
 
@@ -99,18 +106,14 @@ template <class T>
 NdbOut& operator<<(NdbOut& out, const MemoryChannel<T> & chn)
 {
   NdbMutex_Lock(chn.theMutexPtr);
-  out << "[ theSize: " << chn.theSize
-      << " theReadIndex: " << (int)chn.theReadIndex 
-      << " theWriteIndex: " << (int)chn.theWriteIndex << " ]";
+  out << "[ occupancy: " << chn.m_occupancy
+      << " ]";
   NdbMutex_Unlock(chn.theMutexPtr);
   return out;
 }
 
-template <class T> MemoryChannel<T>::MemoryChannel( int size):
-        theSize(size),
-        theChannel(new T*[size] ),
-        theWriteIndex(0, size),
-        theReadIndex(0, size)
+template <class T> MemoryChannel<T>::MemoryChannel() :
+  m_occupancy(0), m_head(0), m_tail(0)
 {
   theMutexPtr = NdbMutex_Create();
   theConditionPtr = NdbCondition_Create();
@@ -120,55 +123,79 @@ template <class T> MemoryChannel<T>::~MemoryChannel( )
 {
   NdbMutex_Destroy(theMutexPtr);
   NdbCondition_Destroy(theConditionPtr);
-  delete [] theChannel;
 }
 
 template <class T> void MemoryChannel<T>::writeChannel( T *t)
 {
-
-  NdbMutex_Lock(theMutexPtr);
-  if(full(theWriteIndex, theReadIndex) || theChannel == NULL) abort();
-  theChannel[theWriteIndex]= t;
-  ++theWriteIndex;
-  NdbMutex_Unlock(theMutexPtr);
+  writeChannelNoSignal(t);
   NdbCondition_Signal(theConditionPtr);
 }
 
 template <class T> void MemoryChannel<T>::writeChannelNoSignal( T *t)
 {
-
   NdbMutex_Lock(theMutexPtr);
-  if(full(theWriteIndex, theReadIndex) || theChannel == NULL) abort();
-  theChannel[theWriteIndex]= t;
-  ++theWriteIndex;
+  if (m_head == 0)
+  {
+    assert(m_occupancy == 0);
+    m_head = m_tail = t;
+  }
+  else
+  {
+    assert(m_tail != 0);
+    m_tail->m_mem_channel.m_next = t;
+    m_tail = t;
+  }
+  t->m_mem_channel.m_next = 0;
+  m_occupancy++;
   NdbMutex_Unlock(theMutexPtr);
 }
 
 template <class T> T* MemoryChannel<T>::readChannel()
 {
-  T* tmp;
-
   NdbMutex_Lock(theMutexPtr);
-  while ( empty(theWriteIndex, theReadIndex) )
+  while (m_head == 0)
   {
+    assert(m_occupancy == 0);
     NdbCondition_Wait(theConditionPtr,
-                        theMutexPtr);    
+                      theMutexPtr);    
   }
-        
-  tmp= theChannel[theReadIndex];
-  ++theReadIndex;
+  assert(m_occupancy > 0);
+  T* tmp = m_head;
+  if (m_head == m_tail)
+  {
+    assert(m_occupancy == 1);
+    m_head = m_tail = 0;
+  }
+  else
+  {
+    m_head = m_head->m_mem_channel.m_next;
+  }
+  m_occupancy--;
   NdbMutex_Unlock(theMutexPtr);
   return tmp;
 }
 
 template <class T> T* MemoryChannel<T>::tryReadChannel()
 {
-  T* tmp= 0;
   NdbMutex_Lock(theMutexPtr);
-  if ( !empty(theWriteIndex, theReadIndex) )
-  {     
-    tmp= theChannel[theReadIndex];
-    ++theReadIndex;
+  T* tmp = m_head;
+  if (m_head != 0)
+  {
+    assert(m_occupancy > 0);
+    if (m_head == m_tail)
+    {
+      assert(m_occupancy == 1);
+      m_head = m_tail = 0;
+    }
+    else
+    {
+      m_head = m_head->m_mem_channel.m_next;
+    }
+    m_occupancy--;
+  }
+  else
+  {
+    assert(m_occupancy == 0);
   }
   NdbMutex_Unlock(theMutexPtr);
   return tmp;

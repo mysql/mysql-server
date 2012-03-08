@@ -2464,7 +2464,7 @@ srv_do_purge(
 		n_pages_purged = trx_purge(
 			n_use_threads, srv_purge_batch_size, false);
 
-		if (!(count++ % TRX_SYS_N_RSEGS) || n_pages_purged == 0) {
+		if (!(count++ % TRX_SYS_N_RSEGS)) {
 			/* Force a truncate of the history list. */
 			trx_purge(1, srv_purge_batch_size, true);
 		}

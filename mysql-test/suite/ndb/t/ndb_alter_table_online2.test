@@ -1,0 +1,189 @@
+#############################################################
+# Author: Tomas
+# Date: 2007-09
+# Purpose: online alter under load test
+##############################################################
+# Change Author: Jonathan
+# Date 2007-10
+# Purpose: Add testing for online alter w/partitions
+#          and some original test cleanup and additions
+##############################################################
+--source include/ndb_have_online_alter.inc
+-- source include/have_multi_ndb.inc
+# test uses mysqlslap, hence not in embedded
+-- source include/not_embedded.inc
+# mysqlslap seems to be not_windows. remove this when removed from mysqlslap.test
+-- source include/not_windows.inc
+# -- source include/have_log_bin.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+CREATE DATABASE IF NOT EXISTS mysqlslap;
+--enable_warnings
+
+# Create utiltity table used to hold the output from ndb_show_table
+CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
+  id INT,
+  type VARCHAR(20),
+  state VARCHAR(20),
+  logging VARCHAR(20),
+  _database VARCHAR(255),
+  _schema VARCHAR(20),
+  name VARCHAR(255)
+);
+
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ basic online alter test during load
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
+create table t1 (pk int key, a int) engine ndb;
+insert into t1 values (1,0);
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Starting mysqlslap
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
+let $end_mysqlslap= 5000;
+--exec $MYSQL_SLAP --query="update test.t1 set a=a+1 where pk=1" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
+
+# wait for 100 updates
+--disable_result_log
+--disable_query_log
+select @end:=100;
+let $val= 1;
+while ($val)
+{
+  --sleep 0.1
+  select @val:=a from t1 where pk=1;
+  let $val= `select @end > @val `;
+}
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Alter table t1 add column b
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+--echo
+
+# add a column online
+ALTER ONLINE TABLE t1 ADD b INT;
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Check table t1 ID has not changed
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Starting mysqlslap using column b
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+--echo
+
+update t1 set b= 0;
+--exec $MYSQL_SLAP --query="update test.t1 set b=b+1 where pk=1" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
+
+# wait for 100 updates
+--disable_result_log
+--disable_query_log
+select @end:=100;
+let $val= 1;
+while ($val)
+{
+  --sleep 0.1
+  select @val:=b from t1 where pk=1;
+  let $val= `select @end > @val`;
+}
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Alter table t1 add column c
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
+# add a column online
+ALTER ONLINE TABLE t1 ADD c INT;
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Check table t1 ID has not changed
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Starting mysqlslap using column c
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
+update t1 set c= 0;
+--exec $MYSQL_SLAP --query="update test.t1 set c=c+1 where pk=1" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
+
+# wait for mysqlslap to end
+--disable_result_log
+--disable_query_log
+--eval select @end:=$end_mysqlslap
+let $val= 1;
+# 10 minutes = 600s sleep 0.1 => 6000
+let $maxwait = 6000;
+while ($val)
+{
+  --sleep 0.1
+  select @val1:=a,@val2:=b,@val3:=c from t1 where pk=1;
+  let $val= `select @end > @val1 || @end > @val2 || @end > @val3`;
+  dec $maxwait;
+
+  if (!$maxwait)
+  {
+    let $val = 0;
+  }
+}
+--enable_result_log
+--enable_query_log
+
+select * from t1;
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Alter table t1 and try to add partitions
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 PARTITION BY HASH(pk);
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Check table t1 ID has not changed
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ cleanup section
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
+# drop the table
+drop table t1, ndb_show_tables_results;
+drop database mysqlslap;

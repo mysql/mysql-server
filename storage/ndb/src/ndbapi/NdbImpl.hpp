@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,25 +12,25 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_IMPL_HPP
 #define NDB_IMPL_HPP
 
 #include <ndb_global.h>
-#include <Ndb.hpp>
+#include "API.hpp"
 #include <NdbOut.hpp>
-#include <NdbError.hpp>
-#include <NdbCondition.h>
-#include <NdbReceiver.hpp>
-#include <NdbOperation.hpp>
 #include <kernel/ndb_limits.h>
-
 #include <NdbTick.h>
 
+#include "NdbQueryOperationImpl.hpp"
 #include "ndb_cluster_connection_impl.hpp"
 #include "NdbDictionaryImpl.hpp"
 #include "ObjectMap.hpp"
+#include "trp_client.hpp"
+#include "trp_node.hpp"
+#include "NdbWaiter.hpp"
 
 template <class T>
 struct Ndb_free_list_t 
@@ -40,6 +41,7 @@ struct Ndb_free_list_t
   int fill(Ndb*, Uint32 cnt);
   T* seize(Ndb*);
   void release(T*);
+  void release(Uint32 cnt, T* head, T* tail);
   void clear();
   Uint32 get_sizeof() const { return sizeof(T); }
   T * m_free_list;
@@ -49,17 +51,19 @@ struct Ndb_free_list_t
 /**
  * Private parts of the Ndb object (corresponding to Ndb.hpp in public API)
  */
-class NdbImpl {
+class NdbImpl : public trp_client
+{
 public:
   NdbImpl(Ndb_cluster_connection *, Ndb&);
   ~NdbImpl();
 
-  int send_event_report(Uint32 *data, Uint32 length);
+  int send_event_report(bool has_lock, Uint32 *data, Uint32 length);
 
   Ndb &m_ndb;
-
+  Ndb * m_next_ndb_object, * m_prev_ndb_object;
+  
   Ndb_cluster_connection_impl &m_ndb_cluster_connection;
-  TransporterFacade *m_transporter_facade;
+  TransporterFacade * const m_transporter_facade;
 
   NdbDictionaryImpl m_dictionary;
 
@@ -105,8 +109,63 @@ public:
     return;
   }
 
-  BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
+  bool forceShortRequests;
 
+  static inline void setForceShortRequests(Ndb* ndb, bool val)
+  {
+    ndb->theImpl->forceShortRequests = val;
+  }
+
+  Uint32 get_waitfor_timeout() const {
+    return m_ndb_cluster_connection.m_config.m_waitfor_timeout;
+  }
+  const NdbApiConfig& get_ndbapi_config_parameters() const {
+    return m_ndb_cluster_connection.m_config;
+  }
+
+  BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
+  
+  void* customDataPtr;
+
+  Uint64 clientStats[ Ndb::NumClientStatistics ];
+  
+  inline void incClientStat(const Ndb::ClientStatistics stat, const Uint64 inc) {
+    assert(stat < Ndb::NumClientStatistics);
+    if (likely(stat < Ndb::NumClientStatistics))
+      clientStats[ stat ] += inc;
+  };
+
+  inline void decClientStat(const Ndb::ClientStatistics stat, const Uint64 dec) {
+    assert(stat < Ndb::NumClientStatistics);
+    if (likely(stat < Ndb::NumClientStatistics))
+      clientStats[ stat ] -= dec;
+  };
+  
+  inline void setClientStat(const Ndb::ClientStatistics stat, const Uint64 val) {
+    assert(stat < Ndb::NumClientStatistics);
+    if (likely(stat < Ndb::NumClientStatistics))
+      clientStats[ stat ] = val;
+  };
+
+  /* We don't record the sent/received bytes of some GSNs as they are 
+   * generated constantly and are not targetted to specific
+   * Ndb instances.
+   * See also TransporterFacade::TRACE_GSN
+   */
+  static bool recordGSN(Uint32 gsn)
+  {
+    switch(gsn)
+    {
+    case GSN_API_REGREQ:
+    case GSN_API_REGCONF:
+    case GSN_SUB_GCP_COMPLETE_REP:
+    case GSN_SUB_GCP_COMPLETE_ACK:
+      return false;
+    default:
+      return true;
+    }
+  }
+  
   /**
    * NOTE free lists must be _after_ theNdbObjectIdMap take
    *   assure that destructors are run in correct order
@@ -121,10 +180,38 @@ public:
   Ndb_free_list_t<NdbCall> theCallList;
   Ndb_free_list_t<NdbBlob> theNdbBlobIdleList;
   Ndb_free_list_t<NdbReceiver> theScanList;
+  Ndb_free_list_t<NdbLockHandle> theLockHandleList;
   Ndb_free_list_t<NdbIndexScanOperation> theScanOpIdleList;
   Ndb_free_list_t<NdbOperation>  theOpIdleList;  
   Ndb_free_list_t<NdbIndexOperation> theIndexOpIdleList;
   Ndb_free_list_t<NdbTransaction> theConIdleList; 
+
+  /**
+   * trp_client interface
+   */
+  virtual void trp_deliver_signal(const NdbApiSignal*,
+                                  const LinearSectionPtr p[3]);
+  virtual void recordWaitTimeNanos(Uint64 nanos);
+  // Is node available for running transactions
+  bool   get_node_alive(NodeId nodeId) const;
+  bool   get_node_stopping(NodeId nodeId) const;
+  bool   getIsDbNode(NodeId nodeId) const;
+  bool   getIsNodeSendable(NodeId nodeId) const;
+  Uint32 getNodeGrp(NodeId nodeId) const;
+  Uint32 getNodeSequence(NodeId nodeId) const;
+  Uint32 getNodeNdbVersion(NodeId nodeId) const;
+  Uint32 getMinDbNodeVersion() const;
+  bool check_send_size(Uint32 node_id, Uint32 send_size) const { return true;}
+
+  int sendSignal(NdbApiSignal*, Uint32 nodeId);
+  int sendSignal(NdbApiSignal*, Uint32 nodeId,
+                 const LinearSectionPtr ptr[3], Uint32 secs);
+  int sendSignal(NdbApiSignal*, Uint32 nodeId,
+                 const GenericSectionPtr ptr[3], Uint32 secs);
+  int sendFragmentedSignal(NdbApiSignal*, Uint32 nodeId,
+                           const LinearSectionPtr ptr[3], Uint32 secs);
+  int sendFragmentedSignal(NdbApiSignal*, Uint32 nodeId,
+                           const GenericSectionPtr ptr[3], Uint32 secs);
 };
 
 #ifdef VM_TRACE
@@ -174,8 +261,16 @@ Ndb::void2rec_iop(void* val){
 
 inline 
 NdbTransaction * 
-NdbReceiver::getTransaction(){ 
-  return ((NdbOperation*)m_owner)->theNdbCon;
+NdbReceiver::getTransaction() const {
+  switch(getType()){
+  case NDB_UNINITIALIZED:
+    assert(false);
+    return NULL;
+  case NDB_QUERY_OPERATION:
+    return &((NdbQueryOperationImpl*)m_owner)->getQuery().getNdbTransaction();
+  default:
+    return ((NdbOperation*)m_owner)->theNdbCon;
+  }
 }
 
 
@@ -219,6 +314,7 @@ inline
 int
 Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
 {
+#ifndef HAVE_purify
   if (m_free_list == 0)
   {
     m_free_cnt++;
@@ -246,6 +342,9 @@ Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
     m_free_list = obj;
   }
   return 0;
+#else
+  return 0;
+#endif
 }
 
 template<class T>
@@ -253,6 +352,7 @@ inline
 T*
 Ndb_free_list_t<T>::seize(Ndb* ndb)
 {
+#ifndef HAVE_purify
   T* tmp = m_free_list;
   if (tmp)
   {
@@ -272,6 +372,9 @@ Ndb_free_list_t<T>::seize(Ndb* ndb)
     assert(false);
   }
   return tmp;
+#else
+  return new T(ndb);
+#endif
 }
 
 template<class T>
@@ -279,9 +382,13 @@ inline
 void
 Ndb_free_list_t<T>::release(T* obj)
 {
+#ifndef HAVE_purify
   obj->next(m_free_list);
   m_free_list = obj;
   m_free_cnt++;
+#else
+  delete obj;
+#endif
 }
 
 
@@ -298,6 +405,200 @@ Ndb_free_list_t<T>::clear()
     delete curr;
     m_alloc_cnt--;
   }
+}
+
+template<class T>
+inline
+void
+Ndb_free_list_t<T>::release(Uint32 cnt, T* head, T* tail)
+{
+#ifndef HAVE_purify
+  if (cnt)
+  {
+#ifdef VM_TRACE
+    {
+      T* tmp = head;
+      while (tmp != 0 && tmp != tail) tmp = (T*)tmp->next();
+      assert(tmp == tail);
+    }
+#endif
+    tail->next(m_free_list);
+    m_free_list = head;
+    m_free_cnt += cnt;
+  }
+#else
+  if (cnt)
+  {
+    T* tmp = head;
+    while (tmp != 0 && tmp != tail)
+    {
+      T * next = (T*)tmp->next();
+      delete tmp;
+      tmp = next;
+    }
+    delete tail;
+  }
+#endif
+}
+
+inline
+bool
+NdbImpl::getIsDbNode(NodeId n) const {
+  return
+    getNodeInfo(n).defined &&
+    getNodeInfo(n).m_info.m_type == NodeInfo::DB;
+}
+
+inline
+Uint32
+NdbImpl::getNodeGrp(NodeId n) const {
+  return getNodeInfo(n).m_state.nodeGroup;
+}
+
+
+inline
+bool
+NdbImpl::get_node_alive(NodeId n) const {
+  return getNodeInfo(n).m_alive;
+}
+
+inline
+bool
+NdbImpl::get_node_stopping(NodeId n) const {
+  const trp_node & node = getNodeInfo(n);
+  assert(node.m_info.getType() == NodeInfo::DB);
+  return (!node.m_state.getSingleUserMode() &&
+          node.m_state.startLevel >= NodeState::SL_STOPPING_1);
+}
+
+inline
+bool
+NdbImpl::getIsNodeSendable(NodeId n) const {
+  const trp_node & node = getNodeInfo(n);
+  const Uint32 startLevel = node.m_state.startLevel;
+  const NodeInfo::NodeType node_type = node.m_info.getType();
+  assert(node_type == NodeInfo::DB ||
+         node_type == NodeInfo::MGM);
+
+  return node.compatible && (startLevel == NodeState::SL_STARTED ||
+                             startLevel == NodeState::SL_STOPPING_1 ||
+                             node.m_state.getSingleUserMode() ||
+                             node_type == NodeInfo::MGM);
+}
+
+inline
+Uint32
+NdbImpl::getNodeSequence(NodeId n) const {
+  return getNodeInfo(n).m_info.m_connectCount;
+}
+
+inline
+Uint32
+NdbImpl::getNodeNdbVersion(NodeId n) const
+{
+  return getNodeInfo(n).m_info.m_version;
+}
+
+inline
+void
+NdbImpl::recordWaitTimeNanos(Uint64 nanos)
+{
+  incClientStat( Ndb::WaitNanosCount, nanos );
+}
+
+inline
+int
+NdbImpl::sendSignal(NdbApiSignal * signal, Uint32 nodeId)
+{
+  if (getIsNodeSendable(nodeId))
+  {
+    if (likely(recordGSN(signal->theVerId_signalNumber)))
+    {
+      incClientStat(Ndb::BytesSentCount, signal->getLength() << 2);
+    }
+    return raw_sendSignal(signal, nodeId);
+  }
+  return -1;
+}
+
+inline
+int
+NdbImpl::sendSignal(NdbApiSignal * signal, Uint32 nodeId,
+                    const LinearSectionPtr ptr[3], Uint32 secs)
+{
+  if (getIsNodeSendable(nodeId))
+  {
+    if (likely(recordGSN(signal->theVerId_signalNumber)))
+    {
+      incClientStat(Ndb::BytesSentCount,
+                    ((signal->getLength() << 2) +
+                     ((secs > 2)? ptr[2].sz << 2: 0) + 
+                     ((secs > 1)? ptr[1].sz << 2: 0) +
+                     ((secs > 0)? ptr[0].sz << 2: 0)));
+    }
+    return raw_sendSignal(signal, nodeId, ptr, secs);
+  }
+  return -1;
+}
+
+inline
+int
+NdbImpl::sendSignal(NdbApiSignal * signal, Uint32 nodeId,
+                    const GenericSectionPtr ptr[3], Uint32 secs)
+{
+  if (getIsNodeSendable(nodeId))
+  {  
+    if (likely(recordGSN(signal->theVerId_signalNumber)))
+    { 
+      incClientStat(Ndb::BytesSentCount, 
+                    ((signal->getLength() << 2) +
+                     ((secs > 2)? ptr[2].sz << 2 : 0) + 
+                     ((secs > 1)? ptr[1].sz << 2: 0) +
+                     ((secs > 0)? ptr[0].sz << 2: 0)));
+    }
+    return raw_sendSignal(signal, nodeId, ptr, secs);
+  }
+  return -1;
+}
+
+inline
+int
+NdbImpl::sendFragmentedSignal(NdbApiSignal * signal, Uint32 nodeId,
+                              const LinearSectionPtr ptr[3], Uint32 secs)
+{
+  if (getIsNodeSendable(nodeId))
+  {
+    if (likely(recordGSN(signal->theVerId_signalNumber)))
+    {
+      incClientStat(Ndb::BytesSentCount, 
+                    ((signal->getLength() << 2) +
+                     ((secs > 2)? ptr[2].sz << 2 : 0) + 
+                     ((secs > 1)? ptr[1].sz << 2: 0) +
+                     ((secs > 0)? ptr[0].sz << 2: 0)));
+    }
+    return raw_sendFragmentedSignal(signal, nodeId, ptr, secs);
+  }
+  return -1;
+}
+
+inline
+int
+NdbImpl::sendFragmentedSignal(NdbApiSignal * signal, Uint32 nodeId,
+                              const GenericSectionPtr ptr[3], Uint32 secs)
+{
+  if (getIsNodeSendable(nodeId))
+  {
+    if (likely(recordGSN(signal->theVerId_signalNumber)))
+    {
+      incClientStat(Ndb::BytesSentCount,
+                    ((signal->getLength() << 2) +
+                     ((secs > 2)? ptr[2].sz << 2 : 0) + 
+                     ((secs > 1)? ptr[1].sz << 2 : 0) +
+                     ((secs > 0)? ptr[0].sz << 2 : 0)));
+    }
+    return raw_sendFragmentedSignal(signal, nodeId, ptr, secs);
+  }
+  return -1;
 }
 
 #endif

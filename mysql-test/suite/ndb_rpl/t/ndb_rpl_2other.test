@@ -1,0 +1,68 @@
+#############################################################
+# Author: Rafal Somla
+# Date: 2006-08-20
+# Purpose: Trying to test ability to replicate from cluster
+# to other engines (innodb, myisam).
+##############################################################
+--source include/have_ndb.inc
+--source include/have_innodb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+
+let $rpl_skip_start_slave= 1; # Don't start slave automatically
+--source include/master-slave.inc
+
+# On master use NDB as storage engine.
+SET default_storage_engine=ndb;
+
+--echo
+--echo === NDB -> MYISAM ===
+--echo
+--source include/rpl_connection_slave.inc
+
+# Remove any old ndb_apply_status from slaves datadir
+let $datadir= `SELECT @@datadir`;
+--error 0,1
+remove_file $datadir/mysql/ndb_apply_status.frm;
+--error 0,1
+remove_file $datadir/mysql/ndb_apply_status.ndb;
+
+set @old_slave_exec_mode= @@global.slave_exec_mode;
+set @@global.slave_exec_mode= 'IDEMPOTENT';
+CREATE TABLE mysql.ndb_apply_status
+                   ( server_id INT UNSIGNED NOT NULL,
+                   epoch BIGINT UNSIGNED NOT NULL,
+                   log_name VARCHAR(255) BINARY NOT NULL,
+                   start_pos BIGINT UNSIGNED NOT NULL,
+                   end_pos BIGINT UNSIGNED NOT NULL,
+                   PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM;
+
+# Reconfigure slave to use MyISAM as default engine
+SET @old_slave_storage_engine=@@global.default_storage_engine;
+SET @@global.default_storage_engine=myisam;
+
+--source include/start_slave.inc
+--source suite/ndb_rpl/t/ndb_rpl_2multi_basic.inc
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+
+--echo
+--echo === NDB -> INNODB ===
+--echo
+
+# Reconfigure slave to use Innodb as default engine
+--source include/rpl_connection_slave.inc
+
+alter table mysql.ndb_apply_status engine=innodb;
+SET @@global.default_storage_engine=innodb;
+
+--source include/start_slave.inc
+--source suite/ndb_rpl/t/ndb_rpl_2multi_basic.inc
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+
+# Cleanup
+--source include/rpl_connection_slave.inc
+drop table mysql.ndb_apply_status;
+set @@global.slave_exec_mode= @old_slave_exec_mode;
+SET @@global.default_storage_engine=@old_slave_storage_engine;
+

@@ -1,0 +1,29 @@
+SET @global_start_value = @@global.ndb_optimized_node_selection;
+SELECT @global_start_value;
+@global_start_value
+3
+set session ndb_optimized_node_selection=3;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	3
+set session ndb_optimized_node_selection=0;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	0
+set session ndb_optimized_node_selection=4;
+Warnings:
+Warning	1292	Truncated incorrect ndb_optimized_node_selection value: '4'
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	3
+set global ndb_optimized_node_selection=1;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	3
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	1
+set global ndb_optimized_node_selection=3;
+SELECT @@global.ndb_optimized_node_selection;
+@@global.ndb_optimized_node_selection
+3

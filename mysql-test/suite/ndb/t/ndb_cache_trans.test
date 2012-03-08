@@ -1,0 +1,200 @@
+-- source include/have_query_cache.inc
+-- source include/have_ndb.inc
+-- source include/not_embedded.inc
+
+--result_format 2
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+# Turn on and reset query cache
+set GLOBAL query_cache_type=on;
+set GLOBAL query_cache_size=1355776;
+reset query cache;
+flush status;
+
+## Turn off autocommit, instead use COMMIT after each statement
+set AUTOCOMMIT=off;
+
+## Create test table in NDB
+CREATE TABLE t1 (
+  pk int not null primary key,
+  a int,
+  b int not null,
+  c varchar(20)
+) ENGINE=ndbcluster;
+
+## Add first row
+insert into t1 value (1, 2, 3, 'First row');
+COMMIT;
+
+## Query should be inserted in qcache
+--source include/show_qc_status.inc
+select * from t1;
+--source include/show_qc_status.inc
+COMMIT;
+--source include/show_qc_status.inc
+
+## Perform the same query and make sure the query cache is hit
+--source include/show_qc_status.inc
+select * from t1;
+COMMIT;
+--source include/show_qc_status.inc
+
+## Update the table, should be no queries in cache afterwards
+update t1 set a=3 where pk=1;
+COMMIT;
+--source include/show_qc_status.inc
+
+## Read row after update, should not hit the cache, but get inserted
+select * from t1;
+COMMIT;
+--source include/show_qc_status.inc
+
+## Read row from cache
+select * from t1;
+COMMIT;
+--source include/show_qc_status.inc
+
+## Insert two new rows, queries in cache should be zero
+insert into t1 value (2, 7, 8, 'Second row');
+insert into t1 value (4, 5, 6, 'Fourth row');
+COMMIT;
+--source include/show_qc_status.inc
+
+## Read the three rows, should not hit the cache
+select * from t1 order by pk;
+COMMIT;
+--source include/show_qc_status.inc
+
+## Read the three rows, should now hit the cache!
+select * from t1 order by pk;
+COMMIT;
+--source include/show_qc_status.inc
+
+## Two selects in the same transaction should hit cache
+select * from t1 order by pk;
+select * from t1 order by pk;
+COMMIT;
+--source include/show_qc_status.inc
+
+## Perform a "new" query and make sure the query cache is not hit
+select * from t1 where b=3;
+COMMIT;
+--source include/show_qc_status.inc
+
+## Same query again...
+select * from t1 where b=3;
+COMMIT;
+--source include/show_qc_status.inc
+
+## Delete from the table, should clear the cache
+delete from t1 where c='Fourth row';
+COMMIT;
+--source include/show_qc_status.inc
+select * from t1 where b=3;
+COMMIT;
+--source include/show_qc_status.inc
+
+## Start another connection and check that the query cache is hit
+connect (con1,localhost,root,,);
+connection con1;
+set AUTOCOMMIT=off;
+use test;
+select * from t1 order by pk;
+select * from t1 where b=3;
+--source include/show_qc_status.inc
+
+## Update the table and switch to other connection
+update t1 set a=4 where b=3;
+COMMIT;
+
+## Connection 2
+connect (con2,localhost,root,,);
+connection con2;
+set AUTOCOMMIT=off;
+use test;
+
+## Should not hit cache, table updated
+--source include/show_qc_status.inc
+select * from t1 order by pk desc;
+--source include/show_qc_status.inc
+## Should hit cache
+select * from t1 order by pk desc;
+--source include/show_qc_status.inc
+
+## Connection 1, should hit the cache
+connection con1;
+--source include/show_qc_status.inc
+select * from t1 order by pk desc;
+select * from t1 order by pk desc;
+--source include/show_qc_status.inc
+
+
+## Starting transaction and update t1
+begin;
+update t1 set a=5 where pk=1;
+--source include/show_qc_status.inc
+
+## Connection 2
+connection con2;
+## Update has flushed the qc for t1, should not hit qc
+select * from t1 order by pk desc;
+--source include/show_qc_status.inc
+
+## Connection 1
+connection con1;
+commit;
+--source include/show_qc_status.inc
+
+## Connection 2
+connection con2;
+## Update is now committed, should not hit the cache
+select * from t1 order by pk desc;
+--source include/show_qc_status.inc
+COMMIT;
+--source include/show_qc_status.inc
+
+## Connection 1
+connection con1;
+## Should hit the cache
+select * from t1 order by pk desc;
+--source include/show_qc_status.inc
+
+update t1 set a=6 where pk=1;
+
+## Following query should not be taken from cache, trans is ongoing
+select * from t1 order by pk desc;
+--source include/show_qc_status.inc
+
+
+## Connection 2 should still see old data and not hit cache
+connection con2;
+--source include/show_qc_status.inc
+select * from t1 order by pk desc;
+--source include/show_qc_status.inc
+
+## Connection 1
+connection con1;
+COMMIT;
+
+## Update has just been committed, should not hit cache
+--source include/show_qc_status.inc
+select * from t1 order by pk desc;
+--source include/show_qc_status.inc
+
+## Connection 2
+connection con2;
+
+## Should hit cache
+--source include/show_qc_status.inc
+select * from t1 order by pk desc;
+--source include/show_qc_status.inc
+
+drop table t1;
+
+## Finally, there should be no queries in cache
+--source include/show_qc_status.inc
+
+SET GLOBAL query_cache_size=0;
