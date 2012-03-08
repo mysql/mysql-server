@@ -763,7 +763,8 @@ ut_strerr(
 }
 #endif /* !UNIV_INNOCHECKSUM */
 
-#if !defined(HAVE_VASPRINTF) && !defined(HAVE_VSNPRINTF)
+#if !defined(HAVE_VASPRINTF)						\
+    || (defined(WIN) && !(defined(HAVE_VSNPRINTF) && defined(HAVE_VSCPRINTF)))
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
@@ -857,4 +858,4 @@ vasprintf(char **str, const char *format, va_list ap)
  
  	return (ret);
 }
-#endif /* !HAVE_VASPRINTF */
+#endif /* !HAVE_VASPRINTF || (__WIN && !(HAVE_VSCPRINTF && HAVE_VSNPRINTF)) */
