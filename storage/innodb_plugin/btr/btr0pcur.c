@@ -325,10 +325,9 @@ btr_pcur_restore_position_func(
 	case BTR_PCUR_BEFORE:
 		mode = PAGE_CUR_L;
 		break;
-#ifdef UNIV_DEBUG
 	default:
 		ut_error;
-#endif /* UNIV_DEBUG */
+		mode = 0;
 	}
 
 	btr_pcur_open_with_no_init_func(index, tuple, mode, latch_mode,
