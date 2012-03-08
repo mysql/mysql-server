@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -2487,6 +2487,8 @@ public class MyJapiTest {
         out.println("\ncalling A.print()...");
         try {
             A.print(a);
+            // test for exception when passing an object after its deletion
+            // requires compile flag -DJTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
             throw new RuntimeException("Expected exception not thrown.");
         } catch (AssertionError e) {
             out.println("... successfully caught: " + e);
