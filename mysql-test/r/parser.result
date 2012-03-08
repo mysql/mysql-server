@@ -664,3 +664,8 @@ STOP SLAVE ,,,,,,,,,,,,, sql_thread, ,,,,,,,,,,,,,,,,,,, ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',,,,,,,,,,,, sql_thread, ,,,,,,,,,,,,,,,,,,,' at line 1
 STOP SLAVE ,,,,,,,,,,,,, io_thread, ,,,,,,,,,,,,,,,,,,, ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',,,,,,,,,,,, io_thread, ,,,,,,,,,,,,,,,,,,,' at line 1
+#
+# Bug#13819132 BROKEN SYNTAX ACCEPTED FOR START TRANSACTION
+#
+START TRANSACTION ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,' at line 1

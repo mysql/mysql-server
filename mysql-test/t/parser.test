@@ -797,3 +797,10 @@ STOP SLAVE ,,,,,,,,,,,,, sql_thread, ,,,,,,,,,,,,,,,,,,, ;
 --error ER_PARSE_ERROR
 STOP SLAVE ,,,,,,,,,,,,, io_thread, ,,,,,,,,,,,,,,,,,,, ;
 
+--echo #
+--echo # Bug#13819132 BROKEN SYNTAX ACCEPTED FOR START TRANSACTION
+--echo #
+
+--error ER_PARSE_ERROR
+START TRANSACTION ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, ;
+
