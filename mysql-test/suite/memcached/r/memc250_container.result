@@ -1,0 +1,178 @@
+SET @tx_isolation= @@global.tx_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+UNINSTALL PLUGIN daemon_memcached;
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+"innodb_only", "innodb_only", "innodb_only");
+INSERT INTO config_options VALUES("separator", "|");
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+"c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+SELECT c1,c2 FROM t1;
+c1	c2
+B	Berlin
+C	Cottbus
+D	Darmstadt
+H	Hamburg
+Add E|Essen:
+Ok.
+Add E|Essen:
+Error: E|Essen is still existing.
+SELECT c1,c2 FROM t1;
+c1	c2
+B	Berlin
+C	Cottbus
+D	Darmstadt
+E	Essen
+H	Hamburg
+Here the memcached results with E:
+Essen
+SELECT c1,c2 FROM t1;
+c1	c2
+B	Berlin
+C	Cottbus
+D	Darmstadt
+E	Essen
+H	Hamburg
+Here the memcached results with E,H:
+Essen
+Hamburg
+UNINSTALL PLUGIN daemon_memcached;
+use innodb_memcache;
+DELETE FROM containers;
+INSERT INTO containers VALUES ("desc_t2", "test", "t2",
+"c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t2        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t2 VALUES ('D', 't2_Darmstadt', 0, 0, 0);
+INSERT INTO t2 VALUES ('B', 't2_Berlin', 0, 0, 0);
+INSERT INTO t2 VALUES ('C', 't2_Cottbus', 0, 0 ,0);
+INSERT INTO t2 VALUES ('H', 't2_Hamburg', 0, 0, 0);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+SELECT c1,c2 FROM t2;
+c1	c2
+B	t2_Berlin
+C	t2_Cottbus
+D	t2_Darmstadt
+H	t2_Hamburg
+Add E|Essen:
+Ok.
+Add E|Essen:
+Error: E|Essen is still existing.
+SELECT c1,c2 FROM t2;
+c1	c2
+B	t2_Berlin
+C	t2_Cottbus
+D	t2_Darmstadt
+E	Essen
+H	t2_Hamburg
+Here the memcached results with E:
+Essen
+SELECT c1,c2 FROM t2;
+c1	c2
+B	t2_Berlin
+C	t2_Cottbus
+D	t2_Darmstadt
+E	Essen
+H	t2_Hamburg
+Here the memcached results with E,H:
+Essen
+t2_Hamburg
+UNINSTALL PLUGIN daemon_memcached;
+use innodb_memcache;
+DELETE FROM containers;
+INSERT INTO containers VALUES ("desc_t2", NULL, "t2",
+"c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+ERROR 23000: Column 'db_schema' cannot be null
+INSERT INTO containers VALUES ("desc_t2", "test", "t2",
+NULL, "c2",  "c3", "c4", "c5", "PRIMARY");
+ERROR 23000: Column 'key_columns' cannot be null
+DELETE FROM containers;
+INSERT INTO containers VALUES ("desc_t2", "junk", "t2",
+"c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+ This will fail, since memcached not initialized 
+UNINSTALL PLUGIN daemon_memcached;
+DELETE FROM containers;
+INSERT INTO containers VALUES ("desc_t2", "test", "t2",
+"c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+USE test;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2        (c1 int,
+c2 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t2 VALUES (3, 't2_Hamburg', 0, 0, 0);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+ This will fail, since memcached not initialized 
+use test;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2        (c1 CHAR(10),
+c2 VARCHAR(1024),
+c3 INT, c4 INT,  c5 INT, primary key(c1));
+INSERT INTO t2 VALUES ('H', 't2_Hamburg', 0, 0, 0);
+UNINSTALL PLUGIN daemon_memcached;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+ This will fail, since memcached not initialized 
+t2_Hamburg
+UNINSTALL PLUGIN daemon_memcached;
+use innodb_memcache;
+DELETE FROM containers;
+INSERT INTO containers VALUES ("desc_t2", "test", "t2",
+"c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+USE test;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+SELECT c1,c2 FROM t2;
+c1	c2
+Add E|Essen:
+Ok.
+SELECT c1, c2, c4 FROM t2;
+c1	c2	c4
+E	Essen	3
+Add G|Gossen:
+Ok.
+Ok.
+SELECT c1,c2, c4 FROM t2;
+c1	c2	c4
+E	Essen	3
+G	Gossen	4
+H	Hamburg	5
+SELECT * FROM test.t2;
+c1	c2	c3	c4	c5
+E	Essen	0	3	0
+G	Gossen	0	4	0
+H	Hamburg	0	5	0
+Add B|Berlin expires in 1 seconds:
+Ok.
+select sleep(3);
+sleep(3)
+0
+ Should not find B|Berlin, since it is expired 
+Add C|Cottbus, expires 100 seconds:
+Ok.
+ Should be able to find  C|Cottbus, assume it does not take 100s to get here 
+Cottbus
+Add J|Jilin
+Ok.
+ Should not find  J|Jilin, it should be expired 
+DROP TABLE t2;
+DROP DATABASE innodb_memcache;
+SET @@global.tx_isolation= @tx_isolation;
