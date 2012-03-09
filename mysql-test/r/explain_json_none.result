@@ -1,0 +1,1806 @@
+set @save_storage_engine= @@default_storage_engine;
+set default_storage_engine=MyISAM;
+set end_markers_in_json=on;
+# new "FORMAT" keyword doesn't conflict with the FORMAT() function name:
+SELECT FORMAT(1, 2), FORMAT(1, 2, 3);
+FORMAT(1, 2)	FORMAT(1, 2, 3)
+1.00	1.00
+Warnings:
+Warning	1649	Unknown locale: '3'
+# new "FORMAT" keyword is a valid identifier:
+SET @FORMAT=10;
+SELECT @FORMAT;
+@FORMAT
+10
+CREATE TABLE t1 (format INT);
+SELECT format FROM t1;
+format
+DROP TABLE t1;
+# different ways of format name writing:
+EXPLAIN FORMAT=traditional SELECT 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+EXPLAIN FORMAT='TrAdItIoNaL' SELECT 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+EXPLAIN FORMAT=JSON SELECT 1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "message": "No tables used"
+    } /* table */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1`
+EXPLAIN FORMAT=foo SELECT 1;
+ERROR HY000: Unknown EXPLAIN format name: 'foo'
+# various EXPLAIN output
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (i INT);
+CREATE TABLE t3 (i INT);
+CREATE TABLE t4 (i INT);
+# no end markers in JSON:
+set end_markers_in_json=off;
+EXPLAIN FORMAT=JSON SELECT * FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "access_type": "system",
+      "rows": 0,
+      "filtered": 0,
+      "const_row_not_found": true
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1`
+set end_markers_in_json=on;
+EXPLAIN             INSERT INTO t1 VALUES (10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+EXPLAIN FORMAT=JSON INSERT INTO t1 VALUES (10);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "message": "No tables used"
+    } /* table */
+  } /* query_block */
+}
+EXPLAIN             SELECT * FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+PREPARE stmt FROM 'EXPLAIN FORMAT=JSON SELECT * FROM t1';
+EXECUTE stmt;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "access_type": "system",
+      "rows": 0,
+      "filtered": 0,
+      "const_row_not_found": true
+    } /* table */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1`
+EXECUTE stmt;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "access_type": "system",
+      "rows": 0,
+      "filtered": 0,
+      "const_row_not_found": true
+    } /* table */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1`
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7);
+INSERT INTO t2 VALUES (1), (2);
+EXPLAIN
+SELECT * FROM (SELECT * FROM (SELECT * FROM (SELECT a1.i FROM (SELECT * FROM t1) a1, t2) a2) a3) a4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	14	NULL
+2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	14	NULL
+3	DERIVED	<derived4>	ALL	NULL	NULL	NULL	NULL	14	NULL
+4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+4	DERIVED	<derived5>	ALL	NULL	NULL	NULL	NULL	7	Using join buffer (Block Nested Loop)
+5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
+EXPLAIN FORMAT=JSON
+SELECT * FROM (SELECT * FROM (SELECT * FROM (SELECT a1.i FROM (SELECT * FROM t1) a1, t2) a2) a3) a4;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "a4",
+      "access_type": "ALL",
+      "rows": 14,
+      "filtered": 100,
+      "materialized_from_subquery": {
+        "using_temporary_table": true,
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 2,
+          "table": {
+            "table_name": "a3",
+            "access_type": "ALL",
+            "rows": 14,
+            "filtered": 100,
+            "materialized_from_subquery": {
+              "using_temporary_table": true,
+              "dependent": false,
+              "cacheable": true,
+              "query_block": {
+                "select_id": 3,
+                "table": {
+                  "table_name": "a2",
+                  "access_type": "ALL",
+                  "rows": 14,
+                  "filtered": 100,
+                  "materialized_from_subquery": {
+                    "using_temporary_table": true,
+                    "dependent": false,
+                    "cacheable": true,
+                    "query_block": {
+                      "select_id": 4,
+                      "nested_loop": [
+                        {
+                          "table": {
+                            "table_name": "t2",
+                            "access_type": "ALL",
+                            "rows": 2,
+                            "filtered": 100
+                          } /* table */
+                        },
+                        {
+                          "table": {
+                            "table_name": "a1",
+                            "access_type": "ALL",
+                            "rows": 7,
+                            "filtered": 100,
+                            "using_join_buffer": "Block Nested Loop",
+                            "materialized_from_subquery": {
+                              "using_temporary_table": true,
+                              "dependent": false,
+                              "cacheable": true,
+                              "query_block": {
+                                "select_id": 5,
+                                "table": {
+                                  "table_name": "t1",
+                                  "access_type": "ALL",
+                                  "rows": 7,
+                                  "filtered": 100
+                                } /* table */
+                              } /* query_block */
+                            } /* materialized_from_subquery */
+                          } /* table */
+                        }
+                      ] /* nested_loop */
+                    } /* query_block */
+                  } /* materialized_from_subquery */
+                } /* table */
+              } /* query_block */
+            } /* materialized_from_subquery */
+          } /* table */
+        } /* query_block */
+      } /* materialized_from_subquery */
+    } /* table */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select `a4`.`i` AS `i` from (/* select#2 */ select `a3`.`i` AS `i` from (/* select#3 */ select `a2`.`i` AS `i` from (/* select#4 */ select `a1`.`i` AS `i` from (/* select#5 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`) `a1` join `test`.`t2`) `a2`) `a3`) `a4`
+# subquery in WHERE
+EXPLAIN             SELECT * FROM t1 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND());
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND());
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows": 7,
+      "filtered": 100,
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`))))",
+      "attached_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 2,
+            "ordering_operation": {
+              "using_filesort": false,
+              "table": {
+                "table_name": "t2",
+                "access_type": "ALL",
+                "rows": 2,
+                "filtered": 100,
+                "attached_condition": "((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`))"
+              } /* table */
+            } /* ordering_operation */
+          } /* query_block */
+        }
+      ] /* attached_subqueries */
+    } /* table */
+  } /* query_block */
+}
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`))))
+# two subqueries in WHERE
+EXPLAIN             SELECT * FROM t1
+WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND())
+OR i IN (SELECT i FROM t4 ORDER BY RAND());
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	Using where
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+EXPLAIN FORMAT=JSON SELECT * FROM t1
+WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND())
+OR i IN (SELECT i FROM t4 ORDER BY RAND());
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows": 7,
+      "filtered": 100,
+      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t4` where (<cache>(`test`.`t1`.`i`) = `test`.`t4`.`i`))))",
+      "attached_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 3,
+            "table": {
+              "message": "Impossible WHERE noticed after reading const tables"
+            } /* table */
+          } /* query_block */
+        },
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 2,
+            "ordering_operation": {
+              "using_filesort": false,
+              "table": {
+                "table_name": "t2",
+                "access_type": "ALL",
+                "rows": 2,
+                "filtered": 100,
+                "attached_condition": "((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`))"
+              } /* table */
+            } /* ordering_operation */
+          } /* query_block */
+        }
+      ] /* attached_subqueries */
+    } /* table */
+  } /* query_block */
+}
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t4` where 0)))
+# simple UNION
+EXPLAIN             SELECT * FROM t1 UNION SELECT * FROM t2 UNION SELECT * FROM t3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
+2	UNION	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+3	UNION	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+NULL	UNION RESULT	<union1,2,3>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
+EXPLAIN FORMAT=JSON SELECT * FROM t1 UNION SELECT * FROM t2 UNION SELECT * FROM t3;
+EXPLAIN
+{
+  "query_block": {
+    "union_result": {
+      "using_temporary_table": true,
+      "table_name": "<union1,2,3>",
+      "access_type": "ALL",
+      "query_specifications": [
+        {
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 1,
+            "table": {
+              "table_name": "t1",
+              "access_type": "ALL",
+              "rows": 7,
+              "filtered": 100
+            } /* table */
+          } /* query_block */
+        },
+        {
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 2,
+            "table": {
+              "table_name": "t2",
+              "access_type": "ALL",
+              "rows": 2,
+              "filtered": 100
+            } /* table */
+          } /* query_block */
+        },
+        {
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 3,
+            "table": {
+              "table_name": "t3",
+              "access_type": "system",
+              "rows": 0,
+              "filtered": 0,
+              "const_row_not_found": true
+            } /* table */
+          } /* query_block */
+        }
+      ] /* query_specifications */
+    } /* union_result */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` union /* select#3 */ select NULL AS `i` from `test`.`t3`
+# more complex UNION
+EXPLAIN             (SELECT t1.i FROM t1 JOIN t2) UNION ALL (SELECT * FROM t3 WHERE i IN (SELECT i FROM t4 ORDER BY RAND()));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	Using join buffer (Block Nested Loop)
+2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
+EXPLAIN FORMAT=JSON (SELECT t1.i FROM t1 JOIN t2) UNION ALL (SELECT * FROM t3 WHERE i IN (SELECT i FROM t4 ORDER BY RAND()));
+EXPLAIN
+{
+  "query_block": {
+    "union_result": {
+      "using_temporary_table": true,
+      "table_name": "<union1,2>",
+      "access_type": "ALL",
+      "query_specifications": [
+        {
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 1,
+            "nested_loop": [
+              {
+                "table": {
+                  "table_name": "t2",
+                  "access_type": "ALL",
+                  "rows": 2,
+                  "filtered": 100
+                } /* table */
+              },
+              {
+                "table": {
+                  "table_name": "t1",
+                  "access_type": "ALL",
+                  "rows": 7,
+                  "filtered": 100,
+                  "using_join_buffer": "Block Nested Loop"
+                } /* table */
+              }
+            ] /* nested_loop */
+          } /* query_block */
+        },
+        {
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 2,
+            "table": {
+              "message": "Impossible WHERE noticed after reading const tables",
+              "attached_subqueries": [
+                {
+                  "dependent": true,
+                  "cacheable": false,
+                  "query_block": {
+                    "select_id": 3,
+                    "table": {
+                      "message": "Impossible WHERE noticed after reading const tables"
+                    } /* table */
+                  } /* query_block */
+                }
+              ] /* attached_subqueries */
+            } /* table */
+          } /* query_block */
+        }
+      ] /* query_specifications */
+    } /* union_result */
+  } /* query_block */
+}
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t2`) union all (/* select#2 */ select NULL AS `i` from `test`.`t3` where 0)
+# UNION with subquery in outer ORDER BY
+EXPLAIN             (SELECT * FROM t1) UNION (SELECT * FROM t2) ORDER BY (SELECT i LIMIT 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
+2	UNION	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+EXPLAIN FORMAT=JSON (SELECT * FROM t1) UNION (SELECT * FROM t2) ORDER BY (SELECT i LIMIT 1);
+EXPLAIN
+{
+  "query_block": {
+    "ordering_operation": {
+      "using_filesort": true,
+      "union_result": {
+        "using_temporary_table": true,
+        "table_name": "<union1,2>",
+        "access_type": "ALL",
+        "query_specifications": [
+          {
+            "dependent": false,
+            "cacheable": true,
+            "query_block": {
+              "select_id": 1,
+              "table": {
+                "table_name": "t1",
+                "access_type": "ALL",
+                "rows": 7,
+                "filtered": 100
+              } /* table */
+            } /* query_block */
+          },
+          {
+            "dependent": false,
+            "cacheable": true,
+            "query_block": {
+              "select_id": 2,
+              "table": {
+                "table_name": "t2",
+                "access_type": "ALL",
+                "rows": 2,
+                "filtered": 100
+              } /* table */
+            } /* query_block */
+          }
+        ] /* query_specifications */
+      } /* union_result */,
+      "order_by_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 3,
+            "table": {
+              "message": "No tables used"
+            } /* table */
+          } /* query_block */
+        }
+      ] /* order_by_subqueries */
+    } /* ordering_operation */
+  } /* query_block */
+}
+Warnings:
+Note	1276	Field or reference 'i' of SELECT #3 was resolved in SELECT #-1
+Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`) union (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) order by (/* select#3 */ select `i` limit 1)
+# optimizer-time subquery
+EXPLAIN SELECT * FROM t1 ORDER BY (SELECT LENGTH(1) FROM t2 LIMIT 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY (SELECT LENGTH(1) FROM t2 LIMIT 1);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows": 7,
+        "filtered": 100
+      } /* table */,
+      "optimized_away_subqueries": [
+        {
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 2,
+            "table": {
+              "table_name": "t2",
+              "access_type": "ALL",
+              "rows": 2,
+              "filtered": 100
+            } /* table */
+          } /* query_block */
+        }
+      ] /* optimized_away_subqueries */
+    } /* ordering_operation */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` order by (/* select#2 */ select length(1) from `test`.`t2` limit 1)
+# subquery in the HAVING clause
+EXPLAIN SELECT * FROM t1 HAVING i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
+3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+EXPLAIN FORMAT=JSON SELECT * FROM t1 HAVING i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows": 7,
+      "filtered": 100
+    } /* table */,
+    "having_subqueries": [
+      {
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 3,
+          "table": {
+            "table_name": "t2",
+            "access_type": "ALL",
+            "rows": 2,
+            "filtered": 100
+          } /* table */
+        } /* query_block */
+      },
+      {
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 2,
+          "table": {
+            "table_name": "t2",
+            "access_type": "ALL",
+            "rows": 2,
+            "filtered": 100
+          } /* table */
+        } /* query_block */
+      }
+    ] /* having_subqueries */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` having (<not>((`test`.`t1`.`i` <= (/* select#2 */ select max(`test`.`t2`.`i`) from `test`.`t2`))) or <not>((`test`.`t1`.`i` >= (/* select#3 */ select min(`test`.`t2`.`i`) from `test`.`t2`))))
+# subquery in the GROUP BY clause
+EXPLAIN SELECT * FROM t1 GROUP BY i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	Using temporary; Using filesort
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+EXPLAIN FORMAT=JSON SELECT * FROM t1 GROUP BY i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "grouping_operation": {
+      "using_temporary_table": true,
+      "using_filesort": true,
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows": 7,
+        "filtered": 100
+      } /* table */,
+      "group_by_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 3,
+            "table": {
+              "table_name": "t2",
+              "access_type": "ALL",
+              "rows": 2,
+              "filtered": 100,
+              "attached_condition": "trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
+            } /* table */
+          } /* query_block */
+        },
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 2,
+            "table": {
+              "table_name": "t2",
+              "access_type": "ALL",
+              "rows": 2,
+              "filtered": 100,
+              "attached_condition": "trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
+            } /* table */
+          } /* query_block */
+        }
+      ] /* group_by_subqueries */
+    } /* grouping_operation */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (<not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))) or <not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t2` where trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))))
+# subquery in the SELECT list
+EXPLAIN SELECT (SELECT i + 1 FROM t1 ORDER BY RAND() LIMIT 1), i FROM t1;;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
+2	UNCACHEABLE SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	7	Using temporary; Using filesort
+EXPLAIN FORMAT=JSON SELECT (SELECT i + 1 FROM t1 ORDER BY RAND() LIMIT 1), i FROM t1;;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows": 7,
+      "filtered": 100
+    } /* table */,
+    "select_list_subqueries": [
+      {
+        "dependent": false,
+        "cacheable": false,
+        "query_block": {
+          "select_id": 2,
+          "ordering_operation": {
+            "using_temporary_table": true,
+            "using_filesort": true,
+            "table": {
+              "table_name": "t1",
+              "access_type": "ALL",
+              "rows": 7,
+              "filtered": 100
+            } /* table */
+          } /* ordering_operation */
+        } /* query_block */
+      }
+    ] /* select_list_subqueries */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select (/* select#2 */ select (`test`.`t1`.`i` + 1) from `test`.`t1` order by rand() limit 1) AS `(SELECT i + 1 FROM t1 ORDER BY RAND() LIMIT 1)`,`test`.`t1`.`i` AS `i` from `test`.`t1`
+DROP TABLE t1, t2, t3, t4;
+# derived table that is optimized out
+CREATE TABLE t1 (i INT);
+EXPLAIN SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+EXPLAIN FORMAT= JSON SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "message": "Impossible WHERE noticed after reading const tables",
+      "materialized_from_subquery": {
+        "using_temporary_table": true,
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 2,
+          "table": {
+            "message": "no matching row in const table"
+          } /* table */
+        } /* query_block */
+      } /* materialized_from_subquery */
+    } /* table */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `x` from `test`.`t1`) `tt` where 0
+DROP TABLE t1;
+# complex subqueries
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (c INT, d INT);
+CREATE TABLE t3 (e INT);
+CREATE TABLE t4 (f INT, g INT);
+INSERT INTO t1 VALUES (1,10), (2,10);
+INSERT INTO t2 VALUES (2,10), (2,20);
+INSERT INTO t3 VALUES (10), (30);
+INSERT INTO t4 VALUES (2,10), (2,10);
+EXPLAIN SELECT * FROM t1 WHERE t1.a IN (SELECT c FROM t2 WHERE (SELECT e FROM t3) < SOME(SELECT e FROM t3 WHERE t1.b));;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+4	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE t1.a IN (SELECT c FROM t2 WHERE (SELECT e FROM t3) < SOME(SELECT e FROM t3 WHERE t1.b));;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows": 2,
+      "filtered": 100,
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t2` where (<nop>(<in_optimizer>((select `test`.`t3`.`e` from `test`.`t3`),<exists>(select 1 from `test`.`t3` where (`test`.`t1`.`b` and trigcond_if(outer_field_is_not_null, ((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))",
+      "attached_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 2,
+            "table": {
+              "table_name": "t2",
+              "access_type": "ALL",
+              "rows": 2,
+              "filtered": 100,
+              "attached_condition": "(<nop>(<in_optimizer>((select `test`.`t3`.`e` from `test`.`t3`),<exists>(select 1 from `test`.`t3` where (`test`.`t1`.`b` and trigcond_if(outer_field_is_not_null, ((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))",
+              "attached_subqueries": [
+                {
+                  "dependent": true,
+                  "cacheable": false,
+                  "query_block": {
+                    "select_id": 4,
+                    "table": {
+                      "table_name": "t3",
+                      "access_type": "ALL",
+                      "rows": 2,
+                      "filtered": 100,
+                      "attached_condition": "(`test`.`t1`.`b` and trigcond_if(outer_field_is_not_null, (<cache>((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`)) or isnull(`test`.`t3`.`e`)), true))"
+                    } /* table */
+                  } /* query_block */
+                },
+                {
+                  "dependent": false,
+                  "cacheable": true,
+                  "query_block": {
+                    "select_id": 3,
+                    "table": {
+                      "table_name": "t3",
+                      "access_type": "ALL",
+                      "rows": 2,
+                      "filtered": 100
+                    } /* table */
+                  } /* query_block */
+                }
+              ] /* attached_subqueries */
+            } /* table */
+          } /* query_block */
+        }
+      ] /* attached_subqueries */
+    } /* table */
+  } /* query_block */
+}
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #4 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and trigcond_if(outer_field_is_not_null, (<cache>((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`)) or isnull(`test`.`t3`.`e`)), true)) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
+DROP TABLE t1, t2, t3, t4;
+# semi-join materialization (if enabled)
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (1), (1);
+CREATE TABLE t2 (a INT) SELECT * FROM t1;
+CREATE TABLE t3 (a INT) SELECT * FROM t1;
+CREATE TABLE t4 (a INT) SELECT * FROM t1;
+EXPLAIN FORMAT=JSON
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a FROM t2 WHERE t2.a >  0) AND
+t1.a IN (SELECT t3.a FROM t3 WHERE t3.a IN
+(SELECT t4.a FROM t4 WHERE a > 0));
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows": 3,
+      "filtered": 100,
+      "attached_condition": "(<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t2` where ((`test`.`t2`.`a` > 0) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))) and <in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 from `test`.`t4` where ((`test`.`t4`.`a` > 0) and (<cache>(`test`.`t3`.`a`) = `test`.`t4`.`a`)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`)))))",
+      "attached_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 3,
+            "table": {
+              "table_name": "t3",
+              "access_type": "ALL",
+              "rows": 3,
+              "filtered": 100,
+              "attached_condition": "(<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 from `test`.`t4` where ((`test`.`t4`.`a` > 0) and (<cache>(`test`.`t3`.`a`) = `test`.`t4`.`a`)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`))",
+              "attached_subqueries": [
+                {
+                  "dependent": true,
+                  "cacheable": false,
+                  "query_block": {
+                    "select_id": 4,
+                    "table": {
+                      "table_name": "t4",
+                      "access_type": "ALL",
+                      "rows": 3,
+                      "filtered": 100,
+                      "attached_condition": "((`test`.`t4`.`a` > 0) and (<cache>(`test`.`t3`.`a`) = `test`.`t4`.`a`))"
+                    } /* table */
+                  } /* query_block */
+                }
+              ] /* attached_subqueries */
+            } /* table */
+          } /* query_block */
+        },
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 2,
+            "table": {
+              "table_name": "t2",
+              "access_type": "ALL",
+              "rows": 3,
+              "filtered": 100,
+              "attached_condition": "((`test`.`t2`.`a` > 0) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`))"
+            } /* table */
+          } /* query_block */
+        }
+      ] /* attached_subqueries */
+    } /* table */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a` > 0) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))) and <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#3 */ select 1 from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#4 */ select 1 from `test`.`t4` where ((`test`.`t4`.`a` > 0) and (<cache>(`test`.`t3`.`a`) = `test`.`t4`.`a`)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`)))))
+DROP TABLE t1, t2, t3, t4;
+# the same subquery is associated with two different JOIN_TABs
+CREATE TABLE t1 (
+i1 INTEGER NOT NULL,
+c1 VARCHAR(1) NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (2,'w');
+CREATE TABLE t2 (
+i1 INTEGER NOT NULL,
+c1 VARCHAR(1) NOT NULL,
+c2 VARCHAR(1) NOT NULL,
+KEY (c1, i1)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (8,'d','d');
+INSERT INTO t2 VALUES (4,'v','v');
+CREATE TABLE t3 (
+c1 VARCHAR(1) NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t3 VALUES ('v');
+EXPLAIN FORMAT=json
+SELECT i1
+FROM t1
+WHERE EXISTS (SELECT t2.c1
+FROM (t2 INNER JOIN t3 ON (t3.c1 = t2.c1)) 
+WHERE t2.c2 != t1.c1 AND t2.c2 = (SELECT MIN(t3.c1)
+FROM t3));
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows": 1,
+      "filtered": 100,
+      "attached_condition": "exists(select `test`.`t2`.`c1` from (`test`.`t2` join `test`.`t3` on((`test`.`t3`.`c1` = `test`.`t2`.`c1`))) where ((`test`.`t2`.`c2` <> `test`.`t1`.`c1`) and (`test`.`t2`.`c2` = (select min(`test`.`t3`.`c1`) from `test`.`t3`))))",
+      "attached_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 2,
+            "nested_loop": [
+              {
+                "table": {
+                  "table_name": "t3",
+                  "access_type": "ALL",
+                  "rows": 1,
+                  "filtered": 100,
+                  "attached_condition": "((select min(`test`.`t3`.`c1`) from `test`.`t3`) <> `test`.`t1`.`c1`)",
+                  "attached_subqueries": [
+                    {
+                      "dependent": false,
+                      "cacheable": true,
+                      "query_block": {
+                        "select_id": 3,
+                        "table": {
+                          "table_name": "t3",
+                          "access_type": "ALL",
+                          "rows": 1,
+                          "filtered": 100
+                        } /* table */
+                      } /* query_block */
+                    }
+                  ] /* attached_subqueries */
+                } /* table */
+              },
+              {
+                "table": {
+                  "table_name": "t2",
+                  "access_type": "ref",
+                  "possible_keys": [
+                    "c1"
+                  ] /* possible_keys */,
+                  "key": "c1",
+                  "key_length": "3",
+                  "ref": [
+                    "test.t3.c1"
+                  ] /* ref */,
+                  "rows": 1,
+                  "filtered": 100,
+                  "attached_condition": "(`test`.`t2`.`c2` = (select min(`test`.`t3`.`c1`) from `test`.`t3`))",
+                  "attached_subqueries": [
+                    {
+                      "dependent": false,
+                      "cacheable": true,
+                      "query_block": {
+                        "select_id": 3,
+                        "table": {
+                          "table_name": "t3",
+                          "access_type": "ALL",
+                          "rows": 1,
+                          "filtered": 100
+                        } /* table */
+                      } /* query_block */
+                    }
+                  ] /* attached_subqueries */
+                } /* table */
+              }
+            ] /* nested_loop */
+          } /* query_block */
+        }
+      ] /* attached_subqueries */
+    } /* table */
+  } /* query_block */
+}
+Warnings:
+Note	1276	Field or reference 'test.t1.c1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1` from `test`.`t1` where exists(/* select#2 */ select `test`.`t2`.`c1` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`c1` = `test`.`t3`.`c1`) and (`test`.`t2`.`c2` = (/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`)) and ((/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`) <> `test`.`t1`.`c1`)))
+DROP TABLE t1, t2, t3;
+# multiple materialization groups
+CREATE TABLE t1 (c_key INT, KEY c_key (c_key));
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2 (c INT, c_key INT);
+INSERT INTO t2 VALUES (8,5),(4,5),(8,1);
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t3 SELECT * FROM t1;
+CREATE TABLE t4 LIKE t2;
+INSERT INTO t4 SELECT * FROM t2;
+CREATE TABLE t5 (c INT);
+INSERT INTO t5 VALUES (1), (2), (3);
+# This should show two materialization groups where applicable
+EXPLAIN SELECT * FROM t5 
+WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key) 
+AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t5	ALL	NULL	NULL	NULL	NULL	3	Using where
+3	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	3	Using where
+3	DEPENDENT SUBQUERY	t3	ref	c_key	c_key	5	test.t4.c_key	1	Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t1	index	c_key	c_key	5	NULL	3	Using where; Using index; Using join buffer (Block Nested Loop)
+EXPLAIN FORMAT=JSON SELECT * FROM t5 
+WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key) 
+AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t5",
+      "access_type": "ALL",
+      "rows": 3,
+      "filtered": 100,
+      "attached_condition": "(<in_optimizer>(`test`.`t5`.`c`,<exists>(select 1 from (`test`.`t1` join `test`.`t2` on((`test`.`t2`.`c_key` = `test`.`t1`.`c_key`))) where (<cache>(`test`.`t5`.`c`) = `test`.`t2`.`c`))) and <in_optimizer>(`test`.`t5`.`c`,<exists>(select 1 from (`test`.`t3` join `test`.`t4` on((`test`.`t4`.`c_key` = `test`.`t3`.`c_key`))) where (<cache>(`test`.`t5`.`c`) = `test`.`t4`.`c`))))",
+      "attached_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 3,
+            "nested_loop": [
+              {
+                "table": {
+                  "table_name": "t4",
+                  "access_type": "ALL",
+                  "rows": 3,
+                  "filtered": 100,
+                  "attached_condition": "((<cache>(`test`.`t5`.`c`) = `test`.`t4`.`c`) and (`test`.`t4`.`c_key` is not null))"
+                } /* table */
+              },
+              {
+                "table": {
+                  "table_name": "t3",
+                  "access_type": "ref",
+                  "possible_keys": [
+                    "c_key"
+                  ] /* possible_keys */,
+                  "key": "c_key",
+                  "key_length": "5",
+                  "ref": [
+                    "test.t4.c_key"
+                  ] /* ref */,
+                  "rows": 1,
+                  "filtered": 100,
+                  "using_index": true
+                } /* table */
+              }
+            ] /* nested_loop */
+          } /* query_block */
+        },
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 2,
+            "nested_loop": [
+              {
+                "table": {
+                  "table_name": "t2",
+                  "access_type": "ALL",
+                  "rows": 3,
+                  "filtered": 100,
+                  "attached_condition": "(<cache>(`test`.`t5`.`c`) = `test`.`t2`.`c`)"
+                } /* table */
+              },
+              {
+                "table": {
+                  "table_name": "t1",
+                  "access_type": "index",
+                  "possible_keys": [
+                    "c_key"
+                  ] /* possible_keys */,
+                  "key": "c_key",
+                  "key_length": "5",
+                  "rows": 3,
+                  "filtered": 100,
+                  "using_index": true,
+                  "using_join_buffer": "Block Nested Loop",
+                  "attached_condition": "(`test`.`t1`.`c_key` = `test`.`t2`.`c_key`)"
+                } /* table */
+              }
+            ] /* nested_loop */
+          } /* query_block */
+        }
+      ] /* attached_subqueries */
+    } /* table */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`c` AS `c` from `test`.`t5` where (<in_optimizer>(`test`.`t5`.`c`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`c_key` = `test`.`t2`.`c_key`) and (<cache>(`test`.`t5`.`c`) = `test`.`t2`.`c`)))) and <in_optimizer>(`test`.`t5`.`c`,<exists>(/* select#3 */ select 1 from `test`.`t3` join `test`.`t4` where ((`test`.`t3`.`c_key` = `test`.`t4`.`c_key`) and (<cache>(`test`.`t5`.`c`) = `test`.`t4`.`c`)))))
+DROP TABLE t1, t2, t3, t4, t5;
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (i INT);
+CREATE TABLE t3 (i INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1);
+# Subqueries in UPDATE values list
+EXPLAIN UPDATE t1 SET i=(SELECT i FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+EXPLAIN FORMAT=JSON UPDATE t1 SET i=(SELECT i FROM t2);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows": 1,
+      "filtered": 100
+    } /* table */,
+    "update_value_subqueries": [
+      {
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 2,
+          "table": {
+            "table_name": "t2",
+            "access_type": "system",
+            "rows": 1,
+            "filtered": 100
+          } /* table */
+        } /* query_block */
+      }
+    ] /* update_value_subqueries */
+  } /* query_block */
+}
+EXPLAIN UPDATE t1, t2 SET t1.i=(SELECT i FROM t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+EXPLAIN FORMAT=JSON UPDATE t1, t2 SET t1.i=(SELECT i FROM t3);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "nested_loop": [
+      {
+        "table": {
+          "update": true,
+          "table_name": "t1",
+          "access_type": "system",
+          "rows": 1,
+          "filtered": 100
+        } /* table */
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "system",
+          "rows": 1,
+          "filtered": 100
+        } /* table */
+      }
+    ] /* nested_loop */,
+    "update_value_subqueries": [
+      {
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 2,
+          "table": {
+            "table_name": "t3",
+            "access_type": "system",
+            "rows": 1,
+            "filtered": 100
+          } /* table */
+        } /* query_block */
+      }
+    ] /* update_value_subqueries */
+  } /* query_block */
+}
+# INSERT ... ON DUPLICATE KEY UPDATE x=(SELECT ...) value list
+EXPLAIN INSERT INTO t1 (i)
+SELECT i FROM t2 ON DUPLICATE KEY UPDATE i=(SELECT i FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+EXPLAIN FORMAT=JSON INSERT INTO t1 (i)
+SELECT i FROM t2 ON DUPLICATE KEY UPDATE i=(SELECT i FROM t2);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t2",
+      "access_type": "system",
+      "rows": 1,
+      "filtered": 100
+    } /* table */,
+    "update_value_subqueries": [
+      {
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 2,
+          "table": {
+            "table_name": "t2",
+            "access_type": "system",
+            "rows": 1,
+            "filtered": 100
+          } /* table */
+        } /* query_block */
+      }
+    ] /* update_value_subqueries */
+  } /* query_block */
+}
+EXPLAIN INSERT INTO t1 VALUES (1)
+ON DUPLICATE KEY UPDATE i = (SELECT i FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+EXPLAIN FORMAT=JSON INSERT INTO t1 VALUES (1)
+ON DUPLICATE KEY UPDATE i = (SELECT i FROM t2);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "message": "No tables used"
+    } /* table */,
+    "update_value_subqueries": [
+      {
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 2,
+          "table": {
+            "table_name": "t2",
+            "access_type": "system",
+            "rows": 1,
+            "filtered": 100
+          } /* table */
+        } /* query_block */
+      }
+    ] /* update_value_subqueries */
+  } /* query_block */
+}
+# Subqueries in INSERT VALUES tuples:
+EXPLAIN INSERT INTO t3 VALUES((SELECT i FROM t1)), ((SELECT i FROM t2));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+EXPLAIN FORMAT=JSON INSERT INTO t3 VALUES((SELECT i FROM t1)), ((SELECT i FROM t2));
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "message": "No tables used"
+    } /* table */,
+    "optimized_away_subqueries": [
+      {
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 3,
+          "table": {
+            "table_name": "t2",
+            "access_type": "system",
+            "rows": 1,
+            "filtered": 100
+          } /* table */
+        } /* query_block */
+      },
+      {
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 2,
+          "table": {
+            "table_name": "t1",
+            "access_type": "system",
+            "rows": 1,
+            "filtered": 100
+          } /* table */
+        } /* query_block */
+      }
+    ] /* optimized_away_subqueries */
+  } /* query_block */
+}
+DROP TABLE t1, t2, t3;
+# Various queries
+EXPLAIN SELECT a, b FROM 
+(SELECT 1 AS a, 2 AS b
+UNION ALL
+SELECT 1 AS a, 2 AS b) t1
+GROUP BY a
+ORDER BY b DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
+EXPLAIN FORMAT=JSON SELECT a, b FROM 
+(SELECT 1 AS a, 2 AS b
+UNION ALL
+SELECT 1 AS a, 2 AS b) t1
+GROUP BY a
+ORDER BY b DESC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "ordering_operation": {
+      "using_filesort": true,
+      "grouping_operation": {
+        "using_temporary_table": true,
+        "using_filesort": false,
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows": 2,
+          "filtered": 100,
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "dependent": false,
+            "cacheable": true,
+            "query_block": {
+              "union_result": {
+                "using_temporary_table": true,
+                "table_name": "<union2,3>",
+                "access_type": "ALL",
+                "query_specifications": [
+                  {
+                    "dependent": false,
+                    "cacheable": true,
+                    "query_block": {
+                      "select_id": 2,
+                      "table": {
+                        "message": "No tables used"
+                      } /* table */
+                    } /* query_block */
+                  },
+                  {
+                    "dependent": false,
+                    "cacheable": true,
+                    "query_block": {
+                      "select_id": 3,
+                      "table": {
+                        "message": "No tables used"
+                      } /* table */
+                    } /* query_block */
+                  }
+                ] /* query_specifications */
+              } /* union_result */
+            } /* query_block */
+          } /* materialized_from_subquery */
+        } /* table */
+      } /* grouping_operation */
+    } /* ordering_operation */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b` from (/* select#2 */ select 1 AS `a`,2 AS `b` union all /* select#3 */ select 1 AS `a`,2 AS `b`) `t1` group by `t1`.`a` order by `t1`.`b` desc
+#
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (), ();
+EXPLAIN SELECT 1 FROM t1 GROUP BY GREATEST(t1.a, (SELECT 1 FROM (SELECT t1.b FROM t1, t1 t2 ORDER BY t1.a, t1.a LIMIT 1) AS d));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+2	SUBQUERY	<derived3>	system	NULL	NULL	NULL	NULL	1	NULL
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
+EXPLAIN FORMAT=JSON SELECT 1 FROM t1 GROUP BY GREATEST(t1.a, (SELECT 1 FROM (SELECT t1.b FROM t1, t1 t2 ORDER BY t1.a, t1.a LIMIT 1) AS d));
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "grouping_operation": {
+      "using_temporary_table": true,
+      "using_filesort": true,
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows": 2,
+        "filtered": 100
+      } /* table */,
+      "group_by_subqueries": [
+        {
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 2,
+            "table": {
+              "table_name": "d",
+              "access_type": "system",
+              "rows": 1,
+              "filtered": 100,
+              "materialized_from_subquery": {
+                "using_temporary_table": true,
+                "dependent": false,
+                "cacheable": true,
+                "query_block": {
+                  "select_id": 3,
+                  "ordering_operation": {
+                    "using_temporary_table": true,
+                    "using_filesort": true,
+                    "nested_loop": [
+                      {
+                        "table": {
+                          "table_name": "t1",
+                          "access_type": "ALL",
+                          "rows": 2,
+                          "filtered": 100
+                        } /* table */
+                      },
+                      {
+                        "table": {
+                          "table_name": "t2",
+                          "access_type": "ALL",
+                          "rows": 2,
+                          "filtered": 100,
+                          "using_join_buffer": "Block Nested Loop"
+                        } /* table */
+                      }
+                    ] /* nested_loop */
+                  } /* ordering_operation */
+                } /* query_block */
+              } /* materialized_from_subquery */
+            } /* table */
+          } /* query_block */
+        }
+      ] /* group_by_subqueries */
+    } /* grouping_operation */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` group by greatest(`test`.`t1`.`a`,(/* select#2 */ select 1 from dual))
+DROP TABLE t1;
+#
+CREATE TABLE t1(f1 INT);
+INSERT INTO t1 VALUES (1),(1);
+EXPLAIN SELECT 1 FROM t1 WHERE (SELECT (SELECT 1 FROM t1 GROUP BY f1));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
+3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+EXPLAIN FORMAT=JSON SELECT 1 FROM t1 WHERE (SELECT (SELECT 1 FROM t1 GROUP BY f1));
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows": 2,
+      "filtered": 100
+    } /* table */,
+    "optimized_away_subqueries": [
+      {
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 3,
+          "grouping_operation": {
+            "using_temporary_table": true,
+            "using_filesort": true,
+            "table": {
+              "table_name": "t1",
+              "access_type": "ALL",
+              "rows": 2,
+              "filtered": 100
+            } /* table */
+          } /* grouping_operation */
+        } /* query_block */
+      }
+    ] /* optimized_away_subqueries */
+  } /* query_block */
+}
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
+DROP TABLE t1;
+#
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (i INT, j INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+INSERT INTO t2 SELECT i, i * 10 FROM t1;
+EXPLAIN SELECT * FROM t1 ORDER BY (SELECT t2.j FROM t2 WHERE t2.i = t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using filesort
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY (SELECT t2.j FROM t2 WHERE t2.i = t1.i);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "ordering_operation": {
+      "using_filesort": true,
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows": 10,
+        "filtered": 100
+      } /* table */,
+      "order_by_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 2,
+            "table": {
+              "table_name": "t2",
+              "access_type": "ALL",
+              "rows": 10,
+              "filtered": 100,
+              "attached_condition": "(`test`.`t2`.`i` = `test`.`t1`.`i`)"
+            } /* table */
+          } /* query_block */
+        }
+      ] /* order_by_subqueries */
+    } /* ordering_operation */
+  } /* query_block */
+}
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` order by (/* select#2 */ select `test`.`t2`.`j` from `test`.`t2` where (`test`.`t2`.`i` = `test`.`t1`.`i`))
+EXPLAIN SELECT * FROM t1 GROUP BY (SELECT t2.j FROM t2 WHERE t2.i = t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
+EXPLAIN FORMAT=JSON SELECT * FROM t1 GROUP BY (SELECT t2.j FROM t2 WHERE t2.i = t1.i);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "grouping_operation": {
+      "using_temporary_table": true,
+      "using_filesort": true,
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows": 10,
+        "filtered": 100
+      } /* table */,
+      "group_by_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 2,
+            "table": {
+              "table_name": "t2",
+              "access_type": "ALL",
+              "rows": 10,
+              "filtered": 100,
+              "attached_condition": "(`test`.`t2`.`i` = `test`.`t1`.`i`)"
+            } /* table */
+          } /* query_block */
+        }
+      ] /* group_by_subqueries */
+    } /* grouping_operation */
+  } /* query_block */
+}
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (/* select#2 */ select `test`.`t2`.`j` from `test`.`t2` where (`test`.`t2`.`i` = `test`.`t1`.`i`))
+DROP TABLE t1, t2;
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a, b));
+INSERT INTO t1 (a, b) VALUES (10,1),(10,2),(10,3),(20,4),(20,5),(20,6),(30,7),(30,8),(30,9);
+EXPLAIN FORMAT=JSON SELECT a, MIN(b) AS b FROM t1 GROUP BY a ORDER BY b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "ordering_operation": {
+      "using_temporary_table": true,
+      "using_filesort": true,
+      "grouping_operation": {
+        "using_filesort": false,
+        "table": {
+          "table_name": "t1",
+          "access_type": "range",
+          "key": "PRIMARY",
+          "key_length": "4",
+          "rows": 10,
+          "filtered": 90,
+          "using_index_for_group_by": true
+        } /* table */
+      } /* grouping_operation */
+    } /* ordering_operation */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `b` from `test`.`t1` group by `test`.`t1`.`a` order by `b`
+DROP TABLE t1;
+#
+CREATE TABLE t1 (a INT NOT NULL, b CHAR(3) NOT NULL, PRIMARY KEY (a));
+INSERT INTO t1 VALUES (1,'ABC'), (2,'EFG'), (3,'HIJ');
+CREATE TABLE t2 (a INT NOT NULL,b CHAR(3) NOT NULL,PRIMARY KEY (a, b));
+INSERT INTO t2 VALUES (1,'a'),(1,'b'),(3,'F');
+EXPLAIN FORMAT=JSON SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "ordering_operation": {
+      "using_temporary_table": true,
+      "using_filesort": true,
+      "grouping_operation": {
+        "using_filesort": true,
+        "nested_loop": [
+          {
+            "table": {
+              "table_name": "t1",
+              "access_type": "ALL",
+              "rows": 3,
+              "filtered": 100
+            } /* table */
+          },
+          {
+            "table": {
+              "table_name": "t2",
+              "access_type": "ref",
+              "possible_keys": [
+                "PRIMARY"
+              ] /* possible_keys */,
+              "key": "PRIMARY",
+              "key_length": "4",
+              "ref": [
+                "test.t1.a"
+              ] /* ref */,
+              "rows": 1,
+              "filtered": 100,
+              "using_index": true
+            } /* table */
+          }
+        ] /* nested_loop */
+      } /* grouping_operation */
+    } /* ordering_operation */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,group_concat(`test`.`t2`.`b` separator ',') AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1 group by `test`.`t1`.`a` order by `test`.`t1`.`b`
+DROP TABLE t1;
+DROP TABLE t2;
+#
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES
+(1,4),
+(2,2), (2,2),
+(4,1), (4,1), (4,1), (4,1),
+(2,1), (2,1);
+EXPLAIN FORMAT=JSON SELECT DISTINCT SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "duplicates_removal": {
+      "using_temporary_table": true,
+      "using_filesort": false,
+      "grouping_operation": {
+        "using_filesort": true,
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows": 9,
+          "filtered": 100
+        } /* table */
+      } /* grouping_operation */
+    } /* duplicates_removal */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select distinct sum(`test`.`t1`.`b`) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` with rollup
+DROP TABLE t1;
+# Composition of DISTINCT, GROUP BY and ORDER BY
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1, 1), (1, 2), (2, 1), (2, 2), (3, 1);
+EXPLAIN FORMAT=JSON SELECT DISTINCT SUM(b) s FROM t1 GROUP BY a ORDER BY s;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "ordering_operation": {
+      "using_filesort": true,
+      "duplicates_removal": {
+        "using_temporary_table": true,
+        "using_filesort": false,
+        "grouping_operation": {
+          "using_temporary_table": true,
+          "using_filesort": false,
+          "table": {
+            "table_name": "t1",
+            "access_type": "ALL",
+            "rows": 5,
+            "filtered": 100
+          } /* table */
+        } /* grouping_operation */
+      } /* duplicates_removal */
+    } /* ordering_operation */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select distinct sum(`test`.`t1`.`b`) AS `s` from `test`.`t1` group by `test`.`t1`.`a` order by `s`
+FLUSH STATUS;
+SELECT DISTINCT SUM(b) s FROM t1 GROUP BY a ORDER BY s;
+s
+1
+3
+SHOW SESSION STATUS WHERE (Variable_name LIKE 'Sort_%' OR Variable_name LIKE 'Created_%_tables') AND Value > 0;
+Variable_name	Value
+Created_tmp_tables	1
+Sort_rows	2
+Sort_scan	1
+DROP TABLE t1;
+# "buffer_result" node
+CREATE TABLE t1 (a INT NOT NULL);
+CREATE TABLE t2 (a INT NOT NULL, PRIMARY KEY (a));
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1),(2);
+EXPLAIN FORMAT=JSON SELECT SQL_BIG_RESULT DISTINCT t1.a FROM t1,t2 ORDER BY t2.a;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "ordering_operation": {
+      "using_filesort": false,
+      "duplicates_removal": {
+        "using_temporary_table": true,
+        "using_filesort": false,
+        "buffer_result": {
+          "using_temporary_table": true,
+          "nested_loop": [
+            {
+              "table": {
+                "table_name": "t1",
+                "access_type": "system",
+                "rows": 1,
+                "filtered": 100
+              } /* table */
+            },
+            {
+              "table": {
+                "table_name": "t2",
+                "access_type": "index",
+                "key": "PRIMARY",
+                "key_length": "4",
+                "rows": 2,
+                "filtered": 100,
+                "using_index": true,
+                "distinct": true
+              } /* table */
+            }
+          ] /* nested_loop */
+        } /* buffer_result */
+      } /* duplicates_removal */
+    } /* ordering_operation */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result '1' AS `a` from `test`.`t2` order by `test`.`t2`.`a`
+DROP TABLE t1, t2;
+#
+CREATE TABLE t1 (a INT NOT NULL, b INT, PRIMARY KEY (a));
+CREATE TABLE t2 (a INT NOT NULL, PRIMARY KEY (a));
+INSERT INTO t1 VALUES (1,10), (2,20), (3,30),  (4,40);
+INSERT INTO t2 VALUES (2), (3), (4), (5);
+EXPLAIN FORMAT=JSON SELECT * FROM t2 WHERE t2.a IN (SELECT a FROM t1 WHERE t1.b <> 30);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t2",
+      "access_type": "index",
+      "key": "PRIMARY",
+      "key_length": "4",
+      "rows": 4,
+      "filtered": 100,
+      "using_index": true,
+      "attached_condition": "<in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 from `test`.`t1` where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))",
+      "attached_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 2,
+            "table": {
+              "table_name": "t1",
+              "access_type": "unique_subquery",
+              "possible_keys": [
+                "PRIMARY"
+              ] /* possible_keys */,
+              "key": "PRIMARY",
+              "key_length": "4",
+              "ref": [
+                "func"
+              ] /* ref */,
+              "rows": 1,
+              "filtered": 100,
+              "attached_condition": "(`test`.`t1`.`b` <> 30)"
+            } /* table */
+          } /* query_block */
+        }
+      ] /* attached_subqueries */
+    } /* table */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
+DROP TABLE t1, t2;
+set default_storage_engine= @save_storage_engine;
+set optimizer_switch=default;

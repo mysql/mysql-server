@@ -21,8 +21,8 @@
 --let $include_filename= rpl_for_each_file.inc [$rpl_source_file]
 --source include/begin_include_file.inc
 
---let $_rpl_server= $rpl_server_count
-while ($_rpl_server)
+--let $_rpl_server= 1
+while ($_rpl_server <= $rpl_server_count)
 {
   --let $_rpl_has_master= `SELECT SUBSTRING('$rpl_master_list', 1 + ($_rpl_server - 1) * $rpl_server_count_length, $rpl_server_count_length) != ''`
   if ($_rpl_has_master)
@@ -31,7 +31,7 @@ while ($_rpl_server)
     --source include/rpl_connection.inc
     --source $rpl_source_file
   }
-  --dec $_rpl_server
+  --inc $_rpl_server
 }
 
 

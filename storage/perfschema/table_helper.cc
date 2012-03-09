@@ -101,6 +101,62 @@ void PFS_account_row::set_field(uint index, Field *f)
   }
 }
 
+int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
+{
+  /*
+    "0" value for byte_count indicates special entry i.e. aggregated
+    stats at index 0 of statements_digest_stat_array. So do not calculate
+    digest/digest_text as it should always be "NULL".
+  */
+  if (pfs->m_digest_storage.m_byte_count != 0)
+  {
+    /*
+      Calculate digest from MD5 HASH collected to be shown as
+      DIGEST in this row.
+    */
+    MD5_HASH_TO_STRING(pfs->m_digest_hash.m_md5, m_digest);
+    m_digest_length= MD5_HASH_TO_STRING_LENGTH;
+
+    /* 
+      Caclulate digest_text information from the token array collected
+      to be shown as DIGEST_TEXT column.
+    */ 
+    get_digest_text(m_digest_text, &pfs->m_digest_storage);
+    m_digest_text_length= strlen(m_digest_text);
+  }
+  else
+  {
+    m_digest_length= 0;
+    m_digest_text_length= 0;
+  }
+  
+  return 0;
+}
+
+void PFS_digest_row::set_field(uint index, Field *f)
+{
+  switch (index)
+  {
+    case 0: /* DIGEST */
+      if (m_digest_length > 0)
+        PFS_engine_table::set_field_varchar_utf8(f, m_digest,
+                                                 m_digest_length);
+      else
+        f->set_null();
+      break;
+    case 1: /* DIGEST_TEXT */
+      if (m_digest_text_length > 0)
+        PFS_engine_table::set_field_longtext_utf8(f, m_digest_text,
+                                                  m_digest_text_length);
+      else
+        f->set_null();
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+  }
+}
+
 int PFS_object_row::make_row(PFS_table_share *pfs)
 {
   m_object_type= pfs->get_object_type();

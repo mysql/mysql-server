@@ -500,6 +500,13 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
   DBUG_ENTER("open_and_lock_for_insert_delayed");
 
 #ifndef EMBEDDED_LIBRARY
+  /* INSERT DELAYED is not allowed in a read only transaction. */
+  if (thd->tx_read_only)
+  {
+    my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
+    DBUG_RETURN(true);
+  }
+
   /*
     In order for the deadlock detector to be able to find any deadlocks
     caused by the handler thread waiting for GRL or this table, we acquire
@@ -3806,7 +3813,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   init_tmp_table_share(thd, &share, "", 0, "", "");
 
   tmp_table.s->db_create_options=0;
-  tmp_table.s->blob_ptr_size= portable_sizeof_char_ptr;
   tmp_table.s->db_low_byte_first= 
         test(create_info->db_type == myisam_hton ||
              create_info->db_type == heap_hton);

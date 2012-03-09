@@ -1,5 +1,6 @@
 SET optimizer_trace_max_mem_size=1048576;
-SET optimizer_trace="enabled=on,end_marker=on,one_line=off";
+SET end_markers_in_json=on;
+SET optimizer_trace="enabled=on,one_line=off";
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT, b INT);
 INSERT INTO t1 VALUES (2);
@@ -1563,48 +1564,6 @@ field4,field5,field6	{
                                   "considered_execution_plans": [
                                     {
                                       "database": "test",
-                                      "table": "sq1_alias2",
-                                      "best_access_path": {
-                                        "considered_access_paths": [
-                                          {
-                                            "access_type": "ref",
-                                            "index": "col_varchar_key",
-                                            "usable": false,
-                                            "chosen": false
-                                          },
-                                          {
-                                            "access_type": "scan",
-                                            "rows": 3,
-                                            "cost": 2.0342,
-                                            "chosen": true
-                                          }
-                                        ] /* considered_access_paths */
-                                      } /* best_access_path */,
-                                      "cost_for_plan": 2.6342,
-                                      "rows_for_plan": 3,
-                                      "rest_of_plan": [
-                                        {
-                                          "database": "test",
-                                          "table": "sq1_alias3",
-                                          "best_access_path": {
-                                            "considered_access_paths": [
-                                              {
-                                                "access_type": "scan",
-                                                "using_join_cache": true,
-                                                "rows": 3,
-                                                "cost": 2.0345,
-                                                "chosen": true
-                                              }
-                                            ] /* considered_access_paths */
-                                          } /* best_access_path */,
-                                          "cost_for_plan": 6.4686,
-                                          "rows_for_plan": 9,
-                                          "chosen": true
-                                        }
-                                      ] /* rest_of_plan */
-                                    },
-                                    {
-                                      "database": "test",
                                       "table": "sq1_alias3",
                                       "best_access_path": {
                                         "considered_access_paths": [
@@ -1642,9 +1601,32 @@ field4,field5,field6	{
                                           } /* best_access_path */,
                                           "cost_for_plan": 6.4686,
                                           "rows_for_plan": 9,
-                                          "pruned_by_cost": true
+                                          "chosen": true
                                         }
                                       ] /* rest_of_plan */
+                                    },
+                                    {
+                                      "database": "test",
+                                      "table": "sq1_alias2",
+                                      "best_access_path": {
+                                        "considered_access_paths": [
+                                          {
+                                            "access_type": "ref",
+                                            "index": "col_varchar_key",
+                                            "usable": false,
+                                            "chosen": false
+                                          },
+                                          {
+                                            "access_type": "scan",
+                                            "rows": 3,
+                                            "cost": 2.0342,
+                                            "chosen": true
+                                          }
+                                        ] /* considered_access_paths */
+                                      } /* best_access_path */,
+                                      "cost_for_plan": 2.6342,
+                                      "rows_for_plan": 3,
+                                      "pruned_by_heuristic": true
                                     }
                                   ] /* considered_execution_plans */
                                 }

@@ -2079,3 +2079,11 @@ create temporary table t1 select f();
 
 drop view t2;
 drop function f;
+
+--echo #
+--echo # BUG#11762377 - 54963: ENHANCE THE ERROR MESSAGE TO 
+--echo #                       REDUCE USER CONFUSION 
+--echo #
+
+--error ER_TOO_BIG_ROWSIZE
+CREATE TABLE t1 (v varchar(65535));

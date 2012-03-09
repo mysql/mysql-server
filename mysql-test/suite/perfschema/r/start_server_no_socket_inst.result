@@ -10,7 +10,7 @@ count(*)
 5
 select count(*) from performance_schema.setup_consumers;
 count(*)
-11
+12
 select count(*) > 3 from performance_schema.setup_instruments;
 count(*) > 3
 1
@@ -47,6 +47,7 @@ select * from performance_schema.events_waits_summary_global_by_event_name;
 select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
+select * from performance_schema.host_cache;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
 select * from performance_schema.socket_summary_by_event_name;
@@ -69,6 +70,7 @@ show variables like "performance_schema%";
 Variable_name	Value
 performance_schema	ON
 performance_schema_accounts_size	100
+performance_schema_digests_size	200
 performance_schema_events_stages_history_long_size	1000
 performance_schema_events_stages_history_size	10
 performance_schema_events_statements_history_long_size	1000
@@ -88,7 +90,7 @@ performance_schema_max_rwlock_instances	5000
 performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	0
 performance_schema_max_stage_classes	150
-performance_schema_max_statement_classes	167
+performance_schema_max_statement_classes	168
 performance_schema_max_table_handles	1000
 performance_schema_max_table_instances	500
 performance_schema_max_thread_classes	50

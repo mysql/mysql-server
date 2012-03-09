@@ -145,17 +145,27 @@ The following options may be given as the first argument:
  handling INSERT DELAYED. If the queue becomes full, any
  client that does INSERT DELAYED will wait until there is
  room in the queue again
+ --disable-gtid-unsafe-statements 
+ Prevents execution of statements that would be impossible
+ to log in a transactionally safe manner. Currently, the
+ disallowed statements include CREATE TEMPORARY TABLE
+ inside transactions, all updates to non-transactional
+ tables, and CREATE TABLE ... SELECT.
  --disconnect-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
  replication.
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
+ --end-markers-in-json 
+ In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
+ trace), end_marker=on repeats the structure's key (if it
+ has one) near the closing bracket
  --eq-range-index-dive-limit=# 
  The optimizer will use existing index statistics instead
  of doing index dives for equality ranges if the number of
  equality ranges for the index is larger than or equal to
- this number.
+ this number. If set to 0, index dives are always used.
  --event-scheduler[=name] 
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
@@ -194,7 +204,10 @@ The following options may be given as the first argument:
  --group-concat-max-len=# 
  The maximum length of the result of function 
  GROUP_CONCAT()
+ --gtid-mode=name    Whether Global Transaction Identifiers (GTIDs) are
+ enabled. Can be ON or OFF.
  -?, --help          Display this help and exit.
+ --host-cache-size=# How many host names should be cached to avoid resolving.
  --ignore-builtin-innodb 
  IGNORED. This option will be removed in future releases.
  Disable initialization of builtin InnoDB plugin
@@ -454,8 +467,8 @@ The following options may be given as the first argument:
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
- is one of {enabled, end_marker, one_line} and val is one
- of {on, off, default}
+ is one of {enabled, one_line} and val is one of {on,
+ default}
  --optimizer-trace-features=name 
  Enables/disables tracing of selected features of the
  Optimizer:
@@ -505,10 +518,15 @@ The following options may be given as the first argument:
  Default startup value for the global_instrumentation
  consumer.
  (Defaults to on; use --skip-performance-schema-consumer-global-instrumentation to disable.)
+ --performance-schema-consumer-statements-digest 
+ Default startup value for the statements_digest consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-statements-digest to disable.)
  --performance-schema-consumer-thread-instrumentation 
  Default startup value for the thread_instrumentation
  consumer.
  (Defaults to on; use --skip-performance-schema-consumer-thread-instrumentation to disable.)
+ --performance-schema-digests-size=# 
+ Size of the statement digest.
  --performance-schema-events-stages-history-long-size=# 
  Number of rows in EVENTS_STAGES_HISTORY_LONG.
  --performance-schema-events-stages-history-size=# 
@@ -873,6 +891,9 @@ The following options may be given as the first argument:
  --transaction-prealloc-size=# 
  Persistent buffer for transactions to be stored in binary
  log
+ --transaction-read-only 
+ Default transaction access mode. True if transactions are
+ read-only.
  --updatable-views-with-limit=name 
  YES = Don't issue an error message (warning only) if a
  VIEW without presence of a key of the underlying table is
@@ -925,8 +946,10 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
+disable-gtid-unsafe-statements FALSE
 disconnect-slave-event-count 0
 div-precision-increment 4
+end-markers-in-json FALSE
 eq-range-index-dive-limit 10
 event-scheduler OFF
 expire-logs-days 0
@@ -941,7 +964,9 @@ ft-stopword-file (No default value)
 gdb FALSE
 general-log FALSE
 group-concat-max-len 1024
+gtid-mode OFF
 help TRUE
+host-cache-size 128
 ignore-builtin-innodb FALSE
 init-connect 
 init-file (No default value)
@@ -1046,7 +1071,9 @@ performance-schema-consumer-events-waits-current FALSE
 performance-schema-consumer-events-waits-history FALSE
 performance-schema-consumer-events-waits-history-long FALSE
 performance-schema-consumer-global-instrumentation TRUE
+performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
+performance-schema-digests-size 200
 performance-schema-events-stages-history-long-size 10000
 performance-schema-events-stages-history-size 10
 performance-schema-events-statements-history-long-size 10000
@@ -1067,7 +1094,7 @@ performance-schema-max-rwlock-instances 1000000
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances 1000
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 167
+performance-schema-max-statement-classes 168
 performance-schema-max-table-handles 10000
 performance-schema-max-table-instances 1000
 performance-schema-max-thread-classes 50
@@ -1100,7 +1127,7 @@ relay-log-space-limit 0
 replicate-same-server-id FALSE
 report-host (No default value)
 report-password (No default value)
-report-port 3306
+report-port 0
 report-user (No default value)
 safe-user-create FALSE
 secure-auth TRUE
@@ -1153,6 +1180,7 @@ tmp-table-size 16777216
 transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
+transaction-read-only FALSE
 updatable-views-with-limit YES
 verbose TRUE
 wait-timeout 28800

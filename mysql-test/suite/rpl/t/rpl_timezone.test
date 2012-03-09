@@ -197,7 +197,10 @@ select * from t1;
 DROP TABLE t1;
 
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 | $MYSQL
+--copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.saved
+# Forget GTIDs
+RESET MASTER;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved | $MYSQL
 --connection master1
 select * from t1 order by a;
 DROP TABLE t1;

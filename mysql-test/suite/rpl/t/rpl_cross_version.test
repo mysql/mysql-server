@@ -10,6 +10,7 @@
 # The master's binlog is treated as a relay log that the SQL thread executes.
 #
 
+--source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 
 # The test is disabled for windows due to 

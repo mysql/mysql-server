@@ -85,6 +85,7 @@ stop slave;
 include/wait_for_slave_to_stop.inc
 reset master;
 reset slave;
+reset master;
 start slave;
 include/wait_for_slave_to_start.inc
 
@@ -213,6 +214,7 @@ stop slave;
 include/wait_for_slave_to_stop.inc
 reset master;
 reset slave;
+reset master;
 start slave;
 include/wait_for_slave_to_start.inc
 SELECT COUNT(*) from t1;
@@ -343,6 +345,7 @@ stop slave;
 include/wait_for_slave_to_stop.inc
 reset master;
 reset slave;
+reset master;
 start slave;
 include/wait_for_slave_to_start.inc
 create table t4 (f text character set utf8);

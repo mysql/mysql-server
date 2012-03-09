@@ -1,0 +1,18 @@
+include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+[The default value shown for the slave's port number is the actual port number of the slave]
+SHOW SLAVE HOSTS;
+Server_id	Host	Port	Master_id	Slave_UUID
+2	127.0.0.1	SLAVE_PORT	1	SLAVE_UUID
+[The default value shown for the slave's port number is the actual port number of the slave]
+include/rpl_restart_server.inc [server_number=2 parameters: --report-port=9000]
+include/start_slave.inc
+[Slave restarted with the report-port set to some value]
+[The value shown for the slave's port number is 9000 which is the value set for report-port]
+SHOW SLAVE HOSTS;
+Server_id	Host	Port	Master_id	Slave_UUID
+2	127.0.0.1	9000	1	SLAVE_UUID
+include/rpl_end.inc

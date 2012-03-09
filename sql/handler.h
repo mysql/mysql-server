@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -304,8 +304,24 @@
 #define HA_CACHE_TBL_ASKTRANSACT 2
 #define HA_CACHE_TBL_TRANSACT    4
 
-/* Options of START TRANSACTION statement (and later of SET TRANSACTION stmt) */
-#define MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT 1
+/**
+  Options for the START TRANSACTION statement.
+
+  Note that READ ONLY and READ WRITE are logically mutually exclusive.
+  This is enforced by the parser and depended upon by trans_begin().
+
+  We need two flags instead of one in order to differentiate between
+  situation when no READ WRITE/ONLY clause were given and thus transaction
+  is implicitly READ WRITE and the case when READ WRITE clause was used
+  explicitly.
+*/
+
+// WITH CONSISTENT SNAPSHOT option
+static const uint MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT = 1;
+// READ ONLY option
+static const uint MYSQL_START_TRANS_OPT_READ_ONLY          = 2;
+// READ WRITE option
+static const uint MYSQL_START_TRANS_OPT_READ_WRITE         = 4;
 
 /* Flags for method is_fatal_error */
 #define HA_CHECK_DUP_KEY 1
@@ -1334,6 +1350,16 @@ public:
   virtual ~handler_add_index() {}
 };
 
+
+/** Base class to be used by handlers different shares */
+class Handler_share
+{
+public:
+  Handler_share() {}
+  virtual ~Handler_share() {}
+};
+
+
 /**
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
@@ -1505,6 +1531,11 @@ private:
     object. This cloned handler object needs to know about the lock_type used.
   */
   int m_lock_type;
+  /**
+    Pointer where to store/retrieve the Handler_share pointer.
+    For non partitioned handlers this is &TABLE_SHARE::ha_share.
+  */
+  Handler_share **ha_share;
 
 public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
@@ -1518,11 +1549,11 @@ public:
     pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
-    m_psi(NULL), m_lock_type(F_UNLCK)
+    m_psi(NULL), m_lock_type(F_UNLCK), ha_share(NULL)
     {
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
-                  F_UNLCK, F_RDLCK, F_UNLCK));
+                  F_UNLCK, F_RDLCK, F_WRLCK));
     }
   virtual ~handler(void)
   {
@@ -2578,6 +2609,20 @@ public:
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
+  virtual bool set_ha_share_ref(Handler_share **arg_ha_share)
+  {
+    DBUG_ASSERT(!ha_share);
+    DBUG_ASSERT(arg_ha_share);
+    if (ha_share || !arg_ha_share)
+      return true;
+    ha_share= arg_ha_share;
+    return false;
+  }
+protected:
+  Handler_share *get_ha_share_ptr();
+  void set_ha_share_ptr(Handler_share *arg_ha_share);
+  void lock_shared_ha_data();
+  void unlock_shared_ha_data();
 };
 
 
@@ -2733,7 +2778,7 @@ int ha_release_temporary_latches(THD *thd);
 
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
-int ha_commit_or_rollback_by_xid(XID *xid, bool commit);
+int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit);
 int ha_commit_one_phase(THD *thd, bool all);
 int ha_commit_trans(THD *thd, bool all);
 int ha_rollback_trans(THD *thd, bool all);

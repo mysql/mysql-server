@@ -7,10 +7,7 @@
 -- source include/have_innodb.inc
 -- source include/have_debug.inc
 
---disable_warnings
-drop table if exists t1, t2;
---enable_warnings
-reset master;
+RESET MASTER;
 
 create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=innodb;
@@ -236,7 +233,17 @@ DELETE FROM user WHERE host='localhost' AND user='@#@';
 --enable_warnings
 
 use test;
+
+# Show binlog events on a different connection because it calls
+# `SELECT UUID()` internally, which is marked unsafe. Since there is
+# an open temporary table, this causes the current connection to log
+# subsequent statements in row format.
+connect (other,localhost,root,,test);
+connection other;
 source include/show_binlog_events.inc;
+connection default;
+disconnect other;
+
 drop table t1,t2,t3,tt1;
 
 -- source extra/binlog_tests/binlog_insert_delayed.test
@@ -305,7 +312,7 @@ BINLOG '
 
 # Show binlog events to check that server ids are correct.
 --replace_column 1 # 2 # 5 #
---replace_regex /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
+--replace_regex /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/ /SET @@SESSION.GTID_NEXT=.*$/SET @@SESSION.GTID_NEXT= 'GTID';/ /GROUPS: .*:(.*,.*)/GROUPS: GTID:(X,X)/
 SHOW BINLOG EVENTS;
 
 DROP TABLE t1;

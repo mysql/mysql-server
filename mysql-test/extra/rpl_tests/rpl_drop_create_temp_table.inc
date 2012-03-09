@@ -948,7 +948,13 @@ while (`SELECT HEX(@commands) != HEX('')`)
   {
     let $binlog_start= $pos_trans_command;
     --echo -b-b-b-b-b-b-b-b-b-b-b- >> $commands << -b-b-b-b-b-b-b-b-b-b-b-
+    # Use other connection because include/show_binlog_events.inc
+    # executes SELECT UUID(), which switches to row-logging when
+    # binlog_format=mixed, if there are open temporary tables. This is
+    # due to BUG#13692513.
+    --connection server_1
     --source include/show_binlog_events.inc
+    --connection master
     --echo -e-e-e-e-e-e-e-e-e-e-e- >> $commands << -e-e-e-e-e-e-e-e-e-e-e-
     --echo
  

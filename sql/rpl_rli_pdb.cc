@@ -137,7 +137,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   jobs.overfill= FALSE;    //  todo: move into Slave_jobs_queue constructor
   jobs.waited_overfill= 0;
   jobs.entry= jobs.size= c_rli->mts_slave_worker_queue_len_max;
-  curr_group_seen_begin= FALSE;
+  curr_group_seen_begin= curr_group_seen_gtid= false;
 
   my_init_dynamic_array(&jobs.Q, sizeof(Slave_job_item), jobs.size, 0);
   for (k= 0; k < jobs.size; k++)
@@ -995,7 +995,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
   }
   ep->elements= 0;
 
-  curr_group_seen_begin= FALSE;
+  curr_group_seen_gtid= curr_group_seen_begin= false;
 
   if (error)
   {
@@ -1691,10 +1691,10 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
 
   if (ev->starts_group())
   {
+    worker->curr_group_seen_begin= true; // The current group is started with B-event
     worker->end_group_sets_max_dbs= true;
-    worker->curr_group_seen_begin= TRUE; // The current group is started with B-event
   } 
-  else
+  else if (!is_gtid_event(ev))
   {
     if ((part_event=
          ev->contains_partition_info(worker->end_group_sets_max_dbs)))
@@ -1732,13 +1732,13 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   }
   worker->set_future_event_relay_log_pos(ev->future_event_relay_log_pos);
   error= ev->do_apply_event_worker(worker);
-  if (ev->ends_group() || (!worker->curr_group_seen_begin && 
+  if (ev->ends_group() || (!worker->curr_group_seen_begin &&
                            /* 
                               p-events of B/T-less {p,g} group (see
                               legends of Log_event::get_slave_worker)
                               obviously can't commit.
                            */
-                           part_event))
+                           part_event && !is_gtid_event(ev)))
   {
     DBUG_PRINT("slave_worker_exec_job:",
                (" commits GAQ index %lu, last committed  %lu",

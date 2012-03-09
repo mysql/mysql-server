@@ -55,6 +55,7 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <my_bit.h>
+#include "rpl_gtid.h"
 #include "rpl_slave.h"
 #include "rpl_master.h"
 #include "rpl_mi.h"
@@ -468,6 +469,13 @@ ulong binlog_checksum_options;
 my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
+my_bool disable_gtid_unsafe_statements;
+ulong gtid_mode;
+const char *gtid_mode_names[]=
+{"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
+TYPELIB gtid_mode_typelib=
+{ array_elements(gtid_mode_names) - 1, "", gtid_mode_names, NULL };
+
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
 #endif
@@ -616,6 +624,19 @@ const char *in_additional_cond= "<IN COND>";
 const char *in_having_cond= "<IN HAVING>";
 
 my_decimal decimal_zero;
+/** Number of connection errors when selecting on the listening port */
+ulong connection_errors_select= 0;
+/** Number of connection errors when accepting sockets in the listening port. */
+ulong connection_errors_accept= 0;
+/** Number of connection errors from TCP wrappers. */
+ulong connection_errors_tcpwrap= 0;
+/** Number of connection errors from internal server errors. */
+ulong connection_errors_internal= 0;
+/** Number of connection errors from the server max_connection limit. */
+ulong connection_errors_max_connection= 0;
+/** Number of errors when reading the peer address. */
+ulong connection_errors_peer_addr= 0;
+
 /* classes for comparation parsing/processing */
 Eq_creator eq_creator;
 Ne_creator ne_creator;
@@ -688,7 +709,7 @@ int mysqld_server_started= 0;
 File_parser_dummy_hook file_parser_dummy_hook;
 
 /* replication parameters, if master_host is not NULL, we are a slave */
-uint report_port= MYSQL_PORT;
+uint report_port= 0;
 ulong master_retry_count=0;
 char *master_info_file;
 char *relay_log_info_file, *report_user, *report_password, *report_host;
@@ -1921,6 +1942,11 @@ static void network_init(void)
 
   set_ports();
 
+  if (report_port == 0)
+  {
+    report_port= mysqld_port;
+  }
+  DBUG_ASSERT(report_port != 0);
   if (mysqld_port != 0 && !opt_disable_networking && !opt_bootstrap)
   {
     struct addrinfo *ai, *a;
@@ -3242,6 +3268,12 @@ rpl_make_log_name(const char *opt,
 int init_common_variables()
 {
   umask(((~my_umask) & 0666));
+  connection_errors_select= 0;
+  connection_errors_accept= 0;
+  connection_errors_tcpwrap= 0;
+  connection_errors_internal= 0;
+  connection_errors_max_connection= 0;
+  connection_errors_peer_addr= 0;
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();      // Set tzname
 
@@ -4023,21 +4055,24 @@ static int init_server_auto_options()
   if (handle_options(&argc, &argv, auto_options, mysqld_get_one_option))
     DBUG_RETURN(1);
 
+  DBUG_PRINT("info", ("uuid=%p=%s server_uuid=%s", uuid, uuid, server_uuid));
   if (uuid)
   {
-    if (strlen(uuid) != UUID_LENGTH)
+    if (!Uuid::is_valid(uuid))
     {
-      sql_print_error("The UUID stored in auto.cnf file is the wrong length.");
+      sql_print_error("The server_uuid stored in auto.cnf file is not a valid UUID.");
       goto err;
     }
     strcpy(server_uuid, uuid);
   }
   else
   {
+    DBUG_PRINT("info", ("generating server_uuid"));
     flush= TRUE;
     /* server_uuid will be set in the function */
     if (generate_server_uuid())
       goto err;
+    DBUG_PRINT("info", ("generated server_uuid=%s", server_uuid));
     sql_print_warning("No existing UUID has been found, so we assume that this"
                       " is the first time that this server has been started."
                       " Generating a new UUID: %s.",
@@ -4445,9 +4480,36 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
-  if (opt_bin_log && mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
-                                        WRITE_CACHE, 0, max_binlog_size, 0, TRUE))
+  if (gtid_mode >= 1 && !(opt_bin_log && opt_log_slave_updates))
+  {
+    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates");
     unireg_abort(1);
+  }
+  if (gtid_mode >= 2 && !disable_gtid_unsafe_statements)
+  {
+    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 requires --disable-gtid-unsafe-statements");
+    unireg_abort(1);
+  }
+  if (gtid_mode == 1 || gtid_mode == 2)
+  {
+    sql_print_error("--gtid-mode=UPGRADE_STEP_1 or --gtid-mode=UPGRADE_STEP_2 are not yet supported");
+    unireg_abort(1);
+  }
+
+  if (opt_bin_log)
+  {
+    /*
+      Configures what object is used by the current log to store processed
+      gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
+      corretly compute the set of previous gtids.
+    */
+    mysql_bin_log.set_previous_gtid_set(
+      const_cast<Gtid_set*>(gtid_state.get_logged_gtids()));
+    if (mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
+                                  WRITE_CACHE, 0, max_binlog_size, 0,
+                                  true/*need mutex*/, true/*need sid_lock*/))
+      unireg_abort(1);
+  }
 
 #ifdef HAVE_REPLICATION
   if (opt_bin_log && expire_logs_days)
@@ -4894,13 +4956,71 @@ int mysqld_main(int argc, char **argv)
     Each server should have one UUID. We will create it automatically, if it
     does not exist.
    */
-  if (!opt_bootstrap && init_server_auto_options())
+  if (!opt_bootstrap)
   {
-    sql_print_error("Initialzation of the server's UUID failed because it could"
-                    " not be read from the auto.cnf file. If this is a new"
-                    " server, the initialization failed because it was not"
-                    " possible to generate a new UUID.");
-    unireg_abort(1);
+    if (init_server_auto_options())
+    {
+      sql_print_error("Initialzation of the server's UUID failed because it could"
+                      " not be read from the auto.cnf file. If this is a new"
+                      " server, the initialization failed because it was not"
+                      " possible to generate a new UUID.");
+      unireg_abort(1);
+    }
+
+    if (opt_bin_log)
+    {
+      /*
+        Add server_uuid to the sid_map.  This must be done after
+        server_uuid has been initialized in init_server_auto_options and
+        after the binary log (and sid_map file) has been initialized in
+        init_server_components().
+
+        No error message is needed: init_sid_map() prints a message.
+      */
+      global_sid_lock.rdlock();
+      int ret= gtid_state.init();
+      global_sid_lock.unlock();
+      if (ret)
+        unireg_abort(1);
+
+      if (mysql_bin_log.init_gtid_sets(
+            const_cast<Gtid_set *>(gtid_state.get_logged_gtids()),
+            const_cast<Gtid_set *>(gtid_state.get_lost_gtids()),
+            opt_master_verify_checksum,
+            true/*true=need lock*/))
+        unireg_abort(1);
+
+      /*
+        Write the previous set of gtids at this point because during
+        the creation of the binary log this is not done as we cannot
+        move the init_gtid_sets() to a place before openning the binary
+        log. This requires some investigation.
+
+        /Alfranio
+      */
+      if (gtid_mode > 0)
+      {
+        global_sid_lock.wrlock();
+        const Gtid_set *logged_gtids= gtid_state.get_logged_gtids();
+        if (gtid_mode > 1 || !logged_gtids->is_empty())
+        {
+          Previous_gtids_log_event prev_gtids_ev(logged_gtids);
+          global_sid_lock.unlock();
+
+          prev_gtids_ev.checksum_alg= binlog_checksum_options;
+
+          if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
+            unireg_abort(1);
+          mysql_bin_log.add_bytes_written(prev_gtids_ev.data_written);
+
+          if (flush_io_cache(mysql_bin_log.get_log_file()) ||
+              mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
+            unireg_abort(1);
+        }
+        else
+          global_sid_lock.unlock();
+      }
+    }
   }
 
   init_ssl();
@@ -5444,6 +5564,7 @@ void create_thread_to_handle_connection(THD *thd)
       mysql_mutex_unlock(&LOCK_connection_count);
 
       statistic_increment(aborted_connects,&LOCK_status);
+      statistic_increment(connection_errors_internal, &LOCK_status);
       /* Can't use my_error() since store_globals has not been called. */
       my_snprintf(error_message_buff, sizeof(error_message_buff),
                   ER_THD(thd, ER_CANT_CREATE_THREAD), error);
@@ -5490,8 +5611,21 @@ static void create_new_thread(THD *thd)
     mysql_mutex_unlock(&LOCK_connection_count);
 
     DBUG_PRINT("error",("Too many connections"));
+    /*
+      The server just accepted the socket connection from the network,
+      and we already have too many connections.
+      Note that the server knows nothing of the client yet,
+      and in particular thd->client_capabilities has not been negotiated.
+      ER_CON_COUNT_ERROR is normally associated with SQLSTATE '08004',
+      but sending a SQLSTATE in the network assumes CLIENT_PROTOCOL_41.
+      See net_send_error_packet().
+      The error packet returned here will only contain the error code,
+      with no sqlstate.
+      A client expecting a SQLSTATE will not find any, and assume 'HY000'.
+    */
     close_connection(thd, ER_CON_COUNT_ERROR);
     delete thd;
+    statistic_increment(connection_errors_max_connection, &LOCK_status);
     DBUG_VOID_RETURN;
   }
 
@@ -5616,6 +5750,12 @@ void handle_connections_sockets()
     {
       if (socket_errno != SOCKET_EINTR)
       {
+        /*
+          select(2)/poll(2) failed on the listening port.
+          There is not much details to report about the client,
+          increment the server global status variable.
+        */
+        statistic_increment(connection_errors_select, &LOCK_status);
         if (!select_errors++ && !abort_loop)  /* purecov: inspected */
           sql_print_error("mysqld: Got error %d from select",socket_errno); /* purecov: inspected */
       }
@@ -5692,6 +5832,12 @@ void handle_connections_sockets()
 #endif
     if (mysql_socket_getfd(new_sock) == INVALID_SOCKET)
     {
+      /*
+        accept(2) failed on the listening port, after many retries.
+        There is not much details to report about the client,
+        increment the server global status variable.
+      */
+      statistic_increment(connection_errors_accept, &LOCK_status);
       if ((error_count++ & 255) == 0)   // This can happen often
         sql_perror("Error in accept");
       MAYBE_BROKEN_SYSCALL;
@@ -5709,46 +5855,37 @@ void handle_connections_sockets()
         request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, mysql_socket_getfd(new_sock), NULL);
         my_fromhost(&req);
 
-  if (!my_hosts_access(&req))
-  {
-    /*
-      This may be stupid but refuse() includes an exit(0)
-      which we surely don't want...
-      clean_exit() - same stupid thing ...
-    */
-    syslog(deny_severity, "refused connect from %s",
-     my_eval_client(&req));
+        if (!my_hosts_access(&req))
+        {
+          /*
+            This may be stupid but refuse() includes an exit(0)
+            which we surely don't want...
+            clean_exit() - same stupid thing ...
+          */
+          syslog(deny_severity, "refused connect from %s",
+          my_eval_client(&req));
 
-    /*
-      C++ sucks (the gibberish in front just translates the supplied
-      sink function pointer in the req structure from a void (*sink)();
-      to a void(*sink)(int) if you omit the cast, the C++ compiler
-      will cry...
-    */
-    if (req.sink)
-      ((void (*)(int))req.sink)(req.fd);
+          /*
+            C++ sucks (the gibberish in front just translates the supplied
+            sink function pointer in the req structure from a void (*sink)();
+            to a void(*sink)(int) if you omit the cast, the C++ compiler
+            will cry...
+          */
+          if (req.sink)
+            ((void (*)(int))req.sink)(req.fd);
 
-          (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
-          (void) mysql_socket_close(new_sock);
+          mysql_socket_shutdown(new_sock, SHUT_RDWR);
+          mysql_socket_close(new_sock);
+          /*
+            The connection was refused by TCP wrappers.
+            There are no details (by client IP) available to update the host_cache.
+          */
+          statistic_increment(connection_tcpwrap_errors, &LOCK_status);
           continue;
         }
       }
     }
 #endif /* HAVE_LIBWRAP */
-
-    {
-      size_socket dummyLen;
-      struct sockaddr_storage dummy;
-      dummyLen = sizeof(dummy);
-      if (  mysql_socket_getsockname(new_sock, (struct sockaddr *)&dummy,
-                  (SOCKET_SIZE_TYPE *)&dummyLen) < 0  )
-      {
-        sql_perror("Error on new connection socket");
-        (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
-        (void) mysql_socket_close(new_sock);
-        continue;
-      }
-    }
 
     /*
     ** Don't allow too many connections
@@ -5758,6 +5895,7 @@ void handle_connections_sockets()
     {
       (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
       (void) mysql_socket_close(new_sock);
+      statistic_increment(connection_errors_internal, &LOCK_status);
       continue;
     }
 
@@ -5782,6 +5920,7 @@ void handle_connections_sockets()
         (void) mysql_socket_close(new_sock);
       }
       delete thd;
+      statistic_increment(connection_errors_internal, &LOCK_status);
       continue;
     }
     init_net_server_extension(thd);
@@ -6513,6 +6652,12 @@ struct my_option my_long_options[]=
    &global_system_variables.tx_isolation,
    &global_system_variables.tx_isolation, &tx_isolation_typelib,
    GET_ENUM, REQUIRED_ARG, ISO_REPEATABLE_READ, 0, 0, 0, 0, 0},
+  {"transaction-read-only", 0,
+   "Default transaction access mode. "
+   "True if transactions are read-only.",
+   &global_system_variables.tx_read_only,
+   &global_system_variables.tx_read_only, 0,
+   GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Used with --help option for detailed help.",
@@ -7070,6 +7215,12 @@ SHOW_VAR status_vars[]= {
   {"Com",                      (char*) com_status_vars, SHOW_ARRAY},
   {"Compression",              (char*) &show_net_compression, SHOW_FUNC},
   {"Connections",              (char*) &thread_id,              SHOW_LONG_NOFLUSH},
+  {"Connection_errors_accept", (char*) &connection_errors_accept, SHOW_LONG},
+  {"Connection_errors_internal", (char*) &connection_errors_internal, SHOW_LONG},
+  {"Connection_errors_max_connection", (char*) &connection_errors_max_connection, SHOW_LONG},
+  {"Connection_errors_peer_address", (char*) &connection_errors_peer_addr, SHOW_LONG},
+  {"Connection_errors_select", (char*) &connection_errors_select, SHOW_LONG},
+  {"Connection_errors_tcpwrap", (char*) &connection_errors_tcpwrap, SHOW_LONG},
   {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR, created_tmp_disk_tables), SHOW_LONGLONG_STATUS},
   {"Created_tmp_files",        (char*) &my_tmp_file_created, SHOW_LONG},
   {"Created_tmp_tables",       (char*) offsetof(STATUS_VAR, created_tmp_tables), SHOW_LONGLONG_STATUS},
@@ -7103,6 +7254,7 @@ SHOW_VAR status_vars[]= {
   {"Key_write_requests",       (char*) offsetof(KEY_CACHE, global_cache_w_requests), SHOW_KEY_CACHE_LONGLONG},
   {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write), SHOW_KEY_CACHE_LONGLONG},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
+  {"Last_query_partial_plans", (char*) offsetof(STATUS_VAR, last_query_partial_plans), SHOW_LONGLONG_STATUS},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_NOFLUSH},
@@ -8433,7 +8585,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
-  key_PARTITION_LOCK_auto_inc, key_LOCK_log_throttle_qni;
+  key_LOCK_log_throttle_qni;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
 
 static PSI_mutex_info all_server_mutexes[]=
@@ -8489,7 +8641,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
   { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
   { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
-  { &key_PARTITION_LOCK_auto_inc, "HA_DATA_PARTITION::LOCK_auto_inc", 0},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL}
 };
 
@@ -8725,6 +8876,7 @@ PSI_stage_info stage_user_lock= { 0, "User lock", 0};
 PSI_stage_info stage_user_sleep= { 0, "User sleep", 0};
 PSI_stage_info stage_verifying_table= { 0, "verifying table", 0};
 PSI_stage_info stage_waiting_for_delay_list= { 0, "waiting for delay_list", 0};
+PSI_stage_info stage_waiting_for_gtid_to_be_written_to_binary_log= { 0, "waiting for GTID to be written to binary log", 0};
 PSI_stage_info stage_waiting_for_handler_insert= { 0, "waiting for handler insert", 0};
 PSI_stage_info stage_waiting_for_handler_lock= { 0, "waiting for handler lock", 0};
 PSI_stage_info stage_waiting_for_handler_open= { 0, "waiting for handler open", 0};

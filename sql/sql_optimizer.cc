@@ -39,6 +39,7 @@
 #ifndef MCP_WL4784
 #include "abstract_query_plan.h"
 #endif
+#include "opt_explain_format.h"  // Explain_format_flags
 
 #include <algorithm>
 using std::max;
@@ -491,7 +492,7 @@ JOIN::optimize()
   /* Optimize distinct away if possible */
   {
     ORDER *org_order= order;
-    order= remove_const(this, order, conds, 1, &simple_order, "ORDER BY");
+    order= ORDER_with_src(remove_const(this, order, conds, 1, &simple_order, "ORDER BY"), order.src);;
     if (thd->is_error())
     {
       error= 1;
@@ -603,15 +604,17 @@ JOIN::optimize()
                                 true,           // no_changes
                                 &tab->table->keys_in_use_for_order_by);
     }
-    if ((group_list=create_distinct_group(thd, ref_ptrs,
-                                          order, fields_list, all_fields,
-				          &all_order_fields_used)))
+    ORDER *o;
+    if ((o= create_distinct_group(thd, ref_ptrs,
+                                  order, fields_list, all_fields,
+				  &all_order_fields_used)))
     {
+      group_list= ORDER_with_src(o, ESC_DISTINCT);
       const bool skip_group=
         skip_sort_order &&
         test_if_skip_sort_order(tab, group_list, m_select_limit,
-                                  true,         // no_changes
-                                  &tab->table->keys_in_use_for_group_by);
+                                true,         // no_changes
+                                &tab->table->keys_in_use_for_group_by);
       count_field_types(select_lex, &tmp_table_param, all_fields, 0);
       if ((skip_group && all_order_fields_used) ||
 	  m_select_limit == HA_POS_ERROR ||
@@ -642,10 +645,12 @@ JOIN::optimize()
   }
   simple_group= 0;
   {
-    ORDER *old_group_list;
-    group_list= remove_const(this, (old_group_list= group_list), conds,
-                             rollup.state == ROLLUP::STATE_NONE,
-                             &simple_group, "GROUP BY");
+    ORDER *old_group_list= group_list;
+    group_list= ORDER_with_src(remove_const(this, group_list, conds,
+                                            rollup.state == ROLLUP::STATE_NONE,
+                                            &simple_group, "GROUP BY"),
+                               group_list.src);
+
     if (thd->is_error())
     {
       error= 1;
@@ -665,10 +670,17 @@ JOIN::optimize()
 
   calc_group_buffer(this, group_list);
   send_group_parts= tmp_table_param.group_parts; /* Save org parts */
+
   if (procedure && procedure->group)
   {
-    group_list= procedure->group= remove_const(this, procedure->group, conds,
-                                               1, &simple_group, "PROCEDURE");
+    /*
+      Dead code since PROCEDURE ANALYSE() always has procedure->group == 0
+    */
+    DBUG_ASSERT(0);
+    procedure->group= group_list=
+      ORDER_with_src(remove_const(this, procedure->group, conds,
+                                  1, &simple_group, "PROCEDURE"),
+                     group_list.src); // should be procedure->group.src
     if (thd->is_error())
     {
       error= 1;
@@ -945,7 +957,9 @@ JOIN::optimize()
   {
     having= NULL;
   }
-   
+
+  init_tmp_tables_info();
+
   error= 0;
   DBUG_RETURN(0);
 
@@ -2824,7 +2838,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
                      Key_use_array *keyuse_array, bool first_optimization)
 {
   int error;
-  TABLE *table;
   THD *const thd= join->thd;
   TABLE_LIST *tables= tables_arg;
   uint i,const_count,key;
@@ -2870,7 +2883,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
        s++, tables= tables->next_leaf, i++)
   {
     stat_vector[i]=s;
-    table_vector[i]=s->table=table=tables->table;
+    TABLE *const table= tables->table;
+    table_vector[i]= s->table= table;
     table->pos_in_table_list= tables;
     error= tables->fetch_number_of_rows();
 
@@ -2945,12 +2959,12 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     */
     for (i= 0 ; i < table_count ; i++)
     {
-      uint j;
-      table= stat[i].table;
+      TABLE *const table= stat[i].table;
 
       if (!table->reginfo.join_tab->dependent)
         continue;
 
+      uint j;
       /* Add my dependencies to other tables depending on me */
       for (j= 0, s= stat ; j < table_count ; j++, s++)
       {
@@ -3140,7 +3154,7 @@ const_table_extraction_done:
 
     for (JOIN_TAB **pos=stat_vector+const_count ; (s= *pos) ; pos++)
     {
-      table=s->table;
+      TABLE *const table= s->table;
       TABLE_LIST *const tl= table->pos_in_table_list;
       /* 
         If equi-join condition by a key is null rejecting and after a
@@ -3397,7 +3411,7 @@ const_table_extraction_done:
           if (*s->on_expr_ref)
           {
             /* Generate empty row */
-            s->info= "Impossible ON condition";
+            s->info= ET_IMPOSSIBLE_ON_CONDITION;
             trace_table.add("returning_empty_null_row", true).
               add_alnum("cause", "impossible_on_condition");
             join->found_const_table_map|= s->table->map;
@@ -5991,7 +6005,7 @@ static bool test_if_ref(Item *root_cond,
 	    field->real_type() != MYSQL_TYPE_VARCHAR &&
 	    (field->type() != MYSQL_TYPE_FLOAT || field->decimals() == 0))
 	{
-	  return !store_val_in_field(field, right_item, CHECK_FIELD_WARN);
+	  return !right_item->save_in_field_no_warnings(field, true);
 	}
       }
     }
