@@ -1632,7 +1632,14 @@ row_import_match_schema(
 {
 	/* Do some simple checks. */
 
-	if (cfg->table->n_cols != cfg->n_cols) {
+	if (cfg->flags != cfg->table->flags) {
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+			 "Table flags don't match, server table has 0x%lx "
+			 "and the meta-data file has 0x%lx",
+			 (ulong) cfg->table->n_cols, (ulong) cfg->flags);
+
+		return(DB_ERROR);
+	} else if (cfg->table->n_cols != cfg->n_cols) {
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
 			 "Number of columns don't match, table has %lu "
 			 "columns but the tablespace meta-data file has "
@@ -2063,11 +2070,6 @@ row_import_for_mysql(
 
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
-
-	/* Play it safe and remove all insert buffer entries for this
-	tablespace. */
-
-	ibuf_delete_for_discarded_space(table->space);
 
 	mutex_enter(&dict_sys->mutex);
 
