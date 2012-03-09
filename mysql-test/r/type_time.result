@@ -534,7 +534,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1737	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
 Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` = `test`.`t2`.`col_datetime_key`)
 SELECT * FROM
 t1 force INDEX (col_time_key)
@@ -556,7 +556,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using index
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1737	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
 Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` IGNORE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` = `test`.`t1`.`col_time_key`)
 SELECT * FROM
 t1 force INDEX (col_time_key)
@@ -578,7 +578,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index
 1	SIMPLE	t2	ref	col_datetime_key	col_datetime_key	6	test.t1.col_time_key	1	100.00	Using where; Using index
 Warnings:
-Warning	1737	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
 Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t1`.`col_time_key` = `test`.`t2`.`col_datetime_key`)
 SELECT * FROM
 t1 force INDEX (col_time_key)
@@ -600,7 +600,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index
 1	SIMPLE	t2	ref	col_datetime_key	col_datetime_key	6	test.t1.col_time_key	1	100.00	Using where; Using index
 Warnings:
-Warning	1737	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
 Note	1003	/* select#1 */ select `test`.`t1`.`col_time_key` AS `col_time_key`,`test`.`t2`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` FORCE INDEX (`col_time_key`) straight_join `test`.`t2` FORCE INDEX (`col_datetime_key`) where (`test`.`t2`.`col_datetime_key` = `test`.`t1`.`col_time_key`)
 SELECT * FROM
 t1 force INDEX (col_time_key)
@@ -664,7 +664,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t1	ALL	col_time_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
 Warnings:
-Warning	1737	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
 Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` = `test`.`t2`.`col_datetime_key`)
 SELECT * FROM
 t2 ignore INDEX (col_datetime_key)
@@ -686,7 +686,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1737	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
 Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` IGNORE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` = `test`.`t1`.`col_time_key`)
 SELECT * FROM
 t2 ignore INDEX (col_datetime_key)
@@ -750,7 +750,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
 1	SIMPLE	t1	ALL	col_time_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
 Warnings:
-Warning	1737	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
 Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t1`.`col_time_key` = `test`.`t2`.`col_datetime_key`)
 SELECT * FROM
 t2 force INDEX (col_datetime_key)
@@ -772,7 +772,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	index	col_datetime_key	col_datetime_key	6	NULL	5	100.00	Using index
 1	SIMPLE	t1	index	col_time_key	col_time_key	4	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1737	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
+Warning	1713	Cannot use ref access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
 Note	1003	/* select#1 */ select `test`.`t2`.`col_datetime_key` AS `col_datetime_key`,`test`.`t1`.`col_time_key` AS `col_time_key` from `test`.`t2` FORCE INDEX (`col_datetime_key`) straight_join `test`.`t1` FORCE INDEX (`col_time_key`) where (`test`.`t2`.`col_datetime_key` = `test`.`t1`.`col_time_key`)
 SELECT * FROM
 t2 force INDEX (col_datetime_key)
