@@ -165,7 +165,11 @@ else ifeq ($(GCCVERSION),4.4.1)
 else ifeq ($(GCCVERSION),4.4.0)
  CFLAGS += -Wno-strict-aliasing 
 else ifeq ($(GCCVERSION),4.6.2)
- CFLAGS += -Wno-error=deprecated-declarations
+ # Valgrind 3.6.1 annotations have unused but set variables.  Valgrind 3.7.0 fixed this problem.
+ CFLAGS += \
+   -Wno-error=deprecated-declarations \
+   -Wno-unused-but-set-variable
+   #empty line
 endif
 LIBTOKUDB=tokudb
 LIBTOKUPORTABILITY=tokuportability
