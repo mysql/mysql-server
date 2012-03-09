@@ -5055,7 +5055,7 @@ ibuf_check_bitmap_on_import(
 				ib_pushf(trx->mysql_thd,
 					 IB_LOG_LEVEL_ERROR,
 					 ER_INDEX_CORRUPT,
-					 "space %u page %u"
+					 "Space %u page %u"
 					 " is wrongly flagged to belong to the"
 					 " insert buffer",
 					 (unsigned) space_id,
