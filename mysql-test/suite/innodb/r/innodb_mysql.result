@@ -2847,4 +2847,5 @@ INDEX a (a)) ENGINE=innodb;
 ALTER TABLE t1 DROP INDEX a, ADD INDEX a (b, a);
 ALTER TABLE t1 DROP INDEX a, ADD INDEX (a, b);
 DROP TABLE t1;
+call mtr.add_suppression('InnoDB: Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*');
 End of 6.0 tests
