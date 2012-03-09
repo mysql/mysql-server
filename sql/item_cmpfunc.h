@@ -1744,6 +1744,11 @@ public:
   Item_equal(Item_field *f1, Item_field *f2);
   Item_equal(Item *c, Item_field *f);
   Item_equal(Item_equal *item_equal);
+  virtual ~Item_equal()
+  {
+    delete eval_item;
+  }
+
   inline Item* get_const() { return const_item; }
   void compare_const(Item *c);
   void add(Item *c, Item_field *f);

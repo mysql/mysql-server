@@ -187,7 +187,7 @@ extern uint        command_lengths[];
 /* prototypes */
 
 bool hostname_requires_resolving(const char *hostname);
-void append_user(String *str, LEX_USER *user, bool comma, bool passwd);
+void append_user(THD *thd, String *str, LEX_USER *user, bool comma, bool passwd);
 void append_int(String *str, const char *txt, size_t len,
                 long val, int cond);
 my_bool  acl_init(bool dont_read_acl_tables);
@@ -195,7 +195,7 @@ my_bool acl_reload(THD *thd);
 void acl_free(bool end=0);
 ulong acl_get(const char *host, const char *ip,
 	      const char *user, const char *db, my_bool db_is_pattern);
-bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len);
+int acl_authenticate(THD *thd, uint com_change_user_pkt_len);
 bool acl_getroot(Security_context *sctx, char *user, char *host,
                  char *ip, char *db);
 bool acl_check_host(const char *host, const char *ip);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,19 +38,29 @@ typedef struct innodb_idx_translate_struct {
 
 
 /** InnoDB table share */
-typedef struct st_innobase_share {
+class Innobase_share : public Handler_share
+{
+public:
 	THR_LOCK		lock;		/*!< MySQL lock protecting
 						this structure */
-	const char*		table_name;	/*!< InnoDB table name */
-	uint			use_count;	/*!< reference count,
-						incremented in get_share()
-						and decremented in
-						free_share() */
-	void*			table_name_hash;/*!< hash table chain node */
 	innodb_idx_translate_t	idx_trans_tbl;	/*!< index translation
 						table between MySQL and
 						Innodb */
-} INNOBASE_SHARE;
+	Innobase_share()
+	{
+		thr_lock_init(&lock);
+		idx_trans_tbl.index_mapping = NULL;
+		idx_trans_tbl.index_count = 0;
+		idx_trans_tbl.array_size = 0;
+	}
+	~Innobase_share()
+	{
+		thr_lock_delete(&lock);
+
+		/* Free any memory from index translation table */
+		my_free(idx_trans_tbl.index_mapping);
+	}
+};
 
 
 /** InnoDB B-tree index */
@@ -73,7 +83,7 @@ class ha_innobase: public handler
 					currently using the handle; this is
 					set in external_lock function */
 	THR_LOCK_DATA	lock;
-	INNOBASE_SHARE*	share;		/*!< information for MySQL
+	Innobase_share*	share;		/*!< information for MySQL
 					table locking */
 
 	uchar*		upd_buf;	/*!< buffer used in updates */
@@ -296,6 +306,8 @@ public:
 private:
 	/** The multi range read session object */
 	DsMrr_impl ds_mrr;
+	/** Connects/gets Innobase_share in TABLE_SHARE */
+	Innobase_share* get_share();
 	/* @} */
 };
 

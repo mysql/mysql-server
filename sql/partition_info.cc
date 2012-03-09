@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,10 +94,13 @@ bool partition_info::prune_partition_bitmaps(TABLE_LIST *table_list)
   uint num_names= table_list->partition_names->elements;
   uint i= 0;
   HASH *part_name_hash;
+  Partition_share *part_share;
   DBUG_ENTER("partition_info::prune_partition_bitmaps");
 
-  DBUG_ASSERT(table && table->s && table->s->ha_part_data);
-  part_name_hash= &table->s->ha_part_data->partition_name_hash;
+  DBUG_ASSERT(table && table->s && table->s->ha_share);
+  part_share= static_cast<Partition_share*>((table->s->ha_share));
+  DBUG_ASSERT(part_share->partition_name_hash_initialized);
+  part_name_hash= &part_share->partition_name_hash;
   DBUG_ASSERT(part_name_hash->records);
   if (num_names < 1)
     DBUG_RETURN(true);

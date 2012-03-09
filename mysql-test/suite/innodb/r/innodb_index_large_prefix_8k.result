@@ -51,7 +51,7 @@ select @@session.tx_isolation;
 REPEATABLE-READ
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743	ref	idx	idx	5	const	1	
+1	SIMPLE	worklog5743	ref	idx	idx	5	const	1	NULL
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 9	1
@@ -74,7 +74,7 @@ select @@session.tx_isolation;
 REPEATABLE-READ
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743	ref	idx	idx	5	const	1	
+1	SIMPLE	worklog5743	ref	idx	idx	5	const	1	NULL
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 9	1
@@ -99,7 +99,7 @@ Level	Code	Message
 Warning	1071	Specified key was too long; max key length is 767 bytes
 Warning	1071	Specified key was too long; max key length is 767 bytes
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 set global innodb_large_prefix=1;
 create index idx2 on worklog5743_1(a2(4000));
@@ -109,14 +109,14 @@ Level	Code	Message
 Warning	1071	Specified key was too long; max key length is 1536 bytes
 Warning	1071	Specified key was too long; max key length is 1536 bytes
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx3 on worklog5743_1(a2(436));
 ERROR HY000: Too big row
 show warnings;
 Level	Code	Message
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx4 on worklog5743_1(a2(434));
 show warnings;
@@ -126,7 +126,7 @@ ERROR HY000: Too big row
 show warnings;
 Level	Code	Message
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx6 on worklog5743_1(a1, a2(428));
 show warnings;
@@ -148,14 +148,14 @@ Level	Code	Message
 Warning	1071	Specified key was too long; max key length is 1536 bytes
 Warning	1071	Specified key was too long; max key length is 1536 bytes
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx3 on worklog5743_2(a2(948));
 ERROR HY000: Too big row
 show warnings;
 Level	Code	Message
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx4 on worklog5743_2(a2(946));
 show warnings;
@@ -165,7 +165,7 @@ ERROR HY000: Too big row
 show warnings;
 Level	Code	Message
 Error	139	Too big row
-Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. You have to change some columns to TEXT or BLOBs
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 Error	1030	Got error 139 from storage engine
 create index idx6 on worklog5743_2(a1, a2(940));
 show warnings;
@@ -285,16 +285,16 @@ select @@session.tx_isolation;
 REPEATABLE-READ
 explain select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743_1	ref	idx6	idx6	5	const	1	
+1	SIMPLE	worklog5743_1	ref	idx6	idx6	5	const	1	NULL
 explain select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743_2	ref	idx6	idx6	5	const	1	
+1	SIMPLE	worklog5743_2	ref	idx6	idx6	5	const	1	NULL
 explain select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743_4	ref	idx6	idx6	5	const	1	
+1	SIMPLE	worklog5743_4	ref	idx6	idx6	5	const	1	NULL
 explain select a1, left(a2, 20) from worklog5743_8 where a1 = 9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743_8	ref	idx5	idx5	5	const	1	
+1	SIMPLE	worklog5743_8	ref	idx5	idx5	5	const	1	NULL
 select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
 a1	left(a2, 20)
 9	aaaaaaaaaaaaaaaaaaaa

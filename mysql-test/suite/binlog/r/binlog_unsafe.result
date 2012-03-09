@@ -2515,7 +2515,7 @@ CALL proc_insert_delayed();
 SELECT func_limit();
 func_limit()
 1
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT DELAYED INTO t1 VALUES (1), (2)
@@ -2545,7 +2545,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 SET SESSION binlog_format = MIXED;
 # Check if the statement is logged in row format.
 INSERT INTO t2 SET a = func_modify_t1();
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -2572,7 +2572,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 SET SESSION binlog_format = MIXED;
 # Check if the statement is logged in row format.
 INSERT INTO t1 SET a = 2;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)

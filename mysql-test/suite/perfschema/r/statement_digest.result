@@ -1,0 +1,108 @@
+####################################
+# SETUP
+####################################
+CREATE DATABASE statements_digest;
+USE statements_digest;
+CREATE TABLE t1(a int);
+CREATE TABLE t2(a int);
+CREATE TABLE t3(a int, b int);
+CREATE TABLE t4(a int, b int);
+CREATE TABLE t5(a int, b int, c int);
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+####################################
+# EXECUTION
+####################################
+SELECT 1 FROM t1;
+1
+SELECT 1 FROM `t1`;
+1
+SELECT 1,2 FROM t1;
+1	2
+SELECT 1, 2, 3, 4 FROM t1;
+1	2	3	4
+SELECT 1 FROM t2;
+1
+SELECT 1,2 FROM t2;
+1	2
+SELECT 1, 2, 3, 4 FROM t2;
+1	2	3	4
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1, 2);
+INSERT INTO t4 VALUES (1, 2);
+INSERT INTO t5 VALUES (1, 2, 3);
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t3 VALUES (1, 2), (3, 4), (5, 6);
+INSERT INTO t5 VALUES (1, 2, 3), (4, 5, 6), (7, 8, 9);
+SELECT                                          1           +        1;
+1           +        1
+2
+SELECT 1;
+1
+1
+SELECT 1 /* This is an inline comment */ + 1;
+1 /* This is an inline comment */ + 1
+2
+SELECT 1+
+/*
+this is a
+multiple-line comment
+*/
+1;
+1+
+/*
+this is a
+multiple-line comment
+*/
+1
+2
+CREATE SCHEMA statements_digest_temp;
+DROP SCHEMA statements_digest_temp;
+CREATE DATABASE statements_digest_temp;
+DROP DATABASE statements_digest_temp;
+SELECT 1 from t11;
+ERROR 42S02: Table 'statements_digest.t11' doesn't exist
+create table t11 (c char(4));
+create table t11 (c char(4));
+ERROR 42S01: Table 't11' already exists
+insert into t11 values("MySQL");
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 1
+####################################
+# QUERYING PS STATEMENT DIGEST
+####################################
+SELECT DIGEST, DIGEST_TEXT, COUNT_STAR, SUM_ROWS_AFFECTED, SUM_WARNINGS,
+SUM_ERRORS FROM performance_schema.events_statements_summary_by_digest;
+DIGEST	DIGEST_TEXT	COUNT_STAR	SUM_ROWS_AFFECTED	SUM_WARNINGS	SUM_ERRORS
+dee8f4f04e57a5e456c31892855e6835	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1	0	0	0
+658a159558b029617bfa7c090827fc31	SELECT ? FROM t1  	1	0	0	0
+66c495c9ee7e052e0db2212a0cd7a3cd	SELECT ? FROM `t1`  	1	0	0	0
+e7f8dc15f1156f57978116e457cc7488	SELECT ?, ... FROM t1  	2	0	0	0
+5098d41dbf74d89d261b29400c46dae7	SELECT ? FROM t2  	1	0	0	0
+3b8d5477aa795a19c9e9183e4ad04e6b	SELECT ?, ... FROM t2  	2	0	0	0
+5737343d989b1c42464fd3632614d25e	INSERT INTO t1 VALUES (?)  	1	1	0	0
+1e7fe109d5dd49394ee079690a029452	INSERT INTO t2 VALUES (?)  	1	1	0	0
+d63092ea2fa59316f398af6283bf80a5	INSERT INTO t3 VALUES (...)  	1	1	0	0
+7383272b3a17c661872524713abae82f	INSERT INTO t4 VALUES (...)  	1	1	0	0
+42e8c9d8a502b06ac931886d3ff1ed1e	INSERT INTO t5 VALUES (...)  	1	1	0	0
+db545539039d269501474510fbc2da56	INSERT INTO t1 VALUES (?) /* , ... */  	2	7	0	0
+446dead39135f87b4fc4168f00dff254	INSERT INTO t3 VALUES (...) /* , ... */  	1	3	0	0
+3ec23fcc5b568c4ad359703ff996e0bd	INSERT INTO t5 VALUES (...) /* , ... */  	1	3	0	0
+6b473a776aa59140774b6ee689e68c9e	SELECT ? + ?  	3	0	0	0
+b608da273ea6dffe2120354f751cc8ba	SELECT ?  	1	0	0	0
+30046d97cfdc44c95bdaa7f3987d0a20	CREATE SCHEMA statements_digest_temp  	2	2	0	0
+8e40e6461f3ab4454ddb8f21b5cda3ba	DROP SCHEMA statements_digest_temp  	2	0	0	0
+b2a18812618a648d37136507aa1abf76	SELECT ? FROM t11  	1	0	0	1
+26b3a8aaadea1ef0afd3658728b3b2c9	CREATE TABLE t11 ( c CHARACTER (?) )  	2	0	0	1
+fe695877d27d136594145ebd4f683491	INSERT INTO t11 VALUES (?)  	1	1	1	0
+09dae9a52da4bcb4bd4f396e3f723980	SHOW WARNINGS  	1	0	0	0
+####################################
+# CLEANUP
+####################################
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+DROP TABLE IF EXISTS t4;
+DROP TABLE IF EXISTS t5;
+DROP DATABASE IF EXISTS statements_digest;

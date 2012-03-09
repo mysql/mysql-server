@@ -1,6 +1,7 @@
 #include "mysql/psi/psi.h"
 C_MODE_START
 struct TABLE_SHARE;
+struct OPAQUE_LEX_YYSTYPE;
 struct PSI_mutex;
 typedef struct PSI_mutex PSI_mutex;
 struct PSI_rwlock;
@@ -38,6 +39,8 @@ struct PSI_file_locker;
 typedef struct PSI_file_locker PSI_file_locker;
 struct PSI_socket_locker;
 typedef struct PSI_socket_locker PSI_socket_locker;
+struct PSI_digest_locker;
+typedef struct PSI_digest_locker PSI_digest_locker;
 enum PSI_mutex_operation
 {
   PSI_MUTEX_LOCK= 0,

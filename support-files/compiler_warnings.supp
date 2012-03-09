@@ -53,7 +53,7 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 #
 # readline is not maintained by us
 #
-.*/cmd-line-utils/readline/.* : .*
+.*/cmd-line-utils/libedit/.* : .*
 
 #
 # Ignore all conversion warnings on windows 64

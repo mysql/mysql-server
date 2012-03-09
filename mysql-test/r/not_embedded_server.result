@@ -47,3 +47,88 @@ DROP USER nopriv_user@localhost;
 #
 # End Bug#54812
 #
+
+#
+# Test for Bug#12601974 - STORED PROCEDURE SQL_MODE=NO_BACKSLASH_ESCAPES
+# IGNORED AND BREAKS REPLICATION
+#
+SET @org_mode=@@sql_mode;
+SET @@sql_mode='';
+# USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
+CREATE USER 'user\'s_12601974'@'localhost';
+CREATE USER 'user\'s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\'s_12601974'@'localhost'
+DROP USER 'user\'s_12601974'@'localhost';
+CREATE USER 'user\"s_12601974'@'localhost';
+CREATE USER 'user\"s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\"s_12601974'@'localhost'
+DROP USER 'user\"s_12601974'@'localhost';
+CREATE USER 'user\bs_12601974'@'localhost';
+CREATE USER 'user\bs_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'users_12601974'@'localhost'
+DROP USER 'user\bs_12601974'@'localhost';
+CREATE USER 'user\ns_12601974'@'localhost';
+CREATE USER 'user\ns_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\ns_12601974'@'localhost'
+DROP USER 'user\ns_12601974'@'localhost';
+CREATE USER 'user\rs_12601974'@'localhost';
+CREATE USER 'user\rs_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\rs_12601974'@'localhost'
+DROP USER 'user\rs_12601974'@'localhost';
+CREATE USER 'user\ts_12601974'@'localhost';
+CREATE USER 'user\ts_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user	s_12601974'@'localhost'
+DROP USER 'user\ts_12601974'@'localhost';
+CREATE USER 'user\\s_12601974'@'localhost';
+CREATE USER 'user\\s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\\s_12601974'@'localhost'
+DROP USER 'user\\s_12601974'@'localhost';
+CREATE USER 'user\%s_12601974'@'localhost';
+CREATE USER 'user\%s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\\%s_12601974'@'localhost'
+DROP USER 'user\%s_12601974'@'localhost';
+CREATE USER 'user\_s_12601974'@'localhost';
+CREATE USER 'user\_s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\\_s_12601974'@'localhost'
+DROP USER 'user\_s_12601974'@'localhost';
+
+# END OF CASE - USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
+SET @@sql_mode='NO_BACKSLASH_ESCAPES';
+# USER NAME CONTAINING BACKSLASH IN DROP USER OPERATION
+CREATE USER 'user\"s_12601974'@'localhost';
+CREATE USER 'user\"s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\"s_12601974'@'localhost'
+DROP USER 'user\"s_12601974'@'localhost';
+CREATE USER 'user\bs_12601974'@'localhost';
+CREATE USER 'user\bs_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\bs_12601974'@'localhost'
+DROP USER 'user\bs_12601974'@'localhost';
+CREATE USER 'user\ns_12601974'@'localhost';
+CREATE USER 'user\ns_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\ns_12601974'@'localhost'
+DROP USER 'user\ns_12601974'@'localhost';
+CREATE USER 'user\rs_12601974'@'localhost';
+CREATE USER 'user\rs_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\rs_12601974'@'localhost'
+DROP USER 'user\rs_12601974'@'localhost';
+CREATE USER 'user\ts_12601974'@'localhost';
+CREATE USER 'user\ts_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\ts_12601974'@'localhost'
+DROP USER 'user\ts_12601974'@'localhost';
+CREATE USER 'user\\s_12601974'@'localhost';
+CREATE USER 'user\\s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\\s_12601974'@'localhost'
+DROP USER 'user\\s_12601974'@'localhost';
+CREATE USER 'user\%s_12601974'@'localhost';
+CREATE USER 'user\%s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\%s_12601974'@'localhost'
+DROP USER 'user\%s_12601974'@'localhost';
+CREATE USER 'user\_s_12601974'@'localhost';
+CREATE USER 'user\_s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\_s_12601974'@'localhost'
+DROP USER 'user\_s_12601974'@'localhost';
+
+# END OF CASE - USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
+SET @@sql_mode= @org_mode;
+
+#End of Test for Bug#12601974 

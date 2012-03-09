@@ -50,6 +50,7 @@
 #include "debug_sync.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
+#include "rpl_gtid.h"
 
 using std::min;
 using std::max;
@@ -596,6 +597,7 @@ void Item_func_numhybrid::fix_num_length_and_dec()
 */
 void Item_func::count_datetime_length(Item **item, uint nitems)
 {
+  unsigned_flag= 0;
   decimals= 0;
   if (field_type() != MYSQL_TYPE_DATE)
   {
@@ -611,16 +613,13 @@ void Item_func::count_datetime_length(Item **item, uint nitems)
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
       len+= MAX_DATETIME_WIDTH;
-      unsigned_flag= 1;
       break;
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_NEWDATE:
       len+= MAX_DATE_WIDTH;
-      unsigned_flag= 1;
       break;
     case MYSQL_TYPE_TIME:
       len+= MAX_TIME_WIDTH;
-      unsigned_flag= 0;
       break;
     default:
       DBUG_ASSERT(0);
@@ -4056,6 +4055,70 @@ longlong Item_master_pos_wait::val_int()
 #endif
   return event_count;
 }
+
+longlong Item_master_gtid_set_wait::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  THD* thd = current_thd;
+  String *gtid= args[0]->val_str(&value);
+  int event_count= 0;
+
+  null_value=0;
+  if (thd->slave_thread || !gtid)
+  {
+    null_value = 1;
+    return event_count;
+  }
+
+#if defined(HAVE_REPLICATION)
+  longlong timeout = (arg_count== 2) ? args[1]->val_int() : 0;
+  if ((event_count = active_mi->rli->wait_for_gtid_set(thd, gtid, timeout)) == -2)
+  {
+    null_value = 1;
+    event_count=0;
+  }
+#endif
+
+  return event_count;
+}
+
+#ifdef HAVE_REPLICATION
+/**
+  Return 1 if both arguments are Gtid_sets and the first is a subset
+  of the second.  Generate an error if any of the arguments is not a
+  Gtid_set.
+*/
+longlong Item_func_gtid_subset::val_int()
+{
+  DBUG_ENTER("Item_func_gtid_subset::val_int()");
+  if (args[0]->null_value || args[1]->null_value)
+  {
+    null_value= true;
+    DBUG_RETURN(0);
+  }
+  String *string1, *string2;
+  const char *charp1, *charp2;
+  int ret= 1;
+  enum_return_status status;
+  // get strings without lock
+  if ((string1= args[0]->val_str(&buf1)) != NULL &&
+      (charp1= string1->c_ptr_safe()) != NULL &&
+      (string2= args[1]->val_str(&buf2)) != NULL &&
+      (charp2= string2->c_ptr_safe()) != NULL)
+  {
+    Sid_map sid_map(NULL/*no rwlock*/);
+    // compute sets while holding locks
+    const Gtid_set sub_set(&sid_map, charp1, &status);
+    if (status == RETURN_STATUS_OK)
+    {
+      const Gtid_set super_set(&sid_map, charp2, &status);
+      if (status == RETURN_STATUS_OK)
+        ret= sub_set.is_subset(&super_set) ? 1 : 0;
+    }
+  }
+  DBUG_RETURN(ret);
+}
+#endif
 
 
 /**

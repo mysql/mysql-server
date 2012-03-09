@@ -194,6 +194,7 @@ my $opt_cursor_protocol;
 my $opt_view_protocol;
 my $opt_trace_protocol;
 my $opt_explain_protocol;
+my $opt_json_explain_protocol;
 
 our $opt_debug;
 my $debug_d= "d";
@@ -1064,6 +1065,7 @@ sub command_line_setup {
              'view-protocol'            => \$opt_view_protocol,
              'opt-trace-protocol'       => \$opt_trace_protocol,
              'explain-protocol'         => \$opt_explain_protocol,
+             'json-explain-protocol'    => \$opt_json_explain_protocol,
              'cursor-protocol'          => \$opt_cursor_protocol,
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
@@ -5806,6 +5808,11 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--explain-protocol");
   }
 
+  if ( $opt_json_explain_protocol )
+  {
+    mtr_add_arg($args, "--json-explain-protocol");
+  }
+
   if ( $opt_view_protocol )
   {
     mtr_add_arg($args, "--view-protocol");
@@ -6334,7 +6341,10 @@ Options to control what engine/variation to run
                         (implies --ps-protocol)
   view-protocol         Create a view to execute all non updating queries
   opt-trace-protocol    Print optimizer trace
-  explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT queries
+  explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT, INSERT,
+                        REPLACE, UPDATE and DELETE queries.
+  json-explain-protocol Run 'EXPLAIN FORMAT=JSON' on all SELECT, INSERT,
+                        REPLACE, UPDATE and DELETE queries.
   sp-protocol           Create a stored procedure to execute all queries
   compress              Use the compressed protocol between client and server
   ssl                   Use ssl protocol between client and server

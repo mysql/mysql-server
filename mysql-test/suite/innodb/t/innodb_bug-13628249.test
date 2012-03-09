@@ -40,7 +40,7 @@ COMMIT;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
-SELECT * FROM t1;
+SELECT COUNT(*) IN (0,4) yes FROM t1;
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
@@ -51,7 +51,7 @@ SELECT * FROM t1;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
-SELECT * FROM t1;
+SELECT COUNT(*) IN (0,4) yes FROM t1;
 
 # Restart the server in normal mode now, otherwise the DROP TABLE t1;
 # will cause an assertion failure because essentially it is in read-only
@@ -59,6 +59,6 @@ SELECT * FROM t1;
 # rollback segment.
 -- source include/restart_mysqld.inc
 
-SELECT * FROM t1;
+SELECT COUNT(*) IN (0,4) yes FROM t1;
 
 DROP TABLE t1;

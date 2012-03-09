@@ -614,7 +614,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->s= share;
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname);
   share->blob_field= blob_field;
-  share->blob_ptr_size= portable_sizeof_char_ptr;
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
   share->table_charset= param->table_charset;
   share->primary_key= MAX_KEY;               // Indicate no primary key
@@ -823,6 +822,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (!table->file)
     goto err;
 
+  if (table->file->set_ha_share_ref(&share->ha_share))
+  {
+    delete table->file;
+    goto err;
+  }
 
   if (!using_unique_constraint)
     reclength+= group_null_items;	// null flag is stored separately
@@ -1276,7 +1280,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   table->s= share;
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname);
   share->blob_field= blob_field;
-  share->blob_ptr_size= portable_sizeof_char_ptr;
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
   share->table_charset= NULL;
   share->primary_key= MAX_KEY;               // Indicate no primary key
@@ -1327,8 +1330,14 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   if (!table->file)
     goto err;
 
+  if (table->file->set_ha_share_ref(&share->ha_share))
+  {
+    delete table->file;
+    goto err;
+  }
+
   null_count=1;
-  
+
   null_pack_length= 1;
   reclength += null_pack_length;
 
@@ -1496,7 +1505,6 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   table->temp_pool_slot= MY_BIT_NONE;
   share->blob_field= blob_field;
   share->fields= field_count;
-  share->blob_ptr_size= portable_sizeof_char_ptr;
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
@@ -1698,7 +1706,8 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
 	seg->type=
 	((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
 	 HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2);
-	seg->bit_start= (uint8)(field->pack_length() - share->blob_ptr_size);
+	seg->bit_start= (uint8)(field->pack_length() -
+                                portable_sizeof_char_ptr);
 	seg->flag= HA_BLOB_PART;
 	seg->length=0;			// Whole blob in unique constraint
       }
@@ -1928,12 +1937,17 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
 
   new_table= *table;
   share= *table->s;
+  share.ha_share= NULL;
   new_table.s= &share;
   new_table.s->db_plugin= ha_lock_engine(thd, myisam_hton);
   if (!(new_table.file= get_new_handler(&share, &new_table.mem_root,
                                         new_table.s->db_type())))
     DBUG_RETURN(1);				// End of memory
-
+  if (new_table.file->set_ha_share_ref(&share.ha_share))
+  {
+    delete new_table.file;
+    DBUG_RETURN(1);
+  }
   save_proc_info=thd->proc_info;
   THD_STAGE_INFO(thd, stage_converting_heap_to_myisam);
 

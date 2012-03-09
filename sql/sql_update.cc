@@ -550,7 +550,9 @@ int mysql_update(THD *thd,
                                 (used_key_is_modified || order);
     error= explain_single_table_modification(thd, table, select, used_index,
                                              limit, using_tmp_table,
-                                             using_filesort);
+                                             using_filesort,
+                                             true,
+                                             used_key_is_modified);
     goto exit_without_my_ok;
   }
 

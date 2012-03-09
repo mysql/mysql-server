@@ -1566,10 +1566,12 @@ void Item_func_substr_index::fix_length_and_dec()
 String *Item_func_substr_index::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+  char buff[MAX_FIELD_WIDTH];
+  String tmp(buff,sizeof(buff),system_charset_info);
   String *res= args[0]->val_str(str);
-  String *delimiter= args[1]->val_str(&tmp_value);
+  String *delimiter= args[1]->val_str(&tmp);
   int32 count= (int32) args[2]->val_int();
-  uint offset;
+  int offset;
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value)
   {					// string and/or delim are null
@@ -1640,7 +1642,7 @@ String *Item_func_substr_index::val_str(String *str)
     {					// start counting from the beginning
       for (offset=0; ; offset+= delimiter_length)
       {
-	if ((int) (offset= res->strstr(*delimiter, offset)) < 0)
+	if ((offset= res->strstr(*delimiter, offset)) < 0)
 	  return res;			// Didn't find, return org string
 	if (!--count)
 	{
@@ -1654,14 +1656,14 @@ String *Item_func_substr_index::val_str(String *str)
       /*
         Negative index, start counting at the end
       */
-      for (offset=res->length(); offset ;)
+      for (offset=res->length(); offset; )
       {
         /* 
           this call will result in finding the position pointing to one 
           address space less than where the found substring is located
           in res
         */
-	if ((int) (offset= res->strrstr(*delimiter, offset)) < 0)
+	if ((offset= res->strrstr(*delimiter, offset)) < 0)
 	  return res;			// Didn't find, return org string
         /*
           At this point, we've searched for the substring
@@ -1674,14 +1676,10 @@ String *Item_func_substr_index::val_str(String *str)
 	  break;
 	}
       }
+      if (count)
+        return res;			// Didn't find, return org string
     }
   }
-  /*
-    We always mark tmp_value as const so that if val_str() is called again
-    on this object, we don't disrupt the contents of tmp_value when it was
-    derived from another String.
-  */
-  tmp_value.mark_as_const();
   return (&tmp_value);
 }
 
@@ -3472,6 +3470,161 @@ err:
 #endif
 
 
+bool Item_char_typecast::eq(const Item *item, bool binary_cmp) const
+{
+  if (this == item)
+    return 1;
+  if (item->type() != FUNC_ITEM ||
+      functype() != ((Item_func*)item)->functype())
+    return 0;
+
+  Item_char_typecast *cast= (Item_char_typecast*)item;
+  if (cast_length != cast->cast_length ||
+      cast_cs     != cast->cast_cs)
+    return 0;
+
+  if (!args[0]->eq(cast->args[0], binary_cmp))
+      return 0;
+  return 1;
+}
+
+
+void Item_char_typecast::print(String *str, enum_query_type query_type)
+{
+  str->append(STRING_WITH_LEN("cast("));
+  args[0]->print(str, query_type);
+  str->append(STRING_WITH_LEN(" as char"));
+  if (cast_length >= 0)
+    str->append_parenthesized(cast_length);
+  if (cast_cs)
+  {
+    str->append(STRING_WITH_LEN(" charset "));
+    str->append(cast_cs->csname);
+  }
+  str->append(')');
+}
+
+
+String *Item_char_typecast::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  String *res;
+  uint32 length;
+
+  if (cast_length >= 0 &&
+      ((unsigned) cast_length) > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			cast_cs == &my_charset_bin ?
+                        "cast_as_binary" : func_name(),
+                        current_thd->variables.max_allowed_packet);
+    null_value= 1;
+    return 0;
+  }
+
+  if (!charset_conversion)
+  {
+    if (!(res= args[0]->val_str(str)))
+    {
+      null_value= 1;
+      return 0;
+    }
+  }
+  else
+  {
+    // Convert character set if differ
+    uint dummy_errors;
+    if (!(res= args[0]->val_str(str)) ||
+        tmp_value.copy(res->ptr(), res->length(), from_cs,
+                       cast_cs, &dummy_errors))
+    {
+      null_value= 1;
+      return 0;
+    }
+    res= &tmp_value;
+  }
+
+  res->set_charset(cast_cs);
+
+  /*
+    Cut the tail if cast with length
+    and the result is longer than cast length, e.g.
+    CAST('string' AS CHAR(1))
+  */
+  if (cast_length >= 0)
+  {
+    if (res->length() > (length= (uint32) res->charpos(cast_length)))
+    {                                           // Safe even if const arg
+      char char_type[40];
+      my_snprintf(char_type, sizeof(char_type), "%s(%lu)",
+                  cast_cs == &my_charset_bin ? "BINARY" : "CHAR",
+                  (ulong) length);
+
+      if (!res->alloced_length())
+      {                                         // Don't change const str
+        str_value= *res;                        // Not malloced string
+        res= &str_value;
+      }
+      ErrConvString err(res);
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_TRUNCATED_WRONG_VALUE,
+                          ER(ER_TRUNCATED_WRONG_VALUE), char_type,
+                          err.ptr());
+      res->length((uint) length);
+    }
+    else if (cast_cs == &my_charset_bin && res->length() < (uint) cast_length)
+    {
+      if (res->alloced_length() < (uint) cast_length)
+      {
+        str_value.alloc(cast_length);
+        str_value.copy(*res);
+        res= &str_value;
+      }
+      memset(const_cast<char*>(res->ptr() + res->length()), 0,
+             cast_length - res->length());
+      res->length(cast_length);
+    }
+  }
+  null_value= 0;
+  return res;
+}
+
+
+void Item_char_typecast::fix_length_and_dec()
+{
+  /*
+    If we convert between two ASCII compatible character sets and the
+    argument repertoire is MY_REPERTOIRE_ASCII then from_cs is set to cast_cs.
+    This allows just to take over the args[0]->val_str() result
+    and thus avoid unnecessary character set conversion.
+  */
+  from_cs= args[0]->collation.repertoire == MY_REPERTOIRE_ASCII &&
+           my_charset_is_ascii_based(cast_cs) &&
+           my_charset_is_ascii_based(args[0]->collation.collation) ?
+           cast_cs : args[0]->collation.collation;
+
+
+  collation.set(cast_cs, DERIVATION_IMPLICIT);
+  fix_char_length(cast_length >= 0 ? cast_length :
+                  cast_cs == &my_charset_bin ? args[0]->max_length :
+                  args[0]->max_char_length());
+
+  /* 
+     We always force character set conversion if cast_cs
+     is a multi-byte character set. It garantees that the
+     result of CAST is a well-formed string.
+     For single-byte character sets we allow just to copy from the argument.
+     A single-byte character sets string is always well-formed. 
+  */
+  charset_conversion= (cast_cs->mbmaxlen > 1) ||
+                      (!my_charset_same(from_cs, cast_cs) &&
+                       from_cs != &my_charset_bin &&
+                       cast_cs != &my_charset_bin);
+}
+
+
 void Item_func_binary::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("cast("));
@@ -4117,3 +4270,58 @@ String *Item_func_uuid::val_str(String *str)
   strmov(s+18, clock_seq_and_node_str);
   return str;
 }
+
+
+#ifdef HAVE_REPLICATION
+void Item_func_gtid_subtract::fix_length_and_dec()
+{
+  maybe_null= args[0]->maybe_null || args[1]->maybe_null;
+  collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
+  /*
+    In the worst case, the string grows after subtraction. This
+    happens when a GTID in args[0] is split by a GTID in args[1],
+    e.g., UUID:1-6 minus UUID:3-4 becomes UUID:1-2,5-6.  The worst
+    case is UUID:1-100 minus UUID:9, where the two characters ":9" in
+    args[1] yield the five characters "-8,10" in the result.
+  */
+  fix_char_length_ulonglong(args[0]->max_length +
+                            max<ulonglong>(args[1]->max_length - 
+                                           Uuid::TEXT_LENGTH, 0) * 5 / 2);
+}
+
+
+String *Item_func_gtid_subtract::val_str_ascii(String *str)
+{
+  DBUG_ENTER("Item_func_gtid_subtract::val_str_ascii");
+  String *str1, *str2;
+  const char *charp1, *charp2;
+  enum_return_status status;
+  // get strings without lock
+  if (!args[0]->null_value && !args[1]->null_value &&
+      (str1= args[0]->val_str_ascii(&buf1)) != NULL &&
+      (charp1= str1->c_ptr_safe()) != NULL &&
+      (str2= args[1]->val_str_ascii(&buf2)) != NULL &&
+      (charp2= str2->c_ptr_safe()) != NULL)
+  {
+    Sid_map sid_map(NULL/*no rwlock*/);
+    // compute sets while holding locks
+    Gtid_set set1(&sid_map, charp1, &status);
+    if (status == RETURN_STATUS_OK)
+    {
+      Gtid_set set2(&sid_map, charp2, &status);
+      int length;
+      // subtract, save result, return result
+      if (status == RETURN_STATUS_OK &&
+          set1.remove_gtid_set(&set2) == 0 &&
+          !str->realloc((length= set1.get_string_length()) + 1))
+      {
+        set1.to_string((char *)str->ptr());
+        str->length(length);
+        DBUG_RETURN(str);
+      }
+    }
+  }
+  null_value= true;
+  DBUG_RETURN(NULL);
+}
+#endif // HAVE_REPLICATION

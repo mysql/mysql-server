@@ -259,14 +259,14 @@ namespace AQP
     DBUG_PRINT("info", ("ref.key_parts:%d", get_join_tab()->ref.key_parts));
     DBUG_PRINT("info", ("ref.key_length:%d", get_join_tab()->ref.key_length));
 
-    DBUG_PRINT("info", ("order:%p", get_join_tab()->join->order));
+    DBUG_PRINT("info", ("order:%p", get_join_tab()->join->order.order));
     DBUG_PRINT("info", ("skip_sort_order:%d",
                         get_join_tab()->join->skip_sort_order));
     DBUG_PRINT("info", ("no_order:%d", get_join_tab()->join->no_order));
     DBUG_PRINT("info", ("simple_order:%d", get_join_tab()->join->simple_order));
 
     DBUG_PRINT("info", ("group:%d", get_join_tab()->join->group));
-    DBUG_PRINT("info", ("group_list:%p", get_join_tab()->join->group_list));
+    DBUG_PRINT("info", ("group_list:%p", get_join_tab()->join->group_list.order));
     DBUG_PRINT("info", ("simple_group:%d", get_join_tab()->join->simple_group));
     DBUG_PRINT("info", ("group_optimized_away:%d",
                         get_join_tab()->join->group_optimized_away));
