@@ -1,15 +1,8 @@
 include/master-slave.inc
 [connection master]
-[The default value shown for the slave's port number is the actual port number of the slave]
-SHOW SLAVE HOSTS;
-Server_id	Host	Port	Master_id
-2	127.0.0.1	SLAVE_PORT	1
-[The default value shown for the slave's port number is the actual port number of the slave]
+include/assert.inc [The default value shown for the slave's port number is the actual port number of the slave.]
 include/rpl_restart_server.inc [server_number=2 parameters: --report-port=9000]
 include/start_slave.inc
 [Slave restarted with the report-port set to some value]
-[The value shown for the slave's port number is 9000 which is the value set for report-port]
-SHOW SLAVE HOSTS;
-Server_id	Host	Port	Master_id
-2	127.0.0.1	9000	1
+include/assert.inc [The value shown for the slave's port number is 9000 which is the value set for report-port.]
 include/rpl_end.inc
