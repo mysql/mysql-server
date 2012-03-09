@@ -922,7 +922,7 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
                        tab->table->file->parent_of_pushed_join()->alias,
                        pushed_id);
     }
-    str_extra->append(buf,len);
+    //str_extra->append(buf,len);
   }
 #endif
 
