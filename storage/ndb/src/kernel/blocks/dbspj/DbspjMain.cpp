@@ -1588,16 +1588,42 @@ Dbspj::releaseRow(Ptr<Request> requestPtr, RowRef pos)
   m_page_pool.getPtr(ptr, pos.m_page_id);
   ((Var_page*)ptr.p)->free_record(pos.m_page_pos, Var_page::CHAIN);
   Uint32 free_space = ((Var_page*)ptr.p)->free_space;
-  if (free_space == 0)
+  if (free_space == Var_page::DATA_WORDS - 1)
   {
     jam();
     LocalDLFifoList<RowPage> list(m_page_pool,
                                   requestPtr.p->m_rowBuffer.m_page_list);
+    const bool last = list.hasNext(ptr) == false;
     list.remove(ptr);
-    releasePage(ptr);
+    if (list.isEmpty())
+    {
+      jam();
+      /**
+       * Don't remove last page...
+       */
+      list.addLast(ptr);
+      requestPtr.p->m_rowBuffer.m_var.m_free = free_space;
+    }
+    else
+    {
+      jam();
+      if (last)
+      {
+        jam();
+        /**
+         * If we were last...set m_var.m_free to free_space of newLastPtr
+         */
+        Ptr<RowPage> newLastPtr;
+        ndbrequire(list.last(newLastPtr));
+        requestPtr.p->m_rowBuffer.m_var.m_free =
+          ((Var_page*)newLastPtr.p)->free_space;
+      }
+      releasePage(ptr);
+    }
   }
   else if (free_space > requestPtr.p->m_rowBuffer.m_var.m_free)
   {
+    jam();
     LocalDLFifoList<RowPage> list(m_page_pool,
                                   requestPtr.p->m_rowBuffer.m_page_list);
     list.remove(ptr);
@@ -5106,9 +5132,9 @@ Dbspj::scanIndex_parent_row(Signal* signal,
      */
 
       if (ERROR_INSERTED_CLEAR(17060) ||
-          (rand() % 7) == 0 && ERROR_INSERTED_CLEAR(17061) ||
-          (treeNodePtr.p->isLeaf() &&  ERROR_INSERTED_CLEAR(17062)) ||
-          (treeNodePtr.p->m_parentPtrI != RNIL &&  ERROR_INSERTED_CLEAR(17063)))
+          ((rand() % 7) == 0 && ERROR_INSERTED_CLEAR(17061)) ||
+          ((treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17062))) ||
+          ((treeNodePtr.p->m_parentPtrI != RNIL &&ERROR_INSERTED_CLEAR(17063))))
       {
         ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
                  __LINE__,  __FILE__);
@@ -7183,7 +7209,7 @@ Dbspj::parseDA(Build_context& ctx,
 
   do
   {
-     /**
+    /**
      * Test execution terminated due to 'OutOfSectionMemory' which
      * may happen multiple places (eg. appendtosection, expand) below:
      * - 17050: Fail on parseDA at first call
@@ -7192,11 +7218,10 @@ Dbspj::parseDA(Build_context& ctx,
      * - 17053: Fail on parseDA at a random node of the query tree
      * -
      */
-
-     if (ERROR_INSERTED_CLEAR(17050) ||
-        (treeNodePtr.p->isLeaf() &&  ERROR_INSERTED_CLEAR(17051)) ||
-        (treeNodePtr.p->m_parentPtrI != RNIL &&  ERROR_INSERTED_CLEAR(17052)) ||
-	 (rand() % 7) == 0 && ERROR_INSERTED_CLEAR(17053))
+    if (ERROR_INSERTED_CLEAR(17050) ||
+        ((treeNodePtr.p->isLeaf() &&  ERROR_INSERTED_CLEAR(17051))) ||
+        ((treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17052)))||
+        ((rand() % 7) == 0 && ERROR_INSERTED_CLEAR(17053)))
     {
       ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
                 __LINE__,  __FILE__);
