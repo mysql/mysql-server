@@ -1808,7 +1808,6 @@ innobase_next_autoinc(
 	ut_a(need > 0);
 	ut_a(block > 0);
 	ut_a(max_value > 0);
-	ut_a(offset < max_value);
 
 	/* Current value should never be greater than the maximum. */
 	ut_a(current <= max_value);
@@ -1821,6 +1820,7 @@ innobase_next_autoinc(
 
 	/* Check for overflow. */
 	if (block >= max_value
+	    || offset > max_value
 	    || current == max_value
 	    || max_value - offset <= offset) {
 
