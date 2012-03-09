@@ -2831,8 +2831,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     }
 
 free_mem:
-    if (unlikely(quick && trace->is_started()))
+    if (unlikely(quick && trace->is_started() && best_trp))
     {
+      // best_trp cannot be NULL if quick is set, done to keep fortify happy
       Opt_trace_object trace_range_summary(trace,
                                            "chosen_range_access_summary");
       {
