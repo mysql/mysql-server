@@ -57,7 +57,6 @@ ENDIF()
 # other threads.
 SET(SIGNAL_WITH_VIO_CLOSE 1)
 
-IF(MCP_BUG12713957)
 # Always enable -Wall for gnu C/C++
 IF(CMAKE_COMPILER_IS_GNUCXX)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-parameter")
@@ -65,7 +64,6 @@ ENDIF()
 IF(CMAKE_COMPILER_IS_GNUCC)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 ENDIF()
-ENDIF(MCP_BUG12713957)
 
 # The default C++ library for SunPro is really old, and not standards compliant.
 # http://developers.sun.com/solaris/articles/cmp_stlport_libCstd.html
