@@ -418,6 +418,8 @@ sub main {
 
   mtr_report("Checking supported features...");
 
+  executable_setup();
+
   # --debug[-common] implies we run debug server
   $opt_debug_server= 1 if $opt_debug || $opt_debug_common;
 
@@ -435,8 +437,6 @@ sub main {
   check_ndbcluster_support();
   check_ssl_support();
   check_debug_support();
-
-  executable_setup();
 
   mtr_report("Collecting tests...");
   my $tests= collect_test_cases($opt_reorder, $opt_suites, \@opt_cases, \@opt_skip_test_list);

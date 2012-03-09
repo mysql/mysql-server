@@ -6,9 +6,6 @@ use mtr_report;
 
 @ISA = qw(My::Suite);
 
-use Carp;
-$Carp::Verbose=1;
-
 ############# initialization ######################
 sub locate_sphinx_binary {
   my ($name)= @_;
@@ -30,16 +27,8 @@ return "No SphinxSE" unless $ENV{HA_SPHINX_SO} or
 {
   local $_ = `"$exe_sphinx_searchd" --help`;
   mtr_verbose("tool: $exe_sphinx_searchd\n$_");
-  my $ver = sprintf "%04d.%04d.%04d", (/([0-9]+)\.([0-9]+)\.([0-9]+)/);
-  if ($ver eq "0000.0000.0000")
-  {
-     $ver = sprintf "%04d.%04d", (/([0-9]+)\.([0-9]+)-(alpha|beta|gamma|RC)/);
-     return "Sphinx 0.9.9 or later is needed (found $ver) " unless $ver ge '0001.0010';
-  }
-  else
-  {
-    return "Sphinx 0.9.9 or later is needed (found $ver) " unless $ver ge '0000.0009.0009';
-  }
+  my $ver = sprintf "%04d.%04d.%04d", (/([0-9]+)\.([0-9]+)(?:\.([0-9]+))?/);
+  return "Sphinx 2.0.4 or later is needed (found $ver) " unless $ver ge '0002.0000.0004';
 }
 
 ############# action methods ######################
