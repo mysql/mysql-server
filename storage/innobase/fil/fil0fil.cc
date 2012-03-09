@@ -1212,82 +1212,48 @@ fil_space_create(
 {
 	fil_space_t*	space;
 
+	ut_a(fil_system);
 	ut_a(fsp_flags_validate(flags));
 
-try_again:
-	/*printf(
-	"InnoDB: Adding tablespace %lu of name %s, purpose %lu\n", id, name,
-	purpose);*/
+	/* Look for a matching tablespace and if found free it. */
+	do {
+		mutex_enter(&fil_system->mutex);
 
-	ut_a(fil_system);
-	ut_a(name);
+		space = fil_space_get_by_name(name);
 
-	mutex_enter(&fil_system->mutex);
+		if (space != 0) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Tablespace '%s' exists in the cache "
+				"with id %lu ", name, (ulong) id);
 
-	space = fil_space_get_by_name(name);
+			if (id == 0 || purpose != FIL_TABLESPACE) {
 
-	if (UNIV_LIKELY_NULL(space)) {
-		ibool	success;
-		ulint	namesake_id;
+				mutex_exit(&fil_system->mutex);
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Warning: trying to init to the"
-			" tablespace memory cache\n"
-			"InnoDB: a tablespace %lu of name ", (ulong) id);
-		ut_print_filename(stderr, name);
-		fprintf(stderr, ",\n"
-			"InnoDB: but a tablespace %lu of the same name\n"
-			"InnoDB: already exists in the"
-			" tablespace memory cache!\n",
-			(ulong) space->id);
+				return(FALSE);
+			}
 
-		if (id == 0 || purpose != FIL_TABLESPACE) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Freeing existing tablespace '%s' entry "
+				"from the cache with id %lu",
+				name, (ulong) id);
+
+			ibool	success = fil_space_free(space->id, FALSE);
+			ut_a(success);
 
 			mutex_exit(&fil_system->mutex);
-
-			return(FALSE);
 		}
 
-		fprintf(stderr,
-			"InnoDB: We assume that InnoDB did a crash recovery,"
-			" and you had\n"
-			"InnoDB: an .ibd file for which the table"
-			" did not exist in the\n"
-			"InnoDB: InnoDB internal data dictionary in the"
-			" ibdata files.\n"
-			"InnoDB: We assume that you later removed the"
-			" .ibd and .frm files,\n"
-			"InnoDB: and are now trying to recreate the table."
-			" We now remove the\n"
-			"InnoDB: conflicting tablespace object"
-			" from the memory cache and try\n"
-			"InnoDB: the init again.\n");
-
-		namesake_id = space->id;
-
-		success = fil_space_free(namesake_id, FALSE);
-		ut_a(success);
-
-		mutex_exit(&fil_system->mutex);
-
-		goto try_again;
-	}
+	} while (space != 0);
 
 	space = fil_space_get_by_id(id);
 
-	if (UNIV_LIKELY_NULL(space)) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to add tablespace %lu"
-			" of name ", (ulong) id);
-		ut_print_filename(stderr, name);
-		fprintf(stderr, "\n"
-			"InnoDB: to the tablespace memory cache,"
-			" but tablespace\n"
-			"InnoDB: %lu of name ", (ulong) space->id);
-		ut_print_filename(stderr, space->name);
-		fputs(" already exists in the tablespace\n"
-		      "InnoDB: memory cache!\n", stderr);
+	if (space != 0) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to add tablespace '%s' with id %lu "
+			"to the tablespace memory cache, but tablespace '%s' "
+			"with id %lu already exists in the cache!",
+			name, (ulong) id, space->name, (ulong) space->id);
 
 		mutex_exit(&fil_system->mutex);
 
@@ -1303,15 +1269,15 @@ try_again:
 	space->tablespace_version = fil_system->tablespace_version;
 	space->mark = FALSE;
 
-	if (UNIV_LIKELY(purpose == FIL_TABLESPACE && !recv_recovery_on)
-	    && UNIV_UNLIKELY(id > fil_system->max_assigned_id)) {
+	if (purpose == FIL_TABLESPACE && !recv_recovery_on
+	    && id > fil_system->max_assigned_id) {
+
 		if (!fil_system->space_id_reuse_warned) {
 			fil_system->space_id_reuse_warned = TRUE;
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Warning: allocated tablespace %lu,"
-				" old maximum was %lu\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Allocated tablespace %lu, old maximum "
+				"was %lu",
 				(ulong) id,
 				(ulong) fil_system->max_assigned_id);
 		}
@@ -3331,7 +3297,7 @@ fil_reset_space_and_lsn(
 
 		/* The first page is corrupted.  Actually, it should
 		never be, as it has already been checked. */
-		err = DB_ERROR;
+		err = DB_CORRUPTION;
 	} else {
 		/* Validate the space flags */
 		ulint	space_flags = fsp_header_get_flags(page);
@@ -3413,8 +3379,6 @@ fil_open_single_table_tablespace(
 	os_file_t	file;
 	char*		filepath;
 	ibool		success;
-	byte*		buf2;
-	byte*		page;
 	ulint		space_flags;
 	db_err		err = DB_SUCCESS;
 	ulint		space_id = ULINT_UNDEFINED;
@@ -3446,6 +3410,7 @@ fil_open_single_table_tablespace(
 	file = os_file_create_simple_no_error_handling(
 		innodb_file_data_key, filepath, OS_FILE_OPEN,
 		OS_FILE_READ_ONLY, &success);
+
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -3472,65 +3437,61 @@ fil_open_single_table_tablespace(
 		mem_free(filepath);
 
 		return(DB_TABLESPACE_NOT_FOUND);
-	}
-
-	if (!table) {
+	} else if (table != 0) {
+		/* Skip header check */
 		space_id = id;
-
-		goto skip_check;
-	}
-
-	/* Read the first page of the tablespace */
-
-	buf2 = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
-	/* Align the memory for file i/o if we might have O_DIRECT set */
-	page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
-
-	if (!os_file_read(file, page, 0, UNIV_PAGE_SIZE)) {
-		err = DB_IO_ERROR;
 	} else {
-		/* We have to read the tablespace id and flags from the file. */
+		byte*	buf2;
+		byte*	page;
 
-		space_id = fsp_header_get_space_id(page);
-		space_flags = fsp_header_get_flags(page);
+		/* Read the first page of the tablespace */
+
+		buf2 = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
+
+		/* Align the memory for file i/o if we might
+		have O_DIRECT set */
+		page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
+
+		if (!os_file_read(file, page, 0, UNIV_PAGE_SIZE)) {
+			err = DB_IO_ERROR;
+		} else {
+			/* We have to read the tablespace id and flags
+			from the file. */
+
+			space_id = fsp_header_get_space_id(page);
+			space_flags = fsp_header_get_flags(page);
+		}
+
+		ut_free(buf2);
+
+		if (err == DB_SUCCESS
+		    && (space_id != id || space_flags != flags)) {
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Tablespace id and flags in the file "
+				"are %lu and %lu, but in the InnoDB "
+				"data dictionary they are %lu and %lu "
+				"for table '%s'. See "
+				REFMAN "innodb-troubleshooting-datadict.html "
+				"for how to resolve the issue.\n",
+				(ulong) space_id, (ulong) space_flags,
+				(ulong) id, (ulong) flags, table->name);
+
+			err = DB_CORRUPTION;
+		}
 	}
 
-	ut_free(buf2);
-
-	if (err == DB_SUCCESS && (space_id != id || space_flags != flags)) {
-		ut_print_timestamp(stderr);
-
-		fputs("  InnoDB: Error: tablespace id and flags in file ",
-		      stderr);
-		ut_print_filename(stderr, filepath);
-		fprintf(stderr, " are %lu and %lu, but in the InnoDB\n"
-			"InnoDB: data dictionary they are %lu and %lu.\n"
-			"InnoDB: Have you moved InnoDB .ibd files"
-			" around without using the\n"
-			"InnoDB: commands DISCARD TABLESPACE and"
-			" IMPORT TABLESPACE?\n"
-			"InnoDB: Please refer to\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting-datadict.html\n"
-			"InnoDB: for how to resolve the issue.\n",
-			(ulong) space_id, (ulong) space_flags,
-			(ulong) id, (ulong) flags);
-
-		err = DB_CORRUPTION;
-
-		goto func_exit;
-	}
-
-skip_check:
-	if (!fil_space_create(name, space_id, flags, FIL_TABLESPACE)) {
+	if (err != DB_SUCCESS) {
+		; // Don't load the tablespace into the cache
+	} else if (!fil_space_create(name, space_id, flags, FIL_TABLESPACE)) {
 		err = DB_ERROR;
-		goto func_exit;
+	} else {
+		/* We do not measure the size of the file, that is why
+		we pass the 0 below */
+
+		fil_node_create(filepath, 0, space_id, FALSE);
 	}
 
-	/* We do not measure the size of the file, that is why we pass the 0
-	below */
-
-	fil_node_create(filepath, 0, space_id, FALSE);
-func_exit:
 	os_file_close(file);
 	mem_free(filepath);
 
