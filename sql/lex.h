@@ -395,16 +395,10 @@ static SYMBOL symbols[] = {
   { "NUMBER",           SYM(NUMBER_SYM)},
   { "NUMERIC",		SYM(NUMERIC_SYM)},
   { "NVARCHAR",		SYM(NVARCHAR_SYM)},
-#ifndef MCP_WL3749
-  { "OFFLINE",          SYM(OFFLINE_SYM)},
-#endif
   { "OFFSET",		SYM(OFFSET_SYM)},
   { "OLD_PASSWORD",	SYM(OLD_PASSWORD)},
   { "ON",		SYM(ON)},
   { "ONE",              SYM(ONE_SYM)},
-#ifndef MCP_WL3749
-  { "ONLINE",           SYM(ONLINE_SYM)},
-#endif
   { "OPEN",		SYM(OPEN_SYM)},
   { "OPTIMIZE",		SYM(OPTIMIZE)},
   { "OPTIONS",		SYM(OPTIONS_SYM)},

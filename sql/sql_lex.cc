@@ -1668,9 +1668,6 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   tablespace_op(rhs.tablespace_op),
   partition_names(rhs.partition_names, mem_root),
   num_parts(rhs.num_parts),
-#ifndef MCP_WL3749 
-  build_method(rhs.build_method),
-#endif
   change_level(rhs.change_level),
   datetime_field(rhs.datetime_field),
   error_if_not_empty(rhs.error_if_not_empty)

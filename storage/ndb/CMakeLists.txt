@@ -107,6 +107,10 @@ IF(NOT MYSQL_CLUSTER_VERSION)
  ADD_DEFINITIONS(-DNDB_WITHOUT_JOIN_PUSHDOWN)
 ENDIF()
 
+# Online alter table currently not supported in trunk-cluster
+# in preparation for inplace alter table
+ADD_DEFINITIONS(-DNDB_WITHOUT_ONLINE_ALTER)
+
 # NDB is DEFAULT plugin in MySQL Cluster
 SET(is_default_plugin "")
 IF(MYSQL_CLUSTER_VERSION)

@@ -304,11 +304,7 @@ typedef struct st_grant_info
 enum tmp_table_type
 {
   NO_TMP_TABLE, NON_TRANSACTIONAL_TMP_TABLE, TRANSACTIONAL_TMP_TABLE,
-#ifndef MCP_WL3749
-  INTERNAL_TMP_TABLE, SYSTEM_TMP_TABLE, TMP_TABLE_FRM_FILE_ONLY
-#else
   INTERNAL_TMP_TABLE, SYSTEM_TMP_TABLE
-#endif
 };
 enum release_type { RELEASE_NORMAL, RELEASE_WAIT_FOR_DROP };
 
@@ -2233,24 +2229,9 @@ size_t max_row_length(TABLE *table, const uchar *data);
 
 void init_mdl_requests(TABLE_LIST *table_list);
 
-#ifndef MCP_WL3749
-/**
-  Opening modes for open_temporary_table and open_table_from_share
-*/
-enum open_table_mode
-{
-  OTM_OPEN= 0,
-  OTM_CREATE= 1,
-  OTM_ALTER= 2
-};
-#endif
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-#ifndef MCP_WL3749
-                          TABLE *outparam, open_table_mode open_mode= OTM_OPEN);
-#else
                           TABLE *outparam, bool is_create_table);
-#endif
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                                uint key_length);
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,

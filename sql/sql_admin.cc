@@ -100,11 +100,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     if (share == NULL)
       DBUG_RETURN(0);				// Can't open frm file
 
-#ifndef MCP_WL3749
-    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, OTM_OPEN))
-#else
     if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE))
-#endif
     {
       mysql_mutex_lock(&LOCK_open);
       release_table_share(share);

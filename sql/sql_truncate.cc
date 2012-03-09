@@ -252,10 +252,6 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
   handlerton *table_type= table->s->db_type();
-#ifndef MCP_WL3749
-  bool frm_only= (share->tmp_table == TMP_TABLE_FRM_FILE_ONLY);
-#endif
-
   DBUG_ENTER("recreate_temporary_table");
 
   memset(&create_info, 0, sizeof(create_info));
@@ -280,11 +276,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
     thd->thread_specific_used= TRUE;
   }
   else
-#ifndef MCP_WL3749
-    rm_temporary_table(table_type, share->path.str, frm_only);
-#else
     rm_temporary_table(table_type, share->path.str);
-#endif
 
   free_table_share(share);
   my_free(table);

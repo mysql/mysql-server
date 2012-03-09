@@ -52,64 +52,6 @@
 #define HA_ADMIN_NEEDS_ALTER    -11
 #define HA_ADMIN_NEEDS_CHECK    -12
 
-#ifndef MCP_WL3749
-class Alter_info;
-/* Bits to show what an alter table will do */
-#include <sql_bitmap.h>
-
-#define HA_MAX_ALTER_FLAGS 40
-typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
-
-#define HA_ADD_INDEX                  (0)
-#define HA_DROP_INDEX                 (1)
-#define HA_ALTER_INDEX                (2)
-#define HA_RENAME_INDEX               (3)
-#define HA_ADD_UNIQUE_INDEX           (4)
-#define HA_DROP_UNIQUE_INDEX          (5)
-#define HA_ALTER_UNIQUE_INDEX         (6)
-#define HA_RENAME_UNIQUE_INDEX        (7)
-#define HA_ADD_PK_INDEX               (8)
-#define HA_DROP_PK_INDEX              (9)
-#define HA_ALTER_PK_INDEX             (10)
-#define HA_ADD_COLUMN                 (11)
-#define HA_DROP_COLUMN                (12)
-#define HA_CHANGE_COLUMN              (13)
-#define HA_ALTER_COLUMN_NAME          (14)
-#define HA_ALTER_COLUMN_TYPE          (15)
-#define HA_ALTER_COLUMN_ORDER         (16)
-#define HA_ALTER_COLUMN_NULLABLE      (17)
-#define HA_COLUMN_DEFAULT_VALUE       (18)
-#define HA_COLUMN_STORAGE             (19)
-#define HA_COLUMN_FORMAT              (20)
-#define HA_ADD_FOREIGN_KEY            (21)
-#define HA_DROP_FOREIGN_KEY           (22)
-#define HA_ALTER_FOREIGN_KEY          (23)
-#define HA_ADD_CONSTRAINT             (24)
-#define HA_ADD_PARTITION              (25)
-#define HA_DROP_PARTITION             (26)
-#define HA_ALTER_PARTITION            (27)
-#define HA_COALESCE_PARTITION         (28)
-#define HA_REORGANIZE_PARTITION       (29)
-#define HA_CHANGE_CHARACTER_SET       (30)
-#define HA_SET_DEFAULT_CHARACTER_SET  (31)
-#define HA_CHANGE_AUTOINCREMENT_VALUE (32)
-#define HA_ALTER_STORAGE              (33)
-#define HA_ALTER_TABLESPACE           (34)
-#define HA_ALTER_ROW_FORMAT           (35)
-#define HA_RENAME_TABLE               (36)
-#define HA_ALTER_STORAGE_ENGINE       (37)
-#define HA_RECREATE                   (38)
-#define HA_ALTER_TABLE_REORG          (39)
-/* Remember to increase HA_MAX_ALTER_FLAGS when adding more flags! */
-
-/* Return values for check_if_supported_alter */
-
-#define HA_ALTER_ERROR               -1
-#define HA_ALTER_SUPPORTED_WAIT_LOCK  0
-#define HA_ALTER_SUPPORTED_NO_LOCK    1
-#define HA_ALTER_NOT_SUPPORTED        2
-#endif
-
 /* Bits in table_flags() to show what database can do */
 
 #define HA_NO_TRANSACTIONS     (1 << 0) /* Doesn't support transactions */
@@ -189,11 +131,6 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
 */
 #define HA_BINLOG_ROW_CAPABLE  (LL(1) << 34)
 #define HA_BINLOG_STMT_CAPABLE (LL(1) << 35)
-#ifndef MCP_WL3749
-#define HA_ONLINE_ALTER        (LL(1) << 36)
-#endif
-
-
 /*
     When a multiple key conflict happens in a REPLACE command mysql
     expects the conflicts to be reported in the ascending order of
@@ -213,7 +150,7 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
     ascending order, it causes unexpected errors when the REPLACE command is
     executed.
 
-/    This flag helps the underlying SE to inform the server that the keys are not
+    This flag helps the underlying SE to inform the server that the keys are not
     ordered.
 */
 #define HA_DUPLICATE_KEY_NOT_IN_ORDER    (LL(1) << 36)
@@ -869,9 +806,6 @@ struct handlerton
    bool (*flush_logs)(handlerton *hton);
    bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
    uint (*partition_flags)();
-#ifndef MCP_WL3749
-   uint (*alter_partition_flags)();
-#endif
    uint (*alter_table_flags)(uint flags);
    int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
    int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
@@ -1019,19 +953,6 @@ typedef struct st_ha_create_information
   enum enum_ha_unused unused2;
 } HA_CREATE_INFO;
 
-#ifndef MCP_WL3749
-typedef struct st_ha_alter_information
-{
-  KEY  *key_info_buffer;
-  uint key_count;
-  uint candidate_key_count;
-  uint index_drop_count;
-  uint *index_drop_buffer;
-  uint index_add_count;
-  uint *index_add_buffer;
-  void *data;
-} HA_ALTER_INFO;
-#endif
 
 typedef struct st_key_create_information
 {
@@ -2438,114 +2359,6 @@ public:
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
 					 uint table_changes)
  { return COMPATIBLE_DATA_NO; }
-#ifndef MCP_WL3749
- /* On-line ALTER TABLE interface */
-
- /**
-    Check if a storage engine supports a particular alter table on-line
-
-    @param    altered_table     A temporary table show what table is to
-                                change to
-    @param    create_info       Information from the parsing phase about new
-                                table properties.
-    @param    alter_info        Data related to detected changes
-    @param    alter_flags       Bitmask that shows what will be changed
-    @param    table_changes     Shows if table layout has changed (for
-                                backwards compatibility with
-                                check_if_incompatible_data
-
-    @retval   HA_ALTER_ERROR                Unexpected error
-    @retval   HA_ALTER_SUPPORTED_WAIT_LOCK  Supported, but requires DDL lock
-    @retval   HA_ALTER_SUPPORTED_NO_LOCK    Supported
-    @retval   HA_ALTER_NOT_SUPPORTED        Not supported
-
-    @note
-      The default implementation is implemented to support fast
-      alter table (storage engines that support some changes by
-      just changing the frm file) without any change in the handler
-      implementation.
- */
- virtual int check_if_supported_alter(TABLE *altered_table,
-                                      HA_CREATE_INFO *create_info,
-                                      HA_ALTER_INFO *alter_info,
-                                      HA_ALTER_FLAGS *alter_flags,
-                                      uint table_changes);
-
- /**
-   Tell storage engine to prepare for the on-line alter table (pre-alter)
-
-   @param     thd               The thread handle
-   @param     altered_table     A temporary table show what table is to
-                                change to
-   @param     alter_info        Storage place for data used during phase1
-                                and phase2 and phase3
-   @param     alter_flags       Bitmask that shows what will be changed
-
-   @retval   0      OK
-   @retval   error  error code passed from storage engine
- */
- virtual int alter_table_phase1(THD *thd,
-                                TABLE *altered_table,
-                                HA_CREATE_INFO *create_info,
-                                HA_ALTER_INFO *alter_info,
-                                HA_ALTER_FLAGS *alter_flags);
-
-  /**
-    Tell storage engine to perform the on-line alter table (alter)
-
-    @param    thd               The thread handle
-    @param    altered_table     A temporary table show what table is to
-                                change to
-    @param    create_info       Information from the parsing phase about new
-                                table properties.
-    @param    alter_info        Storage place for data used during phase1
-                                and phase2 and phase3
-    @param    alter_flags       Bitmask that shows what will be changed
-
-    @retval  0      OK
-    @retval  error  error code passed from storage engine
-
-    @note
-      If check_if_supported_alter returns HA_ALTER_SUPPORTED_WAIT_LOCK
-      this call is to be wrapped with a DDL lock. This is currently NOT
-      supported.
- */
- virtual int alter_table_phase2(THD *thd,
-                                TABLE *altered_table,
-                                HA_CREATE_INFO *create_info,
-                                HA_ALTER_INFO *alter_info,
-                                HA_ALTER_FLAGS *alter_flags);
-
- /**
-    Tell storage engine that changed frm file is now on disk and table
-    has been re-opened (post-alter)
-
-    @param    thd               The thread handle
-    @param    table             The altered table, re-opened
-    @param    create_info       Information from the parsing phase about new
-                                table properties.
-    @param    alter_info        Storage place for data used during phase1
-                                and phase2 and phase3
-    @param    alter_flags       Bitmask that shows what has been changed
- */
- virtual int alter_table_phase3(THD *thd, TABLE *table,
-                                HA_CREATE_INFO *create_info,
-                                HA_ALTER_INFO *alter_info,
-                                HA_ALTER_FLAGS *alter_flags);
-
- /**
-    Tell storage engine to abort (rollback) the ongoing online
-    alter table and release any allocated resources (this will be last call).
-
-    @param    thd               The thread handle
-    @param    alter_info        Storage place for data used during phase1
-                                and phase2 and phase3
-    @param    alter_flags       Bitmask that shows what has been changed
- */
- virtual int alter_table_abort(THD *thd,
-                               HA_ALTER_INFO *alter_info,
-                               HA_ALTER_FLAGS *alter_flags);
-#endif
 
   /**
     use_hidden_primary_key() is called in case of an update/delete when

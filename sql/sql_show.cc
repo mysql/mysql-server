@@ -3793,11 +3793,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
   if (!open_table_from_share(thd, share, table_name->str, 0,
                              (EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
-#ifndef MCP_WL3749
-                             thd->open_options, &tbl, OTM_OPEN))
-#else
                              thd->open_options, &tbl, FALSE))
-#endif
   {
     tbl.s= share;
     table_list.table= &tbl;
