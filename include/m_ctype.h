@@ -71,6 +71,7 @@ struct unicase_info_st
 
 extern MY_UNICASE_INFO *const my_unicase_default[256];
 extern MY_UNICASE_INFO *const my_unicase_turkish[256];
+extern MY_UNICASE_INFO *my_unicase_mysql500[256];
 
 #define MY_UCA_MAX_CONTRACTION 4
 #define MY_UCA_MAX_WEIGHT_SIZE 8
@@ -353,6 +354,7 @@ extern struct charset_info_st my_charset_tis620_bin;
 extern struct charset_info_st my_charset_tis620_thai_ci;
 extern struct charset_info_st my_charset_ucs2_bin;
 extern struct charset_info_st my_charset_ucs2_general_ci;
+extern struct charset_info_st my_charset_ucs2_general_mysql500_ci;
 extern struct charset_info_st my_charset_ucs2_unicode_ci;
 extern struct charset_info_st my_charset_ujis_bin;
 extern struct charset_info_st my_charset_ujis_japanese_ci;
@@ -363,6 +365,7 @@ extern struct charset_info_st my_charset_utf32_bin;
 extern struct charset_info_st my_charset_utf32_general_ci;
 extern struct charset_info_st my_charset_utf32_unicode_ci;
 extern struct charset_info_st my_charset_utf8_bin;
+extern struct charset_info_st my_charset_utf8_general_mysql500_ci;
 extern struct charset_info_st my_charset_utf8_unicode_ci;
 extern struct charset_info_st my_charset_utf8mb4_bin;
 extern struct charset_info_st my_charset_utf8mb4_general_ci;

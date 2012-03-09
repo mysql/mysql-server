@@ -1713,7 +1713,7 @@ t5	CREATE TABLE `t5` (
   `param08` longtext,
   `const09` datetime DEFAULT NULL,
   `param09` longtext,
-  `const10` decimal(22,6) NOT NULL DEFAULT '0.000000',
+  `const10` decimal(22,6) DEFAULT NULL,
   `param10` decimal(65,30) DEFAULT NULL,
   `const11` int(4) DEFAULT NULL,
   `param11` bigint(20) DEFAULT NULL,
@@ -1743,7 +1743,7 @@ def	test	t5	t5	const08	const08	253	19	19	N	1	0	8
 def	test	t5	t5	param08	param08	252	4294967295	19	Y	16	0	8
 def	test	t5	t5	const09	const09	12	19	19	Y	128	0	63
 def	test	t5	t5	param09	param09	252	4294967295	19	Y	16	0	8
-def	test	t5	t5	const10	const10	246	24	16	N	32769	6	63
+def	test	t5	t5	const10	const10	246	24	16	Y	32768	6	63
 def	test	t5	t5	param10	param10	246	67	40	Y	32768	30	63
 def	test	t5	t5	const11	const11	3	4	4	Y	32768	0	63
 def	test	t5	t5	param11	param11	8	20	4	Y	32768	0	63
@@ -5067,7 +5067,7 @@ t5	CREATE TABLE `t5` (
   `param08` longtext,
   `const09` datetime DEFAULT NULL,
   `param09` longtext,
-  `const10` decimal(22,6) NOT NULL DEFAULT '0.000000',
+  `const10` decimal(22,6) DEFAULT NULL,
   `param10` decimal(65,30) DEFAULT NULL,
   `const11` int(4) DEFAULT NULL,
   `param11` bigint(20) DEFAULT NULL,
@@ -5097,7 +5097,7 @@ def	test	t5	t5	const08	const08	253	19	19	N	1	0	8
 def	test	t5	t5	param08	param08	252	4294967295	19	Y	16	0	8
 def	test	t5	t5	const09	const09	12	19	19	Y	128	0	63
 def	test	t5	t5	param09	param09	252	4294967295	19	Y	16	0	8
-def	test	t5	t5	const10	const10	246	24	16	N	32769	6	63
+def	test	t5	t5	const10	const10	246	24	16	Y	32768	6	63
 def	test	t5	t5	param10	param10	246	67	40	Y	32768	30	63
 def	test	t5	t5	const11	const11	3	4	4	Y	32768	0	63
 def	test	t5	t5	param11	param11	8	20	4	Y	32768	0	63

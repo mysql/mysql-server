@@ -42,9 +42,9 @@
   --stack-trace       Print a symbolic stack trace on failure
   (Defaults to on; use --skip-stack-trace to disable.)
 + --standalone        Dummy option to start as a standalone program (NT).
-  -s, --symbolic-links 
-  Enable symbolic link support.
-  --sync-binlog=#     Synchronously flush binary log to disk after every #th
+  --stored-program-cache=# 
+  The soft upper limit for number of cached stored routines
+  for one connection.
 @@ -807,8 +815,8 @@
   size, MySQL will automatically convert it to an on-disk
   MyISAM or Aria table

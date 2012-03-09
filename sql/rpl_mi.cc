@@ -46,9 +46,11 @@ Master_info::Master_info(bool is_slave_recovery)
   mysql_mutex_init(key_master_info_data_lock, &data_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_setflags(&run_lock, MYF_NO_DEADLOCK_DETECTION);
   mysql_mutex_setflags(&data_lock, MYF_NO_DEADLOCK_DETECTION);
+  mysql_mutex_init(key_master_info_sleep_lock, &sleep_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_master_info_data_cond, &data_cond, NULL);
   mysql_cond_init(key_master_info_start_cond, &start_cond, NULL);
   mysql_cond_init(key_master_info_stop_cond, &stop_cond, NULL);
+  mysql_cond_init(key_master_info_sleep_cond, &sleep_cond, NULL);
 }
 
 Master_info::~Master_info()
@@ -56,9 +58,11 @@ Master_info::~Master_info()
   delete_dynamic(&ignore_server_ids);
   mysql_mutex_destroy(&run_lock);
   mysql_mutex_destroy(&data_lock);
+  mysql_mutex_destroy(&sleep_lock);
   mysql_cond_destroy(&data_cond);
   mysql_cond_destroy(&start_cond);
   mysql_cond_destroy(&stop_cond);
+  mysql_cond_destroy(&sleep_cond);
 }
 
 /**

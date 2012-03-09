@@ -1835,7 +1835,7 @@ create table t1 as select concat(unix_timestamp(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(17) NOT NULL DEFAULT ''
+  `c1` varchar(17) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(time_to_sec('10:11:12')));

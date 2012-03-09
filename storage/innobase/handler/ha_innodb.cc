@@ -3319,18 +3319,29 @@ ha_innobase::primary_key_is_clustered()
 	return(true);
 }
 
+/** Always normalize table name to lower case on Windows */
+#ifdef __WIN__
+#define normalize_table_name(norm_name, name)		\
+	normalize_table_name_low(norm_name, name, TRUE)
+#else
+#define normalize_table_name(norm_name, name)           \
+	normalize_table_name_low(norm_name, name, FALSE)
+#endif /* __WIN__ */
+
 /*****************************************************************//**
 Normalizes a table name string. A normalized name consists of the
 database name catenated to '/' and table name. An example:
 test/mytable. On Windows normalization puts both the database name and the
-table name always to lower case. */
+table name always to lower case if "set_lower_case" is set to TRUE. */
 static
 void
-normalize_table_name(
-/*=================*/
+normalize_table_name_low(
+/*=====================*/
 	char*		norm_name,	/*!< out: normalized name as a
 					null-terminated string */
-	const char*	name)		/*!< in: table name string */
+	const char*	name,		/*!< in: table name string */
+	ibool		set_lower_case) /*!< in: TRUE if we want to set
+					name to lower case */
 {
 	char*	name_ptr;
 	char*	db_ptr;
@@ -3360,9 +3371,9 @@ normalize_table_name(
 
 	norm_name[name_ptr - db_ptr - 1] = '/';
 
-#ifdef __WIN__
-	innobase_casedn_str(norm_name);
-#endif
+	if (set_lower_case) {
+		innobase_casedn_str(norm_name);
+	}
 }
 
 /********************************************************************//**
@@ -3766,6 +3777,8 @@ ha_innobase::open(
 	THD*		thd;
 	ulint		retries = 0;
 	char*		is_part = NULL;
+	ibool		par_case_name_set = FALSE;
+	char		par_case_name[MAX_FULL_NAME_LEN + 1];
 
 	DBUG_ENTER("ha_innobase::open");
 
@@ -3799,16 +3812,87 @@ ha_innobase::open(
 	workaround for http://bugs.mysql.com/bug.php?id=33349. Look
 	at support issue https://support.mysql.com/view.php?id=21080
 	for more details. */
+#ifdef __WIN__
+	is_part = strstr(norm_name, "#p#");
+#else
 	is_part = strstr(norm_name, "#P#");
+#endif /* __WIN__ */
+
 retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_get(norm_name, TRUE);
-	
+
 	if (NULL == ib_table) {
 		if (is_part && retries < 10) {
-			++retries;
-			os_thread_sleep(100000);
-			goto retry;
+			/* MySQL partition engine hard codes the file name
+			separator as "#P#". The text case is fixed even if
+			lower_case_table_names is set to 1 or 2. This is true
+			for sub-partition names as well. InnoDB always
+			normalises file names to lower case on Windows, this
+			can potentially cause problems when copying/moving
+			tables between platforms.
+
+			1) If boot against an installation from Windows
+			platform, then its partition table name could
+			be all be in lower case in system tables. So we
+			will need to check lower case name when load table.
+
+			2) If  we boot an installation from other case
+			sensitive platform in Windows, we might need to
+			check the existence of table name without lowering
+			case them in the system table. */
+			if (innobase_get_lower_case_table_names() == 1) {
+
+				if (!par_case_name_set) {
+#ifndef __WIN__
+					/* Check for the table using lower
+					case name, including the partition
+					separator "P" */
+					memcpy(par_case_name, norm_name,
+					       strlen(norm_name));
+					par_case_name[strlen(norm_name)] = 0;
+					innobase_casedn_str(par_case_name);
+#else
+					/* On Windows platfrom, check
+					whether there exists table name in
+					system table whose name is
+					not being normalized to lower case */
+					normalize_table_name_low(
+						par_case_name, name, FALSE);
+#endif
+					par_case_name_set = TRUE;
+				}
+
+				ib_table = dict_table_get(
+					par_case_name, FALSE);
+			}
+			if (!ib_table) {
+				++retries;
+				os_thread_sleep(100000);
+				goto retry;
+			} else {
+#ifndef __WIN__
+				sql_print_warning("Partition table %s opened "
+						  "after converting to lower "
+						  "case. The table may have "
+						  "been moved from a case "
+						  "in-sensitive file system. "
+						  "Please recreate table in "
+						  "the current file system\n",
+						  norm_name);
+#else
+				sql_print_warning("Partition table %s opened "
+						  "after skipping the step to "
+						  "lower case the table name. "
+						  "The table may have been "
+						  "moved from a case sensitive "
+						  "file system. Please "
+						  "recreate table in the "
+						  "current file system\n",
+						  norm_name);
+#endif
+				goto table_opened;
+			}
 		}
 
 		if (is_part) {
@@ -3837,6 +3921,8 @@ retry:
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
+
+table_opened:
 
 	if (ib_table->ibd_file_missing && !thd_tablespace_op(thd)) {
 		sql_print_error("MySQL is trying to open a table handle but "
@@ -11485,6 +11571,13 @@ static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   "trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
+#ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Debug flags for InnoDB to limit TRX_RSEG_N_SLOTS for trx_rsegf_undo_find_free()",
+  NULL, NULL, 0, 0, 1024, 0);
+#endif /* UNIV_DEBUG */
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -11554,10 +11647,14 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
   MYSQL_SYSVAR(rollback_segments),
+#ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(trx_rseg_n_slots_debug),
+#endif /* UNIV_DEBUG */
   NULL
 };
 
 mysql_declare_plugin(innobase)
+i_s_innodb_trx, // this need to be before SE plugin, otherwise --innodb-trx-rseg-n-slots-debug shadows --innodb-trx option
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &innobase_storage_engine,
@@ -11573,7 +11670,6 @@ mysql_declare_plugin(innobase)
   NULL, /* reserved */
   0,    /* flags */
 },
-i_s_innodb_trx,
 i_s_innodb_locks,
 i_s_innodb_lock_waits,
 i_s_innodb_cmp,

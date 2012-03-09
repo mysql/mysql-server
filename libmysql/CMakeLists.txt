@@ -25,6 +25,8 @@ INCLUDE_DIRECTORIES(
 ADD_DEFINITIONS(${SSL_DEFINES})
 
 SET(CLIENT_API_FUNCTIONS
+get_tty_password
+handle_options
 load_defaults
 mysql_thread_end
 mysql_thread_init

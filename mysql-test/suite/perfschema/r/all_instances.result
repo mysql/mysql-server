@@ -71,6 +71,7 @@ wait/synch/mutex/sql/LOG::LOCK_log
 wait/synch/mutex/sql/LOG_INFO::lock
 wait/synch/mutex/sql/Master_info::data_lock
 wait/synch/mutex/sql/Master_info::run_lock
+wait/synch/mutex/sql/Master_info::sleep_lock
 wait/synch/mutex/sql/MDL_map::mutex
 wait/synch/mutex/sql/MDL_wait::LOCK_wait_status
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_index
@@ -79,6 +80,7 @@ wait/synch/mutex/sql/Query_cache::structure_guard_mutex
 wait/synch/mutex/sql/Relay_log_info::data_lock
 wait/synch/mutex/sql/Relay_log_info::log_space_lock
 wait/synch/mutex/sql/Relay_log_info::run_lock
+wait/synch/mutex/sql/Relay_log_info::sleep_lock
 wait/synch/mutex/sql/Slave_reporting_capability::err_lock
 wait/synch/mutex/sql/TABLE_SHARE::LOCK_ha_data
 wait/synch/mutex/sql/THD::LOCK_thd_data
@@ -120,6 +122,7 @@ wait/synch/cond/sql/COND_thread_cache
 wait/synch/cond/sql/COND_thread_count
 wait/synch/cond/sql/Event_scheduler::COND_state
 wait/synch/cond/sql/Master_info::data_cond
+wait/synch/cond/sql/Master_info::sleep_cond
 wait/synch/cond/sql/Master_info::start_cond
 wait/synch/cond/sql/Master_info::stop_cond
 wait/synch/cond/sql/MDL_context::COND_wait_status
@@ -130,6 +133,7 @@ wait/synch/cond/sql/MYSQL_RELAY_LOG::update_cond
 wait/synch/cond/sql/Query_cache::COND_cache_status_changed
 wait/synch/cond/sql/Relay_log_info::data_cond
 wait/synch/cond/sql/Relay_log_info::log_space_cond
+wait/synch/cond/sql/Relay_log_info::sleep_cond
 wait/synch/cond/sql/Relay_log_info::start_cond
 wait/synch/cond/sql/Relay_log_info::stop_cond
 wait/synch/cond/sql/THD::COND_wakeup_ready

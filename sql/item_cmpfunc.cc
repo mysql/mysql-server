@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009-2011 Monty Program Ab
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2012 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -492,11 +492,22 @@ static bool convert_const_to_int(THD *thd, Item_field *field_item,
       orig_field_val= field->val_int();
     if (!(*item)->save_in_field(field, 1) && !field->is_null())
     {
-      Item *tmp= new Item_int_with_ref(field->val_int(), *item,
-                                       test(field->flags & UNSIGNED_FLAG));
-      if (tmp)
-        thd->change_item_tree(item, tmp);
-      result= 1;					// Item was replaced
+      int field_cmp= 0;
+      // If item is a decimal value, we must reject it if it was truncated.
+      if (field->type() == MYSQL_TYPE_LONGLONG)
+      {
+        field_cmp= stored_field_cmp_to_item(thd, field, *item);
+        DBUG_PRINT("info", ("convert_const_to_int %d", field_cmp));
+      }
+
+      if (0 == field_cmp)
+      {
+        Item *tmp= new Item_int_with_ref(field->val_int(), *item,
+                                         test(field->flags & UNSIGNED_FLAG));
+        if (tmp)
+          thd->change_item_tree(item, tmp);
+        result= 1;					// Item was replaced
+      }
     }
     /* Restore the original field value. */
     if (save_field_value)
@@ -2197,14 +2208,10 @@ void Item_func_between::fix_length_and_dec()
     if (field_item->field_type() ==  MYSQL_TYPE_LONGLONG ||
         field_item->field_type() ==  MYSQL_TYPE_YEAR)
     {
-      /*
-        The following can't be recoded with || as convert_const_to_int
-        changes the argument
-      */
-      if (convert_const_to_int(thd, field_item, &args[1]))
-        cmp_type=INT_RESULT;
-      if (convert_const_to_int(thd, field_item, &args[2]))
-        cmp_type=INT_RESULT;
+      const bool cvt_arg1= convert_const_to_int(thd, field_item, &args[1]);
+      const bool cvt_arg2= convert_const_to_int(thd, field_item, &args[2]);
+      if (cvt_arg1 && cvt_arg2)
+        cmp_type=INT_RESULT;                    // Works for all types.
     }
   }
 }

@@ -228,6 +228,7 @@ void udf_init()
       char dlpath[FN_REFLEN];
       strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", tmp->dl,
                NullS);
+      (void) unpack_filename(dlpath, dlpath);
       if (!(dl= dlopen(dlpath, RTLD_NOW)))
       {
 	/* Print warning to log */
@@ -476,6 +477,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
   {
     char dlpath[FN_REFLEN];
     strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", udf->dl, NullS);
+    (void) unpack_filename(dlpath, dlpath);
+
     if (!(dl = dlopen(dlpath, RTLD_NOW)))
     {
       DBUG_PRINT("error",("dlopen of %s failed, error: %d (%s)",

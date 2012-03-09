@@ -2829,5 +2829,41 @@ SELECT ((0xf3) * (rpad(1.0,2048,1)) << (0xcc));
 ((0xf3) * (rpad(1.0,2048,1)) << (0xcc))
 0
 #
+# Bug#13359121 LARGE NUMBERS, /STRINGS/DTOA.C:662:
+#              BALLOC: ASSERTION `K <= 15' FAILED.
+# Bug#12985021 SIMPLE QUERY WITH DECIMAL NUMBERS TAKE AN 
+#              EXTRAORDINARY LONG TIME TO EXECUTE
+SELECT @tmp_max:= @@global.max_allowed_packet;
+@tmp_max:= @@global.max_allowed_packet
+1048576
+SET @@global.max_allowed_packet=1024*1024*1024;
+SELECT @@global.max_allowed_packet;
+@@global.max_allowed_packet
+1073741824
+do
+format(rpad('111111111.1',
+1111111,
+'999999999999999999999999999999999999999999'),0,'be_BY')
+;
+DO
+round(
+concat( (
+coalesce( (
+linefromwkb('2147483648',
+-b'1111111111111111111111111111111111111111111')),
+( convert('[.DC2.]',decimal(30,30)) ),
+bit_count('')
+) ),
+( lpad( ( elt('01','}:K5')),
+sha1('P'),
+( ( select '-9223372036854775808.1' > all (select '')))
+)
+)
+)
+);
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '[.DC2.]'
+SET @@global.max_allowed_packet:= @tmp_max;
+#
 # End of 5.5 tests
 #

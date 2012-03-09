@@ -111,7 +111,7 @@ sub read_test {
   $serialized =~ s/\\([0-9a-fA-F]{2})/chr(hex($1))/eg;
   my $test= Storable::thaw($serialized);
   use Data::Dumper;
-  die "wrong class (hack attempt?): ".ref($test)."\n".Dumper(\$test)
+  die "wrong class (hack attempt?): ".ref($test)."\n".Dumper(\$test, $serialized)
     unless ref($test) eq 'My::Test';
   resfile_from_test($test) if $::opt_resfile;
   return $test;

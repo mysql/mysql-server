@@ -3665,7 +3665,7 @@ sub do_before_run_mysqltest($)
 
   # Remove old files produced by mysqltest
   die "unsupported result file name $resfile, stoping" unless
-         $resfile =~ /^(.*?)((?:,\w+)*)\.(rdiff|result)$/;
+         $resfile =~ /^(.*?)((?:,\w+)*)\.(rdiff|result|result~)$/;
   my ($base_file, $suites, $ext)= ($1, $2, $3);
   # if the result file is a diff, make a proper result file
   if ($ext eq 'rdiff') {
