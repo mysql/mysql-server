@@ -140,3 +140,17 @@ CREATE TABLE t1 (a char(32), v char(32) CHARACTER SET ucs2 AS (a) VIRTUAL);
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
+
+#
+# Bug#930814: no info in information schema for tables with virtual columns
+#
+
+CREATE TABLE t1 (a int, b int);
+CREATE TABLE t2 (a int, b int as (a+1) VIRTUAL);
+
+SELECT table_schema, table_name, column_name, column_type, extra
+  FROM information_schema.columns WHERE table_name = 't1';
+SELECT table_schema, table_name, column_name, column_type, extra 
+  FROM information_schema.columns WHERE table_name = 't2';
+
+DROP TABLE t1,t2;
