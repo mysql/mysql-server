@@ -4652,8 +4652,6 @@ table_opened:
 
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
-	fprintf(stderr, "****** OPEN: %s: %lu\n", ib_table->name, ib_table->flags2);
-
 	DBUG_RETURN(0);
 }
 
