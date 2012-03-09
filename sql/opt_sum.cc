@@ -469,8 +469,8 @@ int opt_sum_query(THD *thd,
                           'const op field'
 
   @retval
-    0        func_item is a simple predicate: a field is compared with
-    constants
+    0      func_item is a simple predicate: a field is compared with a constant
+           whose length does not exceed the max length of the field values  
   @retval
     1        Otherwise
 */
@@ -489,6 +489,8 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
       if (it++)
         return 0;
       if (!(args[1]= item_equal->get_const()))
+        return 0;
+      if (args[0]->max_length < args[1]->max_length)
         return 0;
     }
     break;
@@ -521,6 +523,8 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
     }
     else
       return 0;
+    if (args[0]->max_length < args[1]->max_length)
+      return 0;
     break;
   case 3:
     /* field BETWEEN const AND const */
@@ -534,6 +538,8 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
         if (!item->const_item())
           return 0;
         args[i]= item;
+        if (args[0]->max_length < args[i]->max_length)
+          return 0;
       }
     }
     else

@@ -1194,4 +1194,37 @@ SELECT (SELECT MIN(t1.a) FROM t1,t2 WHERE t2.a = t3.b) FROM t3;
 DROP TABLE t1,t2,t3;
 
 --echo #
+--echo # Bug #884175: MIN/MAX for short varchar = long const  
+--echo #
+
+CREATE TABLE t1 (f1 varchar(1), f2 varchar(1), KEY (f2));
+INSERT INTO t1 VALUES ('b', 'b'), ('a','a');
+
+EXPLAIN 
+SELECT MAX(f1) FROM t1 WHERE f1 = 'abc';
+SELECT MAX(f1) FROM t1 WHERE f1 = 'abc';
+
+EXPLAIN
+SELECT MAX(f2) FROM t1 WHERE f2 = 'abc';
+SELECT MAX(f2) FROM t1 WHERE f2 = 'abc';
+
+EXPLAIN
+SELECT MIN(f1) FROM t1 WHERE f1 >= 'abc';
+SELECT MIN(f1) FROM t1 WHERE f1 >= 'abc';
+
+EXPLAIN
+SELECT MIN(f2) FROM t1 WHERE f2 >= 'abc';
+SELECT MIN(f2) FROM t1 WHERE f2 >= 'abc';
+
+EXPLAIN
+SELECT MIN(f1) FROM t1 WHERE f1 BETWEEN 'abc' AND 'b' ;
+SELECT MIN(f1) FROM t1 WHERE f1 BETWEEN 'abc' AND 'b' ;
+
+EXPLAIN
+SELECT MIN(f2) FROM t1 WHERE f2 BETWEEN 'abc' AND 'b' ;
+SELECT MIN(f2) FROM t1 WHERE f2 BETWEEN 'abc' AND 'b' ;
+
+DROP TABLE t1;
+
+
 --echo End of 5.2 tests
