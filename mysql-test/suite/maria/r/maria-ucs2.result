@@ -3,8 +3,6 @@ ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
 Aria	YES	Crash-safe tables with MyISAM heritage	NO	NO	NO
 set global storage_engine=aria;
 set session storage_engine=aria;
-set global aria_page_checksum=0;
-set global aria_log_file_size=4294967295;
 drop table if exists t1;
 SET SQL_WARNINGS=1;
 CREATE TABLE t1 ( a VARCHAR(800),KEY(a) )
@@ -28,6 +26,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(800) CHARACTER SET ucs2 DEFAULT NULL,
   KEY `a` (`a`(500))
-) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(800),KEY(a)) ENGINE=Aria CHARACTER SET ucs2;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+INSERT INTO t1 VALUES (REPEAT('abc ',200));
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 DROP TABLE t1;
 # End of 5.2 tests

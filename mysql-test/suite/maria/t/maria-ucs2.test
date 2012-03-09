@@ -4,12 +4,8 @@
 select * from INFORMATION_SCHEMA.ENGINES where ENGINE="ARIA";
 
 let $default_engine=`select @@global.storage_engine`;
-let $default_checksum=`select @@global.aria_page_checksum`;
 set global storage_engine=aria;
 set session storage_engine=aria;
-set global aria_page_checksum=0;
-let $default_log_file_size=`select @@global.aria_log_file_size`;
-set global aria_log_file_size=4294967295;
 
 # Initialise
 --disable_warnings
@@ -35,13 +31,21 @@ CHECK TABLE t1;
 SHOW CREATE table t1;
 DROP TABLE t1;
 
+#
+# BUG#905782 Assertion `pageno < ((1ULL) << 40)' failed at ma_pagecache.c
+# Issue was too long key
+#
+
+CREATE TABLE t1 (a VARCHAR(800),KEY(a)) ENGINE=Aria CHARACTER SET ucs2;
+INSERT INTO t1 VALUES (REPEAT('abc ',200));
+CHECK TABLE t1;
+DROP TABLE t1;
+
 --echo # End of 5.2 tests
 
 
 --disable_result_log
 --disable_query_log
-eval set global storage_engine=$default_engine,
-aria_page_checksum=$default_checksum,
-aria_log_file_size=$default_log_file_size;
+eval set global storage_engine=$default_engine;
 --enable_result_log
 --enable_query_log
