@@ -46,7 +46,7 @@ call mtr.add_suppression(" Error while checking replication metadata.");
 INSERT INTO t_innodb VALUES (1), (2), (3);
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Sql_delay;
 INSERT INTO t_innodb VALUES (1), (2), (3);
-include/wait_for_slave_sql_error.inc [errno=1725]
+include/wait_for_slave_sql_error.inc [errno=1701]
 Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted'
 include/stop_slave_io.inc
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=FILE --skip-slave-start]
@@ -56,7 +56,7 @@ include/start_slave.inc
 INSERT INTO t_innodb VALUES (1), (2), (3);
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Sql_delay;
 INSERT INTO t_innodb VALUES (1), (2), (3);
-include/wait_for_slave_sql_error.inc [errno=1725]
+include/wait_for_slave_sql_error.inc [errno=1701]
 Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted'
 include/stop_slave_io.inc
 START SLAVE SQL_THREAD;

@@ -77,7 +77,7 @@ WARNING: The range of printed events ends with a row event or a table map event 
 DROP TABLE t1;
 SET @@global.max_allowed_packet= 1024;
 Warnings:
-Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SET @@global.net_buffer_length= 1024;
 SET @@global.max_allowed_packet= 1024;
 DROP TABLE t1;
