@@ -795,9 +795,9 @@ fil_node_open_file(
 				  != page_size)) {
 			fprintf(stderr,
 				"InnoDB: Error: tablespace file %s"
-				" has page size %lx\n"
+				" has page size 0x%lx\n"
 				"InnoDB: but the data dictionary"
-				" expects page size %lx!\n",
+				" expects page size 0x%lx!\n",
 				node->name, flags,
 				fsp_flags_get_page_size(space->flags));
 
@@ -806,9 +806,9 @@ fil_node_open_file(
 
 		if (UNIV_UNLIKELY(space->flags != flags)) {
 			fprintf(stderr,
-				"InnoDB: Error: table flags are %lx"
+				"InnoDB: Error: table flags are 0x%lx"
 				" in the data dictionary\n"
-				"InnoDB: but the flags in file %s are %lx!\n",
+				"InnoDB: but the flags in file %s are 0x%lx!\n",
 				space->flags, node->name, flags);
 
 			ut_error;
