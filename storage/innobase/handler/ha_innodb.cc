@@ -4431,21 +4431,13 @@ retry:
 					retries);
 		}
 
-		sql_print_error("Cannot find or open table %s from\n"
-				"the internal data dictionary of InnoDB "
-				"though the .frm file for the\n"
-				"table exists. Maybe you have deleted and "
-				"recreated InnoDB data\n"
-				"files but have forgotten to delete the "
-				"corresponding .frm files\n"
-				"of InnoDB tables, or you have moved .frm "
-				"files to another database?\n"
-				"or, the table contains indexes that this "
-				"version of the engine\n"
-				"doesn't support.\n"
-				"See " REFMAN "innodb-troubleshooting.html\n"
-				"how you can resolve the problem.\n",
-				norm_name);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Cannot open table %s from the internal data "
+			"dictionary of InnoDB though the .frm file "
+			"for the table exists. See "
+			REFMAN "innodb-troubleshooting.html for how "
+			"you can resolve the problem.", norm_name);
+
 		my_errno = ENOENT;
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -4459,7 +4451,7 @@ table_opened:
 
 	if (dict_table_is_discarded(ib_table)) {
 
-		ib_pushf(prebuilt->trx->mysql_thd,
+		ib_pushf(thd,
 			 IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
 			 "The table %s doesn't have a corresponding "
 			 "tablespace, it was discarded.",
@@ -4474,7 +4466,7 @@ table_opened:
 
 	} else if (ib_table->ibd_file_missing) {
 
-		ib_pushf(prebuilt->trx->mysql_thd,
+		ib_pushf(thd,
 			 IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
 			 "The table %s doesn't have a corresponding "
 			 "tablespace, the .ibd file is missing. See " REFMAN 
@@ -4659,6 +4651,8 @@ table_opened:
 	}
 
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
+
+	fprintf(stderr, "****** OPEN: %s: %lu\n", ib_table->name, ib_table->flags2);
 
 	DBUG_RETURN(0);
 }
