@@ -973,8 +973,7 @@ thd_trx_is_read_only(
 /*=================*/
 	void*	thd)	/*!< in: thread handle (THD*) */
 {
-	/* Waiting on WL#6046 to complete. */
-	return(FALSE);
+	return(thd != 0 && thd_tx_is_read_only(static_cast<THD*>(thd)));
 }
 
 /******************************************************************//**
