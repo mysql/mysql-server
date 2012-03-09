@@ -1912,11 +1912,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-#ifndef MCP_WL3749
-                          TABLE *outparam, open_table_mode open_mode)
-#else
                           TABLE *outparam, bool is_create_table)
-#endif
 {
   int error;
   uint records, i, bitmap_size;
@@ -1924,17 +1920,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   uchar *record, *bitmaps;
   Field **field_ptr;
   DBUG_ENTER("open_table_from_share");
-#ifndef MCP_WL3749
-  DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx, open mode:%s",
-                      share->db.str,
-                      share->table_name.str,
-                      (long) outparam,
-                      (open_mode == OTM_OPEN)?"open":
-                      ((open_mode == OTM_CREATE)?"create":"alter")));
-#else
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, (long) outparam));
-#endif
 
   error= 1;
   memset(outparam, 0, sizeof(*outparam));
@@ -2106,11 +2093,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
     tmp= mysql_unpack_partition(thd, share->partition_info_str,
                                 share->partition_info_str_len,
-#ifndef MCP_WL3749
-                                outparam, (open_mode != OTM_OPEN),
-#else
                                 outparam, is_create_table,
-#endif
                                 share->default_part_db_type,
                                 &work_part_info_used);
     if (tmp)
@@ -2126,31 +2109,19 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       caller's arena depending on work_part_info_used value.
     */
     if (!work_part_info_used)
-#ifndef MCP_WL3749
-      tmp= fix_partition_func(thd, outparam, (open_mode != OTM_OPEN));
-#else
       tmp= fix_partition_func(thd, outparam, is_create_table);
-#endif
     thd->stmt_arena= backup_stmt_arena_ptr;
     thd->restore_active_arena(&part_func_arena, &backup_arena);
     if (!tmp)
     {
       if (work_part_info_used)
-#ifndef MCP_WL3749
-        tmp= fix_partition_func(thd, outparam, (open_mode != OTM_OPEN));
-#else
         tmp= fix_partition_func(thd, outparam, is_create_table);
-#endif
     }
     outparam->part_info->item_free_list= part_func_arena.free_list;
 partititon_err:
     if (tmp)
     {
-#ifndef MCP_WL3749
-      if (open_mode == OTM_CREATE)
-#else
       if (is_create_table)
-#endif
       {
         /*
           During CREATE/ALTER TABLE it is ok to receive errors here.
@@ -2179,11 +2150,7 @@ partititon_err:
 
   /* The table struct is now initialized;  Open the table */
   error= 2;
-#ifndef MCP_WL3749
-  if (db_stat && open_mode != OTM_ALTER)
-#else
   if (db_stat)
-#endif
   {
     int ha_err;
     if ((ha_err= (outparam->file->

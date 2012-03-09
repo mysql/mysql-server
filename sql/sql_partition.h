@@ -259,12 +259,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            char *db,
                            const char *table_name,
                            const char *path,
-#ifndef MCP_WL3749
-                           TABLE **repartitioned_table,
-                           bool *is_fast_alter_partitioning);
-#else
                            TABLE **fast_alter_table);
-#endif
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
                                 bool show_partition_options,
