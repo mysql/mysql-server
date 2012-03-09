@@ -306,6 +306,7 @@ dict_build_table_def_step(
 			dict_tf_to_fsp_flags(table->flags),
 			table->flags2,
 			FIL_IBD_FILE_INITIAL_SIZE);
+
 		table->space = (unsigned int) space;
 
 		if (error != DB_SUCCESS) {

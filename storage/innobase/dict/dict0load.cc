@@ -1872,7 +1872,7 @@ err_exit:
 	} else if (table->flags2 & DICT_TF2_DISCARDED) {
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Tablespace for table %s was discarded.",
+			"Table '%s' tablespace is set as discarded.",
 			table->name);
 
 		table->ibd_file_missing = TRUE;
@@ -1886,8 +1886,9 @@ err_exit:
 		} else {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Failed to find tablespace for table '%s' "
-				"in memory. Attempting to load the tablespace "
-				"with id %lu.", name, (ulong) table->space);
+				"in the cache. Attempting to load the "
+				"tablespace with space id %lu.",
+				name, (ulong) table->space);
 
 			/* Try to open the tablespace */
 			err = fil_open_single_table_tablespace(
