@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5666,6 +5666,33 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
 }
 
 
+/**
+   If EXPLAIN EXTENDED, add a warning that the index cannot be
+   used for range access due to either type conversion or different
+   collations on the field used for comparison
+
+   @param param              PARAM from SQL_SELECT::test_quick_select
+   @param key_num            Key number
+   @param field              Field in the predicate
+ */
+static void 
+if_extended_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
+                                              const uint key_num,
+                                              const Field *field)
+{
+  if (param->using_real_indexes &&
+      param->thd->lex->describe & DESCRIBE_EXTENDED)
+    push_warning_printf(
+            param->thd,
+            Sql_condition::WARN_LEVEL_WARN, 
+            ER_WARN_INDEX_NOT_APPLICABLE,
+            ER(ER_WARN_INDEX_NOT_APPLICABLE),
+            "range",
+            field->table->key_info[param->real_keynr[key_num]].name,
+            field->field_name);
+}
+
+
 /*
   Build a SEL_TREE for <> or NOT BETWEEN predicate
  
@@ -5682,7 +5709,6 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
     #  Pointer to tree built tree
     0  on error
 */
-
 static SEL_TREE *get_ne_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func, 
                                 Field *field,
                                 Item *lt_value, Item *gt_value,
@@ -6352,10 +6378,6 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
        WHERE latin1_swedish_ci_column = 'a' COLLATE lati1_bin;
 
        WHERE latin1_swedish_ci_colimn = BINARY 'a '
-
-    3. Grep for IndexedTimeComparedToDate. If 'value' is a DATETIME part,
-       using the index on the TIME column would retain only the TIME part of
-       'value', giving false comparison results.
   */
   if ((field->result_type() == STRING_RESULT &&
        field->match_collation_to_optimize_range() &&
@@ -6363,19 +6385,39 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
        key_part->image_type == Field::itRAW &&
        field->charset() != conf_func->compare_collation() &&
        !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
-         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC))) ||
-      field_time_cmp_date(field, value))
+         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC))))
   {
-    if (param->using_real_indexes &&
-        param->thd->lex->describe & DESCRIBE_EXTENDED)
-      push_warning_printf(
-              param->thd,
-              Sql_condition::WARN_LEVEL_WARN, 
-              ER_WARN_INDEX_NOT_APPLICABLE,
-              ER(ER_WARN_INDEX_NOT_APPLICABLE),
-              "range",
-              field->table->key_info[param->real_keynr[key_part->key]].name,
-              field->field_name);
+    if_extended_explain_warn_index_not_applicable(param, key_part->key, field);
+    goto end;
+  }
+
+  /*
+    Temporal values: Cannot use range access if:
+      1) 'temporal_value = indexed_varchar_column' because there are
+         many ways to represent the same date as a string. A few
+         examples: "01-01-2001", "1-1-2001", "2001-01-01",
+         "2001#01#01". The same problem applies to time. Thus, we
+         cannot create a usefull range predicate for temporal values
+         into VARCHAR column indexes. @see add_key_field()
+      2) 'temporal_value_with_date_part = indexed_time' because: 
+         - without index, a TIME column with value '48:00:00' is 
+           equal to a DATETIME column with value 
+           'CURDATE() + 2 days' 
+         - with range access into the TIME column, CURDATE() + 2 
+           days becomes "00:00:00" (Field_timef::store_internal() 
+           simply extracts the time part from the datetime) which 
+           is a lookup key which does not match "48:00:00"; so 
+           ref access is not be able to give the same result as 
+           On the other hand, we can do ref access for
+           IndexedDatetimeComparedToTime because
+           Field_temporal_with_date::store_time() will convert
+           48:00:00 to CURDATE() + 2 days which is the correct
+           lookup key.
+   */
+  if ((!field->is_temporal() && value->is_temporal()) ||   // 1)
+      field_time_cmp_date(field, value))                   // 2)
+  {
+    if_extended_explain_warn_index_not_applicable(param, key_part->key, field);
     goto end;
   }
 
@@ -6499,18 +6541,10 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
   {
-    if (param->using_real_indexes &&
-        param->thd->lex->describe & DESCRIBE_EXTENDED)
-      push_warning_printf(
-              param->thd,
-              Sql_condition::WARN_LEVEL_WARN, 
-              ER_WARN_INDEX_NOT_APPLICABLE,
-              ER(ER_WARN_INDEX_NOT_APPLICABLE),
-              "range",
-              field->table->key_info[param->real_keynr[key_part->key]].name,
-              field->field_name);
+    if_extended_explain_warn_index_not_applicable(param, key_part->key, field);
     goto end;
   }
+
   /* For comparison purposes allow invalid dates like 2000-01-32 */
   orig_sql_mode= field->table->in_use->variables.sql_mode;
   if (value->real_item()->type() == Item::STRING_ITEM &&
