@@ -172,10 +172,8 @@ base_configs="$base_configs --with-extra-charsets=complex "
 base_configs="$base_configs --enable-thread-safe-client "
 base_configs="$base_configs --with-big-tables $maintainer_mode"
 
-if test -d "$path/../cmd-line-utils/readline"
-then
-    base_configs="$base_configs --with-readline"
-elif test -d "$path/../cmd-line-utils/libedit"
+
+if test -d "$path/../cmd-line-utils/libedit"
 then
     base_configs="$base_configs --with-libedit"
 fi

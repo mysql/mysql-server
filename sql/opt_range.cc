@@ -12898,18 +12898,26 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths(String *key_names,
   @param count[in,out]  The number of equality ranges found so far
   @param limit          The number of ranges 
 
-  @retval true if 'limit' or more equality ranges have been found in the 
-          range R-B trees
+  @retval true if limit > 0 and 'limit' or more equality ranges have been 
+          found in the range R-B trees
   @retval false otherwise         
 
 */
 static bool eq_ranges_exceeds_limit(SEL_ARG *keypart_root, uint* count, uint limit)
 {
-  if (limit == UINT_MAX32)
-    return false;
+  // "Statistics instead of index dives" feature is turned off
   if (limit == 0)
-    return true;
+    return false;
   
+  /*
+    Optimization: if there is at least one equality range, index
+    statistics will be used when limit is 1. It's safe to return true
+    even without checking that there is an equality range because if
+    there are none, index statistics will not be used anyway.
+  */
+  if (limit == 1)
+    return true;
+
   for(SEL_ARG *keypart_range= keypart_root->first(); 
       keypart_range; keypart_range= keypart_range->next)
   {

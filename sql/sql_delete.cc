@@ -262,7 +262,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   if (thd->lex->describe)
   {
     err= explain_single_table_modification(thd, table, select, usable_index,
-                                           limit, false, need_sort);
+                                           limit, false, need_sort, false);
     goto exit_without_my_ok;
   }
 

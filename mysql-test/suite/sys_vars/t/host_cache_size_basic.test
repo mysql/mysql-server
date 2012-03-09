@@ -1,0 +1,41 @@
+--source include/not_embedded.inc
+
+#
+# Only global
+#
+
+select @@global.host_cache_size;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.host_cache_size;
+
+show global variables like 'host_cache_size';
+
+show session variables like 'host_cache_size';
+
+select * from information_schema.global_variables
+  where variable_name='host_cache_size';
+
+select * from information_schema.session_variables
+  where variable_name='host_cache_size';
+
+#
+# Read-Write
+#
+
+set global host_cache_size=1;
+select @@global.host_cache_size;
+
+set global host_cache_size=12;
+select @@global.host_cache_size;
+
+set global host_cache_size=0;
+select @@global.host_cache_size;
+
+--error ER_GLOBAL_VARIABLE
+set session host_cache_size=1;
+
+# Restore default
+set global host_cache_size=123;
+select @@global.host_cache_size;
+

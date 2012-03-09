@@ -43,6 +43,7 @@ select * from performance_schema.events_waits_summary_global_by_event_name;
 select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
+select * from performance_schema.host_cache;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
 select * from performance_schema.socket_summary_by_event_name;

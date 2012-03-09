@@ -86,7 +86,10 @@ create table foo (a int);
 
 # replay from binary log
 let $MYSQLD_DATADIR= `select @@datadir`;
-exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file | $MYSQL;
+copy_file $MYSQLD_DATADIR/$binlog_file $MYSQLD_DATADIR/master-bin.saved35583;
+# Reset GTIDs
+RESET MASTER;
+exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved35583 | $MYSQL;
 select * from foo;
 
 # clean up
@@ -152,8 +155,10 @@ insert into t1 values(1);
 
 -- eval DROP DATABASE $dbname
 FLUSH LOGS;
-
+-- let $MYSQLD_DATADIR= `select @@datadir`
+copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.saved51226;
+# Reset GTIDs
+RESET MASTER;
 # assertion: assert that when replaying the binary log will succeed,
 #            instead of failing with "Table 'XXX.YYY' doesn't exist"
--- let $MYSQLD_DATADIR= `select @@datadir`
--- exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 | $MYSQL
+-- exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved51226 | $MYSQL

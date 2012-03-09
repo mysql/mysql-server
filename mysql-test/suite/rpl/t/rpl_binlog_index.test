@@ -59,9 +59,9 @@ source include/rpl_stop_server.inc;
 
 --echo # Restart master with log-bin option set to the new path
 --let $rpl_server_parameters=--log-bin=$tmpdir/master-bin
---let $keep_include_silent=1
+--let $include_silent=1
 source include/rpl_start_server.inc;
---let $keep_include_silent=0
+--let $include_silent=0
 
 --echo # Master has restarted successfully
 
@@ -100,9 +100,9 @@ source include/rpl_stop_server.inc;
 
 --echo # Restart master with log-bin option set to default
 --let $rpl_server_parameters=--log-bin=$master_datadir/master-bin
---let $keep_include_silent=1
+--let $include_silent=1
 source include/rpl_start_server.inc;
---let $keep_include_silent=0
+--let $include_silent=0
 
 --echo # Master has restarted successfully
 
@@ -132,10 +132,10 @@ connection slave;
 
 --echo # Restart slave with options log-bin, relay-log set to the new paths
 --let $rpl_server_parameters=--log-bin=$tmpdir/slave-bin --relay-log=$tmpdir/slave-relay-bin
---let $keep_include_silent=1
+--let $include_silent=1
 --let $rpl_server_number= 2
 source include/rpl_start_server.inc;
---let $keep_include_silent=0
+--let $include_silent=0
 
 --connection slave
 
@@ -203,10 +203,10 @@ if (`SELECT @@GLOBAL.relay_log_info_repository = 'TABLE'`)
 
 --echo # restarted with previous slave settings
 --let $rpl_server_parameters=--log-bin=$slave_datadir/slave-bin --relay-log=$slave_datadir/slave-relay-bin
---let $keep_include_silent=1
+--let $include_silent=1
 --let $rpl_server_number= 2
 --source include/rpl_start_server.inc
---let $keep_include_silent=0
+--let $include_silent=0
 
 --connection slave
 

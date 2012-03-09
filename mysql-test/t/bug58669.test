@@ -12,7 +12,7 @@ CREATE TABLE db1.t1(a INT);
 connect (con1,localhost,user1,,);
 connection con1;
 SELECT CURRENT_USER();
-SHOW VARIABLES LIKE "%read_only%";
+SHOW VARIABLES LIKE "read_only%";
 --error ER_OPTION_PREVENTS_STATEMENT
 INSERT INTO db1.t1 VALUES (1);
 

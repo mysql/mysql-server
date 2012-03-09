@@ -18,6 +18,7 @@
 #include "transaction.h"
 #include "rpl_handler.h"
 #include "debug_sync.h"         // DEBUG_SYNC
+#include "sql_acl.h"            // SUPER_ACL
 
 /* Conditions under which the transaction state must not change. */
 static bool trans_check(THD *thd)
@@ -130,7 +131,9 @@ bool trans_begin(THD *thd, uint flags)
       (thd->variables.option_bits & OPTION_TABLE_LOCK))
   {
     thd->variables.option_bits&= ~OPTION_TABLE_LOCK;
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    thd->server_status&=
+      ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+    DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
     res= test(ha_commit_trans(thd, TRUE));
   }
 
@@ -146,9 +149,36 @@ bool trans_begin(THD *thd, uint flags)
   */
   thd->mdl_context.release_transactional_locks();
 
+  // The RO/RW options are mutually exclusive.
+  DBUG_ASSERT(!((flags & MYSQL_START_TRANS_OPT_READ_ONLY) &&
+                (flags & MYSQL_START_TRANS_OPT_READ_WRITE)));
+  if (flags & MYSQL_START_TRANS_OPT_READ_ONLY)
+    thd->tx_read_only= true;
+  else if (flags & MYSQL_START_TRANS_OPT_READ_WRITE)
+  {
+    /*
+      Explicitly starting a RW transaction when the server is in
+      read-only mode, is not allowed unless the user has SUPER priv.
+      Implicitly starting a RW transaction is allowed for backward
+      compatibility.
+    */
+    const bool user_is_super=
+      test(thd->security_ctx->master_access & SUPER_ACL);
+    if (opt_readonly && !user_is_super)
+    {
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      DBUG_RETURN(true);
+    }
+    thd->tx_read_only= false;
+  }
+
   thd->variables.option_bits|= OPTION_BEGIN;
   thd->server_status|= SERVER_STATUS_IN_TRANS;
+  if (thd->tx_read_only)
+    thd->server_status|= SERVER_STATUS_IN_TRANS_READONLY;
+  DBUG_PRINT("info", ("setting SERVER_STATUS_IN_TRANS"));
 
+  /* ha_start_consistent_snapshot() relies on OPTION_BEGIN flag set. */
   if (flags & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
     res= ha_start_consistent_snapshot(thd);
 
@@ -173,7 +203,9 @@ bool trans_commit(THD *thd)
   if (trans_check(thd))
     DBUG_RETURN(TRUE);
 
-  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  thd->server_status&=
+    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_commit_trans(thd, TRUE);
   /*
     if res is non-zero, then ha_commit_trans has rolled back the
@@ -216,7 +248,9 @@ bool trans_commit_implicit(THD *thd)
     /* Safety if one did "drop table" on locked tables */
     if (!thd->locked_tables_mode)
       thd->variables.option_bits&= ~OPTION_TABLE_LOCK;
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    thd->server_status&=
+      ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+    DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
     res= test(ha_commit_trans(thd, TRUE));
   }
 
@@ -225,11 +259,12 @@ bool trans_commit_implicit(THD *thd)
 
   /*
     Upon implicit commit, reset the current transaction
-    isolation level. We do not care about
+    isolation level and access mode. We do not care about
     @@session.completion_type since it's documented
     to not have any effect on implicit commit.
   */
   thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+  thd->tx_read_only= thd->variables.tx_read_only;
 
   DBUG_RETURN(res);
 }
@@ -252,7 +287,9 @@ bool trans_rollback(THD *thd)
   if (trans_check(thd))
     DBUG_RETURN(TRUE);
 
-  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  thd->server_status&=
+    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_rollback_trans(thd, TRUE);
   (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   thd->variables.option_bits&= ~OPTION_BEGIN;
@@ -296,7 +333,10 @@ bool trans_commit_stmt(THD *thd)
   {
     res= ha_commit_trans(thd, FALSE);
     if (! thd->in_active_multi_stmt_transaction())
+    {
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+      thd->tx_read_only= thd->variables.tx_read_only;
+    }
   }
 
   /*
@@ -342,7 +382,10 @@ bool trans_rollback_stmt(THD *thd)
     if (thd->transaction_rollback_request && !thd->in_sub_stmt)
       ha_rollback_trans(thd, TRUE);
     if (! thd->in_active_multi_stmt_transaction())
+    {
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+      thd->tx_read_only= thd->variables.tx_read_only;
+    }
   }
 
   (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
@@ -664,7 +707,7 @@ bool trans_xa_commit(THD *thd)
     else
     {
       res= xa_trans_rolled_back(xs);
-      ha_commit_or_rollback_by_xid(thd->lex->xid, !res);
+      ha_commit_or_rollback_by_xid(thd, thd->lex->xid, !res);
       xid_cache_delete(xs);
     }
     DBUG_RETURN(res);
@@ -718,7 +761,9 @@ bool trans_xa_commit(THD *thd)
 
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
-  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  thd->server_status&=
+    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   xid_cache_delete(&thd->transaction.xid_state);
   thd->transaction.xid_state.xa_state= XA_NOTR;
 
@@ -749,7 +794,7 @@ bool trans_xa_rollback(THD *thd)
     else
     {
       xa_trans_rolled_back(xs);
-      ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
+      ha_commit_or_rollback_by_xid(thd, thd->lex->xid, 0);
       xid_cache_delete(xs);
     }
     DBUG_RETURN(thd->get_stmt_da()->is_error());
@@ -765,7 +810,9 @@ bool trans_xa_rollback(THD *thd)
 
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
-  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  thd->server_status&=
+    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   xid_cache_delete(&thd->transaction.xid_state);
   thd->transaction.xid_state.xa_state= XA_NOTR;
 

@@ -4802,9 +4802,6 @@ Item_cond::fix_fields(THD *thd, Item **ref)
     used_tables_cache|= item->used_tables();
     const_item_cache&=  item->const_item();
 
-    // Old code assumed that not_null_tables() was 0 when const_item() was true
-    DBUG_ASSERT(!item->const_item() || !item->not_null_tables());
-
     if (functype() == COND_AND_FUNC && abort_on_null)
       not_null_tables_cache|= item->not_null_tables();
     else

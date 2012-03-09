@@ -260,6 +260,7 @@ SET(SERVER_TESTS
   sql_table
   get_diagnostics
   segfault
+  join_tab_sort
 )
 
 FOREACH(test ${TESTS})

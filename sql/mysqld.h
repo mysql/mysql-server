@@ -204,6 +204,22 @@ extern ulong binlog_checksum_options;
 extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
+extern my_bool disable_gtid_unsafe_statements;
+enum enum_gtid_mode
+{
+  /// Support only anonymous groups, not GTIDs.
+  GTID_MODE_OFF= 0,
+  /// Support both GTIDs and anonymous groups; generate anonymous groups.
+  GTID_MODE_UPGRADE_STEP_1= 1,
+  /// Support both GTIDs and anonymous groups; generate GTIDs.
+  GTID_MODE_UPGRADE_STEP_2= 2,
+  /// Support only GTIDs, not anonymous groups.
+  GTID_MODE_ON= 3
+};
+extern ulong gtid_mode;
+extern const char *gtid_mode_names[];
+extern TYPELIB gtid_mode_typelib;
+
 extern ulong thread_cache_size;
 extern ulong stored_program_cache_size;
 extern ulong back_log;
@@ -248,6 +264,12 @@ extern int bootstrap_error;
 extern char err_shared_dir[];
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
+extern ulong connection_errors_select;
+extern ulong connection_errors_accept;
+extern ulong connection_errors_tcpwrap;
+extern ulong connection_errors_internal;
+extern ulong connection_errors_max_connection;
+extern ulong connection_errors_peer_addr;
 extern ulong log_warnings;
 
 /*
@@ -284,7 +306,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
-  key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc,
+  key_LOCK_error_messages, key_LOCK_thread_count,
   key_LOCK_log_throttle_qni;
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 
@@ -416,6 +438,7 @@ extern PSI_stage_info stage_user_lock;
 extern PSI_stage_info stage_user_sleep;
 extern PSI_stage_info stage_verifying_table;
 extern PSI_stage_info stage_waiting_for_delay_list;
+extern PSI_stage_info stage_waiting_for_gtid_to_be_written_to_binary_log;
 extern PSI_stage_info stage_waiting_for_handler_insert;
 extern PSI_stage_info stage_waiting_for_handler_lock;
 extern PSI_stage_info stage_waiting_for_handler_open;

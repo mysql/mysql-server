@@ -4,6 +4,7 @@
 # TODO: Remove statement include once 12574 is patched
 --source include/have_binlog_format_mixed_or_statement.inc 
 --source include/master-slave.inc
+--source include/not_gtid_enabled.inc
 
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -389,6 +390,7 @@ START SLAVE;
 # not replicable.
 #
 
+--source include/rpl_reset.inc
 --echo
 --echo ---> Test for BUG#20438
 

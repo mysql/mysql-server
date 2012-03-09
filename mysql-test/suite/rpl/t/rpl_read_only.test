@@ -1,6 +1,7 @@
 # Test case for BUG #11733
 -- source include/master-slave.inc
 -- source include/have_innodb.inc
+-- source include/not_gtid_enabled.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 

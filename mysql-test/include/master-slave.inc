@@ -36,21 +36,7 @@ if ($rpl_server_count)
 --let $rpl_topology= 1->2
 --source include/rpl_init.inc
 
---let $rpl_connection_name= master
---let $rpl_server_number= 1
---source include/rpl_connect.inc
-
---let $rpl_connection_name= master1
---let $rpl_server_number= 1
---source include/rpl_connect.inc
-
---let $rpl_connection_name= slave
---let $rpl_server_number= 2
---source include/rpl_connect.inc
-
---let $rpl_connection_name= slave1
---let $rpl_server_number= 2
---source include/rpl_connect.inc
+--source include/rpl_default_connections.inc
 
 
 --let $include_filename= master-slave.inc

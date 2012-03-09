@@ -778,7 +778,7 @@ INSERT INTO t1 (c) VALUES ('7_chars'), ('13_characters');
 EXPLAIN
 SELECT (SELECT SUM(LENGTH(c)) FROM t1 WHERE c='13_characters') FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	SUBQUERY	t1	ref	ix_c	ix_c	13	const	1	Using where
 SELECT (SELECT SUM(LENGTH(c)) FROM t1 WHERE c='13_characters') FROM t1;
 (SELECT SUM(LENGTH(c)) FROM t1 WHERE c='13_characters')

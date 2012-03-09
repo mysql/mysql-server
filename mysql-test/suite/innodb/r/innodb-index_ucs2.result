@@ -40,7 +40,7 @@ a	b	c	d
 10	10	kkk	iii
 explain select * from t1 force index(b) order by b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	b	5	NULL	6	
+1	SIMPLE	t1	index	NULL	b	5	NULL	6	NULL
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -91,13 +91,13 @@ a	b	c	d
 11	11	aaa	mmm
 explain select * from t1 force index(b) order by b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	b	5	NULL	7	
+1	SIMPLE	t1	index	NULL	b	5	NULL	7	NULL
 explain select * from t1 force index(c) order by c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	c	21	NULL	7	
+1	SIMPLE	t1	index	NULL	c	21	NULL	7	NULL
 explain select * from t1 force index(d) order by d;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	d	43	NULL	7	
+1	SIMPLE	t1	index	NULL	d	43	NULL	7	NULL
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

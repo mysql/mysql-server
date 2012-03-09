@@ -9,7 +9,7 @@ WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
 WHERE t1.f1 GROUP BY t1.f1));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	f1_2	8	NULL	1	Using index
-2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+2	SUBQUERY	t1	fulltext	f1	f1	0	NULL	1	Using where
 2	SUBQUERY	a	index	NULL	f1_2	8	NULL	1	Using index
 PREPARE stmt FROM
 'EXPLAIN SELECT 1 FROM t1
@@ -19,12 +19,12 @@ PREPARE stmt FROM
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	f1_2	8	NULL	1	Using index
-2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+2	SUBQUERY	t1	fulltext	f1	f1	0	NULL	1	Using where
 2	SUBQUERY	a	index	NULL	f1_2	8	NULL	1	Using index
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	f1_2	8	NULL	1	Using index
-2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+2	SUBQUERY	t1	fulltext	f1	f1	0	NULL	1	Using where
 2	SUBQUERY	a	index	NULL	f1_2	8	NULL	1	Using index
 DEALLOCATE PREPARE stmt;
 PREPARE stmt FROM
@@ -35,12 +35,12 @@ PREPARE stmt FROM
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	f1_2	8	NULL	1	Using index
-2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+2	SUBQUERY	t1	fulltext	f1	f1	0	NULL	1	Using where
 2	SUBQUERY	a	index	NULL	f1_2	8	NULL	1	Using index
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	f1_2	8	NULL	1	Using index
-2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+2	SUBQUERY	t1	fulltext	f1	f1	0	NULL	1	Using where
 2	SUBQUERY	a	index	NULL	f1_2	8	NULL	1	Using index
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
@@ -144,9 +144,9 @@ INSERT INTO t2 VALUES (1),(2);
 EXPLAIN EXTENDED
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-2	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using filesort
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (`a` + 12)
 # Should not crash
@@ -168,10 +168,10 @@ EXPLAIN EXTENDED
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY (SELECT a FROM t2 WHERE b = 12);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-2	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using filesort
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (/* select#3 */ select `test`.`t1`.`a` from `test`.`t2` where (`test`.`t2`.`b` = 12))
