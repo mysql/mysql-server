@@ -54,7 +54,7 @@
 #endif
 
 #if 1
-#define DEBUG_CRASH() { if (ERROR_INSERTED(0)) ndbrequire(false) }
+#define DEBUG_CRASH() ndbrequire(false)
 #else
 #define DEBUG_CRASH()
 #endif
@@ -398,7 +398,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
     if (unlikely(!m_arenaAllocator.seize(ah)))
       break;
 
-    if (ERROR_INSERTED(17001))
+    if (ERROR_INSERTED_CLEAR(17001))
     {
       ndbout_c("Injecting OutOfQueryMem error 17001 at line %d file %s",
                 __LINE__,  __FILE__);
@@ -700,7 +700,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
     if (unlikely(!m_arenaAllocator.seize(ah)))
       break;
 
-    if (ERROR_INSERTED(17002))
+    if (ERROR_INSERTED_CLEAR(17002))
     {
       ndbout_c("Injecting OutOfQueryMem error 17002 at line %d file %s",
                 __LINE__,  __FILE__);
@@ -944,7 +944,7 @@ Dbspj::build(Build_context& ctx,
     err = (this->*(info->m_build))(ctx, requestPtr, qn, qp);
     if (unlikely(err != 0))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
 
@@ -1017,7 +1017,7 @@ Dbspj::createNode(Build_context& ctx, Ptr<Request> requestPtr,
    *   that can be setup using the Build_context
    *
    */
-  if (ERROR_INSERTED(17005))
+  if (ERROR_INSERTED_CLEAR(17005))
   {
     ndbout_c("Injecting OutOfOperations error 17005 at line %d file %s",
              __LINE__,  __FILE__);
@@ -1588,16 +1588,42 @@ Dbspj::releaseRow(Ptr<Request> requestPtr, RowRef pos)
   m_page_pool.getPtr(ptr, pos.m_page_id);
   ((Var_page*)ptr.p)->free_record(pos.m_page_pos, Var_page::CHAIN);
   Uint32 free_space = ((Var_page*)ptr.p)->free_space;
-  if (free_space == 0)
+  if (free_space == Var_page::DATA_WORDS - 1)
   {
     jam();
     LocalDLFifoList<RowPage> list(m_page_pool,
                                   requestPtr.p->m_rowBuffer.m_page_list);
+    const bool last = list.hasNext(ptr) == false;
     list.remove(ptr);
-    releasePage(ptr);
+    if (list.isEmpty())
+    {
+      jam();
+      /**
+       * Don't remove last page...
+       */
+      list.addLast(ptr);
+      requestPtr.p->m_rowBuffer.m_var.m_free = free_space;
+    }
+    else
+    {
+      jam();
+      if (last)
+      {
+        jam();
+        /**
+         * If we were last...set m_var.m_free to free_space of newLastPtr
+         */
+        Ptr<RowPage> newLastPtr;
+        ndbrequire(list.last(newLastPtr));
+        requestPtr.p->m_rowBuffer.m_var.m_free =
+          ((Var_page*)newLastPtr.p)->free_space;
+      }
+      releasePage(ptr);
+    }
   }
   else if (free_space > requestPtr.p->m_rowBuffer.m_var.m_free)
   {
+    jam();
     LocalDLFifoList<RowPage> list(m_page_pool,
                                   requestPtr.p->m_rowBuffer.m_page_list);
     list.remove(ptr);
@@ -1827,7 +1853,6 @@ Dbspj::complete(Signal* signal, Ptr<Request> requestPtr)
 void
 Dbspj::cleanup(Ptr<Request> requestPtr)
 {
-  CLEAR_ERROR_INSERT_VALUE; // clear any injected error
   ndbrequire(requestPtr.p->m_cnt_active == 0);
   {
     Ptr<TreeNode> nodePtr;
@@ -2686,7 +2711,7 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
   if (m_free_page_list.firstItem == RNIL)
   {
     jam();
-    if (ERROR_INSERTED(17003))
+    if (ERROR_INSERTED_CLEAR(17003))
     {
       ndbout_c("Injecting failed '::allocPage', error 17003 at line %d file %s",
                __LINE__,  __FILE__);
@@ -2809,7 +2834,7 @@ Dbspj::lookup_build(Build_context& ctx,
     err = createNode(ctx, requestPtr, treeNodePtr);
     if (unlikely(err != 0))
     {
-      DEBUG_CRASH();
+      jam();
       break;
     }
 
@@ -2887,7 +2912,7 @@ Dbspj::lookup_build(Build_context& ctx,
                   nodeDA, treeBits, paramDA, paramBits);
     if (unlikely(err != 0))
     {
-      DEBUG_CRASH();
+      jam();
       break;
     }
 
@@ -3192,7 +3217,7 @@ Dbspj::lookup_execTRANSID_AI(Signal* signal,
 
     for (list.first(it); !it.isNull(); list.next(it))
     {
-      if (likely(requestPtr.p->m_state & Request::RS_RUNNING))
+      if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
       {
         jam();
         Ptr<TreeNode> childPtr;
@@ -3246,7 +3271,7 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
    * terminate the query execution, or a 'soft error' which 
    * should be signaled NDBAPI, and execution continued.
    */
-  if (likely(requestPtr.p->m_state & Request::RS_RUNNING))
+  if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
   {
     switch(errCode){
     case 626: // 'Soft error' : Row not found
@@ -3814,6 +3839,7 @@ Dbspj::computePartitionHash(Signal* signal,
                   NDB_ARRAY_SIZE(signal->theData) - 24);
         if (unlikely(attrLen == 0))
         {
+          DEBUG_CRASH();
           return 290;  // 'Corrupt key in TC, unable to xfrm'
         }
       }
@@ -3856,8 +3882,10 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
 
   jamEntry();
   if (unlikely(err != 0))
+  {
+    jam();
     goto error;
-
+  }
   dst.fragId = conf->fragId;
   dst.fragDistKey = (Tdata2 >> 16) & 255;
   dst.receiverRef = numberToRef(DBLQH, instanceKey, nodeId);
@@ -3932,11 +3960,14 @@ Dbspj::scanFrag_build(Build_context& ctx,
 
     err = createNode(ctx, requestPtr, treeNodePtr);
     if (unlikely(err != 0))
+    {
+      jam();
       break;
+    }
 
     treeNodePtr.p->m_scanfrag_data.m_scanFragHandlePtrI = RNIL;
     Ptr<ScanFragHandle> scanFragHandlePtr;
-    if (ERROR_INSERTED(17004))
+    if (ERROR_INSERTED_CLEAR(17004))
     {
       ndbout_c("Injecting OutOfQueryMemory error 17004 at line %d file %s",
                __LINE__,  __FILE__);
@@ -4002,7 +4033,6 @@ Dbspj::scanFrag_build(Build_context& ctx,
     if (unlikely(err != 0))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -4206,7 +4236,7 @@ Dbspj::scanFrag_execTRANSID_AI(Signal* signal,
 
     for (list.first(it); !it.isNull(); list.next(it))
     {
-      if (likely(requestPtr.p->m_state & Request::RS_RUNNING))
+      if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
       {
         jam();
         Ptr<TreeNode> childPtr;
@@ -4497,7 +4527,10 @@ Dbspj::scanIndex_build(Build_context& ctx,
 
     err = createNode(ctx, requestPtr, treeNodePtr);
     if (unlikely(err != 0))
+    {
+      jam();
       break;
+    }
 
     Uint32 batchSize = param->batchSize;
 
@@ -4555,7 +4588,6 @@ Dbspj::scanIndex_build(Build_context& ctx,
     if (unlikely(err != 0))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -4710,7 +4742,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
     return 0;
   } while(0);
 
-  DEBUG_CRASH();
+  jam();
   return err;
 }
 
@@ -5019,7 +5051,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       err = expand(pruneKeyPtrI, pattern, rowRef, hasNull);
       if (unlikely(err != 0))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
 
@@ -5044,14 +5076,14 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       releaseSection(pruneKeyPtrI);
       if (unlikely(err != 0))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
 
       err = getNodes(signal, tmp, tableId);
       if (unlikely(err != 0))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
 
@@ -5099,10 +5131,10 @@ Dbspj::scanIndex_parent_row(Signal* signal,
      * - 
      */
 
-      if (ERROR_INSERTED(17060) ||
-          (rand() % 7) == 0 && ERROR_INSERTED(17061) ||
-          (treeNodePtr.p->isLeaf() &&  ERROR_INSERTED(17062)) ||
-          (treeNodePtr.p->m_parentPtrI != RNIL &&  ERROR_INSERTED(17063)))
+      if (ERROR_INSERTED_CLEAR(17060) ||
+          ((rand() % 7) == 0 && ERROR_INSERTED_CLEAR(17061)) ||
+          ((treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17062))) ||
+          ((treeNodePtr.p->m_parentPtrI != RNIL &&ERROR_INSERTED_CLEAR(17063))))
       {
         ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
                  __LINE__,  __FILE__);
@@ -5113,7 +5145,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       err = expand(ptrI, pattern, rowRef, hasNull);
       if (unlikely(err != 0))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
     }
@@ -5586,7 +5618,7 @@ Dbspj::scanIndex_execTRANSID_AI(Signal* signal,
 
     for (list.first(it); !it.isNull(); list.next(it))
     {
-      if (likely(requestPtr.p->m_state & Request::RS_RUNNING))
+      if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
       {
         jam();
         Ptr<TreeNode> childPtr;
@@ -6429,7 +6461,7 @@ Dbspj::appendToPattern(Local_pattern_store & pattern,
   if (unlikely(tree.ptr + len > tree.end))
     return DbspjErr::InvalidTreeNodeSpecification;
 
-  if (ERROR_INSERTED(17008))
+  if (ERROR_INSERTED_CLEAR(17008))
   {
     ndbout_c("Injecting OutOfQueryMemory error 17008 at line %d file %s",
              __LINE__,  __FILE__);
@@ -6457,7 +6489,7 @@ Dbspj::appendParamToPattern(Local_pattern_store& dst,
   /* Param COL's converted to DATA when appended to pattern */
   Uint32 info = QueryPattern::data(len);
 
-  if (ERROR_INSERTED(17009))
+  if (ERROR_INSERTED_CLEAR(17009))
   {
     ndbout_c("Injecting OutOfQueryMemory error 17009 at line %d file %s",
              __LINE__,  __FILE__);
@@ -6482,7 +6514,7 @@ Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
   /* Param COL's converted to DATA when appended to pattern */
   Uint32 info = QueryPattern::data(len+1);
 
-  if (ERROR_INSERTED(17010))
+  if (ERROR_INSERTED_CLEAR(17010))
   {
     ndbout_c("Injecting OutOfQueryMemory error 17010 at line %d file %s",
              __LINE__,  __FILE__);
@@ -6759,32 +6791,33 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
   case QueryPattern::P_COL:
     jam();
     return appendColToSection(dst, targetRow.m_row_data.m_linear, val, hasNull);
-    break;
   case QueryPattern::P_UNQ_PK:
     jam();
     return appendPkColToSection(dst, targetRow.m_row_data.m_linear, val);
-    break;
   case QueryPattern::P_ATTRINFO:
     jam();
     return appendAttrinfoToSection(dst, targetRow.m_row_data.m_linear, val, hasNull);
-    break;
   case QueryPattern::P_DATA:
     jam();
     // retreiving DATA from parent...is...an error
-    break;
+    DEBUG_CRASH();
+    return DbspjErr::InvalidPattern;
   case QueryPattern::P_PARENT:
     jam();
     // no point in nesting P_PARENT...an error
-    break;
+    DEBUG_CRASH();
+    return DbspjErr::InvalidPattern;
   case QueryPattern::P_PARAM:
   case QueryPattern::P_PARAM_HEADER:
     jam();
     // should have been expanded during build
-    break;
+    DEBUG_CRASH();
+    return DbspjErr::InvalidPattern;
+  default:
+    jam();
+    DEBUG_CRASH();
+    return DbspjErr::InvalidPattern;
   }
-
-  DEBUG_CRASH();
-  return DbspjErr::InvalidPattern;
 }
 
 Uint32
@@ -6831,7 +6864,7 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
     {
       if (!appendToSection(ptrI, tmp, dstIdx))
       {
-        DEBUG_CRASH();
+        jam();
         return DbspjErr::OutOfSectionMemory;
       }
       dstIdx = 0;
@@ -6840,7 +6873,7 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
   if (remaining > 0)
   {
     DEBUG_CRASH();
-    return DbspjErr::OutOfSectionMemory;
+    return DbspjErr::InvalidPattern;
   }
   else
   {
@@ -6918,7 +6951,6 @@ Dbspj::expandS(Uint32 & _dst, Local_pattern_store& pattern,
     if (unlikely(err != 0))
     {
       jam();
-      DEBUG_CRASH();
       goto error;
     }
   }
@@ -6983,7 +7015,6 @@ Dbspj::expandL(Uint32 & _dst, Local_pattern_store& pattern,
     if (unlikely(err != 0))
     {
       jam();
-      DEBUG_CRASH();
       goto error;
     }
   }
@@ -7063,7 +7094,6 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
     if (unlikely(err != 0))
     {
       jam();
-      DEBUG_CRASH();
       goto error;
     }
   }
@@ -7149,14 +7179,13 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
       break;
     }
     default:
-      jam();
       err = DbspjErr::InvalidPattern;
       DEBUG_CRASH();
     }
 
     if (unlikely(err != 0))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
   }
@@ -7180,7 +7209,7 @@ Dbspj::parseDA(Build_context& ctx,
 
   do
   {
-     /**
+    /**
      * Test execution terminated due to 'OutOfSectionMemory' which
      * may happen multiple places (eg. appendtosection, expand) below:
      * - 17050: Fail on parseDA at first call
@@ -7189,11 +7218,10 @@ Dbspj::parseDA(Build_context& ctx,
      * - 17053: Fail on parseDA at a random node of the query tree
      * -
      */
-
-     if (ERROR_INSERTED(17050) ||
-        (treeNodePtr.p->isLeaf() &&  ERROR_INSERTED(17051)) ||
-        (treeNodePtr.p->m_parentPtrI != RNIL &&  ERROR_INSERTED(17052)) ||
-	 (rand() % 7) == 0 && ERROR_INSERTED(17053))
+    if (ERROR_INSERTED_CLEAR(17050) ||
+        ((treeNodePtr.p->isLeaf() &&  ERROR_INSERTED_CLEAR(17051))) ||
+        ((treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17052)))||
+        ((rand() % 7) == 0 && ERROR_INSERTED_CLEAR(17053)))
     {
       ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
                 __LINE__,  __FILE__);
@@ -7249,7 +7277,7 @@ Dbspj::parseDA(Build_context& ctx,
         if (unlikely(!map.append(&treeNodePtr.i, 1)))
         {
           err = DbspjErr::OutOfQueryMemory;
-          DEBUG_CRASH();
+          jam();
           break;
         }
         parentPtr.p->m_bits &= ~(Uint32)TreeNode::T_LEAF;
@@ -7339,7 +7367,7 @@ Dbspj::parseDA(Build_context& ctx,
 
       if (unlikely(err != 0))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
     } // DABits::NI_KEY_...
@@ -7396,7 +7424,7 @@ Dbspj::parseDA(Build_context& ctx,
         err = DbspjErr::OutOfSectionMemory;
         if (unlikely(!appendToSection(attrInfoPtrI, sections, 5)))
         {
-          DEBUG_CRASH();
+          jam();
           break;
         }
 
@@ -7425,7 +7453,7 @@ Dbspj::parseDA(Build_context& ctx,
           err = DbspjErr::OutOfSectionMemory;
           if (unlikely(!appendToSection(attrInfoPtrI, tree.ptr, len_prg)))
           {
-            DEBUG_CRASH();
+            jam();
             break;
           }
 
@@ -7447,7 +7475,7 @@ Dbspj::parseDA(Build_context& ctx,
             err = expand(pattern, treeNodePtr, tree, len_pattern, param, cnt);
             if (unlikely(err))
             {
-              DEBUG_CRASH();
+              jam();
               break;
             }
             /**
@@ -7466,7 +7494,7 @@ Dbspj::parseDA(Build_context& ctx,
             err = expand(attrParamPtrI, tree, len_pattern, param, cnt, hasNull);
             if (unlikely(err))
             {
-              DEBUG_CRASH();
+              jam();
               break;
             }
 //          ndbrequire(!hasNull);
@@ -7497,7 +7525,7 @@ Dbspj::parseDA(Build_context& ctx,
             err = DbspjErr::OutOfSectionMemory;
             if (unlikely(!appendToSection(attrInfoPtrI, &tmp, 1)))
             {
-              DEBUG_CRASH();
+              jam();
               break;
             }
             sectionptrs[1] = 1;
@@ -7518,7 +7546,7 @@ Dbspj::parseDA(Build_context& ctx,
         err = DbspjErr::OutOfSectionMemory;
         if (unlikely(!appendToSection(attrInfoPtrI, param.ptr, program_len)))
         {
-          DEBUG_CRASH();
+          jam();
           break;
         }
         /**
@@ -7535,7 +7563,7 @@ Dbspj::parseDA(Build_context& ctx,
           if (unlikely(!appendToSection(attrParamPtrI,
                                         param.ptr, subroutine_len)))
           {
-            DEBUG_CRASH();
+            jam();
             break;
           }
           sectionptrs[4] = subroutine_len;
@@ -7557,7 +7585,7 @@ Dbspj::parseDA(Build_context& ctx,
         err = DbspjErr::OutOfSectionMemory;
         if (!appendToSection(attrInfoPtrI, param.ptr, len))
         {
-          DEBUG_CRASH();
+          jam();
           break;
         }
 
@@ -7573,7 +7601,7 @@ Dbspj::parseDA(Build_context& ctx,
         flush[3] = ctx.m_senderRef; // RouteRef
         if (!appendToSection(attrInfoPtrI, flush, 4))
         {
-          DEBUG_CRASH();
+          jam();
           break;
         }
 
@@ -7606,7 +7634,7 @@ Dbspj::parseDA(Build_context& ctx,
         err = DbspjErr::OutOfSectionMemory;
         if (!appendToSection(attrInfoPtrI, dst, cnt))
         {
-          DEBUG_CRASH();
+          jam();
           break;
         }
 
@@ -7635,7 +7663,7 @@ Dbspj::parseDA(Build_context& ctx,
             sectionptrs[4] = ptr.sz;
             if (unlikely(err != 0))
             {
-              DEBUG_CRASH();
+              jam();
               break;
             }
           }
@@ -7656,7 +7684,7 @@ Dbspj::parseDA(Build_context& ctx,
       err = DbspjErr::OutOfSectionMemory;
       if (unlikely(!appendToSection(treeNodePtr.p->m_send.m_attrInfoPtrI, &tmp, 1)))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
     }
