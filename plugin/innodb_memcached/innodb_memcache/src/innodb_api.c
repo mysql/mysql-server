@@ -88,10 +88,14 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cursor_clear_trx
 };
 
-/** Set expiration time */
+/** Set expiration time. If the exp sent by client is larger than
+60*60*24*30 (number of seconds in 30 days), it  will be considered
+to be real Unix time value rather than an offset from current time */
 #define SET_EXP_TIME(exp)		\
 if (exp) {				\
-	exp += mci_get_time();		\
+	if (exp < 60*60*24*30) {	\
+		exp += mci_get_time();	\
+	}				\
 }
 
 /*************************************************************//**
