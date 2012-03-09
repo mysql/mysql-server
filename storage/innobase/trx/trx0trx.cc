@@ -622,10 +622,10 @@ trx_lists_init_at_db_start(void)
 /******************************************************************//**
 Assigns a rollback segment to a transaction in a round-robin fashion.
 @return	assigned rollback segment instance */
-UNIV_INLINE
+static
 trx_rseg_t*
-trx_assign_rseg(
-/*============*/
+trx_assign_rseg_low(
+/*================*/
 	ulong	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
 	ulint	n_tablespaces)	/*!< in: number of rollback tablespaces */
 {
@@ -670,6 +670,23 @@ trx_assign_rseg(
 }
 
 /****************************************************************//**
+Assign a read-only transaction a rollback-segment, if it is attempting
+to write to a TEMPORARY table. */
+UNIV_INTERN
+void
+trx_assign_rseg(
+/*============*/
+	trx_t*		trx)		/*!< A read-only transaction that
+					needs to be assigned a RBS. */
+{
+	ut_a(trx->rseg == 0);
+	ut_a(trx->read_only);
+	ut_a(!trx_is_autocommit_non_locking(trx));
+
+	trx->rseg = trx_assign_rseg_low(srv_undo_logs, srv_undo_tablespaces);
+}
+
+/****************************************************************//**
 Starts a transaction. */
 static
 void
@@ -697,7 +714,7 @@ trx_start_low(
 	}
 
 	if (!trx->read_only) {
-		trx->rseg = trx_assign_rseg(
+		trx->rseg = trx_assign_rseg_low(
 			srv_undo_logs, srv_undo_tablespaces);
 	}
 
@@ -1059,7 +1076,6 @@ trx_commit(
 		assert_trx_in_list(trx);
 
 		if (trx->read_only) {
-			ut_ad(trx->rseg == NULL);
 			UT_LIST_REMOVE(trx_list, trx_sys->ro_trx_list, trx);
 			ut_d(trx->in_ro_trx_list = FALSE);
 			MONITOR_INC(MONITOR_TRX_RO_COMMIT);
