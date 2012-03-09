@@ -461,7 +461,7 @@ ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
 
---error ER_NOT_KEYFILE
+--error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
@@ -485,7 +485,7 @@ ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
 
---error ER_FILE_NOT_FOUND
+--error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
@@ -590,7 +590,7 @@ ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
 
---error ER_NOT_KEYFILE
+--error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
@@ -614,7 +614,7 @@ ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
 
---error ER_FILE_NOT_FOUND
+--error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
@@ -719,7 +719,7 @@ ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
 
---error ER_FILE_NOT_FOUND
+--error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
@@ -743,7 +743,7 @@ ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
 
---error ER_FILE_NOT_FOUND
+--error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
@@ -780,9 +780,9 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
-call mtr.add_suppression("Got error -1 when reading table './test/t1'");
-call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file './test/t1.ibd'.*");
-call mtr.add_suppression("InnoDB: The table test/t1 doesn't have a corresponding tablespace, it was discarded");
+call mtr.add_suppression("Got error -1 when reading table '.*'");
+call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file '.*'.*");
+call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
 
 eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;

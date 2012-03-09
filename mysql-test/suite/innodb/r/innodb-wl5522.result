@@ -418,7 +418,7 @@ SELECT * FROM t1;
 ERROR HY000: Got error -1 from storage engine
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Incorrect key file for table 't1'; try to repair it
+ERROR HY000: InnoDB: Table flags don't match, server table has 0x5 and the meta-data file has 0x0
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -430,7 +430,7 @@ SELECT * FROM t1;
 ERROR HY000: Got error -1 from storage engine
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Cannot open './test/t1.ibd' file of "test"."t1" : Data structure corruption
+ERROR HY000: InnoDB: Table flags don't match, server table has 0x5 and the meta-data file has 0x0
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -601,7 +601,7 @@ SELECT * FROM t1;
 ERROR HY000: Got error -1 from storage engine
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Incorrect key file for table 't1'; try to repair it
+ERROR HY000: InnoDB: Table flags don't match, server table has 0x5 and the meta-data file has 0x1
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -613,7 +613,7 @@ SELECT * FROM t1;
 ERROR HY000: Got error -1 from storage engine
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Cannot open './test/t1.ibd' file of "test"."t1" : Data structure corruption
+ERROR HY000: InnoDB: Table flags don't match, server table has 0x5 and the meta-data file has 0x1
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -784,7 +784,7 @@ SELECT * FROM t1;
 ERROR HY000: Got error -1 from storage engine
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Cannot open './test/t1.ibd' file of "test"."t1" : Data structure corruption
+ERROR HY000: InnoDB: Table flags don't match, server table has 0x5 and the meta-data file has 0x21
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -796,7 +796,7 @@ SELECT * FROM t1;
 ERROR HY000: Got error -1 from storage engine
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Cannot open './test/t1.ibd' file of "test"."t1" : Data structure corruption
+ERROR HY000: InnoDB: Table flags don't match, server table has 0x5 and the meta-data file has 0x21
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -852,8 +852,8 @@ c1	c2
 42	1
 43	1
 DROP TABLE t1;
-call mtr.add_suppression("Got error -1 when reading table './test/t1'");
-call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file './test/t1.ibd'.*");
-call mtr.add_suppression("InnoDB: The table test/t1 doesn't have a corresponding tablespace, it was discarded");
+call mtr.add_suppression("Got error -1 when reading table '.*'");
+call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file '.*'.*");
+call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
 SET GLOBAL INNODB_FILE_FORMAT=Antelope;
 SET GLOBAL INNODB_FILE_PER_TABLE=0;
