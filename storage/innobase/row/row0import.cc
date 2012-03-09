@@ -541,7 +541,6 @@ row_import_cleanup(
 	db_err		err)		/*!< in: error code */
 {
 	ut_a(prebuilt->trx != trx);
-	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_TABLE);
 
 	if (err != DB_SUCCESS) {
 		dict_table_t*	table = prebuilt->table;
@@ -555,7 +554,8 @@ row_import_cleanup(
 			prebuilt->table->name, FALSE);
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Discarding tablespace of table %s", table_name);
+			"Discarding tablespace of table %s: %s",
+			table_name, ut_strerr(err));
 
 		row_mysql_lock_data_dictionary(trx);
 
@@ -577,9 +577,18 @@ row_import_cleanup(
 		row_mysql_unlock_data_dictionary(trx);
 	}
 
+	DBUG_EXECUTE_IF("ib_import_before_commit_crash", DBUG_SUICIDE(););
+
 	trx_commit_for_mysql(trx);
 	trx_free_for_mysql(trx);
 	prebuilt->trx->op_info = "";
+
+	DBUG_EXECUTE_IF("ib_import_after_commit_crash", DBUG_SUICIDE(););
+
+	/* Flush dirty blocks to the file. */
+	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+
+	DBUG_EXECUTE_IF("ib_import_after_checkpoint_crash", DBUG_SUICIDE(););
 
 	return(err);
 }
@@ -1621,7 +1630,6 @@ row_import_match_schema(
 	const row_import_t*	cfg)		/*!< in: contents of the
 						.cfg file */
 {
-
 	/* Do some simple checks. */
 
 	if (cfg->table->n_cols != cfg->n_cols) {
@@ -1962,7 +1970,6 @@ row_import_for_mysql(
 	in case of a crash. */
 
 	trx->table_id = table->id;
-	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	/* Assign an undo segment for the transaction, so that the
 	transaction will be recovered after a crash. */
@@ -2036,26 +2043,6 @@ row_import_for_mysql(
 
 	log_make_checkpoint_at(current_lsn, TRUE);
 
-	/* Reassign table->id, so that purge will not remove entries
-	of the imported table. The undo logs may contain entries that
-	are referring to the tablespace that was discarded before the
-	import was initiated. */
-
-	table_id_t	new_id;
-
-	mutex_enter(&dict_sys->mutex);
-
-	err = row_mysql_table_id_reassign(table, trx, &new_id);
-
-	mutex_exit(&dict_sys->mutex);
-
-	DBUG_EXECUTE_IF("ib_import_table_id_reassign_failure",
-			err = DB_TOO_MANY_CONCURRENT_TRXS;);
-
-	if (err != DB_SUCCESS) {
-		return(row_import_cleanup(prebuilt, trx, err));
-	}
-
 	/* It is possible that the lsn's in the tablespace to be
 	imported are above the current system lsn or the space id in
 	the tablespace files differs from the table->space.  If that
@@ -2082,6 +2069,8 @@ row_import_for_mysql(
 
 	ibuf_delete_for_discarded_space(table->space);
 
+	mutex_enter(&dict_sys->mutex);
+
 	err = fil_open_single_table_tablespace(
 		    table, table->space,
 		    dict_tf_to_fsp_flags(table->flags),
@@ -2092,6 +2081,8 @@ row_import_for_mysql(
 
 	if (err != DB_SUCCESS) {
 		char*	ibd_filename;
+
+		mutex_exit(&dict_sys->mutex);
 
 		ibd_filename = fil_make_ibd_name(table->name, FALSE);
 
@@ -2104,6 +2095,8 @@ row_import_for_mysql(
 
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
+
+	mutex_exit(&dict_sys->mutex);
 
 	err = ibuf_check_bitmap_on_import(trx, table->space);
 
@@ -2182,30 +2175,22 @@ row_import_for_mysql(
 		return(row_import_error(prebuilt, trx, err));
 	}
 
+	mutex_enter(&dict_sys->mutex);
+
 	/* Update the table's discarded flag, unset it. */
-	err = row_import_update_discarded_flag(trx, new_id, false, false);
+	err = row_import_update_discarded_flag(trx, table->id, false, true);
 
 	if (err != DB_SUCCESS) {
+		mutex_exit(&dict_sys->mutex);
 		return(row_import_error(prebuilt, trx, err));
 	}
 
-	mutex_enter(&dict_sys->mutex);
-
+	table->ibd_file_missing = false;
 	table->flags2 &= ~DICT_TF2_DISCARDED;
-	dict_table_change_id_in_cache(table, new_id);
 
 	mutex_exit(&dict_sys->mutex);
 
-	DBUG_EXECUTE_IF("ib_import_before_checkpoint_crash", DBUG_SUICIDE(););
-
-	/* Flush dirty blocks to the file. */
-	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
-
-	DBUG_EXECUTE_IF("ib_import_after_checkpoint_crash", DBUG_SUICIDE(););
-
 	ut_a(err == DB_SUCCESS);
-
-	table->ibd_file_missing = false;
 
 	return(row_import_cleanup(prebuilt, trx, err));
 }
