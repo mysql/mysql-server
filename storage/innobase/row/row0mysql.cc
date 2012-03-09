@@ -2762,6 +2762,11 @@ row_discard_tablespace_for_mysql(
 		}
 	}
 
+	/* Play it safe and remove all change buffer entries for the
+	space that we are going to DISCARD. */
+
+	ibuf_delete_for_discarded_space(table->space);
+
 	table_id_t	new_id;
 
 	if (row_import_update_discarded_flag(trx, table->id, true, true)
