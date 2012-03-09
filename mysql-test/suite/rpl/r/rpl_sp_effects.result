@@ -4,12 +4,7 @@ Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
-drop procedure if exists p1;
-drop procedure if exists p2;
-drop function if exists f1;
-drop table if exists t1,t2;
-drop view if exists v1;
-create table t1 (a int);
+create table t1 (a int) engine = innodb;
 SET GLOBAL log_bin_trust_function_creators = 1;
 create procedure p1()
 begin
@@ -37,7 +32,7 @@ a
 create procedure p2()
 begin
 declare a int default 4;
-create table t2 as select a;
+create table t2 engine = innodb as select a;
 end//
 call p2();
 SELECT * FROM t2 ORDER BY a;
@@ -81,7 +76,7 @@ a
 6
 7
 8
-create table t2(a int);
+create table t2(a int) engine = innodb;
 insert into t2 values (10),(11);
 SELECT a,f1(a) FROM t2 ORDER BY a;
 a	f1(a)

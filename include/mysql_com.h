@@ -71,6 +71,7 @@ enum enum_server_command
   COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
   COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE,
   COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON,
+  COM_BINLOG_DUMP_GTID,
   /* don't forget to update const char *command_name[] in sql_parse.cc */
 
   /* Must be last */
@@ -247,6 +248,16 @@ enum enum_server_command
   To mark ResultSet containing output parameter values.
 */
 #define SERVER_PS_OUT_PARAMS            4096
+
+/**
+  Set at the same time as SERVER_STATUS_IN_TRANS if the started
+  multi-statement transaction is a read-only transaction. Cleared
+  when the transaction commits or aborts. Since this flag is sent
+  to clients in OK and EOF packets, the flag indicates the
+  transaction status at the end of command execution.
+*/
+#define SERVER_STATUS_IN_TRANS_READONLY 8192
+
 
 /**
   Server status flags that must be cleared when starting

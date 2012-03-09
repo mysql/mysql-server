@@ -1094,13 +1094,19 @@ Events::load_events_from_db(THD *thd)
     NOTE: even if we run in read-only mode, we should be able to lock the
     mysql.event table for writing. In order to achieve this, we should call
     mysql_lock_tables() under the super user.
+
+    Same goes for transaction access mode.
+    Temporarily reset it to read-write.
   */
 
   saved_master_access= thd->security_ctx->master_access;
   thd->security_ctx->master_access |= SUPER_ACL;
+  bool save_tx_read_only= thd->tx_read_only;
+  thd->tx_read_only= false;
 
   ret= db_repository->open_event_table(thd, TL_WRITE, &table);
 
+  thd->tx_read_only= save_tx_read_only;
   thd->security_ctx->master_access= saved_master_access;
 
   if (ret)
@@ -1117,7 +1123,7 @@ Events::load_events_from_db(THD *thd)
   while (!(read_record_info.read_record(&read_record_info)))
   {
     Event_queue_element *et;
-    bool created;
+    bool created, dropped;
 
     if (!(et= new Event_queue_element))
       goto end;
@@ -1133,6 +1139,12 @@ Events::load_events_from_db(THD *thd)
       goto end;
     }
 
+    /**
+      Since the Event_queue_element object could be deleted inside
+      Event_queue::create_event we should save the value of dropped flag
+      into the temporary variable.
+    */
+    dropped= et->dropped;
     if (event_queue->create_event(thd, et, &created))
     {
       /* Out of memory */
@@ -1141,7 +1153,7 @@ Events::load_events_from_db(THD *thd)
     }
     if (created)
       count++;
-    else if (et->dropped)
+    else if (dropped)
     {
       /*
         If not created, a stale event - drop if immediately if

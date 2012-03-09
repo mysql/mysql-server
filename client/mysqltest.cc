@@ -89,7 +89,7 @@ enum {
   OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL, OPT_MAX_CONNECT_RETRIES,
   OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS, OPT_LOG_DIR,
   OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION, OPT_TRACE_PROTOCOL,
-  OPT_EXPLAIN_PROTOCOL
+  OPT_EXPLAIN_PROTOCOL, OPT_JSON_EXPLAIN_PROTOCOL
 };
 
 static int record= 0, opt_sleep= -1;
@@ -111,6 +111,7 @@ static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
 static my_bool opt_trace_protocol= 0, opt_trace_protocol_enabled= 0;
 static my_bool explain_protocol= 0, explain_protocol_enabled= 0;
+static my_bool json_explain_protocol= 0, json_explain_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static my_bool parsing_disabled= 0;
 static my_bool display_result_vertically= FALSE, display_result_lower= FALSE,
@@ -6539,6 +6540,10 @@ static struct my_option my_long_options[] =
    "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements",
    &explain_protocol, &explain_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"json-explain-protocol", OPT_JSON_EXPLAIN_PROTOCOL,
+   "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements with FORMAT=JSON",
+   &json_explain_protocol, &json_explain_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT,
    "Number of seconds before connection timeout.",
    &opt_connect_timeout, &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
@@ -8061,10 +8066,10 @@ void display_opt_trace(struct st_connection *cn,
 }
 
 
-void run_explain(struct st_connection *cn, struct st_command *command, int flags)
+void run_explain(struct st_connection *cn, struct st_command *command,
+                 int flags, bool json)
 {
-  if (explain_protocol_enabled &&
-      (flags & QUERY_REAP_FLAG) &&
+  if ((flags & QUERY_REAP_FLAG) &&
       !command->expected_errors.count &&
       match_re(&explain_re, command->query))
   {
@@ -8073,7 +8078,8 @@ void run_explain(struct st_connection *cn, struct st_command *command, int flags
     DYNAMIC_STRING ds_warning_messages;
 
     init_dynamic_string(&ds_warning_messages, "", 0, 2048);
-    init_dynamic_string(&query_str, "EXPLAIN EXTENDED ", 256, 256);
+    init_dynamic_string(&query_str, json ? "EXPLAIN FORMAT=JSON "
+                                         : "EXPLAIN EXTENDED ", 256, 256);
     dynstr_append_mem(&query_str, command->query,
                       command->end - command->query);
     
@@ -8521,6 +8527,7 @@ int main(int argc, char **argv)
   var_set_int("$VIEW_PROTOCOL", view_protocol);
   var_set_int("$OPT_TRACE_PROTOCOL", opt_trace_protocol);
   var_set_int("$EXPLAIN_PROTOCOL", explain_protocol);
+  var_set_int("$JSON_EXPLAIN_PROTOCOL", json_explain_protocol);
   var_set_int("$CURSOR_PROTOCOL", cursor_protocol);
 
   var_set_int("$ENABLED_QUERY_LOG", 1);
@@ -8558,6 +8565,7 @@ int main(int argc, char **argv)
   view_protocol_enabled= view_protocol;
   opt_trace_protocol_enabled= opt_trace_protocol;
   explain_protocol_enabled= explain_protocol;
+  json_explain_protocol_enabled= json_explain_protocol;
   cursor_protocol_enabled= cursor_protocol;
 
   st_connection *con= connections;
@@ -8826,7 +8834,10 @@ int main(int argc, char **argv)
           usually terminate quickly with "no matching rows". To make it more
           interesting, EXPLAIN is now first.
         */
-	run_explain(cur_con, command, flags);
+        if (explain_protocol_enabled)
+          run_explain(cur_con, command, flags, 0);
+        if (json_explain_protocol_enabled)
+          run_explain(cur_con, command, flags, 1);
 	/* Check for 'require' */
 	if (*save_file)
 	{

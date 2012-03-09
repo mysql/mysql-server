@@ -56,7 +56,7 @@ select * from t1;
 a
 1
 On slave
-show binlog events in 'slave-bin.000002' from <binlog_start> limit 1,6;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000002	#	Query	#	#	BEGIN
 slave-bin.000002	#	Query	#	#	use `test`; INSERT  IGNORE INTO t1 VALUES(1)

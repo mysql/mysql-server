@@ -26,7 +26,7 @@ COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart the master server
 # Test the transaction statements will not be binlogged
-show binlog events in 'master-bin.000001' from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB
 include/assert.inc [On master, test the data will be rolled back after restart.]
@@ -51,7 +51,7 @@ COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart the master server
 # Test the transaction statements will be binlogged
-show binlog events in 'master-bin.000002' from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	#	#	BEGIN
 master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
@@ -103,7 +103,7 @@ ERROR HY000: Lost connection to MySQL server during query
 # Restart the master server
 # Test the halfly binlogged transaction will be trimmed
 # from the crashed binlog file
-show binlog events in 'master-bin.000003' from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB
 # Test the data will not be recovered successfully
@@ -120,7 +120,7 @@ ERROR HY000: Lost connection to MySQL server during query
 # Restart the master server
 # Test the halfly binlogged non-transaction statement will be trimmed
 # from the crashed binlog file
-show binlog events in 'master-bin.000004' from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000004	#	Query	#	#	use `test`; CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM
 # Test the data will not be recovered successfully

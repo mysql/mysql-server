@@ -6,7 +6,7 @@ CREATE TABLE t1(f1 blob);
 PREPARE stmt1 FROM 'INSERT INTO t1 VALUES(?)';
 SET @var1= x'8300';
 EXECUTE stmt1 USING @var1;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 blob)
 master-bin.000001	#	Query	#	#	BEGIN
@@ -26,13 +26,13 @@ IN ind DECIMAL(10,2))
 BEGIN
 INSERT INTO t4 VALUES (ins1, ins2, ind);
 END|
-CALL bug18293("Foo's a Bar", _cp932 0xED40ED41ED42, 47.93)|
-SELECT HEX(s1),HEX(s2),d FROM t4|
+CALL bug18293("Foo's a Bar", _cp932 0xED40ED41ED42, 47.93);
+SELECT HEX(s1),HEX(s2),d FROM t4;
 HEX(s1)	HEX(s2)	d
 466F6F2773206120426172	ED40ED41ED42	47.93
-DROP PROCEDURE bug18293|
-DROP TABLE t4|
-show binlog events from <binlog_start>|
+DROP PROCEDURE bug18293;
+DROP TABLE t4;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t4 (s1 CHAR(50) CHARACTER SET latin1,
 s2 CHAR(50) CHARACTER SET cp932,

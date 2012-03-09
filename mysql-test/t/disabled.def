@@ -1,4 +1,4 @@
-201##############################################################################
+##############################################################################
 #
 #  List the test cases that are to be disabled temporarily.
 #
@@ -14,11 +14,4 @@ read_many_rows_innodb    : Bug#11748886 2010-11-15 mattiasj report already exist
 sum_distinct-big         : Bug#11764126 2010-11-15 mattiasj was not tested
 archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this leads to timeout on Solaris Sparc
 log_tables-big           : Bug#11756699 2010-11-15 mattiasj report already exists
-events_restart @windows  : Bug#11748899 2012-02-23 hemant The test started failing on windows after the fix for bug#11748899 and followup patch didnot work.
-
-### MCP_DISABLE_FAILING_TESTS start ###
 file_contents            : Bug#12585902 2011-09-27 magnus file_contents.test fails when building from "bzr export"
-innodb                   : Waiting for WL#5534
-innodb-index             : Waiting for WL#5534
-innodb_mysql             : Waiting for WL#5534
-### MCP_DISABLE_FAILING_TESTS end ###

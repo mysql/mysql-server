@@ -1336,9 +1336,7 @@ set_classic_package()
 #
 set_readline_package()
 {
-  if test -d "$path/../cmd-line-utils/readline" && test "x$gpl" = "xyes" ; then
-    base_configs="$base_configs --with-readline"
-  elif test -d "$path/../cmd-line-utils/libedit" ; then
+   if test -d "$path/../cmd-line-utils/libedit" ; then
     base_configs="$base_configs --with-libedit"
   fi
 }

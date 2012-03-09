@@ -1,0 +1,325 @@
+# ==== Purpose ====
+#
+# Test all conditions related to GTID_MODE:
+#
+# Items marked with '-' are implemented, items marked with 'x' are todo.
+#
+#   With GTID_MODE = ON:
+#    - fail on SET GTID_NEXT = 'ANONYMOUS'
+#    - CHANGE MASTER TO MASTER_AUTO_POSITION = 1 is allowed.
+#    - GTIDs should be written to binlog
+#    x SQL thread fails when reading anonymous Gtid_log_event.
+#    x SQL thread fails if relay log does not have Previous_gtids_log_event.
+#    x Dump thread fails if binlog does not have Previous_gtids_log_event.
+#    x Dump thread fails when reading anonymous Gtid_log_event.
+#    x IO thread fails when reading anonymous Gtid_log_event or transaction
+#      that does not begin with Gtid_log_event.
+#    x IO thread converts Previous_gtids_log_event to Rotate_log_event.
+#
+#   With GTID_MODE = OFF:
+#    - fail on SET GTID_NEXT = 'SID:GNO'
+#    - fail on CHANGE MASTER TO MASTER_AUTO_POSITION = 1
+#    - GTIDs should not be written to binlog
+#    x SQL thread fails when reading Gtid_log_event that contains SID:GNO.
+#    x SQL thread understands anonymous Gtid_log_event.
+#    x SQL thread does not fail when reading Previous_gtids_log_event.
+#    x Dump thread fails when reading Gtid_log_event or Previous_gtid_log_event.
+#    x IO thread fails when reading Gtid_log_event.
+#    x IO thread converts Previous_gtids_log_event to Rotate_log_event.
+#    - Server fails to start if there are Previous_gtids_log_events or
+#      Gtid_log_events in the binary or relay log.
+#
+#   Option values and combinations:
+#    - Default is GTID_MODE = OFF
+#    - GTID_MODE is read-only.
+#    - GTID_MODE cannot (yet) be set to UPGRADE_STEP_1 or UPGRADE_STEP_2
+#    - GTID_MODE=ON requires all of --log-bin, --log-slave-updates,
+#      and --disable-gtid-unsafe-statements.
+#
+#   Master and slave:
+#    - START SLAVE fails if master has GTID_MODE = ON and slave has
+#      GTID_MODE = OFF.
+#    - START SLAVE fails if master has GTID_MODE = OFF and slave has
+#      GTID_MODE = ON.
+#
+# ==== References ====
+#
+# Added in WL#3584 - Global Transaction Identifiers
+--source include/not_windows.inc
+--disable_warnings
+--source include/master-slave.inc
+--enable_warnings
+
+--let $uuida= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+
+call mtr.add_suppression("Slave I/O: The slave IO thread stops because the master has GTID_MODE");
+call mtr.add_suppression("Error reading packet from server: Lost connection to MySQL");
+call mtr.add_suppression("Aborting");
+
+--sync_slave_with_master
+--source include/stop_slave.inc
+
+--connection master
+
+
+--echo ==== Master and slave have GTID_MODE = OFF ====
+
+--echo ---- Default value for GTID_MODE ----
+
+--let $assert_text= Default value for GTID_MODE should be OFF
+--let $assert_cond= "[SELECT @@GTID_MODE]" = "OFF"
+--source include/assert.inc
+
+--echo ---- GTID_MODE is read-only ----
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GTID_MODE = OFF;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GTID_MODE = UPGRADE_STEP_1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GTID_MODE = UPGRADE_STEP_2;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GTID_MODE = ON;
+
+--let $assert_text= GTID_MODE should still be OFF after failing to change GTID_MODE
+--let $assert_cond= "[SELECT @@GTID_MODE]" = "OFF"
+
+--echo ---- GTID_NEXT must be ANONYMOUS or AUTOMATIC ----
+
+# should not generate error
+SET GTID_NEXT = 'AUTOMATIC';
+
+# should not generate error
+SET GTID_NEXT = 'ANONYMOUS';
+
+# should generate error
+--error ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF
+eval SET GTID_NEXT = '$uuida:1';
+
+--echo ---- CHANGE MASTER TO MASTER_AUTO_POSITION not supported ----
+
+--connection slave
+
+# should generate error
+--error ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
+CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+
+# No error
+CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+
+--echo ---- No GTIDs in binlog ----
+
+--disable_warnings
+--source include/start_slave.inc
+--enable_warnings
+--connection master
+
+SET GTID_NEXT = 'AUTOMATIC';
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+SET GTID_NEXT = 'ANONYMOUS';
+INSERT INTO t1 VALUES (1);
+
+--let $binlog_file= LAST
+--let $binlog_limit= 1
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--sync_slave_with_master
+--source include/show_binlog_events.inc
+--source include/show_relaylog_events.inc
+
+--echo ==== Checks performed at server start when GTID_MODE = ON ====
+
+--connection master
+--let $saved_innodb_page_size_server1=`SELECT @@innodb_page_size`
+--connection slave
+--let $saved_innodb_page_size_server2=`SELECT @@innodb_page_size`
+--connection master
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+
+--let $server1_cmd= $MYSQLD --defaults-group-suffix=.1 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-output=file --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --innodb-page-size=$saved_innodb_page_size_server1
+
+--let $server2_cmd= $MYSQLD --defaults-group-suffix=.2 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-output=file --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --innodb-page-size=$saved_innodb_page_size_server2
+
+--let $assert_status= 1
+
+--echo ---- GTID_MODE = UPGRADE_STEP_[1|2] not supported ----
+
+--let $assert_regex= --gtid-mode=UPGRADE_STEP_1 or --gtid-mode=UPGRADE_STEP_2 are not yet supported
+
+--let $assert_command= $server2_cmd --gtid-mode=upgrade_step_1 --disable-gtid-unsafe-statements 2>&1
+--source include/assert_command_output.inc
+
+--let $assert_command= $server2_cmd --gtid-mode=upgrade_step_2 --disable-gtid-unsafe-statements 2>&1
+--source include/assert_command_output.inc
+
+--echo ---- GTID_MODE=ON requires --disable-gtid-unsafe-statements ----
+
+--let $assert_regex= --gtid-mode=ON or UPGRADE_STEP_1 requires --disable-gtid-unsafe-statements
+--let $assert_command= $server2_cmd --gtid-mode=on 2>&1
+--source include/assert_command_output.inc
+
+--echo ==== Master has GTID_MODE = OFF, slave has GTID_MODE = ON ====
+
+--let $rpl_server_number= 2
+--let $rpl_start_with_gtids= 1
+--source include/rpl_start_server.inc
+
+--echo ---- Slave can't connect ----
+--connection slave
+--disable_warnings
+START SLAVE;
+--enable_warnings
+--let $slave_io_errno= 1593 # ER_SLAVE_FATAL_ERROR
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
+
+--echo ==== Master and slave have GTID_MODE = ON ====
+
+--connection slave
+--let $rpl_server_number= 1
+--source include/rpl_stop_server.inc
+
+--echo ---- GTID_MODE = ON requires --log-bin --log-slave-updates ----
+
+# This test has to be performed on the master because the slave is
+# automatically running with both options on.
+
+--let $assert_regex= --gtid-mode=ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates
+--let $assert_command= $server1_cmd --gtid-mode=on --disable-gtid-unsafe-statements 2>&1
+--source include/assert_command_output.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_start_server.inc
+--disable_warnings
+--source include/start_slave.inc
+--enable_warnings
+
+--connection master
+
+--let $assert_text= GTID_MODE should be ON now.
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_MODE]" = "ON"
+--source include/assert.inc
+
+--echo ---- GTID_NEXT must be SID:GNO or AUTOMATIC -----
+
+# should not generate error
+SET GTID_NEXT = 'AUTOMATIC';
+
+# should not generate error
+eval SET GTID_NEXT = '$uuida:1';
+
+# should generate error
+--error ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
+SET GTID_NEXT = 'ANONYMOUS';
+ROLLBACK;
+
+#
+# Show that setting the same GTID twice raises an error the second time
+#
+SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+--error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
+SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+ROLLBACK;
+
+#
+# Show that connection close releases GTID_NEXT
+#
+connect (master_gtid,127.0.0.1,root,,test,$MASTER_MYPORT);
+--connection master_gtid
+SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+disconnect master_gtid;
+--connection master
+SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+ROLLBACK;
+
+--echo ---- GTIDs are in binlog ----
+
+SET GTID_NEXT = 'AUTOMATIC';
+INSERT INTO t1 VALUES (2);
+
+--let $binlog_file= LAST
+--let $binlog_limit= 1
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--sync_slave_with_master
+--source include/show_binlog_events.inc
+--source include/show_relaylog_events.inc
+
+--echo ---- CHANGE MASTER TO MASTER_AUTO_POSITION = 1 works ----
+
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+--disable_warnings
+--source include/start_slave.inc
+--enable_warnings
+
+--connection master
+INSERT INTO t1 VALUES (3);
+--sync_slave_with_master
+
+--let $datadir= `SELECT @@datadir`
+--source include/stop_slave.inc
+
+--echo ==== Checks performed at server start when GTID_MODE = OFF ====
+
+--connection master
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+
+--echo ---- Fail to start with GTID_MODE = OFF and GTIDs in binlog/relay log ----
+
+--let $assert_regex= Found a Gtid_log_event or Previous_gtids_log_event when GTID_MODE = OFF.
+--let $assert_command= $server2_cmd 2>&1
+--source include/assert_command_output.inc
+--error 0,1
+--remove_file $datadir/master.info
+--error 0,1
+--remove_file $datadir/relay.info
+
+--let $rpl_server_number= 2
+--let $rpl_skip_start_slave= 1
+--source include/rpl_start_server.inc
+--connection slave
+RESET SLAVE;
+RESET MASTER;
+
+--echo ==== Master has GTID_MODE = ON, slave has GTID_MODE = OFF ====
+
+--connection master
+--source include/rpl_stop_server.inc
+--remove_file $datadir/slave-bin.000001
+--remove_file $datadir/slave-bin.index
+--remove_file $datadir/slave-relay-bin.000001
+--remove_file $datadir/slave-relay-bin.index
+
+--let $rpl_server_number= 2
+--let $rpl_start_with_gtids= 0
+--let $rpl_skip_start_slave= 1
+--let $rpl_server_parameters= --log-slave-updates
+--source include/rpl_start_server.inc
+
+--let $file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--connection slave
+--replace_result $SERVER_MYPORT_1 PORT $file FILE $pos POS
+eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $SERVER_MYPORT_1, MASTER_USER = 'root', MASTER_LOG_FILE = '$file', MASTER_LOG_POS = $pos, MASTER_CONNECT_RETRY = 1;
+
+--echo ---- Slave can't connect ----
+
+--connection slave
+--disable_warnings
+START SLAVE;
+--enable_warnings
+--let $slave_io_errno= 1593 # ER_SLAVE_FATAL_ERROR
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
+RESET SLAVE;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

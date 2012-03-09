@@ -1,0 +1,194 @@
+#
+# TEST 1
+# Greedy search iteration test for 16-way join: star schema
+#
+# Creation of 16 tables hidden
+#
+SET SESSION optimizer_search_depth = 25;
+FLUSH STATUS;
+#
+# 16-way join - all 15 fact tables joined on column with key
+#
+EXPLAIN SELECT *
+FROM vehicles
+JOIN models        ON vehicles.model_id        = models.id_pk
+JOIN subtypes      ON vehicles.subtype_id      = subtypes.id_pk
+JOIN colors        ON vehicles.color_id        = colors.id_pk
+JOIN heating       ON vehicles.heating_id      = heating.id_pk
+JOIN windows       ON vehicles.window_id       = windows.id_pk
+JOIN fuels         ON vehicles.fuel_id         = fuels.id_pk
+JOIN transmissions ON vehicles.transmission_id = transmissions.id_pk
+JOIN steerings     ON vehicles.steering_id     = steerings.id_pk
+JOIN interiors     ON vehicles.interior_id     = interiors.id_pk
+JOIN drives        ON vehicles.drive_id        = drives.id_pk
+JOIN wheels        ON vehicles.wheels_id       = wheels.id_pk
+JOIN engine        ON vehicles.engine_id       = engine.id_pk
+JOIN price_ranges  ON vehicles.price_range_id  = price_ranges.id_pk
+JOIN countries     ON vehicles.assembled_in    = countries.id_pk
+JOIN brands        ON models.brand_id          = brands.id_pk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	vehicles	ALL	NULL	NULL	NULL	NULL	80	Using where
+1	SIMPLE	subtypes	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.subtype_id	1	NULL
+1	SIMPLE	heating	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.heating_id	1	NULL
+1	SIMPLE	windows	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.window_id	1	NULL
+1	SIMPLE	fuels	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.fuel_id	1	NULL
+1	SIMPLE	transmissions	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.transmission_id	1	NULL
+1	SIMPLE	steerings	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.steering_id	1	NULL
+1	SIMPLE	drives	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.drive_id	1	NULL
+1	SIMPLE	wheels	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.wheels_id	1	NULL
+1	SIMPLE	engine	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.engine_id	1	NULL
+1	SIMPLE	price_ranges	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.price_range_id	1	NULL
+1	SIMPLE	colors	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.color_id	1	NULL
+1	SIMPLE	interiors	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.interior_id	1	NULL
+1	SIMPLE	countries	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.assembled_in	1	NULL
+1	SIMPLE	models	eq_ref	PRIMARY,brand_id	PRIMARY	4	test.vehicles.model_id	1	Using where
+1	SIMPLE	brands	eq_ref	PRIMARY	PRIMARY	4	test.models.brand_id	1	NULL
+### Partial_plans: 50922
+FLUSH STATUS;
+#
+# 16-way join - 10 fact tables joined on column with key and
+#                5 fact tables joined on column without key
+#
+EXPLAIN SELECT *
+FROM vehicles
+JOIN models        ON vehicles.model_id        = models.id_nokey
+JOIN subtypes      ON vehicles.subtype_id      = subtypes.id_pk
+JOIN colors        ON vehicles.color_id        = colors.id_pk
+JOIN heating       ON vehicles.heating_id      = heating.id_nokey
+JOIN windows       ON vehicles.window_id       = windows.id_pk
+JOIN fuels         ON vehicles.fuel_id         = fuels.id_pk
+JOIN transmissions ON vehicles.transmission_id = transmissions.id_nokey
+JOIN steerings     ON vehicles.steering_id     = steerings.id_pk
+JOIN interiors     ON vehicles.interior_id     = interiors.id_pk
+JOIN drives        ON vehicles.drive_id        = drives.id_pk
+JOIN wheels        ON vehicles.wheels_id       = wheels.id_nokey
+JOIN engine        ON vehicles.engine_id       = engine.id_pk
+JOIN price_ranges  ON vehicles.price_range_id  = price_ranges.id_pk
+JOIN countries     ON vehicles.assembled_in    = countries.id_pk
+JOIN brands        ON models.brand_id          = brands.id_nokey;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	brands	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	models	ref	brand_id	brand_id	5	test.brands.id_nokey	4	NULL
+1	SIMPLE	heating	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (Block Nested Loop)
+1	SIMPLE	transmissions	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (Block Nested Loop)
+1	SIMPLE	wheels	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (Block Nested Loop)
+1	SIMPLE	vehicles	ALL	NULL	NULL	NULL	NULL	80	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	windows	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.window_id	1	NULL
+1	SIMPLE	fuels	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.fuel_id	1	NULL
+1	SIMPLE	steerings	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.steering_id	1	NULL
+1	SIMPLE	drives	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.drive_id	1	NULL
+1	SIMPLE	engine	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.engine_id	1	NULL
+1	SIMPLE	price_ranges	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.price_range_id	1	NULL
+1	SIMPLE	interiors	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.interior_id	1	NULL
+1	SIMPLE	countries	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.assembled_in	1	NULL
+1	SIMPLE	subtypes	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.subtype_id	1	NULL
+1	SIMPLE	colors	eq_ref	PRIMARY	PRIMARY	4	test.vehicles.color_id	1	NULL
+### Partial_plans: 483932
+FLUSH STATUS;
+select @@optimizer_search_depth;
+@@optimizer_search_depth
+25
+select @@optimizer_prune_level;
+@@optimizer_prune_level
+1
+DROP TABLE vehicles, models, subtypes, colors, heating, windows, 
+fuels, transmissions, steerings, interiors, drives, 
+price_ranges, countries, brands, wheels, engine;
+#
+# TEST 2
+# Greedy search iteration test for chain of tables
+#
+#
+# Chain test a:      colidx):(pk,colidx):(pk,colidx)
+#
+EXPLAIN SELECT * FROM t10_1 JOIN t100_1 ON t10_1.colidx = t100_1.pk JOIN t10_2 ON t100_1.colidx = t10_2.pk JOIN t100_2 ON t10_2.colidx = t100_2.pk JOIN t10_3 ON t100_2.colidx = t10_3.pk JOIN t100_3 ON t10_3.colidx = t100_3.pk JOIN t10_4 ON t100_3.colidx = t10_4.pk JOIN t100_4 ON t10_4.colidx = t100_4.pk JOIN t10_5 ON t100_4.colidx = t10_5.pk JOIN t100_5 ON t10_5.colidx = t100_5.pk JOIN t10_6 ON t100_5.colidx = t10_6.pk JOIN t100_6 ON t10_6.colidx = t100_6.pk JOIN t10_7 ON t100_6.colidx = t10_7.pk JOIN t100_7 ON t10_7.colidx = t100_7.pk JOIN t10_8 ON t100_7.colidx = t10_8.pk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t10_1	ALL	colidx	NULL	NULL	NULL	10	Using where
+1	SIMPLE	t100_1	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t10_1.colidx	1	Using where
+1	SIMPLE	t10_2	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t100_1.colidx	1	Using where
+1	SIMPLE	t100_2	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t10_2.colidx	1	Using where
+1	SIMPLE	t10_3	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t100_2.colidx	1	Using where
+1	SIMPLE	t100_3	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t10_3.colidx	1	Using where
+1	SIMPLE	t10_4	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t100_3.colidx	1	Using where
+1	SIMPLE	t100_4	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t10_4.colidx	1	Using where
+1	SIMPLE	t10_5	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t100_4.colidx	1	Using where
+1	SIMPLE	t100_5	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t10_5.colidx	1	Using where
+1	SIMPLE	t10_6	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t100_5.colidx	1	Using where
+1	SIMPLE	t100_6	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t10_6.colidx	1	Using where
+1	SIMPLE	t10_7	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t100_6.colidx	1	Using where
+1	SIMPLE	t100_7	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t10_7.colidx	1	Using where
+1	SIMPLE	t10_8	eq_ref	PRIMARY	PRIMARY	4	test.t100_7.colidx	1	NULL
+### Partial_plans: 3630
+FLUSH STATUS;
+#
+# Chain test b: (...,col):(colidx, col):(pk,col):(colidx,col):(pk,...)
+#
+EXPLAIN SELECT * FROM t10_1 JOIN t100_1 ON t10_1.col = t100_1.colidx JOIN t10_2 ON t100_1.col = t10_2.pk JOIN t100_2 ON t10_2.col = t100_2.colidx JOIN t10_3 ON t100_2.col = t10_3.pk JOIN t100_3 ON t10_3.col = t100_3.colidx JOIN t10_4 ON t100_3.col = t10_4.pk JOIN t100_4 ON t10_4.col = t100_4.colidx JOIN t10_5 ON t100_4.col = t10_5.pk JOIN t100_5 ON t10_5.col = t100_5.colidx JOIN t10_6 ON t100_5.col = t10_6.pk JOIN t100_6 ON t10_6.col = t100_6.colidx JOIN t10_7 ON t100_6.col = t10_7.pk JOIN t100_7 ON t10_7.col = t100_7.colidx JOIN t10_8 ON t100_7.col = t10_8.pk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t10_1	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	SIMPLE	t100_1	ref	colidx	colidx	5	test.t10_1.col	10	Using where
+1	SIMPLE	t10_2	eq_ref	PRIMARY	PRIMARY	4	test.t100_1.col	1	Using where
+1	SIMPLE	t100_2	ref	colidx	colidx	5	test.t10_2.col	10	Using where
+1	SIMPLE	t10_3	eq_ref	PRIMARY	PRIMARY	4	test.t100_2.col	1	Using where
+1	SIMPLE	t100_3	ref	colidx	colidx	5	test.t10_3.col	10	Using where
+1	SIMPLE	t10_4	eq_ref	PRIMARY	PRIMARY	4	test.t100_3.col	1	Using where
+1	SIMPLE	t100_4	ref	colidx	colidx	5	test.t10_4.col	10	Using where
+1	SIMPLE	t10_5	eq_ref	PRIMARY	PRIMARY	4	test.t100_4.col	1	Using where
+1	SIMPLE	t100_5	ref	colidx	colidx	5	test.t10_5.col	10	Using where
+1	SIMPLE	t10_6	eq_ref	PRIMARY	PRIMARY	4	test.t100_5.col	1	Using where
+1	SIMPLE	t100_6	ref	colidx	colidx	5	test.t10_6.col	10	Using where
+1	SIMPLE	t10_7	eq_ref	PRIMARY	PRIMARY	4	test.t100_6.col	1	Using where
+1	SIMPLE	t100_7	ref	colidx	colidx	5	test.t10_7.col	10	Using where
+1	SIMPLE	t10_8	eq_ref	PRIMARY	PRIMARY	4	test.t100_7.col	1	NULL
+### Partial_plans: 692133
+FLUSH STATUS;
+#
+# Chain test c: (...,colidx):(col, pk):(col,colidx):(col,...)
+#
+EXPLAIN SELECT * FROM t10_1 JOIN t100_1 ON t10_1.colidx = t100_1.col JOIN t10_2 ON t100_1.pk = t10_2.col JOIN t100_2 ON t10_2.colidx = t100_2.col JOIN t10_3 ON t100_2.pk = t10_3.col JOIN t100_3 ON t10_3.colidx = t100_3.col JOIN t10_4 ON t100_3.pk = t10_4.col JOIN t100_4 ON t10_4.colidx = t100_4.col JOIN t10_5 ON t100_4.pk = t10_5.col JOIN t100_5 ON t10_5.colidx = t100_5.col JOIN t10_6 ON t100_5.pk = t10_6.col JOIN t100_6 ON t10_6.colidx = t100_6.col JOIN t10_7 ON t100_6.pk = t10_7.col JOIN t100_7 ON t10_7.colidx = t100_7.col JOIN t10_8 ON t100_7.pk = t10_8.col;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t10_8	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	SIMPLE	t100_7	eq_ref	PRIMARY	PRIMARY	4	test.t10_8.col	1	Using where
+1	SIMPLE	t10_7	ref	colidx	colidx	5	test.t100_7.col	1	Using where
+1	SIMPLE	t100_6	eq_ref	PRIMARY	PRIMARY	4	test.t10_7.col	1	Using where
+1	SIMPLE	t10_6	ref	colidx	colidx	5	test.t100_6.col	1	Using where
+1	SIMPLE	t100_5	eq_ref	PRIMARY	PRIMARY	4	test.t10_6.col	1	Using where
+1	SIMPLE	t10_5	ref	colidx	colidx	5	test.t100_5.col	1	Using where
+1	SIMPLE	t100_4	eq_ref	PRIMARY	PRIMARY	4	test.t10_5.col	1	Using where
+1	SIMPLE	t10_4	ref	colidx	colidx	5	test.t100_4.col	1	Using where
+1	SIMPLE	t100_3	eq_ref	PRIMARY	PRIMARY	4	test.t10_4.col	1	Using where
+1	SIMPLE	t10_3	ref	colidx	colidx	5	test.t100_3.col	1	Using where
+1	SIMPLE	t100_2	eq_ref	PRIMARY	PRIMARY	4	test.t10_3.col	1	Using where
+1	SIMPLE	t10_2	ref	colidx	colidx	5	test.t100_2.col	1	Using where
+1	SIMPLE	t100_1	eq_ref	PRIMARY	PRIMARY	4	test.t10_2.col	1	Using where
+1	SIMPLE	t10_1	ref	colidx	colidx	5	test.t100_1.col	1	NULL
+### Partial_plans: 12025
+FLUSH STATUS;
+#
+# Chain test d: (...,colidx):(pk, col):(pk,colidx):(pk,col):(pk,...)
+#
+EXPLAIN SELECT * FROM t10_1 JOIN t100_1 ON t10_1.colidx = t100_1.pk JOIN t10_2 ON t100_1.col = t10_2.pk JOIN t100_2 ON t10_2.colidx = t100_2.pk JOIN t10_3 ON t100_2.col = t10_3.pk JOIN t100_3 ON t10_3.colidx = t100_3.pk JOIN t10_4 ON t100_3.col = t10_4.pk JOIN t100_4 ON t10_4.colidx = t100_4.pk JOIN t10_5 ON t100_4.col = t10_5.pk JOIN t100_5 ON t10_5.colidx = t100_5.pk JOIN t10_6 ON t100_5.col = t10_6.pk JOIN t100_6 ON t10_6.colidx = t100_6.pk JOIN t10_7 ON t100_6.col = t10_7.pk JOIN t100_7 ON t10_7.colidx = t100_7.pk JOIN t10_8 ON t100_7.col = t10_8.pk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t10_1	ALL	colidx	NULL	NULL	NULL	10	Using where
+1	SIMPLE	t100_1	eq_ref	PRIMARY	PRIMARY	4	test.t10_1.colidx	1	Using where
+1	SIMPLE	t10_2	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t100_1.col	1	Using where
+1	SIMPLE	t100_2	eq_ref	PRIMARY	PRIMARY	4	test.t10_2.colidx	1	Using where
+1	SIMPLE	t10_3	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t100_2.col	1	Using where
+1	SIMPLE	t100_3	eq_ref	PRIMARY	PRIMARY	4	test.t10_3.colidx	1	Using where
+1	SIMPLE	t10_4	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t100_3.col	1	Using where
+1	SIMPLE	t100_4	eq_ref	PRIMARY	PRIMARY	4	test.t10_4.colidx	1	Using where
+1	SIMPLE	t10_5	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t100_4.col	1	Using where
+1	SIMPLE	t100_5	eq_ref	PRIMARY	PRIMARY	4	test.t10_5.colidx	1	Using where
+1	SIMPLE	t10_6	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t100_5.col	1	Using where
+1	SIMPLE	t100_6	eq_ref	PRIMARY	PRIMARY	4	test.t10_6.colidx	1	Using where
+1	SIMPLE	t10_7	eq_ref	PRIMARY,colidx	PRIMARY	4	test.t100_6.col	1	Using where
+1	SIMPLE	t100_7	eq_ref	PRIMARY	PRIMARY	4	test.t10_7.colidx	1	Using where
+1	SIMPLE	t10_8	eq_ref	PRIMARY	PRIMARY	4	test.t100_7.col	1	NULL
+### Partial_plans: 1445
+FLUSH STATUS;
+#
+# Cleanup after TEST 2
+#
+DROP TABLE tbl10, tbl100;
+DROP TABLE t10_1,t10_2,t10_3,t10_4,t10_5,t10_6,t10_7,t10_8,t10_9;
+DROP TABLE t100_1,t100_2,t100_3,t100_4,t100_5,t100_6,t100_7,t100_8,t100_9;

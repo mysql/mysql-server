@@ -169,6 +169,7 @@ def	mysql	servers	Username	4		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci
 def	mysql	servers	Wrapper	8		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)				
 def	mysql	slave_master_info	Bind	18	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text				Displays which interface is employed when connecting to the MySQL server
 def	mysql	slave_master_info	Connect_retry	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned				The period (in seconds) that the slave will wait before trying to reconnect to the master.
+def	mysql	slave_master_info	Enabled_auto_position	24	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)				Indicates whether GTIDs will be used to retrieve events from the master.
 def	mysql	slave_master_info	Enabled_ssl	10	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)				Indicates whether the server supports SSL connections.
 def	mysql	slave_master_info	Heartbeat	17	NULL	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float				
 def	mysql	slave_master_info	Host	5	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text				The host name of the master.
@@ -547,6 +548,7 @@ NULL	mysql	slave_master_info	Heartbeat	float	NULL	NULL	NULL	NULL	float
 NULL	mysql	slave_master_info	Retry_count	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 1.0000	mysql	slave_master_info	Ssl_crl	text	65535	65535	utf8	utf8_bin	text
 1.0000	mysql	slave_master_info	Ssl_crlpath	text	65535	65535	utf8	utf8_bin	text
+NULL	mysql	slave_master_info	Enabled_auto_position	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 NULL	mysql	slave_relay_log_info	Master_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	slave_relay_log_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slave_relay_log_info	Relay_log_name	text	65535	65535	utf8	utf8_bin	text

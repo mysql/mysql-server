@@ -991,8 +991,20 @@ EXPLAIN SELECT a FROM t1 WHERE a < 2 ORDER BY a;
 EXPLAIN SELECT a FROM t1 WHERE a < 2 GROUP BY a;
 EXPLAIN SELECT a FROM t1 IGNORE INDEX (PRIMARY,i2);
 EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR JOIN (PRIMARY,i2);
-EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (PRIMARY,i2) GROUP BY a;
-EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a;
+--let $query=SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (PRIMARY,i2) GROUP BY a
+--eval EXPLAIN $query
+FLUSH STATUS;
+--disable_result_log
+--eval $query
+--enable_result_log
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+--let $query=SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a
+--eval EXPLAIN $query
+FLUSH STATUS;
+--disable_result_log
+--eval $query
+--enable_result_log
+SHOW SESSION STATUS LIKE 'Sort_scan%';
 SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a;
 EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY)
   IGNORE INDEX FOR GROUP BY (i2) GROUP BY a;
@@ -1523,7 +1535,9 @@ let $query=SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
 
 # Needs to be range to exercise bug
 --eval EXPLAIN $query;
+FLUSH STATUS;
 --eval $query;
+SHOW SESSION STATUS LIKE 'Sort_scan%';
 
 CREATE VIEW v1 AS SELECT * FROM t1;
 
@@ -1930,3 +1944,33 @@ select ifnull(a, 'xyz') from t1 group by a;
 DROP TABLE t1;
 
 SET @@sql_mode = @old_sql_mode;
+
+--echo #
+--echo # BUG#12640437: USING SQL_BUFFER_RESULT RESULTS IN A
+--echo #               DIFFERENT QUERY OUTPUT
+--echo #
+
+CREATE TABLE t1 (
+  a int,
+  b varchar(1),
+  KEY (b,a)
+);
+
+INSERT INTO t1 VALUES (1,NULL),(0,'a');
+
+let $query=
+  SELECT SQL_BUFFER_RESULT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+
+--echo
+--eval EXPLAIN $query
+--echo
+--eval $query
+
+let $query= SELECT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+--echo
+--eval EXPLAIN $query
+--echo
+--eval $query
+
+--echo
+DROP TABLE t1;

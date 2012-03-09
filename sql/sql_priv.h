@@ -259,10 +259,6 @@
 #define UNCACHEABLE_UNITED     16
 #define UNCACHEABLE_CHECKOPTION 32
 
-/* BINLOG_DUMP options */
-
-#define BINLOG_DUMP_NON_BLOCK   1
-
 /*
   Some defines for exit codes for ::is_equal class functions.
 */
