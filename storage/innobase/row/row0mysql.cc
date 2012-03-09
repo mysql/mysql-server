@@ -3084,7 +3084,7 @@ row_truncate_table_for_mysql(
 		ulint	flags	= fil_space_get_flags(space);
 
 		if (flags != ULINT_UNDEFINED
-		    && fil_discard_tablespace(space, FALSE)) {
+		    && fil_discard_tablespace(space, FALSE) == DB_SUCCESS) {
 
 			dict_index_t*	index;
 
