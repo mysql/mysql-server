@@ -1563,6 +1563,7 @@ static int tokudb_user_data_exact_done(void *p) {
 struct st_mysql_information_schema tokudb_user_data_exact_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
 
 enum { TOKUDB_PLUGIN_VERSION = 0x0400 };
+#define TOKUDB_PLUGIN_VERSION_STR "1024"
 
 mysql_declare_plugin(tokudb) 
 {
@@ -1609,3 +1610,54 @@ mysql_declare_plugin(tokudb)
 }
 mysql_declare_plugin_end;
 
+#ifdef MARIA_PLUGIN_INTERFACE_VERSION
+
+maria_declare_plugin(tokudb) 
+{
+    MYSQL_STORAGE_ENGINE_PLUGIN, 
+    &tokudb_storage_engine, 
+    "TokuDB", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_GPL,
+    tokudb_init_func,          /* plugin init */
+    tokudb_done_func,          /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    tokudb_system_variables,   /* system variables */
+    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_user_data_information_schema, 
+    "TokuDB_user_data", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_GPL,
+    tokudb_user_data_init,     /* plugin init */
+    tokudb_user_data_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_user_data_exact_information_schema, 
+    "TokuDB_user_data_exact", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_GPL,
+    tokudb_user_data_exact_init,     /* plugin init */
+    tokudb_user_data_exact_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;
+
+#endif
