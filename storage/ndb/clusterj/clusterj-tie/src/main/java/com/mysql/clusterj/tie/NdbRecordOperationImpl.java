@@ -32,6 +32,7 @@ import com.mysql.clusterj.core.store.Db;
 import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.Table;
+
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
@@ -145,7 +146,7 @@ public class NdbRecordOperationImpl implements Operation {
         clusterTransactionImpl.addOperationToCheck(this);
         // for each blob column set, get the blob handle and write the values
         for (NdbRecordBlobImpl blob: activeBlobs) {
-            // activate the blob
+            // activate the blob by getting the NdbBlob
             blob.setNdbBlob();
             // set values into the blob
             blob.setValue();
@@ -169,7 +170,7 @@ public class NdbRecordOperationImpl implements Operation {
         clusterTransactionImpl.addOperationToCheck(this);
         // for each blob column set, get the blob handle and write the values
         for (NdbRecordBlobImpl blob: activeBlobs) {
-            // activate the blob
+            // activate the blob by getting the NdbBlob
             blob.setNdbBlob();
             // set values into the blob
             blob.setValue();
@@ -185,12 +186,24 @@ public class NdbRecordOperationImpl implements Operation {
         clusterTransactionImpl.addOperationToCheck(this);
         // for each blob column set, get the blob handle and write the values
         for (NdbRecordBlobImpl blob: activeBlobs) {
-            // activate the blob
+            // activate the blob by getting the NdbBlob
             blob.setNdbBlob();
             // set values into the blob
             blob.setValue();
         }
         return;
+    }
+
+    public void load(ClusterTransactionImpl clusterTransactionImpl) {
+        // position the buffer at the beginning for ndbjtie
+        valueBuffer.limit(valueBufferSize);
+        valueBuffer.position(0);
+        ndbOperation = clusterTransactionImpl.readTuple(ndbRecordKeys.getNdbRecord(), keyBuffer, ndbRecordValues.getNdbRecord(), valueBuffer, mask, null);
+        // for each blob column set, get the blob handle
+        for (NdbRecordBlobImpl blob: activeBlobs) {
+            // activate the blob by getting the NdbBlob
+            blob.setNdbBlob();
+        }
     }
 
     public void equalBigInteger(Column storeColumn, BigInteger value) {
@@ -757,6 +770,15 @@ public class NdbRecordOperationImpl implements Operation {
     @Override
     public String toString() {
         return tableName;
+    }
+
+    /** After executing the operation, fetch the blob values into each blob's data holder.
+     * 
+     */
+    public void loadBlobValues() {
+        for (NdbRecordBlobImpl ndbRecordBlobImpl: activeBlobs) {
+            ndbRecordBlobImpl.readData();
+        }
     }
 
 }

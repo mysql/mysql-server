@@ -41,7 +41,7 @@ class NdbRecordBlobImpl extends BlobImpl {
     /** The store column for this blob */
     private Column storeColumn;
 
-    /** The data for this blob */
+    /** The data holder for this blob */
     private byte[] data;
 
     /** The operation */
@@ -74,6 +74,15 @@ class NdbRecordBlobImpl extends BlobImpl {
 
     public String getStringData() {
         return storeColumn.decode(data);
+    }
+
+    /** Read data from the NdbBlob into the data holder.
+     * 
+     */
+    public void readData() {
+        int length = getLength().intValue();
+        data = new byte[length];
+        readData(data, length);
     }
 
 }

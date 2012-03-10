@@ -137,7 +137,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
         // return null if the oid is null (this will be the case if a foreign key element is null)
         ClassMapping cls = vm.getDeclaredTypeMapping();
         NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler = getDomainTypeHandler(cls);
-        Object handler = domainTypeHandler.createKeyValueHandler(oid);
+        Object handler = domainTypeHandler.createKeyValueHandler(oid, null);
         if (handler == null) {
             return null;
         }
@@ -251,7 +251,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
 //                    domainTypeHandler.createKeyValueHandler(id.getIdObject()));
                 // initialize via OpenJPA protocol
                 // select all columns from table
-                ValueHandler keyValueHandler = domainTypeHandler.createKeyValueHandler(id.getIdObject());
+                ValueHandler keyValueHandler = domainTypeHandler.createKeyValueHandler(id.getIdObject(), null);
                 ResultData resultData = session.selectUnique(domainTypeHandler,
                         keyValueHandler,
                         null);

@@ -164,7 +164,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      */
     public <T> T find(Class<T> cls, Object key) {
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
-        ValueHandler keyHandler = domainTypeHandler.createKeyValueHandler(key);
+        ValueHandler keyHandler = domainTypeHandler.createKeyValueHandler(key, db);
         // initialize from the database using the key
         return initializeFromDatabase(domainTypeHandler, null, null, keyHandler);
     }
@@ -184,10 +184,34 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param instance the instance (may be null)
      * @return the instance with fields initialized from the database
      */
-    public <T> T initializeFromDatabase(DomainTypeHandler<T> domainTypeHandler,
+    public <T> T initializeFromDatabase(final DomainTypeHandler<T> domainTypeHandler,
             T instance,
             ValueHandler instanceHandler, ValueHandler keyHandler) {
         startAutoTransaction();
+        if (keyHandler instanceof SmartValueHandler) {
+            try {
+                final SmartValueHandler smartValueHandler = (SmartValueHandler)keyHandler;
+                setPartitionKey(domainTypeHandler, smartValueHandler);
+                // load the values from the database into the smart value handler
+                @SuppressWarnings("unused")
+                Operation operation = smartValueHandler.load(clusterTransaction);
+                endAutoTransaction();
+                if (isActive()) {
+                    // if this is a continuing transaction, flush the operation to get the result
+                    clusterTransaction.executeNoCommit(false, true);
+                }
+                if (smartValueHandler.found()) {
+                    // create a new proxy (or dynamic instance) with the smart value handler
+                    return domainTypeHandler.newInstance(smartValueHandler, db);
+                } else {
+                    // not found
+                    return null;
+                }
+            } catch (ClusterJException ex) {
+            failAutoTransaction();
+            throw ex;
+            }
+        }
         try {
             ResultData rs = selectUnique(domainTypeHandler, keyHandler, null);
             if (rs.next()) {
@@ -297,6 +321,11 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         final DomainTypeHandler<?> domainTypeHandler = getDomainTypeHandler(object);
         final ValueHandler instanceHandler = domainTypeHandler.getValueHandler(object);
         setPartitionKey(domainTypeHandler, instanceHandler);
+        if (instanceHandler instanceof SmartValueHandler) {
+            @SuppressWarnings("unused")
+            Operation operation = ((SmartValueHandler)instanceHandler).load(clusterTransaction);
+            return object;
+        }
         Table storeTable = domainTypeHandler.getStoreTable();
         // perform a primary key operation
         final Operation op = clusterTransaction.getSelectOperation(storeTable);
@@ -453,7 +482,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      */
     public <T> void deletePersistent(Class<T> cls, Object key) {
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
-        ValueHandler keyValueHandler = domainTypeHandler.createKeyValueHandler(key);
+        ValueHandler keyValueHandler = domainTypeHandler.createKeyValueHandler(key, db);
         delete(domainTypeHandler, keyValueHandler);
     }
 
@@ -1382,7 +1411,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             throw new ClusterJUserException(
                     local.message("ERR_Set_Partition_Key_Twice", tableName));
         }
-        ValueHandler handler = domainTypeHandler.createKeyValueHandler(key);
+        ValueHandler handler = domainTypeHandler.createKeyValueHandler(key, db);
         this.partitionKey= domainTypeHandler.createPartitionKey(handler);
         // if a transaction has already begun, tell the cluster transaction about the key
         if (clusterTransaction != null) {

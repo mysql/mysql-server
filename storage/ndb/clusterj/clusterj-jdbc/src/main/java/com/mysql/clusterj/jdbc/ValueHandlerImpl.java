@@ -434,6 +434,13 @@ public class ValueHandlerImpl implements ValueHandlerBatching {
     }
 
     @Override
+    public Object getProxy() {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Unsupported_Method",
+                "getProxy()", "ValueHandlerImpl"));
+    }
+
+    @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Unsupported_Method",

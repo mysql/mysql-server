@@ -3259,4 +3259,11 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                 "isLob()", "AbstractDomainFieldHandlerImpl"));
     }
 
+    public boolean isPersistent() {
+        // should implement this in a subclass
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Operation_Not_Supported",
+                "isPersistent()", "AbstractDomainFieldHandlerImpl"));
+    }
+
 }

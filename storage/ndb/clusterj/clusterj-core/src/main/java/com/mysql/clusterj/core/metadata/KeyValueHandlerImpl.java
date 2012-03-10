@@ -427,6 +427,12 @@ public class KeyValueHandlerImpl implements ValueHandler {
                 "setProxy(Object)", "KeyValueHandlerImpl"));
     }
 
+    public Object getProxy() {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Operation_Not_Supported",
+                "getProxy()", "KeyValueHandlerImpl"));
+    }
+
     public Object invoke(Object proxy, Method method, Object[] args)
             throws Throwable {
         throw new ClusterJFatalInternalException(

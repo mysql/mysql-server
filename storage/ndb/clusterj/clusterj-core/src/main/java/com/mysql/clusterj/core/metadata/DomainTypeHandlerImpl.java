@@ -37,8 +37,6 @@ import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.store.Operation;
 
-
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
@@ -392,12 +390,14 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
 
     public void objectSetKeys(Object keys, Object instance) {
         ValueHandler handler = getValueHandler(instance);
+        objectSetKeys(keys, handler);
+    }
+
+    public void objectSetKeys(Object keys, ValueHandler handler) {
         int size = idFieldHandlers.length;
         if (size == 1) {
             // single primary key; store value in key field
-            for (DomainFieldHandler fmd: idFieldHandlers) {
-                fmd.objectSetKeyValue(keys, handler);
-            }
+            idFieldHandlers[0].objectSetKeyValue(keys, handler);
         } else if (keys instanceof java.lang.Object[]) {
             if (logger.isDetailEnabled()) logger.detail(keys.toString());
             // composite primary key; store values in key fields
@@ -419,16 +419,23 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         getValueHandler(instance).setCacheManager(cm);
     }
 
+    @Override
     public T newInstance(Db db) {
+        ValueHandler valueHandler = valueHandlerFactory.getValueHandler(this, db);
+        return newInstance(valueHandler, db);
+    }
+
+    @Override
+    public T newInstance(ValueHandler valueHandler, Db db) {
         T instance;
         try {
-            ValueHandler handler = valueHandlerFactory.getValueHandler(this, db);
             if (dynamic) {
                 instance = cls.newInstance();
-                ((DynamicObject)instance).delegate((DynamicObjectDelegate)handler);
+                ((DynamicObject)instance).delegate((DynamicObjectDelegate)valueHandler);
             } else {
-                instance = ctor.newInstance(new Object[] {handler});
-                handler.setProxy(instance);
+                instance = ctor.newInstance(new Object[] {valueHandler});
+                // TODO is setProxy really needed?
+                valueHandler.setProxy(instance);
             }
             return instance;
         } catch (InstantiationException ex) {
@@ -470,8 +477,9 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
     }
 
     @SuppressWarnings( "unchecked" )
-    public T getInstance(ValueHandler handler) {
-        return (T)((InvocationHandlerImpl)handler).getProxy();
+    public T getInstance(ValueHandler valueHandler) {
+        T instance = (T)valueHandler.getProxy();
+        return instance;
     }
 
     private Class<?> getType(Method method) {
@@ -511,36 +519,46 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         }
     }
 
-    public ValueHandler createKeyValueHandler(Object keys) {
+    /** Create a key value handler from the key(s). The keys are as given by the user.
+     * For domain classes with a single key field, the key is the object wrapper for the
+     * primitive key value. For domain classes with compound primary keys, the key is
+     * an Object[] in which the values correspond to the order of keys in the table
+     * definition.
+     * The key is validated for proper types, and if a key component is part of a partition key,
+     * it must not be null.
+     * @param keys the key(s)
+     * @param db the Db
+     * @return the key value handler
+     */
+    public ValueHandler createKeyValueHandler(Object keys, Db db) {
         if (keys == null) {
             throw new ClusterJUserException(
                     local.message("ERR_Key_Must_Not_Be_Null", getName(), "unknown"));
         }
-        Object[] keyValues = new Object[numberOfFields];
         // check the cardinality of the keys with the number of key fields
         if (numberOfIdFields == 1) {
             Class<?> keyType = idFieldHandlers[0].getType();
             DomainFieldHandler fmd = idFieldHandlers[0];
             checkKeyType(fmd.getName(), keyType, keys);
-            int keyFieldNumber = fmd.getFieldNumber();
-            keyValues[keyFieldNumber] = keys;
         } else {
             if (!(keys.getClass().isArray())) {
                 throw new ClusterJUserException(
                         local.message("ERR_Key_Must_Be_An_Object_Array",
                         numberOfIdFields));
             }
-            Object[]keyObjects = (Object[])keys;
             for (int i = 0; i < numberOfIdFields; ++i) {
                 DomainFieldHandler fmd = idFieldHandlers[i];
-                int index = fmd.getFieldNumber();
-                Object keyObject = keyObjects[i];
+                Object keyObject = ((Object[])keys)[i];
                 Class<?> keyType = fmd.getType();
                 checkKeyType(fmd.getName(), keyType, keyObject);
-                keyValues[index] = keyObjects[i];
+                if (keyObject == null && fmd.isPartitionKey()) {
+                    // partition keys must not be null
+                    throw new ClusterJUserException(local.message("ERR_Key_Must_Not_Be_Null", getName(), 
+                            fieldHandlers[i].getName()));
+                }
             }
         }
-        return new KeyValueHandlerImpl(keyValues);
+        return valueHandlerFactory.getKeyValueHandler(this, db, keys);
     }
 
     /** Check that the key value matches the key type. Keys that are part
@@ -570,6 +588,31 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         }
     }
 
+    /** Expand the given Object or Object[] into an Object[] containing key values
+     * in the proper position. The parameter is as given by the user. 
+     * For domain classes with a single key field, the key is the object wrapper for the
+     * primitive key value. For domain classes with compound primary keys, the key is
+     * an Object[] in which the values correspond to the order of keys in the table
+     * definition.
+     * 
+     * @param keys an object or Object[] containing all primary keys
+     * @return an Object[] of length numberOfFields in which key values are in their proper position
+     */
+    public Object[] expandKeyValues(Object keys) {
+        Object[] keyValues;
+        if (keys instanceof Object[]) {
+            keyValues = (Object[])keys;
+        } else {
+            keyValues = new Object[] {keys};
+        }
+        Object[] result = new Object[numberOfFields];
+        int i = 0;
+        for (Integer idFieldNumber: idFieldNumbers) {
+            result[idFieldNumber] = keyValues[i];
+        }
+        return result;
+    }
+
     public Class<?> getOidClass() {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
@@ -583,6 +626,12 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
     protected ValueHandlerFactory defaultInvocationHandlerFactory = new ValueHandlerFactory()  {
         public <V> ValueHandler getValueHandler(DomainTypeHandlerImpl<V> domainTypeHandler, Db db) {
             return new InvocationHandlerImpl<V>(domainTypeHandler);
+        }
+
+        public <V> ValueHandler getKeyValueHandler(
+                DomainTypeHandlerImpl<V> domainTypeHandler, Db db, Object keyValues) {
+            Object[] expandedKeyValues = expandKeyValues(keyValues);
+            return new KeyValueHandlerImpl(expandedKeyValues);
         }
     };
 

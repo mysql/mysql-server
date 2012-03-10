@@ -475,6 +475,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
     public NdbOperationConst readTuple(NdbRecordConst ndbRecordKeys, ByteBuffer keyBuffer,
             NdbRecordConst ndbRecordValues, ByteBuffer valueBuffer,
             byte[] mask, OperationOptionsConst options) {
+        enlist();
         NdbOperationConst operation = ndbTransaction.readTuple(ndbRecordKeys, keyBuffer, 
                 ndbRecordValues, valueBuffer, findLockMode, mask, options, 0);
         handleError(operation, ndbTransaction);

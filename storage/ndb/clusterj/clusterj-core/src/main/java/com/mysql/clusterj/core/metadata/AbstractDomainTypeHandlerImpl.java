@@ -385,7 +385,7 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public ValueHandler createKeyValueHandler(Object keys) {
+    public ValueHandler createKeyValueHandler(Object keys, Db db) {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
@@ -448,6 +448,10 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
 
     public String getUnsupported() {
         return reasons == null?null:reasons.toString();
+    }
+
+    public T newInstance(ValueHandler valueHandler, Db db) {
+        throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
 }

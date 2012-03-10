@@ -28,4 +28,11 @@ public class NdbRecordSmartValueHandlerFactoryImpl implements ValueHandlerFactor
         return new NdbRecordSmartValueHandlerImpl(domainTypeHandler, db);
     }
 
+    public <T> ValueHandler getKeyValueHandler(DomainTypeHandlerImpl<T> domainTypeHandler, Db db,
+            Object keyValues) {
+        NdbRecordSmartValueHandlerImpl result = new NdbRecordSmartValueHandlerImpl(domainTypeHandler, db);
+        domainTypeHandler.objectSetKeys(keyValues, result);
+        return result;
+    }
+
 }

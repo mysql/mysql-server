@@ -122,4 +122,10 @@ public interface Column {
      */
     public boolean getNullable();
 
+    /** Is this column a lob?
+     * 
+     * @return true if this column is a blob or text type
+     */
+    public boolean isLob();
+
 }
