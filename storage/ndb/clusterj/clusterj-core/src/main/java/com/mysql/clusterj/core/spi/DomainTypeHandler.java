@@ -77,7 +77,7 @@ public interface DomainTypeHandler<T> {
 
     public void operationSetModifiedNonPKValues(ValueHandler valueHandler, Operation op);
 
-    public ValueHandler createKeyValueHandler(Object keys);
+    public ValueHandler createKeyValueHandler(Object keys, Db db);
 
     public int[] getKeyFieldNumbers();
 
@@ -92,5 +92,7 @@ public interface DomainTypeHandler<T> {
     public void operationSetValues(ValueHandler valueHandler, Operation op);
 
     public void setUnsupported(String reason);
+
+    public T newInstance(ValueHandler valueHandler, Db db);
 
 }

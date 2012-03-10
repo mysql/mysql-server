@@ -38,6 +38,7 @@ import com.mysql.clusterj.core.metadata.InvocationHandlerImpl;
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.SmartValueHandler;
+import com.mysql.clusterj.core.spi.ValueHandler;
 
 import com.mysql.clusterj.core.store.ClusterTransaction;
 import com.mysql.clusterj.core.store.Db;
@@ -91,6 +92,8 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
 
     private boolean[] transientModified; 
 
+    private Object proxy;
+
     public NdbRecordSmartValueHandlerImpl(DomainTypeHandlerImpl<?> domainTypeHandler, Db db) {
         this.domainTypeHandler = domainTypeHandler;
         this.domainFieldHandlers = domainTypeHandler.getFieldHandlers();
@@ -132,6 +135,41 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
         if (logger.isDetailEnabled()) logger.detail("smart write for type: " + domainTypeHandler.getName()
                 + " record: " + operation.dumpValues());
         operation.write((ClusterTransactionImpl)clusterTransaction);
+        return operation;
+    }
+
+    public Operation load(ClusterTransaction clusterTransaction) {
+        if (logger.isDetailEnabled()) logger.detail("smart load for type: " + domainTypeHandler.getName()
+                + " record: " + operation.dumpValues());
+        // only load mapped columns that are persistent
+        for (int i = 0; i < domainFieldHandlers.length; ++i) {
+            DomainFieldHandler domainFieldHandler = domainFieldHandlers[i];
+            int columnId = fieldNumberToColumnNumberMap[i];
+            if (domainFieldHandler.isPersistent()) {
+                if (domainFieldHandler.isLob()) {
+                    operation.getBlobHandle(columnId);
+                } else {
+                    operation.columnSet(columnId);
+                }
+            }
+        }
+        operation.load((ClusterTransactionImpl)clusterTransaction);
+        final NdbRecordSmartValueHandlerImpl valueHandler = this;
+        // defer execution of the key operation until the next find, flush, or query
+        Runnable postExecuteOperation = new Runnable() {
+            public void run() {
+                if (operation.getErrorCode() == 0) {
+                    // found row in database
+                    valueHandler.found(Boolean.TRUE);
+                    operation.loadBlobValues();
+                    domainTypeHandler.objectResetModified(valueHandler);
+                } else {
+                    // mark instance as not found
+                    valueHandler.found(Boolean.FALSE);
+                }
+            }
+        };
+        clusterTransaction.postExecuteCallback(postExecuteOperation);
         return operation;
     }
 
@@ -691,6 +729,11 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
     }
 
     public void setProxy(Object proxy) {
+        this.proxy = proxy;
+    }
+
+    public Object getProxy() {
+        return this.proxy;
     }
 
 }

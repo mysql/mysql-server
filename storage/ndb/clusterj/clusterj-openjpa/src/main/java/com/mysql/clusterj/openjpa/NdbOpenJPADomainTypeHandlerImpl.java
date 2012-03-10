@@ -255,6 +255,11 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
+    public T newInstance(ValueHandler valueHandler, Db db) {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Implementation_Should_Not_Occur"));
+    }
+
     public void objectMarkModified(ValueHandler handler, String fieldName) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
@@ -365,7 +370,7 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
         return (T) instance;
     }
 
-    public ValueHandler createKeyValueHandler(Object keys) {
+    public ValueHandler createKeyValueHandler(Object keys, Db db) {
 
         FieldMapping[] primaryKeyFieldMappings =
                 classMapping.getPrimaryKeyFieldMappings();
