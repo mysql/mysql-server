@@ -4160,6 +4160,19 @@ MYSQL_BIN_LOG::remove_pending_rows_event(THD *thd, bool is_transactional)
 }
 
 /*
+  Updates thd's position-of-next-event variables
+  after a *real* write a file.
+ */
+void MYSQL_BIN_LOG::update_thd_next_event_pos(THD* thd)
+{
+  if (likely(thd != NULL))
+  {
+    thd->set_next_event_pos(log_file_name,
+                            my_b_tell(&log_file));
+  }
+}
+
+/*
   Moves the last bunch of rows from the pending Rows event to a cache (either
   transactional cache if is_transaction is @c true, or the non-transactional
   cache otherwise. Sets a new pending event.
@@ -4924,12 +4937,14 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
       mysql_mutex_lock(&LOCK_prep_xids);
       prepared_xids++;
       mysql_mutex_unlock(&LOCK_prep_xids);
+      update_thd_next_event_pos(thd);
       mysql_mutex_unlock(&LOCK_log);
     }
     else
     {
       if (rotate(false, &check_purge))
         goto err;
+      update_thd_next_event_pos(thd);
       mysql_mutex_unlock(&LOCK_log);
       if (check_purge) 
         purge();
