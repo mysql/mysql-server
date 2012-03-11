@@ -526,6 +526,8 @@ void lex_start(THD *thd)
   lex->is_lex_started= TRUE;
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
+  lex->limit_rows_examined= 0;
+  lex->limit_rows_examined_cnt= ULONGLONG_MAX;
   DBUG_VOID_RETURN;
 }
 
@@ -2523,7 +2525,8 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0), option_type(OPT_DEFAULT), is_lex_started(0)
+  :result(0), option_type(OPT_DEFAULT), is_lex_started(0),
+   limit_rows_examined_cnt(ULONGLONG_MAX)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),

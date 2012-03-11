@@ -3476,6 +3476,8 @@ int select_insert::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
+  if (thd->killed == ABORT_QUERY)
+    DBUG_RETURN(0);
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// Calculate cuted fields
   store_values(values);

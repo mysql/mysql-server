@@ -5460,6 +5460,7 @@ void THD::reset_for_next_command(bool calculate_userstat)
   thd->warning_info->reset_for_next_command();
   thd->rand_used= 0;
   thd->sent_row_count= thd->examined_row_count= 0;
+  thd->accessed_rows_and_keys= 0;
 
   /* Copy data for user stats */
   if ((thd->userstat_running= calculate_userstat))

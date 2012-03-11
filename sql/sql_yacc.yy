@@ -977,6 +977,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  EVENTS_SYM
 %token  EVENT_SYM
 %token  EVERY_SYM                     /* SQL-2003-N */
+%token  EXAMINED_SYM
 %token  EXECUTE_SYM                   /* SQL-2003-R */
 %token  EXISTS                        /* SQL-2003-R */
 %token  EXIT_SYM
@@ -10304,6 +10305,7 @@ opt_limit_clause_init:
             SELECT_LEX *sel= lex->current_select;
             sel->offset_limit= 0;
             sel->select_limit= 0;
+	    lex->limit_rows_examined= 0;
           }
         | limit_clause {}
         ;
@@ -10315,6 +10317,14 @@ opt_limit_clause:
 
 limit_clause:
           LIMIT limit_options
+          {
+            Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+          }
+        | LIMIT limit_options ROWS_SYM EXAMINED_SYM limit_rows_option
+          {
+            Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+          }
+        | LIMIT ROWS_SYM EXAMINED_SYM limit_rows_option
           {
             Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
           }
@@ -10403,6 +10413,13 @@ limit_option:
           }
         ;
 
+limit_rows_option:
+          limit_option
+          { 
+            LEX *lex=Lex;
+            lex->limit_rows_examined= $1;
+          }
+
 delete_limit_clause:
           /* empty */
           {
@@ -10416,6 +10433,8 @@ delete_limit_clause:
             Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
             sel->explicit_limit= 1;
           }
+       | LIMIT ROWS_SYM EXAMINED_SYM { my_parse_error(ER(ER_SYNTAX_ERROR)); MYSQL_YYABORT; }
+       | LIMIT limit_option ROWS_SYM EXAMINED_SYM { my_parse_error(ER(ER_SYNTAX_ERROR)); MYSQL_YYABORT; }
         ;
 
 int_num:
@@ -12892,6 +12911,7 @@ keyword:
         | DEALLOCATE_SYM        {}
         | DO_SYM                {}
         | END                   {}
+        | EXAMINED_SYM          {}
         | EXECUTE_SYM           {}
         | FLUSH_SYM             {}
         | HANDLER_SYM           {}
@@ -13793,6 +13813,7 @@ handler:
               MYSQL_YYABORT;
             lex->current_select->select_limit= one;
             lex->current_select->offset_limit= 0;
+            lex->limit_rows_examined= 0;
             if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
               MYSQL_YYABORT;
           }

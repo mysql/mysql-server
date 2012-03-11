@@ -329,13 +329,14 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   if (error)
   {
     int kill_errno= thd->killed_errno();
-    DBUG_ASSERT(thd->is_error() || kill_errno);
+    DBUG_ASSERT(thd->is_error() || kill_errno || thd->killed == ABORT_QUERY);
     my_printf_error(ER_FILSORT_ABORT,
                     "%s: %s",
                     MYF(0),
                     ER_THD(thd, ER_FILSORT_ABORT),
-                    kill_errno ? ER(kill_errno) : thd->stmt_da->message());
-                    
+                    kill_errno ? ER(kill_errno) :
+                    thd->killed == ABORT_QUERY ? "" : thd->stmt_da->message());
+
     if (global_system_variables.log_warnings > 1)
     {
       sql_print_warning("%s, host: %s, user: %s, thread: %lu, query: %-.4096s",

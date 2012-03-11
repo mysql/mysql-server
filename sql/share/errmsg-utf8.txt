@@ -6561,3 +6561,5 @@ ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SKIP_REPLICATION
         eng "Cannot modify @@session.skip_replication inside a transaction"
 ER_STORED_FUNCTION_PREVENTS_SWITCH_SKIP_REPLICATION
         eng "Cannot modify @@session.skip_replication inside a stored function or trigger"
+ER_QUERY_EXCEEDED_ROWS_EXAMINED_LIMIT
+        eng "Query execution was interrupted. The query examined at least %llu rows, which exceeds LIMIT ROWS EXAMINED (%llu). The query result may be incomplete."

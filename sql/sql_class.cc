@@ -737,6 +737,7 @@ THD::THD()
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    examined_row_count(0),
+   accessed_rows_and_keys(0),
    warning_info(&main_warning_info),
    stmt_da(&main_da),
    global_disable_checkpoint(0),
@@ -1644,26 +1645,31 @@ void THD::disconnect()
 
 int killed_errno(killed_state killed)
 {
+  DBUG_ENTER("killed_errno");
+  DBUG_PRINT("enter", ("killed: %d", killed));
+
   switch (killed) {
   case NOT_KILLED:
   case KILL_HARD_BIT:
-    return 0;                                   // Probably wrong usage
+    DBUG_RETURN(0);                            // Probably wrong usage
   case KILL_BAD_DATA:
   case KILL_BAD_DATA_HARD:
-    return 0;                                   // Not a real error
+  case ABORT_QUERY_HARD:
+  case ABORT_QUERY:
+    DBUG_RETURN(0);                             // Not a real error
   case KILL_CONNECTION:
   case KILL_CONNECTION_HARD:
   case KILL_SYSTEM_THREAD:
   case KILL_SYSTEM_THREAD_HARD:
-    return ER_CONNECTION_KILLED;
+    DBUG_RETURN(ER_CONNECTION_KILLED);
   case KILL_QUERY:
   case KILL_QUERY_HARD:
-    return ER_QUERY_INTERRUPTED;
+    DBUG_RETURN(ER_QUERY_INTERRUPTED);
   case KILL_SERVER:
   case KILL_SERVER_HARD:
-    return ER_SERVER_SHUTDOWN;
+    DBUG_RETURN(ER_SERVER_SHUTDOWN);
   }
-  return 0;                                     // Keep compiler happy
+  DBUG_RETURN(0);                               // Keep compiler happy
 }
 
 
@@ -2248,6 +2254,8 @@ int select_send::send_data(List<Item> &items)
     unit->offset_limit_cnt--;
     DBUG_RETURN(FALSE);
   }
+  if (thd->killed == ABORT_QUERY)
+    DBUG_RETURN(FALSE);
 
   /*
     We may be passing the control from mysqld to the client: release the
@@ -2541,6 +2549,8 @@ int select_export::send_data(List<Item> &items)
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
+  if (thd->killed == ABORT_QUERY)
+    DBUG_RETURN(0);
   row_count++;
   Item *item;
   uint used_length=0,items_left=items.elements;
@@ -2796,6 +2806,9 @@ int select_dump::send_data(List<Item> &items)
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
+  if (thd->killed == ABORT_QUERY)
+    DBUG_RETURN(0);
+
   if (row_count++ > 1) 
   {
     my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
@@ -2842,6 +2855,8 @@ int select_singlerow_subselect::send_data(List<Item> &items)
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
+  if (thd->killed == ABORT_QUERY)
+    DBUG_RETURN(0);
   List_iterator_fast<Item> li(items);
   Item *val_item;
   for (uint i= 0; (val_item= li++); i++)
@@ -2985,6 +3000,8 @@ int select_exists_subselect::send_data(List<Item> &items)
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
+  if (thd->killed == ABORT_QUERY)
+    DBUG_RETURN(0);
   it->value= 1;
   it->assigned(1);
   DBUG_RETURN(0);

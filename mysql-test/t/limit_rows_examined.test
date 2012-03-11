@@ -1,0 +1,578 @@
+#
+# Tests for LIMIT ROWS EXAMINED, MDEV-28
+#
+
+set @save_join_cache_level = @@join_cache_level;
+
+create table t1 (c1 char(2));
+create table t2 (c2 char(2));
+
+insert into t1 values ('bb'), ('cc'), ('aa'), ('dd');
+insert into t2 values ('bb'), ('cc'), ('dd'), ('ff');
+
+create table t1i (c1 char(2) key);
+create table t2i (c2 char(2) key);
+
+insert into t1i values ('bb'), ('cc'), ('aa'), ('dd');
+insert into t2i values ('bb'), ('cc'), ('dd'), ('ff');
+
+--echo =========================================================================
+--echo Simple joins
+--echo =========================================================================
+
+--echo Simple nested loops join without blocking
+set @@join_cache_level=0;
+explain
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 2;
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 2;
+
+explain
+select * from t1i, t2i where c1 = c2 LIMIT ROWS EXAMINED 4;
+select * from t1i, t2i where c1 = c2 LIMIT ROWS EXAMINED 4;
+
+--echo Blocked nested loops join, empty result set because of blocking
+set @@join_cache_level=1;
+explain
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 6;
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 6;
+
+explain
+select * from t1i, t2i where c1 = c2 LIMIT ROWS EXAMINED 6;
+select * from t1i, t2i where c1 = c2 LIMIT ROWS EXAMINED 6;
+
+set @@join_cache_level=6;
+explain
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 3;
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 3;
+
+explain
+select * from t1i, t2i where c1 = c2 LIMIT ROWS EXAMINED 6;
+select * from t1i, t2i where c1 = c2 LIMIT ROWS EXAMINED 6;
+
+--echo Mix LIMIT ROWS EXAMINED with LIMIT
+set @@join_cache_level=0;
+explain
+select * from t1, t2 where c1 < c2 LIMIT 1 ROWS EXAMINED 4;
+select * from t1, t2 where c1 < c2 LIMIT 1 ROWS EXAMINED 4;
+
+explain
+select * from t1, t2 where c1 < c2 LIMIT 1,1 ROWS EXAMINED 4;
+select * from t1, t2 where c1 < c2 LIMIT 1,1 ROWS EXAMINED 4;
+
+--echo Empty table optimized away during constant optimization
+create table t0 (c0 int);
+explain
+select * from t0 LIMIT ROWS EXAMINED 0;
+explain
+select * from t0 LIMIT ROWS EXAMINED 1;
+select * from t0 LIMIT ROWS EXAMINED 1;
+drop table t0;
+
+create table t0 (c0 char(2) primary key);
+insert into t0 values  ('bb'), ('cc'), ('aa');
+
+explain
+select * from t0 where c0 = 'bb' LIMIT ROWS EXAMINED 0;
+select * from t0 where c0 = 'bb' LIMIT ROWS EXAMINED 0;
+
+explain
+select * from t0, t1 where c0 = 'bb' and c1 > c0 LIMIT ROWS EXAMINED 0;
+select * from t0, t1 where c0 = 'bb' and c1 > c0 LIMIT ROWS EXAMINED 0;
+
+set @@join_cache_level = @save_join_cache_level;
+drop table t0;
+
+--echo =========================================================================
+--echo LIMIT ROWS EXAMINED with parameter argument
+--echo =========================================================================
+
+set @@join_cache_level=0;
+set @l = 2;
+
+--echo Prepared statement parameter
+
+prepare st1 from "select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED ?";
+execute st1 using @l;
+deallocate prepare st1;
+
+--echo User variable (not supported for LIMIT in MariaDB 5.3/MySQL 5.1)
+--error 1064
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED @l;
+
+--echo Stored procedure parameter
+delimiter |;
+create procedure test_limit_rows(l int)
+begin
+  select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED l;
+end|
+
+delimiter ;|
+
+call test_limit_rows(3);
+
+drop procedure test_limit_rows;
+
+set @@join_cache_level = @save_join_cache_level;
+
+--echo =========================================================================
+--echo UNIONs (with several LIMIT ROWS EXAMINED clauses)
+--echo =========================================================================
+(select * from t1, t2 where c1 = c2)
+UNION
+(select * from t1, t2 where c1 < c2) LIMIT ROWS EXAMINED 6;
+
+(select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 0)
+UNION
+(select * from t1, t2 where c1 < c2 LIMIT ROWS EXAMINED 6);
+
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 0
+UNION
+select * from t1, t2 where c1 < c2 LIMIT ROWS EXAMINED 6;
+
+(select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 0)
+UNION
+(select * from t1, t2 where c1 < c2 LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 6;
+
+(select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 0)
+UNION
+(select * from t1, t2 where c1 < c2 LIMIT ROWS EXAMINED 0)
+LIMIT 1 ROWS EXAMINED 6;
+
+(select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 0)
+UNION
+(select * from t1, t2 where c1 < c2 LIMIT ROWS EXAMINED 0)
+LIMIT 2 ROWS EXAMINED 10;
+
+
+--echo =========================================================================
+--echo Subqueries (with several LIMIT ROWS EXAMINED clauses)
+--echo =========================================================================
+
+--echo Subqueries, semi-join
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 11);
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 11);
+
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ')
+LIMIT ROWS EXAMINED 11;
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ')
+LIMIT ROWS EXAMINED 11;
+
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 11;
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 11;
+
+explain
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ')
+LIMIT ROWS EXAMINED 6;
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ')
+LIMIT ROWS EXAMINED 6;
+
+--echo Subqueries with IN-TO-EXISTS
+set @@optimizer_switch='semijoin=off,in_to_exists=on,materialization=off';
+
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 4);
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 4);
+
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ')
+LIMIT ROWS EXAMINED 4;
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ')
+LIMIT ROWS EXAMINED 4;
+
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 4;
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 4;
+
+explain
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ')
+LIMIT ROWS EXAMINED 9;
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ')
+LIMIT ROWS EXAMINED 9;
+
+--echo Same as above, without subquery cache
+set @@optimizer_switch='subquery_cache=off';
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 2);
+
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ')
+LIMIT ROWS EXAMINED 2;
+
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 2;
+
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ')
+LIMIT ROWS EXAMINED 5;
+
+--echo Subqueries with materialization
+set @@optimizer_switch='semijoin=off,in_to_exists=off,materialization=on,subquery_cache=on';
+
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 13);
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 13);
+
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ') LIMIT ROWS EXAMINED 13;
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ') LIMIT ROWS EXAMINED 13;
+
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 13;
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 13;
+
+explain
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ') LIMIT ROWS EXAMINED 17;
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ') LIMIT ROWS EXAMINED 17;
+
+set @@optimizer_switch='default';
+
+--echo =========================================================================
+--echo Views and derived tables
+--echo =========================================================================
+
+--error 1235
+create view v1 as
+select * from t1 where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 13);
+
+create view v1 as
+select * from t1 where c1 IN (select * from t2 where c2 > ' ');
+
+select * from v1;
+select * from v1 LIMIT ROWS EXAMINED 17;
+select * from v1 LIMIT ROWS EXAMINED 16;
+select * from v1 LIMIT ROWS EXAMINED 11;
+
+drop view v1;
+
+explain
+select *
+from (select * from t1
+      where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)) as tmp
+LIMIT ROWS EXAMINED 11;
+select *
+from (select * from t1
+      where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)) as tmp
+LIMIT ROWS EXAMINED 11;
+
+--echo =========================================================================
+--echo Aggregation
+--echo =========================================================================
+create table t3 (c1 char(2), c2 int);
+
+insert into t3 values
+('aa', 1), ('aa', 2),
+('bb', 3), ('bb', 4), ('bb', 5);
+
+explain
+select c1, sum(c2) from t3 group by c1;
+select c1, sum(c2) from t3 group by c1;
+
+explain
+select c1, sum(c2) from t3 group by c1 LIMIT ROWS EXAMINED 0;
+select c1, sum(c2) from t3 group by c1 LIMIT ROWS EXAMINED 0;
+--error 1028
+select c1, sum(c2) from t3 group by c1 LIMIT ROWS EXAMINED 1;
+select c1, sum(c2) from t3 group by c1 LIMIT ROWS EXAMINED 20;
+select c1, sum(c2) from t3 group by c1 LIMIT ROWS EXAMINED 21;
+
+create table t3i (c1 char(2), c2 int);
+create index it3i on t3i(c1);
+create index it3j on t3i(c2,c1);
+
+insert into t3i values
+('aa', 1), ('aa', 2),
+('bb', 3), ('bb', 4), ('bb', 5);
+
+explain
+select c1, sum(c2) from t3i group by c1 LIMIT ROWS EXAMINED 0;
+select c1, sum(c2) from t3i group by c1 LIMIT ROWS EXAMINED 0;
+--error 1028
+select c1, sum(c2) from t3i group by c1 LIMIT ROWS EXAMINED 1;
+select c1, sum(c2) from t3i group by c1 LIMIT ROWS EXAMINED 20;
+select c1, sum(c2) from t3i group by c1 LIMIT ROWS EXAMINED 21;
+
+--echo Aggregation without grouping
+
+explain
+select min(c2) from t3 LIMIT ROWS EXAMINED 5;
+select min(c2) from t3 LIMIT ROWS EXAMINED 5;
+select max(c2) from t3 LIMIT ROWS EXAMINED 6;
+select max(c2) from t3 LIMIT ROWS EXAMINED 0;
+
+explain
+select max(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 5;
+select max(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 5;
+select max(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 6;
+select max(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 0;
+
+explain
+select count(c2) from t3 LIMIT ROWS EXAMINED 5;
+select count(c2) from t3 LIMIT ROWS EXAMINED 5;
+select count(c2) from t3 LIMIT ROWS EXAMINED 6;
+select count(c2) from t3 LIMIT ROWS EXAMINED 0;
+
+explain
+select count(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 5;
+select count(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 5;
+select count(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 6;
+
+explain
+select sum(c2) from t3 LIMIT ROWS EXAMINED 5;
+select sum(c2) from t3 LIMIT ROWS EXAMINED 5;
+select sum(c2) from t3 LIMIT ROWS EXAMINED 6;
+
+--echo The query result is found during optimization, LIMIT ROWS EXAMINED has no effect.
+explain
+select max(c1) from t3i LIMIT ROWS EXAMINED 0;
+select max(c1) from t3i LIMIT ROWS EXAMINED 0;
+
+create table t3_empty like t3;
+explain
+select max(c1) from t3_empty LIMIT ROWS EXAMINED 0;
+select max(c1) from t3_empty LIMIT ROWS EXAMINED 0;
+drop table t3_empty;
+
+--echo =========================================================================
+--echo Sorting
+--echo =========================================================================
+
+explain
+select c1, c2 from t3 order by c2, c1 LIMIT ROWS EXAMINED 2;
+--error 1028
+select c1, c2 from t3 order by c2, c1 LIMIT ROWS EXAMINED 2;
+
+explain
+select c1, c2 from t3i order by c2, c1 LIMIT ROWS EXAMINED 2;
+select c1, c2 from t3i order by c2, c1 LIMIT ROWS EXAMINED 2;
+
+explain
+select c1, c2 from t3i order by c2, c1 desc LIMIT ROWS EXAMINED 2;
+--error 1028
+select c1, c2 from t3i order by c2, c1 desc LIMIT ROWS EXAMINED 2;
+
+drop table t3,t3i;
+
+--echo =========================================================================
+--echo INSERT/DELETE/UPDATE
+--echo =========================================================================
+
+--echo INSERT ... SELECT
+CREATE TABLE t4 (a int);
+INSERT INTO t4 values (1), (2);
+INSERT INTO t4 SELECT a + 2 FROM t4 LIMIT ROWS EXAMINED 0;
+select * from t4;
+INSERT INTO t4 SELECT a + 2 FROM t4 LIMIT ROWS EXAMINED 6;
+select * from t4;
+drop table t4;
+
+--echo DELETE - LIMIT ROWS EXAMINED not supported
+CREATE TABLE t4 (a int);
+INSERT INTO t4 values (1), (2);
+--error 1064
+DELETE FROM t4 WHERE t4.a > 0 LIMIT ROWS EXAMINED 0;
+--error 1064
+DELETE FROM t4 WHERE t4.a > 0 LIMIT 0 ROWS EXAMINED 0;
+drop table t4;
+
+--echo UPDATE - LIMIT ROWS EXAMINED not supported
+CREATE TABLE t4 (a int);
+INSERT INTO t4 values (1), (2);
+--error 1064
+update t4 set a=a+10 LIMIT ROWS EXAMINED 0;
+--error 1064
+update t4 set a=a+10 LIMIT 0 ROWS EXAMINED 0;
+drop table t4;
+
+drop table t1,t2,t1i,t2i;
+
+
+--echo =========================================================================
+--echo Test cases for bugs
+--echo =========================================================================
+
+--echo
+--echo MDEV-115
+--echo
+
+SET @@optimizer_switch='in_to_exists=on,outer_join_with_cache=on';
+
+CREATE TABLE t1 ( a VARCHAR(3) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('USA');
+
+CREATE TABLE t2 ( b INT );
+INSERT INTO t2 VALUES (3899),(3914),(3888);
+
+CREATE TABLE t3 ( c VARCHAR(33), d INT );
+INSERT INTO t3 VALUES ('USASpanish',8),('USATagalog',0),('USAVietnamese',0);
+
+EXPLAIN
+SELECT DISTINCT a AS field1 FROM t1, t2 
+WHERE EXISTS (SELECT c FROM t3 LEFT JOIN t2 ON b = d) 
+HAVING field1 > 'aaa' LIMIT ROWS EXAMINED 20;
+
+SELECT DISTINCT a AS field1 FROM t1, t2 
+WHERE EXISTS (SELECT c FROM t3 LEFT JOIN t2 ON b = d) 
+HAVING field1 > 'aaa' LIMIT ROWS EXAMINED 20;
+
+EXPLAIN
+SELECT DISTINCT a FROM t1, t2  HAVING a > ' ' LIMIT ROWS EXAMINED 14;
+SELECT DISTINCT a FROM t1, t2  HAVING a > ' ' LIMIT ROWS EXAMINED 14;
+
+SELECT DISTINCT a FROM t1, t2  HAVING a > ' ' LIMIT ROWS EXAMINED 15;
+SELECT DISTINCT a FROM t1, t2  HAVING a > ' ' LIMIT ROWS EXAMINED 16;
+
+drop table t1,t2,t3;
+
+set @@optimizer_switch='default';
+
+--echo
+--echo MDEV-153
+--echo
+
+CREATE TABLE t1 ( a TIME, b DATETIME, KEY(a), KEY(b) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES 
+  ('21:22:34.025509', '2002-02-13 17:30:06.013935'), 
+  ('10:50:38.059966', '2008-09-27 00:34:58.026613'), 
+  ('00:21:38.058143', '2007-05-28 00:00:00');
+
+CREATE TABLE t2 ( c INT, d TIME, e DATETIME, f VARCHAR(1), KEY(c) ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES
+  (0, '11:03:22.062907', '2007-06-02 11:16:01.053212', 'a'), 
+  (0, '08:14:05.001407', '1900-01-01 00:00:00', 'm'), 
+  (5, '19:03:16.024974', '1900-01-01 00:00:00', 'f'), 
+  (1, '07:23:34.034234', '2000-11-26 05:01:11.054228', 'z'), 
+  (6, '12:29:32.019411', '2006-02-13 00:00:00', 'f'), 
+  (6, '06:07:10.010496', '2007-06-08 04:35:26.020373', 'a'), 
+  (7, '22:55:09.020772', '2005-04-27 00:00:00', 'i');
+
+EXPLAIN
+SELECT a AS field1, alias2.d AS field2, alias2.f AS field3, alias2.e AS field4, b AS field5
+FROM t1, t2 AS alias2, t2 AS alias3 
+WHERE alias3.c IN ( SELECT 1 UNION SELECT 6 ) 
+GROUP BY field1, field2, field3, field4, field5
+LIMIT ROWS EXAMINED 120;
+
+FLUSH STATUS;
+--error 1028
+SELECT a AS field1, alias2.d AS field2, alias2.f AS field3, alias2.e AS field4, b AS field5
+FROM t1, t2 AS alias2, t2 AS alias3 
+WHERE alias3.c IN ( SELECT 1 UNION SELECT 6 ) 
+GROUP BY field1, field2, field3, field4, field5
+LIMIT ROWS EXAMINED 120;
+SHOW STATUS LIKE 'Handler_read%';
+SHOW STATUS LIKE 'Handler_tmp%';
+
+FLUSH STATUS;
+SELECT a AS field1, alias2.d AS field2, alias2.f AS field3, alias2.e AS field4, b AS field5
+FROM t1, t2 AS alias2, t2 AS alias3 
+WHERE alias3.c IN ( SELECT 1 UNION SELECT 6 ) 
+GROUP BY field1, field2, field3, field4, field5
+LIMIT ROWS EXAMINED 250;
+SHOW STATUS LIKE 'Handler_read%';
+SHOW STATUS LIKE 'Handler_tmp%';
+
+drop table t1, t2;
+
+--echo
+--echo MDEV-161 LIMIT_ROWS EXAMINED: query with the limit and NOT EXISTS, without GROUP BY or aggregate,
+--echo returns rows, while the same query without the limit returns empty set
+--echo
+
+CREATE TABLE t1 ( a INT, b INT );
+INSERT INTO t1 VALUES (3911,17),(3847,33),(3857,26);
+
+CREATE TABLE t2 ( c VARCHAR(16) );
+INSERT INTO t2 VALUES ('English'),('French'),('German');
+
+CREATE TABLE t3 ( d INT, e VARCHAR(32) );
+INSERT INTO t3 VALUES (3813,'United States'),(3814,'United States');
+
+SELECT * FROM t1 AS alias1, t2 AS alias2 
+WHERE NOT EXISTS (
+  SELECT * FROM t1 LEFT OUTER JOIN t3 
+    ON (d = a) 
+  WHERE b <= alias1.b OR e != alias2.c  
+);
+
+SELECT * FROM t1 AS alias1, t2 AS alias2 
+WHERE NOT EXISTS ( 
+  SELECT * FROM t1 LEFT OUTER JOIN t3 
+    ON (d = a) 
+  WHERE b <= alias1.b OR e != alias2.c  
+) LIMIT ROWS EXAMINED 20;
+
+drop table t1, t2, t3;
+
+--echo
+--echo MDEV-174: LIMIT ROWS EXAMINED: Assertion `0' failed in net_end_statement(THD*)
+--echo with subquery in SELECT, constant table, aggregate function
+--echo
+
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT, c INT, KEY(c) );
+INSERT INTO t2 VALUES 
+  (5, 0),(3, 4),(6, 1),
+  (5, 8),(4, 9),(8, 1);
+
+SELECT (SELECT MAX(c) FROM t1, t2)
+FROM t2
+WHERE c = (SELECT MAX(b) FROM t2)
+LIMIT ROWS EXAMINED 3;
+
+drop table t1, t2;
+
+--echo
+--echo MDEV-178: LIMIT ROWS EXAMINED: Assertion `0' failed in net_end_statement(THD*) on the
+--echo 2nd PS execution, with DISTINCT, FROM subquery or view in SELECT, JOIN in nested subquery
+--echo
+
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (2),(3),(150);
+CREATE TABLE t2 ( b INT );
+INSERT INTO t2 VALUES (2),(17),(3),(6);
+
+CREATE VIEW v AS
+SELECT DISTINCT * FROM t1 WHERE a > (SELECT COUNT(*) FROM t1, t2 WHERE a = b);
+
+PREPARE ps FROM 'SELECT * FROM v LIMIT ROWS EXAMINED 21';
+
+EXECUTE ps;
+EXECUTE ps;
+
+drop view v;
+drop table t1, t2;

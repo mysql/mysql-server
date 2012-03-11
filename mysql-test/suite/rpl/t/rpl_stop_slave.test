@@ -23,7 +23,7 @@ source include/stop_slave.inc;
 --echo # It guarantees that SQL thread is applying the transaction when
 --echo # STOP SLAVE command launchs.
 let $debug_save= `SELECT @@GLOBAL.debug`;
-SET GLOBAL debug_dbug= 'd,after_mysql_insert';
+SET GLOBAL debug_dbug= '+d,after_mysql_insert,*';
 source include/start_slave.inc;
 
 --echo
@@ -44,7 +44,9 @@ source extra/rpl_tests/rpl_stop_slave.test;
 
 --echo
 --echo # Test end
-SET GLOBAL debug_dbug= '$debug_save';
+--disable_query_log
+eval SET GLOBAL debug_dbug= '$debug_save';
+--enable_query_log
 source include/restart_slave_sql.inc;
 
 connection slave;
@@ -76,7 +78,7 @@ sync_slave_with_master;
 --source include/rpl_connection_master.inc
 
 let $debug_save= `SELECT @@GLOBAL.debug`;
-SET GLOBAL debug_dbug= 'd,dump_thread_wait_before_send_xid';
+SET GLOBAL debug_dbug= '+d,dump_thread_wait_before_send_xid,*';
 
 --source include/rpl_connection_slave.inc
 source include/restart_slave_sql.inc;
@@ -116,5 +118,7 @@ source include/start_slave.inc;
 
 --source include/rpl_connection_master.inc
 DROP TABLE t1, t2;
-SET GLOBAL debug_dbug= $debug_save;
+--disable_query_log
+eval SET GLOBAL debug_dbug= '$debug_save';
+--enable_query_log
 --source include/rpl_end.inc
