@@ -161,5 +161,6 @@ CALL p1();
 --echo # below stmt should not return valgrind warnings
 CALL p1(); 
 DROP DATABASE testdb;
+USE test;
 
 --echo End of 5.1 tests
