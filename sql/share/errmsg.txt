@@ -6296,4 +6296,5 @@ ER_INTERNAL_ERROR
         eng "Internal error: '%-.192s'"
 ER_SPATIAL_MUST_HAVE_GEOM_COL 42000
   eng "A SPATIAL index may only contain a geometrical type column"
-
+ER_QUERY_EXCEEDED_ROWS_EXAMINED_LIMIT
+        eng "Query execution was interrupted. The query examined at least %llu rows, which exceeds LIMIT ROWS EXAMINED (%llu). The query result may be incomplete."

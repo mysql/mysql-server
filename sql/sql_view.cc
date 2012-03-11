@@ -435,6 +435,17 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
+  if (lex->limit_rows_examined)
+  {
+    /*
+      LIMIT ROWS EXAMINED is not supported inside views to avoid complicated
+      side-effects and semantics of the clause.
+    */
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "LIMIT ROWS EXAMINED inside views");
+    res= TRUE;
+    goto err;
+  }
+
   sp_cache_invalidate();
 
   if (!lex->definer)

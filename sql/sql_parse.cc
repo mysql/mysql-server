@@ -5876,6 +5876,7 @@ void mysql_reset_thd_for_next_command(THD *thd, my_bool calculate_userstat)
   thd->total_warn_count=0;			// Warnings for this query
   thd->rand_used= 0;
   thd->sent_row_count= thd->examined_row_count= 0;
+  thd->accessed_rows_and_keys= 0;
 
   /* Copy data for user stats */
   if ((thd->userstat_running= calculate_userstat))

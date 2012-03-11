@@ -23,7 +23,7 @@ source include/stop_slave.inc;
 --echo # It guarantees that SQL thread is applying the transaction when
 --echo # STOP SLAVE command launchs.
 let $debug_save= `SELECT @@GLOBAL.debug`;
-SET GLOBAL debug= 'd,after_mysql_insert';
+SET GLOBAL debug= '+d,after_mysql_insert,*';
 source include/start_slave.inc;
 
 --echo
@@ -53,7 +53,9 @@ let $tmp_table_stm= CREATE TEMPORARY TABLE tt1(c1 INT) ENGINE = MyISAM
 source extra/rpl_tests/rpl_stop_slave.test;
 
 --echo # Test end
-SET GLOBAL debug= '$debug_save';
+--disable_query_log
+eval SET GLOBAL debug= '$debug_save';
+--enable_query_log
 source include/restart_slave_sql.inc;
 
 --source include/rpl_connection_master.inc
@@ -81,7 +83,7 @@ sync_slave_with_master;
 --source include/rpl_connection_master.inc
 
 let $debug_save= `SELECT @@GLOBAL.debug`;
-SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
+SET GLOBAL debug= '+d,dump_thread_wait_before_send_xid,*';
 
 --source include/rpl_connection_slave.inc
 source include/restart_slave_sql.inc;
@@ -121,5 +123,7 @@ source include/start_slave.inc;
 
 --source include/rpl_connection_master.inc
 DROP TABLE t1, t2;
-SET GLOBAL debug= $debug_save;
+--disable_query_log
+eval SET GLOBAL debug= '$debug_save';
+--enable_query_log
 --source include/rpl_end.inc

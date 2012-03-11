@@ -289,6 +289,21 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   res|= thd->is_error();
   if (unlikely(res))
     result->abort();
+  if (thd->killed == ABORT_QUERY)
+  {
+    /*
+      If LIMIT ROWS EXAMINED interrupted query execution, issue a warning,
+      continue with normal processing and produce an incomplete query result.
+    */
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_QUERY_EXCEEDED_ROWS_EXAMINED_LIMIT,
+                        ER(ER_QUERY_EXCEEDED_ROWS_EXAMINED_LIMIT),
+                        thd->accessed_rows_and_keys,
+                        thd->lex->limit_rows_examined->val_uint());
+    thd->killed= NOT_KILLED;
+  }
+  /* Disable LIMIT ROWS EXAMINED after query execution. */
+  thd->lex->limit_rows_examined_cnt= ULONGLONG_MAX;
 
   DBUG_RETURN(res);
 }
@@ -1681,6 +1696,19 @@ int JOIN::init_execution()
   DBUG_ASSERT(optimized);
   DBUG_ASSERT(!(select_options & SELECT_DESCRIBE));
   initialized= true;
+
+  /*
+    Enable LIMIT ROWS EXAMINED during query execution if:
+    (1) This JOIN is the outermost query (not a subquery or derived table)
+        This ensures that the limit is enabled when actual execution begins, and
+        not if a subquery is evaluated during optimization of the outer query.
+    (2) This JOIN is not the result of a UNION. In this case do not apply the
+        limit in order to produce the partial query result stored in the
+        UNION temp table.
+  */
+  if (!select_lex->outer_select() &&                            // (1)
+      select_lex != select_lex->master_unit()->fake_select_lex) // (2)
+    thd->lex->set_limit_rows_examined();
 
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
@@ -15091,14 +15119,14 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       error= NESTED_LOOP_NO_MORE_ROWS;
     else
       error= sub_select(join,join_tab,0);
-    if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
+    if ((error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS) &&
+        join->thd->killed != ABORT_QUERY)
       error= sub_select(join,join_tab,1);
     if (error == NESTED_LOOP_QUERY_LIMIT)
       error= NESTED_LOOP_OK;                    /* select_limit used */
   }
-  if (error == NESTED_LOOP_NO_MORE_ROWS)
+  if (error == NESTED_LOOP_NO_MORE_ROWS || join->thd->killed == ABORT_QUERY)
     error= NESTED_LOOP_OK;
-
   if (table == NULL)                      	// If sending data to client
   {
     /*
@@ -16652,11 +16680,6 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   TABLE *table=join->tmp_table;
   DBUG_ENTER("end_write");
 
-  if (join->thd->killed)			// Aborted by user
-  {
-    join->thd->send_kill_message();
-    DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
-  }
   if (!end_of_records)
   {
     copy_fields(&join->tmp_table_param);
@@ -16701,11 +16724,15 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);
 	join->do_send_rows=0;
 	join->unit->select_limit_cnt = HA_POS_ERROR;
-	DBUG_RETURN(NESTED_LOOP_OK);
       }
     }
   }
 end:
+  if (join->thd->killed)
+  {
+    join->thd->send_kill_message();
+    DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
+  }
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
@@ -16723,11 +16750,6 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
   if (end_of_records)
     DBUG_RETURN(NESTED_LOOP_OK);
-  if (join->thd->killed)			// Aborted by user
-  {
-    join->thd->send_kill_message();
-    DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
-  }
 
   join->found_records++;
   copy_fields(&join->tmp_table_param);		// Groups are copied twice.
@@ -16753,7 +16775,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
       DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
     }
-    DBUG_RETURN(NESTED_LOOP_OK);
+    goto end;
   }
 
   /*
@@ -16788,6 +16810,12 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     join->join_tab[join->top_join_tab_count-1].next_select=end_unique_update;
   }
   join->send_records++;
+end:
+  if (join->thd->killed)
+  {
+    join->thd->send_kill_message();
+    DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
+  }
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
@@ -16804,11 +16832,6 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
   if (end_of_records)
     DBUG_RETURN(NESTED_LOOP_OK);
-  if (join->thd->killed)			// Aborted by user
-  {
-    join->thd->send_kill_message();
-    DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
-  }
 
   init_tmptable_sum_functions(join->sum_funcs);
   copy_fields(&join->tmp_table_param);		// Groups are copied twice.
@@ -16838,6 +16861,11 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
     }
   }
+  if (join->thd->killed)
+  {
+    join->thd->send_kill_message();
+    DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
+  }
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
@@ -16851,11 +16879,6 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   int	  idx= -1;
   DBUG_ENTER("end_write_group");
 
-  if (join->thd->killed)
-  {						// Aborted by user
-    join->thd->send_kill_message();
-    DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
-  }
   if (!join->first_record || end_of_records ||
       (idx=test_if_group_changed(join->group_fields)) >= 0)
   {
@@ -16889,13 +16912,13 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	    DBUG_RETURN(NESTED_LOOP_ERROR);
 	}
 	if (end_of_records)
-	  DBUG_RETURN(NESTED_LOOP_OK);
+	  goto end;
       }
     }
     else
     {
       if (end_of_records)
-	DBUG_RETURN(NESTED_LOOP_OK);
+        goto end;
       join->first_record=1;
       VOID(test_if_group_changed(join->group_fields));
     }
@@ -16908,13 +16931,19 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (join->procedure)
 	join->procedure->add();
-      DBUG_RETURN(NESTED_LOOP_OK);
+      goto end;
     }
   }
   if (update_sum_func(join->sum_funcs))
     DBUG_RETURN(NESTED_LOOP_ERROR);
   if (join->procedure)
     join->procedure->add();
+end:
+  if (join->thd->killed)
+  {
+    join->thd->send_kill_message();
+    DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
+  }
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
@@ -18561,6 +18590,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
   ulong reclength,offset;
   uint field_count;
   THD *thd= join->thd;
+
   DBUG_ENTER("remove_duplicates");
 
   entry->reginfo.lock_type=TL_WRITE;
@@ -18586,6 +18616,13 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
            offset(entry->record[0]) : 0);
   reclength=entry->s->reclength-offset;
 
+  /*
+    Disable LIMIT ROWS EXAMINED in order to avoid interrupting prematurely
+    duplicate removal, and produce a possibly incomplete query result.
+  */
+  thd->lex->limit_rows_examined_cnt= ULONGLONG_MAX;
+  if (thd->killed == ABORT_QUERY)
+    thd->killed= NOT_KILLED;
   free_io_cache(entry);				// Safety
   entry->file->info(HA_STATUS_VARIABLE);
   if (entry->s->db_type() == heap_hton ||
@@ -18599,6 +18636,8 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
     error=remove_dup_with_compare(join->thd, entry, first_field, offset,
 				  having);
 
+  if (join->select_lex != join->select_lex->master_unit()->fake_select_lex)
+    thd->lex->set_limit_rows_examined();
   free_blobs(first_field);
   DBUG_RETURN(error);
 }

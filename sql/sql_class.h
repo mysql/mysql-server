@@ -365,7 +365,10 @@ public:
 };
 
 
-/* Note: these states are actually bit coded with HARD */
+/**
+  These states are bit coded with HARD. For each state there must be a pair
+  <state_even_num>, and <state_odd_num>_HARD.
+*/
 enum killed_state
 {
   NOT_KILLED= 0,
@@ -375,15 +378,23 @@ enum killed_state
   KILL_QUERY= 4,
   KILL_QUERY_HARD= 5,
   /*
-    All of the following killed states will kill the connection
-    KILL_CONNECTION must be the first of these!
+    ABORT_QUERY signals to the query processor to stop execution ASAP without
+    issuing an error. Instead a warning is issued, and when possible a partial
+    query result is returned to the client.
   */
-  KILL_CONNECTION= 6,
-  KILL_CONNECTION_HARD= 7,
-  KILL_SYSTEM_THREAD= 8,
-  KILL_SYSTEM_THREAD_HARD= 9,
-  KILL_SERVER= 10,
-  KILL_SERVER_HARD= 11
+  ABORT_QUERY= 6,
+  ABORT_QUERY_HARD= 7,
+  /*
+    All of the following killed states will kill the connection
+    KILL_CONNECTION must be the first of these and it must start with
+    an even number (becasue of HARD bit)!
+  */
+  KILL_CONNECTION= 8,
+  KILL_CONNECTION_HARD= 9,
+  KILL_SYSTEM_THREAD= 10,
+  KILL_SYSTEM_THREAD_HARD= 11,
+  KILL_SERVER= 12,
+  KILL_SERVER_HARD= 13
 };
 
 extern int killed_errno(killed_state killed);
@@ -1951,6 +1962,20 @@ public:
     filesort() before reading it for e.g. update.
   */
   ha_rows    examined_row_count;
+  /**
+    The number of rows and/or keys examined by the query, both read,
+    changed or written.
+  */
+  ulonglong accessed_rows_and_keys;
+  /**
+    Check if the number of rows accessed by a statement exceeded
+    LIMIT ROWS EXAMINED. If so, signal the query engine to stop execution.
+  */
+  void check_limit_rows_examined()
+  {
+    if (++accessed_rows_and_keys > lex->limit_rows_examined_cnt)
+      killed= ABORT_QUERY;
+  }
 
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;
@@ -3643,6 +3668,7 @@ void mark_transaction_to_rollback(THD *thd, bool all);
 inline void handler::increment_statistics(ulong SSV::*offset) const
 {
   status_var_increment(table->in_use->status_var.*offset);
+  table->in_use->check_limit_rows_examined();
 }
 
 inline void handler::decrement_statistics(ulong SSV::*offset) const

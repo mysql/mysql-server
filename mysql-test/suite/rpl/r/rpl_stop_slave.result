@@ -14,7 +14,7 @@ include/stop_slave.inc
 # Suspend the INSERT statement in current transaction on SQL thread.
 # It guarantees that SQL thread is applying the transaction when
 # STOP SLAVE command launchs.
-SET GLOBAL debug= 'd,after_mysql_insert';
+SET GLOBAL debug= '+d,after_mysql_insert,*';
 include/start_slave.inc
 
 # CREATE TEMPORARY TABLE with InnoDB engine
@@ -131,7 +131,6 @@ include/diff_tables.inc [master:t1, slave:t1]
 START SLAVE SQL_THREAD;
 include/wait_for_slave_sql_to_start.inc
 # Test end
-SET GLOBAL debug= '$debug_save';
 include/restart_slave.inc
 [connection master]
 DROP TABLE t1, t2;
@@ -151,7 +150,7 @@ CREATE TABLE t1 (c1 INT KEY, c2 INT) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(1, 1);
 [connection master]
-SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
+SET GLOBAL debug= '+d,dump_thread_wait_before_send_xid,*';
 [connection slave]
 include/restart_slave.inc
 BEGIN;
@@ -176,5 +175,4 @@ include/wait_for_slave_to_stop.inc
 include/start_slave.inc
 [connection master]
 DROP TABLE t1, t2;
-SET GLOBAL debug= $debug_save;
 include/rpl_end.inc

@@ -1947,6 +1947,22 @@ typedef struct st_lex : public Query_tables_list
     into the select_lex.
   */
   table_map  used_tables;
+  /**
+    Maximum number of rows and/or keys examined by the query, both read,
+    changed or written. This is the argument of LIMIT ROWS EXAMINED.
+    The limit is represented by two variables - the Item is needed because
+    in case of parameters we have to delay its evaluation until execution.
+    Once evaluated, its value is stored in examined_rows_limit_cnt.
+  */
+  Item *limit_rows_examined;
+  ulonglong limit_rows_examined_cnt;
+  inline void set_limit_rows_examined()
+  {
+    if (limit_rows_examined)
+      limit_rows_examined_cnt= limit_rows_examined->val_uint();
+    else
+      limit_rows_examined_cnt= ULONGLONG_MAX;
+  }
 
   st_lex();
 

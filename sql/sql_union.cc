@@ -57,6 +57,8 @@ int select_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
+  if (thd->killed == ABORT_QUERY)
+    return 0;
   if (table->no_rows_with_nulls)
     table->null_catch_flags= CHECK_ROW_FOR_NULLS_TO_REJECT;
   fill_record(thd, table->field, values, TRUE, FALSE);
@@ -698,6 +700,20 @@ bool st_select_lex_unit::exec()
 	add_rows+= (ulonglong) (thd->limit_found_rows - (ulonglong)
 			      ((table->file->stats.records -  records_at_start)));
       }
+      if (thd->killed == ABORT_QUERY)
+      {
+        /*
+          Stop execution of the remaining queries in the UNIONS, and produce
+          the current result.
+        */
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            ER_QUERY_EXCEEDED_ROWS_EXAMINED_LIMIT,
+                            ER(ER_QUERY_EXCEEDED_ROWS_EXAMINED_LIMIT),
+                            thd->accessed_rows_and_keys,
+                            thd->lex->limit_rows_examined->val_uint());
+        thd->killed= NOT_KILLED;
+        break;
+      }
     }
   }
 
@@ -706,6 +722,11 @@ bool st_select_lex_unit::exec()
   {
     List<Item_func_match> empty_list;
     empty_list.empty();
+    /*
+      Disable LIMIT ROWS EXAMINED in order to produce the possibly incomplete
+      result of the UNION without interruption due to exceeding the limit.
+    */
+    thd->lex->limit_rows_examined_cnt= ULONGLONG_MAX;
 
     if (!thd->is_fatal_error)				// Check if EOM
     {
@@ -726,7 +747,7 @@ bool st_select_lex_unit::exec()
 					      fake_select_lex->options, result)))
 	{
 	  fake_select_lex->table_list.empty();
-	  DBUG_RETURN(TRUE);
+	  goto err;
 	}
         fake_select_lex->join->no_const_tables= TRUE;
 
@@ -798,6 +819,8 @@ bool st_select_lex_unit::exec()
     }
   }
   thd->lex->current_select= lex_select_save;
+err:
+  thd->lex->set_limit_rows_examined();
   DBUG_RETURN(saved_error);
 }
 

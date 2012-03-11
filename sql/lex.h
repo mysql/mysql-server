@@ -204,6 +204,7 @@ static SYMBOL symbols[] = {
   { "EVENT",		SYM(EVENT_SYM)},
   { "EVENTS",		SYM(EVENTS_SYM)},
   { "EVERY",		SYM(EVERY_SYM)},
+  { "EXAMINED",         SYM(EXAMINED_SYM)},
   { "EXECUTE",		SYM(EXECUTE_SYM)},
   { "EXISTS",		SYM(EXISTS)},
   { "EXIT",             SYM(EXIT_SYM)},
