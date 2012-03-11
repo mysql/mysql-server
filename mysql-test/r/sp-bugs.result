@@ -128,4 +128,5 @@ CALL p1();
 Warnings:
 Note	1050	Table 't2' already exists
 DROP DATABASE testdb;
+USE test;
 End of 5.1 tests
