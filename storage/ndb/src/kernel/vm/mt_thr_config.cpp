@@ -125,6 +125,73 @@ THRConfig::add(T_Type t)
   m_threads[t].push_back(tmp);
 }
 
+static
+void
+computeThreadConfig(Uint32 MaxNoOfExecutionThreads,
+                    Uint32 & tcthreads,
+                    Uint32 & lqhthreads,
+                    Uint32 & sendthreads,
+                    Uint32 & recvthreads)
+{
+  assert(MaxNoOfExecutionThreads >= 9);
+  static const struct entry
+  {
+    Uint32 M;
+    Uint32 lqh;
+    Uint32 tc;
+    Uint32 send;
+    Uint32 recv;
+  } table[] = {
+    { 9, 4, 2, 0, 1 },
+    { 10, 4, 2, 1, 1 },
+    { 11, 4, 3, 1, 1 },
+    { 12, 4, 3, 1, 2 },
+    { 13, 4, 3, 2, 2 },
+    { 14, 4, 4, 2, 2 },
+    { 15, 4, 5, 2, 2 },
+    { 16, 8, 3, 1, 2 },
+    { 17, 8, 4, 1, 2 },
+    { 18, 8, 4, 2, 2 },
+    { 19, 8, 5, 2, 2 },
+    { 20, 8, 5, 2, 3 },
+    { 21, 8, 5, 3, 3 },
+    { 22, 8, 6, 3, 3 },
+    { 23, 8, 7, 3, 3 },
+    { 24, 12, 5, 2, 3 },
+    { 25, 12, 6, 2, 3 },
+    { 26, 12, 6, 3, 3 },
+    { 27, 12, 7, 3, 3 },
+    { 28, 12, 7, 3, 4 },
+    { 29, 12, 8, 3, 4 },
+    { 30, 12, 8, 4, 4 },
+    { 31, 12, 9, 4, 4 },
+    { 32, 16, 8, 3, 3 },
+    { 33, 16, 8, 3, 4 },
+    { 34, 16, 8, 4, 4 },
+    { 35, 16, 9, 4, 4 },
+    { 36, 16, 10, 4, 4 },
+    { 37, 16, 10, 4, 5 },
+    { 38, 16, 11, 4, 5 },
+    { 39, 16, 11, 5, 5 },
+    { 40, 16, 12, 5, 5 },
+    { 41, 16, 12, 5, 6 },
+    { 42, 16, 13, 5, 6 },
+    { 43, 16, 13, 6, 6 },
+    { 44, 16, 14, 6, 6 }
+  };
+
+  Uint32 P = MaxNoOfExecutionThreads - 9;
+  if (P >= NDB_ARRAY_SIZE(table))
+  {
+    P = NDB_ARRAY_SIZE(table) - 1;
+  }
+
+  lqhthreads = table[P].lqh;
+  tcthreads = table[P].tc;
+  sendthreads = table[P].send;
+  recvthreads = table[P].recv;
+}
+
 int
 THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
                     unsigned __ndbmt_lqh_threads,
@@ -159,8 +226,16 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
   case 6:
     lqhthreads = 2; // TC + receiver + SUMA + 2 * LQH
     break;
-  default:
+  case 7:
+  case 8:
     lqhthreads = 4; // TC + receiver + SUMA + 4 * LQH
+    break;
+  default:
+    computeThreadConfig(MaxNoOfExecutionThreads,
+                        tcthreads,
+                        lqhthreads,
+                        sendthreads,
+                        recvthreads);
   }
 
   if (__ndbmt_lqh_threads)
@@ -1211,7 +1286,186 @@ TAPTEST(mt_thr_config)
     }
   }
 
+  for (Uint32 i = 9; i < 48; i++)
+  {
+    Uint32 t,l,s,r;
+    computeThreadConfig(i, t, l, s, r);
+    printf("MaxNoOfExecutionThreads: %u lqh: %u tc: %u send: %u recv: %u main: 1 rep: 1 => sum: %u\n",
+           i, l, t, s, r,
+           2 + l + t + s + r);
+  }
+
   return 1;
+}
+
+#endif
+
+#if 0
+
+/**
+ * This c-program was written by mikael ronstrom to
+ *  produce good distribution of threads, given MaxNoOfExecutionThreads
+ *
+ * Good is based on his experience experimenting/benchmarking
+ */
+#include <stdio.h>
+
+#define Uint32 unsigned int
+#define TC_THREAD_INDEX 0
+#define SEND_THREAD_INDEX 1
+#define RECV_THREAD_INDEX 2
+#define LQH_THREAD_INDEX 3
+#define MAIN_THREAD_INDEX 4
+#define REP_THREAD_INDEX 5
+
+#define NUM_CHANGE_INDEXES 3
+#define NUM_INDEXES 6
+
+static double mult_factor[NUM_CHANGE_INDEXES];
+
+static void
+set_changeable_thread(Uint32 num_threads[NUM_INDEXES],
+                      double float_num_threads[NUM_CHANGE_INDEXES],
+                      Uint32 index)
+{
+  num_threads[index] = (Uint32)(float_num_threads[index]);
+  float_num_threads[index] -= num_threads[index];
+}
+
+static Uint32
+calculate_total(Uint32 num_threads[NUM_INDEXES])
+{
+  Uint32 total = 0;
+  Uint32 i;
+  for (i = 0; i < NUM_INDEXES; i++)
+  {
+    total += num_threads[i];
+  }
+  return total;
+}
+
+static Uint32
+find_min_index(double float_num_threads[NUM_CHANGE_INDEXES])
+{
+  Uint32 min_index = 0;
+  Uint32 i;
+  double min = float_num_threads[0];
+
+  for (i = 1; i < NUM_CHANGE_INDEXES; i++)
+  {
+    if (min > float_num_threads[i])
+    {
+      min = float_num_threads[i];
+      min_index = i;
+    }
+  }
+  return min_index;
+}
+
+static Uint32
+find_max_index(double float_num_threads[NUM_CHANGE_INDEXES])
+{
+  Uint32 max_index = 0;
+  Uint32 i;
+  double max = float_num_threads[0];
+
+  for (i = 1; i < NUM_CHANGE_INDEXES; i++)
+  {
+    if (max < float_num_threads[i])
+    {
+      max = float_num_threads[i];
+      max_index = i;
+    }
+  }
+  return max_index;
+}
+
+static void
+add_thread(Uint32 num_threads[NUM_INDEXES],
+           double float_num_threads[NUM_CHANGE_INDEXES])
+{
+  Uint32 i;
+  Uint32 max_index = find_max_index(float_num_threads);
+  num_threads[max_index]++;
+  float_num_threads[max_index] -= (double)1;
+  for (i = 0; i < NUM_CHANGE_INDEXES; i++)
+    float_num_threads[i] += mult_factor[i];
+}
+
+static void
+remove_thread(Uint32 num_threads[NUM_INDEXES],
+              double float_num_threads[NUM_CHANGE_INDEXES])
+{
+  Uint32 i;
+  Uint32 min_index = find_min_index(float_num_threads);
+  num_threads[min_index]--;
+  float_num_threads[min_index] += (double)1;
+  for (i = 0; i < NUM_CHANGE_INDEXES; i++)
+    float_num_threads[i] -= mult_factor[i];
+}
+
+static void
+define_num_threads_per_type(Uint32 max_no_exec_threads,
+                            Uint32 num_threads[NUM_INDEXES])
+{
+  Uint32 total_threads;
+  Uint32 num_lqh_threads;
+  Uint32 i;
+  double float_num_threads[NUM_CHANGE_INDEXES];
+
+  /* Baseline to start calculations at */
+  num_threads[MAIN_THREAD_INDEX] = 1; /* Fixed */
+  num_threads[REP_THREAD_INDEX] = 1; /* Fixed */
+  num_lqh_threads = (max_no_exec_threads / 8) * 4;
+  if (num_lqh_threads > 16)
+    num_lqh_threads = 16;
+  num_threads[LQH_THREAD_INDEX] = num_lqh_threads;
+
+  /**
+   * Rest of calculations are about calculating number of tc threads,
+   * send threads and receive threads based on this input.
+   * We do this by calculating a floating point number and using this to
+   * select the next thread group to have one more added/removed.
+   */
+  mult_factor[TC_THREAD_INDEX] = 0.465;
+  mult_factor[SEND_THREAD_INDEX] = 0.19;
+  mult_factor[RECV_THREAD_INDEX] = 0.215;
+  for (i = 0; i < NUM_CHANGE_INDEXES; i++)
+    float_num_threads[i] = 0.5 + (mult_factor[i] * num_lqh_threads);
+
+  set_changeable_thread(num_threads, float_num_threads, TC_THREAD_INDEX);
+  set_changeable_thread(num_threads, float_num_threads, SEND_THREAD_INDEX);
+  set_changeable_thread(num_threads, float_num_threads, RECV_THREAD_INDEX);
+
+  total_threads = calculate_total(num_threads);
+
+  while (total_threads != max_no_exec_threads)
+  {
+    if (total_threads < max_no_exec_threads)
+      add_thread(num_threads, float_num_threads);
+    else
+      remove_thread(num_threads, float_num_threads);
+    total_threads = calculate_total(num_threads);
+  }
+}
+
+int main(int argc, char *argv)
+{
+  Uint32 num_threads[NUM_INDEXES];
+  Uint32 i;
+
+  printf("MaxNoOfExecutionThreads,LQH,TC,send,recv\n");
+  for (i = 9; i < 45; i++)
+  {
+    define_num_threads_per_type(i, num_threads);
+    printf("{ %u, %u, %u, %u, %u },\n",
+           i,
+           num_threads[LQH_THREAD_INDEX],
+           num_threads[TC_THREAD_INDEX],
+           num_threads[SEND_THREAD_INDEX],
+           num_threads[RECV_THREAD_INDEX]);
+  }
+  return 0;
 }
 
 #endif
