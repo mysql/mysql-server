@@ -55,7 +55,7 @@ COUNT(*)
 EXPLAIN
 SELECT * FROM t10000 WHERE k = 42;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10000	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t10000	const	PRIMARY	PRIMARY	4	const	1	NULL
 EXPLAIN
 SELECT * FROM t10000 WHERE k >= 42 and k < 10000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -105,19 +105,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN
 SELECT * FROM t10000 WHERE I = 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10000	ref	I	I	5	const	200	
+1	SIMPLE	t10000	ref	I	I	5	const	200	NULL
 EXPLAIN
 SELECT * FROM t10000 WHERE J = 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10000	ref	J	J	5	const	166	
+1	SIMPLE	t10000	ref	J	J	5	const	166	NULL
 EXPLAIN
 SELECT * FROM t10000 WHERE I = 0 AND J = 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10000	ref	J,I	I	10	const,const	21	
+1	SIMPLE	t10000	ref	J,I	I	10	const,const	21	NULL
 EXPLAIN
 SELECT * FROM t10000 WHERE I = 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10000	ref	I	I	5	const	200	
+1	SIMPLE	t10000	ref	I	I	5	const	200	NULL
 EXPLAIN
 SELECT * FROM t10000 WHERE I = 0 AND J > 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -133,11 +133,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN
 SELECT * FROM t10000 WHERE I = 0 AND J = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10000	ref	J,I	I	10	const,const	21	
+1	SIMPLE	t10000	ref	J,I	I	10	const,const	21	NULL
 EXPLAIN
 SELECT * FROM t10000 WHERE J = 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10000	ref	J	J	5	const	166	
+1	SIMPLE	t10000	ref	J	J	5	const	166	NULL
 EXPLAIN
 SELECT * FROM t10000 WHERE J = 0 AND K > 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
