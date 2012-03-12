@@ -2377,7 +2377,8 @@ Item_in_subselect::select_in_like_transformer(JOIN *join)
     object, but we can't know it here, but here we need address correct
     reference on left expresion.
 
-    //psergey: he means degenerate cases like "... IN (SELECT 1)"
+    note: we won't need Item_in_optimizer when handling degenerate cases
+    like "... IN (SELECT 1)"
   */
   if (!optimizer)
   {
