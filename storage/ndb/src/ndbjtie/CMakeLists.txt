@@ -19,7 +19,7 @@
 IF(HAVE_JAVA)
 
   # the native path to the JVM
-  FILE(TO_NATIVE_PATH ${Java_JAVA_EXECUTABLE} Java_JAVA_EXECUTABLE_PATH)
+  FILE(TO_NATIVE_PATH "${Java_JAVA_EXECUTABLE}" Java_JAVA_EXECUTABLE_PATH)
 
   # the JVM arch option when loading native libraries
   MATH(EXPR Java_JAVA_ARCH "${CMAKE_SIZEOF_VOID_P} * 8")

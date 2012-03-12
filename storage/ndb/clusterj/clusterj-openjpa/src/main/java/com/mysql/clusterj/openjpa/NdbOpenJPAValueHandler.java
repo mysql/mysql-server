@@ -344,4 +344,8 @@ public class NdbOpenJPAValueHandler implements ValueHandler {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    public Object getProxy() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
 }
