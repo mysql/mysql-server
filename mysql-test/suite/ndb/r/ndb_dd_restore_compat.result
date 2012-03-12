@@ -45,8 +45,6 @@ a1	a2	a3	a4	a5	a6	a7	a8	a9	a10
 4	5	2000000004	aaa4	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb4	binary data
 5	6	2000000005	aaa5	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb5	binary data
 ALTER TABLE t1 ADD COLUMN c int;
-Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
