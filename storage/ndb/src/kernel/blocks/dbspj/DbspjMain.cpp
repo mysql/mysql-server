@@ -5123,19 +5123,17 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       jam();
       Local_pattern_store pattern(pool, treeNodePtr.p->m_keyPattern);
 
-     /**
-     * Test execution terminated due to 'OutOfSectionMemory':
-     * - 17060: Fail on scanIndex_parent_row at first call
-     * - 17061: Fail on scanIndex_parent_row if 'isLeaf'
-     * - 17062: Fail on scanIndex_parent_row if treeNode not root
-     * - 17063: Fail on scanIndex_parent_row at a random node of the query tree
-     * - 
-     */
-
+      /**
+       * Test execution terminated due to 'OutOfSectionMemory':
+       * - 17060: Fail on scanIndex_parent_row at first call
+       * - 17061: Fail on scanIndex_parent_row if 'isLeaf'
+       * - 17062: Fail on scanIndex_parent_row if treeNode not root
+       * - 17063: Fail on scanIndex_parent_row at a random node of the query tree
+       */
       if (ERROR_INSERTED_CLEAR(17060) ||
           ((rand() % 7) == 0 && ERROR_INSERTED_CLEAR(17061)) ||
           ((treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17062))) ||
-          ((treeNodePtr.p->m_parentPtrI != RNIL &&ERROR_INSERTED_CLEAR(17063))))
+          ((treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17063))))
       {
         ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
                  __LINE__,  __FILE__);
@@ -5996,37 +5994,37 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
     /**
      * First, ask for more data from fragments that are already started.
      */
-  Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
-  list.first(fragPtr);
+    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+    list.first(fragPtr);
     while (sentFragCount < data.m_parallelism && !fragPtr.isNull())
-  {
-    jam();
+    {
+      jam();
       ndbassert(fragPtr.p->m_state == ScanFragHandle::SFH_WAIT_NEXTREQ ||
                 fragPtr.p->m_state == ScanFragHandle::SFH_COMPLETE ||
                 fragPtr.p->m_state == ScanFragHandle::SFH_NOT_STARTED);
-    if (fragPtr.p->m_state == ScanFragHandle::SFH_WAIT_NEXTREQ)
-    {
-      jam();
+      if (fragPtr.p->m_state == ScanFragHandle::SFH_WAIT_NEXTREQ)
+      {
+        jam();
 
-      data.m_frags_outstanding++;
-      req->variableData[0] = batchRange;
-      fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING;
-      batchRange += bs_rows;
+        data.m_frags_outstanding++;
+        req->variableData[0] = batchRange;
+        fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING;
+        batchRange += bs_rows;
 
-      DEBUG("scanIndex_execSCAN_NEXTREQ to: " << hex
-            << treeNodePtr.p->m_send.m_ref
-            << ", m_node_no=" << treeNodePtr.p->m_node_no
-            << ", senderData: " << req->senderData);
+        DEBUG("scanIndex_execSCAN_NEXTREQ to: " << hex
+              << treeNodePtr.p->m_send.m_ref
+              << ", m_node_no=" << treeNodePtr.p->m_node_no
+              << ", senderData: " << req->senderData);
 
 #ifdef DEBUG_SCAN_FRAGREQ
-      printSCANFRAGNEXTREQ(stdout, &signal->theData[0],
-                           ScanFragNextReq:: SignalLength + 1, DBLQH);
+        printSCANFRAGNEXTREQ(stdout, &signal->theData[0],
+                             ScanFragNextReq:: SignalLength + 1, DBLQH);
 #endif
 
-      req->senderData = fragPtr.i;
-      sendSignal(fragPtr.p->m_ref, GSN_SCAN_NEXTREQ, signal,
-                 ScanFragNextReq::SignalLength + 1,
-                 JBB);
+        req->senderData = fragPtr.i;
+        sendSignal(fragPtr.p->m_ref, GSN_SCAN_NEXTREQ, signal,
+                   ScanFragNextReq::SignalLength + 1,
+                   JBB);
         sentFragCount++;
       }
       list.next(fragPtr);
@@ -7243,7 +7241,6 @@ Dbspj::parseDA(Build_context& ctx,
      * - 17051: Fail on parseDA if 'isLeaf'
      * - 17052: Fail on parseDA if treeNode not root
      * - 17053: Fail on parseDA at a random node of the query tree
-     * -
      */
     if (ERROR_INSERTED_CLEAR(17050) ||
         ((treeNodePtr.p->isLeaf() &&  ERROR_INSERTED_CLEAR(17051))) ||
