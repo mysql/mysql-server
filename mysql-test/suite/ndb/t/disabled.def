@@ -34,5 +34,5 @@ ndb_read_multi_range : Waiting for adaption to WL#946
 ndb_restore_compat_compression : Waiting for adaption to WL#946
 ndb_restore_misc : Waiting for adaption to WL#946
 ndb_restore_schema_partitions : Waiting for adaption to WL#946
-ndb_ps7_ndb : Waiting for adaption to WL#946
+ps_7ndb : Waiting for adaption to WL#946
 
