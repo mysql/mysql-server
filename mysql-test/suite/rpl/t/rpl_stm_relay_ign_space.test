@@ -82,11 +82,15 @@ INSERT INTO t1 VALUES ('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 --let $relay_log_space_while_sql_is_executing = query_get_value(SHOW SLAVE STATUS, Relay_Log_Space, 1)
 --let $relay_log_space_limit = query_get_value(SHOW VARIABLES LIKE "relay_log_space_limit", Value, 1)
 --let $assert_text= Assert that relay log space is close to the limit
---let $assert_cond= $relay_log_space_while_sql_is_executing <= $relay_log_space_limit * 1.1
+--let $assert_cond= $relay_log_space_while_sql_is_executing <= $relay_log_space_limit * 1.15
 --source include/assert.inc
 
 # unlock the table and let SQL thread continue applying events
 UNLOCK TABLES;
+
+--connection master
+--let $diff_tables=master:test.t1,slave:test.t1
+--source include/diff_tables.inc
 
 --connection master
 DROP TABLE t1;
