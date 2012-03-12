@@ -655,3 +655,8 @@ CREATE TABLE t (id INT PRIMARY KEY);
 ALTER TABLE t RENAME TO `t1';;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '`t1'' at line 1
 DROP TABLE t;
+#
+# Bug#13819132 BROKEN SYNTAX ACCEPTED FOR START TRANSACTION
+#
+START TRANSACTION ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,' at line 1

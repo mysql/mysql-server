@@ -785,3 +785,11 @@ CREATE TABLE t (id INT PRIMARY KEY);
 --error ER_PARSE_ERROR
 --query ALTER TABLE t RENAME TO `t1';
 DROP TABLE t;
+
+--echo #
+--echo # Bug#13819132 BROKEN SYNTAX ACCEPTED FOR START TRANSACTION
+--echo #
+
+--error ER_PARSE_ERROR
+START TRANSACTION ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, ;
+
