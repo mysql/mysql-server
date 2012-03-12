@@ -1,0 +1,4 @@
+include/master-slave.inc
+[connection master]
+include/assert.inc [Assert that relay log space is close to the limit]
+include/rpl_end.inc
