@@ -205,7 +205,12 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
         } else {
             // not a pk field; use xxxValue to set values
             if (type.equals(byte[].class)) {
-                objectOperationHandlerDelegate = objectOperationHandlerBytes;
+                if (ColumnType.Blob == storeColumnType) {
+                    this.lob = true;
+                    objectOperationHandlerDelegate = objectOperationHandlerBytesLob;
+                } else {
+                    objectOperationHandlerDelegate = objectOperationHandlerBytes;
+                }
             } else if (type.equals(java.util.Date.class)) {
                 objectOperationHandlerDelegate = objectOperationHandlerJavaUtilDate;
             } else if (type.equals(BigDecimal.class)) {
@@ -241,7 +246,12 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     objectOperationHandlerDelegate = objectOperationHandlerShort;
                 }
             } else if (type.equals(String.class)) {
-                objectOperationHandlerDelegate = objectOperationHandlerString;
+                if (ColumnType.Text == storeColumnType) {
+                    this.lob = true;
+                    objectOperationHandlerDelegate = objectOperationHandlerStringLob;
+                } else {
+                    objectOperationHandlerDelegate = objectOperationHandlerString;
+                }
             } else if (type.equals(Byte.class)) {
                 objectOperationHandlerDelegate = objectOperationHandlerObjectByte;
             } else if (type.equals(byte.class)) {

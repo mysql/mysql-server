@@ -27,4 +27,5 @@ public interface ValueHandlerFactory {
 
     <T> ValueHandler getValueHandler(DomainTypeHandlerImpl<T> domainTypeHandler, Db db);
 
+    <T> ValueHandler getKeyValueHandler(DomainTypeHandlerImpl<T> domainTypeHandler, Db db, Object keyValues);
 }

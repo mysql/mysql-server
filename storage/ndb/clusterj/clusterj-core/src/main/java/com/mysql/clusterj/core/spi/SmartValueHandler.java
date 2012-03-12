@@ -34,4 +34,6 @@ public interface SmartValueHandler extends ValueHandler {
 
     Operation write(ClusterTransaction clusterTransaction);
 
+    Operation load(ClusterTransaction clusterTransaction);
+
 }

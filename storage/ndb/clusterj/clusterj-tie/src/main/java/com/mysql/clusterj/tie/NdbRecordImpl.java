@@ -818,4 +818,8 @@ public class NdbRecordImpl {
         return nullIndicatorSize;
     }
 
+    public boolean isLob(int columnId) {
+        return storeColumns[columnId].isLob();
+    }
+
 }

@@ -82,6 +82,10 @@ public interface DomainFieldHandler {
 
     boolean isPrimaryKey();
 
+    boolean isPartitionKey();
+
+    boolean isPersistent();
+
     boolean isLob();
 
     Object getValue(QueryExecutionContext context, String parameterName);
