@@ -146,3 +146,17 @@ ERROR 22003: BIGINT value is out of range in '(-(73) * -(2465717823867977728))'
 #
 # End Bug#57882
 #
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2(a INT PRIMARY KEY, b INT);
+SELECT '' AS b FROM t1 GROUP BY VALUES(b);
+ERROR 42S22: Unknown column '' in 'VALUES() function'
+REPLACE t2(b) SELECT '' AS b FROM t1 GROUP BY VALUES(b);
+ERROR 42S22: Unknown column '' in 'VALUES() function'
+UPDATE t2 SET a=(SELECT '' AS b FROM t1 GROUP BY VALUES(b));
+ERROR 42S22: Unknown column '' in 'VALUES() function'
+INSERT INTO t2 VALUES (1,0) ON DUPLICATE KEY UPDATE
+b=(SELECT '' AS b FROM t1 GROUP BY VALUES(b));
+ERROR 42S22: Unknown column '' in 'VALUES() function'
+INSERT INTO t2(a,b) VALUES (1,0) ON DUPLICATE KEY UPDATE
+b=(SELECT VALUES(a)+2 FROM t1);
+DROP TABLE t1, t2;
