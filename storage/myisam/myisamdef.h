@@ -726,7 +726,7 @@ my_bool mi_check_status(void *param);
 void mi_fix_status(MI_INFO *org_table, MI_INFO *new_table);
 void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);
 
-extern MI_INFO *test_if_reopen(char *filename);
+extern MI_INFO *test_if_reopen(char *filename, my_bool ignore_last_version);
 my_bool check_table_is_closed(const char *name, const char *where);
 int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *orn_name,
                      File file_to_dup);

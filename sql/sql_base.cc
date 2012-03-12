@@ -2985,7 +2985,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
 
     error= open_unireg_entry(thd, table, table_list, alias, key, key_length,
-                             mem_root, (flags & OPEN_VIEW_NO_PARSE));
+                             mem_root,
+                             (flags & (OPEN_VIEW_NO_PARSE |
+                                       MYSQL_LOCK_IGNORE_FLUSH)));
     if (error > 0)
     {
       my_free((uchar*)table, MYF(0));
@@ -4074,8 +4076,11 @@ retry:
                                       HA_GET_INDEX | HA_TRY_READ_ONLY),
                               READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
                               (flags & OPEN_VIEW_NO_PARSE),
-                              thd->open_options, entry, table_list,
-                              mem_root);
+                              thd->open_options |
+                              (thd->version == 0 &&
+                               (flags & MYSQL_LOCK_IGNORE_FLUSH) ?
+                               HA_OPEN_FOR_STATUS : 0),
+                              entry, table_list, mem_root);
     if (error)
       goto err;
     /* TODO: Don't free this */
@@ -4113,7 +4118,11 @@ retry:
                                                HA_TRY_READ_ONLY),
                                        (READ_KEYINFO | COMPUTE_TYPES |
                                         EXTRA_RECORD),
-                                       thd->open_options, entry, FALSE)))
+                                       thd->open_options |
+                                       (thd->version == 0 &&
+                                        (flags & MYSQL_LOCK_IGNORE_FLUSH) ?
+                                        HA_OPEN_FOR_STATUS : 0),
+                                       entry, FALSE)))
   {
     if (error == 7)                             // Table def changed
     {

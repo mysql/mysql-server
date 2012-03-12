@@ -665,11 +665,13 @@ prototype_redo_exec_hook_dummy(INCOMPLETE_GROUP)
 prototype_redo_exec_hook(INCOMPLETE_LOG)
 {
   MARIA_HA *info;
+
   if (skip_DDLs)
   {
     tprint(tracef, "we skip DDLs\n");
     return 0;
   }
+
   if ((info= get_MARIA_HA_from_REDO_record(rec)) == NULL)
   {
     /* no such table, don't need to warn */
@@ -1479,7 +1481,13 @@ end:
   if (error)
   {
     if (info != NULL)
+    {
+      /* let maria_close() mark the table properly closed */
+      info->s->state.open_count= 1;
+      info->s->global_changed= 1;
+      info->s->changed= 1;
       maria_close(info);
+    }
     if (error == -1)
       error= 0;
   }

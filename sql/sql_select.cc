@@ -60,6 +60,7 @@ static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
 static bool sort_and_filter_keyuse(THD *thd, DYNAMIC_ARRAY *keyuse,
                                    bool skip_unprefixed_keyparts);
 static int sort_keyuse(KEYUSE *a,KEYUSE *b);
+static bool are_tables_local(JOIN_TAB *jtab, table_map used_tables);
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 			       bool allow_full_scan, table_map used_tables);
 void best_access_path(JOIN *join, JOIN_TAB *s, 
@@ -3781,15 +3782,15 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
           if (old->field->maybe_null())
 	  {
 	    old->optimize= KEY_OPTIMIZE_REF_OR_NULL;
-	    /*
-              Remember the NOT NULL value unless the value does not depend
-              on other tables.
-            */
-	    if (!old->val->used_tables() && old->val->is_null())
-	      old->val= new_fields->val;
             /* The referred expression can be NULL: */ 
             old->null_rejecting= 0;
 	  }
+	  /*
+            Remember the NOT NULL value unless the value does not depend
+            on other tables.
+          */
+	  if (!old->val->used_tables() && old->val->is_null())
+	    old->val= new_fields->val;
 	}
 	else
 	{
@@ -7262,7 +7263,8 @@ static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
 
   do
   {
-    if (!(~used_tables & keyuse->used_tables))
+    if (!(~used_tables & keyuse->used_tables) &&
+        are_tables_local(join_tab, keyuse->used_tables))    
     {
       if (first_keyuse)
       {
@@ -7275,7 +7277,8 @@ static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
         for( ; curr < keyuse; curr++)
         {
           if (curr->keypart == keyuse->keypart &&
-              !(~used_tables & curr->used_tables))
+              !(~used_tables & curr->used_tables) &&
+              are_tables_local(join_tab, curr->used_tables))
             break;
         }
         if (curr == keyuse)
@@ -7306,7 +7309,8 @@ static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
   keyuse= org_keyuse;
   do
   {
-    if (!(~used_tables & keyuse->used_tables))
+    if (!(~used_tables & keyuse->used_tables) &&
+        are_tables_local(join_tab, keyuse->used_tables))
     { 
       bool add_key_part= TRUE;
       if (!first_keyuse)
@@ -7314,7 +7318,8 @@ static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
         for(KEYUSE *curr= org_keyuse; curr < keyuse; curr++)
         {
           if (curr->keypart == keyuse->keypart &&
-              !(~used_tables & curr->used_tables))
+              !(~used_tables & curr->used_tables) &&
+               are_tables_local(join_tab, curr->used_tables))
 	  {
             keyuse->keypart= NO_KEYPART;
             add_key_part= FALSE;
@@ -8712,8 +8717,13 @@ void JOIN::drop_unused_derived_keys()
       continue;
     if (table->max_keys > 1)
       table->use_index(tab->ref.key);
-    if (table->s->keys && tab->ref.key >= 0)
-      tab->ref.key= 0;
+    if (table->s->keys)
+    {
+      if (tab->ref.key >= 0)
+        tab->ref.key= 0;
+      else
+        table->s->keys= 0;
+    }
     tab->keys= (key_map) (table->s->keys ? 1 : 0);
   }
 }

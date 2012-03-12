@@ -62,7 +62,8 @@ MARIA_HA *_ma_test_if_reopen(const char *filename)
   {
     MARIA_HA *info=(MARIA_HA*) pos->data;
     MARIA_SHARE *share= info->s;
-    if (!strcmp(share->unique_file_name.str,filename) && share->last_version)
+    if (!strcmp(share->unique_file_name.str,filename) &&
+        share->last_version > 1)
       return info;
   }
   return 0;
@@ -840,7 +841,12 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     share->base.key_parts=key_parts;
     share->base.all_key_parts=key_parts+unique_key_parts;
     if (!(share->last_version=share->state.version))
-      share->last_version=1;			/* Safety */
+      share->last_version= 2;			/* Safety */
+    if (open_flags & HA_OPEN_FOR_STATUS)
+    {
+      share->last_version= 1;                  /* Not reusable version */
+      share->options|= HA_OPTION_READ_ONLY_DATA;
+    }
     share->rec_reflength=share->base.rec_reflength; /* May be changed */
     share->base.margin_key_file_length=(share->base.max_key_file_length -
 					(keys ? MARIA_INDEX_BLOCK_MARGIN *

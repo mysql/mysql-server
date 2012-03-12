@@ -1602,6 +1602,46 @@ SET optimizer_switch=@save_optimizer_switch;
 
 DROP TABLE t1,t2;
 
+--echo # 
+--echo # BUG#946055: Crash with semijoin IN subquery when hash join is used
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (7);
+
+CREATE TABLE t2 (b int, c int, d varchar(1), e varchar(1), KEY (c), KEY (d, c));
+
+INSERT INTO t2 VALUES 
+  (4,2,'v','v'), (6,1,'v','v'), (0,5,'x','x'), (7,1,'x','x'),
+  (7,3,'i','i'), (7,1,'e','e'), (1,4,'p','p'), (1,2,'j','j');
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_join_cache_level=@@join_cache_level;
+
+SET join_cache_level=2;
+EXPLAIN
+SELECT a, c FROM t1, t2
+  WHERE (a, c) IN (SELECT s1.b, s1.c FROM t2 AS s1, t2 AS s2
+                     WHERE s2.d = s1.e AND s1.e = (SELECT MAX(e) FROM t2));
+SELECT a, c FROM t1, t2
+  WHERE (a, c) IN (SELECT s1.b, s1.c FROM t2 AS s1, t2 AS s2
+                     WHERE s2.d = s1.e AND s1.e = (SELECT MAX(e) FROM t2));
+
+SET optimizer_switch='join_cache_hashed=on';
+SET join_cache_level=4;
+EXPLAIN
+SELECT a, c FROM t1, t2
+  WHERE (a, c) IN (SELECT s1.b, s1.c FROM t2 AS s1, t2 AS s2
+                     WHERE s2.d = s1.e AND s1.e = (SELECT MAX(e) FROM t2));
+SELECT a, c FROM t1, t2
+  WHERE (a, c) IN (SELECT s1.b, s1.c FROM t2 AS s1, t2 AS s2
+                     WHERE s2.d = s1.e AND s1.e = (SELECT MAX(e) FROM t2));
+
+SET optimizer_switch=@save_optimizer_switch;
+SET join_cache_level=@save_join_cache_level;
+
+DROP TABLE t1,t2;
+
 --echo #
 --echo # BUG#952297: Server crashes on 2nd execution of PS in Field::is_null with semijoin+materialization
 --echo #

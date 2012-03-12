@@ -54,6 +54,7 @@
 /* Internal temp table, used for temporary results */
 #define HA_OPEN_INTERNAL_TABLE          512
 #define HA_OPEN_MERGE_TABLE		1024
+#define HA_OPEN_FOR_STATUS		2048
 
 /* The following is parameter to ha_rkey() how to use key */
 
