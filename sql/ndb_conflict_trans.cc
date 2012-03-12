@@ -401,6 +401,8 @@ track_operation(const NdbDictionary::Table* table,
                          packed_key_buff,
                          required_buff_size))
   {
+    if (!error_text)
+      error_text="track_operation : Failed packing key";
     DBUG_RETURN(-1);
   }
 
@@ -445,6 +447,8 @@ track_operation(const NdbDictionary::Table* table,
       */
       existing->updateRowTransactionId(newTransIdOnRow);
 
+      assert(res == 0 || error_text != NULL);
+
       DBUG_RETURN(res);
     }
     else
@@ -453,10 +457,18 @@ track_operation(const NdbDictionary::Table* table,
          How can we have two updates to the same row with the
          same transaction id?  Only if the transaction id
          is invalid (e.g. not set)
+         In normal cases with only one upstream master, each
+         distinct master user transaction will have a unique
+         id, and all operations on a row in that transaction
+         will be merged in TUP prior to emitting a SUMA
+         event.
+         This could be relaxed for more complex upstream
+         topologies, but acts as a sanity guard currently.
       */
       if (existingTransIdOnRow != InvalidTransactionId)
       {
         assert(false);
+        error_text= "Two row operations to same key sharing user transaction id";
         DBUG_RETURN(-1);
       }
     }

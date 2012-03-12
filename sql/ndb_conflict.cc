@@ -248,6 +248,12 @@ st_ndb_slave_state::resetPerAttemptCounters()
 void
 st_ndb_slave_state::atTransactionAbort()
 {
+#ifdef HAVE_NDB_BINLOG
+  /* Reset any gathered transaction dependency information */
+  atEndTransConflictHandling();
+  trans_conflict_apply_state = SAS_NORMAL;
+#endif
+
   /* Reset current-transaction counters + state */
   resetPerAttemptCounters();
 }
