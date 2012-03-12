@@ -863,6 +863,8 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
     const bool op_has_conflict_detection = (first->getCustomData() != NULL);
     if (!op_has_conflict_detection)
     {
+      DBUG_ASSERT(err.code != (int) error_op_after_refresh_op);
+
       /* 'Normal path' - ignore key (not) present, others are errors */
       if (err.classification != NdbError::NoError &&
           err.classification != NdbError::ConstraintViolation &&
@@ -909,15 +911,18 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   {
     const NdbOperation* last_conflict_op = trans->getLastDefinedOperation();
 
+    NdbError nonMaskedError;
+    assert(nonMaskedError.code == 0);
+
     if (trans->execute(NdbTransaction::NoCommit,
                        NdbOperation::AO_IgnoreError,
                        thd_ndb->m_force_send))
     {
-      abort();
-      //err= trans->getNdbError();
+      /* Transaction execute failed, even with IgnoreError... */
+      nonMaskedError = trans->getNdbError();
+      assert(nonMaskedError.code != 0);
     }
-
-    if (trans->getNdbError().code)
+    else if (trans->getNdbError().code)
     {
       /* Check the result codes of the operations we added */
       const NdbOperation* conflict_op = NULL;
@@ -932,25 +937,33 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
         if ((err.code != 0) &&
             (err.code != (int) error_op_after_refresh_op))
         {
-          if (err.status == NdbError::TemporaryError)
-          {
-            /* Slave will roll back and retry entire transaction. */
-            ERR_RETURN(err);
-          }
-          else
-          {
-            char msg[FN_REFLEN];
-            my_snprintf(msg, sizeof(msg), "Executing extra operations for "
-                        "conflict handling hit Ndb error %d '%s'",
-                        err.code, err.message);
-            push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                                ER_EXCEPTIONS_WRITE_ERROR,
-                                ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
-            /* Slave will stop replication. */
-            DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
-          }
+          /* Found a real error, break out and handle it */
+          nonMaskedError = err;
+          break;
         }
       } while (conflict_op != last_conflict_op);
+    }
+
+    /* Handle errors with extra conflict handling operations */
+    if (nonMaskedError.code != 0)
+    {
+      if (nonMaskedError.status == NdbError::TemporaryError)
+      {
+        /* Slave will roll back and retry entire transaction. */
+        ERR_RETURN(nonMaskedError);
+      }
+      else
+      {
+        char msg[FN_REFLEN];
+        my_snprintf(msg, sizeof(msg), "Executing extra operations for "
+                    "conflict handling hit Ndb error %d '%s'",
+                    nonMaskedError.code, nonMaskedError.message);
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                            ER_EXCEPTIONS_WRITE_ERROR,
+                            ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+        /* Slave will stop replication. */
+        DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
+      }
     }
   }
 #endif
@@ -1016,11 +1029,11 @@ ha_ndbcluster::release_completed_operations(NdbTransaction *trans)
   trans->releaseCompletedOperations();
 }
 
-int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
+int execute_no_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
                       bool ignore_no_key,
                       uint *ignore_count= 0);
 inline
-int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
+int execute_no_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
                       bool ignore_no_key,
                       uint *ignore_count)
 {
@@ -1031,18 +1044,35 @@ int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   thd_ndb->m_execute_count++;
   thd_ndb->m_unsent_bytes= 0;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
-  if (trans->execute(NdbTransaction::NoCommit,
-                     NdbOperation::AO_IgnoreError,
-                     thd_ndb->m_force_send))
+  int rc= 0;
+  do
   {
-    DBUG_RETURN(-1);
-  }
-  if (!ignore_no_key || trans->getNdbError().code == 0)
-    DBUG_RETURN(trans->getNdbError().code);
+    if (trans->execute(NdbTransaction::NoCommit,
+                       NdbOperation::AO_IgnoreError,
+                       thd_ndb->m_force_send))
+    {
+      rc= -1;
+      break;
+    }
+    if (!ignore_no_key || trans->getNdbError().code == 0)
+    {
+      rc= trans->getNdbError().code;
+      break;
+    }
 
-  DBUG_RETURN(check_completed_operations_pre_commit(thd_ndb, trans,
-                                                    first, last,
-                                                    ignore_count));
+    rc = check_completed_operations_pre_commit(thd_ndb, trans,
+                                               first, last,
+                                               ignore_count);
+  } while (0);
+
+  if (unlikely(thd->slave_thread &&
+               rc != 0))
+  {
+    g_ndb_slave_state.atTransactionAbort();
+  }
+
+  DBUG_PRINT("info", ("execute_no_commit rc is %d", rc));
+  DBUG_RETURN(rc);
 }
 
 int execute_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
@@ -1067,21 +1097,40 @@ int execute_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
   thd_ndb->m_execute_count++;
   thd_ndb->m_unsent_bytes= 0;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
-  if (trans->execute(NdbTransaction::Commit, ao, force_send))
+  int rc= 0;
+  do
   {
-    if (thd->slave_thread)
-      g_ndb_slave_state.atTransactionAbort();
-    DBUG_RETURN(-1);
-  }
-  /* Success of some sort */
+    if (trans->execute(NdbTransaction::Commit, ao, force_send))
+    {
+      rc= -1;
+      break;
+    }
+
+    if (!ignore_error || trans->getNdbError().code == 0)
+    {
+      rc= trans->getNdbError().code;
+      break;
+    }
+
+    rc= check_completed_operations(thd_ndb, trans, first, last,
+                                   ignore_count);
+  } while (0);
+
   if (thd->slave_thread)
   {
-    g_ndb_slave_state.atTransactionCommit();
+    if (likely(rc == 0))
+    {
+      /* Success */
+      g_ndb_slave_state.atTransactionCommit();
+    }
+    else
+    {
+      g_ndb_slave_state.atTransactionAbort();
+    }
   }
-  if (!ignore_error || trans->getNdbError().code == 0)
-    DBUG_RETURN(trans->getNdbError().code);
-  DBUG_RETURN(check_completed_operations(thd_ndb, trans, first, last,
-                                         ignore_count));
+
+  DBUG_PRINT("info", ("execute_commit rc is %d", rc));
+  DBUG_RETURN(rc);
 }
 
 inline
@@ -3045,7 +3094,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
       if (error != 0)
         ERR_RETURN(op->getNdbError());
     }
-    if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0) 
+    if (execute_no_commit(thd, m_thd_ndb, trans, m_ignore_no_key) != 0)
     {
       table->status= STATUS_NOT_FOUND;
       DBUG_RETURN(ndb_err(trans));
@@ -3411,7 +3460,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
     */
     if (m_thd_ndb->m_unsent_bytes && m_blobs_pending)
     {
-      if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
+      if (execute_no_commit(table->in_use, m_thd_ndb, trans, m_ignore_no_key) != 0)
         DBUG_RETURN(ndb_err(trans));
     }
     
@@ -3760,7 +3809,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 
   m_active_cursor= op;
 
-  if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
+  if (execute_no_commit(table->in_use, m_thd_ndb, trans, m_ignore_no_key) != 0)
     DBUG_RETURN(ndb_err(trans));
   
   DBUG_RETURN(next_result(buf));
@@ -3905,7 +3954,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
       get_blob_values(op, NULL, table->read_set) != 0)
     ERR_RETURN(op->getNdbError());
 
-  if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
+  if (execute_no_commit(table->in_use, m_thd_ndb, trans, m_ignore_no_key) != 0)
     DBUG_RETURN(ndb_err(trans));
   DBUG_PRINT("exit", ("Scan started successfully"));
   DBUG_RETURN(next_result(buf));
@@ -4100,6 +4149,15 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
   conflict_handled = false;
 
   /*
+    Special check for apply_status table, as we really don't want
+    to do any special handling with it
+  */
+  if (unlikely(m_share == ndb_apply_status_share))
+  {
+    DBUG_RETURN(0);
+  }
+
+  /*
      Check transaction id first, as in transactional conflict detection,
      the transaction id is what eventually dictates whether an operation
      is applied or not.
@@ -4182,6 +4240,8 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
                       "events received without transaction ids.  Check --ndb-log-transaction-id setting "
                       "on upstream Cluster.",
                       m_share->key);
+    /* This is a user error, but we want them to notice, so treat seriously */
+    DBUG_RETURN( ER_SLAVE_CORRUPT_EVENT );
   }
 
   /*
@@ -5133,14 +5193,14 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
   }
 
   uint ignore_count= 0;
-  if (execute_no_commit(m_thd_ndb, trans,
+  THD *thd= table->in_use;
+  if (execute_no_commit(thd, m_thd_ndb, trans,
                         m_ignore_no_key || m_read_before_write_removal_used,
                         &ignore_count) != 0)
   {
     no_uncommitted_rows_execute_failure();
     DBUG_RETURN(ndb_err(trans));
   }
-  THD *thd= table->in_use;
   if (!thd->slave_thread)
   {
     assert(m_rows_changed >= ignore_count);
@@ -5452,7 +5512,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       !(cursor || (batch_allowed && have_pk)) ||
       need_flush)
   {
-    if (execute_no_commit(m_thd_ndb, trans,
+    if (execute_no_commit(thd, m_thd_ndb, trans,
                           m_ignore_no_key || m_read_before_write_removal_used,
                           &ignore_count) != 0)
     {
@@ -5560,7 +5620,8 @@ int ha_ndbcluster::end_bulk_delete()
   }
 
   uint ignore_count= 0;
-  if (execute_no_commit(m_thd_ndb, trans,
+  THD *thd= table->in_use;
+  if (execute_no_commit(thd, m_thd_ndb, trans,
                         m_ignore_no_key || m_read_before_write_removal_used,
                         &ignore_count) != 0)
   {
@@ -5568,7 +5629,6 @@ int ha_ndbcluster::end_bulk_delete()
     DBUG_RETURN(ndb_err(trans));
   }
 
-  THD *thd= table->in_use;
   if (!thd->slave_thread)
   {
     assert(m_rows_deleted >= ignore_count);
@@ -5770,7 +5830,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
 
   // Execute delete operation
   uint ignore_count= 0;
-  if (execute_no_commit(m_thd_ndb, trans,
+  if (execute_no_commit(thd, m_thd_ndb, trans,
                         m_ignore_no_key || m_read_before_write_removal_used,
                         &ignore_count) != 0)
   {
@@ -6340,7 +6400,7 @@ int ha_ndbcluster::close_scan()
     */
     DBUG_PRINT("info", ("thd_ndb->m_unsent_bytes: %ld",
                         (long) m_thd_ndb->m_unsent_bytes));    
-    if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
+    if (execute_no_commit(table->in_use, m_thd_ndb, trans, m_ignore_no_key) != 0)
     {
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
@@ -6878,7 +6938,7 @@ ha_ndbcluster::flush_bulk_insert(bool allow_batch)
   if (! (m_thd_ndb->trans_options & TNTO_TRANSACTIONS_OFF))
   {
     if (!allow_batch &&
-        execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
+        execute_no_commit(table->in_use, m_thd_ndb, trans, m_ignore_no_key) != 0)
     {
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
@@ -7683,7 +7743,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     if (g_ndb_slave_state.conflict_flags & SCS_OPS_DEFINED)
     {
       if (thd_ndb->m_unsent_bytes)
-        res = execute_no_commit(thd_ndb, trans, TRUE);
+        res = execute_no_commit(thd, thd_ndb, trans, TRUE);
     }
 
     if (likely(res == 0))
