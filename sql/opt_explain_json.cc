@@ -53,6 +53,9 @@ static const char *json_extra_tags[ET_total]=
   "const_row_not_found",                // ET_CONST_ROW_NOT_FOUND
   "unique_row_not_found",               // ET_UNIQUE_ROW_NOT_FOUND
   "impossible_on_condition",            // ET_IMPOSSIBLE_ON_CONDITION
+#ifndef MCP_WL4784
+  NULL                                  // ET_PUSHED_JOIN
+#endif
 };
 
 

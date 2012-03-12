@@ -98,6 +98,9 @@ enum Extra_tag
   ET_CONST_ROW_NOT_FOUND,
   ET_UNIQUE_ROW_NOT_FOUND,
   ET_IMPOSSIBLE_ON_CONDITION,
+#ifndef MCP_WL4784
+  ET_PUSHED_JOIN,
+#endif
   //------------------------------------
   ET_total
 };
