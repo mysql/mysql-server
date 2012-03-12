@@ -912,17 +912,23 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
     {
       uint pushed_count= tab->table->file->number_of_pushed_joins();
       len= my_snprintf(buf, sizeof(buf)-1,
-                       "; Parent of %d pushed join@%d",
+                       "Parent of %d pushed join@%d",
                        pushed_count, pushed_id);
     }
     else
     {
       len= my_snprintf(buf, sizeof(buf)-1,
-                       "; Child of '%s' in pushed join@%d",
+                       "Child of '%s' in pushed join@%d",
                        tab->table->file->parent_of_pushed_join()->alias,
                        pushed_id);
     }
-    //str_extra->append(buf,len);
+
+    {
+      StringBuffer<128> buff(cs);
+      buff.append(buf,len);
+      if (push_extra(ET_PUSHED_JOIN, buff))
+        return true;
+    }
   }
 #endif
 
