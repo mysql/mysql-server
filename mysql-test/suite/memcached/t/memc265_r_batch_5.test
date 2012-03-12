@@ -76,9 +76,17 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11263" ]
+  'servers' => [ "127.0.0.1:11265" ]
 };
 print "Here the memcached results:\n";
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("C");
+if ($val) { print "$val\n"; }
 $val = $memd->get("B");
 if ($val) { print "$val\n"; }
 $val = $memd->get("C");
@@ -98,10 +106,30 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11263" ]
+  'servers' => [ "127.0.0.1:11265" ]
 };
 print "Here the memcached results:\n";
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
 $val = $memd->get("C");
+if ($val) { print "$val\n"; }
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("C");
+if ($val) { print "$val\n"; }
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
@@ -111,7 +139,6 @@ EOF
 SELECT c1,c2,c21 FROM test.t1;
 
 connection mysqltest1;
-#--error 1205
 SELECT c1,c2,c21 FROM test.t1 FOR UPDATE;
 ROLLBACK;
 
@@ -120,7 +147,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11263" ]
+  'servers' => [ "127.0.0.1:11265" ]
 };
 print "Here the memcached results:\n";
 $val = $memd->get("D");
@@ -131,13 +158,15 @@ $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("H");
 if ($val) { print "$val\n"; }
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 --sorted_result
 SELECT c1,c2,c21 FROM test.t1;
 
 connection mysqltest1;
---sorted_result
+--error ER_LOCK_WAIT_TIMEOUT
 SELECT c1,c2,c21 FROM t1 FOR UPDATE;
 DROP TABLE test.t1;
 COMMIT;
@@ -148,6 +177,7 @@ DROP DATABASE innodb_memcache;
 DROP USER mysqltest1@localhost;
  
 SET @@global.tx_isolation= @tx_isolation;
-SET  @@global.autocommit=@auto_commit;
+SET @@global.autocommit=@auto_commit;
 SET @@global.innodb_lock_wait_timeout=@innodb_lock_wait_timeout_old;
 SET @@global.lock_wait_timeout=@lock_wait_timeout_old;
+

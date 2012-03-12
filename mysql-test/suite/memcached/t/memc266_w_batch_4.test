@@ -9,14 +9,13 @@ source include/have_innodb.inc;
 
 --enable_connect_log
 SET @auto_commit= @@global.autocommit;
-SET @innodb_lock_wait_timeout_old=@@global.innodb_lock_wait_timeout;
-SET @@global.innodb_lock_wait_timeout=1;
-SET @lock_wait_timeout_old=@@global.lock_wait_timeout;
-SET @@global.lock_wait_timeout=1;
 SET @@global.autocommit=0;
 SET @tx_isolation= @@global.tx_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-SET @wait= @@global.wait_timeout;
+SET @lock_wait=@@global.lock_wait_timeout;
+SET @@global.lock_wait_timeout=1;
+SET @innodb_lock_wait=@@global.innodb_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout=1;
 
 # Stop plugin befor innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
@@ -51,18 +50,14 @@ CREATE TABLE t1        (c1 VARCHAR(32),
 			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
 
-INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
-INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
-INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
-INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
 COMMIT;
 
 connection default;
 # Tables must exist before plugin can be started!
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-SELECT @@global.daemon_memcached_r_batch_size;
+SELECT @@global.daemon_memcached_w_batch_size;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@global.daemon_memcached_r_batch_size=100;
+SET @@global.daemon_memcached_w_batch_size=100;
 
 connection mysqltest1;
 
@@ -76,12 +71,16 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11263" ]
+  'servers' => [ "127.0.0.1:11266" ]
 };
-print "Here the memcached results:\n";
-$val = $memd->get("B");
+#print "Here the memcached :\n";
+$val = $memd->set("B","Berlin|Mitte");
 if ($val) { print "$val\n"; }
-$val = $memd->get("C");
+$val = $memd->set("D","Darmstadt|City");
+if ($val) { print "$val\n"; }
+$val = $memd->set("C","Cottbus|Süd");
+if ($val) { print "$val\n"; }
+$val = $memd->set("H","Hamburg|Altona");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
@@ -98,12 +97,24 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11263" ]
+  'servers' => [ "127.0.0.1:11266" ]
 };
 print "Here the memcached results:\n";
-$val = $memd->get("C");
+$val = $memd->add("M","München|Perlach");
 if ($val) { print "$val\n"; }
-$val = $memd->get("D");
+$val = $memd->add("N","Nürnberg|Nord");
+if ($val) { print "$val\n"; }
+$val = $memd->add("O","Oldenburg|Friesland");
+if ($val) { print "$val\n"; }
+$val = $memd->add("S","Stuttgart|Schwaben");
+if ($val) { print "$val\n"; }
+$val = $memd->add("G","Gossen|City");
+if ($val) { print "$val\n"; }
+$val = $memd->add("F","Frankfurt|Sachsenhausen");
+if ($val) { print "$val\n"; }
+$val = $memd->add("E","Essen|West");
+if ($val) { print "$val\n"; }
+$val = $memd->add("P","Paderborn|City");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
@@ -111,25 +122,22 @@ EOF
 SELECT c1,c2,c21 FROM test.t1;
 
 connection mysqltest1;
-#--error 1205
 SELECT c1,c2,c21 FROM test.t1 FOR UPDATE;
-ROLLBACK;
+COMMIT;
 
 connection default;
 perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11263" ]
+  'servers' => [ "127.0.0.1:11266" ]
 };
 print "Here the memcached results:\n";
-$val = $memd->get("D");
+$val = $memd->replace("G","Gossen|C");
 if ($val) { print "$val\n"; }
-$val = $memd->get("H");
+$val = $memd->replace("F","Frankfurt|S");
 if ($val) { print "$val\n"; }
-$val = $memd->get("D");
-if ($val) { print "$val\n"; }
-$val = $memd->get("H");
+$val = $memd->replace("E","Essen|W");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
@@ -137,8 +145,8 @@ EOF
 SELECT c1,c2,c21 FROM test.t1;
 
 connection mysqltest1;
---sorted_result
-SELECT c1,c2,c21 FROM t1 FOR UPDATE;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT c1,c2,c21 FROM test.t1 FOR UPDATE;
 DROP TABLE test.t1;
 COMMIT;
 
@@ -149,5 +157,5 @@ DROP USER mysqltest1@localhost;
  
 SET @@global.tx_isolation= @tx_isolation;
 SET  @@global.autocommit=@auto_commit;
-SET @@global.innodb_lock_wait_timeout=@innodb_lock_wait_timeout_old;
-SET @@global.lock_wait_timeout=@lock_wait_timeout_old;
+SET @@global.lock_wait_timeout=@lock_wait;
+SET @@global.innodb_lock_wait_timeout=@innodb_lock_wait;

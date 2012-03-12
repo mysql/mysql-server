@@ -33,7 +33,7 @@ connection default;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 SELECT @@global.daemon_memcached_r_batch_size;
 @@global.daemon_memcached_r_batch_size
-2
+6
 SET @@global.daemon_memcached_r_batch_size=100;
 ERROR HY000: Variable 'daemon_memcached_r_batch_size' is a read only variable
 connection mysqltest1;
@@ -46,6 +46,10 @@ H	Hamburg	Norderstedt
 COMMIT;
 connection default;
 Here the memcached results:
+Berlin|Mitte
+Berlin|Mitte
+Berlin|Mitte
+Cottbus|West
 Berlin|Mitte
 Cottbus|West
 SELECT c1,c2,c21 FROM test.t1;
@@ -64,7 +68,17 @@ H	Hamburg	Norderstedt
 ROLLBACK;
 connection default;
 Here the memcached results:
+Berlin|Mitte
+Berlin|Mitte
+Berlin|Mitte
 Cottbus|West
+Berlin|Mitte
+Cottbus|West
+Darmstadt|City
+Darmstadt|City
+Darmstadt|City
+Darmstadt|City
+Darmstadt|City
 Darmstadt|City
 SELECT c1,c2,c21 FROM test.t1;
 c1	c2	c21
@@ -86,6 +100,7 @@ Darmstadt|City
 Hamburg|Norderstedt
 Darmstadt|City
 Hamburg|Norderstedt
+Darmstadt|City
 SELECT c1,c2,c21 FROM test.t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -94,11 +109,7 @@ D	Darmstadt	City
 H	Hamburg	Norderstedt
 connection mysqltest1;
 SELECT c1,c2,c21 FROM t1 FOR UPDATE;
-c1	c2	c21
-B	Berlin	Mitte
-C	Cottbus	West
-D	Darmstadt	City
-H	Hamburg	Norderstedt
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 DROP TABLE test.t1;
 COMMIT;
 connection default;
@@ -106,6 +117,6 @@ disconnect mysqltest1;
 DROP DATABASE innodb_memcache;
 DROP USER mysqltest1@localhost;
 SET @@global.tx_isolation= @tx_isolation;
-SET  @@global.autocommit=@auto_commit;
+SET @@global.autocommit=@auto_commit;
 SET @@global.innodb_lock_wait_timeout=@innodb_lock_wait_timeout_old;
 SET @@global.lock_wait_timeout=@lock_wait_timeout_old;
