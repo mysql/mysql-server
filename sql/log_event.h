@@ -691,10 +691,15 @@ enum Log_event_type
   IGNORABLE_LOG_EVENT= 28,
   ROWS_QUERY_LOG_EVENT= 29,
 
-  GTID_LOG_EVENT= 30,
-  ANONYMOUS_GTID_LOG_EVENT= 31,
+  /* Following event numbers reserved for WL#5917 */
+  RESERVED_EVENT_NUM_1 = 30,
+  RESERVED_EVENT_NUM_2 = 31,
+  RESERVED_EVENT_NUM_3 = 32,
 
-  PREVIOUS_GTIDS_LOG_EVENT= 32,
+  GTID_LOG_EVENT= 33,
+  ANONYMOUS_GTID_LOG_EVENT= 34,
+
+  PREVIOUS_GTIDS_LOG_EVENT= 35,
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
