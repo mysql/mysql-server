@@ -1602,6 +1602,28 @@ SET optimizer_switch=@save_optimizer_switch;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # BUG#952297: Server crashes on 2nd execution of PS in Field::is_null with semijoin+materialization
+--echo #
+CREATE TABLE t1 ( a VARCHAR(1) );
+INSERT INTO t1 VALUES ('y'),('z');
+
+CREATE TABLE t2 ( b VARCHAR(1), c VARCHAR(1) );
+INSERT INTO t2 VALUES ('v','v'),('v','v');
+
+CREATE VIEW v2 AS SELECT * FROM t2;
+
+PREPARE ps FROM '
+SELECT a FROM t1, v2
+WHERE ( c, b ) IN ( SELECT b, b FROM t2 )
+GROUP BY a ';
+
+EXECUTE ps;
+EXECUTE ps;
+
+DROP VIEW v2;
+DROP TABLE t1, t2;
+
 --echo # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;

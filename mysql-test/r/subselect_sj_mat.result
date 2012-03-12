@@ -1950,6 +1950,28 @@ WHERE a IN (SELECT MAX(c) FROM t2 WHERE c < 4) AND b=7 AND (a IS NULL OR a=b);
 a	b
 SET optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1,t2;
+#
+# BUG#952297: Server crashes on 2nd execution of PS in Field::is_null with semijoin+materialization
+#
+CREATE TABLE t1 ( a VARCHAR(1) );
+INSERT INTO t1 VALUES ('y'),('z');
+CREATE TABLE t2 ( b VARCHAR(1), c VARCHAR(1) );
+INSERT INTO t2 VALUES ('v','v'),('v','v');
+CREATE VIEW v2 AS SELECT * FROM t2;
+PREPARE ps FROM '
+SELECT a FROM t1, v2
+WHERE ( c, b ) IN ( SELECT b, b FROM t2 )
+GROUP BY a ';
+EXECUTE ps;
+a
+y
+z
+EXECUTE ps;
+a
+y
+z
+DROP VIEW v2;
+DROP TABLE t1, t2;
 # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;

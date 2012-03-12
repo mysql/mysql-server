@@ -8497,6 +8497,17 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
 	  goto err_no_arena;
         select_lex->cond_count++;
       }
+      /*
+        If it's a semi-join nest, fix its "left expression", as it is used by
+        the SJ-Materialization
+      */
+      if (embedded->sj_subq_pred)
+      {
+        Item **left_expr= &embedded->sj_subq_pred->left_expr;
+        if (!(*left_expr)->fixed && (*left_expr)->fix_fields(thd, left_expr))
+          goto err_no_arena;
+      }
+
       embedding= embedded->embedding;
     }
     while (embedding &&
