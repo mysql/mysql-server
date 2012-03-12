@@ -4146,9 +4146,6 @@ Dbspj::scanFrag_send(Signal* signal,
 {
   jam();
 
-  requestPtr.p->m_outstanding++;
-  requestPtr.p->m_cnt_active++;
-  treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
   Ptr<ScanFragHandle> scanFragHandlePtr;
   m_scanfraghandle_pool.getPtr(scanFragHandlePtr, treeNodePtr.p->
                                m_scanfrag_data.m_scanFragHandlePtrI);
@@ -4214,6 +4211,10 @@ Dbspj::scanFrag_send(Signal* signal,
   sendSignal(ref, GSN_SCAN_FRAGREQ, signal,
              NDB_ARRAY_SIZE(treeNodePtr.p->m_scanfrag_data.m_scanFragReq),
              JBB, &handle);
+
+  requestPtr.p->m_outstanding++;
+  requestPtr.p->m_cnt_active++;
+  treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
 
   scanFragHandlePtr.p->m_state = ScanFragHandle::SFH_SCANNING;
   treeNodePtr.p->m_scanfrag_data.m_rows_received = 0;
@@ -5338,7 +5339,7 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
     data.m_parallelism = static_cast<Uint32>(parallelism);
 
 #ifdef DEBUG_SCAN_FRAGREQ
-    DEBUG("::scanIndex_send() starting index scan with parallelism="
+    DEBUG("::scanIndex_parent_batch_complete() starting index scan with parallelism="
           << data.m_parallelism);
 #endif
   }
@@ -5369,24 +5370,34 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
   }
 
   Uint32 batchRange = 0;
-  scanIndex_send(signal,
-                 requestPtr,
-                 treeNodePtr,
-                 data.m_parallelism,
-                 bs_bytes,
-                 bs_rows,
-                 batchRange);
+  Uint32 frags_started = 
+    scanIndex_send(signal,
+                   requestPtr,
+                   treeNodePtr,
+                   data.m_parallelism,
+                   bs_bytes,
+                   bs_rows,
+                   batchRange);
 
-  data.m_firstExecution = false;
+  /**
+   * scanIndex_send might fail to send (errors?):
+   * Check that we really did send something before 
+   * updating outstanding & active.
+   */
+  if (likely(frags_started > 0))
+  {
+    jam();
+    data.m_firstExecution = false;
 
-  ndbrequire(static_cast<Uint32>(data.m_frags_outstanding + 
-                                 data.m_frags_complete) <=
-             data.m_fragCount);
+    ndbrequire(static_cast<Uint32>(data.m_frags_outstanding + 
+                                   data.m_frags_complete) <=
+               data.m_fragCount);
 
-  data.m_batch_chunks = 1;
-  requestPtr.p->m_cnt_active++;
-  requestPtr.p->m_outstanding++;
-  treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
+    data.m_batch_chunks = 1;
+    requestPtr.p->m_cnt_active++;
+    requestPtr.p->m_outstanding++;
+    treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
+  }
 }
 
 void
@@ -5418,8 +5429,11 @@ Dbspj::scanIndex_parent_batch_repeat(Signal* signal,
 
 /**
  * Ask for the first batch for a number of fragments.
+ *
+ * Returns how many fragments we did request the
+ * 'first batch' from. (<= noOfFrags)
  */
-void
+Uint32
 Dbspj::scanIndex_send(Signal* signal,
                       Ptr<Request> requestPtr,
                       Ptr<TreeNode> treeNodePtr,
@@ -5595,12 +5609,13 @@ Dbspj::scanIndex_send(Signal* signal,
 
     fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING; // running
     data.m_frags_outstanding++;
+    data.m_frags_not_started--;
     batchRange += bs_rows;
     requestsSent++;
     list.next(fragPtr);
   } // while (requestsSent < noOfFrags)
 
-  data.m_frags_not_started -= requestsSent;
+  return requestsSent;
 }
 
 void
@@ -5807,16 +5822,23 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
         if (unlikely(bs_rows > bs_bytes))
           bs_rows = bs_bytes;
 
-        scanIndex_send(signal,
-                       requestPtr,
-                       treeNodePtr,
-                       data.m_frags_not_started,
-                       bs_bytes,
-                       bs_rows,
-                       batchRange);
-        return;
+        Uint32 frags_started = 
+          scanIndex_send(signal,
+                         requestPtr,
+                         treeNodePtr,
+                         data.m_frags_not_started,
+                         bs_bytes,
+                         bs_rows,
+                         batchRange);
+
+        if (likely(frags_started > 0))
+          return;
+
+        // Else: scanIndex_send() didn't send anything for some reason.
+        // Need to continue into 'completion detection' below.
+        jam();
       }
-    }
+    } // (data.m_frags_outstanding == 0)
     
     if (data.m_rows_received != data.m_rows_expecting)
     {
@@ -6011,6 +6033,7 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
     }
   }
 
+  Uint32 frags_started = 0;
   if (sentFragCount < data.m_parallelism)
   {
     /**
@@ -6018,25 +6041,29 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
      */
     jam();
     ndbassert(data.m_frags_not_started != 0);
-    scanIndex_send(signal,
-                   requestPtr,
-                   treeNodePtr,
-                   data.m_parallelism - sentFragCount,
-                   org->batch_size_bytes/data.m_parallelism,
-                   bs_rows,
-                   batchRange);
+    frags_started =
+      scanIndex_send(signal,
+                     requestPtr,
+                     treeNodePtr,
+                     data.m_parallelism - sentFragCount,
+                     org->batch_size_bytes/data.m_parallelism,
+                     bs_rows,
+                     batchRange);
   }
   /**
-   * cursor should not have been positioned here...
-   *   unless we actually had something more to send.
-   *   so require that we did actually send something
+   * sendSignal() or scanIndex_send() might have failed to send:
+   * Check that we really did send something before 
+   * updating outstanding & active.
    */
-  ndbrequire(data.m_frags_outstanding > 0);
-  ndbrequire(data.m_batch_chunks > 0);
-  data.m_batch_chunks++;
+  if (likely(sentFragCount+frags_started > 0))
+  {
+    jam();
+    ndbrequire(data.m_batch_chunks > 0);
+    data.m_batch_chunks++;
 
-  requestPtr.p->m_outstanding++;
-  ndbassert(treeNodePtr.p->m_state == TreeNode::TN_ACTIVE);
+    requestPtr.p->m_outstanding++;
+    ndbassert(treeNodePtr.p->m_state == TreeNode::TN_ACTIVE);
+  }
 }
 
 void
