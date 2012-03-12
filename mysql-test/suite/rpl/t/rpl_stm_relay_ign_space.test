@@ -89,6 +89,7 @@ INSERT INTO t1 VALUES ('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 UNLOCK TABLES;
 
 --connection master
+--sync_slave_with_master
 --let $diff_tables=master:test.t1,slave:test.t1
 --source include/diff_tables.inc
 
