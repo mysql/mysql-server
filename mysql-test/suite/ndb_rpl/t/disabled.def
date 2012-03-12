@@ -11,3 +11,4 @@
 ##############################################################################
 
 ndb_rpl_ctype_ucs2_def : bug #34661 rpl_ndb_ctype_ucs2_def fails in 6.2
+ndb_rpl_conflict_load_epoch_trans : Not designed for determinism
