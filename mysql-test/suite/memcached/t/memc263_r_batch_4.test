@@ -9,6 +9,8 @@ source include/have_innodb.inc;
 
 --enable_connect_log
 SET @auto_commit= @@global.autocommit;
+SET @innodb_lock_wait_timeout_old=@@global.innodb_lock_wait_timeout;
+SET @lock_wait_timeout_old=@@global.lock_wait_timeout;
 SET @@global.autocommit=0;
 SET @tx_isolation= @@global.tx_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL SERIALIZABLE;
@@ -107,7 +109,7 @@ EOF
 --sorted_result
 SELECT c1,c2,c21 FROM test.t1;
 
-connection mysqltest1;
+connection default;
 --error 1205
 SELECT c1,c2,c21 FROM test.t1 FOR UPDATE;
 DROP TABLE test.t1;
@@ -120,3 +122,5 @@ DROP USER mysqltest1@localhost;
 SET @@global.tx_isolation= @tx_isolation;
 SET  @@global.autocommit=@auto_commit;
 SET @@global.wait_timeout=@wait;
+SET @@global.innodb_lock_wait_timeout=@innodb_lock_wait_timeout_old;
+SET @@global.lock_wait_timeout=@lock_wait_timeout_old;
