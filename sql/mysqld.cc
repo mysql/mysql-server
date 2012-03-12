@@ -5071,8 +5071,9 @@ int mysqld_main(int argc, char **argv)
     places) assume that active_mi != 0, so let's fail if it's 0 (out of
     memory); a message has already been printed.
   */
-  if (init_slave() && !active_mi)
+  if (init_slave())
   {
+    close_active_mi();
     unireg_abort(1);
   }
 

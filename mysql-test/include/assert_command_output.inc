@@ -20,6 +20,7 @@ if ($rpl_debug)
 --let _ASSERT_STATUS= $assert_status
 --let $_assert_suffix= `SELECT UUID()`
 --let _ASSERT_ERROR_FILE= $MYSQLTEST_VARDIR/tmp/_assert_$_assert_suffix.inc
+--let _ASSERT_DEBUG= $rpl_debug
 
 if ($rpl_debug)
 {
@@ -31,6 +32,7 @@ perl;
   my $positive= $ENV{'_ASSERT_NEGATED'} ? 0 : 1;
   my $regex= $ENV{'_ASSERT_REGEX'};
   my $status= $ENV{'_ASSERT_STATUS'};
+  my $debug= $ENV{'_ASSERT_DEBUG'};
   my $output= `$cmd`;
   my $error= 0;
   $status= 0 if $status eq '';
@@ -46,8 +48,6 @@ perl;
     print "ERROR: Command: '$cmd'\n";
     print "ERROR: Output expected to " . ($positive?'':'not '). "match " .
       "perl regex: '$regex'\n";
-    print "======== BEGIN output ========\n$output\n" .
-      "======== END OUTPUT ========\n";
     $error= 1;
   }
   if (!$error)
@@ -56,6 +56,11 @@ perl;
     open FILE, "> $file" or die "Error opening $file: $!";
     print FILE "X" or die "Error writing to $file: $!";
     close FILE or die "Error closing $file: $!";
+  }
+  if ($error || $debug)
+  {
+    print "======== BEGIN output ========\n$output\n" .
+      "======== END OUTPUT ========\n";
   }
 EOF
 
