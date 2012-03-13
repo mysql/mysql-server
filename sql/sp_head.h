@@ -484,14 +484,16 @@ public:
     DBUG_VOID_RETURN;
   }
 
-  sp_pcontext *get_parsing_context() { return m_parsing_ctx; }
+  sp_pcontext *get_root_parsing_context() { return m_root_parsing_ctx; }
 
 private:
 
   MEM_ROOT *m_thd_root;		///< Temp. store for thd's mem_root
   THD *m_thd;			///< Set if we have reset mem_root
 
-  sp_pcontext *m_parsing_ctx;   ///< Parsing context
+  /// Root parsing context (topmost BEGIN..END block) of this SP.
+  sp_pcontext *m_root_parsing_ctx;
+
   List<LEX> m_lex;		///< Temp. store for the other lex
   DYNAMIC_ARRAY m_instr;	///< The "instructions"
   typedef struct

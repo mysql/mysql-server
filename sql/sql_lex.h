@@ -2370,8 +2370,20 @@ struct LEX: public Query_tables_list
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
   bool proxy_priv;
-  sp_pcontext *sp_parsing_ctx;
 
+private:
+  /// Current SP parsing context.
+  /// @see also sp_head::m_root_parsing_ctx.
+  sp_pcontext *sp_current_parsing_ctx;
+
+public:
+  sp_pcontext *get_sp_current_parsing_ctx()
+  { return sp_current_parsing_ctx; }
+
+  void set_sp_current_parsing_ctx(sp_pcontext *ctx)
+  { sp_current_parsing_ctx= ctx; }
+
+public:
   st_sp_chistics sp_chistics;
 
   Event_parse_data *event_parse_data;
