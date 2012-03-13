@@ -8800,11 +8800,13 @@ void JOIN::optimize_fts_query()
   /* If we are ordering on the rank of the same result as is used for access,
      and the table engine deliver result ordered by rank, we can drop ordering.
    */
-  if (order && order->next == NULL &&             
-      order->direction == ORDER::ORDER_DESC && 
-      fts_result->eq(*(order->item), true))
+  ORDER *orig_order= order.order;
+  if (orig_order && orig_order->next == NULL &&             
+      orig_order->direction == ORDER::ORDER_DESC && 
+      fts_result->eq(*(orig_order->item), true))
   {
-    Item_func_match* fts_item= static_cast<Item_func_match*>(*(order->item)); 
+    Item_func_match* fts_item= 
+      static_cast<Item_func_match*>(*(orig_order->item)); 
 
     /* If we applied the LIMIT optimization @see optimize_fts_limit_query,
        check that the number of matching rows is sufficient.
@@ -8906,6 +8908,7 @@ void JOIN::optimize_fts_query()
 void 
 JOIN::optimize_fts_limit_query()
 {
+  ORDER *orig_order= order.order;
   /* 
      Only do this optimization if
      1. It is a single table query
@@ -8915,14 +8918,14 @@ JOIN::optimize_fts_limit_query()
      5. There is a LIMIT clause
      6. Ordering is on a MATCH expression
    */
-  if (tables == 1 &&                              // 1
-      conds == NULL &&                            // 2
-      order && order->next == NULL &&             // 3
-      order->direction == ORDER::ORDER_DESC &&    // 4
-      m_select_limit != HA_POS_ERROR)             // 5
+  if (tables == 1 &&                                // 1
+      conds == NULL &&                              // 2
+      orig_order && orig_order->next == NULL &&     // 3
+      orig_order->direction == ORDER::ORDER_DESC && // 4
+      m_select_limit != HA_POS_ERROR)               // 5
   {
-    DBUG_ASSERT(order->item);
-    Item* item= *order->item;
+    DBUG_ASSERT(orig_order->item);
+    Item* item= *orig_order->item;
     DBUG_ASSERT(item);
 
     if (item->type() == Item::FUNC_ITEM &&
