@@ -209,20 +209,6 @@ row_merge_rename_tables(
 	const char*	tmp_name,	/*!< in: new name for old_table */
 	trx_t*		trx);		/*!< in: transaction handle */
 /*********************************************************************//**
-Create a temporary table for creating a primary key, using the definition
-of an existing table.
-@return	table, or NULL on error */
-UNIV_INTERN
-dict_table_t*
-row_merge_create_temporary_table(
-/*=============================*/
-	const char*		table_name,	/*!< in: new table name */
-	const merge_index_def_t*index_def,	/*!< in: the index definition
-						of the primary key */
-	const dict_table_t*	table,		/*!< in: old table definition */
-	trx_t*			trx);		/*!< in/out: transaction
-						(sets error_state) */
-/*********************************************************************//**
 Rename an index in the dictionary that was created. The data
 dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
