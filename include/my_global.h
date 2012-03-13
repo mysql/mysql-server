@@ -528,6 +528,10 @@ C_MODE_END
 #  endif
 #endif
 
+#ifdef DBUG_OFF
+#undef EXTRA_DEBUG
+#endif
+
 /* Some types that is different between systems */
 
 typedef int	File;		/* File descriptor */
