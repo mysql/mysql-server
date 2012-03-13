@@ -37,6 +37,7 @@ public:
 protected:
   Uint32 m_type_id;
   Uint32 m_first_free;
+  Uint32 m_last_free;
   Pool_context m_ctx;
   struct DA256Page* m_memroot;
   NdbMutex * m_mutex;
