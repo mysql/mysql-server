@@ -341,9 +341,7 @@ int case_stmt_action_when(THD *thd, Item *when, bool simple)
 
 #ifndef DBUG_OFF
     if (var)
-    {
       var->m_sp= sp;
-    }
 #endif
 
     Item *expr= new Item_func_eq(var, when);
