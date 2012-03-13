@@ -15,10 +15,10 @@ sub ib_backup_tablespace {
     my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
 
     my @args = ("$datadir/$db/$ibd_file", "$tmpd/$ibd_file");
-    copy(@args) or die "copy @args failed: $?";
+    copy(@args) or die "copy @args failed: $!";
 
     my @args = ("$datadir/$db/$cfg_file", "$tmpd/$cfg_file");
-    copy(@args) or die "copy @args failed: $?";
+    copy(@args) or die "copy @args failed: $!";
 }
 
 sub ib_cleanup {
@@ -30,7 +30,7 @@ sub ib_cleanup {
     print "unlink: $cfg_file\n";
 
     unlink("$datadir/$db/$cfg_file") == 1
-	or die "unlnk $datadir/$db/$cfg_file failed: $?";
+	or die "unlnk $datadir/$db/$cfg_file failed: $!";
 
     # This may or may not exist
     unlink("$datadir/$db/$ibt_file");
@@ -43,7 +43,7 @@ sub ib_unlink_tablespace {
 
     print "unlink: $ibd_file\n";
     unlink("$datadir/$db/$ibd_file") == 1
-	or die "unlnk $datadir/$db/$ibd_file failed: $?";
+	or die "unlnk $datadir/$db/$ibd_file failed: $!";
 
     ib_cleanup($db, $table);
 }
@@ -63,7 +63,7 @@ sub ib_discard_tablespace {
     my $ibt_file = sprintf("%s.ibt", $table);
     my $path = "$datadir/$db/$ibt_file";
 
-    unlink($path) == 1 or die "unlink $path failed: $?"
+    unlink($path) == 1 or die "unlink $path failed: $!"
 }
 
 sub ib_discard_tablespaces {
@@ -82,10 +82,10 @@ sub ib_restore_tablespace {
     my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
 
     my @args = ("$tmpd/$cfg_file", "$datadir/$db/$cfg_file");
-    copy(@args) or die "copy @args failed: $?";
+    copy(@args) or die "copy @args failed: $!";
 
     my @args = ("$tmpd/$ibd_file", "$datadir/$db/$ibd_file");
-    copy(@args) or die "copy @args failed: $?";
+    copy(@args) or die "copy @args failed: $!";
 }
 
 sub ib_restore_tablespaces {
