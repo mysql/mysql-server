@@ -411,6 +411,15 @@ fil_delete_tablespace(
 /*==================*/
 	ulint	id,	/*!< in: space id */
 	bool	rename);/*!< in: true=rename to .ibt; false=remove */
+/*******************************************************************//**
+Closes a single-table tablespace. The tablespace must be cached in the
+memory cache. Free all pages used by the tablespace.
+@return	DB_SUCCESS or error */
+UNIV_INTERN
+db_err
+fil_close_tablespace(
+/*=================*/
+	ulint		id);	/*!< in: space id */
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the

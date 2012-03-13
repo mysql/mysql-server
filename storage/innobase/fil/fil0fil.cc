@@ -2273,6 +2273,191 @@ fil_make_cfg_name(
 }
 
 /*******************************************************************//**
+Check for change buffer merges.
+@return 0 if no merges else count + 1. */
+static
+ulint
+fil_ibuf_check_pending_merges(
+/*==========================*/
+	fil_space_t*	space,	/*!< in/out: Tablespace to check */
+	ulint		count)	/*!< in: number of attempts so far */
+{
+	ut_ad(mutex_own(&fil_system->mutex));
+
+	if (space != 0) {
+		space->stop_ibuf_merges = TRUE;
+
+		if (space->n_pending_ibuf_merges != 0) {
+
+		       if (count > 5000) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Trying to close/delete tablespace "
+					"'%s' but there are %lu pending change "
+					"buffer merges on it.",
+					space->name,
+					(ulong) space->n_pending_ibuf_merges);
+			}
+
+			return(count + 1);
+		}
+	}
+
+	return(0);
+}
+
+/*******************************************************************//**
+Check for pending IO.
+@return 0 if no pending else count + 1. */
+static
+ulint
+fil_check_pending_io(
+/*=================*/
+	fil_space_t*	space,	/*!< in/out: Tablespace to check */
+	fil_node_t**	node,	/*!< out: Node in space list */
+	ulint		count)	/*!< in: number of attempts so far */
+{
+	ut_ad(mutex_own(&fil_system->mutex));
+	ut_a(space->n_pending_ibuf_merges == 0);
+
+	space->is_being_deleted = TRUE;
+
+	/* TODO: The following code must change when InnoDB supports
+	multiple datafiles per tablespace. */
+	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
+
+	*node = UT_LIST_GET_FIRST(space->chain);
+
+	if (space->n_pending_flushes > 0 || (*node)->n_pending > 0) {
+
+		ut_a(!(*node)->being_extended);
+
+		if (count > 1000) {
+			ib_logf(IB_LOG_LEVEL_WARN, 
+				"Trying to delete tablespace '%s' "
+				"but there are %lu flushes "
+				" and %lu pending i/o's on it.",
+				space->name,
+				(ulong) space->n_pending_flushes,
+				(ulong) (*node)->n_pending);
+		}
+
+		return(count + 1);
+	}
+
+	return(0);
+}
+
+/*******************************************************************//**
+Closes a single-table tablespace. The tablespace must be cached in the
+memory cache. Free all pages used by the tablespace.
+@return	DB_SUCCESS or error */
+UNIV_INTERN
+db_err
+fil_close_tablespace(
+/*=================*/
+	ulint		id)	/*!< in: space id */
+{
+	ulint		count		= 0;
+
+	ut_a(id != TRX_SYS_SPACE);
+
+	/* Check for pending change buffer merges. */
+
+	do {
+		fil_space_t*	space;
+
+		mutex_enter(&fil_system->mutex);
+
+		space = fil_space_get_by_id(id);
+
+		count = fil_ibuf_check_pending_merges(space, count);
+
+		mutex_exit(&fil_system->mutex);
+
+		if (count > 0) {
+			os_thread_sleep(20000);
+		}
+
+	} while (count > 0);
+
+	/* Check for pending IO. */
+
+	fil_space_t*	space;
+	char*		path = 0;
+
+	do {
+		mutex_enter(&fil_system->mutex);
+
+		space = fil_space_get_by_id(id);
+
+		if (space == NULL) {
+			mutex_exit(&fil_system->mutex);
+			return(DB_TABLESPACE_NOT_FOUND);
+		}
+
+		fil_node_t*	node;
+
+		count = fil_check_pending_io(space, &node, count);
+
+		if (count == 0) {
+			path = mem_strdup(node->name);
+		}
+		
+		mutex_exit(&fil_system->mutex);
+
+		if (count > 0) {
+			os_thread_sleep(20000);
+		}
+
+	} while (count > 0);
+
+	ut_a(path != 0);
+
+	rw_lock_x_unlock(&space->latch);
+
+#ifndef UNIV_HOTBACKUP
+	/* Invalidate in the buffer pool all pages belonging to the
+	tablespace. Since we have set space->is_being_deleted = TRUE, readahead
+	or ibuf merge can no longer read more pages of this tablespace to the
+	buffer pool. Thus we can clean the tablespace out of the buffer pool
+	completely and permanently. The flag is_being_deleted also prevents
+	fil_flush() from being applied to this tablespace. */
+
+	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_FLUSH_WRITE, 0);
+#endif
+	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
+
+	db_err		err;
+
+	mutex_enter(&fil_system->mutex);
+
+	if (!fil_space_free(id, TRUE)) {
+		err = DB_TABLESPACE_NOT_FOUND;
+	} else {
+		err = DB_SUCCESS;
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	/* If it is a delete then also delete any generated files, otherwise
+	when we drop the database the remove directory will fail. */
+
+	char*	cfg_name = fil_make_cfg_name(path);
+	char*	ibt_name = fil_make_ibt_name(path);
+
+	os_file_delete_if_exists(cfg_name);
+	os_file_delete_if_exists(ibt_name);
+
+	rw_lock_x_unlock(&space->latch);
+
+	mem_free(path);
+	mem_free(ibt_name);
+	mem_free(cfg_name);
+
+	return(err);
+}
+
+/*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache. If rename == TRUE we "free" all pages used by the tablespace.
 @return	DB_SUCCESS or error */
@@ -2359,8 +2544,10 @@ try_again:
 
 	node = UT_LIST_GET_FIRST(space->chain);
 
-	if (space->n_pending_flushes > 0 || node->n_pending > 0
+	if (space->n_pending_flushes > 0
+	    || node->n_pending > 0
 	    || node->being_extended) {
+
 		if (count > 1000) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Warning: trying to"
@@ -2727,7 +2914,8 @@ retry:
 	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
 	node = UT_LIST_GET_FIRST(space->chain);
 
-	if (node->n_pending > 0 || node->n_pending_flushes > 0
+	if (node->n_pending > 0
+	    || node->n_pending_flushes > 0
 	    || node->being_extended) {
 		/* There are pending i/o's or flushes or the file is
 		currently being extended, sleep for a while and
@@ -3219,9 +3407,10 @@ fil_reset_space_and_lsn(
 
 	flush_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
 
-	if (current_lsn >= flush_lsn && flush_lsn != 0
+	if (current_lsn >= flush_lsn
+	    && flush_lsn != 0
 	    && fil_space_id == table->space) {
-		/* Ok */
+
 		err = DB_SUCCESS;
 		goto func_exit;
 	}
