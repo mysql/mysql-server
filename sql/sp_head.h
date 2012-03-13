@@ -691,9 +691,6 @@ public:
   uint sql_command() const
   { return (uint)m_lex->sql_command; }
 
-  void disable_query_cache()
-  { m_lex->safe_to_cache_query= 0; }
-
 private:
   LEX *m_lex;
   /**
@@ -1131,7 +1128,12 @@ public:
 
   sp_instr_cpush(uint ip, sp_pcontext *ctx, LEX *lex, uint offset)
     : sp_instr(ip, ctx), m_lex_keeper(lex, TRUE), m_cursor(offset)
-  {}
+  {
+    // Cursor can't be stored in QC, so we should prevent opening QC for
+    // try to write results which are absent.
+
+    lex->safe_to_cache_query= false;
+  }
 
   virtual ~sp_instr_cpush()
   {}
