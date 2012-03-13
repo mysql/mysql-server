@@ -105,20 +105,24 @@ ndb_pipeline * get_request_pipeline(int thd_id);
 /** call into a pipeline for its own statistics */
 void pipeline_add_stats(ndb_pipeline *, const char *key, ADD_STAT, const void *);
 
-/** Global initialization of scheduler, at startup time */
-void * initialize_scheduler(const char *name, int nthreads, int threadnum);
-
-/** shutdown a scheduler */
-void shutdown_scheduler(void *);
-
-/** pass a workitem to the configured scheduler, for execution */
-ENGINE_ERROR_CODE pipeline_schedule_operation(ndb_pipeline *, struct workitem *);
-
-/** schedule a "flush_all" operation */
+/** execute a "flush_all" operation */
 ENGINE_ERROR_CODE pipeline_flush_all(ndb_pipeline *);
 
-/** notify scheduler of IO completion */
-void pipeline_io_completed(ndb_pipeline *, struct workitem *);
+
+/***** SCHEDULER APIS *****/
+
+/** Global initialization of scheduler, at startup time */
+void * scheduler_initialize(const char *name, int nthreads, int threadnum);
+
+/** shutdown a scheduler */
+void scheduler_shutdown(ndb_pipeline *);
+
+/** pass a workitem to the configured scheduler, for execution */
+ENGINE_ERROR_CODE scheduler_schedule(ndb_pipeline *, struct workitem *);
+
+/** release the resources that were used by a completed operation */
+void scheduler_release(ndb_pipeline *, struct workitem *);
+
 
 /***** MEMORY MANAGEMENT APIS *****/
 

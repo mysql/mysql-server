@@ -74,6 +74,10 @@ class BlobImpl implements Blob {
     }
 
     public void writeData(byte[] array) {
+        if (array == null) {
+            setNull();
+            return;
+        }
         // TODO can we really skip this when updating to an empty blob?
         if (array.length == 0) return;
         ByteBuffer buffer = null;
@@ -87,6 +91,10 @@ class BlobImpl implements Blob {
     }
 
     public void setValue(byte[] array) {
+        if (array == null) {
+            setNull();
+            return;
+        }
         // TODO can we really skip this when updating to an empty blob?
         if (array.length == 0) return;
         ByteBuffer buffer = null;

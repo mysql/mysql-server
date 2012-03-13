@@ -30,11 +30,10 @@
 #include "ndbmemcache_config.h"
 #include "KeyPrefix.h"
 #include "QueryPlan.h"
-
-struct workitem;
+#include "workitem.h"
 
 #define VPSZ sizeof(void *)
-#define TOTAL_SZ (3 * VPSZ)
+#define TOTAL_SZ (3 * VPSZ) + sizeof(int)
 #define PADDING (64 - TOTAL_SZ)
 
 
@@ -43,8 +42,11 @@ public:
   /* Public Methods */
   NdbInstance(Ndb_cluster_connection *, int);
   ~NdbInstance();
+  void link_workitem(workitem *);
+  void unlink_workitem(workitem *);
 
   /* Public Instance Variables */  
+  int id;
   Ndb *db;
   NdbInstance *next;
   workitem *wqitem;
@@ -52,6 +54,22 @@ public:
 private:
   char cache_line_padding[PADDING];
 };
+
+
+inline void NdbInstance::link_workitem(workitem *item) {
+  assert(item->ndb_instance == NULL);
+  assert(wqitem == NULL);
+  
+  item->ndb_instance = this;
+  wqitem = item;
+}
+
+
+inline void NdbInstance::unlink_workitem(workitem *item) {
+  assert(wqitem == item);
+  wqitem->ndb_instance = NULL;
+  wqitem = NULL;
+}
 
 
 #endif

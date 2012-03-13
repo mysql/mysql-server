@@ -104,7 +104,7 @@ public:
   ENGINE_ERROR_CODE schedule(workitem *);
   void yield(workitem *) const {};
   void reschedule(workitem *) const;
-  void io_completed(workitem *);
+  void release(workitem *);
   void add_stats(const char *, ADD_STAT, const void *);
   void shutdown();
   bool global_reconfigure(Configuration *);

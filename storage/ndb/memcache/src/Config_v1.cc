@@ -59,6 +59,7 @@ config_v1::~config_v1() {
     delete containers_map;    
   }
   if(policies_map) {
+    policies_map->do_free_values = true;
     delete policies_map;
   }
 }

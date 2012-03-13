@@ -49,7 +49,7 @@ public:
   ENGINE_ERROR_CODE schedule(workitem *);
   void yield(workitem *) const;                                       // inlined
   void reschedule(workitem *) const;                                  // inlined
-  void io_completed(workitem *);
+  void release(workitem *);
   void add_stats(const char *, ADD_STAT, const void *);
   void shutdown();
   void * run_ndb_commit_thread(int cluster_id);

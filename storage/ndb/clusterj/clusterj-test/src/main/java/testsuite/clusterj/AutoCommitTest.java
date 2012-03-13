@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -101,8 +100,8 @@ public class AutoCommitTest extends AbstractClusterJModelTest {
         // QueryBuilder is the sessionFactory for queries
         QueryBuilder builder = session.getQueryBuilder();
         // QueryDomainType is the main interface
-        QueryDomainType dobj = builder.createQueryDefinition(Employee.class);
-        Query query = session.createQuery(dobj);
+        QueryDomainType<Employee> dobj = builder.createQueryDefinition(Employee.class);
+        Query<Employee> query = session.createQuery(dobj);
         List<Employee> result = query.getResultList();
         Set<Integer> expectedList = new HashSet<Integer>();
         for (int i: expected) {
@@ -112,7 +111,7 @@ public class AutoCommitTest extends AbstractClusterJModelTest {
         for (Employee e: result) {
             actualList.add(e.getId());
         }
-        errorIfNotEqual("Mismatch in query result", expectedList, actualList);
+        errorIfNotEqual("Mismatch in query result list", expectedList, actualList);
     }
 
     protected void nontransactionalUpdate(int which, int newAge) {
@@ -120,7 +119,7 @@ public class AutoCommitTest extends AbstractClusterJModelTest {
         e.setAge(newAge);
         session.updatePersistent(e);
         e = session.find(Employee.class, which);
-        errorIfNotEqual("Mismatch in updateAll result", newAge, e.getAge());
+        errorIfNotEqual("Mismatch in nontransactionalUpdate result age", newAge, e.getAge());
     }
 
     protected void nontransactionalUpdateAll(int low, int high, int newAge) {
@@ -133,7 +132,7 @@ public class AutoCommitTest extends AbstractClusterJModelTest {
         session.updatePersistentAll(emps);
         for (int i = low; i < high; ++i) {
             Employee e = session.find(Employee.class, i);
-            errorIfNotEqual("Mismatch in updateAll result", newAge, e.getAge());
+            errorIfNotEqual("Mismatch in nontransactionalUpdateAll result age", newAge, e.getAge());
         }
     }
 
@@ -144,6 +143,6 @@ public class AutoCommitTest extends AbstractClusterJModelTest {
     }
 
     private void nontransactionalFind(int which) {
-        Employee e = session.find(Employee.class, which);
+        session.find(Employee.class, which);
     }
 }

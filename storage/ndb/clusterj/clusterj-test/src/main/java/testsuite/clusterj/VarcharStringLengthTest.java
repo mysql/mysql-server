@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,11 +45,11 @@ public class VarcharStringLengthTest extends AbstractClusterJTest {
 
     public void test() {
         for (int i = 0; i < 500; ++i) {
+            try {
             Employee e = session.newInstance(Employee.class, i);
             e.setName(name.substring(0, i));
             e.setAge(i);
             e.setMagic(i);
-            try {
                 session.makePersistent(e);
                 if (i > 32) {
                     // unexpected success for lengths greater than varchar size

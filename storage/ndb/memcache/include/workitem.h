@@ -26,19 +26,9 @@
 #include "ndb_pipeline.h"
 #include "status_block.h"
 
-/* struct workitem is used in both C and C++ code, requiring a small hack: */
-#ifdef __cplusplus
-#include "QueryPlan.h"
-#include "NdbInstance.h" 
-#define CPP_QUERYPLAN QueryPlan
-#define CPP_NDBINSTANCE NdbInstance
-#define CPP_EXTERNALVALUE ExternalValue
-#else 
-#define CPP_QUERYPLAN void
-#define CPP_NDBINSTANCE void
-#define CPP_EXTERNALVALUE void
-#endif
-
+struct NdbInstance;
+struct QueryPlan;
+struct ExternalValue;
 
 typedef struct workitem {
   struct {
@@ -63,11 +53,11 @@ typedef struct workitem {
   uint64_t math_value;         /*! IN: incr initial value; OUT: incr result */
   hash_item * cache_item;      /*! used for write requests */
   ndb_pipeline *pipeline;      /*! pointer back to request pipeline */
-  CPP_NDBINSTANCE *ndb_instance;   
+  struct NdbInstance *ndb_instance;
                                /*! pointer to ndb instance, if applicable */
   const void *cookie;          /*! memcached's connection cookie */
-  CPP_QUERYPLAN *plan;         /*! QueryPlan for resolving this request */
-  CPP_EXTERNALVALUE *ext_val;  /*! ExternalValue */
+  struct QueryPlan *plan;      /*! QueryPlan for resolving this request */
+  struct ExternalValue *ext_val; /*! ExternalValue */
   const char *key;             /*! pointer to the key */
   void * next_step;            /*! a worker_step function in ndb_worker.cc */
   status_block *status;        /*! A static status_block in ndb_worker.cc */
@@ -132,7 +122,6 @@ bool workitem_allocate_rowbuffer_1(workitem *, size_t);
 */
 bool workitem_allocate_rowbuffer_2(workitem *, size_t);
 
-
 /*! returns the name of the memcached operation stored in the workitem.
 */
 const char * workitem_get_operation(workitem *);
@@ -146,14 +135,9 @@ void workitem_free(workitem *);
 */
 const char * workitem_get_key_suffix(workitem *item);
 
-
 /*!  Return the size of key buffer needed for a key of length "nkey" 
 */
 size_t workitem_get_key_buf_size(int nkey);
-
-/*! Set the workitem's NdbInstance
-*/
-void workitem_set_NdbInstance(workitem*, CPP_NDBINSTANCE *);
 
 END_FUNCTIONS_WITH_C_LINKAGE
     

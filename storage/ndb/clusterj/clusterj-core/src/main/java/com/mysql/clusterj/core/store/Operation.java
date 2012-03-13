@@ -89,4 +89,12 @@ public interface Operation {
 
     public void endDefinition();
 
+    public int getErrorCode();
+
+    public int getMysqlCode();
+
+    public int getStatus();
+
+    public int getClassification();
+
 }

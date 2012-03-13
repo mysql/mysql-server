@@ -1751,7 +1751,16 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     "0",
     "2",
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     "8"
+#else
+    /**
+     * NOTE: The actual maximum number of threads is 50...
+     *   but that config is so weird so it's only possible to get
+     *   by using ThreadConfig
+     */
+    "36"
+#endif
   },
 
   {
