@@ -56,7 +56,11 @@ void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
 #endif
 #endif
 
-#ifdef HAVE_BFD_H
+#ifndef _WIN32
+#define MY_ADDR_RESOLVE_FORK
+#endif
+
+#if defined(HAVE_BFD_H) || defined(MY_ADDR_RESOLVE_FORK)
 #define HAVE_MY_ADDR_RESOLVE 1
 #endif
 

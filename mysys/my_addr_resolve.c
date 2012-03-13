@@ -129,4 +129,70 @@ err:
   yet another - just execute addr2line or eu-addr2line, whatever available,
   pipe the addresses to it, and parse the output
 */
+
+#include <m_string.h>
+#include <ctype.h>
+static int in[2], out[2];
+static int initialized= 0;
+int my_addr_resolve(void *ptr, my_addr_loc *loc)
+{
+  char input[32], *s;
+  char output[1024];
+  size_t len;
+
+  len= my_safe_snprintf(input, sizeof(input), "0x%p\n", ptr);
+  if (write(in[1], input, len) <= 0)
+    return 1;
+  if (read(out[0], output, sizeof(output)) <= 0)
+    return 1;
+  loc->func= s= output;
+  while (*s != '\n')
+    s++;
+  *s++= 0;
+  loc->file= s;
+  while (*s != ':')
+    s++;
+  *s++= 0;
+  loc->line= 0;
+  while (isdigit(*s))
+    loc->line = loc->line * 10 + (*s++ - '0');
+  *s = 0;
+  loc->file= strip_path(loc->file);
+
+  return 0;
+}
+
+const char *my_addr_resolve_init()
+{
+  if (!initialized)
+  {
+    pid_t pid;
+
+    if (pipe(in) < 0)
+      return "pipe(in)";
+    if (pipe(out) < 0)
+      return "pipe(out)";
+
+    pid = fork();
+    if (pid == -1)
+      return "fork";
+
+    if (!pid) /* child */
+    {
+      dup2(in[0], 0);
+      dup2(out[1], 1);
+      close(in[0]);
+      close(in[1]);
+      close(out[0]);
+      close(out[1]);
+      execlp("addr2line", "addr2line", "-C", "-f", "-e", my_progname, NULL);
+      exit(1);
+    }
+    
+    close(in[0]);
+    close(out[1]);
+    initialized= 1;
+  }
+  return 0;
+}
 #endif
