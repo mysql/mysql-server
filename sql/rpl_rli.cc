@@ -80,8 +80,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), until_condition(UNTIL_NONE),
    until_log_pos(0),
-   until_gtids_obj(&global_sid_map),
-   request_gtids_obj(&global_sid_map),
+   until_sql_before_gtids_obj(&global_sid_map),
    retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0),
@@ -297,8 +296,7 @@ void Relay_log_info::clear_until_condition()
   until_condition= Relay_log_info::UNTIL_NONE;
   until_log_name[0]= 0;
   until_log_pos= 0;
-  request_gtids_obj.clear();
-  until_gtids_obj.clear();
+  until_sql_before_gtids_obj.clear();
   DBUG_VOID_RETURN;
 }
 
@@ -1087,9 +1085,10 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
                     "condition is bad.";
   DBUG_ENTER("Relay_log_info::is_until_satisfied");
 
-  DBUG_ASSERT(until_condition != UNTIL_NONE);
-
-  if (until_condition == UNTIL_MASTER_POS || until_condition == UNTIL_RELAY_POS)
+  switch (until_condition)
+  {
+  case UNTIL_MASTER_POS:
+  case UNTIL_RELAY_POS:
   {
     const char *log_name= NULL;
     ulonglong log_pos= 0;
@@ -1097,7 +1096,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     if (until_condition == UNTIL_MASTER_POS)
     {
       if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
-        DBUG_RETURN(FALSE);
+        DBUG_RETURN(false);
       log_name= group_master_log_name;
       log_pos= (!ev)? group_master_log_pos :
         ((thd->variables.option_bits & OPTION_BEGIN || !ev->log_pos) ?
@@ -1154,48 +1153,79 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
         }
         else
         {
-          /* Probably error so we aborting */
+          /* Base names do not match, so we abort */
           sql_print_error("%s", error_msg);
-          DBUG_RETURN(TRUE);
+          DBUG_RETURN(true);
         }
       }
       else
         DBUG_RETURN(until_log_pos == 0);
     }
 
-    DBUG_RETURN(((until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_EQUAL &&
-             log_pos >= until_log_pos) ||
-            until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_GREATER));
-  }
-  else if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
-  {
-    global_sid_lock.wrlock();
-    if (until_gtids_obj._remove_gtid(((Gtid_log_event *)(ev))->get_sidno(false),
-                                     ((Gtid_log_event *)(ev))->get_gno())
-        != RETURN_STATUS_OK || until_gtids_obj.is_empty())
+    if (((until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_EQUAL &&
+          log_pos >= until_log_pos) ||
+         until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_GREATER))
     {
-      global_sid_lock.unlock();
+      char buf[22];
+      sql_print_information("Slave SQL thread stopped because it reached its"
+                            " UNTIL position %s", llstr(until_pos(), buf));
       DBUG_RETURN(true);
     }
-
-#ifndef DBUG_OFF
-    char* buffer= NULL;
-    if (!(buffer= (char *) my_malloc(until_gtids_obj.get_string_length() + 1,
-                                     MYF(MY_WME))))
-    {
-      global_sid_lock.unlock();
-      DBUG_RETURN(true);
-    }
-    else
-    {
-      until_gtids_obj.to_string(buffer);
-      DBUG_PRINT("info", ("Waiting for %s to be processed.", buffer));
-      my_free(buffer);
-    }
-#endif
-    global_sid_lock.unlock();
+    DBUG_RETURN(false);
   }
 
+  case UNTIL_SQL_BEFORE_GTIDS:
+    if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
+    {
+      Gtid_log_event *gev= (Gtid_log_event *)ev;
+      global_sid_lock.rdlock();
+      if (until_sql_before_gtids_obj.contains_gtid(gev->get_sidno(true),
+                                                   gev->get_gno()))
+      {
+        char *buffer= until_sql_before_gtids_obj.to_string();
+        global_sid_lock.unlock();
+        sql_print_information("Slave SQL thread stopped because it reached "
+                              "UNTIL SQL_BEFORE_GTIDS %s", buffer);
+        my_free(buffer);
+        DBUG_RETURN(true);
+      }
+      global_sid_lock.unlock();
+    }
+    DBUG_RETURN(false);
+    break;
+
+/*
+  case UNTIL_SQL_AFTER_GTIDS:
+    if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
+    {
+      Gtid_log_event *gev= (Gtid_log_event *)ev;
+      global_sid_lock.rdlock();
+      if (until_sql_after_gtids_obj.is_empty())
+      {
+        char *buffer= initial_until_sql_after_gtids_obj.to_string();
+        sql_print_information("Slave SQL thread stopped because it reached "
+                              "UNTIL SQL_AFTER_GTIDS %s", buffer);
+        DBUG_RETURN(true);
+      }
+      if (until_sql_after_gtids_obj.
+          remove_gtid(gev->get_sidno(true), gev->get_gno()) != RETURN_STATUS_OK)
+      {
+        global_sid_lock.unlock();
+        // out of memory (error has been generated)
+        DBUG_RETURN(true);
+      }
+      global_sid_lock.unlock();
+    }
+    DBUG_RETURN(false);
+    break;
+*/
+
+  case UNTIL_NONE:
+    DBUG_ASSERT(0);
+    break;
+  }
+
+  DBUG_ASSERT(0);
   DBUG_RETURN(false);
 }
 

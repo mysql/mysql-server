@@ -3388,23 +3388,6 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
         rli->is_until_satisfied(thd, ev))
     {
-      char buf[22];
-      if (rli->until_condition == Relay_log_info::UNTIL_MASTER_POS ||
-          rli->until_condition == Relay_log_info::UNTIL_RELAY_POS)
-        sql_print_information("Slave SQL thread stopped because it reached its"
-                              " UNTIL position %s", llstr(rli->until_pos(), buf));
-      else
-      {
-        char *buffer;
-        global_sid_lock.wrlock();
-        if ((buffer= (char *) my_malloc(rli->request_gtids_obj.get_string_length() + 1,
-                                        MYF(MY_WME))))
-          rli->request_gtids_obj.to_string(buffer);
-        global_sid_lock.unlock();
-        sql_print_information("Slave SQL thread stopped because it reached its"
-                              " UNTIL SQL_BEFORE_GTIDS %s", buffer);
-        my_free(buffer);
-      }
       /*
         Setting abort_slave flag because we do not want additional message about
         error in query execution to be printed.
@@ -5110,23 +5093,6 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
   if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
       rli->is_until_satisfied(thd, NULL))
   {
-    char buf[22];
-    if (rli->until_condition == Relay_log_info::UNTIL_MASTER_POS ||
-        rli->until_condition == Relay_log_info::UNTIL_RELAY_POS)
-      sql_print_information("Slave SQL thread stopped because it reached its"
-                            " UNTIL position %s", llstr(rli->until_pos(), buf));
-    else
-    {
-      char* buffer= NULL;
-      global_sid_lock.rdlock();
-      if ((buffer= (char *) my_malloc(rli->request_gtids_obj.get_string_length() + 1,
-                                      MYF(MY_WME))))
-        rli->request_gtids_obj.to_string(buffer);
-      global_sid_lock.unlock();
-      sql_print_information("Slave SQL thread stopped because it reached its"
-                            " UNTIL SQL_BEFORE_GTIDS %s", buffer);
-      my_free(buffer);
-    }
     mysql_mutex_unlock(&rli->data_lock);
     goto err;
   }
@@ -7279,12 +7245,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
         {
           global_sid_lock.wrlock();
           mi->rli->clear_until_condition();
-          if (mi->rli->until_gtids_obj.add_gtid_text(thd->lex->mi.gtid)
-              != RETURN_STATUS_OK ||
-              mi->rli->request_gtids_obj.add_gtid_text(thd->lex->mi.gtid)
-              != RETURN_STATUS_OK)
-            slave_errno= ER_BAD_SLAVE_UNTIL_COND;
-          if (mi->rli->until_gtids_obj.remove_gtid_set(gtid_state.get_logged_gtids()) 
+          if (mi->rli->until_sql_before_gtids_obj.add_gtid_text(thd->lex->mi.gtid)
               != RETURN_STATUS_OK)
             slave_errno= ER_BAD_SLAVE_UNTIL_COND;
           mi->rli->until_condition= Relay_log_info::UNTIL_SQL_BEFORE_GTIDS;
