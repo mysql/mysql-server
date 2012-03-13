@@ -418,19 +418,6 @@ bool sp_rcontext::set_case_expr(THD *thd, int case_expr_id,
 ///////////////////////////////////////////////////////////////////////////
 
 
-sp_cursor::sp_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
-  :m_lex_keeper(lex_keeper),
-   server_side_cursor(NULL),
-   m_i(i)
-{
-  /*
-    currsor can't be stored in QC, so we should prevent opening QC for
-    try to write results which are absent.
-  */
-  lex_keeper->disable_query_cache();
-}
-
-
 /*
   Open an SP cursor
 
