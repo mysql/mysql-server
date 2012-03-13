@@ -179,6 +179,15 @@ public:
   LEX_STRING m_definer_host;
 
   /**
+    List of all items (Item_trigger_field objects) representing fields in
+    old/new version of row in trigger. We use this list for checking whenever
+    all such fields are valid at trigger creation time and for binding these
+    fields to TABLE object at table open (altough for latter pointer to table
+    being opened is probably enough).
+  */
+  SQL_I_List<Item_trigger_field> m_trg_table_fields;
+
+  /**
     Is this routine being executed?
   */
   bool is_invoked() const { return m_flags & IS_INVOKED; }
