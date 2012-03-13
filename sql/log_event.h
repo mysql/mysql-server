@@ -269,6 +269,7 @@ struct sql_ex_info
 #define INCIDENT_HEADER_LEN    2
 #define HEARTBEAT_HEADER_LEN   0
 #define IGNORABLE_HEADER_LEN   0
+#define RESERVED_HEADER_LEN    0
 
 /*
    The maximum number of updated databases that a status of

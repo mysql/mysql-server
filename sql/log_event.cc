@@ -5041,6 +5041,9 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
       post_header_len[IGNORABLE_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
       post_header_len[ROWS_QUERY_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
+      post_header_len[RESERVED_EVENT_NUM_1-1]= RESERVED_HEADER_LEN;
+      post_header_len[RESERVED_EVENT_NUM_2-1]= RESERVED_HEADER_LEN;
+      post_header_len[RESERVED_EVENT_NUM_3-1]= RESERVED_HEADER_LEN;
       post_header_len[GTID_LOG_EVENT-1]=
         post_header_len[ANONYMOUS_GTID_LOG_EVENT-1]=
         Gtid_log_event::POST_HEADER_LENGTH;
