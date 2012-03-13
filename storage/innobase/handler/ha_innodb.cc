@@ -15444,9 +15444,9 @@ ib_pushf(
 	va_start(args, format);
 
 #ifdef __WIN__
-	int		size = _vscprintf(format, args);
+	int		size = _vscprintf(format, args) + 1;
 	str = static_cast<char*>(malloc(size));
-	memset(str, 0x0, size);
+	st[size - 1] = 0x0;
 	vsnprintf(str, size, format, args);
 #else
 	vasprintf(&str, format, args);
@@ -15500,9 +15500,9 @@ ib_logf(
 	va_start(args, format);
 
 #ifdef __WIN__
-	int		size = _vscprintf(format, args);
+	int		size = _vscprintf(format, args) + 1;
 	str = static_cast<char*>(malloc(size));
-	memset(str, 0x0, size);
+	st[size - 1] = 0x0;
 	vsnprintf(str, size, format, args);
 #else
 	vasprintf(&str, format, args);
