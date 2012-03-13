@@ -575,6 +575,8 @@ row_import_cleanup(
 		table->ibd_file_missing = TRUE;
 
 		row_mysql_unlock_data_dictionary(trx);
+
+		fil_close_tablespace(table->space);
 	}
 
 	DBUG_EXECUTE_IF("ib_import_before_commit_crash", DBUG_SUICIDE(););
