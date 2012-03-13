@@ -148,7 +148,7 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err,
   bool error;
   DBUG_ENTER("net_send_error");
 
-  DBUG_ASSERT(!thd->spcont);
+  DBUG_ASSERT(!thd->sp_runtime_ctx);
   DBUG_ASSERT(sql_errno);
   DBUG_ASSERT(err);
 

@@ -2962,7 +2962,8 @@ public:
   bool       derived_tables_processing;
   my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
 
-  sp_rcontext *spcont;		// SP runtime context
+  /** Current SP-runtime context. */
+  sp_rcontext *sp_runtime_ctx;
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
 
