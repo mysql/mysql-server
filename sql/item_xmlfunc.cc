@@ -2492,7 +2492,7 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
     sp_pcontext *spc;
     LEX *lex;
     if ((lex= current_thd->lex) &&
-        (spc= lex->sp_parsing_ctx) &&
+        (spc= lex->get_sp_current_parsing_ctx()) &&
         (spv= spc->find_variable(name, false)))
     {
       Item_splocal *splocal= new Item_splocal(name, spv->offset, spv->type, 0);

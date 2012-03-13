@@ -597,12 +597,12 @@ sp_head::init(LEX *lex)
 {
   DBUG_ENTER("sp_head::init");
 
-  m_parsing_ctx= new sp_pcontext();
+  m_root_parsing_ctx= new sp_pcontext();
 
-  if (!m_parsing_ctx)
+  if (!m_root_parsing_ctx)
     DBUG_VOID_RETURN;
 
-  lex->sp_parsing_ctx= m_parsing_ctx;
+  lex->set_sp_current_parsing_ctx(m_root_parsing_ctx);
 
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
 
@@ -784,7 +784,7 @@ sp_head::~sp_head()
   for (uint ip = 0 ; (i = get_instr(ip)) ; ip++)
     delete i;
   delete_dynamic(&m_instr);
-  delete m_parsing_ctx;
+  delete m_root_parsing_ctx;
   free_items();
 
   /*
@@ -1582,7 +1582,6 @@ sp_head::execute_trigger(THD *thd,
                          GRANT_INFO *grant_info)
 {
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
-  sp_rcontext *trigger_runtime_ctx = NULL;
   bool err_status= FALSE;
   MEM_ROOT call_mem_root;
   Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
@@ -1653,7 +1652,10 @@ sp_head::execute_trigger(THD *thd,
   init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  if (!(trigger_runtime_ctx= sp_rcontext::create(thd, m_parsing_ctx, NULL)))
+  sp_rcontext *trigger_runtime_ctx=
+    sp_rcontext::create(thd, m_root_parsing_ctx, NULL);
+
+  if (!trigger_runtime_ctx)
   {
     err_status= TRUE;
     goto err_with_cleanup;
@@ -1746,7 +1748,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     If it is not, use my_error() to report an error, or it will not terminate
     the invoking query properly.
   */
-  if (argcount != m_parsing_ctx->context_var_count())
+  if (argcount != m_root_parsing_ctx->context_var_count())
   {
     /*
       Need to use my_error here, or it will not terminate the
@@ -1754,7 +1756,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     */
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
              "FUNCTION", m_qname.str,
-             m_parsing_ctx->context_var_count(), argcount);
+             m_root_parsing_ctx->context_var_count(), argcount);
     DBUG_RETURN(TRUE);
   }
   /*
@@ -1771,7 +1773,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  func_runtime_ctx= sp_rcontext::create(thd, m_parsing_ctx, return_value_fld);
+  func_runtime_ctx= sp_rcontext::create(thd, m_root_parsing_ctx,
+                                        return_value_fld);
 
   if (!func_runtime_ctx)
   {
@@ -1973,12 +1976,11 @@ bool
 sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
   bool err_status= FALSE;
-  uint params = m_parsing_ctx->context_var_count();
+  uint params = m_root_parsing_ctx->context_var_count();
   /* Query start time may be reset in a multi-stmt SP; keep this for later. */
   ulonglong utime_before_sp_exec= thd->utime_after_lock;
   sp_rcontext *parent_sp_runtime_ctx= thd->sp_runtime_ctx;
   sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
-  sp_rcontext *proc_runtime_ctx = NULL;
   bool save_enable_slow_log= false;
   bool save_log_general= false;
   DBUG_ENTER("sp_head::execute_procedure");
@@ -1995,7 +1997,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   if (! parent_sp_runtime_ctx)
   {
     /* Create a temporary old context. */
-    parent_sp_runtime_ctx= sp_rcontext::create(thd, m_parsing_ctx, NULL);
+    parent_sp_runtime_ctx= sp_rcontext::create(thd, m_root_parsing_ctx, NULL);
 
     if (!parent_sp_runtime_ctx)
       DBUG_RETURN(TRUE);
@@ -2009,7 +2011,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->sp_runtime_ctx->callers_arena= thd;
   }
 
-  proc_runtime_ctx= sp_rcontext::create(thd, m_parsing_ctx, NULL);
+  sp_rcontext *proc_runtime_ctx=
+    sp_rcontext::create(thd, m_root_parsing_ctx, NULL);
 
   if (!proc_runtime_ctx)
   {
@@ -2033,7 +2036,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (!arg_item)
         break;
 
-      sp_variable *spvar= m_parsing_ctx->find_variable(i);
+      sp_variable *spvar= m_root_parsing_ctx->find_variable(i);
 
       if (!spvar)
         continue;
@@ -2155,7 +2158,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (!arg_item)
         break;
 
-      sp_variable *spvar= m_parsing_ctx->find_variable(i);
+      sp_variable *spvar= m_root_parsing_ctx->find_variable(i);
 
       if (spvar->mode == sp_variable::MODE_IN)
         continue;
@@ -2239,7 +2242,7 @@ sp_head::reset_lex(THD *thd)
 
   /* And keep the SP stuff too */
   sublex->sphead= oldlex->sphead;
-  sublex->sp_parsing_ctx= oldlex->sp_parsing_ctx;
+  sublex->set_sp_current_parsing_ctx(oldlex->get_sp_current_parsing_ctx());
   /* And trigger related stuff too */
   sublex->trg_chistics= oldlex->trg_chistics;
   sublex->sp_lex_in_use= FALSE;
