@@ -33,6 +33,7 @@ struct DA256Free
 {
   Uint32 m_magic;
   Uint32 m_next_free;
+  Uint32 m_prev_free;
 };
 
 struct DA256Node
@@ -46,7 +47,42 @@ struct DA256Page
   struct DA256Node m_nodes[30];
 
   bool get(Uint32 node, Uint32 idx, Uint32 type_id, Uint32*& val_ptr) const;
+  bool is_empty() const;
+  bool is_full() const;
+  Uint32 first_free() const;
+  Uint32 last_free() const;
 };
+
+inline
+bool DA256Page::is_empty() const
+{
+  return !(0x7fff & (m_header[0].m_magic | m_header[1].m_magic));
+}
+
+inline
+bool DA256Page::is_full() const
+{
+  return !(0x7fff & ~(m_header[0].m_magic & m_header[1].m_magic));
+}
+
+inline
+Uint32 DA256Page::first_free() const
+{
+  Uint32 node = BitmaskImpl::ctz(~m_header[0].m_magic | 0x8000);
+  if (node == 15)
+    node = 15 + BitmaskImpl::ctz(~m_header[1].m_magic | 0x8000);
+  return node;
+}
+
+inline
+Uint32 DA256Page::last_free() const
+{
+  Uint32 node = 29 - BitmaskImpl::clz((~m_header[1].m_magic << 17) | 0x10000);
+  if (node == 14)
+    node = 14 - BitmaskImpl::clz((~m_header[0].m_magic << 17) | 0x10000);
+  return node;
+}
+
 
 #undef require
 #define require(x) require_exit_or_core_with_printer((x), 0, ndbout_printer)
@@ -68,8 +104,11 @@ struct DA256Page
 #endif
 Uint32 verbose = 0;
 Uint32 allocatedpages = 0;
+Uint32 releasedpages = 0;
+Uint32 maxallocatedpages = 0;
 Uint32 allocatednodes = 0;
 Uint32 releasednodes = 0;
+Uint32 maxallocatednodes = 0;
 #endif
 
 static
@@ -94,6 +133,7 @@ DynArr256Pool::DynArr256Pool()
 {
   m_type_id = RNIL;
   m_first_free = RNIL;
+  m_last_free = RNIL;
   m_memroot = 0;
 }
 
@@ -163,6 +203,9 @@ DynArr256::get(Uint32 pos) const
     return 0;
   }
   
+#ifdef VM_TRACE
+  require((m_head.m_sz > 0) && (pos <= m_head.m_high_pos));
+#endif
 #ifdef DA256_USE_PX
   Uint32 px[4] = { (pos >> 24) & 255, 
 		   (pos >> 16) & 255, 
@@ -251,6 +294,11 @@ DynArr256::set(Uint32 pos)
     ptrI = * retVal;
   } 
   
+#ifdef VM_TRACE
+  if (pos > m_head.m_high_pos)
+    m_head.m_high_pos = pos;
+#endif
+
   return retVal;
   
 err:
@@ -296,16 +344,14 @@ initpage(DA256Page* p, Uint32 page_no, Uint32 type_id)
   {
     free = (DA256Free*)(p->m_nodes+i);
     free->m_magic = type_id;
-    free->m_next_free = (page_no << DA256_BITS) + (i + 1);
+    free->m_next_free = RNIL;
+    free->m_prev_free = RNIL;
 #ifdef DA256_EXTRA_SAFE
     DA256Node* node = p->m_nodes+i;
     for (j = 0; j<17; j++)
       node->m_lines[j].m_magic = type_id;
 #endif
   }
-  
-  free = (DA256Free*)(p->m_nodes+29);
-  free->m_next_free = RNIL;
 }
 
 bool
@@ -370,9 +416,12 @@ DynArr256::init(ReleaseIterator &iter)
  * 0 - done
  * 1 - data
  * 2 - no data
+ *
+ * if ptrVal is NULL, truncate work in trim mode and will stop
+ * (return 0) as soon value is not RNIL
  */
 Uint32
-DynArr256::truncate(Uint32 keep_pos, ReleaseIterator& iter, Uint32* ptrVal)
+DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
 {
   Uint32 type_id = (~m_pool.m_type_id) & 0xFFFF;
   DA256Page * memroot = m_pool.m_memroot;
@@ -380,7 +429,7 @@ DynArr256::truncate(Uint32 keep_pos, ReleaseIterator& iter, Uint32* ptrVal)
   for (;;)
   {
     if (iter.m_sz == 0 ||
-        iter.m_pos < keep_pos ||
+        iter.m_pos < trunc_pos ||
         m_head.m_sz == 0)
     {
       return 0;
@@ -391,7 +440,8 @@ DynArr256::truncate(Uint32 keep_pos, ReleaseIterator& iter, Uint32* ptrVal)
     Uint32 page_no = ptrI >> DA256_BITS;
     Uint32 page_idx = (ptrI & DA256_MASK) ;
     DA256Page* page = memroot + page_no;
-    Uint32 node_index = (iter.m_pos >> (8 * (m_head.m_sz - iter.m_sz))) & 255;
+    Uint32 node_addr = (iter.m_pos >> (8 * (m_head.m_sz - iter.m_sz)));
+    Uint32 node_index = node_addr & 255;
     bool is_value = (iter.m_sz == m_head.m_sz);
 
     if (unlikely(! page->get(page_idx, node_index, type_id, refPtr)))
@@ -399,10 +449,17 @@ DynArr256::truncate(Uint32 keep_pos, ReleaseIterator& iter, Uint32* ptrVal)
       require(false);
     }
     assert(refPtr != NULL);
-    *ptrVal = *refPtr;
+    if (ptrVal != NULL)
+    {
+      *ptrVal = *refPtr;
+    }
+    else if (is_value && *refPtr != RNIL)
+    {
+      return 0;
+    }
 
     if (iter.m_sz == 1 &&
-        (iter.m_pos >> (8 * (m_head.m_sz - iter.m_sz))) == 0)
+        node_addr == 0)
     {
       assert(iter.m_ptr_i[iter.m_sz] == m_head.m_ptr_i);
       assert(iter.m_ptr_i[iter.m_sz + 1] == RNIL);
@@ -410,10 +467,10 @@ DynArr256::truncate(Uint32 keep_pos, ReleaseIterator& iter, Uint32* ptrVal)
       m_pool.release(m_head.m_ptr_i);
       m_head.m_sz --;
       m_head.m_ptr_i = iter.m_ptr_i[iter.m_sz];
-      return is_value ? 1 : 2;
+      if (is_value)
+        return 1;
     }
-
-    if (is_value || iter.m_ptr_i[iter.m_sz + 1] == *refPtr)
+    else if (is_value || iter.m_ptr_i[iter.m_sz + 1] == *refPtr)
     { // sz--
       Uint32 ptrI = *refPtr;
       if (!is_value)
@@ -438,7 +495,11 @@ DynArr256::truncate(Uint32 keep_pos, ReleaseIterator& iter, Uint32* ptrVal)
         assert((iter.m_pos & ~(0xffffffff << (8 * (m_head.m_sz - iter.m_sz)))) == 0);
         iter.m_pos --;
       }
-      if (is_value)
+#ifdef VM_TRACE
+      if (iter.m_pos < m_head.m_high_pos)
+        m_head.m_high_pos = iter.m_pos;
+#endif
+      if (is_value && ptrVal != NULL)
         return 1;
     }
     else
@@ -502,6 +563,8 @@ seizenode(DA256Page* page, Uint32 idx, Uint32 type_id)
 
 #ifdef UNIT_TEST
   allocatednodes++;
+  if (allocatednodes - releasednodes > maxallocatednodes)
+    maxallocatednodes = allocatednodes - releasednodes;
 #endif
   return true;
 }
@@ -574,28 +637,45 @@ DynArr256Pool::seize()
       initpage(page, page_no, type_id);
 #ifdef UNIT_TEST
       allocatedpages++;
+      if (allocatedpages - releasedpages > maxallocatedpages)
+        maxallocatedpages = allocatedpages - releasedpages;
 #endif
     }
     else
     {
       return RNIL;
     }
-    ff = (page_no << DA256_BITS);
+    m_last_free = m_first_free = ff = page_no;
   }
   else
   {
-    page = memroot + (ff >> DA256_BITS);
+    page = memroot + ff;
   }
   
-  Uint32 idx = ff & DA256_MASK;
+  Uint32 idx = page->first_free();
   DA256Free * ptr = (DA256Free*)(page->m_nodes + idx);
   if (likely(ptr->m_magic == type_id))
   {
-    Uint32 next = ptr->m_next_free;
+    Uint32 last_free = page->last_free();
+    Uint32 next_page = ((DA256Free*)(page->m_nodes + last_free))->m_next_free;
     if (likely(seizenode(page, idx, type_id)))
     {
-      m_first_free = next;    
-      return ff;
+      if (page->is_full())
+      {
+        assert(m_first_free == ff);
+        m_first_free = next_page;
+        if (m_first_free == RNIL)
+        {
+          assert(m_last_free == ff);
+          m_last_free = RNIL;
+        }
+        else
+        {
+          page = memroot + next_page;
+          ((DA256Free*)(page->m_nodes + page->last_free()))->m_prev_free = RNIL;
+        }
+      }
+      return (ff << DA256_BITS) | idx;
     }
   }
   
@@ -613,21 +693,97 @@ DynArr256Pool::release(Uint32 ptrI)
   Uint32 page_idx = ptrI & DA256_MASK;
   DA256Page * memroot = m_memroot;
   DA256Page * page = memroot + page_no;
-  
   DA256Free * ptr = (DA256Free*)(page->m_nodes + page_idx);
+
+  Guard2 g(m_mutex);
+  Uint32 last_free = page->last_free();
   if (likely(releasenode(page, page_idx, type_id)))
   {
     ptr->m_magic = type_id;
-    Guard2 g(m_mutex);
-    Uint32 ff = m_first_free;
-    ptr->m_next_free = ff;
-    m_first_free = ptrI;
+    if (last_free > 29)
+    { // Add last to page free list
+      Uint32 lf = m_last_free;
+      ptr->m_prev_free = lf;
+      ptr->m_next_free = RNIL;
+      m_last_free = page_no;
+      if (m_first_free == RNIL)
+        m_first_free = page_no;
+
+      if (lf != RNIL)
+      {
+        page = memroot + lf;
+        DA256Free* pptr = (DA256Free*)(page->m_nodes + page->last_free());
+        pptr->m_next_free = page_no;
+      }
+    }
+    else if (page->is_empty())
+    {
+      // TODO msundell: release_page
+      // unlink from free page list
+      Uint32 nextpage = ((DA256Free*)(page->m_nodes + last_free))->m_next_free;
+      Uint32 prevpage = ((DA256Free*)(page->m_nodes + last_free))->m_prev_free;
+      m_ctx.release_page(type_id, page_no);
+#ifdef UNIT_TEST
+      releasedpages ++;
+#endif
+      if (nextpage != RNIL)
+      {
+        page = memroot + nextpage;
+        ((DA256Free*)(page->m_nodes + page->last_free()))->m_prev_free = prevpage;
+      }
+      if (prevpage != RNIL)
+      {
+        page = memroot + prevpage;
+        ((DA256Free*)(page->m_nodes + page->last_free()))->m_next_free = nextpage;
+      }
+      if (m_first_free == page_no)
+      {
+        m_first_free = nextpage;
+      }
+      if (m_last_free == page_no)
+        m_last_free = prevpage;
+    }
+    else if (page_idx > last_free)
+    { // last free node in page tracks free page list links
+      ptr->m_next_free = ((DA256Free*)(page->m_nodes + last_free))->m_next_free;
+      ptr->m_prev_free = ((DA256Free*)(page->m_nodes + last_free))->m_prev_free;
+    }
     return;
   }
   require(false);
 }
 
 #ifdef UNIT_TEST
+
+static
+bool
+release(DynArr256& arr)
+{
+  DynArr256::ReleaseIterator iter;
+  arr.init(iter);
+  Uint32 val;
+  Uint32 cnt=0;
+  Uint64 start;
+  if (verbose > 2)
+    ndbout_c("allocatedpages: %d (max %d) releasedpages: %d allocatednodes: %d (max %d) releasednodes: %d",
+           allocatedpages, maxallocatedpages,
+           releasedpages,
+           allocatednodes, maxallocatednodes,
+           releasednodes);
+  start = my_micro_time();
+  while (arr.release(iter, &val))
+    cnt++;
+  start = my_micro_time() - start;
+  if (verbose > 1)
+    ndbout_c("allocatedpages: %d (max %d) releasedpages: %d allocatednodes: %d (max %d) releasednodes: %d (%llu us)"
+             " releasecnt: %d",
+             allocatedpages, maxallocatedpages,
+             releasedpages,
+             allocatednodes, maxallocatednodes,
+             releasednodes,
+             start, cnt);
+  return true;
+}
 
 static
 bool
@@ -863,16 +1019,15 @@ write(DynArr256& arr, int argc, char ** argv)
     {
       Uint32 idx = ((rand() & (~seqmask)) + ((i + seq) & seqmask)) % maxidx;
       Uint32 *ptr = arr.set(idx);
+      if (ptr == NULL) break; /* out of memory */
       *ptr = i;
     }
     start = my_micro_time() - start;
     float uspg = (float)start; uspg /= cnt;
     if (verbose)
       ndbout_c("Elapsed %lldus -> %f us/set", start, uspg);
-    DynArr256::ReleaseIterator iter;
-    arr.init(iter);
-    Uint32 val;
-    while(arr.release(iter, &val));
+    if (!release(arr))
+      return false;
   }
   return true;
 }
@@ -923,6 +1078,12 @@ main(int argc, char** argv)
 #else
   verbose = 0;
 #endif
+  while (argc > 1 && strcmp(argv[1], "-v") == 0)
+  {
+    verbose++;
+    argc--;
+    argv++;
+  }
 
   Pool_context pc = test_context(10000 /* pages */);
 
@@ -983,20 +1144,18 @@ main(int argc, char** argv)
   }
 #endif
 
-  DynArr256::ReleaseIterator iter;
-  arr.init(iter);
-  Uint32 cnt = 0, val;
-  while (arr.release(iter, &val)) cnt++;
-  
+  release(arr);
   if (verbose)
-    ndbout_c("allocatedpages: %d allocatednodes: %d releasednodes: %d"
-	   " releasecnt: %d",
-	   allocatedpages, 
-	   allocatednodes,
-	   releasednodes,
-	   cnt);
+    ndbout_c("allocatedpages: %d (max %d) releasedpages: %d allocatednodes: %d (max %d) releasednodes: %d",
+           allocatedpages, maxallocatedpages,
+           releasedpages,
+           allocatednodes, maxallocatednodes,
+           releasednodes);
+
 #ifdef TAP_TEST
-  ok(allocatednodes == releasednodes, "release");
+  ok(allocatednodes == releasednodes &&
+     allocatedpages == releasedpages,
+     "release");
   return exit_status();
 #else
   return 0;

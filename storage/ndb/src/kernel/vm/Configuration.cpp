@@ -840,13 +840,6 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
      * Acc Size Alt values
      */
     // Can keep 65536 pages (= 0.5 GByte)
-    cfg.put(CFG_ACC_DIR_RANGE, 
-	    2 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas); 
-    
-    cfg.put(CFG_ACC_DIR_ARRAY,
-	    (noOfIndexPages >> 8) + 
-	    2 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
-    
     cfg.put(CFG_ACC_FRAGMENT,
 	    NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
     
