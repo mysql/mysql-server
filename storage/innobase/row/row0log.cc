@@ -157,10 +157,7 @@ op_ok:
 	}
 
 	*b++ = op;
-#if DATA_TRX_ID_LEN != 6
-# error
-#endif
-	mach_write_to_6(b, trx_id);
+	trx_write_trx_id(b, trx_id);
 	b += DATA_TRX_ID_LEN;
 
 	if (extra_size < 0x80) {
@@ -662,10 +659,7 @@ corrupted:
 		return(NULL);
 	}
 
-#if DATA_TRX_ID_LEN != 6
-# error
-#endif
-	trx_id = mach_read_from_6(mrec);
+	trx_id = trx_read_trx_id(mrec);
 	mrec += DATA_TRX_ID_LEN;
 
 	extra_size = *mrec++;
