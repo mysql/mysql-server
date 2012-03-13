@@ -787,7 +787,6 @@ btr_root_adjust_on_import(
 {
 	db_err		err;
 	mtr_t		mtr;
-	ulint		comp;
 	page_t*		page;
 	buf_block_t*	block;
 	page_zip_des_t*	page_zip;
@@ -804,39 +803,37 @@ btr_root_adjust_on_import(
 	page = buf_block_get_frame(block);
 	page_zip = buf_block_get_page_zip(block);
 
-	comp = page_is_comp(page);
-
 	/* Check that this is a B-tree page and both the PREV and NEXT
 	pointers are FIL_NULL, because the root page does not have any
 	siblings. */
 	if (fil_page_get_type(page) != FIL_PAGE_INDEX
 	    || fil_page_get_prev(page) != FIL_NULL
-	    || fil_page_get_next(page) != FIL_NULL
-	    || (dict_index_is_clust(index)
-		&& !!comp != dict_table_is_comp(table))) {
+	    || fil_page_get_next(page) != FIL_NULL) {
 
 		err = DB_CORRUPTION;
 
 	} else if (dict_index_is_clust(index)) {
-		/* For the clustered index, if space_flags==0,
-		initialize table->flags from the "compact format" flag. */
+		bool	page_is_compact_format;
 
-		ulint	space_flags = fil_space_get_flags(table->space);
+		page_is_compact_format = page_is_comp(page) > 0;
+		
+		/* Check if the page format and table format agree. */
+		if (page_is_compact_format != dict_table_is_comp(table)) {
+			err = DB_CORRUPTION;
+		} else {
 
-		if (space_flags) {
+			/* Check that the table flags and the tablespace
+			flags match. */
+			ulint	flags = fil_space_get_flags(table->space);
 
-			if (space_flags != dict_tf_to_fsp_flags(table->flags)
-			    || !dict_table_is_comp(table)) {
+			if (flags
+			    && flags != dict_tf_to_fsp_flags(table->flags)) {
 
 				err = DB_CORRUPTION;
 			} else {
-				err = comp ? DB_SUCCESS : DB_CORRUPTION;
+				err = DB_SUCCESS;
 			}
-		} else {
-			table->flags = comp ? DICT_TF_COMPACT : 0;
-			err = DB_SUCCESS;
 		}
-
 	} else {
 		err = DB_SUCCESS;
 	}
