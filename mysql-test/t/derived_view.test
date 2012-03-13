@@ -1345,7 +1345,40 @@ SELECT COUNT(*) > 0
 
 DROP TABLE t1;
 
-set SESSION optimizer_switch= @save_optimizer_switch;
+SET SESSION optimizer_switch= @save_optimizer_switch;
+
+--echo #
+--echo # LP BUG#953649: crash when estimating the cost of a look-up  
+--echo #                into a derived table to be materialized 
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (132);
+
+CREATE TABLE t2 (b int, c varchar(256));
+INSERT INTO t2 VALUES (132,'test1'), (120,'text2'), (132,'text3');
+
+CREATE VIEW v AS
+  SELECT b, GROUP_CONCAT(c) AS gc FROM t2 GROUP BY b;
+
+SET @save_optimizer_switch=@@optimizer_switch;
+
+SET SESSION optimizer_switch='derived_merge=off'; 
+SET SESSION optimizer_switch='derived_with_keys=off'; 
+EXPLAIN
+SELECT * FROM t1, v WHERE a = b;
+SELECT * FROM t1, v WHERE a = b;
+
+SET SESSION optimizer_switch='derived_merge=on'; 
+SET SESSION optimizer_switch='derived_with_keys=on'; 
+EXPLAIN
+SELECT * FROM t1, v WHERE a = b;
+SELECT * FROM t1, v WHERE a = b;
+
+SET SESSION optimizer_switch= @save_optimizer_switch;
+
+DROP VIEW v;
+DROP TABLE t1,t2;
 
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
