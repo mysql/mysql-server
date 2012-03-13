@@ -21,7 +21,7 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Got error -1 from storage engine
 SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Error opening: .//test_wl5522/t1.cfg
+ERROR HY000: InnoDB: Error opening: './/test_wl5522/t1.cfg'
 restore: t1
 SET SESSION debug="-d,ib_import_reset_space_and_lsn_failure";
 SET SESSION debug="+d,ib_import_open_tablespace_failure";
