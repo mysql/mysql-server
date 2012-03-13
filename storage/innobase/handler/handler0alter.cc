@@ -1258,6 +1258,7 @@ online_retry_drop_indexes_with_trx(
 while preparing ALTER TABLE.
 
 @param ha_alter_info	Data used during in-place alter
+@param altered_table	MySQL table that is being altered
 @param user_table	InnoDB table that is being altered
 @param user_trx		User transaction, for locking the table
 @param table_name	Table name in MySQL
@@ -1276,6 +1277,7 @@ bool
 prepare_inplace_alter_table_dict(
 /*=============================*/
 	Alter_inplace_info*	ha_alter_info,
+	const TABLE*		altered_table,
 	dict_table_t*		user_table,
 	trx_t*			user_trx,
 	const char*		table_name,
@@ -1330,10 +1332,7 @@ prepare_inplace_alter_table_dict(
 	/* The primary index would be rebuilt if a FTS Doc ID
 	column is to be added, and the primary index definition
 	is just copied from old table and stored in indexdefs[0] */
-	if (add_fts_doc_id) {
-		DBUG_ASSERT(new_clustered);
-		DICT_TF2_FLAG_SET(indexed_table, DICT_TF2_FTS_ADD_DOC_ID);
-	}
+	DBUG_ASSERT(!add_fts_doc_id || new_clustered);
 
 	/* A primary key index cannot be created online. The table
 	should be exclusively locked in this case. It should also
@@ -1384,36 +1383,158 @@ prepare_inplace_alter_table_dict(
 	if (new_clustered) {
 		char*	new_table_name = innobase_create_temporary_tablename(
 			heap, '1', indexed_table->name);
+		ulint	flags;
+		ulint	flags2;
+		ulint	n_cols;
 
-		/* Clone the table. */
+		if (!innobase_table_flags(table_name, altered_table,
+					  ha_alter_info->create_info,
+					  static_cast<THD*>(trx->mysql_thd),
+					  srv_file_per_table,
+					  &flags, &flags2)) {
+			goto new_clustered_failed;
+		}
+
+		n_cols = altered_table->s->fields;
+
+		if (add_fts_doc_id) {
+			n_cols++;
+			DBUG_ASSERT(flags2 & DICT_TF2_FTS);
+			DBUG_ASSERT(add_fts_doc_id_idx);
+			flags2 |= DICT_TF2_FTS_ADD_DOC_ID
+				| DICT_TF2_FTS_HAS_DOC_ID
+				| DICT_TF2_FTS;
+		}
+
+		if (add_fts_doc_id_idx) {
+			DBUG_ASSERT(flags2 & DICT_TF2_FTS);
+			DBUG_ASSERT(flags2 & DICT_TF2_FTS_HAS_DOC_ID);
+		}
+
+		/* Create the table. */
 		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
-		indexed_table = row_merge_create_temporary_table(
-			new_table_name, index_defs, user_table, trx);
+		/* The initial space id 0 may be overridden later. */
+		indexed_table = dict_mem_table_create(
+			new_table_name, 0, n_cols, flags, flags2);
 
-		if (!indexed_table) {
-			switch (trx->error_state) {
-			case DB_SUCCESS:
-				error = 0;
-				break;
-			case DB_TABLESPACE_ALREADY_EXISTS:
-			case DB_DUPLICATE_KEY:
-				innobase_convert_tablename(new_table_name);
-				my_error(HA_ERR_TABLE_EXIST, MYF(0),
-					 new_table_name);
-				error = HA_ERR_TABLE_EXIST;
-				break;
-			default:
-				my_error_innodb(trx->error_state,
-						table_name, user_table->flags);
-				error = -1;
+		for (uint i = 0; i < altered_table->s->fields; i++) {
+			const Field*	field = altered_table->field[i];
+			ulint		is_unsigned;
+			ulint		field_type
+				= (ulint) field->type();
+			ulint		col_type
+				= get_innobase_type_from_mysql_type(
+					&is_unsigned, field);
+			ulint		charset_no;
+			ulint		col_len;
+
+			if (!col_type) {
+col_fail:
+				my_error(ER_WRONG_KEY_COLUMN, MYF(0),
+					 field->field_name);
+				goto new_clustered_failed;
 			}
 
-			DBUG_ASSERT(trx != user_trx);
-			trx_rollback_to_savepoint(trx, NULL);
+			/* we assume in dtype_form_prtype() that this
+			fits in two bytes */
+			ut_a(field_type <= MAX_CHAR_COLL_NUM);
 
+			if (!field->null_ptr) {
+				field_type |= DATA_NOT_NULL;
+			}
+
+			if (field->binary()) {
+				field_type |= DATA_BINARY_TYPE;
+			}
+
+			if (is_unsigned) {
+				field_type |= DATA_UNSIGNED;
+			}
+
+			if (dtype_is_string_type(col_type)) {
+				charset_no = (ulint) field->charset()->number;
+
+				if (charset_no > MAX_CHAR_COLL_NUM) {
+					goto col_fail;
+				}
+			} else {
+				charset_no = 0;
+			}
+
+			col_len = field->pack_length();
+
+			/* The MySQL pack length contains 1 or 2 bytes
+			length field for a true VARCHAR. Let us
+			subtract that, so that the InnoDB column
+			length in the InnoDB data dictionary is the
+			real maximum byte length of the actual data. */
+
+			if (field->type() == MYSQL_TYPE_VARCHAR) {
+				uint32	length_bytes
+					= static_cast<const Field_varstring*>(
+						field)->length_bytes;
+
+				col_len -= length_bytes;
+
+				if (length_bytes == 2) {
+					field_type |= DATA_LONG_TRUE_VARCHAR;
+				}
+			}
+
+			if (dict_col_name_is_reserved(field->field_name)) {
+				my_error(ER_WRONG_COLUMN_NAME, MYF(0),
+					 field->field_name);
+				goto new_clustered_failed;
+			}
+
+			dict_mem_table_add_col(
+				indexed_table, heap,
+				field->field_name,
+				col_type,
+				dtype_form_prtype(field_type, charset_no),
+				col_len);
+		}
+
+		if (add_fts_doc_id) {
+			fts_add_doc_id_column(indexed_table, heap);
+			indexed_table->fts->doc_col = altered_table->s->fields;
+		}
+
+		error = row_create_table_for_mysql(indexed_table, trx);
+
+		switch (error) {
+			dict_table_t*	temp_table;
+		case DB_SUCCESS:
+			/* We need to bump up the table ref count and
+			before we can use it we need to open the
+			table. The new_table must be in the data
+			dictionary cache, because we are still holding
+			the dict_sys->mutex. */
+			ut_ad(mutex_own(&dict_sys->mutex));
+			temp_table = dict_table_open_on_name_no_stats(
+				indexed_table->name, TRUE, FALSE,
+				DICT_ERR_IGNORE_NONE);
+			ut_a(indexed_table == temp_table);
 			/* n_ref_count must be 1, because purge cannot
 			be executing on this very table as we are
 			holding dict_operation_lock X-latch. */
+			DBUG_ASSERT(indexed_table->n_ref_count == 1);
+			break;
+		case DB_TABLESPACE_ALREADY_EXISTS:
+		case DB_DUPLICATE_KEY:
+			innobase_convert_tablename(new_table_name);
+			my_error(HA_ERR_TABLE_EXIST, MYF(0),
+				 new_table_name);
+			error = HA_ERR_TABLE_EXIST;
+			goto new_clustered_failed;
+		default:
+			my_error_innodb(
+				trx->error_state, table_name, flags);
+			error = -1;
+		new_clustered_failed:
+			DBUG_ASSERT(trx != user_trx);
+			trx_rollback_to_savepoint(trx, NULL);
+
 			ut_ad(user_table->n_ref_count == 1);
 
 			online_retry_drop_indexes_with_trx(user_table, trx);
@@ -1423,14 +1544,8 @@ prepare_inplace_alter_table_dict(
 
 			trx_free_for_mysql(trx);
 			trx_commit_for_mysql(user_trx);
-
-			DBUG_RETURN(error != 0);
+			DBUG_RETURN(true);
 		}
-
-		/* n_ref_count must be 1, because purge cannot
-		be executing on this very table as we are
-		holding dict_operation_lock X-latch. */
-		DBUG_ASSERT(indexed_table->n_ref_count == 1);
 	}
 
 	/* Assign table_id, so that no table id of
@@ -1915,8 +2030,8 @@ err_exit:
 
 	DBUG_ASSERT(user_thd == prebuilt->trx->mysql_thd);
 	DBUG_RETURN(prepare_inplace_alter_table_dict(
-			    ha_alter_info, prebuilt->table, prebuilt->trx,
-			    table_share->table_name.str,
+			    ha_alter_info, altered_table, prebuilt->table,
+			    prebuilt->trx, table_share->table_name.str,
 			    heap, drop_index, n_drop_index, num_fts_index,
 			    add_fts_doc_id, add_fts_doc_id_idx));
 }
@@ -2268,8 +2383,6 @@ ha_innobase::commit_inplace_alter_table(
 			}
 		}
 	}
-
-	DICT_TF2_FLAG_UNSET(prebuilt->table, DICT_TF2_FTS_ADD_DOC_ID);
 
 	/* TODO: implement this */
 	DBUG_ASSERT(!(ha_alter_info->handler_flags

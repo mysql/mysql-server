@@ -1284,7 +1284,7 @@ row_merge_read_clustered_index(
 			merge_buf[i] = row_merge_buf_create(fts_sort_idx);
 
 			add_doc_id = DICT_TF2_FLAG_IS_SET(
-				old_table, DICT_TF2_FTS_ADD_DOC_ID);
+				new_table, DICT_TF2_FTS_ADD_DOC_ID);
 
 			/* If Doc ID does not exist in the table itself,
 			fetch the first FTS Doc ID */
@@ -2832,83 +2832,6 @@ row_merge_col_prtype(
 }
 
 /*********************************************************************//**
-Create a temporary table for creating a primary key, using the definition
-of an existing table.
-@return	table, or NULL on error */
-UNIV_INTERN
-dict_table_t*
-row_merge_create_temporary_table(
-/*=============================*/
-	const char*		table_name,	/*!< in: new table name */
-	const merge_index_def_t*index_def,	/*!< in: the index definition
-						of the primary key */
-	const dict_table_t*	table,		/*!< in: old table definition */
-	trx_t*			trx)		/*!< in/out: transaction
-						(sets error_state) */
-{
-	ulint		i;
-	dict_table_t*	new_table = NULL;
-	ulint		n_cols = dict_table_get_n_user_cols(table);
-	db_err		error;
-	mem_heap_t*	heap = mem_heap_create(1000);
-	ulint		num_col;
-
-	ut_ad(table_name);
-	ut_ad(index_def);
-	ut_ad(table);
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	num_col = n_cols
-		+ !!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID);
-
-	new_table = dict_mem_table_create(
-		table_name, 0, num_col, table->flags, table->flags2);
-
-	for (i = 0; i < n_cols; i++) {
-		const dict_col_t*	col;
-		const char*		col_name;
-
-		col = dict_table_get_nth_col(table, i);
-		col_name = dict_table_get_col_name(table, i);
-
-		dict_mem_table_add_col(new_table, heap, col_name, col->mtype,
-				       row_merge_col_prtype(col, col_name,
-							    index_def),
-				       col->len);
-	}
-
-	/* Add the FTS doc_id hidden column */
-	if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
-		fts_add_doc_id_column(new_table);
-		new_table->fts->doc_col = n_cols;
-	}
-
-	error = row_create_table_for_mysql(new_table, trx);
-	mem_heap_free(heap);
-
-	if (error != DB_SUCCESS) {
-		trx->error_state = static_cast<enum db_err>(error);
-		new_table = NULL;
-	} else {
-		dict_table_t*	temp_table;
-
-		/* We need to bump up the table ref count and before we can
-		use it we need to open the table. The new_table must be
-		in the data dictionary cache, because we are still holding
-		the dict_sys->mutex. */
-
-		ut_ad(mutex_own(&dict_sys->mutex));
-
-		temp_table = dict_table_open_on_name_no_stats(
-			new_table->name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
-
-		ut_a(new_table == temp_table);
-	}
-
-	return(new_table);
-}
-
-/*********************************************************************//**
 Rename an index in the dictionary that was created. The data
 dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
@@ -3425,6 +3348,8 @@ func_exit:
 
 	mem_free(merge_files);
 	os_mem_free_large(block, block_size);
+
+	DICT_TF2_FLAG_UNSET(new_table, DICT_TF2_FTS_ADD_DOC_ID);
 
 	if (online && error != DB_SUCCESS) {
 		/* On error, flag all online index creation as aborted. */

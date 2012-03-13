@@ -463,13 +463,34 @@ system default primary index name 'GEN_CLUST_INDEX'. If a name
 matches, this function pushes an warning message to the client,
 and returns true.
 @return true if the index name matches the reserved name */
+UNIV_INTERN
 bool
 innobase_index_name_is_reserved(
 /*============================*/
 	THD*		thd,		/*!< in/out: MySQL connection */
 	const KEY*	key_info,	/*!< in: Indexes to be created */
-	ulint		num_of_keys);	/*!< in: Number of indexes to
+	ulint		num_of_keys)	/*!< in: Number of indexes to
 					be created. */
+	__attribute__((nonnull, warn_unused_result));
+
+/*****************************************************************//**
+Determines InnoDB table flags.
+@retval true if successful, false if error */
+UNIV_INTERN
+bool
+innobase_table_flags(
+/*=================*/
+	const char*		name,		/*!< in: table name */
+	const TABLE*		form,		/*!< in: table */
+	const HA_CREATE_INFO*	create_info,	/*!< in: information
+						on table columns and indexes */
+	THD*			thd,		/*!< in: connection */
+	bool			use_tablespace,	/*!< in: whether to create
+						outside system tablespace */
+	ulint*			flags,		/*!< out: DICT_TF flags */
+	ulint*			flags2)		/*!< out: DICT_TF2 flags */
+	__attribute__((nonnull, warn_unused_result));
+
 /*********************************************************************//**
 Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
@@ -487,7 +508,7 @@ of prebuilt->fts_doc_id
 UNIV_INTERN
 float
 innobase_fts_find_ranking(
-/*==========================*/
+/*======================*/
 	FT_INFO*	fts_hdl,	/*!< in: FTS handler */
 	uchar*		record,		/*!< in: Unused */
 	uint		len);		/*!< in: Unused */
@@ -496,14 +517,9 @@ Free the memory for the FTS handler */
 UNIV_INTERN
 void
 innobase_fts_close_ranking(
-/*==========================*/
-	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
-/*********************************************************************//**
-Free the memory for the FTS handler */
-void
-innobase_fts_close_ranking(
-/*==========================*/
-	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
+/*=======================*/
+	FT_INFO*	fts_hdl)	/*!< in: FTS handler */
+	__attribute__((nonnull));
 /*****************************************************************//**
 Initialize the table FTS stopword list
 @return TRUE if success */

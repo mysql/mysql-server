@@ -7879,7 +7879,7 @@ create_table_check_doc_id_col(
 
 /*****************************************************************//**
 Creates a table definition to an InnoDB database. */
-static
+static __attribute__((nonnull, warn_unused_result))
 int
 create_table_def(
 /*=============*/
@@ -7894,8 +7894,7 @@ create_table_def(
 					parameter is the dir path where the
 					table should be placed if we create
 					an .ibd file for it (no .ibd extension
-					in the path, though); otherwise this
-					is NULL */
+					in the path, though) */
 	ulint		flags,		/*!< in: table flags */
 	ulint		flags2)		/*!< in: table flags2 */
 {
@@ -7912,11 +7911,12 @@ create_table_def(
 	ulint		i;
 	ulint		doc_id_col = 0;
 	ibool		has_doc_id_col = FALSE;
+	mem_heap_t*	heap;
 
 	DBUG_ENTER("create_table_def");
 	DBUG_PRINT("enter", ("table_name: %s", table_name));
 
-	ut_a(trx->mysql_thd != NULL);
+	DBUG_ASSERT(trx->mysql_thd != NULL);
 
 	/* MySQL does the name length check. But we do additional check
 	on the name length here */
@@ -7976,10 +7976,12 @@ create_table_def(
 					      flags, flags2);
 	}
 
-	if (path_of_temp_table) {
+	if (flags2 & DICT_TF2_TEMPORARY) {
 		table->dir_path_of_temp_table =
 			mem_heap_strdup(table->heap, path_of_temp_table);
 	}
+
+	heap = mem_heap_create(1000);
 
 	for (i = 0; i < n_cols; i++) {
 		Field*	field = form->field[i];
@@ -8021,6 +8023,7 @@ create_table_def(
 					" must be below 256."
 					" Unsupported code %lu.",
 					(ulong) charset_no);
+				mem_heap_free(heap);
 				DBUG_RETURN(ER_CANT_CREATE_TABLE);
 			}
 		}
@@ -8052,13 +8055,14 @@ create_table_def(
 				 field->field_name);
 err_col:
 			dict_mem_table_free(table);
+			mem_heap_free(heap);
 			trx_commit_for_mysql(trx);
 
 			error = DB_ERROR;
 			goto error_ret;
 		}
 
-		dict_mem_table_add_col(table, table->heap,
+		dict_mem_table_add_col(table, heap,
 			(char*) field->field_name,
 			col_type,
 			dtype_form_prtype(
@@ -8071,10 +8075,12 @@ err_col:
 
 	/* Add the FTS doc_id hidden column. */
 	if (flags2 & DICT_TF2_FTS && !has_doc_id_col) {
-		fts_add_doc_id_column(table);
+		fts_add_doc_id_column(table, heap);
 	}
 
 	error = row_create_table_for_mysql(table, trx);
+
+	mem_heap_free(heap);
 
 	if (error == DB_DUPLICATE_KEY) {
 		char buf[100];
@@ -8475,103 +8481,50 @@ innobase_fts_load_stopword(
 				 THDVAR(thd, ft_user_stopword_table),
 				 THDVAR(thd, ft_enable_stopword), FALSE));
 }
+
 /*****************************************************************//**
-Creates a new table to an InnoDB database.
-@return	error number */
+Determines InnoDB table flags.
+@retval true if successful, false if error */
 UNIV_INTERN
-int
-ha_innobase::create(
-/*================*/
-	const char*	name,		/*!< in: table name */
-	TABLE*		form,		/*!< in: information on table
-					columns and indexes */
-	HA_CREATE_INFO*	create_info)	/*!< in: more information of the
-					created table, contains also the
-					create statement string */
+bool
+innobase_table_flags(
+/*=================*/
+	const char*		name,		/*!< in: table name */
+	const TABLE*		form,		/*!< in: table */
+	const HA_CREATE_INFO*	create_info,	/*!< in: information
+						on table columns and indexes */
+	THD*			thd,		/*!< in: connection */
+	bool			use_tablespace,	/*!< in: whether to create
+						outside system tablespace */
+	ulint*			flags,		/*!< out: DICT_TF flags */
+	ulint*			flags2)		/*!< out: DICT_TF2 flags */
 {
-	int		error;
-	trx_t*		parent_trx;
-	trx_t*		trx;
-	int		primary_key_no;
-	uint		i;
-	char		name2[FN_REFLEN];
-	char		norm_name[FN_REFLEN];
-	THD*		thd = ha_thd();
-	ib_int64_t	auto_inc_value;
-	ulint		fts_indexes = 0;
-	ibool		zip_allowed = TRUE;
+	DBUG_ENTER("innobase_table_flags");
+
+	bool		zip_allowed = true;
+	ulint		zip_ssize = 0;
 	enum row_type	row_format;
 	rec_format_t	innodb_row_format = REC_FORMAT_COMPACT;
-
-	/* Cache the global variable "srv_file_per_table" to a local
-	variable before using it. Note that "srv_file_per_table"
-	is not under dict_sys mutex protection, and could be changed
-	while creating the table. So we read the current value here
-	and make all further decisions based on this. */
-	bool		use_tablespace = srv_file_per_table;
-
-	/* Zip Shift Size - log2 - 9 of compressed page size,
-	zero for uncompressed */
-	ulint		zip_ssize = 0;
-	ulint		flags = 0;
-	ulint		flags2 = 0;
-	dict_table_t*	innobase_table = NULL;
-
 	/* Cache the value of innodb_file_format, in case it is
 	modified by another thread while the table is being created. */
 	const ulint	file_format_allowed = srv_file_format;
-	const char*	stmt;
-	size_t		stmt_len;
 
-	DBUG_ENTER("ha_innobase::create");
-
-	DBUG_ASSERT(thd != NULL);
-	DBUG_ASSERT(create_info != NULL);
-
-#ifdef __WIN__
-	/* Names passed in from server are in two formats:
-	1. <database_name>/<table_name>: for normal table creation
-	2. full path: for temp table creation, or sym link
-
-	When srv_file_per_table is on and mysqld_embedded is off,
-	check for full path pattern, i.e.
-	X:\dir\...,		X is a driver letter, or
-	\\dir1\dir2\...,	UNC path
-	returns error if it is in full path format, but not creating a temp.
-	table. Currently InnoDB does not support symbolic link on Windows. */
-
-	if (use_tablespace
-	    && !mysqld_embedded
-	    && (!create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
-
-		if ((name[1] == ':')
-		    || (name[0] == '\\' && name[1] == '\\')) {
-			sql_print_error("Cannot create table %s\n", name);
-			DBUG_RETURN(HA_ERR_GENERIC);
-		}
-	}
-#endif
-
-	if (form->s->fields > 1000) {
-		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
-		but we play safe here */
-
-		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
-	}
+	*flags = 0;
+	*flags2 = 0;
 
 	/* Check if there are any FTS indexes defined on this table. */
-	for (i = 0; i < form->s->keys; i++) {
-		KEY*    key = form->key_info + i;
+	for (uint i = 0; i < form->s->keys; i++) {
+		const KEY*	key = &form->key_info[i];
 
 		if (key->flags & HA_FULLTEXT) {
-			++fts_indexes;
+			*flags2 |= DICT_TF2_FTS;
 
 			/* We don't support FTS indexes in temporary
 			tables. */
 			if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 
 				my_error(ER_INNODB_NO_FT_TEMP_TABLE, MYF(0));
-				DBUG_RETURN(-1);
+				DBUG_RETURN(false);
 			}
 		}
 
@@ -8599,26 +8552,8 @@ ha_innobase::create(
 					    name);
 			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
 				 FTS_DOC_ID_INDEX_NAME);
-			DBUG_RETURN(-1);
+			DBUG_RETURN(false);
 		}
-	}
-
-	strcpy(name2, name);
-
-	normalize_table_name(norm_name, name2);
-
-	/* Create the table definition in InnoDB */
-
-	flags = 0;
-
-	if (fts_indexes > 0) {
-		flags2 = DICT_TF2_FTS;
-	}
-
-	/* Validate create options if innodb_strict_mode is set. */
-	if (!create_options_are_valid(
-			thd, form, create_info, use_tablespace)) {
-		DBUG_RETURN(ER_ILLEGAL_HA_CREATE_OPTION);
 	}
 
 	if (create_info->key_block_size) {
@@ -8749,7 +8684,113 @@ ha_innobase::create(
 	if (!zip_allowed) {
 		zip_ssize = 0;
 	}
-	dict_tf_set(&flags, innodb_row_format, zip_ssize);
+
+	dict_tf_set(flags, innodb_row_format, zip_ssize);
+
+	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+		*flags2 |= DICT_TF2_TEMPORARY;
+	}
+
+	if (use_tablespace) {
+		*flags2 |= DICT_TF2_USE_TABLESPACE;
+	}
+
+	DBUG_RETURN(true);
+}
+
+/*****************************************************************//**
+Creates a new table to an InnoDB database.
+@return	error number */
+UNIV_INTERN
+int
+ha_innobase::create(
+/*================*/
+	const char*	name,		/*!< in: table name */
+	TABLE*		form,		/*!< in: information on table
+					columns and indexes */
+	HA_CREATE_INFO*	create_info)	/*!< in: more information of the
+					created table, contains also the
+					create statement string */
+{
+	int		error;
+	trx_t*		parent_trx;
+	trx_t*		trx;
+	int		primary_key_no;
+	uint		i;
+	char		name2[FN_REFLEN];
+	char		norm_name[FN_REFLEN];
+	THD*		thd = ha_thd();
+	ib_int64_t	auto_inc_value;
+
+	/* Cache the global variable "srv_file_per_table" to a local
+	variable before using it. Note that "srv_file_per_table"
+	is not under dict_sys mutex protection, and could be changed
+	while creating the table. So we read the current value here
+	and make all further decisions based on this. */
+	bool		use_tablespace = srv_file_per_table;
+
+	/* Zip Shift Size - log2 - 9 of compressed page size,
+	zero for uncompressed */
+	ulint		flags;
+	ulint		flags2;
+	dict_table_t*	innobase_table = NULL;
+
+	const char*	stmt;
+	size_t		stmt_len;
+
+	DBUG_ENTER("ha_innobase::create");
+
+	DBUG_ASSERT(thd != NULL);
+	DBUG_ASSERT(create_info != NULL);
+
+#ifdef __WIN__
+	/* Names passed in from server are in two formats:
+	1. <database_name>/<table_name>: for normal table creation
+	2. full path: for temp table creation, or sym link
+
+	When srv_file_per_table is on and mysqld_embedded is off,
+	check for full path pattern, i.e.
+	X:\dir\...,		X is a driver letter, or
+	\\dir1\dir2\...,	UNC path
+	returns error if it is in full path format, but not creating a temp.
+	table. Currently InnoDB does not support symbolic link on Windows. */
+
+	if (use_tablespace
+	    && !mysqld_embedded
+	    && (!create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+
+		if ((name[1] == ':')
+		    || (name[0] == '\\' && name[1] == '\\')) {
+			sql_print_error("Cannot create table %s\n", name);
+			DBUG_RETURN(HA_ERR_GENERIC);
+		}
+	}
+#endif
+
+	if (form->s->fields > 1000) {
+		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
+		but we play safe here */
+
+		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
+	}
+
+	strcpy(name2, name);
+
+	normalize_table_name(norm_name, name2);
+
+	/* Create the table definition in InnoDB */
+
+	/* Validate create options if innodb_strict_mode is set. */
+	if (!create_options_are_valid(
+			thd, form, create_info, use_tablespace)) {
+		DBUG_RETURN(ER_ILLEGAL_HA_CREATE_OPTION);
+	}
+
+	if (!innobase_table_flags(name, form, create_info,
+				  thd, use_tablespace,
+				  &flags, &flags2)) {
+		DBUG_RETURN(-1);
+	}
 
 	/* Look for a primary key */
 	primary_key_no = (form->s->primary_key != MAX_KEY ?
@@ -8771,14 +8812,6 @@ ha_innobase::create(
 		DBUG_RETURN(HA_ERR_GENERIC);
 	}
 
-	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
-		flags2 |= DICT_TF2_TEMPORARY;
-	}
-
-	if (use_tablespace) {
-		flags2 |= DICT_TF2_USE_TABLESPACE;
-	}
-
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
@@ -8797,9 +8830,7 @@ ha_innobase::create(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	error = create_table_def(trx, form, norm_name,
-		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
-		flags, flags2);
+	error = create_table_def(trx, form, norm_name, name2, flags, flags2);
 
 	if (error) {
 		goto cleanup;
@@ -8830,7 +8861,7 @@ ha_innobase::create(
 
 	/* Create the ancillary tables that are common to all FTS indexes on
 	this table. */
-	if (fts_indexes > 0) {
+	if (flags2 & DICT_TF2_FTS) {
 		enum fts_doc_id_index_enum	ret;
 
 		innobase_table = dict_table_open_on_name_no_stats(
@@ -8934,7 +8965,7 @@ ha_innobase::create(
 	}
 	/* Cache all the FTS indexes on this table in the FTS specific
 	structure. They are used for FTS indexed column update handling. */
-	if (fts_indexes > 0) {
+	if (flags2 & DICT_TF2_FTS) {
 		fts_t*          fts = innobase_table->fts;
 
 		ut_a(fts != NULL);
@@ -8966,7 +8997,7 @@ ha_innobase::create(
 	}
 
 	/* Load server stopword into FTS cache */
-	if (fts_indexes > 0) {
+	if (flags2 & DICT_TF2_FTS) {
 		if (!innobase_fts_load_stopword(innobase_table, NULL, thd)) {
 			dict_table_close(innobase_table, FALSE, FALSE);
 			srv_active_wake_master_thread();
