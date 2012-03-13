@@ -1640,26 +1640,26 @@ Item_splocal::Item_splocal(const LEX_STRING &sp_var_name,
 Item *
 Item_splocal::this_item()
 {
-  DBUG_ASSERT(m_sp == m_thd->spcont->sp);
+  DBUG_ASSERT(m_sp == m_thd->sp_runtime_ctx->sp);
 
-  return m_thd->spcont->get_item(m_var_idx);
+  return m_thd->sp_runtime_ctx->get_item(m_var_idx);
 }
 
 const Item *
 Item_splocal::this_item() const
 {
-  DBUG_ASSERT(m_sp == m_thd->spcont->sp);
+  DBUG_ASSERT(m_sp == m_thd->sp_runtime_ctx->sp);
 
-  return m_thd->spcont->get_item(m_var_idx);
+  return m_thd->sp_runtime_ctx->get_item(m_var_idx);
 }
 
 
 Item **
 Item_splocal::this_item_addr(THD *thd, Item **)
 {
-  DBUG_ASSERT(m_sp == thd->spcont->sp);
+  DBUG_ASSERT(m_sp == thd->sp_runtime_ctx->sp);
 
-  return thd->spcont->get_item_addr(m_var_idx);
+  return thd->sp_runtime_ctx->get_item_addr(m_var_idx);
 }
 
 
@@ -1692,9 +1692,9 @@ Item_case_expr::Item_case_expr(uint case_expr_id)
 Item *
 Item_case_expr::this_item()
 {
-  DBUG_ASSERT(m_sp == m_thd->spcont->sp);
+  DBUG_ASSERT(m_sp == m_thd->sp_runtime_ctx->sp);
 
-  return m_thd->spcont->get_case_expr(m_case_expr_id);
+  return m_thd->sp_runtime_ctx->get_case_expr(m_case_expr_id);
 }
 
 
@@ -1702,18 +1702,18 @@ Item_case_expr::this_item()
 const Item *
 Item_case_expr::this_item() const
 {
-  DBUG_ASSERT(m_sp == m_thd->spcont->sp);
+  DBUG_ASSERT(m_sp == m_thd->sp_runtime_ctx->sp);
 
-  return m_thd->spcont->get_case_expr(m_case_expr_id);
+  return m_thd->sp_runtime_ctx->get_case_expr(m_case_expr_id);
 }
 
 
 Item **
 Item_case_expr::this_item_addr(THD *thd, Item **)
 {
-  DBUG_ASSERT(m_sp == thd->spcont->sp);
+  DBUG_ASSERT(m_sp == thd->sp_runtime_ctx->sp);
 
-  return thd->spcont->get_case_expr_addr(m_case_expr_id);
+  return thd->sp_runtime_ctx->get_case_expr_addr(m_case_expr_id);
 }
 
 

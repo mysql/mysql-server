@@ -498,7 +498,8 @@ bool Sql_cmd_resignal::execute(THD *thd)
   // passed to the caller's Warning_info.
   da->set_warning_info_id(thd->query_id);
 
-  if (! thd->spcont || ! (signaled= thd->spcont->raised_condition()))
+  if (! thd->sp_runtime_ctx ||
+      ! (signaled= thd->sp_runtime_ctx->raised_condition()))
   {
     thd->raise_error(ER_RESIGNAL_WITHOUT_ACTIVE_HANDLER);
     DBUG_RETURN(true);
