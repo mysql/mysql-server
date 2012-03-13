@@ -79,7 +79,8 @@ public:
    *        2 - nodata
    */
   Uint32 release(ReleaseIterator&, Uint32* retptr);
-  Uint32 truncate(Uint32 keep_pos, ReleaseIterator&, Uint32* retptr);
+  Uint32 trim(Uint32 trim_pos, ReleaseIterator&);
+  Uint32 truncate(Uint32 trunc_pos, ReleaseIterator&, Uint32* retptr);
 protected:
   Head & m_head;
   DynArr256Pool & m_pool;
@@ -92,6 +93,12 @@ inline
 Uint32 DynArr256::release(ReleaseIterator& iter, Uint32* retptr)
 {
   return truncate(0, iter, retptr);
+}
+
+inline
+Uint32 DynArr256::trim(Uint32 pos, ReleaseIterator& iter)
+{
+  return truncate(pos, iter, NULL);
 }
 
 #endif

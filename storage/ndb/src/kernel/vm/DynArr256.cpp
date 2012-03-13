@@ -370,9 +370,12 @@ DynArr256::init(ReleaseIterator &iter)
  * 0 - done
  * 1 - data
  * 2 - no data
+ *
+ * if ptrVal is NULL, truncate work in trim mode and will stop
+ * (return 0) as soon value is not RNIL
  */
 Uint32
-DynArr256::truncate(Uint32 keep_pos, ReleaseIterator& iter, Uint32* ptrVal)
+DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
 {
   Uint32 type_id = (~m_pool.m_type_id) & 0xFFFF;
   DA256Page * memroot = m_pool.m_memroot;
@@ -380,7 +383,7 @@ DynArr256::truncate(Uint32 keep_pos, ReleaseIterator& iter, Uint32* ptrVal)
   for (;;)
   {
     if (iter.m_sz == 0 ||
-        iter.m_pos < keep_pos ||
+        iter.m_pos < trunc_pos ||
         m_head.m_sz == 0)
     {
       return 0;
@@ -399,7 +402,14 @@ DynArr256::truncate(Uint32 keep_pos, ReleaseIterator& iter, Uint32* ptrVal)
       require(false);
     }
     assert(refPtr != NULL);
-    *ptrVal = *refPtr;
+    if (ptrVal != NULL)
+    {
+      *ptrVal = *refPtr;
+    }
+    else if (is_value && *refPtr != RNIL)
+    {
+      return 0;
+    }
 
     if (iter.m_sz == 1 &&
         (iter.m_pos >> (8 * (m_head.m_sz - iter.m_sz))) == 0)
@@ -438,7 +448,7 @@ DynArr256::truncate(Uint32 keep_pos, ReleaseIterator& iter, Uint32* ptrVal)
         assert((iter.m_pos & ~(0xffffffff << (8 * (m_head.m_sz - iter.m_sz)))) == 0);
         iter.m_pos --;
       }
-      if (is_value)
+      if (is_value && ptrVal != NULL)
         return 1;
     }
     else
