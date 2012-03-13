@@ -305,9 +305,10 @@ int case_stmt_action_expr(LEX *lex, Item* expr)
 {
   sp_head *sp= lex->sphead;
   sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
-  int case_expr_id= pctx->register_case_expr();
 
-  if (pctx->push_case_expr_id(case_expr_id))
+  int case_expr_id= pctx->push_case_expr_id();
+
+  if (case_expr_id < 0)
     return 1;
 
   sp_instr_set_case_expr *i=
