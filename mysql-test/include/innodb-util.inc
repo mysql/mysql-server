@@ -15,10 +15,10 @@ sub ib_backup_tablespace {
     my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
 
     my @args = ("$datadir/$db/$ibd_file", "$tmpd/$ibd_file");
-    copy(@args) or die "system @args failed: $?";
+    copy(@args) or die "copy @args failed: $?";
 
     my @args = ("$datadir/$db/$cfg_file", "$tmpd/$cfg_file");
-    copy(@args) or die "system @args failed: $?";
+    copy(@args) or die "copy @args failed: $?";
 }
 
 sub ib_cleanup {
@@ -82,10 +82,10 @@ sub ib_restore_tablespace {
     my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
 
     my @args = ("$tmpd/$cfg_file", "$datadir/$db/$cfg_file");
-    copy(@args) or die "system @args failed: $?";
+    copy(@args) or die "copy @args failed: $?";
 
     my @args = ("$tmpd/$ibd_file", "$datadir/$db/$ibd_file");
-    copy(@args) or die "system @args failed: $?";
+    copy(@args) or die "copy @args failed: $?";
 }
 
 sub ib_restore_tablespaces {
