@@ -15763,8 +15763,13 @@ int report_error(TABLE *table, int error)
     print them to the .err log
   */
   if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+  {
+    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_ERROR, error,
+                        "Got error %d when reading table `%s`.`%s`",
+                        error, table->s->db.str, table->s->table_name.str);
     sql_print_error("Got error %d when reading table '%s'",
 		    error, table->s->path.str);
+  }
   table->file->print_error(error,MYF(0));
   return 1;
 }

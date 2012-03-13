@@ -447,7 +447,8 @@ static int rr_unpack_from_tempfile(READ_RECORD *info)
   if (my_b_read(info->io_cache, info->rec_buf, info->ref_length))
     return -1;
   TABLE *table= info->table;
-  (*table->sort.unpack)(table->sort.addon_field, info->rec_buf);
+  (*table->sort.unpack)(table->sort.addon_field, info->rec_buf,
+                        info->rec_buf + info->ref_length);
 
   return 0;
 }
@@ -498,7 +499,8 @@ static int rr_unpack_from_buffer(READ_RECORD *info)
   if (info->cache_pos == info->cache_end)
     return -1;                      /* End of buffer */
   TABLE *table= info->table;
-  (*table->sort.unpack)(table->sort.addon_field, info->cache_pos);
+  (*table->sort.unpack)(table->sort.addon_field, info->cache_pos,
+                        info->cache_end);
   info->cache_pos+= info->ref_length;
 
   return 0;

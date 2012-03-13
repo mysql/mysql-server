@@ -1120,20 +1120,26 @@ int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record)
 
   if (read != row_len || error)
   {
-    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+    DBUG_RETURN(error ? HA_ERR_CRASHED_ON_USAGE : HA_ERR_WRONG_IN_RECORD);
   }
 
   /* Copy null bits */
-  const uchar *ptr= record_buffer->buffer;
+  const uchar *ptr= record_buffer->buffer, *end= ptr+ row_len;
   memcpy(record, ptr, table->s->null_bytes);
   ptr+= table->s->null_bytes;
+  if (ptr > end)
+    DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
   for (Field **field=table->field ; *field ; field++)
   {
     if (!((*field)->is_null_in_record(record)))
     {
-      ptr= (*field)->unpack(record + (*field)->offset(table->record[0]), ptr);
+      if (!(ptr= (*field)->unpack(record + (*field)->offset(table->record[0]),
+                                  ptr, end)))
+        DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
     }
   }
+  if (ptr != end)
+    DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
   DBUG_RETURN(0);
 }
 

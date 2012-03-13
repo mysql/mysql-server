@@ -1472,11 +1472,13 @@ Field::pack(uchar *to, const uchar *from, uint max_length)
                        data
 
    @return  New pointer into memory based on from + length of the data
+   @return  0 if wrong data
 */
 const uchar *
-Field::unpack(uchar* to, const uchar *from, uint param_data)
+Field::unpack(uchar* to, const uchar *from, const uchar *from_end,
+              uint param_data)
 {
-  uint length=pack_length();
+  uint length=pack_length(), len;
   int from_type= 0;
   /*
     If from length is > 255, it has encoded data in the upper bits. Need
@@ -1492,14 +1494,19 @@ Field::unpack(uchar* to, const uchar *from, uint param_data)
       (length == param_data) ||
       (from_type != real_type()))
   {
+    if (from + length > from_end)
+      return 0;                                 // Error in data
+
     memcpy(to, from, length);
     return from+length;
   }
 
-  uint len= (param_data && (param_data < length)) ?
-            param_data : length;
+  len= (param_data && (param_data < length)) ? param_data : length;
 
-  memcpy(to, from, param_data > length ? length : len);
+  if (from + len > from_end)
+    return 0;                                   // Error in data
+
+  memcpy(to, from, len);
   return from+len;
 }
 
@@ -2916,10 +2923,11 @@ uint Field_new_decimal::is_equal(Create_field *new_field)
    @return  New pointer into memory based on from + length of the data
 */
 const uchar *
-Field_new_decimal::unpack(uchar* to, const uchar *from, uint param_data)
+Field_new_decimal::unpack(uchar* to, const uchar *from, const uchar *from_end,
+                          uint param_data)
 {
   if (param_data == 0)
-    return Field::unpack(to, from, param_data);
+    return Field::unpack(to, from, from_end, param_data);
 
   uint from_precision= (param_data & 0xff00) >> 8U;
   uint from_decimal= param_data & 0x00ff;
@@ -2949,7 +2957,11 @@ Field_new_decimal::unpack(uchar* to, const uchar *from, uint param_data)
     decimal2bin(&dec_val, to, precision, decimals());
   }
   else
+  {
+    if (from + len > from_end)
+      return 0;                                 // Wrong data
     memcpy(to, from, len); // Sizes are the same, just copy the data.
+  }
   return from+len;
 }
 
@@ -6542,7 +6554,8 @@ uchar *Field_string::pack(uchar *to, const uchar *from, uint max_length)
    @return  New pointer into memory based on from + length of the data
 */
 const uchar *
-Field_string::unpack(uchar *to, const uchar *from, uint param_data)
+Field_string::unpack(uchar *to, const uchar *from, const uchar *from_end,
+                     uint param_data)
 {
   uint from_length, length;
 
@@ -6564,11 +6577,19 @@ Field_string::unpack(uchar *to, const uchar *from, uint param_data)
    */
   if (from_length > 255)
   {
+    if (from + 2 > from_end)
+      return 0;
     length= uint2korr(from);
     from+= 2;
   }
   else
+  {
+    if (from + 1 > from_end)
+      return 0;
     length= (uint) *from++;
+  }
+  if (from + length > from_end || length > field_length)
+    return 0;
 
   memcpy(to, from, length);
   // Pad the string with the pad character of the fields charset
@@ -7060,6 +7081,7 @@ Field_varstring::pack_key(uchar *to, const uchar *key, uint max_length)
     Pointer to end of 'key' (To the next key part if multi-segment key)
 */
 
+#ifdef NOT_USED
 const uchar *
 Field_varstring::unpack_key(uchar *to, const uchar *key, uint max_length)
 {
@@ -7076,6 +7098,7 @@ Field_varstring::unpack_key(uchar *to, const uchar *key, uint max_length)
   memcpy(ptr + length_bytes, key, length);
   return key + length;
 }
+#endif
 
 /**
   Create a packed key that will be used for storage in the index tree.
@@ -7120,11 +7143,16 @@ uchar * Field_varstring::pack_key_from_key_image(uchar *to, const uchar *from,
    @return  New pointer into memory based on from + length of the data
 */
 const uchar *
-Field_varstring::unpack(uchar *to, const uchar *from, uint param_data)
+Field_varstring::unpack(uchar *to, const uchar *from, const uchar *from_end,
+                        uint param_data)
 {
   uint length;
   uint l_bytes= (param_data && (param_data < field_length)) ? 
                 (param_data <= 255) ? 1 : 2 : length_bytes;
+
+  if (from + l_bytes > from_end)
+    return 0;                                 // Error in data
+
   if (l_bytes == 1)
   {
     to[0]= *from++;
@@ -7139,7 +7167,11 @@ Field_varstring::unpack(uchar *to, const uchar *from, uint param_data)
     to[1]= *from++;
   }
   if (length)
+  {
+    if (from + length > from_end || length > field_length)
+      return 0;                                 // Error in data
     memcpy(to+ length_bytes, from, length);
+  }
   return from+length;
 }
 
@@ -7771,16 +7803,21 @@ uchar *Field_blob::pack(uchar *to, const uchar *from, uint max_length)
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field_blob::unpack(uchar *to, const uchar *from, uint param_data)
+const uchar *Field_blob::unpack(uchar *to, const uchar *from,
+                                const uchar *from_end, uint param_data)
 {
   DBUG_ENTER("Field_blob::unpack");
   DBUG_PRINT("enter", ("to: 0x%lx; from: 0x%lx; param_data: %u",
                        (ulong) to, (ulong) from, param_data));
   uint const master_packlength=
     param_data > 0 ? param_data & 0xFF : packlength;
+  if (from + master_packlength > from_end)
+    DBUG_RETURN(0);                             // Error in data
   uint32 const length= get_length(from, master_packlength);
   DBUG_DUMP("packed", from, length + master_packlength);
   bitmap_set_bit(table->write_set, field_index);
+  if (from + master_packlength + length > from_end)
+    DBUG_RETURN(0);
   store(reinterpret_cast<const char*>(from) + master_packlength,
         length, field_charset);
   DBUG_DUMP("record", to, table->s->reclength);
@@ -7878,6 +7915,7 @@ Field_blob::pack_key(uchar *to, const uchar *from, uint max_length)
     Pointer into 'from' past the last byte copied from packed key.
 */
 
+#ifdef NOT_USED
 const uchar *
 Field_blob::unpack_key(uchar *to, const uchar *from, uint max_length)
 {
@@ -7898,7 +7936,7 @@ Field_blob::unpack_key(uchar *to, const uchar *from, uint max_length)
   /* point to first byte of next field in 'from' */
   return from + length;
 }
-
+#endif
 
 /** Create a packed key that will be used for storage from a MySQL key. */
 
@@ -8940,7 +8978,8 @@ Field_bit::pack(uchar *to, const uchar *from, uint max_length)
    @return  New pointer into memory based on from + length of the data
 */
 const uchar *
-Field_bit::unpack(uchar *to, const uchar *from, uint param_data)
+Field_bit::unpack(uchar *to, const uchar *from, const uchar *from_end,
+                  uint param_data)
 {
   uint const from_len= (param_data >> 8U) & 0x00ff;
   uint const from_bit_len= param_data & 0x00ff;
@@ -8951,6 +8990,9 @@ Field_bit::unpack(uchar *to, const uchar *from, uint param_data)
   if (param_data == 0 ||
       ((from_bit_len == bit_len) && (from_len == bytes_in_rec)))
   {
+    if (from + bytes_in_rec + test(bit_len) > from_end)
+      return 0;                                 // Error in data
+
     if (bit_len > 0)
     {
       /*
@@ -8975,10 +9017,16 @@ Field_bit::unpack(uchar *to, const uchar *from, uint param_data)
     Lastly the odd bits need to be masked out if the bytes_in_rec > 0.
     Otherwise stray bits can cause spurious values.
   */
+
+  uint len= from_len + ((from_bit_len > 0) ? 1 : 0);
   uint new_len= (field_length + 7) / 8;
+
+  if (from + len > from_end || new_len < len)
+    return 0;                                 // Error in data
+
   char *value= (char *)my_alloca(new_len);
   bzero(value, new_len);
-  uint len= from_len + ((from_bit_len > 0) ? 1 : 0);
+
   memcpy(value + (new_len - len), from, len);
   /*
     Mask out the unused bits in the partial byte. 

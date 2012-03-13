@@ -1727,3 +1727,14 @@ CHECKSUM TABLE t1 EXTENDED;
 FLUSH TABLE t1;
 OPTIMIZE TABLE t1;
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#917689 Using wrong archive table causes crash
+--echo #
+create table t1 (a int, b char(50)) engine=archive;
+--remove_file $MYSQLD_DATADIR/test/t1.ARZ
+copy_file std_data/t917689.ARZ $MYSQLD_DATADIR/test/t1.ARZ;
+--error 1194
+select * from t1;
+show warnings;
+drop table t1;

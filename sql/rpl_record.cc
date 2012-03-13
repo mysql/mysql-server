@@ -176,13 +176,15 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
    @retval ER_NO_DEFAULT_FOR_FIELD
    Returned if one of the fields existing on the slave but not on the
    master does not have a default value (and isn't nullable)
-
+   @retval ER_SLAVE_CORRUPT_EVENT
+   Found error when trying to unpack fields.
  */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 int
 unpack_row(Relay_log_info const *rli,
            TABLE *table, uint const colcnt,
-           uchar const *const row_data, MY_BITMAP const *cols,
+           uchar const *const row_data, uchar const *const row_buffer_end,
+           MY_BITMAP const *cols,
            uchar const **const row_end, ulong *const master_reclength)
 {
   DBUG_ENTER("unpack_row");
@@ -223,9 +225,6 @@ unpack_row(Relay_log_info const *rli,
       }
 
       DBUG_ASSERT(null_mask & 0xFF); // One of the 8 LSB should be set
-
-      /* Field...::unpack() cannot return 0 */
-      DBUG_ASSERT(pack_ptr != NULL);
 
       if (null_bits & null_mask)
       {
@@ -272,14 +271,21 @@ unpack_row(Relay_log_info const *rli,
 #ifndef DBUG_OFF
         uchar const *const old_pack_ptr= pack_ptr;
 #endif
-        pack_ptr= f->unpack(f->ptr, pack_ptr, metadata);
+        pack_ptr= f->unpack(f->ptr, pack_ptr, row_buffer_end, metadata);
 	DBUG_PRINT("debug", ("field: %s; metadata: 0x%x;"
                              " pack_ptr: 0x%lx; pack_ptr': 0x%lx; bytes: %d",
                              f->field_name, metadata,
                              (ulong) old_pack_ptr, (ulong) pack_ptr,
                              (int) (pack_ptr - old_pack_ptr)));
+        if (!pack_ptr)
+        {
+          rli->report(ERROR_LEVEL, ER_SLAVE_CORRUPT_EVENT,
+                      "Could not read field `%s` of table `%s`.`%s`",
+                      f->field_name, table->s->db.str,
+                      table->s->table_name.str);
+          DBUG_RETURN(ER_SLAVE_CORRUPT_EVENT);
+        }
       }
-
       null_mask <<= 1;
     }
     i++;
