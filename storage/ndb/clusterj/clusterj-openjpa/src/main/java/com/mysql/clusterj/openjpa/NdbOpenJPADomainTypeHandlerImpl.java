@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ import com.mysql.clusterj.core.query.CandidateIndexImpl;
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.ValueHandler;
+import com.mysql.clusterj.core.store.Db;
 import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.PartitionKey;
@@ -249,7 +250,12 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
         return null;
     }
 
-    public T newInstance() {
+    public T newInstance(Db db) {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Implementation_Should_Not_Occur"));
+    }
+
+    public T newInstance(ValueHandler valueHandler, Db db) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
@@ -364,7 +370,7 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
         return (T) instance;
     }
 
-    public ValueHandler createKeyValueHandler(Object keys) {
+    public ValueHandler createKeyValueHandler(Object keys, Db db) {
 
         FieldMapping[] primaryKeyFieldMappings =
                 classMapping.getPrimaryKeyFieldMappings();

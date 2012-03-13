@@ -81,21 +81,25 @@ public class BlobTest extends AbstractClusterJModelTest {
                 error("Expected BlobTypes.id " + i + " but got " + actualId);
             }
             byte[] bytes = e.getBlobbytes();
-            // make sure all fields were fetched properly
-            checkBlobBytes("before update", bytes, i, false);
+            if (bytes == null) {
+                error("Unexpected blob bytes null for id " + i);
+            } else {
+                // make sure all fields were fetched properly
+                checkBlobBytes("before update", bytes, i, false);
 
-            int position = getBlobSizeFor(i)/2;
-            // only update if the length is correct
-            if (bytes.length == (position * 2)) {
-                // modify the byte in the middle of the blob
-                bytes[position] = (byte)(position % 128);
-                checkBlobBytes("after update", bytes, i, true);
+                int position = getBlobSizeFor(i)/2;
+                // only update if the length is correct
+                if (bytes.length == (position * 2)) {
+                    // modify the byte in the middle of the blob
+                    bytes[position] = (byte)(position % 128);
+                    checkBlobBytes("after update", bytes, i, true);
 
-                // mark the field as modified so it will be flushed
-                session.markModified(e, "blobbytes");
+                    // mark the field as modified so it will be flushed
+                    session.markModified(e, "blobbytes");
 
-                // update the modified instance
-                session.updatePersistent(e);
+                    // update the modified instance
+                    session.updatePersistent(e);
+                }
             }
         }
         tx.commit();
@@ -110,9 +114,13 @@ public class BlobTest extends AbstractClusterJModelTest {
                 error("Expected BlobTypes.id " + i + " but got " + actualId);
             }
             byte[] bytes = e.getBlobbytes();
+            if (bytes == null) {
+                error("Unexpected blob bytes null for id " + i);
+            } else {
 
             // check to see that the blob field has the right data
             checkBlobBytes("after commit", e.getBlobbytes(), i, true);
+            }
         }
         tx.commit();
     }
@@ -181,7 +189,6 @@ public class BlobTest extends AbstractClusterJModelTest {
 
     protected InputStream getBlobStream(final int i) {
         return new InputStream() {
-            int size = i;
             int counter = 0;
             @Override
             public int read() throws IOException {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.spi.DomainTypeHandlerFactory;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
+import com.mysql.clusterj.core.spi.ValueHandlerFactory;
 import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
@@ -52,7 +53,8 @@ public class DomainTypeHandlerFactoryImpl implements DomainTypeHandlerFactory {
         }
     }
 
-    public <T> DomainTypeHandler<T> createDomainTypeHandler(Class<T> domainClass, Dictionary dictionary) {
+    public <T> DomainTypeHandler<T> createDomainTypeHandler(Class<T> domainClass, Dictionary dictionary,
+            ValueHandlerFactory valueHandlerFactory) {
         DomainTypeHandler<T> handler = null;
         StringBuffer errorMessages = new StringBuffer();
         for (DomainTypeHandlerFactory factory: domainTypeHandlerFactories) {
@@ -60,7 +62,7 @@ public class DomainTypeHandlerFactoryImpl implements DomainTypeHandlerFactory {
                 errorMessages.append("Trying factory ");
                 errorMessages.append(factory.toString());
                 errorMessages.append("\n");
-                handler = factory.createDomainTypeHandler(domainClass, dictionary);
+                handler = factory.createDomainTypeHandler(domainClass, dictionary, valueHandlerFactory);
                 if (handler != null) {
                     return handler;
                 }
@@ -74,7 +76,7 @@ public class DomainTypeHandlerFactoryImpl implements DomainTypeHandlerFactory {
 
         try {
             errorMessages.append("Trying standard factory com.mysql.clusterj.core.metadata.DomainTypeHandlerImpl.\n");
-            handler = new DomainTypeHandlerImpl<T>(domainClass, dictionary);
+            handler = new DomainTypeHandlerImpl<T>(domainClass, dictionary, valueHandlerFactory);
             return handler;
         } catch (ClusterJException e) {
             errorMessages.append(e.toString());

@@ -76,7 +76,6 @@ struct ndb_engine {
   void **pipelines;
   void **schedulers;
    
-  bool initialized;
   bool connected;
 
   unsigned int cas_hi;

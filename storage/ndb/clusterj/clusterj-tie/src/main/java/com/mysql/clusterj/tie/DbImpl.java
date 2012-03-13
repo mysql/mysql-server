@@ -33,6 +33,7 @@ import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.core.store.ClusterTransaction;
+import com.mysql.clusterj.core.store.Table;
 
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
@@ -366,6 +367,10 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
             return resultDataBuffer;
         }
 
+    }
+
+    public NdbRecordOperationImpl newNdbRecordOperationImpl(Table storeTable) {
+        return clusterConnection.newNdbRecordOperationImpl(this, storeTable);
     }
 
 }

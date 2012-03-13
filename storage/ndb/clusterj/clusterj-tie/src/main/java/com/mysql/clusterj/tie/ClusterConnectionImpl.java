@@ -29,7 +29,9 @@ import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
+import com.mysql.clusterj.ClusterJHelper;
 
+import com.mysql.clusterj.core.spi.ValueHandlerFactory;
 import com.mysql.clusterj.core.store.Db;
 import com.mysql.clusterj.core.store.Table;
 
@@ -67,6 +69,11 @@ public class ClusterConnectionImpl
 
     /** The dictionary used to create NdbRecords */
     Dictionary dictionaryForNdbRecord = null;
+
+    private static final String USE_SMART_VALUE_HANDLER_NAME = "com.mysql.clusterj.UseSmartValueHandler";
+
+    private static final boolean USE_SMART_VALUE_HANDLER =
+            ClusterJHelper.getBooleanProperty(USE_SMART_VALUE_HANDLER_NAME, "true");
 
     /** Connect to the MySQL Cluster
      * 
@@ -189,6 +196,7 @@ public class ClusterConnectionImpl
 
     /** 
      * Get the cached NdbRecord implementation for this cluster connection.
+     * Use a ConcurrentHashMap for best multithread performance.
      * There are three possibilities:
      * <ul><li>Case 1: return the already-cached NdbRecord
      * </li><li>Case 2: return a new instance created by this method
@@ -207,7 +215,16 @@ public class ClusterConnectionImpl
             if (logger.isDebugEnabled())logger.debug("NdbRecordImpl found for " + tableName);
             return result;
         } else {
-            NdbRecordImpl newNdbRecordImpl = new NdbRecordImpl(storeTable, dictionaryForNdbRecord);
+            // dictionary is single thread
+            NdbRecordImpl newNdbRecordImpl;
+            synchronized (dictionaryForNdbRecord) {
+                // try again; another thread might have beat us
+                result = ndbRecordImplMap.get(tableName);
+                if (result != null) {
+                    return result;
+                }
+                newNdbRecordImpl = new NdbRecordImpl(storeTable, dictionaryForNdbRecord);   
+            }
             NdbRecordImpl winner = ndbRecordImplMap.putIfAbsent(tableName, newNdbRecordImpl);
             if (winner == null) {
                 // case 2: the previous value was null, so return the new (winning) value
@@ -235,4 +252,16 @@ public class ClusterConnectionImpl
         dictionaryForNdbRecord.removeCachedTable(tableName);
     }
 
+    public ValueHandlerFactory getSmartValueHandlerFactory() {
+        ValueHandlerFactory result = null;
+        if (USE_SMART_VALUE_HANDLER) {
+            result = new NdbRecordSmartValueHandlerFactoryImpl();
+        }
+        return result;
+    }
+
+    public NdbRecordOperationImpl newNdbRecordOperationImpl(DbImpl db, Table storeTable) {
+        return new NdbRecordOperationImpl(this, db, storeTable);
+    }
+            
 }

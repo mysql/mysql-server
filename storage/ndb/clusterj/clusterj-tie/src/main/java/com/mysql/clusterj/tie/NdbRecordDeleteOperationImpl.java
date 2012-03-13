@@ -24,15 +24,13 @@ import com.mysql.clusterj.core.store.Table;
 
 public class NdbRecordDeleteOperationImpl extends NdbRecordOperationImpl {
 
-    /** The number of columns for this operation */
-    protected int numberOfColumns;
-
     public NdbRecordDeleteOperationImpl(
             ClusterTransactionImpl clusterTransaction, Table storeTable) {
-        super(clusterTransaction);
+        super(clusterTransaction, storeTable);
         this.ndbRecordKeys = clusterTransaction.getCachedNdbRecordImpl(storeTable);
         this.keyBufferSize = ndbRecordKeys.getBufferSize();
         this.numberOfColumns = ndbRecordKeys.getNumberOfColumns();
+        resetMask();
     }
 
     public void beginDefinition() {
@@ -40,15 +38,16 @@ public class NdbRecordDeleteOperationImpl extends NdbRecordOperationImpl {
         keyBuffer = ByteBuffer.allocateDirect(keyBufferSize);
         // use platform's native byte ordering
         keyBuffer.order(ByteOrder.nativeOrder());
-        mask = new byte[1 + (numberOfColumns/8)];
     }
 
     public void endDefinition() {
-        // position the buffer at the beginning for ndbjtie
-        keyBuffer.position(0);
-        keyBuffer.limit(keyBufferSize);
         // create the delete operation
-        ndbOperation = clusterTransaction.deleteTuple(ndbRecordKeys.getNdbRecord(), keyBuffer, mask, null);
+        ndbOperation = delete(clusterTransaction);
+    }
+
+    @Override
+    public String toString() {
+        return " delete " + tableName;
     }
 
 }

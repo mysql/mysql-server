@@ -27,6 +27,9 @@ void read_cmdline_options(struct ndb_engine *, struct default_engine *,
 
 int fetch_core_settings(struct ndb_engine *, struct default_engine *);
 
+void release_and_free(struct workitem *);
+
+
 /*************** Declarations of functions that implement 
                  the engine interface 
  *********************************************************/

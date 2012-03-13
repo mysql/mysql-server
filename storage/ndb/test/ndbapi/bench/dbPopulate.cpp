@@ -238,9 +238,17 @@ static void populateGroups(UserHandle *uh, int count)
 ****************************************************************
 ***************************************************************/
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+  extern int subscriberCount;
+#ifdef	__cplusplus
+}
+#endif
+
 void dbPopulate(UserHandle *uh)
 {
    populate("servers", NO_OF_SERVERS, populateServers, uh);
-   populate("subscribers", NO_OF_SUBSCRIBERS, populateSubscribers, uh);
+   populate("subscribers", subscriberCount, populateSubscribers, uh);
    populate("groups", NO_OF_GROUPS, populateGroups, uh);
 }

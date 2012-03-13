@@ -706,6 +706,26 @@ create table longintstringix (
  KEY idx_long_int_string (longix, intix, stringix)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
+drop table if exists cassandra_string;
+create table cassandra_string (
+  id varchar(10),
+  c1 varchar(34),
+  c2 varchar(34),
+  c3 varchar(34),
+  c4 varchar(34),
+  c5 varchar(34)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists cassandra_byte_array;
+create table cassandra_byte_array (
+  id binary(10) primary key,
+  c1 binary(34),
+  c2 binary(34),
+  c3 binary(34),
+  c4 binary(34),
+  c5 binary(34)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
 drop table if exists stress;
 create table stress (
   id int not null primary key,
