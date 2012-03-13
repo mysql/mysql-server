@@ -748,6 +748,7 @@ PSI_mutex_key key_LOCK_stats,
   key_LOCK_wakeup_ready;
 
 PSI_mutex_key key_LOCK_prepare_ordered, key_LOCK_commit_ordered;
+PSI_mutex_key key_LOCK_logger_service;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -807,6 +808,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_commit_ordered, "LOCK_commit_ordered", PSI_FLAG_GLOBAL},
   { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
   { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
+  { &key_LOCK_logger_service, "logger_service_file_st::lock",
+    PSI_FLAG_GLOBAL},
   { &key_PARTITION_LOCK_auto_inc, "HA_DATA_PARTITION::LOCK_auto_inc", 0}
 };
 

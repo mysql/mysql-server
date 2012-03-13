@@ -1,5 +1,4 @@
-#ifndef MYSQL_SERVICES_INCLUDED
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (C) 2012 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,24 +11,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include <mysql/service_my_snprintf.h>
-#include <mysql/service_thd_alloc.h>
-#include <mysql/service_thd_wait.h>
-#include <mysql/service_thread_scheduler.h>
-#include <mysql/service_progress_report.h>
-#include <mysql/service_logger.h>
+#include <service_versions.h>
 
 
-#ifdef __cplusplus
-}
-#endif
-
-#define MYSQL_SERVICES_INCLUDED
-#endif
+SERVICE_VERSION *logger_service= (void *) VERSION_logger;
 

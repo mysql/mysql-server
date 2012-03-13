@@ -678,3 +678,22 @@ size_t my_snprintf(char* to, size_t n, const char* fmt, ...)
   va_end(args);
   return result;
 }
+
+
+/**
+  Writes output to the stream according to a format string.
+
+  @param stream     file to write to
+  @param format     string format
+  @param args       list of parameters
+
+  @retval
+    number of the characters written.
+*/
+
+int my_vfprintf(FILE *stream, const char* format, va_list args)
+{
+  char cvtbuf[1024];
+  (void) my_vsnprintf(cvtbuf, sizeof(cvtbuf), format, args);
+  return fprintf(stream, "%s\n", cvtbuf);
+}
