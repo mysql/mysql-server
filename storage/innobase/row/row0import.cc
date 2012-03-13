@@ -613,7 +613,8 @@ row_import_error(
 		ib_pushf(trx->mysql_thd,
 			 IB_LOG_LEVEL_WARN,
 			 ER_ALTER_INFO,
-			 "ALTER TABLE %s IMPORT TABLESPACE failed: %lu : %s",
+			 "ALTER TABLE '%s' IMPORT TABLESPACE failed with error "
+			 " %lu : '%s'",
 			 table_name, (ulong) err, ut_strerr(err));
 	}
 
@@ -666,7 +667,7 @@ row_import_adjust_root_pages(
 			ib_pushf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
 				ER_INDEX_CORRUPT,
-				"Index %s import failed. Corruption detected "
+				"Index '%s' import failed. Corruption detected "
 				"during root page update", index_name);
 			break;
 		}
@@ -686,7 +687,7 @@ row_import_adjust_root_pages(
 			ib_pushf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
 				ER_INDEX_CORRUPT,
-				"Index %s contains %lu entries, should be "
+				"Index '%s' contains %lu entries, should be "
 				"%lu, you should recreate this index.",
 				index_name,
 				(ulong) importer.get_n_recs(),
@@ -784,7 +785,7 @@ row_import_set_sys_max_row_id(
 		ib_pushf(prebuilt->trx->mysql_thd,
 			 IB_LOG_LEVEL_WARN,
 			 ER_INDEX_CORRUPT,
-			 "Index %s corruption detected, invalid row id "
+			 "Index '%s' corruption detected, invalid row id "
 			 "in index.", index_name);
 
 		return(err);
@@ -1151,7 +1152,7 @@ row_import_read_columns(
 		if (err != DB_SUCCESS) {
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
 				 ER_INDEX_CORRUPT,
-				 "While reading table column name: %s.",
+				 "While reading table column name: '%s'.",
 				 ut_strerr(err));
 			return(err);
 		}
@@ -1195,7 +1196,8 @@ row_import_read_v1(
 
 	if (err != DB_SUCCESS) {
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-			 "While reading export hostname: %s.", ut_strerr(err));
+			 "While reading export hostname: '%s'.",
+			 ut_strerr(err));
 
 		return(err);
 	}
@@ -1222,14 +1224,14 @@ row_import_read_v1(
 
 	if (err != DB_SUCCESS) {
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-			 "While reading table name: %s.", ut_strerr(err));
+			 "While reading table name: '%s'.", ut_strerr(err));
 
 		return(err);
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Importing tablespace for table %s that was exported "
-		"from host %s", cfg->table_name, cfg->hostname);
+		"Importing tablespace for table '%s' that was exported "
+		"from host '%s'", cfg->table_name, cfg->hostname);
 
 	byte		row[sizeof(ib_uint32_t) * 3];
 
@@ -1345,7 +1347,7 @@ row_import_read_cfg(
 
 	if (file == NULL) {
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-			 "Error opening: %s", name);
+			 "Error opening: '%s'", name);
 		err = DB_IO_ERROR;
 	} else {
 		err = row_import_read_meta_data(table, file, thd, cfg);
@@ -2102,8 +2104,7 @@ row_import_for_mysql(
 
 	err = ibuf_check_bitmap_on_import(trx, table->space);
 
-	DBUG_EXECUTE_IF("ib_import_check_bitmap_failure",
-			err = DB_CORRUPTION;);
+	DBUG_EXECUTE_IF("ib_import_check_bitmap_failure", err = DB_CORRUPTION;);
 
 	if (err != DB_SUCCESS) {
 		return(row_import_cleanup(prebuilt, trx, err));
@@ -2118,7 +2119,7 @@ row_import_for_mysql(
 	}
 
 	/* Scan the indexes. In the clustered index, initialize DB_TRX_ID
-	and DB_ROLL_PTR.  Ensure that the next available DB_ROW_ID is not
+	and DB_ROLL_PTR. Ensure that the next available DB_ROW_ID is not
 	smaller than any DB_ROW_ID stored in the table. Purge any
 	delete-marked records from every index. */
 
