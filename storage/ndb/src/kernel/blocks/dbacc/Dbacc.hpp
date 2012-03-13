@@ -180,6 +180,18 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZTO_OP_STATE_ERROR 631
 #define ZTOO_EARLY_ACCESS_ERROR 632
 #define ZDIR_RANGE_FULL_ERROR 633 // on fragment
+
+#if ZBUF_SIZE != ((1 << ZSHIFT_PLUS) - (1 << ZSHIFT_MINUS))
+#error ZBUF_SIZE != ((1 << ZSHIFT_PLUS) - (1 << ZSHIFT_MINUS))
+#endif
+
+static
+inline
+Uint32 mul_ZBUF_SIZE(Uint32 i)
+{
+  return (i << ZSHIFT_PLUS) - (i << ZSHIFT_MINUS);
+}
+
 #endif
 
 class ElementHeader {
@@ -458,12 +470,10 @@ struct Fragmentrec {
 // hashcheckbit is the bit to check whether to send element to split bucket or not
 // k (== 6) is the number of buckets per page
 // lhfragbits is the number of bits used to calculate the fragment id
-// lhdirbits is the number of bits used to calculate the page id
 //-----------------------------------------------------------------------------
   Uint8 hashcheckbit;
   Uint8 k;
   Uint8 lhfragbits;
-  Uint8 lhdirbits;
 
 //-----------------------------------------------------------------------------
 // nodetype can only be STORED in this release. Is currently only set, never read
@@ -817,7 +827,6 @@ private:
   void releaseOverflowRec(Signal* signal);
   void releaseOverpage(Signal* signal);
   void releasePage(Signal* signal);
-  void releaseLogicalPage(Fragmentrec * fragP, Uint32 logicalPageId);
   void seizeDirectory(Signal* signal);
   void seizeDirrange(Signal* signal);
   void seizeFragrec(Signal* signal);

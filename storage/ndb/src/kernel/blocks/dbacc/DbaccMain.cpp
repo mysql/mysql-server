@@ -2791,8 +2791,7 @@ void Dbacc::insertContainer(Signal* signal)
   Uint32 guard26;
 
   tidrResult = ZFALSE;
-  tidrContainerptr = (tidrPageindex << ZSHIFT_PLUS) - (tidrPageindex << ZSHIFT_MINUS);
-  tidrContainerptr = tidrContainerptr + ZHEAD_SIZE;
+  tidrContainerptr = mul_ZBUF_SIZE(tidrPageindex) + ZHEAD_SIZE;
   /* --------------------------------------------------------------------------------- */
   /*       CALCULATE THE POINTER TO THE ELEMENT TO BE INSERTED AND THE POINTER TO THE  */
   /*       CONTAINER HEADER OF THE OTHER SIDE OF THE BUFFER.                           */
@@ -3027,7 +3026,7 @@ void Dbacc::seizeLeftlist(Signal* signal)
   Uint32 tsllHeadIndex;
   Uint32 tsllTmp;
 
-  tsllHeadIndex = ((tslPageindex << ZSHIFT_PLUS) - (tslPageindex << ZSHIFT_MINUS)) + ZHEAD_SIZE;
+  tsllHeadIndex = mul_ZBUF_SIZE(tslPageindex) + ZHEAD_SIZE;
   arrGuard(tsllHeadIndex + 1, 2048);
   tslNextfree = slPageptr.p->word32[tsllHeadIndex];
   tslPrevfree = slPageptr.p->word32[tsllHeadIndex + 1];
@@ -3043,13 +3042,13 @@ void Dbacc::seizeLeftlist(Signal* signal)
   } else {
     ndbrequire(tslPrevfree < ZEMPTYLIST);
     jam();
-    tsllTmp = ((tslPrevfree << ZSHIFT_PLUS) - (tslPrevfree << ZSHIFT_MINUS)) + ZHEAD_SIZE;
+    tsllTmp = mul_ZBUF_SIZE(tslPrevfree) + ZHEAD_SIZE;
     dbgWord32(slPageptr, tsllTmp, tslNextfree);
     slPageptr.p->word32[tsllTmp] = tslNextfree;
   }//if
   if (tslNextfree < ZEMPTYLIST) {
     jam();
-    tsllTmp = (((tslNextfree << ZSHIFT_PLUS) - (tslNextfree << ZSHIFT_MINUS)) + ZHEAD_SIZE) + 1;
+    tsllTmp = mul_ZBUF_SIZE(tslNextfree) + ZHEAD_SIZE + 1;
     dbgWord32(slPageptr, tsllTmp, tslPrevfree);
     slPageptr.p->word32[tsllTmp] = tslPrevfree;
   } else {
@@ -3084,7 +3083,7 @@ void Dbacc::seizeLeftlist(Signal* signal)
     slPageptr.p->word32[ZPOS_EMPTY_LIST] = tsllTmp;
     if (tslNextfree < ZEMPTYLIST) {
       jam();
-      tsllTmp = ((tslNextfree << ZSHIFT_PLUS) - (tslNextfree << ZSHIFT_MINUS)) + ZHEAD_SIZE;
+      tsllTmp = mul_ZBUF_SIZE(tslNextfree) + ZHEAD_SIZE;
       tsllTmp1 = slPageptr.p->word32[tsllTmp] & 0xfe03ffff;
       tsllTmp1 = tsllTmp1 | (tslPageindex << 18);
       dbgWord32(slPageptr, tsllTmp, tsllTmp1);
@@ -3112,7 +3111,7 @@ void Dbacc::seizeRightlist(Signal* signal)
   Uint32 tsrlHeadIndex;
   Uint32 tsrlTmp;
 
-  tsrlHeadIndex = ((tslPageindex << ZSHIFT_PLUS) - (tslPageindex << ZSHIFT_MINUS)) + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
+  tsrlHeadIndex = mul_ZBUF_SIZE(tslPageindex) + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
   arrGuard(tsrlHeadIndex + 1, 2048);
   tslNextfree = slPageptr.p->word32[tsrlHeadIndex];
   tslPrevfree = slPageptr.p->word32[tsrlHeadIndex + 1];
@@ -3124,13 +3123,13 @@ void Dbacc::seizeRightlist(Signal* signal)
   } else {
     ndbrequire(tslPrevfree < ZEMPTYLIST);
     jam();
-    tsrlTmp = ((tslPrevfree << ZSHIFT_PLUS) - (tslPrevfree << ZSHIFT_MINUS)) + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
+    tsrlTmp = mul_ZBUF_SIZE(tslPrevfree) + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
     dbgWord32(slPageptr, tsrlTmp, tslNextfree);
     slPageptr.p->word32[tsrlTmp] = tslNextfree;
   }//if
   if (tslNextfree < ZEMPTYLIST) {
     jam();
-    tsrlTmp = ((tslNextfree << ZSHIFT_PLUS) - (tslNextfree << ZSHIFT_MINUS)) + ((ZHEAD_SIZE + ZBUF_SIZE) - (ZCON_HEAD_SIZE - 1));
+    tsrlTmp = mul_ZBUF_SIZE(tslNextfree) + ((ZHEAD_SIZE + ZBUF_SIZE) - (ZCON_HEAD_SIZE - 1));
     dbgWord32(slPageptr, tsrlTmp, tslPrevfree);
     slPageptr.p->word32[tsrlTmp] = tslPrevfree;
   } else {
@@ -3163,7 +3162,7 @@ void Dbacc::seizeRightlist(Signal* signal)
     slPageptr.p->word32[ZPOS_EMPTY_LIST] = tsrlTmp | (tslPageindex << 16);
     if (tslNextfree < ZEMPTYLIST) {
       jam();
-      tsrlTmp = ((tslNextfree << ZSHIFT_PLUS) - (tslNextfree << ZSHIFT_MINUS)) + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
+      tsrlTmp = mul_ZBUF_SIZE(tslNextfree) + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
       tsrlTmp1 = slPageptr.p->word32[tsrlTmp] & 0xfe03ffff;
       dbgWord32(slPageptr, tsrlTmp, tsrlTmp1 | (tslPageindex << 18));
       slPageptr.p->word32[tsrlTmp] = tsrlTmp1 | (tslPageindex << 18);
@@ -3326,7 +3325,6 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
   Uint32 tgePageindex;
   Uint32 tgeActivePageDir;
   Uint32 tgeNextptrtype;
-  register Uint32 tgeKeyptr;
   register Uint32 tgeRemLen;
   register Uint32 TelemLen = fragrecptr.p->elementLength;
   register Uint32* Tkeydata = (Uint32*)&signal->theData[7];
@@ -3348,12 +3346,11 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
   const Uint32 tmp = fragrecptr.p->k + fragrecptr.p->lhfragbits;
   const Uint32 opHashValuePart = (operationRecPtr.p->hashValue >> tmp) &0xFFFF;
   do {
-    tgeContainerptr = (tgePageindex << ZSHIFT_PLUS) - (tgePageindex << ZSHIFT_MINUS);
+    tgeContainerptr = mul_ZBUF_SIZE(tgePageindex);
     if (tgeNextptrtype == ZLEFT) {
       jam();
       tgeContainerptr = tgeContainerptr + ZHEAD_SIZE;
       tgeElementptr = tgeContainerptr + ZCON_HEAD_SIZE;
-      tgeKeyptr = (tgeElementptr + ZELEM_HEAD_SIZE) + localkeylen;
       tgeElemStep = TelemLen;
       tgeForward = 1;
       if (unlikely(tgeContainerptr >= 2048)) 
@@ -3371,7 +3368,6 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
       jam();
       tgeContainerptr = tgeContainerptr + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
       tgeElementptr = tgeContainerptr - 1;
-      tgeKeyptr = (tgeElementptr - ZELEM_HEAD_SIZE) - localkeylen;
       tgeElemStep = 0 - TelemLen;
       tgeForward = (Uint32)-1;
       if (unlikely(tgeContainerptr >= 2048)) 
@@ -3555,7 +3551,7 @@ void Dbacc::commitdelete(Signal* signal)
   lastPageptr.i = gdiPageptr.i;
   lastPageptr.p = gdiPageptr.p;
   tlastForward = ZTRUE;
-  tlastContainerptr = (tlastPageindex << ZSHIFT_PLUS) - (tlastPageindex << ZSHIFT_MINUS);
+  tlastContainerptr = mul_ZBUF_SIZE(tlastPageindex);
   tlastContainerptr = tlastContainerptr + ZHEAD_SIZE;
   arrGuard(tlastContainerptr, 2048);
   tlastContainerhead = lastPageptr.p->word32[tlastContainerptr];
@@ -3709,7 +3705,7 @@ void Dbacc::getLastAndRemove(Signal* signal)
       lastPageptr.i = glrOverflowDirptr.p->pagep[tglrTmp & 0xff];
       ptrCheckGuard(lastPageptr, cpagesize, page8);
     }//if
-    tlastContainerptr = (tlastPageindex << ZSHIFT_PLUS) - (tlastPageindex << ZSHIFT_MINUS);
+    tlastContainerptr = mul_ZBUF_SIZE(tlastPageindex);
     if (((tlastContainerhead >> 7) & 3) == ZLEFT) {
       jam();
       tlastForward = ZTRUE;
@@ -3827,7 +3823,7 @@ void Dbacc::releaseLeftlist(Signal* signal)
     trlPrevused = (trlHead >> 18) & 0x7f;
     if (trlNextused < ZEMPTYLIST) {
       jam();
-      tullTmp1 = (trlNextused << ZSHIFT_PLUS) - (trlNextused << ZSHIFT_MINUS);
+      tullTmp1 = mul_ZBUF_SIZE(trlNextused);
       tullTmp1 = tullTmp1 + ZHEAD_SIZE;
       tullTmp = rlPageptr.p->word32[tullTmp1] & 0xfe03ffff;
       dbgWord32(rlPageptr, tullTmp1, tullTmp | (trlPrevused << 18));
@@ -3838,7 +3834,7 @@ void Dbacc::releaseLeftlist(Signal* signal)
     }//if
     if (trlPrevused < ZEMPTYLIST) {
       jam();
-      tullTmp1 = (trlPrevused << ZSHIFT_PLUS) - (trlPrevused << ZSHIFT_MINUS);
+      tullTmp1 = mul_ZBUF_SIZE(trlPrevused);
       tullTmp1 = tullTmp1 + ZHEAD_SIZE;
       tullTmp = rlPageptr.p->word32[tullTmp1] & 0xfffc07ff;
       dbgWord32(rlPageptr, tullTmp1, tullTmp | (trlNextused << 11));
@@ -3863,7 +3859,7 @@ void Dbacc::releaseLeftlist(Signal* signal)
   rlPageptr.p->word32[tullIndex] = tullTmp1;
   if (tullTmp1 < ZEMPTYLIST) {
     jam();
-    tullTmp1 = (tullTmp1 << ZSHIFT_PLUS) - (tullTmp1 << ZSHIFT_MINUS);
+    tullTmp1 = mul_ZBUF_SIZE(tullTmp1);
     tullTmp1 = (tullTmp1 + ZHEAD_SIZE) + 1;
     dbgWord32(rlPageptr, tullTmp1, trlPageindex);
     rlPageptr.p->word32[tullTmp1] = trlPageindex;	/* UPDATES PREV POINTER IN THE NEXT FREE */
@@ -3920,7 +3916,7 @@ void Dbacc::releaseRightlist(Signal* signal)
     trlPrevused = (trlHead >> 18) & 0x7f;
     if (trlNextused < ZEMPTYLIST) {
       jam();
-      turlTmp1 = (trlNextused << ZSHIFT_PLUS) - (trlNextused << ZSHIFT_MINUS);
+      turlTmp1 = mul_ZBUF_SIZE(trlNextused);
       turlTmp1 = turlTmp1 + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
       turlTmp = rlPageptr.p->word32[turlTmp1] & 0xfe03ffff;
       dbgWord32(rlPageptr, turlTmp1, turlTmp | (trlPrevused << 18));
@@ -3931,7 +3927,7 @@ void Dbacc::releaseRightlist(Signal* signal)
     }//if
     if (trlPrevused < ZEMPTYLIST) {
       jam();
-      turlTmp1 = (trlPrevused << ZSHIFT_PLUS) - (trlPrevused << ZSHIFT_MINUS);
+      turlTmp1 = mul_ZBUF_SIZE(trlPrevused);
       turlTmp1 = turlTmp1 + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
       turlTmp = rlPageptr.p->word32[turlTmp1] & 0xfffc07ff;
       dbgWord32(rlPageptr, turlTmp1, turlTmp | (trlNextused << 11));
@@ -3957,7 +3953,7 @@ void Dbacc::releaseRightlist(Signal* signal)
   rlPageptr.p->word32[turlIndex] = turlTmp1;
   if (turlTmp1 < ZEMPTYLIST) {
     jam();
-    turlTmp = (turlTmp1 << ZSHIFT_PLUS) - (turlTmp1 << ZSHIFT_MINUS);
+    turlTmp = mul_ZBUF_SIZE(turlTmp1);
     turlTmp = turlTmp + ((ZHEAD_SIZE + ZBUF_SIZE) - (ZCON_HEAD_SIZE - 1));
     dbgWord32(rlPageptr, turlTmp, trlPageindex);
     rlPageptr.p->word32[turlTmp] = trlPageindex;	/* UPDATES PREV POINTER IN THE NEXT FREE */
@@ -5437,7 +5433,6 @@ void Dbacc::endofexpLab(Signal* signal)
   if (fragrecptr.p->p > fragrecptr.p->maxp) {
     jam();
     fragrecptr.p->maxp = (fragrecptr.p->maxp << 1) | 1;
-    fragrecptr.p->lhdirbits++;
     fragrecptr.p->hashcheckbit++;
     fragrecptr.p->p = 0;
   }//if
@@ -5525,7 +5520,7 @@ void Dbacc::expandcontainer(Signal* signal)
   cexcPrevconptr = 0;
   cexcForward = ZTRUE;
  EXP_CONTAINER_LOOP:
-  cexcContainerptr = (cexcPageindex << ZSHIFT_PLUS) - (cexcPageindex << ZSHIFT_MINUS);
+  cexcContainerptr = mul_ZBUF_SIZE(cexcPageindex);
   if (cexcForward == ZTRUE) {
     jam();
     cexcContainerptr = cexcContainerptr + ZHEAD_SIZE;
@@ -5890,7 +5885,6 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     jam();
     fragrecptr.p->maxp = fragrecptr.p->maxp >> 1;
     fragrecptr.p->p = fragrecptr.p->maxp;
-    fragrecptr.p->lhdirbits--;
     fragrecptr.p->hashcheckbit--;
   } else {
     jam();
@@ -5945,7 +5939,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   /*--------------------------------------------------------------------------*/
   ptrCheckGuard(excPageptr, cpagesize, page8);
   cexcForward = ZTRUE;
-  cexcContainerptr = (cexcPageindex << ZSHIFT_PLUS) - (cexcPageindex << ZSHIFT_MINUS);
+  cexcContainerptr = mul_ZBUF_SIZE(cexcPageindex);
   cexcContainerptr = cexcContainerptr + ZHEAD_SIZE;
   arrGuard(cexcContainerptr, 2048);
   cexcContainerhead = excPageptr.p->word32[cexcContainerptr];
@@ -5979,7 +5973,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   }//if
   nextcontainerinfoExp(signal);
   do {
-    cexcContainerptr = (cexcPageindex << ZSHIFT_PLUS) - (cexcPageindex << ZSHIFT_MINUS);
+    cexcContainerptr = mul_ZBUF_SIZE(cexcPageindex);
     if (cexcForward == ZTRUE) {
       jam();
       cexcContainerptr = cexcContainerptr + ZHEAD_SIZE;
@@ -6257,7 +6251,6 @@ void Dbacc::initFragAdd(Signal* signal,
   regFragPtr.p->maxloadfactor = maxLoadFactor;
   regFragPtr.p->slack = (regFragPtr.p->maxp + 1) * maxLoadFactor;
   regFragPtr.p->lhfragbits = lhFragBits;
-  regFragPtr.p->lhdirbits = 0;
   regFragPtr.p->hashcheckbit = 0; //lhFragBits;
   regFragPtr.p->localkeylen = req->localKeyLen;
   regFragPtr.p->nodetype = (req->reqInfo >> 4) & 0x3;
@@ -6298,29 +6291,6 @@ void Dbacc::initFragGeneral(FragmentrecPtr regFragPtr)
   regFragPtr.p->fragState = FREEFRAG;
 }//Dbacc::initFragGeneral()
 
-
-void
-Dbacc::releaseLogicalPage(Fragmentrec * fragP, Uint32 logicalPageId){
-  Ptr<struct DirRange> dirRangePtr;
-  dirRangePtr.i = fragP->directory;
-  ptrCheckGuard(dirRangePtr, cdirrangesize, dirRange);
-
-  const Uint32 lp1 = logicalPageId >> 8;
-  const Uint32 lp2 = logicalPageId & 0xFF;
-  ndbrequire(lp1 < 256);
-
-  Ptr<struct Directoryarray> dirArrPtr;
-  dirArrPtr.i = dirRangePtr.p->dirArray[lp1];
-  ptrCheckGuard(dirArrPtr, cdirarraysize, directoryarray);
-
-  const Uint32 physicalPageId = dirArrPtr.p->pagep[lp2];
-  
-  rpPageptr.i = physicalPageId;
-  ptrCheckGuard(rpPageptr, cpagesize, page8);
-  releasePage(0);
-
-  dirArrPtr.p->pagep[lp2] = RNIL;
-}
 
 void Dbacc::execACC_SCANREQ(Signal* signal) 
 {
@@ -6986,7 +6956,7 @@ void Dbacc::execACC_TO_REQ(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::containerinfo(Signal* signal) 
 {
-  tciContainerptr = (tciPageindex << ZSHIFT_PLUS) - (tciPageindex << ZSHIFT_MINUS);
+  tciContainerptr = mul_ZBUF_SIZE(tciPageindex);
   if (tciIsforward == ZTRUE) {
     jam();
     tciContainerptr = tciContainerptr + ZHEAD_SIZE;
@@ -7959,28 +7929,6 @@ void Dbacc::releaseOverpage(Signal* signal)
     jam();
     return;	/* THERE IS ONLY ONE OVERFLOW PAGE */
   }//if
-#if kalle
-  logicalPage = 0;
-
-  i = fragrecptr.p->directory;
-  p = dirRange.getPtr(i);
-
-  i1 = logicalPage >> 8;
-  i2 = logicalPage & 0xFF;
-
-  ndbrequire(i1 < 256);
-  
-  i = p->dirArray[i1];
-  p = directoryarray.getPtr(i);
-
-  physicPageId = p->pagep[i2];
-  physicPageP = page8.getPtr(physicPageId);
-  
-  p->pagep[i2] = RNIL;
-  rpPageptr = { physicPageId, physicPageP };
-  releasePage(signal);
-  
-#endif
 
   /* ----------------------------------------------------------------------- */
   /* IT WAS OK TO RELEASE THE PAGE.                                          */
