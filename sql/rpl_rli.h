@@ -308,23 +308,12 @@ public:
   /* extension extracted from log_name and converted to int */
   ulong until_log_name_extension;
   /**
-    The START SLAVE UNTIL SQL_BEFORE_GTIDS initializes both
-    the until_gtids_obj and request_gtids_obj. Each time a
-    gtid is about to be processed, it is removed from the
-    until_gtids_obj and when until_gtids_obj becomes empty,
-    the SQL Thread is stopped and a message saying that 
-    the condition was reached, i.e. request_gtids_obj, is
-    printed out.
-
-    This is used by the START SLAVE UNTIL SQL_BEFORE_GTIDS.
-    is issued.
+    The START SLAVE UNTIL SQL_BEFORE_GTIDS initializes
+    until_sql_before_gtids_obj. Each time a gtid is about to be
+    processed, we check if it is in the set. If it is, the SQL thread
+    stops.
   */
-  Gtid_set until_gtids_obj;
-  /**
-    This is used when the START SLAVE UNTIL SQL_BEFORE_GTIDS
-    is issued.
-  */
-  Gtid_set request_gtids_obj;
+  Gtid_set until_sql_before_gtids_obj;
   /* 
      Cached result of comparison of until_log_name and current log name
      -2 means unitialised, -1,0,1 are comarison results 
