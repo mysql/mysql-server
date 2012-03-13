@@ -163,6 +163,9 @@ DynArr256::get(Uint32 pos) const
     return 0;
   }
   
+#ifdef VM_TRACE
+  require((m_head.m_sz > 0) && (pos <= m_head.m_high_pos));
+#endif
 #ifdef DA256_USE_PX
   Uint32 px[4] = { (pos >> 24) & 255, 
 		   (pos >> 16) & 255, 
@@ -251,6 +254,11 @@ DynArr256::set(Uint32 pos)
     ptrI = * retVal;
   } 
   
+#ifdef VM_TRACE
+  if (pos > m_head.m_high_pos)
+    m_head.m_high_pos = pos;
+#endif
+
   return retVal;
   
 err:
@@ -394,7 +402,8 @@ DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
     Uint32 page_no = ptrI >> DA256_BITS;
     Uint32 page_idx = (ptrI & DA256_MASK) ;
     DA256Page* page = memroot + page_no;
-    Uint32 node_index = (iter.m_pos >> (8 * (m_head.m_sz - iter.m_sz))) & 255;
+    Uint32 node_addr = (iter.m_pos >> (8 * (m_head.m_sz - iter.m_sz)));
+    Uint32 node_index = node_addr & 255;
     bool is_value = (iter.m_sz == m_head.m_sz);
 
     if (unlikely(! page->get(page_idx, node_index, type_id, refPtr)))
@@ -412,7 +421,7 @@ DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
     }
 
     if (iter.m_sz == 1 &&
-        (iter.m_pos >> (8 * (m_head.m_sz - iter.m_sz))) == 0)
+        node_addr == 0)
     {
       assert(iter.m_ptr_i[iter.m_sz] == m_head.m_ptr_i);
       assert(iter.m_ptr_i[iter.m_sz + 1] == RNIL);
@@ -420,10 +429,10 @@ DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
       m_pool.release(m_head.m_ptr_i);
       m_head.m_sz --;
       m_head.m_ptr_i = iter.m_ptr_i[iter.m_sz];
-      return is_value ? 1 : 2;
+      if (is_value)
+        return 1;
     }
-
-    if (is_value || iter.m_ptr_i[iter.m_sz + 1] == *refPtr)
+    else if (is_value || iter.m_ptr_i[iter.m_sz + 1] == *refPtr)
     { // sz--
       Uint32 ptrI = *refPtr;
       if (!is_value)
@@ -448,6 +457,10 @@ DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
         assert((iter.m_pos & ~(0xffffffff << (8 * (m_head.m_sz - iter.m_sz)))) == 0);
         iter.m_pos --;
       }
+#ifdef VM_TRACE
+      if (iter.m_pos < m_head.m_high_pos)
+        m_head.m_high_pos = iter.m_pos;
+#endif
       if (is_value && ptrVal != NULL)
         return 1;
     }

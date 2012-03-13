@@ -51,10 +51,17 @@ class DynArr256
 public:
   struct Head
   {
+#ifdef VM_TRACE
+    Head() { m_ptr_i = RNIL; m_sz = 0; m_high_pos = 0; }
+#else
     Head() { m_ptr_i = RNIL; m_sz = 0;}
+#endif
     
     Uint32 m_ptr_i;
     Uint32 m_sz;
+#ifdef VM_TRACE
+    Uint32 m_high_pos;
+#endif
 
     bool isEmpty() const { return m_sz == 0;}
   };
