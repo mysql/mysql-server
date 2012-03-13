@@ -24,8 +24,6 @@
 #include <process.h>
 #include <signal.h>
 
-static void install_sigabrt_handler(void);
-
 struct thread_start_parameter
 {
   pthread_handler func;

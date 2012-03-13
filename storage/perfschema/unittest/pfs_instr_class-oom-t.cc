@@ -54,11 +54,13 @@ void do_all_tests()
   PFS_atomic::cleanup();
 }
 
-int main(int, char **)
+int main(int argc, char **argv)
 {
   plan(6);
-  MY_INIT("pfs_instr_info-oom-t");
+  MY_INIT(argv[0]);
   do_all_tests();
+  my_end(0);
   return 0;
 }
+
 

@@ -410,11 +410,12 @@ void do_all_tests()
   PFS_atomic::cleanup();
 }
 
-int main(int, char **)
+int main(int argc, char **argv)
 {
   plan(102);
-  MY_INIT("pfs_instr-t");
+  MY_INIT(argv[0]);
   do_all_tests();
+  my_end(0);
   return 0;
 }
 

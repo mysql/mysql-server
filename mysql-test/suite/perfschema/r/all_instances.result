@@ -27,8 +27,10 @@ wait/synch/mutex/mysys/THR_LOCK::mutex
 wait/synch/mutex/mysys/THR_LOCK_charset
 wait/synch/mutex/mysys/THR_LOCK_heap
 wait/synch/mutex/mysys/THR_LOCK_isam
+wait/synch/mutex/mysys/THR_LOCK_lock
 wait/synch/mutex/mysys/THR_LOCK_malloc
 wait/synch/mutex/mysys/THR_LOCK_myisam
+wait/synch/mutex/mysys/THR_LOCK_myisam_mmap
 wait/synch/mutex/mysys/THR_LOCK_net
 wait/synch/mutex/mysys/THR_LOCK_open
 wait/synch/mutex/mysys/THR_LOCK_threads

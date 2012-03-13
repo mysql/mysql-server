@@ -519,12 +519,12 @@ error:
   return TRUE;
 }
 
-int main()
+int main(int argc,char *argv[])
 {
   int i;
   int const min_size = 1;
   int const max_size = MAX_TESTED_BITMAP_SIZE;
-  MY_INIT("bitmap-t");
+  MY_INIT(argv[0]);
 
   plan((max_size - min_size)/7+1);
 
@@ -535,5 +535,6 @@ int main()
   */
   for (i= min_size; i < max_size; i+=7)
     ok(do_test(i) == 0, "bitmap size %d", i);
+  my_end(0);
   return exit_status();
 }

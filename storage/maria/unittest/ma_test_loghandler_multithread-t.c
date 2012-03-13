@@ -336,8 +336,6 @@ int main(int argc __attribute__((unused)),
   thr_setconcurrency(2);
 #endif
 
-  my_thread_global_init();
-
   if (ma_control_file_open(TRUE, TRUE))
   {
     fprintf(stderr, "Can't init control file (%d)\n", errno);
@@ -551,6 +549,7 @@ err:
   if (maria_log_remove(maria_data_root))
     exit(1);
 
+  my_end(0);
   return(exit_status());
 }
 
