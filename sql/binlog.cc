@@ -3217,8 +3217,6 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   mysql_mutex_lock(&rli->log_space_lock);
   rli->relay_log.purge_logs(to_purge_if_included, included,
                             0, 0, &rli->log_space_total);
-  // Tell the I/O thread to take the relay_log_space_limit into account
-  rli->ignore_log_space_limit= 0;
   mysql_mutex_unlock(&rli->log_space_lock);
 
   /*
@@ -6871,7 +6869,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     the variables.option_bits & OPTION_BIN_LOG is false.
   */
   if ((variables.option_bits & OPTION_BIN_LOG) &&
-      spcont == NULL && !binlog_evt_union.do_union)
+      sp_runtime_ctx == NULL && !binlog_evt_union.do_union)
     issue_unsafe_warnings();
 
   switch (qtype) {

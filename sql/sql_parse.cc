@@ -181,7 +181,7 @@ Log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
 */
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
-  return rpl_filter->is_on() && tables && !thd->spcont &&
+  return rpl_filter->is_on() && tables && !thd->sp_runtime_ctx &&
          !rpl_filter->tables_ok(thd->db, tables);
 }
 
@@ -3759,7 +3759,7 @@ end_with_restore_list:
 
   } while (0);
   /* Don't do it, if we are inside a SP */
-  if (!thd->spcont)
+  if (!thd->sp_runtime_ctx)
   {
     delete lex->sphead;
     lex->sphead= NULL;
@@ -5638,7 +5638,7 @@ void THD::reset_for_next_command()
 {
   THD *thd= this;
   DBUG_ENTER("mysql_reset_thd_for_next_command");
-  DBUG_ASSERT(!thd->spcont); /* not for substatements of routines */
+  DBUG_ASSERT(!thd->sp_runtime_ctx); /* not for substatements of routines */
   DBUG_ASSERT(! thd->in_sub_stmt);
   thd->free_list= 0;
   thd->select_number= 1;
