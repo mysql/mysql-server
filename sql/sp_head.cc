@@ -1115,7 +1115,6 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed= FALSE;
-  sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
   bool err_status= FALSE;
   uint ip= 0;
   sql_mode_t save_sql_mode;
@@ -1358,13 +1357,13 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       killed during execution.
     */
     if (!thd->is_fatal_error && !thd->killed_errno() &&
-        sp_runtime_ctx_saved->handle_sql_condition(thd, &ip, i))
+        thd->sp_runtime_ctx->handle_sql_condition(thd, &ip, i))
     {
       err_status= FALSE;
     }
 
     /* Reset sp_rcontext::end_partial_result_set flag. */
-    sp_runtime_ctx_saved->end_partial_result_set= FALSE;
+    thd->sp_runtime_ctx->end_partial_result_set= FALSE;
 
   } while (!err_status && !thd->killed && !thd->is_fatal_error);
 
@@ -1729,7 +1728,6 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   bool need_binlog_call= FALSE;
   uint arg_no;
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
-  sp_rcontext *func_runtime_ctx = NULL;
   char buf[STRING_BUFFER_USUAL_SIZE];
   String binlog_buf(buf, sizeof(buf), &my_charset_bin);
   bool err_status= FALSE;
@@ -1773,8 +1771,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  func_runtime_ctx= sp_rcontext::create(thd, m_root_parsing_ctx,
-                                        return_value_fld);
+  sp_rcontext *func_runtime_ctx= sp_rcontext::create(thd, m_root_parsing_ctx,
+                                                     return_value_fld);
 
   if (!func_runtime_ctx)
   {
@@ -1782,6 +1780,10 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     err_status= TRUE;
     goto err_with_cleanup;
   }
+
+#ifndef DBUG_OFF
+  func_runtime_ctx->sp= this;
+#endif
 
   /*
     We have to switch temporarily back to callers arena/memroot.
@@ -1791,11 +1793,13 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   */
   thd->restore_active_arena(&call_arena, &backup_arena);
 
-#ifndef DBUG_OFF
-  func_runtime_ctx->sp= this;
-#endif
+  /*
+    Pass arguments.
 
-  /* Pass arguments. */
+    Note, THD::sp_runtime_ctx must not be switched before the arguments are
+    passed. Values are taken from the caller's runtime context and set to the
+    runtime context of this function.
+  */
   for (arg_no= 0; arg_no < argcount; arg_no++)
   {
     /* Arguments must be fixed in Item_func_sp::fix_fields */
@@ -1818,6 +1822,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   /*
     Remember the original arguments for unrolled replication of functions
     before they are changed by execution.
+
+    Note, THD::sp_runtime_ctx must not be switched before the arguments are
+    logged. Values are taken from the caller's runtime context.
   */
   if (need_binlog_call)
   {
@@ -1845,6 +1852,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     }
     binlog_buf.append(')');
   }
+
   thd->sp_runtime_ctx= func_runtime_ctx;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1924,7 +1932,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   {
     /* We need result only in function but not in trigger */
 
-    if (!func_runtime_ctx->is_return_value_set())
+    if (!thd->sp_runtime_ctx->is_return_value_set())
     {
       my_error(ER_SP_NORETURNEND, MYF(0), m_name.str);
       err_status= TRUE;
@@ -1993,10 +2001,9 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     DBUG_RETURN(TRUE);
   }
 
-  sp_runtime_ctx_saved= thd->sp_runtime_ctx;
-  if (! parent_sp_runtime_ctx)
+  if (!parent_sp_runtime_ctx)
   {
-    /* Create a temporary old context. */
+    // Create a temporary old context. We need it to pass OUT-parameter values.
     parent_sp_runtime_ctx= sp_rcontext::create(thd, m_root_parsing_ctx, NULL);
 
     if (!parent_sp_runtime_ctx)
@@ -2017,6 +2024,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   if (!proc_runtime_ctx)
   {
     thd->sp_runtime_ctx= sp_runtime_ctx_saved;
+
+    if (!sp_runtime_ctx_saved)
+      delete parent_sp_runtime_ctx;
+
     DBUG_RETURN(TRUE);
   }
 #ifndef DBUG_OFF
