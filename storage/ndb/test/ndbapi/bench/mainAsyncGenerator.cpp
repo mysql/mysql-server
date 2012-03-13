@@ -39,7 +39,13 @@ static int   minEventSendPoll;
 static int   forceSendPoll;
 static bool  useNdbRecord;
 static bool  useCombUpd;
+#ifdef __cplusplus
+extern "C" {
+#endif
 int          subscriberCount;
+#ifdef __cplusplus
+}
+#endif
 static bool  robustMode;
 
 static ThreadData *data;
