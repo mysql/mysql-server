@@ -597,10 +597,12 @@ sp_head::init(LEX *lex)
 {
   DBUG_ENTER("sp_head::init");
 
-  lex->spcont= m_pcont= new sp_pcontext();
+  m_parsing_ctx= new sp_pcontext();
 
-  if (!lex->spcont)
+  if (!m_parsing_ctx)
     DBUG_VOID_RETURN;
+
+  lex->sp_parsing_ctx= m_parsing_ctx;
 
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
 
@@ -782,7 +784,7 @@ sp_head::~sp_head()
   for (uint ip = 0 ; (i = get_instr(ip)) ; ip++)
     delete i;
   delete_dynamic(&m_instr);
-  delete m_pcont;
+  delete m_parsing_ctx;
   free_items();
 
   /*
@@ -1113,7 +1115,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed= FALSE;
-  sp_rcontext *ctx= thd->spcont;
+  sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
   bool err_status= FALSE;
   uint ip= 0;
   sql_mode_t save_sql_mode;
@@ -1274,7 +1276,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     Save callers arena in order to store instruction results and out
     parameters in it later during sp_eval_func_item()
   */
-  thd->spcont->callers_arena= &backup_arena;
+  thd->sp_runtime_ctx->callers_arena= &backup_arena;
 
 #if defined(ENABLED_PROFILING)
   /* Discard the initial part of executing routines. */
@@ -1356,13 +1358,13 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       killed during execution.
     */
     if (!thd->is_fatal_error && !thd->killed_errno() &&
-        ctx->handle_sql_condition(thd, &ip, i))
+        sp_runtime_ctx_saved->handle_sql_condition(thd, &ip, i))
     {
       err_status= FALSE;
     }
 
     /* Reset sp_rcontext::end_partial_result_set flag. */
-    ctx->end_partial_result_set= FALSE;
+    sp_runtime_ctx_saved->end_partial_result_set= FALSE;
 
   } while (!err_status && !thd->killed && !thd->is_fatal_error);
 
@@ -1379,7 +1381,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
 
   thd->restore_active_arena(&execute_arena, &backup_arena);
 
-  thd->spcont->pop_all_cursors(); // To avoid memory leaks after an error
+  thd->sp_runtime_ctx->pop_all_cursors(); // To avoid memory leaks after an error
 
   /* Restore all saved */
   old_packet.swap(thd->packet);
@@ -1579,8 +1581,8 @@ sp_head::execute_trigger(THD *thd,
                          const LEX_STRING *table_name,
                          GRANT_INFO *grant_info)
 {
-  sp_rcontext *octx = thd->spcont;
-  sp_rcontext *nctx = NULL;
+  sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
+  sp_rcontext *trigger_runtime_ctx = NULL;
   bool err_status= FALSE;
   MEM_ROOT call_mem_root;
   Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
@@ -1651,17 +1653,17 @@ sp_head::execute_trigger(THD *thd,
   init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  if (!(nctx= sp_rcontext::create(thd, m_pcont, NULL)))
+  if (!(trigger_runtime_ctx= sp_rcontext::create(thd, m_parsing_ctx, NULL)))
   {
     err_status= TRUE;
     goto err_with_cleanup;
   }
 
 #ifndef DBUG_OFF
-  nctx->sp= this;
+  trigger_runtime_ctx->sp= this;
 #endif
 
-  thd->spcont= nctx;
+  thd->sp_runtime_ctx= trigger_runtime_ctx;
 
   err_status= execute(thd, FALSE);
 
@@ -1672,10 +1674,10 @@ err_with_cleanup:
   m_security_ctx.restore_security_context(thd, save_ctx);
 #endif // NO_EMBEDDED_ACCESS_CHECKS
 
-  delete nctx;
+  delete trigger_runtime_ctx;
   call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
-  thd->spcont= octx;
+  thd->sp_runtime_ctx= parent_sp_runtime_ctx;
 
   if (thd->killed)
     thd->send_kill_message();
@@ -1724,8 +1726,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   ulonglong binlog_save_options;
   bool need_binlog_call= FALSE;
   uint arg_no;
-  sp_rcontext *octx = thd->spcont;
-  sp_rcontext *nctx = NULL;
+  sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
+  sp_rcontext *func_runtime_ctx = NULL;
   char buf[STRING_BUFFER_USUAL_SIZE];
   String binlog_buf(buf, sizeof(buf), &my_charset_bin);
   bool err_status= FALSE;
@@ -1744,14 +1746,15 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     If it is not, use my_error() to report an error, or it will not terminate
     the invoking query properly.
   */
-  if (argcount != m_pcont->context_var_count())
+  if (argcount != m_parsing_ctx->context_var_count())
   {
     /*
       Need to use my_error here, or it will not terminate the
       invoking query properly.
     */
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
-             "FUNCTION", m_qname.str, m_pcont->context_var_count(), argcount);
+             "FUNCTION", m_qname.str,
+             m_parsing_ctx->context_var_count(), argcount);
     DBUG_RETURN(TRUE);
   }
   /*
@@ -1768,7 +1771,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  if (!(nctx= sp_rcontext::create(thd, m_pcont, return_value_fld)))
+  func_runtime_ctx= sp_rcontext::create(thd, m_parsing_ctx, return_value_fld);
+
+  if (!func_runtime_ctx)
   {
     thd->restore_active_arena(&call_arena, &backup_arena);
     err_status= TRUE;
@@ -1784,7 +1789,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   thd->restore_active_arena(&call_arena, &backup_arena);
 
 #ifndef DBUG_OFF
-  nctx->sp= this;
+  func_runtime_ctx->sp= this;
 #endif
 
   /* Pass arguments. */
@@ -1793,7 +1798,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     /* Arguments must be fixed in Item_func_sp::fix_fields */
     DBUG_ASSERT(argp[arg_no]->fixed);
 
-    if ((err_status= nctx->set_variable(thd, arg_no, &(argp[arg_no]))))
+    err_status= func_runtime_ctx->set_variable(thd, arg_no, &(argp[arg_no]));
+
+    if (err_status)
       goto err_with_cleanup;
   }
 
@@ -1825,7 +1832,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       if (arg_no)
         binlog_buf.append(',');
 
-      str_value= sp_get_item_value(thd, nctx->get_item(arg_no),
+      str_value= sp_get_item_value(thd, func_runtime_ctx->get_item(arg_no),
                                    &str_value_holder);
 
       if (str_value)
@@ -1835,7 +1842,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     }
     binlog_buf.append(')');
   }
-  thd->spcont= nctx;
+  thd->sp_runtime_ctx= func_runtime_ctx;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx;
@@ -1914,7 +1921,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   {
     /* We need result only in function but not in trigger */
 
-    if (!nctx->is_return_value_set())
+    if (!func_runtime_ctx->is_return_value_set())
     {
       my_error(ER_SP_NORETURNEND, MYF(0), m_name.str);
       err_status= TRUE;
@@ -1926,17 +1933,17 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 #endif
 
 err_with_cleanup:
-  delete nctx;
+  delete func_runtime_ctx;
   call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
-  thd->spcont= octx;
+  thd->sp_runtime_ctx= parent_sp_runtime_ctx;
 
   /*
     If not insided a procedure and a function printing warning
     messsages.
   */
   if (need_binlog_call && 
-      thd->spcont == NULL && !thd->binlog_evt_union.do_union)
+      thd->sp_runtime_ctx == NULL && !thd->binlog_evt_union.do_union)
     thd->issue_unsafe_warnings();
 
   DBUG_RETURN(err_status);
@@ -1966,11 +1973,12 @@ bool
 sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
   bool err_status= FALSE;
-  uint params = m_pcont->context_var_count();
+  uint params = m_parsing_ctx->context_var_count();
   /* Query start time may be reset in a multi-stmt SP; keep this for later. */
   ulonglong utime_before_sp_exec= thd->utime_after_lock;
-  sp_rcontext *save_spcont, *octx;
-  sp_rcontext *nctx = NULL;
+  sp_rcontext *parent_sp_runtime_ctx= thd->sp_runtime_ctx;
+  sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
+  sp_rcontext *proc_runtime_ctx = NULL;
   bool save_enable_slow_log= false;
   bool save_log_general= false;
   DBUG_ENTER("sp_head::execute_procedure");
@@ -1983,33 +1991,33 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     DBUG_RETURN(TRUE);
   }
 
-  save_spcont= octx= thd->spcont;
-  if (! octx)
+  sp_runtime_ctx_saved= thd->sp_runtime_ctx;
+  if (! parent_sp_runtime_ctx)
   {
     /* Create a temporary old context. */
-    if (!(octx= sp_rcontext::create(thd, m_pcont, NULL)))
-    {
-      delete octx; /* Delete octx if it was init() that failed. */
+    parent_sp_runtime_ctx= sp_rcontext::create(thd, m_parsing_ctx, NULL);
+
+    if (!parent_sp_runtime_ctx)
       DBUG_RETURN(TRUE);
-    }
 
 #ifndef DBUG_OFF
-    octx->sp= 0;
+    parent_sp_runtime_ctx->sp= 0;
 #endif
-    thd->spcont= octx;
+    thd->sp_runtime_ctx= parent_sp_runtime_ctx;
 
     /* set callers_arena to thd, for upper-level function to work */
-    thd->spcont->callers_arena= thd;
+    thd->sp_runtime_ctx->callers_arena= thd;
   }
 
-  if (!(nctx= sp_rcontext::create(thd, m_pcont, NULL)))
+  proc_runtime_ctx= sp_rcontext::create(thd, m_parsing_ctx, NULL);
+
+  if (!proc_runtime_ctx)
   {
-    delete nctx; /* Delete nctx if it was init() that failed. */
-    thd->spcont= save_spcont;
+    thd->sp_runtime_ctx= sp_runtime_ctx_saved;
     DBUG_RETURN(TRUE);
   }
 #ifndef DBUG_OFF
-  nctx->sp= this;
+  proc_runtime_ctx->sp= this;
 #endif
 
   if (params > 0)
@@ -2025,7 +2033,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (!arg_item)
         break;
 
-      sp_variable *spvar= m_pcont->find_variable(i);
+      sp_variable *spvar= m_parsing_ctx->find_variable(i);
 
       if (!spvar)
         continue;
@@ -2050,7 +2058,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
         Item_null *null_item= new Item_null();
 
         if (!null_item ||
-            nctx->set_variable(thd, i, (Item **)&null_item))
+            proc_runtime_ctx->set_variable(thd, i, (Item **)&null_item))
         {
           err_status= TRUE;
           break;
@@ -2058,7 +2066,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       }
       else
       {
-        if (nctx->set_variable(thd, i, it_args.ref()))
+        if (proc_runtime_ctx->set_variable(thd, i, it_args.ref()))
         {
           err_status= TRUE;
           break;
@@ -2107,7 +2115,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     /* disable this bit */
     thd->variables.option_bits |= OPTION_LOG_OFF;
   }
-  thd->spcont= nctx;
+  thd->sp_runtime_ctx= proc_runtime_ctx;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= 0;
@@ -2130,7 +2138,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     allocation should be done on the arena which will live through
     all execution of calling routine.
   */
-  thd->spcont->callers_arena= octx->callers_arena;
+  thd->sp_runtime_ctx->callers_arena= parent_sp_runtime_ctx->callers_arena;
 
   if (!err_status && params > 0)
   {
@@ -2147,7 +2155,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (!arg_item)
         break;
 
-      sp_variable *spvar= m_pcont->find_variable(i);
+      sp_variable *spvar= m_parsing_ctx->find_variable(i);
 
       if (spvar->mode == sp_variable::MODE_IN)
         continue;
@@ -2157,14 +2165,14 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
       DBUG_ASSERT(srp);
 
-      if (srp->set_value(thd, octx, nctx->get_item_addr(i)))
+      if (srp->set_value(thd, parent_sp_runtime_ctx, proc_runtime_ctx->get_item_addr(i)))
       {
         err_status= TRUE;
         break;
       }
 
       Send_field *out_param_info= new (thd->mem_root) Send_field();
-      nctx->get_item(i)->make_field(out_param_info);
+      proc_runtime_ctx->get_item(i)->make_field(out_param_info);
       out_param_info->db_name= m_db.str;
       out_param_info->table_name= m_name.str;
       out_param_info->org_table_name= m_name.str;
@@ -2180,11 +2188,11 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     m_security_ctx.restore_security_context(thd, save_security_ctx);
 #endif
 
-  if (!save_spcont)
-    delete octx;
+  if (!sp_runtime_ctx_saved)
+    delete parent_sp_runtime_ctx;
 
-  delete nctx;
-  thd->spcont= save_spcont;
+  delete proc_runtime_ctx;
+  thd->sp_runtime_ctx= sp_runtime_ctx_saved;
   thd->utime_after_lock= utime_before_sp_exec;
 
   /*
@@ -2194,7 +2202,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   bool need_binlog_call= mysql_bin_log.is_open() &&
                          (thd->variables.option_bits & OPTION_BIN_LOG) &&
                          !thd->is_current_stmt_binlog_format_row();
-  if (need_binlog_call && thd->spcont == NULL &&
+  if (need_binlog_call && thd->sp_runtime_ctx == NULL &&
       !thd->binlog_evt_union.do_union)
     thd->issue_unsafe_warnings();
 
@@ -2231,7 +2239,7 @@ sp_head::reset_lex(THD *thd)
 
   /* And keep the SP stuff too */
   sublex->sphead= oldlex->sphead;
-  sublex->spcont= oldlex->spcont;
+  sublex->sp_parsing_ctx= oldlex->sp_parsing_ctx;
   /* And trigger related stuff too */
   sublex->trg_chistics= oldlex->trg_chistics;
   sublex->sp_lex_in_use= FALSE;
@@ -3149,13 +3157,13 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 int
 sp_instr_set::exec_core(THD *thd, uint *nextp)
 {
-  int res= thd->spcont->set_variable(thd, m_offset, &m_value);
+  int res= thd->sp_runtime_ctx->set_variable(thd, m_offset, &m_value);
 
   if (res)
   {
     /* Failed to evaluate the value. Reset the variable to NULL. */
 
-    if (thd->spcont->set_variable(thd, m_offset, 0))
+    if (thd->sp_runtime_ctx->set_variable(thd, m_offset, 0))
     {
       /* If this also failed, let's abort. */
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
@@ -3427,7 +3435,7 @@ sp_instr_freturn::exec_core(THD *thd, uint *nextp)
     do it in scope of execution the current context/block.
   */
 
-  return thd->spcont->set_return_value(thd, &m_value);
+  return thd->sp_runtime_ctx->set_return_value(thd, &m_value);
 }
 
 void
@@ -3451,7 +3459,7 @@ sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_hpush_jump::execute");
 
-  int ret= thd->spcont->push_handler(m_handler, m_ip + 1);
+  int ret= thd->sp_runtime_ctx->push_handler(m_handler, m_ip + 1);
 
   *nextp= m_dest;
 
@@ -3526,7 +3534,7 @@ int
 sp_instr_hpop::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_hpop::execute");
-  thd->spcont->pop_handlers(m_count);
+  thd->sp_runtime_ctx->pop_handlers(m_count);
   *nextp= m_ip+1;
   DBUG_RETURN(0);
 }
@@ -3551,7 +3559,7 @@ sp_instr_hreturn::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_hreturn::execute");
 
-  uint continue_ip= thd->spcont->exit_handler(thd->get_stmt_da());
+  uint continue_ip= thd->sp_runtime_ctx->exit_handler(thd->get_stmt_da());
 
   *nextp= m_dest ? m_dest : continue_ip;
 
@@ -3611,7 +3619,7 @@ sp_instr_cpush::execute(THD *thd, uint *nextp)
   Query_arena backup_arena;
   DBUG_ENTER("sp_instr_cpush::execute");
 
-  int ret= thd->spcont->push_cursor(&m_lex_keeper, this);
+  int ret= thd->sp_runtime_ctx->push_cursor(&m_lex_keeper, this);
 
   *nextp= m_ip+1;
 
@@ -3649,7 +3657,7 @@ int
 sp_instr_cpop::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_cpop::execute");
-  thd->spcont->pop_cursors(m_count);
+  thd->sp_runtime_ctx->pop_cursors(m_count);
   *nextp= m_ip+1;
   DBUG_RETURN(0);
 }
@@ -3682,7 +3690,7 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
     We don't store a pointer to the cursor in the instruction to be
     able to reuse the same instruction among different threads in future.
   */
-  sp_cursor *c= thd->spcont->get_cursor(m_cursor);
+  sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor);
   int res;
   DBUG_ENTER("sp_instr_copen::execute");
 
@@ -3713,7 +3721,7 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
 int
 sp_instr_copen::exec_core(THD *thd, uint *nextp)
 {
-  sp_cursor *c= thd->spcont->get_cursor(m_cursor);
+  sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor);
   int res= c->open(thd);
   *nextp= m_ip+1;
   return res;
@@ -3748,7 +3756,7 @@ sp_instr_copen::print(String *str)
 int
 sp_instr_cclose::execute(THD *thd, uint *nextp)
 {
-  sp_cursor *c= thd->spcont->get_cursor(m_cursor);
+  sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor);
   int res;
   DBUG_ENTER("sp_instr_cclose::execute");
 
@@ -3790,7 +3798,7 @@ sp_instr_cclose::print(String *str)
 int
 sp_instr_cfetch::execute(THD *thd, uint *nextp)
 {
-  sp_cursor *c= thd->spcont->get_cursor(m_cursor);
+  sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor);
   int res;
   Query_arena backup_arena;
   DBUG_ENTER("sp_instr_cfetch::execute");
@@ -3877,9 +3885,10 @@ sp_instr_set_case_expr::execute(THD *thd, uint *nextp)
 int
 sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp)
 {
-  int res= thd->spcont->set_case_expr(thd, m_case_expr_id, &m_case_expr);
+  int res=
+    thd->sp_runtime_ctx->set_case_expr(thd, m_case_expr_id, &m_case_expr);
 
-  if (res && !thd->spcont->get_case_expr(m_case_expr_id))
+  if (res && !thd->sp_runtime_ctx->get_case_expr(m_case_expr_id))
   {
     /*
       Failed to evaluate the value, the case expression is still not
@@ -3889,7 +3898,7 @@ sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp)
     Item *null_item= new Item_null();
 
     if (!null_item ||
-        thd->spcont->set_case_expr(thd, m_case_expr_id, &null_item))
+        thd->sp_runtime_ctx->set_case_expr(thd, m_case_expr_id, &null_item))
     {
       /* If this also failed, we have to abort. */
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));

@@ -381,11 +381,12 @@ Item_cache *sp_rcontext::create_case_expr_holder(THD *thd,
   Item_cache *holder;
   Query_arena current_arena;
 
-  thd->set_n_backup_active_arena(thd->spcont->callers_arena, &current_arena);
+  thd->set_n_backup_active_arena(thd->sp_runtime_ctx->callers_arena,
+                                 &current_arena);
 
   holder= Item_cache::get_cache(item);
 
-  thd->restore_active_arena(thd->spcont->callers_arena, &current_arena);
+  thd->restore_active_arena(thd->sp_runtime_ctx->callers_arena, &current_arena);
 
   return holder;
 }
@@ -547,7 +548,7 @@ bool sp_cursor::Select_fetch_into_spvars::send_data(List<Item> &items)
   */
   for (; spvar= spvar_iter++, item= item_iter++; )
   {
-    if (thd->spcont->set_variable(thd, spvar->offset, &item))
+    if (thd->sp_runtime_ctx->set_variable(thd, spvar->offset, &item))
       return true;
   }
   return false;

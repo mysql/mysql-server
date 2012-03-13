@@ -806,7 +806,7 @@ THD::THD(bool enable_plugins)
    in_lock_tables(0),
    bootstrap(0),
    derived_tables_processing(FALSE),
-   spcont(NULL),
+   sp_runtime_ctx(NULL),
    m_parser_state(NULL),
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
@@ -2236,7 +2236,7 @@ void select_send::abort_result_set()
 {
   DBUG_ENTER("select_send::abort_result_set");
 
-  if (is_result_set_started && thd->spcont)
+  if (is_result_set_started && thd->sp_runtime_ctx)
   {
     /*
       We're executing a stored procedure, have an open result
@@ -2247,7 +2247,7 @@ void select_send::abort_result_set()
       otherwise the client will hang due to the violation of the
       client/server protocol.
     */
-    thd->spcont->end_partial_result_set= TRUE;
+    thd->sp_runtime_ctx->end_partial_result_set= TRUE;
   }
   DBUG_VOID_RETURN;
 }
@@ -3360,7 +3360,7 @@ bool select_dumpvar::send_data(List<Item> &items)
   {
     if (mv->local)
     {
-      if (thd->spcont->set_variable(thd, mv->offset, &item))
+      if (thd->sp_runtime_ctx->set_variable(thd, mv->offset, &item))
 	    DBUG_RETURN(1);
     }
     else
