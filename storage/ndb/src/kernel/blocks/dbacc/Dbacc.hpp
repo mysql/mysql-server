@@ -24,6 +24,7 @@
 #endif
 
 #include <pc.hpp>
+#include <DynArr256.hpp>
 #include <SimulatedBlock.hpp>
 
 #ifdef DBACC_C
@@ -103,8 +104,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZDEFAULT_LIST 3
 #define ZWORDS_IN_PAGE 2048
 #define ZADDFRAG 0
-#define ZDIRARRAY 68
-#define ZDIRRANGESIZE 65
 //#define ZEMPTY_FRAGMENT 0
 #define ZFRAGMENTSIZE 64
 #define ZFIRSTTIME 1
@@ -154,6 +153,7 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZREL_ROOT_FRAG 5
 #define ZREL_FRAG 6
 #define ZREL_DIR 7
+#define ZREL_ODIR 8
 
 /* ------------------------------------------------------------------------- */
 /* ERROR CODES                                                               */
@@ -317,24 +317,6 @@ enum State {
 // Records
 
 /* --------------------------------------------------------------------------------- */
-/* DIRECTORY RANGE                                                                   */
-/* --------------------------------------------------------------------------------- */
-  struct DirRange {
-    Uint32 dirArray[256];
-  }; /* p2c: size = 1024 bytes */
-  
-  typedef Ptr<DirRange> DirRangePtr;
-
-/* --------------------------------------------------------------------------------- */
-/* DIRECTORYARRAY                                                                    */
-/* --------------------------------------------------------------------------------- */
-struct Directoryarray {
-  Uint32 pagep[256];
-}; /* p2c: size = 1024 bytes */
-
-  typedef Ptr<Directoryarray> DirectoryarrayPtr;
-
-/* --------------------------------------------------------------------------------- */
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */
 /*         REC  A POINTER TO FRAGMENT RECORD IS SAVED IN ROOTFRAGMENTREC FRAGMENT    */
 /* --------------------------------------------------------------------------------- */
@@ -367,7 +349,6 @@ struct Fragmentrec {
   Uint32 expReceiveIndex;
   Uint32 expReceiveForward;
   Uint32 expSenderDirIndex;
-  Uint32 expSenderDirptr;
   Uint32 expSenderIndex;
   Uint32 expSenderPageptr;
 
@@ -381,9 +362,8 @@ struct Fragmentrec {
 // in its turn references the pages) for the bucket pages and the overflow
 // bucket pages.
 //-----------------------------------------------------------------------------
-  Uint32 directory;
-  Uint32 dirsize;
-  Uint32 overflowdir;
+  DynArr256::Head directory;
+  DynArr256::Head overflowdir;
   Uint32 lastOverIndex;
 
 //-----------------------------------------------------------------------------
@@ -702,10 +682,7 @@ private:
   void releaseFragResources(Signal* signal, Uint32 fragIndex);
   void releaseRootFragRecord(Signal* signal, RootfragmentrecPtr rootPtr);
   void releaseRootFragResources(Signal* signal, Uint32 tableId);
-  void releaseDirResources(Signal* signal,
-                           Uint32 fragIndex,
-                           Uint32 dirIndex,
-                           Uint32 startIndex);
+  void releaseDirResources(Signal* signal);
   void releaseDirectoryResources(Signal* signal,
                                  Uint32 fragIndex,
                                  Uint32 dirIndex,
@@ -717,8 +694,6 @@ private:
   void initScanFragmentPart(Signal* signal);
   Uint32 checkScanExpand(Signal* signal);
   Uint32 checkScanShrink(Signal* signal);
-  void initialiseDirRec(Signal* signal);
-  void initialiseDirRangeRec(Signal* signal);
   void initialiseFragRec(Signal* signal);
   void initialiseFsConnectionRec(Signal* signal);
   void initialiseFsOpRec(Signal* signal);
@@ -786,6 +761,9 @@ private:
   void seizeRightlist(Signal* signal);
   Uint32 readTablePk(Uint32 lkey1, Uint32 lkey2, Uint32 eh, OperationrecPtr);
   Uint32 getElement(Signal* signal, OperationrecPtr& lockOwner);
+  Uint32 getPagePtr(DynArr256::Head&, Uint32);
+  bool setPagePtr(DynArr256::Head& directory, Uint32 index, Uint32 ptri);
+  Uint32 unsetPagePtr(DynArr256::Head& directory, Uint32 index);
   void getdirindex(Signal* signal);
   void commitdelete(Signal* signal);
   void deleteElement(Signal* signal);
@@ -819,8 +797,6 @@ private:
   void putOpInFragWaitQue(Signal* signal);
   void putOverflowRecInFrag(Signal* signal);
   void putRecInFreeOverdir(Signal* signal);
-  void releaseDirectory(Signal* signal);
-  void releaseDirrange(Signal* signal);
   void releaseFsConnRec(Signal* signal);
   void releaseFsOpRec(Signal* signal);
   void releaseOpRec(Signal* signal);
@@ -828,7 +804,6 @@ private:
   void releaseOverpage(Signal* signal);
   void releasePage(Signal* signal);
   void seizeDirectory(Signal* signal);
-  void seizeDirrange(Signal* signal);
   void seizeFragrec(Signal* signal);
   void seizeFsConnectRec(Signal* signal);
   void seizeFsOpRec(Signal* signal);
@@ -879,27 +854,9 @@ private:
 
   // Variables
 /* --------------------------------------------------------------------------------- */
-/* DIRECTORY RANGE                                                                   */
+/* DIRECTORY                                                                         */
 /* --------------------------------------------------------------------------------- */
-  DirRange *dirRange;
-  DirRangePtr expDirRangePtr;
-  DirRangePtr gnsDirRangePtr;
-  DirRangePtr newDirRangePtr;
-  DirRangePtr rdDirRangePtr;
-  DirRangePtr nciOverflowrangeptr;
-  Uint32 cdirrangesize;
-  Uint32 cfirstfreeDirrange;
-/* --------------------------------------------------------------------------------- */
-/* DIRECTORYARRAY                                                                    */
-/* --------------------------------------------------------------------------------- */
-  Directoryarray *directoryarray;
-  DirectoryarrayPtr expDirptr;
-  DirectoryarrayPtr rdDirptr;
-  DirectoryarrayPtr sdDirptr;
-  DirectoryarrayPtr nciOverflowDirptr;
-  Uint32 cdirarraysize;
-  Uint32 cdirmemory;
-  Uint32 cfirstfreedir;
+  DynArr256Pool   directoryPool;
 /* --------------------------------------------------------------------------------- */
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */
 /*         REC  A POINTER TO FRAGMENT RECORD IS SAVED IN ROOTFRAGMENTREC FRAGMENT    */
