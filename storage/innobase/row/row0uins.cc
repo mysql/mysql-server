@@ -408,11 +408,10 @@ row_undo_ins(
 			if (!dict_locked) {
 				mutex_enter(&dict_sys->mutex);
 			}
-
-			// FIXME: Q&D hack
-			node->table->ibd_file_missing = 1;
 		}
 
+		// FIXME: We need to update the dict_index_t::space and
+		// page number fields too.
 		err = row_undo_ins_remove_clust_rec(node);
 
 		if (node->table->id == DICT_INDEXES_ID
