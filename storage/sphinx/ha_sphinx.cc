@@ -627,7 +627,7 @@ bool				sphinx_show_status ( THD * thd );
 //////////////////////////////////////////////////////////////////////////////
 
 static const char	sphinx_hton_name[]		= "SPHINX";
-static const char	sphinx_hton_comment[]	= "Sphinx storage engine " SPHINXSE_VERSION;
+static const char	sphinx_hton_comment[]	= "Sphinx storage engine";
 
 #if MYSQL_VERSION_ID<50100
 handlerton sphinx_hton =
@@ -3612,10 +3612,10 @@ maria_declare_plugin(sphinx)
 	PLUGIN_LICENSE_GPL,
 	sphinx_init_func, // Plugin Init
 	sphinx_done_func, // Plugin Deinit
-	0x0001, // 0.1
+	0x0200, // 2.0
 	sphinx_status_vars,
 	NULL,
-	"0.1", // string version
+        SPHINXSE_VERSION, // string version
 	MariaDB_PLUGIN_MATURITY_EXPERIMENTAL
 }
 maria_declare_plugin_end;
