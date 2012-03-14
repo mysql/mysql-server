@@ -2797,41 +2797,6 @@ row_merge_file_destroy(
 }
 
 /*********************************************************************//**
-Determine the precise type of a column that is added to a tem
-if a column must be constrained NOT NULL.
-@return	col->prtype, possibly ORed with DATA_NOT_NULL */
-UNIV_INLINE
-ulint
-row_merge_col_prtype(
-/*=================*/
-	const dict_col_t*	col,		/*!< in: column */
-	const char*		col_name,	/*!< in: name of the column */
-	const merge_index_def_t*index_def)	/*!< in: the index definition
-						of the primary key */
-{
-	ulint	prtype = col->prtype;
-	ulint	i;
-
-	ut_ad(index_def->ind_type & DICT_CLUSTERED);
-
-	if (prtype & DATA_NOT_NULL) {
-
-		return(prtype);
-	}
-
-	/* All columns that are included
-	in the PRIMARY KEY must be NOT NULL. */
-
-	for (i = 0; i < index_def->n_fields; i++) {
-		if (!strcmp(col_name, index_def->fields[i].field_name)) {
-			return(prtype | DATA_NOT_NULL);
-		}
-	}
-
-	return(prtype);
-}
-
-/*********************************************************************//**
 Rename an index in the dictionary that was created. The data
 dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
