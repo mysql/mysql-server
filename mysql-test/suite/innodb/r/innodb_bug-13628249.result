@@ -1,3 +1,6 @@
+# Stop server
+# Restart server.
+# Restart server.
 CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=InnoDB;
 BEGIN;
 INSERT INTO t1 VALUES(1), (2), (3), (4);
