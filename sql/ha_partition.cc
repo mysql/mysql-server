@@ -6164,6 +6164,7 @@ const key_map *ha_partition::keys_to_use_for_scanning()
   DBUG_RETURN(m_file[0]->keys_to_use_for_scanning());
 }
 
+
 /**
   Minimum number of rows to base optimizer estimate on.
 */
@@ -6171,14 +6172,14 @@ const key_map *ha_partition::keys_to_use_for_scanning()
 ha_rows ha_partition::min_rows_for_estimate()
 {
   uint i, max_used_partitions, tot_used_partitions;
-  DBUG_ENTER("ha_partition::partitions_optimizer_call_preparations");
+  DBUG_ENTER("ha_partition::min_rows_for_estimate");
 
   tot_used_partitions= bitmap_bits_set(&m_part_info->used_partitions);
   DBUG_ASSERT(tot_used_partitions);
 
   /*
     Allow O(log2(tot_partitions)) increase in number of used partitions.
-    This gives O(1/log2(tot_partitions)) of rows to base the estimate on.
+    This gives O(tot_rows/log2(tot_partitions)) rows to base the estimate on.
     I.e when the total number of partitions doubles, allow one more
     partition to be checked.
   */
@@ -6265,15 +6266,8 @@ double ha_partition::scan_time()
   @return Number of rows in range.
 
   Given a starting key, and an ending key estimate the number of rows that
-  will exist between the two. end_key may be empty which in case determine
+  will exist between the two. max_key may be empty which in case determine
   if start_key matches any rows.
-
-  Called from opt_range.cc by check_quick_keys().
-
-  @note
-    monty: MUST be called for each range and added.
-          Note that MySQL will assume that if this returns 0 there is no
-          matching rows for the range!
 */
 
 ha_rows ha_partition::records_in_range(uint inx, key_range *min_key,
