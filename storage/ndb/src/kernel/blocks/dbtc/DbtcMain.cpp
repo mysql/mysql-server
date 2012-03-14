@@ -3537,7 +3537,7 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
       TcConnectRecordPtr opPtr;
       opPtr.i = trigOp;
       ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
-      trigger_op_finished(signal, apiConnectptr, opPtr.p);
+      trigger_op_finished(signal, apiConnectptr, RNIL, opPtr.p, 0);
       return;
     }
     else
@@ -4517,8 +4517,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   /**
    * And now decide what to do next
    */
-  if (regTcPtr->triggeringOperation != RNIL &&
-      !regApiPtr.p->isExecutingDeferredTriggers()) {
+  if (regTcPtr->triggeringOperation != RNIL)
+  {
     jam();
     // This operation was created by a trigger execting operation
     // Restart it if we have executed all it's triggers
@@ -4526,7 +4526,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
 
     opPtr.i = regTcPtr->triggeringOperation;
     ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
-    trigger_op_finished(signal, regApiPtr, opPtr.p);
+    trigger_op_finished(signal, regApiPtr, regTcPtr->currentTriggerId,
+                        opPtr.p, 0);
   } else if (noFired == 0) {
     // This operation did not fire any triggers, finish operation
     jam();
@@ -6349,7 +6350,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
         unlinkReadyTcCon(signal);
         releaseTcCon();
 
-        trigger_op_finished(signal, apiConnectptr, opPtr.p);
+        trigger_op_finished(signal, apiConnectptr, RNIL, opPtr.p, 0);
         return;
       }
       
@@ -15320,8 +15321,11 @@ void Dbtc::saveTriggeringOpState(Signal* signal, TcConnectRecord* trigOp)
 }
 
 void
-Dbtc::trigger_op_finished(Signal* signal, ApiConnectRecordPtr regApiPtr,
-                          TcConnectRecord* triggeringOp)
+Dbtc::trigger_op_finished(Signal* signal,
+                          ApiConnectRecordPtr regApiPtr,
+                          Uint32 trigPtrI,
+                          TcConnectRecord* triggeringOp,
+                          Uint32 errCode)
 {
   if (!regApiPtr.p->isExecutingDeferredTriggers())
   {
@@ -15649,7 +15653,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     jam();
     ndbrequire(tc_testbit(regApiPtr->m_flags,
                           ApiConnectRecord::TF_DEFERRED_CONSTRAINTS));
-    trigger_op_finished(signal, *transPtr, opRecord);
+    trigger_op_finished(signal, *transPtr, RNIL, opRecord, 0);
     return;
   }
 
@@ -15685,7 +15689,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     {
       jam();
       releaseSection(keyIVal);
-      trigger_op_finished(signal, *transPtr, opRecord);
+      trigger_op_finished(signal, *transPtr, RNIL, opRecord, 0);
       return;
     }
     
@@ -15805,7 +15809,7 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
     jam();
     ndbrequire(tc_testbit(regApiPtr->m_flags,
                           ApiConnectRecord::TF_DEFERRED_CONSTRAINTS));
-    trigger_op_finished(signal, *transPtr, opRecord);
+    trigger_op_finished(signal, *transPtr, RNIL, opRecord, 0);
     return;
   }
 
@@ -15830,7 +15834,7 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
   {
     jam();
     releaseSection(keyIVal);
-    trigger_op_finished(signal, *transPtr, opRecord);
+    trigger_op_finished(signal, *transPtr, RNIL, opRecord, 0);
     return;
   }
 

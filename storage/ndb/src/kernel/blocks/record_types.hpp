@@ -94,6 +94,7 @@
 
 #define RT_DBTUP_PAGE              MAKE_TID( 1, RG_DATAMEM)
 #define RT_DBTUP_PAGE_MAP          MAKE_TID( 2, RG_DATAMEM)
+#define RT_DBACC_DIRECTORY         MAKE_TID( 3, RG_DATAMEM)
 
 #define RT_JOB_BUFFER              MAKE_TID( 1, RG_JOBBUFFER)
 

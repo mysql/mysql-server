@@ -238,13 +238,7 @@ static void populateGroups(UserHandle *uh, int count)
 ****************************************************************
 ***************************************************************/
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-  extern int subscriberCount;
-#ifdef	__cplusplus
-}
-#endif
+extern int subscriberCount;
 
 void dbPopulate(UserHandle *uh)
 {
