@@ -3842,7 +3842,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                                 INDEX_COMMENT_MAXLEN,
                                 ER_TOO_LONG_INDEX_COMMENT,
                                 key_info->name))
-       DBUG_RETURN(-1);
+       DBUG_RETURN(true);
     key_info->comment.length= key->key_create_info.comment.length;
     if (key_info->comment.length > 0)
     {
@@ -3922,7 +3922,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 */
 
 bool validate_comment_length(THD *thd, const char *comment_str,
-                             uint *comment_len, uint max_len,
+                             size_t *comment_len, uint max_len,
                              uint err_code, const char *comment_name)
 {
   int length= 0;
@@ -4258,7 +4258,7 @@ bool mysql_create_table_no_lock(THD *thd,
     {
       if (part_elem->part_comment)
       {
-        uint comment_len= strlen(part_elem->part_comment);
+        size_t comment_len= strlen(part_elem->part_comment);
         if (validate_comment_length(thd, part_elem->part_comment,
                                      &comment_len,
                                      TABLE_PARTITION_COMMENT_MAXLEN,
@@ -4275,7 +4275,7 @@ bool mysql_create_table_no_lock(THD *thd,
         {
           if (subpart_elem->part_comment)
           {
-            uint comment_len= strlen(subpart_elem->part_comment);
+            size_t comment_len= strlen(subpart_elem->part_comment);
             if (validate_comment_length(thd, subpart_elem->part_comment,
                                          &comment_len,
                                          TABLE_PARTITION_COMMENT_MAXLEN,
