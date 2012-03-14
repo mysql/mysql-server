@@ -1941,3 +1941,21 @@ Warning	1292	Truncated incorrect INTEGER value: 'jxW<'
 DROP TABLE t1;
 SET SQL_BIG_TABLES=0;
 # End of 5.1 tests
+#
+# LP bug#694450 Wrong result with non-standard GROUP BY + ORDER BY
+#
+SET SESSION SQL_MODE='ONLY_FULL_GROUP_BY';
+CREATE TABLE t1 (
+f1 int(11), f2 int(11), f3 datetime, f4 varchar(1), PRIMARY KEY (f1)) ;
+INSERT IGNORE INTO t1 VALUES ('1','9','2004-10-11 18:13','x'),('2','5','2004-03-07 14:02','g'),('3','1','2004-04-09 09:38','o'),('4','0','1900-01-01 00:00','g'),('5','1','2009-02-19 02:05','v');
+SELECT alias2.f3 AS field1 , alias2.f1 AS field2 FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f1 = alias1.f2 AND alias2.f1 != alias1.f4 GROUP BY field1 , field2 ORDER BY alias1.f2 , field2;
+field1	field2
+2004-10-11 18:13:00	1
+2009-02-19 02:05:00	5
+SELECT alias2.f3 AS field1 , alias2.f1 AS field2 FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f1 = alias1.f2 AND alias2.f1 != alias1.f4 GROUP BY field1 , field2 ;
+field1	field2
+2004-10-11 18:13:00	1
+2009-02-19 02:05:00	5
+SET SESSION SQL_MODE=default;
+drop table t1;
+# End of 5.2 tests
