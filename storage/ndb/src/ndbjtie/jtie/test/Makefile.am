@@ -24,36 +24,11 @@ EXTRA_DIST = CMakeLists.txt
 
 ## ----------------------------------------------------------------------
 
-## automake flags (overridden by per-target flags, added before user flags)
-# ndb71@win32: compile issues with including <NdbTap.hpp>
-#AM_CPPFLAGS = -I$(top_srcdir)/storage/ndb/include/util \
-#		-I$(top_srcdir)/storage/ndb/include
-AM_CPPFLAGS = -I$(top_srcdir)/unittest/mytap
-
 ## build a noninstalled test program
 noinst_PROGRAMS = jtie_unit_tests-t
-#check_PROGRAMS = jtie_unit_tests-t
-
-## source files to build the program (dist_ by default)
 jtie_unit_tests_t_SOURCES = jtie_unit_tests-t.cpp
-
-## per-target compilation flags (overrides the AM_ but not the user flags)
-#jtie_unit_tests_t_CPPFLAGS = $(AM_CPPFLAGS)
-
-## extra libtool objects (.lo) or libtool libraries (.la)
-#jtie_unit_tests_t_LDADD = libmytap.la
-
-## mode-specific libtool options (overrides AM_LDFLAGS)
-##   using -no-install requires shared libraries to be installed
-#jtie_unit_tests_t_LDFLAGS = -no-install ## never needs wrapper script
 jtie_unit_tests_t_LDFLAGS = -no-undefined ## build self-contained executable
-#jtie_unit_tests_t_LDFLAGS += -static ## only create a static executable
-
-## ----------------------------------------------------------------------
-
-## programs or scripts to run for testing
-# unit-tests invoked individually in subdirectories
-#TESTS = $(noinst_PROGRAMS)
+jtie_unit_tests_t_CXXFLAGS = -I$(top_srcdir)/storage/ndb/include
 
 ## ----------------------------------------------------------------------
 
