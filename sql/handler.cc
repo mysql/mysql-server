@@ -5099,7 +5099,7 @@ static int rowid_cmp(void *h, uchar *a, uchar *b)
 int DsMrr_impl::dsmrr_fill_buffer()
 {
   char *range_info;
-  int res;
+  int res= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_buffer");
 
   rowids_buf_cur= rowids_buf;

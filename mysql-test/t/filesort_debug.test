@@ -74,3 +74,47 @@ disconnect con2;
 --source include/wait_until_count_sessions.inc
 SET DEBUG_SYNC= "RESET";
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#13832772 ASSERTION `THD->IS_ERROR() || KILL_ERRNO'
+--echo #              FAILED IN FILESORT/MYSQL_DELETE
+--echo #
+
+CREATE TABLE t1 (
+  c1 BLOB,
+  c2 TEXT,
+  c3 TEXT,
+  c4 TEXT,
+  c5 TEXT,
+  c6 TEXT,
+  c7 TEXT,
+  c8 BLOB,
+  c9 TEXT,
+  c19 TEXT,
+  pk INT,
+  c20 TEXT,
+  c21 BLOB,
+  c22 TEXT,
+  c23 TEXT,
+  c24 TEXT,
+  c25 TEXT,
+  c26 BLOB,
+  c27 TEXT,
+  c28 TEXT,
+  primary key (pk)
+) ENGINE=InnoDB
+;
+
+CALL mtr.add_suppression("Out of sort memory");
+
+--error ER_OUT_OF_SORTMEMORY
+DELETE IGNORE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
+c19,c21,c8,c1,c27,c28,c3,c9,c22,c24,c6,c2,pk LIMIT 2;
+SHOW WARNINGS;
+
+--error ER_OUT_OF_SORTMEMORY
+DELETE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
+c19,c21,c8,c1,c27,c28,c3,c9,c22,c24,c6,c2,pk LIMIT 2; 
+SHOW WARNINGS;
+
+DROP TABLE t1;

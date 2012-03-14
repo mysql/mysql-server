@@ -298,8 +298,7 @@ SET GLOBAL debug="+d,fault_injection_openning_index";
 -- error ER_CANT_OPEN_FILE
 FLUSH LOGS;
 SET GLOBAL debug="-d,fault_injection_openning_index";
-
--- error ER_FLUSH_MASTER_BINLOG_CLOSED
+--error ER_FLUSH_MASTER_BINLOG_CLOSED
 RESET MASTER;
 
 # issue some statements and check that they don't fail
@@ -325,8 +324,7 @@ SET GLOBAL debug="+d,fault_injection_new_file_rotate_event";
 -- error ER_ERROR_ON_WRITE
 FLUSH LOGS;
 SET GLOBAL debug="-d,fault_injection_new_file_rotate_event";
-
--- error ER_FLUSH_MASTER_BINLOG_CLOSED
+--error ER_FLUSH_MASTER_BINLOG_CLOSED
 RESET MASTER;
 
 # issue some statements and check that they don't fail
