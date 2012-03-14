@@ -21,12 +21,12 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Got error -1 from storage engine
 SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Error opening: './/test_wl5522/t1.cfg'
+ERROR HY000: InnoDB: Error opening: 't1.cfg'
 restore: t1
 SET SESSION debug="-d,ib_import_reset_space_and_lsn_failure";
 SET SESSION debug="+d,ib_import_open_tablespace_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Cannot open tablespace './test_wl5522/t1.ibd' file of '"test_wl5522"."t1"' : Tablespace not found
+ERROR HY000: InnoDB: Cannot open tablespace 't1.ibd' file of '"test_wl5522"."t1"' : Tablespace not found
 restore: t1
 SET SESSION debug="-d,ib_import_open_tablespace_failure";
 SET SESSION debug="+d,ib_import_check_bitmap_failure";
@@ -67,6 +67,10 @@ ERROR HY000: Got error -1 from storage engine
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
 SET SESSION debug="-d,ib_import_after_commit_crash";
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
 SET SESSION debug="+d,ib_import_after_checkpoint_crash";
 SELECT COUNT(*) FROM test_wl5522.t1;
 COUNT(*)
@@ -78,9 +82,16 @@ ERROR HY000: Got error -1 from storage engine
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
 SET SESSION debug="-d,ib_import_after_checkpoint_crash";
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+SELECT COUNT(*) FROM test_wl5522.t1;
+COUNT(*)
+3
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+restore: t1
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-Warnings:
-Warning	1050	InnoDB: Tablespace for table test_wl5522/t1 exists. Please DISCARD the tablespace before IMPORT.
 SELECT COUNT(*) FROM test_wl5522.t1;
 COUNT(*)
 3
@@ -101,6 +112,273 @@ c1
 400
 500
 600
+DROP TABLE test_wl5522.t1;
+CREATE TABLE test_wl5522.t1 (
+c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c2 INT, INDEX idx(c2)) Engine=InnoDB;
+INSERT INTO test_wl5522.t1(c2) VALUES(1), (2), (3), (4);
+INSERT INTO test_wl5522.t1(c2) SELECT c2 FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1(c2) SELECT c2 FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1(c2) SELECT c2 FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1(c2) SELECT c2 FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1(c2) SELECT c2 FROM test_wl5522.t1;
+SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
+DELETE FROM test_wl5522.t1 WHERE c2 = 1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+SHOW CREATE TABLE test_wl5522.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `idx` (`c2`)
+) ENGINE=InnoDB AUTO_INCREMENT=248 DEFAULT CHARSET=latin1
+SELECT * FROM test_wl5522.t1;
+c1	c2
+2	32
+3	48
+4	64
+6	92
+7	108
+8	124
+14	212
+15	227
+16	243
+17	258
+18	274
+19	289
+31	467
+32	482
+33	497
+34	512
+35	528
+36	543
+37	558
+38	573
+39	589
+40	604
+41	619
+42	634
+66	992
+67	1007
+68	1022
+69	1037
+70	1052
+71	1067
+72	1082
+73	1097
+74	1113
+75	1128
+76	1143
+77	1158
+78	1173
+79	1188
+80	1203
+81	1218
+82	1234
+83	1249
+84	1264
+85	1279
+86	1294
+87	1309
+88	1324
+89	1339
+137	2057
+138	2072
+139	2087
+140	2102
+141	2117
+142	2132
+143	2147
+144	2162
+145	2177
+146	2192
+147	2207
+148	2222
+149	2237
+150	2252
+151	2267
+152	2282
+153	2298
+154	2313
+155	2328
+156	2343
+157	2358
+158	2373
+159	2388
+160	2403
+161	2418
+162	2433
+163	2448
+164	2463
+165	2478
+166	2493
+167	2508
+168	2523
+169	2539
+170	2554
+171	2569
+172	2584
+173	2599
+174	2614
+175	2629
+176	2644
+177	2659
+178	2674
+179	2689
+180	2704
+181	2719
+182	2734
+183	2749
+184	2764
+SELECT COUNT(*) FROM test_wl5522.t1;
+COUNT(*)
+96
+SELECT SUM(c2) FROM test_wl5522.t1;
+SUM(c2)
+152253
+FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+backup: t1
+UNLOCK TABLES;
+SET GLOBAL INNODB_PURGE_RUN_NOW=ON;
+DROP TABLE test_wl5522.t1;
+CREATE TABLE test_wl5522.t1 (
+c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c2 INT, INDEX idx(c2)) Engine=InnoDB;
+SELECT * FROM test_wl5522.t1;
+c1	c2
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+restore: t1
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+CHECK TABLE test_wl5522.t1;
+Table	Op	Msg_type	Msg_text
+test_wl5522.t1	check	status	OK
+SELECT * FROM test_wl5522.t1;
+c1	c2
+2	32
+3	48
+4	64
+6	92
+7	108
+8	124
+14	212
+15	227
+16	243
+17	258
+18	274
+19	289
+31	467
+32	482
+33	497
+34	512
+35	528
+36	543
+37	558
+38	573
+39	589
+40	604
+41	619
+42	634
+66	992
+67	1007
+68	1022
+69	1037
+70	1052
+71	1067
+72	1082
+73	1097
+74	1113
+75	1128
+76	1143
+77	1158
+78	1173
+79	1188
+80	1203
+81	1218
+82	1234
+83	1249
+84	1264
+85	1279
+86	1294
+87	1309
+88	1324
+89	1339
+137	2057
+138	2072
+139	2087
+140	2102
+141	2117
+142	2132
+143	2147
+144	2162
+145	2177
+146	2192
+147	2207
+148	2222
+149	2237
+150	2252
+151	2267
+152	2282
+153	2298
+154	2313
+155	2328
+156	2343
+157	2358
+158	2373
+159	2388
+160	2403
+161	2418
+162	2433
+163	2448
+164	2463
+165	2478
+166	2493
+167	2508
+168	2523
+169	2539
+170	2554
+171	2569
+172	2584
+173	2599
+174	2614
+175	2629
+176	2644
+177	2659
+178	2674
+179	2689
+180	2704
+181	2719
+182	2734
+183	2749
+184	2764
+SELECT COUNT(*) FROM test_wl5522.t1;
+COUNT(*)
+96
+SELECT SUM(c2) FROM test_wl5522.t1;
+SUM(c2)
+152253
+SHOW CREATE TABLE test_wl5522.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `idx` (`c2`)
+) ENGINE=InnoDB AUTO_INCREMENT=185 DEFAULT CHARSET=latin1
 DROP TABLE test_wl5522.t1;
 DROP DATABASE test_wl5522;
 call mtr.add_suppression("Got error -1 when reading table '.*'");

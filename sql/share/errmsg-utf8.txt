@@ -6731,7 +6731,7 @@ ER_TABLESPACE_MISSING
   eng "Tablespace is missing for table '%s'"
 
 ER_TABLESPACE_EXISTS
-  eng "Tablespace for table '%s' exists. Please DISCARD the tablespace before IMPORT.",
+  eng "Tablespace for table '%s' exists. Please DISCARD the tablespace before IMPORT."
 
 ER_TABLESPACE_DISCARDED
   eng "Tablespace has been discarded for table '%s'"

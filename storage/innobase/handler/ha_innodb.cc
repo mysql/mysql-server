@@ -83,7 +83,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0types.h"
 #include "row0import.h"
 #include "row0quiesce.h"
+#ifdef UNIV_DEBUG
 #include "trx0purge.h"
+#endif /* UNIV_DEBUG */
 
 #include "ha_innodb.h"
 #include "i_s.h"
@@ -9172,8 +9174,13 @@ ha_innobase::discard_or_import_tablespace(
 			dict_table->name, prebuilt->trx);
 
 	} else if (!dict_table->ibd_file_missing) {
-		err = HA_ERR_TABLE_EXIST;
+		/* Commit the transaction in order to
+		release the table lock. */
+		trx_commit_for_mysql(prebuilt->trx);
+
 		my_error(ER_TABLESPACE_EXISTS, MYF(0), dict_table->name);
+
+		DBUG_RETURN(HA_ERR_TABLE_EXIST);
 	} else {
 		error = row_import_for_mysql(dict_table, prebuilt);
 
@@ -14270,6 +14277,7 @@ innobase_fts_find_ranking(
 	return fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id);
 }
 
+#ifdef UNIV_DEBUG
 static my_bool	innodb_purge_run_now = TRUE;
 static my_bool	innodb_purge_stop_now = TRUE;
 
@@ -14318,6 +14326,7 @@ purge_stop_now_set(
 		trx_purge_stop();
 	}
 }
+#endif /* UNIV_DEBUG */
 
 /* These variables are never read by InnoDB or changed. They are a kind of
 dummies that are needed by the MySQL infrastructure to call
@@ -14462,6 +14471,7 @@ static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   "Number of IOPs the server can do. Tunes the background IO rate",
   NULL, NULL, 200, 100, ~0UL, 0);
 
+#ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_BOOL(purge_run_now, innodb_purge_run_now,
   PLUGIN_VAR_OPCMDARG,
   "Set purge state to RUN",
@@ -14471,6 +14481,7 @@ static MYSQL_SYSVAR_BOOL(purge_stop_now, innodb_purge_stop_now,
   PLUGIN_VAR_OPCMDARG,
   "Set purge state to STOP",
   NULL, purge_stop_now_set, TRUE);
+#endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
   PLUGIN_VAR_OPCMDARG,
@@ -15130,8 +15141,10 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(monitor_reset_all),
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
+#ifdef UNIV_DEBUG
   MYSQL_SYSVAR(purge_run_now),
   MYSQL_SYSVAR(purge_stop_now),
+#endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),
   MYSQL_SYSVAR(doublewrite_batch_size),
