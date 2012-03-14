@@ -25,6 +25,7 @@
   Published with a permission.
 */
 
+#include <my_global.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -33,7 +34,6 @@
 #ifndef __WIN__
 # include <unistd.h>
 #endif
-#include <my_global.h>
 #include <my_getopt.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 

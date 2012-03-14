@@ -526,13 +526,13 @@ private:
   friend class Diagnostics_area;
 };
 
-uint err_conv(char *buff, uint to_length, const char *from,
-              uint from_length, const CHARSET_INFO *from_cs);
+uint err_conv(char *buff, size_t to_length, const char *from,
+              size_t from_length, const CHARSET_INFO *from_cs);
 
 class ErrConvString
 {
   char err_buffer[MYSQL_ERRMSG_SIZE];
-  uint buf_length;
+  size_t buf_length;
 public:
   ErrConvString(String *str)
   {

@@ -644,6 +644,12 @@ int thd_tx_isolation(const THD *thd)
 }
 
 extern "C"
+int thd_tx_is_read_only(const THD *thd)
+{
+  return (int) thd->tx_read_only;
+}
+
+extern "C"
 void thd_inc_row_count(THD *thd)
 {
   thd->get_stmt_da()->inc_current_row_for_warning();
@@ -800,7 +806,7 @@ THD::THD(bool enable_plugins)
    in_lock_tables(0),
    bootstrap(0),
    derived_tables_processing(FALSE),
-   spcont(NULL),
+   sp_runtime_ctx(NULL),
    m_parser_state(NULL),
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
@@ -882,6 +888,7 @@ THD::THD(bool enable_plugins)
   proc_info="login";
   where= THD::DEFAULT_WHERE;
   server_id = ::server_id;
+  unmasked_server_id = server_id;
   slave_net = 0;
   set_command(COM_CONNECT);
   *scramble= '\0';
@@ -923,6 +930,9 @@ THD::THD(bool enable_plugins)
   m_binlog_invoker= FALSE;
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
+
+  binlog_next_event_pos.file_name= NULL;
+  binlog_next_event_pos.pos= 0;
 }
 
 
@@ -1249,6 +1259,7 @@ void THD::init(void)
 			TL_WRITE_LOW_PRIORITY :
 			TL_WRITE);
   tx_isolation= (enum_tx_isolation) variables.tx_isolation;
+  tx_read_only= variables.tx_read_only;
   update_charset();
   reset_current_stmt_binlog_format_row();
   memset(&status_var, 0, sizeof(status_var));
@@ -1409,6 +1420,8 @@ THD::~THD()
   mysql_audit_release(this);
   if (m_enable_plugins)
     plugin_thdvar_cleanup(this);
+
+  clear_next_event_pos();
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
@@ -2060,13 +2073,14 @@ int THD::send_explain_fields(select_result *result)
   item->maybe_null=1;
   field_list.push_back(item= new Item_return_int("rows", 10,
                                                  MYSQL_TYPE_LONGLONG));
+  item->maybe_null= 1;
   if (lex->describe & DESCRIBE_EXTENDED)
   {
     field_list.push_back(item= new Item_float("filtered", 0.1234, 2, 4));
     item->maybe_null=1;
   }
-  item->maybe_null= 1;
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
+  item->maybe_null= 1;
   return (result->send_result_set_metadata(field_list,
                                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
@@ -2222,7 +2236,7 @@ void select_send::abort_result_set()
 {
   DBUG_ENTER("select_send::abort_result_set");
 
-  if (is_result_set_started && thd->spcont)
+  if (is_result_set_started && thd->sp_runtime_ctx)
   {
     /*
       We're executing a stored procedure, have an open result
@@ -2233,7 +2247,7 @@ void select_send::abort_result_set()
       otherwise the client will hang due to the violation of the
       client/server protocol.
     */
-    thd->spcont->end_partial_result_set= TRUE;
+    thd->sp_runtime_ctx->end_partial_result_set= TRUE;
   }
   DBUG_VOID_RETURN;
 }
@@ -3346,7 +3360,7 @@ bool select_dumpvar::send_data(List<Item> &items)
   {
     if (mv->local)
     {
-      if (thd->spcont->set_variable(thd, mv->offset, &item))
+      if (thd->sp_runtime_ctx->set_variable(thd, mv->offset, &item))
 	    DBUG_RETURN(1);
     }
     else
@@ -4529,3 +4543,30 @@ void COPY_INFO::set_function_defaults(TABLE *table)
     }
   DBUG_VOID_RETURN;
 }
+
+void THD::set_next_event_pos(const char* _filename, ulonglong _pos)
+{
+  char*& filename= binlog_next_event_pos.file_name;
+  if (filename == NULL)
+  {
+    /* First time, allocate maximal buffer */
+    filename= (char*) my_malloc(FN_REFLEN+1, MYF(MY_WME));
+    if (filename == NULL) return;
+  }
+
+  assert(strlen(_filename) <= FN_REFLEN);
+  strcpy(filename, _filename);
+  filename[ FN_REFLEN ]= 0;
+
+  binlog_next_event_pos.pos= _pos;
+};
+
+void THD::clear_next_event_pos()
+{
+  if (binlog_next_event_pos.file_name != NULL)
+  {
+    my_free(binlog_next_event_pos.file_name);
+  }
+  binlog_next_event_pos.file_name= NULL;
+  binlog_next_event_pos.pos= 0;
+};

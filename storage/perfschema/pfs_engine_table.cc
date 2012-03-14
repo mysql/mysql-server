@@ -32,6 +32,7 @@
 #include "table_events_waits_summary.h"
 #include "table_ews_by_thread_by_event_name.h"
 #include "table_ews_global_by_event_name.h"
+#include "table_host_cache.h"
 #include "table_os_global_by_type.h"
 #include "table_sync_instances.h"
 #include "table_file_instances.h"
@@ -59,6 +60,7 @@
 #include "table_esms_by_user_by_event_name.h"
 #include "table_esms_by_account_by_event_name.h"
 #include "table_esms_global_by_event_name.h"
+#include "table_esms_by_digest.h"
 
 #include "table_users.h"
 #include "table_accounts.h"
@@ -75,6 +77,7 @@
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 #include "pfs_global.h"
+#include "pfs_digest.h"
 
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
@@ -99,6 +102,7 @@ static PFS_engine_table_share *all_shares[]=
   &table_file_instances::m_share,
   &table_file_summary_by_event_name::m_share,
   &table_file_summary_by_instance::m_share,
+  &table_host_cache::m_share,
   &table_mutex_instances::m_share,
   &table_os_global_by_type::m_share,
   &table_performance_timers::m_share,
@@ -130,6 +134,7 @@ static PFS_engine_table_share *all_shares[]=
   &table_esms_by_user_by_event_name::m_share,
   &table_esms_by_host_by_event_name::m_share,
   &table_esms_global_by_event_name::m_share,
+  &table_esms_by_digest::m_share,
 
   &table_users::m_share,
   &table_accounts::m_share,
@@ -152,7 +157,7 @@ void PFS_engine_table_share::check_all_tables(THD *thd)
   DBUG_EXECUTE_IF("tampered_perfschema_table1",
                   {
                     /* Hack SETUP_INSTRUMENT, incompatible change. */
-                    all_shares[19]->m_field_def->count++;
+                    all_shares[20]->m_field_def->count++;
                   });
 
   for (current= &all_shares[0]; (*current) != NULL; current++)
@@ -503,6 +508,16 @@ void PFS_engine_table::set_field_enum(Field *f, ulonglong value)
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
   Field_enum *f2= (Field_enum*) f;
   f2->store_type(value);
+}
+
+void PFS_engine_table::set_field_timestamp(Field *f, ulonglong value)
+{
+  struct timeval tm;
+  tm.tv_sec= (long)(value / 1000000);
+  tm.tv_usec= (long)(value % 1000000);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
+  Field_timestampf *f2= (Field_timestampf*) f;
+  f2->store_timestamp(& tm);
 }
 
 ulonglong PFS_engine_table::get_field_enum(Field *f)
@@ -1303,11 +1318,24 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= socket_max * sizeof(PFS_socket);
       total_memory+= size;
       break;
+    case 134:
+      name= "events_statements_summary_by_digest.row_size";
+      size= sizeof(PFS_statements_digest_stat);
+      break;
+    case 135:
+      name= "events_statements_summary_by_digest.row_count";
+      size= digest_max;
+      break;
+    case 136:
+      name= "events_statements_summary_by_digest.memory";
+      size= digest_max * sizeof(PFS_statements_digest_stat);
+      total_memory+= size;
+      break;    
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 134:
+    case 137:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */

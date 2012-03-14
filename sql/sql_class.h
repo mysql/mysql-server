@@ -724,6 +724,7 @@ typedef struct system_variables
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
   ulonglong long_query_time;
+  my_bool end_markers_in_json;
   /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
   ulonglong optimizer_trace; ///< bitmap to tune optimizer tracing
@@ -789,7 +790,10 @@ typedef struct system_variables
     thread the query is being run to replicate temp tables properly
   */
   my_thread_id pseudo_thread_id;
-
+  /**
+    Default transaction access mode. READ ONLY (true) or READ WRITE (false).
+  */
+  my_bool tx_read_only;
   my_bool low_priority_updates;
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
@@ -841,7 +845,6 @@ typedef struct system_status_var
 {
   ulonglong created_tmp_disk_tables;
   ulonglong created_tmp_tables;
-  ulonglong opt_partial_plans;
   ulonglong ha_commit_count;
   ulonglong ha_delete_count;
   ulonglong ha_read_first_count;
@@ -903,6 +906,7 @@ typedef struct system_status_var
     automatically by add_to_status()/add_diff_to_status().
   */
   double last_query_cost;
+  ulonglong last_query_partial_plans;
 } STATUS_VAR;
 
 /*
@@ -2324,6 +2328,7 @@ private:
   enum enum_server_command m_command;
 
 public:
+  uint32     unmasked_server_id;
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
@@ -2342,6 +2347,15 @@ public:
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
+
+  /*
+    Position of first event in Binlog
+    *after* last event written by this
+    thread.
+  */
+  event_coordinates binlog_next_event_pos;
+  void set_next_event_pos(const char* _filename, ulonglong _pos);
+  void clear_next_event_pos();
 
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
@@ -2860,6 +2874,11 @@ public:
     above.
   */
   enum_tx_isolation tx_isolation;
+  /*
+    Current or next transaction access mode.
+    See comment above regarding tx_isolation.
+  */
+  bool              tx_read_only;
   enum_check_fields count_cuted_fields;
 
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
@@ -2943,7 +2962,8 @@ public:
   bool       derived_tables_processing;
   my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
 
-  sp_rcontext *spcont;		// SP runtime context
+  /** Current SP-runtime context. */
+  sp_rcontext *sp_runtime_ctx;
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
 
@@ -4878,6 +4898,12 @@ public:
 
 /** Identifies statements which may generate an optimizer trace */
 #define CF_OPTIMIZER_TRACE        (1U << 14)
+
+/**
+   Identifies statements that should always be disallowed in
+   read only transactions.
+*/
+#define CF_DISALLOW_IN_RO_TRANS   (1U << 15)
 
 /* Bits in server_command_flags */
 

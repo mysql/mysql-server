@@ -250,6 +250,16 @@ enum enum_server_command
 #define SERVER_PS_OUT_PARAMS            4096
 
 /**
+  Set at the same time as SERVER_STATUS_IN_TRANS if the started
+  multi-statement transaction is a read-only transaction. Cleared
+  when the transaction commits or aborts. Since this flag is sent
+  to clients in OK and EOF packets, the flag indicates the
+  transaction status at the end of command execution.
+*/
+#define SERVER_STATUS_IN_TRANS_READONLY 8192
+
+
+/**
   Server status flags that must be cleared when starting
   execution of a new SQL statement.
   Flags from this set are only added to the

@@ -1,0 +1,199 @@
+############## mysql-test\t\tx_read_only_basic.test ###########################
+#                                                                             #
+# Variable Name: tx_read_only                                                 #
+# Scope: GLOBAL & SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: boolean                                                          #
+# Default Value: OFF                                                          #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2012-01-12                                                   #
+# Author:  joh                                                                #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable tx_read_only             #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.6/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+--echo ####################################################################
+--echo #           START OF tx_read_only TESTS                            #
+--echo ####################################################################
+
+
+--echo #############################################################
+--echo #                 Save initial value                        #
+--echo #############################################################
+
+SET @start_global_value = @@global.tx_read_only;
+SELECT @start_global_value;
+SET @start_session_value = @@session.tx_read_only;
+SELECT @start_session_value;
+
+
+--echo ########################################################################
+--echo #     Display the DEFAULT value of tx_read_only                        #
+--echo ########################################################################
+
+SET @@global.tx_read_only = ON;
+SET @@global.tx_read_only = DEFAULT;
+SELECT @@global.tx_read_only;
+
+SET @@session.tx_read_only = ON;
+SET @@session.tx_read_only = DEFAULT;
+SELECT @@session.tx_read_only;
+
+
+--echo ##############################################################################
+--echo # Change the value of tx_read_only to a valid value for GLOBAL Scope         #
+--echo ##############################################################################
+
+SET @@global.tx_read_only = ON;
+SELECT @@global.tx_read_only;
+SET @@global.tx_read_only = OFF;
+SELECT @@global.tx_read_only;
+SET @@global.tx_read_only = 0;
+SELECT @@global.tx_read_only;
+SET @@global.tx_read_only = 1;
+SELECT @@global.tx_read_only;
+SET @@global.tx_read_only = TRUE;
+SELECT @@global.tx_read_only;
+SET @@global.tx_read_only = FALSE;
+SELECT @@global.tx_read_only;
+
+
+
+--echo ###############################################################################
+--echo # Change the value of tx_read_only to a valid value for SESSION Scope         #
+--echo ###############################################################################
+ 
+SET @@session.tx_read_only = ON;
+SELECT @@session.tx_read_only;
+SET @@session.tx_read_only = OFF;
+SELECT @@session.tx_read_only;
+SET @@session.tx_read_only = 0;
+SELECT @@session.tx_read_only;
+SET @@session.tx_read_only = 1;
+SELECT @@session.tx_read_only;
+SET @@session.tx_read_only = TRUE;
+SELECT @@session.tx_read_only;
+SET @@session.tx_read_only = FALSE;
+SELECT @@session.tx_read_only;
+
+
+--echo ################################################################
+--echo # Change the value of tx_read_only to an invalid value         #
+--echo ################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.tx_read_only = 'ONN';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.tx_read_only = "OFFF";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.tx_read_only = TTRUE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.tx_read_only = FELSE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.tx_read_only = -1024;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.tx_read_only = 65536;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.tx_read_only = 65530.34;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.tx_read_only = test;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.tx_read_only = ONN;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.tx_read_only = ONF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.tx_read_only = OF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.tx_read_only = 'OFN';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.tx_read_only = -2;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.tx_read_only = 65530.34;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.tx_read_only = 65550;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.tx_read_only = test;
+SELECT @@session.tx_read_only;
+
+
+--echo ####################################################################
+--echo #   Check if the value in GLOBAL Table matches value in variable   #
+--echo ####################################################################
+
+
+SELECT IF(@@global.tx_read_only, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='tx_read_only';
+
+--echo ####################################################################
+--echo #  Check if the value in SESSION Table matches value in variable   #
+--echo ####################################################################
+
+SELECT IF(@@session.tx_read_only, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='tx_read_only';
+
+
+--echo ###############################################################################
+--echo #  Check if accessing variable with and without GLOBAL point to same variable #
+--echo ###############################################################################
+
+SET @@tx_read_only = OFF;
+SET @@global.tx_read_only = ON;
+SELECT @@tx_read_only = @@global.tx_read_only;
+
+
+--echo ##############################################################################
+--echo #    Check if accessing variable with SESSION,LOCAL and without SCOPE points #
+--echo #    to same session variable                                                #
+--echo ##############################################################################
+
+SET @@tx_read_only = ON;
+SELECT @@tx_read_only = @@local.tx_read_only;
+SELECT @@local.tx_read_only = @@session.tx_read_only;
+
+
+--echo ###############################################################################
+--echo #   Check if tx_read_only can be accessed with and without @@ sign            #
+--echo ###############################################################################
+
+--echo # @@session is synonym for SESSION
+SET @@session.tx_read_only= 0;
+
+--echo # Without modifier, SET changes session variable
+SET tx_read_only = 1;
+SELECT @@tx_read_only;
+
+--echo # name1.name2 refers to database_name.table_name
+--Error ER_UNKNOWN_TABLE
+SELECT session.tx_read_only;
+
+--echo ####################################
+--echo #     Restore initial value        #
+--echo ####################################
+
+SET @@global.tx_read_only = @start_global_value;
+SELECT @@global.tx_read_only;
+SET @@session.tx_read_only = @start_session_value;
+SELECT @@session.tx_read_only;
+
+
+--echo #########################################################
+--echo #                 END OF tx_read_only TESTS             #
+--echo #########################################################
+

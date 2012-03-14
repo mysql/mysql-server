@@ -419,6 +419,7 @@ my_bool opt_safe_user_create = 0;
 my_bool opt_show_slave_auth_info;
 my_bool opt_log_slave_updates= 0;
 char *opt_slave_skip_errors;
+my_bool opt_slave_allow_batching= 0;
 
 /**
   compatibility option:
@@ -433,6 +434,8 @@ handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *partition_hton;
 
+uint opt_server_id_bits= 0;
+ulong opt_server_id_mask= 0;
 my_bool read_only= 0, opt_readonly= 0;
 my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
@@ -616,6 +619,19 @@ const char *in_additional_cond= "<IN COND>";
 const char *in_having_cond= "<IN HAVING>";
 
 my_decimal decimal_zero;
+/** Number of connection errors when selecting on the listening port */
+ulong connection_errors_select= 0;
+/** Number of connection errors when accepting sockets in the listening port. */
+ulong connection_errors_accept= 0;
+/** Number of connection errors from TCP wrappers. */
+ulong connection_errors_tcpwrap= 0;
+/** Number of connection errors from internal server errors. */
+ulong connection_errors_internal= 0;
+/** Number of connection errors from the server max_connection limit. */
+ulong connection_errors_max_connection= 0;
+/** Number of errors when reading the peer address. */
+ulong connection_errors_peer_addr= 0;
+
 /* classes for comparation parsing/processing */
 Eq_creator eq_creator;
 Ne_creator ne_creator;
@@ -688,7 +704,7 @@ int mysqld_server_started= 0;
 File_parser_dummy_hook file_parser_dummy_hook;
 
 /* replication parameters, if master_host is not NULL, we are a slave */
-uint report_port= MYSQL_PORT;
+uint report_port= 0;
 ulong master_retry_count=0;
 char *master_info_file;
 char *relay_log_info_file, *report_user, *report_password, *report_host;
@@ -1921,6 +1937,11 @@ static void network_init(void)
 
   set_ports();
 
+  if (report_port == 0)
+  {
+    report_port= mysqld_port;
+  }
+  DBUG_ASSERT(report_port != 0);
   if (mysqld_port != 0 && !opt_disable_networking && !opt_bootstrap)
   {
     struct addrinfo *ai, *a;
@@ -2546,10 +2567,6 @@ static void check_data_home(const char *path)
 
 #endif /* __WIN__ */
 
-#ifdef HAVE_LINUXTHREADS
-#define UNSAFE_DEFAULT_LINUX_THREADS 200
-#endif
-
 
 #if BACKTRACE_DEMANGLE
 #include <cxxabi.h>
@@ -2691,7 +2708,6 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   sigset_t set;
   int sig;
   my_thread_init();       // Init new thread
-  DBUG_ENTER("signal_hand");
   signal_thread_in_use= 1;
 
   /*
@@ -2757,10 +2773,8 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       while ((error=my_sigwait(&set,&sig)) == EINTR) ;
     if (cleanup_done)
     {
-      DBUG_PRINT("quit",("signal_handler: calling my_thread_end()"));
       my_thread_end();
       signal_thread_in_use= 0;
-      DBUG_LEAVE;                               // Must match DBUG_ENTER()
       pthread_exit(0);        // Safety
       return 0;                                 // Avoid compiler warnings
     }
@@ -3242,6 +3256,12 @@ rpl_make_log_name(const char *opt,
 int init_common_variables()
 {
   umask(((~my_umask) & 0666));
+  connection_errors_select= 0;
+  connection_errors_accept= 0;
+  connection_errors_tcpwrap= 0;
+  connection_errors_internal= 0;
+  connection_errors_max_connection= 0;
+  connection_errors_peer_addr= 0;
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();      // Set tzname
 
@@ -4213,6 +4233,18 @@ will be ignored as the --log-bin option is not defined.");
   }
 #endif
 
+  opt_server_id_mask = ~ulong(0);
+#ifdef HAVE_REPLICATION
+  opt_server_id_mask = (opt_server_id_bits == 32)?
+    ~ ulong(0) : (1 << opt_server_id_bits) -1;
+  if (server_id != (server_id & opt_server_id_mask))
+  {
+    sql_print_error("server-id configured is too large to represent with"
+                    "server-id-bits configured.");
+    unireg_abort(1);
+  }
+#endif
+
   if (opt_bin_log)
   {
     /* Reports an error and aborts, if the --log-bin's path
@@ -5102,6 +5134,16 @@ int mysqld_main(int argc, char **argv)
   mysql_cond_signal(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  /* engine specific hook, to be made generic */
+  if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
+  {
+    sql_print_warning("NDB : Tables not available after %lu seconds."
+                      "  Consider increasing --ndb-wait-setup value",
+                      opt_ndb_wait_setup);
+  }
+#endif
+
 #if defined(_WIN32) || defined(HAVE_SMEM)
   handle_connections_methods();
 #else
@@ -5507,6 +5549,7 @@ void create_thread_to_handle_connection(THD *thd)
       mysql_mutex_unlock(&LOCK_connection_count);
 
       statistic_increment(aborted_connects,&LOCK_status);
+      statistic_increment(connection_errors_internal, &LOCK_status);
       /* Can't use my_error() since store_globals has not been called. */
       my_snprintf(error_message_buff, sizeof(error_message_buff),
                   ER_THD(thd, ER_CANT_CREATE_THREAD), error);
@@ -5553,8 +5596,21 @@ static void create_new_thread(THD *thd)
     mysql_mutex_unlock(&LOCK_connection_count);
 
     DBUG_PRINT("error",("Too many connections"));
+    /*
+      The server just accepted the socket connection from the network,
+      and we already have too many connections.
+      Note that the server knows nothing of the client yet,
+      and in particular thd->client_capabilities has not been negotiated.
+      ER_CON_COUNT_ERROR is normally associated with SQLSTATE '08004',
+      but sending a SQLSTATE in the network assumes CLIENT_PROTOCOL_41.
+      See net_send_error_packet().
+      The error packet returned here will only contain the error code,
+      with no sqlstate.
+      A client expecting a SQLSTATE will not find any, and assume 'HY000'.
+    */
     close_connection(thd, ER_CON_COUNT_ERROR);
     delete thd;
+    statistic_increment(connection_errors_max_connection, &LOCK_status);
     DBUG_VOID_RETURN;
   }
 
@@ -5679,6 +5735,12 @@ void handle_connections_sockets()
     {
       if (socket_errno != SOCKET_EINTR)
       {
+        /*
+          select(2)/poll(2) failed on the listening port.
+          There is not much details to report about the client,
+          increment the server global status variable.
+        */
+        statistic_increment(connection_errors_select, &LOCK_status);
         if (!select_errors++ && !abort_loop)  /* purecov: inspected */
           sql_print_error("mysqld: Got error %d from select",socket_errno); /* purecov: inspected */
       }
@@ -5755,6 +5817,12 @@ void handle_connections_sockets()
 #endif
     if (mysql_socket_getfd(new_sock) == INVALID_SOCKET)
     {
+      /*
+        accept(2) failed on the listening port, after many retries.
+        There is not much details to report about the client,
+        increment the server global status variable.
+      */
+      statistic_increment(connection_errors_accept, &LOCK_status);
       if ((error_count++ & 255) == 0)   // This can happen often
         sql_perror("Error in accept");
       MAYBE_BROKEN_SYSCALL;
@@ -5772,46 +5840,37 @@ void handle_connections_sockets()
         request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, mysql_socket_getfd(new_sock), NULL);
         my_fromhost(&req);
 
-  if (!my_hosts_access(&req))
-  {
-    /*
-      This may be stupid but refuse() includes an exit(0)
-      which we surely don't want...
-      clean_exit() - same stupid thing ...
-    */
-    syslog(deny_severity, "refused connect from %s",
-     my_eval_client(&req));
+        if (!my_hosts_access(&req))
+        {
+          /*
+            This may be stupid but refuse() includes an exit(0)
+            which we surely don't want...
+            clean_exit() - same stupid thing ...
+          */
+          syslog(deny_severity, "refused connect from %s",
+          my_eval_client(&req));
 
-    /*
-      C++ sucks (the gibberish in front just translates the supplied
-      sink function pointer in the req structure from a void (*sink)();
-      to a void(*sink)(int) if you omit the cast, the C++ compiler
-      will cry...
-    */
-    if (req.sink)
-      ((void (*)(int))req.sink)(req.fd);
+          /*
+            C++ sucks (the gibberish in front just translates the supplied
+            sink function pointer in the req structure from a void (*sink)();
+            to a void(*sink)(int) if you omit the cast, the C++ compiler
+            will cry...
+          */
+          if (req.sink)
+            ((void (*)(int))req.sink)(req.fd);
 
-          (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
-          (void) mysql_socket_close(new_sock);
+          mysql_socket_shutdown(new_sock, SHUT_RDWR);
+          mysql_socket_close(new_sock);
+          /*
+            The connection was refused by TCP wrappers.
+            There are no details (by client IP) available to update the host_cache.
+          */
+          statistic_increment(connection_tcpwrap_errors, &LOCK_status);
           continue;
         }
       }
     }
 #endif /* HAVE_LIBWRAP */
-
-    {
-      size_socket dummyLen;
-      struct sockaddr_storage dummy;
-      dummyLen = sizeof(dummy);
-      if (  mysql_socket_getsockname(new_sock, (struct sockaddr *)&dummy,
-                  (SOCKET_SIZE_TYPE *)&dummyLen) < 0  )
-      {
-        sql_perror("Error on new connection socket");
-        (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
-        (void) mysql_socket_close(new_sock);
-        continue;
-      }
-    }
 
     /*
     ** Don't allow too many connections
@@ -5821,6 +5880,7 @@ void handle_connections_sockets()
     {
       (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
       (void) mysql_socket_close(new_sock);
+      statistic_increment(connection_errors_internal, &LOCK_status);
       continue;
     }
 
@@ -5845,6 +5905,7 @@ void handle_connections_sockets()
         (void) mysql_socket_close(new_sock);
       }
       delete thd;
+      statistic_increment(connection_errors_internal, &LOCK_status);
       continue;
     }
     init_net_server_extension(thd);
@@ -6567,6 +6628,12 @@ struct my_option my_long_options[]=
    &global_system_variables.tx_isolation,
    &global_system_variables.tx_isolation, &tx_isolation_typelib,
    GET_ENUM, REQUIRED_ARG, ISO_REPEATABLE_READ, 0, 0, 0, 0, 0},
+  {"transaction-read-only", 0,
+   "Default transaction access mode. "
+   "True if transactions are read-only.",
+   &global_system_variables.tx_read_only,
+   &global_system_variables.tx_read_only, 0,
+   GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Used with --help option for detailed help.",
@@ -7124,6 +7191,12 @@ SHOW_VAR status_vars[]= {
   {"Com",                      (char*) com_status_vars, SHOW_ARRAY},
   {"Compression",              (char*) &show_net_compression, SHOW_FUNC},
   {"Connections",              (char*) &thread_id,              SHOW_LONG_NOFLUSH},
+  {"Connection_errors_accept", (char*) &connection_errors_accept, SHOW_LONG},
+  {"Connection_errors_internal", (char*) &connection_errors_internal, SHOW_LONG},
+  {"Connection_errors_max_connections", (char*) &connection_errors_max_connection, SHOW_LONG},
+  {"Connection_errors_peer_address", (char*) &connection_errors_peer_addr, SHOW_LONG},
+  {"Connection_errors_select", (char*) &connection_errors_select, SHOW_LONG},
+  {"Connection_errors_tcpwrap", (char*) &connection_errors_tcpwrap, SHOW_LONG},
   {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR, created_tmp_disk_tables), SHOW_LONGLONG_STATUS},
   {"Created_tmp_files",        (char*) &my_tmp_file_created, SHOW_LONG},
   {"Created_tmp_tables",       (char*) offsetof(STATUS_VAR, created_tmp_tables), SHOW_LONGLONG_STATUS},
@@ -7157,6 +7230,7 @@ SHOW_VAR status_vars[]= {
   {"Key_write_requests",       (char*) offsetof(KEY_CACHE, global_cache_w_requests), SHOW_KEY_CACHE_LONGLONG},
   {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write), SHOW_KEY_CACHE_LONGLONG},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
+  {"Last_query_partial_plans", (char*) offsetof(STATUS_VAR, last_query_partial_plans), SHOW_LONGLONG_STATUS},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_NOFLUSH},
@@ -7166,7 +7240,6 @@ SHOW_VAR status_vars[]= {
   {"Opened_files",             (char*) &my_file_total_opened, SHOW_LONG_NOFLUSH},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONGLONG_STATUS},
   {"Opened_table_definitions", (char*) offsetof(STATUS_VAR, opened_shares), SHOW_LONGLONG_STATUS},
-  {"Opt_partial_plans",        (char*) offsetof(STATUS_VAR, opt_partial_plans), SHOW_LONGLONG_STATUS},
   {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count, SHOW_FUNC},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_NOFLUSH},

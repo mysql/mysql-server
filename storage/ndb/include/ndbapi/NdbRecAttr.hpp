@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NdbRecAttr_H
 #define NdbRecAttr_H
@@ -73,10 +75,12 @@ class NdbRecAttr
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbOperation;
+  friend class NdbScanOperation;
   friend class NdbIndexScanOperation;
   friend class NdbEventOperationImpl;
   friend class NdbReceiver;
   friend class Ndb;
+  friend class NdbQueryOperationImpl;
   friend class NdbOut& operator<<(class NdbOut&, const class AttributeS&);
 #endif
 
@@ -276,6 +280,7 @@ private:
 
   int setup(const class NdbDictionary::Column* col, char* aValue);
   int setup(const class NdbColumnImpl* anAttrInfo, char* aValue);
+  int setup(Uint32 byteSize, char* aValue);
                                 /* Set up attributes and buffers        */
   bool copyoutRequired() const; /* Need to copy data to application     */
   void copyout();               /* Copy from storage to application     */
@@ -291,7 +296,13 @@ private:
   Int32 m_size_in_bytes;
   const NdbDictionary::Column* m_column;
 
+  // not-NULL means skip length bytes and store their value here
+  Uint16* m_getVarValue;
+
   friend struct Ndb_free_list_t<NdbRecAttr>;
+
+  NdbRecAttr(const NdbRecAttr&); // Not impl.
+  NdbRecAttr&operator=(const NdbRecAttr&);
 };
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -383,6 +394,7 @@ NdbRecAttr::init()
   theRef = 0;
   theNext = 0;
   theAttrId = 0xFFFF;
+  m_getVarValue = 0;
 }
 
 inline
@@ -451,21 +463,15 @@ NdbRecAttr::setUNDEFINED()
 
 class NdbOut& operator <<(class NdbOut&, const NdbRecAttr &);
 
-class NdbRecordPrintFormat
+class NdbRecordPrintFormat : public NdbDictionary::NdbDataPrintFormat
 {
 public:
-  NdbRecordPrintFormat();
-  virtual ~NdbRecordPrintFormat();
-  const char *lines_terminated_by;
-  const char *fields_terminated_by;
-  const char *start_array_enclosure;
-  const char *end_array_enclosure;
-  const char *fields_enclosed_by;
-  const char *fields_optionally_enclosed_by;
-  const char *hex_prefix;
-  const char *null_string;
-  int hex_format;
+  NdbRecordPrintFormat() : NdbDataPrintFormat() {};
+  virtual ~NdbRecordPrintFormat() {};
 };
+
+/* See also NdbDictionary::printFormattedValue() */
+
 NdbOut&
 ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
                            const NdbRecordPrintFormat &f);

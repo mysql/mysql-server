@@ -31,6 +31,7 @@
 #include "sql_show.h"                  // append_identifier
 #include "sql_select.h"                // JOIN
 #include "sql_optimizer.h"             // JOIN
+#include <mysql/psi/mysql_statement.h>
 
 static int lex_one_token(void *arg, void *yythd);
 
@@ -114,6 +115,22 @@ const char * index_hint_type_name[] =
   "USE INDEX", 
   "FORCE INDEX"
 };
+
+
+/**
+  @note The order of the elements of this array must correspond to
+  the order of elements in type_enum
+*/
+const char *st_select_lex::type_str[SLT_total]=
+{ "NONE",
+  "PRIMARY",
+  "SIMPLE",
+  "DERIVED",
+  "SUBQUERY",
+  "UNION",
+  "UNION RESULT"
+};
+
 
 inline int lex_casecmp(const char *s, const char *t, uint len)
 {
@@ -414,7 +431,7 @@ void lex_start(THD *thd)
   lex->ignore= 0;
   lex->spname= NULL;
   lex->sphead= NULL;
-  lex->spcont= NULL;
+  lex->set_sp_current_parsing_ctx(NULL);
   lex->m_sql_cmd= NULL;
   lex->proc_list.first= 0;
   lex->escape_used= FALSE;
@@ -445,7 +462,7 @@ void lex_start(THD *thd)
   lex->server_options.socket= 0;
   lex->server_options.owner= 0;
   lex->server_options.port= -1;
-
+  lex->explain_format= NULL;
   lex->is_lex_started= TRUE;
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
@@ -884,6 +901,7 @@ int MYSQLlex(void *arg, void *yythd)
     lip->lookahead_token= -1;
     *yylval= *(lip->lookahead_yylval);
     lip->lookahead_yylval= NULL;
+    lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
     return token;
   }
 
@@ -901,8 +919,12 @@ int MYSQLlex(void *arg, void *yythd)
     token= lex_one_token(arg, yythd);
     switch(token) {
     case CUBE_SYM:
+      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_CUBE_SYM,
+                                         yylval);
       return WITH_CUBE_SYM;
     case ROLLUP_SYM:
+      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_ROLLUP_SYM,
+                                         yylval);
       return WITH_ROLLUP_SYM;
     default:
       /*
@@ -911,6 +933,7 @@ int MYSQLlex(void *arg, void *yythd)
       lip->lookahead_yylval= lip->yylval;
       lip->yylval= NULL;
       lip->lookahead_token= token;
+      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH, yylval);
       return WITH;
     }
     break;
@@ -918,6 +941,7 @@ int MYSQLlex(void *arg, void *yythd)
     break;
   }
 
+  lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
   return token;
 }
 
@@ -1804,7 +1828,7 @@ void st_select_lex::init_select()
   group_list.empty();
   if (group_list_ptrs)
     group_list_ptrs->clear();
-  type= db= 0;
+  db= 0;
   having= 0;
   table_join_options= 0;
   in_sum_expr= with_wild= 0;
@@ -3710,6 +3734,29 @@ bool st_select_lex::handle_derived(LEX *lex,
       return TRUE;
   }
   return FALSE;
+}
+
+
+st_select_lex::type_enum st_select_lex::type(const THD *thd)
+{
+  if (master_unit()->fake_select_lex == this)
+    return SLT_UNION_RESULT;
+  else if (&thd->lex->select_lex == this) 
+  {
+    if (first_inner_unit() || next_select())
+      return SLT_PRIMARY;
+    else
+      return SLT_SIMPLE;
+  }
+  else if (this == master_unit()->first_select())
+  {
+    if (linkage == DERIVED_TABLE_TYPE) 
+      return SLT_DERIVED;
+    else
+      return SLT_SUBQUERY;
+  }
+  else
+    return SLT_UNION;
 }
 
 

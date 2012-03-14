@@ -1,0 +1,299 @@
+######################################################################
+# Test restoring backups with widening type conversions (promotion)
+######################################################################
+
+-- source include/have_ndb.inc
+-- source include/not_embedded.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t1_myisam,  t2, t2_myisam;
+--enable_warnings
+
+#The first step is to test the int type promotion
+
+create table t1(t1 tinyint, t2 tinyint, ut1 tinyint unsigned, 
+  s1 smallint, s2 smallint, us1 smallint unsigned, 
+  m1 mediumint, m2 mediumint, um1 mediumint unsigned, 
+  i1 int, i2 int, ui1 int unsigned, 
+  b1 bigint, b2 bigint, ub1 bigint unsigned
+)engine=ndb;
+
+insert into t1 values(127, -128, 255, 32767, -32768, 65535, 8388607, -8388608, 
+16777215, 2147483647, -2147483648, 4294967295, 9223372036854775807,
+-9223372036854775808, 18446744073709551615);
+
+##############################
+# Backup       section #
+##############################
+--echo *********************************
+--echo * Backup the int type
+--echo *********************************
+--source include/ndb_backup.inc
+
+--echo ************************************
+--echo * Restore  the int type not promoted
+--echo ************************************
+delete from t1;
+
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select * from t1;
+
+######################################
+# Type promotion and restore section #
+######################################
+
+#The first group type promotion
+--echo ******************************************
+--echo * The first group type promotion including:
+--echo * tinyint(unsigned)->smallint(unsigned), 
+--echo * smallint(unsigned)->mediumint(unsigned),
+--echo * mediumint(unsigned)->int(unsigned),
+--echo * int(unsigned)->bigint(unsigned) 
+--echo ******************************************
+
+alter table t1 modify column t1 smallint, modify column t2 smallint, 
+  modify column ut1 smallint unsigned, modify column s1 mediumint, 
+  modify column s2 mediumint, modify column us1 mediumint unsigned, 
+  modify column m1 int, modify column m2 int, modify column um1 int unsigned, 
+  modify column i1 bigint, modify column i2 bigint, 
+  modify column ui1 bigint unsigned;
+
+#Create Myisam table from altered ndb table, which is to compare the data between in ndb table and in myisam table after promotion
+create table t1_myisam as select * from t1;
+
+delete from t1;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select count(*) from t1 natural join t1_myisam;
+
+#The second group type promotion
+--echo ********************************************
+--echo * The second group type promotion including:
+--echo * tinyint(unsigned)->mediumint(unsigned),
+--echo * smallint(unsigned)->int(unsigned),
+--echo * mediumint(unsigned)->bigint(unsigned),
+--echo * int(unsigned)->bigint(unsigned)
+--echo *********************************************
+drop table t1_myisam;
+
+alter table t1 modify column t1 mediumint, modify column t2 mediumint, 
+  modify column ut1 mediumint unsigned, modify column s1 int, 
+  modify column s2 int, modify column us1 int unsigned, 
+  modify column m1 bigint, modify column m2 bigint, 
+  modify column um1 bigint unsigned, modify column i1 bigint, 
+  modify column i2 bigint, modify column ui1 bigint unsigned;
+
+#Create Myisam table from altered ndb table, which is to compare the data between in ndb table and in myisam table after promotion
+create table t1_myisam as select * from t1;
+
+delete from t1;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select count(*) from t1 natural join t1_myisam;
+
+#The third group type promotion
+--echo *******************************************
+--echo * The third group type promotion including:
+--echo * tinyint(unsigned)->int(unsigned),
+--echo * smallint(unsigned)->bigint(unsigned),
+--echo * mediumint(unsigned)->bigint(unsigned),
+--echo * int(unsigned)->bigint(unsigned)
+--echo *******************************************
+drop table t1_myisam;
+
+alter table t1 modify column t1 int, modify column t2 int, 
+  modify column ut1 int unsigned, modify column s1 bigint, 
+  modify column s2 bigint, modify column us1 bigint unsigned, 
+  modify column m1 bigint, modify column m2 bigint, 
+  modify column um1 bigint unsigned, modify column i1 bigint, 
+  modify column i2 bigint, modify column ui1 bigint unsigned;
+
+#Create Myisam table from altered ndb table, which is to compare the data between in ndb table and in myisam table after promotion
+create table t1_myisam as select * from t1;
+delete from t1;
+
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select count(*) from t1 natural join t1_myisam;
+
+#The fourth group type promotion
+--echo ********************************************
+--echo * The fourth group type promotion including:
+--echo * tinyint(unsigned)->bigint(unsigned),
+--echo * smallint(unsigned)->bigint(unsigned),
+--echo * mediumint(unsigned)->bigint(unsigned),
+--echo * int(unsigned)->bigint(unsigned)
+--echo ********************************************
+drop table t1_myisam;
+
+alter table t1 modify column t1 bigint, modify column t2 bigint, 
+  modify column ut1 bigint unsigned, modify column s1 bigint, 
+  modify column s2 bigint, modify column us1 bigint unsigned, 
+  modify column m1 bigint, modify column m2 bigint, 
+  modify column um1 bigint unsigned, modify column i1 bigint, 
+  modify column i2 bigint, modify column ui1 bigint unsigned;
+
+#Create Myisam table from altered ndb table, which is to compare the data between in ndb table and in myisam table after promotion
+create table t1_myisam as select * from t1;
+delete from t1;
+
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select count(*) from t1 natural join t1_myisam;
+
+drop table t1;
+drop table t1_myisam;
+
+#The second step is to test the char and binary type promotion
+create table t2(ch1 char(20), ch2 char(200), vch1 varchar(20), 
+  vch2 varchar(200), vch3 varchar(2000), b1 binary(20), b2 binary(200), 
+  vb1 varbinary(20), vb2 varbinary(200), vb3 varbinary(2000)
+)engine = ndb;
+
+insert into t2 values(repeat('a', 20), repeat('b', 200), repeat('c', 20),
+  repeat('d', 200), repeat('e', 1000), repeat('f', 20), repeat('g', 200),
+  repeat('h', 20), repeat('i', 200), repeat('j', 1500));
+
+--echo *********************************
+--echo * Backup the char and binary type
+--echo *********************************
+--source include/ndb_backup.inc
+
+--echo ************************************************
+--echo * Restore the char and binary type not promoted
+--echo ************************************************
+
+delete from t2;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select * from t2;
+select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
+  length(b1),length(b2),length(vb1),length(vb2),length(vb3) from t2;
+
+--echo *************************************************
+--echo * char, binary, varchar, varbinary type promotion
+--echo *************************************************
+
+alter table t2 modify column ch1 char(255), modify column ch2 varchar(200), 
+  modify column vch1 varchar(200), modify column vch2 varchar(500), 
+  modify column vch3 varchar(2500), modify column b1 binary(255), 
+  modify column b2 varbinary(255), modify column vb1 varbinary(100), 
+  modify column vb2 varbinary(300), modify column vb3 varbinary(2100);
+
+#Create Myisam table from altered ndb table, which is to compare the data between in ndb table and in myisam table  after promotion
+create table t2_myisam as select * from t2;
+show create table t2_myisam;
+
+select * from t2_myisam;
+select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
+  length(b1),length(b2),length(vb1),length(vb2),length(vb3) from t2_myisam;
+
+--echo *************************************************
+--echo * Restore data with truncating the tail spaces
+--echo *************************************************
+delete from t2;
+
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select * from t2;
+select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
+  length(b1),length(b2),length(vb1),length(vb2),length(vb3) from t2;
+
+
+select count(*) from t2 natural join t2_myisam;
+
+--echo *************************************************
+--echo * Restore data with reserving the tail spaces
+--echo *************************************************
+delete from t2;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -P -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -P -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select * from t2;
+select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
+  length(b1),length(b2),length(vb1),length(vb2),length(vb3) from t2;
+
+select count(*) from t2 natural join t2_myisam;
+
+drop table t2;
+drop table t2_myisam;
+# End of 5.1 Test Case
+
+#
+# bug#43139
+# test - 1) changing of order in table
+#        2) removal/adding of columns
+create table t1(a int primary key,
+                b char(1),
+                c char(1),
+                d char(1),
+                e char(1)) engine = ndb;
+
+insert into t1 values (1, 'B', 'c', 'd', 'e');
+insert into t1 values (2, 'b', 'C', 'd', 'e');
+insert into t1 values (3, 'b', 'c', 'D', 'e');
+insert into t1 values (4, 'b', 'c', 'd', 'E');
+
+--source include/ndb_backup.inc
+drop table t1;
+create table t1(c char(1),
+                a int primary key,
+                e char(1),
+                d char(1)) engine = ndb;
+
+--exec $NDB_RESTORE --no-defaults --exclude-missing-columns -b $the_backup_id -n 1 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --exclude-missing-columns -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select a,c,d,e from t1 order by a;
+drop table t1;
+ 
+# Testcase for restore with native default added to table (WL4197)
+create table subject(pk int primary key, band varchar(50), pos int) engine=ndb;
+
+insert into subject values (1, 'Elbow', 1), (2, 'Franz Ferdinand', 2), (3, 'Proclaimers', 3);
+insert into subject values (4, 'David Bowie', 4), (5, 'Rufus Wainwright', 1);
+
+select * from subject order by pk;
+
+--echo **************************
+--echo Performing backup of table
+--echo **************************
+
+--source include/ndb_backup.inc
+
+--echo ******************
+--echo Throwing away data
+--echo ******************
+delete from subject;
+
+select * from subject order by pk;
+
+--echo *******************************************************
+--echo Modifying table to include new, native defaulted column
+--echo *******************************************************
+alter table subject add column song varchar(50) default 'Unknown';
+
+--echo ***********************************************************
+--echo Restoring data back into table and picking up default value
+--echo ***********************************************************
+
+# Note testcase nastily assumes 2 nodes, called 1 + 2.
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --print --print_meta --skip-table-check $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta --skip-table-check $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo ****************************************************
+--echo All restored entries should have song name 'Unknown'
+--echo ****************************************************
+
+select * from subject order by pk;
+
+drop table subject;
+# End of testcase for WL4197

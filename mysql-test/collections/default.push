@@ -3,3 +3,4 @@ perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_ps_row --v
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_embedded --vardir=var-main_emebbed  --suite=main --embedded --experimental=collections/default.experimental --skip-ndb
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_4k_size --vardir=var-innodb-4k --experimental=collections/default.experimental --skip-ndb --suite=innodb --mysqld=--innodb-page-size=4k
 perl mysql-test-run.pl --timer --force --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --skip-ndb --parallel=1 --retry=0 --suite=memcached --mysqld=--innodb-page-size=4k
+perl mysql-test-run.pl --timer --force --comment=explain-json --vardir=var-explain-json  --suite=explain_json_validate 
