@@ -1,4 +1,9 @@
 #
+# Replication is disabled in embedded mode.
+#
+--source include/not_embedded.inc
+
+#
 # Checks how replication commands behave when replication if OFF
 # due to server-id = 0.
 #
