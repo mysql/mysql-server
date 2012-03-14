@@ -388,6 +388,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (thd->slave_thread)
     {
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+      DBUG_ASSERT(active_mi != NULL);
       if (strncmp(active_mi->rli->slave_patternload_file, name,
                   active_mi->rli->slave_patternload_file_size))
       {

@@ -6714,3 +6714,6 @@ ER_UNKNOWN_EXPLAIN_FORMAT
 
 ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION 25006
   eng "Cannot execute statement in a READ ONLY transaction."
+
+ER_SLAVE_CONFIGURATION
+  eng "Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log."
