@@ -1709,7 +1709,7 @@ int reset_master(THD* thd)
   @retval FALSE success
   @retval TRUE failure
 */
-bool show_binlog_info(THD* thd)
+bool show_master_status(THD* thd)
 {
   Protocol *protocol= thd->protocol;
   char* gtid_set_buffer= NULL;

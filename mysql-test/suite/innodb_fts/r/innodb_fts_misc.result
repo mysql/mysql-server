@@ -740,3 +740,139 @@ INSERT INTO t1 values (1,'aaa');
 DELETE FROM t1 WHERE MATCH(char_column) AGAINST ('bbb')
 SET @@autocommit=1;
 DROP TABLE t1;
+"----------Test28---------"
+drop table if exists `fts_test`;
+Warnings:
+Note	1051	Unknown table 'test.fts_test'
+create table `fts_test`(`a` text,fulltext key(`a`))engine=innodb;
+set session autocommit=0;
+insert into `fts_test` values ('');
+savepoint `b`;
+savepoint `b`;
+set session autocommit=1;
+DROP TABLE fts_test;
+"----------Test29---------"
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...');
+start transaction;
+INSERT INTO articles (title,body) VALUES 
+('How To Use MySQL Well','After you went through a ...');
+savepoint `a1`;
+INSERT INTO articles (title,body) VALUES
+('Optimizing MySQL','In this tutorial we will show ...');
+savepoint `a2`;
+INSERT INTO articles (title,body) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...');
+savepoint `a3`;
+INSERT INTO articles (title,body) VALUES
+('MySQL vs. YourSQL','In the following database comparison ...');
+savepoint `a4`;
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+rollback to savepoint a3;
+select title, body from articles;
+title	body
+MySQL Tutorial	DBMS stands for DataBase ...
+How To Use MySQL Well	After you went through a ...
+Optimizing MySQL	In this tutorial we will show ...
+1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+INSERT INTO articles (title,body) VALUES
+('MySQL Security','When configured properly, MySQL ...');
+savepoint `a5`;
+select title, body from articles;
+title	body
+MySQL Tutorial	DBMS stands for DataBase ...
+How To Use MySQL Well	After you went through a ...
+Optimizing MySQL	In this tutorial we will show ...
+1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+MySQL Security	When configured properly, MySQL ...
+rollback to savepoint a2;
+select title, body from articles;
+title	body
+MySQL Tutorial	DBMS stands for DataBase ...
+How To Use MySQL Well	After you went through a ...
+Optimizing MySQL	In this tutorial we will show ...
+commit;
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+DROP TABLE articles;
+"----------Test30---------"
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...');
+start transaction;
+INSERT INTO articles (title,body) VALUES 
+('How To Use MySQL Well','After you went through a ...');
+savepoint `a1`;
+INSERT INTO articles (title,body) VALUES
+('Optimizing MySQL','In this tutorial we will show ...');
+savepoint `a2`;
+INSERT INTO articles (title,body) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...');
+savepoint `a3`;
+INSERT INTO articles (title,body) VALUES
+('MySQL vs. YourSQL','In the following database comparison ...');
+savepoint `a4`;
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+rollback to savepoint a3;
+select title, body from articles;
+title	body
+MySQL Tutorial	DBMS stands for DataBase ...
+How To Use MySQL Well	After you went through a ...
+Optimizing MySQL	In this tutorial we will show ...
+1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+INSERT INTO articles (title,body) VALUES
+('MySQL Security','When configured properly, MySQL ...');
+savepoint `a5`;
+select title, body from articles;
+title	body
+MySQL Tutorial	DBMS stands for DataBase ...
+How To Use MySQL Well	After you went through a ...
+Optimizing MySQL	In this tutorial we will show ...
+1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+MySQL Security	When configured properly, MySQL ...
+rollback to savepoint a2;
+select title, body from articles;
+title	body
+MySQL Tutorial	DBMS stands for DataBase ...
+How To Use MySQL Well	After you went through a ...
+Optimizing MySQL	In this tutorial we will show ...
+rollback;
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+DROP TABLE articles;

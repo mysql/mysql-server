@@ -2347,6 +2347,15 @@ public:
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
+  /*
+    Position of first event in Binlog
+    *after* last event written by this
+    thread.
+  */
+  event_coordinates binlog_next_event_pos;
+  void set_next_event_pos(const char* _filename, ulonglong _pos);
+  void clear_next_event_pos();
+
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
@@ -2952,7 +2961,8 @@ public:
   bool       derived_tables_processing;
   my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
 
-  sp_rcontext *spcont;		// SP runtime context
+  /** Current SP-runtime context. */
+  sp_rcontext *sp_runtime_ctx;
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
 
