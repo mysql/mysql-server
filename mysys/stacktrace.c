@@ -685,7 +685,7 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
       &(package.sym));
     have_source= pSymGetLineFromAddr64(hProcess, addr, &line_offset, &line);
 
-    my_safe_printf_stderr("%p    ", addr);
+    fprintf(stderr,"%p    ", addr);
     if(have_module)
     {
       char *base_image_name= strrchr(module.ImageName, '\\');
@@ -693,13 +693,12 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
         base_image_name++;
       else
         base_image_name= module.ImageName;
-      my_safe_printf_stderr("%s!", base_image_name);
+      fprintf(stderr,"%s!", base_image_name);
     }
     if(have_symbol)
-      my_safe_printf_stderr("%s()", package.sym.Name);
-
+      fprintf(stderr, "%s()", package.sym.Name);
     else if(have_module)
-      my_safe_printf_stderr("%s", "???");
+      fprintf(stderr,"%s", "???");
 
     if(have_source)
     {
@@ -708,10 +707,10 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
         base_file_name++;
       else
         base_file_name= line.FileName;
-      my_safe_printf_stderr("[%s:%u]",
+      fprintf(stderr, "[%s:%u]",
                             base_file_name, line.LineNumber);
     }
-    my_safe_printf_stderr("%s", "\n");
+    fprintf(stderr,"%s", "\n");
   }
 }
 
@@ -785,10 +784,7 @@ void my_safe_print_str(const char *val, int len)
 #ifdef __WIN__
 size_t my_write_stderr(const void *buf, size_t count)
 {
-  DWORD bytes_written;
-  SetFilePointer(GetStdHandle(STD_ERROR_HANDLE), 0, NULL, FILE_END);
-  WriteFile(GetStdHandle(STD_ERROR_HANDLE), buf, count, &bytes_written, NULL);
-  return bytes_written;
+  return fwrite(buf, 1, count, stderr);
 }
 #else
 size_t my_write_stderr(const void *buf, size_t count)

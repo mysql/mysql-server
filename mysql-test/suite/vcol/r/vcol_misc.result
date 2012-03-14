@@ -133,6 +133,19 @@ t1	CREATE TABLE `t1` (
   `v` char(32) CHARACTER SET ucs2 AS (a) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
+CREATE TABLE t1 (a int, b int);
+CREATE TABLE t2 (a int, b int as (a+1) VIRTUAL);
+SELECT table_schema, table_name, column_name, column_type, extra
+FROM information_schema.columns WHERE table_name = 't1';
+table_schema	table_name	column_name	column_type	extra
+test	t1	a	int(11)	
+test	t1	b	int(11)	
+SELECT table_schema, table_name, column_name, column_type, extra 
+FROM information_schema.columns WHERE table_name = 't2';
+table_schema	table_name	column_name	column_type	extra
+test	t2	a	int(11)	
+test	t2	b	int(11)	VIRTUAL
+DROP TABLE t1,t2;
 create table t1 (a int, b int);
 insert into t1 values (3, 30), (4, 20), (1, 20);
 create table t2 (c int, d int, v int as (d+1), index idx(c));
