@@ -217,7 +217,7 @@ void release_ddl_log();
 void execute_ddl_log_recovery();
 bool execute_ddl_log_entry(THD *thd, uint first_entry);
 bool validate_comment_length(THD *thd, const char *comment_str,
-                             uint *comment_len, uint max_len,
+                             size_t *comment_len, uint max_len,
                              uint err_code, const char *comment_name);
 
 template<typename T> class List;
