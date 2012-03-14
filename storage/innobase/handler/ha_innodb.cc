@@ -11647,14 +11647,13 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
   MYSQL_SYSVAR(rollback_segments),
-#ifdef UNIV_DEBUG
+#ifdef UNIV_DEBUG_never /* disable this flag. --innodb-trx becomes ambiguous */
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
 #endif /* UNIV_DEBUG */
   NULL
 };
 
 mysql_declare_plugin(innobase)
-i_s_innodb_trx, // this need to be before SE plugin, otherwise --innodb-trx-rseg-n-slots-debug shadows --innodb-trx option
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &innobase_storage_engine,
@@ -11670,6 +11669,7 @@ i_s_innodb_trx, // this need to be before SE plugin, otherwise --innodb-trx-rseg
   NULL, /* reserved */
   0,    /* flags */
 },
+i_s_innodb_trx,
 i_s_innodb_locks,
 i_s_innodb_lock_waits,
 i_s_innodb_cmp,

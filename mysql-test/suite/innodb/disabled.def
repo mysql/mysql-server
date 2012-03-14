@@ -9,3 +9,5 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+
+innodb_bug12400341: variable innodb_trx_rseg_n_slots_debug is removed in MariaDB
