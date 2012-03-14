@@ -26,15 +26,8 @@
 #include <random.h>
 #include <NDBT.hpp>
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
 int useTableLogging;
 int subscriberCount;
-#ifdef	__cplusplus
-}
-#endif
-
 
 static 
 void usage(const char *prog)

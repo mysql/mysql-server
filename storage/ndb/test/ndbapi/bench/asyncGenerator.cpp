@@ -89,14 +89,8 @@ static unsigned maxsize = 0;
 * L O C A L   F U N C T I O N S   C O D E   S E C T I O N      *
 ****************************************************************
 ***************************************************************/
-#ifdef	__cplusplus
-extern "C" {
-#endif
-extern int subscriberCount;
-#ifdef	__cplusplus
-}
-#endif
 
+extern int subscriberCount;
 
 void getRandomSubscriberNumber(SubscriberNumber number)
 {
