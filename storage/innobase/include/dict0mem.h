@@ -755,7 +755,7 @@ struct dict_table_struct{
 	ib_quiesce_t	 quiesce;/*!< Quiescing states, protected by the
 				dict_index_t::lock. ie. we can only change
 				the state if we acquire all the latches
-				(dict_index_t::lock) in S mode of this table's
+				(dict_index_t::lock) in X mode of this table's
 				indexes. */
 
 	/*----------------------*/
