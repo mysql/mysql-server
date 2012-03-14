@@ -1595,8 +1595,11 @@ private:
 			     TcConnectRecord* trigOp);
   void restoreTriggeringOpState(Signal* signal, 
 				TcConnectRecord* trigOp);
-  void trigger_op_finished(Signal* signal, ApiConnectRecordPtr,
-                           TcConnectRecord* triggeringOp);
+  void trigger_op_finished(Signal* signal,
+                           ApiConnectRecordPtr,
+                           Uint32 triggerPtrI,
+                           TcConnectRecord* triggeringOp,
+                           Uint32 returnCode);
   void continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp);
 
   void executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr);
