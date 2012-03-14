@@ -1,0 +1,77 @@
+#
+# Test engine native conflict resolution for ndb
+#
+#
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--disable_query_log
+--connection master
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+create table `test`.`t1$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   d varchar(9) not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+--enable_query_log
+
+--echo *** Test 1 ********************************************************
+--echo * test native NDB\$OLD() conflict resolution
+--echo * test with both allowed "conflict column" types, uint32 and uint64
+--echo *******************************************************************
+--connection master
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$OLD(X)");
+--let col_type = int unsigned
+--source suite/ndb_rpl/t/ndb_rpl_conflict_1.inc
+
+--echo *** Test 2 ********************************************************
+--echo * test native NDB\$OLD() conflict resolution
+--echo * test with both allowed "conflict column" types, uint32 and uint64
+--echo * test that setting binlog update option via table works equally well
+--echo *******************************************************************
+--connection master
+set global ndb_log_update_as_write=1;
+update mysql.ndb_replication set binlog_type=4;
+--let col_type = bigint unsigned
+--source suite/ndb_rpl/t/ndb_rpl_conflict_1.inc
+
+--echo *** Test 3 ***********************************************************
+--echo * test that setting binlog type really also sets the "USE_UPDATE" flag
+--echo * in this case it will result in conflict resolution failure, as
+--echo * update_row never gets called
+--echo * ********************************************************************
+--connection master
+set global ndb_log_update_as_write=0;
+update mysql.ndb_replication set binlog_type=2;
+--let col_type = int unsigned
+--source suite/ndb_rpl/t/ndb_rpl_conflict_1.inc
+
+--echo *** Test 4 ***********************************************************
+--echo * test with FULL rows and "USE_UPDATE" flag
+--echo * ********************************************************************
+--connection master
+set global ndb_log_update_as_write=0;
+update mysql.ndb_replication set binlog_type=7;
+--let col_type = int unsigned
+--source suite/ndb_rpl/t/ndb_rpl_conflict_1.inc
+
+--echo *** test cleanup
+--disable_query_log
+--connection master
+drop table mysql.ndb_replication;
+drop table `test`.`t1$EX`;
+--sync_slave_with_master
+--enable_query_log
+
+--source include/rpl_end.inc

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2007 MySQL AB, 2010 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,90 +13,39 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DROP_TAB_HPP
 #define DROP_TAB_HPP
 
 #include "SignalData.hpp"
 
-class DropTabReq {
-  /**
-   * Sender(s)
-   */
-  friend class Dbdict;
-
-  /**
-   * Receiver(s)
-   */
-  friend class Dbtc;
-  friend class Dblqh;
-  friend class Dbacc;
-  friend class Dbtup;
-  friend class Dbtux;
-  friend class Dbdih;
-  
-  friend bool printDROP_TAB_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-public:
-  STATIC_CONST( SignalLength = 4 );
+struct DropTabReq {
+  STATIC_CONST( SignalLength = 5 );
 
   enum RequestType {
     OnlineDropTab = 0,
     CreateTabDrop = 1,
     RestartDropTab = 2
   };
-private:
+
   Uint32 senderRef;
   Uint32 senderData;
-  Uint32 tableId;
   Uint32 requestType;
+  Uint32 tableId;
+  Uint32 tableVersion;
 };
 
-class DropTabConf {
-  /**
-   * Sender(s)
-   */
-  friend class Dbtc;
-  friend class Dblqh;
-  friend class Dbacc;
-  friend class Dbtup;
-  friend class Dbtux;
-  friend class Dbdih;
-  friend class Suma;
-
-  /**
-   * Receiver(s)
-   */
-  friend class Dbdict;
-
-  friend bool printDROP_TAB_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
+struct DropTabConf {
   STATIC_CONST( SignalLength = 3 );
 
-private:
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 tableId;
 };
 
-class DropTabRef {
-  /**
-   * Sender(s)
-   */
-  friend class Dbtc;
-  friend class Dblqh;
-  friend class Dbacc;
-  friend class Dbtup;
-  friend class Dbtux;
-  friend class Dbdih;
-
-  /**
-   * Receiver(s)
-   */
-  friend class Dbdict;
-
-  friend bool printDROP_TAB_REF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
+struct DropTabRef {
   STATIC_CONST( SignalLength = 4 );
 
   enum ErrorCode {
@@ -102,10 +53,10 @@ public:
     DropWoPrep = 2, // Calling Drop with first calling PrepDrop
     PrepDropInProgress = 3,
     DropInProgress = 4,
-    NF_FakeErrorREF = 5
+    NF_FakeErrorREF = 5,
+    InvalidTableState = 6
   };
   
-private:
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 tableId;

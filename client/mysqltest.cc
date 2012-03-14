@@ -4354,8 +4354,11 @@ int do_save_master_pos()
     done on the local mysql server
   */
   {
-    ulong have_ndbcluster;
-    if (mysql_query(mysql, query= "show variables like 'have_ndbcluster'"))
+    bool have_ndbcluster;
+    if (mysql_query(mysql, query=
+                    "select count(*) from information_schema.engines"
+                    "  where engine = 'ndbcluster' and"
+                    "        support in ('YES', 'DEFAULT')"))
       die("'%s' failed: %d %s", query,
           mysql_errno(mysql), mysql_error(mysql));
     if (!(res= mysql_store_result(mysql)))
@@ -4363,30 +4366,23 @@ int do_save_master_pos()
     if (!(row= mysql_fetch_row(res)))
       die("Query '%s' returned empty result", query);
 
-    have_ndbcluster= strcmp("YES", row[1]) == 0;
+    have_ndbcluster= strcmp(row[0], "1") == 0;
     mysql_free_result(res);
 
     if (have_ndbcluster)
     {
       ulonglong start_epoch= 0, handled_epoch= 0,
-	latest_epoch=0, latest_trans_epoch=0,
-	latest_handled_binlog_epoch= 0, latest_received_binlog_epoch= 0,
-	latest_applied_binlog_epoch= 0;
+	latest_trans_epoch=0,
+	latest_handled_binlog_epoch= 0;
       int count= 0;
       int do_continue= 1;
       while (do_continue)
       {
         const char binlog[]= "binlog";
-	const char latest_epoch_str[]=
-          "latest_epoch=";
         const char latest_trans_epoch_str[]=
           "latest_trans_epoch=";
-	const char latest_received_binlog_epoch_str[]=
-	  "latest_received_binlog_epoch";
         const char latest_handled_binlog_epoch_str[]=
           "latest_handled_binlog_epoch=";
-        const char latest_applied_binlog_epoch_str[]=
-          "latest_applied_binlog_epoch=";
         if (count)
           my_sleep(100*1000); /* 100ms */
         if (mysql_query(mysql, query= "show engine ndb status"))
@@ -4400,18 +4396,6 @@ int do_save_master_pos()
           {
             const char *status= row[2];
 
-	    /* latest_epoch */
-	    while (*status && strncmp(status, latest_epoch_str,
-				      sizeof(latest_epoch_str)-1))
-	      status++;
-	    if (*status)
-            {
-	      status+= sizeof(latest_epoch_str)-1;
-	      latest_epoch= strtoull(status, (char**) 0, 10);
-	    }
-	    else
-	      die("result does not contain '%s' in '%s'",
-		  latest_epoch_str, query);
 	    /* latest_trans_epoch */
 	    while (*status && strncmp(status, latest_trans_epoch_str,
 				      sizeof(latest_trans_epoch_str)-1))
@@ -4424,19 +4408,7 @@ int do_save_master_pos()
 	    else
 	      die("result does not contain '%s' in '%s'",
 		  latest_trans_epoch_str, query);
-	    /* latest_received_binlog_epoch */
-	    while (*status &&
-		   strncmp(status, latest_received_binlog_epoch_str,
-			   sizeof(latest_received_binlog_epoch_str)-1))
-	      status++;
-	    if (*status)
-	    {
-	      status+= sizeof(latest_received_binlog_epoch_str)-1;
-	      latest_received_binlog_epoch= strtoull(status, (char**) 0, 10);
-	    }
-	    else
-	      die("result does not contain '%s' in '%s'",
-		  latest_received_binlog_epoch_str, query);
+
 	    /* latest_handled_binlog */
 	    while (*status &&
 		   strncmp(status, latest_handled_binlog_epoch_str,
@@ -4450,19 +4422,7 @@ int do_save_master_pos()
 	    else
 	      die("result does not contain '%s' in '%s'",
 		  latest_handled_binlog_epoch_str, query);
-	    /* latest_applied_binlog_epoch */
-	    while (*status &&
-		   strncmp(status, latest_applied_binlog_epoch_str,
-			   sizeof(latest_applied_binlog_epoch_str)-1))
-	      status++;
-	    if (*status)
-	    {
-	      status+= sizeof(latest_applied_binlog_epoch_str)-1;
-	      latest_applied_binlog_epoch= strtoull(status, (char**) 0, 10);
-	    }
-	    else
-	      die("result does not contain '%s' in '%s'",
-		  latest_applied_binlog_epoch_str, query);
+
 	    if (count == 0)
 	      start_epoch= latest_trans_epoch;
 	    break;

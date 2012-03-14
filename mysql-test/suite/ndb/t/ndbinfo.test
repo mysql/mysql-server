@@ -1,0 +1,232 @@
+--result_format 2
+--source include/have_ndb.inc
+
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,
+       PLUGIN_LIBRARY,PLUGIN_LIBRARY_VERSION,PLUGIN_AUTHOR,PLUGIN_DESCRIPTION
+FROM information_schema.plugins WHERE PLUGIN_NAME = 'ndbinfo';
+
+## Creation of temporary tables should not be supported by NDBINFO engine
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TEMPORARY TABLE `t1` (
+  `dummy` INT UNSIGNED
+) ENGINE=NDBINFO;
+
+--source ndbinfo_create.inc
+
+USE ndbinfo;
+
+SHOW CREATE TABLE ndb$tables;
+
+SELECT * FROM ndb$tables;
+SELECT COUNT(*) FROM ndb$tables;
+SELECT * FROM ndb$tables WHERE table_id = 2;
+SELECT * FROM ndb$tables WHERE table_id > 5;
+SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
+SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
+
+SELECT table_id, table_name, comment from ndb$tables
+  WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
+SELECT table_id FROM ndb$tables  WHERE table_id = 2 ORDER BY table_name;
+SELECT table_id, table_name FROM ndb$tables ORDER BY table_name;
+
+SELECT table_id, column_id, column_name FROM ndb$columns LIMIT 7;
+
+--error ER_OPEN_AS_READONLY
+UPDATE ndb$tables SET table_id=2 WHERE table_id=3;
+
+--error ER_OPEN_AS_READONLY
+UPDATE ndb$tables SET table_id=9 WHERE 1=0;
+
+--error ER_OPEN_AS_READONLY
+UPDATE ndb$tables SET table_id=9 WHERE table_id > 1;
+
+--error ER_OPEN_AS_READONLY
+DELETE FROM ndb$tables WHERE table_id=3;
+
+--error ER_OPEN_AS_READONLY
+DELETE FROM ndb$tables WHERE 1=0;
+
+--error ER_OPEN_AS_READONLY
+DELETE FROM ndb$tables WHERE table_id > 1;
+
+--error ER_ILLEGAL_HA
+ALTER TABLE ndb$test ADD COLUMN another_col varchar(255);
+
+FLUSH TABLES;
+SELECT table_id FROM ndb$tables;
+
+--error ER_OPEN_AS_READONLY
+TRUNCATE ndb$tables;
+
+## Variables and status
+SHOW GLOBAL STATUS LIKE 'ndbinfo\_%';
+let $current_version = `select @@ndbinfo_version`;
+--replace_result $current_version NDB_VERSION_D
+SHOW GLOBAL VARIABLES LIKE 'ndbinfo\_%';
+
+SELECT counter, HEX(counter2) FROM ndb$test LIMIT 10;
+
+# All tables that contain data are hidden by default
+# and becomes visible with ndbinfo_show_hidden
+SHOW TABLES LIKE 'ndb$te%';
+set @@ndbinfo_show_hidden=TRUE;
+SHOW TABLES LIKE 'ndb$te%';
+set @@ndbinfo_show_hidden=default;
+
+# Check that ndbinfo_table_prefix is readonly
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@ndbinfo_table_prefix="somethingelse";
+
+# Check that ndbinfo_database is readonly
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@ndbinfo_database="somethingelse";
+
+# Check that block table has been created and contain data
+SELECT count(*) >= 20 FROM blocks;
+
+# Test incompatible table definition between NDB and MySQL Server
+# using the ndb$test table which originally looks like
+# CREATE TABLE `ndb$test` (
+#   `node_id` int unsigned DEFAULT NULL,
+#   `block_number` int unsigned DEFAULT NULL,
+#   `block_instance` int unsigned DEFAULT NULL,
+#   `counter` int unsigned DEFAULT NULL,
+#   `counter2` bigint unsigned DEFAULT NULL
+# ) ENGINE=NDBINFO COMMENT='for testing'
+
+## 1) More columns in NDB -> allowed, with warning
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id int unsigned) ENGINE = ndbinfo;
+SELECT node_id != 0 FROM ndb$test LIMIT 1;
+DROP TABLE ndb$test;
+
+## 2) Column does not exist in NDB -> allowed, with warning, non existing
+##    column(s) return NULL
+## 2a) Extra column at end
+CREATE TABLE ndb$test (node_id int, non_existing int) ENGINE = ndbinfo;
+SELECT DISTINCT node_id, non_existing FROM ndb$test;
+DROP TABLE ndb$test;
+
+## 2b) Extra column(s) in middle
+CREATE TABLE ndb$test (
+  node_id int unsigned,
+  non_existing int unsigned,
+  block_number int unsigned,
+  block_instance int unsigned,
+  counter int unsigned,
+  counter2 bigint unsigned
+) ENGINE = ndbinfo;
+SELECT DISTINCT node_id, non_existing, block_number FROM ndb$test;
+DROP TABLE ndb$test;
+
+## 2c) Extra column first
+CREATE TABLE ndb$test (non_existing int, node_id int) ENGINE = ndbinfo;
+SELECT DISTINCT node_id, non_existing FROM ndb$test;
+SELECT DISTINCT non_existing, node_id FROM ndb$test;
+DROP TABLE ndb$test;
+
+## 3) Incompatible column type -> error, with warning
+## 3a) int instead of bigint
+CREATE TABLE ndb$test (counter2 int) ENGINE = ndbinfo;
+--error ER_GET_ERRMSG
+SELECT * FROM ndb$test;
+SHOW WARNINGS;
+## 3b) bigint instead of int
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id bigint) ENGINE = ndbinfo;
+--error ER_GET_ERRMSG
+SELECT * FROM ndb$test;
+SHOW WARNINGS;
+## 3c) varchar instead of int
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id varchar(255)) ENGINE = ndbinfo;
+--error ER_GET_ERRMSG
+SELECT * FROM ndb$test;
+SHOW WARNINGS;
+DROP TABLE ndb$test;
+## 3d) column which is NOT NULL
+CREATE TABLE ndb$test (node_id int unsigned NOT NULL) ENGINE = ndbinfo;
+--error ER_GET_ERRMSG
+SELECT * FROM ndb$test;
+SHOW WARNINGS;
+DROP TABLE ndb$test;
+## 3e) non existing column which is NOT NULL
+CREATE TABLE ndb$test (
+  block_number int unsigned,
+  non_existing int NOT NULL) ENGINE = ndbinfo;
+--error ER_GET_ERRMSG
+SELECT * FROM ndb$test;
+SHOW WARNINGS;
+DROP TABLE ndb$test;
+
+
+## 4) Table with primary key/indexes not supported
+--error ER_TOO_MANY_KEYS
+CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY) ENGINE = ndbinfo;
+
+## 5) Table with blobs not supported
+--error ER_TABLE_CANT_HANDLE_BLOB
+CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
+
+## 6) Table with autoincrement not supported
+--error ER_TABLE_CANT_HANDLE_AUTO_INCREMENT
+CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
+
+# wl#5567 - exercise table...
+#   only node_id is guranteed to be same...
+#   (unless we change cluster config for test)
+# but this will anyway pull results from datanode...
+#
+--sorted_result
+select distinct node_id
+from ndbinfo.diskpagebuffer;
+
+
+#
+# BUG#11885602
+# - It was allowed to CREATE TABLE which was not in NDB, but
+#   creating a view on that table failed. Implement ndbinfo_offline
+#   mode which allows tables to be created and opened although they
+#   don't exists or have different table definition.
+#   This is exactly the same behaviour as when NDBCLUSTER
+#   is disabled
+#
+
+# Check ndbinfo_offline is GLOBAL variable
+--error ER_GLOBAL_VARIABLE
+set @@ndbinfo_offline=1;
+
+# Query used to check that open tables are closed
+# when offline mode is turned on and off
+let $q1 = SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
+eval $q1;
+
+# Turn on ndbinfo_offline
+set @@global.ndbinfo_offline=TRUE;
+select @@ndbinfo_offline;
+
+CREATE TABLE ndb$does_not_exist_in_ndb(
+  node_id int,
+  message varchar(255)
+) ENGINE = ndbinfo;
+
+CREATE VIEW view_on_table_which_does_not_exist_in_ndb AS
+  SELECT node_id, message
+  FROM ndbinfo.ndb$does_not_exist_in_ndb;
+
+SHOW CREATE TABLE ndb$does_not_exist_in_ndb;
+
+# SELECTs return no rows in offline mode
+SELECT * FROM view_on_table_which_does_not_exist_in_ndb;
+SELECT * FROM ndb$does_not_exist_in_ndb;
+eval $q1;
+
+DROP VIEW view_on_table_which_does_not_exist_in_ndb;
+DROP TABLE ndb$does_not_exist_in_ndb;
+
+# Restore original value
+set @@global.ndbinfo_offline = FALSE;
+
+eval $q1;
+
+--source ndbinfo_drop.inc

@@ -1,0 +1,12 @@
+include/master-slave.inc
+[connection master]
+create table t1 (a int, b int) engine=NDB;
+insert into t1 values(1,1);
+select * from t1;
+a	b
+1	1
+delete from t1;
+select * from t1;
+a	b
+drop table t1;
+include/rpl_end.inc

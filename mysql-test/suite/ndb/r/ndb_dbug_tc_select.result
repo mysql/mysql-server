@@ -1,0 +1,121 @@
+drop table if exists t1,t2;
+#
+# Test tc select with 2-way joins with unique lookups
+#
+create table t1 (a int key, b int) engine ndb;
+create table t2 (a int, b int, c int, d int, primary key(a,b), unique(d)) engine ndb partition by key(a);
+#
+# 2-way join tc selection in pk
+#
+explain select t2.c from t1,t2 where t1.a=50 and t2.a=t1.a and t2.b=t1.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	#	Parent of 2 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	const,test.t1.b	#	Child of 't1' in pushed join@1
+#
+# 2-way join tc selection in unique key
+#
+explain select t1.b from t1,t2 where t2.d=50 and t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	PRIMARY,d	d	5	const	#	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	#	Child of 't2' in pushed join@1
+drop table t1,t2;
+#
+# Test tc select with 2-way joins with scan followed by unique lookup
+#
+create table t1 (a int, b int, primary key(a,b)) engine ndb partition by key (a);
+create table t2 (a int, b int, c int, primary key(a,b)) engine ndb partition by key (a);
+explain select t2.c from t1,t2 where t1.a=50 and t2.a=t1.a and t2.b=t1.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	const	#	Parent of 2 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	const,test.t1.b	#	Child of 't1' in pushed join@1
+drop table t1,t2;
+create table t1 (a int , b varchar(22), c int, primary key(a), unique(b)) engine ndb;
+# verify tc select on insert using simple int key
+# verify tc select on select using simple pk int key
+# verify tc select on select using simple unique int key
+# verify tc select on update using simple pk int key
+# verify tc select on update using simple unique int key
+# verify tc select on delete using simple pk int key
+# verify tc select on delete using simple unique int key
+# Cleanup
+drop table t1;
+create table t1 (a varchar(1024), b int , c int, primary key(a), unique(b)) engine ndb;
+# verify tc select on insert using simple int key
+# verify tc select on select using simple pk int key
+# verify tc select on select using simple unique int key
+# verify tc select on update using simple pk int key
+# verify tc select on update using simple unique int key
+# verify tc select on delete using simple pk int key
+# verify tc select on delete using simple unique int key
+# Cleanup
+drop table t1;
+create table t1 (a varchar(32), b varchar(257), c int, primary key(a), unique(b)) engine ndb;
+# verify tc select on insert using simple int key
+# verify tc select on select using simple pk int key
+# verify tc select on select using simple unique int key
+# verify tc select on update using simple pk int key
+# verify tc select on update using simple unique int key
+# verify tc select on delete using simple pk int key
+# verify tc select on delete using simple unique int key
+# Cleanup
+drop table t1;
+create table t1 (a int , b int, c int, d int, primary key(a,c), unique(c,b)) engine ndb;
+# verify tc select on insert using simple int key
+# verify tc select on select using simple pk int key
+# verify tc select on select using simple unique int key
+# verify tc select on update using simple pk int key
+# verify tc select on update using simple unique int key
+# verify tc select on delete using simple pk int key
+# verify tc select on delete using simple unique int key
+# Cleanup
+drop table t1;
+create table t1 (a int, b char(22) , c char(12), d int, primary key(a,c), unique(c,b)) engine ndb;
+# verify tc select on insert using simple int key
+# verify tc select on select using simple pk int key
+# verify tc select on select using simple unique int key
+# verify tc select on update using simple pk int key
+# verify tc select on update using simple unique int key
+# verify tc select on delete using simple pk int key
+# verify tc select on delete using simple unique int key
+# Cleanup
+drop table t1;
+create table t1 (a varchar(32), b int, c varchar(257), d int, primary key(a,c), unique(c,b)) engine ndb;
+# verify tc select on insert using simple int key
+# verify tc select on select using simple pk int key
+# verify tc select on select using simple unique int key
+# verify tc select on update using simple pk int key
+# verify tc select on update using simple unique int key
+# verify tc select on delete using simple pk int key
+# verify tc select on delete using simple unique int key
+# Cleanup
+drop table t1;
+create table t1 (a int , b int, c int, d int, e int, primary key(a,c,e), unique(c,b,d)) engine ndb partition by key(c,e);
+# verify tc select on insert using simple int key
+# verify tc select on select using simple pk int key
+# verify tc select on select using simple unique int key
+# verify tc select on update using simple pk int key
+# verify tc select on update using simple unique int key
+# verify tc select on delete using simple pk int key
+# verify tc select on delete using simple unique int key
+# Cleanup
+drop table t1;
+create table t1 (a int, b varchar(22) , c char(12), d int, e varchar(257), primary key(a,c,e), unique(c,b,d)) engine ndb partition by key(c,e);
+# verify tc select on insert using simple int key
+# verify tc select on select using simple pk int key
+# verify tc select on select using simple unique int key
+# verify tc select on update using simple pk int key
+# verify tc select on update using simple unique int key
+# verify tc select on delete using simple pk int key
+# verify tc select on delete using simple unique int key
+# Cleanup
+drop table t1;
+create table t1 (a varchar(1024), b char(22), c varchar(257), d int, e char(12), primary key(a,c,e), unique(c,b,d)) engine ndb partition by key(c,e);
+# verify tc select on insert using simple int key
+# verify tc select on select using simple pk int key
+# verify tc select on select using simple unique int key
+# verify tc select on update using simple pk int key
+# verify tc select on update using simple unique int key
+# verify tc select on delete using simple pk int key
+# verify tc select on delete using simple unique int key
+# Cleanup
+drop table t1;

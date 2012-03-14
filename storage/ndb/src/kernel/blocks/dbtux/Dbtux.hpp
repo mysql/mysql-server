@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DBTUX_H
 #define DBTUX_H
@@ -28,11 +30,14 @@
 // big brother
 #include <dbtup/Dbtup.hpp>
 
+// packed index keys and bounds
+#include <NdbPack.hpp>
+
 // signal classes
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/TuxContinueB.hpp>
 #include <signaldata/TupFrag.hpp>
-#include <signaldata/AlterIndx.hpp>
+#include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/TuxMaint.hpp>
 #include <signaldata/AccScan.hpp>
@@ -40,6 +45,7 @@
 #include <signaldata/NextScan.hpp>
 #include <signaldata/AccLock.hpp>
 #include <signaldata/DumpStateOrd.hpp>
+#include <signaldata/IndexStatSignal.hpp>
 
 // debug
 #ifdef VM_TRACE
@@ -99,10 +105,14 @@
 #undef min
 
 class Configuration;
+struct mt_BuildIndxCtx;
 
 class Dbtux : public SimulatedBlock {
+  friend class DbtuxProxy;
+  friend struct mt_BuildIndxCtx;
+  friend Uint32 Dbtux_mt_buildIndexFragment_wrapper_C(void*);
 public:
-  Dbtux(Block_context& ctx);
+  Dbtux(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dbtux();
 
   // pointer to TUP instance in this thread
@@ -112,31 +122,24 @@ private:
   // sizes are in words (Uint32)
   STATIC_CONST( MaxIndexFragments = MAX_FRAG_PER_NODE );
   STATIC_CONST( MaxIndexAttributes = MAX_ATTRIBUTES_IN_INDEX );
-  STATIC_CONST( MaxAttrDataSize = 2048 );
+  STATIC_CONST( MaxAttrDataSize = 2 * MAX_ATTRIBUTES_IN_INDEX + MAX_KEY_SIZE_IN_WORDS );
+  STATIC_CONST( MaxXfrmDataSize = MaxAttrDataSize * MAX_XFRM_MULTIPLY);
 public:
-  STATIC_CONST( DescPageSize = 256 );
+  STATIC_CONST( DescPageSize = 512 );
 private:
   STATIC_CONST( MaxTreeNodeSize = MAX_TTREE_NODE_SIZE );
   STATIC_CONST( MaxPrefSize = MAX_TTREE_PREF_SIZE );
   STATIC_CONST( ScanBoundSegmentSize = 7 );
   STATIC_CONST( MaxAccLockOps = MAX_PARALLEL_OP_PER_SCAN );
   STATIC_CONST( MaxTreeDepth = 32 );    // strict
+#ifdef VM_TRACE
+  // for TuxCtx::c_debugBuffer
+  STATIC_CONST( DebugBufferBytes = (MaxAttrDataSize << 2) );
+#endif
   BLOCK_DEFINES(Dbtux);
 
   // forward declarations
-  struct DescEnt;
-
-  // Pointer to array of Uint32 represents attribute data and bounds
-
-  typedef Uint32 *Data;
-  inline AttributeHeader& ah(Data data) {
-    return *reinterpret_cast<AttributeHeader*>(data);
-  }
-
-  typedef const Uint32* ConstData;
-  inline const AttributeHeader& ah(ConstData data) {
-    return *reinterpret_cast<const AttributeHeader*>(data);
-  }
+  struct TuxCtx;
 
   // AttributeHeader size is assumed to be 1 word
   STATIC_CONST( AttributeHeaderSize = 1 );
@@ -200,16 +203,11 @@ private:
   static const TreeEnt NullTreeEnt;
 
   /*
-   * Tree node has 1) fixed part 2) a prefix of index key data for min
-   * entry 3) max and min entries 4) rest of entries 5) one extra entry
-   * used as work space.
+   * Tree node has 3 parts:
    *
-   * struct TreeNode            part 1, size 6 words
-   * min prefix                 part 2, size TreeHead::m_prefSize
-   * max entry                  part 3
-   * min entry                  part 3
-   * rest of entries            part 4
-   * work entry                 part 5
+   * 1) struct TreeNode - the header (6 words)
+   * 2) some key values for min entry - the min prefix
+   * 3) list of TreeEnt (each 2 words)
    *
    * There are 3 links to other nodes: left child, right child, parent.
    * Occupancy (number of entries) is at least 1 except temporarily when
@@ -229,17 +227,6 @@ private:
   STATIC_CONST( NodeHeadSize = sizeof(TreeNode) >> 2 );
 
   /*
-   * Tree node "access size" was for an early version with signal
-   * interface to TUP.  It is now used only to compute sizes.
-   */
-  enum AccSize {
-    AccNone = 0,
-    AccHead = 1,                // part 1
-    AccPref = 2,                // parts 1-3
-    AccFull = 3                 // parts 1-5
-  };
-
-  /*
    * Tree header.  There is one in each fragment.  Contains tree
    * parameters and address of root node.
    */
@@ -250,12 +237,10 @@ private:
     Uint8 m_prefSize;           // words in min prefix
     Uint8 m_minOccup;           // min entries in internal node
     Uint8 m_maxOccup;           // max entries in node
-    Uint32 m_entryCount;        // stat: current entries
     TupLoc m_root;              // root node
     TreeHead();
     // methods
-    unsigned getSize(AccSize acc) const;
-    Data getPref(TreeNode* node) const;
+    Uint32* getPref(TreeNode* node) const;
     TreeEnt* getEntList(TreeNode* node) const;
   };
 
@@ -279,7 +264,10 @@ private:
 
   /*
    * Descriptor page.  The "hot" metadata for an index is stored as
-   * a contiguous array of words on some page.
+   * contiguous array of words on some page.  It has 3 parts:
+   * 1) DescHead
+   * 2) array of NdbPack::Type used by NdbPack::Spec of index key
+   * 3) array of attr headers for reading index key values from TUP
    */
   struct DescPage;
   friend struct DescPage;
@@ -296,51 +284,40 @@ private:
   ArrayPool<DescPage> c_descPagePool;
   Uint32 c_descPageList;
 
-  /*
-   * Header for index metadata.  Size must be multiple of word size.
-   */
   struct DescHead {
-    unsigned m_indexId : 24;
-    unsigned pad1 : 8;
+    Uint32 m_indexId;
+    Uint16 m_numAttrs;
+    Uint16 m_magic;
+    enum { Magic = 0xDE5C };
   };
   STATIC_CONST( DescHeadSize = sizeof(DescHead) >> 2 );
 
-  /*
-   * Attribute metadata.  Size must be multiple of word size.
-   *
-   * Prefix comparison of char data must use strxfrm and binary
-   * comparison.  The charset is currently unused.
-   */
-  struct DescAttr {
-    Uint32 m_attrDesc;          // standard AttributeDescriptor
-    Uint16 m_primaryAttrId;
-    unsigned m_typeId : 6;
-    unsigned m_charset : 10;
-  };
-  STATIC_CONST( DescAttrSize = sizeof(DescAttr) >> 2 );
+  typedef NdbPack::Type KeyType;
+  typedef NdbPack::Spec KeySpec;
+  STATIC_CONST( KeyTypeSize = sizeof(KeyType) >> 2 );
 
-  /*
-   * Complete metadata for one index. The array of attributes has
-   * variable size.
-   */
-  friend struct DescEnt;
-  struct DescEnt {
-    DescHead m_descHead;
-    DescAttr m_descAttr[1];     // variable size data
-  };
+  typedef NdbPack::DataC KeyDataC;
+  typedef NdbPack::Data KeyData;
+  typedef NdbPack::BoundC KeyBoundC;
+  typedef NdbPack::Bound KeyBound;
 
   // range scan
- 
+
   /*
-   * Scan bounds are stored in linked list of segments.
+   * ScanBound instances are members of ScanOp.  Bound data is stored in
+   * a separate segmented buffer pool.
    */
-  typedef DataBuffer<ScanBoundSegmentSize> ScanBound;
-  typedef DataBuffer<ScanBoundSegmentSize>::ConstDataBufferIterator ScanBoundIterator;
-  typedef DataBuffer<ScanBoundSegmentSize>::DataBufferPool ScanBoundPool;
-  ScanBoundPool c_scanBoundPool;
+  struct ScanBound {
+    DataBuffer<ScanBoundSegmentSize>::Head m_head;
+    Uint16 m_cnt;       // number of attributes
+    Int16 m_side;
+    ScanBound();
+  };
+  DataBuffer<ScanBoundSegmentSize>::DataBufferPool c_scanBoundPool;
 
   // ScanLock
   struct ScanLock {
+    ScanLock() {}
     Uint32 m_accLockOp;
     union {
     Uint32 nextPool;
@@ -367,6 +344,10 @@ private:
    * An unfinished scan is always linked to some tree node, and has
    * current position and direction (see comments at scanNext).  There
    * is also a copy of latest entry found.
+   *
+   * Error handling:  An error code (independent of scan state) is set
+   * and returned to LQH.  No more result rows are returned but normal
+   * protocol is still followed until scan close.
    */
   struct ScanOp;
   friend struct ScanOp;
@@ -380,11 +361,11 @@ private:
       Locked = 5,               // found and locked or no lock needed
       Next = 6,                 // looking for next extry
       Last = 7,                 // after last entry
-      Aborting = 8,             // lock wait at scan close
-      Invalid = 9               // cannot return REF to LQH currently
+      Aborting = 8
     };
-    Uint16 m_state;
-    Uint16 m_lockwait;
+    Uint8 m_state;
+    Uint8 m_lockwait;
+    Uint16 m_errorCode;
     Uint32 m_userPtr;           // scanptr.i in LQH
     Uint32 m_userRef;
     Uint32 m_tableId;
@@ -401,19 +382,17 @@ private:
     Uint8 m_readCommitted;      // no locking
     Uint8 m_lockMode;
     Uint8 m_descending;
-    ScanBound m_boundMin;
-    ScanBound m_boundMax;
-    ScanBound* m_bound[2];      // pointers to above 2
-    Uint16 m_boundCnt[2];       // number of bounds in each
+    ScanBound m_scanBound[2];
     TreePos m_scanPos;          // position
     TreeEnt m_scanEnt;          // latest entry found
     Uint32 m_nodeScan;          // next scan at node (single-linked)
+    Uint32 m_statOpPtrI;        // RNIL unless this is a statistics scan
     union {
     Uint32 nextPool;
     Uint32 nextList;
     };
     Uint32 prevList;
-    ScanOp(ScanBoundPool& scanBoundPool);
+    ScanOp();
   };
   typedef Ptr<ScanOp> ScanOpPtr;
   ArrayPool<ScanOp> c_scanOpPool;
@@ -430,6 +409,7 @@ private:
     enum State {
       NotDefined = 0,
       Defining = 1,
+      Building = 3,             // triggers activated, building
       Online = 2,               // triggers activated and build done
       Dropping = 9
     };
@@ -443,14 +423,20 @@ private:
     Uint32 m_descPage;          // descriptor page
     Uint16 m_descOff;           // offset within the page
     Uint16 m_numAttrs;
-    bool m_storeNullKey;
+    Uint16 m_prefAttrs;         // attributes in min prefix
+    Uint16 m_prefBytes;         // max bytes in min prefix
+    KeySpec m_keySpec;
+    Uint32 m_statFragPtrI;      // fragment to monitor if not RNIL
+    Uint32 m_statLoadTime;      // load time of index stats
     union {
+    bool m_storeNullKey;
     Uint32 nextPool;
     };
     Index();
   };
   typedef Ptr<Index> IndexPtr;
   ArrayPool<Index> c_indexPool;
+  RSS_AP_SNAPSHOT(c_indexPool);
 
   /*
    * Fragment of an index, as known to DIH/TC.  Represents the two
@@ -464,16 +450,15 @@ private:
     Uint32 m_indexId;
     Uint16 unused;
     Uint16 m_fragId;
-    Uint32 m_descPage;          // copy from index level
-    Uint16 m_descOff;
-    Uint16 m_numAttrs;
-    bool m_storeNullKey;
     TreeHead m_tree;
-    TupLoc m_freeLoc;           // list of free index nodes
+    TupLoc m_freeLoc;           // one free node for next op
     DLList<ScanOp> m_scanList;  // current scans on this fragment
     Uint32 m_tupIndexFragPtrI;
     Uint32 m_tupTableFragPtrI;
     Uint32 m_accTableFragPtrI;
+    Uint64 m_entryCount;        // current entries
+    Uint64 m_entryBytes;        // sum of index key sizes
+    Uint64 m_entryOps;          // ops since last index stats update
     union {
     Uint32 nextPool;
     };
@@ -481,6 +466,7 @@ private:
   };
   typedef Ptr<Frag> FragPtr;
   ArrayPool<Frag> c_fragPool;
+  RSS_AP_SNAPSHOT(c_fragPool);
 
   /*
    * Fragment metadata operation.
@@ -500,6 +486,7 @@ private:
   };
   typedef Ptr<FragOp> FragOpPtr;
   ArrayPool<FragOp> c_fragOpPool;
+  RSS_AP_SNAPSHOT(c_fragOpPool);
 
   // node handles
 
@@ -532,12 +519,81 @@ private:
     void setBalance(int b);
     void setNodeScan(Uint32 scanPtrI);
     // access other parts of the node
-    Data getPref();
+    Uint32* getPref();
     TreeEnt getEnt(unsigned pos);
-    TreeEnt getMinMax(unsigned i);
     // for ndbrequire and ndbassert
     void progError(int line, int cause, const char* file);
   };
+
+  // stats scan
+  struct StatOp;
+  friend struct StatOp;
+  struct StatOp {
+    // the scan
+    Uint32 m_scanOpPtrI;
+    // parameters
+    Uint32 m_saveSize;
+    Uint32 m_saveScale;
+    Uint32 m_batchSize;
+    Uint32 m_estBytes;
+   // counters
+   Uint32 m_rowCount;
+   Uint32 m_batchCurr;
+   bool m_haveSample;
+   Uint32 m_sampleCount;
+   Uint32 m_keyBytes;
+   bool m_keyChange;
+   bool m_usePrev;
+   // metadata
+   enum { MaxKeyCount = MAX_INDEX_STAT_KEY_COUNT };
+   enum { MaxKeySize = MAX_INDEX_STAT_KEY_SIZE };
+   enum { MaxValueCount = MAX_INDEX_STAT_VALUE_COUNT };
+   enum { MaxValueSize = MAX_INDEX_STAT_VALUE_SIZE };
+   Uint32 m_keyCount;
+   Uint32 m_valueCount;
+   // pack
+   const KeySpec& m_keySpec;
+   NdbPack::Spec m_valueSpec;
+   NdbPack::Type m_valueSpecBuf[MaxValueCount];
+   // data previous current result
+   KeyData m_keyData1;
+   KeyData m_keyData2;
+   KeyData m_keyData;
+   NdbPack::Data m_valueData;
+   // buffers with one word for length bytes
+   Uint32 m_keyDataBuf1[1 + MaxKeySize];
+   Uint32 m_keyDataBuf2[1 + MaxKeySize];
+   Uint32 m_keyDataBuf[1 + MaxKeySize];
+   Uint32 m_valueDataBuf[1 + MaxValueCount];
+   // value collection
+   struct Value {
+     Uint32 m_rir;
+     Uint32 m_unq[MaxKeyCount];
+     Value();
+   };
+   Value m_value1;
+   Value m_value2;
+   union {
+   Uint32 nextPool;
+   };
+   StatOp(const Index&);
+  };
+  typedef Ptr<StatOp> StatOpPtr;
+  ArrayPool<StatOp> c_statOpPool;
+  RSS_AP_SNAPSHOT(c_statOpPool);
+
+  // stats monitor (shared by req data and continueB loop)
+  struct StatMon;
+  friend struct StatMon;
+  struct StatMon {
+    IndexStatImplReq m_req;
+    Uint32 m_requestType;
+    // continueB loop
+    Uint32 m_loopIndexId;
+    Uint32 m_loopDelay;
+    StatMon();
+  };
+  StatMon c_statMon;
 
   // methods
 
@@ -547,20 +603,23 @@ private:
   void execCONTINUEB(Signal* signal);
   void execSTTOR(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
+  void execNODE_STATE_REP(Signal* signal);
+
   // utils
-  void setKeyAttrs(const Frag& frag);
-  void readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData);
-  void readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize);
-  void copyAttrs(const Frag& frag, ConstData data1, Data data2, unsigned maxlen2 = MaxAttrDataSize);
-  void unpackBound(const ScanBound& bound, Data data);
+  void readKeyAttrs(TuxCtx&, const Frag& frag, TreeEnt ent, KeyData& keyData, Uint32 count);
+  void readTablePk(const Frag& frag, TreeEnt ent, Uint32* pkData, unsigned& pkSize);
+  void unpackBound(TuxCtx&, const ScanBound& bound, KeyBoundC& searchBound);
+  void findFrag(const Index& index, Uint32 fragId, FragPtr& fragPtr);
 
   /*
    * DbtuxMeta.cpp
    */
+  void execCREATE_TAB_REQ(Signal*);
   void execTUXFRAGREQ(Signal* signal);
   void execTUX_ADD_ATTRREQ(Signal* signal);
-  void execALTER_INDX_REQ(Signal* signal);
+  void execALTER_INDX_IMPL_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
+  void execDROP_FRAG_REQ(Signal* signal);
   bool allocDescEnt(IndexPtr indexPtr);
   void freeDescEnt(IndexPtr indexPtr);
   void abortAddFragOp(Signal* signal);
@@ -574,21 +633,23 @@ private:
   /*
    * DbtuxNode.cpp
    */
-  int allocNode(Signal* signal, NodeHandle& node);
+  int allocNode(TuxCtx&, NodeHandle& node);
+  void freeNode(NodeHandle& node);
   void selectNode(NodeHandle& node, TupLoc loc);
   void insertNode(NodeHandle& node);
   void deleteNode(NodeHandle& node);
-  void setNodePref(NodeHandle& node);
+  void freePreallocatedNode(Frag& frag);
+  void setNodePref(struct TuxCtx &, NodeHandle& node);
   // node operations
-  void nodePushUp(NodeHandle& node, unsigned pos, const TreeEnt& ent, Uint32 scanList);
+  void nodePushUp(TuxCtx&, NodeHandle& node, unsigned pos, const TreeEnt& ent, Uint32 scanList);
   void nodePushUpScans(NodeHandle& node, unsigned pos);
-  void nodePopDown(NodeHandle& node, unsigned pos, TreeEnt& en, Uint32* scanList);
+  void nodePopDown(TuxCtx&, NodeHandle& node, unsigned pos, TreeEnt& en, Uint32* scanList);
   void nodePopDownScans(NodeHandle& node, unsigned pos);
-  void nodePushDown(NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32& scanList);
+  void nodePushDown(TuxCtx&, NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32& scanList);
   void nodePushDownScans(NodeHandle& node, unsigned pos);
-  void nodePopUp(NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32 scanList);
+  void nodePopUp(TuxCtx&, NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32 scanList);
   void nodePopUpScans(NodeHandle& node, unsigned pos);
-  void nodeSlide(NodeHandle& dstNode, NodeHandle& srcNode, unsigned cnt, unsigned i);
+  void nodeSlide(TuxCtx&, NodeHandle& dstNode, NodeHandle& srcNode, unsigned cnt, unsigned i);
   // scans linked to node
   void addScanList(NodeHandle& node, unsigned pos, Uint32 scanList);
   void removeScanList(NodeHandle& node, unsigned pos, Uint32& scanList);
@@ -601,10 +662,10 @@ private:
    * DbtuxTree.cpp
    */
   // add entry
-  void treeAdd(Frag& frag, TreePos treePos, TreeEnt ent);
-  void treeAddFull(Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent);
-  void treeAddNode(Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent, NodeHandle parentNode, unsigned i);
-  void treeAddRebalance(Frag& frag, NodeHandle node, unsigned i);
+  void treeAdd(TuxCtx&, Frag& frag, TreePos treePos, TreeEnt ent);
+  void treeAddFull(TuxCtx&, Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent);
+  void treeAddNode(TuxCtx&, Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent, NodeHandle parentNode, unsigned i);
+  void treeAddRebalance(TuxCtx&, Frag& frag, NodeHandle node, unsigned i);
   // remove entry
   void treeRemove(Frag& frag, TreePos treePos);
   void treeRemoveInner(Frag& frag, NodeHandle lubNode, unsigned pos);
@@ -613,8 +674,8 @@ private:
   void treeRemoveNode(Frag& frag, NodeHandle node);
   void treeRemoveRebalance(Frag& frag, NodeHandle node, unsigned i);
   // rotate
-  void treeRotateSingle(Frag& frag, NodeHandle& node, unsigned i);
-  void treeRotateDouble(Frag& frag, NodeHandle& node, unsigned i);
+  void treeRotateSingle(TuxCtx&, Frag& frag, NodeHandle& node, unsigned i);
+  void treeRotateDouble(TuxCtx&, Frag& frag, NodeHandle& node, unsigned i);
 
   /*
    * DbtuxScan.cpp
@@ -640,25 +701,45 @@ private:
   /*
    * DbtuxSearch.cpp
    */
-  bool searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
-  bool searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
-  void searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, bool descending, TreePos& treePos);
-  void searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
-  void searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
+  void findNodeToUpdate(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode);
+  bool findPosToAdd(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
+  bool findPosToRemove(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
+  bool searchToAdd(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos);
+  bool searchToRemove(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos);
+  void findNodeToScan(Frag& frag, unsigned dir, const KeyBoundC& searchBound, NodeHandle& currNode);
+  void findPosToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, NodeHandle& currNode, Uint16* pos);
+  void searchToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, TreePos& treePos);
 
   /*
    * DbtuxCmp.cpp
    */
-  int cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
-  int cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
+  int cmpSearchKey(TuxCtx&, const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 cnt);
+  int cmpSearchBound(TuxCtx&, const KeyBoundC& searchBound, const KeyDataC& entryKey, Uint32 cnt);
 
   /*
    * DbtuxStat.cpp
    */
   void execREAD_PSEUDO_REQ(Signal* signal);
+  // one-round-trip tree-dive records in range
   void statRecordsInRange(ScanOpPtr scanPtr, Uint32* out);
   Uint32 getEntriesBeforeOrAfter(Frag& frag, TreePos pos, unsigned idir);
   unsigned getPathToNode(NodeHandle node, Uint16* path);
+  // stats scan
+  int statScanInit(StatOpPtr, const Uint32* data, Uint32 len, Uint32* usedLen);
+  int statScanAddRow(StatOpPtr, TreeEnt ent);
+  void statScanReadKey(StatOpPtr, Uint32* out);
+  void statScanReadValue(StatOpPtr, Uint32* out);
+  void execINDEX_STAT_REP(Signal*); // from TRIX
+  // stats monitor request
+  void execINDEX_STAT_IMPL_REQ(Signal*);
+  void statMonStart(Signal*, StatMon&);
+  void statMonStop(Signal*, StatMon&);
+  void statMonConf(Signal*, StatMon&);
+  // stats monitor continueB loop
+  void statMonSendContinueB(Signal*);
+  void statMonExecContinueB(Signal*);
+  void statMonCheck(Signal*, StatMon&);
+  void statMonRep(Signal*, StatMon&);
 
   /*
    * DbtuxDebug.cpp
@@ -676,18 +757,20 @@ private:
     PrintPar();
   };
   void printTree(Signal* signal, Frag& frag, NdbOut& out);
-  void printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par);
+  void printNode(struct TuxCtx&, Frag&, NdbOut& out, TupLoc loc, PrintPar& par);
   friend class NdbOut& operator<<(NdbOut&, const TupLoc&);
   friend class NdbOut& operator<<(NdbOut&, const TreeEnt&);
   friend class NdbOut& operator<<(NdbOut&, const TreeNode&);
   friend class NdbOut& operator<<(NdbOut&, const TreeHead&);
   friend class NdbOut& operator<<(NdbOut&, const TreePos&);
-  friend class NdbOut& operator<<(NdbOut&, const DescAttr&);
+  friend class NdbOut& operator<<(NdbOut&, const KeyType&);
   friend class NdbOut& operator<<(NdbOut&, const ScanOp&);
   friend class NdbOut& operator<<(NdbOut&, const Index&);
   friend class NdbOut& operator<<(NdbOut&, const Frag&);
   friend class NdbOut& operator<<(NdbOut&, const FragOp&);
   friend class NdbOut& operator<<(NdbOut&, const NodeHandle&);
+  friend class NdbOut& operator<<(NdbOut&, const StatOp&);
+  friend class NdbOut& operator<<(NdbOut&, const StatMon&);
   FILE* debugFile;
   NdbOut debugOut;
   unsigned debugFlags;
@@ -696,11 +779,14 @@ private:
     DebugMaint = 2,             // log maintenance ops
     DebugTree = 4,              // log and check tree after each op
     DebugScan = 8,              // log scans
-    DebugLock = 16              // log ACC locks
+    DebugLock = 16,             // log ACC locks
+    DebugStat = 32              // log stats collection
   };
   STATIC_CONST( DataFillByte = 0xa2 );
   STATIC_CONST( NodeFillByte = 0xa4 );
 #endif
+
+  void execDBINFO_SCANREQ(Signal* signal);
 
   // start up info
   Uint32 c_internalStartPhase;
@@ -712,31 +798,50 @@ private:
    *
    * TODO inline all into index metadata
    */
+  struct TuxCtx
+  {
+    EmulatedJamBuffer * jamBuffer;
 
-  // index key attr ids with sizes in AttributeHeader format
-  Data c_keyAttrs;
+    // buffer for scan bound and search key data
+    Uint32* c_searchKey;
 
-  // pointers to index key comparison functions
-  NdbSqlUtil::Cmp** c_sqlCmp;
+    // buffer for current entry key data
+    Uint32* c_entryKey;
 
-  /*
-   * Other buffers used during the operation.
-   */
+    // buffer for xfrm-ed PK and for temporary use
+    Uint32* c_dataBuffer;
 
-  // buffer for search key data with headers
-  Data c_searchKey;
+#ifdef VM_TRACE
+    char* c_debugBuffer;
+#endif
+  };
 
-  // buffer for current entry key data with headers
-  Data c_entryKey;
+  struct TuxCtx c_ctx; // Global Tux context, for everything build MT-index build
 
-  // buffer for scan bounds and keyinfo (primary key)
-  Data c_dataBuffer;
+  // index stats
+  bool c_indexStatAutoUpdate;
+  Uint32 c_indexStatSaveSize;
+  Uint32 c_indexStatSaveScale;
+  Uint32 c_indexStatTriggerPct;
+  Uint32 c_indexStatTriggerScale;
+  Uint32 c_indexStatUpdateDelay;
 
   // inlined utils
-  DescEnt& getDescEnt(Uint32 descPage, Uint32 descOff);
-  Uint32 getTupAddr(const Frag& frag, TreeEnt ent);
+  Uint32 getDescSize(const Index& index);
+  DescHead& getDescHead(const Index& index);
+  KeyType* getKeyTypes(DescHead& descHead);
+  const KeyType* getKeyTypes(const DescHead& descHead);
+  AttributeHeader* getKeyAttrs(DescHead& descHead);
+  const AttributeHeader* getKeyAttrs(const DescHead& descHead);
+  //
+  void getTupAddr(const Frag& frag, TreeEnt ent, Uint32& lkey1, Uint32& lkey2);
   static unsigned min(unsigned x, unsigned y);
   static unsigned max(unsigned x, unsigned y);
+
+public:
+  static Uint32 mt_buildIndexFragment_wrapper(void*);
+private:
+  Uint32 mt_buildIndexFragment(struct mt_BuildIndxCtx*);
 };
 
 // Dbtux::TupLoc
@@ -877,28 +982,11 @@ Dbtux::TreeHead::TreeHead() :
   m_prefSize(0),
   m_minOccup(0),
   m_maxOccup(0),
-  m_entryCount(0),
   m_root()
 {
 }
 
-inline unsigned
-Dbtux::TreeHead::getSize(AccSize acc) const
-{
-  switch (acc) {
-  case AccNone:
-    return 0;
-  case AccHead:
-    return NodeHeadSize;
-  case AccPref:
-    return NodeHeadSize + m_prefSize + 2 * TreeEntSize;
-  case AccFull:
-    return m_nodeSize;
-  }
-  return 0;
-}
-
-inline Dbtux::Data
+inline Uint32*
 Dbtux::TreeHead::getPref(TreeNode* node) const
 {
   Uint32* ptr = (Uint32*)node + NodeHeadSize;
@@ -938,12 +1026,23 @@ Dbtux::DescPage::DescPage() :
   }
 }
 
+// Dbtux::ScanBound
+
+inline
+Dbtux::ScanBound::ScanBound() :
+  m_head(),
+  m_cnt(0),
+  m_side(0)
+{
+}
+
 // Dbtux::ScanOp
 
 inline
-Dbtux::ScanOp::ScanOp(ScanBoundPool& scanBoundPool) :
+Dbtux::ScanOp::ScanOp() :
   m_state(Undef),
   m_lockwait(false),
+  m_errorCode(0),
   m_userPtr(RNIL),
   m_userRef(RNIL),
   m_tableId(RNIL),
@@ -957,16 +1056,12 @@ Dbtux::ScanOp::ScanOp(ScanBoundPool& scanBoundPool) :
   m_readCommitted(0),
   m_lockMode(0),
   m_descending(0),
-  m_boundMin(scanBoundPool),
-  m_boundMax(scanBoundPool),
+  m_scanBound(),
   m_scanPos(),
   m_scanEnt(),
-  m_nodeScan(RNIL)
+  m_nodeScan(RNIL),
+  m_statOpPtrI(RNIL)
 {
-  m_bound[0] = &m_boundMin;
-  m_bound[1] = &m_boundMax;
-  m_boundCnt[0] = 0;
-  m_boundCnt[1] = 0;
 }
 
 // Dbtux::Index
@@ -980,6 +1075,11 @@ Dbtux::Index::Index() :
   m_descPage(RNIL),
   m_descOff(0),
   m_numAttrs(0),
+  m_prefAttrs(0),
+  m_prefBytes(0),
+  m_keySpec(),
+  m_statFragPtrI(RNIL),
+  m_statLoadTime(0),
   m_storeNullKey(false)
 {
   for (unsigned i = 0; i < MaxIndexFragments; i++) {
@@ -995,17 +1095,16 @@ Dbtux::Frag::Frag(ArrayPool<ScanOp>& scanOpPool) :
   m_tableId(RNIL),
   m_indexId(RNIL),
   m_fragId(ZNIL),
-  m_descPage(RNIL),
-  m_descOff(0),
-  m_numAttrs(ZNIL),
-  m_storeNullKey(false),
   m_tree(),
   m_freeLoc(),
   m_scanList(scanOpPool),
-  m_tupIndexFragPtrI(RNIL)
+  m_tupIndexFragPtrI(RNIL),
+  m_tupTableFragPtrI(RNIL),
+  m_accTableFragPtrI(RNIL),
+  m_entryCount(0),
+  m_entryBytes(0),
+  m_entryOps(0)
 {
-  m_tupTableFragPtrI = RNIL;
-  m_accTableFragPtrI = RNIL;
 }
 
 // Dbtux::FragOp
@@ -1095,15 +1194,27 @@ Dbtux::NodeHandle::getNodeScan()
 inline void
 Dbtux::NodeHandle::setLink(unsigned i, TupLoc loc)
 {
-  ndbrequire(i <= 2);
-  m_node->m_link[i] = loc;
+  if (likely(i <= 2))
+  {
+    m_node->m_link[i] = loc;
+  }
+  else
+  {
+    ndbrequire(false);
+  }
 }
 
 inline void
 Dbtux::NodeHandle::setSide(unsigned i)
 {
-  ndbrequire(i <= 2);
-  m_node->m_side = i;
+  if (likely(i <= 2))
+  {
+    m_node->m_side = i;
+  }
+  else
+  {
+    ndbrequire(false);
+  }
 }
 
 inline void
@@ -1127,7 +1238,7 @@ Dbtux::NodeHandle::setNodeScan(Uint32 scanPtrI)
   m_node->m_nodeScan = scanPtrI;
 }
 
-inline Dbtux::Data
+inline Uint32*
 Dbtux::NodeHandle::getPref()
 {
   TreeHead& tree = m_frag.m_tree;
@@ -1141,15 +1252,60 @@ Dbtux::NodeHandle::getEnt(unsigned pos)
   TreeEnt* entList = tree.getEntList(m_node);
   const unsigned occup = m_node->m_occup;
   ndbrequire(pos < occup);
-  return entList[(1 + pos) % occup];
+  return entList[pos];
 }
 
-inline Dbtux::TreeEnt
-Dbtux::NodeHandle::getMinMax(unsigned i)
+// stats
+
+inline
+Dbtux::StatOp::Value::Value()
 {
-  const unsigned occup = m_node->m_occup;
-  ndbrequire(i <= 1 && occup != 0);
-  return getEnt(i == 0 ? 0 : occup - 1);
+  m_rir = 0;
+  Uint32 i;
+  for (i = 0; i < MaxKeyCount; i++)
+    m_unq[i] = 0;
+}
+
+inline
+Dbtux::StatOp::StatOp(const Index& index) :
+  m_scanOpPtrI(RNIL),
+  m_saveSize(0),
+  m_saveScale(0),
+  m_batchSize(0),
+  m_estBytes(0),
+  m_rowCount(0),
+  m_batchCurr(0),
+  m_haveSample(false),
+  m_sampleCount(0),
+  m_keyBytes(0),
+  m_keyChange(false),
+  m_usePrev(false),
+  m_keyCount(0),
+  m_valueCount(0),
+  m_keySpec(index.m_keySpec),
+  m_keyData1(m_keySpec, false, 2),
+  m_keyData2(m_keySpec, false, 2),
+  m_keyData(m_keySpec, false, 2),
+  m_valueData(m_valueSpec, false, 2),
+  m_value1(),
+  m_value2()
+{
+  m_valueSpec.set_buf(m_valueSpecBuf, MaxValueCount);
+  m_keyData1.set_buf(m_keyDataBuf1, sizeof(m_keyDataBuf1));
+  m_keyData2.set_buf(m_keyDataBuf2, sizeof(m_keyDataBuf2));
+  m_keyData.set_buf(m_keyDataBuf, sizeof(m_keyDataBuf));
+  m_valueData.set_buf(m_valueDataBuf, sizeof(m_valueDataBuf));
+}
+
+// Dbtux::StatMon
+
+inline
+Dbtux::StatMon::StatMon() :
+  m_requestType(0),
+  m_loopIndexId(0),
+  m_loopDelay(1000)
+{
+  memset(&m_req, 0, sizeof(m_req));
 }
 
 // parameters for methods
@@ -1171,26 +1327,71 @@ Dbtux::PrintPar::PrintPar() :
 
 // utils
 
-inline Dbtux::DescEnt&
-Dbtux::getDescEnt(Uint32 descPage, Uint32 descOff)
+inline Uint32
+Dbtux::getDescSize(const Index& index)
 {
-  DescPagePtr pagePtr;
-  pagePtr.i = descPage;
-  c_descPagePool.getPtr(pagePtr);
-  ndbrequire(descOff < DescPageSize);
-  DescEnt* descEnt = (DescEnt*)&pagePtr.p->m_data[descOff];
-  return *descEnt;
+  return
+    DescHeadSize +
+    index.m_numAttrs * KeyTypeSize +
+    index.m_numAttrs * AttributeHeaderSize;
 }
 
-inline Uint32
-Dbtux::getTupAddr(const Frag& frag, TreeEnt ent)
+inline Dbtux::DescHead&
+Dbtux::getDescHead(const Index& index)
+{
+  DescPagePtr pagePtr;
+  pagePtr.i = index.m_descPage;
+  c_descPagePool.getPtr(pagePtr);
+  ndbrequire(index.m_descOff < DescPageSize);
+  Uint32* ptr = &pagePtr.p->m_data[index.m_descOff];
+  DescHead* descHead = reinterpret_cast<DescHead*>(ptr);
+  ndbrequire(descHead->m_magic == DescHead::Magic);
+  return *descHead;
+}
+
+inline Dbtux::KeyType*
+Dbtux::getKeyTypes(DescHead& descHead)
+{
+  Uint32* ptr = reinterpret_cast<Uint32*>(&descHead);
+  ptr += DescHeadSize;
+  return reinterpret_cast<KeyType*>(ptr);
+}
+
+inline const Dbtux::KeyType*
+Dbtux::getKeyTypes(const DescHead& descHead)
+{
+  const Uint32* ptr = reinterpret_cast<const Uint32*>(&descHead);
+  ptr += DescHeadSize;
+  return reinterpret_cast<const KeyType*>(ptr);
+}
+
+inline AttributeHeader*
+Dbtux::getKeyAttrs(DescHead& descHead)
+{
+  Uint32* ptr = reinterpret_cast<Uint32*>(&descHead);
+  ptr += DescHeadSize;
+  ptr += descHead.m_numAttrs * KeyTypeSize;
+  return reinterpret_cast<AttributeHeader*>(ptr);
+}
+
+inline const AttributeHeader*
+Dbtux::getKeyAttrs(const DescHead& descHead)
+{
+  const Uint32* ptr = reinterpret_cast<const Uint32*>(&descHead);
+  ptr += DescHeadSize;
+  ptr += descHead.m_numAttrs * KeyTypeSize;
+  return reinterpret_cast<const AttributeHeader*>(ptr);
+}
+
+inline
+void
+Dbtux::getTupAddr(const Frag& frag, TreeEnt ent, Uint32& lkey1, Uint32& lkey2)
 {
   const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
   const TupLoc tupLoc = ent.m_tupLoc;
-  Uint32 tupAddr = NullTupAddr;
-  c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), tupAddr);
+  c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.getPageId(),tupLoc.getPageOffset(),
+                       lkey1, lkey2);
   jamEntry();
-  return tupAddr;
 }
 
 inline unsigned
@@ -1203,6 +1404,42 @@ inline unsigned
 Dbtux::max(unsigned x, unsigned y)
 {
   return x > y ? x : y;
+}
+
+// DbtuxCmp.cpp
+
+inline int
+Dbtux::cmpSearchKey(TuxCtx& ctx, const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 cnt)
+{
+  // compare cnt attributes from each
+  Uint32 num_eq;
+  int ret = searchKey.cmp(entryKey, cnt, num_eq);
+#ifdef VM_TRACE
+  if (debugFlags & DebugMaint) {
+    debugOut << "cmpSearchKey: ret:" << ret;
+    debugOut << " search:" << searchKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+    debugOut << " entry:" << entryKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+    debugOut << endl;
+  }
+#endif
+  return ret;
+}
+
+inline int
+Dbtux::cmpSearchBound(TuxCtx& ctx, const KeyBoundC& searchBound, const KeyDataC& entryKey, Uint32 cnt)
+{
+  // compare cnt attributes from each
+  Uint32 num_eq;
+  int ret = searchBound.cmp(entryKey, cnt, num_eq);
+#ifdef VM_TRACE
+  if (debugFlags & DebugScan) {
+    debugOut << "cmpSearchBound: res:" << ret;
+    debugOut << " search:" << searchBound.print(ctx.c_debugBuffer, DebugBufferBytes);
+    debugOut << " entry:" << entryKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+    debugOut << endl;
+  }
+#endif
+  return ret;
 }
 
 #endif

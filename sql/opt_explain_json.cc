@@ -604,6 +604,14 @@ public:
     unit_ctx(CTX_UNION_RESULT, K_UNION_RESULT, parent_arg)
   {}
 
+  // Remove warnings: 'inherits ... from ... via dominance'
+  virtual size_t id(bool hide) { return table_base_ctx::id(hide); }
+  virtual bool cacheable()     { return table_base_ctx::cacheable(); }
+  virtual bool dependent()     { return table_base_ctx::dependent(); }
+  virtual qep_row *entry()     { return table_base_ctx::entry(); }
+  virtual bool format_unit(Opt_trace_context *json)
+  { return table_base_ctx::format_unit(json); }
+
   void push_down_query_specs(List<context> *specs) { query_specs= specs; } 
 
   virtual bool add_subquery(subquery_list_enum subquery_type,
@@ -722,6 +730,19 @@ public:
     table_with_where_and_derived(CTX_MESSAGE, K_TABLE, parent_arg)
   {}
 
+  // Remove warnings: 'inherits ... from ... via dominance'
+  virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)
+  { return table_base_ctx::format_body(json, obj); }
+  virtual size_t id(bool hide)
+  { return table_with_where_and_derived::id(hide); }
+  virtual bool cacheable()     { return table_base_ctx::cacheable(); }
+  virtual bool dependent()     { return table_base_ctx::dependent(); }
+  virtual qep_row *entry()     { return table_base_ctx::entry(); }
+  virtual bool format_derived(Opt_trace_context *json)
+  { return table_with_where_and_derived::format_derived(json); }
+  virtual bool format_where(Opt_trace_context *json)
+  { return table_with_where_and_derived::format_where(json); }
+
   virtual bool find_and_set_derived(context *subquery)
   {
     DBUG_ASSERT(derived_from == NULL);
@@ -763,6 +784,19 @@ public:
     joinable_ctx(type_arg, K_TABLE, parent_arg),
     table_with_where_and_derived(type_arg, K_TABLE, parent_arg)
   {}
+
+  // Remove warnings: 'inherits ... from ... via dominance'
+  virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)
+  { return table_base_ctx::format_body(json, obj); }
+  virtual size_t id(bool hide)
+  { return table_with_where_and_derived::id(hide); }
+  virtual bool cacheable()     { return table_base_ctx::cacheable(); }
+  virtual bool dependent()     { return table_base_ctx::dependent(); }
+  virtual qep_row *entry()     { return table_base_ctx::entry(); }
+  virtual bool format_derived(Opt_trace_context *json)
+  { return table_with_where_and_derived::format_derived(json); }
+  virtual bool format_where(Opt_trace_context *json)
+  { return table_with_where_and_derived::format_where(json); }
 
   virtual void register_where_subquery(SELECT_LEX_UNIT *subquery)
   {
@@ -1225,6 +1259,23 @@ public:
   virtual bool cacheable() { return join_ctx::cacheable(); }
   virtual bool dependent() { return join_ctx::dependent(); }
 
+  // Remove warnings: 'inherits ... from ... via dominance'
+  virtual qep_row *entry()     { return table_base_ctx::entry(); }
+  virtual bool add_subquery(subquery_list_enum subquery_type, subquery_ctx *ctx)
+  { return join_ctx::add_subquery(subquery_type, ctx); }
+  virtual bool add_join_tab(joinable_ctx *ctx)
+  { return join_ctx::add_join_tab(ctx); }
+  virtual bool add_where_subquery(subquery_ctx *ctx, SELECT_LEX_UNIT *subquery)
+  { return join_ctx::add_where_subquery(ctx, subquery); }
+  virtual bool find_and_set_derived(context *subquery)
+  { return join_ctx::find_and_set_derived(subquery); }
+  virtual bool format_unit(Opt_trace_context *json)
+  { return unit_ctx::format_unit(json); }
+  virtual bool format_nested_loop(Opt_trace_context *json)
+  { return join_ctx::format_nested_loop(json); }
+  virtual void set_sort(sort_ctx *ctx)
+  { return join_ctx::set_sort(ctx); }
+
 private:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)
   {
@@ -1261,6 +1312,22 @@ public:
   virtual size_t id(bool hide) { return join_ctx::id(hide); }
   virtual bool cacheable() { return join_ctx::cacheable(); }
   virtual bool dependent() { return join_ctx::dependent(); }
+
+  // Remove warnings: 'inherits ... from ... via dominance'
+  virtual bool add_join_tab(joinable_ctx *ctx)
+  { return join_ctx::add_join_tab(ctx); }
+  virtual bool add_subquery(subquery_list_enum subquery_type, subquery_ctx *ctx)
+  { return join_ctx::add_subquery(subquery_type, ctx); }
+  virtual bool add_where_subquery(subquery_ctx *ctx, SELECT_LEX_UNIT *subquery)
+  { return join_ctx::add_where_subquery(ctx, subquery); }
+  virtual bool find_and_set_derived(context *subquery)
+  { return join_ctx::find_and_set_derived(subquery); }
+  virtual bool format_nested_loop(Opt_trace_context *json)
+  { return join_ctx::format_nested_loop(json); }
+  virtual bool format_unit(Opt_trace_context *json)
+  { return unit_ctx::format_unit(json); }
+  virtual void set_sort(sort_ctx *ctx)
+  { return join_ctx::set_sort(ctx); }
 
 private:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)

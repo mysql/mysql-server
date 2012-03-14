@@ -2428,6 +2428,12 @@ static Sys_var_charptr Sys_server_uuid(
        READ_ONLY GLOBAL_VAR(server_uuid_ptr),
        NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
 
+static Sys_var_uint Sys_server_id_bits(
+       "server_id_bits",
+       "Set number of significant bits in server-id",
+       GLOBAL_VAR(opt_server_id_bits), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 32), DEFAULT(32), BLOCK_SIZE(1));
+
 static Sys_var_mybool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
        "Use compression on master/slave protocol",
@@ -3644,6 +3650,11 @@ static Sys_var_mybool Sys_relay_log_recovery(
        "starts re-fetching from the master right after the last transaction "
        "processed",
        GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_slave_allow_batching(
+       "slave_allow_batching", "Allow slave to batch requests",
+       GLOBAL_VAR(opt_slave_allow_batching),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_charptr Sys_slave_load_tmpdir(
        "slave_load_tmpdir", "The location where the slave should put "

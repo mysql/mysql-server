@@ -2328,6 +2328,7 @@ private:
   enum enum_server_command m_command;
 
 public:
+  uint32     unmasked_server_id;
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
@@ -2346,6 +2347,15 @@ public:
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
+
+  /*
+    Position of first event in Binlog
+    *after* last event written by this
+    thread.
+  */
+  event_coordinates binlog_next_event_pos;
+  void set_next_event_pos(const char* _filename, ulonglong _pos);
+  void clear_next_event_pos();
 
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();

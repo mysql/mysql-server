@@ -2381,4 +2381,69 @@ f1	f2	f3	f4
 10	0	0	0
 DROP TABLE t1;
 DROP VIEW v3;
+#
+# BUG#13731380: RANGE OPTIMIZER CALLS RECORDS_IN_RANGE() FOR OPEN RANGE
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1),(3),(5);
+SELECT * FROM t1 WHERE pk <> 3 OR pk < 4;
+pk
+1
+3
+5
+DROP TABLE t1;
+#
+# BUG#13803810: TOO FEW ROWS RETURNED FOR RANGE ACCESS IN 
+#               VARCHAR INDEX USING DATETIME VALUE
+
+CREATE TABLE t1 (a DATETIME);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00');
+INSERT INTO t1 VALUES ('2001-01-01 11:22:33');
+CREATE TABLE t2 (b VARCHAR(64), KEY (b));
+INSERT INTO t2 VALUES ('2001-01-01');
+INSERT INTO t2 VALUES ('2001.01.01');
+INSERT INTO t2 VALUES ('2001#01#01');
+INSERT INTO t2 VALUES ('2001-01-01 00:00:00');
+INSERT INTO t2 VALUES ('2001-01-01 11:22:33');
+
+# range/ref access cannot be used for this query
+
+EXPLAIN SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	b	b	67	NULL	5	Using where; Using index
+SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
+b
+2001#01#01
+2001-01-01
+2001-01-01 00:00:00
+2001.01.01
+
+# range/ref access cannot be used for any of the queries below.
+# See BUG#13814468 about 'Range checked for each record'
+
+EXPLAIN SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+1	SIMPLE	t2	index	b	b	67	NULL	5	Using where; Using index; Using join buffer (Block Nested Loop)
+SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
+a	b
+2001-01-01 00:00:00	2001#01#01
+2001-01-01 00:00:00	2001-01-01
+2001-01-01 00:00:00	2001-01-01 00:00:00
+2001-01-01 00:00:00	2001.01.01
+2001-01-01 11:22:33	2001-01-01 11:22:33
+
+EXPLAIN SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	5	Range checked for each record (index map: 0x1)
+SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
+a	b
+2001-01-01 00:00:00	2001#01#01
+2001-01-01 00:00:00	2001-01-01
+2001-01-01 00:00:00	2001-01-01 00:00:00
+2001-01-01 00:00:00	2001.01.01
+2001-01-01 11:22:33	2001-01-01 11:22:33
+
+DROP TABLE t1,t2;
 set optimizer_switch=default;
