@@ -235,7 +235,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   sort_keys= table_sort.sort_keys;
   if (memavl < min_sort_memory)
   {
-    my_error(ER_OUT_OF_SORTMEMORY,MYF(ME_ERROR+ME_WAITTANG));
+    my_error(ER_OUT_OF_SORTMEMORY,MYF(ME_ERROR + ME_FATALERROR));
     goto err;
   }
   if (open_cached_file(&buffpek_pointers,mysql_tmpdir,TEMP_PREFIX,
