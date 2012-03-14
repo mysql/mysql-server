@@ -604,15 +604,15 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	period	NULL	NULL	NULL	41810	Using temporary; Using filesort
-1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	
+1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	NULL
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	index	period	period	4	NULL	1	
-1	SIMPLE	t1	ref	period	period	4	test.t3.period	4181	
+1	SIMPLE	t3	index	period	period	4	NULL	1	NULL
+1	SIMPLE	t1	ref	period	period	4	test.t3.period	4181	NULL
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	period	period	4	NULL	1	
-1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	
+1	SIMPLE	t1	index	period	period	4	NULL	1	NULL
+1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	NULL
 select period from t1;
 period
 9410
@@ -626,8 +626,8 @@ fld3	period
 breaking	1001
 explain select fld3,period from t2,t3 where t2.fld1 = 011401 and t3.t2nr=t2.fld1 and 1001 = t3.period;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	const	fld1	fld1	4	const	1	
-1	SIMPLE	t3	const	PRIMARY,period	PRIMARY	4	const	1	
+1	SIMPLE	t2	const	fld1	fld1	4	const	1	NULL
+1	SIMPLE	t3	const	PRIMARY,period	PRIMARY	4	const	1	NULL
 select fld3,period from t2,t1 where companynr*10 = 37*10;
 fld3	period
 breaking	9410
@@ -1358,11 +1358,11 @@ count(*)
 1199
 explain select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1200	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1200	NULL
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	Using where; Not exists
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1200	Using where; Not exists; Using join buffer (Block Nested Loop)
 select companynr,companyname from t2 left join t4 using (companynr) where companynr is null;
 companynr	companyname
@@ -1379,15 +1379,15 @@ delete from t2 where fld1=999999;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	NULL
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	NULL
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 and t4.companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	NULL
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	Using where
@@ -1402,15 +1402,15 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer (Block Nested Loop)
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer (Block Nested Loop)
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	
+1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer (Block Nested Loop)
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where ifnull(t2.companynr,1)>0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer (Block Nested Loop)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1949,7 +1949,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 explain select fld3 from t2 where fld1=fld1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	NULL
 select companynr,fld1 from t2 HAVING fld1=250501 or fld1=250502;
 companynr	fld1
 34	250501
@@ -2328,8 +2328,8 @@ explain select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
 left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-1	SIMPLE	t4	const	id4	NULL	NULL	NULL	1	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t4	const	id4	NULL	NULL	NULL	1	NULL
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
 left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
@@ -2362,7 +2362,7 @@ insert into t1 values (1,2), (2,2), (3,2), (4,2);
 insert into t2 values (1,3), (2,3), (3,4), (4,4);
 explain select * from t1 left join t2 on a=c where d in (4);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	c,d	d	5	const	2	
+1	SIMPLE	t2	ref	c,d	d	5	const	2	NULL
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
 select * from t1 left join t2 on a=c where d in (4);
 a	b	c	d
@@ -2370,7 +2370,7 @@ a	b	c	d
 4	2	4	4
 explain select * from t1 left join t2 on a=c where d = 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	c,d	d	5	const	2	
+1	SIMPLE	t2	ref	c,d	d	5	const	2	NULL
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
 select * from t1 left join t2 on a=c where d = 4;
 a	b	c	d
@@ -2396,11 +2396,11 @@ INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
 INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (Block Nested Loop)
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
 1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	Using where
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( city char(30) );
@@ -2725,7 +2725,7 @@ CREATE TABLE t1 (a int, INDEX idx(a));
 INSERT INTO t1 VALUES (2), (3), (1);
 EXPLAIN SELECT * FROM t1 IGNORE INDEX (idx);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 EXPLAIN SELECT * FROM t1 IGNORE INDEX (a);
 ERROR 42000: Key 'a' doesn't exist in table 't1'
 EXPLAIN SELECT * FROM t1 FORCE INDEX (a);
@@ -2910,11 +2910,11 @@ a
 4
 EXPLAIN SELECT t1.a FROM t1 STRAIGHT_JOIN t2 ON t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
 EXPLAIN SELECT t1.a FROM t1 INNER JOIN t2 ON t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where; Using join buffer (Block Nested Loop)
 DROP TABLE t1,t2;
 select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
@@ -3351,7 +3351,7 @@ WHERE t2.key_a=2 and key_b=5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	Using index
-1	SIMPLE	t3	const	PRIMARY	PRIMARY	8	const,const	1	
+1	SIMPLE	t3	const	PRIMARY	PRIMARY	8	const,const	1	NULL
 SELECT t2.key_a,foo 
 FROM t1 INNER JOIN t2 ON t2.key_a = t1.key_a
 INNER JOIN t3 ON t1.key_a = t3.key_a
@@ -3365,7 +3365,7 @@ WHERE t2.key_a=2 and key_b=5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	Using index
-1	SIMPLE	t3	const	PRIMARY	PRIMARY	8	const,const	1	
+1	SIMPLE	t3	const	PRIMARY	PRIMARY	8	const,const	1	NULL
 DROP TABLE t1,t2,t3;
 create  table t1 (f1 int);
 insert into t1 values(1),(2);
@@ -3417,7 +3417,7 @@ EXPLAIN
 SELECT t2.sku, t2.sppr, t2.name, t1.sku, t1.pr
 FROM t2, t1 WHERE t2.sku=20 AND (t2.sku=t1.sku OR t2.sppr=t1.sku);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	NULL
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using where
 DROP TABLE t1,t2;
 SET SQL_MODE='NO_UNSIGNED_SUBTRACTION';
@@ -3457,7 +3457,7 @@ explain select * from t2 A, t2 B where A.a=5 and A.b=5 and A.C<5
 and B.a=5 and B.b=A.e and (B.b =1 or B.b = 3 or B.b=5);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	A	range	PRIMARY	PRIMARY	12	NULL	4	Using where
-1	SIMPLE	B	ref	PRIMARY	PRIMARY	8	const,test.A.e	10	
+1	SIMPLE	B	ref	PRIMARY	PRIMARY	8	const,test.A.e	10	NULL
 drop table t1, t2;
 CREATE TABLE t1 (a int PRIMARY KEY, b int, INDEX(b));
 INSERT INTO t1 VALUES (1, 3), (9,4), (7,5), (4,5), (6,2),
@@ -3471,12 +3471,12 @@ EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using where
-1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	
+1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	NULL
 EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6 AND a > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using where
-1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	
+1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	NULL
 DROP TABLE t1, t2;
 create table t1 (
 a int unsigned    not null auto_increment primary key,
@@ -3517,11 +3517,11 @@ INSERT INTO t2 VALUES
 (4);
 EXPLAIN SELECT b FROM t1, t2 WHERE b=c AND a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
 1	SIMPLE	t2	ref	idx	idx	4	const	7	Using index
 EXPLAIN SELECT b FROM t1, t2 WHERE b=c AND a=4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
 1	SIMPLE	t2	ref	idx	idx	4	const	1	Using index
 DROP TABLE t1, t2;
 CREATE TABLE t1 (id int NOT NULL PRIMARY KEY, a int);
@@ -3534,9 +3534,9 @@ EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
 WHERE t1.id=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	const	idx1	NULL	NULL	NULL	1	
-1	SIMPLE	t3	ref	idx1	idx1	5	const	3	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
+1	SIMPLE	t2	const	idx1	NULL	NULL	NULL	1	NULL
+1	SIMPLE	t3	ref	idx1	idx1	5	const	3	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
 WHERE t1.id=2;
 id	a	b	c	d	e
@@ -3587,7 +3587,7 @@ INSERT INTO t1 VALUES (1,'a'),(2,'b'),(3,'c');
 INSERT INTO t2 VALUES (1,'a'),(2,'b'),(3,'c');
 EXPLAIN SELECT t1.a FROM t1 LEFT JOIN t2 ON t2.b=t1.b WHERE t1.a=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
 1	SIMPLE	t2	const	b	b	22	const	1	Using index
 DROP TABLE t1,t2;
 CREATE TABLE t1(id int PRIMARY KEY, b int, e int);
@@ -3611,7 +3611,7 @@ SELECT t3.a FROM t1,t2 FORCE INDEX (si),t3
 WHERE t1.id = 8 AND t2.i BETWEEN t1.b AND t1.e AND 
 t3.a=t2.a AND t3.c IN ('bb','ee');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
 1	SIMPLE	t2	range	si	si	5	NULL	4	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 EXPLAIN
@@ -3619,7 +3619,7 @@ SELECT t3.a FROM t1,t2,t3
 WHERE t1.id = 8 AND t2.i BETWEEN t1.b AND t1.e AND
 t3.a=t2.a AND t3.c IN ('bb','ee') ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
 1	SIMPLE	t2	range	si,ai	si	5	NULL	4	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 EXPLAIN 
@@ -3627,7 +3627,7 @@ SELECT t3.a FROM t1,t2 FORCE INDEX (si),t3
 WHERE t1.id = 8 AND (t2.i=t1.b OR t2.i=t1.e) AND t3.a=t2.a AND
 t3.c IN ('bb','ee');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
 1	SIMPLE	t2	range	si	si	5	NULL	2	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 EXPLAIN 
@@ -3635,7 +3635,7 @@ SELECT t3.a FROM t1,t2,t3
 WHERE t1.id = 8 AND (t2.i=t1.b OR t2.i=t1.e) AND t3.a=t2.a AND
 t3.c IN ('bb','ee');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
 1	SIMPLE	t2	range	si,ai	si	5	NULL	2	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 DROP TABLE t1,t2,t3;
@@ -3755,7 +3755,7 @@ SELECT * FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=30
 AND t1.ts BETWEEN t2.dt1 AND t2.dt2
 AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	NULL
 1	SIMPLE	t1	range	ts	ts	4	NULL	1	Using where
 Warnings:
 Warning	1292	Incorrect datetime value: '2999-12-31 00:00:00' for column 'ts' at row 1
@@ -3857,7 +3857,7 @@ cc	2	5
 cc 	3	7
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
 1	SIMPLE	t2	ALL	name	NULL	NULL	NULL	7	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
@@ -3931,7 +3931,7 @@ cc	2	5
 cc 	3	7
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
 1	SIMPLE	t2	ALL	name	NULL	NULL	NULL	7	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
@@ -4400,7 +4400,7 @@ INSERT INTO t1 VALUES
 (GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
 EXPLAIN SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2;
 1
@@ -4410,7 +4410,7 @@ SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2;
 1
 EXPLAIN SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2 FORCE INDEX(a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2 FORCE INDEX(a);
 1
@@ -4456,7 +4456,7 @@ a
 2001-01-01 00:00:00
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where 1
 DROP TABLE t1;
@@ -4467,7 +4467,7 @@ a
 2001-01-01
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '2001-01-01' AS `a` from dual where 1
 DROP TABLE t1;
@@ -4478,7 +4478,7 @@ a
 2001-01-01 00:00:00
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where 1
 DROP TABLE t1;
@@ -4489,7 +4489,7 @@ a	b
 2001-01-01 00:00:00	2001-01-01
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 1
 DROP TABLE t1;
@@ -4507,7 +4507,7 @@ a	b
 2001-01-01 00:00:00	2001-01-01
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 1
 DROP TABLE t1;
@@ -4524,9 +4524,9 @@ JOIN t1 y ON x.a=y.a
 JOIN t1 z ON y.a=z.a 
 WHERE x.a='2001-01-01' AND z.a='2001-01-01 00:00:00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	system	NULL	NULL	NULL	NULL	1	100.00	
-1	SIMPLE	y	system	NULL	NULL	NULL	NULL	1	100.00	
-1	SIMPLE	z	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	x	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	y	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	z	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a` from dual where 1
 DROP TABLE t1;
@@ -4543,7 +4543,7 @@ INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
 INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
 EXPLAIN SELECT a FROM t1 ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	24492	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	24492	NULL
 SELECT a FROM t1 ORDER BY a;
 DROP TABLE t1;
 CREATE TABLE t1(a CHAR(0) NOT NULL, b CHAR(0) NOT NULL, c int);
@@ -4553,7 +4553,7 @@ INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
 INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
 EXPLAIN SELECT a FROM t1 ORDER BY a LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	24492	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	24492	NULL
 SELECT a FROM t1 ORDER BY a LIMIT 5;
 a
 
@@ -4563,7 +4563,7 @@ a
 
 EXPLAIN SELECT * FROM t1 ORDER BY a, b LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	24492	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	24492	NULL
 SELECT * FROM t1 ORDER BY a, b LIMIT 5;
 a	b	c
 		0
@@ -4640,7 +4640,7 @@ CREATE TABLE t1 (a INT NOT NULL, b INT);
 INSERT INTO t1 VALUES (1, 1);
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from dual where 1
 SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
@@ -4763,7 +4763,7 @@ a
 2
 EXPLAIN EXTENDED SELECT * FROM t1 HAVING a = 1 + 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` having (`test`.`t1`.`a` = <cache>((1 + 1)))
 SELECT * FROM t1, t2 WHERE a = b + (1 + 1);
@@ -4771,7 +4771,7 @@ a	b
 4	2
 EXPLAIN EXTENDED SELECT * FROM t1, t2 WHERE a = b + (1 + 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'2' AS `b` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(('2' + (1 + 1))))
@@ -4780,7 +4780,7 @@ b	a
 2	3
 EXPLAIN EXTENDED SELECT * FROM t2 LEFT JOIN t1 ON a = b + 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select '2' AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t1` where 1
@@ -4866,7 +4866,7 @@ CREATE TABLE t1(a ENUM('') NOT NULL);
 INSERT INTO t1 VALUES (), (), ();
 EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 1
 1

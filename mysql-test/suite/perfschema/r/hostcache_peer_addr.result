@@ -1,0 +1,50 @@
+flush status;
+flush hosts;
+select @@global.debug;
+@@global.debug
+
+show global status like "connection_errors_%";
+Variable_name	Value
+Connection_errors_accept	0
+Connection_errors_internal	0
+Connection_errors_max_connections	0
+Connection_errors_peer_address	0
+Connection_errors_select	0
+Connection_errors_tcpwrap	0
+select "Con1 is alive";
+Con1 is alive
+Con1 is alive
+select current_user();
+current_user()
+root@localhost
+set global debug= "+d,vio_peer_addr_error";
+ERROR HY000: Can't get hostname for your address
+show global status like "connection_errors_%";
+Variable_name	Value
+Connection_errors_accept	0
+Connection_errors_internal	0
+Connection_errors_max_connections	0
+Connection_errors_peer_address	1
+Connection_errors_select	0
+Connection_errors_tcpwrap	0
+"Dumping performance_schema.host_cache"
+ERROR HY000: Can't get hostname for your address
+show global status like "connection_errors_%";
+Variable_name	Value
+Connection_errors_accept	0
+Connection_errors_internal	0
+Connection_errors_max_connections	0
+Connection_errors_peer_address	2
+Connection_errors_select	0
+Connection_errors_tcpwrap	0
+"Dumping performance_schema.host_cache"
+set global debug= default;
+flush status;
+show global status like "connection_errors_%";
+Variable_name	Value
+Connection_errors_accept	0
+Connection_errors_internal	0
+Connection_errors_max_connections	0
+Connection_errors_peer_address	0
+Connection_errors_select	0
+Connection_errors_tcpwrap	0

@@ -194,6 +194,7 @@ my $opt_cursor_protocol;
 my $opt_view_protocol;
 my $opt_trace_protocol;
 my $opt_explain_protocol;
+my $opt_json_explain_protocol;
 
 our $opt_debug;
 my $debug_d= "d";
@@ -1056,6 +1057,7 @@ sub command_line_setup {
              'view-protocol'            => \$opt_view_protocol,
              'opt-trace-protocol'       => \$opt_trace_protocol,
              'explain-protocol'         => \$opt_explain_protocol,
+             'json-explain-protocol'    => \$opt_json_explain_protocol,
              'cursor-protocol'          => \$opt_cursor_protocol,
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
@@ -2295,7 +2297,9 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   if ( !$opt_skip_ndbcluster )
   {
-    push(@ld_library_paths,  "$basedir/storage/ndb/src/.libs");
+    push(@ld_library_paths,  
+	 "$basedir/storage/ndb/src/.libs",
+	 "$basedir/storage/ndb/src");
   }
 
   # Plugin settings should no longer be added here, instead
@@ -2388,9 +2392,37 @@ sub environment_setup {
 		  ["storage/ndb/src/mgmclient", "bin"],
 		  "ndb_mgm");
 
-    $ENV{'NDB_TOOLS_DIR'}=
-      my_find_dir($bindir,
-		  ["storage/ndb/tools", "bin"]);
+    $ENV{'NDB_WAITER'}= $exe_ndb_waiter;
+
+    $ENV{'NDB_RESTORE'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_restore");
+
+    $ENV{'NDB_CONFIG'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_config");
+
+    $ENV{'NDB_SELECT_ALL'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_select_all");
+
+    $ENV{'NDB_DROP_TABLE'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_drop_table");
+
+    $ENV{'NDB_DESC'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_desc");
+
+    $ENV{'NDB_SHOW_TABLES'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_show_tables");
 
     $ENV{'NDB_EXAMPLES_DIR'}=
       my_find_dir($basedir,
@@ -2785,7 +2817,7 @@ sub check_ndbcluster_support ($) {
     mtr_report(" - MySQL Cluster");
     # Enable ndb engine and add more test suites
     $opt_include_ndbcluster = 1;
-    $DEFAULT_SUITES.=",ndb";
+    $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl";
   }
 
   if ($opt_include_ndbcluster)
@@ -2874,6 +2906,41 @@ sub ndbcluster_wait_started($$){
 }
 
 
+sub ndbcluster_dump($) {
+  my ($cluster)= @_;
+
+  print "\n== Dumping cluster log files\n\n";
+
+  # ndb_mgmd(s)
+  foreach my $ndb_mgmd ( in_cluster($cluster, ndb_mgmds()) )
+  {
+    my $datadir = $ndb_mgmd->value('DataDir');
+
+    # Should find ndb_<nodeid>_cluster.log and ndb_mgmd.log
+    foreach my $file ( glob("$datadir/ndb*.log") )
+    {
+      print "$file:\n";
+      mtr_printfile("$file");
+      print "\n";
+    }
+  }
+
+  # ndb(s)
+  foreach my $ndbd ( in_cluster($cluster, ndbds()) )
+  {
+    my $datadir = $ndbd->value('DataDir');
+
+    # Should find ndbd.log
+    foreach my $file ( glob("$datadir/ndbd.log") )
+    {
+      print "$file:\n";
+      mtr_printfile("$file");
+      print "\n";
+    }
+  }
+}
+
+
 sub ndb_mgmd_wait_started($) {
   my ($cluster)= @_;
 
@@ -2936,6 +3003,7 @@ sub ndb_mgmd_start ($$) {
   mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
   mtr_add_arg($args, "--mycnf");
   mtr_add_arg($args, "--nodaemon");
+  mtr_add_arg($args, "--configdir=%s", "$dir");
 
   my $path_ndb_mgmd_log= "$dir/ndb_mgmd.log";
 
@@ -5427,6 +5495,13 @@ sub start_servers($) {
     {
       # failed to start
       $tinfo->{'comment'}= "Start of '".$cluster->name()."' cluster failed";
+
+      #
+      # Dump cluster log files to log file to help analyze the
+      # cause of the failed start
+      #
+      ndbcluster_dump($cluster);
+
       return 1;
     }
   }
@@ -5559,6 +5634,11 @@ sub start_mysqltest ($) {
   if ( $opt_explain_protocol )
   {
     mtr_add_arg($args, "--explain-protocol");
+  }
+
+  if ( $opt_json_explain_protocol )
+  {
+    mtr_add_arg($args, "--json-explain-protocol");
   }
 
   if ( $opt_view_protocol )
@@ -6089,7 +6169,10 @@ Options to control what engine/variation to run
                         (implies --ps-protocol)
   view-protocol         Create a view to execute all non updating queries
   opt-trace-protocol    Print optimizer trace
-  explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT queries
+  explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT, INSERT,
+                        REPLACE, UPDATE and DELETE queries.
+  json-explain-protocol Run 'EXPLAIN FORMAT=JSON' on all SELECT, INSERT,
+                        REPLACE, UPDATE and DELETE queries.
   sp-protocol           Create a stored procedure to execute all queries
   compress              Use the compressed protocol between client and server
   ssl                   Use ssl protocol between client and server

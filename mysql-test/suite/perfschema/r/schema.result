@@ -21,6 +21,7 @@ events_statements_current
 events_statements_history
 events_statements_history_long
 events_statements_summary_by_account_by_event_name
+events_statements_summary_by_digest
 events_statements_summary_by_host_by_event_name
 events_statements_summary_by_thread_by_event_name
 events_statements_summary_by_user_by_event_name
@@ -37,6 +38,7 @@ events_waits_summary_global_by_event_name
 file_instances
 file_summary_by_event_name
 file_summary_by_instance
+host_cache
 hosts
 mutex_instances
 objects_summary_global_by_type
@@ -179,6 +181,8 @@ events_statements_current	CREATE TABLE `events_statements_current` (
   `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
   `LOCK_TIME` bigint(20) unsigned NOT NULL,
   `SQL_TEXT` longtext,
+  `DIGEST` varchar(32) DEFAULT NULL,
+  `DIGEST_TEXT` longtext,
   `CURRENT_SCHEMA` varchar(64) DEFAULT NULL,
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
   `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
@@ -221,6 +225,8 @@ events_statements_history	CREATE TABLE `events_statements_history` (
   `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
   `LOCK_TIME` bigint(20) unsigned NOT NULL,
   `SQL_TEXT` longtext,
+  `DIGEST` varchar(32) DEFAULT NULL,
+  `DIGEST_TEXT` longtext,
   `CURRENT_SCHEMA` varchar(64) DEFAULT NULL,
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
   `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
@@ -263,6 +269,8 @@ events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
   `LOCK_TIME` bigint(20) unsigned NOT NULL,
   `SQL_TEXT` longtext,
+  `DIGEST` varchar(32) DEFAULT NULL,
+  `DIGEST_TEXT` longtext,
   `CURRENT_SCHEMA` varchar(64) DEFAULT NULL,
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
   `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
@@ -639,6 +647,39 @@ file_summary_by_instance	CREATE TABLE `file_summary_by_instance` (
   `MIN_TIMER_MISC` bigint(20) unsigned NOT NULL,
   `AVG_TIMER_MISC` bigint(20) unsigned NOT NULL,
   `MAX_TIMER_MISC` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table host_cache;
+Table	Create Table
+host_cache	CREATE TABLE `host_cache` (
+  `IP` varchar(64) NOT NULL,
+  `HOST` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `HOST_VALIDATED` enum('YES','NO') NOT NULL,
+  `SUM_CONNECT_ERRORS` bigint(20) NOT NULL,
+  `COUNT_HOST_BLOCKED_ERRORS` bigint(20) NOT NULL,
+  `COUNT_NAMEINFO_TRANSIENT_ERRORS` bigint(20) NOT NULL,
+  `COUNT_NAMEINFO_PERMANENT_ERRORS` bigint(20) NOT NULL,
+  `COUNT_FORMAT_ERRORS` bigint(20) NOT NULL,
+  `COUNT_ADDRINFO_TRANSIENT_ERRORS` bigint(20) NOT NULL,
+  `COUNT_ADDRINFO_PERMANENT_ERRORS` bigint(20) NOT NULL,
+  `COUNT_FCRDNS_ERRORS` bigint(20) NOT NULL,
+  `COUNT_HOST_ACL_ERRORS` bigint(20) NOT NULL,
+  `COUNT_NO_AUTH_PLUGIN_ERRORS` bigint(20) NOT NULL,
+  `COUNT_AUTH_PLUGIN_ERRORS` bigint(20) NOT NULL,
+  `COUNT_HANDSHAKE_ERRORS` bigint(20) NOT NULL,
+  `COUNT_PROXY_USER_ERRORS` bigint(20) NOT NULL,
+  `COUNT_PROXY_USER_ACL_ERRORS` bigint(20) NOT NULL,
+  `COUNT_AUTHENTICATION_ERRORS` bigint(20) NOT NULL,
+  `COUNT_SSL_ERRORS` bigint(20) NOT NULL,
+  `COUNT_MAX_USER_CONNECTIONS_ERRORS` bigint(20) NOT NULL,
+  `COUNT_MAX_USER_CONNECTIONS_PER_HOUR_ERRORS` bigint(20) NOT NULL,
+  `COUNT_DEFAULT_DATABASE_ERRORS` bigint(20) NOT NULL,
+  `COUNT_INIT_CONNECT_ERRORS` bigint(20) NOT NULL,
+  `COUNT_LOCAL_ERRORS` bigint(20) NOT NULL,
+  `COUNT_UNKNOWN_ERRORS` bigint(20) NOT NULL,
+  `FIRST_SEEN` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `LAST_SEEN` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `FIRST_ERROR_SEEN` timestamp NULL DEFAULT '0000-00-00 00:00:00',
+  `LAST_ERROR_SEEN` timestamp NULL DEFAULT '0000-00-00 00:00:00'
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table hosts;
 Table	Create Table

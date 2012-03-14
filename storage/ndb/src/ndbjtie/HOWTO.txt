@@ -1,0 +1,22 @@
+How to map a method:
+
+- Add it to the appropriate class or interface
+  - const methods belong in the xxxConst interface
+  - non-const methods belong in the implementing class
+  - constructors are mapped using a create method with the same parameters as the constructor
+
+  for example, add the c++ constructor Ndb_cluster_connection(const char *, int)
+  add a method create(String, int) to class Ndb_cluster_connection
+  this makes it visible to the application
+  edit com/mysql/ndbjtie/ndbapi/Ndb_cluster_connection.java
+  compile the class via make
+
+- Add it to the implementation
+  - run javah on the compiled class
+    javah -classpath target/classes com.mysql.ndbjtie.ndbapi.Ndb_cluster_connection
+    the result will be in the file com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection.h
+  - edit ndbapi_jtie.hpp
+      copy the new method definition from the javah output and put it in the same place as javah put it
+      implement the new method
+      copy from other methods
+

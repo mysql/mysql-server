@@ -890,7 +890,7 @@ public:
   virtual void append_loose_scan_type(String *str) 
   {
     if (is_index_scan)
-      str->append(STRING_WITH_LEN(" (scanning)"));
+      str->append(STRING_WITH_LEN("scanning"));
   }
 };
 

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2007 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include "SimulatedBlock.hpp"
@@ -113,7 +116,6 @@ SimulatedBlock::MutexManager::destroy(Signal* signal, ActiveMutexPtr& ptr){
   req->senderData = ptr.i;
   req->senderRef = m_block.reference();
   req->lockId = ptr.p->m_mutexId;
-  req->lockKey = ptr.p->m_mutexKey;
 
   m_block.sendSignal(DBUTIL_REF, 
 		     GSN_UTIL_DESTROY_LOCK_REQ, 
@@ -150,32 +152,17 @@ SimulatedBlock::MutexManager::execUTIL_DESTORY_LOCK_CONF(Signal* signal){
 
 
 void 
-SimulatedBlock::MutexManager::lock(Signal* signal, ActiveMutexPtr& ptr){
+SimulatedBlock::MutexManager::lock(Signal* signal, 
+                                   ActiveMutexPtr& ptr,
+                                   Uint32 flags){
 
   UtilLockReq * req = (UtilLockReq*)signal->getDataPtrSend();
   req->senderData = ptr.i;
   req->senderRef = m_block.reference();
   req->lockId = ptr.p->m_mutexId;
-  req->requestInfo = 0;
-  
-  m_block.sendSignal(DBUTIL_REF, 
-		     GSN_UTIL_LOCK_REQ, 
-		     signal,
-		     UtilLockReq::SignalLength,
-		     JBB);
-  
-  ptr.p->m_gsn = GSN_UTIL_LOCK_REQ;
-}
+  req->requestInfo = flags;
+  req->extra = ptr.p->m_callback.m_callbackData;
 
-void 
-SimulatedBlock::MutexManager::trylock(Signal* signal, ActiveMutexPtr& ptr){
-
-  UtilLockReq * req = (UtilLockReq*)signal->getDataPtrSend();
-  req->senderData = ptr.i;
-  req->senderRef = m_block.reference();
-  req->lockId = ptr.p->m_mutexId;
-  req->requestInfo = UtilLockReq::TryLock;
-  
   m_block.sendSignal(DBUTIL_REF, 
 		     GSN_UTIL_LOCK_REQ, 
 		     signal,
@@ -193,8 +180,20 @@ SimulatedBlock::MutexManager::execUTIL_LOCK_REF(Signal* signal){
   ndbrequire(ptr.p->m_gsn == GSN_UTIL_LOCK_REQ);
   ndbrequire(ptr.p->m_mutexId == ref->lockId);
 
-  ptr.p->m_gsn = 0;
+  bool notify = ref->errorCode == UtilLockRef::InLockQueue;
+  CallbackFunction fun = ptr.p->m_callback.m_callbackFunction; 
+
+  if (!notify)
+  {
+    ptr.p->m_gsn = 0;
+  }
   m_block.execute(signal, ptr.p->m_callback, ref->errorCode);
+  
+  if (notify)
+  {
+    // execute clears function so that same callback shouldnt be called twice
+    ptr.p->m_callback.m_callbackFunction = fun;
+  }
 }
 
 void
@@ -204,9 +203,7 @@ SimulatedBlock::MutexManager::execUTIL_LOCK_CONF(Signal* signal){
   m_activeMutexes.getPtr(ptr, conf->senderData);
   ndbrequire(ptr.p->m_gsn == GSN_UTIL_LOCK_REQ);
   ndbrequire(ptr.p->m_mutexId == conf->lockId);
-
-  ptr.p->m_mutexKey = conf->lockKey;
-
+  
   ptr.p->m_gsn = 0;
   m_block.execute(signal, ptr.p->m_callback, 0);
 }
@@ -217,7 +214,6 @@ SimulatedBlock::MutexManager::unlock(Signal* signal, ActiveMutexPtr& ptr){
   req->senderData = ptr.i;
   req->senderRef = m_block.reference();
   req->lockId = ptr.p->m_mutexId;
-  req->lockKey = ptr.p->m_mutexKey;
   
   m_block.sendSignal(DBUTIL_REF, 
 		     GSN_UTIL_UNLOCK_REQ, 

@@ -1640,26 +1640,26 @@ Item_splocal::Item_splocal(const LEX_STRING &sp_var_name,
 Item *
 Item_splocal::this_item()
 {
-  DBUG_ASSERT(m_sp == m_thd->spcont->sp);
+  DBUG_ASSERT(m_sp == m_thd->sp_runtime_ctx->sp);
 
-  return m_thd->spcont->get_item(m_var_idx);
+  return m_thd->sp_runtime_ctx->get_item(m_var_idx);
 }
 
 const Item *
 Item_splocal::this_item() const
 {
-  DBUG_ASSERT(m_sp == m_thd->spcont->sp);
+  DBUG_ASSERT(m_sp == m_thd->sp_runtime_ctx->sp);
 
-  return m_thd->spcont->get_item(m_var_idx);
+  return m_thd->sp_runtime_ctx->get_item(m_var_idx);
 }
 
 
 Item **
 Item_splocal::this_item_addr(THD *thd, Item **)
 {
-  DBUG_ASSERT(m_sp == thd->spcont->sp);
+  DBUG_ASSERT(m_sp == thd->sp_runtime_ctx->sp);
 
-  return thd->spcont->get_item_addr(m_var_idx);
+  return thd->sp_runtime_ctx->get_item_addr(m_var_idx);
 }
 
 
@@ -1692,9 +1692,9 @@ Item_case_expr::Item_case_expr(uint case_expr_id)
 Item *
 Item_case_expr::this_item()
 {
-  DBUG_ASSERT(m_sp == m_thd->spcont->sp);
+  DBUG_ASSERT(m_sp == m_thd->sp_runtime_ctx->sp);
 
-  return m_thd->spcont->get_case_expr(m_case_expr_id);
+  return m_thd->sp_runtime_ctx->get_case_expr(m_case_expr_id);
 }
 
 
@@ -1702,18 +1702,18 @@ Item_case_expr::this_item()
 const Item *
 Item_case_expr::this_item() const
 {
-  DBUG_ASSERT(m_sp == m_thd->spcont->sp);
+  DBUG_ASSERT(m_sp == m_thd->sp_runtime_ctx->sp);
 
-  return m_thd->spcont->get_case_expr(m_case_expr_id);
+  return m_thd->sp_runtime_ctx->get_case_expr(m_case_expr_id);
 }
 
 
 Item **
 Item_case_expr::this_item_addr(THD *thd, Item **)
 {
-  DBUG_ASSERT(m_sp == thd->spcont->sp);
+  DBUG_ASSERT(m_sp == thd->sp_runtime_ctx->sp);
 
-  return thd->spcont->get_case_expr_addr(m_case_expr_id);
+  return thd->sp_runtime_ctx->get_case_expr_addr(m_case_expr_id);
 }
 
 
@@ -2856,6 +2856,20 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
                                    st_select_lex *removed_select,
                                    Item **ref)
 {
+  /*
+    Some field items may be created for use in execution only, without
+    a name resolution context. They have already been used in execution,
+    so no transformation is necessary here.
+
+    @todo: Provide strict phase-division in optimizer, to make sure that
+           execution-only objects do not exist during transformation stage.
+           Then, this test would be deemed unnecessary.
+  */
+  if (context == NULL)
+  {
+    DBUG_ASSERT(type() == FIELD_ITEM);
+    return;
+  }
   DBUG_ASSERT(context->select_lex == NULL ||
               context->select_lex != depended_from);
 
@@ -3863,7 +3877,7 @@ String *Item_param::val_str(String* str)
     that binary log contains wrong statement 
 */
 
-const String *Item_param::query_val_str(String* str) const
+const String *Item_param::query_val_str(THD *thd, String* str) const
 {
   switch (state) {
   case INT_VALUE:
@@ -3902,7 +3916,8 @@ const String *Item_param::query_val_str(String* str) const
   case LONG_DATA_VALUE:
     {
       str->length(0);
-      append_query_string(value.cs_info.character_set_client, &str_value, str);
+      append_query_string(thd, value.cs_info.character_set_client, &str_value,
+                          str);
       break;
     }
   case NULL_VALUE:
@@ -4035,7 +4050,7 @@ void Item_param::print(String *str, enum_query_type query_type)
     char buffer[STRING_BUFFER_USUAL_SIZE];
     String tmp(buffer, sizeof(buffer), &my_charset_bin);
     const String *res;
-    res= query_val_str(&tmp);
+    res= query_val_str(current_thd, &tmp);
     str->append(*res);
   }
 }

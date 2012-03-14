@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005, 2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <signaldata/AccLock.hpp>
 #include <SignalLoggerManager.hpp>
@@ -67,7 +70,7 @@ printACC_LOCKREQ(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
     fprintf(output, " userPtr: 0x%x userRef: 0x%x\n", sig->userPtr, sig->userRef);
     fprintf(output, " table: id=%u", sig->tableId);
     fprintf(output, " fragment: id=%u ptr=0x%x\n", sig->fragId, sig->fragPtrI);
-    fprintf(output, " tuple: addr=0x%x hashValue=%x\n", sig->tupAddr, sig->hashValue);
+    fprintf(output, " tuple: addr=%u/%u hashValue=%x\n", sig->page_id, sig->page_idx, sig->hashValue);
     fprintf(output, " transid: %08x %08x\n", sig->transId1, sig->transId2);
   }
   return true;

@@ -1,0 +1,125 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 6M
+ENGINE NDB;
+
+create table t1 (a int column_format DYNAMIC STORAGE DISK) TABLESPACE ts1 engine NDB;
+#select column_name, storage, format from information_schema.columns
+#where table_name = "t1";
+show create table t1;
+source show_attributes.inc;
+drop table t1;
+
+create table t1 (a int column_format DYNAMIC,
+                 a1 int column_format FIXED,
+                 b int NOT NULL column_format DYNAMIC,
+                 b1 int NOT NULL column_format FIXED storage DISK,
+                 c VARCHAR(100) column_format FIXED,
+                 c1 VARCHAR(100) column_format DYNAMIC storage memory,
+                 d VARCHAR(100) NOT NULL column_format FIXED,
+                 d1 VARCHAR(100) NOT NULL column_format DYNAMIC,
+                 e CHAR(100) column_format FIXED,
+                 e1 CHAR(100) column_format DYNAMIC,
+                 f CHAR(100) NOT NULL column_format FIXED,
+                 f1 char(100) NOT NULL column_format DYNAMIC storage DISK,
+                 index (b)) TABLESPACE ts1 engine NDB;
+insert into t1 (b, b1, d,d1,f,f1) values
+(1,1,"1","1","1","1"),
+(2,2,"2","2","2","2"),
+(3,3,"3","3","3","3");
+alter table t1 change column a a int column_format FIXED;
+show create table t1;
+#select column_name, storage, format from information_schema.columns
+#where table_name = "t1";
+alter table t1 change column a a int storage disk;
+show create table t1;
+source show_attributes.inc;
+alter table t1 change column a a int storage memory;
+show create table t1;
+source show_attributes.inc;
+alter table t1 change column b b int NOT NULL storage memory;
+alter table t1 add column a2 int column_format FIXED;
+show create table t1;
+source show_attributes.inc;
+alter table t1 add column c2 VARCHAR(100) column_format DYNAMIC;
+show create table t1;
+source show_attributes.inc;
+alter table t1 add column c3 VARCHAR(100) column_format FIXED;
+show create table t1;
+source show_attributes.inc;
+drop table t1;
+
+create table t1 (a int storage disk column_format FIXED) TABLESPACE ts1 engine NDB;
+alter table t1 change column a a int storage memory column_format DYNAMIC;
+show create table t1;
+source show_attributes.inc;
+drop table t1;
+
+# Checking keywords
+create table t1 (column_format int storage disk column_format FIXED, storage int storage disk column_format FIXED) TABLESPACE ts1 engine NDB;
+show create table t1;
+source show_attributes.inc;
+drop table t1;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+
+drop tablespace ts1
+engine ndb;
+
+drop logfile group lg1
+engine ndb;
+
+CREATE TABLE t1 (
+  pk1 INT NOT NULL auto_increment,
+  c00 int not null column_format dynamic,
+  c01 int not null column_format dynamic,
+  c02 int not null column_format dynamic,
+  c03 int not null column_format dynamic,
+  c04 int not null column_format dynamic,
+  c05 int not null column_format dynamic,
+  c06 int not null column_format dynamic,
+  c07 int not null column_format dynamic,
+  c08 int not null column_format dynamic,
+  c09 int not null column_format dynamic,
+  c10 int not null column_format dynamic,
+  c11 int not null column_format dynamic,
+  c12 int not null column_format dynamic,
+  c13 int not null column_format dynamic,
+  c14 int not null column_format dynamic,
+  c15 int not null column_format dynamic,
+  c16 int not null column_format dynamic,
+  c17 int not null column_format dynamic,
+  c18 int not null column_format dynamic,
+  c19 int not null column_format dynamic,
+  primary key(pk1)
+) ENGINE=ndbcluster;
+
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+select * from t1 order by 1;
+delete from t1;
+
+drop table t1;

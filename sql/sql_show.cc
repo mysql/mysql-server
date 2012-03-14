@@ -4979,12 +4979,12 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
       }
     }
 
-    sp_pcontext *spcont= sp->get_parse_context();
-    uint params= spcont->context_var_count();
-    for (uint i= 0 ; i < params ; i++)
+    sp_pcontext *sp_root_parsing_ctx= sp->get_root_parsing_context();
+
+    for (uint i= 0; i < sp_root_parsing_ctx->context_var_count(); i++)
     {
       const char *tmp_buff;
-      sp_variable *spvar= spcont->find_variable(i);
+      sp_variable *spvar= sp_root_parsing_ctx->find_variable(i);
       field_def= &spvar->field_def;
       switch (spvar->mode) {
       case sp_variable::MODE_IN:

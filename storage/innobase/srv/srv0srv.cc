@@ -2412,9 +2412,10 @@ srv_do_purge(
 {
 	ulint		n_pages_purged;
 
+	static ulint	count = 0;
 	static ulint	n_use_threads = 0;
 	static ulint	rseg_history_len = 0;
-	static ulint	old_activity_count = srv_get_activity_count();
+	ulint		old_activity_count = srv_get_activity_count();
 
 	ut_a(n_threads > 0);
 
@@ -2460,7 +2461,13 @@ srv_do_purge(
 			break;
 		}
 
-		n_pages_purged = trx_purge(n_use_threads, srv_purge_batch_size);
+		n_pages_purged = trx_purge(
+			n_use_threads, srv_purge_batch_size, false);
+
+		if (!(count++ % TRX_SYS_N_RSEGS)) {
+			/* Force a truncate of the history list. */
+			trx_purge(1, srv_purge_batch_size, true);
+		}
 
 		*n_total_purged += n_pages_purged;
 
@@ -2617,10 +2624,8 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 		n_total_purged = 0;
 
-		for (int i = 0;i < TRX_SYS_N_RSEGS; ++i) {
-			rseg_history_len = srv_do_purge(
-				srv_n_purge_threads, &n_total_purged);
-		}
+		rseg_history_len = srv_do_purge(
+			srv_n_purge_threads, &n_total_purged);
 
 	} while (!srv_purge_should_exit(n_total_purged));
 
@@ -2628,6 +2633,19 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	exit condition is satisfied. */
 
 	ut_a(srv_purge_should_exit(n_total_purged));
+
+	ulint	n_pages_purged = ULINT_MAX;
+
+	/* Ensure that all records are purged if it is not a fast shutdown.
+	This covers the case where a record can be added after we exit the
+	loop above. */
+	while (srv_fast_shutdown == 0 && n_pages_purged > 0) {
+		n_pages_purged = trx_purge(1, srv_purge_batch_size, false);
+	}
+
+	/* Force a truncate of the history list. */
+	n_pages_purged = trx_purge(1, srv_purge_batch_size, true);
+	ut_a(n_pages_purged == 0 || srv_fast_shutdown != 0);
 
 	/* The task queue should always be empty, independent of fast
 	shutdown state. */

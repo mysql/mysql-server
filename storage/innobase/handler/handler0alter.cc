@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -515,9 +515,23 @@ innobase_fts_check_doc_id_col(
 
 			col = dict_table_get_nth_col(table, i);
 
-			if (col->mtype == DATA_INT && col->len == 8
-			    && col->prtype & DATA_NOT_NULL) {
+			if (col->mtype != DATA_INT || col->len != 8) {
+				fprintf(stderr,
+					" InnoDB: %s column in table %s"
+					" must be of the BIGINT datatype\n",
+					FTS_DOC_ID_COL_NAME, table->name);
+			} else if (!(col->prtype & DATA_NOT_NULL)) {
+				fprintf(stderr,
+					" InnoDB: %s column in table %s"
+					" must be NOT NULL\n",
+					FTS_DOC_ID_COL_NAME, table->name);
 
+			} else if (!(col->prtype & DATA_UNSIGNED)) {
+				fprintf(stderr,
+					" InnoDB: %s column in table %s"
+					" must be UNSIGNED\n",
+					FTS_DOC_ID_COL_NAME, table->name);
+			} else {
 				*fts_doc_col_no = i;
 			}
 
@@ -733,13 +747,16 @@ innobase_create_key_def(
 
 			if (fts_doc_col_no == ULINT_UNDEFINED) {
 
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
+				push_warning_printf(
+					(THD*) trx->mysql_thd,
+					Sql_condition::WARN_LEVEL_WARN,
+					ER_WRONG_COLUMN_NAME,
 					" InnoDB: There exists a column %s "
 					"in table %s, but it is the wrong "
 					"type. Create of FTS index failed.\n",
 					FTS_DOC_ID_COL_NAME, table->name);
-				return(NULL);
+
+				DBUG_RETURN(NULL);
 
 			} else if (!table->fts) {
 				table->fts = fts_create(table);
@@ -1624,7 +1641,9 @@ ha_innobase::prepare_drop_index(
 			goto func_exit;
 		}
 
+		rw_lock_x_lock(dict_index_get_lock(index));
 		index->to_be_dropped = TRUE;
+		rw_lock_x_unlock(dict_index_get_lock(index));
 	}
 
 	/* If FOREIGN_KEY_CHECKS = 1 you may not drop an index defined
@@ -1743,7 +1762,9 @@ func_exit:
 			= dict_table_get_first_index(prebuilt->table);
 
 		do {
+			rw_lock_x_lock(dict_index_get_lock(index));
 			index->to_be_dropped = FALSE;
+			rw_lock_x_unlock(dict_index_get_lock(index));
 			index = dict_table_get_next_index(index);
 		} while (index);
 	}
@@ -1834,7 +1855,9 @@ ha_innobase::final_drop_index(
 		for (index = dict_table_get_first_index(prebuilt->table);
 		     index; index = dict_table_get_next_index(index)) {
 
+			rw_lock_x_lock(dict_index_get_lock(index));
 			index->to_be_dropped = FALSE;
+			rw_lock_x_unlock(dict_index_get_lock(index));
 		}
 
 		goto func_exit;

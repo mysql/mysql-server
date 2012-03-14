@@ -282,7 +282,7 @@ call p_verify_reprepare_count(0);
 SUCCESS
 
 alter table t1 drop index t1_unq_idx;
-# Optimizer strategy: Possible keys = NULL , Extra = 
+# Optimizer strategy: Possible keys = NULL , Extra = NULL
 execute stmt;
 avg(a)
 7.5000

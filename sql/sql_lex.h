@@ -530,7 +530,8 @@ public:
   st_select_lex_unit()
     : union_result(NULL), table(NULL), result(NULL),
       cleaned(false),
-      fake_select_lex(NULL)
+      fake_select_lex(NULL),
+      explain_marker(0), explain_subselect_engine(NULL)
   {
   }
 
@@ -573,6 +574,21 @@ public:
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
   bool describe; /* union exec() called for EXPLAIN */
   Procedure *last_procedure;	 /* Pointer to procedure, if such exists */
+
+  /**
+    Marker for subqueries in WHERE, HAVING, ORDER BY, GROUP BY and
+    SELECT item lists
+
+   See Item_subselect::explain_subquery_checker
+
+   @note Actually, the type of this variable is Explain_context_enum, but .h
+         files are too interlinked to include "opt_format.h" there
+  */
+  int explain_marker;
+  /**
+    Associated subquery (if any) for EXPLAIN
+  */
+  const subselect_engine *explain_subselect_engine;
 
   void init_query();
   st_select_lex_unit* master_unit();
@@ -682,7 +698,21 @@ public:
     by TABLE_LIST::next_leaf, so leaf_tables points to the left-most leaf.
   */
   TABLE_LIST *leaf_tables;
-  const char *type;               /* type of select for EXPLAIN          */
+  /**
+    SELECT_LEX type enum
+  */
+  enum type_enum {
+    SLT_NONE= 0,
+    SLT_PRIMARY,
+    SLT_SIMPLE,
+    SLT_DERIVED,
+    SLT_SUBQUERY,
+    SLT_UNION,
+    SLT_UNION_RESULT,
+  // Total:
+    SLT_total ///< fake type, total number of all valid types
+  // Don't insert new types below this line!
+  };
 
   SQL_I_List<ORDER> order_list;   /* ORDER clause */
   SQL_I_List<ORDER> *gorder_list;
@@ -795,7 +825,7 @@ public:
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit();
-  st_select_lex_unit* first_inner_unit() 
+  st_select_lex_unit* first_inner_unit()
   { 
     return (st_select_lex_unit*) slave; 
   }
@@ -921,6 +951,20 @@ public:
   void set_non_agg_field_used(bool val) { m_non_agg_field_used= val; }
   void set_agg_func_used(bool val)      { m_agg_func_used= val; }
 
+  /// Lookup for SELECT_LEX type
+  type_enum type(const THD *thd);
+
+  /// Lookup for a type string
+  const char *get_type_str(const THD *thd) { return type_str[type(thd)]; }
+  static const char *get_type_str(type_enum type) { return type_str[type]; }
+
+  bool is_dependent() const { return uncacheable & UNCACHEABLE_DEPENDENT; }
+  bool is_cacheable() const
+  {
+    // drop UNCACHEABLE_EXPLAIN, because it is for internal usage only
+    return !(uncacheable & ~UNCACHEABLE_EXPLAIN);
+  }
+  
 private:
   bool m_non_agg_field_used;
   bool m_agg_func_used;
@@ -930,6 +974,8 @@ private:
   index_clause_map current_index_hint_clause;
   /* a list of USE/FORCE/IGNORE INDEX */
   List<Index_hint> *index_hints;
+
+  static const char *type_str[SLT_total];
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -1982,7 +2028,7 @@ public:
     DBUG_ASSERT(m_ptr > m_tok_start);
     return (uint) ((m_ptr - m_tok_start) - 1);
   }
-
+   
   /** Get the utf8-body string. */
   const char *get_body_utf8_str()
   {
@@ -2141,6 +2187,11 @@ public:
     NOTE: this member must be used within MYSQLlex() function only.
   */
   CHARSET_INFO *m_underscore_cs;
+
+  /**
+    Current statement digest instrumentation. 
+  */
+  PSI_digest_locker* m_digest_psi;
 };
 
 /* The state of the lex parsing. This is saved in the THD struct */
@@ -2319,8 +2370,20 @@ struct LEX: public Query_tables_list
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
   bool proxy_priv;
-  sp_pcontext *spcont;
 
+private:
+  /// Current SP parsing context.
+  /// @see also sp_head::m_root_parsing_ctx.
+  sp_pcontext *sp_current_parsing_ctx;
+
+public:
+  sp_pcontext *get_sp_current_parsing_ctx()
+  { return sp_current_parsing_ctx; }
+
+  void set_sp_current_parsing_ctx(sp_pcontext *ctx)
+  { sp_current_parsing_ctx= ctx; }
+
+public:
   st_sp_chistics sp_chistics;
 
   Event_parse_data *event_parse_data;
@@ -2337,14 +2400,6 @@ struct LEX: public Query_tables_list
   uint8 create_view_suid;
   /* Characterstics of trigger being created */
   st_trg_chistics trg_chistics;
-  /*
-    List of all items (Item_trigger_field objects) representing fields in
-    old/new version of row in trigger. We use this list for checking whenever
-    all such fields are valid at trigger creation time and for binding these
-    fields to TABLE object at table open (altough for latter pointer to table
-    being opened is probably enough).
-  */
-  SQL_I_List<Item_trigger_field> trg_table_fields;
 
   /*
     stmt_definition_begin is intended to point to the next word after
@@ -2397,6 +2452,8 @@ struct LEX: public Query_tables_list
     into the select_lex.
   */
   table_map  used_tables;
+
+  class Explain_format *explain_format;
 
   LEX();
 

@@ -36,8 +36,9 @@ if len(sys.argv) < 2:
 
 import json, re
 
-trace_start_re = re.compile("^.*(\t)?{\n")
-trace_end_re = re.compile("^}")
+trace_start_re = re.compile(r"^.*(\t)?{\n")
+trace_end_re = re.compile(r"^}")
+ignorable_re = re.compile(r"^.*(ctype_.*|mysqldump)\.result")
 
 def check(trace, first_trace_line):
     global retcode
@@ -75,6 +76,11 @@ def check(trace, first_trace_line):
     print "ok at line", first_trace_line
 
 def handle_one_file(name):
+    if ignorable_re.match(name):
+        ignored.append(name)
+        return
+    print "FILE %s" % name
+    print
     all = open(name).readlines()
     first_trace_line = trace_line = 0
     trace = None
@@ -96,9 +102,15 @@ def handle_one_file(name):
             trace.append(no_comment)
 
 retcode=0
+ignored=[]
 for f in sys.argv[1:]:
-    print "FILE %s" % f
-    print
     handle_one_file(f)
     print
+if ignored:
+    print >>sys.stderr, "Those files have been ignored", ignored
+print
+if retcode:
+    print >>sys.stderr, "THERE ARE ERRORS"
+else:
+    print "ALL OK"
 sys.exit(retcode)

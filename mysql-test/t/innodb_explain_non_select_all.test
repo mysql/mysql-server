@@ -16,6 +16,11 @@ set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,
 set @save_storage_engine= @@session.default_storage_engine;
 set session default_storage_engine = InnoDB;
 --let $innodb = 1
+
+# json validation in explain_util.inc can be switched off by setting to zero.
+--let $json = 0
+--let $validation = 0
+
 --source include/explain_non_select.inc
 set default_storage_engine= @save_storage_engine;
 

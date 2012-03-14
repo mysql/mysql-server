@@ -1,0 +1,286 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# Basic syntax test
+#
+
+# Support for partition key verified
+CREATE TABLE t1 (a int, b int, c int, d int, PRIMARY KEY(a,b,c))
+  ENGINE = NDB
+  PARTITION BY KEY (a,b);
+
+insert into t1 values (1,1,1,1);
+select * from t1;
+update t1 set d = 2 where a = 1 and b = 1 and c = 1;
+select * from t1;
+delete from t1;
+select * from t1;
+
+drop table t1;
+
+# only support for partition key on primary key
+--error ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF
+CREATE TABLE t1 (a int, b int, c int, d int, PRIMARY KEY(a,b))
+  ENGINE = NDB
+  PARTITION BY KEY (c);
+
+CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY(a,b))
+  ENGINE = NDB
+  PARTITION BY KEY (a);
+
+insert into t1 values 
+       (1,1,3),(1,2,3),(1,3,3),(1,4,3),(1,5,3),(1,6,3),
+       (1,7,3),(1,8,3),(1,9,3),(1,10,3),(1,11,3),(1,12,3);
+
+select * from t1 order by b;
+
+# BUG#33061: ORDER BY DESC becomes ASC in NDB partition pruning to one partition
+select max(b) from t1 where a = 1;
+select b from t1 where a = 1 order by b desc;
+
+DROP TABLE t1;
+
+#
+# Test partition and char support
+#
+
+CREATE TABLE t1 (a INT, b CHAR(10) COLLATE latin1_bin, c INT, d INT,
+                 PRIMARY KEY (a,b,c) USING HASH)
+                 ENGINE=NDB
+                 DEFAULT CHARSET=latin1
+                 PARTITION BY KEY (b);
+
+insert into t1 values (1,"a",1,1),(2,"a",1,1),(3,"a",1,1);
+
+# should show only one attribute with DISTRIBUTION KEY
+source show_attributes.inc;
+
+#
+# Test that explicit partition info is not shown in show create table
+# result should not contain (PARTITION P0 ... etc) since this is what shows up in
+# mysqldump, and we don't want that info there
+#
+show create table t1;
+
+DROP TABLE t1;
+
+#
+# Bug #13155: Problem in Create Table using SHOW CREATE TABLE syntax
+#
+CREATE TABLE t1 (a int not null primary key)
+PARTITION BY KEY(a)
+(PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
+
+drop table t1;
+
+CREATE TABLE t1 (a int not null primary key);
+ALTER TABLE t1
+ENGINE = NDB
+PARTITION BY KEY(a)
+(PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
+
+drop table t1;
+
+CREATE TABLE t1 (a int not null primary key) ENGINE = NDB;
+ALTER TABLE t1
+PARTITION BY KEY(a)
+(PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
+
+drop table t1;
+
+#
+# Bug #17754 Improper handling of removal of partitioning in ALTER TABLE
+# Also added a number of general test cases in the same area
+#
+create table t1 (a int primary key)
+engine=ndb
+partition by key(a)
+(partition p0, partition p1);
+show create table t1;
+
+alter table t1 engine=heap;
+show create table t1;
+
+alter table t1 engine=ndb;
+show create table t1;
+
+alter table t1 engine=heap remove partitioning;
+show create table t1;
+
+alter table t1 engine=ndb
+partition by key(a)
+(partition p0, partition p1 engine = ndb);
+show create table t1;
+
+alter table t1
+partition by key (a)
+(partition p0 engine=ndb, partition p1 engine=ndb);
+show create table t1;
+
+alter table t1 remove partitioning;
+show create table t1;
+
+# after bug#31931 was fixed
+# this is OK, since the storage engine is specified
+# on table level before.
+#--error ER_MIX_HANDLER_ERROR
+alter table t1
+partition by key(a)
+(partition p0 engine=ndb, partition p1);
+
+alter table t1
+engine=ndb
+partition by key(a)
+(partition p0 engine=ndb, partition p1 engine = ndb);
+show create table t1;
+
+drop table t1;
+
+#
+# BUG 16810 Out of memory when coalesce partition
+#
+CREATE TABLE t1 (
+  c1 MEDIUMINT NOT NULL AUTO_INCREMENT,
+  c2 TEXT NOT NULL,
+  c3 INT NOT NULL,
+  c4 BIT NOT NULL,
+  c5 FLOAT,
+  c6 VARCHAR(255),
+  c7 TIMESTAMP,
+  PRIMARY KEY(c1,c3))
+  ENGINE=NDB
+  PARTITION BY KEY(c3) PARTITIONS 5;
+
+let $j= 11;
+--disable_query_log
+while ($j)
+{
+  eval INSERT INTO t1 VALUES (NULL, "Tested Remotely from Texas, USA", $j,
+b'0',
+                                   $j.00,"By JBM $j","2006-01-26");
+  dec $j;
+}
+--enable_query_log
+ALTER TABLE t1 COALESCE PARTITION 4;
+
+DROP TABLE t1;
+
+#
+# Bug 16822: OPTIMIZE TABLE hangs test
+#
+CREATE TABLE t1 (a int primary key)
+ENGINE=NDB
+PARTITION BY KEY(a);
+ANALYZE TABLE t1;
+CHECK TABLE t1;
+OPTIMIZE TABLE t1;
+REPAIR TABLE t1;
+ALTER TABLE t1 OPTIMIZE PARTITION p0;
+ALTER TABLE t1 CHECK PARTITION p0;
+ALTER TABLE t1 REPAIR PARTITION p0;
+ALTER TABLE t1 ANALYZE PARTITION p0;
+--error ER_ILLEGAL_HA
+ALTER TABLE t1 REBUILD PARTITION p0;
+DROP TABLE t1;
+
+#
+# BUG 16806: ALTER TABLE fails
+#
+CREATE TABLE t1 (
+  c1 MEDIUMINT NOT NULL AUTO_INCREMENT,
+  c2 TEXT NOT NULL,
+  c3 INT NOT NULL,
+  PRIMARY KEY(c1,c3))
+  ENGINE=NDB
+  PARTITION BY KEY(c3) PARTITIONS 5;
+
+ALTER TABLE t1 ADD COLUMN c4 INT AFTER c1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+  c1 MEDIUMINT NOT NULL AUTO_INCREMENT,
+  c2 TEXT NOT NULL,
+  c3 INT NOT NULL,
+  PRIMARY KEY(c1,c3))
+  ENGINE=NDB
+  PARTITION BY KEY(c3)
+  (PARTITION p0 NODEGROUP 0, PARTITION p1 NODEGROUP 0);
+
+ALTER TABLE t1 ADD COLUMN c4 INT AFTER c1;
+SELECT NODEGROUP,PARTITION_NAME FROM information_schema.partitions WHERE
+table_name = "t1";
+DROP TABLE t1;
+
+# bug#25587
+
+CREATE TABLE t1 (
+a tinyint unsigned NOT NULL,
+b bigint(20) unsigned NOT NULL,
+c char(12),
+PRIMARY KEY (a,b)
+) ENGINE ndb DEFAULT CHARSET=latin1 PARTITION BY KEY (a);
+
+insert into t1 values(1,1,'1'), (2,2,'2'), (3,3,'3'), (4,4,'4'), (5,5,'5');
+select * from t1 where a = 1;
+select * from t1 where a = 2;
+select * from t1 where a = 3;
+select * from t1 where a = 4;
+select * from t1 where a = 5;
+delete from t1 where a = 1;
+select * from t1 order by 1;
+delete from t1 where a = 2;
+select * from t1 order by 1;
+delete from t1 where a = 3;
+select * from t1 order by 1;
+delete from t1 where a = 4;
+select * from t1 order by 1;
+delete from t1 where a = 5;
+select * from t1 order by 1;
+
+drop table t1;
+
+# Create table with distribution key != partition key to
+# test some partition pruning stuff
+#
+create table nott1 (a int, 
+                    b int, 
+                    c int, 
+                    primary key(a,b)) 
+        engine=ndb partition by key(a);
+
+insert into nott1 values (0,0,0);
+insert into nott1 values (0,1,1);
+insert into nott1 values (0,2,2);
+insert into nott1 values (0,3,3);
+insert into nott1 values (1,0,4);
+insert into nott1 values (1,1,5);
+insert into nott1 values (1,2,6);
+insert into nott1 values (2,22,7);
+
+--echo All partitions scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from nott1 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from nott1 where a=0 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from nott1 where a=4 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--echo MRR scan on one partition
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from nott1 where a=0 and (( b > 0 and b < 3) or 
+                                   ( b > 5 and b < 10) or 
+                                   ( b > 22 and b < 50)) order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+drop table nott1;

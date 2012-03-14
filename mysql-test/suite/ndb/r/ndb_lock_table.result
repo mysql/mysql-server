@@ -1,0 +1,11 @@
+drop table if exists t1;
+create table t1 (a int) engine ndb;
+set autocommit=1;
+lock table t1 write;
+set autocommit=0;
+insert into t1 values (0);
+rollback;
+select * from t1;
+a
+unlock tables;
+drop table t1;

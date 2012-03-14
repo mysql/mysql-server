@@ -1740,3 +1740,50 @@ UPDATE v3 SET f3=0, f4=4 WHERE f2=68 ORDER BY f1;
 SELECT * FROM v3;
 DROP TABLE t1;
 DROP VIEW v3;
+
+--echo #
+--echo # BUG#13731380: RANGE OPTIMIZER CALLS RECORDS_IN_RANGE() FOR OPEN RANGE
+--echo #
+
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1),(3),(5);
+SELECT * FROM t1 WHERE pk <> 3 OR pk < 4;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#13803810: TOO FEW ROWS RETURNED FOR RANGE ACCESS IN 
+--echo #               VARCHAR INDEX USING DATETIME VALUE
+--echo
+CREATE TABLE t1 (a DATETIME);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00');
+INSERT INTO t1 VALUES ('2001-01-01 11:22:33');
+
+CREATE TABLE t2 (b VARCHAR(64), KEY (b));
+INSERT INTO t2 VALUES ('2001-01-01');
+INSERT INTO t2 VALUES ('2001.01.01');
+INSERT INTO t2 VALUES ('2001#01#01');
+INSERT INTO t2 VALUES ('2001-01-01 00:00:00');
+INSERT INTO t2 VALUES ('2001-01-01 11:22:33');
+
+--echo
+--echo # range/ref access cannot be used for this query
+--echo
+EXPLAIN SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
+SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
+
+let $query_ab=SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
+let $query_ba=SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
+
+--echo
+--echo # range/ref access cannot be used for any of the queries below.
+--echo # See BUG#13814468 about 'Range checked for each record'
+--echo
+eval EXPLAIN $query_ab;
+eval $query_ab;
+--echo
+eval EXPLAIN $query_ba;
+eval $query_ba;
+
+--echo
+DROP TABLE t1,t2;
+

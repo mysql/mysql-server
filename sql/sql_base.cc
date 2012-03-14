@@ -2871,6 +2871,14 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
   {
+    /* Check if we're trying to take a write lock in a read only transaction. */
+    if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
+        thd->tx_read_only)
+    {
+      my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
+      DBUG_RETURN(true);
+    }
+
     /*
       We are not under LOCK TABLES and going to acquire write-lock/
       modify the base table. We need to acquire protection against
@@ -4769,6 +4777,13 @@ lock_table_names(THD *thd,
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
     {
       continue;
+    }
+
+    /* Write lock on normal tables is not allowed in a read only transaction. */
+    if (thd->tx_read_only)
+    {
+      my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
+      return true;
     }
 
     if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && schema_set.insert(table))
