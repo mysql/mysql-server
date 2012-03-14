@@ -178,7 +178,6 @@ D	Darmstadt
 G	Gossen
 H	Hamburg
 Here the memcached results after flush_all:
-Gossen
 SELECT c1,c2 FROM test.t1;
 c1	c2
 B	Berlin
@@ -187,7 +186,6 @@ D	Darmstadt
 G	Gossen
 H	Hamburg
 Here the memcached results with G:
-Gossen
 UNINSTALL PLUGIN daemon_memcached;
 use innodb_memcache;
 DELETE FROM cache_policies;
@@ -215,16 +213,9 @@ D	Darmstadt
 G	Gossen
 H	Hamburg
 Here the memcached results after flush_all:
-Gossen
 SELECT c1,c2 FROM test.t1;
 c1	c2
-B	Berlin
-C	Cottbus
-D	Darmstadt
-G	Gossen
-H	Hamburg
 Here the memcached results with G:
-Gossen
 UNINSTALL PLUGIN daemon_memcached;
 use innodb_memcache;
 DELETE FROM cache_policies;
@@ -254,6 +245,7 @@ B	Berlin
 C	Cottbus
 D	Darmstadt
 H	Hamburg
+Here the memcached results after flush_all:
 SELECT c1,c2 FROM test.t1;
 c1	c2
 B	Berlin

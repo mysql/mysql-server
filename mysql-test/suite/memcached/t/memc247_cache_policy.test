@@ -530,7 +530,7 @@ my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results after flush_all:\n";
-#$memd->flush_all;
+$memd->flush_all;
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -618,7 +618,7 @@ my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results after flush_all:\n";
-#$memd->flush_all;
+$memd->flush_all;
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -716,10 +716,10 @@ use Cache::Memcached;
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11247" ]
 };
-#print "Here the memcached results after flush_all:\n";
-#$memd->flush_all;
-#$val = $memd->get("G");
-#if ($val) { print "$val\n"; }
+print "Here the memcached results after flush_all:\n";
+$memd->flush_all;
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
@@ -800,7 +800,7 @@ my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11247" ]
 };
 print "Here the memcached results after flush_all (flush disabled):\n";
-#$memd->flush_all;
+$memd->flush_all;
 $val = $memd->get("G");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
