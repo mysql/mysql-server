@@ -18,12 +18,23 @@
 #include <time.h>
 
 /*
+ Disable __attribute__() on non-gcc compilers.
+*/
+#if !defined(__attribute__) && !defined(__GNUC__)
+#define __attribute__(A)
+#endif
+
+#ifdef _WIN32
+#define localtime_r(a, b) localtime_s(b, a)
+#endif /*WIN32*/
+
+/*
   rate 0 means the logging was disabled.
 */
 
 static char *filename;
 static unsigned int rate;
-static unsigned int size_limit;
+static unsigned long long size_limit;
 static unsigned int rotations;
 static char rotate;
 
@@ -37,9 +48,9 @@ static MYSQL_SYSVAR_UINT(rate, rate, PLUGIN_VAR_RQCMDARG,
        "Sampling rate. If set to 0(zero), the logging is disabled.", NULL, NULL,
        1, 0, 1000000, 1);
 
-static MYSQL_SYSVAR_UINT(size_limit, size_limit,
+static MYSQL_SYSVAR_ULONGLONG(size_limit, size_limit,
        PLUGIN_VAR_READONLY, "Log file size limit", NULL, NULL,
-       1000000, 100, 1024*1024L*1024L, 1);
+       1000000, 100, 0, 1);
 
 static MYSQL_SYSVAR_UINT(rotations, rotations,
        PLUGIN_VAR_READONLY, "Number of rotations before log is removed.",
@@ -79,7 +90,7 @@ static void log_sql_errors(MYSQL_THD thd __attribute__((unused)),
       time_t event_time = event->general_time;
 
       count = 0;
-      localtime_r(&event_time, &t);
+      (void) localtime_r(&event_time, &t);
       logger_printf(logfile, "%04d-%02d-%02d %2d:%02d:%02d "
                       "%s ERROR %d: %s : %s\n",
               t.tm_year + 1900, t.tm_mon + 1,

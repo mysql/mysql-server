@@ -22,14 +22,16 @@ extern char *mysql_data_home;
 extern PSI_mutex_key key_LOCK_logger_service;
 
 typedef struct logger_handle_st {
-  FILE *file;
+  File file;
   char path[FN_REFLEN];
-  long size_limit;
+  unsigned long long size_limit;
   unsigned int rotations;
   size_t path_len;
   mysql_mutex_t lock;
 } LSFS;
 
+
+#define LOG_FLAGS (O_APPEND | O_CREAT | O_WRONLY)
 
 static unsigned int n_dig(unsigned int i)
 {
@@ -38,7 +40,7 @@ static unsigned int n_dig(unsigned int i)
 
 
 LOGGER_HANDLE *logger_open(const char *path,
-                           unsigned long size_limit,
+                           unsigned long long size_limit,
                            unsigned int rotations)
 {
   LOGGER_HANDLE new_log, *l_perm;
@@ -61,19 +63,17 @@ LOGGER_HANDLE *logger_open(const char *path,
     /* File path too long */
     return 0;
   }
-  if (!(new_log.file= fopen(new_log.path, "a+")))
+  if ((new_log.file= my_open(new_log.path, LOG_FLAGS, MYF(0))) < 0)
   {
+    errno= my_errno;
     /* Check errno for the cause */
     return 0;
   }
 
-  setbuf(new_log.file, 0);
-  fseek(new_log.file, 0, SEEK_END);
-  if (!(l_perm= (LOGGER_HANDLE *)
-          my_malloc(sizeof(LOGGER_HANDLE), MYF(0))))
+  if (!(l_perm= (LOGGER_HANDLE *) my_malloc(sizeof(LOGGER_HANDLE), MYF(0))))
   {
-    fclose(new_log.file);
-    new_log.file= NULL;
+    my_close(new_log.file, MYF(0));
+    new_log.file= -1;
     return 0; /* End of memory */
   }
   *l_perm= new_log;
@@ -84,9 +84,11 @@ LOGGER_HANDLE *logger_open(const char *path,
 int logger_close(LOGGER_HANDLE *log)
 {
   int result;
+  File file= log->file;
   mysql_mutex_destroy(&log->lock);
-  result= fclose(log->file);
   my_free(log);
+  if ((result= my_close(file, MYF(0))))
+    errno= my_errno;
   return result;
 }
 
@@ -114,32 +116,45 @@ static int do_rotate(LOGGER_HANDLE *log)
     logname(log, buf_old, i);
     if (!access(buf_old, F_OK) &&
         (result= my_rename(buf_old, buf_new, MYF(0))))
-      return result;
+      goto exit;
     tmp= buf_old;
     buf_old= buf_new;
     buf_new= tmp;
   }
-  if ((result= fclose(log->file)))
-    return result;
+  if ((result= my_close(log->file, MYF(0))))
+    goto exit;
   namebuf[log->path_len]= 0;
   result= my_rename(namebuf, logname(log, log->path, 1), MYF(0));
-  log->file= fopen(namebuf, "a+");
-  return log->file==NULL || result;
+  log->file= my_open(namebuf, LOG_FLAGS, MYF(0));
+exit:
+  errno= my_errno;
+  return log->file < 0 || result;
 }
 
 
 int logger_vprintf(LOGGER_HANDLE *log, const char* fmt, va_list ap)
 {
   int result;
+  my_off_t filesize;
+  char cvtbuf[1024];
+  size_t n_bytes;
+
   mysql_mutex_lock(&log->lock);
-  if (ftell(log->file) >= log->size_limit &&
-      do_rotate(log))
+  if ((filesize= my_tell(log->file, MYF(0))) == (my_off_t) -1 ||
+      ((unsigned long long)filesize >= log->size_limit &&
+         do_rotate(log)))
   {
     result= -1;
+    errno= my_errno;
     goto exit; /* Log rotation needed but failed */
   }
 
-  result= my_vfprintf(log->file, fmt, ap);
+  n_bytes= my_vsnprintf(cvtbuf, sizeof(cvtbuf), fmt, ap);
+  if (n_bytes >= sizeof(cvtbuf))
+    n_bytes= sizeof(cvtbuf) - 1;
+
+  result= my_write(log->file, (uchar *) cvtbuf, n_bytes, MYF(0));
+
 exit:
   mysql_mutex_unlock(&log->lock);
   return result;
