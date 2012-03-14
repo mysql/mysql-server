@@ -843,6 +843,10 @@ innodb_api_set_tpl(
 	err = ib_cb_col_set_value(tpl, col_info[CONTAINER_KEY].field_id,
 				  key, key_len);
 
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
 	/* If "table" is not NULL, we need to setup MySQL record
 	for binlogging */
 	if (table) {
@@ -876,25 +880,32 @@ innodb_api_set_tpl(
 		}
 	}
 
-	/* If ib_cb_col_set_value() is failed, something is terribly wrong */
-	assert(err == DB_SUCCESS);
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
 
 	if (meta_info->cas_enabled) {
 		err = innodb_api_write_int(
 			tpl, col_info[CONTAINER_CAS].field_id, cas, table);
-		assert(err == DB_SUCCESS);
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
 	}
 
 	if (meta_info->exp_enabled) {
 		err = innodb_api_write_int(
 			tpl, col_info[CONTAINER_EXP].field_id, exp, table);
-		assert(err == DB_SUCCESS);
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
 	}
 
 	if (meta_info->flag_enabled) {
 		err = innodb_api_write_int(
 			tpl, col_info[CONTAINER_FLAG].field_id, flag, table);
-		assert(err == DB_SUCCESS);
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
 	}
 
 	return(err);
@@ -936,7 +947,9 @@ innodb_api_insert(
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
 				 cursor_data->mysql_tbl);
 
-	err = ib_cb_insert_row(cursor_data->crsr, tpl);
+	if (err == DB_SUCCESS) {
+		err = ib_cb_insert_row(cursor_data->crsr, tpl);
+	}
 
 	if (err == DB_SUCCESS) {
 		*cas = new_cas;
@@ -1004,9 +1017,9 @@ innodb_api_update(
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
 				 cursor_data->mysql_tbl);
 
-	assert(err == DB_SUCCESS);
-
-	err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
+	if (err == DB_SUCCESS) {
+		err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
+	}
 
 	if (err == DB_SUCCESS) {
 		*cas = new_cas;
@@ -1177,7 +1190,9 @@ innodb_api_link(
 				 new_cas, exp, flags, column_used,
 				 cursor_data->mysql_tbl);
 
-	err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
+	if (err == DB_SUCCESS) {
+		err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
+	}
 
 	ib_cb_tuple_delete(new_tpl);
 
@@ -1345,8 +1360,11 @@ create_new_value:
 				 result.col_value[MCI_COL_FLAG].value_int,
 				 column_used, cursor_data->mysql_tbl);
 
-	/* if innodb_api_set_tpl() fails, something terribly wrong */
-	assert(err == DB_SUCCESS);
+	if (err != DB_SUCCESS) {
+		ib_cb_tuple_delete(new_tpl);
+		ib_cb_tuple_delete(old_tpl);
+		goto func_exit;
+	}
 
 	if (create_new) {
 		err = ib_cb_insert_row(cursor_data->crsr, new_tpl);
