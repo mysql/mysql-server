@@ -218,6 +218,9 @@ bool sync_ddl_log();
 void release_ddl_log();
 void execute_ddl_log_recovery();
 bool execute_ddl_log_entry(THD *thd, uint first_entry);
+bool validate_comment_length(THD *thd, const char *comment_str,
+                             size_t *comment_len, uint max_len,
+                             uint err_code, const char *comment_name);
 
 template<typename T> class List;
 void promote_first_timestamp_column(List<Create_field> *column_definitions);

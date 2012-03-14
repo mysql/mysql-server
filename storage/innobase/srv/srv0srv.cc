@@ -1725,6 +1725,7 @@ srv_get_active_thread_type(void)
 	/* Check only on shutdown. */
 	if (ret == SRV_NONE
 	    && srv_shutdown_state != SRV_SHUTDOWN_NONE
+	    && trx_purge_state() != PURGE_STATE_DISABLED
 	    && trx_purge_state() != PURGE_STATE_EXIT) {
 
 		ret = SRV_PURGE;

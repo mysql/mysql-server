@@ -455,6 +455,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
+  view= lex->unlink_first_table(&link_to_local);
+
   /*
     Checking the existence of the database in which the view is to be created
   */
@@ -464,8 +466,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     res= TRUE;
     goto err;
   }
-
-  view= lex->unlink_first_table(&link_to_local);
 
   if (mode == VIEW_ALTER && fill_defined_view_parts(thd, view))
   {

@@ -2257,8 +2257,20 @@ struct LEX: public Query_tables_list
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
   bool proxy_priv;
-  sp_pcontext *spcont;
 
+private:
+  /// Current SP parsing context.
+  /// @see also sp_head::m_root_parsing_ctx.
+  sp_pcontext *sp_current_parsing_ctx;
+
+public:
+  sp_pcontext *get_sp_current_parsing_ctx()
+  { return sp_current_parsing_ctx; }
+
+  void set_sp_current_parsing_ctx(sp_pcontext *ctx)
+  { sp_current_parsing_ctx= ctx; }
+
+public:
   st_sp_chistics sp_chistics;
 
   Event_parse_data *event_parse_data;
@@ -2275,14 +2287,6 @@ struct LEX: public Query_tables_list
   uint8 create_view_suid;
   /* Characterstics of trigger being created */
   st_trg_chistics trg_chistics;
-  /*
-    List of all items (Item_trigger_field objects) representing fields in
-    old/new version of row in trigger. We use this list for checking whenever
-    all such fields are valid at trigger creation time and for binding these
-    fields to TABLE object at table open (altough for latter pointer to table
-    being opened is probably enough).
-  */
-  SQL_I_List<Item_trigger_field> trg_table_fields;
 
   /*
     stmt_definition_begin is intended to point to the next word after

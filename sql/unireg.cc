@@ -26,7 +26,8 @@
 
 #include "sql_priv.h"
 #include "unireg.h"
-#include "sql_partition.h"                      // struct partition_info
+#include "sql_partition.h"                    // struct partition_info
+#include "sql_table.h"                        // validate_comment_length   
 #include "sql_class.h"                  // THD, Internal_error_handler
 #include <m_ctype.h>
 #include <assert.h>
@@ -54,7 +55,6 @@ static bool make_empty_rec(THD *thd, int file,
 			   List<Create_field> &create_fields,
 			   uint reclength, ulong data_offset,
                            handler *handler);
-
 /**
   An interceptor to hijack ER_TOO_MANY_FIELDS error from
   pack_screens and retry again without UNIREG screens.
@@ -117,7 +117,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 		      handler *db_file)
 {
   LEX_STRING str_db_type;
-  uint reclength, info_length, screens, key_info_length, maxlength, tmp_len, i;
+  uint reclength, info_length, screens, key_info_length, maxlength, i;
   ulong key_buff_length;
   File file;
   ulong filepos, data_offset;
@@ -214,40 +214,24 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     For additional credit, realise that UTF-8 has 1-3 bytes before 6.0,
     and 1-4 bytes in 6.0 (6.0 also has UTF-32).
   */
-  tmp_len= system_charset_info->cset->charpos(system_charset_info,
-                                              create_info->comment.str,
-                                              create_info->comment.str +
-                                              create_info->comment.length,
-                                              TABLE_COMMENT_MAXLEN);
-
-  if (tmp_len < create_info->comment.length)
+  if (create_info->comment.length > TABLE_COMMENT_MAXLEN)
   {
-    char *real_table_name= (char*) table;
+    const char *real_table_name= table;
     List_iterator<Create_field> it(create_fields);
     Create_field *field;
     while ((field=it++))
     {
       if (field->field && field->field->table &&
-         (real_table_name= field->field->table->s->table_name.str))
-        break;
+        (real_table_name= field->field->table->s->table_name.str))
+         break;
     }
-    if ((thd->variables.sql_mode &
-         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
-    {
-      my_error(ER_TOO_LONG_TABLE_COMMENT, MYF(0),
-               real_table_name, static_cast<ulong>(TABLE_COMMENT_MAXLEN));
-      my_free(screen_buff);
-      DBUG_RETURN(1);
-    }
-    THD *thd= current_thd;
-    char warn_buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_TABLE_COMMENT),
-                real_table_name, static_cast<ulong>(TABLE_COMMENT_MAXLEN));
-    /* do not push duplicate warnings */
-    if (!thd->get_stmt_da()->has_sql_condition(warn_buff, strlen(warn_buff)))
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                   ER_TOO_LONG_TABLE_COMMENT, warn_buff);
-    create_info->comment.length= tmp_len;
+    if (validate_comment_length(thd,
+                                create_info->comment.str,
+                                &create_info->comment.length,
+                                TABLE_COMMENT_MAXLEN,
+                                ER_TOO_LONG_TABLE_COMMENT,
+                                real_table_name))
+      DBUG_RETURN(true);
   }
   /*
     If table comment is longer than TABLE_COMMENT_INLINE_MAXLEN bytes,
@@ -739,33 +723,13 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   Create_field *field;
   while ((field=it++))
   {
-    uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
-                                                     field->comment.str,
-                                                     field->comment.str +
-                                                     field->comment.length,
-                                                     COLUMN_COMMENT_MAXLEN);
-    if (tmp_len < field->comment.length)
-    {
-      THD *thd= current_thd;
-
-      if ((thd->variables.sql_mode &
-	   (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
-      {
-        my_error(ER_TOO_LONG_FIELD_COMMENT, MYF(0), field->field_name,
-                 static_cast<ulong>(COLUMN_COMMENT_MAXLEN));
-	DBUG_RETURN(1);
-      }
-      char warn_buff[MYSQL_ERRMSG_SIZE];
-      my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_FIELD_COMMENT),
-                  field->field_name,
-                  static_cast<ulong>(COLUMN_COMMENT_MAXLEN));
-      /* do not push duplicate warnings */
-      if (!thd->get_stmt_da()->has_sql_condition(warn_buff, strlen(warn_buff)))
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                     ER_TOO_LONG_FIELD_COMMENT, warn_buff);
-      field->comment.length= tmp_len;
-    }
-
+    if (validate_comment_length(current_thd,
+                                field->comment.str,
+                                &field->comment.length,
+                                COLUMN_COMMENT_MAXLEN,
+                                ER_TOO_LONG_FIELD_COMMENT,
+                                (char *) field->field_name))
+      DBUG_RETURN(true);
     totlength+= field->length;
     com_length+= field->comment.length;
     if (MTYP_TYPENR(field->unireg_check) == Field::NOEMPTY ||

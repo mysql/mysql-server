@@ -181,7 +181,7 @@ Log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
 */
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
-  return rpl_filter->is_on() && tables && !thd->spcont &&
+  return rpl_filter->is_on() && tables && !thd->sp_runtime_ctx &&
          !rpl_filter->tables_ok(thd->db, tables);
 }
 
@@ -2542,7 +2542,7 @@ case SQLCOM_PREPARE:
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
       goto error;
-    res = show_slave_hosts(thd);
+    res= show_slave_hosts(thd);
     break;
   }
   case SQLCOM_SHOW_RELAYLOG_EVENTS:
@@ -2589,7 +2589,11 @@ case SQLCOM_PREPARE:
     if (check_global_access(thd, SUPER_ACL))
       goto error;
     mysql_mutex_lock(&LOCK_active_mi);
-    res = change_master(thd,active_mi);
+    if (active_mi != NULL)
+      res= change_master(thd, active_mi);
+    else
+      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
+                 MYF(0));
     mysql_mutex_unlock(&LOCK_active_mi);
     break;
   }
@@ -2599,16 +2603,7 @@ case SQLCOM_PREPARE:
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
     mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi != NULL)
-    {
-      res = show_master_info(thd, active_mi);
-    }
-    else
-    {
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                   WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
-      my_ok(thd);
-    }
+    res= show_slave_status(thd, active_mi);
     mysql_mutex_unlock(&LOCK_active_mi);
     break;
   }
@@ -2617,7 +2612,7 @@ case SQLCOM_PREPARE:
     /* Accept one of two privileges */
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
-    res = show_binlog_info(thd);
+    res = show_master_status(thd);
     break;
   }
 
@@ -2908,7 +2903,11 @@ end_with_restore_list:
   case SQLCOM_SLAVE_START:
   {
     mysql_mutex_lock(&LOCK_active_mi);
-    start_slave(thd,active_mi,1 /* net report*/);
+    if (active_mi != NULL)
+      res= start_slave(thd, active_mi, 1 /* net report*/);
+    else
+      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
+                 MYF(0));
     mysql_mutex_unlock(&LOCK_active_mi);
     break;
   }
@@ -2935,7 +2934,11 @@ end_with_restore_list:
   }
   {
     mysql_mutex_lock(&LOCK_active_mi);
-    stop_slave(thd,active_mi,1/* net report*/);
+    if (active_mi != NULL)
+      res= stop_slave(thd, active_mi, 1 /* net report*/);
+    else
+      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
+                 MYF(0));
     mysql_mutex_unlock(&LOCK_active_mi);
     break;
   }
@@ -3759,7 +3762,7 @@ end_with_restore_list:
 
   } while (0);
   /* Don't do it, if we are inside a SP */
-  if (!thd->spcont)
+  if (!thd->sp_runtime_ctx)
   {
     delete lex->sphead;
     lex->sphead= NULL;
@@ -5638,7 +5641,7 @@ void THD::reset_for_next_command()
 {
   THD *thd= this;
   DBUG_ENTER("mysql_reset_thd_for_next_command");
-  DBUG_ASSERT(!thd->spcont); /* not for substatements of routines */
+  DBUG_ASSERT(!thd->sp_runtime_ctx); /* not for substatements of routines */
   DBUG_ASSERT(! thd->in_sub_stmt);
   thd->free_list= 0;
   thd->select_number= 1;
