@@ -826,8 +826,6 @@ row_import_cfg_read_string(
 {
 	ulint		len = 0;
 
-	UT_MEM_ASSERT_W(ptr, max_len);
-
 	while (!feof(file)) {
 		int	ch = fgetc(file);
 
