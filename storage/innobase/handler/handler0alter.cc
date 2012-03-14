@@ -137,6 +137,9 @@ by ALTER TABLE and holding data used during in-place alter.
 @retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
 @retval HA_ALTER_INPLACE_EXCLUSIVE_LOCK	Supported, but requires X-lock
 @retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE	Supported, prepare phase
+(any transactions that have modified the table must commit or roll back
+first, and no transactions can start modifying the table while
+prepare_inplace_alter_table() is executing)
 */
 UNIV_INTERN
 enum_alter_inplace_result
@@ -181,6 +184,8 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
+	update_thd();
+
 	/* Fix the key parts. */
 	for (KEY* new_key = ha_alter_info->key_info_buffer;
 	     new_key < ha_alter_info->key_info_buffer
@@ -190,6 +195,44 @@ ha_innobase::check_if_supported_inplace_alter(
 		     key_part < new_key->key_part + new_key->key_parts;
 		     key_part++) {
 			key_part->field = table->field[key_part->fieldnr];
+			/* TODO: Use altered_table for ADD_COLUMN.
+			What to do with ADD_COLUMN|DROP_COLUMN? */
+
+			if (dict_table_get_n_user_cols(prebuilt->table)
+			    <= key_part->fieldnr) {
+				/* This should never occur, unless
+				the .frm file gets out of sync with
+				the InnoDB data dictionary. */
+				sql_print_warning(
+					"InnoDB table '%s' has %u columns, "
+					"MySQL table '%s' has %u.",
+					prebuilt->table->name,
+					(unsigned) dict_table_get_n_user_cols(
+						prebuilt->table),
+					table->s->table_name.str,
+					table->s->fields);
+				ut_ad(0);
+				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+			}
+
+			dict_col_t* col = dict_table_get_nth_col(
+				prebuilt->table, key_part->fieldnr);
+
+			if (!(col->prtype & DATA_NOT_NULL)
+			    != !!key_part->field->null_ptr) {
+				sql_print_warning(
+					"InnoDB table '%s' column '%s' "
+					"attributes differ from "
+					"MySQL '%s'.'%s'.",
+					prebuilt->table->name,
+					dict_table_get_col_name(
+						prebuilt->table,
+						key_part->fieldnr),
+					table->s->table_name.str,
+					key_part->field->field_name);
+				ut_ad(0);
+				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+			}
 		}
 	}
 
