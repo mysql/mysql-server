@@ -1,7 +1,4 @@
 include/master-slave.inc
-Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 SET @tx_isolation= @@global.tx_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
@@ -67,6 +64,7 @@ c1	c2	c21
 B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
+E	Essen	Ost
 H	Hamburg	Norderstedt
 connection master;
 Here the memcached results after add:
@@ -87,6 +85,8 @@ c1	c2	c21
 B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
+E	Essen	Ost
+F	Frankfurt	Sachsenhause
 H	Hamburg	Norderstedt
 connection master;
 Here the memcached results after replace:
@@ -107,6 +107,8 @@ c1	c2	c21
 B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
+E	Essen	Ost
+F	Frankfurt a. M.	Sachsenhausen
 H	Hamburg	Norderstedt
 connection master;
 Here the memcached results after delete:
@@ -125,6 +127,7 @@ c1	c2	c21
 B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
+E	Essen	Ost
 H	Hamburg	Norderstedt
 connection master;
 Here the memcached results after add Frankfurt|:
@@ -147,6 +150,8 @@ c1	c2	c21
 B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
+E	Essen	Ost
+F	Frankfurt	NULL
 H	Hamburg	Norderstedt
 connection master;
 Here the memcached results after replace Frankfurt a.M.:
@@ -169,6 +174,8 @@ c1	c2	c21
 B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
+E	Essen	Ost
+F	NULL	Sachsenhausen
 H	Hamburg	Norderstedt
 connection master;
 DROP TABLE t1;

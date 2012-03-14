@@ -1,5 +1,8 @@
 source include/not_windows.inc;
 source include/have_innodb.inc;
+--disable_warnings
+source include/master-slave.inc;
+--enable_warnings
 
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
@@ -27,11 +30,6 @@ INSERT INTO config_options VALUES("separator", "|");
 # describe table for memcache
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 			       "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
-
-# Switch on replication
---disable_warnings
-source include/master-slave.inc;
---enable_warnings
 
 USE test;
 
@@ -246,9 +244,8 @@ SELECT c1,c2,c21 FROM t1;
 connection master;
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;
+ 
+SET @@global.tx_isolation= @tx_isolation;
 sync_slave_with_master;
 source include/rpl_end.inc;
- 
-connection default;
-SET @@global.tx_isolation= @tx_isolation;
 

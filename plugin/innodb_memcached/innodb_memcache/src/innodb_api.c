@@ -711,7 +711,8 @@ innodb_api_set_multi_cols(
 	ib_tpl_t	tpl,		/*!< in: tuple for insert */
 	meta_cfg_info_t* meta_info,	/*!< in: metadata info */
 	char*		value,		/*!< in: value to insert */
-	int		value_len)	/*!< in: value length */
+	int		value_len,	/*!< in: value length */
+	void*		table)		/*!< in: MySQL TABLE* */
 {
 	ib_err_t	err = DB_ERROR;
 	meta_column_t*	col_info;
@@ -764,6 +765,12 @@ innodb_api_set_multi_cols(
 			err = ib_cb_col_set_value(
 				tpl, col_info[i].field_id,
 				col_val, strlen(col_val));
+
+			if (table) {
+				handler_rec_setup_str(
+					table, col_info[i].field_id,
+					col_val, strlen(col_val));
+			}
 		}
 
 		if (err != DB_SUCCESS) {
@@ -862,17 +869,25 @@ innodb_api_set_tpl(
 		if (col_to_set == UPDATE_ALL_VAL_COL) {
 			err = innodb_api_set_multi_cols(tpl, meta_info,
 							(char*) value,
-							value_len);
+							value_len, table);
 		} else {
 			err = ib_cb_col_set_value(
 				tpl,
 				meta_info->extra_col_info[col_to_set].field_id,
 				value, value_len);
+
+			if (table) {
+				handler_rec_setup_str(
+					table,
+					col_info[col_to_set].field_id,
+					value, value_len);
+			}
 		}
 	} else {
 		err = ib_cb_col_set_value(
 			tpl, col_info[CONTAINER_VALUE].field_id,
 			value, value_len);
+
 		if (table) {
 			handler_rec_setup_str(
 				table, col_info[CONTAINER_VALUE].field_id,
