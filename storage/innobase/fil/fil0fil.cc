@@ -2348,29 +2348,30 @@ fil_check_pending_io(
 }
 
 /*******************************************************************//**
-Closes a single-table tablespace. The tablespace must be cached in the
-memory cache. Free all pages used by the tablespace.
-@return	DB_SUCCESS or error */
-UNIV_INTERN
+Check pending operations on a tablespace.
+@return DB_SUCCESS or error failure. */
+static
 db_err
-fil_close_tablespace(
-/*=================*/
-	ulint		id)	/*!< in: space id */
+fil_check_pending_operations(
+/*=========================*/
+	ulint		id,	/*!< in: space id */
+	fil_space_t**	space,	/*!< out: tablespace instance in memory */
+	char**		path)	/*!< out/own: tablespace path */
 {
-	ulint		count		= 0;
+	ulint		count = 0;
 
 	ut_a(id != TRX_SYS_SPACE);
+
+	*space = 0;
 
 	/* Check for pending change buffer merges. */
 
 	do {
-		fil_space_t*	space;
-
 		mutex_enter(&fil_system->mutex);
 
-		space = fil_space_get_by_id(id);
+		*space = fil_space_get_by_id(id);
 
-		count = fil_ibuf_check_pending_merges(space, count);
+		count = fil_ibuf_check_pending_merges(*space, count);
 
 		mutex_exit(&fil_system->mutex);
 
@@ -2382,25 +2383,24 @@ fil_close_tablespace(
 
 	/* Check for pending IO. */
 
-	fil_space_t*	space;
-	char*		path = 0;
+	*path = 0;
 
 	do {
 		mutex_enter(&fil_system->mutex);
 
-		space = fil_space_get_by_id(id);
+		*space = fil_space_get_by_id(id);
 
-		if (space == NULL) {
+		if (*space == NULL) {
 			mutex_exit(&fil_system->mutex);
 			return(DB_TABLESPACE_NOT_FOUND);
 		}
 
 		fil_node_t*	node;
 
-		count = fil_check_pending_io(space, &node, count);
+		count = fil_check_pending_io(*space, &node, count);
 
 		if (count == 0) {
-			path = mem_strdup(node->name);
+			*path = mem_strdup(node->name);
 		}
 		
 		mutex_exit(&fil_system->mutex);
@@ -2411,9 +2411,34 @@ fil_close_tablespace(
 
 	} while (count > 0);
 
+	return(DB_SUCCESS);
+}
+
+/*******************************************************************//**
+Closes a single-table tablespace. The tablespace must be cached in the
+memory cache. Free all pages used by the tablespace.
+@return	DB_SUCCESS or error */
+UNIV_INTERN
+db_err
+fil_close_tablespace(
+/*=================*/
+	trx_t*		trx,	/*!< in/out: Transaction covering the close */
+	ulint		id)	/*!< in: space id */
+{
+	char*		path = 0;
+	fil_space_t*	space = 0;
+
+	ut_a(id != TRX_SYS_SPACE);
+
+	db_err		err = fil_check_pending_operations(id, &space, &path);
+
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
 	ut_a(path != 0);
 
-	rw_lock_x_unlock(&space->latch);
+	rw_lock_x_lock(&space->latch);
 
 #ifndef UNIV_HOTBACKUP
 	/* Invalidate in the buffer pool all pages belonging to the
@@ -2423,15 +2448,14 @@ fil_close_tablespace(
 	completely and permanently. The flag is_being_deleted also prevents
 	fil_flush() from being applied to this tablespace. */
 
-	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_FLUSH_WRITE, 0);
+	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_FLUSH_WRITE, trx);
 #endif
 	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
-
-	db_err		err;
 
 	mutex_enter(&fil_system->mutex);
 
 	if (!fil_space_free(id, TRUE)) {
+		rw_lock_x_unlock(&space->latch);
 		err = DB_TABLESPACE_NOT_FOUND;
 	} else {
 		err = DB_SUCCESS;
@@ -2447,8 +2471,6 @@ fil_close_tablespace(
 
 	os_file_delete_if_exists(cfg_name);
 	os_file_delete_if_exists(ibt_name);
-
-	rw_lock_x_unlock(&space->latch);
 
 	mem_free(path);
 	mem_free(ibt_name);
@@ -2468,111 +2490,24 @@ fil_delete_tablespace(
 	ulint	id,	/*!< in: space id */
 	bool	rename)	/*!< in: true=rename to .ibt; false=remove */
 {
-	fil_space_t*	space;
-	fil_node_t*	node;
-	ulint		count		= 0;
-	char*		path;
-	db_err		err = DB_SUCCESS;
+	char*		path = 0;
+	fil_space_t*	space = 0;
 
-	ut_a(id != 0);
-stop_ibuf_merges:
-	mutex_enter(&fil_system->mutex);
+	ut_a(id != TRX_SYS_SPACE);
 
-	space = fil_space_get_by_id(id);
+	db_err		err = fil_check_pending_operations(id, &space, &path);
 
-	if (space != NULL) {
-		space->stop_ibuf_merges = TRUE;
+	if (err != DB_SUCCESS) {
 
-		if (space->n_pending_ibuf_merges == 0) {
-			mutex_exit(&fil_system->mutex);
-
-			count = 0;
-
-			goto try_again;
-		} else {
-			if (count > 5000) {
-				ut_print_timestamp(stderr);
-				fputs("  InnoDB: Warning: trying to"
-				      " delete tablespace ", stderr);
-				ut_print_filename(stderr, space->name);
-				fprintf(stderr, ",\n"
-					"InnoDB: but there are %lu pending"
-					" ibuf merges on it.\n"
-					"InnoDB: Loop %lu.\n",
-					(ulong) space->n_pending_ibuf_merges,
-					(ulong) count);
-			}
-
-			mutex_exit(&fil_system->mutex);
-
-			os_thread_sleep(20000);
-			count++;
-
-			goto stop_ibuf_merges;
-		}
-	}
-
-	mutex_exit(&fil_system->mutex);
-	count = 0;
-
-try_again:
-	mutex_enter(&fil_system->mutex);
-
-	space = fil_space_get_by_id(id);
-
-	if (space == NULL) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: cannot delete tablespace %lu\n"
-			"InnoDB: because it is not found in the"
-			" tablespace memory cache.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot delete tablespace %lu because it is not "
+			"found in the tablespace memory cache.",
 			(ulong) id);
 
-		mutex_exit(&fil_system->mutex);
-
-		return(DB_TABLESPACE_NOT_FOUND);
+		return(err);
 	}
 
-	ut_a(space);
-	ut_a(space->n_pending_ibuf_merges == 0);
-
-	space->is_being_deleted = TRUE;
-
-	/* TODO: The following code must change when InnoDB supports
-	multiple datafiles per tablespace. */
-	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
-
-	node = UT_LIST_GET_FIRST(space->chain);
-
-	if (space->n_pending_flushes > 0
-	    || node->n_pending > 0
-	    || node->being_extended) {
-
-		if (count > 1000) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Warning: trying to"
-			      " delete tablespace ", stderr);
-			ut_print_filename(stderr, space->name);
-			fprintf(stderr, ",\n"
-				"InnoDB: but there are %lu flushes"
-				" and %lu pending i/o's on it\n"
-				"InnoDB: Or it is being extended\n"
-				"InnoDB: Loop %lu.\n",
-				(ulong) space->n_pending_flushes,
-				(ulong) node->n_pending,
-				(ulong) count);
-		}
-		mutex_exit(&fil_system->mutex);
-		os_thread_sleep(20000);
-
-		count++;
-
-		goto try_again;
-	}
-
-	path = mem_strdup(node->name);
-
-	mutex_exit(&fil_system->mutex);
+	ut_a(path != 0);
 
 	/* Important: We rely on the data dictionary mutex to ensure
 	that a race is not possible here. It should serialize the tablespace

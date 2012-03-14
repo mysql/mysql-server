@@ -576,7 +576,7 @@ row_import_cleanup(
 
 		row_mysql_unlock_data_dictionary(trx);
 
-		fil_close_tablespace(table->space);
+		fil_close_tablespace(trx, table->space);
 	}
 
 	DBUG_EXECUTE_IF("ib_import_before_commit_crash", DBUG_SUICIDE(););
@@ -2069,7 +2069,7 @@ row_import_for_mysql(
 	if (err != DB_SUCCESS) {
 		ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			 ER_GET_ERRNO,
-			 "Cannot reset LSN's in table %s : %s",
+			 "Cannot reset LSN's in table '%s' : %s",
 			 table_name, ut_strerr(err));
 
 		return(row_import_cleanup(prebuilt, trx, err));
@@ -2094,7 +2094,7 @@ row_import_for_mysql(
 
 		ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			 ER_FILE_NOT_FOUND,
-			 "Cannot open '%s' file of %s : %s",
+			 "Cannot open tablespace '%s' file of '%s' : %s",
 			 ibd_filename, table_name, ut_strerr(err));
 
 		mem_free(ibd_filename);

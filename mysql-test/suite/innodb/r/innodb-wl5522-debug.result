@@ -26,7 +26,7 @@ restore: t1
 SET SESSION debug="-d,ib_import_reset_space_and_lsn_failure";
 SET SESSION debug="+d,ib_import_open_tablespace_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Cannot open './test_wl5522/t1.ibd' file of "test_wl5522"."t1" : Tablespace not found
+ERROR HY000: InnoDB: Cannot open tablespace './test_wl5522/t1.ibd' file of '"test_wl5522"."t1"' : Tablespace not found
 restore: t1
 SET SESSION debug="-d,ib_import_open_tablespace_failure";
 SET SESSION debug="+d,ib_import_check_bitmap_failure";

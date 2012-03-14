@@ -39,6 +39,9 @@ Created 10/25/1995 Heikki Tuuri
 #include "log0log.h"
 #endif /* !UNIV_HOTBACKUP */
 
+// Forward declaration
+struct trx_struct;
+
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
 directory, and we must set the base file path explicitly */
@@ -419,6 +422,7 @@ UNIV_INTERN
 db_err
 fil_close_tablespace(
 /*=================*/
+	trx_struct*	trx,	/*!< in/out: Transaction covering the close */
 	ulint		id);	/*!< in: space id */
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
