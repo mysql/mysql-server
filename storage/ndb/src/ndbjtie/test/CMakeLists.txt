@@ -31,11 +31,6 @@ CREATE_JAR(ndbjtie-test ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
   DEPENDENCIES ndbjtie.jar jtie.jar jtie-test-myjapi.jar)
 
-# ndb71@win32: compile issues with including <NdbTap.hpp>
-#INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/util
-#		${CMAKE_SOURCE_DIR}/unittest/mytap)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/unittest/mytap)
-
 ADD_EXECUTABLE(ndbjtie_unit_tests-t ndbjtie_unit_tests-t.cpp)
 
 IF(WIN32)
