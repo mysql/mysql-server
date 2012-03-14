@@ -1,0 +1,1092 @@
+include/master-slave.inc
+[connection master]
+*** Test 1 ********************************************************
+* test native NDB$MAX_DELETE_WIN() conflict resolution
+* test with both allowed "conflict column" types, uint32 and uint64
+*******************************************************************
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX_DELETE_WIN(X)");
+create table t1 (a int, b varchar(32), X int unsigned, d varchar(9), primary key (a, d)) engine ndb;
+create table t2 (a int key, b varchar(32), c int unsigned, d varchar(9)) engine ndb;
+************************************************
+* some basic positive testing, i.e. no conflicts
+************************************************
+*** insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=1", 1, '1');
+insert into t1 values (2, "Master t1 a=2 at X=1", 1, '12');
+insert into t1 values (3, "Master t1 a=3 at X=1", 1, '123');
+insert into t2 values (1, "Master t2 a=1 at c=1", 1, '1');
+insert into t2 values (2, "Master t2 a=2 at c=1", 1, '12');
+insert into t2 values (3, "Master t2 a=3 at c=1", 1, '123');
+commit;
+*** master - update all
+begin;
+update t1 set b="Master t1 X=2", X=X+1;
+update t2 set b="Master t2 c=2", c=c+1;
+commit;
+*** slave - check update all
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 X=2	2	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 c=2	2	123
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** master - update 2 rows in different tables
+update t1 set b="Master t1 a=2 at X=3", X=X+1 where a=2;
+update t2 set b="Master t2 a=3 at c=3", c=c+1 where a=3;
+*** slave - check update 2 rows in different tables
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 a=2 at X=3	3	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 a=3 at c=3	3	123
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** master - delete all
+delete from t1;
+delete from t2;
+*** slave - check delete all
+select * from t1 order by a, d;
+a	b	X	d
+select * from t2 order by a, d;
+a	b	c	d
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+************************
+* start conflict testing
+************************
+*** master - insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=10", 10, '111');
+insert into t1 values (2, "Master t1 a=2 at X=10", 10, '111222');
+insert into t1 values (3, "Master t1 a=3 at X=10", 10, '111222333');
+insert into t1 values (4, "Master t1 a=4 at X=10", 10, '111222333');
+insert into t2 values (1, "Master t2 a=1 at c=10", 10, '111');
+insert into t2 values (2, "Master t2 a=2 at c=10", 10, '111222');
+insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
+insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
+commit;
+*** slave - check conflict info, no conflicts yet
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** slave - check insert some data
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+*** slave - update some data to cause conflicts
+begin;
+update t1 set b="Slave t1 a=1 at X=12", X=12 where a=1 and d='111';
+update t1 set b="Slave t1 a=2 at X=12", X=12 where a=2 and d='111222';
+update t1 set b="Slave t1 a=3 at X=12", X=12 where a=3 and d='111222333';
+update t1 set b="Slave t1 a=4 at X=12", X=12 where a=4 and d='111222333';
+update t2 set b="Slave t2 a=1 at c=12", c=12 where a=1;
+update t2 set b="Slave t2 a=2 at c=12", c=12 where a=2;
+update t2 set b="Slave t2 a=3 at c=12", c=12 where a=3;
+update t2 set b="Slave t2 a=4 at c=12", c=12 where a=4;
+commit;
+*** master - update some data to cause conflicts
+begin;
+update t1 set b="Master t1 a=1 at X=11", X=11 where a=1 and d='111';
+update t1 set b="Master t1 a=2 at X=11", X=11 where a=2 and d='111222';
+update t1 set b="Master t1 a=3 at X=11", X=11 where a=3 and d='111222333';
+delete from t1 where a = 4;
+update t2 set b="Master t2 a=1 at c=11", c=11 where a=1;
+update t2 set b="Master t2 a=2 at c=11", c=11 where a=2;
+update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
+delete from t2 where a = 4;
+commit;
+*** slave - check conflict info, there should be some
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+3
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+2	1	#	3	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	1	111
+2	1	#	#	2	111222
+2	1	#	#	3	111222333
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** slave - check update some data that causes conflicts
+select * from t1 order by a, d;
+a	b	X	d
+1	Slave t1 a=1 at X=12	12	111
+2	Slave t1 a=2 at X=12	12	111222
+3	Slave t1 a=3 at X=12	12	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=11	11	111
+2	Master t2 a=2 at c=11	11	111222
+3	Master t2 a=3 at c=11	11	111222333
+*** slave - correct some data to correspond to the master
+update t1 set b="Slave t1 a=1 at X=11", X=11 where a=1 and d='111';
+delete from t1 where a = 4;
+*** master - update some data, use higher timestamp
+begin;
+update t1 set b="Master t1 a=1 at X=13", X=13 where a=1 and d='111';
+update t1 set b="Master t1 a=2 at X=13", X=13 where a=2 and d='111222';
+update t1 set b="Master t1 a=3 at X=13", X=13 where a=3 and d='111222333';
+update t2 set b="Master t2 a=1 at c=13", c=13 where a=1;
+update t2 set b="Master t2 a=2 at c=13", c=13 where a=2;
+update t2 set b="Master t2 a=3 at c=13", c=13 where a=3;
+commit;
+*** slave - check conflict info, change depends on calling test
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+3
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+2	1	#	3	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	1	111
+2	1	#	#	2	111222
+2	1	#	#	3	111222333
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** slave - check higer timestamp
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=13	13	111
+2	Master t1 a=2 at X=13	13	111222
+3	Master t1 a=3 at X=13	13	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=13	13	111
+2	Master t2 a=2 at c=13	13	111222
+3	Master t2 a=3 at c=13	13	111222333
+drop table t1, t2;
+*** Test 2 ********************************************************
+* test native NDB$MAX_DELETE_WIN() conflict resolution
+* test with both allowed "conflict column" types, uint32 and uint64
+* test that setting binlog update option via table works equally well
+*******************************************************************
+set global ndb_log_update_as_write=1;
+update mysql.ndb_replication set binlog_type=4;
+create table t1 (a int, b varchar(32), X bigint unsigned, d varchar(9), primary key (a, d)) engine ndb;
+create table t2 (a int key, b varchar(32), c int unsigned, d varchar(9)) engine ndb;
+************************************************
+* some basic positive testing, i.e. no conflicts
+************************************************
+*** insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=1", 1, '1');
+insert into t1 values (2, "Master t1 a=2 at X=1", 1, '12');
+insert into t1 values (3, "Master t1 a=3 at X=1", 1, '123');
+insert into t2 values (1, "Master t2 a=1 at c=1", 1, '1');
+insert into t2 values (2, "Master t2 a=2 at c=1", 1, '12');
+insert into t2 values (3, "Master t2 a=3 at c=1", 1, '123');
+commit;
+*** master - update all
+begin;
+update t1 set b="Master t1 X=2", X=X+1;
+update t2 set b="Master t2 c=2", c=c+1;
+commit;
+*** slave - check update all
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 X=2	2	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 c=2	2	123
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** master - update 2 rows in different tables
+update t1 set b="Master t1 a=2 at X=3", X=X+1 where a=2;
+update t2 set b="Master t2 a=3 at c=3", c=c+1 where a=3;
+*** slave - check update 2 rows in different tables
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 a=2 at X=3	3	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 a=3 at c=3	3	123
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** master - delete all
+delete from t1;
+delete from t2;
+*** slave - check delete all
+select * from t1 order by a, d;
+a	b	X	d
+select * from t2 order by a, d;
+a	b	c	d
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+************************
+* start conflict testing
+************************
+*** master - insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=10", 10, '111');
+insert into t1 values (2, "Master t1 a=2 at X=10", 10, '111222');
+insert into t1 values (3, "Master t1 a=3 at X=10", 10, '111222333');
+insert into t1 values (4, "Master t1 a=4 at X=10", 10, '111222333');
+insert into t2 values (1, "Master t2 a=1 at c=10", 10, '111');
+insert into t2 values (2, "Master t2 a=2 at c=10", 10, '111222');
+insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
+insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
+commit;
+*** slave - check conflict info, no conflicts yet
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** slave - check insert some data
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+*** slave - update some data to cause conflicts
+begin;
+update t1 set b="Slave t1 a=1 at X=12", X=12 where a=1 and d='111';
+update t1 set b="Slave t1 a=2 at X=12", X=12 where a=2 and d='111222';
+update t1 set b="Slave t1 a=3 at X=12", X=12 where a=3 and d='111222333';
+update t1 set b="Slave t1 a=4 at X=12", X=12 where a=4 and d='111222333';
+update t2 set b="Slave t2 a=1 at c=12", c=12 where a=1;
+update t2 set b="Slave t2 a=2 at c=12", c=12 where a=2;
+update t2 set b="Slave t2 a=3 at c=12", c=12 where a=3;
+update t2 set b="Slave t2 a=4 at c=12", c=12 where a=4;
+commit;
+*** master - update some data to cause conflicts
+begin;
+update t1 set b="Master t1 a=1 at X=11", X=11 where a=1 and d='111';
+update t1 set b="Master t1 a=2 at X=11", X=11 where a=2 and d='111222';
+update t1 set b="Master t1 a=3 at X=11", X=11 where a=3 and d='111222333';
+delete from t1 where a = 4;
+update t2 set b="Master t2 a=1 at c=11", c=11 where a=1;
+update t2 set b="Master t2 a=2 at c=11", c=11 where a=2;
+update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
+delete from t2 where a = 4;
+commit;
+*** slave - check conflict info, there should be some
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+3
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+2	1	#	3	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	1	111
+2	1	#	#	2	111222
+2	1	#	#	3	111222333
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** slave - check update some data that causes conflicts
+select * from t1 order by a, d;
+a	b	X	d
+1	Slave t1 a=1 at X=12	12	111
+2	Slave t1 a=2 at X=12	12	111222
+3	Slave t1 a=3 at X=12	12	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=11	11	111
+2	Master t2 a=2 at c=11	11	111222
+3	Master t2 a=3 at c=11	11	111222333
+*** slave - correct some data to correspond to the master
+update t1 set b="Slave t1 a=1 at X=11", X=11 where a=1 and d='111';
+delete from t1 where a = 4;
+*** master - update some data, use higher timestamp
+begin;
+update t1 set b="Master t1 a=1 at X=13", X=13 where a=1 and d='111';
+update t1 set b="Master t1 a=2 at X=13", X=13 where a=2 and d='111222';
+update t1 set b="Master t1 a=3 at X=13", X=13 where a=3 and d='111222333';
+update t2 set b="Master t2 a=1 at c=13", c=13 where a=1;
+update t2 set b="Master t2 a=2 at c=13", c=13 where a=2;
+update t2 set b="Master t2 a=3 at c=13", c=13 where a=3;
+commit;
+*** slave - check conflict info, change depends on calling test
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+3
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+2	1	#	3	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	1	111
+2	1	#	#	2	111222
+2	1	#	#	3	111222333
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** slave - check higer timestamp
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=13	13	111
+2	Master t1 a=2 at X=13	13	111222
+3	Master t1 a=3 at X=13	13	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=13	13	111
+2	Master t2 a=2 at c=13	13	111222
+3	Master t2 a=3 at c=13	13	111222333
+drop table t1, t2;
+*** Test 3 ***********************************************************
+* test that setting binlog type really also sets the "USE_UPDATE" flag
+* in this case it will result in conflict resolution failure, as
+* update_row never gets called
+* ********************************************************************
+set global ndb_log_update_as_write=0;
+update mysql.ndb_replication set binlog_type=2;
+create table t1 (a int, b varchar(32), X int unsigned, d varchar(9), primary key (a, d)) engine ndb;
+create table t2 (a int key, b varchar(32), c int unsigned, d varchar(9)) engine ndb;
+************************************************
+* some basic positive testing, i.e. no conflicts
+************************************************
+*** insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=1", 1, '1');
+insert into t1 values (2, "Master t1 a=2 at X=1", 1, '12');
+insert into t1 values (3, "Master t1 a=3 at X=1", 1, '123');
+insert into t2 values (1, "Master t2 a=1 at c=1", 1, '1');
+insert into t2 values (2, "Master t2 a=2 at c=1", 1, '12');
+insert into t2 values (3, "Master t2 a=3 at c=1", 1, '123');
+commit;
+*** master - update all
+begin;
+update t1 set b="Master t1 X=2", X=X+1;
+update t2 set b="Master t2 c=2", c=c+1;
+commit;
+*** slave - check update all
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=1	1	1
+2	Master t1 a=2 at X=1	1	12
+3	Master t1 a=3 at X=1	1	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 c=2	2	123
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+3
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+2	1	#	3	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	1	1
+2	1	#	#	2	12
+2	1	#	#	3	123
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** master - update 2 rows in different tables
+update t1 set b="Master t1 a=2 at X=3", X=X+1 where a=2;
+update t2 set b="Master t2 a=3 at c=3", c=c+1 where a=3;
+*** slave - check update 2 rows in different tables
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=1	1	1
+2	Master t1 a=2 at X=1	1	12
+3	Master t1 a=3 at X=1	1	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 a=3 at c=3	3	123
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+4
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+2	1	#	3	#	#
+2	1	#	4	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	1	1
+2	1	#	#	2	12
+2	1	#	#	2	12
+2	1	#	#	3	123
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** master - delete all
+delete from t1;
+delete from t2;
+*** slave - check delete all
+select * from t1 order by a, d;
+a	b	X	d
+select * from t2 order by a, d;
+a	b	c	d
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+4
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+2	1	#	3	#	#
+2	1	#	4	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	1	1
+2	1	#	#	2	12
+2	1	#	#	2	12
+2	1	#	#	3	123
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+************************
+* start conflict testing
+************************
+*** master - insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=10", 10, '111');
+insert into t1 values (2, "Master t1 a=2 at X=10", 10, '111222');
+insert into t1 values (3, "Master t1 a=3 at X=10", 10, '111222333');
+insert into t1 values (4, "Master t1 a=4 at X=10", 10, '111222333');
+insert into t2 values (1, "Master t2 a=1 at c=10", 10, '111');
+insert into t2 values (2, "Master t2 a=2 at c=10", 10, '111222');
+insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
+insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
+commit;
+*** slave - check conflict info, no conflicts yet
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** slave - check insert some data
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+*** slave - update some data to cause conflicts
+begin;
+update t1 set b="Slave t1 a=1 at X=12", X=12 where a=1 and d='111';
+update t1 set b="Slave t1 a=2 at X=12", X=12 where a=2 and d='111222';
+update t1 set b="Slave t1 a=3 at X=12", X=12 where a=3 and d='111222333';
+update t1 set b="Slave t1 a=4 at X=12", X=12 where a=4 and d='111222333';
+update t2 set b="Slave t2 a=1 at c=12", c=12 where a=1;
+update t2 set b="Slave t2 a=2 at c=12", c=12 where a=2;
+update t2 set b="Slave t2 a=3 at c=12", c=12 where a=3;
+update t2 set b="Slave t2 a=4 at c=12", c=12 where a=4;
+commit;
+*** master - update some data to cause conflicts
+begin;
+update t1 set b="Master t1 a=1 at X=11", X=11 where a=1 and d='111';
+update t1 set b="Master t1 a=2 at X=11", X=11 where a=2 and d='111222';
+update t1 set b="Master t1 a=3 at X=11", X=11 where a=3 and d='111222333';
+delete from t1 where a = 4;
+update t2 set b="Master t2 a=1 at c=11", c=11 where a=1;
+update t2 set b="Master t2 a=2 at c=11", c=11 where a=2;
+update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
+delete from t2 where a = 4;
+commit;
+*** slave - check conflict info, there should be some
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+3
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	5	#	#
+2	1	#	6	#	#
+2	1	#	7	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	1	111
+2	1	#	#	2	111222
+2	1	#	#	3	111222333
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** slave - check update some data that causes conflicts
+select * from t1 order by a, d;
+a	b	X	d
+1	Slave t1 a=1 at X=12	12	111
+2	Slave t1 a=2 at X=12	12	111222
+3	Slave t1 a=3 at X=12	12	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=11	11	111
+2	Master t2 a=2 at c=11	11	111222
+3	Master t2 a=3 at c=11	11	111222333
+*** slave - correct some data to correspond to the master
+update t1 set b="Slave t1 a=1 at X=11", X=11 where a=1 and d='111';
+delete from t1 where a = 4;
+*** master - update some data, use higher timestamp
+begin;
+update t1 set b="Master t1 a=1 at X=13", X=13 where a=1 and d='111';
+update t1 set b="Master t1 a=2 at X=13", X=13 where a=2 and d='111222';
+update t1 set b="Master t1 a=3 at X=13", X=13 where a=3 and d='111222333';
+update t2 set b="Master t2 a=1 at c=13", c=13 where a=1;
+update t2 set b="Master t2 a=2 at c=13", c=13 where a=2;
+update t2 set b="Master t2 a=3 at c=13", c=13 where a=3;
+commit;
+*** slave - check conflict info, change depends on calling test
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+6
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	5	#	#
+2	1	#	6	#	#
+2	1	#	7	#	#
+2	1	#	8	#	#
+2	1	#	9	#	#
+2	1	#	10	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	1	111
+2	1	#	#	1	111
+2	1	#	#	2	111222
+2	1	#	#	2	111222
+2	1	#	#	3	111222333
+2	1	#	#	3	111222333
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** slave - check higer timestamp
+select * from t1 order by a, d;
+a	b	X	d
+1	Slave t1 a=1 at X=11	11	111
+2	Slave t1 a=2 at X=12	12	111222
+3	Slave t1 a=3 at X=12	12	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=13	13	111
+2	Master t2 a=2 at c=13	13	111222
+3	Master t2 a=3 at c=13	13	111222333
+drop table t1, t2;
+*** Test 4 ***********************************************************
+* test with FULL rows and "USE_UPDATE" flag
+* ********************************************************************
+set global ndb_log_update_as_write=0;
+update mysql.ndb_replication set binlog_type=7;
+create table t1 (a int, b varchar(32), X int unsigned, d varchar(9), primary key (a, d)) engine ndb;
+create table t2 (a int key, b varchar(32), c int unsigned, d varchar(9)) engine ndb;
+************************************************
+* some basic positive testing, i.e. no conflicts
+************************************************
+*** insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=1", 1, '1');
+insert into t1 values (2, "Master t1 a=2 at X=1", 1, '12');
+insert into t1 values (3, "Master t1 a=3 at X=1", 1, '123');
+insert into t2 values (1, "Master t2 a=1 at c=1", 1, '1');
+insert into t2 values (2, "Master t2 a=2 at c=1", 1, '12');
+insert into t2 values (3, "Master t2 a=3 at c=1", 1, '123');
+commit;
+*** master - update all
+begin;
+update t1 set b="Master t1 X=2", X=X+1;
+update t2 set b="Master t2 c=2", c=c+1;
+commit;
+*** slave - check update all
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 X=2	2	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 c=2	2	123
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** master - update 2 rows in different tables
+update t1 set b="Master t1 a=2 at X=3", X=X+1 where a=2;
+update t2 set b="Master t2 a=3 at c=3", c=c+1 where a=3;
+*** slave - check update 2 rows in different tables
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 X=2	2	1
+2	Master t1 a=2 at X=3	3	12
+3	Master t1 X=2	2	123
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 c=2	2	1
+2	Master t2 c=2	2	12
+3	Master t2 a=3 at c=3	3	123
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** master - delete all
+delete from t1;
+delete from t2;
+*** slave - check delete all
+select * from t1 order by a, d;
+a	b	X	d
+select * from t2 order by a, d;
+a	b	c	d
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+************************
+* start conflict testing
+************************
+*** master - insert some data
+begin;
+insert into t1 values (1, "Master t1 a=1 at X=10", 10, '111');
+insert into t1 values (2, "Master t1 a=2 at X=10", 10, '111222');
+insert into t1 values (3, "Master t1 a=3 at X=10", 10, '111222333');
+insert into t1 values (4, "Master t1 a=4 at X=10", 10, '111222333');
+insert into t2 values (1, "Master t2 a=1 at c=10", 10, '111');
+insert into t2 values (2, "Master t2 a=2 at c=10", 10, '111222');
+insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
+insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
+commit;
+*** slave - check conflict info, no conflicts yet
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** slave - check insert some data
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=10	10	111
+2	Master t1 a=2 at X=10	10	111222
+3	Master t1 a=3 at X=10	10	111222333
+4	Master t1 a=4 at X=10	10	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=10	10	111
+2	Master t2 a=2 at c=10	10	111222
+3	Master t2 a=3 at c=10	10	111222333
+4	Master t2 a=4 at c=10	10	111222333
+*** slave - update some data to cause conflicts
+begin;
+update t1 set b="Slave t1 a=1 at X=12", X=12 where a=1 and d='111';
+update t1 set b="Slave t1 a=2 at X=12", X=12 where a=2 and d='111222';
+update t1 set b="Slave t1 a=3 at X=12", X=12 where a=3 and d='111222333';
+update t1 set b="Slave t1 a=4 at X=12", X=12 where a=4 and d='111222333';
+update t2 set b="Slave t2 a=1 at c=12", c=12 where a=1;
+update t2 set b="Slave t2 a=2 at c=12", c=12 where a=2;
+update t2 set b="Slave t2 a=3 at c=12", c=12 where a=3;
+update t2 set b="Slave t2 a=4 at c=12", c=12 where a=4;
+commit;
+*** master - update some data to cause conflicts
+begin;
+update t1 set b="Master t1 a=1 at X=11", X=11 where a=1 and d='111';
+update t1 set b="Master t1 a=2 at X=11", X=11 where a=2 and d='111222';
+update t1 set b="Master t1 a=3 at X=11", X=11 where a=3 and d='111222333';
+delete from t1 where a = 4;
+update t2 set b="Master t2 a=1 at c=11", c=11 where a=1;
+update t2 set b="Master t2 a=2 at c=11", c=11 where a=2;
+update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
+delete from t2 where a = 4;
+commit;
+*** slave - check conflict info, there should be some
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+3
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+2	1	#	3	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	1	111
+2	1	#	#	2	111222
+2	1	#	#	3	111222333
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** slave - check update some data that causes conflicts
+select * from t1 order by a, d;
+a	b	X	d
+1	Slave t1 a=1 at X=12	12	111
+2	Slave t1 a=2 at X=12	12	111222
+3	Slave t1 a=3 at X=12	12	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=11	11	111
+2	Master t2 a=2 at c=11	11	111222
+3	Master t2 a=3 at c=11	11	111222333
+*** slave - correct some data to correspond to the master
+update t1 set b="Slave t1 a=1 at X=11", X=11 where a=1 and d='111';
+delete from t1 where a = 4;
+*** master - update some data, use higher timestamp
+begin;
+update t1 set b="Master t1 a=1 at X=13", X=13 where a=1 and d='111';
+update t1 set b="Master t1 a=2 at X=13", X=13 where a=2 and d='111222';
+update t1 set b="Master t1 a=3 at X=13", X=13 where a=3 and d='111222333';
+update t2 set b="Master t2 a=1 at c=13", c=13 where a=1;
+update t2 set b="Master t2 a=2 at c=13", c=13 where a=2;
+update t2 set b="Master t2 a=3 at c=13", c=13 where a=3;
+commit;
+*** slave - check conflict info, change depends on calling test
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
+VARIABLE_VALUE-@init_ndb_conflict_fn_old
+0
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
+VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+3
+SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
+VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	1	#	#
+2	1	#	2	#	#
+2	1	#	3	#	#
+SELECT * FROM `t1$EX` ORDER BY a, d;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	#	1	111
+2	1	#	#	2	111222
+2	1	#	#	3	111222333
+SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+SELECT * FROM `t2$EX` ORDER BY a, d;
+*** slave - check higer timestamp
+select * from t1 order by a, d;
+a	b	X	d
+1	Master t1 a=1 at X=13	13	111
+2	Master t1 a=2 at X=13	13	111222
+3	Master t1 a=3 at X=13	13	111222333
+select * from t2 order by a, d;
+a	b	c	d
+1	Master t2 a=1 at c=13	13	111
+2	Master t2 a=2 at c=13	13	111222
+3	Master t2 a=3 at c=13	13	111222333
+drop table t1, t2;
+*** test cleanup
+include/rpl_end.inc

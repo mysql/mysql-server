@@ -935,8 +935,8 @@ ErrConvString::ErrConvString(const struct st_mysql_time *ltime, uint dec)
    number of bytes written to "to"
 */
 
-uint err_conv(char *buff, uint to_length, const char *from,
-              uint from_length, const CHARSET_INFO *from_cs)
+uint err_conv(char *buff, size_t to_length, const char *from,
+              size_t from_length, const CHARSET_INFO *from_cs)
 {
   char *to= buff;
   const char *from_start= from;

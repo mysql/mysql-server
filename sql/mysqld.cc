@@ -419,6 +419,7 @@ my_bool opt_safe_user_create = 0;
 my_bool opt_show_slave_auth_info;
 my_bool opt_log_slave_updates= 0;
 char *opt_slave_skip_errors;
+my_bool opt_slave_allow_batching= 0;
 
 /**
   compatibility option:
@@ -433,6 +434,8 @@ handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *partition_hton;
 
+uint opt_server_id_bits= 0;
+ulong opt_server_id_mask= 0;
 my_bool read_only= 0, opt_readonly= 0;
 my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
@@ -2564,10 +2567,6 @@ static void check_data_home(const char *path)
 
 #endif /* __WIN__ */
 
-#ifdef HAVE_LINUXTHREADS
-#define UNSAFE_DEFAULT_LINUX_THREADS 200
-#endif
-
 
 #if BACKTRACE_DEMANGLE
 #include <cxxabi.h>
@@ -2709,7 +2708,6 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   sigset_t set;
   int sig;
   my_thread_init();       // Init new thread
-  DBUG_ENTER("signal_hand");
   signal_thread_in_use= 1;
 
   /*
@@ -2775,10 +2773,8 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       while ((error=my_sigwait(&set,&sig)) == EINTR) ;
     if (cleanup_done)
     {
-      DBUG_PRINT("quit",("signal_handler: calling my_thread_end()"));
       my_thread_end();
       signal_thread_in_use= 0;
-      DBUG_LEAVE;                               // Must match DBUG_ENTER()
       pthread_exit(0);        // Safety
       return 0;                                 // Avoid compiler warnings
     }
@@ -4237,6 +4233,18 @@ will be ignored as the --log-bin option is not defined.");
   }
 #endif
 
+  opt_server_id_mask = ~ulong(0);
+#ifdef HAVE_REPLICATION
+  opt_server_id_mask = (opt_server_id_bits == 32)?
+    ~ ulong(0) : (1 << opt_server_id_bits) -1;
+  if (server_id != (server_id & opt_server_id_mask))
+  {
+    sql_print_error("server-id configured is too large to represent with"
+                    "server-id-bits configured.");
+    unireg_abort(1);
+  }
+#endif
+
   if (opt_bin_log)
   {
     /* Reports an error and aborts, if the --log-bin's path
@@ -5125,6 +5133,16 @@ int mysqld_main(int argc, char **argv)
   mysqld_server_started= 1;
   mysql_cond_signal(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
+
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  /* engine specific hook, to be made generic */
+  if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
+  {
+    sql_print_warning("NDB : Tables not available after %lu seconds."
+                      "  Consider increasing --ndb-wait-setup value",
+                      opt_ndb_wait_setup);
+  }
+#endif
 
 #if defined(_WIN32) || defined(HAVE_SMEM)
   handle_connections_methods();
@@ -7175,7 +7193,7 @@ SHOW_VAR status_vars[]= {
   {"Connections",              (char*) &thread_id,              SHOW_LONG_NOFLUSH},
   {"Connection_errors_accept", (char*) &connection_errors_accept, SHOW_LONG},
   {"Connection_errors_internal", (char*) &connection_errors_internal, SHOW_LONG},
-  {"Connection_errors_max_connection", (char*) &connection_errors_max_connection, SHOW_LONG},
+  {"Connection_errors_max_connections", (char*) &connection_errors_max_connection, SHOW_LONG},
   {"Connection_errors_peer_address", (char*) &connection_errors_peer_addr, SHOW_LONG},
   {"Connection_errors_select", (char*) &connection_errors_select, SHOW_LONG},
   {"Connection_errors_tcpwrap", (char*) &connection_errors_tcpwrap, SHOW_LONG},

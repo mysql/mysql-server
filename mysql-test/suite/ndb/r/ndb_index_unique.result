@@ -1,0 +1,913 @@
+drop table if exists t1, t2, t3, t4, t5, t6, t7, t8;
+CREATE TABLE t1 (
+a int NOT NULL PRIMARY KEY,
+b int not null,
+c int,
+UNIQUE ib(b)
+) engine=ndbcluster;
+insert t1 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t1 order by b;
+a	b	c
+1	2	3
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+select * from t1 where b = 4 order by b;
+a	b	c
+3	4	6
+insert into t1 values(7,8,3);
+select * from t1 where b = 4 order by a;
+a	b	c
+3	4	6
+insert into t1 values(8, 2, 3);
+ERROR 23000: Duplicate entry '2' for key 'ib'
+select * from t1 order by a;
+a	b	c
+1	2	3
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+7	8	3
+delete from t1 where a = 1;
+insert into t1 values(8, 2, 3);
+select * from t1 order by a;
+a	b	c
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+7	8	3
+8	2	3
+alter table t1 drop index ib;
+insert into t1 values(1, 2, 3);
+create unique index ib on t1(b);
+ERROR 23000: Can't write, because of unique constraint, to table 't1'
+drop table t1;
+CREATE TABLE t1 (
+a int unsigned NOT NULL PRIMARY KEY,
+b int unsigned,
+c int unsigned,
+UNIQUE bc(b,c)
+) engine = ndb;
+insert into t1 values(1,1,1),(2,NULL,2),(3,NULL,NULL),(4,4,NULL);
+select * from t1 use index (bc) where b IS NULL order by a;
+a	b	c
+2	NULL	2
+3	NULL	NULL
+select * from t1 use index (bc)order by a;
+a	b	c
+1	1	1
+2	NULL	2
+3	NULL	NULL
+4	4	NULL
+select * from t1 use index (bc) order by a;
+a	b	c
+1	1	1
+2	NULL	2
+3	NULL	NULL
+4	4	NULL
+select * from t1 use index (PRIMARY) where b IS NULL order by a;
+a	b	c
+2	NULL	2
+3	NULL	NULL
+select * from t1 use index (bc) where b IS NULL order by a;
+a	b	c
+2	NULL	2
+3	NULL	NULL
+select * from t1 use index (bc) where b IS NULL and c IS NULL order by a;
+a	b	c
+3	NULL	NULL
+select * from t1 use index (bc) where b IS NULL and c = 2 order by a;
+a	b	c
+2	NULL	2
+select * from t1 use index (bc) where b < 4 order by a;
+a	b	c
+1	1	1
+select * from t1 use index (bc) where b IS NOT NULL order by a;
+a	b	c
+1	1	1
+4	4	NULL
+insert into t1 values(5,1,1);
+ERROR 23000: Duplicate entry '1-1' for key 'bc'
+drop table t1;
+CREATE TABLE t2 (
+a int unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned not null,
+UNIQUE (b, c) USING HASH	
+) engine=ndbcluster;
+insert t2 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t2 where a = 3;
+a	b	c
+3	4	6
+select * from t2 where b = 4;
+a	b	c
+3	4	6
+select * from t2 where c = 6;
+a	b	c
+3	4	6
+insert into t2 values(7,8,3);
+select * from t2 where b = 4 order by a;
+a	b	c
+3	4	6
+insert into t2 values(8, 2, 3);
+ERROR 23000: Duplicate entry '2-3' for key 'b'
+select * from t2 order by a;
+a	b	c
+1	2	3
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+7	8	3
+delete from t2 where a = 1;
+insert into t2 values(8, 2, 3);
+select * from t2 order by a;
+a	b	c
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+7	8	3
+8	2	3
+create unique index bi using hash on t2(b);
+insert into t2 values(9, 3, 1);
+ERROR 23000: Duplicate entry '3' for key 'bi'
+alter table t2 drop index bi;
+insert into t2 values(9, 3, 1);
+select * from t2 order by a;
+a	b	c
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+7	8	3
+8	2	3
+9	3	1
+drop table t2;
+CREATE TABLE t2 (
+a int unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned,
+UNIQUE (b, c) USING HASH	
+) engine=ndbcluster;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+insert t2 values(1,1,NULL),(2,2,2),(3,3,NULL),(4,4,4),(5,5,NULL),(6,6,6),(7,7,NULL),(8,3,NULL),(9,3,NULL);
+select * from t2 where c IS NULL order by a;
+a	b	c
+1	1	NULL
+3	3	NULL
+5	5	NULL
+7	7	NULL
+8	3	NULL
+9	3	NULL
+select * from t2 where b = 3 AND c IS NULL order by a;
+a	b	c
+3	3	NULL
+8	3	NULL
+9	3	NULL
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL order by a;
+a	b	c
+3	3	NULL
+5	5	NULL
+8	3	NULL
+9	3	NULL
+set @old_os = @@session.optimizer_switch;
+set optimizer_switch = 'engine_condition_pushdown=on';
+explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	PRIMARY,b	b	9	NULL	2	Using where with pushed condition; Using filesort
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
+a	b	c
+3	3	NULL
+5	5	NULL
+8	3	NULL
+set optimizer_switch = @old_os;
+drop table t2;
+CREATE TABLE t3 (
+a int unsigned NOT NULL,
+b int unsigned not null,
+c int unsigned,
+PRIMARY KEY (a, b) USING HASH         
+) engine=ndbcluster;
+insert t3 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t3 where a = 3;
+a	b	c
+3	4	6
+select * from t3 where b = 4;
+a	b	c
+3	4	6
+select * from t3 where c = 6;
+a	b	c
+3	4	6
+insert into t3 values(7,8,3);
+select * from t3 where b = 4 order by a;
+a	b	c
+3	4	6
+drop table t3;
+CREATE TABLE t1 (
+pk int NOT NULL PRIMARY KEY,
+a int unsigned,
+UNIQUE KEY (a)
+) engine=ndbcluster;
+insert into t1 values (-1,NULL), (0,0), (1,NULL),(2,2),(3,NULL),(4,4);
+select * from t1 order by pk;
+pk	a
+-1	NULL
+0	0
+1	NULL
+2	2
+3	NULL
+4	4
+insert into t1 values (5,0);
+ERROR 23000: Duplicate entry '0' for key 'a'
+select * from t1 order by pk;
+pk	a
+-1	NULL
+0	0
+1	NULL
+2	2
+3	NULL
+4	4
+delete from t1 where a = 0;
+insert into t1 values (5,0);
+select * from t1 order by pk;
+pk	a
+-1	NULL
+1	NULL
+2	2
+3	NULL
+4	4
+5	0
+CREATE TABLE t2 (
+pk int NOT NULL PRIMARY KEY,
+a int unsigned,
+b tinyint NOT NULL,
+c VARCHAR(10),
+UNIQUE KEY si(a, c)
+) engine=ndbcluster;
+insert into t2 values (-1,1,17,NULL),(0,NULL,18,NULL),(1,3,19,'abc');
+select * from t2 order by pk;
+pk	a	b	c
+-1	1	17	NULL
+0	NULL	18	NULL
+1	3	19	abc
+insert into t2 values(2,3,19,'abc');
+ERROR 23000: Duplicate entry '3-abc' for key 'si'
+select * from t2 order by pk;
+pk	a	b	c
+-1	1	17	NULL
+0	NULL	18	NULL
+1	3	19	abc
+delete from t2 where c IS NOT NULL;
+insert into t2 values(2,3,19,'abc');
+select * from t2 order by pk;
+pk	a	b	c
+-1	1	17	NULL
+0	NULL	18	NULL
+2	3	19	abc
+drop table t1, t2;
+CREATE TABLE t1 (
+cid smallint(5) unsigned NOT NULL default '0',
+cv varchar(250) NOT NULL default '',
+PRIMARY KEY  (cid),
+UNIQUE KEY cv (cv)
+) engine=ndbcluster;
+INSERT INTO t1 VALUES (8,'dummy');
+CREATE TABLE t2 (
+cid bigint(20) unsigned NOT NULL auto_increment,
+cap varchar(255) NOT NULL default '',
+PRIMARY KEY  (cid),
+UNIQUE KEY (cid, cap)
+) engine=ndbcluster;
+INSERT INTO t2 VALUES (NULL,'another dummy');
+CREATE TABLE t3 (
+gid bigint(20) unsigned NOT NULL auto_increment,
+gn varchar(255) NOT NULL default '',
+must tinyint(4) default NULL,
+PRIMARY KEY  (gid)
+) engine=ndbcluster;
+INSERT INTO t3 VALUES (1,'V1',NULL);
+CREATE TABLE t4 (
+uid bigint(20) unsigned NOT NULL default '0',
+gid bigint(20) unsigned NOT NULL,
+rid bigint(20) unsigned NOT NULL,
+cid bigint(20) unsigned NOT NULL,
+UNIQUE KEY m (uid,gid,rid,cid)
+) engine=ndbcluster;
+INSERT INTO t4 VALUES (1,1,2,4);
+INSERT INTO t4 VALUES (1,1,2,3);
+INSERT INTO t4 VALUES (1,1,5,7);
+INSERT INTO t4 VALUES (1,1,10,8);
+CREATE TABLE t5 (
+rid bigint(20) unsigned NOT NULL auto_increment,
+rl varchar(255) NOT NULL default '',
+PRIMARY KEY  (rid)
+) engine=ndbcluster;
+CREATE TABLE t6 (
+uid bigint(20) unsigned NOT NULL auto_increment,
+un varchar(250) NOT NULL default '',
+uc smallint(5) unsigned NOT NULL default '0',
+PRIMARY KEY  (uid),
+UNIQUE KEY nc (un,uc)
+) engine=ndbcluster;
+INSERT INTO t6 VALUES (1,'test',8);
+INSERT INTO t6 VALUES (2,'test2',9);
+INSERT INTO t6 VALUES (3,'tre',3);
+CREATE TABLE t7 (
+mid bigint(20) unsigned NOT NULL PRIMARY KEY,
+uid bigint(20) unsigned NOT NULL default '0',
+gid bigint(20) unsigned NOT NULL,
+rid bigint(20) unsigned NOT NULL,
+cid bigint(20) unsigned NOT NULL,
+UNIQUE KEY m (uid,gid,rid,cid)
+) engine=ndbcluster;
+INSERT INTO t7 VALUES(1, 1, 1, 1, 1);
+INSERT INTO t7 VALUES(2, 2, 1, 1, 1);
+INSERT INTO t7 VALUES(3, 3, 1, 1, 1);
+INSERT INTO t7 VALUES(4, 4, 1, 1, 1);
+INSERT INTO t7 VALUES(5, 5, 1, 1, 1);
+INSERT INTO t7 VALUES(6, 1, 1, 1, 6);
+INSERT INTO t7 VALUES(7, 2, 1, 1, 7);
+INSERT INTO t7 VALUES(8, 3, 1, 1, 8);
+INSERT INTO t7 VALUES(9, 4, 1, 1, 9);
+INSERT INTO t7 VALUES(10, 5, 1, 1, 10);
+select * from t1 where cv = 'dummy';
+cid	cv
+8	dummy
+select * from t1 where cv = 'test';
+cid	cv
+select * from t2 where cap = 'another dummy';
+cid	cap
+1	another dummy
+select * from t4 where uid = 1 and gid=1 and rid=2 and cid=4;
+uid	gid	rid	cid
+1	1	2	4
+select * from t4 where uid = 1 and gid=1 and rid=1 and cid=4;
+uid	gid	rid	cid
+select * from t4 where uid = 1 order by cid;
+uid	gid	rid	cid
+1	1	2	3
+1	1	2	4
+1	1	5	7
+1	1	10	8
+select * from t4 where rid = 2 order by cid;
+uid	gid	rid	cid
+1	1	2	3
+1	1	2	4
+select * from t6 where un='test' and uc=8;
+uid	un	uc
+1	test	8
+select * from t6 where un='test' and uc=7;
+uid	un	uc
+select * from t6 where un='test';
+uid	un	uc
+1	test	8
+select * from t7 where mid = 8;
+mid	uid	gid	rid	cid
+8	3	1	1	8
+select * from t7 where uid = 8;
+mid	uid	gid	rid	cid
+select * from t7 where uid = 1 order by mid;
+mid	uid	gid	rid	cid
+1	1	1	1	1
+6	1	1	1	6
+select * from t7 where uid = 4 order by mid;
+mid	uid	gid	rid	cid
+4	4	1	1	1
+9	4	1	1	9
+select * from t7 where gid = 4;
+mid	uid	gid	rid	cid
+select * from t7 where gid = 1 order by mid;
+mid	uid	gid	rid	cid
+1	1	1	1	1
+2	2	1	1	1
+3	3	1	1	1
+4	4	1	1	1
+5	5	1	1	1
+6	1	1	1	6
+7	2	1	1	7
+8	3	1	1	8
+9	4	1	1	9
+10	5	1	1	10
+select * from t7 where cid = 4;
+mid	uid	gid	rid	cid
+select * from t7 where cid = 8;
+mid	uid	gid	rid	cid
+8	3	1	1	8
+select * from t4 where uid = 1 and gid=1 and rid=2 and cid=4;
+uid	gid	rid	cid
+1	1	2	4
+select * from t4 where uid = 1 and gid=1 and rid=1 and cid=4;
+uid	gid	rid	cid
+select * from t4 where uid = 1 order by gid,cid;
+uid	gid	rid	cid
+1	1	2	3
+1	1	2	4
+1	1	5	7
+1	1	10	8
+1	1	5	12
+1	2	5	12
+1	3	9	11
+1	3	5	12
+1	4	5	12
+1	5	5	12
+1	6	5	12
+1	7	5	12
+1	8	5	12
+1	9	5	12
+1	10	5	12
+1	11	5	12
+1	12	5	12
+1	13	5	12
+1	14	5	12
+1	15	5	12
+1	16	5	12
+1	17	5	12
+1	18	5	12
+1	19	5	12
+1	20	5	12
+1	21	5	12
+1	22	5	12
+1	23	5	12
+1	24	5	12
+1	25	5	12
+1	26	5	12
+1	27	5	12
+1	28	5	12
+1	29	5	12
+1	30	5	12
+1	31	5	12
+1	32	5	12
+1	33	5	12
+1	34	5	12
+1	35	5	12
+1	36	5	12
+1	37	5	12
+1	38	5	12
+1	39	5	12
+1	40	5	12
+1	41	5	12
+1	42	5	12
+1	43	5	12
+1	44	5	12
+1	45	5	12
+1	46	5	12
+1	47	5	12
+1	48	5	12
+1	49	5	12
+1	50	5	12
+1	51	5	12
+1	52	5	12
+1	53	5	12
+1	54	5	12
+1	55	5	12
+1	56	5	12
+1	57	5	12
+1	58	5	12
+1	59	5	12
+1	60	5	12
+1	61	5	12
+1	62	5	12
+1	63	5	12
+1	64	5	12
+1	65	5	12
+1	66	5	12
+1	67	5	12
+1	68	5	12
+1	69	5	12
+1	70	5	12
+1	71	5	12
+1	72	5	12
+1	73	5	12
+1	74	5	12
+1	75	5	12
+1	76	5	12
+1	77	5	12
+1	78	5	12
+1	79	5	12
+1	80	5	12
+1	81	5	12
+1	82	5	12
+1	83	5	12
+1	84	5	12
+1	85	5	12
+1	86	5	12
+1	87	5	12
+1	88	5	12
+1	89	5	12
+1	90	5	12
+1	91	5	12
+1	92	5	12
+1	93	5	12
+1	94	5	12
+1	95	5	12
+1	96	5	12
+1	97	5	12
+1	98	5	12
+1	99	5	12
+1	100	5	12
+select * from t4 where uid = 1 order by gid,cid;
+uid	gid	rid	cid
+1	1	2	3
+1	1	2	4
+1	1	5	7
+1	1	10	8
+1	1	5	12
+1	2	5	12
+1	3	9	11
+1	3	5	12
+1	4	5	12
+1	5	5	12
+1	6	5	12
+1	7	5	12
+1	8	5	12
+1	9	5	12
+1	10	5	12
+1	11	5	12
+1	12	5	12
+1	13	5	12
+1	14	5	12
+1	15	5	12
+1	16	5	12
+1	17	5	12
+1	18	5	12
+1	19	5	12
+1	20	5	12
+1	21	5	12
+1	22	5	12
+1	23	5	12
+1	24	5	12
+1	25	5	12
+1	26	5	12
+1	27	5	12
+1	28	5	12
+1	29	5	12
+1	30	5	12
+1	31	5	12
+1	32	5	12
+1	33	5	12
+1	34	5	12
+1	35	5	12
+1	36	5	12
+1	37	5	12
+1	38	5	12
+1	39	5	12
+1	40	5	12
+1	41	5	12
+1	42	5	12
+1	43	5	12
+1	44	5	12
+1	45	5	12
+1	46	5	12
+1	47	5	12
+1	48	5	12
+1	49	5	12
+1	50	5	12
+1	51	5	12
+1	52	5	12
+1	53	5	12
+1	54	5	12
+1	55	5	12
+1	56	5	12
+1	57	5	12
+1	58	5	12
+1	59	5	12
+1	60	5	12
+1	61	5	12
+1	62	5	12
+1	63	5	12
+1	64	5	12
+1	65	5	12
+1	66	5	12
+1	67	5	12
+1	68	5	12
+1	69	5	12
+1	70	5	12
+1	71	5	12
+1	72	5	12
+1	73	5	12
+1	74	5	12
+1	75	5	12
+1	76	5	12
+1	77	5	12
+1	78	5	12
+1	79	5	12
+1	80	5	12
+1	81	5	12
+1	82	5	12
+1	83	5	12
+1	84	5	12
+1	85	5	12
+1	86	5	12
+1	87	5	12
+1	88	5	12
+1	89	5	12
+1	90	5	12
+1	91	5	12
+1	92	5	12
+1	93	5	12
+1	94	5	12
+1	95	5	12
+1	96	5	12
+1	97	5	12
+1	98	5	12
+1	99	5	12
+1	100	5	12
+select * from t4 where rid = 2 order by cid;
+uid	gid	rid	cid
+1	1	2	3
+1	1	2	4
+drop table t1,t2,t3,t4,t5,t6,t7;
+CREATE TABLE t1 (   
+a int unsigned NOT NULL PRIMARY KEY,
+b int unsigned,   
+c int unsigned, 
+UNIQUE bc(b,c) ) engine = ndb;
+insert into t1 values(1,1,1),(2,NULL,2),(3,NULL,NULL),(4,4,NULL);
+select * from t1 where b=1 and c=1;
+a	b	c
+1	1	1
+select * from t1 where b is null and c is null;
+a	b	c
+3	NULL	NULL
+select * from t1 where b is null and c = 2;
+a	b	c
+2	NULL	2
+select * from t1 where b = 4 and c is null;
+a	b	c
+4	4	NULL
+create table t8 as 
+select * from t1 where (b = 1 and c = 1)
+or (b is null and c is null) 
+or (b is null and c = 2)
+or (b = 4 and c is null);
+select * from t8 order by a;
+a	b	c
+1	1	1
+2	NULL	2
+3	NULL	NULL
+4	4	NULL
+select * from t1 order by a;
+a	b	c
+1	1	1
+2	NULL	2
+3	NULL	NULL
+4	4	NULL
+drop table t1, t8;
+create table t1(
+id integer not null auto_increment,
+month integer not null,
+year integer not null,
+code varchar( 2) not null,
+primary key ( id),
+unique idx_t1( month, code, year)
+) engine=ndb;
+INSERT INTO t1 (month, year, code) VALUES (4,2004,'12');
+INSERT INTO t1 (month, year, code) VALUES (5,2004,'12');
+select * from t1 where code = '12' and month = 4 and year = 2004 ;
+id	month	year	code
+1	4	2004	12
+drop table t1;
+create table t1 (a int primary key, b varchar(1000) not null, unique key (b))
+engine=ndb charset=utf8;
+insert into t1 values (1, repeat(_utf8 0xe288ab6474, 200));
+insert into t1 values (2, repeat(_utf8 0xe288ab6474, 200));
+ERROR 23000: Duplicate entry '\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bd' for key 'b'
+select a, sha1(b) from t1;
+a	sha1(b)
+1	08f5d02c8b8bc244f275bdfc22c42c5cab0d9d7d
+drop table t1;
+create table t1(id int not null) engine = NDB;
+alter table t1 add constraint uk_test unique (id) using hash;
+drop table t1;
+CREATE TABLE t1 (
+pk0 INT,
+pk1 VARCHAR(100),
+col0 INT NOT NULL,
+PRIMARY KEY(pk0, pk1),
+UNIQUE (col0) USING HASH
+) engine = ndb;
+CREATE TABLE t2 (
+pk0 VARCHAR(100),
+pk1 INT,
+col0 INT NOT NULL,
+PRIMARY KEY(pk0, pk1),
+UNIQUE (col0) USING HASH
+) engine = ndb;
+drop table t1, t2;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 8M
+UNDO_BUFFER_SIZE = 1M engine=ndb;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 32M
+ENGINE NDB;
+use test;
+create table t1 (pk int primary key, un int, data varchar(500) storage disk) tablespace ts1 engine=ndb;
+insert into t1 values 
+(1,1,repeat('B', 500)),
+(2,2,repeat('B', 500)),
+(3,3,repeat('B', 500)),
+(4,4,repeat('B', 500)),
+(5,5,repeat('B', 500)),
+(6,6,repeat('B', 500)),
+(7,7,repeat('B', 500)),
+(8,8,repeat('B', 500)),
+(9,9,repeat('B', 500)),
+(10,10,repeat('B', 500)),
+(11,11,repeat('B', 500)),
+(12,12,repeat('B', 500)),
+(13,13,repeat('B', 500)),
+(14,14,repeat('B', 500)),
+(15,15,repeat('B', 500));
+alter table t1 add unique(un);
+drop table t1;
+alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
+drop tablespace ts1 engine=ndb;
+drop logfile group lg1 engine=ndb;
+# bug#57032
+create table t1 (
+a int not null,
+b int,
+primary key using hash (a),
+unique key using hash (b)
+)
+engine ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+insert into t1 values
+(0,0),(1,1),(2,2),(3,3),(4,4),
+(5,null),(6,null),(7,null),(8,null),(9,null);
+set optimizer_switch = 'engine_condition_pushdown=off';
+select a from t1 where b is not null order by a;
+a
+0
+1
+2
+3
+4
+select a from t1 where b is null order by a;
+a
+5
+6
+7
+8
+9
+set optimizer_switch = 'engine_condition_pushdown=on';
+select a from t1 where b is not null order by a;
+a
+0
+1
+2
+3
+4
+select a from t1 where b is null order by a;
+a
+5
+6
+7
+8
+9
+set optimizer_switch = @old_os;
+drop table t1;
+create table t1 (
+a int not null,
+b int,
+c int,
+primary key using hash (a),
+unique key using hash (b,c)
+)
+engine ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+insert into t1 values
+(0,0,0),(1,1,1),(2,2,1),(3,3,1),(4,4,2),
+(5,null,0),(6,null,1),(7,null,1),(8,null,1),(9,null,2),
+(10,0,null),(11,1,null),(12,1,null),(13,1,null),(14,2,null),
+(15,null,null),(16,null,null),(17,null,null),(18,null,null),(19,null,null);
+set optimizer_switch = 'engine_condition_pushdown=off';
+select a from t1 where b is not null and c = 1 order by a;
+a
+1
+2
+3
+select a from t1 where b is null and c = 1 order by a;
+a
+6
+7
+8
+select a from t1 where b = 1 and c is null order by a;
+a
+11
+12
+13
+select a from t1 where b is null and c is null order by a;
+a
+15
+16
+17
+18
+19
+select a from t1 where b is not null and c is null order by a;
+a
+10
+11
+12
+13
+14
+select a from t1 where b is null and c is not null order by a;
+a
+5
+6
+7
+8
+9
+select a from t1 where b is not null and c is not null order by a;
+a
+0
+1
+2
+3
+4
+set optimizer_switch = 'engine_condition_pushdown=on';
+select a from t1 where b is not null and c = 1 order by a;
+a
+1
+2
+3
+select a from t1 where b is null and c = 1 order by a;
+a
+6
+7
+8
+select a from t1 where b = 1 and c is null order by a;
+a
+11
+12
+13
+select a from t1 where b is null and c is null order by a;
+a
+15
+16
+17
+18
+19
+select a from t1 where b is not null and c is null order by a;
+a
+10
+11
+12
+13
+14
+select a from t1 where b is null and c is not null order by a;
+a
+5
+6
+7
+8
+9
+select a from t1 where b is not null and c is not null order by a;
+a
+0
+1
+2
+3
+4
+set optimizer_switch = @old_os;
+drop table t1;
+create table t1 (pk int primary key, a int) engine=ndb;
+create table t2 (pk int primary key, uq int, a int, 
+unique key ix(uq,a) USING HASH) engine=ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+insert into t2 values
+(0,0,0), (1,1,0), (2,2,0), (3,3,0), (4,4,0),
+(5,5,1), (6,6,1), (7,7,1), (8,8,1), (9,9,1);
+insert into t1
+select
+t1.pk + t2.pk*10 + t3.pk*100 + t4.pk*1000, t1.a
+from
+t2 as t1, t2 as t2, t2 as t3, t2 as t4;
+explain
+SELECT STRAIGHT_JOIN count(*) FROM 
+t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10000	Using where with pushed condition
+1	SIMPLE	t2	ref	ix	ix	10	const,test.t1.a	1	Using where with pushed condition
+SELECT STRAIGHT_JOIN count(*) FROM 
+t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+count(*)
+0
+drop table t1,t2;
