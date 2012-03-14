@@ -4516,8 +4516,41 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
 
   /**
    * And now decide what to do next
+   * 1) First check if there are fired triggers
+   * 2) Then check if it's a index-table read
+   * 3) Then check if op was created by trigger
+   * 4) Else it's a normal op
+   *
+   * - trigger op, can cause new trigger ops (cascade)
+   * - trigger op can be using uk
    */
-  if (regTcPtr->triggeringOperation != RNIL)
+  if (noFired)
+  {
+    // We have fired triggers
+    jam();
+    saveTriggeringOpState(signal, regTcPtr);
+    if (regTcPtr->noReceivedTriggers == noFired)
+    {
+      // We have received all data
+      jam();
+      executeTriggers(signal, &regApiPtr);
+    }
+    // else wait for more trigger data
+  }
+  else if (regTcPtr->isIndexOp(regTcPtr->m_special_op_flags))
+  {
+    // This is a index-table read
+    jam();
+    setupIndexOpReturn(regApiPtr.p, regTcPtr);
+    lqhKeyConf_checkTransactionState(signal, regApiPtr);
+  }
+  else if (regTcPtr->triggeringOperation == RNIL)
+  {
+    // This is "normal" path
+    jam();
+    lqhKeyConf_checkTransactionState(signal, regApiPtr);
+  }
+  else
   {
     jam();
     // This operation was created by a trigger execting operation
@@ -4528,25 +4561,6 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
     trigger_op_finished(signal, regApiPtr, regTcPtr->currentTriggerId,
                         opPtr.p, 0);
-  } else if (noFired == 0) {
-    // This operation did not fire any triggers, finish operation
-    jam();
-    if (regTcPtr->isIndexOp(regTcPtr->m_special_op_flags)) {
-      jam();
-      setupIndexOpReturn(regApiPtr.p, regTcPtr);
-    }
-    lqhKeyConf_checkTransactionState(signal, regApiPtr);
-  } else {
-    // We have fired triggers
-    jam();
-    saveTriggeringOpState(signal, regTcPtr);
-    if (regTcPtr->noReceivedTriggers == noFired) 
-    {
-      // We have received all data
-      jam();
-      executeTriggers(signal, &regApiPtr);
-    }
-    // else wait for more trigger data
   }
 }//Dbtc::execLQHKEYCONF()
  
