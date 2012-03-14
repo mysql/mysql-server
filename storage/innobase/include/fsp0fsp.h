@@ -556,9 +556,9 @@ fseg_free_page(
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 /**********************************************************************//**
 Checks if a single page of a segment is free.
-@return	TRUE if free */
+@return	true if free */
 UNIV_INTERN
-ibool
+bool
 fseg_page_is_free(
 /*==============*/
 	fseg_header_t*	seg_header,	/*!< in: segment header */
@@ -648,18 +648,6 @@ fseg_print(
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 #endif /* UNIV_BTR_PRINT */
 
-/********************************************************************//**
-Validate the tablespace flags, which are stored in the tablespace
-header at offset FSP_SPACE_FLAGS.  They should be 0 for
-ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
-COMPRESSED and DYNAMIC, use a file format > Antelope so they should
-have a file format number plus the DICT_TF_COMPACT bit set.
-@return true if valid, false if not */
-UNIV_INLINE
-bool
-fsp_flags_valid(
-/*============*/
-	ulint	flags);		/*!< in: tablespace flags */
 /********************************************************************//**
 Validate and return the tablespace flags, which are stored in the
 tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for

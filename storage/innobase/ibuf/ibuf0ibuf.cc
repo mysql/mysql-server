@@ -2696,7 +2696,7 @@ ibuf_merge_space(
 		ut_a(*n_pages > 0);
 
 #ifdef UNIV_DEBUG
-		ut_a(*n_pages <= UT_ARR_SIZE(pages));
+		ut_ad(*n_pages <= UT_ARR_SIZE(pages));
 
 		for (ulint i = 0; i < *n_pages; ++i) {
 			ut_ad(spaces[i] == space);
@@ -2785,7 +2785,7 @@ ibuf_contract_in_background(
 					this should be 0 */
 	ibool		full)		/*!< in: TRUE if the caller wants to
 					do a full contract based on PCT_IO(100).
-				       	If FALSE then the size of contract
+					If FALSE then the size of contract
 					batch is determined based on the
 					current size of the ibuf tree. */
 {

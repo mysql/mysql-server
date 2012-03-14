@@ -258,11 +258,11 @@ buf_flush_page(
 #ifdef UNIV_DEBUG
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush list.
-@return	number of dirty pages present */
+@return	count of dirty pages present in all the buffer pools */
 UNIV_INTERN
-bool
-buf_flush_get_dirty_pages(
-/*======================*/
+ulint
+buf_flush_get_dirty_pages_count(
+/*============================*/
 	ulint		id);		/*!< in: space id to check */
 #endif /* UNIV_DEBUG */
 

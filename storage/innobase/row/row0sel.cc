@@ -3717,7 +3717,7 @@ row_search_for_mysql(
 		ib_pushf(trx->mysql_thd,
 			 IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
 			"The table %s doesn't have a corresponding "
-			"tablespace, the .ibd file is missing. See " REFMAN 
+			"tablespace, the .ibd file is missing. See " REFMAN
 			"innodb-troubleshooting.html for help",
 			prebuilt->table->name);
 

@@ -50,6 +50,7 @@ ib_restore_tablespaces("test", "t1");
 EOF
 
 ALTER TABLE t1 IMPORT TABLESPACE;
+CHECK TABLE t1;
 
 SELECT COUNT(*) FROM t1;
 
@@ -144,6 +145,7 @@ ib_restore_tablespaces("test", "t1");
 EOF
 
 ALTER TABLE t1 IMPORT TABLESPACE;
+CHECK TABLE t1;
 
 SELECT COUNT(*) FROM t1 WHERE c2 = 1;
 
@@ -220,6 +222,7 @@ ib_restore_tablespaces("test", "t1");
 EOF
 
 ALTER TABLE t1 IMPORT TABLESPACE;
+CHECK TABLE t1;
 
 SELECT COUNT(*) FROM t1 WHERE c2 = 1;
 
@@ -382,6 +385,7 @@ ib_restore_tablespaces("test", "t1");
 EOF
 
 ALTER TABLE t1 IMPORT TABLESPACE;
+CHECK TABLE t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -436,6 +440,7 @@ ib_restore_tablespaces("test", "t1");
 EOF
 
 ALTER TABLE t1 IMPORT TABLESPACE;
+CHECK TABLE t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -565,6 +570,7 @@ ib_restore_tablespaces("test", "t1");
 EOF
 
 ALTER TABLE t1 IMPORT TABLESPACE;
+CHECK TABLE t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -640,6 +646,7 @@ ib_restore_tablespaces("test", "t1");
 EOF
 
 ALTER TABLE t1 IMPORT TABLESPACE;
+CHECK TABLE t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -694,6 +701,7 @@ ib_restore_tablespaces("test", "t1");
 EOF
 
 ALTER TABLE t1 IMPORT TABLESPACE;
+CHECK TABLE t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -769,6 +777,7 @@ ib_restore_tablespaces("test", "t1");
 EOF
 
 ALTER TABLE t1 IMPORT TABLESPACE;
+CHECK TABLE t1;
 
 perl;
 do 'include/innodb-util.inc';
@@ -777,6 +786,77 @@ EOF
 
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
+
+DROP TABLE t1;
+
+#
+# Create a large table with delete marked records
+#
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		 c2 INT, INDEX idx(c2)) Engine=InnoDB;
+
+INSERT INTO t1(c2) VALUES(1), (2), (3), (4);
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+INSERT INTO t1(c2) SELECT c2 FROM t1;
+SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
+
+DELETE FROM t1 WHERE c2 = 1;
+
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+UPDATE t1 SET c2 = c2 + c1;
+
+SHOW CREATE TABLE t1;
+
+FLUSH TABLES t1 WITH READ LOCK;
+SELECT * FROM t1;
+SELECT COUNT(*) FROM t1;
+SELECT SUM(c2) FROM t1;
+perl;
+do 'include/innodb-util.inc';
+ib_backup_tablespaces("test", "t1");
+EOF
+
+UNLOCK TABLES;
+SET GLOBAL INNODB_PURGE_RUN_NOW=ON;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		 c2 INT, INDEX idx(c2)) Engine=InnoDB;
+
+SELECT * FROM t1;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+CHECK TABLE t1;
+
+SELECT * FROM t1;
+SELECT COUNT(*) FROM t1;
+SELECT SUM(c2) FROM t1;
+
+SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
 

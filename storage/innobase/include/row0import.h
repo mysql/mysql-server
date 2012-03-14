@@ -44,8 +44,9 @@ db_err
 row_import_for_mysql(
 /*=================*/
 	dict_table_struct*	table,		/*!< in/out: table */
-	row_prebuilt_struct*	prebuilt);	/*!< in: prebuilt struct
+	row_prebuilt_struct*	prebuilt)	/*!< in: prebuilt struct
 						in MySQL */
+	__attribute__((nonnull, warn_unused_result));
 
 /*****************************************************************//**
 Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
@@ -54,15 +55,15 @@ UNIV_INTERN
 db_err
 row_import_update_discarded_flag(
 /*=============================*/
-	trx_struct*	trx,		/*!< in/out: transaction that
-					covers the update */
-	table_id_t	table_id,	/*!< in: Table for which we want
-					to set the root table->flags2 */
-	bool		discarded,	/*!< in: set MIX_LEN column bit
-					to discarded, if true */
-	bool		dict_locked)	/*!< Set to TRUE if the 
-					caller already owns the 
-					dict_sys_t:: mutex. */
+	trx_struct*	trx,			/*!< in/out: transaction that
+						covers the update */
+	table_id_t	table_id,		/*!< in: Table for which we want
+						to set the root table->flags2 */
+	bool		discarded,		/*!< in: set MIX_LEN column bit
+						to discarded, if true */
+	bool		dict_locked)		/*!< in: Set to true if the
+						caller already owns the
+						dict_sys_t:: mutex. */
 	__attribute__((nonnull, warn_unused_result));
 
 /*****************************************************************//**
@@ -77,9 +78,9 @@ row_import_update_index_root(
 						covers the update */
 	const dict_table_struct*table,		/*!< in: Table for which we want
 						to set the root page_no */
-	bool			reset,		/*!< if true then set to
+	bool			reset,		/*!< in: if true then set to
 						FIL_NUL */
-	bool			dict_locked)	/*!< Set to TRUE if the
+	bool			dict_locked)	/*!< in: Set to true if the
 						caller already owns the
 						dict_sys_t:: mutex. */
 	__attribute__((nonnull, warn_unused_result));

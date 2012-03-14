@@ -444,8 +444,8 @@ db_err
 fil_discard_tablespace(
 /*===================*/
 	ulint	id,	/*!< in: space id */
-	ibool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
- 	__attribute__((warn_unused_result));
+	bool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
+	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
 Renames a single-table tablespace. The tablespace must be cached in the
