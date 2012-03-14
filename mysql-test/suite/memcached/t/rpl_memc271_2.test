@@ -1,16 +1,16 @@
+source include/not_windows.inc;
+source include/have_innodb.inc;
+
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
 CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
 --enable_query_log
 
-source include/not_windows.inc;
-source include/have_innodb.inc;
-
+--enable_connect_log
 SET @tx_isolation= @@global.tx_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
---enable_connect_log
 # Stop plugin befor innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 
@@ -26,7 +26,12 @@ INSERT INTO config_options VALUES("separator", "|");
 
 # describe table for memcache
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
-			       "c1", "c2,c21,c22,c23,c24,c25", "c3", "c4", "c5", "PRIMARY");
+			       "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+
+# Switch on replication
+--disable_warnings
+source include/master-slave.inc;
+--enable_warnings
 
 USE test;
 
@@ -34,32 +39,28 @@ USE test;
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 CREATE TABLE t1        (c1 VARCHAR(32),
-                        c2 VARCHAR(40),
-                        c21 CHAR(40),
-                        c22 VARCHAR(2048),
-                        c23 TEXT,
-                        c24 VARCHAR(250),
-                        c25 CHAR (10),
-                        c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+			c2 VARCHAR(1024),
+			c21 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
 
-INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City','1', 'dddddddddddddd', '1234', '2012', 0, 0, 0);
-INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', '2', 'bbbbbbbbbbbbbb', '2345', '2012', 0, 0, 0);
-INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', '3', 'cccccccccccccc', '3456', '2012', 0, 0 ,0);
-INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', '4', 'hhhhhhhhhh', '4567', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+SELECT c1,c2,c21 FROM t1;
 
 perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11214" ]
+  'servers' => [ "127.0.0.1:11271" ]
 };
 print "Here the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
@@ -75,16 +76,24 @@ EOF
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+SELECT c1,c2,c21 FROM t1;
 
+--echo sync_slave_with_master;
+sync_slave_with_master;
+
+connection slave;
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+
+connection master;
 perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11214" ]
+  'servers' => [ "127.0.0.1:11271" ]
 };
 print "Here the memcached results after set:\n";
-$val = $memd->set("E","Essen|Ost|5|eeeeeeeeeee|5678|2012");
+$val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -92,16 +101,24 @@ EOF
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+SELECT c1,c2,c21 FROM t1;
 
+--echo sync_slave_with_master;
+sync_slave_with_master;
+
+connection slave;
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+
+connection master;
 perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11214" ]
+  'servers' => [ "127.0.0.1:11271" ]
 };
 print "Here the memcached results after add:\n";
-$val = $memd->add("F","Frankfurt|Airport|6|fffffffffff|6789|2012");
+$val = $memd->add("F","Frankfurt|Sachsenhause");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -109,16 +126,24 @@ EOF
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+SELECT c1,c2,c21 FROM t1;
 
+--echo sync_slave_with_master;
+sync_slave_with_master;
+
+connection slave;
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+
+connection master;
 perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11214" ]
+  'servers' => [ "127.0.0.1:11271" ]
 };
 print "Here the memcached results after replace:\n";
-$val = $memd->replace("F","Frankfurt a.M.|Sachsenhausen|61|fffff|6789|2012");
+$val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -126,18 +151,24 @@ EOF
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+SELECT c1,c2,c21 FROM t1;
 
+--echo sync_slave_with_master;
+sync_slave_with_master;
+
+connection slave;
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+
+connection master;
 perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11214" ]
+  'servers' => [ "127.0.0.1:11271" ]
 };
 print "Here the memcached results after delete:\n";
 $val = $memd->delete("F");
-$val = $memd->get("E");
-if ($val) { print "$val\n"; }
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -145,27 +176,28 @@ EOF
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+SELECT c1,c2,c21 FROM t1;
 
-ALTER TABLE t1 MODIFY c2 CHAR(30);
+--echo sync_slave_with_master;
+sync_slave_with_master;
 
+connection slave;
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+
+connection master;
 perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11214" ]
+  'servers' => [ "127.0.0.1:11271" ]
 };
-print "Here the memcached results with D,B,H,C:\n";
-$val = $memd->get("D");
+print "Here the memcached results after add Frankfurt|:\n";
+$val = $memd->add("F","Frankfurt|");
+$val = $memd->get("F");
 if ($val) { print "$val\n"; }
-$val = $memd->get("B");
-if ($val) { print "$val\n"; }
-$val = $memd->get("H");
-if ($val) { print "$val\n"; }
-$val = $memd->get("C");
-if ($val) { print "$val\n"; }
-print "Here the memcached results after add:\n";
-$val = $memd->add("F","Frankfurt|Airport|6|fffffffffff|6789|2012");
+print "Here the memcached results after add |Airport:\n";
+$val = $memd->add("F","|");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -173,9 +205,50 @@ EOF
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
-SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+SELECT c1,c2,c21 FROM t1;
 
+--echo sync_slave_with_master;
+sync_slave_with_master;
+
+connection slave;
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+
+connection master;
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11271" ]
+};
+print "Here the memcached results after replace Frankfurt a.M.:\n";
+$val = $memd->replace("F","Frankfurt a. M.|");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+print "Here the memcached results after replace Sachsenhausen:\n";
+$val = $memd->replace("F","|Sachsenhausen");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+
+--echo sync_slave_with_master;
+sync_slave_with_master;
+
+connection slave;
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+
+connection master;
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;
+sync_slave_with_master;
+source include/rpl_end.inc;
  
+connection default;
 SET @@global.tx_isolation= @tx_isolation;
+

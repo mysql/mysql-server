@@ -183,6 +183,33 @@ EOF
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
+ALTER TABLE t1 MODIFY c2 int;
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11212" ]
+};
+print "Here the memcached results after add Frankfurt|:\n";
+$val = $memd->add("F","Frankfurt|");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+print "Here the memcached results after add |Airport:\n";
+$val = $memd->add("F","|");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+
 perl;
 use DBI;
 use Cache::Memcached;
