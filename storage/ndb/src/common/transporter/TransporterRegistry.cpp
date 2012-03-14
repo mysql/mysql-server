@@ -1257,7 +1257,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
 
   recvdata.m_socket_poller.clear();
 
-  bool extra_socket = m_has_extra_wakeup_socket;
+  const bool extra_socket = m_has_extra_wakeup_socket;
   if (extra_socket && recvdata.m_transporters.get(0))
   {
     const NDB_SOCKET_TYPE socket = m_extra_wakeup_sockets[0];
