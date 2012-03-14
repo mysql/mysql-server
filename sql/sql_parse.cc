@@ -2542,7 +2542,7 @@ case SQLCOM_PREPARE:
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
       goto error;
-    res = show_slave_hosts(thd);
+    res= show_slave_hosts(thd);
     break;
   }
   case SQLCOM_SHOW_RELAYLOG_EVENTS:
@@ -2589,7 +2589,11 @@ case SQLCOM_PREPARE:
     if (check_global_access(thd, SUPER_ACL))
       goto error;
     mysql_mutex_lock(&LOCK_active_mi);
-    res = change_master(thd,active_mi);
+    if (active_mi != NULL)
+      res= change_master(thd, active_mi);
+    else
+      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
+                 MYF(0));
     mysql_mutex_unlock(&LOCK_active_mi);
     break;
   }
@@ -2599,16 +2603,7 @@ case SQLCOM_PREPARE:
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
     mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi != NULL)
-    {
-      res = show_master_info(thd, active_mi);
-    }
-    else
-    {
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                   WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
-      my_ok(thd);
-    }
+    res= show_slave_status(thd, active_mi);
     mysql_mutex_unlock(&LOCK_active_mi);
     break;
   }
@@ -2617,7 +2612,7 @@ case SQLCOM_PREPARE:
     /* Accept one of two privileges */
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
-    res = show_binlog_info(thd);
+    res = show_master_status(thd);
     break;
   }
 
@@ -2908,7 +2903,11 @@ end_with_restore_list:
   case SQLCOM_SLAVE_START:
   {
     mysql_mutex_lock(&LOCK_active_mi);
-    start_slave(thd,active_mi,1 /* net report*/);
+    if (active_mi != NULL)
+      res= start_slave(thd, active_mi, 1 /* net report*/);
+    else
+      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
+                 MYF(0));
     mysql_mutex_unlock(&LOCK_active_mi);
     break;
   }
@@ -2935,7 +2934,11 @@ end_with_restore_list:
   }
   {
     mysql_mutex_lock(&LOCK_active_mi);
-    stop_slave(thd,active_mi,1/* net report*/);
+    if (active_mi != NULL)
+      res= stop_slave(thd, active_mi, 1 /* net report*/);
+    else
+      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
+                 MYF(0));
     mysql_mutex_unlock(&LOCK_active_mi);
     break;
   }
