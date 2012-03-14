@@ -51,6 +51,7 @@ SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
 
 --error ER_INDEX_CORRUPT
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+--replace_regex /[\\]/\//
 
 perl;
 do 'include/innodb-util.inc';
@@ -79,6 +80,7 @@ SET SESSION debug="+d,ib_import_check_bitmap_failure";
 # Need proper mapping of error codes :-(
 --error ER_NOT_KEYFILE
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+--replace_regex /[\\]/\//
 
 # Cleanup after the injected failure
 perl;
