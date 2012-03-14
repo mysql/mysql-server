@@ -12,7 +12,9 @@ drop table if exists t;
 create table t (id int not null primary key, v longblob not null);
 
 select @@max_allowed_packet into @my_max_allowed_packet;
+--disable_warnings
 set global max_allowed_packet=100000000;
+--enable_warnings
 
 connect(conn1,localhost,root,,);
 
