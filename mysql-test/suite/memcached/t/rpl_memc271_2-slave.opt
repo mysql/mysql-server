@@ -1,1 +1,1 @@
---binlog-format=mixed
+--binlog-format=row

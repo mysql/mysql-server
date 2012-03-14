@@ -2,6 +2,6 @@ $DAEMON_MEMCACHED_OPT
 $DAEMON_MEMCACHED_LOAD
 --loose-daemon_memcached_engine_lib_path=$INNODB_ENGINE_DIR
 --log-bin
---binlog-format=mixed
+--binlog-format=row
 --loose-innodb_api_enable_binlog=1
 --loose-daemon_memcached_option="-p11271"

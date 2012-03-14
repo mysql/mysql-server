@@ -58,7 +58,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11271" ]
+  'servers' => [ "127.0.0.1:11270" ]
 };
 print "Here the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
@@ -88,7 +88,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11271" ]
+  'servers' => [ "127.0.0.1:11270" ]
 };
 print "Here the memcached results after set:\n";
 $val = $memd->set("E","Essen|Ost");
@@ -113,7 +113,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11271" ]
+  'servers' => [ "127.0.0.1:11270" ]
 };
 print "Here the memcached results after add:\n";
 $val = $memd->add("F","Frankfurt|Sachsenhause");
@@ -138,7 +138,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11271" ]
+  'servers' => [ "127.0.0.1:11270" ]
 };
 print "Here the memcached results after replace:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
@@ -163,7 +163,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11271" ]
+  'servers' => [ "127.0.0.1:11270" ]
 };
 print "Here the memcached results after delete:\n";
 $val = $memd->delete("F");
@@ -188,7 +188,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11271" ]
+  'servers' => [ "127.0.0.1:11270" ]
 };
 print "Here the memcached results after add Frankfurt|:\n";
 $val = $memd->add("F","Frankfurt|");
@@ -217,7 +217,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11271" ]
+  'servers' => [ "127.0.0.1:11270" ]
 };
 print "Here the memcached results after replace Frankfurt a.M.:\n";
 $val = $memd->replace("F","Frankfurt a. M.|");
