@@ -1,3 +1,8 @@
+include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
 SET @tx_isolation= @@global.tx_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 UNINSTALL PLUGIN daemon_memcached;
@@ -35,6 +40,16 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
+sync_slave_with_master;
+connection slave;
+connection slave;
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+connection master;
 Here the memcached results after set:
 Essen|Ost
 SELECT c1,c2,c21 FROM t1;
@@ -44,6 +59,16 @@ C	Cottbus	West
 D	Darmstadt	City
 E	Essen	Ost
 H	Hamburg	Norderstedt
+sync_slave_with_master;
+connection slave;
+connection slave;
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+connection master;
 Here the memcached results after add:
 Frankfurt|Sachsenhause
 SELECT c1,c2,c21 FROM t1;
@@ -54,6 +79,16 @@ D	Darmstadt	City
 E	Essen	Ost
 F	Frankfurt	Sachsenhause
 H	Hamburg	Norderstedt
+sync_slave_with_master;
+connection slave;
+connection slave;
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+connection master;
 Here the memcached results after replace:
 Frankfurt a. M.|Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
@@ -64,6 +99,16 @@ D	Darmstadt	City
 E	Essen	Ost
 F	Frankfurt a. M.	Sachsenhausen
 H	Hamburg	Norderstedt
+sync_slave_with_master;
+connection slave;
+connection slave;
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+connection master;
 Here the memcached results after delete:
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -72,6 +117,16 @@ C	Cottbus	West
 D	Darmstadt	City
 E	Essen	Ost
 H	Hamburg	Norderstedt
+sync_slave_with_master;
+connection slave;
+connection slave;
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+connection master;
 Here the memcached results after add Frankfurt|:
 Frankfurt|
 Here the memcached results after add |Airport:
@@ -84,6 +139,16 @@ D	Darmstadt	City
 E	Essen	Ost
 F	Frankfurt	NULL
 H	Hamburg	Norderstedt
+sync_slave_with_master;
+connection slave;
+connection slave;
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+connection master;
 Here the memcached results after replace Frankfurt a.M.:
 Frankfurt a. M.|
 Here the memcached results after replace Sachsenhausen:
@@ -96,40 +161,39 @@ D	Darmstadt	City
 E	Essen	Ost
 F	NULL	Sachsenhausen
 H	Hamburg	Norderstedt
-ALTER TABLE t1 MODIFY c2 int;
-Warnings:
-Warning	1366	Incorrect integer value: 'Berlin' for column 'c2' at row 1
-Warning	1366	Incorrect integer value: 'Cottbus' for column 'c2' at row 2
-Warning	1366	Incorrect integer value: 'Darmstadt' for column 'c2' at row 3
-Warning	1366	Incorrect integer value: 'Essen' for column 'c2' at row 4
-Warning	1366	Incorrect integer value: 'Hamburg' for column 'c2' at row 6
+sync_slave_with_master;
+connection slave;
+connection slave;
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
-B	0	Mitte
-C	0	West
-D	0	City
-E	0	Ost
-F	NULL	Sachsenhausen
-H	0	Norderstedt
-Here the memcached results after add Frankfurt|:
-Here the memcached results after add |Airport:
-SELECT c1,c2,c21 FROM t1;
-c1	c2	c21
-B	0	Mitte
-C	0	West
-D	0	City
-E	0	Ost
-F	NULL	Sachsenhausen
-H	0	Norderstedt
-Here the memcached results after flush_all:
-SELECT c1,c2,c21 FROM t1;
-c1	c2	c21
-B	0	Mitte
-C	0	West
-D	0	City
-E	0	Ost
-F	NULL	Sachsenhausen
-H	0	Norderstedt
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+connection master;
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;
 SET @@global.tx_isolation= @tx_isolation;
+connection slave;
+include/rpl_end.inc
+connection server_2;
+connection server_2;
+connection server_2;
+connection server_2;
+connection server_1;
+connection server_1;
+connection server_1;
+connection server_1;
+connection server_2;
+connection server_2;
+connection server_1;
+connection server_2;
+connection server_2;
+connection server_1;
+connection server_1;
+connection server_1;
+connection default;
+disconnect server_2;
+disconnect server_2_1;
+disconnect server_1;
+disconnect server_1_1;
