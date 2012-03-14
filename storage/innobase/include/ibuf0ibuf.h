@@ -395,7 +395,7 @@ ibuf_contract_in_background(
 					this should be 0 */
 	ibool		full);		/*!< in: TRUE if the caller wants to
 					do a full contract based on PCT_IO(100).
-				       	If FALSE then the size of contract
+					If FALSE then the size of contract
 					batch is determined based on the
 					current size of the ibuf tree. */
 #endif /* !UNIV_HOTBACKUP */

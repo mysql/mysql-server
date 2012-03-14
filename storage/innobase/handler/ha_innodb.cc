@@ -83,6 +83,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0types.h"
 #include "row0import.h"
 #include "row0quiesce.h"
+#include "trx0purge.h"
 
 #include "ha_innodb.h"
 #include "i_s.h"
@@ -1150,6 +1151,7 @@ thd_set_lock_wait_time(
 /********************************************************************//**
 Obtain the InnoDB transaction of a MySQL thread.
 @return	reference to transaction pointer */
+__attribute__((warn_unused_result, nonnull))
 static inline
 trx_t*&
 thd_to_trx(
@@ -4484,8 +4486,8 @@ table_opened:
 
 		ib_pushf(thd,
 			 IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
-			 "The table %s doesn't have a corresponding "
-			 "tablespace, the .ibd file is missing. See " REFMAN 
+			 "The table '%s' doesn't have a corresponding "
+			 "tablespace, the .ibd file is missing. See " REFMAN
 			 "innodb-troubleshooting.html for help",
 			 norm_name);
 
@@ -9159,11 +9161,11 @@ ha_innobase::discard_or_import_tablespace(
 
 		if (dict_table->ibd_file_missing) {
 			ib_pushf(prebuilt->trx->mysql_thd,
-			 	IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
-				"The table %s doesn't have a corresponding "
-				"tablespace, the .ibd file is missing. See "
-				REFMAN "innodb-troubleshooting.html for help",
-				dict_table->name);
+				 IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
+				 "The table '%s' doesn't have a corresponding "
+				 "tablespace, the .ibd file is missing. See "
+				 REFMAN "innodb-troubleshooting.html for help",
+				 dict_table->name);
 		}
 
 		error = row_discard_tablespace_for_mysql(
@@ -9171,11 +9173,7 @@ ha_innobase::discard_or_import_tablespace(
 
 	} else if (!dict_table->ibd_file_missing) {
 		err = HA_ERR_TABLE_EXIST;
-		ib_pushf(user_thd, IB_LOG_LEVEL_WARN,
-			 ER_TABLE_EXISTS_ERROR,
-			 "Tablespace for table %s exists. "
-			 "Please DISCARD the tablespace before IMPORT.",
-			 dict_table->name);
+		my_error(ER_TABLESPACE_EXISTS, MYF(0), dict_table->name);
 	} else {
 		error = row_import_for_mysql(dict_table, prebuilt);
 
@@ -9278,11 +9276,6 @@ ha_innobase::delete_table(
 		push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
 			     ER_LOCK_WAIT_TIMEOUT, errstr);
 	}
-
-	/* Get the transaction associated with the current thd, or create one
-	if not yet created */
-
-	thd_to_trx(thd);
 
 	parent_trx = check_trx_exists(thd);
 
@@ -10447,22 +10440,14 @@ ha_innobase::check(
 
 	if (dict_table_is_discarded(prebuilt->table)) {
 
-		ib_pushf(prebuilt->trx->mysql_thd,
-			 IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
-			 "The table %s doesn't have a corresponding "
-			 "tablespace, it was discarded.",
+		my_error(ER_TABLESPACE_DISCARDED, MYF(0),
 			 prebuilt->table->name);
 
 		DBUG_RETURN(HA_ADMIN_CORRUPT);
 
 	} else if (prebuilt->table->ibd_file_missing) {
 
-		ib_pushf(prebuilt->trx->mysql_thd,
-			 IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
-			 "The table %s doesn't have a corresponding "
-			 "tablespace, the .ibd file is missing. See " REFMAN
-			 "innodb-troubleshooting.html for help",
-			 prebuilt->table->name);
+		my_error(ER_TABLESPACE_MISSING, MYF(0), prebuilt->table->name);
 
 		DBUG_RETURN(HA_ADMIN_CORRUPT);
 	}
@@ -11458,20 +11443,13 @@ ha_innobase::transactional_table_lock(
 
 		if (dict_table_is_discarded(prebuilt->table)) {
 
-			ib_pushf(prebuilt->trx->mysql_thd,
-			 	IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
-			 	"The table %s doesn't have a corresponding "
-				"tablespace, it was discarded.",
-				prebuilt->table->name);
+			my_error(ER_TABLESPACE_DISCARDED,
+				 MYF(0), prebuilt->table->name);
 
 		} else if (prebuilt->table->ibd_file_missing) {
 
-			ib_pushf(prebuilt->trx->mysql_thd,
-			 	IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
-				"The table %s doesn't have a corresponding "
-				"tablespace, the .ibd file is missing. See "
-				REFMAN "innodb-troubleshooting.html for help",
-				prebuilt->table->name);
+			my_error(ER_TABLESPACE_MISSING,
+				 MYF(0), prebuilt->table->name);
 		}
 
 		DBUG_RETURN(HA_ERR_CRASHED);
@@ -14292,6 +14270,55 @@ innobase_fts_find_ranking(
 	return fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id);
 }
 
+static my_bool	innodb_purge_run_now = TRUE;
+static my_bool	innodb_purge_stop_now = TRUE;
+
+/****************************************************************//**
+Set the purge state to RUN. If purge is disabled then it
+is a no-op. This function is registered as a callback with MySQL. */
+static
+void
+purge_run_now_set(
+/*==============*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		trx_purge_run();
+	}
+}
+
+/****************************************************************//**
+Set the purge state to STOP. If purge is disabled then it
+is a no-op. This function is registered as a callback with MySQL. */
+static
+void
+purge_stop_now_set(
+/*===============*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		trx_purge_stop();
+	}
+}
+
 /* These variables are never read by InnoDB or changed. They are a kind of
 dummies that are needed by the MySQL infrastructure to call
 buffer_pool_dump_now(), buffer_pool_load_now() and buffer_pool_load_abort()
@@ -14434,6 +14461,16 @@ static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Number of IOPs the server can do. Tunes the background IO rate",
   NULL, NULL, 200, 100, ~0UL, 0);
+
+static MYSQL_SYSVAR_BOOL(purge_run_now, innodb_purge_run_now,
+  PLUGIN_VAR_OPCMDARG,
+  "Set purge state to RUN",
+  NULL, purge_run_now_set, TRUE);
+
+static MYSQL_SYSVAR_BOOL(purge_stop_now, innodb_purge_stop_now,
+  PLUGIN_VAR_OPCMDARG,
+  "Set purge state to STOP",
+  NULL, purge_stop_now_set, TRUE);
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
   PLUGIN_VAR_OPCMDARG,
@@ -15093,6 +15130,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(monitor_reset_all),
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
+  MYSQL_SYSVAR(purge_run_now),
+  MYSQL_SYSVAR(purge_stop_now),
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),
   MYSQL_SYSVAR(doublewrite_batch_size),

@@ -446,6 +446,7 @@ buf_flush_or_remove_page(
 	bool		processed = false;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(buf_flush_list_mutex_own(buf_pool));
 
 	block_mutex = buf_page_get_mutex(bpage);
 
@@ -753,6 +754,8 @@ scan_again:
 		if (bpage->oldest_modification != 0) {
 
 			buf_flush_remove(bpage);
+
+			ut_ad(!bpage->in_flush_list);
 		}
 
 		/* Remove from the LRU list. */
@@ -815,14 +818,14 @@ buf_LRU_remove_pages(
 		ut_a(trx == 0);
 		buf_flush_dirty_pages(buf_pool, id, false, NULL);
 		ut_ad(trx_is_interrupted(trx)
-		      || buf_flush_get_dirty_pages(id) == 0);
+		      || buf_flush_get_dirty_pages_count(id) == 0);
 		break;
 
 	case BUF_REMOVE_FLUSH_WRITE:
 		ut_a(trx != 0);
 		buf_flush_dirty_pages(buf_pool, id, true, trx);
 		ut_ad(trx_is_interrupted(trx)
-		      || buf_flush_get_dirty_pages(id) == 0);
+		      || buf_flush_get_dirty_pages_count(id) == 0);
 		/* Ensure that all asynchronous IO is completed. */
 		os_aio_wait_until_no_pending_writes();
 		fil_flush(id);
@@ -859,14 +862,13 @@ buf_LRU_flush_or_remove_pages(
 
 		switch (buf_remove) {
 		case BUF_REMOVE_ALL_NO_WRITE:
+		case BUF_REMOVE_FLUSH_NO_WRITE:
 			buf_LRU_drop_page_hash_for_tablespace(buf_pool, id);
 			break;
 
-		/* We allow read-only queries against the table, there is
-		no need to drop the AHI entries. */
-
 		case BUF_REMOVE_FLUSH_WRITE:
-		case BUF_REMOVE_FLUSH_NO_WRITE:
+			/* We allow read-only queries against the
+			table, there is no need to drop the AHI entries. */
 			break;
 		}
 

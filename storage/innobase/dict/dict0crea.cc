@@ -685,14 +685,20 @@ dict_create_index_tree_step(
 
 	zip_size = dict_table_zip_size(index->table);
 
-	if (!(node->index->table->ibd_file_missing
-	     || dict_table_is_discarded(node->index->table))) {
+	db_err		err = DB_SUCCESS;
 
+	if (node->index->table->ibd_file_missing
+	    || dict_table_is_discarded(node->index->table)) {
+
+		node->page_no = FIL_NULL;
+	} else {
 		node->page_no = btr_create(
 			index->type, index->space, zip_size,
 			index->id, index, &mtr);
-	} else {
-		node->page_no = FIL_NULL;
+
+		if (node->page_no == FIL_NULL) {
+			err = DB_OUT_OF_FILE_SPACE;
+		}
 	}
 
 	page_rec_write_field(
@@ -703,14 +709,7 @@ dict_create_index_tree_step(
 
 	mtr_commit(&mtr);
 
-	if (node->page_no == FIL_NULL
-	    && !(node->index->table->ibd_file_missing
-		 || dict_table_is_discarded(index->table))) {
-
-		return(DB_OUT_OF_FILE_SPACE);
-	}
-
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /*******************************************************************//**

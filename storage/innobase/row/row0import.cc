@@ -92,7 +92,7 @@ struct row_import_t {
 						value in dict_col_t */
 
 	ulint		n_indexes;		/*!< Number of indexes,
-						including cluster index */
+						including clustered index */
 
 	row_index_t*	indexes;		/*!< Index meta data */
 };
@@ -127,7 +127,7 @@ public:
 	}
 
 	/** Scan the index and adjust sys fields, purge delete marked records
-	and adjust BLOB references if it is a cluster index.
+	and adjust BLOB references if it is a clustered index.
 	@return DB_SUCCESS or error code. */
 	db_err	import() throw()
 	{
@@ -388,8 +388,6 @@ private:
 	{
 		ulint	err;
 
-		btr_pcur_store_position(&m_pcur, &m_mtr);
-
 		btr_pcur_restore_position(BTR_MODIFY_TREE, &m_pcur, &m_mtr);
 
 		ut_ad(rec_get_deleted_flag(
@@ -404,10 +402,6 @@ private:
 
 		/* Reopen the B-tree cursor in BTR_MODIFY_LEAF mode */
 		mtr_commit(&m_mtr);
-
-		mtr_start(&m_mtr);
-
-		btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
 	}
 
 	/** Adjust the BLOB references and sys fields for the current record.
@@ -418,7 +412,7 @@ private:
 	db_err	adjust(rec_t* rec, const ulint* offsets, bool deleted) throw()
 	{
 		/* Only adjust the system fields and BLOB pointers in the
-		cluster index. */
+		clustered index. */
 
 		if (dict_index_is_clust(m_index)) {
 
@@ -446,6 +440,8 @@ private:
 	@param offsets - current row offsets. */
 	void	purge(const ulint* offsets) throw()
 	{
+		btr_pcur_store_position(&m_pcur, &m_mtr);
+
 		/* Rows with externally stored columns have to be purged
 		using the hard way. */
 
@@ -454,7 +450,13 @@ private:
 			    btr_pcur_get_btr_cur(&m_pcur), &m_mtr)) {
 
 			purge_pessimistic_delete();
+		} else {
+			btr_pcur_commit_specify_mtr(&m_pcur, &m_mtr);
 		}
+
+		mtr_start(&m_mtr);
+
+		btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
 	}
 
 protected:
@@ -645,7 +647,7 @@ row_import_adjust_root_pages(
 	DBUG_EXECUTE_IF("ib_import_sec_rec_count_mismatch_failure",
 			n_rows_in_table++;);
 
-	/* Skip the cluster index. */
+	/* Skip the clustered index. */
 	index = dict_table_get_first_index(table);
 
 	/* Adjust the root pages of the secondary indexes only. */
@@ -787,7 +789,7 @@ row_import_set_sys_max_row_id(
 		ib_pushf(prebuilt->trx->mysql_thd,
 			 IB_LOG_LEVEL_WARN,
 			 ER_INDEX_CORRUPT,
-			 "Index '%s' corruption detected, invalid row id "
+			 "Index '%s' corruption detected, invalid DB_ROW_ID "
 			 "in index.", index_name);
 
 		return(err);
@@ -819,10 +821,12 @@ row_import_cfg_read_string(
 /*=======================*/
 	FILE*		file,		/*!< in/out: File to read from */
 	byte*		ptr,		/*!< out: string to read */
-	ulint		max_len)	/*!< in: max size of buffer, this
-					is also the expected length */
+	ulint		max_len)	/*!< in: maximum length of the output
+					buffer in bytes */
 {
 	ulint		len = 0;
+
+	UT_MEM_ASSERT_W(ptr, max_len);
 
 	while (!feof(file)) {
 		int	ch = fgetc(file);
@@ -1734,10 +1738,10 @@ row_import_update_index_root(
 						covers the update */
 	const dict_table_t*	table,		/*!< in: Table for which we want
 						to set the root page_no */
-	bool			reset,		/*!< if true then set to
+	bool			reset,		/*!< in: if true then set to
 						FIL_NUL */
-	bool			dict_locked)	/*!< Set to TRUE if the 
-						caller already owns the 
+	bool			dict_locked)	/*!< in: Set to true if the
+						caller already owns the
 						dict_sys_t:: mutex. */
 
 {
@@ -1772,11 +1776,11 @@ row_import_update_index_root(
 
 		mach_write_to_4(
 			reinterpret_cast<byte*>(&page),
-		       	reset ? FIL_NULL : index->page);
+			reset ? FIL_NULL : index->page);
 
 		mach_write_to_4(
 			reinterpret_cast<byte*>(&space),
-		       	reset ? FIL_NULL : index->space);
+			reset ? FIL_NULL : index->space);
 
 		mach_write_to_8(
 			reinterpret_cast<byte*>(&index_id),
@@ -1892,7 +1896,7 @@ row_import_update_discarded_flag(
 					to set the root table->flags2 */
 	bool		discarded,	/*!< in: set MIX_LEN column bit
 					to discarded, if true */
-	bool		dict_locked)	/*!< Set to TRUE if the 
+	bool		dict_locked)	/*!< in: set to true if the 
 					caller already owns the 
 					dict_sys_t:: mutex. */
 
@@ -1938,7 +1942,7 @@ row_import_update_discarded_flag(
 
 	ut_a(discard.n_recs == 1);
 	ut_a(discard.flags2 != ULINT32_UNDEFINED);
-	
+
 	return(err);
 }
 
@@ -2112,7 +2116,7 @@ row_import_for_mysql(
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
 
-	/* The first index must always be the cluster index. */
+	/* The first index must always be the clustered index. */
 
 	dict_index_t*	index = dict_table_get_first_index(table);
 
@@ -2137,7 +2141,7 @@ row_import_for_mysql(
 	} else {
 		IndexImporter	importer(trx, index, table->space);
 
-		trx->op_info = "importing cluster index";
+		trx->op_info = "importing clustered index";
 
 		err = importer.import();
 

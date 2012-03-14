@@ -2658,7 +2658,7 @@ db_err
 fil_discard_tablespace(
 /*===================*/
 	ulint	id,	/*!< in: space id */
-	ibool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
+	bool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
 {
 	db_err	err;
 
@@ -3426,7 +3426,7 @@ fil_reset_space_and_lsn(
 		/* Validate the space flags */
 		ulint	space_flags = fsp_header_get_flags(page);
 
-		if (!fsp_flags_valid(space_flags)) {
+		if (!fsp_flags_validate(space_flags)) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Unsupported tablespace format %lu",

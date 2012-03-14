@@ -3261,9 +3261,9 @@ fseg_free_page(
 
 /**********************************************************************//**
 Checks if a single page of a segment is free.
-@return	TRUE if free */
+@return	true if free */
 UNIV_INTERN
-ibool
+bool
 fseg_page_is_free(
 /*==============*/
 	fseg_header_t*	seg_header,	/*!< in: segment header */
