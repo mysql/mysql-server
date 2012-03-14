@@ -269,7 +269,7 @@ row_purge_poss_sec(
 Removes a secondary index entry if possible, by modifying the
 index tree.  Does not try to buffer the delete.
 @return	TRUE if success or if not found */
-static
+static __attribute__((nonnull, warn_unused_result))
 ibool
 row_purge_remove_sec_if_poss_tree(
 /*==============================*/
@@ -352,7 +352,7 @@ func_exit:
 Removes a secondary index entry without modifying the index tree,
 if possible.
 @return	TRUE if success or if not found */
-static
+static __attribute__((nonnull, warn_unused_result))
 ibool
 row_purge_remove_sec_if_poss_leaf(
 /*==============================*/
@@ -419,18 +419,25 @@ row_purge_remove_sec_if_poss_leaf(
 
 /***********************************************************//**
 Removes a secondary index entry if possible. */
-UNIV_INLINE
+UNIV_INLINE __attribute__((nonnull(1,2)))
 void
 row_purge_remove_sec_if_poss(
 /*=========================*/
 	purge_node_t*	node,	/*!< in: row purge node */
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry)	/*!< in: index entry */
+	const dtuple_t*	entry)	/*!< in: index entry */
 {
 	ibool	success;
 	ulint	n_tries		= 0;
 
 	/*	fputs("Purge: Removing secondary record\n", stderr); */
+
+	if (!entry) {
+		/* The node->row must have lacked some fields of this
+		index. This is possible when the undo log record was
+		written before this index was created. */
+		return;
+	}
 
 	if (dict_index_is_online_ddl(index)) {
 		ibool	online = FALSE;
@@ -489,15 +496,13 @@ retry:
 
 /***********************************************************//**
 Purges a delete marking of a record. */
-static
+static __attribute__((nonnull))
 void
 row_purge_del_mark(
 /*===============*/
 	purge_node_t*	node)	/*!< in: row purge node */
 {
 	mem_heap_t*	heap;
-	dtuple_t*	entry;
-	dict_index_t*	index;
 
 	ut_ad(node);
 
@@ -511,14 +516,11 @@ row_purge_del_mark(
 			break;
 		}
 
-		index = node->index;
-
 		if (node->index->type != DICT_FTS) {
-			/* Build the index entry */
-			entry = row_build_index_entry(
-				node->row, NULL, index, heap);
-			ut_a(entry);
-			row_purge_remove_sec_if_poss(node, index, entry);
+			dtuple_t*	entry = row_build_index_entry_low(
+				node->row, NULL, node->index, heap);
+			row_purge_remove_sec_if_poss(node, node->index, entry);
+			mem_heap_empty(heap);
 		}
 
 		node->index = dict_table_get_next_index(node->index);
@@ -543,8 +545,6 @@ row_purge_upd_exist_or_extern_func(
 	trx_undo_rec_t*	undo_rec)	/*!< in: record to purge */
 {
 	mem_heap_t*	heap;
-	dtuple_t*	entry;
-	dict_index_t*	index;
 	ibool		is_insert;
 	ulint		rseg_id;
 	ulint		page_no;
@@ -569,15 +569,13 @@ row_purge_upd_exist_or_extern_func(
 			break;
 		}
 
-		index = node->index;
-
 		if (row_upd_changes_ord_field_binary(node->index, node->update,
 						     thr, NULL, NULL)) {
 			/* Build the older version of the index entry */
-			entry = row_build_index_entry(node->row, NULL,
-						      index, heap);
-			ut_a(entry);
-			row_purge_remove_sec_if_poss(node, index, entry);
+			dtuple_t*	entry = row_build_index_entry_low(
+				node->row, NULL, node->index, heap);
+			row_purge_remove_sec_if_poss(node, node->index, entry);
+			mem_heap_empty(heap);
 		}
 
 		node->index = dict_table_get_next_index(node->index);
@@ -597,6 +595,7 @@ skip_secondaries:
 			buf_block_t*	block;
 			ulint		internal_offset;
 			byte*		data_field;
+			dict_index_t*	index;
 
 			/* We use the fact that new_val points to
 			undo_rec and get thus the offset of
