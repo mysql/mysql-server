@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,13 +50,13 @@ Created 4/20/1996 Heikki Tuuri
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
 the entry to be inserted into or purged from an index on the table.
-@return index entry which should be inserted or purged, or NULL if the
-externally stored columns in the clustered index record are
-unavailable and ext != NULL */
+@return index entry which should be inserted or purged
+@retval NULL if the externally stored columns in the clustered index record
+are unavailable and ext != NULL, or row is missing some needed columns. */
 UNIV_INTERN
 dtuple_t*
-row_build_index_entry(
-/*==================*/
+row_build_index_entry_low(
+/*======================*/
 	const dtuple_t*	row,	/*!< in: row which should be
 				inserted or purged */
 	row_ext_t*	ext,	/*!< in: externally stored column prefixes,
@@ -68,9 +68,6 @@ row_build_index_entry(
 	dtuple_t*	entry;
 	ulint		entry_len;
 	ulint		i;
-
-	ut_ad(row && index && heap);
-	ut_ad(dtuple_check_typed(row));
 
 	entry_len = dict_index_get_n_fields(index);
 	entry = dtuple_create(heap, entry_len);
@@ -98,6 +95,16 @@ row_build_index_entry(
 			= dtuple_get_nth_field(row, col_no);
 		ulint			len
 			= dfield_get_len(dfield2);
+
+#if DATA_MISSING != 0
+# error "DATA_MISSING != 0"
+#endif
+		if (UNIV_UNLIKELY(dfield_get_type(dfield2)->mtype
+				  == DATA_MISSING)) {
+			/* The field has not been initialized in the row.
+			This should be from trx_undo_rec_get_partial_row(). */
+			return(NULL);
+		}
 
 		dfield_copy(dfield, dfield2);
 
@@ -170,8 +177,6 @@ row_build_index_entry(
 			dfield_set_len(dfield, len);
 		}
 	}
-
-	ut_ad(dtuple_check_typed(entry));
 
 	return(entry);
 }

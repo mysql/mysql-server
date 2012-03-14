@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -331,6 +331,10 @@ row_undo_ins_remove_sec_rec(
 			continue;
 		}
 
+		/* An insert undo record TRX_UNDO_INSERT_REC will
+		always contain all fields of the index. It does not
+		matter if any indexes were created afterwards; all
+		index entries can be reconstructed from the row. */
 		entry = row_build_index_entry(
 			node->row, node->ext, index, heap);
 		if (UNIV_UNLIKELY(!entry)) {

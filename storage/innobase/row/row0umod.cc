@@ -597,6 +597,13 @@ row_undo_mod_upd_del_sec(
 			continue;
 		}
 
+		/* During online index creation,
+		HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE should
+		guarantee that any active transaction has not modified
+		indexed columns such that col->ord_part was 0 at the
+		time when the undo log record was written. When we get
+		to roll back an undo log entry TRX_UNDO_DEL_MARK_REC,
+		it should always cover all affected indexes. */
 		entry = row_build_index_entry(
 			node->row, node->ext, index, heap);
 
@@ -654,6 +661,13 @@ row_undo_mod_del_mark_sec(
 			continue;
 		}
 
+		/* During online index creation,
+		HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE should
+		guarantee that any active transaction has not modified
+		indexed columns such that col->ord_part was 0 at the
+		time when the undo log record was written. When we get
+		to roll back an undo log entry TRX_UNDO_DEL_MARK_REC,
+		it should always cover all affected indexes. */
 		entry = row_build_index_entry(
 			node->row, node->ext, index, heap);
 
@@ -795,7 +809,7 @@ row_undo_mod_upd_exist_sec(
 
 /***********************************************************//**
 Parses the row reference and other info in a modify undo log record. */
-static
+static __attribute__((nonnull))
 void
 row_undo_mod_parse_undo_rec(
 /*========================*/
