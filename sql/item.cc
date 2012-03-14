@@ -7647,6 +7647,33 @@ bool  Item_cache_datetime::cache_value()
     str_value.copy(*res);
   null_value= example->null_value;
   unsigned_flag= example->unsigned_flag;
+
+  if (!null_value)
+  {
+    switch(field_type())
+    {
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      {
+        MYSQL_TIME ltime;
+        int was_cut;
+        const timestamp_type tt=
+          str_to_datetime(str_value.charset(),
+                          str_value.ptr(),
+                          str_value.length(),
+                          &ltime,
+                          TIME_DATETIME_ONLY,
+                          &was_cut);
+        if (tt != MYSQL_TIMESTAMP_DATETIME || was_cut)
+          null_value= true;
+        else
+          my_datetime_to_str(&ltime, const_cast<char*>(str_value.ptr()));
+      }
+    default:
+      {}
+    }
+  }
+
   return TRUE;
 }
 
