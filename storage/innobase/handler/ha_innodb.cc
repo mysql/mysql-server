@@ -15500,8 +15500,12 @@ ib_pushf(
 	str = static_cast<char*>(malloc(size));
 	str[size - 1] = 0x0;
 	vsnprintf(str, size, format, args);
-#else
+#elif HAVE_VASPRINTF
 	vasprintf(&str, format, args);
+#else
+	/* Use a fixed length string. */
+	str = static_cast<char*>(malloc(BUFSIZ));
+	my_vsnprintf(str, BUFSIZ, format, args);
 #endif /* __WIN__ */
 
 	Sql_condition::enum_warning_level	l;
@@ -15556,8 +15560,12 @@ ib_logf(
 	str = static_cast<char*>(malloc(size));
 	str[size - 1] = 0x0;
 	vsnprintf(str, size, format, args);
-#else
+#elif HAVE_VASPRINTF
 	vasprintf(&str, format, args);
+#else
+	/* Use a fixed length string. */
+	str = static_cast<char*>(malloc(BUFSIZ));
+	my_vsnprintf(str, BUFSIZ, format, args);
 #endif /* __WIN__ */
 
 	switch(level) {
