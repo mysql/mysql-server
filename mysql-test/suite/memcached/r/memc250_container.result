@@ -173,6 +173,50 @@ Cottbus
 Add J|Jilin
 Ok.
  Should not find  J|Jilin, it should be expired 
+UNINSTALL PLUGIN daemon_memcached;
+use innodb_memcache;
+DELETE FROM containers;
+INSERT INTO containers VALUES ("desc_t2", "test", "t2",
+"c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+USE test;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t2 VALUES ('D', 't2_Darmstadt', 0, 0, 0);
+INSERT INTO t2 VALUES ('B', 't2_Berlin', 0, 0, 0);
+INSERT INTO t2 VALUES ('C', 't2_Cottbus', 0, 0 ,0);
+INSERT INTO t2 VALUES ('H', 't2_Hamburg', 0, 0, 0);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+SELECT c1,c2 FROM t2;
+c1	c2
+B	t2_Berlin
+C	t2_Cottbus
+D	t2_Darmstadt
+H	t2_Hamburg
+Add E|Essen:
+Ok.
+connection default;
+c1	c2
+Add E|Essen:
+Error: E|Essen is still existing.
+c1	c2
+Here the memcached results with E:
+c1	c2
+Here the memcached results with E,H:
+alter table test.t2 change c2 c_new int;
+show create table test.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` varchar(32) NOT NULL DEFAULT '',
+  `c_new` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  `c4` bigint(20) unsigned DEFAULT NULL,
+  `c5` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 DROP TABLE t2;
 DROP DATABASE innodb_memcache;
 SET @@global.tx_isolation= @tx_isolation;
