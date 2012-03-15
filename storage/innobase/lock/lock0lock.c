@@ -5018,18 +5018,23 @@ lock_rec_block_validate(
 	mtr_t		mtr;
 	buf_block_t*	block;
 
-	mtr_start(&mtr);
+	/* Make sure that the tablespace is not deleted while we are
+	trying to access the page. */
+	if (!fil_inc_pending_ops(space)) {
+		mtr_start(&mtr);
+		block = buf_page_get_gen(
+			space, fil_space_get_zip_size(space),
+			page_no, RW_X_LATCH, NULL,
+			BUF_GET_POSSIBLY_FREED,
+			__FILE__, __LINE__, &mtr);
 
-	block = buf_page_get_gen(
-		space, fil_space_get_zip_size(space),
-		page_no, RW_X_LATCH, NULL,
-		BUF_GET_POSSIBLY_FREED,
-		__FILE__, __LINE__, &mtr);
+		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
-	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+		ut_ad(lock_rec_validate_page(block));
+		mtr_commit(&mtr);
 
-	ut_ad(lock_rec_validate_page(block));
-	mtr_commit(&mtr);
+		fil_decr_pending_ops(space);
+	}
 }
 
 /*********************************************************************//**
