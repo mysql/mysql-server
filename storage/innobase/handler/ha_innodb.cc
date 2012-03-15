@@ -1830,19 +1830,17 @@ innobase_next_autoinc(
 	ut_a(block > 0);
 	ut_a(max_value > 0);
 
-	/* Current value should never be greater than the maximum. */
-	ut_a(current <= max_value);
-
 	/* According to MySQL documentation, if the offset is greater than
 	the step then the offset is ignored. */
 	if (offset > block) {
 		offset = 0;
 	}
 
-	/* Check for overflow. */
+	/* Check for overflow. Current can be > max_value if the value is
+	in reality a negative value. */
 	if (block >= max_value
 	    || offset > max_value
-	    || current == max_value
+	    || current >= max_value
 	    || max_value - offset <= offset) {
 
 		next_value = max_value;
