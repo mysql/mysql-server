@@ -1862,7 +1862,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     */
     tables.updating= 1;
     /* Thanks to memset, tables.next==0 */
-    if (!(thd->spcont || rpl_filter->tables_ok(0, &tables)))
+    if (!(thd->sp_runtime_ctx || rpl_filter->tables_ok(0, &tables)))
       DBUG_RETURN(0);
   }
 #endif
@@ -3626,7 +3626,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       account in tests.
     */
     tables[0].updating= tables[1].updating= tables[2].updating= 1;
-    if (!(thd->spcont || rpl_filter->tables_ok(0, tables)))
+    if (!(thd->sp_runtime_ctx || rpl_filter->tables_ok(0, tables)))
     {
       /* Restore the state of binlog format */
       DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -3872,7 +3872,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       account in tests.
     */
     tables[0].updating= tables[1].updating= 1;
-    if (!(thd->spcont || rpl_filter->tables_ok(0, tables)))
+    if (!(thd->sp_runtime_ctx || rpl_filter->tables_ok(0, tables)))
     {
       /* Restore the state of binlog format */
       DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -4061,7 +4061,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       account in tests.
     */
     tables[0].updating= tables[1].updating= 1;
-    if (!(thd->spcont || rpl_filter->tables_ok(0, tables)))
+    if (!(thd->sp_runtime_ctx || rpl_filter->tables_ok(0, tables)))
     {
       /* Restore the state of binlog format */
       DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -5823,7 +5823,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     */
     tables[0].updating= tables[1].updating= tables[2].updating=
       tables[3].updating= tables[4].updating= tables[5].updating= 1;
-    if (!(thd->spcont || rpl_filter->tables_ok(0, tables)))
+    if (!(thd->sp_runtime_ctx || rpl_filter->tables_ok(0, tables)))
       DBUG_RETURN(1);
     tables[0].updating= tables[1].updating= tables[2].updating=
       tables[3].updating= tables[4].updating= tables[5].updating= 0;

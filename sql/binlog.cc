@@ -6869,7 +6869,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     the variables.option_bits & OPTION_BIN_LOG is false.
   */
   if ((variables.option_bits & OPTION_BIN_LOG) &&
-      spcont == NULL && !binlog_evt_union.do_union)
+      sp_runtime_ctx == NULL && !binlog_evt_union.do_union)
     issue_unsafe_warnings();
 
   switch (qtype) {

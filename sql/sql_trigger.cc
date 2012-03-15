@@ -1352,7 +1352,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       List_iterator_fast<LEX_STRING> it_connection_cl_name(triggers->connection_cl_names);
       List_iterator_fast<LEX_STRING> it_db_cl_name(triggers->db_cl_names);
       LEX *old_lex= thd->lex, lex;
-      sp_rcontext *save_spcont= thd->spcont;
+      sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
       sql_mode_t save_sql_mode= thd->variables.sql_mode;
       LEX_STRING *on_table_name;
 
@@ -1382,7 +1382,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
                                        it_db_cl_name++);
 
         lex_start(thd);
-        thd->spcont= NULL;
+        thd->sp_runtime_ctx= NULL;
 
         Deprecated_trigger_syntax_handler error_handler;
         thd->push_internal_handler(&error_handler);
@@ -1554,7 +1554,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       }
       thd->reset_db(save_db.str, save_db.length);
       thd->lex= old_lex;
-      thd->spcont= save_spcont;
+      thd->sp_runtime_ctx= sp_runtime_ctx_saved;
       thd->variables.sql_mode= save_sql_mode;
 
       DBUG_RETURN(0);
@@ -1563,7 +1563,7 @@ err_with_lex_cleanup:
       // QQ: anything else ?
       lex_end(&lex);
       thd->lex= old_lex;
-      thd->spcont= save_spcont;
+      thd->sp_runtime_ctx= sp_runtime_ctx_saved;
       thd->variables.sql_mode= save_sql_mode;
       thd->reset_db(save_db.str, save_db.length);
       DBUG_RETURN(1);

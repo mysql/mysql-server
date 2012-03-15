@@ -721,7 +721,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   sp_head *sp;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
-  sp_rcontext *old_spcont= thd->spcont;
+  sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
   Silence_deprecated_warning warning_handler;
   Parser_state parser_state;
 
@@ -737,7 +737,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
 
   lex_start(thd);
   thd->push_internal_handler(&warning_handler);
-  thd->spcont= 0;
+  thd->sp_runtime_ctx= NULL;
 
   if (parse_sql(thd, & parser_state, creation_ctx) || thd->lex == NULL)
   {
@@ -751,7 +751,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   }
 
   thd->pop_internal_handler();
-  thd->spcont= old_spcont;
+  thd->sp_runtime_ctx= sp_runtime_ctx_saved;
   thd->variables.sql_mode= old_sql_mode;
   thd->variables.select_limit= old_select_limit;
   return sp;
