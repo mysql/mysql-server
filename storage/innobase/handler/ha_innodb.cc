@@ -7003,6 +7003,8 @@ ha_innobase::create(
 		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
 	}
 
+	ut_a(strlen(name) < sizeof(name2));
+
 	strcpy(name2, name);
 
 	normalize_table_name(norm_name, name2);
