@@ -652,21 +652,21 @@ flush tables with read lock;
 # It does not make much sense though.
 flush tables t1_base, t2_base with read lock;
 Warnings:
-Warning	1793	InnoDB: Can't quiesce table 'test/t2_base', it is in the system tablespace
+Warning	1795	InnoDB: Can't quiesce table 'test/t2_base', it is in the system tablespace
 unlock tables;
 # Switching to connection 'con1'.
 flush tables with read lock;
 # Switching to connection 'default'.
 flush tables t1_base, t2_base with read lock;
 Warnings:
-Warning	1793	InnoDB: Can't quiesce table 'test/t2_base', it is in the system tablespace
+Warning	1795	InnoDB: Can't quiesce table 'test/t2_base', it is in the system tablespace
 unlock tables;
 # Switching to connection 'con1'.
 unlock tables;
 # Switching to connection 'default'.
 flush tables t1_base, t2_base with read lock;
 Warnings:
-Warning	1793	InnoDB: Can't quiesce table 'test/t2_base', it is in the system tablespace
+Warning	1795	InnoDB: Can't quiesce table 'test/t2_base', it is in the system tablespace
 # Switching to connection 'con1'.
 flush tables with read lock;
 # Switching to connection 'con2'.
