@@ -397,9 +397,9 @@ UNIV_INTERN ibool	lock_print_waits	= FALSE;
 Validates the lock system.
 @return	TRUE if ok */
 static
-ibool
-lock_validate(void);
-/*===============*/
+bool
+lock_validate();
+/*============*/
 
 /*********************************************************************//**
 Validates the record lock queues on a page.
@@ -5639,16 +5639,81 @@ lock_validate_table_locks(
 }
 
 /*********************************************************************//**
+Validate record locks up to a limit.
+@return lock at limit or NULL if no more locks in the hash bucket */
+static __attribute__((nonnull, warn_unused_result))
+const lock_t*
+lock_rec_validate(
+/*==============*/
+	ulint		start,		/*!< in: lock_sys->rec_hash
+					bucket */
+	ib_uint64_t*	limit)		/*!< in/out: upper limit of
+					(space, page_no) */
+{
+	ut_ad(lock_mutex_own());
+	ut_ad(mutex_own(&trx_sys->mutex));
+
+	for (const lock_t* lock = static_cast<const lock_t*>(
+			HASH_GET_FIRST(lock_sys->rec_hash, start));
+	     lock != NULL;
+	     lock = static_cast<const lock_t*>(HASH_GET_NEXT(hash, lock))) {
+
+		ib_uint64_t	current;
+
+		ut_a(trx_in_trx_list(lock->trx));
+		ut_a(lock_get_type(lock) == LOCK_REC);
+
+		current = ut_ull_create(
+			lock->un_member.rec_lock.space,
+			lock->un_member.rec_lock.page_no);
+
+		if (current > *limit) {
+			*limit = current + 1;
+			return(lock);
+		}
+	}
+
+	return(0);
+}
+
+/*********************************************************************//**
+Validate a record lock's block */
+static
+void
+lock_rec_block_validate(
+/*====================*/
+	ulint		space,
+	ulint		page_no)
+{
+	/* The lock and the block that it is referring to may be freed at
+	this point. We pass BUF_GET_POSSIBLY_FREED to skip a debug check.
+	If the lock exists in lock_rec_validate_page() we assert
+	!block->page.file_page_was_freed. */
+
+	mtr_t		mtr;
+
+	mtr_start(&mtr);
+
+	buf_block_t*	block = buf_page_get_gen(
+		space, fil_space_get_zip_size(space),
+		page_no, RW_X_LATCH, NULL,
+		BUF_GET_POSSIBLY_FREED,
+		__FILE__, __LINE__, &mtr);
+
+	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+
+	ut_ad(lock_rec_validate_page(block));
+	mtr_commit(&mtr);
+}
+
+/*********************************************************************//**
 Validates the lock system.
 @return	TRUE if ok */
 static
-ibool
-lock_validate(void)
-/*===============*/
+bool
+lock_validate()
+/*===========*/
 {
-	ulint		i;
-	const lock_t*	lock;
-
 	lock_mutex_enter();
 
 	mutex_enter(&trx_sys->mutex);
@@ -5656,68 +5721,34 @@ lock_validate(void)
 	ut_a(lock_validate_table_locks(&trx_sys->rw_trx_list));
 	ut_a(lock_validate_table_locks(&trx_sys->ro_trx_list));
 
-	for (i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
-		ulint		space;
-		ulint		page_no;
-		ib_uint64_t	limit	= 0;
+	/* Iterate over all the record locks and validate the locks. We
+	don't want to hog the lock_sys_t::mutex and the trx_sys_t::mutex.
+	Release both mutexes during the validation check. */
 
-		for (;;) {
-			mtr_t		mtr;
-			buf_block_t*	block;
+	for (ulint i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
+		const lock_t*	lock;
+		ib_uint64_t	limit = 0;
 
-			for (lock = static_cast<const lock_t*>(
-					HASH_GET_FIRST(lock_sys->rec_hash, i));
-			     lock != NULL;
-			     lock = static_cast<const lock_t*>(
-					HASH_GET_NEXT(hash, lock))) {
+		while ((lock = lock_rec_validate(i, &limit)) != 0) {
 
-				ut_a(trx_in_trx_list(lock->trx));
-
-				space = lock->un_member.rec_lock.space;
-				page_no = lock->un_member.rec_lock.page_no;
-
-				if (ut_ull_create(space, page_no) > limit) {
-					break;
-				}
-			}
-
-			if (!lock) {
-
-				break;
-			}
+			ulint	space = lock->un_member.rec_lock.space;
+			ulint	page_no = lock->un_member.rec_lock.page_no;
 
 			lock_mutex_exit();
 			mutex_exit(&trx_sys->mutex);
 
-			/* The lock and the block that it is referring
-			to may be freed at this point. We pass
-			BUF_GET_POSSIBLY_FREED to skip a debug check.
-			If the lock exists in lock_rec_validate_page()
-			we assert !block->page.file_page_was_freed. */
-
-			mtr_start(&mtr);
-			block = buf_page_get_gen(
-				space, fil_space_get_zip_size(space),
-				page_no, RW_X_LATCH, NULL,
-				BUF_GET_POSSIBLY_FREED,
-				__FILE__, __LINE__, &mtr);
-			buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-
-			ut_ad(lock_rec_validate_page(block));
-			mtr_commit(&mtr);
-
-			limit++;
+			lock_rec_block_validate(space, page_no);
 
 			lock_mutex_enter();
 			mutex_enter(&trx_sys->mutex);
 		}
 	}
 
-	lock_mutex_exit();
-
 	mutex_exit(&trx_sys->mutex);
 
-	return(TRUE);
+	lock_mutex_exit();
+
+	return(true);
 }
 #endif /* UNIV_DEBUG */
 /*============ RECORD LOCK CHECKS FOR ROW OPERATIONS ====================*/

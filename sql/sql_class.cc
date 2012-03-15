@@ -930,6 +930,9 @@ THD::THD(bool enable_plugins)
   m_binlog_invoker= FALSE;
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
+
+  binlog_next_event_pos.file_name= NULL;
+  binlog_next_event_pos.pos= 0;
 }
 
 
@@ -1417,6 +1420,8 @@ THD::~THD()
   mysql_audit_release(this);
   if (m_enable_plugins)
     plugin_thdvar_cleanup(this);
+
+  clear_next_event_pos();
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
@@ -4567,3 +4572,30 @@ void COPY_INFO::set_function_defaults(TABLE *table)
     }
   DBUG_VOID_RETURN;
 }
+
+void THD::set_next_event_pos(const char* _filename, ulonglong _pos)
+{
+  char*& filename= binlog_next_event_pos.file_name;
+  if (filename == NULL)
+  {
+    /* First time, allocate maximal buffer */
+    filename= (char*) my_malloc(FN_REFLEN+1, MYF(MY_WME));
+    if (filename == NULL) return;
+  }
+
+  assert(strlen(_filename) <= FN_REFLEN);
+  strcpy(filename, _filename);
+  filename[ FN_REFLEN ]= 0;
+
+  binlog_next_event_pos.pos= _pos;
+};
+
+void THD::clear_next_event_pos()
+{
+  if (binlog_next_event_pos.file_name != NULL)
+  {
+    my_free(binlog_next_event_pos.file_name);
+  }
+  binlog_next_event_pos.file_name= NULL;
+  binlog_next_event_pos.pos= 0;
+};

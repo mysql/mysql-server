@@ -553,7 +553,8 @@ set_trigger_new_row(THD *thd, LEX_STRING *name, Item *val)
     Let us add this item to list of all Item_trigger_field
     objects in trigger.
   */
-  lex->trg_table_fields.link_in_list(trg_fld, &trg_fld->next_trg_field);
+  lex->sphead->m_trg_table_fields.link_in_list(trg_fld,
+                                               &trg_fld->next_trg_field);
 
   return lex->sphead->add_instr(sp_fld);
 }
@@ -12877,8 +12878,8 @@ simple_ident_q:
                 Let us add this item to list of all Item_trigger_field objects
                 in trigger.
               */
-              lex->trg_table_fields.link_in_list(trg_fld,
-                                                 &trg_fld->next_trg_field);
+              lex->sphead->m_trg_table_fields.link_in_list(
+                trg_fld, &trg_fld->next_trg_field);
 
               $$= trg_fld;
             }
