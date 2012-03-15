@@ -4988,8 +4988,11 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     // Transfer ICP from h to h2
     if (mrr_keyno == h->pushed_idx_cond_keyno)
     {
-      const Item* ret= h2->idx_cond_push(mrr_keyno, h->pushed_idx_cond);
-      DBUG_ASSERT(ret == NULL);
+      if (h2->idx_cond_push(mrr_keyno, h->pushed_idx_cond))
+      {
+        retval= 1;
+        goto error;
+      }
     }
     else
     {
