@@ -1,0 +1,26 @@
+--source include/have_debug.inc
+
+SET @old_debug= @@session.debug;
+
+--echo Bug#13820776 CRASH IN HANDLER::HA_STATISTIC_INCREMENT IF QUERY IS KILLED
+
+CREATE TABLE g9(a INT) ENGINE=INNODB;
+
+let $query=SELECT 1 FROM g9
+RIGHT JOIN (SELECT 1 FROM g9) AS d1 ON 1 LEFT JOIN
+(SELECT 1 FROM g9) AS d2 ON 1;
+
+eval $query;
+
+SET debug= '+d,bug13820776_1';
+--error ER_QUERY_INTERRUPTED
+eval $query;
+SET debug= '-d,bug13820776_1';
+
+SET debug= '+d,bug13820776_2';
+--error ER_QUERY_INTERRUPTED
+eval $query;
+SET debug= '-d,bug13820776_2';
+
+DROP TABLE g9;
+SET debug= @old_debug;
