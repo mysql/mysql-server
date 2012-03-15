@@ -53,12 +53,10 @@
 #include "password.h"
 #include "crypt_genhash_impl.h"
 
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
-#endif
 #endif
 
 using std::min;
@@ -405,15 +403,12 @@ static LEX_STRING old_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_old_password")
 };
 
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 LEX_STRING sha256_password_plugin_name= {
   C_STRING_WITH_LEN("sha256_password")
 };
 #endif
-#endif
   
-/// @todo make it configurable
 LEX_STRING default_auth_plugin_name;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1133,13 +1128,11 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
               if (my_strcasecmp(system_charset_info, tmpstr,
                                 old_password_plugin_name.str) == 0)
                 user.plugin= old_password_plugin_name;
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
             else
               if (my_strcasecmp(system_charset_info, tmpstr,
                                 sha256_password_plugin_name.str) == 0)
                 user.plugin= sha256_password_plugin_name;
-#endif
 #endif
             else
               {
@@ -1242,7 +1235,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     Prepare reading from the mysql.db table
   */
   if (init_read_record(&read_record_info, thd, table=tables[2].table,
-                     NULL, 1, 1, FALSE))
+                       NULL, 1, 1, FALSE))
     goto end;
   table->use_all_columns();
   (void) my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100);
@@ -1718,12 +1711,12 @@ static void acl_update_user(const char *user, const char *host,
 	if (ssl_type != SSL_TYPE_NOT_SPECIFIED)
 	{
 	  acl_user->ssl_type= ssl_type;
-	  acl_user->ssl_cipher= (ssl_cipher ? strdup_root(&global_acl_memory,ssl_cipher) :
-				 0);
-	  acl_user->x509_issuer= (x509_issuer ? strdup_root(&global_acl_memory,x509_issuer) :
-				  0);
+	  acl_user->ssl_cipher= (ssl_cipher ? strdup_root(&global_acl_memory,
+                                                    ssl_cipher) :	0);
+	  acl_user->x509_issuer= (x509_issuer ? strdup_root(&global_acl_memory,
+                                                      x509_issuer) : 0);
 	  acl_user->x509_subject= (x509_subject ?
-				   strdup_root(&global_acl_memory,x509_subject) : 0);
+				   strdup_root(&global_acl_memory, x509_subject) : 0);
 	}
   if (password)
 	  set_user_salt(acl_user, password, password_len);
@@ -1752,8 +1745,9 @@ static void acl_insert_user(const char *user, const char *host,
 
   mysql_mutex_assert_owner(&acl_cache->lock);
 
-  acl_user.user=*user ? strdup_root(&global_acl_memory,user) : 0;
-  update_hostname(&acl_user.host, *host ? strdup_root(&global_acl_memory, host): 0);
+  acl_user.user= *user ? strdup_root(&global_acl_memory,user) : 0;
+  update_hostname(&acl_user.host,
+                  *host ? strdup_root(&global_acl_memory, host) : 0);
   if (plugin->str[0])
   {
     acl_user.plugin.str= strmake_root(&global_acl_memory, plugin->str, plugin->length);
@@ -1770,16 +1764,18 @@ static void acl_insert_user(const char *user, const char *host,
     acl_user.auth_string.str= const_cast<char*>("");
     acl_user.auth_string.length= 0;
   }
-  acl_user.access=privileges;
-  acl_user.user_resource = *mqh;
-  acl_user.sort=get_sort(2,acl_user.host.hostname,acl_user.user);
+  acl_user.access= privileges;
+  acl_user.user_resource= *mqh;
+  acl_user.sort= get_sort(2,acl_user.host.hostname, acl_user.user);
   acl_user.hostname_length=(uint) strlen(host);
-  acl_user.ssl_type= (ssl_type != SSL_TYPE_NOT_SPECIFIED ?
-		      ssl_type : SSL_TYPE_NONE);
-  acl_user.ssl_cipher=	ssl_cipher   ? strdup_root(&global_acl_memory,ssl_cipher) : 0;
-  acl_user.x509_issuer= x509_issuer  ? strdup_root(&global_acl_memory,x509_issuer) : 0;
-  acl_user.x509_subject=x509_subject ?
-    strdup_root(&global_acl_memory,x509_subject) : 0;
+  acl_user.ssl_type=
+    (ssl_type != SSL_TYPE_NOT_SPECIFIED ? ssl_type : SSL_TYPE_NONE);
+  acl_user.ssl_cipher=
+    ssl_cipher ? strdup_root(&global_acl_memory, ssl_cipher) : 0;
+  acl_user.x509_issuer=
+    x509_issuer ? strdup_root(&global_acl_memory, x509_issuer) : 0;
+  acl_user.x509_subject=
+    x509_subject ? strdup_root(&global_acl_memory, x509_subject) : 0;
 
   set_user_salt(&acl_user, password, password_len);
 
@@ -1845,14 +1841,15 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
 {
   ACL_DB acl_db;
   mysql_mutex_assert_owner(&acl_cache->lock);
-  acl_db.user=strdup_root(&global_acl_memory,user);
-  update_hostname(&acl_db.host, *host ? strdup_root(&global_acl_memory,host) : 0);
-  acl_db.db=strdup_root(&global_acl_memory,db);
-  acl_db.access=privileges;
-  acl_db.sort=get_sort(3,acl_db.host.hostname,acl_db.db,acl_db.user);
-  (void) push_dynamic(&acl_dbs,(uchar*) &acl_db);
-  my_qsort((uchar*) dynamic_element(&acl_dbs,0,ACL_DB*),acl_dbs.elements,
-	   sizeof(ACL_DB),(qsort_cmp) acl_compare);
+  acl_db.user= strdup_root(&global_acl_memory,user);
+  update_hostname(&acl_db.host,
+                  *host ? strdup_root(&global_acl_memory, host) : 0);
+  acl_db.db= strdup_root(&global_acl_memory, db);
+  acl_db.access= privileges;
+  acl_db.sort= get_sort(3,acl_db.host.hostname, acl_db.db, acl_db.user);
+  (void) push_dynamic(&acl_dbs, (uchar*) &acl_db);
+  my_qsort((uchar*) dynamic_element(&acl_dbs, 0, ACL_DB*), acl_dbs.elements,
+	         sizeof(ACL_DB),(qsort_cmp) acl_compare);
 }
 
 
@@ -2166,8 +2163,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     acl_user->plugin.str= default_auth_plugin_name.str;
   }
   
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
   /*
     update loaded acl entry:
     TODO Should password depend on @@old_variables here?
@@ -2189,12 +2185,12 @@ bool change_password(THD *thd, const char *host, const char *user,
              new_password[2] == '$')
     {
       password_field= MYSQL_USER_FIELD_AUTHENTICATION_STRING;
-      if (new_password_len < CRYPT_MAX_PASSWORD_SIZE+1)
+      if (new_password_len < CRYPT_MAX_PASSWORD_SIZE + 1)
       {
         /* copy string including \0 */
-        acl_user->auth_string.str= (char *)memdup_root(&global_acl_memory,
+        acl_user->auth_string.str= (char *) memdup_root(&global_acl_memory,
                                                        new_password,
-                                                       new_password_len+1);
+                                                       new_password_len + 1);
         acl_user->auth_string.length= new_password_len;
       }
     } else
@@ -2203,14 +2199,13 @@ bool change_password(THD *thd, const char *host, const char *user,
         Password format is unexpected. The user probably is using the wrong
         password algorithm with the PASSWORD() function.
       */
-      my_error(ER_PASSWORD_FORMAT,MYF(0));
+      my_error(ER_PASSWORD_FORMAT, MYF(0));
       result= 1;
       mysql_mutex_unlock(&acl_cache->lock);
       goto end;
     }
   }
   else
-#endif
 #endif
   if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
                     native_password_plugin_name.str) == 0 ||
@@ -2226,8 +2221,8 @@ bool change_password(THD *thd, const char *host, const char *user,
     if (new_password_len != 0)
     {
       if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
-                        native_password_plugin_name.str) == 0
-          && new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH)
+                        native_password_plugin_name.str) == 0 &&
+          new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH)
       {
         my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
         result= 1;
@@ -2236,8 +2231,8 @@ bool change_password(THD *thd, const char *host, const char *user,
       }
       else
       if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
-                        old_password_plugin_name.str) == 0
-          && new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+                        old_password_plugin_name.str) == 0 &&
+          new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
       {
         my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH_323);
         result= 1;
@@ -2255,7 +2250,8 @@ bool change_password(THD *thd, const char *host, const char *user,
      */
     set_user_salt(acl_user, new_password, new_password_len);
     
-  } else
+  }
+  else
   {
      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                   ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
@@ -2528,9 +2524,9 @@ update_user_table(TABLE *table,
 
   table->use_all_columns();
   DBUG_ASSERT(host != '\0');
-  table->field[MYSQL_USER_FIELD_HOST]->store(host,(uint) strlen(host),
+  table->field[MYSQL_USER_FIELD_HOST]->store(host, (uint) strlen(host),
                                              system_charset_info);
-  table->field[MYSQL_USER_FIELD_USER]->store(user,(uint) strlen(user),
+  table->field[MYSQL_USER_FIELD_USER]->store(user, (uint) strlen(user),
                                              system_charset_info);
   key_copy((uchar *) user_key, table->record[0], table->key_info,
            table->key_info->key_length);
@@ -2545,7 +2541,7 @@ update_user_table(TABLE *table,
   }
   store_record(table,record[1]);
   
-  table->field[(int)password_field]->store(new_password, new_password_len,
+  table->field[(int) password_field]->store(new_password, new_password_len,
                                            system_charset_info);
 
   if ((error=table->file->ha_update_row(table->record[1],table->record[0])) &&
@@ -2594,18 +2590,15 @@ static bool test_if_create_new_users(THD *thd)
 inline bool auth_plugin_is_built_in(const char *plugin_name)
 {
  return (plugin_name == native_password_plugin_name.str ||
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
          plugin_name == sha256_password_plugin_name.str ||
-#endif
 #endif
          plugin_name == old_password_plugin_name.str);
 }
 
 void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name)
 {
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
   if (my_strcasecmp(system_charset_info, sha256_password_plugin_name.str,
                     plugin_name->str) == 0)
   {
@@ -2613,7 +2606,6 @@ void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name)
     plugin_name->length= sha256_password_plugin_name.length;
   }
   else
-#endif
 #endif
   if (my_strcasecmp(system_charset_info, native_password_plugin_name.str,
                     plugin_name->str) == 0)
@@ -2647,10 +2639,8 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   char what= (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
   LEX *lex= thd->lex;
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
   bool sha2_plugin= false;
-#endif
 #endif
   DBUG_ENTER("replace_user_table");
 
@@ -2691,7 +2681,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     {
       if (digest_password(thd, combo))
       {
-        // TODO issue error
+        my_error(ER_OUTOFMEMORY, MYF(0), CRYPT_MAX_PASSWORD_SIZE);
         error= 1;
         goto end;
       }
@@ -2739,8 +2729,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
                                                system_charset_info);
     table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
                                                system_charset_info);
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
     if (combo->plugin.str == sha256_password_plugin_name.str)
     {
       /* Use the authentication_string field */
@@ -2759,7 +2748,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
     }
     else
-#endif
 #endif
     {
       /* Use the legacy Password field */
@@ -2851,8 +2839,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
     if (password_len > 0)
     {
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
       if (combo->plugin.str == sha256_password_plugin_name.str)
       {
         sha2_plugin= true;
@@ -2862,7 +2849,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
         combo->auth.length= password_len;
       }
       else
-#endif
 #endif
       {
         /* The legacy Password field is used */
@@ -2877,7 +2863,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
              !lex->mqh.specified_limits)
     {
      
-      DBUG_PRINT("info",("Proxy user exit path"));
+      DBUG_PRINT("info", ("Proxy user exit path"));
       DBUG_RETURN(0);
     }
   }
@@ -4580,8 +4566,7 @@ int digest_password(THD *thd, LEX_USER *user_record)
   if (user_record->password.length == 0)
     return 0;
 
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
   /*
     Transform password into a password hash 
   */
@@ -4589,17 +4574,14 @@ int digest_password(THD *thd, LEX_USER *user_record)
   {
     char *buff=  (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE+1);
     if (buff == NULL)
-    {
-      //TODO issue OOM error
       return 1;
-    }
+
     my_make_scrambled_password(buff, user_record->password.str,
                                user_record->password.length);
     user_record->password.str= buff;
     user_record->password.length= strlen(buff)+1;
   }
   else
-#endif
 #endif
   if (user_record->plugin.str == native_password_plugin_name.str ||
       user_record->plugin.str == old_password_plugin_name.str)
@@ -4609,10 +4591,8 @@ int digest_password(THD *thd, LEX_USER *user_record)
       char *buff= 
         (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
       if (buff == NULL)
-      {
-        // TODO issue OOM error
         return 1;
-      }
+
       my_make_scrambled_password_323(buff, user_record->password.str,
                                      user_record->password.length);
       user_record->password.str= buff;
@@ -4623,10 +4603,8 @@ int digest_password(THD *thd, LEX_USER *user_record)
       char *buff= 
         (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
       if (buff == NULL)
-      {
-        // TODO issue OOM error
         return 1;
-      }
+
       my_make_scrambled_password_sha1(buff, user_record->password.str,
                                       user_record->password.length);
       user_record->password.str= buff;
@@ -5986,16 +5964,14 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     global.append(lex_user->host.str,lex_user->host.length,
 		  system_charset_info);
     global.append ('\'');
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
     if (acl_user->plugin.str == sha256_password_plugin_name.str)
     {
       global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      global.append((const char *)&acl_user->auth_string.str[0]);
+      global.append((const char *) &acl_user->auth_string.str[0]);
       global.append('\'');
     }
     else
-#endif
 #endif
     if (acl_user->salt_len)
     {
@@ -6947,8 +6923,8 @@ static int handle_grant_struct(uint struct_no, bool drop,
         }
 
       case 5:
-        acl_proxy_user->set_user (&global_acl_memory, user_to->user.str);
-        acl_proxy_user->set_host (&global_acl_memory, user_to->host.str);
+        acl_proxy_user->set_user(&global_acl_memory, user_to->user.str);
+        acl_proxy_user->set_host(&global_acl_memory, user_to->host.str);
         break;
 
       }
@@ -7128,8 +7104,8 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   @param ident   If TRUE, append ' IDENTIFIED BY/WITH...' after the user,
                  if the given user has credentials set with 'IDENTIFIED BY/WITH'
  */
-void append_user(THD *thd, String *str, LEX_USER *user, bool comma= TRUE,
-                 bool ident= FALSE)
+void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
+                 bool ident= false)
 {
   String from_user(user->user.str, user->user.length, system_charset_info);
   String from_plugin(user->plugin.str, user->plugin.length, system_charset_info);
@@ -7145,9 +7121,9 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= TRUE,
   if (ident)
   {
     if (user->plugin.str && (user->plugin.length > 0) &&
-        memcmp(user->plugin.str,native_password_plugin_name.str,
+        memcmp(user->plugin.str, native_password_plugin_name.str,
                user->plugin.length) &&
-        memcmp(user->plugin.str,old_password_plugin_name.str,
+        memcmp(user->plugin.str, old_password_plugin_name.str,
                user->plugin.length))
     {
       /** 
@@ -7169,7 +7145,7 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= TRUE,
       str->append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
       if (user->uses_identified_by_password_clause)
       {
-        str->append(user->password.str,user->password.length);
+        str->append(user->password.str, user->password.length);
         str->append("'");
       }
       else
@@ -7186,16 +7162,14 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= TRUE,
                                           user->password.length);
           str->append(tmp);
         }
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
         else if (thd->variables.old_passwords == 2)
         {
-          char tmp[CRYPT_MAX_PASSWORD_SIZE+1];
+          char tmp[CRYPT_MAX_PASSWORD_SIZE + 1];
           my_make_scrambled_password(tmp, user->password.str,
                                      user->password.length);
           str->append(tmp, user->password.length, system_charset_info);
         }
-#endif
 #endif
         else
         {
@@ -7287,14 +7261,16 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     */
     if (handle_grant_data(tables, 0, user_name, NULL))
     {
-      append_user(thd, &wrong_users, user_name, wrong_users.length() > 0, FALSE);
+      append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
+                  false);
       result= TRUE;
       continue;
     }
 
     if (replace_user_table(thd, tables[0].table, user_name, 0, 0, 1, 0))
     {
-      append_user(thd, &wrong_users, user_name, wrong_users.length() > 0, FALSE);
+      append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
+                  false);
       result= TRUE;
       continue;
     }
@@ -7562,7 +7538,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }
 
     if (replace_user_table(thd, tables[0].table,
-			   lex_user, ~(ulong)0, 1, 0, 0))
+			   lex_user, ~(ulong) 0, 1, 0, 0))
     {
       result= -1;
       continue;
@@ -8741,8 +8717,7 @@ int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
   
   optimize_plugin_compare_by_pointer(&default_auth_plugin_name);
  
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
   if (default_auth_plugin_name.str == sha256_password_plugin_name.str)
   {
     /*
@@ -8751,7 +8726,6 @@ int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
     */
     global_system_variables.old_passwords= 2;
   }
-#endif
 #endif
   return 0;
 }
@@ -9389,24 +9363,24 @@ char *get_length_encoded_string(char **buffer,
     return NULL;
 
   /* Do double cast to prevent overflow from signed / unsigned conversion */
-  size_t str_len= (size_t)(unsigned char)**buffer;
+  size_t str_len= (size_t)(unsigned char) **buffer;
   if (str_len < 251)
   {
     len_len= 1;
   }
   else if (str_len == 0xfc)
   {
-    str_len= uint2korr(*buffer+1);
+    str_len= uint2korr(*buffer + 1);
     len_len= 3;
   }
   else if (str_len == 0xfd)
   {
-    str_len= uint3korr(*buffer+1);
+    str_len= uint3korr(*buffer + 1);
     len_len= 4;
   }
   else if (str_len == 0xfe)
   {
-    str_len= uint8korr(*buffer+1);
+    str_len= uint8korr(*buffer + 1);
     len_len= 9;
   }
 
@@ -9422,7 +9396,7 @@ char *get_length_encoded_string(char **buffer,
       Return a pointer to the 0 character so the return value will be
       an empty string.
     */
-    return *buffer-1;
+    return *buffer - 1;
   }
 
   if (str_len >= *max_bytes_available)
@@ -10334,8 +10308,8 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
         DBUG_RETURN(1);
       }
       acl_user= acl_proxy_user->copy(thd->mem_root);
-      DBUG_PRINT("info",("User %s is a PROXY and will assume a PROXIED"
-                         " identity %s", auth_user,acl_user->user));
+      DBUG_PRINT("info", ("User %s is a PROXY and will assume a PROXIED"
+                          " identity %s", auth_user, acl_user->user));
       mysql_mutex_unlock(&acl_cache->lock);
     }
 #endif
@@ -10603,7 +10577,7 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
 int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
 {
-  MPVIO_EXT *mpvio= (MPVIO_EXT *)vio;
+  MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
   return (mpvio->vio_is_encrypted);
 }
 
@@ -10619,10 +10593,10 @@ char *auth_rsa_public_key_path;
 class Rsa_authentication_keys
 {
 private:
-    RSA *m_public_key;
-    RSA *m_private_key;
-    int m_cipher_len;
-    char *m_pem_public_key;
+  RSA *m_public_key;
+  RSA *m_private_key;
+  int m_cipher_len;
+  char *m_pem_public_key;
 public:
   Rsa_authentication_keys()
   {
@@ -10671,11 +10645,6 @@ public:
     return m_pem_public_key;
   }
   
-  bool verify_keys()
-  {
-    return (m_private_key != NULL && m_public_key != NULL &&
-            m_cipher_len > 128);
-  }
 };
 
 static Rsa_authentication_keys g_rsa_keys;
@@ -10689,7 +10658,6 @@ int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff)
   var->value= const_cast<char *>(g_rsa_keys.get_public_key_as_pem());
     
   return 0;
-  
 }
 
 /**
@@ -10781,8 +10749,7 @@ int init_rsa_keys(void)
   filesize= ftell(public_key_file);
   fseek(public_key_file, 0, SEEK_SET);
   char *pem_file_buffer= new char[filesize+1];
-  (void)fread(pem_file_buffer, filesize, 1, public_key_file);
-  fseek(public_key_file, 0, SEEK_SET);
+  (void) fread(pem_file_buffer, filesize, 1, public_key_file);
   pem_file_buffer[filesize]= '\0';
 
   if (int err= ferror(public_key_file))
@@ -10792,6 +10759,7 @@ int init_rsa_keys(void)
     /* An intention has been made clear which can't be fulfilled; stop server.*/
     return 1;
   }
+  fseek(public_key_file, 0, SEEK_SET);
 
   if (g_rsa_keys.set_public_key(PEM_read_RSA_PUBKEY(public_key_file, 0, 0, 0),
                                 pem_file_buffer))
@@ -10831,34 +10799,28 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 {
   uchar *pkt;
   int pkt_len;
-  /*
-    Plugin needs to access internal password storage hence the break of API
-    boundary by switching to MPVIO_EXT.
-  */
-  MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
   char  *user_salt_begin;
   char  *user_salt_end;
-  uint user_salt_length= 0;
+  char scramble[SCRAMBLE_LENGTH + 1];
   unsigned char plain_text[MAX_CIPHER_LENGTH];
-  char user_salt[CRYPT_SALT_LENGTH+1];
-  char stage2[CRYPT_MAX_PASSWORD_SIZE+1];
+  char stage2[CRYPT_MAX_PASSWORD_SIZE + 1];
   String scramble_response_packet;
-  DBUG_ENTER("sha256_password_authenticate");
-
   int cipher_length= 0;
   RSA *private_key= NULL;
   RSA *public_key= NULL;
 
-  create_random_string(mpvio->scramble, SCRAMBLE_LENGTH, mpvio->rand);
+  DBUG_ENTER("sha256_password_authenticate");
 
-  if (vio->write_packet(vio, (unsigned char *)mpvio->scramble, SCRAMBLE_LENGTH))
+  generate_user_salt(scramble, SCRAMBLE_LENGTH);
+
+  if (vio->write_packet(vio, (unsigned char *) scramble, SCRAMBLE_LENGTH))
     DBUG_RETURN(CR_ERROR);
 
   /*
     After the call to read_packet() the user name will appear in
     mpvio->acl_user and info will contain current data.
   */
-  if ((pkt_len= vio->read_packet(mpvio, &pkt)) == -1)
+  if ((pkt_len= vio->read_packet(vio, &pkt)) == -1)
     DBUG_RETURN(CR_ERROR);
 
   /*
@@ -10928,50 +10890,45 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                         RSA_PKCS1_OAEP_PADDING);
 
     plain_text[cipher_length]= '\0'; // safety
-    xor_string((char *)plain_text, cipher_length,
-               (char *)mpvio->scramble, SCRAMBLE_LENGTH);
+    xor_string((char *) plain_text, cipher_length,
+               (char *) scramble, SCRAMBLE_LENGTH);
 
     /*
       Set packet pointers and length for the hash digest function below 
     */
     pkt= plain_text;
-    pkt_len= strlen((char *)plain_text)+1; // include \0 intentionally.
+    pkt_len= strlen((char *) plain_text) + 1; // include \0 intentionally.
+
     if (pkt_len == 1)
       DBUG_RETURN(CR_ERROR);
   } // if(!my_vio_is_encrypter())
 
+  /* A password was sent to an account without a password */
+  if (info->auth_string_length == 0)
+    DBUG_RETURN(CR_ERROR);
+  
   /*
     Fetch user authentication_string and extract the password salt
   */
-  if (info->auth_string_length != 0)
+  user_salt_begin= (char *) info->auth_string;
+  if (extract_user_salt(&user_salt_begin, &user_salt_end) != CRYPT_SALT_LENGTH)
   {
-    user_salt_begin= (char *)info->auth_string;
-    if (extract_user_salt(&user_salt_begin,
-                          &user_salt_end) == CRYPT_SALT_LENGTH)
-    {
-      memcpy(user_salt, user_salt_begin, CRYPT_SALT_LENGTH);
-      user_salt_length= CRYPT_SALT_LENGTH;
-    }
-  }
-  else
-  {
-    /* A password was sent to an account without a password */
+    /* User salt is not correct */
     DBUG_RETURN(CR_ERROR);
   }
 
   /* Create hash digest */
   crypt_genhash_impl(stage2,
                      CRYPT_MAX_PASSWORD_SIZE,
-                     (char *)pkt,
+                     (char *) pkt,
                      pkt_len-1, 
-                     (char *)user_salt,
-                     (const char **)0);
+                     (char *) user_salt_begin,
+                     (const char **) 0);
 
-
-  /* Comapre the newly created hash digest with the password record */
-  int result= memcmp(mpvio->acl_user->auth_string.str,
+  /* Compare the newly created hash digest with the password record */
+  int result= memcmp(info->auth_string,
                      stage2,
-                     mpvio->acl_user->auth_string.length);
+                     info->auth_string_length);
 
   if (result == 0)
     DBUG_RETURN(CR_OK);
@@ -11010,15 +10967,13 @@ static struct st_mysql_auth old_password_handler=
   old_password_authenticate
 };
 
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static struct st_mysql_auth sha256_password_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   sha256_password_plugin_name.str,
   sha256_password_authenticate
 };
-#endif
 #endif
 
 mysql_declare_plugin(mysql_password)

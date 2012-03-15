@@ -7,18 +7,18 @@
 #define CRYPT_SALT_LENGTH  20
 #define CRYPT_MAGIC_LENGTH  3
 #define CRYPT_PARAM_LENGTH 13
+#define SHA256_HASH_LENGTH 43
 #define CRYPT_MAX_PASSWORD_SIZE (CRYPT_SALT_LENGTH + \
-                                 43 + \
+                                 SHA256_HASH_LENGTH + \
                                  CRYPT_MAGIC_LENGTH + \
                                  CRYPT_PARAM_LENGTH)
 
 #include <stddef.h>
+#include <my_global.h>
 
 int extract_user_salt(char **salt_begin,
                       char **salt_end);
-#ifdef __cplusplus
-extern "C" {
-#endif
+C_MODE_START
 char *
 crypt_genhash_impl(char *ctbuffer,
                    size_t ctbufflen,
@@ -29,7 +29,5 @@ crypt_genhash_impl(char *ctbuffer,
 void generate_user_salt(char *buffer, int buffer_len);
 void xor_string(char *to, int to_len, char *pattern, int pattern_len);
 
-#ifdef __cplusplus
-} // extern "C"
-#endif 
+C_MODE_END
 #endif

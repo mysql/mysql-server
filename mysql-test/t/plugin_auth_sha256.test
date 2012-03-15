@@ -60,5 +60,49 @@ SET PASSWORD FOR 'kristofer'@'33.33.33.33'=PASSWORD('');
 connect(con4,127.0.0.1,kristofer,,,);
 --enable_query_log
 DROP USER 'kristofer'@'33.33.33.33';
+
+#
+# Test with non const arguments
+#
+SET GLOBAL old_passwords= 2;
+SET SESSION old_passwords= 2;
+CREATE TABLE t1 (c1 VARCHAR(10) );
+INSERT INTO t1 VALUES ('secret');
+--replace_regex /2435.*00/success/
+SELECT HEX(PASSWORD(c1)) FROM t1;
+DROP TABLE t1;
+
+#
+# Test null argument
+#
+SELECT PASSWORD(NULL);
+
+#
+# test bad password formats
+#
+CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
+SET GLOBAL old_passwords= 2;
+SET SESSION old_passwords= 2;
+SET PASSWORD FOR 'kristofer'=PASSWORD('secret');
+SELECT user, plugin FROM mysql.user;
+connect(con1,localhost,kristofer,secret,,);
+connection con1;
+SELECT USER(),CURRENT_USER();
+connection default;
+disconnect con1;
+UPDATE mysql.user SET authentication_string= '$' WHERE user='kristofer';
+FLUSH PRIVILEGES;
+SELECT user,authentication_string,password,plugin FROM mysql.user WHERE user='kristofer';
+--error ER_ACCESS_DENIED_ERROR
+connect(con1,localhost,kristofer,secret,,);
+
+UPDATE mysql.user SET authentication_string= '$5$asd' WHERE user='kristofer';
+FLUSH PRIVILEGES;
+SELECT user,authentication_string,password,plugin FROM mysql.user WHERE user='kristofer';
+--error ER_ACCESS_DENIED_ERROR
+connect(con1,localhost,kristofer,secret,,);
+DROP USER kristofer;
+
 # Restore default value for old_passwords
 SET GLOBAL old_passwords= default;
+

@@ -5,11 +5,13 @@
 #include <errno.h>
 #include <string.h>
 #include <time.h>
+#include <limits.h>
 #ifdef HAVE_YASSL
 #include <sha.hpp>
 #else
 #include <sys/types.h>
 #include <openssl/sha.h>
+#include <openssl/rand.h>
 #endif
 
 #include "crypt_genhash_impl.h"
@@ -56,6 +58,11 @@ static const char crypt_alg_magic[] = "$5";
 #endif
 
 
+/**
+  Size-bounded string copying and concatenation
+  This is a replacement for STRLCPY(3)
+*/
+
 size_t
 strlcat(char *dst, const char *src, size_t siz)
 {
@@ -69,7 +76,7 @@ strlcat(char *dst, const char *src, size_t siz)
   dlen= d - dst;
   n= siz - dlen;
   if (n == 0)
-    return(dlen + strlen(s));
+    return(dlen + siz);
   while (*s != '\0')
   {
     if (n != 1)
@@ -111,48 +118,48 @@ typedef bool boolean_t;
 */
 static uint getrounds(const char *s)
 {
-	const char *r;
-	const char *p;
-	char *e;
-	long val;
+  const char *r;
+  const char *p;
+  char *e;
+  long val;
 
-	if (s == NULL)
-		return (0);
+  if (s == NULL)
+    return (0);
 
-	if ((r = strstr(s, ROUNDS)) == NULL)
-	{
-		return (0);
-	}
-
-	if (strncmp(r, ROUNDS, ROUNDSLEN) != 0)
-	{
-		return (0);
-	}
-
-	p = r + ROUNDSLEN;
-	errno= 0;
-	val = strtol(p, &e, 10);
-	/*
-	 * An error occurred or there is non-numeric stuff at the end
-	 * which isn't one of the crypt(3c) special chars ',' or '$'
-	 */
-	if (errno != 0 || val < 0 || !(*e == '\0' || *e == ',' || *e == '$'))
+  if ((r = strstr(s, ROUNDS)) == NULL)
   {
-		return (0);
-	}
+    return (0);
+  }
 
-	return ((uint32_t)val);
+  if (strncmp(r, ROUNDS, ROUNDSLEN) != 0)
+  {
+    return (0);
+  }
+
+  p= r + ROUNDSLEN;
+  errno= 0;
+  val= strtol(p, &e, 10);
+  /*
+    An error occurred or there is non-numeric stuff at the end
+    which isn't one of the crypt(3c) special chars ',' or '$'
+  */
+  if (errno != 0 || val < 0 || !(*e == '\0' || *e == ',' || *e == '$'))
+  {
+    return (0);
+  }
+
+  return ((uint32_t) val);
 }
 
 /**
-  Finds the intervall which envelopes the user salt in a crypt password
+  Finds the interval which envelopes the user salt in a crypt password
   The crypt format is assumed to be $a$bbbb$cccccc\0 and the salt is found
   by counting the delimiters and marking begin and end.
 
-   @param salt_being[in] Pointer to start of crypt passwd
+   @param salt_being[in]  Pointer to start of crypt passwd
    @param salt_being[out] Pointer to first byte of the salt
-   @param salt_end[in] Pointer to the last byte in passwd
-   @param salt_end[out] Pointer to the byte immediatly following the salt ($)
+   @param salt_end[in]    Pointer to the last byte in passwd
+   @param salt_end[out]   Pointer to the byte immediatly following the salt ($)
 
    @return The size of the salt identified
 */
@@ -169,7 +176,7 @@ int extract_user_salt(char **salt_begin,
       ++delimiter_count;
       if (delimiter_count == 2)
       {
-        *salt_begin= it+1;
+        *salt_begin= it + 1;
       }
       if (delimiter_count == 3)
         break;
@@ -183,7 +190,7 @@ int extract_user_salt(char **salt_begin,
 const char *sha256_find_digest(char *pass)
 {
   int sz= strlen(pass);
-  return pass+sz-(10*4+3);
+  return pass + sz - SHA256_HASH_LENGTH;
 }
 
 /*
@@ -405,16 +412,24 @@ crypt_genhash_impl(char *ctbuffer,
 extern "C"
 void generate_user_salt(char *buffer, int buffer_len)
 {
-  srand((unsigned)time(NULL));
   char *end= buffer + buffer_len;
   /* Use pointer arithmetics as it is faster way to do so. */
   for (; buffer < end; buffer++)
   {
     do
     {
-      int ch= (127 * (rand() / (RAND_MAX + 1.0)));
+      // TODO change below to my_rnd_ssl() when the code is merged
+      /////////////////////////////////////////////////////////////
+      unsigned int num;
+#ifdef HAVE_YASSL
+      yaSSL::RAND_bytes((unsigned char *)&num, sizeof (unsigned int));
+#else
+      RAND_bytes((unsigned char *) &num, sizeof (unsigned int));
+#endif      
+      int ch= (int)(127.0 * ((double)num / UINT_MAX));
+      /////////////////////////////////////////////////////////////
       *buffer= (char) ch;
-    } while (*buffer == '$' || *buffer == 0);
+    } while (*buffer == '$' || *buffer == 0 );
   }
   *buffer= '\0';
 }
@@ -424,7 +439,7 @@ void xor_string(char *to, int to_len, char *pattern, int pattern_len)
   int loop= 0;
   while(loop <= to_len)
   {
-    *(to+loop) ^= *(pattern+loop%pattern_len);
+    *(to + loop) ^= *(pattern + loop % pattern_len);
     ++loop;
   }
 }

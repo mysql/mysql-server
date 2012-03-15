@@ -1,0 +1,60 @@
+--source include/not_embedded.inc
+--source include/mysql_upgrade_preparation.inc
+
+CREATE USER 'kristofer';
+SET PASSWORD FOR 'kristofer'=PASSWORD('secret');
+SELECT user, plugin FROM mysql.user;
+connect(con1,localhost,kristofer,secret,,);
+connection con1;
+SELECT USER(),CURRENT_USER();
+connection default;
+disconnect con1;
+DROP USER 'kristofer';
+
+GRANT ALL ON *.* TO 'kristofer'@'localhost';
+SET PASSWORD FOR 'kristofer'@'localhost'=PASSWORD('secret2');
+connect(con2,localhost,kristofer,secret2,,);
+connection con2;
+SELECT USER(),CURRENT_USER();
+--replace_regex /PASSWORD .*$/PASSWORD '<non-deterministic-password-hash>'/
+SHOW GRANTS FOR 'kristofer'@'localhost';
+connection default;
+disconnect con2;
+DROP USER 'kristofer'@'localhost';
+
+GRANT ALL ON *.* TO 'kristofer'@'localhost';
+SET PASSWORD FOR 'kristofer'@'localhost'=PASSWORD('');
+connect(con3,localhost,kristofer,,,);
+connection con3;
+SELECT USER(),CURRENT_USER();
+--replace_regex /PASSWORD .*$/PASSWORD '<non-deterministic-password-hash>'/
+SHOW GRANTS FOR 'kristofer'@'localhost';
+connection default;
+disconnect con3;
+DROP USER 'kristofer'@'localhost';
+
+GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33';
+SET PASSWORD FOR 'kristofer'@'33.33.33.33'=PASSWORD('');
+--echo Connection should fail for localhost
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con4,127.0.0.1,kristofer,,,);
+--enable_query_log
+DROP USER 'kristofer'@'33.33.33.33';
+
+GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY 'awesomeness';
+connect(con3,localhost,kristofer,awesomeness,,);
+connection con3;
+SELECT USER(),CURRENT_USER();
+--replace_regex /PASSWORD .*$/PASSWORD '<non-deterministic-password-hash>'/
+SHOW GRANTS FOR 'kristofer'@'localhost';
+connection default;
+disconnect con3;
+# Setting password for kristofer@localhost using old_passwords=0 will fail.
+SET @@OLD_PASSWORDS= 0;
+--error ER_PASSWORD_FORMAT
+SET PASSWORD FOR 'kristofer'@'localhost'= PASSWORD('error');
+DROP USER 'kristofer'@'localhost';
+
+

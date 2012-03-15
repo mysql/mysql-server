@@ -1932,62 +1932,102 @@ void Item_func_trim::print(String *str, enum_query_type query_type)
 }
 
 
-/* Item_func_password */
-void Item_func_password::fix_length_and_dec()
+/**
+  Helper function for calculating a new password. Used in 
+  Item_func_password::fix_length_and_dec() for const parameters and in 
+  Item_func_password::val_str_ascii() for non-const parameters.
+  @param args The argument pointer of the Item_func_password class
+  @param buffer a pointer to the buffer where the password will be stored.
+ 
+  @note The buffer must be of at least CRYPT_MAX_PASSWORD_SIZE size.
+
+  @return Size of the password.
+*/
+
+static int calculate_password(Item **args, char *buffer)
 {
-  /* args[0] is the plain text password */
   String *res;
   String dummy;
+  int buffer_len;
   res= args[0]->val_str(&dummy); 
-  if ((null_value=args[0]->null_value))
-  {
-    m_hashed_password_buffer_len= 0;
-    return;
-  }
+
   /* Empty argument always gives empty result */
   if (res->length() == 0)
   {
-    m_hashed_password_buffer_len= 0;
-    return;
+    return 0;
   }
-  /*
-    The value of this Item should not change because of consequtive calls to this
-    method. This is guaranteed by only hashing the password once and then saving
-    it in a buffer.
-     The hashing algorithm is chosen based on the @@old_passwords variable.
-  */
   THD *thd= current_thd;
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
-  if (thd->variables.old_passwords == 2)
+  int old_passwords= 0;
+  if (thd)
+    old_passwords= thd->variables.old_passwords;
+  
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+  if (old_passwords == 2)
   {
-    my_make_scrambled_password(m_hashed_password_buffer, res->ptr(),
-                               res->length());
-    m_hashed_password_buffer_len= strlen(m_hashed_password_buffer)+1;
+    my_make_scrambled_password(buffer, res->ptr(),
+                              res->length());
+    buffer_len= strlen(buffer) + 1;
   }
   else
 #endif
-#endif
-  if (thd->variables.old_passwords == 0)
+  if (old_passwords == 0)
   {
-    my_make_scrambled_password_sha1(m_hashed_password_buffer, res->ptr(),
+    my_make_scrambled_password_sha1(buffer, res->ptr(),
                                     res->length());
-    m_hashed_password_buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH;
+    buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH;
   }
   else
-  if (thd->variables.old_passwords == 1)
+  if (old_passwords == 1)
   {
-    my_make_scrambled_password_323(m_hashed_password_buffer, res->ptr(),
-                                   res->length());
-    m_hashed_password_buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
+    my_make_scrambled_password_323(buffer, res->ptr(),
+                                  res->length());
+    buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
   }
+
+  return buffer_len;
+}
+
+/* Item_func_password */
+void Item_func_password::fix_length_and_dec()
+{
+  maybe_null= true;
+
+  if (args[0]->null_value)
+    return;
     
-  fix_length_and_charset(m_hashed_password_buffer_len, default_charset());
+  if (args[0]->const_item())
+  {
+    m_hashed_password_buffer_len= calculate_password(args,
+                                                     m_hashed_password_buffer);
+
+    fix_length_and_charset(m_hashed_password_buffer_len, default_charset());
+    m_recalculate_password= false;
+  }
+  else
+  {
+    /*
+      Argument isn't constant. Flag that we have to recalculate the password
+      everytime a value function is called (val_str())
+    */
+    m_recalculate_password= true;
+    fix_length_and_charset(CRYPT_MAX_PASSWORD_SIZE, default_charset());
+  }
 }
 
 String *Item_func_password::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+  if ((null_value= args[0]->null_value))
+  {
+    m_hashed_password_buffer_len= 0;
+  }
+  else
+  if (m_recalculate_password)
+  {
+     m_hashed_password_buffer_len= calculate_password(args,
+                                                      m_hashed_password_buffer);
+  }
+
   if (m_hashed_password_buffer_len == 0)
     return make_empty_result();
   str->set(m_hashed_password_buffer, m_hashed_password_buffer_len,
@@ -2009,7 +2049,7 @@ char *Item_func_password::
 #ifndef HAVE_YASSL
   else
   {
-    buff= (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE+1);
+    buff= (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE + 1);
     my_make_scrambled_password(buff, password, pass_len);
   }
 #endif

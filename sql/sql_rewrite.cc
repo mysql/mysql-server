@@ -116,7 +116,7 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
     {
       if ((user_name= get_current_user(thd, tmp_user_name)))
       {
-        append_user(thd, rlb, user_name, comma, TRUE);
+        append_user(thd, rlb, user_name, comma, true);
         comma= TRUE;
       }
     }

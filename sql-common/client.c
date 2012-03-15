@@ -2242,8 +2242,7 @@ static auth_plugin_t clear_password_client_plugin=
   clear_password_auth_client
 };
 
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL) 
 static auth_plugin_t sha256_password_client_plugin=
 {
   MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
@@ -2259,8 +2258,7 @@ static auth_plugin_t sha256_password_client_plugin=
   NULL,
   sha256_password_auth_client
 };
-#endif // HAVE_YASSL
-#endif // HAVE_OPENSSL
+#endif
 #ifdef AUTHENTICATION_WIN
 extern auth_plugin_t win_auth_client_plugin;
 #endif
@@ -2270,10 +2268,8 @@ struct st_mysql_client_plugin *mysql_client_builtins[]=
   (struct st_mysql_client_plugin *)&native_password_client_plugin,
   (struct st_mysql_client_plugin *)&old_password_client_plugin,
   (struct st_mysql_client_plugin *)&clear_password_client_plugin,
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
-  (struct st_mysql_client_plugin *)&sha256_password_client_plugin,
-#endif
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL) 
+  (struct st_mysql_client_plugin *) &sha256_password_client_plugin,
 #endif
 #ifdef AUTHENTICATION_WIN
   (struct st_mysql_client_plugin *)&win_auth_client_plugin,
@@ -2301,33 +2297,45 @@ typedef struct {
   int last_read_packet_len;         /**< the length of the last *read* packet */
 } MCPVIO_EXT;
 
+
+/*
+  Write 1-8 bytes of string length header infromation to dest depending on
+  value of src_len, then copy src_len bytes from src to dest.
+ 
+ @param dest Destination buffer of size src_len+8
+ @param src Source buff of size src_len
+ @param src_len Bytes in src
+ 
+ @return pointer dest+src_len+header size.
+*/
+
 char *write_length_encoded_string(char *dest, char *src, size_t src_len)
 {
-  if (src_len<251)
+  if (src_len < 251)
   {
-    *dest= (char)src_len;
+    *dest= (char) src_len;
     dest+= 1;
   }
   else if (src_len >= 251 && src_len < (65536 - 1))
   {
     *dest= 0xfc;
-    int2store(dest+1,src_len);
+    int2store(dest+1, src_len);
     dest+= 3;
   }
   else if (src_len >= 65536 && src_len < (16777216 - 1))
   {
     *dest= 0xfd;
-    int3store(dest+1,src_len);
+    int3store(dest + 1, src_len);
     dest+= 4;
   }
   else if (src_len > (16777216 - 1))
   {
     *dest= 0xfe;
-    int8store(dest+1,src_len);
+    int8store(dest + 1, src_len);
     dest+= 9;
   }
-  memcpy(dest,src,src_len);
-  return dest+src_len;
+  memcpy(dest, src, src_len);
+  return dest + src_len;
 }
 
 /**
@@ -2573,7 +2581,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   {
     if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
     {
-      end= write_length_encoded_string(end, (char *)data, data_len);
+      end= write_length_encoded_string(end, (char *) data, data_len);
     }
     else
     {
