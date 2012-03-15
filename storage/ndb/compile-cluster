@@ -85,7 +85,7 @@ my $cmake_version_id;
   my @args;
   
   # Hardcoded options controlling how to build MySQL Server
-  push(@args, "-DWITH_SSL=bundled");
+  # push(@args, "-DWITH_SSL=bundled");
  
   if ($opt_debug)
   {
