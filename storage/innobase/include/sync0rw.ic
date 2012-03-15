@@ -564,8 +564,6 @@ rw_lock_x_unlock_func(
 	if (lock->lock_word == 0) {
 		/* Last caller in a possible recursive chain. */
 		lock->recursive = FALSE;
-		UNIV_MEM_INVALID(&lock->writer_thread,
-				 sizeof lock->writer_thread);
 	}
 
 #ifdef UNIV_SYNC_DEBUG
@@ -610,8 +608,6 @@ rw_lock_x_unlock_direct(
 
 	if (lock->lock_word == 0) {
 		lock->recursive = FALSE;
-		UNIV_MEM_INVALID(&lock->writer_thread,
-				 sizeof lock->writer_thread);
 	}
 
 	lock->lock_word += X_LOCK_DECR;
