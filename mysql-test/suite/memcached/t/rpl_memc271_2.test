@@ -248,10 +248,10 @@ SELECT c1,c2,c21 FROM t1;
 
 connection master;
 DROP TABLE t1;
-DROP DATABASE innodb_memcache;
 sync_slave_with_master;
 source include/rpl_end.inc;
 
 connection default; 
+DROP DATABASE innodb_memcache;
 SET @@global.tx_isolation= @tx_isolation;
 
