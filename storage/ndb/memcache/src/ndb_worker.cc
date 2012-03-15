@@ -458,8 +458,16 @@ op_status_t WorkerStep1::do_read() {
   Operation op(plan, OP_READ);
   setKeyForReading(op);
   
-  NdbOperation::LockMode lockmode = plan->canUseSimpleRead() ?
-    NdbOperation::LM_SimpleRead : NdbOperation::LM_Read;
+  NdbOperation::LockMode lockmode;
+  NdbTransaction::ExecType commitflag;
+  if(plan->canUseSimpleRead()) {
+    lockmode = NdbOperation::LM_SimpleRead;
+    commitflag = NdbTransaction::Commit;
+  }
+  else {
+    lockmode = NdbOperation::LM_Read;
+    commitflag = NdbTransaction::NoCommit;
+  }
   
   if(! op.readTuple(tx, lockmode)) {
     logger->log(LOG_WARNING, 0, "readTuple(): %s\n", tx->getNdbError().message);
@@ -470,7 +478,7 @@ op_status_t WorkerStep1::do_read() {
   /* Save the workitem in the transaction and prepare for async execution */ 
   wqitem->next_step = (void *) 
     (wqitem->base.use_ext_val ? worker_check_read : worker_finalize_read);
-  tx->executeAsynchPrepare(NdbTransaction::NoCommit, callback_main, (void *) wqitem);
+  tx->executeAsynchPrepare(commitflag, callback_main, (void *) wqitem);
   return op_async_prepared;  
 }
 
