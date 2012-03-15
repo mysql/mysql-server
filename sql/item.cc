@@ -2870,8 +2870,6 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
     DBUG_ASSERT(type() == FIELD_ITEM);
     return;
   }
-  DBUG_ASSERT(context->select_lex == NULL ||
-              context->select_lex != depended_from);
 
   if (context->select_lex == removed_select ||
       context->select_lex == parent_select)
