@@ -3059,145 +3059,192 @@ Dbspj::lookup_send(Signal* signal,
   Uint32 keyInfoPtrI = treeNodePtr.p->m_send.m_keyInfoPtrI;
   Uint32 attrInfoPtrI = treeNodePtr.p->m_send.m_attrInfoPtrI;
 
-  if (treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT)
+  Uint32 err = 0;
+
+  do
   {
-    jam();
-    /**
-     * Pass sections to send
-     */
-    treeNodePtr.p->m_send.m_attrInfoPtrI = RNIL;
-    treeNodePtr.p->m_send.m_keyInfoPtrI = RNIL;
-  }
-  else
-  {
-    if ((treeNodePtr.p->m_bits & TreeNode::T_KEYINFO_CONSTRUCTED) == 0)
+    if (treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT)
     {
       jam();
-      Uint32 tmp = RNIL;
-      ndbrequire(dupSection(tmp, keyInfoPtrI)); // TODO handle error
-      keyInfoPtrI = tmp;
-    }
-    else
-    {
-      jam();
+      /**
+       * Pass sections to send
+       */
+      treeNodePtr.p->m_send.m_attrInfoPtrI = RNIL;
       treeNodePtr.p->m_send.m_keyInfoPtrI = RNIL;
     }
+    else
+    {
+      if ((treeNodePtr.p->m_bits & TreeNode::T_KEYINFO_CONSTRUCTED) == 0)
+      {
+        jam();
+        Uint32 tmp = RNIL;
+        if (!dupSection(tmp, keyInfoPtrI))
+        {
+          jam();
+          err = DbspjErr::OutOfSectionMemory;
+          break;
+        }
 
-    if ((treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED) == 0)
+        keyInfoPtrI = tmp;
+      }
+      else
+      {
+        jam();
+        treeNodePtr.p->m_send.m_keyInfoPtrI = RNIL;
+      }
+
+      if ((treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED) == 0)
+      {
+        jam();
+        Uint32 tmp = RNIL;
+
+        /**
+         * Test execution terminated due to 'OutOfSectionMemory' which
+         * may happen for different treeNodes in the request:
+         * - 17070: Fail on any lookup_send()
+         * - 17071: Fail on lookup_send() if 'isLeaf'
+         * - 17072: Fail on lookup_send() if treeNode not root
+         */
+
+        if (ERROR_INSERTED_CLEAR(17070) ||
+            (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17071)) ||
+            (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17072)))
+        {
+          jam();
+          ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
+                   __LINE__,  __FILE__);
+          if (keyInfoPtrI != RNIL)
+            releaseSection(keyInfoPtrI);
+          err = DbspjErr::OutOfSectionMemory;
+          break;
+        }
+
+        if (!dupSection(tmp, attrInfoPtrI))
+        {
+          jam();
+          if (keyInfoPtrI != RNIL)
+            releaseSection(keyInfoPtrI);
+          err = DbspjErr::OutOfSectionMemory;
+          break;
+        }
+
+        attrInfoPtrI = tmp;
+      }
+      else
+      {
+        jam();
+        treeNodePtr.p->m_send.m_attrInfoPtrI = RNIL;
+      }
+    }
+
+    getSection(handle.m_ptr[0], keyInfoPtrI);
+    getSection(handle.m_ptr[1], attrInfoPtrI);
+    handle.m_cnt = 2;
+
+    /**
+     * Inject error to test LQHKEYREF handling:
+     * Tampering with tableSchemaVersion such that LQH will 
+     * return LQHKEYREF('1227: Invalid schema version')
+     * May happen for different treeNodes in the request:
+     * - 17030: Fail on any lookup_send()
+     * - 17031: Fail on lookup_send() if 'isLeaf'
+     * - 17032: Fail on lookup_send() if treeNode not root 
+     */
+    if (ERROR_INSERTED_CLEAR(17030) ||
+        (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17031)) ||
+        (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17032)))
     {
       jam();
-      Uint32 tmp = RNIL;
-      ndbrequire(dupSection(tmp, attrInfoPtrI)); // TODO handle error
-      attrInfoPtrI = tmp;
+      req->tableSchemaVersion += (1 << 16); // Provoke 'Invalid schema version'
+    }
+
+#if defined DEBUG_LQHKEYREQ
+    ndbout_c("LQHKEYREQ to %x", ref);
+    printLQHKEYREQ(stdout, signal->getDataPtrSend(),
+                   NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
+                   DBLQH);
+    printf("KEYINFO: ");
+    print(handle.m_ptr[0], stdout);
+    printf("ATTRINFO: ");
+    print(handle.m_ptr[1], stdout);
+#endif
+
+    Uint32 Tnode = refToNode(ref);
+    if (Tnode == getOwnNodeId())
+    {
+      c_Counters.incr_counter(CI_LOCAL_READS_SENT, 1);
     }
     else
     {
-      jam();
-      treeNodePtr.p->m_send.m_attrInfoPtrI = RNIL;
+      c_Counters.incr_counter(CI_REMOTE_READS_SENT, 1);
     }
-  }
 
-  getSection(handle.m_ptr[0], keyInfoPtrI);
-  getSection(handle.m_ptr[1], attrInfoPtrI);
-  handle.m_cnt = 2;
-
-  /**
-   * Inject error to test LQHKEYREF handling:
-   * Tampering with tableSchemaVersion such that LQH will 
-   * return LQHKEYREF('1227: Invalid schema version')
-   * May happen for different treeNodes in the request:
-   * - 17030: Fail on any lookup_send()
-   * - 17031: Fail on lookup_send() if 'isLeaf'
-   * - 17032: Fail on lookup_send() if treeNode not root 
-   */
-  if (ERROR_INSERTED_CLEAR(17030) ||
-      (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17031)) ||
-      (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17032)))
-  {
-    jam();
-    req->tableSchemaVersion += (1 << 16); // Provoke 'Invalid schema version'
-  }
-
-#if defined DEBUG_LQHKEYREQ
-  ndbout_c("LQHKEYREQ to %x", ref);
-  printLQHKEYREQ(stdout, signal->getDataPtrSend(),
-                 NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
-                 DBLQH);
-  printf("KEYINFO: ");
-  print(handle.m_ptr[0], stdout);
-  printf("ATTRINFO: ");
-  print(handle.m_ptr[1], stdout);
-#endif
-
-  Uint32 Tnode = refToNode(ref);
-  if (Tnode == getOwnNodeId())
-  {
-    c_Counters.incr_counter(CI_LOCAL_READS_SENT, 1);
-  }
-  else
-  {
-    c_Counters.incr_counter(CI_REMOTE_READS_SENT, 1);
-  }
-
-  /**
-   * Test execution terminated due to 'NodeFailure' which
-   * may happen for different treeNodes in the request:
-   * - 17020: Fail on any lookup_send()
-   * - 17021: Fail on lookup_send() if 'isLeaf'
-   * - 17022: Fail on lookup_send() if treeNode not root 
-   */
-  if (ERROR_INSERTED_CLEAR(17020) ||
-      (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17021)) ||
-      (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17022)))
-  {
-    jam();
-    releaseSections(handle);
-    abort(signal, requestPtr, DbspjErr::NodeFailure);
-    return;
-  }
-  if (unlikely(!c_alive_nodes.get(Tnode)))
-  {
-    jam();
-    releaseSections(handle);
-    abort(signal, requestPtr, DbspjErr::NodeFailure);
-    return;
-  }
-  else if (! (treeNodePtr.p->isLeaf() && requestPtr.p->isLookup()))
-  {
-    jam();
-    ndbassert(Tnode < NDB_ARRAY_SIZE(requestPtr.p->m_lookup_node_data));
-    requestPtr.p->m_outstanding += cnt;
-    requestPtr.p->m_lookup_node_data[Tnode] += cnt;
-    // number wrapped
-    ndbrequire(! (requestPtr.p->m_lookup_node_data[Tnode] == 0));
-  }
-
-  sendSignal(ref, GSN_LQHKEYREQ, signal,
-             NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
-             JBB, &handle);
-
-  treeNodePtr.p->m_lookup_data.m_outstanding += cnt;
-  if (requestPtr.p->isLookup() && treeNodePtr.p->isLeaf())
-  {
-    jam();
     /**
-     * Send TCKEYCONF with DirtyReadBit + Tnode,
-     *   so that API can discover if Tnode while waiting for result
+     * Test execution terminated due to 'NodeFailure' which
+     * may happen for different treeNodes in the request:
+     * - 17020: Fail on any lookup_send()
+     * - 17021: Fail on lookup_send() if 'isLeaf'
+     * - 17022: Fail on lookup_send() if treeNode not root 
      */
-    Uint32 resultRef = req->variableData[0];
-    Uint32 resultData = req->variableData[1];
+    if (ERROR_INSERTED_CLEAR(17020) ||
+        (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17021)) ||
+        (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17022)))
+    {
+      jam();
+      releaseSections(handle);
+      err = DbspjErr::NodeFailure;
+      break;
+    }
+    if (unlikely(!c_alive_nodes.get(Tnode)))
+    {
+      jam();
+      releaseSections(handle);
+      err = DbspjErr::NodeFailure;
+      break;
+    }
+    else if (! (treeNodePtr.p->isLeaf() && requestPtr.p->isLookup()))
+    {
+      jam();
+      ndbassert(Tnode < NDB_ARRAY_SIZE(requestPtr.p->m_lookup_node_data));
+      requestPtr.p->m_outstanding += cnt;
+      requestPtr.p->m_lookup_node_data[Tnode] += cnt;
+      // number wrapped
+      ndbrequire(! (requestPtr.p->m_lookup_node_data[Tnode] == 0));
+    }
 
-    TcKeyConf* conf = (TcKeyConf*)signal->getDataPtrSend();
-    conf->apiConnectPtr = RNIL; // lookup transaction from operations...
-    conf->confInfo = 0;
-    TcKeyConf::setNoOfOperations(conf->confInfo, 1);
-    conf->transId1 = requestPtr.p->m_transId[0];
-    conf->transId2 = requestPtr.p->m_transId[1];
-    conf->operations[0].apiOperationPtr = resultData;
-    conf->operations[0].attrInfoLen = TcKeyConf::DirtyReadBit | Tnode;
-    Uint32 sigLen = TcKeyConf::StaticLength + TcKeyConf::OperationLength;
-    sendTCKEYCONF(signal, sigLen, resultRef, requestPtr.p->m_senderRef);
+    sendSignal(ref, GSN_LQHKEYREQ, signal,
+               NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
+               JBB, &handle);
+
+    treeNodePtr.p->m_lookup_data.m_outstanding += cnt;
+    if (requestPtr.p->isLookup() && treeNodePtr.p->isLeaf())
+    {
+      jam();
+      /**
+       * Send TCKEYCONF with DirtyReadBit + Tnode,
+       *   so that API can discover if Tnode while waiting for result
+       */
+      Uint32 resultRef = req->variableData[0];
+      Uint32 resultData = req->variableData[1];
+
+      TcKeyConf* conf = (TcKeyConf*)signal->getDataPtrSend();
+      conf->apiConnectPtr = RNIL; // lookup transaction from operations...
+      conf->confInfo = 0;
+      TcKeyConf::setNoOfOperations(conf->confInfo, 1);
+      conf->transId1 = requestPtr.p->m_transId[0];
+      conf->transId2 = requestPtr.p->m_transId[1];
+      conf->operations[0].apiOperationPtr = resultData;
+      conf->operations[0].attrInfoLen = TcKeyConf::DirtyReadBit | Tnode;
+      Uint32 sigLen = TcKeyConf::StaticLength + TcKeyConf::OperationLength;
+      sendTCKEYCONF(signal, sigLen, resultRef, requestPtr.p->m_senderRef);
+    }
+    return;
   }
+  while (0);
+error:
+  ndbrequire(err);
+  jam();
+  abort(signal, requestPtr, err);
 }
 
 void
@@ -3540,7 +3587,32 @@ Dbspj::lookup_parent_row(Signal* signal,
     {
       jam();
       Uint32 tmp = RNIL;
-      ndbrequire(dupSection(tmp, attrInfoPtrI)); // TODO handle error
+
+      /**
+       * Test execution terminated due to 'OutOfSectionMemory' which
+       * may happen for different treeNodes in the request:
+       * - 17080: Fail on lookup_parent_row
+       * - 17081: Fail on lookup_parent_row:  if 'isLeaf'
+       * - 17082: Fail on lookup_parent_row: if treeNode not root
+       */
+
+      if (ERROR_INSERTED_CLEAR(17080) ||
+          (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17081)) ||
+          (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17082)))
+      {
+        jam();
+        ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
+                 __LINE__,  __FILE__);
+        err = DbspjErr::OutOfSectionMemory;
+        break;
+      }
+
+      if (!dupSection(tmp, attrInfoPtrI))
+      {
+        jam();
+        err = DbspjErr::OutOfSectionMemory;
+        break;
+      }
 
       Uint32 org_size;
       {
@@ -5472,146 +5544,182 @@ Dbspj::scanIndex_send(Signal* signal,
   req->batch_size_bytes = bs_bytes;
   req->batch_size_rows = bs_rows;
 
+  Uint32 err = 0;
   Uint32 requestsSent = 0;
-  Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
-  Ptr<ScanFragHandle> fragPtr;
-  list.first(fragPtr);
-  Uint32 keyInfoPtrI = fragPtr.p->m_rangePtrI;
-  ndbrequire(prune || keyInfoPtrI != RNIL);
-  /**
-   * Iterate over the list of fragments until we have sent as many
-   * SCAN_FRAGREQs as we should.
-   */
-  while (requestsSent < noOfFrags)
   {
-    jam();
-    ndbassert(!fragPtr.isNull());
-
-    if (fragPtr.p->m_state != ScanFragHandle::SFH_NOT_STARTED)
-    {
-      // Skip forward to the frags that we should send.
-      jam();
-      list.next(fragPtr);
-      continue;
-    }
-
-    const Uint32 ref = fragPtr.p->m_ref;
-
-    if (noOfFrags==1 && !prune &&
-        data.m_frags_not_started == data.m_fragCount &&
-        refToNode(ref) != getOwnNodeId() &&
-        list.hasNext(fragPtr))
-    {
-      /**
-       * If we are doing a scan with adaptive parallelism and start with
-       * parallelism=1 then it makes sense to fetch a batch from a fragment on
-       * the local data node. The reason for this is that if that fragment
-       * contains few rows, we may be able to read from several fragments in
-       * parallel. Then we minimize the total number of round trips (to remote
-       * data nodes) if we fetch the first fragment batch locally.
-       */
-      jam();
-      list.next(fragPtr);
-      continue;
-    }
-
-    SectionHandle handle(this);
-
-    Uint32 attrInfoPtrI = treeNodePtr.p->m_send.m_attrInfoPtrI;
-
+    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+    Ptr<ScanFragHandle> fragPtr;
+    list.first(fragPtr);
+    Uint32 keyInfoPtrI = fragPtr.p->m_rangePtrI;
+    ndbrequire(prune || keyInfoPtrI != RNIL);
     /**
-     * Set data specific for this fragment
+     * Iterate over the list of fragments until we have sent as many
+     * SCAN_FRAGREQs as we should.
      */
-    req->senderData = fragPtr.i;
-    req->fragmentNoKeyLen = fragPtr.p->m_fragId;
-
-    if (prune)
+    while (requestsSent < noOfFrags)
     {
       jam();
-      keyInfoPtrI = fragPtr.p->m_rangePtrI;
-      if (keyInfoPtrI == RNIL)
+      ndbassert(!fragPtr.isNull());
+
+      if (fragPtr.p->m_state != ScanFragHandle::SFH_NOT_STARTED)
       {
-        /**
-         * Since we use pruning, we can see that no parent rows would hash
-         * to this fragment.
-         */
+        // Skip forward to the frags that we should send.
         jam();
-        fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
         list.next(fragPtr);
         continue;
       }
 
-      if (!repeatable)
+      const Uint32 ref = fragPtr.p->m_ref;
+
+      if (noOfFrags==1 && !prune &&
+          data.m_frags_not_started == data.m_fragCount &&
+          refToNode(ref) != getOwnNodeId() &&
+          list.hasNext(fragPtr))
       {
         /**
-         * If we'll use sendSignal() and we need to send the attrInfo several
-         * times, we need to copy them. (For repeatable or unpruned scans
-         * we use sendSignalNoRelease(), so then we do not need to copy.)
+         * If we are doing a scan with adaptive parallelism and start with
+         * parallelism=1 then it makes sense to fetch a batch from a fragment on
+         * the local data node. The reason for this is that if that fragment
+         * contains few rows, we may be able to read from several fragments in
+         * parallel. Then we minimize the total number of round trips (to remote
+         * data nodes) if we fetch the first fragment batch locally.
          */
         jam();
-        Uint32 tmp = RNIL;
-        ndbrequire(dupSection(tmp, attrInfoPtrI)); // TODO handle error
-        attrInfoPtrI = tmp;
+        list.next(fragPtr);
+        continue;
       }
-    }
 
-    req->variableData[0] = batchRange;
-    getSection(handle.m_ptr[0], attrInfoPtrI);
-    getSection(handle.m_ptr[1], keyInfoPtrI);
-    handle.m_cnt = 2;
+      SectionHandle handle(this);
+
+      Uint32 attrInfoPtrI = treeNodePtr.p->m_send.m_attrInfoPtrI;
+
+      /**
+       * Set data specific for this fragment
+       */
+      req->senderData = fragPtr.i;
+      req->fragmentNoKeyLen = fragPtr.p->m_fragId;
+
+      if (prune)
+      {
+        jam();
+        keyInfoPtrI = fragPtr.p->m_rangePtrI;
+        if (keyInfoPtrI == RNIL)
+        {
+          /**
+           * Since we use pruning, we can see that no parent rows would hash
+           * to this fragment.
+           */
+          jam();
+          fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
+          list.next(fragPtr);
+          continue;
+        }
+
+        if (!repeatable)
+        {
+          /**
+           * If we'll use sendSignal() and we need to send the attrInfo several
+           * times, we need to copy them. (For repeatable or unpruned scans
+           * we use sendSignalNoRelease(), so then we do not need to copy.)
+           */
+          jam();
+          Uint32 tmp = RNIL;
+
+          /**
+           * Test execution terminated due to 'OutOfSectionMemory' which
+           * may happen for different treeNodes in the request:
+           * - 17090: Fail on any scanIndex_send()
+           * - 17091: Fail after sending SCAN_FRAGREQ to some fragments
+           * - 17092: Fail on scanIndex_send() if 'isLeaf'
+           * - 17093: Fail on scanIndex_send() if treeNode not root
+           */
+
+          if (ERROR_INSERTED_CLEAR(17090) ||
+              (requestsSent > 1 && ERROR_INSERTED_CLEAR(17091)) ||
+              (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17092)) ||
+              (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17093)))
+          {
+            jam();
+            ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
+                     __LINE__,  __FILE__);
+            err = DbspjErr::OutOfSectionMemory;
+            break;
+          }
+
+          if (!dupSection(tmp, attrInfoPtrI))
+          {
+            jam();
+            err = DbspjErr::OutOfSectionMemory;
+            break;
+          }
+
+          attrInfoPtrI = tmp;
+        }
+      }
+
+      req->variableData[0] = batchRange;
+      getSection(handle.m_ptr[0], attrInfoPtrI);
+      getSection(handle.m_ptr[1], keyInfoPtrI);
+      handle.m_cnt = 2;
 
 #if defined DEBUG_SCAN_FRAGREQ
-    ndbout_c("SCAN_FRAGREQ to %x", ref);
-    printSCAN_FRAGREQ(stdout, signal->getDataPtrSend(),
-                      NDB_ARRAY_SIZE(treeNodePtr.p->m_scanfrag_data.m_scanFragReq),
-                      DBLQH);
-    printf("ATTRINFO: ");
-    print(handle.m_ptr[0], stdout);
-    printf("KEYINFO: ");
-    print(handle.m_ptr[1], stdout);
+      ndbout_c("SCAN_FRAGREQ to %x", ref);
+      printSCAN_FRAGREQ(stdout, signal->getDataPtrSend(),
+                        NDB_ARRAY_SIZE(treeNodePtr.p->m_scanfrag_data.m_scanFragReq),
+                        DBLQH);
+      printf("ATTRINFO: ");
+      print(handle.m_ptr[0], stdout);
+      printf("KEYINFO: ");
+      print(handle.m_ptr[1], stdout);
 #endif
 
-    if (refToNode(ref) == getOwnNodeId())
-    {
-      c_Counters.incr_counter(CI_LOCAL_RANGE_SCANS_SENT, 1);
-    }
-    else
-    {
-      c_Counters.incr_counter(CI_REMOTE_RANGE_SCANS_SENT, 1);
-    }
+      if (refToNode(ref) == getOwnNodeId())
+      {
+        c_Counters.incr_counter(CI_LOCAL_RANGE_SCANS_SENT, 1);
+      }
+      else
+      {
+        c_Counters.incr_counter(CI_REMOTE_RANGE_SCANS_SENT, 1);
+      }
 
-    if (prune && !repeatable)
-    {
-      /**
-       * For a non-repeatable pruned scan, key info is unique for each
-       * fragment and therefore cannot be reused, so we release key info
-       * right away.
-       */
-      jam();
-      sendSignal(ref, GSN_SCAN_FRAGREQ, signal,
-                 NDB_ARRAY_SIZE(data.m_scanFragReq), JBB, &handle);
-      fragPtr.p->m_rangePtrI = RNIL;
-      fragPtr.p->reset_ranges();
-    }
-    else
-    {
-      /**
-       * Reuse key info for multiple fragments and/or multiple repetitions
-       * of the scan.
-       */
-      jam();
-      sendSignalNoRelease(ref, GSN_SCAN_FRAGREQ, signal,
-                          NDB_ARRAY_SIZE(data.m_scanFragReq), JBB, &handle);
-    }
-    handle.clear();
+      if (prune && !repeatable)
+      {
+        /**
+         * For a non-repeatable pruned scan, key info is unique for each
+         * fragment and therefore cannot be reused, so we release key info
+         * right away.
+         */
+        jam();
+        sendSignal(ref, GSN_SCAN_FRAGREQ, signal,
+                   NDB_ARRAY_SIZE(data.m_scanFragReq), JBB, &handle);
+        fragPtr.p->m_rangePtrI = RNIL;
+        fragPtr.p->reset_ranges();
+      }
+      else
+      {
+        /**
+         * Reuse key info for multiple fragments and/or multiple repetitions
+         * of the scan.
+         */
+        jam();
+        sendSignalNoRelease(ref, GSN_SCAN_FRAGREQ, signal,
+                            NDB_ARRAY_SIZE(data.m_scanFragReq), JBB, &handle);
+      }
+      handle.clear();
 
-    fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING; // running
-    data.m_frags_outstanding++;
-    data.m_frags_not_started--;
-    batchRange += bs_rows;
-    requestsSent++;
-    list.next(fragPtr);
-  } // while (requestsSent < noOfFrags)
+      fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING; // running
+      data.m_frags_outstanding++;
+      data.m_frags_not_started--;
+      batchRange += bs_rows;
+      requestsSent++;
+      list.next(fragPtr);
+    } // while (requestsSent < noOfFrags)
+  }
+  if (err)
+  {
+    jam();
+    abort(signal, requestPtr, err);
+  }
 
   return requestsSent;
 }
@@ -6836,10 +6944,6 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
   case QueryPattern::P_PARAM_HEADER:
     jam();
     // should have been expanded during build
-    DEBUG_CRASH();
-    return DbspjErr::InvalidPattern;
-  default:
-    jam();
     DEBUG_CRASH();
     return DbspjErr::InvalidPattern;
   }
