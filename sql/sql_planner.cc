@@ -1754,6 +1754,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
 {
   DBUG_ENTER("Optimize_table_order::best_extension_by_limited_search");
 
+  DBUG_EXECUTE_IF("bug13820776_2", thd->killed= THD::KILL_QUERY;);
   if (thd->killed)  // Abort
     DBUG_RETURN(true);
   Opt_trace_context * const trace= &thd->opt_trace;
