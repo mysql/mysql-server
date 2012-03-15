@@ -6709,7 +6709,7 @@ bool Item::send(Protocol *protocol, String *buffer)
 /**
   Check if an item is a constant one and can be cached.
 
-  @param arg [out] TRUE <=> Cache this item.
+  @param arg [out] != NULL <=> Cache this item.
 
   @return TRUE  Go deeper in item tree.
   @return FALSE Don't go deeper in item tree.
@@ -6717,18 +6717,19 @@ bool Item::send(Protocol *protocol, String *buffer)
 
 bool Item::cache_const_expr_analyzer(uchar **arg)
 {
-  bool *cache_flag= (bool*)*arg;
-  if (!*cache_flag)
+  Item **cache_item= (Item **)*arg;
+  if (!*cache_item)
   {
     Item *item= real_item();
     /*
       Cache constant items unless it's a basic constant, constant field or
-      a subselect (they use their own cache).
+      a subquery (they use their own cache), or it is already cached.
     */
     if (const_item() &&
         !(basic_const_item() || item->basic_const_item() ||
           item->type() == Item::FIELD_ITEM ||
           item->type() == SUBSELECT_ITEM ||
+          item->type() == CACHE_ITEM ||
            /*
              Do not cache GET_USER_VAR() function as its const_item() may
              return TRUE for the current thread but it still may change
@@ -6736,17 +6737,32 @@ bool Item::cache_const_expr_analyzer(uchar **arg)
            */
           (item->type() == Item::FUNC_ITEM &&
            ((Item_func*)item)->functype() == Item_func::GUSERVAR_FUNC)))
-      *cache_flag= TRUE;
-    return TRUE;
+      /*
+        Note that we use cache_item as a flag (NULL vs non-NULL), but we
+        are storing the pointer so that we can assert that we cache the
+        correct item in Item::cache_const_expr_transformer().
+      */
+      *cache_item= this;
+    /*
+      If this item will be cached, no need to explore items further down
+      in the tree, but the transformer must be called, so return 'true'.
+      If this item will not be cached, items further doen in the tree
+      must be explored, so return 'true'.
+    */
+    return true;
   }
-  return FALSE;
+  /*
+    An item above in the tree is to be cached, so need to cache the present
+    item, and no need to go down the tree.
+  */
+  return false;
 }
 
 
 /**
   Cache item if needed.
 
-  @param arg   TRUE <=> Cache this item.
+  @param arg   != NULL <=> Cache this item.
 
   @return cache if cache needed.
   @return this otherwise.
@@ -6754,9 +6770,15 @@ bool Item::cache_const_expr_analyzer(uchar **arg)
 
 Item* Item::cache_const_expr_transformer(uchar *arg)
 {
-  if (*(bool*)arg)
+  Item **item= (Item **)arg;
+  if (*item)            // Item is to be cached, note that it is used as a flag
   {
-    *((bool*)arg)= FALSE;
+    DBUG_ASSERT(*item == this);
+    /*
+      Flag applies to present item, must reset it so it does not affect
+      the parent item.
+    */
+    *((Item **)arg)= NULL;
     Item_cache *cache= Item_cache::get_cache(this);
     if (!cache)
       return NULL;
@@ -7261,18 +7283,19 @@ Item* Item_ref::transform(Item_transformer transformer, uchar *arg)
                        nodes of the tree of the object
   @param arg_t         parameter to be passed to the transformer
 
-  @return Item returned as the result of transformation of the Item_ref object
+  @return Item returned as the result of transformation of the Item_ref object,
+          or NULL if error.
 */
 
 Item* Item_ref::compile(Item_analyzer analyzer, uchar **arg_p,
                         Item_transformer transformer, uchar *arg_t)
 {
   if (!(this->*analyzer)(arg_p))
-    return NULL;
+    return this;
 
   DBUG_ASSERT((*ref) != NULL);
   Item *new_item= (*ref)->compile(analyzer, arg_p, transformer, arg_t);
-  if (!new_item)
+  if (new_item == NULL)
     return NULL;
 
   /*

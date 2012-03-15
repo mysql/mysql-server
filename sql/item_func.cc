@@ -371,15 +371,16 @@ Item *Item_func::transform(Item_transformer transformer, uchar *argument)
                        nodes of the tree of the object
   @param arg_t         parameter to be passed to the transformer
 
-  @return
-    Item returned as the result of transformation of the root node
+  @return              Item returned as result of transformation of the node,
+                       the same item if no transformation applied, or NULL if
+                       transformation caused an error.
 */
 
 Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
                          Item_transformer transformer, uchar *arg_t)
 {
   if (!(this->*analyzer)(arg_p))
-    return 0;
+    return this;
   if (arg_count)
   {
     Item **arg,**arg_end;
@@ -391,7 +392,9 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
       */   
       uchar *arg_v= *arg_p;
       Item *new_item= (*arg)->compile(analyzer, &arg_v, transformer, arg_t);
-      if (new_item && *arg != new_item)
+      if (new_item == NULL)
+        return NULL;
+      if (*arg != new_item)
         current_thd->change_item_tree(arg, new_item);
     }
   }
