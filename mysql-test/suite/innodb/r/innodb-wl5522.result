@@ -164,7 +164,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=latin1
 FLUSH TABLES t1 WITH READ LOCK;
 Warnings:
-Warning	1793	InnoDB: Can't quiesce table 'test/t1', it is in the system tablespace
+Warning	1795	InnoDB: Can't quiesce table 'test/t1', it is in the system tablespace
 UNLOCK TABLES;
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = 1;
