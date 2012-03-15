@@ -39,6 +39,9 @@ SELECT variable_value FROM information_schema.global_status
 --eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id)
 --enable_query_log
 
+--echo $table_stats_id
+--echo $index_stats_id
+
 --echo # Test 4) The maximum row size is dependent upon the page size.
 --echo #         Redundant: 1979, Compact: 1982.
 --echo #         Compressed: 1982, Dynamic: 1982.

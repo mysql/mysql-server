@@ -6715,6 +6715,12 @@ ER_UNKNOWN_EXPLAIN_FORMAT
 ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION 25006
   eng "Cannot execute statement in a READ ONLY transaction."
 
+ER_TOO_LONG_TABLE_PARTITION_COMMENT
+  eng "Comment for table partition '%-.64s' is too long (max = %lu)"
+
+ER_SLAVE_CONFIGURATION
+  eng "Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log."
+
 ER_TABLE_SCHEMA_MISMATCH
   eng "Table schema doesn't match."
 
@@ -6739,8 +6745,3 @@ ER_TABLESPACE_DISCARDED
 ER_INTERNAL_ERROR
   eng "Internal error"
 
-ER_TOO_LONG_TABLE_PARTITION_COMMENT
-  eng "Comment for table partition '%-.64s' is too long (max = %lu)"
-
-ER_SLAVE_CONFIGURATION
-  eng "Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log."
