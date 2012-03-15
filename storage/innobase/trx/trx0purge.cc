@@ -46,9 +46,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0mon.h"
 #include "mtr0log.h"
 
-/** Define this to disable purge altogether. */
-/* #define TRX_PURGE_DISABLED */
-
 /** Maximum allowable purge history length.  <=0 means 'infinite'. */
 UNIV_INTERN ulong		srv_max_purge_lag = 0;
 
@@ -280,7 +277,6 @@ trx_purge_add_update_undo_to_history(
 	}
 }
 
-#ifndef TRX_PURGE_DISABLED
 /**********************************************************************//**
 Frees an undo log segment which is in the history list. Cuts the end of the
 history list at the youngest undo log in this segment. */
@@ -1170,7 +1166,6 @@ trx_purge_truncate(void)
 		trx_purge_truncate_history(&purge_sys->limit, purge_sys->view);
 	}
 }
-#endif /* !TRX_PURGE_DISABLED */
 
 /*******************************************************************//**
 This function runs a purge batch.
@@ -1185,13 +1180,11 @@ trx_purge(
 					to purge in one batch */
 	bool	truncate)		/*!< in: truncate history if true */
 {
-#ifdef TRX_PURGE_DISABLED
-	return(0);
-#else /* TRX_PURGE_DISABLED */
 	que_thr_t*	thr = NULL;
 	ulint		n_pages_handled;
 
 	ut_a(n_purge_threads > 0);
+
 	srv_dml_needed_delay = trx_purge_dml_delay();
 
 	/* The number of tasks submitted should be completed. */
@@ -1258,8 +1251,8 @@ run_synchronously:
 
 	MONITOR_INC_VALUE(MONITOR_PURGE_INVOKED, 1);
 	MONITOR_INC_VALUE(MONITOR_PURGE_N_PAGE_HANDLED, n_pages_handled);
+
 	return(n_pages_handled);
-#endif /* TRX_PURGE_DISABLED */
 }
 
 /*******************************************************************//**
