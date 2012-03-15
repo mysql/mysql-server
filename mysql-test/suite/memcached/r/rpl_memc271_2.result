@@ -201,7 +201,6 @@ F	NULL	Sachsenhausen
 H	Hamburg	Norderstedt
 connection master;
 DROP TABLE t1;
-DROP DATABASE innodb_memcache;
 connection slave;
 include/rpl_end.inc
 connection server_2;
@@ -226,4 +225,5 @@ disconnect server_2_1;
 disconnect server_1;
 disconnect server_1_1;
 connection default;
+DROP DATABASE innodb_memcache;
 SET @@global.tx_isolation= @tx_isolation;
