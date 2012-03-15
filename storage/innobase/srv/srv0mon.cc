@@ -981,6 +981,10 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_IBUF_SIZE},
 
+	{"ibuf_page_merges", "change_buffer", "Number of pages merged",
+	 MONITOR_DISPLAY_CURRENT,
+	 MONITOR_DEFAULT_START, MONITOR_IBUF_PAGE_MERGES},
+
 	/* ========== Counters for server operations ========== */
 	{"module_innodb", "innodb",
 	 "Counter for general InnoDB server wide operations and properties",

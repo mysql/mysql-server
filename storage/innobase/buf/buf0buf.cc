@@ -2377,6 +2377,19 @@ buf_block_is_uncompressed(
 }
 
 /********************************************************************//**
+Return true if probe is enabled.
+@return true if probe enabled. */
+static
+bool
+buf_debug_execute_is_force_flush()
+/*==============================*/
+{
+	DBUG_EXECUTE_IF("ib_buf_force_flush", return(true); );
+
+	return(false);
+}
+
+/********************************************************************//**
 This is the general function used to get access to a database page.
 @return	pointer to the block or NULL */
 UNIV_INTERN
@@ -2727,8 +2740,9 @@ wait_until_unfixed:
 	UNIV_MEM_ASSERT_RW(&block->page, sizeof block->page);
 #endif
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+
 	if ((mode == BUF_GET_IF_IN_POOL || mode == BUF_GET_IF_IN_POOL_OR_WATCH)
-	    && ibuf_debug) {
+	    && (ibuf_debug || buf_debug_execute_is_force_flush())) {
 		/* Try to evict the block from the buffer pool, to use the
 		insert buffer (change buffer) as much as possible. */
 
