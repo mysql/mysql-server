@@ -2533,6 +2533,7 @@ public:
 
   DsMrr_impl()
     : h2(NULL) {};
+  ~DsMrr_impl() { DBUG_ASSERT(h2 == NULL); }
   
   /*
     The "owner" handler object (the one that calls dsmrr_XXX functions.
@@ -2565,6 +2566,18 @@ public:
   int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
                  uint n_ranges, uint mode, HANDLER_BUFFER *buf);
   void dsmrr_close();
+
+  /**
+    Resets the DS-MRR object to the state it had after being intialized.
+
+    If there is an open scan then this will be closed.
+    
+    This function should be called by handler::ha_reset() which is called
+    when a statement is completed in order to make the handler object ready
+    for re-use by a different statement.
+  */
+
+  void reset();
   int dsmrr_fill_buffer();
   int dsmrr_next(char **range_info);
 
