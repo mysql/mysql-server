@@ -699,11 +699,9 @@ static char *opt_bin_logname;
 int orig_argc;
 char **orig_argv;
 
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 int init_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
-#endif
 #endif
 
 void set_remaining_args(int argc, char **argv)

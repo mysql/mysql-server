@@ -5806,7 +5806,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
       mysql_rewrite_query(thd);
 
       if (thd->rewritten_query.length())
-        lex->safe_to_cache_query= FALSE; // see comments below 
+        lex->safe_to_cache_query= false; // see comments below 
 
       if (!thd->slave_thread && !opt_log_raw)
       {
