@@ -81,7 +81,11 @@ bool ndb_mi_get_ignore_server_id(uint32 server_id)
 uint32 ndb_mi_get_slave_run_id()
 {
   DBUG_ASSERT (active_mi != NULL);
+#if MYSQL_VERSION_ID < 50600
   return active_mi->rli.slave_run_id;
+#else
+  return active_mi->rli->slave_run_id;
+#endif
 }
 
 bool ndb_mi_get_in_relay_log_statement(Relay_log_info* rli)
@@ -93,13 +97,21 @@ bool ndb_mi_get_in_relay_log_statement(Relay_log_info* rli)
 ulong ndb_mi_get_relay_log_trans_retries()
 {
   DBUG_ASSERT (active_mi != NULL);
+#if MYSQL_VERSION_ID < 50600
   return active_mi->rli.trans_retries;
+#else
+  return active_mi->rli->trans_retries;
+#endif
 }
 
 void ndb_mi_set_relay_log_trans_retries(ulong number)
 {
   DBUG_ASSERT (active_mi != NULL);
+#if MYSQL_VERSION_ID < 50600
   active_mi->rli.trans_retries = number;
+#else
+  active_mi->rli->trans_retries = number;
+#endif
 }
 
 /* #ifdef HAVE_NDB_BINLOG */
