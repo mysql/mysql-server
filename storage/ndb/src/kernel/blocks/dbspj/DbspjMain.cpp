@@ -3241,7 +3241,7 @@ Dbspj::lookup_send(Signal* signal,
     return;
   }
   while (0);
-error:
+
   ndbrequire(err);
   jam();
   abort(signal, requestPtr, err);
@@ -6944,6 +6944,10 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
   case QueryPattern::P_PARAM_HEADER:
     jam();
     // should have been expanded during build
+    DEBUG_CRASH();
+    return DbspjErr::InvalidPattern;
+  default:
+    jam();
     DEBUG_CRASH();
     return DbspjErr::InvalidPattern;
   }
