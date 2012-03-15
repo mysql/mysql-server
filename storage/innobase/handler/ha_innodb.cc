@@ -14475,12 +14475,12 @@ static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
 static MYSQL_SYSVAR_BOOL(purge_run_now, innodb_purge_run_now,
   PLUGIN_VAR_OPCMDARG,
   "Set purge state to RUN",
-  NULL, purge_run_now_set, TRUE);
+  NULL, purge_run_now_set, FALSE);
 
 static MYSQL_SYSVAR_BOOL(purge_stop_now, innodb_purge_stop_now,
   PLUGIN_VAR_OPCMDARG,
   "Set purge state to STOP",
-  NULL, purge_stop_now_set, TRUE);
+  NULL, purge_stop_now_set, FALSE);
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
