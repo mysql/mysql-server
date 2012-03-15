@@ -273,11 +273,13 @@ Pos     Instruction
 12      stmt 0 "SELECT str"
 </pre>
 
-  @param lex the parser lex context
+  @param thd thread handler
 */
 
-void case_stmt_action_case(LEX *lex)
+void case_stmt_action_case(THD *thd)
 {
+  LEX *lex= thd->lex;
+
   lex->sphead->new_cont_backpatch(NULL);
 
   /*
@@ -286,7 +288,7 @@ void case_stmt_action_case(LEX *lex)
     (Instruction 12 in the example)
   */
 
-  lex->spcont->push_label(current_thd, EMPTY_STR, lex->sphead->instructions());
+  lex->sp_parsing_ctx->push_label(thd, EMPTY_STR, lex->sphead->instructions());
 }
 
 /**
@@ -300,7 +302,7 @@ void case_stmt_action_case(LEX *lex)
 int case_stmt_action_expr(LEX *lex, Item* expr)
 {
   sp_head *sp= lex->sphead;
-  sp_pcontext *parsing_ctx= lex->spcont;
+  sp_pcontext *parsing_ctx= lex->sp_parsing_ctx;
   int case_expr_id= parsing_ctx->register_case_expr();
   sp_instr_set_case_expr *i;
 
@@ -325,7 +327,7 @@ int case_stmt_action_expr(LEX *lex, Item* expr)
 int case_stmt_action_when(LEX *lex, Item *when, bool simple)
 {
   sp_head *sp= lex->sphead;
-  sp_pcontext *ctx= lex->spcont;
+  sp_pcontext *ctx= lex->sp_parsing_ctx;
   uint ip= sp->instructions();
   sp_instr_jump_if_not *i;
   Item_case_expr *var;
@@ -369,7 +371,7 @@ int case_stmt_action_when(LEX *lex, Item *when, bool simple)
 int case_stmt_action_then(LEX *lex)
 {
   sp_head *sp= lex->sphead;
-  sp_pcontext *ctx= lex->spcont;
+  sp_pcontext *ctx= lex->sp_parsing_ctx;
   uint ip= sp->instructions();
   sp_instr_jump *i = new sp_instr_jump(ip, ctx);
   if (!test(i) || sp->add_instr(i))
@@ -406,10 +408,10 @@ void case_stmt_action_end_case(LEX *lex, bool simple)
     "case_stmt_action_then" to "case_stmt_action_end_case"
     (jump from instruction 4 to 12, 7 to 12 ... in the example)
   */
-  lex->sphead->backpatch(lex->spcont->pop_label());
+  lex->sphead->backpatch(lex->sp_parsing_ctx->pop_label());
 
   if (simple)
-    lex->spcont->pop_case_expr_id();
+    lex->sp_parsing_ctx->pop_case_expr_id();
 
   lex->sphead->do_cont_backpatch();
 }
@@ -449,7 +451,7 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
   LEX *lex= thd->lex;
 
   /* No AUTOCOMMIT from a stored function or trigger. */
-  if (lex->spcont && tmp->var == Sys_autocommit_ptr)
+  if (lex->sp_parsing_ctx && tmp->var == Sys_autocommit_ptr)
     lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
 
 #ifdef HAVE_REPLICATION
@@ -502,7 +504,8 @@ set_local_variable(THD *thd, sp_variable *spv, Item *val)
       return TRUE;
   }
 
-  sp_set= new sp_instr_set(lex->sphead->instructions(), lex->spcont,
+  sp_set= new sp_instr_set(lex->sphead->instructions(),
+                           lex->sp_parsing_ctx,
                            spv->offset, it, spv->type, lex, TRUE);
 
   return (sp_set == NULL || lex->sphead->add_instr(sp_set));
@@ -544,7 +547,8 @@ set_trigger_new_row(THD *thd, LEX_STRING *name, Item *val)
     return TRUE;
 
   sp_fld= new sp_instr_set_trigger_field(lex->sphead->instructions(),
-                                         lex->spcont, trg_fld, val, lex);
+                                         lex->sp_parsing_ctx,
+                                         trg_fld, val, lex);
 
   if (sp_fld == NULL)
     return TRUE;
@@ -582,7 +586,7 @@ create_item_for_sp_var(THD *thd, LEX_STRING name, sp_variable *spvar,
   Item_splocal *item;
   LEX *lex= thd->lex;
   uint pos_in_q, len_in_q;
-  sp_pcontext *spc = lex->spcont;
+  sp_pcontext *spc = lex->sp_parsing_ctx;
 
   /* If necessary, look for the variable. */
   if (spc && !spvar)
@@ -873,11 +877,12 @@ static bool sp_create_assignment_instr(THD *thd, bool no_lookahead)
         for it.
       */
       LEX_STRING qbuff;
-      sp_instr_stmt *i;
       Lex_input_stream *lip= &thd->m_parser_state->m_lip;
 
-      if (!(i= new sp_instr_stmt(sp->instructions(), lex->spcont,
-                                 lex)))
+      sp_instr_stmt *i=
+        new sp_instr_stmt(sp->instructions(), lex->sp_parsing_ctx, lex);
+
+      if (!i)
         return true;
 
       /*
@@ -2831,7 +2836,7 @@ sp_fdparam:
           ident sp_init_param type_with_opt_collate
           {
             LEX *lex= Lex;
-            sp_pcontext *spc= lex->spcont;
+            sp_pcontext *spc= lex->sp_parsing_ctx;
 
             if (spc->find_variable($1, TRUE))
             {
@@ -2870,7 +2875,7 @@ sp_pdparam:
           sp_opt_inout sp_init_param ident type_with_opt_collate
           {
             LEX *lex= Lex;
-            sp_pcontext *spc= lex->spcont;
+            sp_pcontext *spc= lex->sp_parsing_ctx;
 
             if (spc->find_variable($3, TRUE))
             {
@@ -2946,14 +2951,14 @@ sp_decl:
             LEX *lex= Lex;
 
             lex->sphead->reset_lex(YYTHD);
-            lex->spcont->declare_var_boundary($2);
+            lex->sp_parsing_ctx->declare_var_boundary($2);
           }
           type_with_opt_collate
           sp_opt_default
           {
             THD *thd= YYTHD;
             LEX *lex= Lex;
-            sp_pcontext *pctx= lex->spcont;
+            sp_pcontext *pctx= lex->sp_parsing_ctx;
             uint num_vars= pctx->context_var_count();
             enum enum_field_types var_type= (enum enum_field_types) $4;
             Item *dflt_value_item= $5;
@@ -3009,7 +3014,7 @@ sp_decl:
         | DECLARE_SYM ident CONDITION_SYM FOR_SYM sp_cond
           {
             LEX *lex= Lex;
-            sp_pcontext *spc= lex->spcont;
+            sp_pcontext *spc= lex->sp_parsing_ctx;
 
             if (spc->find_condition($2, TRUE))
             {
@@ -3027,13 +3032,15 @@ sp_decl:
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
 
-            sp_handler *h= lex->spcont->add_handler(thd,
-                                                    (sp_handler::enum_type) $2);
+            sp_handler *h=
+              lex->sp_parsing_ctx->add_handler(thd,
+                                               (sp_handler::enum_type) $2);
 
-            lex->spcont= lex->spcont->push_context(thd,
-                                                   sp_pcontext::HANDLER_SCOPE);
+            lex->sp_parsing_ctx=
+              lex->sp_parsing_ctx->push_context(thd,
+                                                sp_pcontext::HANDLER_SCOPE);
 
-            sp_pcontext *ctx= lex->spcont;
+            sp_pcontext *ctx= lex->sp_parsing_ctx;
             sp_instr_hpush_jump *i=
               new sp_instr_hpush_jump(sp->instructions(), ctx, h);
 
@@ -3052,8 +3059,8 @@ sp_decl:
           {
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
-            sp_pcontext *ctx= lex->spcont;
-            sp_label *hlab= lex->spcont->pop_label(); /* After this hdlr */
+            sp_pcontext *ctx= lex->sp_parsing_ctx;
+            sp_label *hlab= lex->sp_parsing_ctx->pop_label(); /* After this hdlr */
             sp_instr_hreturn *i;
 
             if ($2 == sp_handler::CONTINUE)
@@ -3068,12 +3075,12 @@ sp_decl:
               i= new sp_instr_hreturn(sp->instructions(), ctx);
               if (i == NULL ||
                   sp->add_instr(i) ||
-                  sp->push_backpatch(i, lex->spcont->last_label())) /* Block end */
+                  sp->push_backpatch(i, lex->sp_parsing_ctx->last_label())) /* Block end */
                 MYSQL_YYABORT;
             }
             lex->sphead->backpatch(hlab);
 
-            lex->spcont= ctx->pop_context();
+            lex->sp_parsing_ctx= ctx->pop_context();
 
             $$.vars= $$.conds= $$.curs= 0;
             $$.hndlrs= 1;
@@ -3082,7 +3089,7 @@ sp_decl:
           {
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
-            sp_pcontext *ctx= lex->spcont;
+            sp_pcontext *ctx= lex->sp_parsing_ctx;
             uint offp;
             sp_instr_cpush *i;
 
@@ -3144,7 +3151,7 @@ sp_hcond_element:
           {
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
-            sp_pcontext *ctx= lex->spcont->parent_context();
+            sp_pcontext *ctx= lex->sp_parsing_ctx->parent_context();
 
             if (ctx->check_duplicate_handler($1))
             {
@@ -3210,7 +3217,7 @@ sp_hcond:
           }
         | ident /* CONDITION name */
           {
-            $$= Lex->spcont->find_condition($1, false);
+            $$= Lex->sp_parsing_ctx->find_condition($1, false);
             if ($$ == NULL)
             {
               my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
@@ -3257,13 +3264,13 @@ signal_value:
           {
             LEX *lex= Lex;
             sp_condition_value *cond;
-            if (lex->spcont == NULL)
+            if (lex->sp_parsing_ctx == NULL)
             {
               /* SIGNAL foo cannot be used outside of stored programs */
               my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            cond= lex->spcont->find_condition($1, false);
+            cond= lex->sp_parsing_ctx->find_condition($1, false);
             if (cond == NULL)
             {
               my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
@@ -3543,7 +3550,7 @@ sp_decl_idents:
             /* NOTE: field definition is filled in sp_decl section. */
 
             LEX *lex= Lex;
-            sp_pcontext *spc= lex->spcont;
+            sp_pcontext *spc= lex->sp_parsing_ctx;
 
             if (spc->find_variable($1, TRUE))
             {
@@ -3561,7 +3568,7 @@ sp_decl_idents:
             /* NOTE: field definition is filled in sp_decl section. */
 
             LEX *lex= Lex;
-            sp_pcontext *spc= lex->spcont;
+            sp_pcontext *spc= lex->sp_parsing_ctx;
 
             if (spc->find_variable($3, TRUE))
             {
@@ -3636,7 +3643,7 @@ sp_proc_stmt_statement:
             if (lex->sql_command != SQLCOM_SET_OPTION)
             {
               sp_instr_stmt *i=new sp_instr_stmt(sp->instructions(),
-                                                 lex->spcont, lex);
+                                                 lex->sp_parsing_ctx, lex);
               if (i == NULL)
                 MYSQL_YYABORT;
 
@@ -3677,7 +3684,9 @@ sp_proc_stmt_return:
             {
               sp_instr_freturn *i;
 
-              i= new sp_instr_freturn(sp->instructions(), lex->spcont, $3,
+              i= new sp_instr_freturn(sp->instructions(),
+                                      lex->sp_parsing_ctx,
+                                      $3,
                                       sp->m_return_field_def.sql_type, lex);
               if (i == NULL ||
                   sp->add_instr(i))
@@ -3691,17 +3700,18 @@ sp_proc_stmt_return:
 
 sp_proc_stmt_unlabeled:
           { /* Unlabeled controls get a secret label. */
-            LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
 
-            lex->spcont->push_label(YYTHD,
-                                    EMPTY_STR,
-                                    lex->sphead->instructions());
+            lex->sp_parsing_ctx->push_label(thd,
+                                            EMPTY_STR,
+                                            lex->sphead->instructions());
           }
           sp_unlabeled_control
           {
             LEX *lex= Lex;
 
-            lex->sphead->backpatch(lex->spcont->pop_label());
+            lex->sphead->backpatch(lex->sp_parsing_ctx->pop_label());
           }
         ;
 
@@ -3710,7 +3720,7 @@ sp_proc_stmt_leave:
           {
             LEX *lex= Lex;
             sp_head *sp = lex->sphead;
-            sp_pcontext *ctx= lex->spcont;
+            sp_pcontext *ctx= lex->sp_parsing_ctx;
             sp_label *lab= ctx->find_label($2);
 
             if (! lab)
@@ -3763,7 +3773,7 @@ sp_proc_stmt_iterate:
           {
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
-            sp_pcontext *ctx= lex->spcont;
+            sp_pcontext *ctx= lex->sp_parsing_ctx;
             sp_label *lab= ctx->find_label($2);
 
             if (! lab || lab->type != sp_label::ITERATION)
@@ -3809,12 +3819,12 @@ sp_proc_stmt_open:
             uint offset;
             sp_instr_copen *i;
 
-            if (! lex->spcont->find_cursor($2, &offset, false))
+            if (! lex->sp_parsing_ctx->find_cursor($2, &offset, false))
             {
               my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $2.str);
               MYSQL_YYABORT;
             }
-            i= new sp_instr_copen(sp->instructions(), lex->spcont, offset);
+            i= new sp_instr_copen(sp->instructions(), lex->sp_parsing_ctx, offset);
             if (i == NULL ||
                 sp->add_instr(i))
               MYSQL_YYABORT;
@@ -3829,12 +3839,13 @@ sp_proc_stmt_fetch:
             uint offset;
             sp_instr_cfetch *i;
 
-            if (! lex->spcont->find_cursor($3, &offset, false))
+            if (! lex->sp_parsing_ctx->find_cursor($3, &offset, false))
             {
               my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            i= new sp_instr_cfetch(sp->instructions(), lex->spcont, offset);
+            i= new sp_instr_cfetch(sp->instructions(), lex->sp_parsing_ctx,
+                                   offset);
             if (i == NULL ||
                 sp->add_instr(i))
               MYSQL_YYABORT;
@@ -3851,12 +3862,13 @@ sp_proc_stmt_close:
             uint offset;
             sp_instr_cclose *i;
 
-            if (! lex->spcont->find_cursor($2, &offset, false))
+            if (! lex->sp_parsing_ctx->find_cursor($2, &offset, false))
             {
               my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $2.str);
               MYSQL_YYABORT;
             }
-            i= new sp_instr_cclose(sp->instructions(), lex->spcont,  offset);
+            i= new sp_instr_cclose(sp->instructions(), lex->sp_parsing_ctx,
+                                   offset);
             if (i == NULL ||
                 sp->add_instr(i))
               MYSQL_YYABORT;
@@ -3874,7 +3886,7 @@ sp_fetch_list:
           {
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
-            sp_pcontext *spc= lex->spcont;
+            sp_pcontext *spc= lex->sp_parsing_ctx;
             sp_variable *spv;
 
             if (!spc || !(spv = spc->find_variable($1, false)))
@@ -3894,7 +3906,7 @@ sp_fetch_list:
           {
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
-            sp_pcontext *spc= lex->spcont;
+            sp_pcontext *spc= lex->sp_parsing_ctx;
             sp_variable *spv;
 
             if (!spc || !(spv = spc->find_variable($3, false)))
@@ -3918,7 +3930,7 @@ sp_if:
           {
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
-            sp_pcontext *ctx= lex->spcont;
+            sp_pcontext *ctx= lex->sp_parsing_ctx;
             uint ip= sp->instructions();
             sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, ctx,
                                                                $2, lex);
@@ -3932,21 +3944,24 @@ sp_if:
           }
           sp_proc_stmts1
           {
-            sp_head *sp= Lex->sphead;
-            sp_pcontext *ctx= Lex->spcont;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+
+            sp_head *sp= lex->sphead;
+            sp_pcontext *ctx= lex->sp_parsing_ctx;
             uint ip= sp->instructions();
             sp_instr_jump *i = new sp_instr_jump(ip, ctx);
             if (i == NULL ||
                 sp->add_instr(i))
               MYSQL_YYABORT;
             sp->backpatch(ctx->pop_label());
-            sp->push_backpatch(i, ctx->push_label(YYTHD, EMPTY_STR, 0));
+            sp->push_backpatch(i, ctx->push_label(thd, EMPTY_STR, 0));
           }
           sp_elseifs
           {
             LEX *lex= Lex;
 
-            lex->sphead->backpatch(lex->spcont->pop_label());
+            lex->sphead->backpatch(lex->sp_parsing_ctx->pop_label());
           }
         ;
 
@@ -3964,9 +3979,10 @@ case_stmt_specification:
 simple_case_stmt:
           CASE_SYM
           {
-            LEX *lex= Lex;
-            case_stmt_action_case(lex);
-            lex->sphead->reset_lex(YYTHD); /* For expr $3 */
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            case_stmt_action_case(thd);
+            lex->sphead->reset_lex(thd); /* For expr $3 */
           }
           expr
           {
@@ -3991,8 +4007,7 @@ simple_case_stmt:
 searched_case_stmt:
           CASE_SYM
           {
-            LEX *lex= Lex;
-            case_stmt_action_case(lex);
+            case_stmt_action_case(YYTHD);
           }
           searched_when_clause_list
           else_clause_opt
@@ -4068,7 +4083,7 @@ else_clause_opt:
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
             uint ip= sp->instructions();
-            sp_instr_error *i= new sp_instr_error(ip, lex->spcont,
+            sp_instr_error *i= new sp_instr_error(ip, lex->sp_parsing_ctx,
                                                   ER_SP_CASE_NOT_FOUND);
             if (i == NULL ||
                 sp->add_instr(i))
@@ -4081,7 +4096,7 @@ sp_labeled_control:
           label_ident ':'
           {
             LEX *lex= Lex;
-            sp_pcontext *ctx= lex->spcont;
+            sp_pcontext *ctx= lex->sp_parsing_ctx;
             sp_label *lab= ctx->find_label($1);
 
             if (lab)
@@ -4091,14 +4106,15 @@ sp_labeled_control:
             }
             else
             {
-              lab= lex->spcont->push_label(YYTHD, $1, lex->sphead->instructions());
+              lab= lex->sp_parsing_ctx->push_label(YYTHD, $1,
+                                                   lex->sphead->instructions());
               lab->type= sp_label::ITERATION;
             }
           }
           sp_unlabeled_control sp_opt_label
           {
             LEX *lex= Lex;
-            sp_label *lab= lex->spcont->pop_label();
+            sp_label *lab= lex->sp_parsing_ctx->pop_label();
 
             if ($5.str)
             {
@@ -4121,7 +4137,7 @@ sp_labeled_block:
           label_ident ':'
           {
             LEX *lex= Lex;
-            sp_pcontext *ctx= lex->spcont;
+            sp_pcontext *ctx= lex->sp_parsing_ctx;
             sp_label *lab= ctx->find_label($1);
 
             if (lab)
@@ -4130,13 +4146,14 @@ sp_labeled_block:
               MYSQL_YYABORT;
             }
 
-            lab= lex->spcont->push_label(YYTHD, $1, lex->sphead->instructions());
+            lab= lex->sp_parsing_ctx->push_label(YYTHD, $1,
+                                                 lex->sphead->instructions());
             lab->type= sp_label::BEGIN;
           }
           sp_block_content sp_opt_label
           {
             LEX *lex= Lex;
-            sp_label *lab= lex->spcont->pop_label();
+            sp_label *lab= lex->sp_parsing_ctx->pop_label();
 
             if ($5.str)
             {
@@ -4153,13 +4170,13 @@ sp_unlabeled_block:
           { /* Unlabeled blocks get a secret label. */
             LEX *lex= Lex;
             uint ip= lex->sphead->instructions();
-            sp_label *lab= lex->spcont->push_label(YYTHD, EMPTY_STR, ip);
+            sp_label *lab= lex->sp_parsing_ctx->push_label(YYTHD, EMPTY_STR, ip);
             lab->type= sp_label::BEGIN;
           }
           sp_block_content
           {
             LEX *lex= Lex;
-            lex->spcont->pop_label();
+            lex->sp_parsing_ctx->pop_label();
           }
         ;
 
@@ -4169,8 +4186,9 @@ sp_block_content:
               together. No [[NOT] ATOMIC] yet, and we need to figure out how
               make it coexist with the existing BEGIN COMMIT/ROLLBACK. */
             LEX *lex= Lex;
-            lex->spcont= lex->spcont->push_context(YYTHD,
-                                                   sp_pcontext::REGULAR_SCOPE);
+            lex->sp_parsing_ctx=
+              lex->sp_parsing_ctx->push_context(YYTHD,
+                                                sp_pcontext::REGULAR_SCOPE);
           }
           sp_decls
           sp_proc_stmts
@@ -4178,7 +4196,7 @@ sp_block_content:
           {
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
-            sp_pcontext *ctx= lex->spcont;
+            sp_pcontext *ctx= lex->sp_parsing_ctx;
             sp_instr *i;
 
             sp->backpatch(ctx->last_label()); /* We always have a label */
@@ -4196,7 +4214,7 @@ sp_block_content:
                   sp->add_instr(i))
                 MYSQL_YYABORT;
             }
-            lex->spcont= ctx->pop_context();
+            lex->sp_parsing_ctx= ctx->pop_context();
           }
         ;
 
@@ -4206,8 +4224,8 @@ sp_unlabeled_control:
           {
             LEX *lex= Lex;
             uint ip= lex->sphead->instructions();
-            sp_label *lab= lex->spcont->last_label();  /* Jumping back */
-            sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
+            sp_label *lab= lex->sp_parsing_ctx->last_label();  /* Jumping back */
+            sp_instr_jump *i = new sp_instr_jump(ip, lex->sp_parsing_ctx, lab->ip);
             if (i == NULL ||
                 lex->sphead->add_instr(i))
               MYSQL_YYABORT;
@@ -4219,11 +4237,11 @@ sp_unlabeled_control:
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
             uint ip= sp->instructions();
-            sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, lex->spcont,
-                                                               $3, lex);
+            sp_instr_jump_if_not *i =
+              new sp_instr_jump_if_not(ip, lex->sp_parsing_ctx, $3, lex);
             if (i == NULL ||
                 /* Jumping forward */
-                sp->push_backpatch(i, lex->spcont->last_label()) ||
+                sp->push_backpatch(i, lex->sp_parsing_ctx->last_label()) ||
                 sp->new_cont_backpatch(i) ||
                 sp->add_instr(i))
               MYSQL_YYABORT;
@@ -4234,8 +4252,9 @@ sp_unlabeled_control:
           {
             LEX *lex= Lex;
             uint ip= lex->sphead->instructions();
-            sp_label *lab= lex->spcont->last_label();  /* Jumping back */
-            sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
+            sp_label *lab= lex->sp_parsing_ctx->last_label();  /* Jumping back */
+            sp_instr_jump *i =
+              new sp_instr_jump(ip, lex->sp_parsing_ctx, lab->ip);
             if (i == NULL ||
                 lex->sphead->add_instr(i))
               MYSQL_YYABORT;
@@ -4247,10 +4266,10 @@ sp_unlabeled_control:
           {
             LEX *lex= Lex;
             uint ip= lex->sphead->instructions();
-            sp_label *lab= lex->spcont->last_label();  /* Jumping back */
-            sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, lex->spcont,
-                                                               $5, lab->ip,
-                                                               lex);
+            sp_label *lab= lex->sp_parsing_ctx->last_label();  /* Jumping back */
+            sp_instr_jump_if_not *i =
+              new sp_instr_jump_if_not(ip, lex->sp_parsing_ctx,
+                                       $5, lab->ip, lex);
             if (i == NULL ||
                 lex->sphead->add_instr(i))
               MYSQL_YYABORT;
@@ -10869,7 +10888,8 @@ select_var_ident:
             LEX *lex=Lex;
             sp_variable *t;
 
-            if (!lex->spcont || !(t=lex->spcont->find_variable($1, false)))
+            if (!lex->sp_parsing_ctx ||
+                !(t= lex->sp_parsing_ctx->find_variable($1, false)))
             {
               my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
@@ -12764,7 +12784,7 @@ simple_ident:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             sp_variable *spv;
-            sp_pcontext *spc = lex->spcont;
+            sp_pcontext *spc = lex->sp_parsing_ctx;
             if (spc && (spv = spc->find_variable($1, false)))
             {
               Lex_input_stream *lip= &thd->m_parser_state->m_lip;
@@ -13743,7 +13763,7 @@ option_value_no_option_type:
             }
             else
             {
-              sp_pcontext *spc= lex->spcont;
+              sp_pcontext *spc= lex->sp_parsing_ctx;
               sp_variable *spv= spc->find_variable(*name, false);
 
               /* It is a local variable. */
@@ -13794,7 +13814,7 @@ option_value_no_option_type:
         | NAMES_SYM equal expr
           {
             LEX *lex= Lex;
-            sp_pcontext *spc= lex->spcont;
+            sp_pcontext *spc= lex->sp_parsing_ctx;
             LEX_STRING names;
 
             names.str= (char *)"names";
@@ -13833,7 +13853,7 @@ option_value_no_option_type:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             LEX_USER *user;
-            sp_pcontext *spc= lex->spcont;
+            sp_pcontext *spc= lex->sp_parsing_ctx;
             LEX_STRING pw;
 
             pw.str= (char *)"password";
@@ -13872,7 +13892,7 @@ internal_variable_name:
           ident
           {
             THD *thd= YYTHD;
-            sp_pcontext *spc= thd->lex->spcont;
+            sp_pcontext *spc= thd->lex->sp_parsing_ctx;
             sp_variable *spv;
 
             /* Best effort lookup for system variable. */

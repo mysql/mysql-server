@@ -110,7 +110,7 @@ Diagnostics_information_item::set_value(THD *thd, Item **value)
   DBUG_ASSERT(srp);
 
   /* Set variable/parameter value. */
-  rv= srp->set_value(thd, thd->spcont, value);
+  rv= srp->set_value(thd, thd->sp_runtime_ctx, value);
 
   DBUG_RETURN(rv);
 }
