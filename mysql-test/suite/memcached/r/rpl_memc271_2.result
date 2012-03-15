@@ -1,5 +1,3 @@
-include/master-slave.inc
-[connection master]
 SET @tx_isolation= @@global.tx_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 UNINSTALL PLUGIN daemon_memcached;
@@ -8,6 +6,19 @@ INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 INSERT INTO config_options VALUES("separator", "|");
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+include/master-slave.inc
+connect  $rpl_connection_name,127.0.0.1,root,,test,$_rpl_port,;
+connection server_1;
+connect  $rpl_connection_name,127.0.0.1,root,,test,$_rpl_port,;
+connection server_1;
+connect  $rpl_connection_name,127.0.0.1,root,,test,$_rpl_port,;
+connection server_1;
+connect  $rpl_connection_name,127.0.0.1,root,,test,$_rpl_port,;
+connection server_1;
+connection server_1;
+connection default;
+[connection master]
+connection master;
 USE test;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1        (c1 VARCHAR(32),
@@ -40,6 +51,17 @@ H	Hamburg	Norderstedt
 sync_slave_with_master;
 connection slave;
 connection slave;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varchar(32) NOT NULL DEFAULT '',
+  `c2` varchar(1024) DEFAULT NULL,
+  `c21` varchar(1024) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  `c4` bigint(20) unsigned DEFAULT NULL,
+  `c5` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -180,7 +202,6 @@ H	Hamburg	Norderstedt
 connection master;
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;
-SET @@global.tx_isolation= @tx_isolation;
 connection slave;
 include/rpl_end.inc
 connection server_2;
@@ -204,3 +225,5 @@ disconnect server_2;
 disconnect server_2_1;
 disconnect server_1;
 disconnect server_1_1;
+connection default;
+SET @@global.tx_isolation= @tx_isolation;
