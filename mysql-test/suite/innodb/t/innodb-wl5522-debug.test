@@ -263,20 +263,40 @@ SELECT * FROM test_wl5522.t1;
 
 DROP TABLE test_wl5522.t1;
 
+--disable_query_log
+# Enable metrics for the counters we are going to use
+set global innodb_monitor_enable = purge_stop_count;
+set global innodb_monitor_enable = purge_resume_count;
+set global innodb_monitor_enable = ibuf_page_merges;
+--enable_query_log
+
 #
 # Create a large table with delete marked records, disable purge during
 # the update so that we can test the IMPORT purge code.
 #
 CREATE TABLE test_wl5522.t1 (
-	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-	c2 INT, INDEX idx(c2)) Engine=InnoDB;
+	c1 BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 BIGINT,
+	c3 VARCHAR(2048),
+	c4 VARCHAR(2048),
+	INDEX idx1(c2),
+	INDEX idx2(c3(512)),
+	INDEX idx3(c4(512))) Engine=InnoDB;
 
-INSERT INTO test_wl5522.t1(c2) VALUES(1), (2), (3), (4);
-INSERT INTO test_wl5522.t1(c2) SELECT c2 FROM test_wl5522.t1;
-INSERT INTO test_wl5522.t1(c2) SELECT c2 FROM test_wl5522.t1;
-INSERT INTO test_wl5522.t1(c2) SELECT c2 FROM test_wl5522.t1;
-INSERT INTO test_wl5522.t1(c2) SELECT c2 FROM test_wl5522.t1;
-INSERT INTO test_wl5522.t1(c2) SELECT c2 FROM test_wl5522.t1;
+SET SESSION debug="+d,ib_buf_force_flush";
+SET SESSION debug="+d,ib_ibuf_background_disable";
+
+INSERT INTO test_wl5522.t1(c2, c3, c4) VALUES
+	(1, REPEAT('a', 2048), REPEAT('a', 2048)),
+	(2, REPEAT('b', 2048), REPEAT('b', 2048)),
+	(3, REPEAT('c', 2048), REPEAT('c', 2048)),
+	(4, REPEAT('d', 2048), REPEAT('d', 2048));
+
+INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
+INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
 
 # Stop purge so that it doesn't remove the delete marked entries.
 SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
@@ -298,10 +318,12 @@ UPDATE test_wl5522.t1 SET c2 = c2 + c1;
 UPDATE test_wl5522.t1 SET c2 = c2 + c1;
 UPDATE test_wl5522.t1 SET c2 = c2 + c1;
 UPDATE test_wl5522.t1 SET c2 = c2 + c1;
+UPDATE test_wl5522.t1 SET c3 = REPEAT("c2", 1024);
+UPDATE test_wl5522.t1 SET c4 = REPEAT("c4", 1024);
 
 SHOW CREATE TABLE test_wl5522.t1;
 
-SELECT * FROM test_wl5522.t1;
+SELECT c1, c2 FROM test_wl5522.t1;
 SELECT COUNT(*) FROM test_wl5522.t1;
 SELECT SUM(c2) FROM test_wl5522.t1;
 
@@ -320,10 +342,15 @@ SET GLOBAL INNODB_PURGE_RUN_NOW=ON;
 DROP TABLE test_wl5522.t1;
 
 CREATE TABLE test_wl5522.t1 (
-	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-	c2 INT, INDEX idx(c2)) Engine=InnoDB;
+	c1 BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 BIGINT,
+	c3 VARCHAR(2048),
+	c4 VARCHAR(2048),
+	INDEX idx1(c2),
+	INDEX idx2(c3(512)),
+	INDEX idx3(c4(512))) Engine=InnoDB;
 
-SELECT * FROM test_wl5522.t1;
+SELECT c1, c2 FROM test_wl5522.t1;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
@@ -335,15 +362,34 @@ EOF
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 CHECK TABLE test_wl5522.t1;
 
-SELECT * FROM test_wl5522.t1;
+SELECT c1,c2 FROM test_wl5522.t1;
 SELECT COUNT(*) FROM test_wl5522.t1;
 SELECT SUM(c2) FROM test_wl5522.t1;
 
 SHOW CREATE TABLE test_wl5522.t1;
- 
+
 DROP TABLE test_wl5522.t1;
- 
+
 DROP DATABASE test_wl5522;
+
+SELECT name, count 
+  FROM information_schema.innodb_metrics
+  WHERE name = 'ibuf_page_merges';
+
+SET SESSION debug="-d,ib_buf_force_flush";
+SET SESSION debug="-d,ib_ibuf_disable_background_merge";
+
+--disable_query_log
+
+set global innodb_monitor_disable = all;
+set global innodb_monitor_reset_all = all;
+
+-- disable_warnings
+set global innodb_monitor_enable = default;
+set global innodb_monitor_disable = default;
+set global innodb_monitor_reset = default;
+set global innodb_monitor_reset_all = default;
+-- enable_warnings
 
 call mtr.add_suppression("Got error -1 when reading table '.*'");
 call mtr.add_suppression("InnoDB: Table '.*' tablespace is set as discarded.");
