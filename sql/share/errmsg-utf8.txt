@@ -6497,3 +6497,6 @@ ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC
 ER_TABLE_IN_FK_CHECK
   eng "Table is being used in foreign key check."
 
+#
+#  End of 5.5 error messages.
+#
