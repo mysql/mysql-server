@@ -10,7 +10,7 @@ SELECT @start_binlog_cache_size;
 SET @@global.max_binlog_cache_size = 5000;
 Warnings:
 Warning	1292	Truncated incorrect max_binlog_cache_size value: '5000'
-Warning	1712	Option binlog_cache_size (32768) is greater than max_binlog_cache_size (4096); setting binlog_cache_size equal to max_binlog_cache_size.
+Warning	1735	Option binlog_cache_size (32768) is greater than max_binlog_cache_size (4096); setting binlog_cache_size equal to max_binlog_cache_size.
 SET @@global.max_binlog_cache_size = DEFAULT;
 SELECT @@global.max_binlog_cache_size;
 @@global.max_binlog_cache_size

@@ -597,12 +597,12 @@ sp_head::init(LEX *lex)
 {
   DBUG_ENTER("sp_head::init");
 
-  m_parsing_ctx= new sp_pcontext();
+  m_root_parsing_ctx= new sp_pcontext();
 
-  if (!m_parsing_ctx)
+  if (!m_root_parsing_ctx)
     DBUG_VOID_RETURN;
 
-  lex->sp_parsing_ctx= m_parsing_ctx;
+  lex->set_sp_current_parsing_ctx(m_root_parsing_ctx);
 
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
 
@@ -784,7 +784,7 @@ sp_head::~sp_head()
   for (uint ip = 0 ; (i = get_instr(ip)) ; ip++)
     delete i;
   delete_dynamic(&m_instr);
-  delete m_parsing_ctx;
+  delete m_root_parsing_ctx;
   free_items();
 
   /*
@@ -1115,7 +1115,6 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed= FALSE;
-  sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
   bool err_status= FALSE;
   uint ip= 0;
   sql_mode_t save_sql_mode;
@@ -1358,13 +1357,13 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       killed during execution.
     */
     if (!thd->is_fatal_error && !thd->killed_errno() &&
-        sp_runtime_ctx_saved->handle_sql_condition(thd, &ip, i))
+        thd->sp_runtime_ctx->handle_sql_condition(thd, &ip, i))
     {
       err_status= FALSE;
     }
 
     /* Reset sp_rcontext::end_partial_result_set flag. */
-    sp_runtime_ctx_saved->end_partial_result_set= FALSE;
+    thd->sp_runtime_ctx->end_partial_result_set= FALSE;
 
   } while (!err_status && !thd->killed && !thd->is_fatal_error);
 
@@ -1582,7 +1581,6 @@ sp_head::execute_trigger(THD *thd,
                          GRANT_INFO *grant_info)
 {
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
-  sp_rcontext *trigger_runtime_ctx = NULL;
   bool err_status= FALSE;
   MEM_ROOT call_mem_root;
   Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
@@ -1653,7 +1651,10 @@ sp_head::execute_trigger(THD *thd,
   init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  if (!(trigger_runtime_ctx= sp_rcontext::create(thd, m_parsing_ctx, NULL)))
+  sp_rcontext *trigger_runtime_ctx=
+    sp_rcontext::create(thd, m_root_parsing_ctx, NULL);
+
+  if (!trigger_runtime_ctx)
   {
     err_status= TRUE;
     goto err_with_cleanup;
@@ -1727,7 +1728,6 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   bool need_binlog_call= FALSE;
   uint arg_no;
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
-  sp_rcontext *func_runtime_ctx = NULL;
   char buf[STRING_BUFFER_USUAL_SIZE];
   String binlog_buf(buf, sizeof(buf), &my_charset_bin);
   bool err_status= FALSE;
@@ -1746,7 +1746,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     If it is not, use my_error() to report an error, or it will not terminate
     the invoking query properly.
   */
-  if (argcount != m_parsing_ctx->context_var_count())
+  if (argcount != m_root_parsing_ctx->context_var_count())
   {
     /*
       Need to use my_error here, or it will not terminate the
@@ -1754,7 +1754,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     */
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
              "FUNCTION", m_qname.str,
-             m_parsing_ctx->context_var_count(), argcount);
+             m_root_parsing_ctx->context_var_count(), argcount);
     DBUG_RETURN(TRUE);
   }
   /*
@@ -1771,7 +1771,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  func_runtime_ctx= sp_rcontext::create(thd, m_parsing_ctx, return_value_fld);
+  sp_rcontext *func_runtime_ctx= sp_rcontext::create(thd, m_root_parsing_ctx,
+                                                     return_value_fld);
 
   if (!func_runtime_ctx)
   {
@@ -1779,6 +1780,10 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     err_status= TRUE;
     goto err_with_cleanup;
   }
+
+#ifndef DBUG_OFF
+  func_runtime_ctx->sp= this;
+#endif
 
   /*
     We have to switch temporarily back to callers arena/memroot.
@@ -1788,11 +1793,13 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   */
   thd->restore_active_arena(&call_arena, &backup_arena);
 
-#ifndef DBUG_OFF
-  func_runtime_ctx->sp= this;
-#endif
+  /*
+    Pass arguments.
 
-  /* Pass arguments. */
+    Note, THD::sp_runtime_ctx must not be switched before the arguments are
+    passed. Values are taken from the caller's runtime context and set to the
+    runtime context of this function.
+  */
   for (arg_no= 0; arg_no < argcount; arg_no++)
   {
     /* Arguments must be fixed in Item_func_sp::fix_fields */
@@ -1815,6 +1822,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   /*
     Remember the original arguments for unrolled replication of functions
     before they are changed by execution.
+
+    Note, THD::sp_runtime_ctx must not be switched before the arguments are
+    logged. Values are taken from the caller's runtime context.
   */
   if (need_binlog_call)
   {
@@ -1842,6 +1852,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     }
     binlog_buf.append(')');
   }
+
   thd->sp_runtime_ctx= func_runtime_ctx;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1921,7 +1932,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   {
     /* We need result only in function but not in trigger */
 
-    if (!func_runtime_ctx->is_return_value_set())
+    if (!thd->sp_runtime_ctx->is_return_value_set())
     {
       my_error(ER_SP_NORETURNEND, MYF(0), m_name.str);
       err_status= TRUE;
@@ -1973,12 +1984,11 @@ bool
 sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
   bool err_status= FALSE;
-  uint params = m_parsing_ctx->context_var_count();
+  uint params = m_root_parsing_ctx->context_var_count();
   /* Query start time may be reset in a multi-stmt SP; keep this for later. */
   ulonglong utime_before_sp_exec= thd->utime_after_lock;
   sp_rcontext *parent_sp_runtime_ctx= thd->sp_runtime_ctx;
   sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
-  sp_rcontext *proc_runtime_ctx = NULL;
   bool save_enable_slow_log= false;
   bool save_log_general= false;
   DBUG_ENTER("sp_head::execute_procedure");
@@ -1991,11 +2001,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     DBUG_RETURN(TRUE);
   }
 
-  sp_runtime_ctx_saved= thd->sp_runtime_ctx;
-  if (! parent_sp_runtime_ctx)
+  if (!parent_sp_runtime_ctx)
   {
-    /* Create a temporary old context. */
-    parent_sp_runtime_ctx= sp_rcontext::create(thd, m_parsing_ctx, NULL);
+    // Create a temporary old context. We need it to pass OUT-parameter values.
+    parent_sp_runtime_ctx= sp_rcontext::create(thd, m_root_parsing_ctx, NULL);
 
     if (!parent_sp_runtime_ctx)
       DBUG_RETURN(TRUE);
@@ -2009,11 +2018,16 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->sp_runtime_ctx->callers_arena= thd;
   }
 
-  proc_runtime_ctx= sp_rcontext::create(thd, m_parsing_ctx, NULL);
+  sp_rcontext *proc_runtime_ctx=
+    sp_rcontext::create(thd, m_root_parsing_ctx, NULL);
 
   if (!proc_runtime_ctx)
   {
     thd->sp_runtime_ctx= sp_runtime_ctx_saved;
+
+    if (!sp_runtime_ctx_saved)
+      delete parent_sp_runtime_ctx;
+
     DBUG_RETURN(TRUE);
   }
 #ifndef DBUG_OFF
@@ -2033,7 +2047,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (!arg_item)
         break;
 
-      sp_variable *spvar= m_parsing_ctx->find_variable(i);
+      sp_variable *spvar= m_root_parsing_ctx->find_variable(i);
 
       if (!spvar)
         continue;
@@ -2155,7 +2169,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (!arg_item)
         break;
 
-      sp_variable *spvar= m_parsing_ctx->find_variable(i);
+      sp_variable *spvar= m_root_parsing_ctx->find_variable(i);
 
       if (spvar->mode == sp_variable::MODE_IN)
         continue;
@@ -2239,7 +2253,7 @@ sp_head::reset_lex(THD *thd)
 
   /* And keep the SP stuff too */
   sublex->sphead= oldlex->sphead;
-  sublex->sp_parsing_ctx= oldlex->sp_parsing_ctx;
+  sublex->set_sp_current_parsing_ctx(oldlex->get_sp_current_parsing_ctx());
   /* And trigger related stuff too */
   sublex->trg_chistics= oldlex->trg_chistics;
   sublex->sp_lex_in_use= FALSE;
