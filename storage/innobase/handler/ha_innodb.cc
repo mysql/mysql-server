@@ -10997,7 +10997,7 @@ ha_innobase::reset()
 	}
 
 	reset_template();
-	ds_mrr.dsmrr_close();
+	ds_mrr.reset();
 
 	/* TODO: This should really be reset in reset_template() but for now
 	it's safer to do it explicitly here. */
