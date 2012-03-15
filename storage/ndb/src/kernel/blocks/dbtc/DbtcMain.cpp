@@ -4291,7 +4291,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   UintR Ttrans1 = lqhKeyConf->transId1;
   UintR Ttrans2 = lqhKeyConf->transId2;
   Uint32 noFired = LqhKeyConf::getFiredCount(lqhKeyConf->noFiredTriggers);
-  Uint32 deferred = LqhKeyConf::getDeferredBit(lqhKeyConf->noFiredTriggers);
+  Uint32 deferred = LqhKeyConf::getDeferredUKBit(lqhKeyConf->noFiredTriggers);
 
   if (TapiConnectptrIndex >= TapiConnectFilesize) {
     TCKEY_abort(signal, 29);
@@ -4348,9 +4348,9 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   regTcPtr->lastLqhNodeId = refToNode(tlastLqhBlockref);
   regTcPtr->noFiredTriggers = noFired;
   regTcPtr->m_special_op_flags |= (deferred) ?
-    TcConnectRecord::SOF_DEFERRED_TRIGGER : 0;
+    TcConnectRecord::SOF_DEFERRED_UK_TRIGGER : 0;
   regApiPtr.p->m_flags |= (deferred) ?
-    ApiConnectRecord::TF_DEFERRED_TRIGGERS : 0;
+    ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS : 0;
 
   UintR Ttckeyrec = (UintR)regApiPtr.p->tckeyrec;
   UintR TclientData = regTcPtr->clientData;
@@ -4934,7 +4934,7 @@ void Dbtc::diverify010Lab(Signal* signal)
     systemErrorLab(signal, __LINE__);
   }//if
 
-  if (tc_testbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_TRIGGERS))
+  if (tc_testbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS))
   {
     jam();
     /**
@@ -4942,7 +4942,7 @@ void Dbtc::diverify010Lab(Signal* signal)
      *   transaction starts to commit
      */
     regApiPtr->pendingTriggers = 0;
-    tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_TRIGGERS);
+    tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS);
     sendFireTrigReq(signal, apiConnectptr, regApiPtr->firstTcConnect);
     return;
   }
@@ -5752,10 +5752,10 @@ Dbtc::sendFireTrigReq(Signal* signal,
 
     const Uint32 nextTcConnect = localTcConnectptr.p->nextTcConnect;
     Uint32 flags = localTcConnectptr.p->m_special_op_flags;
-    if (flags & TcConnectRecord::SOF_DEFERRED_TRIGGER)
+    if (flags & TcConnectRecord::SOF_DEFERRED_UK_TRIGGER)
     {
       jam();
-      tc_clearbit(flags, TcConnectRecord::SOF_DEFERRED_TRIGGER);
+      tc_clearbit(flags, TcConnectRecord::SOF_DEFERRED_UK_TRIGGER);
       ndbrequire(localTcConnectptr.p->tcConnectstate == OS_PREPARED);
       localTcConnectptr.p->tcConnectstate = OS_FIRE_TRIG_REQ;
       localTcConnectptr.p->m_special_op_flags = flags;
@@ -5909,13 +5909,13 @@ Dbtc::execFIRE_TRIG_CONF(Signal* signal)
   localTcConnectptr.p->tcConnectstate = OS_PREPARED;
 
   Uint32 noFired  = FireTrigConf::getFiredCount(conf->noFiredTriggers);
-  Uint32 deferred = FireTrigConf::getDeferredBit(conf->noFiredTriggers);
+  Uint32 deferreduk = FireTrigConf::getDeferredUKBit(conf->noFiredTriggers);
 
   regApiPtr.p->pendingTriggers += noFired;
-  regApiPtr.p->m_flags |= (deferred) ?
-    ApiConnectRecord::TF_DEFERRED_TRIGGERS : 0;
-  localTcConnectptr.p->m_special_op_flags |= (deferred) ?
-    TcConnectRecord::SOF_DEFERRED_TRIGGER : 0;
+  regApiPtr.p->m_flags |= (deferreduk) ?
+    ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS : 0;
+  localTcConnectptr.p->m_special_op_flags |= (deferreduk) ?
+    TcConnectRecord::SOF_DEFERRED_UK_TRIGGER : 0;
 
   if (regApiPtr.p->pendingTriggers == 0)
   {
