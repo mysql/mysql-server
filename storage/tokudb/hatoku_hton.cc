@@ -1133,10 +1133,6 @@ format_time(u_int64_t time64, char *buf) {
                                           val, \
                                           strlen(val))
 
-#define SHOWVAL(v) \
-    snprintf(buf, bufsiz, "%" PRIu64, engstat.v); \
-    STATPRINT(#v, buf);
-
 extern sys_var *intern_find_sys_var(const char *str, uint length, bool no_error);
 
 static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
