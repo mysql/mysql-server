@@ -1290,6 +1290,7 @@ trx_purge_stop(void)
 
 	ut_a(purge_sys->state != PURGE_STATE_INIT);
 	ut_a(purge_sys->state != PURGE_STATE_EXIT);
+	ut_a(purge_sys->state != PURGE_STATE_DISABLED);
 
 	++purge_sys->n_stop;
 
@@ -1329,6 +1330,7 @@ trx_purge_run(void)
 
 	ut_a(purge_sys->state != PURGE_STATE_INIT);
 	ut_a(purge_sys->state != PURGE_STATE_EXIT);
+	ut_a(purge_sys->state != PURGE_STATE_DISABLED);
 
 	if (purge_sys->n_stop > 0) {
 
