@@ -763,7 +763,8 @@ JOIN::optimize()
   }
 
   /* Cache constant expressions in WHERE, HAVING, ON clauses. */
-  cache_const_exprs();
+  if (cache_const_exprs())
+    DBUG_RETURN(1);
 
   /*
     is this simple IN subquery?
@@ -6824,36 +6825,48 @@ void JOIN::drop_unused_derived_keys()
 
 /**
   Cache constant expressions in WHERE, HAVING, ON conditions.
+
+  @return False if success, True if error
+
+  @note This function is run after conditions have been pushed down to
+        individual tables, so transformation is applied to JOIN_TAB::condition
+        and not to the WHERE condition.
 */
 
-void JOIN::cache_const_exprs()
+bool JOIN::cache_const_exprs()
 {
-  bool cache_flag= FALSE;
-  bool *analyzer_arg= &cache_flag;
-
   /* No need in cache if all tables are constant. */
   if (const_tables == tables)
-    return;
+    return false;
 
-  if (conds)
-    conds->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
-                  &Item::cache_const_expr_transformer, (uchar *)&cache_flag);
-  cache_flag= FALSE;
-  if (having)
-    having->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
-                    &Item::cache_const_expr_transformer, (uchar *)&cache_flag);
-
-  for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables ; tab++)
+  for (uint i= const_tables; i < tables; i++)
   {
-    if (*tab->on_expr_ref)
-    {
-      cache_flag= FALSE;
-      (*tab->on_expr_ref)->compile(&Item::cache_const_expr_analyzer,
-                                 (uchar **)&analyzer_arg,
-                                 &Item::cache_const_expr_transformer,
-                                 (uchar *)&cache_flag);
-    }
+    Item *condition= join_tab[i].condition();
+    if (condition == NULL)
+      continue;
+    Item *cache_item= NULL;
+    Item **analyzer_arg= &cache_item;
+    condition=
+      condition->compile(&Item::cache_const_expr_analyzer,
+                         (uchar **)&analyzer_arg,
+                         &Item::cache_const_expr_transformer,
+                         (uchar *)&cache_item);
+    if (condition == NULL)
+      return true;
+    if (condition != join_tab[i].condition())
+      join_tab[i].set_condition(condition, __LINE__);
   }
+  if (having)
+  {
+    Item *cache_item= NULL;
+    Item **analyzer_arg= &cache_item;
+    having=
+      having->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
+                      &Item::cache_const_expr_transformer,(uchar *)&cache_item);
+    if (having == NULL)
+      return true;
+  }
+  return false;
 }
 
 
