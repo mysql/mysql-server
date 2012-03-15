@@ -6402,6 +6402,12 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
   /* Unlink the child select_lex: */
   subq_lex->master_unit()->exclude_level();
   /*
+    Update the resolver context - needed for Item_field objects that have been
+    replaced in the item tree for this execution, but are still needed for
+    subsequent executions.
+  */
+  subq_lex->context.select_lex= parent_lex;
+  /*
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
   */
