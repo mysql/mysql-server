@@ -1841,7 +1841,7 @@ int ha_myisam::reset(void)
   DBUG_ASSERT(pushed_idx_cond == NULL);
   DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
   mi_set_index_cond_func(file, NULL, 0);
-  ds_mrr.dsmrr_close();
+  ds_mrr.reset();
   return mi_reset(file);
 }
 

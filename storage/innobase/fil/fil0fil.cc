@@ -193,7 +193,7 @@ struct fil_space_struct {
 				.ibd file of tablespace and want to
 				stop temporarily posting of new i/o
 				requests on the file */
-	ibool		stop_ibuf_merges;
+	ibool		stop_new_ops;
 				/*!< we set this TRUE when we start
 				deleting a single-table tablespace */
 	ibool		is_being_deleted;
@@ -220,12 +220,13 @@ struct fil_space_struct {
 	ulint		n_pending_flushes; /*!< this is positive when flushing
 				the tablespace to disk; dropping of the
 				tablespace is forbidden if this is positive */
-	ulint		n_pending_ibuf_merges;/*!< this is positive
-				when merging insert buffer entries to
-				a page so that we may need to access
-				the ibuf bitmap page in the
-				tablespade: dropping of the tablespace
-				is forbidden if this is positive */
+	ulint		n_pending_ops;/*!< this is positive when we
+				have pending operations against this
+				tablespace. The pending operations can
+				be ibuf merges or lock validation code
+				trying to read a block.
+				Dropping of the tablespace is forbidden
+				if this is positive */
 	hash_node_t	hash;	/*!< hash chain node */
 	hash_node_t	name_hash;/*!< hash chain the name_hash table */
 #ifndef UNIV_HOTBACKUP
@@ -1894,13 +1895,12 @@ fil_read_first_page(
 
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
-Increments the count of pending insert buffer page merges, if space is not
-being deleted.
-@return	TRUE if being deleted, and ibuf merges should be skipped */
+Increments the count of pending operation, if space is not being deleted.
+@return	TRUE if being deleted, and operation should be skipped */
 UNIV_INTERN
 ibool
-fil_inc_pending_ibuf_merges(
-/*========================*/
+fil_inc_pending_ops(
+/*================*/
 	ulint	id)	/*!< in: space id */
 {
 	fil_space_t*	space;
@@ -1916,13 +1916,13 @@ fil_inc_pending_ibuf_merges(
 			(ulong) id);
 	}
 
-	if (space == NULL || space->stop_ibuf_merges) {
+	if (space == NULL || space->stop_new_ops) {
 		mutex_exit(&fil_system->mutex);
 
 		return(TRUE);
 	}
 
-	space->n_pending_ibuf_merges++;
+	space->n_pending_ops++;
 
 	mutex_exit(&fil_system->mutex);
 
@@ -1930,11 +1930,11 @@ fil_inc_pending_ibuf_merges(
 }
 
 /*******************************************************************//**
-Decrements the count of pending insert buffer page merges. */
+Decrements the count of pending operations. */
 UNIV_INTERN
 void
-fil_decr_pending_ibuf_merges(
-/*=========================*/
+fil_decr_pending_ops(
+/*=================*/
 	ulint	id)	/*!< in: space id */
 {
 	fil_space_t*	space;
@@ -1945,13 +1945,13 @@ fil_decr_pending_ibuf_merges(
 
 	if (space == NULL) {
 		fprintf(stderr,
-			"InnoDB: Error: decrementing ibuf merge of a"
-			" dropped tablespace %lu\n",
+			"InnoDB: Error: decrementing pending operation"
+			" of a dropped tablespace %lu\n",
 			(ulong) id);
 	}
 
 	if (space != NULL) {
-		space->n_pending_ibuf_merges--;
+		space->n_pending_ops--;
 	}
 
 	mutex_exit(&fil_system->mutex);
@@ -2277,7 +2277,7 @@ Check for change buffer merges.
 @return 0 if no merges else count + 1. */
 static
 ulint
-fil_ibuf_check_pending_merges(
+fil_ibuf_check_pending_ops(
 /*==========================*/
 	fil_space_t*	space,	/*!< in/out: Tablespace to check */
 	ulint		count)	/*!< in: number of attempts so far */
@@ -2285,9 +2285,9 @@ fil_ibuf_check_pending_merges(
 	ut_ad(mutex_own(&fil_system->mutex));
 
 	if (space != 0) {
-		space->stop_ibuf_merges = TRUE;
+		space->stop_new_ops = TRUE;
 
-		if (space->n_pending_ibuf_merges != 0) {
+		if (space->n_pending_ops != 0) {
 
 		       if (count > 5000) {
 				ib_logf(IB_LOG_LEVEL_WARN,
@@ -2295,7 +2295,7 @@ fil_ibuf_check_pending_merges(
 					"'%s' but there are %lu pending change "
 					"buffer merges on it.",
 					space->name,
-					(ulong) space->n_pending_ibuf_merges);
+					(ulong) space->n_pending_ops);
 			}
 
 			return(count + 1);
@@ -2317,7 +2317,7 @@ fil_check_pending_io(
 	ulint		count)	/*!< in: number of attempts so far */
 {
 	ut_ad(mutex_own(&fil_system->mutex));
-	ut_a(space->n_pending_ibuf_merges == 0);
+	ut_a(space->n_pending_ops == 0);
 
 	space->is_being_deleted = TRUE;
 
@@ -2333,7 +2333,7 @@ fil_check_pending_io(
 
 		if (count > 1000) {
 			ib_logf(IB_LOG_LEVEL_WARN, 
-				"Trying to delete tablespace '%s' "
+				"Trying to close/delete tablespace '%s' "
 				"but there are %lu flushes "
 				" and %lu pending i/o's on it.",
 				space->name,
@@ -2371,7 +2371,7 @@ fil_check_pending_operations(
 
 		*space = fil_space_get_by_id(id);
 
-		count = fil_ibuf_check_pending_merges(*space, count);
+		count = fil_ibuf_check_pending_ops(*space, count);
 
 		mutex_exit(&fil_system->mutex);
 

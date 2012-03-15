@@ -8691,6 +8691,8 @@ ha_innobase::create(
 		}
 	}
 
+	ut_a(strlen(name) < sizeof(name2));
+
 	strcpy(name2, name);
 
 	normalize_table_name(norm_name, name2);
@@ -11095,7 +11097,7 @@ ha_innobase::reset()
 	}
 
 	reset_template();
-	ds_mrr.dsmrr_close();
+	ds_mrr.reset();
 
 	/* TODO: This should really be reset in reset_template() but for now
 	it's safer to do it explicitly here. */
