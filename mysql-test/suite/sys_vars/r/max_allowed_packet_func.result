@@ -24,7 +24,7 @@ SELECT @@session.net_buffer_length;
 ## Setting value of max_allowed packet and net_buffer_length to 1024 ##
 SET @@global.max_allowed_packet = 1024;
 Warnings:
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SET @@global.net_buffer_length = 1024;
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
