@@ -381,7 +381,7 @@ row_quiesce_write_cfg(
 
 	if (file == NULL) {
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_CANT_CREATE_FILE,
-			 "Can't create %s : errno %lu", name, (ulong) errno);
+			 "Can't create '%s' : errno %lu", name, (ulong) errno);
 
 		err = DB_IO_ERROR;
 	} else {
@@ -421,9 +421,11 @@ row_quiesce_table_start(
 		table_name, sizeof(table_name), table->name, FALSE);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Sync to disk of %s started.", table_name);
+		"Sync to disk of '%s' started.", table_name);
 
-	trx_purge_stop();
+	if (trx_purge_state() != PURGE_STATE_DISABLED) {
+		trx_purge_stop();
+	}
 
 	ut_a(table->id > 0);
 
@@ -445,7 +447,7 @@ row_quiesce_table_start(
 				"meta data file");
 		} else {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Table %s flushed to disk", table_name);
+				"Table '%s' flushed to disk", table_name);
 		}
 	} else {
 		ib_logf(IB_LOG_LEVEL_WARN, "Quiesce aborted!");
@@ -502,7 +504,9 @@ row_quiesce_table_complete(
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Deleting the meta-data file '%s'", cfg_name);
 
-	trx_purge_run();
+	if (trx_purge_state() != PURGE_STATE_DISABLED) {
+		trx_purge_run();
+	}
 
 	db_err	err = row_quiesce_set_state(table, QUIESCE_NONE, trx);
 	ut_a(err == DB_SUCCESS);
