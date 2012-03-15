@@ -1404,13 +1404,6 @@ row_merge_read_clustered_index(
 				on_user_rec = btr_pcur_restore_position(
 					BTR_SEARCH_LEAF, &pcur, &mtr);
 				ut_a(!on_user_rec);
-
-				if (!page_cur_is_after_last(cur)) {
-					/* The tree was apparently
-					restructured while we yielded,
-					and another record moved here. */
-					goto process_rec;
-				}
 			}
 
 			next_page_no = btr_page_get_next(
@@ -1441,7 +1434,6 @@ row_merge_read_clustered_index(
 			ut_ad(!page_cur_is_after_last(cur));
 		}
 
-process_rec:
 		rec = page_cur_get_rec(cur);
 
 		if (rec_get_deleted_flag(rec, dict_table_is_comp(old_table))) {
