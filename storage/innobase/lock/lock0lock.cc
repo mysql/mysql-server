@@ -5081,6 +5081,10 @@ lock_print_info_summary(
 		/* Should never be in this state while the system is running. */
 		ut_error;
 
+	case PURGE_STATE_DISABLED:
+		fprintf(file, "disabled");
+		break;
+
 	case PURGE_STATE_RUN:
 		fprintf(file, "running");
 		/* Check if it is waiting for more data to arrive. */

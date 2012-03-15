@@ -1,5 +1,34 @@
 drop table if exists t1, t2;
 #
+# Bug#13694811: THE OPTIMIZER WRONGLY USES THE FIRST
+#               INNODB PARTITION STATISTICS
+#
+CREATE TABLE t1
+(a INT,
+b varchar(64),
+PRIMARY KEY (a),
+KEY (b))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 10
+(PARTITION pNeg VALUES LESS THAN (0),
+PARTITION p0 VALUES LESS THAN (1000),
+PARTITION pMAX VALUES LESS THAN MAXVALUE);
+# Only one row in the first 10 subpartitions
+INSERT INTO t1 VALUES (-1, 'Only negative pk value');
+INSERT INTO t1 VALUES (0, 'Mod Zero'), (1, 'One'), (2, 'Two'), (3, 'Three'),
+(10, 'Zero'), (11, 'Mod One'), (12, 'Mod Two'), (13, 'Mod Three'),
+(20, '0'), (21, '1'), (22, '2'), (23, '3'),
+(4, '4'), (5, '5'), (6, '6'), (7, '7'), (8, '8'), (9, '9');
+INSERT INTO t1 SELECT a + 30, b FROM t1 WHERE a >= 0;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT b FROM t1 WHERE b between 'L' and 'N' AND a > -100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,b	b	67	NULL	18	Using where; Using index
+DROP TABLE t1;
+#
 # Bug#13007154: Crash in keys_to_use_for_scanning with ORDER BY
 #               and PARTITIONING
 #

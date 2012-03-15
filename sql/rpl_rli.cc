@@ -1434,8 +1434,11 @@ bool mysql_show_relaylog_events(THD* thd)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  if (!active_mi)
-    DBUG_RETURN(TRUE);
+  if (active_mi == NULL)
+  {
+    my_eof(thd);
+    DBUG_RETURN(true);
+  }
   
   DBUG_RETURN(show_binlog_events(thd, &active_mi->rli->relay_log));
 }

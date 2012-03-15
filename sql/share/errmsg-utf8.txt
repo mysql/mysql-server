@@ -6425,9 +6425,84 @@ ER_SET_PASSWORD_AUTH_PLUGIN
 ER_GRANT_PLUGIN_USER_EXISTS
         eng "GRANT with IDENTIFIED WITH is illegal because the user %-.*s already exists"
 
-ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
-  eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
-  ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
+ER_TRUNCATE_ILLEGAL_FK 42000
+  eng "Cannot truncate a table referenced in a foreign key constraint (%.192s)"
+
+ER_PLUGIN_IS_PERMANENT
+  eng "Plugin '%s' is force_plus_permanent and can not be unloaded"
+
+ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN
+  eng "The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled."
+
+ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
+  eng "The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout."
+
+ER_STMT_CACHE_FULL  
+        eng "Multi-row statements required more than 'max_binlog_stmt_cache_size' bytes of storage; increase this mysqld variable and try again"
+
+ER_MULTI_UPDATE_KEY_CONFLICT
+  eng "Primary key/partition key update is not allowed since the table is updated both as '%-.192s' and '%-.192s'."
+
+# When translating this error message make sure to include "ALTER TABLE" in the
+# message as mysqlcheck parses the error message looking for ALTER TABLE.
+ER_TABLE_NEEDS_REBUILD
+        eng "Table rebuild required. Please do \"ALTER TABLE `%-.32s` FORCE\" or dump/reload to fix it!"
+
+WARN_OPTION_BELOW_LIMIT
+  eng "The value of '%s' should be no less than the value of '%s'"
+
+ER_INDEX_COLUMN_TOO_LONG
+  eng "Index column size too large. The maximum column size is %lu bytes."
+
+ER_ERROR_IN_TRIGGER_BODY
+  eng "Trigger '%-.64s' has an error in its body: '%-.256s'"
+
+ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
+  eng "Unknown trigger has an error in its body: '%-.256s'"
+
+ER_INDEX_CORRUPT
+  eng "Index %s is corrupted"
+
+ER_UNDO_RECORD_TOO_BIG
+  eng "Undo log record is too big."
+
+ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT
+  eng "INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE
+  eng "INSERT... SELECT... ON DUPLICATE KEY UPDATE is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are updated. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_REPLACE_SELECT
+ eng "REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT
+  eng "CREATE... IGNORE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT
+  eng "CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_UPDATE_IGNORE
+  eng "UPDATE IGNORE is unsafe because the order in which rows are updated determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+
+ER_PLUGIN_NO_UNINSTALL
+  eng "Plugin '%s' is marked as not dynamically uninstallable. You have to stop the server to uninstall it."
+
+ER_PLUGIN_NO_INSTALL
+  eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
+
+
+ER_BINLOG_UNSAFE_WRITE_AUTOINC_SELECT
+  eng "Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC
+  eng "CREATE TABLE... SELECT...  on a table with an auto-increment column is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are inserted. This order cannot be predicted and may differ on master and the slave."
+
+ER_TABLE_IN_FK_CHECK
+  eng "Table is being used in foreign key check."
+
+#
+#  End of 5.5 error messages.
+#
 
 ER_CANNOT_LOAD_FROM_TABLE_V2
   eng "Cannot load from %s.%s. The table is probably corrupted"
@@ -6464,17 +6539,6 @@ ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX
   eng "Option binlog_cache_size (%lu) is greater than max_binlog_cache_size (%lu); setting binlog_cache_size equal to max_binlog_cache_size."
 ER_WARN_INDEX_NOT_APPLICABLE
   eng "Cannot use %-.64s access on index '%-.64s' due to type or collation conversion on field '%-.64s'"
-ER_TRUNCATE_ILLEGAL_FK 42000
-  eng "Cannot truncate a table referenced in a foreign key constraint (%.192s)"
-
-ER_PLUGIN_IS_PERMANENT
-  eng "Plugin '%s' is force_plus_permanent and can not be unloaded"
-
-ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN
-  eng "The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled."
-
-ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
-  eng "The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout."
 
 ER_PARTITION_EXCHANGE_FOREIGN_KEY
   eng "Table to exchange with partition has foreign key references: '%-.64s'"
@@ -6487,12 +6551,6 @@ ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
   eng "Replication event checksum verification failed while reading from network."
 ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE
   eng "Replication event checksum verification failed while reading from a log file."
-
-ER_STMT_CACHE_FULL  
-        eng "Multi-row statements required more than 'max_binlog_stmt_cache_size' bytes of storage; increase this mysqld variable and try again"
-
-ER_MULTI_UPDATE_KEY_CONFLICT
-  eng "Primary key/partition key update is not allowed since the table is updated both as '%-.192s' and '%-.192s'."
 
 ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX
   eng "Option binlog_stmt_cache_size (%lu) is greater than max_binlog_stmt_cache_size (%lu); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size."
@@ -6525,14 +6583,6 @@ ER_NO_SUCH_PARTITION
   spa "Particion '%-.64s' no existe"
   swe "Det finns ingen partition som heter '%-.64s'"
 
-# When translating this error message make sure to include "ALTER TABLE" in the
-# message as mysqlcheck parses the error message looking for ALTER TABLE.
-ER_TABLE_NEEDS_REBUILD
-        eng "Table rebuild required. Please do \"ALTER TABLE `%-.32s` FORCE\" or dump/reload to fix it!"
-
-WARN_OPTION_BELOW_LIMIT
-  eng "The value of '%s' should be no less than the value of '%s'"
-
 ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE
   eng "Failure while changing the type of replication repository: %s."
 
@@ -6540,18 +6590,6 @@ ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE
   eng "The creation of some temporary tables could not be rolled back."
 ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE
   eng "Some temporary tables were dropped, but these operations could not be rolled back."
-
-ER_INDEX_COLUMN_TOO_LONG
-  eng "Index column size too large. The maximum column size is %lu bytes."
-
-ER_ERROR_IN_TRIGGER_BODY
-  eng "Trigger '%-.64s' has an error in its body: '%-.256s'"
-
-ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
-  eng "Unknown trigger has an error in its body: '%-.256s'"
-
-ER_INDEX_CORRUPT
-  eng "Index %s is corrupted"
 
 ER_MTS_FEATURE_IS_NOT_SUPPORTED
   eng "%s is not supported in multi-threaded slave mode. %s"
@@ -6562,33 +6600,6 @@ ER_MTS_CANT_PARALLEL
 ER_MTS_INCONSISTENT_DATA
   eng "%s"
 
-ER_UNDO_RECORD_TOO_BIG
-  eng "Undo log record is too big."
-
-ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT
-  eng "INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
-
-ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE
-  eng "INSERT... SELECT... ON DUPLICATE KEY UPDATE is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are updated. This order cannot be predicted and may differ on master and the slave."
-
-ER_BINLOG_UNSAFE_REPLACE_SELECT
- eng "REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
-
-ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT
-  eng "CREATE... IGNORE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
-
-ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT
-  eng "CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
-
-ER_BINLOG_UNSAFE_UPDATE_IGNORE
-  eng "UPDATE IGNORE is unsafe because the order in which rows are updated determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
-
-ER_PLUGIN_NO_UNINSTALL
-  eng "Plugin '%s' is marked as not dynamically uninstallable. You have to stop the server to uninstall it."
-
-ER_PLUGIN_NO_INSTALL
-  eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
-
 ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
   eng "FULLTEXT index is not supported for partitioned tables."
   swe "FULLTEXT index stöds ej för partitionerade tabeller."
@@ -6596,6 +6607,12 @@ ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
 ER_DA_INVALID_CONDITION_NUMBER 35000
   eng "Invalid condition number"
   por "Número de condição inválido"
+
+ER_INSECURE_PLAIN_TEXT
+  eng "Sending passwords in plain text without SSL/TLS is extremely insecure."
+
+ER_INSECURE_CHANGE_MASTER
+  eng "Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives."
 
 ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO 23000 S1009
         eng "Foreign key constraint for table '%.192s', record '%-.192s' would lead to a duplicate entry in table '%.192s', key '%.192s'"
@@ -6606,12 +6623,6 @@ ER_FOREIGN_DUPLICATE_KEY_WITHOUT_CHILD_INFO 23000 S1009
         eng "Foreign key constraint for table '%.192s', record '%-.192s' would lead to a duplicate entry in a child table"
         ger "Fremdschlüssel-Beschränkung für Tabelle '%.192s', Datensatz '%-.192s' würde zu einem doppelten Eintrag in einer Kind-Tabelle führen"
         swe "FOREIGN KEY constraint för tabell '%.192s', posten '%-.192s' kan inte uppdatera en barntabell på grund av UNIQUE-test"
-ER_INSECURE_PLAIN_TEXT
-  eng "Sending passwords in plain text without SSL/TLS is extremely insecure."
-
-ER_INSECURE_CHANGE_MASTER
-  eng "Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives."
-
 ER_SQLTHREAD_WITH_SECURE_SLAVE
   eng "Setting authentication options is not possible when only the Slave SQL Thread is being started."
 
@@ -6623,12 +6634,6 @@ ER_INNODB_FT_LIMIT
 
 ER_INNODB_NO_FT_TEMP_TABLE
   eng "Cannot create FULLTEXT index on temporary InnoDB table"
-
-ER_BINLOG_UNSAFE_WRITE_AUTOINC_SELECT
-  eng "Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave."
-
-ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC
-  eng "CREATE TABLE... SELECT...  on a table with an auto-increment column is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are inserted. This order cannot be predicted and may differ on master and the slave."
 
 ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
   eng "The system variable %.200s cannot be set in stored functions or triggers."
@@ -6715,5 +6720,16 @@ ER_UNKNOWN_EXPLAIN_FORMAT
 ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION 25006
   eng "Cannot execute statement in a READ ONLY transaction."
 
-ER_TABLE_IN_FK_CHECK
-  eng "Table is being used in foreign key check."
+ER_TOO_LONG_TABLE_PARTITION_COMMENT
+  eng "Comment for table partition '%-.64s' is too long (max = %lu)"
+
+ER_SLAVE_CONFIGURATION
+  eng "Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log."
+
+ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+  eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
+  ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
+
+#
+#  End of 5.6 error messages.
+#

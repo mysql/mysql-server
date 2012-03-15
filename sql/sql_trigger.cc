@@ -1069,37 +1069,35 @@ Table_triggers_list::~Table_triggers_list()
   of record[0] (they will represent OLD.* row values in ON UPDATE trigger
   and in ON DELETE trigger which will be called during REPLACE execution).
 
-  @param table   pointer to TABLE object for which we are creating fields.
-
   @retval
     False   success
   @retval
     True    error
 */
-bool Table_triggers_list::prepare_record1_accessors(TABLE *table)
+bool Table_triggers_list::prepare_record1_accessors()
 {
   Field **fld, **old_fld;
 
-  if (!(record1_field= (Field **)alloc_root(&table->mem_root,
-                                            (table->s->fields + 1) *
+  if (!(record1_field= (Field **)alloc_root(&trigger_table->mem_root,
+                                            (trigger_table->s->fields + 1) *
                                             sizeof(Field*))))
-    return 1;
+    return true;
 
-  for (fld= table->field, old_fld= record1_field; *fld; fld++, old_fld++)
+  for (fld= trigger_table->field, old_fld= record1_field; *fld; fld++, old_fld++)
   {
     /*
       QQ: it is supposed that it is ok to use this function for field
       cloning...
     */
-    if (!(*old_fld= (*fld)->new_field(&table->mem_root, table,
-                                      table == (*fld)->table)))
-      return 1;
-    (*old_fld)->move_field_offset((my_ptrdiff_t)(table->record[1] -
-                                                 table->record[0]));
+    if (!(*old_fld= (*fld)->new_field(&trigger_table->mem_root, trigger_table,
+                                      trigger_table == (*fld)->table)))
+      return true;
+    (*old_fld)->move_field_offset((my_ptrdiff_t)(trigger_table->record[1] -
+                                                 trigger_table->record[0]));
   }
   *old_fld= 0;
 
-  return 0;
+  return false;
 }
 
 
@@ -1343,7 +1341,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         TODO: This could be avoided if there is no triggers
               for UPDATE and DELETE.
       */
-      if (!names_only && triggers->prepare_record1_accessors(table))
+      if (!names_only && triggers->prepare_record1_accessors())
         DBUG_RETURN(1);
 
       List_iterator_fast<sql_mode_t> itm(triggers->definition_modes_list);

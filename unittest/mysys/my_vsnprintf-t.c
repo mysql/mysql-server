@@ -155,7 +155,7 @@ int main(void)
         "conn %ld to: '%-.64s' user: '%-.32s' host: '%-.64s' (%-.64s)",
                    1L,     NULL,          NULL,          NULL,    NULL);
   test1("Hello string `I am a string`",
-        "Hello string %`s", "I am a string");
+        "Hello string `%s", "I am a string");
   test1("Hello TEST",
         "Hello %05s", "TEST");
   test1("My `Q` test",
