@@ -17,9 +17,4 @@ ADD_SUBDIRECTORY(myapi)
 ADD_SUBDIRECTORY(myjapi)
 ADD_SUBDIRECTORY(unload)
 
-# ndb71@win32: compile issues with including <NdbTap.hpp>
-#INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/util
-#		${CMAKE_SOURCE_DIR}/unittest/mytap)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/unittest/mytap)
-
 ADD_EXECUTABLE(jtie_unit_tests-t jtie_unit_tests-t.cpp)

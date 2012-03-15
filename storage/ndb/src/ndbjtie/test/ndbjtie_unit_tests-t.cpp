@@ -14,20 +14,9 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-/*
- * ndbjtie_unit_tests-t.cpp
- */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-
-// ndb71@win32: unresolved compile errors ('VOID' : undeclared identifier)
-// in C:\Program Files\Microsoft SDKs\Windows\v7.0A\include\dbghelp.h(931)
-// when including <NdbTap.hpp>; hence, using directly:
-#include <tap.h>
-#include <tap.c>
+#include <ndb_global.h>
+#include <util/NdbTap.hpp>
 
 // platform-specific functions and settings
 #ifdef _WIN32
