@@ -10,7 +10,9 @@
 #
 ##############################################################################
 
+event_aggregate_no_a : MCP Unstable testcase
 event_aggregate_no_a_no_h : MCP Unstable testcase
+event_aggregate_no_a_no_u : MCP Unstable testcase
 event_aggregate_no_a_no_u_no_h : MCP Unstable testcase
 event_aggregate_no_h : MCP Unstable testcase
 event_aggregate_no_u_no_h : MCP Unstable testcase
