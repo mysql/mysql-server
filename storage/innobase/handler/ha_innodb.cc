@@ -8649,6 +8649,8 @@ ha_innobase::create(
 		}
 	}
 
+	ut_a(strlen(name) < sizeof(name2));
+
 	strcpy(name2, name);
 
 	normalize_table_name(norm_name, name2);
