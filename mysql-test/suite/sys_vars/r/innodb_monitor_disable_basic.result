@@ -175,6 +175,7 @@ ibuf_merges_discard_delete_mark	disabled
 ibuf_merges_discard_delete	disabled
 ibuf_merges	disabled
 ibuf_size	disabled
+ibuf_page_merges	disabled
 innodb_master_thread_sleeps	disabled
 innodb_activity_count	disabled
 innodb_master_active_loops	disabled
@@ -381,6 +382,7 @@ ibuf_merges_discard_delete_mark	enabled
 ibuf_merges_discard_delete	enabled
 ibuf_merges	enabled
 ibuf_size	enabled
+ibuf_page_merges	enabled
 innodb_master_thread_sleeps	enabled
 innodb_activity_count	enabled
 innodb_master_active_loops	enabled
@@ -589,6 +591,7 @@ ibuf_merges_discard_delete_mark	disabled
 ibuf_merges_discard_delete	disabled
 ibuf_merges	disabled
 ibuf_size	disabled
+ibuf_page_merges	disabled
 innodb_master_thread_sleeps	disabled
 innodb_activity_count	disabled
 innodb_master_active_loops	disabled
@@ -795,6 +798,7 @@ ibuf_merges_discard_delete_mark	0	disabled
 ibuf_merges_discard_delete	0	disabled
 ibuf_merges	0	disabled
 ibuf_size	0	disabled
+ibuf_page_merges	0	disabled
 innodb_master_thread_sleeps	0	disabled
 innodb_activity_count	0	disabled
 innodb_master_active_loops	0	disabled
@@ -1055,6 +1059,7 @@ ibuf_merges_discard_delete_mark	enabled
 ibuf_merges_discard_delete	enabled
 ibuf_merges	enabled
 ibuf_size	enabled
+ibuf_page_merges	enabled
 innodb_master_thread_sleeps	enabled
 innodb_activity_count	enabled
 innodb_master_active_loops	enabled
@@ -1261,6 +1266,7 @@ ibuf_merges_discard_delete_mark	disabled
 ibuf_merges_discard_delete	disabled
 ibuf_merges	disabled
 ibuf_size	disabled
+ibuf_page_merges	disabled
 innodb_master_thread_sleeps	disabled
 innodb_activity_count	disabled
 innodb_master_active_loops	disabled
@@ -1467,6 +1473,7 @@ ibuf_merges_discard_delete_mark	enabled
 ibuf_merges_discard_delete	enabled
 ibuf_merges	enabled
 ibuf_size	enabled
+ibuf_page_merges	enabled
 innodb_master_thread_sleeps	enabled
 innodb_activity_count	enabled
 innodb_master_active_loops	enabled
@@ -1673,6 +1680,7 @@ ibuf_merges_discard_delete_mark	disabled
 ibuf_merges_discard_delete	disabled
 ibuf_merges	disabled
 ibuf_size	disabled
+ibuf_page_merges	disabled
 innodb_master_thread_sleeps	disabled
 innodb_activity_count	disabled
 innodb_master_active_loops	disabled
@@ -1879,6 +1887,7 @@ ibuf_merges_discard_delete_mark	disabled
 ibuf_merges_discard_delete	disabled
 ibuf_merges	disabled
 ibuf_size	disabled
+ibuf_page_merges	disabled
 innodb_master_thread_sleeps	disabled
 innodb_activity_count	disabled
 innodb_master_active_loops	disabled
