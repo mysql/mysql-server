@@ -54,7 +54,7 @@ void test_concurrently(const char *test, pthread_handler handler, int n, int m)
 
 int main(int argc __attribute__((unused)), char **argv)
 {
-  MY_INIT("thd_template");
+  MY_INIT(argv[0]);
 
   if (argv[1] && *argv[1])
     DBUG_SET_INITIAL(argv[1]);
