@@ -407,10 +407,10 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB AUTO_INCREMENT=185 DEFAULT CHARSET=latin1
 DROP TABLE test_wl5522.t1;
 DROP DATABASE test_wl5522;
-SELECT name, count 
+SELECT name
 FROM information_schema.innodb_metrics
-WHERE name = 'ibuf_page_merges';
-name	count
-ibuf_page_merges	48
+WHERE name = 'ibuf_page_merges' AND count > 0;
+name
+ibuf_page_merges
 SET SESSION debug="-d,ib_buf_force_flush";
 SET SESSION debug="-d,ib_ibuf_disable_background_merge";
