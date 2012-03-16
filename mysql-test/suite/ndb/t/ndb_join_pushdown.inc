@@ -1055,6 +1055,76 @@ connection ddl;
 drop table t1;
 drop table tx;
 
+# Test user defined partition not being pushed
+#
+# Note: User defined partitions are handled
+#       by the SQL layer, and as such are unknown
+#       to the NDB datanodes.
+# 
+
+connection spj;
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  primary key (`a`,`b`)
+) engine=ndbcluster partition by key(a);
+
+connection spj;
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+# Only this query('partition by key') should be pushed
+explain extended
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+
+connection ddl;
+set new=on;
+alter table t1 partition by hash(a);
+
+explain extended
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+
+connection ddl;
+alter table t1 partition by list(a) (
+  partition p1 values in (1),
+  partition p2 values in (2),
+  partition p3 values in (3),
+  partition p4 values in (4)
+);
+
+explain extended
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+
+connection ddl;
+alter table t1 partition by range(a) partitions 4 (
+  partition p1 values less than (0),
+  partition p2 values less than (2),
+  partition p3 values less than (4),
+  partition p4 values less than (99999)
+);
+
+explain extended
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+
+connection ddl;
+drop table t1;
+set new=default;
+
+
 # pushed mrr does not yet handle multiple PK operations in same transaction
 # Need 6.0 result handling stuff to simplify result handling
 # *** join push is currently dissabled for these ****
