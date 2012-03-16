@@ -20,15 +20,15 @@
 
   <Product 
     Id="*" 
-    UpgradeCode="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3"
-    Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@" 
+    UpgradeCode="@UPGRADE_CODE@"
+    Name="@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@" 
     Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@" 
     Language="1033" 
     Manufacturer="@MANUFACTURER@">
     
     <Package Id='*'
        Keywords='Installer'
-       Description="MySQL Database Server"
+       Description="@PRODUCT_NAME@"
        Manufacturer='@MANUFACTURER@'
        InstallerVersion='200'
        Languages='1033'
@@ -39,7 +39,7 @@
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
 
     <!-- Upgrade -->
-    <Upgrade Id="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3">
+    <Upgrade Id="@UPGRADE_ID@">
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
         IncludeMinimum="yes"
@@ -156,7 +156,7 @@
     <Directory Id='TARGETDIR' Name='SourceDir'>
       <Directory Id='@PlatformProgramFilesFolder@'>
         <Directory Id='directory.MySQL' Name='MySQL'>
-          <Directory Id='INSTALLDIR' Name='MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@'>
+          <Directory Id='INSTALLDIR' Name='@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@'>
           </Directory>
         </Directory>
       </Directory>

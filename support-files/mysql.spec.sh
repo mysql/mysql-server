@@ -24,7 +24,7 @@
 %define mysql_vendor_2          Sun Microsystems, Inc.
 %define mysql_vendor            Oracle and/or its affiliates
 
-%define mysql_version   @VERSION@
+%define mysql_version   @NDBVERSION@
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
@@ -238,18 +238,18 @@
 # Main spec file section
 ##############################################################################
 
-Name:           MySQL%{product_suffix}
-Summary:        MySQL: a very fast and reliable SQL database server
+Name:           MySQL-Cluster%{product_suffix}
+Summary:        MySQL Cluster: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_RPM_VERSION@
 Release:        %{release}%{?distro_releasetag:.%{distro_releasetag}}
 Distribution:   %{distro_description}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{license_type} license as shown in the Description field.
-Source:         http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
+Source:         %{src_dir}.tar.gz
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
-Provides:       msqlormysql MySQL-server mysql
+Conflicts:      msqlormysql MySQL-server mysql
 BuildRequires:  %{distro_buildreq}
 
 # Think about what you use here since the first step is to
@@ -279,16 +279,17 @@ documentation and the manual for more information.
 # Sub package definition
 ##############################################################################
 
-%package -n MySQL-server%{product_suffix}
-Summary:	MySQL: a very fast and reliable SQL database server
-Group:		Applications/Databases
-Requires:	%{distro_requires}
-Provides:	msqlormysql mysql MySQL mysql-server MySQL-server
-Obsoletes:	mysql MySQL mysql-server MySQL-server
-Obsoletes:	MySQL-server-classic MySQL-server-community MySQL-server-enterprise
-Obsoletes:	MySQL-server-advanced MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
+%package -n MySQL-Cluster-server%{product_suffix}
+Summary:        MySQL: a very fast and reliable SQL database server
+Group:          Applications/Databases
+Requires:       %{distro_requires}
+Provides:       MySQL-Cluster-server
+Obsoletes:      MySQL-Cluster-server
+Obsoletes:      MySQL-Cluster-management MySQL-Cluster-storage
+Obsoletes:      MySQL-Cluster-extra MySQL-Cluster-tools
+Conflicts:      MySQL mysql mysql-server MySQL-server
 
-%description -n MySQL-server%{product_suffix}
+%description -n MySQL-Cluster-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
@@ -310,81 +311,67 @@ This package includes the MySQL server binary as well as related utilities
 to run and administer a MySQL server.
 
 If you want to access and work with the database, you have to install
-package "MySQL-client%{product_suffix}" as well!
+package "MySQL-Cluster-client%{product_suffix}" as well!
 
 # ----------------------------------------------------------------------------
-%package -n MySQL-client%{product_suffix}
-Summary:	MySQL - Client
-Group:		Applications/Databases
-Provides:	mysql-client MySQL-client
-Obsoletes:	mysql-client MySQL-client
-Obsoletes:	MySQL-client-classic MySQL-client-community MySQL-client-enterprise
-Obsoletes:	MySQL-client-advanced MySQL-client-advanced-gpl MySQL-client-enterprise-gpl
+%package -n MySQL-Cluster-client%{product_suffix}
+Summary:        MySQL Cluster - Client
+Group:          Applications/Databases
+Provides:       MySQL-Cluster-client
+Obsoletes:      MySQL-Cluster-client
 
-%description -n MySQL-client%{product_suffix}
+%description -n MySQL-Cluster-client%{product_suffix}
 This package contains the standard MySQL clients and administration tools.
 
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
-%package -n MySQL-test%{product_suffix}
-Summary:	MySQL - Test suite
-Group:		Applications/Databases
-Requires:	MySQL-client perl
-Provides:	mysql-test MySQL-test
-Obsoletes:	mysql-test MySQL-test
-Obsoletes:	mysql-bench MySQL-bench
-Obsoletes:	MySQL-test-classic MySQL-test-community MySQL-test-enterprise
-Obsoletes:	MySQL-test-advanced MySQL-test-advanced-gpl MySQL-test-enterprise-gpl
-AutoReqProv:	no
+%package -n MySQL-Cluster-test%{product_suffix}
+Requires:       MySQL-Cluster-client%{product_suffix} perl
+Summary:        MySQL Cluster - Test suite
+Group:          Applications/Databases
+Provides:       MySQL-Cluster-test
+Obsoletes:      MySQL-Cluster-test
+AutoReqProv:    no
 
-%description -n MySQL-test%{product_suffix}
+%description -n MySQL-Cluster-test%{product_suffix}
 This package contains the MySQL regression test suite.
 
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
-%package -n MySQL-devel%{product_suffix}
-Summary:	MySQL - Development header files and libraries
-Group:		Applications/Databases
-Provides:	mysql-devel MySQL-devel
-Obsoletes:	mysql-devel MySQL-devel
-Obsoletes:	MySQL-devel-classic MySQL-devel-community MySQL-devel-enterprise
-Obsoletes:	MySQL-devel-advanced MySQL-devel-advanced-gpl MySQL-devel-enterprise-gpl
+%package -n MySQL-Cluster-devel%{product_suffix}
+Summary:        MySQL Cluster - Development header files and libraries
+Group:          Applications/Databases
+Provides:       MySQL-Cluster-devel
+Obsoletes:      MySQL-Cluster-devel
 
-%description -n MySQL-devel%{product_suffix}
+%description -n MySQL-Cluster-devel%{product_suffix}
 This package contains the development header files and libraries necessary
 to develop MySQL client applications.
 
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
-%package -n MySQL-shared%{product_suffix}
-Summary:	MySQL - Shared libraries
-Group:		Applications/Databases
-Provides:	mysql-shared MySQL-shared
-Obsoletes:	mysql-shared MySQL-shared-standard MySQL-shared-pro
-Obsoletes:	MySQL-shared-pro-cert MySQL-shared-pro-gpl
-Obsoletes:	MySQL-shared-pro-gpl-cert MySQL-shared
-Obsoletes:	MySQL-shared-classic MySQL-shared-community MySQL-shared-enterprise
-Obsoletes:	MySQL-shared-advanced MySQL-shared-advanced-gpl MySQL-shared-enterprise-gpl
+%package -n MySQL-Cluster-shared%{product_suffix}
+Summary:        MySQL Cluster - Shared libraries
+Group:          Applications/Databases
+Provides:       MySQL-Cluster-shared
+Obsoletes:      MySQL-Cluster-shared
 
-%description -n MySQL-shared%{product_suffix}
+%description -n MySQL-Cluster-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
 and applications need to dynamically load and use MySQL.
 
 # ----------------------------------------------------------------------------
-%package -n MySQL-embedded%{product_suffix}
-Summary:	MySQL - Embedded library
-Group:		Applications/Databases
-Requires:	MySQL-devel
-Provides:	mysql-embedded MySQL-embedded
-Obsoletes:	mysql-embedded MySQL-embedded
-Obsoletes:	MySQL-embedded-pro
-Obsoletes:	MySQL-embedded-classic MySQL-embedded-community MySQL-embedded-enterprise
-Obsoletes:	MySQL-embedded-advanced MySQL-embedded-advanced-gpl MySQL-embedded-enterprise-gpl
+%package -n MySQL-Cluster-embedded%{product_suffix}
+Summary:        MySQL Cluster - embedded library
+Group:          Applications/Databases
+Requires:       MySQL-Cluster-devel%{product_suffix}
+Provides:       MySQL-Cluster-embedded
+Obsoletes:      MySQL-Cluster-embedded
 
-%description -n MySQL-embedded%{product_suffix}
+%description -n MySQL-Cluster-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
 
 The embedded MySQL server library makes it possible to run a full-featured
@@ -556,7 +543,7 @@ install -m 644 "%{malloc_lib_source}" \
 #  Post processing actions, i.e. when installed
 ##############################################################################
 
-%pre -n MySQL-server%{product_suffix}
+%pre -n MySQL-Cluster-server%{product_suffix}
 # This is the code running at the beginning of a RPM upgrade action,
 # before replacing the old files with the new ones.
 
@@ -581,7 +568,7 @@ fi
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
-installed=`rpm -q --whatprovides mysql-server 2> /dev/null`
+installed=`rpm -q --whatprovides MySQL-Cluster-server 2> /dev/null`
 if [ $? -eq 0 -a -n "$installed" ]; then
   vendor=`rpm -q --queryformat='%{VENDOR}' "$installed" 2>&1`
   version=`rpm -q --queryformat='%{VERSION}' "$installed" 2>&1`
@@ -637,7 +624,7 @@ A manual upgrade is required.
 
   You may choose to use 'rpm --nodeps -ev <package-name>' to remove
   the package which contains the mysqlclient shared library.  The
-  library will be reinstalled by the MySQL-shared-compat package.
+  library will be reinstalled by the MySQL-Cluster-shared-compat package.
 - Install the new MySQL packages supplied by $myvendor
 - Ensure that the MySQL server is started
 - Run the 'mysql_upgrade' program
@@ -724,7 +711,7 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
         sleep 5
 fi
 
-%post -n MySQL-server%{product_suffix}
+%post -n MySQL-Cluster-server%{product_suffix}
 # This is the code running at the end of a RPM install or upgrade action,
 # after the (new) files have been written.
 
@@ -878,7 +865,7 @@ mv -f  $STATUS_FILE ${STATUS_FILE}-LAST  # for "triggerpostun"
 #scheduled service packs and more.  Visit www.mysql.com/enterprise for more
 #information."
 
-%preun -n MySQL-server%{product_suffix}
+%preun -n MySQL-Cluster-server%{product_suffix}
 
 # Which '$1' does this refer to?  Fedora docs have info:
 # " ... a count of the number of versions of the package that are installed.
@@ -907,7 +894,7 @@ fi
 # We do not remove the mysql user since it may still own a lot of
 # database files.
 
-%triggerpostun -n MySQL-server%{product_suffix} --MySQL-server-community
+%triggerpostun -n MySQL-Cluster-server%{product_suffix} -- MySQL-Cluster-server
 
 # Setup: We renamed this package, so any existing "server-community"
 #   package will be removed when this "server" is installed.
@@ -962,9 +949,9 @@ if [ "$SERVER_TO_START" = "true" ] ; then
 	fi
 fi
 
-echo "Trigger 'postun --community' finished at `date`"        >> $STATUS_HISTORY
-echo                                             >> $STATUS_HISTORY
-echo "====="                                     >> $STATUS_HISTORY
+echo "Trigger 'postun -- MySQL-Server-cluster' finished at `date`" >> $STATUS_HISTORY
+echo                                                               >> $STATUS_HISTORY
+echo "====="                                                       >> $STATUS_HISTORY
 
 
 # ----------------------------------------------------------------------
@@ -978,7 +965,7 @@ echo "====="                                     >> $STATUS_HISTORY
 #  Files section
 ##############################################################################
 
-%files -n MySQL-server%{product_suffix} -f release/support-files/plugins.files
+%files -n MySQL-Cluster-server%{product_suffix} -f release/support-files/plugins.files
 %defattr(-,root,root,0755)
 
 %if %{defined license_files_server}
@@ -1015,6 +1002,27 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbug.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_all.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_count.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_show_tables.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_size.pl.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_waiter.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndbd_redo_log_reader.1*
+%doc %attr(644, root, man) %{_mandir}/man8/ndb_mgmd.8*
+%doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
+%doc %attr(644, root, man) %{_mandir}/man8/ndbmtd.8*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
@@ -1043,18 +1051,54 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysqldumpslow
 %attr(755, root, root) %{_bindir}/mysqlhotcopy
 %attr(755, root, root) %{_bindir}/mysqltest
+%attr(755, root, root) %{_bindir}/ndb_error_reporter
+%attr(755, root, root) %{_bindir}/ndb_size.pl
+%attr(755, root, root) %{_bindir}/ndbinfo_select_all
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/replace
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
 
+%attr(755, root, root) %{_bindir}/ndb_config
+%attr(755, root, root) %{_bindir}/ndb_delete_all
+%attr(755, root, root) %{_bindir}/ndb_desc
+%attr(755, root, root) %{_bindir}/ndb_drop_index
+%attr(755, root, root) %{_bindir}/ndb_drop_table
+%attr(755, root, root) %{_bindir}/ndb_index_stat
+%attr(755, root, root) %{_bindir}/ndb_mgm
+%attr(755, root, root) %{_bindir}/ndb_print_backup_file
+%attr(755, root, root) %{_bindir}/ndb_print_file
+%attr(755, root, root) %{_bindir}/ndb_print_schema_file
+%attr(755, root, root) %{_bindir}/ndb_print_sys_file
+%attr(755, root, root) %{_bindir}/ndb_redo_log_reader
+%attr(755, root, root) %{_bindir}/ndb_restore
+%attr(755, root, root) %{_bindir}/ndb_select_all
+%attr(755, root, root) %{_bindir}/ndb_select_count
+%attr(755, root, root) %{_bindir}/ndb_show_tables
+%attr(755, root, root) %{_bindir}/ndb_waiter
+
+%if %(test "@MEMCACHED_ROOT_DIR@" '!=' "MEMCACHED_ROOT_DIR-NOTFOUND" && echo 1 || echo 0)
+%attr(755, root, root) %{_sbindir}/memcached
+%endif
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
+%attr(755, root, root) %{_sbindir}/ndbd
+%attr(755, root, root) %{_sbindir}/ndb_mgmd
+%attr(755, root, root) %{_sbindir}/ndbmtd
 %attr(755, root, root) %{_sbindir}/rcmysql
+
 %attr(755, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
+%endif
+
+%attr(755, root, root) %{_libdir}/mysql/libndbclient_static.a
+
+%attr(755, root, root) %{_libdir}/libndbclient.so
+%attr(755, root, root) %{_libdir}/libndbclient.so.6.0.0
+%if %(test "@MEMCACHED_ROOT_DIR@" '!=' "MEMCACHED_ROOT_DIR-NOTFOUND" && echo 1 || echo 0)
+%attr(755, root, root) %{_libdir}/ndb_engine.so
 %endif
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
@@ -1063,7 +1107,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_datadir}/mysql/
 
 # ----------------------------------------------------------------------------
-%files -n MySQL-client%{product_suffix}
+%files -n MySQL-Cluster-client%{product_suffix}
 
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/msql2mysql
@@ -1095,7 +1139,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlslap.1*
 
 # ----------------------------------------------------------------------------
-%files -n MySQL-devel%{product_suffix} -f optional-files-devel
+%files -n MySQL-Cluster-devel%{product_suffix} -f optional-files-devel
 %defattr(-, root, root, 0755)
 %doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
@@ -1109,19 +1153,19 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/libmysqlservices.a
 
 # ----------------------------------------------------------------------------
-%files -n MySQL-shared%{product_suffix}
+%files -n MySQL-Cluster-shared%{product_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/libmysql*.so*
 
-%post -n MySQL-shared%{product_suffix}
+%post -n MySQL-Cluster-shared%{product_suffix}
 /sbin/ldconfig
 
-%postun -n MySQL-shared%{product_suffix}
+%postun -n MySQL-Cluster-shared%{product_suffix}
 /sbin/ldconfig
 
 # ----------------------------------------------------------------------------
-%files -n MySQL-test%{product_suffix}
+%files -n MySQL-Cluster-test%{product_suffix}
 %defattr(-, root, root, 0755)
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
@@ -1134,7 +1178,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 # ----------------------------------------------------------------------------
-%files -n MySQL-embedded%{product_suffix}
+%files -n MySQL-Cluster-embedded%{product_suffix}
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/mysql_embedded
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
@@ -1146,20 +1190,30 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Thu Jan 19 2012 Bjorn Munch <bjorn.munch@oracle.com>
+
+- Reinstate embedded, undoing the previous change
+
+* Fri Nov 25 2011 Jonathan Perkin <jonathan.perkin@oracle.com>
+
+- Remove embedded product and files, for now it is disabled.
+
+* Thu Nov 24 2011 Jonathan Perkin <jonathan.perkin@oracle.com>
+
+- More additional Cluster files.
+
+* Thu Sep 29 2011 Jonathan Perkin <jonathan.perkin@oracle.com>
+
+- Bring over the most important bits from the previous Cluster spec files.
+
 * Wed Sep 28 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Fix duplicate mentioning of "mysql_plugin" and its manual page,
   it is better to keep alphabetic order in the files list (merging!).
-  
-* Wed Sep 14 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
-- Let the RPM capabilities ("obsoletes" etc) ensure that an upgrade may replace
-  the RPMs of any configuration (of the current or the preceding release series)
-  by the new ones. This is done by not using the implicitly generated capabilities
-  (which include the configuration name) and relying on more generic ones which
-  just list the function ("server", "client", ...).
-  The implicit generation cannot be prevented, so all these capabilities must be
-  explicitly listed in "Obsoletes:"
+* Tue Sep 27 2011 Daniel Fischer <daniel.fischer@oracle.com>
+
+- Add Cluster files.
 
 * Tue Sep 13 2011 Jonathan Perkin <jonathan.perkin@oracle.com>
 
