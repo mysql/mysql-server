@@ -1,0 +1,3 @@
+SET STORAGE_ENGINE='tokudb';
+DROP TABLE IF EXISTS foo;
+set session tokudb_disable_slow_alter=ON;

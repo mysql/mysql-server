@@ -1,0 +1,49 @@
+#--source include/have_tokudb.inc
+SET STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+# test that modifying a column with more than just a rename is not fast
+create table foo (a int, b varchar(10), c blob)engine=TokuDB;
+insert into foo values(1,"bb","cccc");
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int, change b bb varchar(10);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change b bb varchar(11);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa bigint;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int NOT NULL;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int, alter column b drop default;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change b bb varchar(10) CHARACTER SET latin1 COLLATE latin1_general_cs;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change c cc mediumblob;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int, add column d int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int, drop column c;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int, add index (b);
+alter table foo add index(b);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int, drop index b;
+show create table foo;
+select * from foo;
+
+#--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int DEFAULT 1000;
+
+drop table foo;
+
+create table foo (a int, b int, c int) engine=TokuDB;
+
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change c cc int, change a b int, change b a int first;
+
+drop table foo;

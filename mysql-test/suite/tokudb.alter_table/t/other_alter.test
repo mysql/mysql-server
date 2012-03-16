@@ -1,0 +1,125 @@
+#--source include/have_tokudb.inc
+SET STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo,bar;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+
+create table foo (aa int, bb int, cc int, dd int, ee int, a int, b varchar(20), c int, d int, e int, primary key (e), key(d), unique key(c), clustering key (b))engine=TokuDB;
+create table bar (a int) engine=TokuDB;
+
+
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop primary key;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop primary key, add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop primary key, drop column aa;
+--error ER_UNSUPPORTED_EXTENSION
+alter table bar add primary key (a);
+--error ER_UNSUPPORTED_EXTENSION
+alter table bar add primary key (a), add column z int;
+
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop primary key, add primary key (b);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop primary key, add primary key (b), add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop primary key, add primary key (b), drop column aa;
+
+--error ER_TABLE_CANT_HANDLE_FT
+alter table foo add fulltext key(b);
+--error ER_TABLE_CANT_HANDLE_SPKEYS
+alter table foo add spatial key (aa);
+
+# Supporting these should be trivial
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc set default 101010;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc set default NULL;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc drop default;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc set default 101010, add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc set default NULL, add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc drop default, add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc set default 101010, drop column aa;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc set default NULL, drop column aa;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc drop default, drop column aa;
+
+# these one day MAY be supported
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aaa int, add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column e epk int, add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aaa int, drop column bb;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column e epk int, drop column bb;
+show create table foo;
+
+# the following changes of a column should be slow
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa int NOT NULL;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa bigint;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa varchar(20);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa int after cc;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa int NOT NULL;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa bigint;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa varchar(20);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa int after cc;
+
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa int NOT NULL, add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa bigint, add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa varchar(20), add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa int after cc, add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa int NOT NULL, add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa bigint, add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa varchar(20), add column z int;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa int after cc, add column z int;
+
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa int NOT NULL, drop column bb;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa bigint, drop column bb;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa varchar(20), drop column bb;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa int after cc, drop column bb;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa int NOT NULL, drop column bb;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa bigint, drop column bb;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa varchar(20), drop column bb;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa int after cc, drop column bb;
+
+
+
+drop table foo;
+drop table bar;
+

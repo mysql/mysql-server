@@ -1,0 +1,98 @@
+#--source include/have_tokudb.inc
+SET STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo,bar;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+
+create table foo (aa int, bb int, cc int, dd int, ee int, a int, b varchar(20), c int, d int, e int, primary key (e), key(d), unique key(c), clustering key (b))engine=TokuDB;
+
+
+
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop column e;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop column d;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop column c;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop column b;
+
+alter table foo add column aaa int first;
+alter table foo drop column aaa;
+
+alter table foo add column aaa int first;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop column aaa, drop index d;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop column aaa, add index (bb);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop index b, add index b(b);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop column aaa, drop index b, add index b(d);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop column aaa, drop index b, add index b(b);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop column aaa, drop index b, add clustering index b(b(5));
+# successfully drop it
+alter table foo drop column aaa, drop index b, add clustering index b(b);
+
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaa int, drop index d;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaa int, add index (bb);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaa int, drop index b, add index b(b);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaa int, drop index b, add index b(d);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaa int, drop index b, add unique index b(b);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaa int, drop index b, add index b(b);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaa int, drop index b, add clustering index b(b(5));
+# successfully add it
+alter table foo add column aaa int, drop index b, add clustering index b(b);
+
+
+
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop column aaa, drop index c;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop column aaa, add index (bb);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop index c, add index c(c);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop column aaa, drop index c, add index c(d);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop column aaa, drop index c, add index c(c);
+# successfully drop it
+alter table foo drop column aaa, drop index c, add unique index c(c);
+
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaa int, drop index c;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaa int, add index (bb);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaa int, drop index c, add index c(c);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaa int, drop index c, add index c(d);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaa int, drop index c, add clustering index c(c);
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaa int, drop index c, add index c(c);
+# successfully add it
+alter table foo add column aaa int, drop index c, add unique index c(c);
+
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaaa int, drop column c;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaaa int, add column bbbb int, drop column c;
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo add column aaaa int, drop column c, drop column b;
+
+
+drop table foo;
