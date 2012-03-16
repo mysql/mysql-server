@@ -89,8 +89,8 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   DBUG_ENTER("sha256_password_auth_client");
 
   /*
-    Always get scramble from the server. This is done because the plugin
-    framework won't work if a server side plugin starts with a read_packet()
+    Get the scramble from the server because we need it when sending encrypted
+    password.
   */
   if (vio->read_packet(vio, &pkt) != SCRAMBLE_LENGTH)
     DBUG_RETURN(CR_ERROR);
@@ -110,7 +110,8 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   if (!uses_password)
   {
     /* We're not using a password */
-    if (vio->write_packet(vio, (const unsigned char *) &mysql->passwd[0], 1))
+    static const unsigned char zero_byte= '\0'; 
+    if (vio->write_packet(vio, (const unsigned char *) &zero_byte, 1))
       DBUG_RETURN(CR_ERROR);
   }
   else
