@@ -1,0 +1,12 @@
+drop table if exists t;
+create table t (a int, b int, primary key (a)) engine=tokudb;
+insert into t values (1,2),(2,4),(3,8);
+select * from t;
+a	b
+1	2
+2	4
+3	8
+delete from t;
+select * from t;
+a	b
+drop table t;
