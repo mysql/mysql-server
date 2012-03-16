@@ -1,3 +1,5 @@
+source include/have_memcached_plugin.inc;
+
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
@@ -69,7 +71,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 
@@ -86,7 +87,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 
@@ -103,7 +103,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 
@@ -120,7 +119,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 
@@ -137,7 +135,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 
@@ -158,7 +155,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 
@@ -179,7 +175,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 
@@ -206,7 +201,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 
@@ -223,7 +217,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 

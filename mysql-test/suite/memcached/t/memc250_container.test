@@ -1,3 +1,5 @@
+source include/have_memcached_plugin.inc;
+
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
@@ -82,7 +84,6 @@ else {
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2 FROM t1;
 
@@ -98,7 +99,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2 FROM t1;
 
@@ -186,7 +186,6 @@ else {
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2 FROM t2;
 
@@ -202,7 +201,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2 FROM t2;
 
@@ -420,7 +418,6 @@ SELECT c1,c2, c4 FROM t2;
 # Test expiration
 #----------------------------------------------------------------
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT * FROM test.t2;
 
@@ -590,7 +587,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2 FROM t2;
 
@@ -606,7 +602,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2 FROM t2;
 
