@@ -85,7 +85,9 @@ SET GLOBAL old_passwords= 2;
 SET SESSION old_passwords= 2;
 SET PASSWORD FOR 'kristofer'=PASSWORD('secret');
 SELECT user, plugin FROM mysql.user;
-connect(con1,localhost,kristofer,secret,,);
+--disable_query_log
+connect(con1,localhost,kristofer,secret);
+--enable_query_log
 connection con1;
 SELECT USER(),CURRENT_USER();
 connection default;
@@ -93,14 +95,18 @@ disconnect con1;
 UPDATE mysql.user SET authentication_string= '$' WHERE user='kristofer';
 FLUSH PRIVILEGES;
 SELECT user,authentication_string,password,plugin FROM mysql.user WHERE user='kristofer';
+--disable_query_log
 --error ER_ACCESS_DENIED_ERROR
-connect(con1,localhost,kristofer,secret,,);
+connect(con1,localhost,kristofer,secret);
+--enable_query_log
 
 UPDATE mysql.user SET authentication_string= '$5$asd' WHERE user='kristofer';
 FLUSH PRIVILEGES;
 SELECT user,authentication_string,password,plugin FROM mysql.user WHERE user='kristofer';
+--disable_query_log
 --error ER_ACCESS_DENIED_ERROR
-connect(con1,localhost,kristofer,secret,,);
+connect(con1,localhost,kristofer,secret);
+--enable_query_log
 DROP USER kristofer;
 
 # Restore default value for old_passwords
