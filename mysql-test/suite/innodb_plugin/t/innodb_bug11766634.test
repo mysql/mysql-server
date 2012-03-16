@@ -18,11 +18,13 @@ let $recs = 36262;
 
 --disable_query_log
 let $c = $recs;
+start transaction;
 while ($c)
 {
   insert into t1 values ('Hello World');
   dec $c;
 }
+commit work;
 --enable_query_log
 
 perl;
@@ -35,11 +37,13 @@ create table t1 (f1 char(255)) engine innodb;
 
 --disable_query_log
 let $c = $recs;
+start transaction;
 while ($c)
 {
   insert into t1 values ('Hello World');
   dec $c;
 }
+commit work;
 --enable_query_log
 
 perl;
