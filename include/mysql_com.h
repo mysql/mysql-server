@@ -168,6 +168,9 @@ enum enum_server_command
 
 #define CLIENT_PLUGIN_AUTH  (1UL << 19) /* Client supports plugin authentication */
 
+/* Initial password field is length encoded string */
+#define CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA (1UL << 20)
+
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
 
@@ -199,7 +202,8 @@ enum enum_server_command
                            CLIENT_PS_MULTI_RESULTS | \
                            CLIENT_SSL_VERIFY_SERVER_CERT | \
                            CLIENT_REMEMBER_OPTIONS | \
-                           CLIENT_PLUGIN_AUTH)
+                           CLIENT_PLUGIN_AUTH | \
+                           CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
 
 /*
   Switch off the flags that are optional and depending on build flags
