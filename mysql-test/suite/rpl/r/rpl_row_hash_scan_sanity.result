@@ -5,7 +5,7 @@ Note	1757	Storing MySQL user name or password information in the master.info rep
 [connection master]
 CREATE TABLE t1 (c1 INT);
 CREATE TABLE t2 (c1 INT PRIMARY KEY);
-CREATE TABLE t3 (c1 INT UNIQUE KEY);
+CREATE TABLE t3 (c1 INT UNIQUE KEY NOT NULL);
 CREATE TABLE t4 (c1 INT KEY);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
