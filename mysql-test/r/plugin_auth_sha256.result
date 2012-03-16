@@ -77,14 +77,12 @@ FLUSH PRIVILEGES;
 SELECT user,authentication_string,password,plugin FROM mysql.user WHERE user='kristofer';
 user	authentication_string	password	plugin
 kristofer	$		sha256_password
-connect(localhost,kristofer,secret,test,13000,/home/thek/bzr/mysql-trunk-wl5602_second/bld/mysql-test/var/tmp/mysqld.1.sock);
 ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: YES)
 UPDATE mysql.user SET authentication_string= '$5$asd' WHERE user='kristofer';
 FLUSH PRIVILEGES;
 SELECT user,authentication_string,password,plugin FROM mysql.user WHERE user='kristofer';
 user	authentication_string	password	plugin
 kristofer	$5$asd		sha256_password
-connect(localhost,kristofer,secret,test,13000,/home/thek/bzr/mysql-trunk-wl5602_second/bld/mysql-test/var/tmp/mysqld.1.sock);
 ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: YES)
 DROP USER kristofer;
 SET GLOBAL old_passwords= default;
