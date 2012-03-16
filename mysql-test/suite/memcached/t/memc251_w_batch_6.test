@@ -1,3 +1,5 @@
+source include/have_memcached_plugin.inc;
+
 # This is a test on max daemon_memcached_w_batch_size configure option (1048576)
 # The read configure option daemon_memcached_r_batch_size is also configured
 # to 1048576. This means the transaction never commits
@@ -68,6 +70,7 @@ connection mysqltest1;
 
 # The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
+#SELECT c1 FROM test.t1;
 
 connection default;
 perl;

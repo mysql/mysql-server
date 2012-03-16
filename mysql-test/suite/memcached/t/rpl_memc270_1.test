@@ -1,3 +1,5 @@
+source include/have_memcached_plugin.inc;
+
 # Test of master and both with slave with memcached access and binlog-format=raw.
 #
 source include/not_windows.inc;
@@ -74,7 +76,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
@@ -99,7 +100,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
@@ -124,7 +124,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
@@ -149,7 +148,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
@@ -174,7 +172,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
@@ -203,7 +200,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
@@ -232,7 +228,6 @@ if ($val) { print "$val\n"; }
 $memd->disconnect_all;
 EOF
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 
