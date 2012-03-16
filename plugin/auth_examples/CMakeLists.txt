@@ -15,17 +15,17 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 MYSQL_ADD_PLUGIN(dialog_examples dialog_examples.c 
-  MODULE_ONLY)
+  MODULE_ONLY COMPONENT Test)
 MYSQL_ADD_PLUGIN(auth_test_plugin test_plugin.c 
-  MODULE_ONLY)
+  MODULE_ONLY COMPONENT Test)
 MYSQL_ADD_PLUGIN(qa_auth_interface qa_auth_interface.c
-  MODULE_ONLY)
+  MODULE_ONLY COMPONENT Test)
 
 MYSQL_ADD_PLUGIN(qa_auth_server qa_auth_server.c
-  MODULE_ONLY)
+  MODULE_ONLY COMPONENT Test)
 
 MYSQL_ADD_PLUGIN(qa_auth_client qa_auth_client.c
-  MODULE_ONLY)
+  MODULE_ONLY COMPONENT Test)
 
 MYSQL_ADD_PLUGIN(mysql_clear_password clear_password_client.c
-  MODULE_ONLY)
+  MODULE_ONLY COMPONENT SharedLibraries)

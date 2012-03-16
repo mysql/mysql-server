@@ -15,37 +15,46 @@
 
 GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
-MACRO (INSTALL_DEBUG_SYMBOLS targets)
-  IF(MSVC)
+
+FUNCTION (INSTALL_DEBUG_SYMBOLS)
+ IF(MSVC)
+ MYSQL_PARSE_ARGUMENTS(ARG
+  "COMPONENT;INSTALL_LOCATION"
+  ""
+  ${ARGN}
+  )
+  
+  IF(NOT ARG_COMPONENT)
+    MESSAGE(FATAL_ERROR "No COMPONENT passed to  INSTALL_DEBUG_SYMBOLS")
+  ENDIF()
+  IF(NOT ARG_INSTALL_LOCATION)
+    MESSAGE(FATAL_ERROR "No INSTALL_LOCATION passed to INSTALL_DEBUG_SYMBOLS")
+  ENDIF()
+  SET(targets ${ARG_DEFAULT_ARGS})
   FOREACH(target ${targets})
-    GET_TARGET_PROPERTY(location ${target} LOCATION)
     GET_TARGET_PROPERTY(type ${target} TYPE)
-    IF(NOT INSTALL_LOCATION)
-      IF(type MATCHES "STATIC_LIBRARY" OR type MATCHES "MODULE_LIBRARY" OR type MATCHES "SHARED_LIBRARY")
-        SET(INSTALL_LOCATION "lib")
-      ELSEIF(type MATCHES "EXECUTABLE")
-        SET(INSTALL_LOCATION "bin")
-      ELSE()
-        MESSAGE(FATAL_ERROR "cannot determine type of ${target}. Don't now where to install")
-     ENDIF()
-    ENDIF()
+    GET_TARGET_PROPERTY(location ${target} LOCATION)
     STRING(REPLACE ".exe" ".pdb" pdb_location ${location})
     STRING(REPLACE ".dll" ".pdb" pdb_location ${pdb_location})
     STRING(REPLACE ".lib" ".pdb" pdb_location ${pdb_location})
     IF(CMAKE_GENERATOR MATCHES "Visual Studio")
       STRING(REPLACE "${CMAKE_CFG_INTDIR}" "\${CMAKE_INSTALL_CONFIG_NAME}" pdb_location ${pdb_location})
     ENDIF()
-    IF(target STREQUAL "mysqld")
+    IF(ARG_COMPONENT STREQUAL "Server" AND (target MATCHES "mysqld" OR type MATCHES "MODULE"))
+      #MESSAGE("PDB: ${targets}")
       SET(comp Server)
-    ELSEIF(pdb_location MATCHES "mysql-test")
-      SET(comp Tests)
-    ELSE()
+    ELSEIF(ARG_COMPONENT MATCHES Development 
+      OR ARG_COMPONENT MATCHES SharedLibraries 
+      OR ARG_COMPONENT MATCHES Embedded)
+
       SET(comp Debuginfo)
+    ELSE()
+      SET(comp Debuginfo_archive_only) # not in MSI
     ENDIF()	  
-    INSTALL(FILES ${pdb_location} DESTINATION ${INSTALL_LOCATION} COMPONENT ${comp})
+    INSTALL(FILES ${pdb_location} DESTINATION ${ARG_INSTALL_LOCATION} COMPONENT ${comp})
   ENDFOREACH()
   ENDIF()
-ENDMACRO()
+ENDFUNCTION()
 
 # Installs manpage for given file (either script or executable)
 # 
@@ -207,6 +216,8 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
   )
   IF(ARG_COMPONENT)
     SET(COMP COMPONENT ${ARG_COMPONENT})
+  ELSE()
+    MESSAGE(FATAL_ERROR "COMPONENT argument required")
   ENDIF()
   
   SET(TARGETS ${ARG_DEFAULT_ARGS})
@@ -231,9 +242,8 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
   ENDFOREACH()
 
   INSTALL(TARGETS ${TARGETS} DESTINATION ${ARG_DESTINATION} ${COMP})
-  SET(INSTALL_LOCATION ${ARG_DESTINATION} )
-  INSTALL_DEBUG_SYMBOLS("${TARGETS}")
-  SET(INSTALL_LOCATION)
+  INSTALL_DEBUG_SYMBOLS(${TARGETS} ${COMP} INSTALL_LOCATION ${ARG_DESTINATION})
+
 ENDFUNCTION()
 
 # Optionally install mysqld/client/embedded from debug build run. outside of the current build dir 

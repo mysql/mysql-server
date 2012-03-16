@@ -14,4 +14,4 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 MYSQL_ADD_PLUGIN(audit_null audit_null.c
-  MODULE_ONLY MODULE_OUTPUT_NAME "adt_null")
+  MODULE_ONLY MODULE_OUTPUT_NAME "adt_null" COMPONENT Test)

@@ -25,13 +25,15 @@ ADD_DEFINITIONS(-DEMBEDDED_LIBRARY -UMYSQL_CLIENT)
 
 
 MYSQL_ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
-               ../../client/mysql.cc ../../client/readline.cc)
+               ../../client/mysql.cc ../../client/readline.cc
+               COMPONENT Test)
 TARGET_LINK_LIBRARIES(mysql_embedded mysqlserver)
 IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql_embedded ${MY_READLINE_LIBRARY})
 ENDIF(UNIX)
 
-MYSQL_ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.cc)
+MYSQL_ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.cc
+  COMPONENT Test)
 TARGET_LINK_LIBRARIES(mysqltest_embedded mysqlserver)
 
 IF(CMAKE_GENERATOR MATCHES "Xcode")
@@ -47,7 +49,8 @@ IF(CMAKE_GENERATOR MATCHES "Xcode")
     ${CMAKE_CURRENT_BINARY_DIR}/mysql_client_test_embedded_dummy.cc
     ../../tests/mysql_client_test.c)
 ELSE()
-  MYSQL_ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c)
+  MYSQL_ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c
+    COMPONENT Test)
   SET_TARGET_PROPERTIES(mysql_client_test_embedded  PROPERTIES HAS_CXX TRUE)
 ENDIF()
 TARGET_LINK_LIBRARIES(mysql_client_test_embedded mysqlserver)

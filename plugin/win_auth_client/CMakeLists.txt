@@ -29,6 +29,6 @@ IF(WIN32)
 
   MYSQL_ADD_PLUGIN(authentication_windows_client ${PLUGIN_SOURCES} ${HEADERS}
     LINK_LIBRARIES Secur32
-    MODULE_ONLY)
+    MODULE_ONLY COMPONENT SharedLibraries)
 
 ENDIF(WIN32)
