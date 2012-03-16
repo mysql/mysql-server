@@ -879,6 +879,106 @@ c1	c2
 42	1
 43	1
 DROP TABLE t1;
+SET @@global.innodb_file_per_table = 1;
+CREATE TABLE t1
+(a INT AUTO_INCREMENT PRIMARY KEY,
+b char(22),
+c varchar(255),
+KEY (b))
+ENGINE = InnoDB;
+insert into t1 (b, c) values ('Apa', 'Filler........'),
+('Banan', 'Filler........'), ('Cavalry', '..asdasdfaeraf'),
+('Devotion', 'asdfuihknaskdf'), ('Evolution', 'lsjndofiabsoibeg');
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+640
+SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;
+a	b	c
+819	Apa	Filler........
+814	Apa	Filler........
+809	Apa	Filler........
+SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
+a	b	c
+823	Evolution	lsjndofiabsoibeg
+822	Devotion	asdfuihknaskdf
+821	Cavalry	..asdasdfaeraf
+t1.frm
+t1.ibd
+# Restarting server
+# Done restarting server
+FLUSH TABLE t1 WITH READ LOCK;
+# List before copying files
+t1.cfg
+t1.frm
+t1.ibd
+UNLOCK TABLES;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1280
+SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;
+a	b	c
+1459	Apa	Filler........
+1454	Apa	Filler........
+1449	Apa	Filler........
+SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
+a	b	c
+1463	Evolution	lsjndofiabsoibeg
+1462	Devotion	asdfuihknaskdf
+1461	Cavalry	..asdasdfaeraf
+# Restarting server
+# Done restarting server
+# List before t1 DISCARD
+Dt1.cfg
+Dt1.ibd
+t1.frm
+t1.ibd
+ALTER TABLE t1 DISCARD TABLESPACE;
+# List after t1 DISCARD
+Dt1.cfg
+Dt1.ibd
+t1.frm
+t1.ibt
+ALTER TABLE t1 IMPORT TABLESPACE;
+ALTER TABLE t1 ENGINE InnoDB;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+640
+SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;
+a	b	c
+819	Apa	Filler........
+814	Apa	Filler........
+809	Apa	Filler........
+SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
+a	b	c
+823	Evolution	lsjndofiabsoibeg
+822	Devotion	asdfuihknaskdf
+821	Cavalry	..asdasdfaeraf
+Dt1.cfg
+Dt1.ibd
+t1.cfg
+t1.frm
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+640
+SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;
+a	b	c
+819	Apa	Filler........
+814	Apa	Filler........
+809	Apa	Filler........
+SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
+a	b	c
+823	Evolution	lsjndofiabsoibeg
+822	Devotion	asdfuihknaskdf
+821	Cavalry	..asdasdfaeraf
+DROP TABLE t1;
 call mtr.add_suppression("Got error -1 when reading table '.*'");
 call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file '.*'.*");
 call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
