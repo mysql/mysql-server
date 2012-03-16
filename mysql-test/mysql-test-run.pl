@@ -4693,7 +4693,7 @@ sub extract_warning_lines ($$) {
      qr/error .*connecting to master/,
      qr/Plugin 'ndbcluster' will be forced to shutdown/,
      qr/InnoDB: Error: in ALTER TABLE `test`.`t[12]`/,
-     qr/InnoDB: Error: table `test`.`t[12]` does not exist in the InnoDB internal/,
+     qr/InnoDB: Error: table `test`.`t[12]` .*does not exist in the InnoDB internal/,
      qr/InnoDB: Warning: a long semaphore wait:/,
      qr/Slave: Unknown table 't1' Error_code: 1051/,
      qr/Slave SQL:.*(Error_code: [[:digit:]]+|Query:.*)/,

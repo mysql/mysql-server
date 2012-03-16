@@ -40,5 +40,8 @@ if(`select TIMESTAMPDIFF(SECOND,@time_after_kill, @time_before_kill) > 60`)
 }
 
 --echo [Killing of the slave IO thread was successful]
+--disable_warnings
+START SLAVE IO_THREAD;
+--enable_warnings
 # End of test
 --source include/rpl_end.inc
