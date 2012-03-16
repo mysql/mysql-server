@@ -1,0 +1,16 @@
+The mysql tests for TokuDB consist of tests that are common to all MySQL distributions
+and tests that are specific to each MySQL distribtion. 
+
+The common mysql tests are stored in the svn:tokudb/mysql/tests/mysql-test directory.
+
+The distribution specifc tests are stored with each MySQL distribution.  For example,
+tests specific to MySQL 5.1.61 can be found in the svn:tokudb/mysql.com/mysql-5.1.61/mysql-test
+directory.
+
+We assemble tests from these places in the following order.  First, the common mysql tests 
+are checked out of the subversion repository.  Then, the distribution specific tests are 
+overlayed onto the common tests.  This allows a distribution specific test to replace the
+behaviour captured in a common test.  Please see the run.mysql.tests.bash script for
+an example of how this works.
+
+
