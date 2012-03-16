@@ -8975,15 +8975,20 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
   uint res= MAX_KEY;
   uint key;
 
-  if (key_type & PRI_KEY_FLAG && (table->s->primary_key < MAX_KEY))
+  if (key_type & PRI_KEY_FLAG && 
+      (table->s->primary_key < MAX_KEY))
   {
+    DBUG_PRINT("debug", ("Searching for PK"));
     keyinfo= table->s->key_info + (uint) table->s->primary_key;
     if (are_all_columns_signaled_for_key(keyinfo, bi_cols))
       DBUG_RETURN(table->s->primary_key);
   }
 
+  DBUG_PRINT("debug", ("Unique keys count: %u", table->s->uniques));
+
   if (key_type & UNIQUE_KEY_FLAG && table->s->uniques)
   {
+    DBUG_PRINT("debug", ("Searching for UK"));
     for (key=0,keyinfo= table->key_info ;
          (key < table->s->keys) && (res == MAX_KEY);
          key++,keyinfo++)
@@ -9002,10 +9007,12 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
       if (res < MAX_KEY)
         DBUG_RETURN(res);
     }
+    DBUG_PRINT("debug", ("UK has NULLABLE parts or not all columns signaled."));
   }
 
   if (key_type & MULTIPLE_KEY_FLAG && table->s->keys)
   {
+    DBUG_PRINT("debug", ("Searching for K."));
     for (key=0,keyinfo= table->key_info ;
          (key < table->s->keys) && (res == MAX_KEY);
          key++,keyinfo++)
@@ -9026,57 +9033,109 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
       if (res < MAX_KEY)
         DBUG_RETURN(res);
     }
+    DBUG_PRINT("debug", ("Not all columns signaled for K."));
   }
 
   DBUG_RETURN(res);
 }
 
-static uint decide_row_lookup_algorithm(TABLE* table, MY_BITMAP *cols, uint event_type)
+void
+Rows_log_event::decide_row_lookup_algorithm_and_key()
 {
-  DBUG_ENTER("decide_row_lookup_algorithm");
+  DBUG_ENTER("decide_row_lookup_algorithm_and_key");
 
-  uint res= Rows_log_event::ROW_LOOKUP_NOT_NEEDED;
-  uint key_index;
-  if (event_type == WRITE_ROWS_EVENT)
-    DBUG_RETURN(res);
+  TABLE *table= this->m_table;
+  uint event_type= this->get_type_code();
+  MY_BITMAP *cols= &this->m_cols;
+  this->m_rows_lookup_algorithm= ROW_LOOKUP_NOT_NEEDED;
+  this->m_key_index= MAX_KEY;
 
-  key_index= search_key_in_table(table, cols, (PRI_KEY_FLAG | 
-                                               UNIQUE_KEY_FLAG | 
-                                               MULTIPLE_KEY_FLAG));
+  if (event_type == WRITE_ROWS_EVENT)  // Not needed
+    DBUG_VOID_RETURN;
 
-  if (((key_index != MAX_KEY) && (key_index < table->s->keys)) &&
-      (slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN))
-    res= Rows_log_event::ROW_LOOKUP_INDEX_SCAN;
-  else
+  /* 
+    Decision table:
+    - I  --> Index scan / search
+    - T  --> Table scan
+    - Hi --> Hash over index
+    - Ht --> Hash over the entire table
+
+    |--------------+-----------+------+------+------|
+    | Index\Option | I , T , H | I, T | I, H | T, H |
+    |--------------+-----------+------+------+------|
+    | PK / UK      | I         | I    | I    | Hi   |
+    | K            | Hi        | I    | Hi   | Hi   |
+    | No Index     | Ht        | T    | Ht   | Ht   |
+    |--------------+-----------+------+------+------| 
+
+  */
+
+  if (!(slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN))
+    goto TABLE_OR_INDEX_HASH_SCAN;
+
+  /* PK or UK => use LOOKUP_INDEX_SCAN */
+  this->m_key_index= search_key_in_table(table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG));
+  if (this->m_key_index != MAX_KEY)
   {
-    /**
-       Blackhole does not use hash scan.
-
-       TODO: remove this DB_TYPE_BLACKHOLE_DB dependency.
-    */
-    if ((slave_rows_search_algorithms_options & SLAVE_ROWS_HASH_SCAN) &&
-        (table->s->db_type()->db_type != DB_TYPE_BLACKHOLE_DB))
-      res=  Rows_log_event::ROW_LOOKUP_HASH_SCAN;
-    else
-    {
-      DBUG_ASSERT((table->s->db_type()->db_type == DB_TYPE_BLACKHOLE_DB) || 
-                  slave_rows_search_algorithms_options & SLAVE_ROWS_TABLE_SCAN);
-      res= Rows_log_event::ROW_LOOKUP_TABLE_SCAN;
-    }
+    DBUG_PRINT("info", ("decide_row_lookup_algorithm_and_key: decided - INDEX_SCAN"));
+    this->m_rows_lookup_algorithm= ROW_LOOKUP_INDEX_SCAN;
+    goto end;
   }
 
+TABLE_OR_INDEX_HASH_SCAN: 
+
+  /*
+     NOTE: Blackhole engine cannot use HASH_SCAN, because
+           we cannot iterate over the rows in that engine.
+
+     TODO: remove this DB_TYPE_BLACKHOLE_DB dependency, perhaps
+           adding a flag to the engines flag stating that this
+           engine does not allow scanning.
+   */
+  if (!(slave_rows_search_algorithms_options & SLAVE_ROWS_HASH_SCAN) ||
+      (table->s->db_type()->db_type == DB_TYPE_BLACKHOLE_DB))
+    goto TABLE_OR_INDEX_FULL_SCAN;
+
+  /* search for a key to see if we can narrow the lookup domain further. */
+  this->m_key_index= search_key_in_table(table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG));
+  this->m_rows_lookup_algorithm= ROW_LOOKUP_HASH_SCAN;
+  DBUG_PRINT("info", ("decide_row_lookup_algorithm_and_key: decided - HASH_SCAN"));
+  goto end;
+
+TABLE_OR_INDEX_FULL_SCAN:
+
+  this->m_key_index= MAX_KEY;
+
+  /* If we can use an index, try to narrow the scan a bit further. */
+  if (slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN)
+    this->m_key_index= search_key_in_table(table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG));
+
+  if (this->m_key_index != MAX_KEY)
+  {
+    DBUG_PRINT("info", ("decide_row_lookup_algorithm_and_key: decided - INDEX_SCAN"));
+    this->m_rows_lookup_algorithm= ROW_LOOKUP_INDEX_SCAN;
+  }
+  else
+  {
+    DBUG_PRINT("info", ("decide_row_lookup_algorithm_and_key: decided - TABLE_SCAN"));
+    this->m_rows_lookup_algorithm= ROW_LOOKUP_TABLE_SCAN;
+  }
+
+end:
 #ifndef DBUG_OFF
-  const char* s= ((res == Rows_log_event::ROW_LOOKUP_TABLE_SCAN) ? "TABLE_SCAN" :
-                  ((res == Rows_log_event::ROW_LOOKUP_HASH_SCAN) ? "HASH_SCAN" : 
+  const char* s= ((m_rows_lookup_algorithm == Rows_log_event::ROW_LOOKUP_TABLE_SCAN) ? "TABLE_SCAN" :
+                  ((m_rows_lookup_algorithm == Rows_log_event::ROW_LOOKUP_HASH_SCAN) ? "HASH_SCAN" : 
                    "INDEX_SCAN"));
 
   // only for testing purposes
-  slave_rows_last_search_algorithm_used= res;
+  slave_rows_last_search_algorithm_used= m_rows_lookup_algorithm;
   DBUG_PRINT("debug", ("Row lookup method: %s", s));
 #endif
 
-  
-  DBUG_RETURN(res);
+  /* allocate memory and initialize hash */
+
+
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -9274,6 +9333,112 @@ int Rows_log_event::do_apply_row(Relay_log_info const *rli)
   DBUG_RETURN(error);
 }
 
+int
+Rows_log_event::close_record_scan()
+{
+  DBUG_ENTER("Rows_log_event::close_record_scan");
+  int error= 0;
+  if (m_key_index != MAX_KEY)
+    error= m_table->file->ha_index_end();
+  else
+    error= m_table->file->ha_rnd_end();
+
+  DBUG_RETURN(error);
+}
+
+int
+Rows_log_event::next_record_scan(bool first_read)
+{
+  DBUG_ENTER("Rows_log_event::next_record_scan");
+  DBUG_ASSERT(m_table->file->inited);
+  TABLE *table= m_table;
+  int error= 0;
+
+  if (m_key_index >= MAX_KEY)
+    error= table->file->ha_rnd_next(table->record[0]);
+  else
+  {
+    /*
+      We need to set the null bytes to ensure that the filler bit are
+      all set when returning.  There are storage engines that just set
+      the necessary bits on the bytes and don't set the filler bits
+      correctly.
+    */
+    if (table->s->null_bytes > 0)
+      table->record[0][table->s->null_bytes - 1]|=
+        256U - (1U << table->s->last_null_bit_pos);
+
+    if (first_read)
+    {
+      if ((error= table->file->ha_index_read_map(table->record[0], m_key,
+                                                 HA_WHOLE_KEY,
+                                                 HA_READ_KEY_EXACT)))
+      {
+        DBUG_PRINT("info",("no record matching the key found in the table"));
+        if (error == HA_ERR_RECORD_DELETED)
+          error= HA_ERR_KEY_NOT_FOUND;
+      }
+    }
+    else
+      error= table->file->ha_index_next(table->record[0]);
+  }
+
+  DBUG_RETURN(error);
+}
+
+
+int 
+Rows_log_event::open_record_scan()
+{
+  DBUG_ENTER("Rows_log_event::open_record_scan");
+  int error= 0;
+  TABLE *table= m_table;
+
+  if (m_key_index != MAX_KEY)
+  {
+    /* we will be using the KEY in m_key_index */
+    KEY *keyinfo= table->key_info + m_key_index;
+
+    /* Fill key data for the row */
+    DBUG_ASSERT(m_key);
+    key_copy(m_key, table->record[0], keyinfo, 0);
+
+    /*
+      Save copy of the record in table->record[1]. It might be needed
+      later if linear search is used to find exact match.
+     */
+    store_record(table,record[1]);
+
+    DBUG_PRINT("info",("locating record using a key (index_read)"));
+
+    /* The m_key_index'th key is active and usable: search the table using the index */
+    if (!table->file->inited && (error= table->file->ha_index_init(m_key_index, FALSE)))
+    {
+      DBUG_PRINT("info",("ha_index_init returns error %d",error));
+      goto end;
+    }
+
+    /*
+      Don't print debug messages when running valgrind since they can
+      trigger false warnings.
+     */
+#ifndef HAVE_purify
+    DBUG_DUMP("key data", m_key, keyinfo->key_length);
+#endif
+  }
+  else
+  {
+    if ((error= table->file->ha_rnd_init(1)))
+    {
+      DBUG_PRINT("info",("error initializing table scan"
+          " (ha_rnd_init returns %d)",error));
+      table->file->print_error(error, MYF(0));
+    }
+  }
+
+end:
+  DBUG_RETURN(error);
+}
 
 int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
 {
@@ -9321,13 +9486,13 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
 #endif
 
   if (m_key_index != m_table->s->primary_key)
-  {
-    /* we dont have a PK, or PK is not usable with BI values */
+    /* we dont have a PK, or PK is not usable */
     goto INDEX_SCAN;
-  }
 
   if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
   {
+    DBUG_ASSERT(table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+
     /*
       Use a more efficient method to fetch the record given by
       table->record[0] if the engine allows it.  We first compute a
@@ -9371,55 +9536,20 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
 
 INDEX_SCAN:
 
-  /* we will be using the KEY in m_key_index */
-  keyinfo=table->key_info + m_key_index;
+  keyinfo= table->key_info + m_key_index;
 
-  /* Fill key data for the row */
-  DBUG_ASSERT(m_key);
-  key_copy(m_key, table->record[0], keyinfo, 0);
-
-  /*
-    Save copy of the record in table->record[1]. It might be needed
-    later if linear search is used to find exact match.
-   */
-  store_record(table,record[1]);
-
-  DBUG_PRINT("info",("locating record using a key (index_read)"));
-
-  /* The m_key_index'th key is active and usable: search the table using the index */
-  if (!table->file->inited && (error= table->file->ha_index_init(m_key_index, FALSE)))
-  {
-    DBUG_PRINT("info",("ha_index_init returns error %d",error));
+  if ((error= open_record_scan()))
     goto end;
-  }
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
-  DBUG_DUMP("key data", m_key, keyinfo->key_length);
-#endif
-
-  /*
-    We need to set the null bytes to ensure that the filler bit are
-    all set when returning.  There are storage engines that just set
-    the necessary bits on the bytes and don't set the filler bits
-    correctly.
-  */
-  if (table->s->null_bytes > 0)
-    table->record[0][table->s->null_bytes - 1]|=
-      256U - (1U << table->s->last_null_bit_pos);
-
-  if ((error= table->file->ha_index_read_map(table->record[0], m_key,
-                                             HA_WHOLE_KEY,
-                                             HA_READ_KEY_EXACT)))
+  error= next_record_scan(true);
+  if (error)
   {
     DBUG_PRINT("info",("no record matching the key found in the table"));
     if (error == HA_ERR_RECORD_DELETED)
       error= HA_ERR_KEY_NOT_FOUND;
     goto end;
   }
+
 
   /*
     Don't print debug messages when running valgrind since they can
@@ -9446,11 +9576,10 @@ INDEX_SCAN:
   if (keyinfo->flags & HA_NOSAME || m_key_index == table->s->primary_key)
   {
     /* Unique does not have non nullable part */
-    if (!(table->key_info->flags & (HA_NULL_PART_KEY)))      
+    if (!(keyinfo->flags & (HA_NULL_PART_KEY)))
       goto end;  // record found
     else
     {
-      KEY *keyinfo= table->key_info;
       /*
         Unique has nullable part. We need to check if there is any field in the
         BI image that is null and part of UNNI.
@@ -9479,22 +9608,7 @@ INDEX_SCAN:
 
   while (record_compare(table, &m_cols))
   {
-    /*
-      We need to set the null bytes to ensure that the filler bit
-      are all set when returning.  There are storage engines that
-      just set the necessary bits on the bytes and don't set the
-      filler bits correctly.
-
-      TODO[record format ndb]: Remove this code once NDB returns the
-      correct record format.
-    */
-    if (table->s->null_bytes > 0)
-    {
-      table->record[0][table->s->null_bytes - 1]|=
-        256U - (1U << table->s->last_null_bit_pos);
-    }
-
-    while ((error= table->file->ha_index_next(table->record[0])))
+    while((error= next_record_scan(false)))
     {
       /* We just skip records that has already been deleted */
       if (error == HA_ERR_RECORD_DELETED)
@@ -9514,7 +9628,7 @@ end:
     error= do_apply_row(rli);
 
   if (table->file->inited)
-    table->file->ha_index_end();
+    close_record_scan();
 
   if ((get_type_code() == UPDATE_ROWS_EVENT) && 
       (saved_m_curr_row == m_curr_row)) 
@@ -9529,8 +9643,12 @@ end:
 
 }
 
+
 int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
 {
+  DBUG_ASSERT(m_table && m_table->in_use != NULL);
+  TABLE *table= m_table;
+
   int error= 0;
   const uchar *saved_last_m_curr_row= NULL;
   const uchar *bi_start= NULL;
@@ -9584,24 +9702,22 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
     saved_last_m_curr_row=m_curr_row;
 
     DBUG_PRINT("info",("Hash was populated with %d records!", m_hash.size()));
-    TABLE* table= m_table;
 
-    if ((error= table->file->ha_rnd_init(1)))
-    {
-      DBUG_PRINT("info",("error initializing table scan"
-          " (ha_rnd_init returns %d)",error));
-      table->file->print_error(error, MYF(0));
+    /* open table or index depending on whether we have set m_key_index or not. */
+    if ((error= open_record_scan()))
       goto err;
-    }
 
     /* 
        Scan the table only once and compare against entries in hash.
        When a match is found, apply the changes.
      */
+    int i=0;
     do
     {
-      /* get the first record from the table */
-      error= table->file->ha_rnd_next(table->record[0]);
+      /* get the next record from the table */
+      error= next_record_scan(i==0);
+      i++;
+
       if(error)
         DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       switch (error) {
@@ -9689,7 +9805,9 @@ close_table:
       DBUG_PRINT("info", ("Failed to get next record"
                           " (ha_rnd_next returns %d)",error));
     }
-    m_table->file->ha_rnd_end();
+
+    if (m_table->file->inited)
+      close_record_scan();
   
     if (error == HA_ERR_RECORD_DELETED)
       error= 0;
@@ -11124,7 +11242,7 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
   /**
      Sets it to ROW_LOOKUP_NOT_NEEDED.
    */
-  m_rows_lookup_algorithm= decide_row_lookup_algorithm(m_table, &m_cols, get_type_code());
+  decide_row_lookup_algorithm_and_key();
   DBUG_ASSERT(m_rows_lookup_algorithm==ROW_LOOKUP_NOT_NEEDED);
   return error;
 }
@@ -11520,39 +11638,19 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
      2. using key => decide on key to use and allocate mem structures
      3. using table scan => do nothing
    */
-  m_rows_lookup_algorithm= decide_row_lookup_algorithm(m_table, &m_cols, get_type_code());
+  decide_row_lookup_algorithm_and_key();
 
   if (m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
   {
       if(m_hash.init())
         return HA_ERR_OUT_OF_MEM;
   }
-  /* check if we have a suitable key and if so allocate space */
-  else if ((m_table->s->keys > 0) && 
-           (m_rows_lookup_algorithm == ROW_LOOKUP_INDEX_SCAN))
+  if (m_key_index < MAX_KEY)
   {
-    m_key_index= MAX_KEY;
-    m_key_index= search_key_in_table(m_table, &m_cols, 
-                                     (PRI_KEY_FLAG |        // primary
-                                      UNIQUE_KEY_FLAG |     // unique
-                                      MULTIPLE_KEY_FLAG));  // regular
-
-    /* 
-      since we have a suitable key, lets allocate space 
-      for storing it later 
-     */
-    if (m_key_index < MAX_KEY)
-    {
-      // Allocate buffer for key searches
-      m_key= (uchar*)my_malloc(MAX_KEY_LENGTH, MYF(MY_WME));
-      if (!m_key)
-        return HA_ERR_OUT_OF_MEM;
-    }
-
-    /* 
-       Do not report error here if no suitable index is found.
-       We will be doing it on the search routine.
-    */
+    // Allocate buffer for key searches
+    m_key= (uchar*)my_malloc(MAX_KEY_LENGTH, MYF(MY_WME));
+    if (!m_key)
+      return HA_ERR_OUT_OF_MEM;
   }
   return 0;
 }
@@ -11669,39 +11767,21 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
      2. using key => decide on key to use and allocate mem structures
      3. using table scan => do nothing
    */
-  m_rows_lookup_algorithm= decide_row_lookup_algorithm(m_table, &m_cols, get_type_code());
+  decide_row_lookup_algorithm_and_key();
 
   if (m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
   {
     if (m_hash.init())
       return HA_ERR_OUT_OF_MEM;
   }
+
   /* check if we have a suitable key and if so allocate space */
-  else if ((m_table->s->keys > 0) && 
-           (m_rows_lookup_algorithm == ROW_LOOKUP_INDEX_SCAN))
+  if (m_key_index < MAX_KEY)
   {
-    m_key_index= MAX_KEY;
-    m_key_index= search_key_in_table(m_table, &m_cols, 
-                                     (PRI_KEY_FLAG |        // primary
-                                      UNIQUE_KEY_FLAG |     // unique
-                                      MULTIPLE_KEY_FLAG));  // regular
-
-    /* 
-      since we have a suitable key, lets allocate space 
-      for storing it later 
-     */
-    if (m_key_index < MAX_KEY)
-    {
-      // Allocate buffer for key searches
-      m_key= (uchar*)my_malloc(MAX_KEY_LENGTH, MYF(MY_WME));
-      if (!m_key)
-        return HA_ERR_OUT_OF_MEM;
-    }
-
-    /* 
-       Do not report error here if no suitable index is found.
-       We will be doing it on the search routine.
-    */
+    // Allocate buffer for key searches
+    m_key= (uchar*)my_malloc(MAX_KEY_LENGTH, MYF(MY_WME));
+    if (!m_key)
+      return HA_ERR_OUT_OF_MEM;
   }
   return 0;
 }

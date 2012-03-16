@@ -4077,6 +4077,8 @@ protected:
     ASSERT_OR_RETURN_ERROR(m_curr_row_end <= m_rows_end, HA_ERR_CORRUPT_EVENT);
     return result;
   }
+
+  void decide_row_lookup_algorithm_and_key();
 #endif
 
 private:
@@ -4185,6 +4187,10 @@ private:
      performed.
    */
   int do_table_scan_and_update(Relay_log_info const *rli);
+
+  int open_record_scan();
+  int close_record_scan();
+  int next_record_scan(bool first_read);
 #endif /* defined(MYSQL_SERVER) && defined(HAVE_REPLICATION) */
 
   friend class Old_rows_log_event;
