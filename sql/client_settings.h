@@ -34,7 +34,8 @@
                              CLIENT_TRANSACTIONS |  \
                              CLIENT_PROTOCOL_41 |   \
                              CLIENT_SECURE_CONNECTION | \
-                             CLIENT_PLUGIN_AUTH)
+                             CLIENT_PLUGIN_AUTH | \
+                             CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
 
 #define read_user_name(A) {}
 #undef HAVE_SMEM

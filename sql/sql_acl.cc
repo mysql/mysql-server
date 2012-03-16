@@ -9354,9 +9354,9 @@ char *get_40_protocol_string(char **buffer,
 */
 
 static
-char *get_length_encoded_string(char **buffer,
-                                size_t *max_bytes_available,
-                                size_t *string_length)
+char *get_56_lenc_string(char **buffer,
+                         size_t *max_bytes_available,
+                         size_t *string_length)
 {
   int len_len= 1;
   if (*max_bytes_available == 0)
@@ -9406,6 +9406,59 @@ char *get_length_encoded_string(char **buffer,
   *string_length= str_len;
   *max_bytes_available-= *string_length + len_len;
   *buffer+= *string_length + len_len;
+  return str;
+}
+
+
+/**
+  Get a length encoded string from a user-supplied buffer.
+
+  @param buffer[in, out] The buffer to scan; updates position after scan.
+  @param max_bytes_available[in, out] Limit the number of bytes to scan
+  @param string_length[out] Number of characters scanned
+
+  @remark In case the length is zero, then the total size of the string is
+    considered to be 1 byte; the size byte.
+
+  @note the maximum size of the string is 255 because the header is always 
+    1 byte.
+  @return pointer to first byte after the header in buffer.
+    @retval NULL The buffer content is malformed
+*/
+
+static
+char *get_41_lenc_string(char **buffer,
+                         size_t *max_bytes_available,
+                         size_t *string_length)
+{
+ if (*max_bytes_available == 0)
+    return NULL;
+
+  /* Do double cast to prevent overflow from signed / unsigned conversion */
+  size_t str_len= (size_t)(unsigned char)**buffer;
+
+  /*
+    If the length encoded string has the length 0
+    the total size of the string is only one byte long (the size byte)
+  */
+  if (str_len == 0)
+  {
+    ++*buffer;
+    *string_length= 0;
+    /*
+      Return a pointer to the 0 character so the return value will be
+      an empty string.
+    */
+    return *buffer-1;
+  }
+
+  if (str_len >= *max_bytes_available)
+    return NULL;
+
+  char *str= *buffer+1;
+  *string_length= str_len;
+  *max_bytes_available-= *string_length + 1;
+  *buffer+= *string_length + 1;
   return str;
 }
 #endif
@@ -9576,6 +9629,21 @@ skip_to_ssl:
     get_string= get_41_protocol_string;
   else
     get_string= get_40_protocol_string;
+
+  /*
+    When the ability to change default plugin require that the initial password
+   field can be of arbitrary size. However, the 41 client-server protocol limits
+   the length of the auth-data-field sent from client to server to 255 bytes
+   (CLIENT_SECURE_CONNECTION). The solution is to change the type of the field
+   to a true length encoded string and indicate the protocol change with a new
+   client capability flag: CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA.
+  */
+  get_proto_string_func_t get_length_encoded_string;
+
+  if (mpvio->client_capabilities & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
+    get_length_encoded_string= get_56_lenc_string;
+  else
+    get_length_encoded_string= get_41_lenc_string;
 
   /*
     In order to safely scan a head for '\0' string terminators
@@ -10868,7 +10936,6 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     if (pkt_len == 1 && *pkt == 1)
     {
       uint pem_length= strlen(g_rsa_keys.get_public_key_as_pem());
-      /* Send the scramble and possibly a public key to the client */
       if (vio->write_packet(vio,
                             (unsigned char *)g_rsa_keys.get_public_key_as_pem(),
                             pem_length))
