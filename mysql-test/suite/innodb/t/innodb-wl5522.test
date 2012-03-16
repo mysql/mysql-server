@@ -789,10 +789,70 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
+
+SET @@global.innodb_file_per_table = 1;
+CREATE TABLE t1
+(a INT AUTO_INCREMENT PRIMARY KEY,
+ b char(22),
+ c varchar(255),
+ KEY (b))
+ENGINE = InnoDB;
+
+insert into t1 (b, c) values ('Apa', 'Filler........'),
+('Banan', 'Filler........'), ('Cavalry', '..asdasdfaeraf'),
+('Devotion', 'asdfuihknaskdf'), ('Evolution', 'lsjndofiabsoibeg');
+
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t1;
+SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;
+SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
+--list_files $MYSQLD_DATADIR/test
+--echo # Restarting server
+--source include/restart_mysqld.inc
+--echo # Done restarting server
+FLUSH TABLE t1 WITH READ LOCK;
+--echo # List before copying files
+--list_files $MYSQLD_DATADIR/test
+--copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_DATADIR/test/Dt1.cfg
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/Dt1.ibd
+UNLOCK TABLES;
+INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t1;
+SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;
+SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
+--echo # Restarting server
+--source include/restart_mysqld.inc
+--echo # Done restarting server
+--echo # List before t1 DISCARD
+--list_files $MYSQLD_DATADIR/test
+ALTER TABLE t1 DISCARD TABLESPACE;
+--echo # List after t1 DISCARD
+--list_files $MYSQLD_DATADIR/test
+--remove_file $MYSQLD_DATADIR/test/t1.ibt
+--copy_file $MYSQLD_DATADIR/test/Dt1.cfg $MYSQLD_DATADIR/test/t1.cfg
+--copy_file $MYSQLD_DATADIR/test/Dt1.ibd $MYSQLD_DATADIR/test/t1.ibd
+ALTER TABLE t1 IMPORT TABLESPACE;
+ALTER TABLE t1 ENGINE InnoDB;
+SELECT COUNT(*) FROM t1;
+SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;
+SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
+--list_files $MYSQLD_DATADIR/test
+SELECT COUNT(*) FROM t1;
+SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;
+SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
+--remove_file $MYSQLD_DATADIR/test/t1.cfg
+DROP TABLE t1;
+
 call mtr.add_suppression("Got error -1 when reading table '.*'");
 call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file '.*'.*");
 call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
 
 eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
-
