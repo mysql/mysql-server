@@ -975,7 +975,8 @@ Write_rows_log_event_old::do_prepare_row(THD *thd_arg,
   int error;
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
-                        row_start, &m_cols, row_end, &m_master_reclength,
+                        row_start, m_rows_end,
+                        &m_cols, row_end, &m_master_reclength,
                         table->write_set, PRE_GA_WRITE_ROWS_EVENT);
   bitmap_copy(table->read_set, table->write_set);
   return error;
@@ -1062,7 +1063,8 @@ Delete_rows_log_event_old::do_prepare_row(THD *thd_arg,
 
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
-                        row_start, &m_cols, row_end, &m_master_reclength,
+                        row_start, m_rows_end,
+                        &m_cols, row_end, &m_master_reclength,
                         table->read_set, PRE_GA_DELETE_ROWS_EVENT);
   /*
     If we will access rows using the random access method, m_key will
@@ -1161,13 +1163,15 @@ int Update_rows_log_event_old::do_prepare_row(THD *thd_arg,
   /* record[0] is the before image for the update */
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
-                        row_start, &m_cols, row_end, &m_master_reclength,
+                        row_start, m_rows_end,
+                        &m_cols, row_end, &m_master_reclength,
                         table->read_set, PRE_GA_UPDATE_ROWS_EVENT);
   row_start = *row_end;
   /* m_after_image is the after image for the update */
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, m_after_image,
-                        row_start, &m_cols, row_end, &m_master_reclength,
+                        row_start, m_rows_end,
+                        &m_cols, row_end, &m_master_reclength,
                         table->write_set, PRE_GA_UPDATE_ROWS_EVENT);
 
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);

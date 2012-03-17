@@ -75,6 +75,41 @@ void normalize_path(char *path, size_t size)
 }
 
 /*
+  Exclusion rules.
+
+  Some hardware manufacturers deliver systems with own preinstalled MySQL copy
+  and services. We do not want to mess up with these installations. We will
+  just ignore such services, pretending it is not MySQL.
+
+  ´@return 
+    TRUE,  if this service should be excluded from UI lists etc (OEM install)
+    FALSE otherwise.
+*/
+BOOL exclude_service(mysqld_service_properties *props)
+{
+  static const char* exclude_patterns[] =
+  {
+    "common files\\dell\\mysql\\bin\\", /* Dell's private installation */ 
+    NULL
+  };
+  int i;
+  char buf[MAX_PATH];
+
+  /* Convert mysqld path to lower case, rules for paths are case-insensitive. */
+  memcpy(buf, props->mysqld_exe, sizeof(props->mysqld_exe));
+  _strlwr(buf);
+
+  for(i= 0; exclude_patterns[i]; i++)
+  {
+    if (strstr(buf, exclude_patterns[i]))
+      return TRUE;
+  }
+
+  return FALSE;
+}
+
+
+/*
   Retrieve some properties from windows mysqld service binary path.
   We're interested in ini file location and datadir, and also in version of 
   the data. We tolerate missing mysqld.exe.
@@ -256,7 +291,9 @@ int get_mysql_service_properties(const wchar_t *bin_path,
       }
     }
   }
-  retval = 0;
+
+  if (!exclude_service(props))
+    retval = 0;
 end:
   LocalFree((HLOCAL)args);
   return retval;

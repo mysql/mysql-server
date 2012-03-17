@@ -1970,6 +1970,42 @@ ON ( COLUMNS.TABLE_SCHEMA = UNIQUES.TABLE_SCHEMA);
 COUNT(*) > 0
 1
 DROP TABLE t1;
-set SESSION optimizer_switch= @save_optimizer_switch;
+SET SESSION optimizer_switch= @save_optimizer_switch;
+#
+# LP BUG#953649: crash when estimating the cost of a look-up  
+#                into a derived table to be materialized 
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (132);
+CREATE TABLE t2 (b int, c varchar(256));
+INSERT INTO t2 VALUES (132,'test1'), (120,'text2'), (132,'text3');
+CREATE VIEW v AS
+SELECT b, GROUP_CONCAT(c) AS gc FROM t2 GROUP BY b;
+SET @save_optimizer_switch=@@optimizer_switch;
+SET SESSION optimizer_switch='derived_merge=off';
+SET SESSION optimizer_switch='derived_with_keys=off';
+EXPLAIN
+SELECT * FROM t1, v WHERE a = b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
+SELECT * FROM t1, v WHERE a = b;
+a	b	gc
+132	132	test1,text3
+SET SESSION optimizer_switch='derived_merge=on';
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t1, v WHERE a = b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<derived2>	ref	key0	key0	5	const	0	
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
+SELECT * FROM t1, v WHERE a = b;
+a	b	gc
+132	132	test1,text3
+SET SESSION optimizer_switch= @save_optimizer_switch;
+DROP VIEW v;
+DROP TABLE t1,t2;
 set optimizer_switch=@exit_optimizer_switch;
 set join_cache_level=@exit_join_cache_level;

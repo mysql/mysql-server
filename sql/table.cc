@@ -2559,8 +2559,8 @@ partititon_err:
 
   /* Check virtual columns against table's storage engine. */
   if (share->vfields && 
-        !(outparam->file && 
-          (outparam->file->ha_table_flags() & HA_CAN_VIRTUAL_COLUMNS)))
+        (outparam->file && 
+          !(outparam->file->ha_table_flags() & HA_CAN_VIRTUAL_COLUMNS)))
   {
     my_error(ER_UNSUPPORTED_ENGINE_FOR_VIRTUAL_COLUMNS, MYF(0),
              plugin_name(share->db_plugin)->str);

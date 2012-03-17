@@ -194,12 +194,15 @@ begin
   insert into test.t1 values (x, z);
 end|
 
+let $start_value= `SELECT @@max_join_size`|
 call mixset("mixset", 19)|
 show variables like 'max_join_size'|
 select id,data,@z from t1|
 delete from t1|
 drop procedure mixset|
-
+--disable_query_log
+eval SET @@max_join_size= $start_value|
+--enable_query_log
 
 # Multiple CALL statements, one with OUT parameter.
 --disable_warnings
