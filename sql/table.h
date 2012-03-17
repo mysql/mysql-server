@@ -308,7 +308,7 @@ typedef struct st_filesort_info
   uchar     *addon_buf;         /* Pointer to a buffer if sorted with fields */
   size_t    addon_length;       /* Length of the buffer */
   struct st_sort_addon_field *addon_field;     /* Pointer to the fields info */
-  void    (*unpack)(struct st_sort_addon_field *, uchar *); /* To unpack back */
+  void    (*unpack)(struct st_sort_addon_field *, uchar *, uchar *); /* To unpack back */
   uchar     *record_pointers;    /* If sorted in memory */
   ha_rows   found_records;      /* How many records in sort */
 } FILESORT_INFO;

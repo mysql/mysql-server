@@ -63,7 +63,7 @@ static uint sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
 static SORT_ADDON_FIELD *get_addon_fields(THD *thd, Field **ptabfield,
                                           uint sortlength, uint *plength);
 static void unpack_addon_fields(struct st_sort_addon_field *addon_field,
-                                uchar *buff);
+                                uchar *buff, uchar *buff_end);
 /**
   Sort a table.
   Creates a set of pointers that can be used to read the rows
@@ -1753,7 +1753,8 @@ get_addon_fields(THD *thd, Field **ptabfield, uint sortlength, uint *plength)
 */
 
 static void 
-unpack_addon_fields(struct st_sort_addon_field *addon_field, uchar *buff)
+unpack_addon_fields(struct st_sort_addon_field *addon_field, uchar *buff,
+                    uchar *buff_end)
 {
   Field *field;
   SORT_ADDON_FIELD *addonf= addon_field;
@@ -1766,7 +1767,7 @@ unpack_addon_fields(struct st_sort_addon_field *addon_field, uchar *buff)
       continue;
     }
     field->set_notnull();
-    field->unpack(field->ptr, buff + addonf->offset);
+    field->unpack(field->ptr, buff + addonf->offset, buff_end, 0);
   }
 }
 

@@ -1324,6 +1324,43 @@ SET SQL_BIG_TABLES=0;
 --echo # End of 5.1 tests
 
 --echo #
+--echo # LP bug#694450 Wrong result with non-standard GROUP BY + ORDER BY
+--echo #
+SET SESSION SQL_MODE='ONLY_FULL_GROUP_BY';
+CREATE TABLE t1 (
+f1 int(11), f2 int(11), f3 datetime, f4 varchar(1), PRIMARY KEY (f1)) ;
+INSERT IGNORE INTO t1 VALUES ('1','9','2004-10-11 18:13','x'),('2','5','2004-03-07 14:02','g'),('3','1','2004-04-09 09:38','o'),('4','0','1900-01-01 00:00','g'),('5','1','2009-02-19 02:05','v');
+
+# This must return an error, but instead returns 1 row
+SELECT alias2.f3 AS field1 , alias2.f1 AS field2 FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f1 = alias1.f2 AND alias2.f1 != alias1.f4 GROUP BY field1 , field2 ORDER BY alias1.f2 , field2;
+
+# This returns several rows
+SELECT alias2.f3 AS field1 , alias2.f1 AS field2 FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f1 = alias1.f2 AND alias2.f1 != alias1.f4 GROUP BY field1 , field2 ;
+SET SESSION SQL_MODE=default;
+drop table t1;
+
+--echo # End of 5.2 tests
+
+--echo #
+--echo # lp:872702: Crash in add_ref_to_table_cond() when grouping by a PK
+--echo #
+CREATE TABLE t1 (a int, PRIMARY KEY (a)) ;
+INSERT INTO t1 VALUES (14),(15),(16),(17),(18),(19),(20);
+
+CREATE TABLE t2 (a int) ;
+
+SELECT a
+FROM t1
+WHERE a = (
+        SELECT t2.a
+        FROM t2
+) OR t1.a = 73
+GROUP BY 1;
+DROP TABLE t1, t2;
+
+--echo # End of 5.3 tests
+
+--echo #
 --echo # Bug#49771: Incorrect MIN (date) when minimum value is 0000-00-00
 --echo #
 CREATE TABLE t1 (f1 int, f2 DATE);
@@ -1345,20 +1382,3 @@ SELECT f1,MIN(f2),MAX(f2) FROM t1 GROUP BY 1;
 
 DROP TABLE t1;
 --echo #End of test#49771
---echo #
---echo # lp:872702: Crash in add_ref_to_table_cond() when grouping by a PK
---echo #
-CREATE TABLE t1 (a int, PRIMARY KEY (a)) ;
-INSERT INTO t1 VALUES (14),(15),(16),(17),(18),(19),(20);
-
-CREATE TABLE t2 (a int) ;
-
-SELECT a
-FROM t1
-WHERE a = (
-        SELECT t2.a
-        FROM t2
-) OR t1.a = 73
-GROUP BY 1;
-DROP TABLE t1, t2;
-

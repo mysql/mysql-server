@@ -3558,12 +3558,16 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
       Perform range analysis if there are keys it could use (1). 
       Don't do range analysis if we're on the inner side of an outer join (2).
       Do range analysis if we're on the inner side of a semi-join (3).
+      Don't do range analysis for materialized subqueries (4).
+      Don't do range analysis for materialized derived tables (5)
     */
-    if (!s->const_keys.is_clear_all() &&                          // (1)
-        (!s->table->pos_in_table_list->embedding ||               // (2)
-         (s->table->pos_in_table_list->embedding &&               // (3)
-          s->table->pos_in_table_list->embedding->sj_on_expr)) && // (3)
-        !s->table->is_filled_at_execution())
+    if (!s->const_keys.is_clear_all() &&                            // (1)
+        (!s->table->pos_in_table_list->embedding ||                 // (2)
+         (s->table->pos_in_table_list->embedding &&                 // (3)
+          s->table->pos_in_table_list->embedding->sj_on_expr)) &&   // (3)
+        !s->table->is_filled_at_execution() &&                      // (4)
+        !(s->table->pos_in_table_list->derived &&                   // (5)
+          s->table->pos_in_table_list->is_materialized_derived()))  // (5)
     {
       ha_rows records;
       SQL_SELECT *select;
@@ -16093,8 +16097,13 @@ int report_error(TABLE *table, int error)
     print them to the .err log
   */
   if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+  {
+    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN, error,
+                        "Got error %d when reading table `%s`.`%s`",
+                        error, table->s->db.str, table->s->table_name.str);
     sql_print_error("Got error %d when reading table '%s'",
 		    error, table->s->path.str);
+  }
   table->file->print_error(error,MYF(0));
   return 1;
 }

@@ -807,6 +807,7 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
   select_union *result= (select_union*)unit->result;
   if (table->s->db_type() == TMP_ENGINE_HTON)
   {
+    result->tmp_table_param.keyinfo= table->s->key_info;
     if (create_internal_tmp_table(table, result->tmp_table_param.keyinfo,
                                   result->tmp_table_param.start_recinfo,
                                   &result->tmp_table_param.recinfo,

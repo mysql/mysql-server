@@ -1,0 +1,39 @@
+select * from INFORMATION_SCHEMA.ENGINES where ENGINE="ARIA";
+ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
+Aria	YES	Crash-safe tables with MyISAM heritage	NO	NO	NO
+set global storage_engine=aria;
+set session storage_engine=aria;
+drop table if exists t1;
+SET SQL_WARNINGS=1;
+CREATE TABLE t1 ( a VARCHAR(800),KEY(a) )
+ENGINE=Aria DEFAULT CHARACTER SET latin1;
+INSERT INTO t1 VALUES
+(REPEAT('abc ',200)), (REPEAT('def ',200)),
+(REPEAT('ghi ',200)), (REPEAT('jkl ',200));
+INSERT INTO t1 SELECT * FROM t1;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+ALTER TABLE t1 MODIFY a VARCHAR(800) CHARSET `ucs2`;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(800) CHARACTER SET ucs2 DEFAULT NULL,
+  KEY `a` (`a`(500))
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(800),KEY(a)) ENGINE=Aria CHARACTER SET ucs2;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+INSERT INTO t1 VALUES (REPEAT('abc ',200));
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+# End of 5.2 tests
