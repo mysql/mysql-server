@@ -1250,7 +1250,10 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
     (a theory: a next_local chain always starts with ::leaf_tables
      because view's tables are inserted after the view)
   */
-  for (tl= parent_lex->leaf_tables.head(); tl->next_local; tl= tl->next_local) ;
+  
+  for (tl= (TABLE_LIST*)(parent_lex->table_list.first); tl->next_local; tl= tl->next_local)
+  {}
+
   tl->next_local= subq_lex->leaf_tables.head();
 
   /* A theory: no need to re-connect the next_global chain */
@@ -1463,7 +1466,7 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
     (a theory: a next_local chain always starts with ::leaf_tables
      because view's tables are inserted after the view)
   */
-  for (tl= parent_lex->leaf_tables.head(); tl->next_local; tl= tl->next_local)
+  for (tl= (TABLE_LIST*)(parent_lex->table_list.first); tl->next_local; tl= tl->next_local)
   {}
   tl->next_local= jtbm;
 
