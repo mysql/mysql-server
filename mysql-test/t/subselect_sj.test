@@ -2331,5 +2331,19 @@ explain select * from t3 where a in (select kp1 from t1 where kp1<20);
 drop table t0,t1,t3;
 set optimizer_switch= @tmp_923246;
 
+--echo #
+--echo # BUG#952583: Server crashes in Item_field::fix_after_pullout on INSERT .. SELECT
+--echo # 
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 ( b INT );
+INSERT INTO t2 VALUES (3),(4);
+
+INSERT INTO t1
+SELECT * FROM ( SELECT * FROM t1 ) AS alias
+WHERE a IN ( SELECT b FROM t2 );
+
+DROP TABLE t1, t2;
+
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;
