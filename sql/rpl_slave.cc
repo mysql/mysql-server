@@ -6851,7 +6851,22 @@ static Log_event* next_event(Relay_log_info* rli)
             rli->log_space_limit < rli->log_space_total)
         {
           /* force rotation if not in an unfinished group */
-          rli->sql_force_rotate_relay= !rli->is_in_group();
+          if (!rli->is_parallel_exec())
+          {
+            rli->sql_force_rotate_relay= !rli->is_in_group();
+          }
+          else
+          {
+            if (rli->mts_group_status != Relay_log_info::MTS_IN_GROUP)
+            {
+              /*
+                Before to let the current relay log be purged Workers
+                have to finish off their current assignments.
+              */
+              (void) wait_for_workers_to_finish(rli);
+              rli->sql_force_rotate_relay= true;
+            }
+          }
 
           /* ask for one more event */
           rli->ignore_log_space_limit= true;
