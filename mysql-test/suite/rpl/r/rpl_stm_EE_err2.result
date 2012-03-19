@@ -13,7 +13,7 @@ drop table t1;
 call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.* error code=1062.*Error on slave:.* Error_code: 0");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 (expect different error codes on master and slave)
-include/wait_for_slave_sql_error.inc [errno=0,1742]
+include/wait_for_slave_sql_error.inc [errno=0,1753]
 drop table t1;
 include/stop_slave.inc
 RESET SLAVE;
