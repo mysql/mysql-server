@@ -4209,6 +4209,7 @@ btr_validate_level(
 	ulint*		offsets	= NULL;
 	ulint*		offsets2= NULL;
 	page_zip_des_t*	page_zip;
+	ulint		n_pages_updated = 0;
 
 	ut_ad(index);
 	ut_ad(!init_id || trx);
@@ -4305,6 +4306,13 @@ loop:
 
 		btr_page_set_index_id(page, page_zip, index->id, &mtr);
 		page_set_max_trx_id(block, page_zip, trx->id, &mtr);
+
+		if (++n_pages_update == 50) {
+			/* Avoid flooding the buffer pool with pages that
+			can't be flushed to disk. */
+			mtr_commit(&mtr);
+			mtr_start(&mtr);
+		}
 
 	} else if (btr_page_get_index_id(page) != index->id) {
 
