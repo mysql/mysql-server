@@ -4291,7 +4291,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   UintR Ttrans1 = lqhKeyConf->transId1;
   UintR Ttrans2 = lqhKeyConf->transId2;
   Uint32 noFired = LqhKeyConf::getFiredCount(lqhKeyConf->noFiredTriggers);
-  Uint32 deferred = LqhKeyConf::getDeferredBit(lqhKeyConf->noFiredTriggers);
+  Uint32 deferred = LqhKeyConf::getDeferredUKBit(lqhKeyConf->noFiredTriggers);
 
   if (TapiConnectptrIndex >= TapiConnectFilesize) {
     TCKEY_abort(signal, 29);
@@ -4348,9 +4348,9 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   regTcPtr->lastLqhNodeId = refToNode(tlastLqhBlockref);
   regTcPtr->noFiredTriggers = noFired;
   regTcPtr->m_special_op_flags |= (deferred) ?
-    TcConnectRecord::SOF_DEFERRED_TRIGGER : 0;
+    TcConnectRecord::SOF_DEFERRED_UK_TRIGGER : 0;
   regApiPtr.p->m_flags |= (deferred) ?
-    ApiConnectRecord::TF_DEFERRED_TRIGGERS : 0;
+    ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS : 0;
 
   UintR Ttckeyrec = (UintR)regApiPtr.p->tckeyrec;
   UintR TclientData = regTcPtr->clientData;
@@ -4516,8 +4516,41 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
 
   /**
    * And now decide what to do next
+   * 1) First check if there are fired triggers
+   * 2) Then check if it's a index-table read
+   * 3) Then check if op was created by trigger
+   * 4) Else it's a normal op
+   *
+   * - trigger op, can cause new trigger ops (cascade)
+   * - trigger op can be using uk
    */
-  if (regTcPtr->triggeringOperation != RNIL)
+  if (noFired)
+  {
+    // We have fired triggers
+    jam();
+    saveTriggeringOpState(signal, regTcPtr);
+    if (regTcPtr->noReceivedTriggers == noFired)
+    {
+      // We have received all data
+      jam();
+      executeTriggers(signal, &regApiPtr);
+    }
+    // else wait for more trigger data
+  }
+  else if (regTcPtr->isIndexOp(regTcPtr->m_special_op_flags))
+  {
+    // This is a index-table read
+    jam();
+    setupIndexOpReturn(regApiPtr.p, regTcPtr);
+    lqhKeyConf_checkTransactionState(signal, regApiPtr);
+  }
+  else if (regTcPtr->triggeringOperation == RNIL)
+  {
+    // This is "normal" path
+    jam();
+    lqhKeyConf_checkTransactionState(signal, regApiPtr);
+  }
+  else
   {
     jam();
     // This operation was created by a trigger execting operation
@@ -4528,25 +4561,6 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
     trigger_op_finished(signal, regApiPtr, regTcPtr->currentTriggerId,
                         opPtr.p, 0);
-  } else if (noFired == 0) {
-    // This operation did not fire any triggers, finish operation
-    jam();
-    if (regTcPtr->isIndexOp(regTcPtr->m_special_op_flags)) {
-      jam();
-      setupIndexOpReturn(regApiPtr.p, regTcPtr);
-    }
-    lqhKeyConf_checkTransactionState(signal, regApiPtr);
-  } else {
-    // We have fired triggers
-    jam();
-    saveTriggeringOpState(signal, regTcPtr);
-    if (regTcPtr->noReceivedTriggers == noFired) 
-    {
-      // We have received all data
-      jam();
-      executeTriggers(signal, &regApiPtr);
-    }
-    // else wait for more trigger data
   }
 }//Dbtc::execLQHKEYCONF()
  
@@ -4920,7 +4934,7 @@ void Dbtc::diverify010Lab(Signal* signal)
     systemErrorLab(signal, __LINE__);
   }//if
 
-  if (tc_testbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_TRIGGERS))
+  if (tc_testbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS))
   {
     jam();
     /**
@@ -4928,7 +4942,7 @@ void Dbtc::diverify010Lab(Signal* signal)
      *   transaction starts to commit
      */
     regApiPtr->pendingTriggers = 0;
-    tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_TRIGGERS);
+    tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS);
     sendFireTrigReq(signal, apiConnectptr, regApiPtr->firstTcConnect);
     return;
   }
@@ -5738,10 +5752,10 @@ Dbtc::sendFireTrigReq(Signal* signal,
 
     const Uint32 nextTcConnect = localTcConnectptr.p->nextTcConnect;
     Uint32 flags = localTcConnectptr.p->m_special_op_flags;
-    if (flags & TcConnectRecord::SOF_DEFERRED_TRIGGER)
+    if (flags & TcConnectRecord::SOF_DEFERRED_UK_TRIGGER)
     {
       jam();
-      tc_clearbit(flags, TcConnectRecord::SOF_DEFERRED_TRIGGER);
+      tc_clearbit(flags, TcConnectRecord::SOF_DEFERRED_UK_TRIGGER);
       ndbrequire(localTcConnectptr.p->tcConnectstate == OS_PREPARED);
       localTcConnectptr.p->tcConnectstate = OS_FIRE_TRIG_REQ;
       localTcConnectptr.p->m_special_op_flags = flags;
@@ -5895,13 +5909,13 @@ Dbtc::execFIRE_TRIG_CONF(Signal* signal)
   localTcConnectptr.p->tcConnectstate = OS_PREPARED;
 
   Uint32 noFired  = FireTrigConf::getFiredCount(conf->noFiredTriggers);
-  Uint32 deferred = FireTrigConf::getDeferredBit(conf->noFiredTriggers);
+  Uint32 deferreduk = FireTrigConf::getDeferredUKBit(conf->noFiredTriggers);
 
   regApiPtr.p->pendingTriggers += noFired;
-  regApiPtr.p->m_flags |= (deferred) ?
-    ApiConnectRecord::TF_DEFERRED_TRIGGERS : 0;
-  localTcConnectptr.p->m_special_op_flags |= (deferred) ?
-    TcConnectRecord::SOF_DEFERRED_TRIGGER : 0;
+  regApiPtr.p->m_flags |= (deferreduk) ?
+    ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS : 0;
+  localTcConnectptr.p->m_special_op_flags |= (deferreduk) ?
+    TcConnectRecord::SOF_DEFERRED_UK_TRIGGER : 0;
 
   if (regApiPtr.p->pendingTriggers == 0)
   {
