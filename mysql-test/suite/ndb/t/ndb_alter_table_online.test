@@ -689,3 +689,17 @@ alter online table t1 add column c502 varchar(2000);
 delete from t1;
 drop table t1;
 
+
+#
+# Bug #13830980 MYSQL COMPLAINS OF NOT SUPPORTING ALTER ONLINE EVEN WHEN VALID OPTIONS ARE USED
+#
+
+create table t1(a int(10) unsigned not null auto_increment,
+                b varchar(20) default 'x',
+                c varchar(20) default null,
+                primary key (a) ) engine=ndbcluster;
+
+--error ER_NOT_SUPPORTED_YET
+alter online table t1 add e varchar(20) default 'x' column_format dynamic;
+alter online table t1 add e varchar(20) default null column_format dynamic;
+drop table t1;

@@ -15619,6 +15619,7 @@ HA_ALTER_FLAGS supported_alter_operations()
     HA_ADD_UNIQUE_INDEX |
     HA_DROP_UNIQUE_INDEX |
     HA_ADD_COLUMN |
+    HA_COLUMN_DEFAULT_VALUE |
     HA_COLUMN_STORAGE |
     HA_COLUMN_FORMAT |
     HA_ADD_PARTITION |
@@ -15673,6 +15674,13 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
     }
   }
 
+  if (alter_flags->is_set(HA_COLUMN_DEFAULT_VALUE) &&
+      !alter_flags->is_set(HA_ADD_COLUMN))
+  {
+    DBUG_PRINT("info", ("Altering default value is not supported"));
+    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+  }
+
   if ((*alter_flags & not_supported).is_set())
   {
 #ifndef DBUG_OFF
@@ -15702,13 +15710,14 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
          Check that we are only adding columns
        */
        /*
-         HA_COLUMN_STORAGE & HA_COLUMN_FORMAT
+         HA_COLUMN_DEFAULT_VALUE & HA_COLUMN_STORAGE & HA_COLUMN_FORMAT
          are set if they are specified in an later cmd
          even if they're no change. This is probably a bug
          conclusion: add them to add_column-mask, so that we silently "accept" them
          In case of someone trying to change a column, the HA_CHANGE_COLUMN would be set
          which we don't support, so we will still return HA_ALTER_NOT_SUPPORTED in those cases
        */
+       add_column.set_bit(HA_COLUMN_DEFAULT_VALUE);
        add_column.set_bit(HA_COLUMN_STORAGE);
        add_column.set_bit(HA_COLUMN_FORMAT);
        if ((*alter_flags & ~add_column).is_set())

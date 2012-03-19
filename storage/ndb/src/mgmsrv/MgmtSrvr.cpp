@@ -1056,7 +1056,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
       if (version < NDBD_SPLIT_VERSION)
 	mysql_version = 0;
       struct in_addr in;
-      in.s_addr= conf->inet_addr;
+      in.s_addr= conf->m_inet_addr;
       *address= inet_ntoa(in);
 
       return 0;
