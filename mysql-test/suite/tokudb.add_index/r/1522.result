@@ -8,7 +8,7 @@ count(*)
 alter table t1 add clustering index b(b);
 explain select count(*) from t1 where b > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	b	b	5	NULL	4	Using where; Using index
+1	SIMPLE	t1	NA	b	b	5	NA	NA	NA
 select count(*) from t1 where b > 0;
 count(*)
 4
