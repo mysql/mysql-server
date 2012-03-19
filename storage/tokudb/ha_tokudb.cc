@@ -9813,8 +9813,8 @@ ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
         time_t now;
         char timebuf[32];
         snprintf(write_status_msg, sizeof write_status_msg, "%s primary=%d num=%d", share->table_name, primary_key, num_DBs);
-        ha_tokudb_check_info(thd, table, write_status_msg);
         if (verbose) {
+            ha_tokudb_check_info(thd, table, write_status_msg);
             now = time(0);
             fprintf(stderr, "%.24s ha_tokudb::check %s\n", ctime_r(&now, timebuf), write_status_msg);
         }
@@ -9826,8 +9826,8 @@ ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
                 kname = "primary"; // hidden primary key does not set name
             snprintf(write_status_msg, sizeof write_status_msg, "%s key=%s %u", share->table_name, kname, i);
             thd_proc_info(thd, write_status_msg);
-            ha_tokudb_check_info(thd, table, write_status_msg);
             if (verbose) {
+                ha_tokudb_check_info(thd, table, write_status_msg);
                 now = time(0);
                 fprintf(stderr, "%.24s ha_tokudb::check %s\n", ctime_r(&now, timebuf), write_status_msg);
             }
@@ -9835,13 +9835,16 @@ ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
             r = db->verify_with_progress(db, ha_tokudb_check_progress, &check_context, verbose, keep_going);
             snprintf(write_status_msg, sizeof write_status_msg, "%s key=%s %u result=%d", share->table_name, kname, i, r);
             thd_proc_info(thd, write_status_msg);
-            ha_tokudb_check_info(thd, table, write_status_msg);
             if (verbose) {
+                ha_tokudb_check_info(thd, table, write_status_msg);
                 now = time(0);
                 fprintf(stderr, "%.24s ha_tokudb::check %s\n", ctime_r(&now, timebuf), write_status_msg);
             }
-            if (result == HA_ADMIN_OK && r != 0)
+            if (result == HA_ADMIN_OK && r != 0) {
                 result = HA_ADMIN_CORRUPT;
+                if (!keep_going)
+                    break;
+            }
         }
     }
     thd_proc_info(thd, old_proc_info);
