@@ -4859,8 +4859,27 @@ scan_it_again:
   Initialize and start the MRR scan. Depending on the mode parameter, this
   may use default or DS-MRR implementation.
 
-  @param h               Table handler to be used
-  @param key             Index to be used
+  The DS-MRR implementation will use a second handler object (h2) for
+  doing scan on the index:
+  - on the first call to this function the h2 handler will be created
+    and h2 will be opened using the same index as the main handler
+    is set to use. The index scan on the main index will be closed
+    and it will be re-opened to read records from the table using either 
+    no key or the primary key. The h2 handler will be deleted when
+    reset() is called (which should happen on the end of the statement).
+  - when dsmrr_close() is called the index scan on h2 is closed.
+  - on following calls to this function one of the following must be valid:
+    a. if dsmrr_close has been called:
+       the main handler (h) must be open on an index, h2 will be opened
+       using this index, and the index on h will be closed and 
+       h will be re-opened to read reads from the table using either
+       no key or the primary key.
+    b. dsmrr_close has not been called:
+       h2 will already be open, the main handler h must be set up
+       to read records from the table (handler->inited is RND) either
+       using the primary index or using no index at all.
+
+  @param h_arg           Table handler to be used
   @param seq_funcs       Interval sequence enumeration functions
   @param seq_init_param  Interval sequence enumeration parameter
   @param n_ranges        Number of ranges in the sequence.
@@ -4876,11 +4895,9 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
                            HANDLER_BUFFER *buf)
 {
   uint elem_size;
-  Item *pushed_cond= NULL;
-  handler *new_h2= 0;
   int retval= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
-  THD *thd= current_thd;
+  THD *thd= h_arg->table->in_use;     // current THD
 
   /*
     index_merge may invoke a scan on an object for which dsmrr_info[_const]
@@ -4928,93 +4945,103 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   rowids_buf_end= rowids_buf_last;
 
   /*
-    There can be two cases:
-    - This is the first call since index_init(), h2==NULL
-       Need to setup h2 then.
-    - This is not the first call, h2 is initalized and set up appropriately.
-       The caller might have called h->index_init(), need to switch h to
-       rnd_pos calls.
+    The DS-MRR scan uses a second handler object (h2) for doing the
+    index scan. Create this by cloning the primary handler
+    object. The h2 handler object is deleted when DsMrr_impl::reset()
+    is called.
   */
   if (!h2)
   {
-    /* Create a separate handler object to do rndpos() calls. */
+    handler *new_h2;
     /*
       ::clone() takes up a lot of stack, especially on 64 bit platforms.
       The constant 5 is an empiric result.
+      @todo Is this still the case? Leave it as it is for now but could
+            likely be removed?
     */
     if (check_stack_overrun(thd, 5*STACK_MIN_SIZE, (uchar*) &new_h2))
       DBUG_RETURN(1);
-    DBUG_ASSERT(h->active_index != MAX_KEY);
-    uint mrr_keyno= h->active_index;
 
-    if (!(new_h2= h->clone(h->table->s->normalized_path.str, thd->mem_root)) ||
-        new_h2->ha_external_lock(thd, h->m_lock_type))
-    {
-      delete new_h2;
+    if (!(new_h2= h->clone(h->table->s->normalized_path.str, thd->mem_root)))
       DBUG_RETURN(1);
-    }
-
-    if (mrr_keyno == h->pushed_idx_cond_keyno)
-      pushed_cond= h->pushed_idx_cond;
-
-    /*
-      Caution: this call will invoke this->dsmrr_close(). Do not put the
-      created secondary table handler into this->h2 or it will delete it.
-    */
-    if ((retval= h->ha_index_end()))
-    {
-      h2=new_h2;
-      goto error;
-    }
-
     h2= new_h2; /* Ok, now can put it into h2 */
     table->prepare_for_position();
-    h2->extra(HA_EXTRA_KEYREAD);
+  }
 
-    if ((retval= h2->ha_index_init(mrr_keyno, FALSE)))
+  /*
+    Open the index scan on h2 using the key from the primary handler.
+  */
+  if (h2->active_index == MAX_KEY)
+  {
+    DBUG_ASSERT(h->active_index != MAX_KEY);
+    const uint mrr_keyno= h->active_index;
+
+    if ((retval= h2->ha_external_lock(thd, h->m_lock_type)))
       goto error;
 
-    use_default_impl= FALSE;
-    if (pushed_cond)
-      h2->idx_cond_push(mrr_keyno, pushed_cond);
+    if ((retval= h2->extra(HA_EXTRA_KEYREAD)))
+      goto error;
+
+    if ((retval= h2->ha_index_init(mrr_keyno, false)))
+      goto error;
+
+    // Transfer ICP from h to h2
+    if (mrr_keyno == h->pushed_idx_cond_keyno)
+    {
+      if (h2->idx_cond_push(mrr_keyno, h->pushed_idx_cond))
+      {
+        retval= 1;
+        goto error;
+      }
+    }
+    else
+    {
+      // Cancel any potentially previously pushed index conditions
+      h2->cancel_pushed_idx_cond();
+    }
   }
   else
   {
     /*
-      We get here when the access alternates betwen MRR scan(s) and non-MRR
-      scans.
+      h2 has already an open index. This happens when the DS-MRR scan
+      is re-started without closing it first. In this case the primary
+      handler must be used for reading records from the table, ie. it
+      must not be opened for doing a new range scan. In this case
+      the active_index must either not be set or be the primary key.
     */
+    DBUG_ASSERT(h->inited == handler::RND);
+    DBUG_ASSERT(h->active_index == MAX_KEY || 
+                h->active_index == table->s->primary_key);
+  }
 
-    /* 
-      Verify consistency between the two handler objects:
-      1. The main handler should either use the primary key or not have an
-         active index at this point since the clone handler (h2) is used for
-         reading the index.
-      2. The index used for ICP should be the same for the two handlers or
-         it should not be set on the clone handler (h2).
-      3. The ICP function should be the same for the two handlers or it should
-         not be set for the clone handler (h2).
-    */
-    DBUG_ASSERT(h->active_index == table->s->primary_key ||
-                h->active_index == MAX_KEY);
-    DBUG_ASSERT(h->pushed_idx_cond_keyno == h2->pushed_idx_cond_keyno || 
-                h2->pushed_idx_cond_keyno == MAX_KEY);
-    DBUG_ASSERT(h->pushed_idx_cond == h2->pushed_idx_cond || 
-                h2->pushed_idx_cond == NULL);
-
+  /*
+    The index scan is now transferred to h2 and we can close the open
+    index scan on the primary handler.
+  */
+  if (h->inited == handler::INDEX)
+  {
     /*
-      Calling h->index_end() will invoke dsmrr_close() for this object,
-      which will delete h2. We need to keep it, so save put it away and dont
-      let it be deleted:
+      Calling h->ha_index_end() will invoke dsmrr_close() for this object,
+      which will close the index scan on h2. We need to keep it open, so 
+      temporarily move h2 out of the DsMrr object.
     */
     handler *save_h2= h2;
     h2= NULL;
-    int res= (h->inited == handler::INDEX && (retval= h->ha_index_end()));
+    retval= h->ha_index_end();
     h2= save_h2;
-    use_default_impl= FALSE;
-    if (res)
+    if (retval)
       goto error;
   }
+
+  /*
+    Verify consistency between h and h2.
+  */
+  DBUG_ASSERT(h->inited != handler::INDEX);
+  DBUG_ASSERT(h->active_index == MAX_KEY || 
+              h->active_index == table->s->primary_key);
+  DBUG_ASSERT(h2->inited == handler::INDEX);
+  DBUG_ASSERT(h2->active_index != MAX_KEY);
+  DBUG_ASSERT(h->m_lock_type == h2->m_lock_type);
 
   if ((retval= h2->handler::multi_range_read_init(seq_funcs, seq_init_param, 
                                                   n_ranges, mode, buf)))
@@ -5048,7 +5075,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   DBUG_RETURN(0);
 error:
   h2->ha_index_or_rnd_end();
-  h2->ha_external_lock(current_thd, F_UNLCK);
+  h2->ha_external_lock(thd, F_UNLCK);
   h2->close();
   delete h2;
   h2= NULL;
@@ -5060,15 +5087,32 @@ error:
 void DsMrr_impl::dsmrr_close()
 {
   DBUG_ENTER("DsMrr_impl::dsmrr_close");
-  if (h2)
+
+  // If there is an open index on h2, then close it
+  if (h2 && h2->active_index != MAX_KEY)
   {
     h2->ha_index_or_rnd_end();
     h2->ha_external_lock(current_thd, F_UNLCK);
+  }
+  use_default_impl= true;
+  DBUG_VOID_RETURN;
+}
+
+
+void DsMrr_impl::reset()
+{
+  DBUG_ENTER("DsMrr_impl::reset");
+
+  if (h2)
+  {
+    // Close any ongoing DS-MRR scan 
+    dsmrr_close();
+
+    // Close and delete the h2 handler
     h2->close();
     delete h2;
     h2= NULL;
   }
-  use_default_impl= TRUE;
   DBUG_VOID_RETURN;
 }
 
@@ -5099,7 +5143,7 @@ static int rowid_cmp(void *h, uchar *a, uchar *b)
 int DsMrr_impl::dsmrr_fill_buffer()
 {
   char *range_info;
-  int res;
+  int res= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_buffer");
 
   rowids_buf_cur= rowids_buf;

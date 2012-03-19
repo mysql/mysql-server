@@ -10972,7 +10972,9 @@ select_var_ident:
         | ident_or_text
           {
             LEX *lex= Lex;
+#ifndef DBUG_OFF
             sp_head *sp= lex->sphead;
+#endif
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
             sp_variable *spv;
 

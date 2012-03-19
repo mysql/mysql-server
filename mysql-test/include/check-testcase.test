@@ -15,8 +15,12 @@
 # the end.  But we want to check that the slave is stopped, there is
 # no error, and a few other invariants.  So we issue SHOW SLAVE
 # STATUS, and if it returns no rows we fake the result.
---let $tmp= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1)
---let $tmp= `SELECT '$tmp' = 'No such row'`
+--let $tmp= 0
+if (`SELECT @@server_id <> 0`)
+{
+  --let $tmp= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1)
+  --let $tmp= `SELECT '$tmp' = 'No such row'`
+}
 if ($tmp)
 {
   # Note: after WL#5177, fields 13-18 shall not be filtered-out.
