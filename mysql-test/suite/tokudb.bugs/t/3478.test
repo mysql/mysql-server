@@ -38,7 +38,7 @@ CREATE TABLE `foo` (
   KEY `last_action` (`last_action`),
   KEY `last_login` (`last_login`),
   KEY `admin` (`admin`)
-) ENGINE=TOKUDB DEFAULT CHARSET=utf8;
+) ENGINE=TokuDB DEFAULT CHARSET=utf8;
 
 ALTER TABLE `foo` ADD `gender` TINYINT NULL AFTER `website` ,
 ADD `influence` INT NOT NULL DEFAULT '0' AFTER `gender` ,

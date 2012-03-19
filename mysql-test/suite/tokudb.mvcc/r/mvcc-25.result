@@ -10,14 +10,14 @@ foo	CREATE TABLE `foo` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 show create table bar;
 Table	Create Table
 bar	CREATE TABLE `bar` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 set session transaction isolation level repeatable read;
 begin;
 # should be empty

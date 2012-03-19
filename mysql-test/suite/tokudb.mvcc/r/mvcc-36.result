@@ -11,7 +11,7 @@ foo	CREATE TABLE `foo` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 insert into foo values (1,10,100),(2,20,200),(3,30,300),(4,40,400),(5,50,500),(6,60,600),(7,70,700),(8,80,800),(9,90,900);
 begin;
 select * from foo;

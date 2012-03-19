@@ -1012,21 +1012,21 @@ s	CREATE TABLE `s` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 show create table t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 show create table u;
 Table	Create Table
 u	CREATE TABLE `u` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 explain select straight_join * from s,t,u where s.b = t.b and s.c = t.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	1000	
@@ -1042,7 +1042,7 @@ s	CREATE TABLE `s` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   KEY `b` (`b`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 show create table t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -1050,7 +1050,7 @@ t	CREATE TABLE `t` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   KEY `b` (`b`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 show create table u;
 Table	Create Table
 u	CREATE TABLE `u` (
@@ -1058,7 +1058,7 @@ u	CREATE TABLE `u` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   KEY `c` (`c`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 explain select straight_join * from s,t,u where s.b = t.b and s.c = u.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	ALL	b	NULL	NULL	NULL	1000	
@@ -1075,7 +1075,7 @@ s	CREATE TABLE `s` (
   `c` int(11) DEFAULT NULL,
   KEY `b` (`b`),
   CLUSTERING KEY `b_2` (`b`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 show create table t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -1084,7 +1084,7 @@ t	CREATE TABLE `t` (
   `c` int(11) DEFAULT NULL,
   KEY `b` (`b`),
   CLUSTERING KEY `b_2` (`b`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 show create table u;
 Table	Create Table
 u	CREATE TABLE `u` (
@@ -1093,7 +1093,7 @@ u	CREATE TABLE `u` (
   `c` int(11) DEFAULT NULL,
   KEY `c` (`c`),
   CLUSTERING KEY `c_2` (`c`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 explain select straight_join * from s,t,u where s.b = t.b and s.c = u.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	index	b,b_2	b_2	5	NULL	1000	

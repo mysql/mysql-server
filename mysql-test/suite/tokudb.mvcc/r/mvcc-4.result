@@ -11,7 +11,7 @@ foo	CREATE TABLE `foo` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 #should read (1,1)
 select * from foo;
 a	b

@@ -6,7 +6,7 @@ show create table foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 insert into foo values (1);
 begin;
 insert into foo values (2);

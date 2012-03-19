@@ -62,7 +62,7 @@ foo	CREATE TABLE `foo` (
   UNIQUE KEY `c` (`c`),
   KEY `d` (`d`),
   CLUSTERING KEY `b` (`b`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 show create table foo_isam;
 Table	Create Table
 foo_isam	CREATE TABLE `foo_isam` (
