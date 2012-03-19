@@ -417,14 +417,10 @@ private:
  
 public:
     ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg);
-    ~ha_tokudb() {
-    } 
-    const char *table_type() const {
-        return "TOKUDB";
-    } 
-    const char *index_type(uint inx) {
-        return "BTREE";
-    }
+    ~ha_tokudb();
+
+    const char *table_type() const;
+    const char *index_type(uint inx);
     const char **bas_ext() const;
 
     //

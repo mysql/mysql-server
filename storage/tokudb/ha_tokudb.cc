@@ -241,7 +241,14 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
         goto cleanup; \
     }
 
+const char *ha_tokudb::table_type() const {
+    extern const char * const tokudb_hton_name;
+    return tokudb_hton_name;
+} 
 
+const char *ha_tokudb::index_type(uint inx) {
+    return "BTREE";
+}
 
 /* 
  *  returns NULL terminated file extension string
@@ -1247,6 +1254,9 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     doing_bulk_fetch = false;
     prelocked_left_range_size = 0;
     prelocked_right_range_size = 0;
+}
+
+ha_tokudb::~ha_tokudb() {
 }
 
 //
@@ -3743,6 +3753,8 @@ out:
     return error;
 }
 
+volatile int ha_tokudb_write_row_wait = 0; // debug
+
 //
 // Stores a row in the table, called when handling an INSERT query
 // Parameters:
@@ -3753,6 +3765,9 @@ out:
 //
 int ha_tokudb::write_row(uchar * record) {
     TOKUDB_DBUG_ENTER("ha_tokudb::write_row");
+
+    while (ha_tokudb_write_row_wait) sleep(1); // debug
+
     DBT row, prim_key;
     int error;
     THD *thd = ha_thd();
@@ -4296,6 +4311,8 @@ void ha_tokudb::invalidate_bulk_fetch() {
     curr_range_query_buff_offset = 0;
 }
 
+volatile int ha_tokudb_index_init_wait = 0; // debug
+
 //
 // Initializes local cursor on DB with index keynr
 // Parameters:
@@ -4307,6 +4324,9 @@ void ha_tokudb::invalidate_bulk_fetch() {
 //
 int ha_tokudb::index_init(uint keynr, bool sorted) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_init %p %d", this, keynr);
+
+    while (ha_tokudb_index_init_wait) sleep(1); // debug
+
     int error;
     THD* thd = ha_thd(); 
     DBUG_PRINT("enter", ("table: '%s'  key: %d", table_share->table_name.str, keynr));
@@ -7535,12 +7555,17 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
+volatile int ha_tokudb_drop_indexes_wait = 0; // debug
+
 //
 // Internal function called by ha_tokudb::prepare_drop_index and ha_tokudb::alter_table_phase2
 // With a transaction, drops dictionaries associated with indexes in key_num
 //
 int ha_tokudb::drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, DB_TXN* txn) {
     TOKUDB_DBUG_ENTER("ha_tokudb::drop_indexes");
+
+    while (ha_tokudb_drop_indexes_wait) sleep(1); // debug
+
     int error = 0;
     
     for (uint i = 0; i < num_of_keys; i++) {
@@ -7595,6 +7620,9 @@ void ha_tokudb::restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_o
         }
     }            
 }
+
+volatile int ha_tokudb_prepare_drop_index_wait = 0; //debug
+
 //
 // Prepares to drop indexes to the table. For each value, i, in the array key_num,
 // table->key_info[i] is a key that is to be dropped.
@@ -7614,6 +7642,9 @@ void ha_tokudb::restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_o
 //
 int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys) {
     TOKUDB_DBUG_ENTER("ha_tokudb::prepare_drop_index");
+
+    while (ha_tokudb_prepare_drop_index_wait) sleep(1); // debug
+
     int error;
     DB_TXN* txn = NULL;
 
@@ -7636,6 +7667,7 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
+volatile int ha_tokudb_final_drop_index_wait = 0; // debug
 
 //  ***********NOTE*******************
 // Although prepare_drop_index is supposed to just get the DB's ready for removal,
@@ -7646,6 +7678,7 @@ cleanup:
 // this function just return
 int ha_tokudb::final_drop_index(TABLE *table_arg) {
     TOKUDB_DBUG_ENTER("ha_tokudb::final_drop_index");
+    while (ha_tokudb_final_drop_index_wait) sleep(1); // debug
     TOKUDB_DBUG_RETURN(0);
 }
 
@@ -9752,10 +9785,11 @@ volatile int ha_tokudb_check_wait = 0; // debug
 int
 ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
     TOKUDB_DBUG_ENTER("check");
-    const char *old_proc_info = thd->proc_info;
-    thd_proc_info(thd, "tokudb::check");
 
     while (ha_tokudb_check_wait) sleep(1); // debug
+
+    const char *old_proc_info = thd->proc_info;
+    thd_proc_info(thd, "tokudb::check");
 
     int result = HA_ADMIN_OK;
     int r;
