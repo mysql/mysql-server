@@ -425,6 +425,15 @@ public:
     FLAG_ONE_LINE=   1 << 1
   };
   static bool is_started() { return false; }
+  bool start(bool support_I_S,
+             bool support_dbug_or_missing_priv,
+             bool end_marker, bool one_line,
+             long offset, long limit, ulong max_mem_size,
+             ulonglong features)
+  { return false; }
+  const char *get_tail(size_t size)
+  { return ""; }
+  void end() {}
 };
 
 #endif /* OPTIMIZER_TRACE */
