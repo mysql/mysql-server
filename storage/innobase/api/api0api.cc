@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -20,9 +20,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @file api/api0api.cc
 InnoDB Native API
 
-2008 Created by Sunny Bains
 3/20/2011 Jimmy Yang extracted from Embedded InnoDB
-Created by Sunny Bains */
+*******************************************************/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,11 +54,6 @@ Created by Sunny Bains */
 #include "ha_prototypes.h"
 #include "trx0roll.h"
 
-/* This must hold. */
-#if IB_TRUE != TRUE || IB_FALSE != FALSE
-#error IB_TRUE != TRUE or IB_FALSE != FALSE
-#endif
-
 /** configure variable for binlog option with InnoDB APIs */
 my_bool ib_binlog_enabled = FALSE;
 
@@ -75,7 +69,7 @@ ulong ib_trx_level_setting = IB_TRX_READ_UNCOMMITTED;
 /** InnoDB tuple types. */
 enum ib_tuple_type_t{
 	TPL_TYPE_ROW,			/*!< Data row tuple */
-	TPL_TYPE_KEY				/*!< Index key tuple */
+	TPL_TYPE_KEY			/*!< Index key tuple */
 };
 
 /** Query types supported. */
@@ -584,6 +578,7 @@ ib_trx_start(
 
 /*****************************************************************//**
 Begin a transaction. This will allocate a new transaction handle.
+put the transaction in the active state.
 @return	innobase txn handle */
 UNIV_INTERN
 ib_trx_t
@@ -2221,7 +2216,7 @@ UNIV_INLINE
 ib_err_t
 ib_col_is_capped(
 /*==============*/
-	const dtype_t*  dtype)		/* in: column type */
+	const dtype_t*  dtype)		/*!< in: column type */
 {
 	return(static_cast<ib_err_t>(
 		(dtype_get_mtype(dtype) == DATA_VARCHAR
