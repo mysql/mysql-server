@@ -3255,6 +3255,150 @@ static Sys_var_mybool Sys_relay_log_recovery(
        "processed",
        GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+bool Sys_var_rpl_filter::do_check(THD *thd, set_var *var)
+{
+  bool status;
+
+  mysql_mutex_lock(&LOCK_active_mi);
+  mysql_mutex_lock(&active_mi->rli.run_lock);
+
+  status= active_mi->rli.slave_running;
+
+  mysql_mutex_unlock(&active_mi->rli.run_lock);
+  mysql_mutex_unlock(&LOCK_active_mi);
+
+  if (status)
+    my_error(ER_SLAVE_MUST_STOP, MYF(0));
+  else
+    status= Sys_var_charptr::do_string_check(thd, var, charset(thd));
+
+  return status;
+}
+
+bool Sys_var_rpl_filter::global_update(THD *thd, set_var *var)
+{
+  bool slave_running, status= false;
+
+  mysql_mutex_lock(&LOCK_active_mi);
+  mysql_mutex_lock(&active_mi->rli.run_lock);
+
+  if (! (slave_running= active_mi->rli.slave_running))
+    status= set_filter_value(var->save_result.string_value.str);
+
+  mysql_mutex_unlock(&active_mi->rli.run_lock);
+  mysql_mutex_unlock(&LOCK_active_mi);
+
+  if (slave_running)
+    my_error(ER_SLAVE_MUST_STOP, MYF(0));
+
+  return slave_running || status;
+}
+
+bool Sys_var_rpl_filter::set_filter_value(const char *value)
+{
+  bool status= true;
+
+  switch (opt_id) {
+  case OPT_REPLICATE_DO_DB:
+    status= rpl_filter->set_do_db(value);
+    break;
+  case OPT_REPLICATE_DO_TABLE:
+    status= rpl_filter->set_do_table(value);
+    break;
+  case OPT_REPLICATE_IGNORE_DB:
+    status= rpl_filter->set_ignore_db(value);
+    break;
+  case OPT_REPLICATE_IGNORE_TABLE:
+    status= rpl_filter->set_ignore_table(value);
+    break;
+  case OPT_REPLICATE_WILD_DO_TABLE:
+    status= rpl_filter->set_wild_do_table(value);
+    break;
+  case OPT_REPLICATE_WILD_IGNORE_TABLE:
+    status= rpl_filter->set_wild_ignore_table(value);
+    break;
+  }
+
+  return status;
+}
+
+uchar *Sys_var_rpl_filter::global_value_ptr(THD *thd, LEX_STRING *base)
+{
+  char buf[256];
+  String tmp(buf, sizeof(buf), &my_charset_bin);
+
+  tmp.length(0);
+
+  mysql_mutex_lock(&LOCK_active_mi);
+  mysql_mutex_lock(&active_mi->rli.run_lock);
+
+  switch (opt_id) {
+  case OPT_REPLICATE_DO_DB:
+    rpl_filter->get_do_db(&tmp);
+    break;
+  case OPT_REPLICATE_DO_TABLE:
+    rpl_filter->get_do_table(&tmp);
+    break;
+  case OPT_REPLICATE_IGNORE_DB:
+    rpl_filter->get_ignore_db(&tmp);
+    break;
+  case OPT_REPLICATE_IGNORE_TABLE:
+    rpl_filter->get_ignore_table(&tmp);
+    break;
+  case OPT_REPLICATE_WILD_DO_TABLE:
+    rpl_filter->get_wild_do_table(&tmp);
+    break;
+  case OPT_REPLICATE_WILD_IGNORE_TABLE:
+    rpl_filter->get_wild_ignore_table(&tmp);
+    break;
+  }
+
+  mysql_mutex_unlock(&active_mi->rli.run_lock);
+  mysql_mutex_unlock(&LOCK_active_mi);
+
+  return (uchar *) thd->strmake(tmp.ptr(), tmp.length());
+}
+
+static Sys_var_rpl_filter Sys_replicate_do_db(
+       "replicate_do_db", OPT_REPLICATE_DO_DB,
+       "Tell the slave to restrict replication to updates of tables "
+       "whose names appear in the comma-separated list. For "
+       "statement-based replication, only the default database (that "
+       "is, the one selected by USE) is considered, not any explicitly "
+       "mentioned tables in the query. For row-based replication, the "
+       "actual names of table(s) being updated are checked.");
+
+static Sys_var_rpl_filter Sys_replicate_do_table(
+       "replicate_do_table", OPT_REPLICATE_DO_TABLE,
+       "Tells the slave to restrict replication to tables in the "
+       "comma-separated list.");
+
+static Sys_var_rpl_filter Sys_replicate_ignore_db(
+       "replicate_ignore_db", OPT_REPLICATE_IGNORE_DB,
+       "Tell the slave to restrict replication to updates of tables "
+       "whose names do not appear in the comma-separated list. For "
+       "statement-based replication, only the default database (that "
+       "is, the one selected by USE) is considered, not any explicitly "
+       "mentioned tables in the query. For row-based replication, the "
+       "actual names of table(s) being updated are checked.");
+
+static Sys_var_rpl_filter Sys_replicate_ignore_table(
+       "replicate_ignore_table", OPT_REPLICATE_IGNORE_TABLE,
+       "Tells the slave thread not to replicate any statement that "
+       "updates the specified table, even if any other tables might be "
+       "updated by the same statement.");
+
+static Sys_var_rpl_filter Sys_replicate_wild_do_table(
+       "replicate_wild_do_table", OPT_REPLICATE_WILD_DO_TABLE,
+       "Tells the slave thread to restrict replication to statements "
+       "where any of the updated tables match the specified database "
+       "and table name patterns.");
+
+static Sys_var_rpl_filter Sys_replicate_wild_ignore_table(
+       "replicate_wild_ignore_table", OPT_REPLICATE_WILD_IGNORE_TABLE,
+       "Tells the slave thread to not replicate to the tables that "
+       "match the given wildcard pattern.");
+
 static Sys_var_charptr Sys_slave_load_tmpdir(
        "slave_load_tmpdir", "The location where the slave should put "
        "its temporary files when replicating a LOAD DATA INFILE command",

@@ -430,11 +430,11 @@ public:
       my_free(global_var(char*));
     flags&= ~ALLOCATED;
   }
-  bool do_check(THD *thd, set_var *var)
+  static bool do_string_check(THD *thd, set_var *var, CHARSET_INFO *charset)
   {
     char buff[STRING_BUFFER_USUAL_SIZE], buff2[STRING_BUFFER_USUAL_SIZE];
-    String str(buff, sizeof(buff), charset(thd));
-    String str2(buff2, sizeof(buff2), charset(thd)), *res;
+    String str(buff, sizeof(buff), charset);
+    String str2(buff2, sizeof(buff2), charset), *res;
 
     if (!(res=var->value->val_str(&str)))
       var->save_result.string_value.str= 0;
@@ -442,10 +442,10 @@ public:
     {
       uint32 unused;
       if (String::needs_conversion(res->length(), res->charset(),
-                                   charset(thd), &unused))
+                                   charset, &unused))
       {
         uint errors;
-        str2.copy(res->ptr(), res->length(), res->charset(), charset(thd),
+        str2.copy(res->ptr(), res->length(), res->charset(), charset,
                   &errors);
         res=&str2;
 
@@ -456,6 +456,8 @@ public:
 
     return false;
   }
+  bool do_check(THD *thd, set_var *var)
+  { return do_string_check(thd, var, charset(thd)); }
   bool session_update(THD *thd, set_var *var)
   {
     DBUG_ASSERT(FALSE);
@@ -548,6 +550,44 @@ protected:
     return thd->security_ctx->proxy_user[0] ?
       (uchar *) &(thd->security_ctx->proxy_user[0]) : NULL;
   }
+};
+
+class Sys_var_rpl_filter: public sys_var
+{
+private:
+  int opt_id;
+
+public:
+  Sys_var_rpl_filter(const char *name, int getopt_id, const char *comment)
+    : sys_var(&all_sys_vars, name, comment, sys_var::GLOBAL, 0, -1,
+              NO_ARG, SHOW_CHAR, 0, NULL, VARIABLE_NOT_IN_BINLOG,
+              NULL, NULL, 0, NULL), opt_id(getopt_id)
+  {
+    option.var_type= GET_STR;
+  }
+
+  bool check_update_type(Item_result type)
+  { return type != STRING_RESULT; }
+
+  bool do_check(THD *thd, set_var *var);
+
+  void session_save_default(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+
+  void global_save_default(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+
+  bool session_update(THD *thd, set_var *var)
+  {
+    DBUG_ASSERT(FALSE);
+    return true;
+  }
+
+  bool global_update(THD *thd, set_var *var);
+
+protected:
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base);
+  bool set_filter_value(const char *value);
 };
 
 /**

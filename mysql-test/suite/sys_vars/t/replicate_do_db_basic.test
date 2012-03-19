@@ -1,0 +1,39 @@
+--source include/not_embedded.inc
+
+--echo #
+--echo # Basic testing of replicate_do_db.
+--echo #
+
+SET @save_replicate_do_db = @@GLOBAL.replicate_do_db;
+SELECT @save_replicate_do_db;
+
+--echo # Scope.
+
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.replicate_do_db = "";
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.replicate_do_db;
+
+--echo # Incorrect type.
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.replicate_do_db=1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.replicate_do_db=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.replicate_do_db=1e1;
+
+--echo # Argument syntax.
+
+SET @@GLOBAL.replicate_do_db="db1,,,,,db3";
+SELECT @@GLOBAL.replicate_do_db;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='replicate_do_db';
+
+SET @@GLOBAL.replicate_do_db="db1,,,db2,,,db3";
+SELECT @@GLOBAL.replicate_do_db;
+
+SET @@GLOBAL.replicate_do_db="";
+SELECT @@GLOBAL.replicate_do_db;
+
+--echo # Cleanup.
+SET @@GLOBAL.replicate_do_db = @save_replicate_do_db;

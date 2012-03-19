@@ -1,0 +1,37 @@
+#
+# Basic testing of replicate_do_db.
+#
+SET @save_replicate_do_db = @@GLOBAL.replicate_do_db;
+SELECT @save_replicate_do_db;
+@save_replicate_do_db
+
+# Scope.
+SET @@SESSION.replicate_do_db = "";
+ERROR HY000: Variable 'replicate_do_db' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@SESSION.replicate_do_db;
+ERROR HY000: Variable 'replicate_do_db' is a GLOBAL variable
+# Incorrect type.
+SET @@GLOBAL.replicate_do_db=1;
+ERROR 42000: Incorrect argument type to variable 'replicate_do_db'
+SET @@GLOBAL.replicate_do_db=1.1;
+ERROR 42000: Incorrect argument type to variable 'replicate_do_db'
+SET @@GLOBAL.replicate_do_db=1e1;
+ERROR 42000: Incorrect argument type to variable 'replicate_do_db'
+# Argument syntax.
+SET @@GLOBAL.replicate_do_db="db1,,,,,db3";
+SELECT @@GLOBAL.replicate_do_db;
+@@GLOBAL.replicate_do_db
+db1,db3
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='replicate_do_db';
+VARIABLE_NAME	VARIABLE_VALUE
+REPLICATE_DO_DB	db1,db3
+SET @@GLOBAL.replicate_do_db="db1,,,db2,,,db3";
+SELECT @@GLOBAL.replicate_do_db;
+@@GLOBAL.replicate_do_db
+db1,db2,db3
+SET @@GLOBAL.replicate_do_db="";
+SELECT @@GLOBAL.replicate_do_db;
+@@GLOBAL.replicate_do_db
+
+# Cleanup.
+SET @@GLOBAL.replicate_do_db = @save_replicate_do_db;
