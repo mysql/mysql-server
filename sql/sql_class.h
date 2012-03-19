@@ -3172,6 +3172,11 @@ public:
     return variables.sql_mode &
       (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES);
   }
+  inline bool is_strict_mode() const
+  {
+    return test(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
+                                      MODE_STRICT_ALL_TABLES));
+  }
   inline Time_zone *time_zone()
   {
     time_zone_used= 1;

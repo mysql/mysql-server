@@ -1128,6 +1128,12 @@ static bool make_empty_rec(THD *thd, File file,
       /* If not ok or warning of level 'note' */
       if (res != 0 && res != 3)
       {
+        /*
+          clear current error and report INVALID DEFAULT value error message
+          */
+        if (thd->is_error())
+          thd->clear_error();
+
         my_error(ER_INVALID_DEFAULT, MYF(0), regfield->field_name);
         error= 1;
         delete regfield; //To avoid memory leak
