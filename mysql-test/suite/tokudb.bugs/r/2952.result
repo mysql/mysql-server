@@ -12,7 +12,7 @@ foo	CREATE TABLE `foo` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 begin;
 insert into foo values (1,10,100),(2,20,200),(3,30,300);
 set session transaction isolation level read uncommitted;
@@ -34,7 +34,7 @@ foo	CREATE TABLE `foo` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 begin;
 insert into foo values (1,10,100),(2,20,200),(3,30,300);
 insert into foo values (100,100,100);
@@ -55,7 +55,7 @@ foo	CREATE TABLE `foo` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 begin;
 insert into foo values (1,10,100),(2,20,200),(3,30,300);
 insert into foo values (100,100,100);

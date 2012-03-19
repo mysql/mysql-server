@@ -389,7 +389,7 @@ t1	CREATE TABLE `t1` (
   `t1_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`t1_id`),
   KEY `t1_name` (`t1_name`)
-) ENGINE=TOKUDB AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
+) ENGINE=TokuDB AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
 DROP TABLE `t1`;
 create table t1(a int not null auto_increment primary key);
 create table t2(a int not null auto_increment primary key, t1a int);

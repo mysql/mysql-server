@@ -8,7 +8,7 @@ Table	Create Table
 foo	CREATE TABLE `foo` (
   `a` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 insert into foo values(1);
 select * from foo;
 a
@@ -20,7 +20,7 @@ Table	Create Table
 foo	CREATE TABLE `foo` (
   `a` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 select * from foo;
 a
 1
@@ -45,7 +45,7 @@ Table	Create Table
 foo	CREATE TABLE `foo` (
   `a` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 select * from foo;
 a
 1
@@ -67,7 +67,7 @@ Table	Create Table
 foo	CREATE TABLE `foo` (
   `a` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 insert into foo values(1);
 select * from foo;
 a
@@ -84,7 +84,7 @@ show create table fooff;
 Table	Create Table
 fooff	CREATE TABLE `fooff` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 drop table fooff;
 begin;
 select * from bar;
@@ -100,7 +100,7 @@ show create table foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
   `abra` int(11) DEFAULT NULL
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 select * from foo;
 abra
 drop table foo;

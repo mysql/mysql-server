@@ -10,7 +10,7 @@ foo	CREATE TABLE `foo` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 insert into foo values (100,100);
 begin;
 insert into foo values (1,100);

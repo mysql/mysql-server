@@ -66,7 +66,7 @@ foo	CREATE TABLE `foo` (
   UNIQUE KEY `c` (`c`),
   KEY `d` (`d`),
   CLUSTERING KEY `b` (`b`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 alter table foo change column aa aa int NOT NULL;
 ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
 alter table foo change column aa aa bigint;

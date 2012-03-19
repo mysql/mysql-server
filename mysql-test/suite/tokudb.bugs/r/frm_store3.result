@@ -10,11 +10,11 @@ foo	CREATE TABLE `foo` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 show create table bar;
 Table	Create Table
 bar	CREATE TABLE `bar` (
   `a` bigint(20) DEFAULT NULL,
   KEY `a` (`a`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 DROP TABLE foo,bar;

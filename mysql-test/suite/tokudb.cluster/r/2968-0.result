@@ -1009,14 +1009,14 @@ s	CREATE TABLE `s` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 show create table t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 explain select straight_join * from s,t where s.b = t.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	1000	
@@ -1030,7 +1030,7 @@ s	CREATE TABLE `s` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   CLUSTERING KEY `b` (`b`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 show create table t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -1038,7 +1038,7 @@ t	CREATE TABLE `t` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   CLUSTERING KEY `b` (`b`)
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 explain select straight_join * from s,t where s.b = t.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	index	b	b	5	NULL	1000	

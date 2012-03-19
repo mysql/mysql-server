@@ -8,7 +8,7 @@ show create table foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TOKUDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
 set session tokudb_load_save_space=0;
 set session transaction isolation level repeatable read;
 begin;
