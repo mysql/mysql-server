@@ -760,7 +760,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
   int running= 0;
   const char *msg= NULL;
   mysql_mutex_lock(&LOCK_active_mi);
-  if (active_mi)
+  if (active_mi != NULL)
   {
     lock_slave_threads(active_mi);
     init_thread_mask(&running, active_mi, FALSE);
@@ -1578,7 +1578,7 @@ static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
 {
   mysql_bin_log.set_max_size(max_binlog_size);
 #ifdef HAVE_REPLICATION
-  if (!max_relay_log_size)
+  if (active_mi != NULL && !max_relay_log_size)
     active_mi->rli->relay_log.set_max_size(max_binlog_size);
 #endif
   return false;
@@ -1712,8 +1712,9 @@ static Sys_var_ulong Sys_max_prepared_stmt_count(
 static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 {
 #ifdef HAVE_REPLICATION
-  active_mi->rli->relay_log.set_max_size(max_relay_log_size ?
-                                        max_relay_log_size: max_binlog_size);
+  if (active_mi != NULL)
+    active_mi->rli->relay_log.set_max_size(max_relay_log_size ?
+                                           max_relay_log_size: max_binlog_size);
 #endif
   return false;
 }
@@ -3667,8 +3668,8 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
   mysql_mutex_lock(&LOCK_active_mi);
   DBUG_PRINT("info", ("slave_net_timeout=%u mi->heartbeat_period=%.3f",
                      slave_net_timeout,
-                     (active_mi? active_mi->heartbeat_period : 0.0)));
-  if (active_mi && slave_net_timeout < active_mi->heartbeat_period)
+                     (active_mi ? active_mi->heartbeat_period : 0.0)));
+  if (active_mi != NULL && slave_net_timeout < active_mi->heartbeat_period)
     push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
                         ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
@@ -3687,32 +3688,38 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 {
   bool result= false;
   mysql_mutex_lock(&LOCK_active_mi);
-  mysql_mutex_lock(&active_mi->rli->run_lock);
-  if (active_mi->rli->slave_running)
+  if (active_mi != NULL)
   {
-    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
-    result= true;
+    mysql_mutex_lock(&active_mi->rli->run_lock);
+    if (active_mi->rli->slave_running)
+    {
+      my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+      result= true;
+    }
+    mysql_mutex_unlock(&active_mi->rli->run_lock);
   }
-  mysql_mutex_unlock(&active_mi->rli->run_lock);
   mysql_mutex_unlock(&LOCK_active_mi);
   return result;
 }
 static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
 {
   mysql_mutex_lock(&LOCK_active_mi);
-  mysql_mutex_lock(&active_mi->rli->run_lock);
-  /*
-    The following test should normally never be true as we test this
-    in the check function;  To be safe against multiple
-    SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
-  */
-  if (!active_mi->rli->slave_running)
+  if (active_mi != NULL)
   {
-    mysql_mutex_lock(&active_mi->rli->data_lock);
-    active_mi->rli->slave_skip_counter= sql_slave_skip_counter;
-    mysql_mutex_unlock(&active_mi->rli->data_lock);
+    mysql_mutex_lock(&active_mi->rli->run_lock);
+    /*
+      The following test should normally never be true as we test this
+      in the check function;  To be safe against multiple
+      SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
+    */
+    if (!active_mi->rli->slave_running)
+    {
+      mysql_mutex_lock(&active_mi->rli->data_lock);
+      active_mi->rli->slave_skip_counter= sql_slave_skip_counter;
+      mysql_mutex_unlock(&active_mi->rli->data_lock);
+    }
+    mysql_mutex_unlock(&active_mi->rli->run_lock);
   }
-  mysql_mutex_unlock(&active_mi->rli->run_lock);
   mysql_mutex_unlock(&LOCK_active_mi);
   return 0;
 }

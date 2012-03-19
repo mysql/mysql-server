@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 # Common defines and includes
-IF(WITH_INNODB_MEMCACHED)
+IF(WITH_INNODB_MEMCACHED AND UNIX)
 
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 INCLUDE_DIRECTORIES(${LIBEVENT_INCLUDE_DIR}/compat/sys

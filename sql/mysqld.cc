@@ -4208,7 +4208,7 @@ static int init_server_components()
     sql_print_warning("You need to use --log-bin to make "
                     "--log-slave-updates work.");
   }
-  if (!opt_bin_log && binlog_format_used)
+  if (binlog_format_used && !opt_bin_log)
     sql_print_warning("You need to use --log-bin to make "
                       "--binlog-format work.");
 
@@ -4916,7 +4916,7 @@ int mysqld_main(int argc, char **argv)
       set_user(mysqld_user, user_info);
   }
 
-  if (opt_bin_log && !server_id)
+  if (opt_bin_log && server_id == 0)
   {
     server_id= 1;
 #ifdef EXTRA_DEBUG
@@ -5075,11 +5075,8 @@ int mysqld_main(int argc, char **argv)
   binlog_unsafe_map_init();
   /*
     init_slave() must be called after the thread keys are created.
-    Some parts of the code (e.g. SHOW STATUS LIKE 'slave_running' and other
-    places) assume that active_mi != 0, so let's fail if it's 0 (out of
-    memory); a message has already been printed.
   */
-  if (init_slave() && !active_mi)
+  if (server_id != 0 && init_slave() && active_mi == NULL)
   {
     unireg_abort(1);
   }

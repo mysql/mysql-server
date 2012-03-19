@@ -2324,7 +2324,7 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
   @retval FALSE success
   @retval TRUE failure
 */
-bool show_master_info(THD* thd, Master_info* mi)
+bool show_slave_status(THD* thd, Master_info* mi)
 {
   // TODO: fix this for multi-master
   List<Item> field_list;
@@ -2332,28 +2332,31 @@ bool show_master_info(THD* thd, Master_info* mi)
   char *slave_sql_running_state= NULL;
   char *sql_gtid_set_buffer= NULL, *io_gtid_set_buffer= NULL;
   int sql_gtid_set_size= 0, io_gtid_set_size= 0;
-  DBUG_ENTER("show_master_info");
-  
-  global_sid_lock.wrlock();
-  const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
-  const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
-  if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
-      (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
-  {
-    my_eof(thd);
-    my_free(sql_gtid_set_buffer);
-    my_free(io_gtid_set_buffer);
+  DBUG_ENTER("show_slave_status");
+ 
+  if (mi != NULL)
+  { 
+    global_sid_lock.wrlock();
+    const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
+    const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
+    if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
+        (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
+    {
+      my_eof(thd);
+      my_free(sql_gtid_set_buffer);
+      my_free(io_gtid_set_buffer);
+      global_sid_lock.unlock();
+      DBUG_RETURN(true);
+    }
     global_sid_lock.unlock();
-    DBUG_RETURN(true);
   }
-  global_sid_lock.unlock();
 
   field_list.push_back(new Item_empty_string("Slave_IO_State",
                                                      14));
-  field_list.push_back(new Item_empty_string("Master_Host",
-                                                     sizeof(mi->host)));
-  field_list.push_back(new Item_empty_string("Master_User",
-                                                     mi->get_user_size()));
+  field_list.push_back(new Item_empty_string("Master_Host", mi != NULL ?
+                                                     sizeof(mi->host) : 0));
+  field_list.push_back(new Item_empty_string("Master_User", mi != NULL ?
+                                                     mi->get_user_size() : 0));
   field_list.push_back(new Item_return_int("Master_Port", 7,
                                            MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("Connect_Retry", 10,
@@ -2390,16 +2393,16 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_return_int("Until_Log_Pos", 10,
                                            MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Master_SSL_Allowed", 7));
-  field_list.push_back(new Item_empty_string("Master_SSL_CA_File",
-                                             sizeof(mi->ssl_ca)));
-  field_list.push_back(new Item_empty_string("Master_SSL_CA_Path",
-                                             sizeof(mi->ssl_capath)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Cert",
-                                             sizeof(mi->ssl_cert)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Cipher",
-                                             sizeof(mi->ssl_cipher)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Key",
-                                             sizeof(mi->ssl_key)));
+  field_list.push_back(new Item_empty_string("Master_SSL_CA_File", mi != NULL ?
+                                             sizeof(mi->ssl_ca) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_CA_Path", mi != NULL ?
+                                             sizeof(mi->ssl_capath) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Cert", mi != NULL ?
+                                             sizeof(mi->ssl_cert) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Cipher", mi != NULL ?
+                                             sizeof(mi->ssl_cipher) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Key", mi != NULL ?
+                                             sizeof(mi->ssl_key) : 0));
   field_list.push_back(new Item_return_int("Seconds_Behind_Master", 10,
                                            MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Master_SSL_Verify_Server_Cert",
@@ -2420,14 +2423,14 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
   field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
                                            MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Master_Bind",
-                                             sizeof(mi->bind_addr)));
+  field_list.push_back(new Item_empty_string("Master_Bind", mi != NULL ?
+                                             sizeof(mi->bind_addr) : 0));
   field_list.push_back(new Item_empty_string("Last_IO_Error_Timestamp", 20));
   field_list.push_back(new Item_empty_string("Last_SQL_Error_Timestamp", 20));
-  field_list.push_back(new Item_empty_string("Master_SSL_Crl",
-                                             sizeof(mi->ssl_crl)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Crlpath",
-                                             sizeof(mi->ssl_crlpath)));
+  field_list.push_back(new Item_empty_string("Master_SSL_Crl", mi != NULL ?
+                                             sizeof(mi->ssl_crl) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Crlpath", mi != NULL ?
+                                             sizeof(mi->ssl_crlpath) : 0));
   field_list.push_back(new Item_empty_string("Retrieved_Gtid_Set",
                                              io_gtid_set_size));
   field_list.push_back(new Item_empty_string("Executed_Gtid_Set",
@@ -2441,7 +2444,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     DBUG_RETURN(true);
   }
 
-  if (mi->host[0])
+  if (mi != NULL && mi->host[0])
   {
     DBUG_PRINT("info",("host is set: '%s'", mi->host));
     String *packet= &thd->packet;
@@ -7257,7 +7260,7 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
  */
 bool rpl_master_erroneous_autoinc(THD *thd)
 {
-  if (active_mi && active_mi->rli->info_thd == thd)
+  if (active_mi != NULL && active_mi->rli->info_thd == thd)
   {
     Relay_log_info *rli= active_mi->rli;
     DBUG_EXECUTE_IF("simulate_bug33029", return TRUE;);
