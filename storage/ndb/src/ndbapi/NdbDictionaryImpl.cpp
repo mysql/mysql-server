@@ -3448,6 +3448,7 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
     {
       const NdbColumnImpl *col= impl.m_columns[i];
       if(!col->m_dynamic || !col->m_nullable ||
+         !col->m_defaultValue.empty() ||
          col->m_storageType == NDB_STORAGETYPE_DISK ||
          col->m_pk ||
          col->m_distributionKey ||

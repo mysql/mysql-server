@@ -740,7 +740,7 @@ public:
       TF_EXEC_FLAG       = 4,
       TF_COMMIT_ACK_MARKER_RECEIVED = 8,
       TF_DEFERRED_CONSTRAINTS = 16, // check constraints in deferred fashion
-      TF_DEFERRED_TRIGGERS = 32, // trans has deferred triggers
+      TF_DEFERRED_UK_TRIGGERS = 32, // trans has deferred UK triggers
       TF_END = 0
     };
     Uint32 m_flags;
@@ -882,7 +882,7 @@ public:
       SOF_TRIGGER = 16,               // A trigger
       SOF_REORG_COPY = 32,
       SOF_REORG_DELETE = 64,
-      SOF_DEFERRED_TRIGGER = 128      // Op has deferred trigger
+      SOF_DEFERRED_UK_TRIGGER = 128   // Op has deferred trigger
     };
     
     static inline bool isIndexOp(Uint8 flags) {
