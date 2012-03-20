@@ -4307,7 +4307,7 @@ loop:
 		btr_page_set_index_id(page, page_zip, index->id, &mtr);
 		page_set_max_trx_id(block, page_zip, trx->id, &mtr);
 
-		if (++n_pages_update == 50) {
+		if (!(++n_pages_updated % 100)) {
 			/* Avoid flooding the buffer pool with pages that
 			can't be flushed to disk. */
 			mtr_commit(&mtr);
