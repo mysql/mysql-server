@@ -122,7 +122,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   File file;
   ulong filepos, data_offset;
   uchar fileinfo[64],forminfo[288],*keybuff, *forminfo_p= forminfo;
-  uchar *screen_buff;
+  uchar *screen_buff= NULL;
   char buff[128];
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info= thd->work_part_info;
@@ -231,6 +231,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
                                 TABLE_COMMENT_MAXLEN,
                                 ER_TOO_LONG_TABLE_COMMENT,
                                 real_table_name))
+      my_free(screen_buff);
       DBUG_RETURN(true);
   }
   /*
@@ -1128,6 +1129,12 @@ static bool make_empty_rec(THD *thd, File file,
       /* If not ok or warning of level 'note' */
       if (res != 0 && res != 3)
       {
+        /*
+          clear current error and report INVALID DEFAULT value error message
+          */
+        if (thd->is_error())
+          thd->clear_error();
+
         my_error(ER_INVALID_DEFAULT, MYF(0), regfield->field_name);
         error= 1;
         delete regfield; //To avoid memory leak

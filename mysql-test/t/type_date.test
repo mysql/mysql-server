@@ -398,4 +398,68 @@ SELECT DATE(MIN(a)) FROM t1;
 DROP TABLE t1;
 SET timestamp=DEFAULT;
 
+--echo #
+--echo # Test for bug#11747847 - 34280: create table fails if NO_ZERO_DATE
+--echo # or NO_ZERO_IN_DATE SQL mode is set.
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3;
+--enable_warnings
+SET @org_mode=@@sql_mode;
+
+--echo #Table creation in strict mode with NO_ZERO_IN_DATE/NO_ZERO_DATE
+SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
+--error ER_INVALID_DEFAULT
+CREATE TABLE t1 (c1 DATE DEFAULT 0);
+--error ER_INVALID_DEFAULT
+CREATE TABLE t1 (c1 DATE DEFAULT '0000-00-00');
+SET @@sql_mode='NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
+--error ER_INVALID_DEFAULT
+CREATE TABLE t1 (c1 DATE DEFAULT '2012-02-00');
+
+--echo #Table creation in non-strict mode but with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE';
+CREATE TABLE t1 (c1 DATE DEFAULT 0);
+CREATE TABLE t2 (c1 DATE DEFAULT '0000-00-00');
+SET @@sql_mode='NO_ZERO_IN_DATE';
+CREATE TABLE t3 (c1 DATE DEFAULT '2012-02-00');
+DROP TABLE t1, t2, t3;
+
+--echo #Table creation with out any SQL modes
+SET @@sql_mode='';
+CREATE TABLE t1 (c1 DATE DEFAULT 0);
+CREATE TABLE t2 (c1 DATE DEFAULT '0000-00-00');
+CREATE TABLE t3 (c1 DATE DEFAULT '2012-02-00');
+DROP TABLE t1, t2, t3;
+
+CREATE TABLE t1 (c1 INT);
+--echo #Alter table in strict mode with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
+--error ER_INVALID_DEFAULT
+ALTER TABLE t1 ADD c2 DATE DEFAULT 0;
+--error ER_INVALID_DEFAULT
+ALTER TABLE t1 ADD c2 DATE DEFAULT '0000-00-00';
+SET @@sql_mode='NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
+--error ER_INVALID_DEFAULT
+ALTER TABLE t1 ADD c2 DATE DEFAULT '2012-02-00';
+
+--echo #Alter table in non-strict mode but with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE';
+ALTER TABLE t1 ADD c2 DATE DEFAULT 0;
+ALTER TABLE t1 ADD c3 DATE DEFAULT '0000-00-00';
+SET @@sql_mode='NO_ZERO_IN_DATE';
+ALTER TABLE t1 ADD c4 DATE DEFAULT '2012-02-00';
+DROP TABLE t1;
+
+CREATE TABLE t1 (c1 int);
+--echo #Alter table with out any SQL modes
+SET @@sql_mode='';
+ALTER TABLE t1 ADD c2 DATE DEFAULT 0;
+ALTER TABLE t1 ADD c3 DATE DEFAULT '0000-00-00';
+ALTER TABLE t1 ADD c4 DATE DEFAULT '2012-02-00';
+DROP TABLE t1;
+
+SET @@sql_mode= @org_mode;
+--echo # END of Test for bug#11747847 - 34280
+
 --echo End of 5.6 tests
