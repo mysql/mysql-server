@@ -122,7 +122,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   File file;
   ulong filepos, data_offset;
   uchar fileinfo[64],forminfo[288],*keybuff, *forminfo_p= forminfo;
-  uchar *screen_buff;
+  uchar *screen_buff= NULL;
   char buff[128];
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info= thd->work_part_info;
@@ -231,6 +231,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
                                 TABLE_COMMENT_MAXLEN,
                                 ER_TOO_LONG_TABLE_COMMENT,
                                 real_table_name))
+      my_free(screen_buff);
       DBUG_RETURN(true);
   }
   /*
