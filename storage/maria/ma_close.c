@@ -36,6 +36,21 @@ int maria_close(register MARIA_HA *info)
   /* Check that we have unlocked key delete-links properly */
   DBUG_ASSERT(info->key_del_used == 0);
 
+  if (share->reopen == 1)
+  {
+    /*
+      If we are going to close the file, flush page cache without
+      a global mutex
+    */
+    if (flush_pagecache_blocks(share->pagecache, &share->kfile,
+                               ((share->temporary || share->deleting) ?
+                                FLUSH_IGNORE_CHANGED :
+                                FLUSH_RELEASE)))
+      error= my_errno;
+  }
+
+
+  /* Ensure no one can open this file while we are closing it */
   mysql_mutex_lock(&THR_LOCK_maria);
   if (info->lock_type == F_EXTRA_LCK)
     info->lock_type=F_UNLCK;			/* HA_EXTRA_NO_USER_CHANGE */
@@ -81,6 +96,10 @@ int maria_close(register MARIA_HA *info)
 
       if ((*share->once_end)(share))
         error= my_errno;
+      /*
+        Extra flush, just in case someone opened and closed the file
+        since the start of the function (very unlikely)
+      */
       if (flush_pagecache_blocks(share->pagecache, &share->kfile,
                                  ((share->temporary || share->deleting) ?
                                   FLUSH_IGNORE_CHANGED :

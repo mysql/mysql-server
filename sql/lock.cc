@@ -399,7 +399,7 @@ void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count)
 {
   MYSQL_LOCK *sql_lock;
   if ((sql_lock= get_lock_data(thd, table, count, GET_LOCK_UNLOCK)))
-    mysql_unlock_tables(thd, sql_lock);
+    mysql_unlock_tables(thd, sql_lock, 1);
 }
 
 

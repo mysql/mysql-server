@@ -860,7 +860,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       {
         /*
           Move history from hash to share. This is safe to do as we
-          don't have a lock on share->intern_lock.
+          know we are the only one that is using the share.
         */
         share->state_history=
           _ma_remove_not_visible_states(history->state_history, 0, 0);
@@ -1352,6 +1352,7 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
   uint	i, keys= (uint) state->header.keys;
   size_t res;
   DBUG_ENTER("_ma_state_info_write_sub");
+  DBUG_PRINT("info", ("Records: %lld", state->state.records));
 
   memcpy(ptr,&state->header,sizeof(state->header));
   ptr+=sizeof(state->header);
@@ -1423,6 +1424,8 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
 static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
 {
   uint i,keys,key_parts;
+  DBUG_ENTER("_ma_state_info_read");
+
   memcpy(&state->header,ptr, sizeof(state->header));
   ptr+= sizeof(state->header);
   keys= (uint) state->header.keys;
@@ -1471,7 +1474,9 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
     float8get(state->rec_per_key_part[i], ptr);		ptr+= 8;
     state->nulls_per_key_part[i]= mi_uint4korr(ptr);	ptr+= 4;
   }
-  return ptr;
+
+  DBUG_PRINT("info", ("Records: %lld", state->state.records));
+  DBUG_RETURN(ptr);
 }
 
 

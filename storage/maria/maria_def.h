@@ -749,7 +749,7 @@ struct st_maria_handler
    @note cast of newtrn is because %p of NULL gives warning (NULL is int)
 */
 #define _ma_set_trn_for_table(tbl, newtrn) do {                         \
-    DBUG_PRINT("info",("table: %p trn: %p -> %p",                       \
+    DBUG_PRINT("info",("table: %p  trn: %p -> %p",                      \
                        (tbl), (tbl)->trn, (void *)(newtrn)));           \
     (tbl)->trn= (newtrn);                                               \
   } while (0)
