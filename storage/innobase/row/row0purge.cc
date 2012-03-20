@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,6 +42,7 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0upd.h"
 #include "row0vers.h"
 #include "row0mysql.h"
+#include "row0log.h"
 #include "log0log.h"
 #include "srv0mon.h"
 
@@ -169,10 +170,10 @@ row_purge_remove_clust_if_poss_low(
 	}
 
 	if (mode == BTR_MODIFY_LEAF) {
-		success = btr_cur_optimistic_delete(btr_cur, &mtr);
+		success = btr_cur_optimistic_delete(btr_cur, 0, &mtr);
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
 					   RB_NONE, &mtr);
 
 		if (err == DB_SUCCESS) {
@@ -268,7 +269,7 @@ row_purge_poss_sec(
 Removes a secondary index entry if possible, by modifying the
 index tree.  Does not try to buffer the delete.
 @return	TRUE if success or if not found */
-static
+static __attribute__((nonnull, warn_unused_result))
 ibool
 row_purge_remove_sec_if_poss_tree(
 /*==============================*/
@@ -327,7 +328,7 @@ row_purge_remove_sec_if_poss_tree(
 		      & rec_get_info_bits(btr_cur_get_rec(btr_cur),
 					  dict_table_is_comp(index->table)));
 
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
 					   RB_NONE, &mtr);
 		switch (UNIV_EXPECT(err, DB_SUCCESS)) {
 		case DB_SUCCESS:
@@ -351,7 +352,7 @@ func_exit:
 Removes a secondary index entry without modifying the index tree,
 if possible.
 @return	TRUE if success or if not found */
-static
+static __attribute__((nonnull, warn_unused_result))
 ibool
 row_purge_remove_sec_if_poss_leaf(
 /*==============================*/
@@ -390,7 +391,7 @@ row_purge_remove_sec_if_poss_leaf(
 				      btr_cur_get_rec(btr_cur),
 				      dict_table_is_comp(index->table)));
 
-			if (!btr_cur_optimistic_delete(btr_cur, &mtr)) {
+			if (!btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
 
 				/* The index entry could not be deleted. */
 				success = FALSE;
@@ -418,18 +419,58 @@ row_purge_remove_sec_if_poss_leaf(
 
 /***********************************************************//**
 Removes a secondary index entry if possible. */
-UNIV_INLINE
+UNIV_INLINE __attribute__((nonnull(1,2)))
 void
 row_purge_remove_sec_if_poss(
 /*=========================*/
 	purge_node_t*	node,	/*!< in: row purge node */
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry)	/*!< in: index entry */
+	const dtuple_t*	entry)	/*!< in: index entry */
 {
 	ibool	success;
 	ulint	n_tries		= 0;
 
 	/*	fputs("Purge: Removing secondary record\n", stderr); */
+
+	if (!entry) {
+		/* The node->row must have lacked some fields of this
+		index. This is possible when the undo log record was
+		written before this index was created. */
+		return;
+	}
+
+	if (dict_index_is_online_ddl(index)) {
+		ibool	online = FALSE;
+
+		/* Exclusively latch the index tree to prevent DML
+		threads from making changes. Otherwise, the return
+		status of row_purge_poss_sec() could change. For
+		row_log_online_op(), an S-latch would suffice. */
+		rw_lock_x_lock(dict_index_get_lock(index));
+
+		switch (dict_index_get_online_status(index)) {
+		case ONLINE_INDEX_CREATION:
+			if (row_purge_poss_sec(node, index, entry)) {
+				row_log_online_op(
+					index, entry, 0, ROW_OP_PURGE);
+			}
+			/* fall through */
+		case ONLINE_INDEX_ABORTED:
+		case ONLINE_INDEX_ABORTED_DROPPED:
+			online = TRUE;
+			break;
+		case ONLINE_INDEX_COMPLETE:
+			/* The index was just completed. We must
+			perform the operation directly on it. */
+			break;
+		}
+
+		rw_lock_x_unlock(dict_index_get_lock(index));
+
+		if (online) {
+			return;
+		}
+	}
 
 	if (row_purge_remove_sec_if_poss_leaf(node, index, entry)) {
 
@@ -455,15 +496,13 @@ retry:
 
 /***********************************************************//**
 Purges a delete marking of a record. */
-static
+static __attribute__((nonnull))
 void
 row_purge_del_mark(
 /*===============*/
 	purge_node_t*	node)	/*!< in: row purge node */
 {
 	mem_heap_t*	heap;
-	dtuple_t*	entry;
-	dict_index_t*	index;
 
 	ut_ad(node);
 
@@ -477,13 +516,11 @@ row_purge_del_mark(
 			break;
 		}
 
-		index = node->index;
-
 		if (node->index->type != DICT_FTS) {
-			/* Build the index entry */
-			entry = row_build_index_entry(node->row, NULL, index, heap);
-			ut_a(entry);
-			row_purge_remove_sec_if_poss(node, index, entry);
+			dtuple_t*	entry = row_build_index_entry_low(
+				node->row, NULL, node->index, heap);
+			row_purge_remove_sec_if_poss(node, node->index, entry);
+			mem_heap_empty(heap);
 		}
 
 		node->index = dict_table_get_next_index(node->index);
@@ -508,8 +545,6 @@ row_purge_upd_exist_or_extern_func(
 	trx_undo_rec_t*	undo_rec)	/*!< in: record to purge */
 {
 	mem_heap_t*	heap;
-	dtuple_t*	entry;
-	dict_index_t*	index;
 	ibool		is_insert;
 	ulint		rseg_id;
 	ulint		page_no;
@@ -534,15 +569,13 @@ row_purge_upd_exist_or_extern_func(
 			break;
 		}
 
-		index = node->index;
-
 		if (row_upd_changes_ord_field_binary(node->index, node->update,
 						     thr, NULL, NULL)) {
 			/* Build the older version of the index entry */
-			entry = row_build_index_entry(node->row, NULL,
-						      index, heap);
-			ut_a(entry);
-			row_purge_remove_sec_if_poss(node, index, entry);
+			dtuple_t*	entry = row_build_index_entry_low(
+				node->row, NULL, node->index, heap);
+			row_purge_remove_sec_if_poss(node, node->index, entry);
+			mem_heap_empty(heap);
 		}
 
 		node->index = dict_table_get_next_index(node->index);
@@ -562,6 +595,7 @@ skip_secondaries:
 			buf_block_t*	block;
 			ulint		internal_offset;
 			byte*		data_field;
+			dict_index_t*	index;
 
 			/* We use the fact that new_val points to
 			undo_rec and get thus the offset of
@@ -672,33 +706,22 @@ row_purge_parse_undo_rec(
 					       &info_bits);
 	node->table = NULL;
 
-	if (type == TRX_UNDO_UPD_EXIST_REC
-	    && node->cmpl_info & UPD_NODE_NO_ORD_CHANGE
-	    && !(*updated_extern)) {
-
-		/* Purge requires no changes to indexes: we may return */
-
-		return(FALSE);
-	}
-
 	/* Prevent DROP TABLE etc. from running when we are doing the purge
 	for this row */
 
 	rw_lock_s_lock_inline(&dict_operation_lock, 0, __FILE__, __LINE__);
 
-	node->table = dict_table_open_on_id(table_id, FALSE);
+	node->table = dict_table_open_on_id(table_id, FALSE, FALSE);
 
 	if (node->table == NULL) {
-err_exit:
 		/* The table has been dropped: no need to do purge */
-		rw_lock_s_unlock_gen(&dict_operation_lock, 0);
-		return(FALSE);
+		goto err_exit;
 	}
 
 	if (node->table->ibd_file_missing) {
 		/* We skip purge of missing .ibd files */
 
-		dict_table_close(node->table, FALSE);
+		dict_table_close(node->table, FALSE, FALSE);
 
 		node->table = NULL;
 
@@ -708,12 +731,22 @@ err_exit:
 	clust_index = dict_table_get_first_index(node->table);
 
 	if (clust_index == NULL) {
+		/* The table was corrupt in the data dictionary.
+		dict_set_corrupted() works on an index, and
+		we do not have an index to call it with. */
+close_exit:
+		dict_table_close(node->table, FALSE, FALSE);
+err_exit:
+		rw_lock_s_unlock(&dict_operation_lock);
+		return(FALSE);
+	}
 
-		dict_table_close(node->table, FALSE);
+	if (type == TRX_UNDO_UPD_EXIST_REC
+	    && (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)
+	    && !*updated_extern) {
 
-		/* The table was corrupt in the data dictionary */
-
-		goto err_exit;
+		/* Purge requires no changes to indexes: we may return */
+		goto close_exit;
 	}
 
 	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
@@ -778,7 +811,7 @@ row_purge_record_func(
 	}
 
 	if (node->table != NULL) {
-		dict_table_close(node->table, FALSE);
+		dict_table_close(node->table, FALSE, FALSE);
 		node->table = NULL;
 	}
 

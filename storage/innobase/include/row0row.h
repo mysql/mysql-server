@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -73,10 +73,28 @@ row_get_rec_roll_ptr(
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
 the entry to be inserted into or purged from an index on the table.
+@return index entry which should be inserted or purged
+@retval NULL if the externally stored columns in the clustered index record
+are unavailable and ext != NULL, or row is missing some needed columns. */
+UNIV_INTERN
+dtuple_t*
+row_build_index_entry_low(
+/*======================*/
+	const dtuple_t*	row,	/*!< in: row which should be
+				inserted or purged */
+	row_ext_t*	ext,	/*!< in: externally stored column prefixes,
+				or NULL */
+	dict_index_t*	index,	/*!< in: index on the table */
+	mem_heap_t*	heap)	/*!< in: memory heap from which the memory for
+				the index entry is allocated */
+	__attribute__((warn_unused_result, nonnull(1,3,4)));
+/*****************************************************************//**
+When an insert or purge to a table is performed, this function builds
+the entry to be inserted into or purged from an index on the table.
 @return index entry which should be inserted or purged, or NULL if the
 externally stored columns in the clustered index record are
 unavailable and ext != NULL */
-UNIV_INTERN
+UNIV_INLINE
 dtuple_t*
 row_build_index_entry(
 /*==================*/
@@ -85,8 +103,9 @@ row_build_index_entry(
 	row_ext_t*	ext,	/*!< in: externally stored column prefixes,
 				or NULL */
 	dict_index_t*	index,	/*!< in: index on the table */
-	mem_heap_t*	heap);	/*!< in: memory heap from which the memory for
+	mem_heap_t*	heap)	/*!< in: memory heap from which the memory for
 				the index entry is allocated */
+	__attribute__((warn_unused_result, nonnull(1,3,4)));
 /*******************************************************************//**
 An inverse function to row_build_index_entry. Builds a row from a
 record in a clustered index.

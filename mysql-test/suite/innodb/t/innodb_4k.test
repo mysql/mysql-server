@@ -283,7 +283,7 @@ UPDATE t1 SET d=@e;
 # The function dict_index_too_big_for_undo() prevents us from adding
 # one more index.  But it is too late.  The record is already too big.
 # See bug#12953735
---error 139
+-- error ER_TOO_BIG_ROWSIZE
 CREATE INDEX t1e ON t1 (e(767));
 
 SHOW CREATE TABLE t1;

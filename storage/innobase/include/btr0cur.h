@@ -31,14 +31,22 @@ Created 10/16/1994 Heikki Tuuri
 #include "page0cur.h"
 #include "btr0types.h"
 
-/* Mode flags for btr_cur operations; these can be ORed */
-#define BTR_NO_UNDO_LOG_FLAG	1	/* do no undo logging */
-#define BTR_NO_LOCKING_FLAG	2	/* do no record lock checking */
-#define BTR_KEEP_SYS_FLAG	4	/* sys fields will be found from the
-					update vector or inserted entry */
-#define BTR_KEEP_POS_FLAG	8	/* btr_cur_pessimistic_update()
-					must keep cursor position when
-					moving columns to big_rec */
+/** Mode flags for btr_cur operations; these can be ORed */
+enum {
+	/** do no undo logging */
+	BTR_NO_UNDO_LOG_FLAG = 1,
+	/** do no record lock checking */
+	BTR_NO_LOCKING_FLAG = 2,
+	/** sys fields will be found in the update vector or inserted
+	entry */
+	BTR_KEEP_SYS_FLAG = 4,
+	/** btr_cur_pessimistic_update() must keep cursor position
+	when moving columns to big_rec */
+	BTR_KEEP_POS_FLAG = 8,
+	/** the caller is creating the index or wants to bypass the
+	index->info.online creation log */
+	BTR_CREATE_FLAG = 16
+};
 
 #ifndef UNIV_HOTBACKUP
 #include "que0types.h"
@@ -274,9 +282,12 @@ btr_cur_update_in_place(
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
-	mtr_t*		mtr);	/*!< in: mtr; must be committed before
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				appropriate flags are set */
+	trx_id_t	trx_id,	/*!< in: transaction id */
+	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
+	__attribute__((warn_unused_result, nonnull(2,3,7)));
 /*************************************************************//**
 Tries to update a record on a page in an index tree. It is assumed that mtr
 holds an x-latch on the page. The operation does not succeed if there is too
@@ -297,9 +308,12 @@ btr_cur_optimistic_update(
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
-	mtr_t*		mtr);	/*!< in: mtr; must be committed before
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				appropriate flags are set */
+	trx_id_t	trx_id,	/*!< in: transaction id */
+	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
+	__attribute__((warn_unused_result, nonnull(2,3,7)));
 /*************************************************************//**
 Performs an update of a record on a page of a tree. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. If the
@@ -323,9 +337,12 @@ btr_cur_pessimistic_update(
 				the values in update vector have no effect */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
-	mtr_t*		mtr);	/*!< in: mtr; must be committed before
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				appropriate flags are set */
+	trx_id_t	trx_id,	/*!< in: transaction id */
+	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
+	__attribute__((warn_unused_result, nonnull(2,5,9)));
 /***********************************************************//**
 Marks a clustered index record deleted. Writes an undo log record to
 undo log on this delete marking. Writes in the trx id field the id
@@ -336,12 +353,10 @@ UNIV_INTERN
 ulint
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
-	ulint		flags,	/*!< in: undo logging and locking flags */
 	buf_block_t*	block,	/*!< in/out: buffer block of the record */
 	rec_t*		rec,	/*!< in/out: record */
 	dict_index_t*	index,	/*!< in: clustered index of the record */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
-	ibool		val,	/*!< in: value to set */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr */
 	__attribute__((nonnull));
@@ -382,16 +397,27 @@ but no latch on the whole tree.
 @return	TRUE if success, i.e., the page did not become too empty */
 UNIV_INTERN
 ibool
-btr_cur_optimistic_delete(
-/*======================*/
+btr_cur_optimistic_delete_func(
+/*===========================*/
 	btr_cur_t*	cursor,	/*!< in: cursor on the record to delete;
 				cursor stays valid: if deletion succeeds,
 				on function exit it points to the successor
 				of the deleted record */
-	mtr_t*		mtr);	/*!< in: mtr; if this function returns
+# ifdef UNIV_DEBUG
+	ulint		flags,	/*!< in: BTR_CREATE_FLAG or 0 */
+# endif /* UNIV_DEBUG */
+	mtr_t*		mtr)	/*!< in: mtr; if this function returns
 				TRUE on a leaf page of a secondary
 				index, the mtr must be committed
 				before latching any further pages */
+	__attribute__((nonnull, warn_unused_result));
+# ifdef UNIV_DEBUG
+#  define btr_cur_optimistic_delete(cursor, flags, mtr)		\
+	btr_cur_optimistic_delete_func(cursor, flags, mtr)
+# else /* UNIV_DEBUG */
+#  define btr_cur_optimistic_delete(cursor, flags, mtr)		\
+	btr_cur_optimistic_delete_func(cursor, mtr)
+# endif /* UNIV_DEBUG */
 /*************************************************************//**
 Removes the record on which the tree cursor is positioned. Tries
 to compress the page if its fillfactor drops below a threshold
@@ -417,8 +443,10 @@ btr_cur_pessimistic_delete(
 				if compression does not occur, the cursor
 				stays valid: it points to successor of
 				deleted record on function exit */
+	ulint		flags,	/*!< in: BTR_CREATE_FLAG or 0 */
 	enum trx_rb_ctx	rb_ctx,	/*!< in: rollback context */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+	__attribute__((nonnull));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a redo log record of updating a record in-place.
@@ -737,7 +765,7 @@ struct btr_cur_struct {
 					for comparison to the adjacent user
 					record if that record is on a
 					different leaf page! (See the note in
-					row_ins_duplicate_key.) */
+					row_ins_duplicate_error_in_clust.) */
 	ulint		up_bytes;	/*!< number of matched bytes to the
 					right at the time cursor positioned;
 					only used internally in searches: not
