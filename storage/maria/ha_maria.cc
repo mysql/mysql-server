@@ -2463,18 +2463,26 @@ int ha_maria::extra(enum ha_extra_function operation)
     without calling commit/rollback in between.  If file->trn is not set
     we can't remove file->share from the transaction list in the extra() call.
 
+    We also ensure that we set file->trn to 0 if THD_TRN is 0 as in
+    this case we have already freed the trn. This can happen when one
+    implicit_commit() is called as part of alter table.
+
     table->in_use is not set in the case this is a done as part of closefrm()
     as part of drop table.
   */
 
-  if (file->s->now_transactional && !file->trn && table->in_use && 
+  if (file->s->now_transactional && table->in_use &&
       (operation == HA_EXTRA_PREPARE_FOR_DROP ||
-       operation == HA_EXTRA_PREPARE_FOR_RENAME))
+       operation == HA_EXTRA_PREPARE_FOR_RENAME ||
+       operation == HA_EXTRA_PREPARE_FOR_FORCED_CLOSE))
   {
     THD *thd= table->in_use;
     TRN *trn= THD_TRN;
     _ma_set_trn_for_table(file, trn);
   }
+  DBUG_ASSERT(file->s->base.born_transactional || file->trn == 0 ||
+              file->trn == &dummy_transaction_object);
+
   tmp= maria_extra(file, operation, 0);
   file->trn= old_trn;                           // Reset trn if was used
   return tmp;
@@ -2767,6 +2775,11 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
       error= 1;
     if (!new_trn)
     {
+      /*
+        To be extra safe, we should also reset file->trn for all open
+        tables as some calls, like extra() may access it. We take care
+        of this in extra() by resetting file->trn if THD_TRN is 0.
+      */
       THD_TRN= NULL;
       goto end;
     }

@@ -103,6 +103,7 @@ int maria_rename(const char *old_name, const char *new_name)
     }
   }
 
+  _ma_reset_state(info);
   maria_close(info);
 
   fn_format(from,old_name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);

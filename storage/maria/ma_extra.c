@@ -348,6 +348,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
       /* Ensure we don't point to the deleted data in trn */
       info->state= info->state_start= &share->state.state;
     }
+    /* Remove history for table */
+    _ma_reset_state(info);
 
     type= do_flush ? FLUSH_RELEASE : FLUSH_IGNORE_CHANGED;
     save_global_changed= share->global_changed;

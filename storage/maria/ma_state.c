@@ -229,13 +229,14 @@ void _ma_remove_not_visible_states_with_lock(MARIA_SHARE *share,
   to current state.
 
   @notes
-  Used after repair as then all rows are visible for everyone
+  Used after repair/rename/drop as then all rows are visible for everyone
 */
 
 void _ma_reset_state(MARIA_HA *info)
 {
   MARIA_SHARE *share= info->s;
   MARIA_STATE_HISTORY *history= share->state_history;
+  DBUG_ENTER("_ma_reset_state");
 
   if (history)
   {
@@ -253,6 +254,7 @@ void _ma_reset_state(MARIA_HA *info)
     share->state_history->next= 0;
     share->state_history->trid= 0;              /* Visibile for all */
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -433,6 +435,7 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
   my_bool error= 0;
   MARIA_USED_TABLES *tables, *next;
   DBUG_ENTER("_ma_trnman_end_trans_hook");
+  DBUG_PRINT("enter", ("trn: %p  used_tables: %p", trn, trn->used_tables));
   
   for (tables= (MARIA_USED_TABLES*) trn->used_tables;
        tables;
@@ -547,8 +550,8 @@ void _ma_remove_table_from_trnman(MARIA_SHARE *share, TRN *trn)
 {
   MARIA_USED_TABLES *tables, **prev;
   DBUG_ENTER("_ma_remove_table_from_trnman");
-  DBUG_PRINT("enter", ("share: 0x%lx  in_trans: %d",
-                       (ulong) share, share->in_trans));
+  DBUG_PRINT("enter", ("trn: %p  used_tables: %p  share: %p  in_trans: %d",
+                       trn, trn->used_tables, share, share->in_trans));
 
   mysql_mutex_assert_owner(&share->intern_lock);
   
@@ -560,7 +563,6 @@ void _ma_remove_table_from_trnman(MARIA_SHARE *share, TRN *trn)
     {
       *prev= tables->next;
       share->in_trans--;
-      DBUG_PRINT("info", ("in_trans: %d", share->in_trans));
       my_free(tables);
       break;
     }
@@ -730,6 +732,10 @@ void _ma_copy_nontrans_state_information(MARIA_HA *info)
   info->s->state.state.checksum=         info->state->checksum;
 }
 
+/**
+   Reset history
+   This is only called during repair when we the only one using the table.
+*/
 
 void _ma_reset_history(MARIA_SHARE *share)
 {

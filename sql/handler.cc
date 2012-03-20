@@ -1185,7 +1185,7 @@ int ha_commit_trans(THD *thd, bool all)
   }
 
 #ifdef WITH_ARIA_STORAGE_ENGINE
-    ha_maria::implicit_commit(thd, FALSE);
+    ha_maria::implicit_commit(thd, TRUE);
 #endif
 
   if (!ha_info)

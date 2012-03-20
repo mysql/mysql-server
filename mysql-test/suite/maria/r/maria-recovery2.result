@@ -84,10 +84,11 @@ Table	Op	Msg_type	Msg_text
 mysqltest.t1	check	status	OK
 * testing that checksum after recovery is as expected
 Checksum-check
-ok
+failure
 use mysqltest;
 select * from t1;
 a
+1
 3
 drop table t1;
 * TEST of recovery when crash before bulk-insert-with-repair is committed
