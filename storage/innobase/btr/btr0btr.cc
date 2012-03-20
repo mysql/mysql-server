@@ -4267,6 +4267,13 @@ btr_validate_level(
 					  ULINT_UNDEFINED, &heap);
 		block = btr_node_ptr_get_child(node_ptr, index, offsets, &mtr);
 		page = buf_block_get_frame(block);
+
+		if (init_id && !(++n_pages_updated % 100)) {
+			/* Avoid flooding the buffer pool with pages that
+			can't be flushed to disk. */
+			mtr_commit(&mtr);
+			mtr_start(&mtr);
+		}
 	}
 
 	/* Now we are on the desired level. Loop through the pages on that
@@ -4295,6 +4302,13 @@ loop:
 
 	ut_a(block->page.space == space);
 
+	if (init_id && !(++n_pages_updated % 100)) {
+		/* Avoid flooding the buffer pool with pages that
+		can't be flushed to disk. */
+		mtr_commit(&mtr);
+		mtr_start(&mtr);
+	}
+
 	if (fseg_page_is_free(seg, block->page.space, block->page.offset)) {
 
 		btr_validate_report1(index, level, block);
@@ -4307,12 +4321,6 @@ loop:
 		btr_page_set_index_id(page, page_zip, index->id, &mtr);
 		page_set_max_trx_id(block, page_zip, trx->id, &mtr);
 
-		if (!(++n_pages_updated % 100)) {
-			/* Avoid flooding the buffer pool with pages that
-			can't be flushed to disk. */
-			mtr_commit(&mtr);
-			mtr_start(&mtr);
-		}
 
 	} else if (btr_page_get_index_id(page) != index->id) {
 
