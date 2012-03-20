@@ -3902,6 +3902,7 @@ public:
   { return test(example && example->basic_const_item());}
   bool walk (Item_processor processor, bool walk_subquery, uchar *argument);
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
+  bool is_null() { return value_cached ? null_value : example->is_null(); }
   Item_result result_type() const
   {
     if (!example)
