@@ -36,6 +36,7 @@
 #include <portlib/ndb_prefetch.h>
 
 #include "mt-asm.h"
+#include "mt-lock.hpp"
 
 inline
 SimulatedBlock*
@@ -95,16 +96,6 @@ static Uint32 first_receiver_thread_no = 0;
 
 /* max signal is 32 words, 7 for signal header and 25 datawords */
 #define MIN_SIGNALS_PER_PAGE (thr_job_buffer::SIZE / 32)
-
-struct mt_lock_stat
-{
-  const void * m_ptr;
-  char * m_name;
-  Uint32 m_contended_count;
-  Uint32 m_spin_count;
-};
-static void register_lock(const void * ptr, const char * name);
-static mt_lock_stat * lookup_lock(const void * ptr);
 
 #if defined(HAVE_LINUX_FUTEX) && defined(NDB_HAVE_XCNG)
 #define USE_FUTEX
@@ -273,132 +264,6 @@ wakeup(struct thr_wait* wait)
 }
 
 #endif
-
-#ifdef NDB_HAVE_XCNG
-template <unsigned SZ>
-struct thr_spin_lock
-{
-  thr_spin_lock(const char * name = 0)
-  {
-    m_lock = 0;
-    register_lock(this, name);
-  }
-
-  union {
-    volatile Uint32 m_lock;
-    char pad[SZ];
-  };
-};
-
-static
-ATTRIBUTE_NOINLINE
-void
-lock_slow(void * sl, volatile unsigned * val)
-{
-  mt_lock_stat* s = lookup_lock(sl); // lookup before owning lock
-
-loop:
-  Uint32 spins = 0;
-  do {
-    spins++;
-    cpu_pause();
-  } while (* val == 1);
-
-  if (unlikely(xcng(val, 1) != 0))
-    goto loop;
-
-  if (s)
-  {
-    s->m_spin_count += spins;
-    Uint32 count = ++s->m_contended_count;
-    Uint32 freq = (count > 10000 ? 5000 : (count > 20 ? 200 : 1));
-
-    if ((count % freq) == 0)
-      printf("%s waiting for lock, contentions: %u spins: %u\n",
-             s->m_name, count, s->m_spin_count);
-  }
-}
-
-template <unsigned SZ>
-static
-inline
-void
-lock(struct thr_spin_lock<SZ>* sl)
-{
-  volatile unsigned* val = &sl->m_lock;
-  if (likely(xcng(val, 1) == 0))
-    return;
-
-  lock_slow(sl, val);
-}
-
-template <unsigned SZ>
-static
-inline
-void
-unlock(struct thr_spin_lock<SZ>* sl)
-{
-  /**
-   * Memory barrier here, to make sure all of our stores are visible before
-   * the lock release is.
-   */
-  mb();
-  sl->m_lock = 0;
-}
-
-template <unsigned SZ>
-static
-inline
-int
-trylock(struct thr_spin_lock<SZ>* sl)
-{
-  volatile unsigned* val = &sl->m_lock;
-  return xcng(val, 1);
-}
-#else
-#define thr_spin_lock thr_mutex
-#endif
-
-template <unsigned SZ>
-struct thr_mutex
-{
-  thr_mutex(const char * name = 0) {
-    NdbMutex_Init(&m_mutex);
-    register_lock(this, name);
-  }
-
-  union {
-    NdbMutex m_mutex;
-    char pad[SZ];
-  };
-};
-
-template <unsigned SZ>
-static
-inline
-void
-lock(struct thr_mutex<SZ>* sl)
-{
-  NdbMutex_Lock(&sl->m_mutex);
-}
-
-template <unsigned SZ>
-static
-inline
-void
-unlock(struct thr_mutex<SZ>* sl)
-{
-  NdbMutex_Unlock(&sl->m_mutex);
-}
-
-template <unsigned SZ>
-static
-inline
-int
-trylock(struct thr_mutex<SZ> * sl)
-{
-  return NdbMutex_Trylock(&sl->m_mutex);
-}
 
 /**
  * thr_safe_pool
