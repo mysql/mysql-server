@@ -161,7 +161,7 @@ public:
   }
 
   inline char *str() const { return string.str; }
-  inline uint32 length() const { return string.length; }
+  inline size_t length() const { return string.length; }
   const CHARSET_INFO *charset() const { return cs; }
 
   friend LEX_STRING * thd_query_string (MYSQL_THD thd);
@@ -3663,7 +3663,7 @@ public:
     result= new_db && !db;
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (result)
-      PSI_CALL(set_thread_db)(new_db, new_db_len);
+      PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
     return result;
   }
@@ -3684,7 +3684,7 @@ public:
     db= new_db;
     db_length= new_db_len;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_db)(new_db, new_db_len);
+    PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
   }
   /*
