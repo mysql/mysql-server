@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ void AES::Process(byte* out, const byte* in, word32 sz)
             out += BLOCK_SIZE;
             in  += BLOCK_SIZE;
         }
-    else if (mode_ == CBC)    
+    else if (mode_ == CBC) {
         if (dir_ == ENCRYPTION)
             while (blocks--) {
                 r_[0] ^= *(word32*)in;
@@ -78,6 +78,7 @@ void AES::Process(byte* out, const byte* in, word32 sz)
                 out += BLOCK_SIZE;
                 in  += BLOCK_SIZE;
             }
+   }
 }
 
 #endif // DO_AES_ASM
@@ -85,8 +86,13 @@ void AES::Process(byte* out, const byte* in, word32 sz)
 
 void AES::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
 {
-    assert( (keylen == 16) || (keylen == 24) || (keylen == 32) );
-
+    if (keylen <= 16)
+        keylen = 16;
+    else if (keylen >= 32)
+        keylen = 32;
+    else if (keylen != 24)
+        keylen = 24;
+    
     rounds_ = keylen/4 + 6;
 
     word32 temp, *rk = key_;
@@ -244,34 +250,34 @@ void AES::encrypt(const byte* inBlock, const byte* xorBlock,
     for (;;) {
         t0 =
             Te0[GETBYTE(s0, 3)] ^
-            Te1[GETBYTE(s1, 2)] ^
-            Te2[GETBYTE(s2, 1)] ^
-            Te3[GETBYTE(s3, 0)] ^
+            Te1[GETBYTE(s1, 2)]  ^
+            Te2[GETBYTE(s2, 1)]  ^
+            Te3[GETBYTE(s3, 0)]  ^
             rk[4];
         t1 =
             Te0[GETBYTE(s1, 3)] ^
-            Te1[GETBYTE(s2, 2)] ^
-            Te2[GETBYTE(s3, 1)] ^
-            Te3[GETBYTE(s0, 0)] ^
+            Te1[GETBYTE(s2, 2)]  ^
+            Te2[GETBYTE(s3, 1)]  ^
+            Te3[GETBYTE(s0, 0)]  ^
             rk[5];
         t2 =
             Te0[GETBYTE(s2, 3)] ^
-            Te1[GETBYTE(s3, 2)] ^
-            Te2[GETBYTE(s0, 1)] ^
-            Te3[GETBYTE(s1, 0)] ^
+            Te1[GETBYTE(s3, 2)]  ^
+            Te2[GETBYTE(s0, 1)]  ^
+            Te3[GETBYTE(s1, 0)]  ^
             rk[6];
         t3 =
             Te0[GETBYTE(s3, 3)] ^
-            Te1[GETBYTE(s0, 2)] ^
-            Te2[GETBYTE(s1, 1)] ^
-            Te3[GETBYTE(s2, 0)] ^
+            Te1[GETBYTE(s0, 2)]  ^
+            Te2[GETBYTE(s1, 1)]  ^
+            Te3[GETBYTE(s2, 0)]  ^
             rk[7];
 
         rk += 8;
         if (--r == 0) {
             break;
         }
-
+        
         s0 =
             Te0[GETBYTE(t0, 3)] ^
             Te1[GETBYTE(t1, 2)] ^
@@ -420,7 +426,7 @@ void AES::decrypt(const byte* inBlock, const byte* xorBlock,
         (Td4[GETBYTE(t3, 2)] & 0x00ff0000) ^
         (Td4[GETBYTE(t2, 1)] & 0x0000ff00) ^
         (Td4[GETBYTE(t1, 0)] & 0x000000ff) ^
-    rk[0];
+        rk[0];
     s1 =
         (Td4[GETBYTE(t1, 3)] & 0xff000000) ^
         (Td4[GETBYTE(t0, 2)] & 0x00ff0000) ^
