@@ -231,8 +231,10 @@ bool mysql_create_frm(THD *thd, const char *file_name,
                                 TABLE_COMMENT_MAXLEN,
                                 ER_TOO_LONG_TABLE_COMMENT,
                                 real_table_name))
-      //my_free(screen_buff);
+    {
+      my_free(screen_buff);
       DBUG_RETURN(true);
+    }
   }
   /*
     If table comment is longer than TABLE_COMMENT_INLINE_MAXLEN bytes,
