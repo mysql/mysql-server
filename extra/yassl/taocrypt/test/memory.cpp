@@ -328,3 +328,32 @@ void operator delete[](void* ptr)
 {
     ::operator delete(ptr);
 }
+
+
+extern "C" {
+
+void* XMALLOC(size_t sz, void* head)
+{
+    return ::operator new(sz);
+}
+
+void* XREALLOC(void* ptr, size_t sz, void* heap)
+{
+    void* ret = ::operator new(sz);
+
+    if (ret && ptr)
+        memcpy(ret, ptr, sz);
+
+    if (ret)
+        ::operator delete(ptr);
+    return ret;
+}
+
+
+void XFREE(void* ptr, void* heap)
+{
+    ::operator delete(ptr);
+}
+
+}  // extern "C"
+

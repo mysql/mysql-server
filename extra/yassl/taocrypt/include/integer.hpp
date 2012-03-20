@@ -110,13 +110,6 @@ namespace TaoCrypt {
 #endif
 
 
-// general MIN
-template<typename T> inline
-const T& min(const T& a, const T& b)
-{
-    return a < b ? a : b;
-}
-
 
 // general MAX
 template<typename T> inline

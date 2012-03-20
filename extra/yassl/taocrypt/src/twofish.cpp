@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ void Twofish::Process(byte* out, const byte* in, word32 sz)
             out += BLOCK_SIZE;
             in  += BLOCK_SIZE;
         }
-    else if (mode_ == CBC)
+    else if (mode_ == CBC) {
         if (dir_ == ENCRYPTION)
             while (blocks--) {
                 r_[0] ^= *(word32*)in;
@@ -82,6 +82,7 @@ void Twofish::Process(byte* out, const byte* in, word32 sz)
                 out += BLOCK_SIZE;
                 in  += BLOCK_SIZE;
             }
+    }
 }
 
 #endif // DO_TWOFISH_ASM
@@ -139,8 +140,6 @@ inline word32 Twofish::h(word32 x, const word32* key, unsigned int kLen)
 
 void Twofish::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
 {
-	assert(keylen >= 16 && keylen <= 32);
-
 	unsigned int len = (keylen <= 16 ? 2 : (keylen <= 24 ? 3 : 4));
     word32 key[8];
 	GetUserKey(LittleEndianOrder, key, len*2, userKey, keylen);
