@@ -419,6 +419,9 @@ amount to decrement. */
 # define os_atomic_decrement_ulint(ptr, amount) \
 	os_atomic_decrement(ptr, amount)
 
+# define os_atomic_decrement_uint64(ptr, amount) \
+	os_atomic_decrement(ptr, amount)
+
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val */
 
@@ -486,6 +489,9 @@ amount to decrement. */
 
 # define os_atomic_decrement_ulint(ptr, amount) \
 	os_atomic_increment_ulint(ptr, -(amount))
+
+# define os_atomic_decrement_uint64(ptr, amount) \
+	os_atomic_increment_uint64(ptr, -(amount))
 
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val */
@@ -588,6 +594,11 @@ amount to decrement. There is no atomic substract function on Windows */
 
 # define os_atomic_decrement_ulint(ptr, amount) \
 	((ulint) (win_xchg_and_add((lint*) ptr, -(lint) amount) - amount))
+
+# define os_atomic_decrement_uint64(ptr, amount)		\
+	((ib_uint64_t) (InterlockedExchangeAdd64(		\
+				(ib_int64_t*) ptr,		\
+				-(ib_int64_t) amount) - amount))
 
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val.
