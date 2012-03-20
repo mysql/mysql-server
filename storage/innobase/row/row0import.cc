@@ -940,7 +940,7 @@ row_import_read_index_data(
 		return(DB_OUT_OF_MEMORY);
 	}
 
-	memset(cfg->indexes, 0x0, sizeof(cfg->indexes) * cfg->n_indexes);
+	memset(cfg->indexes, 0x0, sizeof(*cfg->indexes) * cfg->n_indexes);
 
 	cfg_index = cfg->indexes;
 
