@@ -1329,12 +1329,24 @@ void PFS_table::sanitized_aggregate(void)
   */
   PFS_table_share *safe_share= sanitize_table_share(m_share);
   PFS_thread *safe_thread= sanitize_thread(m_thread_owner);
-  if ((safe_share != NULL && safe_thread != NULL) &&
-      (m_has_io_stats || m_has_lock_stats))
+  if ((safe_share != NULL && safe_thread != NULL))
   {
-    safe_aggregate(& m_table_stat, safe_share, safe_thread);
-    m_has_io_stats= false;
-    m_has_lock_stats= false;
+    if (m_has_io_stats && m_has_lock_stats)
+    {
+      safe_aggregate(& m_table_stat, safe_share, safe_thread);
+      m_has_io_stats= false;
+      m_has_lock_stats= false;
+    }
+    else if (m_has_io_stats)
+    {
+      safe_aggregate_io(& m_table_stat, safe_share, safe_thread);
+      m_has_io_stats= false;
+    }
+    else if (m_has_lock_stats)
+    {
+      safe_aggregate_lock(& m_table_stat, safe_share, safe_thread);
+      m_has_lock_stats= false;
+    }
   }
 }
 
@@ -1368,6 +1380,8 @@ void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
   DBUG_ASSERT(table_share != NULL);
   DBUG_ASSERT(thread != NULL);
 
+  uint key_count= sanitize_index_count(table_share->m_key_count);
+
   if (flag_thread_instrumentation && thread->m_enabled)
   {
     PFS_single_stat *event_name_array;
@@ -1379,7 +1393,7 @@ void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
       (for wait/io/table/sql/handler)
     */
     index= global_table_io_class.m_event_name_index;
-    table_stat->sum_io(& event_name_array[index]);
+    table_stat->sum_io(& event_name_array[index], key_count);
 
     /*
       Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
@@ -1390,7 +1404,7 @@ void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
   }
 
   /* Aggregate to TABLE_IO_SUMMARY, TABLE_LOCK_SUMMARY */
-  table_share->m_table_stat.aggregate(table_stat);
+  table_share->m_table_stat.aggregate(table_stat, key_count);
   table_stat->fast_reset();
 }
 
@@ -1402,6 +1416,8 @@ void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
   DBUG_ASSERT(table_share != NULL);
   DBUG_ASSERT(thread != NULL);
 
+  uint key_count= sanitize_index_count(table_share->m_key_count);
+
   if (flag_thread_instrumentation && thread->m_enabled)
   {
     PFS_single_stat *event_name_array;
@@ -1413,11 +1429,11 @@ void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
       (for wait/io/table/sql/handler)
     */
     index= global_table_io_class.m_event_name_index;
-    table_stat->sum_io(& event_name_array[index]);
+    table_stat->sum_io(& event_name_array[index], key_count);
   }
 
   /* Aggregate to TABLE_IO_SUMMARY */
-  table_share->m_table_stat.aggregate_io(table_stat);
+  table_share->m_table_stat.aggregate_io(table_stat, key_count);
   table_stat->fast_reset_io();
 }
 

@@ -3939,17 +3939,17 @@ bool validate_comment_length(THD *thd, const char *comment_str,
   {
     if (thd->is_strict_mode())
     {
-       my_error(err_code, MYF(0),
-       comment_name, static_cast<ulong>(max_len));
-       DBUG_RETURN(true);
+      my_error(err_code, MYF(0),
+               comment_name, static_cast<ulong>(max_len));
+      DBUG_RETURN(true);
     }
     char warn_buff[MYSQL_ERRMSG_SIZE];
     length= my_snprintf(warn_buff, sizeof(warn_buff), ER(err_code),
-                comment_name, static_cast<ulong>(max_len));
+                        comment_name, static_cast<ulong>(max_len));
     /* do not push duplicate warnings */
     if (!thd->get_stmt_da()->has_sql_condition(warn_buff, length)) 
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                 err_code, warn_buff);
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                   err_code, warn_buff);
     *comment_len= tmp_len;
   }
   DBUG_RETURN(false);

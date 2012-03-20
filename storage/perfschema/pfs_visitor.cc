@@ -970,12 +970,18 @@ void PFS_object_wait_visitor::visit_global()
 
 void PFS_object_wait_visitor::visit_table_share(PFS_table_share *pfs)
 {
-  pfs->m_table_stat.sum(& m_stat);
+  uint safe_key_count= sanitize_index_count(pfs->m_key_count);
+  pfs->m_table_stat.sum(& m_stat, safe_key_count);
 }
 
 void PFS_object_wait_visitor::visit_table(PFS_table *pfs)
 {
-  pfs->m_table_stat.sum(& m_stat);
+  PFS_table_share *table_share= sanitize_table_share(pfs->m_share);
+  if (table_share != NULL)
+  {
+    uint safe_key_count= sanitize_index_count(table_share->m_key_count);
+    pfs->m_table_stat.sum(& m_stat, safe_key_count);
+  }
 }
 
 PFS_table_io_wait_visitor::PFS_table_io_wait_visitor()
@@ -993,14 +999,15 @@ void PFS_table_io_wait_visitor::visit_global()
 void PFS_table_io_wait_visitor::visit_table_share(PFS_table_share *pfs)
 {
   PFS_table_io_stat io_stat;
+  uint safe_key_count= sanitize_index_count(pfs->m_key_count);
   uint index;
 
   /* Aggregate index stats */
-  for (index= 0; index < pfs->m_key_count; index++)
+  for (index= 0; index < safe_key_count; index++)
     io_stat.aggregate(& pfs->m_table_stat.m_index_stat[index]);
 
   /* Aggregate global stats */
-  io_stat.aggregate(& pfs->m_table_stat.m_index_stat[MAX_KEY]);
+  io_stat.aggregate(& pfs->m_table_stat.m_index_stat[MAX_INDEXES]);
 
   io_stat.sum(& m_stat);
 }
@@ -1012,14 +1019,15 @@ void PFS_table_io_wait_visitor::visit_table(PFS_table *pfs)
   if (likely(safe_share != NULL))
   {
     PFS_table_io_stat io_stat;
+    uint safe_key_count= sanitize_index_count(safe_share->m_key_count);
     uint index;
 
     /* Aggregate index stats */
-    for (index= 0; index < safe_share->m_key_count; index++)
+    for (index= 0; index < safe_key_count; index++)
       io_stat.aggregate(& pfs->m_table_stat.m_index_stat[index]);
 
     /* Aggregate global stats */
-    io_stat.aggregate(& pfs->m_table_stat.m_index_stat[MAX_KEY]);
+    io_stat.aggregate(& pfs->m_table_stat.m_index_stat[MAX_INDEXES]);
 
     io_stat.sum(& m_stat);
   }
@@ -1035,14 +1043,15 @@ PFS_table_io_stat_visitor::~PFS_table_io_stat_visitor()
 
 void PFS_table_io_stat_visitor::visit_table_share(PFS_table_share *pfs)
 {
+  uint safe_key_count= sanitize_index_count(pfs->m_key_count);
   uint index;
 
   /* Aggregate index stats */
-  for (index= 0; index < pfs->m_key_count; index++)
+  for (index= 0; index < safe_key_count; index++)
     m_stat.aggregate(& pfs->m_table_stat.m_index_stat[index]);
 
   /* Aggregate global stats */
-  m_stat.aggregate(& pfs->m_table_stat.m_index_stat[MAX_KEY]);
+  m_stat.aggregate(& pfs->m_table_stat.m_index_stat[MAX_INDEXES]);
 }
 
 void PFS_table_io_stat_visitor::visit_table(PFS_table *pfs)
@@ -1051,14 +1060,15 @@ void PFS_table_io_stat_visitor::visit_table(PFS_table *pfs)
 
   if (likely(safe_share != NULL))
   {
+    uint safe_key_count= sanitize_index_count(safe_share->m_key_count);
     uint index;
 
     /* Aggregate index stats */
-    for (index= 0; index < safe_share->m_key_count; index++)
+    for (index= 0; index < safe_key_count; index++)
       m_stat.aggregate(& pfs->m_table_stat.m_index_stat[index]);
 
     /* Aggregate global stats */
-    m_stat.aggregate(& pfs->m_table_stat.m_index_stat[MAX_KEY]);
+    m_stat.aggregate(& pfs->m_table_stat.m_index_stat[MAX_INDEXES]);
   }
 }
 
