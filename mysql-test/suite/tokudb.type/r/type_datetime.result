@@ -24,9 +24,6 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 check table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	check	info	./test/t1 primary=0 num=1
-test.t1	check	info	./test/t1 key=primary 0
-test.t1	check	info	./test/t1 key=primary 0 result=0
 test.t1	check	status	OK
 delete from t1;
 insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959"),("20030100000000"),("20030000000000");

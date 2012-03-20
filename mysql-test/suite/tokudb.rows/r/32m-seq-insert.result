@@ -1006,17 +1006,11 @@ insert into t (v) values (repeat('a',(32*1024*1024-4)*rand()));
 set global max_allowed_packet=@my_max_allowed_packet;
 check table t;
 Table	Op	Msg_type	Msg_text
-test.t	check	info	./test/t primary=0 num=1
-test.t	check	info	./test/t key=primary 0
-test.t	check	info	./test/t key=primary 0 result=0
 test.t	check	status	OK
 optimize table t;
 Table	Op	Msg_type	Msg_text
 test.t	optimize	status	OK
 check table t;
 Table	Op	Msg_type	Msg_text
-test.t	check	info	./test/t primary=0 num=1
-test.t	check	info	./test/t key=primary 0
-test.t	check	info	./test/t key=primary 0 result=0
 test.t	check	status	OK
 drop table t;
