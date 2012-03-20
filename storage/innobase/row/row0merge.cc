@@ -70,8 +70,6 @@ Completed by Sunny Bains and Marko Makela
 #ifdef UNIV_DEBUG
 /** Set these in order ot enable debug printout. */
 /* @{ */
-/** Log the outcome of each row_merge_cmp() call, comparing records. */
-static ibool	row_merge_print_cmp;
 /** Log each record read from temporary file. */
 static ibool	row_merge_print_read;
 /** Log each record write to temporary file. */
@@ -292,8 +290,12 @@ row_merge_buf_add(
 	ulint			n_row_added = 0;
 
 	if (buf->n_tuples >= buf->max_tuples) {
-		return(FALSE);
+		return(0);
 	}
+
+	DBUG_EXECUTE_IF(
+		"ib_row_merge_buf_add_two",
+		if (buf->n_tuples >= 2) return(0););
 
 	UNIV_PREFETCH_R(row->fields);
 
@@ -578,10 +580,11 @@ row_merge_dup_report(
 /*************************************************************//**
 Compare two tuples.
 @return	1, 0, -1 if a is greater, equal, less, respectively, than b */
-static __attribute__((warn_unused_result, nonnull(2,3)))
+static __attribute__((warn_unused_result, nonnull(3,4)))
 int
 row_merge_tuple_cmp(
 /*================*/
+	ulint			n_uniq,	/*!< in: number of unique fields */
 	ulint			n_field,/*!< in: number of fields */
 	const dfield_t*		a,	/*!< in: first tuple to be compared */
 	const dfield_t*		b,	/*!< in: second tuple to be compared */
@@ -590,30 +593,49 @@ row_merge_tuple_cmp(
 {
 	int		cmp;
 	const dfield_t*	field	= a;
+	ulint		n	= n_uniq;
+
+	ut_ad(n_field > 0);
+	ut_ad(n_uniq <= n_field);
 
 	/* Compare the fields of the tuples until a difference is
 	found or we run out of fields to compare.  If !cmp at the
 	end, the tuples are equal. */
 	do {
 		cmp = cmp_dfield_dfield(a++, b++);
-	} while (!cmp && --n_field);
+	} while (!cmp && --n);
 
-	if (UNIV_UNLIKELY(!cmp) && UNIV_LIKELY_NULL(dup)) {
+	if (cmp) {
+		return(cmp);
+	}
+
+	if (dup) {
 		/* Report a duplicate value error if the tuples are
 		logically equal.  NULL columns are logically inequal,
 		although they are equal in the sorting order.  Find
 		out if any of the fields are NULL. */
-		for (b = field; b != a; b++) {
-			if (dfield_is_null(b)) {
-
-				goto func_exit;
+		for (const dfield_t* d = field; d != a; d++) {
+			if (dfield_is_null(d)) {
+				goto no_report;
 			}
 		}
 
 		row_merge_dup_report(dup, field);
 	}
 
-func_exit:
+no_report:
+	/* The n_uniq fields were equal, but we compare all fields so
+	that we will get the same order as in the B-tree. */
+	for (n = n_field - n_uniq + 1; --n; ) {
+		cmp = cmp_dfield_dfield(a++, b++);
+		if (cmp) {
+			return(cmp);
+		}
+	}
+
+	/* This should never be reached. Internally, an index must
+	never contain duplicate entries. */
+	ut_ad(0);
 	return(cmp);
 }
 
@@ -624,20 +646,22 @@ UT_SORT_FUNCTION_BODY().
 @param low	lower bound of the sorting area, inclusive
 @param high	upper bound of the sorting area, inclusive */
 #define row_merge_tuple_sort_ctx(tuples, aux, low, high)		\
-	row_merge_tuple_sort(n_field, dup, tuples, aux, low, high)
+	row_merge_tuple_sort(n_uniq, n_field, dup, tuples, aux, low, high)
 /** Wrapper for row_merge_tuple_cmp() to inject some more context to
 UT_SORT_FUNCTION_BODY().
 @param a	first tuple to be compared
 @param b	second tuple to be compared
 @return	1, 0, -1 if a is greater, equal, less, respectively, than b */
-#define row_merge_tuple_cmp_ctx(a,b) row_merge_tuple_cmp(n_field, a, b, dup)
+#define row_merge_tuple_cmp_ctx(a,b)			\
+	row_merge_tuple_cmp(n_uniq, n_field, a, b, dup)
 
 /**********************************************************************//**
 Merge sort the tuple buffer in main memory. */
-static __attribute__((nonnull(3,4)))
+static __attribute__((nonnull(4,5)))
 void
 row_merge_tuple_sort(
 /*=================*/
+	ulint			n_uniq,	/*!< in: number of unique fields */
 	ulint			n_field,/*!< in: number of fields */
 	row_merge_dup_t*	dup,	/*!< in/out: reporter of duplicates
 					(NULL if non-unique index) */
@@ -648,6 +672,9 @@ row_merge_tuple_sort(
 	ulint			high)	/*!< in: upper bound of the
 					sorting area, exclusive */
 {
+	ut_ad(n_field > 0);
+	ut_ad(n_uniq <= n_field);
+
 	UT_SORT_FUNCTION_BODY(row_merge_tuple_sort_ctx,
 			      tuples, aux, low, high, row_merge_tuple_cmp_ctx);
 }
@@ -662,7 +689,9 @@ row_merge_buf_sort(
 	row_merge_dup_t*	dup)	/*!< in/out: reporter of duplicates
 					(NULL if non-unique index) */
 {
-	row_merge_tuple_sort(dict_index_get_n_unique(buf->index), dup,
+	row_merge_tuple_sort(dict_index_get_n_unique(buf->index),
+			     dict_index_get_n_fields(buf->index),
+			     dup,
 			     buf->tuples, buf->tmp_tuples, 0, buf->n_tuples);
 }
 
@@ -1176,40 +1205,6 @@ row_merge_write_eof(
 	return(&block[0]);
 }
 
-/*************************************************************//**
-Compare two merge records.
-@return	1, 0, -1 if mrec1 is greater, equal, less, respectively, than mrec2 */
-UNIV_INTERN
-int
-row_merge_cmp(
-/*==========*/
-	const mrec_t*		mrec1,		/*!< in: first merge
-						record to be compared */
-	const mrec_t*		mrec2,		/*!< in: second merge
-						record to be compared */
-	const ulint*		offsets1,	/*!< in: first record offsets */
-	const ulint*		offsets2,	/*!< in: second record offsets */
-	const dict_index_t*	index,		/*!< in: index */
-	ibool*			null_eq)	/*!< out: set to TRUE if
-						found matching null values */
-{
-	int	cmp;
-
-	cmp = cmp_rec_rec_simple(mrec1, mrec2, offsets1, offsets2, index,
-				 null_eq);
-
-#ifdef UNIV_DEBUG
-	if (row_merge_print_cmp) {
-		fputs("row_merge_cmp1 ", stderr);
-		rec_print_comp(stderr, mrec1, offsets1);
-		fputs("\nrow_merge_cmp2 ", stderr);
-		rec_print_comp(stderr, mrec2, offsets2);
-		fprintf(stderr, "\nrow_merge_cmp=%d\n", cmp);
-	}
-#endif /* UNIV_DEBUG */
-
-	return(cmp);
-}
 /********************************************************************//**
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
@@ -1795,19 +1790,11 @@ corrupt:
 	}
 
 	while (mrec0 && mrec1) {
-		ibool	null_eq = FALSE;
-		switch (row_merge_cmp(mrec0, mrec1,
-				      offsets0, offsets1, index,
-				      &null_eq)) {
+		switch (cmp_rec_rec_simple(mrec0, mrec1, offsets0, offsets1,
+					   index, table)) {
 		case 0:
-			if (UNIV_UNLIKELY
-			    (dict_index_is_unique(index) && !null_eq)) {
-				innobase_rec_to_mysql(table, mrec0,
-						      index, offsets0);
-				mem_heap_free(heap);
-				return(DB_DUPLICATE_KEY);
-			}
-			/* fall through */
+			mem_heap_free(heap);
+			return(DB_DUPLICATE_KEY);
 		case -1:
 			ROW_MERGE_WRITE_GET_NEXT(0, goto merged);
 			break;

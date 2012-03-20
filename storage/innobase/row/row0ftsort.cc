@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1061,7 +1061,6 @@ row_fts_sel_tree_propagate(
 	int	child_left;
 	int	child_right;
 	int	selected;
-	ibool	null_eq = FALSE;
 
 	/* Find which parent this value will be propagated to */
 	parent = (propogated - 1) / 2;
@@ -1080,10 +1079,10 @@ row_fts_sel_tree_propagate(
 	} else if (child_right == -1
 		   || mrec[child_right] == NULL) {
 		selected = child_left;
-	} else if (row_merge_cmp(mrec[child_left], mrec[child_right],
-				 offsets[child_left],
-				 offsets[child_right],
-				 index, &null_eq) < 0) {
+	} else if (cmp_rec_rec_simple(mrec[child_left], mrec[child_right],
+				      offsets[child_left],
+				      offsets[child_right],
+				      index, NULL) < 0) {
 		selected = child_left;
 	} else {
 		selected = child_right;
@@ -1140,8 +1139,6 @@ row_fts_build_sel_tree_level(
 	num_item = (1 << level);
 
 	for (i = 0; i < num_item;  i++) {
-		ibool	null_eq = FALSE;
-
 		child_left = sel_tree[(start + i) * 2 + 1];
 		child_right = sel_tree[(start + i) * 2 + 2];
 
@@ -1171,14 +1168,12 @@ row_fts_build_sel_tree_level(
 		}
 
 		/* Select the smaller one to set parent pointer */
-		if (row_merge_cmp(mrec[child_left], mrec[child_right],
-				  offsets[child_left],
-				  offsets[child_right],
-				  index, &null_eq) < 0) {
-			sel_tree[start + i] = child_left;
-		} else {
-			sel_tree[start + i] = child_right;
-		}
+		int cmp = cmp_rec_rec_simple(
+			mrec[child_left], mrec[child_right],
+			offsets[child_left], offsets[child_right],
+			index, NULL);
+
+		sel_tree[start + i] = cmp < 0 ? child_left : child_right;
 	}
 }
 
@@ -1383,14 +1378,14 @@ row_fts_merge_insert(
 			}
 
 			for (i = min_rec + 1; i < fts_sort_pll_degree; i++) {
-				ibool           null_eq = FALSE;
 				if (!mrec[i]) {
 					continue;
 				}
 
-				if (row_merge_cmp(mrec[i], mrec[min_rec],
-						  offsets[i], offsets[min_rec],
-						  index, &null_eq) < 0) {
+				if (cmp_rec_rec_simple(
+					    mrec[i], mrec[min_rec],
+					    offsets[i], offsets[min_rec],
+					    index, NULL) < 0) {
 					min_rec = i;
 				}
 			}
