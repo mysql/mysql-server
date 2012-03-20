@@ -12,8 +12,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   along with this program; see the file COPYING. If not, write to the
+   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA  02110-1301  USA.
 */
 
 
@@ -249,7 +250,8 @@ int CertManager::Validate()
         TaoCrypt::Source source((*last)->get_buffer(), (*last)->get_length());
         TaoCrypt::CertDecoder cert(source, true, &signers_, verifyNone_);
 
-        if (int err = cert.GetError().What())
+        int err = cert.GetError().What();
+        if ( err )
             return err;
 
         const TaoCrypt::PublicKey& key = cert.GetPublicKey();
@@ -265,7 +267,7 @@ int CertManager::Validate()
         TaoCrypt::CertDecoder cert(source, true, &signers_, verifyNone_);
 
         int err = cert.GetError().What();
-        if ( err )
+        if ( err && err != TaoCrypt::SIG_OTHER_E)
             return err;
 
         uint sz = cert.GetPublicKey().size();
@@ -326,7 +328,6 @@ int CertManager::SetPrivateKey(const x509& key)
 // Store OpenSSL type peer's cert
 void CertManager::setPeerX509(X509* x)
 {
-    assert(peerX509_ == 0);
     if (x == 0) return;
 
     X509_NAME* issuer   = x->GetIssuer();
