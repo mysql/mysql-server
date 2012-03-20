@@ -269,7 +269,7 @@ mtr_s_lock_func(
 	ut_ad(mtr);
 	ut_ad(lock);
 
-	rw_lock_s_lock_func(lock, 0, file, line);
+	rw_lock_s_lock_inline(lock, 0, file, line);
 
 	mtr_memo_push(mtr, lock, MTR_MEMO_S_LOCK);
 }
@@ -288,7 +288,7 @@ mtr_x_lock_func(
 	ut_ad(mtr);
 	ut_ad(lock);
 
-	rw_lock_x_lock_func(lock, 0, file, line);
+	rw_lock_x_lock_inline(lock, 0, file, line);
 
 	mtr_memo_push(mtr, lock, MTR_MEMO_X_LOCK);
 }
