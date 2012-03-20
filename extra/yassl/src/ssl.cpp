@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+   Copyright (c) 2005-2007 MySQL AB, 2008-2010 Sun Microsystems, Inc.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -246,65 +246,79 @@ YASSL_SOCKET_T SSL_get_fd(const SSL* ssl)
 }
 
 
+// if you get an error from connect see note at top of README
 int SSL_connect(SSL* ssl)
 {
     if (ssl->GetError() == YasslError(SSL_ERROR_WANT_READ))
         ssl->SetError(no_error);
+
+    if (ssl->GetError() == YasslError(SSL_ERROR_WANT_WRITE)) {
+    
+        ssl->SetError(no_error);
+        ssl->SendWriteBuffered();
+        if (!ssl->GetError())
+            ssl->useStates().UseConnect() =
+                             ConnectState(ssl->getStates().GetConnect() + 1);
+    }
 
     ClientState neededState;
 
     switch (ssl->getStates().GetConnect()) {
 
     case CONNECT_BEGIN :
-    sendClientHello(*ssl);
+        sendClientHello(*ssl);
         if (!ssl->GetError())
             ssl->useStates().UseConnect() = CLIENT_HELLO_SENT;
 
     case CLIENT_HELLO_SENT :
         neededState = ssl->getSecurity().get_resuming() ?
-        serverFinishedComplete : serverHelloDoneComplete;
-    while (ssl->getStates().getClient() < neededState) {
-        if (ssl->GetError()) break;
-    processReply(*ssl);
-    }
+                      serverFinishedComplete : serverHelloDoneComplete;
+        while (ssl->getStates().getClient() < neededState) {
+            if (ssl->GetError()) break;
+            processReply(*ssl);
+            // if resumption failed, reset needed state 
+            if (neededState == serverFinishedComplete)
+                if (!ssl->getSecurity().get_resuming())
+                    neededState = serverHelloDoneComplete;
+        }
         if (!ssl->GetError())
             ssl->useStates().UseConnect() = FIRST_REPLY_DONE;
 
     case FIRST_REPLY_DONE :
-    if(ssl->getCrypto().get_certManager().sendVerify())
-        sendCertificate(*ssl);
+        if(ssl->getCrypto().get_certManager().sendVerify())
+            sendCertificate(*ssl);
 
-    if (!ssl->getSecurity().get_resuming())
-        sendClientKeyExchange(*ssl);
+        if (!ssl->getSecurity().get_resuming())
+            sendClientKeyExchange(*ssl);
 
-    if(ssl->getCrypto().get_certManager().sendVerify())
-        sendCertificateVerify(*ssl);
+        if(ssl->getCrypto().get_certManager().sendVerify())
+            sendCertificateVerify(*ssl);
 
-    sendChangeCipher(*ssl);
-    sendFinished(*ssl, client_end);
-    ssl->flushBuffer();
+        sendChangeCipher(*ssl);
+        sendFinished(*ssl, client_end);
+        ssl->flushBuffer();
 
         if (!ssl->GetError())
             ssl->useStates().UseConnect() = FINISHED_DONE;
 
     case FINISHED_DONE :
-    if (!ssl->getSecurity().get_resuming())
-        while (ssl->getStates().getClient() < serverFinishedComplete) {
-            if (ssl->GetError()) break;
-        processReply(*ssl);
-        }
+        if (!ssl->getSecurity().get_resuming())
+            while (ssl->getStates().getClient() < serverFinishedComplete) {
+                if (ssl->GetError()) break;
+                processReply(*ssl);
+            }
         if (!ssl->GetError())
             ssl->useStates().UseConnect() = SECOND_REPLY_DONE;
 
     case SECOND_REPLY_DONE :
-    ssl->verifyState(serverFinishedComplete);
-    ssl->useLog().ShowTCP(ssl->getSocket().get_fd());
+        ssl->verifyState(serverFinishedComplete);
+        ssl->useLog().ShowTCP(ssl->getSocket().get_fd());
 
         if (ssl->GetError()) {
             GetErrors().Add(ssl->GetError());
-        return SSL_FATAL_ERROR;
+            return SSL_FATAL_ERROR;
         }   
-    return SSL_SUCCESS;
+        return SSL_SUCCESS;
 
     default :
         return SSL_FATAL_ERROR; // unkown state
@@ -330,27 +344,36 @@ int SSL_accept(SSL* ssl)
     if (ssl->GetError() == YasslError(SSL_ERROR_WANT_READ))
         ssl->SetError(no_error);
 
+    if (ssl->GetError() == YasslError(SSL_ERROR_WANT_WRITE)) {
+    
+        ssl->SetError(no_error);
+        ssl->SendWriteBuffered();
+        if (!ssl->GetError())
+            ssl->useStates().UseAccept() =
+                             AcceptState(ssl->getStates().GetAccept() + 1);
+    }
+
     switch (ssl->getStates().GetAccept()) {
 
     case ACCEPT_BEGIN :
-    processReply(*ssl);
+        processReply(*ssl);
         if (!ssl->GetError())
             ssl->useStates().UseAccept() = ACCEPT_FIRST_REPLY_DONE;
 
     case ACCEPT_FIRST_REPLY_DONE :
-    sendServerHello(*ssl);
+        sendServerHello(*ssl);
 
-    if (!ssl->getSecurity().get_resuming()) {
-        sendCertificate(*ssl);
+        if (!ssl->getSecurity().get_resuming()) {
+            sendCertificate(*ssl);
 
-        if (ssl->getSecurity().get_connection().send_server_key_)
-            sendServerKeyExchange(*ssl);
+            if (ssl->getSecurity().get_connection().send_server_key_)
+                sendServerKeyExchange(*ssl);
 
-        if(ssl->getCrypto().get_certManager().verifyPeer())
-            sendCertificateRequest(*ssl);
+            if(ssl->getCrypto().get_certManager().verifyPeer())
+                sendCertificateRequest(*ssl);
 
-        sendServerHelloDone(*ssl);
-        ssl->flushBuffer();
+            sendServerHelloDone(*ssl);
+            ssl->flushBuffer();
         }
       
         if (!ssl->GetError())
@@ -358,40 +381,40 @@ int SSL_accept(SSL* ssl)
 
     case SERVER_HELLO_DONE :
         if (!ssl->getSecurity().get_resuming()) {
-        while (ssl->getStates().getServer() < clientFinishedComplete) {
-            if (ssl->GetError()) break;
-            processReply(*ssl);
+            while (ssl->getStates().getServer() < clientFinishedComplete) {
+                if (ssl->GetError()) break;
+                processReply(*ssl);
+            }
         }
-    }
         if (!ssl->GetError())
             ssl->useStates().UseAccept() = ACCEPT_SECOND_REPLY_DONE;
 
     case ACCEPT_SECOND_REPLY_DONE :
-    sendChangeCipher(*ssl);
-    sendFinished(*ssl, server_end);
-    ssl->flushBuffer();
+        sendChangeCipher(*ssl);
+        sendFinished(*ssl, server_end);
+        ssl->flushBuffer();
 
         if (!ssl->GetError())
             ssl->useStates().UseAccept() = ACCEPT_FINISHED_DONE;
 
     case ACCEPT_FINISHED_DONE :
-    if (ssl->getSecurity().get_resuming()) {
-        while (ssl->getStates().getServer() < clientFinishedComplete) {
-          if (ssl->GetError()) break;
-          processReply(*ssl);
-      }
-    }
+        if (ssl->getSecurity().get_resuming()) {
+            while (ssl->getStates().getServer() < clientFinishedComplete) {
+                if (ssl->GetError()) break;
+                processReply(*ssl);
+            }
+        }
         if (!ssl->GetError())
             ssl->useStates().UseAccept() = ACCEPT_THIRD_REPLY_DONE;
 
     case ACCEPT_THIRD_REPLY_DONE :
-    ssl->useLog().ShowTCP(ssl->getSocket().get_fd());
+        ssl->useLog().ShowTCP(ssl->getSocket().get_fd());
 
         if (ssl->GetError()) {
             GetErrors().Add(ssl->GetError());
-        return SSL_FATAL_ERROR;
+            return SSL_FATAL_ERROR;
         }
-    return SSL_SUCCESS;
+        return SSL_SUCCESS;
 
     default:
         return SSL_FATAL_ERROR; // unknown state
@@ -448,6 +471,9 @@ long SSL_CTX_set_session_cache_mode(SSL_CTX* ctx, long mode)
     if (mode == SSL_SESS_CACHE_OFF)
         ctx->SetSessionCacheOff();
 
+    if (mode == SSL_SESS_CACHE_NO_AUTO_CLEAR)
+        ctx->SetSessionCacheFlushOff();
+
     return SSL_SUCCESS;
 }
 
@@ -491,6 +517,15 @@ long SSL_SESSION_set_timeout(SSL_SESSION* sess, long t)
 long SSL_get_default_timeout(SSL* /*ssl*/)
 {
     return DEFAULT_TIMEOUT;
+}
+
+
+void SSL_flush_sessions(SSL_CTX *ctx, long /* tm */)
+{
+    if (ctx->GetSessionCacheOff())
+        return;
+
+    GetSessions().Flush();
 }
 
 
@@ -561,7 +596,7 @@ int SSL_get_error(SSL* ssl, int /*previous*/)
    only need to turn on for client, becuase server on by default if built in
    but calling for server will tell you whether it's available or not
 */
-int SSL_set_compression(SSL* ssl)
+int SSL_set_compression(SSL* ssl)   /* Chad didn't rename to ya~ because it is prob. bug. */
 {
     return ssl->SetCompression();
 }
@@ -605,13 +640,13 @@ char* X509_NAME_oneline(X509_NAME* name, char* buffer, int sz)
 {
     if (!name->GetName()) return buffer;
 
-    size_t len= strlen(name->GetName()) + 1;
-    int copySz = min((int) len, sz);
+    int len    = (int)strlen(name->GetName()) + 1;
+    int copySz = min(len, sz);
 
     if (!buffer) {
         buffer = (char*)malloc(len);
         if (!buffer) return buffer;
-        copySz = (int) len;
+        copySz = len;
     }
 
     if (copySz == 0)
@@ -694,7 +729,7 @@ int SSL_CTX_use_PrivateKey_file(SSL_CTX* ctx, const char* file, int format)
 }
 
 
-void SSL_CTX_set_verify(SSL_CTX* ctx, int mode, VerifyCallback /*vc*/)
+void SSL_CTX_set_verify(SSL_CTX* ctx, int mode, VerifyCallback vc)
 {
     if (mode & SSL_VERIFY_PEER)
         ctx->setVerifyPeer();
@@ -704,6 +739,8 @@ void SSL_CTX_set_verify(SSL_CTX* ctx, int mode, VerifyCallback /*vc*/)
 
     if (mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
         ctx->setFailNoCert();
+
+    ctx->setVerifyCallback(vc);
 }
 
 
@@ -977,7 +1014,7 @@ char* ERR_error_string(unsigned long errNumber, char* buffer)
   static char* msg = (char*)"Please supply a buffer for error string";
 
     if (buffer) {
-        SetErrorString(YasslError(errNumber), buffer);
+        SetErrorString(errNumber, buffer);
         return buffer;
     }
 
@@ -1082,7 +1119,6 @@ int EVP_BytesToKey(const EVP_CIPHER* type, const EVP_MD* md, const byte* salt,
             ivLeft    -= store;
         }
     }
-    assert(keyOutput == (keyLen + ivLen));
     return keyOutput;
 }
 
@@ -1451,6 +1487,8 @@ unsigned long err_helper(bool peek = false)
     default :
         return 0;
     }
+
+    return 0;  // shut up compiler
 }
 
 

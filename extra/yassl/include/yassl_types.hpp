@@ -1,5 +1,6 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005-2007 MySQL AB, 2008 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,8 +26,21 @@
 #define yaSSL_TYPES_HPP
 
 #include <stddef.h>
-#include <assert.h>
 #include "type_traits.hpp"
+
+
+#ifdef _MSC_VER
+    // disable conversion warning
+    // 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy
+    #pragma warning(disable:4244 4996)
+#endif
+
+
+#ifdef _MSC_VER
+    // disable conversion warning
+    // 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy
+    #pragma warning(disable:4244 4996)
+#endif
 
 
 namespace yaSSL {
@@ -55,29 +69,29 @@ namespace yaSSL {
     template<typename T>
     void ysDelete(T* ptr)
     {
-    if (ptr) ptr->~T();
-    ::operator delete(ptr, yaSSL::ys);
+        if (ptr) ptr->~T();
+        ::operator delete(ptr, yaSSL::ys);
     }
 
     template<typename T>
     void ysArrayDelete(T* ptr)
     {
-    // can't do array placement destruction since not tracking size in
-    // allocation, only allow builtins to use array placement since they
-    // don't need destructors called
-    typedef char builtin[TaoCrypt::IsFundamentalType<T>::Yes ? 1 : -1];
-    (void)sizeof(builtin);
+        // can't do array placement destruction since not tracking size in
+        // allocation, only allow builtins to use array placement since they
+        // don't need destructors called
+        typedef char builtin[TaoCrypt::IsFundamentalType<T>::Yes ? 1 : -1];
+        (void)sizeof(builtin);
 
-    ::operator delete[](ptr, yaSSL::ys);
+        ::operator delete[](ptr, yaSSL::ys);
     }
 
     #define NEW_YS new (yaSSL::ys)
 
     // to resolve compiler generated operator delete on base classes with
-    // virtual destructors (when on stack), make sure doesn't get called
+    // virtual destructors (when on stack)
     class virtual_base {
     public:
-    static void operator delete(void*) { assert(0); }
+        static void operator delete(void*) { }
     };
 
 
@@ -116,7 +130,7 @@ typedef opaque byte;
 
 typedef unsigned int uint;
 
- 
+
 #ifdef USE_SYS_STL
     // use system STL
     #define STL_VECTOR_FILE    <vector>
@@ -163,7 +177,7 @@ const int RMD_LEN           =  20;  // RIPEMD-160 digest length
 const int PREFIX            =   3;  // up to 3 prefix letters for secret rounds
 const int KEY_PREFIX        =   7;  // up to 7 prefix letters for key rounds
 const int FORTEZZA_MAX      = 128;  // Maximum Fortezza Key length
-const int MAX_SUITE_SZ      =  64;  // 32 max suites * sizeof(suite)
+const int MAX_SUITE_SZ      = 128;  // 64 max suites * sizeof(suite)
 const int MAX_SUITE_NAME    =  48;  // max length of suite name
 const int MAX_CIPHERS       =  32;  // max supported ciphers for cipher list
 const int SIZEOF_ENUM       =   1;  // SSL considers an enum 1 byte, not 4
@@ -205,6 +219,7 @@ const int SEED_LEN          = RAN_LEN * 2; // TLS seed, client + server random
 const int DEFAULT_TIMEOUT   = 500;  // Default Session timeout in seconds
 const int MAX_RECORD_SIZE   = 16384; // 2^14, max size by standard
 const int COMPRESS_EXTRA    = 1024;  // extra compression possible addition
+const int SESSION_FLUSH_COUNT = 256;  // when to flush session cache
 
 
 typedef uint8 Cipher;             // first byte is always 0x00 for SSLv3 & TLS

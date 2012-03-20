@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ public:
     enum { BLOCK_SIZE = BLOWFISH_BLOCK_SIZE, ROUNDS = 16 };
 
     Blowfish(CipherDir DIR, Mode MODE)
-        : Mode_BASE(BLOCK_SIZE, DIR, MODE) {}
+        : Mode_BASE(BLOCK_SIZE, DIR, MODE), sbox_(pbox_ + ROUNDS + 2) {}
 
 #ifdef DO_BLOWFISH_ASM
     void Process(byte*, const byte*, word32);
@@ -59,11 +59,11 @@ public:
     void SetKey(const byte* key, word32 sz, CipherDir fake = ENCRYPTION);
     void SetIV(const byte* iv) { memcpy(r_, iv, BLOCK_SIZE); }
 private:
-	static const word32 p_init_[ROUNDS + 2];
-	static const word32 s_init_[4 * 256];
+    static const word32 p_init_[ROUNDS + 2];
+    static const word32 s_init_[4 * 256];
 
-	word32 pbox_[ROUNDS + 2];
-	word32 sbox_[4 * 256];
+    word32 pbox_[ROUNDS + 2 + 4 * 256];
+    word32* sbox_;
 
     void crypt_block(const word32 in[2], word32 out[2]) const;
     void AsmProcess(const byte* in, byte* out) const;
