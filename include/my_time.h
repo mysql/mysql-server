@@ -84,6 +84,7 @@ typedef long my_time_t;
 #define MYSQL_TIME_WARN_INVALID_TIMESTAMP 4
 #define MYSQL_TIME_WARN_ZERO_DATE         8
 #define MYSQL_TIME_NOTE_TRUNCATED        16
+#define MYSQL_TIME_WARN_ZERO_IN_DATE     32
 
 /* Usefull constants */
 #define SECONDS_IN_24H 86400L
