@@ -5791,8 +5791,7 @@ String *Item::check_well_formed_result(String *str, bool send_error)
                cs->csname,  hexbuf);
       return 0;
     }
-    if ((thd->variables.sql_mode &
-         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+    if (thd->is_strict_mode())
     {
       null_value= 1;
       str= 0;
