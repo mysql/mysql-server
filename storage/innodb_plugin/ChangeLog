@@ -70,6 +70,10 @@
 	* row/row0mysql.c:
 	Fix Bug#12400341: INNODB CAN LEAVE ORPHAN IBD FILES AROUND
 
+2011-12-22	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#63775 Server crash on handler read next after delete record.
 2011-12-21	The InnoDB Team
 
 	* include/ut0rnd.ic:

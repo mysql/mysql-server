@@ -11,8 +11,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   along with this program; see the file COPYING. If not, write to the
+   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA  02110-1301  USA.
 */
 
 /* based on Wei Dai's algebra.cpp from CryptoPP */
@@ -246,7 +247,6 @@ void AbstractGroup::SimultaneousMultiply(Integer *results, const Integer &base,
 
     for (i=0; i<expCount; i++)
     {
-        assert(expBegin->NotNegative());
         exponents.push_back(WindowSlider(*expBegin++, InversionIsFast(), 0));
         exponents[i].FindNextWindow();
         buckets[i].resize(1<<(exponents[i].windowSize-1), Identity());
@@ -287,7 +287,7 @@ void AbstractGroup::SimultaneousMultiply(Integer *results, const Integer &base,
         r = buckets[i][buckets[i].size()-1];
         if (buckets[i].size() > 1)
         {
-            for (int j= (unsigned int) (buckets[i].size()) - 2; j >= 1; j--)
+            for (size_t j = buckets[i].size()-2; j >= 1; j--)
             {
                 Accumulate(buckets[i][j], buckets[i][j+1]);
                 Accumulate(r, buckets[i][j]);
