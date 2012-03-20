@@ -304,7 +304,7 @@ UPDATE t1 SET i=@e;
 
 # The function dict_index_too_big_for_undo() prevents us from adding
 # one more index that is 767 bytes long.
---error 139
+-- error ER_TOO_BIG_ROWSIZE
 CREATE INDEX t1j ON t1 (j(767));
 
 # But it does allow a 500 byte index.  And with this, we cannot

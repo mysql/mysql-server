@@ -5,6 +5,8 @@ a VARCHAR(200),
 b TEXT
 ) ENGINE= InnoDB;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),

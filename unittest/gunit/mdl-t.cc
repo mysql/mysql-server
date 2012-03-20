@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -208,7 +208,7 @@ void MDL_thread::run()
                MDL_TRANSACTION);
 
   request_list.push_front(&request);
-  if (m_mdl_type >= MDL_SHARED_NO_WRITE)
+  if (m_mdl_type >= MDL_SHARED_UPGRADABLE)
     request_list.push_front(&global_request);
 
   EXPECT_FALSE(m_mdl_context.acquire_locks(&request_list, long_timeout));
@@ -410,7 +410,7 @@ TEST_F(MDLTest, SharedLocksBetweenContexts)
  */
 TEST_F(MDLTest, UpgradeSharedUpgradable)
 {
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_NO_WRITE,
+  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_UPGRADABLE,
                  MDL_TRANSACTION);
 
   m_request_list.push_front(&m_request);
@@ -418,12 +418,12 @@ TEST_F(MDLTest, UpgradeSharedUpgradable)
 
   EXPECT_FALSE(m_mdl_context.acquire_locks(&m_request_list, long_timeout));
   EXPECT_FALSE(m_mdl_context.
-               upgrade_shared_lock_to_exclusive(m_request.ticket, long_timeout));
+               upgrade_shared_lock(m_request.ticket, MDL_EXCLUSIVE, long_timeout));
   EXPECT_EQ(MDL_EXCLUSIVE, m_request.ticket->get_type());
 
   // Another upgrade should be a no-op.
   EXPECT_FALSE(m_mdl_context.
-               upgrade_shared_lock_to_exclusive(m_request.ticket, long_timeout));
+               upgrade_shared_lock(m_request.ticket, MDL_EXCLUSIVE, long_timeout));
   EXPECT_EQ(MDL_EXCLUSIVE, m_request.ticket->get_type());
 
   m_mdl_context.release_transactional_locks();
@@ -450,12 +450,14 @@ TEST_F(MDLDeathTest, DieUpgradeShared)
 #if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   EXPECT_DEATH_IF_SUPPORTED(m_mdl_context.
-                            upgrade_shared_lock_to_exclusive(m_request.ticket,
-                                                             long_timeout),
+                            upgrade_shared_lock(m_request.ticket,
+                                                MDL_EXCLUSIVE,
+                                                long_timeout),
                             ".*MDL_SHARED_NO_.*");
 #endif
   EXPECT_FALSE(m_mdl_context.
-               upgrade_shared_lock_to_exclusive(request_2.ticket, long_timeout));
+               upgrade_shared_lock(request_2.ticket, MDL_EXCLUSIVE,
+                                   long_timeout));
   m_mdl_context.release_transactional_locks();
 }
 
@@ -614,7 +616,7 @@ TEST_F(MDLTest, ConcurrentExclusiveShared)
  */
 TEST_F(MDLTest, ConcurrentUpgrade)
 {
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_NO_WRITE,
+  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_UPGRADABLE,
                  MDL_TRANSACTION);
   m_request_list.push_front(&m_request);
   m_request_list.push_front(&m_global_request);
@@ -622,7 +624,7 @@ TEST_F(MDLTest, ConcurrentUpgrade)
   EXPECT_FALSE(m_mdl_context.acquire_locks(&m_request_list, long_timeout));
   EXPECT_TRUE(m_mdl_context.
               is_lock_owner(MDL_key::TABLE,
-                            db_name, table_name1, MDL_SHARED_NO_WRITE));
+                            db_name, table_name1, MDL_SHARED_UPGRADABLE));
   EXPECT_FALSE(m_mdl_context.
                is_lock_owner(MDL_key::TABLE,
                              db_name, table_name1, MDL_EXCLUSIVE));
@@ -634,10 +636,43 @@ TEST_F(MDLTest, ConcurrentUpgrade)
   lock_grabbed.wait_for_notification();
 
   EXPECT_FALSE(m_mdl_context.
-               upgrade_shared_lock_to_exclusive(m_request.ticket, long_timeout));
+               upgrade_shared_lock(m_request.ticket, MDL_EXCLUSIVE, long_timeout));
   EXPECT_TRUE(m_mdl_context.
               is_lock_owner(MDL_key::TABLE,
                             db_name, table_name1, MDL_EXCLUSIVE));
+
+  mdl_thread.join();
+  m_mdl_context.release_transactional_locks();
+}
+
+
+TEST_F(MDLTest, UpgradableConcurrency)
+{
+  MDL_request request_2;
+  MDL_request_list request_list;
+  Notification lock_grabbed;
+  Notification release_locks;
+  MDL_thread mdl_thread(table_name1, MDL_SHARED_UPGRADABLE,
+                        &lock_grabbed, &release_locks);
+  mdl_thread.start();
+  lock_grabbed.wait_for_notification();
+
+  // We should be able to take a SW lock.
+  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_WRITE,
+                 MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+  EXPECT_NE(m_null_ticket, m_request.ticket);
+
+  // But SHARED_UPGRADABLE is not compatible with itself
+  expected_error= ER_LOCK_WAIT_TIMEOUT;
+  request_2.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_UPGRADABLE,
+                 MDL_TRANSACTION);
+  request_list.push_front(&m_global_request);
+  request_list.push_front(&request_2);
+  EXPECT_TRUE(m_mdl_context.acquire_locks(&request_list, zero_timeout));
+  EXPECT_EQ(m_null_ticket, request_2.ticket);
+
+  release_locks.notify();
 
   mdl_thread.join();
   m_mdl_context.release_transactional_locks();

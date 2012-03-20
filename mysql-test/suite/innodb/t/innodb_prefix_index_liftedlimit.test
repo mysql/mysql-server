@@ -765,7 +765,7 @@ COMMIT;
 # Wait for commit
 let $wait_condition=SELECT COUNT(*)=0 FROM information_schema.processlist
 WHERE info='COMMIT';
---source include/wait_condition.inc 
+--source include/wait_condition.inc
 
 --echo "In connection 1"
 --connection con1
@@ -874,8 +874,12 @@ worklog5743;
 SELECT COUNT(*) FROM worklog5743;
 COMMIT;
 
+--echo "Disconnect the connections 1 and 2"
 --disconnect con1
+--source include/wait_until_disconnected.inc
+--connection con2
 --disconnect con2
+--source include/wait_until_disconnected.inc
 
 --connection default
 DROP TABLE worklog5743;
@@ -1274,8 +1278,8 @@ AND col_2_text = REPEAT("o", 4000);
 ALTER TABLE worklog5743 DROP PRIMARY KEY;
 
 # Again add index length > 948. Expect error 'to big row ' due to exceed
-# in key length.  
--- error 139
+# in key length.
+-- error ER_TOO_BIG_ROWSIZE
 ALTER TABLE worklog5743 ADD PRIMARY KEY (col_1_text (950));
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
 SELECT col_1_text = REPEAT("a", 4000) FROM worklog5743;
@@ -1368,4 +1372,10 @@ DROP TABLE worklog5743;
 eval set global innodb_file_format = $innodb_file_format_orig;
 eval set global innodb_file_per_table = $innodb_file_per_table_orig;
 eval set global innodb_large_prefix = $innodb_large_prefix_orig;
+--echo "Disconnect the connection 1"
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
 --enable_query_log
+--connection default
+
