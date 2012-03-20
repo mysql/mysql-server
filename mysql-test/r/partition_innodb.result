@@ -550,11 +550,9 @@ SET SESSION sql_mode = 'NO_ZERO_DATE';
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
-test.t1	optimize	error	Invalid default value for 'b'
-test.t1	optimize	status	Operation failed
+test.t1	optimize	status	OK
 Warnings:
 Warning	1264	Out of range value for column 'b' at row 1
-Error	1067	Invalid default value for 'b'
 SET SESSION sql_mode = @old_mode;
 DROP TABLE t1;
 #

@@ -491,7 +491,7 @@ static Sys_var_ulong Sys_pfs_digest_size(
        "performance_schema_digests_size",
        "Size of the statement digest.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_digest_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 200),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
        DEFAULT(PFS_DIGEST_SIZE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
