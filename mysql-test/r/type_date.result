@@ -481,6 +481,28 @@ DATE(MIN(a))
 DROP TABLE t1;
 SET timestamp=DEFAULT;
 #
+# Bug #13626019 DIFFERENCE IN OUTPUT BETWEEN 5.1 & 5.5 FOR A LAST_DAY IS
+# NULL SELECT QUERY
+#
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+CREATE TABLE t2(b CHAR(19));
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES('0000-00-00 00:00:00');
+SELECT * FROM t1 WHERE LAST_DAY('0000-00-00 00:00:00') IS NULL;
+a
+1
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
+SELECT * FROM t1 WHERE
+LAST_DAY((SELECT b FROM t2 WHERE b = '0000-00-00 00:00:00')) IS NULL;
+a
+1
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
+DROP TABLE t1,t2;
+#
 # Test for bug#11747847 - 34280: create table fails if NO_ZERO_DATE
 # or NO_ZERO_IN_DATE SQL mode is set.
 DROP TABLE IF EXISTS t1, t2, t3;
