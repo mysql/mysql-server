@@ -41,8 +41,9 @@ if (my_b_write((file),(uchar*) (from),param->ref_length)) \
 
 	/* functions defined in this file */
 
-static char **make_char_array(char **old_pos, register uint fields,
-                              uint length, myf my_flag);
+static size_t char_array_size(uint fields, uint length);
+static uchar **make_char_array(uchar **old_pos, uint fields,
+                               uint length, myf my_flag);
 static uchar *read_buffpek_from_file(IO_CACHE *buffer_file, uint count,
                                      uchar *buf);
 static ha_rows find_all_keys(SORTPARAM *param,SQL_SELECT *select,
@@ -221,10 +222,22 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     ulong old_memavl;
     ulong keys= memavl/(param.rec_length+sizeof(char*));
     param.keys=(uint) min(records+1, keys);
+
+    if (table_sort.sort_keys &&
+        table_sort.sort_keys_size != char_array_size(param.keys,
+                                                     param.rec_length))
+    {
+      x_free((uchar*) table_sort.sort_keys);
+      table_sort.sort_keys= NULL;
+      table_sort.sort_keys_size= 0;
+    }
     if ((table_sort.sort_keys=
-	 (uchar **) make_char_array((char **) table_sort.sort_keys,
-                                    param.keys, param.rec_length, MYF(0))))
+         make_char_array(table_sort.sort_keys,
+                         param.keys, param.rec_length, MYF(0))))
+    {
+      table_sort.sort_keys_size= char_array_size(param.keys, param.rec_length);
       break;
+    }
     old_memavl=memavl;
     if ((memavl=memavl/4*3) < min_sort_memory && old_memavl > min_sort_memory)
       memavl= min_sort_memory;
@@ -306,6 +319,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   {
     x_free((uchar*) sort_keys);
     table_sort.sort_keys= 0;
+    table_sort.sort_keys_size= 0;
     x_free((uchar*) buffpek);
     table_sort.buffpek= 0;
     table_sort.buffpek_len= 0;
@@ -353,6 +367,7 @@ void filesort_free_buffers(TABLE *table, bool full)
     {
       x_free((uchar*) table->sort.sort_keys);
       table->sort.sort_keys= 0;
+      table->sort.sort_keys_size= 0;
     }
     if (table->sort.buffpek)
     {
@@ -372,19 +387,28 @@ void filesort_free_buffers(TABLE *table, bool full)
 
 /** Make a array of string pointers. */
 
-static char **make_char_array(char **old_pos, register uint fields,
-                              uint length, myf my_flag)
+static size_t char_array_size(uint fields, uint length)
 {
-  register char **pos;
-  char *char_pos;
+  return fields * (length + sizeof(uchar*));
+}
+
+
+static uchar **make_char_array(uchar **old_pos, uint fields,
+                               uint length, myf my_flag)
+{
+  register uchar **pos;
+  uchar *char_pos;
   DBUG_ENTER("make_char_array");
 
   if (old_pos ||
-      (old_pos= (char**) my_malloc((uint) fields*(length+sizeof(char*)),
-				   my_flag)))
+      (old_pos= (uchar**) my_malloc(char_array_size(fields, length), my_flag)))
   {
-    pos=old_pos; char_pos=((char*) (pos+fields)) -length;
-    while (fields--) *(pos++) = (char_pos+= length);
+    pos=old_pos;
+    char_pos= ((uchar*)(pos+fields)) -length;
+    while (fields--)
+    {
+      *(pos++) = (char_pos+= length);
+    }
   }
 
   DBUG_RETURN(old_pos);
