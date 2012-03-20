@@ -18,9 +18,6 @@ INDEX_ID	NAME	TABLE_ID	TYPE	N_FIELDS	PAGE_NO	SPACE
 12	FOR_IND	11	0	1	802	0
 13	REF_IND	11	0	1	804	0
 14	ID_IND	12	3	2	805	0
-15	PRIMARY	13	3	1	807	0
-16	PRIMARY	14	3	1	810	0
-17	PRIMARY	15	3	2	812	0
 # Test 4) The maximum row size is dependent upon the page size.
 #         Redundant: 1979, Compact: 1982.
 #         Compressed: 1982, Dynamic: 1982.

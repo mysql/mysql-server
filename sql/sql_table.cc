@@ -2707,8 +2707,7 @@ bool check_duplicates_in_interval(const char *set_or_name,
     {
       THD *thd= current_thd;
       ErrConvString err(*cur_value, *cur_length, cs);
-      if ((current_thd->variables.sql_mode &
-         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+      if (current_thd->is_strict_mode())
       {
         my_error(ER_DUPLICATED_VALUE_IN_TYPE, MYF(0),
                  name, err.ptr(), set_or_name);
@@ -3938,8 +3937,7 @@ bool validate_comment_length(THD *thd, const char *comment_str,
                                                    max_len);
   if (tmp_len < *comment_len)
   {
-    if ((thd->variables.sql_mode &
-        (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+    if (thd->is_strict_mode())
     {
        my_error(err_code, MYF(0),
        comment_name, static_cast<ulong>(max_len));
@@ -4013,8 +4011,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
     /* Convert long VARCHAR columns to TEXT or BLOB */
     char warn_buff[MYSQL_ERRMSG_SIZE];
 
-    if (sql_field->def || (thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
-                                                      MODE_STRICT_ALL_TABLES)))
+    if (sql_field->def || thd->is_strict_mode())
     {
       my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
                static_cast<ulong>(MAX_FIELD_VARCHARLENGTH /
@@ -4668,6 +4665,9 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   /* Got lock. */
   DEBUG_SYNC(thd, "locked_table_name");
 
+  /* We can abort create table for any table type */
+  thd->abort_on_warning= thd->is_strict_mode();
+
   promote_first_timestamp_column(&alter_info->create_list);
 
   result= mysql_create_table_no_lock(thd, create_table->db,
@@ -4697,6 +4697,8 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
       result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
     }
   }
+
+  thd->abort_on_warning= false;
 end:
   DBUG_RETURN(result);
 }
@@ -7099,6 +7101,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
   DBUG_EXECUTE_IF("sleep_before_create_table_no_lock",
                   my_sleep(100000););
+  /* We can abort alter table for any table type */
+  thd->abort_on_warning= !ignore && thd->is_strict_mode();
 
   promote_first_timestamp_column(&alter_info->create_list);
 
@@ -7126,7 +7130,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                            true, 0, true, NULL,
                            &key_info, &key_count);
   reenable_binlog(thd);
-
+  thd->abort_on_warning= false;
   if (error)
     DBUG_RETURN(true);
 
@@ -7704,9 +7708,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   alter_table_manage_keys(to, from->file->indexes_are_disabled(), keys_onoff);
 
   /* We can abort alter table for any table type */
-  thd->abort_on_warning= !ignore && test(thd->variables.sql_mode &
-                                         (MODE_STRICT_TRANS_TABLES |
-                                          MODE_STRICT_ALL_TABLES));
+  thd->abort_on_warning= !ignore && thd->is_strict_mode();
 
   from->file->info(HA_STATUS_VARIABLE);
   to->file->ha_start_bulk_insert(from->file->stats.records);
