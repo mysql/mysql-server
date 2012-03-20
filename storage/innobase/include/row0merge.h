@@ -376,22 +376,6 @@ row_merge_file_destroy(
 /*===================*/
 	merge_file_t*	merge_file)	/*!< in/out: merge file structure */
 	__attribute__((nonnull));
-/*********************************************************************//**
-Compare two merge records.
-@return 1, 0, -1 if mrec1 is greater, equal, less, respectively, than mrec2 */
-UNIV_INTERN
-int
-row_merge_cmp(
-/*==========*/
-	const mrec_t*		mrec1,		/*!< in: first merge
-						record to be compared */
-	const mrec_t*		mrec2,		/*!< in: second merge
-						record to be compared */
-	const ulint*		offsets1,	/*!< in: first record offsets */
-	const ulint*		offsets2,	/*!< in: second record offsets */
-	const dict_index_t*	index,		/*!< in: index */
-	ibool*			null_eq);	/*!< out: set to TRUE if
-						found matching null values */
 /********************************************************************//**
 Read a merge block from the file system.
 @return TRUE if request was successful, FALSE if fail */
