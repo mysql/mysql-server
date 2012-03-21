@@ -1,5 +1,0 @@
-$DAEMON_MEMCACHED_OPT
-$DAEMON_MEMCACHED_LOAD
---loose-daemon_memcached_w_batch_size=4
---loose-daemon_memcached_engine_lib_path=$INNODB_ENGINE_DIR
---loose-daemon_memcached_option="-p11266"
