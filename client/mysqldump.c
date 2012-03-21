@@ -2331,10 +2331,10 @@ static uint dump_routines_for_db(char *db)
           {
             if (opt_xml)
             {
-              if (i)                            // Procedures.
+              if (i)                            /* Procedures. */
                 print_xml_row(sql_file, "routine", routine_res, &row,
                               "Create Procedure");
-              else                              // Functions.
+              else                              /* Functions. */
                 print_xml_row(sql_file, "routine", routine_res, &row,
                               "Create Function");
               continue;
