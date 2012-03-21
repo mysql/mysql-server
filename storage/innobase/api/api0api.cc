@@ -1584,8 +1584,10 @@ ib_cursor_insert_row(
 			dfield_set_data(
 				dst_field, src_field->data, src_field->len);
 
-			UNIV_MEM_ASSERT_RW(src_field->data, src_field->len);
-			UNIV_MEM_ASSERT_RW(dst_field->data, dst_field->len);
+			if (dst_field->len != IB_SQL_NULL) {
+				UNIV_MEM_ASSERT_RW(dst_field->data,
+						   dst_field->len);
+			}
 		}
 	}
 
