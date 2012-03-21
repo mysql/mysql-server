@@ -117,6 +117,8 @@ enum db_err {
 	DB_FTS_INVALID_DOCID,		/* FTS Doc ID cannot be zero */
 	DB_TABLE_IN_FK_CHECK,		/* table is being used in foreign
 					key check */
+	DB_ONLINE_LOG_TOO_BIG,		/*!< Modification log grew too big
+					during online index creation */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

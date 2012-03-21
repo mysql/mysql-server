@@ -4750,7 +4750,8 @@ Field_temporal::set_warnings(ErrConvString str, int warnings)
                          str, ts_type, !cut_incremented);
     cut_incremented= 1;
   }
-  if (warnings & (MYSQL_TIME_WARN_OUT_OF_RANGE | MYSQL_TIME_WARN_ZERO_DATE))
+  if (warnings & (MYSQL_TIME_WARN_OUT_OF_RANGE | MYSQL_TIME_WARN_ZERO_DATE |
+                  MYSQL_TIME_WARN_ZERO_IN_DATE))
   {
     set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                          ER_WARN_DATA_OUT_OF_RANGE,
@@ -4783,6 +4784,9 @@ int Field_temporal::store(longlong nr, bool unsigned_val)
   else
   {
     DBUG_ASSERT(warnings != 0); // Must be set by convert_number_to_TIME
+
+    if (warnings & (MYSQL_TIME_WARN_ZERO_DATE | MYSQL_TIME_WARN_ZERO_IN_DATE))
+      error= current_thd->is_strict_mode() ? 1 : 3;
   }
   if (warnings)
     set_warnings(ErrConvString(nr, unsigned_val), warnings);
@@ -4800,7 +4804,11 @@ int Field_temporal::store_lldiv_t(const lldiv_t *lld, int *warnings)
   else if (!*warnings)
   {
     DBUG_ASSERT(warnings != 0); // Must be set by convert_number_to_TIME
-   }
+  }
+
+  if (*warnings & (MYSQL_TIME_WARN_ZERO_DATE | MYSQL_TIME_WARN_ZERO_IN_DATE))
+    error= current_thd->is_strict_mode() ? 1 : 3;
+
   return error;
 }
 
@@ -4857,7 +4865,11 @@ Field_temporal::store(const char *str, uint len, const CHARSET_INFO *cs)
   if (convert_str_to_TIME(str, len, cs, &ltime, &status))
   {
     reset();
-    error= 2;
+    if (status.warnings & (MYSQL_TIME_WARN_ZERO_DATE |
+                           MYSQL_TIME_WARN_ZERO_IN_DATE))
+      error= current_thd->is_strict_mode() ? 1 : 3;
+    else
+      error= 2;
   }
   else
   {
@@ -8494,8 +8506,7 @@ String *Field_set::val_str(String *val_buffer,
   ulonglong tmp=(ulonglong) Field_enum::val_int();
   uint bitnr=0;
 
-  val_buffer->length(0);
-  val_buffer->set_charset(field_charset);
+  val_buffer->set("", 0, field_charset);
   while (tmp && bitnr < (uint) typelib->count)
   {
     if (tmp & 1)
@@ -9667,9 +9678,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
         A default other than '' is always an error, and any non-NULL
         specified default is an error in strict mode.
       */
-      if (res->length() || (thd->variables.sql_mode &
-                            (MODE_STRICT_TRANS_TABLES |
-                             MODE_STRICT_ALL_TABLES)))
+      if (res->length() || thd->is_strict_mode())
       {
         my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0),
                  fld_name); /* purecov: inspected */

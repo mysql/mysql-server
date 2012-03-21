@@ -531,6 +531,7 @@ lock_clust_rec_cons_read_sees(
 	trx_id_t	trx_id;
 
 	ut_ad(dict_index_is_clust(index));
+	ut_ad(!dict_index_is_online_ddl(index));
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -1752,6 +1753,7 @@ lock_rec_create(
 
 	ut_ad(lock_mutex_own());
 	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
+	ut_ad(!dict_index_is_online_ddl(index));
 
 	/* Non-locking autocommit read-only transactions should not set
 	any locks. */
@@ -1857,6 +1859,7 @@ lock_rec_enqueue_waiting(
 	trx_id_t		victim_trx_id;
 
 	ut_ad(lock_mutex_own());
+	ut_ad(!dict_index_is_online_ddl(index));
 
 	trx = thr_get_trx(thr);
 
@@ -1975,6 +1978,7 @@ lock_rec_add_to_queue(
 
 	ut_ad(lock_mutex_own());
 	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
+	ut_ad(!dict_index_is_online_ddl(index));
 #ifdef UNIV_DEBUG
 	switch (type_mode & LOCK_MODE_MASK) {
 	case LOCK_X:
@@ -2096,6 +2100,7 @@ lock_rec_lock_fast(
 	ut_ad(mode - (LOCK_MODE_MASK & mode) == LOCK_GAP
 	      || mode - (LOCK_MODE_MASK & mode) == 0
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
+	ut_ad(!dict_index_is_online_ddl(index));
 
 	lock = lock_rec_get_first_on_page(block);
 
@@ -2171,6 +2176,7 @@ lock_rec_lock_slow(
 	ut_ad(mode - (LOCK_MODE_MASK & mode) == LOCK_GAP
 	      || mode - (LOCK_MODE_MASK & mode) == 0
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
+	ut_ad(!dict_index_is_online_ddl(index));
 
 	trx = thr_get_trx(thr);
 
@@ -2242,6 +2248,7 @@ lock_rec_lock(
 	ut_ad(mode - (LOCK_MODE_MASK & mode) == LOCK_GAP
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP
 	      || mode - (LOCK_MODE_MASK & mode) == 0);
+	ut_ad(!dict_index_is_online_ddl(index));
 
 	/* We try a simplified and faster subroutine for the most
 	common cases */
@@ -5418,6 +5425,7 @@ lock_rec_queue_validate(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
 	ut_ad(lock_mutex_own() == locked_lock_trx_sys);
+	ut_ad(!index || !dict_index_is_online_ddl(index));
 
 	heap_no = page_rec_get_heap_no(rec);
 
@@ -5694,20 +5702,26 @@ lock_rec_block_validate(
 	If the lock exists in lock_rec_validate_page() we assert
 	!block->page.file_page_was_freed. */
 
+	buf_block_t*	block;
 	mtr_t		mtr;
 
-	mtr_start(&mtr);
+	/* Make sure that the tablespace is not deleted while we are
+	trying to access the page. */
+	if (!fil_inc_pending_ops(space)) {
+		mtr_start(&mtr);
+		block = buf_page_get_gen(
+			space, fil_space_get_zip_size(space),
+			page_no, RW_X_LATCH, NULL,
+			BUF_GET_POSSIBLY_FREED,
+			__FILE__, __LINE__, &mtr);
 
-	buf_block_t*	block = buf_page_get_gen(
-		space, fil_space_get_zip_size(space),
-		page_no, RW_X_LATCH, NULL,
-		BUF_GET_POSSIBLY_FREED,
-		__FILE__, __LINE__, &mtr);
+		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
-	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+		ut_ad(lock_rec_validate_page(block));
+		mtr_commit(&mtr);
 
-	ut_ad(lock_rec_validate_page(block));
-	mtr_commit(&mtr);
+		fil_decr_pending_ops(space);
+	}
 }
 
 /*********************************************************************//**
@@ -5787,6 +5801,7 @@ lock_rec_insert_check_and_lock(
 	ulint		next_rec_heap_no;
 
 	ut_ad(block->frame == page_align(rec));
+	ut_ad(!dict_index_is_online_ddl(index) || (flags & BTR_CREATE_FLAG));
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
 
@@ -5803,11 +5818,9 @@ lock_rec_insert_check_and_lock(
 	to hold trx->mutex here. */
 
 	/* When inserting a record into an index, the table must be at
-	least IX-locked or we must be building an index, in which case
-	the table must be at least S-locked. */
-	ut_ad(lock_table_has(trx, index->table, LOCK_IX)
-	      || (*index->name == TEMP_INDEX_PREFIX
-		  && lock_table_has(trx, index->table, LOCK_S)));
+	least IX-locked. When we are building an index, we would pass
+	BTR_NO_LOCKING_FLAG and skip the locking altogether. */
+	ut_ad(lock_table_has(trx, index->table, LOCK_IX));
 
 	lock = lock_rec_get_first(block, next_rec_heap_no);
 
@@ -5913,6 +5926,7 @@ lock_rec_convert_impl_to_expl(
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
+	ut_ad(!dict_index_is_online_ddl(index));
 
 	if (dict_index_is_clust(index)) {
 		trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
@@ -5979,6 +5993,7 @@ lock_clust_rec_modify_check_and_lock(
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(dict_index_is_clust(index));
+	ut_ad(!dict_index_is_online_ddl(index));
 	ut_ad(block->frame == page_align(rec));
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
@@ -6032,13 +6047,15 @@ lock_sec_rec_modify_check_and_lock(
 				clustered index record first: see the
 				comment below */
 	dict_index_t*	index,	/*!< in: secondary index */
-	que_thr_t*	thr,	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread
+				(can be NULL if BTR_NO_LOCKING_FLAG) */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	ulint	err;
 	ulint	heap_no;
 
 	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!dict_index_is_online_ddl(index) || (flags & BTR_CREATE_FLAG));
 	ut_ad(block->frame == page_align(rec));
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
@@ -6128,6 +6145,7 @@ lock_sec_rec_read_check_and_lock(
 	ulint		heap_no;
 
 	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!dict_index_is_online_ddl(index));
 	ut_ad(block->frame == page_align(rec));
 	ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -6205,6 +6223,7 @@ lock_clust_rec_read_check_and_lock(
 	ulint		heap_no;
 
 	ut_ad(dict_index_is_clust(index));
+	ut_ad(!dict_index_is_online_ddl(index));
 	ut_ad(block->frame == page_align(rec));
 	ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
 	ut_ad(gap_mode == LOCK_ORDINARY || gap_mode == LOCK_GAP
@@ -6469,6 +6488,7 @@ lock_get_table(
 {
 	switch (lock_get_type_low(lock)) {
 	case LOCK_REC:
+		ut_ad(!dict_index_is_online_ddl(lock->index));
 		return(lock->index->table);
 	case LOCK_TABLE:
 		return(lock->un_member.tab_lock.table);
@@ -6521,6 +6541,7 @@ lock_rec_get_index(
 	const lock_t*	lock)	/*!< in: lock */
 {
 	ut_a(lock_get_type_low(lock) == LOCK_REC);
+	ut_ad(!dict_index_is_online_ddl(lock->index));
 
 	return(lock->index);
 }
@@ -6536,6 +6557,7 @@ lock_rec_get_index_name(
 	const lock_t*	lock)	/*!< in: lock */
 {
 	ut_a(lock_get_type_low(lock) == LOCK_REC);
+	ut_ad(!dict_index_is_online_ddl(lock->index));
 
 	return(lock->index->name);
 }
@@ -6800,6 +6822,7 @@ lock_table_locks_lookup(
 			ut_a(lock->trx == trx);
 
 			if (lock_get_type_low(lock) == LOCK_REC) {
+				ut_ad(!dict_index_is_online_ddl(lock->index));
 				if (lock->index->table == table) {
 					return(lock);
 				}

@@ -27,7 +27,7 @@
 --eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3)
 --enable_query_log
 
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name');
+--eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'Master_Id', 'Worker_Id');
 
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 

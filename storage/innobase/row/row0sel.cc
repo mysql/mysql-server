@@ -4678,9 +4678,7 @@ locks_ok:
 		applicable to unique secondary indexes. Current behaviour is
 		to widen the scope of a lock on an already delete marked record
 		if the same record is deleted twice by the same transaction */
-		if (index == clust_index && unique_search
-		    && !prebuilt->used_in_HANDLER) {
-
+		if (index == clust_index && unique_search) {
 			err = DB_RECORD_NOT_FOUND;
 
 			goto normal_return;
@@ -5140,7 +5138,7 @@ row_search_check_if_query_cache_permitted(
 	dict_table_t*	table;
 	ibool		ret	= FALSE;
 
-	table = dict_table_open_on_name(norm_name, FALSE);
+	table = dict_table_open_on_name(norm_name, FALSE, FALSE);
 
 	if (table == NULL) {
 
@@ -5174,7 +5172,7 @@ row_search_check_if_query_cache_permitted(
 		}
 	}
 
-	dict_table_close(table, FALSE);
+	dict_table_close(table, FALSE, FALSE);
 
 	return(ret);
 }

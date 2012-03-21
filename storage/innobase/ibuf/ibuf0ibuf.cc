@@ -3832,12 +3832,16 @@ dump:
 		row_ins_sec_index_entry_by_modify(BTR_MODIFY_LEAF). */
 		ut_ad(rec_get_deleted_flag(rec, page_is_comp(page)));
 
-		heap = mem_heap_create(1024);
+		heap = mem_heap_create(
+			sizeof(upd_t)
+			+ REC_OFFS_HEADER_SIZE * sizeof(*offsets)
+			+ dtuple_get_n_fields(entry)
+			* (sizeof(upd_field_t) + sizeof *offsets));
 
 		offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED,
 					  &heap);
 		update = row_upd_build_sec_rec_difference_binary(
-			index, entry, rec, NULL, heap);
+			rec, index, offsets, entry, heap);
 
 		page_zip = buf_block_get_page_zip(block);
 
@@ -4152,7 +4156,8 @@ ibuf_delete_rec(
 	ut_ad(ibuf_rec_get_page_no(mtr, btr_pcur_get_rec(pcur)) == page_no);
 	ut_ad(ibuf_rec_get_space(mtr, btr_pcur_get_rec(pcur)) == space);
 
-	success = btr_cur_optimistic_delete(btr_pcur_get_btr_cur(pcur), mtr);
+	success = btr_cur_optimistic_delete(btr_pcur_get_btr_cur(pcur),
+					    0, mtr);
 
 	if (success) {
 		if (UNIV_UNLIKELY(!page_get_n_recs(btr_pcur_get_page(pcur)))) {
@@ -4204,7 +4209,7 @@ ibuf_delete_rec(
 
 	root = ibuf_tree_root_get(mtr);
 
-	btr_cur_pessimistic_delete(&err, TRUE, btr_pcur_get_btr_cur(pcur),
+	btr_cur_pessimistic_delete(&err, TRUE, btr_pcur_get_btr_cur(pcur), 0,
 				   RB_NONE, mtr);
 	ut_a(err == DB_SUCCESS);
 
@@ -4302,7 +4307,7 @@ ibuf_merge_or_delete_for_page(
 		function. When the counter is > 0, that prevents tablespace
 		from being dropped. */
 
-		tablespace_being_deleted = fil_inc_pending_ibuf_merges(space);
+		tablespace_being_deleted = fil_inc_pending_ops(space);
 
 		if (UNIV_UNLIKELY(tablespace_being_deleted)) {
 			/* Do not try to read the bitmap page from space;
@@ -4328,7 +4333,7 @@ ibuf_merge_or_delete_for_page(
 				/* No inserts buffered for this page */
 
 				if (!tablespace_being_deleted) {
-					fil_decr_pending_ibuf_merges(space);
+					fil_decr_pending_ops(space);
 				}
 
 				return;
@@ -4621,7 +4626,7 @@ reset_bit:
 
 	if (update_ibuf_bitmap && !tablespace_being_deleted) {
 
-		fil_decr_pending_ibuf_merges(space);
+		fil_decr_pending_ops(space);
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG

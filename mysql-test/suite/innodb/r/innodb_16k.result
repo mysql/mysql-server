@@ -18,9 +18,6 @@ INDEX_ID	NAME	TABLE_ID	TYPE	N_FIELDS	PAGE_NO	SPACE
 12	FOR_IND	11	0	1	303	0
 13	REF_IND	11	0	1	304	0
 14	ID_IND	12	3	2	305	0
-15	PRIMARY	13	3	1	307	0
-16	PRIMARY	14	3	1	309	0
-17	PRIMARY	15	3	2	311	0
 # Test 4) The maximum row size is dependent upon the page size.
 #         Redundant: 8123, Compact: 8126.
 #         Compressed: 8126, Dynamic: 8126.
@@ -297,7 +294,8 @@ DROP TABLE t2, t3;
 SELECT COUNT(*) FROM t1 WHERE a=44;
 COUNT(*)
 5
-SELECT a,LENGTH(b),b=LEFT(REPEAT(d,100*a),65535),LENGTH(c),c=REPEAT(d,20*a),d FROM t1;
+SELECT a,
+LENGTH(b),b=LEFT(REPEAT(d,100*a),65535),LENGTH(c),c=REPEAT(d,20*a),d FROM t1;
 a	LENGTH(b)	b=LEFT(REPEAT(d,100*a),65535)	LENGTH(c)	c=REPEAT(d,20*a)	d
 22	22000	1	4400	1	adfd72nh9k
 22	35200	1	7040	1	adfdijn0loKNHJik
@@ -326,6 +324,9 @@ a	LENGTH(b)	b=LEFT(REPEAT(d,100*a),65535)	LENGTH(c)	c=REPEAT(d,20*a)	d
 66	65535	1	13200	1	jejdkrun87
 ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));
 ERROR 23000: Duplicate entry '22' for key 'PRIMARY'
+DELETE FROM t1 WHERE d='null';
+ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));
+ERROR 23000: Duplicate entry '22' for key 'PRIMARY'
 DELETE FROM t1 WHERE a%2;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -334,7 +335,8 @@ ALTER TABLE t1 ADD PRIMARY KEY (a,b(255),c(255)), ADD KEY (b(767));
 SELECT COUNT(*) FROM t1 WHERE a=44;
 COUNT(*)
 5
-SELECT a, LENGTH(b), b=LEFT(REPEAT(d,100*a), 65535),LENGTH(c), c=REPEAT(d,20*a), d FROM t1;
+SELECT a,
+LENGTH(b), b=LEFT(REPEAT(d,100*a), 65535),LENGTH(c), c=REPEAT(d,20*a), d FROM t1;
 a	LENGTH(b)	b=LEFT(REPEAT(d,100*a), 65535)	LENGTH(c)	c=REPEAT(d,20*a)	d
 22	22000	1	4400	1	adfd72nh9k
 22	35200	1	7040	1	adfdijn0loKNHJik
@@ -427,9 +429,9 @@ CREATE INDEX t1t ON t1 (t(767));
 UPDATE t1 SET t=@e;
 ERROR HY000: Undo log record is too big.
 CREATE INDEX t1u ON t1 (u(767));
-ERROR HY000: Too big row
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 CREATE INDEX t1ut ON t1 (u(767), t(767));
-ERROR HY000: Too big row
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 CREATE INDEX t1st ON t1 (s(767), t(767));
 SHOW CREATE TABLE t1;
 Table	Create Table

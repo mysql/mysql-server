@@ -95,10 +95,34 @@ IF(NOT CMAKE_CROSSCOMPILING)
   }"
   HAVE_IB_GCC_ATOMIC_BUILTINS
   )
+  CHECK_C_SOURCE_RUNS(
+  "#include<stdint.h>
+  int main()
+  {
+    int64_t	x,y,res;
+
+    x = 10;
+    y = 123;
+    res = __sync_sub_and_fetch(&y, x);
+    if (res != y || y != 113) {
+      return(1);
+    }
+    res = __sync_add_and_fetch(&y, x);
+    if (res != y || y != 123) {
+      return(1);
+    }
+    return(0);
+  }"
+  HAVE_IB_GCC_ATOMIC_BUILTINS_64
+  )
 ENDIF()
 
 IF(HAVE_IB_GCC_ATOMIC_BUILTINS)
  ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_BUILTINS=1)
+ENDIF()
+
+IF(HAVE_IB_GCC_ATOMIC_BUILTINS_64)
+ ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_BUILTINS_64=1)
 ENDIF()
 
  # either define HAVE_IB_ATOMIC_PTHREAD_T_GCC or not
@@ -299,6 +323,7 @@ SET(INNOBASE_SOURCES
 	row/row0ins.cc
 	row/row0merge.cc
 	row/row0mysql.cc
+	row/row0log.cc
 	row/row0purge.cc
 	row/row0row.cc
 	row/row0sel.cc

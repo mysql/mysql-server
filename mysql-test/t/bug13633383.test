@@ -1,82 +1,0 @@
---echo #
---echo # Bug#13633383 63183: SMALL SORT_BUFFER_SIZE CRASH IN MERGE_BUFFERS
---echo #
-
-CREATE TABLE t1 (
-  `a` int(11) DEFAULT NULL,
-  `col432` bit(8) DEFAULT NULL,
-  `col433` multipoint DEFAULT NULL,
-  `col434` polygon DEFAULT NULL,
-  `col435` decimal(50,17) unsigned DEFAULT NULL,
-  `col436` geometry NOT NULL,
-  `col437` tinyblob NOT NULL,
-  `col438` multipolygon DEFAULT NULL,
-  `col439` mediumblob NOT NULL,
-  `col440` tinyblob NOT NULL,
-  `col441` double unsigned DEFAULT NULL
-);
-
-CREATE TABLE t2 (
-  `a` multipoint DEFAULT NULL,
-  `col460` date DEFAULT NULL,
-  `col461` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `col462` date NOT NULL,
-  `col463` varbinary(89) NOT NULL,
-  `col464` year(4) DEFAULT NULL,
-  `col465` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `col466` varchar(236) CHARACTER SET utf8 NOT NULL,
-  `col467` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
-);
-
-CREATE TABLE t3 (
-  `FTS_DOC_ID` bigint(20) unsigned NOT NULL,
-  `col577` datetime DEFAULT NULL,
-  `col579` bit(38) NOT NULL,
-  `col580` varchar(93) NOT NULL,
-  `col581` datetime DEFAULT NULL,
-  `col583` multipolygon DEFAULT NULL,
-  `col584` bit(47) NOT NULL
-);
-
---disable_query_log
-
-INSERT INTO t1 VALUES (0,0xFF,'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0 JæÀ',NULL,0.00000000000000000,'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0àÃ\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0àC\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0àC\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',0xB623A952C5,'\0\0\0\0\0\0\0\0\0\0\0ðiøÀ\0\0\0\0jøÀ',0x22,0xD81F72A9,56403);
-INSERT INTO t1 VALUES (-32768,0x00,'\0\0\0\0\0\0\0\0\0\0\0Àrç@\0\0\0\0jøÀ','\0\0\0\0\0\0\0\0\0\0\0\0ÛâÀ\0\0\0\0jøÀ',NULL,'\0\0\0\0\0\0\0\0\0\0\0À6Ò@\0\0\0\0\0jøÀ',0xC80876AF04,'\0\0\0\0\0\0\0\0\0\0\0€[áÀ\0\0\0\0ðiøÀ',0x016C576E34,0x1B,0);
-INSERT INTO t1 VALUES (-2147483648,0x17,'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0]ÇÀ',NULL,0.00000000000000000,'\0\0\0\0\0\0\0\0\0\0\0ðiøÀìÊFQƒìCµ',0x68D352,'\0\0\0\0\0\0\0\n\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0àÃ\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0àC\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0àÃ\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0àC\0\0\0\0\0àÃ\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0','','',0);
-INSERT INTO t1 VALUES (1,0xFF,'\0\0\0\0\0\0\0\0\0\0\0Ð÷À\0\0\0\0Àü×À','\0\0\0\0\0\0\0\0\0\0\0`6ë@\0\0\0\0à²î@',32767.00000000000000000,'\0\0\0\0\0\0\0\0\0\0\0ðiø@†ö¯{âÌ',0x1406B0C524,'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0àÃ\0\0\0\0\0àC\0\0\0\0\0àC',0xC04B75CCFD,0xC4CD,1);
-INSERT INTO t1 VALUES (0,0xFF,NULL,'\0\0\0\0\0\0\0\0\0\0\0\0jø@\0\0\0\0\0(¦À',0.06140000000000000,'\0\0\0\0\0\0\0\0\0\0\0ðiø@$7”H#ÀÐ1',0x3F,'\0\0\0\0\0\0\0\0\0\0\0jøÀCHK¶µ$·',0x1E87C5DA,0xCC870E,NULL);
-
-
-INSERT INTO t2 VALUES ('\0\0\0\0\0\0\0\0\0\0\0\0k¿À\0\0\0\0\0jø@','2011-02-19','2011-08-10 14:21:44','2012-09-25',0xCCC3,0000,'2012-07-28 16:25:23','idpapxbfjrigkfqnhnfmhvtewlvxfmjhfqizhhsowbetimmkhukpzeixbfyzmsalaafssdovflpvxldldmuamfoulanivuxigbjwkzbapcxmmprpyasaozdqwqjuixajzmiepkcvnvtewdvyodupziffgzbcmsfhikbuehyhzfnxlsdzulbsrqmtszzzupcmxlvcpxahuiotgadwhpcuqmyzgrbkxzxwriqkymdaqnzz','2012-01-20 09:01:25');
-INSERT INTO t2 VALUES (NULL,'2011-05-14','2012-10-17 04:33:30','2012-01-20','',0000,'2012-05-08 11:06:53','otbywkbfwwtgpfgurtqwgfcwmmntsdxkounuzueoclrpnadghfzmbrh','2012-03-24 21:01:09');
-INSERT INTO t2 VALUES ('\0\0\0\0\0\0\06ý¹PVh,;bÂºö$î°','2012-07-21','2011-11-21 04:23:27','2011-06-18',0x21,0000,'2011-09-10 14:01:05','goybgohrexhfqwerpknkbyiqowvcdpyxvbklkbeeuvfbjtkmontmkmgcjutkjphewnvvobzilamtjqjbtvqgczozqcmvbbzvoxkycsvplfykmzpwljdcromsilspjuoyhxwduymxkymvmijehtutftqmpfpbesonppacogyogjqhyonizbsgzwubzgeoehryqswzkftgzhzssnlstuszpwauxmdhgjcawabnjcynzrrh','2012-11-19 18:30:51');
-INSERT INTO t2 VALUES ('\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0À®ÛÀ','2012-09-01','2012-01-20 09:01:34','2011-02-12',0x1FDF59DC65,0000,'2011-07-07 19:48:34','xohwzrslzxbpxdvqfsumavjwwmsdcgczlmxrtxavsqtnpggxesvekbcelnnrxkvvlwqwbydlhwzltwaurkfltafeijstmzueiqddjdxzddymhsungndmojndbspkezvdfhqxijxxrwiolqgnsedenszkiljgropmcbxsjntjmnonnltyiysuejsznuurmonebslawybppziavystrylwunselezpbslmkzggpziffrud','2012-01-19 22:00:00');
-INSERT INTO t2 VALUES ('\0\0\0\0\0\0\0\0\0\0\0\0jø@\0\0\0\0\0\0\0\0','0000-00-00','2012-05-21 09:59:10','2011-04-17',0x02307EDF,0000,'2012-01-20 09:01:34','vjcwlxxeydntegsdqhxgriarmbvzwzwdexcalvacxhilaejpmxdpkuvblukchagzoellbdndelfednqktzobyhjqweqaugqnfikdalmaytyunjqvxcsirhaqnvqsstgrgfscnsemseebdemfditoswccsxthnddzslgjkyujxoqsvzrssymoovqmibcmbboruyxlvopengdqqgqwekrflhvjcpondxivnshvhrnqvfls','2012-09-23 23:54:02');
-
-
-INSERT INTO t3 VALUES (11787,'2012-07-24 15:22:50',0x00000000FF,'qbdydwxepydtonqnghurnuntughjwfygzttqwtmfzfbtifjcearpatksofbrfgnaccvapahywhsstdplphrxbcubhktov','2011-08-27 19:28:03',NULL,0x00000000001C);
-
-INSERT INTO t3 VALUES (11788,'2012-05-17 08:38:13',0x3FFFFFFFFF,'jkvkjxaikruljqalyvnbfjptxgbpsgnxlzthhcrswwdcfrhilwwgqmxynxjnehwmyfzdyywjzfyasuvjbrevkxtnyodiu','2012-05-09 11:09:52',NULL,0x0000000000B8);
-
-INSERT INTO t3 VALUES (1,'2011-02-17 19:55:19',0x000098FAF3,'rnzhemtrqjdrappwbmxnzkfatcgtvqklrpfpdqiwjnjbeaxpcbhqqunbzmtmitdszxyrdvkeedqwpbiefqnwvhiznwfyq','2012-11-10 18:00:25','\0\0\0\0\0\0\0\0\0\0\0\0jøÀ\0\0\0\0€1á@',0x7FFFFFFFFFFF);
-
-INSERT INTO t3 VALUES (11789,'2011-12-26 01:30:56',0x0000000001,'dhryqjghgixymqywclxpovwnlgnltuzdvggmlaxtzrsbpxkahkiahpkrddpoeftqqwejbjxrdzfgvkzvhcalopgumspgg','2011-03-21 06:25:44',NULL,0x00000000293A);
-
-INSERT INTO t3 VALUES (4294967296,'2011-04-12 21:05:37',0x0000CE3238,'xwcplgaxcpgfsmcjftxffxgmjwabpmrcycbxmwjvqtlvtlwuipuwgbuygnxomjplqohyuqyzsoiggroigcnchzpiilyhe','2012-03-20 05:35:39',NULL,0x00000000006E);
-
---enable_query_log
-
-set session sort_buffer_size= 32768;
-select  col435
-from t3
-natural right outer join t1
-natural right outer join t2 a
-left outer join t2 b on 1
-group by
-    repeat('a',10000) desc,
-    repeat('a',10000)
-with rollup
-;
-set session sort_buffer_size= default;
-
-DROP TABLE  t1, t2, t3;

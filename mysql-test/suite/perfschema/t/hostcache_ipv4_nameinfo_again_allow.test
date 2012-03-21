@@ -14,9 +14,9 @@
 # Temporary failure in name resolution
 call mtr.add_suppression("192.0.2.4");
 
-flush status;
-flush hosts;
-select @@global.debug;
+# Enforce a clean state
+--source ../include/wait_for_pfs_thread_count.inc
+--source ../include/hostcache_set_state.inc
 
 grant select on test.* to 'root'@'192.0.2.4';
 grant select on test.* to 'root'@'santa.claus.ipv4.example.com';
