@@ -15,8 +15,7 @@
 
 # Produce meaningful package name for the binary package
 # The logic is rather involved with special cases for  different OSes
-INCLUDE(CheckTypeSize)
-CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
+
 MACRO(GET_PACKAGE_FILE_NAME Var)
 IF(NOT VERSION)
     MESSAGE(FATAL_ERROR 
