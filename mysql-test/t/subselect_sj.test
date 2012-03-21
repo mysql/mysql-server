@@ -2345,5 +2345,26 @@ WHERE a IN ( SELECT b FROM t2 );
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # BUG#952372: Server crashes on 2nd execution of PS in find_field_in_tables with semijoin+materialization
+--echo #
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (2),(3);
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+CREATE TABLE t2 ( b VARCHAR(1) );
+INSERT INTO t2 VALUES ('v'),('v');
+
+PREPARE pstmt FROM
+  'SELECT DISTINCT a FROM v1, t2
+   WHERE b IN ( SELECT MIN(b) FROM t2 )';
+
+EXECUTE pstmt;
+EXECUTE pstmt;
+
+DEALLOCATE PREPARE pstmt;
+DROP VIEW v1;
+DROP TABLE t1, t2;
+
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;
