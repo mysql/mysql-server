@@ -789,11 +789,11 @@ buf_all_freed(void);
 /*********************************************************************//**
 Checks that there currently are no pending i/o-operations for the buffer
 pool.
-@return	TRUE if there is no pending i/o */
+@return	number of pending i/o operations */
 UNIV_INTERN
-ibool
-buf_pool_check_no_pending_io(void);
-/*==============================*/
+ulint
+buf_pool_check_num_pending_io(void);
+/*===============================*/
 /*********************************************************************//**
 Invalidates the file pages in the buffer pool when an archive recovery is
 completed. All the file pages buffered must be in a replaceable state when
