@@ -273,15 +273,13 @@ fseg_n_reserved_pages_low(
 /********************************************************************//**
 Marks a page used. The page must reside within the extents of the given
 segment. */
-static
+static __attribute__((nonnull))
 void
 fseg_mark_page_used(
 /*================*/
 	fseg_inode_t*	seg_inode,/*!< in: segment inode */
-	ulint		space,	/*!< in: space id */
-	ulint		zip_size,/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
 	ulint		page,	/*!< in: page offset */
+	xdes_t*		descr, /* extent descriptor */
 	mtr_t*		mtr);	/*!< in: mtr */
 /**********************************************************************//**
 Returns the first extent descriptor for a segment. We think of the extent
@@ -705,12 +703,10 @@ xdes_calc_descriptor_index(
 
 /********************************************************************//**
 Gets pointer to a the extent descriptor of a page. The page where the extent
-descriptor resides is x-locked. If the page offset is equal to the free limit
-of the space, adds new extents from above the free limit to the space free
-list, if not free limit == space size. This adding is necessary to make the
-descriptor defined, as they are uninitialized above the free limit.
+descriptor resides is x-locked. This function no longer extends the data
+file.
 @return pointer to the extent descriptor, NULL if the page does not
-exist in the space or if the offset exceeds the free limit */
+exist in the space or if the offset is >= the free limit */
 UNIV_INLINE __attribute__((nonnull, warn_unused_result))
 xdes_t*
 xdes_get_descriptor_with_space_hdr(
@@ -740,17 +736,8 @@ xdes_get_descriptor_with_space_hdr(
 	zip_size = dict_table_flags_to_zip_size(
 		mach_read_from_4(sp_header + FSP_SPACE_FLAGS));
 
-	/* If offset is >= size or > limit, return NULL */
-
-	if ((offset >= size) || (offset > limit)) {
-
+	if ((offset >= size) || (offset >= limit)) {
 		return(NULL);
-	}
-
-	/* If offset is == limit, fill free list of the space. */
-
-	if (offset == limit) {
-		fsp_fill_free_list(FALSE, space, sp_header, mtr);
 	}
 
 	descr_page_no = xdes_calc_descriptor_page(zip_size, offset);
@@ -2877,7 +2864,7 @@ got_hinted_page:
 		ut_ad(xdes_get_bit(ret_descr, XDES_FREE_BIT,
 				   ret_page % FSP_EXTENT_SIZE, mtr) == TRUE);
 
-		fseg_mark_page_used(seg_inode, space, zip_size, ret_page, mtr);
+		fseg_mark_page_used(seg_inode, ret_page, ret_descr, mtr);
 	}
 
 	return(fsp_page_create(
@@ -3283,26 +3270,20 @@ fsp_get_available_space_in_free_extents(
 /********************************************************************//**
 Marks a page used. The page must reside within the extents of the given
 segment. */
-static
+static __attribute__((nonnull))
 void
 fseg_mark_page_used(
 /*================*/
 	fseg_inode_t*	seg_inode,/*!< in: segment inode */
-	ulint		space,	/*!< in: space id */
-	ulint		zip_size,/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
 	ulint		page,	/*!< in: page offset */
+	xdes_t*		descr, /* extent descriptor */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	xdes_t*	descr;
 	ulint	not_full_n_used;
 
-	ut_ad(seg_inode && mtr);
 	ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
 	      == FSEG_MAGIC_N_VALUE);
-
-	descr = xdes_get_descriptor(space, zip_size, page, mtr);
 
 	ut_ad(mtr_read_ulint(seg_inode + FSEG_ID, MLOG_4BYTES, mtr)
 	      == mtr_read_ulint(descr + XDES_ID, MLOG_4BYTES, mtr));

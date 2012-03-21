@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005-2007 MySQL AB, 2009, 2010 Sun Microsystems, Inc.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -143,6 +143,8 @@ word32 GetLength(Source& source)
     byte b = source.next();
     if (b >= LONG_LENGTH) {        
         word32 bytes = b & 0x7F;
+
+        if (source.IsLeft(bytes) == false) return 0;
 
         while (bytes--) {
             b = source.next();
@@ -578,8 +580,10 @@ void CertDecoder::StoreKey()
     read = source_.get_index() - read;
     length += read;
 
+    if (source_.GetError().What()) return;
     while (read--) source_.prev();
 
+    if (source_.IsLeft(length) == false) return;
     key_.SetSize(length);
     key_.SetKey(source_.get_current());
     source_.advance(length);
@@ -611,6 +615,8 @@ void CertDecoder::AddDSA()
     word32 length = GetLength(source_);
     length += source_.get_index() - idx;
 
+    if (source_.IsLeft(length) == false) return;
+
     key_.AddToEnd(source_.get_buffer() + idx, length);    
 }
 
@@ -620,6 +626,8 @@ word32 CertDecoder::GetAlgoId()
 {
     if (source_.GetError().What()) return 0;
     word32 length = GetSequence();
+
+    if (source_.GetError().What()) return 0;
     
     byte b = source_.next();
     if (b != OBJECT_IDENTIFIER) {
@@ -628,8 +636,9 @@ word32 CertDecoder::GetAlgoId()
     }
 
     length = GetLength(source_);
+    if (source_.IsLeft(length) == false) return 0;
+
     word32 oid = 0;
-    
     while(length--)
         oid += source_.next();        // just sum it up for now
 
@@ -662,6 +671,10 @@ word32 CertDecoder::GetSignature()
     }
 
     sigLength_ = GetLength(source_);
+    if (sigLength_ == 0 || source_.IsLeft(sigLength_) == false) {
+        source_.SetError(CONTENT_E);
+        return 0;
+    }
   
     b = source_.next();
     if (b != 0) {
@@ -728,6 +741,7 @@ void CertDecoder::GetName(NameType nt)
 
     if (length >= ASN_NAME_MAX)
         return;
+    if (source_.IsLeft(length) == false) return;
     length += source_.get_index();
     
     char* ptr;
@@ -753,7 +767,10 @@ void CertDecoder::GetName(NameType nt)
         }
 
         word32 oidSz = GetLength(source_);
+        if (source_.IsLeft(oidSz) == false) return;
+
         byte joint[2];
+        if (source_.IsLeft(sizeof(joint)) == false) return;
         memcpy(joint, source_.get_current(), sizeof(joint));
 
         // v1 name types
@@ -762,6 +779,8 @@ void CertDecoder::GetName(NameType nt)
             byte   id      = source_.next();  
             b              = source_.next();    // strType
             word32 strLen  = GetLength(source_);
+
+            if (source_.IsLeft(strLen) == false) return;
 
             switch (id) {
             case COMMON_NAME:
@@ -804,6 +823,7 @@ void CertDecoder::GetName(NameType nt)
 
             source_.advance(oidSz + 1);
             word32 length = GetLength(source_);
+            if (source_.IsLeft(length) == false) return;
 
             if (email) {
                 if (!(ptr = AddTag(ptr, buf_end, "/emailAddress=", 14, length))) {
@@ -837,6 +857,8 @@ void CertDecoder::GetDate(DateType dt)
     }
 
     word32 length = GetLength(source_);
+    if (source_.IsLeft(length) == false) return;
+
     byte date[MAX_DATE_SZ];
     if (length > MAX_DATE_SZ || length < MIN_DATE_SZ) {
         source_.SetError(DATE_SZ_E);
