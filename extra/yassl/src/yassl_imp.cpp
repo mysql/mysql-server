@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1087,19 +1087,37 @@ void Certificate::Process(input_buffer& input, SSL& ssl)
     uint32 list_sz;
     byte   tmp[3];
 
+    if (input.get_remaining() < sizeof(tmp)) {
+        ssl.SetError(YasslError(bad_input));
+        return;
+    }
     tmp[0] = input[AUTO];
     tmp[1] = input[AUTO];
     tmp[2] = input[AUTO];
     c24to32(tmp, list_sz);
+
+    if (list_sz > (uint)MAX_RECORD_SIZE) { // sanity check
+        ssl.SetError(YasslError(bad_input));
+        return;
+    }
     
     while (list_sz) {
         // cert size
         uint32 cert_sz;
+
+        if (input.get_remaining() < sizeof(tmp)) {
+            ssl.SetError(YasslError(bad_input));
+            return;
+        }
         tmp[0] = input[AUTO];
         tmp[1] = input[AUTO];
         tmp[2] = input[AUTO];
         c24to32(tmp, cert_sz);
         
+        if (cert_sz > (uint)MAX_RECORD_SIZE || input.get_remaining() < cert_sz){
+            ssl.SetError(YasslError(bad_input));
+            return;
+        }
         x509* myCert;
         cm.AddPeerCert(myCert = NEW_YS x509(cert_sz));
         input.read(myCert->use_buffer(), myCert->get_length());

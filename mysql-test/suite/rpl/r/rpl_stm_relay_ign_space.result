@@ -1,0 +1,5 @@
+include/master-slave.inc
+[connection master]
+include/assert.inc [Assert that relay log space is close to the limit]
+include/diff_tables.inc [master:test.t1,slave:test.t1]
+include/rpl_end.inc

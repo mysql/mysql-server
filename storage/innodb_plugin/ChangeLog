@@ -1,3 +1,22 @@
+2012-03-15	The InnoDB Team
+
+	* fil/fil0fil.c, ibuf/ibuf0ibuf.c, include/fil0fil.h,
+	lock/lock0lock.c:
+	Fix Bug#13825266 RACE IN LOCK_VALIDATE() WHEN ACCESSING PAGES
+	DIRECTLY FROM BUFFER POOL
+
+2012-03-15	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#13851171STRING OVERFLOW IN INNODB CODE FOUND BY STATIC
+	ANALYSIS
+
+2012-03-15	The InnoDB Team
+
+	* include/sync0rw.ic:
+	Fix Bug#13537504 VALGRIND: COND. JUMP/MOVE DEPENDS ON
+	UNINITIALISED VALUES IN OS_THREAD_EQ
+
 2012-03-08	The InnoDB Team
 
 	* btr/btr0pcur.c:

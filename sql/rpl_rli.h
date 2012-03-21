@@ -190,6 +190,13 @@ public:
   bool ignore_log_space_limit;
 
   /*
+    Used by the SQL thread to instructs the IO thread to rotate 
+    the logs when the SQL thread needs to purge to release some
+    disk space.
+   */
+  bool sql_force_rotate_relay;
+
+  /*
     When it commits, InnoDB internally stores the master log position it has
     processed so far; the position to store is the one of the end of the
     committing event (the COMMIT query event, or the event if in autocommit
