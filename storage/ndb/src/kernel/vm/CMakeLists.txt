@@ -78,3 +78,9 @@ FOREACH(testprog CountingPool DynArr256)
   TARGET_LINK_LIBRARIES(${testprog}-t ndbtest ndbkernel ndbsched ndberror
                 ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
 ENDFOREACH(testprog)
+
+IF(NDB_BUILD_NDBMTD)
+  ADD_EXECUTABLE(mt-send-t mt-send-t.cpp)
+  TARGET_LINK_LIBRARIES(mt-send-t ndbtest ndbkernel ndbsched ndberror
+                 ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
+ENDIF()
