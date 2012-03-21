@@ -6275,6 +6275,8 @@ bool get_schema_tables_result(JOIN *join,
         join->error= 1;
         tab->read_record.file= table_list->table->file;
         table_list->schema_table_state= executed_place;
+        if (!thd->is_error())
+          my_error(ER_UNKNOWN_ERROR, MYF(0));
         break;
       }
       tab->read_record.file= table_list->table->file;
