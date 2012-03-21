@@ -34,6 +34,7 @@ FragmentLogFileSize = 64M
 ODirect=1
 MaxNoOfExecutionThreads=8
 SendBufferMemory=4M
+MaxNoOfAttributes=2000
 
 SharedGlobalMemory=256M
 DiskPageBufferMemory=256M
