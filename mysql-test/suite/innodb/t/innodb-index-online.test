@@ -1,4 +1,5 @@
 --source include/have_innodb.inc
+--source include/have_debug.inc
 --source include/have_debug_sync.inc
 
 call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
@@ -8,6 +9,8 @@ call mtr.add_suppression("Find index .*c2 in InnoDB index list but not its MySQL
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
+
+SET DEBUG='+d,debug_sync_abort_on_timeout';
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
@@ -21,6 +24,8 @@ INSERT INTO t1 VALUES(1,2,3);
 
 connect (con1,localhost,root,,);
 connection con1;
+SET DEBUG='+d,debug_sync_abort_on_timeout';
+
 # This should block at the end because of the INSERT in connection default
 # is holding a metadata lock.
 SET DEBUG_SYNC='now WAIT_FOR have_handle';
@@ -251,6 +256,7 @@ disconnect con1;
 connection default;
 
 SET DEBUG_SYNC='RESET';
+SET DEBUG='-d,debug_sync_abort_on_timeout';
 SET GLOBAL innodb_monitor_disable=module_ddl;
 
 DROP TABLE t1;
