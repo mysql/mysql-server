@@ -43,7 +43,7 @@ Ndb_index_stat_cache_query	81
 Ndb_index_stat_cache_clean	0
 # restart cluster --initial
 # wait for mysqld
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;
 drop table if exists t1;
 Warnings:
 Error	155	Table 'test.t1' doesn't exist
