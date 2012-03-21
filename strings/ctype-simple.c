@@ -306,19 +306,24 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
 {
   register const uchar *sort_order=cs->sort_order;
   const uchar *end;
+  ulong n1, n2;
 
   /*
     Remove end space. We have to do this to be able to compare
     'A ' and 'A' as identical
   */
   end= skip_trailing_space(key, len);
-  
+
+  n1= *nr1;
+  n2= *nr2;
   for (; key < (uchar*) end ; key++)
   {
-    nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * 
-	     ((uint) sort_order[(uint) *key])) + (nr1[0] << 8);
-    nr2[0]+=3;
+    n1^=(ulong) ((((uint) n1 & 63)+n2) *
+	     ((uint) sort_order[(uint) *key])) + (n1 << 8);
+    n2+=3;
   }
+  *nr1= n1;
+  *nr2= n2;
 }
 
 

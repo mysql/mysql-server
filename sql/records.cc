@@ -344,7 +344,8 @@ static int rr_quick(READ_RECORD *info)
       break;
     }
   }
-  update_virtual_fields(info->thd, info->table);
+  if (info->table->vfield)
+    update_virtual_fields(info->thd, info->table);
   return tmp;
 }
 
