@@ -571,6 +571,10 @@ int	__void__;
 #endif
 #endif /* DONT_DEFINE_VOID */
 
+#ifndef STDERR_FILENO
+#define STDERR_FILENO 2
+#endif
+
 /*
   Deprecated workaround for false-positive uninitialized variables
   warnings. Those should be silenced using tool-specific heuristics.
