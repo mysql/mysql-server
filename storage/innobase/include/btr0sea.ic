@@ -46,8 +46,9 @@ btr_search_get_info(
 	dict_index_t*	index)	/*!< in: index */
 {
 	ut_ad(index);
+	ut_ad(!dict_index_is_online_ddl(index));
 
-	return(index->search_info);
+	return(index->info.search);
 }
 
 /*********************************************************************//**

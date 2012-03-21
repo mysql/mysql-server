@@ -184,7 +184,7 @@ INSERT INTO articles (FTS_DOC_ID, title, body) VALUES
         (19, 'MySQL vs. YourSQL','In the following database comparison ...'),
         (20, 'MySQL Security','When configured properly, MySQL ...');
 
---error 1112
+--error ER_INNODB_FT_LIMIT
 ALTER TABLE articles ADD FULLTEXT INDEX idx3 (title),
 		     ADD FULLTEXT INDEX idx5 (title);
 

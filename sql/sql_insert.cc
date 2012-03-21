@@ -714,9 +714,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                            FALSE,
                            (fields.elements || !value_count ||
                             table_list->view != 0),
-                           !ignore && (thd->variables.sql_mode &
-                                       (MODE_STRICT_TRANS_TABLES |
-                                        MODE_STRICT_ALL_TABLES))))
+                           !ignore && thd->is_strict_mode()))
     goto exit_without_my_ok;
 
   /* mysql_prepare_insert set table_list->table if it was not set */
@@ -834,9 +832,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       table->file->ha_start_bulk_insert(values_list.elements);
   }
 
-  thd->abort_on_warning= (!ignore && (thd->variables.sql_mode &
-                                       (MODE_STRICT_TRANS_TABLES |
-                                        MODE_STRICT_ALL_TABLES)));
+  thd->abort_on_warning= (!ignore && thd->is_strict_mode());
 
   prepare_triggers_for_insert_stmt(table);
 
@@ -3317,9 +3313,9 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (!res && fields->elements)
   {
     bool saved_abort_on_warning= thd->abort_on_warning;
-    thd->abort_on_warning= !ignore_errors && (thd->variables.sql_mode &
-                                            (MODE_STRICT_TRANS_TABLES |
-                                             MODE_STRICT_ALL_TABLES));
+
+    thd->abort_on_warning= !ignore_errors && thd->is_strict_mode();
+
     res= check_that_all_fields_are_given_values(thd, table_list->table, 
                                                 table_list);
     thd->abort_on_warning= saved_abort_on_warning;
@@ -3449,10 +3445,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
   if (duplicate_handling == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
-  thd->abort_on_warning= (!ignore_errors &&
-                          (thd->variables.sql_mode &
-                           (MODE_STRICT_TRANS_TABLES |
-                            MODE_STRICT_ALL_TABLES)));
+  thd->abort_on_warning= (!ignore_errors && thd->is_strict_mode());
   res= (table_list->prepare_where(thd, 0, TRUE) ||
         table_list->prepare_check_option(thd));
 
@@ -3877,7 +3870,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   {
     if (!mysql_create_table_no_lock(thd, create_table->db,
                                     create_table->table_name,
-                                    create_info, alter_info, 0,
+                                    create_info, alter_info,
                                     select_field_count, NULL))
     {
       DEBUG_SYNC(thd,"create_table_select_before_open");
@@ -3891,7 +3884,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
         */
         if (open_table(thd, create_table, thd->mem_root, &ot_ctx))
         {
-          quick_rm_table(create_info->db_type, create_table->db,
+          quick_rm_table(thd, create_info->db_type, create_table->db,
                          table_case_name(create_info, create_table->table_name),
                          0);
         }
@@ -4068,10 +4061,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     table->file->ha_start_bulk_insert((ha_rows) 0);
-  thd->abort_on_warning= (!ignore_errors &&
-                          (thd->variables.sql_mode &
-                           (MODE_STRICT_TRANS_TABLES |
-                            MODE_STRICT_ALL_TABLES)));
+  thd->abort_on_warning= (!ignore_errors && thd->is_strict_mode());
   if (check_that_all_fields_are_given_values(thd, table, table_list))
     DBUG_RETURN(1);
   table->mark_columns_needed_for_insert();

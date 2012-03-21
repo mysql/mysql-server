@@ -5,6 +5,8 @@ a VARCHAR(200),
 b TEXT
 ) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -126,6 +128,8 @@ a VARCHAR(200),
 b TEXT
 ) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -237,6 +241,8 @@ a VARCHAR(200),
 b TEXT
 ) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -322,6 +328,8 @@ INSERT INTO t1 (a,b) VALUES
 "In connection 2"
 SET NAMES UTF8;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 "In connection 1"
 SELECT * FROM t1
 WHERE MATCH (a,b)
@@ -535,6 +543,8 @@ select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 INSERT INTO t1 (a,b) VALUES
 ('adding record using session 1','for verifying multiple concurrent transactions'),
 ('Мога да ям стъкло', 'то Mне ми вреди');
@@ -647,6 +657,8 @@ select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 INSERT INTO t1 (a,b) VALUES
 ('adding record using session 1','for verifying multiple concurrent transactions'),
 ('Мога да ям стъкло', 'то Mне ми вреди');
@@ -789,6 +801,8 @@ select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 INSERT INTO t1 (a,b) VALUES
 ('adding record using session 1','for verifying multiple concurrent transactions'),
 ('Мога да ям стъкло', 'то Mне ми вреди');
@@ -906,6 +920,8 @@ select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 INSERT INTO t1 (a,b) VALUES
 ('adding record using session 1','for verifying multiple concurrent transactions'),
 ('Мога да ям стъкло', 'то Mне ми вреди');

@@ -460,6 +460,8 @@ INSERT INTO t1 (a,b) VALUES
 ('How To Use MySQL Well','After you went through a ...'),
 ('Optimizing MySQL','In this tutorial we will show ...');
 ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -649,6 +651,8 @@ INSERT INTO t1 (a,b) VALUES
 ('Trial version','query performace @1255 minute on 2.1Hz Memory 2GB...')  ,
 ('when To Use MySQL Well','for free faq  mail@xyz.com ...');
 CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("вредит χωρὶς");
 id	a	b
 1	Я могу есть стекло	оно мне не вредит

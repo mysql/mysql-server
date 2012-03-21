@@ -345,7 +345,7 @@ opt_calc_index_goodness(
 
 	/* At least for now we don't support using FTS indexes for queries
 	done through InnoDB's own SQL parser. */
-	if (index->type == DICT_FTS) {
+	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
 		return(0);
 	}
 
@@ -400,7 +400,7 @@ opt_calc_index_goodness(
 		}
 	}
 
-	/* We have to test for goodness here, as last_op may note be set */
+	/* We have to test for goodness here, as last_op may not be set */
 	if (goodness && dict_index_is_clust(index)) {
 
 		goodness++;

@@ -1901,35 +1901,10 @@ let $statement= analyze table t3_temp_trans;
 let $cleanup_stmt= ;
 --source include/check_ftwrl_compatible.inc
 --echo #
---echo # 39.2.c) Some statements do implicit commit and not
---echo #         considered read-only. As result they are 
---echo #         not compatible with FTWRL.
---echo #
-flush tables with read lock;
---echo # Implicit commits are allowed under FTWRL.
-alter table t3_temp_trans add column c1 int;
-unlock tables;
---echo #
---echo # Switching to connection '$con_aux1'.
-connection $con_aux1;
-flush tables with read lock;
---echo # Switching to connection 'default'.
-connection default;
---send alter table t3_temp_trans drop column c1
---echo # Switching to connection '$con_aux1'.
-connection $con_aux1;
---echo # Check that ALTER TABLE is blocked.
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for commit lock" and
-        info = "alter table t3_temp_trans drop column c1";
---source include/wait_condition.inc
-unlock tables;
---echo # Switching to connection 'default'.
-connection default;
---echo # Reap ALTER TABLE
---reap
-
+--echo # And ALTER TABLE:
+let $statement= alter table t3_temp_trans add column c1 int;
+let $cleanup_stmt= alter table t3_temp_trans drop column c1;
+--source include/check_ftwrl_compatible.inc
 
 --echo #
 --echo # 40) Test effect of implicit commit for DDL which is otherwise

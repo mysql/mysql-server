@@ -244,7 +244,7 @@ ib_open_table_by_id(
 		dict_mutex_enter_for_mysql();
 	}
 
-	table = dict_table_open_on_id(table_id, FALSE);
+	table = dict_table_open_on_id(table_id, FALSE, FALSE);
 
 	if (table != NULL && table->ibd_file_missing) {
 		table = NULL;
@@ -268,7 +268,7 @@ ib_open_table_by_name(
 {
 	dict_table_t*	table;
 
-	table = dict_table_open_on_name(name, FALSE);
+	table = dict_table_open_on_name(name, FALSE, FALSE);
 
 	if (table != NULL && table->ibd_file_missing) {
 		table = NULL;
@@ -1150,7 +1150,8 @@ ib_cursor_open_index_using_name(
 	*ib_crsr = NULL;
 
 	/* We want to increment the ref count, so we do a redundant search. */
-	table = dict_table_open_on_id(cursor->prebuilt->table->id, FALSE);
+	table = dict_table_open_on_id(cursor->prebuilt->table->id,
+				      FALSE, FALSE);
 	ut_a(table != NULL);
 
 	/* The first index is always the cluster index. */
@@ -1167,7 +1168,7 @@ ib_cursor_open_index_using_name(
 	}
 
 	if (!index_id) {
-		dict_table_close(table, FALSE);
+		dict_table_close(table, FALSE, FALSE);
 		return(DB_ERROR);
 	}
 
@@ -1396,7 +1397,7 @@ ib_cursor_close_table(
 	row_prebuilt_t*	prebuilt = cursor->prebuilt;
 
 	if (prebuilt && prebuilt->table) {
-		dict_table_close(prebuilt->table, FALSE);
+		dict_table_close(prebuilt->table, FALSE, FALSE);
 	}
 
 	return(DB_SUCCESS);
@@ -3668,7 +3669,7 @@ ib_table_truncate(
 
 	dict_mutex_enter_for_mysql();
 
-	table = dict_table_open_on_name(table_name, TRUE);
+	table = dict_table_open_on_name(table_name, TRUE, FALSE);
 
 	if (table != NULL && dict_table_get_first_index(table)) {
 		err = ib_create_cursor(&ib_crsr, table, 0, (trx_t*) ib_trx);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -46,9 +46,8 @@ The minimum is UNIV_PAGE_SIZE, or page_get_free_space_of_empty()
 rounded to a power of 2.
 
 When not creating a PRIMARY KEY that contains column prefixes, this
-can be set as small as UNIV_PAGE_SIZE / 2.  See the comment above
-ut_ad(data_size < sizeof(row_merge_block_t)). */
-typedef byte   row_merge_block_t;
+can be set as small as UNIV_PAGE_SIZE / 2. */
+typedef byte	row_merge_block_t;
 
 /** @brief Secondary buffer for I/O operations of merge records.
 
@@ -106,6 +105,8 @@ struct merge_index_def_struct {
 	const char*		name;		/*!< index name */
 	ulint			ind_type;	/*!< 0, DICT_UNIQUE,
 						or DICT_CLUSTERED */
+	ulint			key_number;	/*!< MySQL key number,
+						or ULINT_UNDEFINED if none */
 	ulint			n_fields;	/*!< number of fields
 						in index */
 	merge_index_field_t*	fields;		/*!< field definitions */
@@ -124,6 +125,15 @@ struct row_merge_dup_struct {
 /** Structure for reporting duplicate records. */
 typedef struct row_merge_dup_struct row_merge_dup_t;
 
+/*************************************************************//**
+Report a duplicate key. */
+UNIV_INTERN
+void
+row_merge_dup_report(
+/*=================*/
+	row_merge_dup_t*	dup,	/*!< in/out: for reporting duplicates */
+	const dfield_t*		entry)	/*!< in: duplicate index entry */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Sets an exclusive lock on a table, for the duration of creating indexes.
 @return	error code or DB_SUCCESS */
@@ -135,43 +145,61 @@ row_merge_lock_table(
 	dict_table_t*	table,		/*!< in: table to lock */
 	enum lock_mode	mode);		/*!< in: LOCK_X or LOCK_S */
 /*********************************************************************//**
-Drop an index from the InnoDB system tables.  The data dictionary must
-have been locked exclusively by the caller, because the transaction
-will not be committed. */
+Drop indexes that were created before an error occurred.
+The data dictionary must have been locked exclusively by the caller,
+because the transaction will not be committed. */
 UNIV_INTERN
 void
-row_merge_drop_index(
-/*=================*/
-	dict_index_t*	index,	/*!< in: index to be removed */
-	dict_table_t*	table,	/*!< in: table */
-	trx_t*		trx);	/*!< in: transaction handle */
+row_merge_drop_indexes_dict(
+/*========================*/
+	trx_t*		trx,	/*!< in/out: dictionary transaction */
+	table_id_t	table_id)/*!< in: table identifier */
+	__attribute__((nonnull));
 /*********************************************************************//**
-Drop those indexes which were created before an error occurred when
-building an index.  The data dictionary must have been locked
-exclusively by the caller, because the transaction will not be
-committed. */
+Drop those indexes which were created before an error occurred.
+The data dictionary must have been locked exclusively by the caller,
+because the transaction will not be committed. */
 UNIV_INTERN
 void
 row_merge_drop_indexes(
 /*===================*/
-	trx_t*		trx,		/*!< in: transaction */
-	dict_table_t*	table,		/*!< in: table containing the indexes */
-	dict_index_t**	index,		/*!< in: indexes to drop */
-	ulint		num_created);	/*!< in: number of elements in
-					index[] */
+	trx_t*		trx,	/*!< in/out: transaction */
+	dict_table_t*	table,	/*!< in/out: table containing the indexes */
+	ibool		locked)	/*!< in: TRUE=table locked,
+				FALSE=may need to do a lazy drop */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Drop all partially created indexes during crash recovery. */
 UNIV_INTERN
 void
 row_merge_drop_temp_indexes(void);
 /*=============================*/
+
+/*********************************************************************//**
+Creates temporary merge files, and if UNIV_PFS_IO defined, register
+the file descriptor with Performance Schema.
+@return File descriptor */
+UNIV_INTERN
+int
+row_merge_file_create_low(void)
+/*===========================*/
+	__attribute__((warn_unused_result));
+/*********************************************************************//**
+Destroy a merge file. And de-register the file from Performance Schema
+if UNIV_PFS_IO is defined. */
+UNIV_INTERN
+void
+row_merge_file_destroy_low(
+/*=======================*/
+	int		fd);	/*!< in: merge file descriptor */
+
 /*********************************************************************//**
 Rename the tables in the data dictionary.  The data dictionary must
 have been locked exclusively by the caller, because the transaction
 will not be committed.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+db_err
 row_merge_rename_tables(
 /*====================*/
 	dict_table_t*	old_table,	/*!< in/out: old table, renamed to
@@ -181,30 +209,31 @@ row_merge_rename_tables(
 	const char*	tmp_name,	/*!< in: new name for old_table */
 	trx_t*		trx);		/*!< in: transaction handle */
 /*********************************************************************//**
-Create a temporary table for creating a primary key, using the definition
-of an existing table.
-@return	table, or NULL on error */
-UNIV_INTERN
-dict_table_t*
-row_merge_create_temporary_table(
-/*=============================*/
-	const char*		table_name,	/*!< in: new table name */
-	const merge_index_def_t*index_def,	/*!< in: the index definition
-						of the primary key */
-	const dict_table_t*	table,		/*!< in: old table definition */
-	trx_t*			trx);		/*!< in/out: transaction
-						(sets error_state) */
-/*********************************************************************//**
-Rename the temporary indexes in the dictionary to permanent ones.  The
-data dictionary must have been locked exclusively by the caller,
-because the transaction will not be committed.
+Rename an index in the dictionary that was created. The data
+dictionary must have been locked exclusively by the caller, because
+the transaction will not be committed.
 @return	DB_SUCCESS if all OK */
 UNIV_INTERN
-ulint
-row_merge_rename_indexes(
-/*=====================*/
+db_err
+row_merge_rename_index_to_add(
+/*==========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
-	dict_table_t*	table);		/*!< in/out: table with new indexes */
+	table_id_t	table_id,	/*!< in: table identifier */
+	index_id_t	index_id)	/*!< in: index identifier */
+	__attribute__((nonnull));
+/*********************************************************************//**
+Rename an index in the dictionary that is to be dropped. The data
+dictionary must have been locked exclusively by the caller, because
+the transaction will not be committed.
+@return	DB_SUCCESS if all OK */
+UNIV_INTERN
+db_err
+row_merge_rename_index_to_drop(
+/*===========================*/
+	trx_t*		trx,		/*!< in/out: transaction */
+	table_id_t	table_id,	/*!< in: table identifier */
+	index_id_t	index_id)	/*!< in: index identifier */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Create the index and load in to the dictionary.
 @return	index, or NULL on error */
@@ -230,7 +259,7 @@ If there are views that refer to the old table name then we "attach" to
 the new instance of the table else we drop it immediately.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+db_err
 row_merge_drop_table(
 /*=================*/
 	trx_t*		trx,		/*!< in: transaction */
@@ -241,7 +270,7 @@ creating a temporary file containing index entries, merge sorting
 these index entries and inserting sorted index entries to indexes.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+db_err
 row_merge_build_indexes(
 /*====================*/
 	trx_t*		trx,		/*!< in: transaction */
@@ -250,11 +279,15 @@ row_merge_build_indexes(
 	dict_table_t*	new_table,	/*!< in: table where indexes are
 					created; identical to old_table
 					unless creating a PRIMARY KEY */
+	bool		online,		/*!< in: true if creating indexes
+					online */
 	dict_index_t**	indexes,	/*!< in: indexes to be created */
+	const ulint*	key_numbers,	/*!< in: MySQL key numbers */
 	ulint		n_indexes,	/*!< in: size of indexes[] */
-	struct TABLE*	table);		/*!< in/out: MySQL table, for
+	struct TABLE*	table)		/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
+	__attribute__((nonnull, warn_unused_result));
 /********************************************************************//**
 Write a buffer to a block. */
 UNIV_INTERN
@@ -270,8 +303,10 @@ UNIV_INTERN
 void
 row_merge_buf_sort(
 /*===============*/
-        row_merge_buf_t*        buf,    /*!< in/out: sort buffer */
-        row_merge_dup_t*        dup);	/*!< in/out: for reporting duplicates */
+	row_merge_buf_t*	buf,	/*!< in/out: sort buffer */
+	row_merge_dup_t*	dup)	/*!< in/out: reporter of duplicates
+					(NULL if non-unique index) */
+	__attribute__((nonnull(1)));
 /********************************************************************//**
 Write a merge block to the file system.
 @return TRUE if request was successful, FALSE if fail */
@@ -290,19 +325,21 @@ UNIV_INTERN
 row_merge_buf_t*
 row_merge_buf_empty(
 /*================*/
-        row_merge_buf_t*        buf);    /*!< in,own: sort buffer */
+	row_merge_buf_t*	buf)	/*!< in,own: sort buffer */
+	__attribute__((warn_unused_result, nonnull));
 /*********************************************************************//**
 Create a merge file. */
 UNIV_INTERN
 void
 row_merge_file_create(
 /*==================*/
-        merge_file_t*   merge_file);     /*!< out: merge file structure */
+	merge_file_t*	merge_file)	/*!< out: merge file structure */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Merge disk files.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+db_err
 row_merge_sort(
 /*===========*/
 	trx_t*			trx,	/*!< in: transaction */
@@ -321,37 +358,24 @@ UNIV_INTERN
 row_merge_buf_t*
 row_merge_buf_create(
 /*=================*/
-        dict_index_t*   index);  /*!< in: secondary index */
+	dict_index_t*	index)	/*!< in: secondary index */
+	__attribute__((warn_unused_result, nonnull, malloc));
 /*********************************************************************//**
 Deallocate a sort buffer. */
 UNIV_INTERN
 void
 row_merge_buf_free(
 /*===============*/
-	row_merge_buf_t*	buf);    /*!< in,own: sort buffer, to be freed */
+	row_merge_buf_t*	buf)	/*!< in,own: sort buffer to be freed */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Destroy a merge file. */
 UNIV_INTERN
 void
 row_merge_file_destroy(
 /*===================*/
-	merge_file_t*	merge_file);	/*!< out: merge file structure */
-/*********************************************************************//**
-Compare two merge records.
-@return 1, 0, -1 if mrec1 is greater, equal, less, respectively, than mrec2 */
-UNIV_INTERN
-int
-row_merge_cmp(
-/*==========*/
-	const mrec_t*		mrec1,		/*!< in: first merge
-						record to be compared */
-	const mrec_t*		mrec2,		/*!< in: second merge
-						record to be compared */
-	const ulint*		offsets1,	/*!< in: first record offsets */
-	const ulint*		offsets2,	/*!< in: second record offsets */
-	const dict_index_t*	index,		/*!< in: index */
-	ibool*			null_eq);	/*!< out: set to TRUE if
-						found matching null values */
+	merge_file_t*	merge_file)	/*!< in/out: merge file structure */
+	__attribute__((nonnull));
 /********************************************************************//**
 Read a merge block from the file system.
 @return TRUE if request was successful, FALSE if fail */
