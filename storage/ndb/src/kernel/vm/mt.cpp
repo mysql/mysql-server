@@ -2584,6 +2584,13 @@ pack_send_buffer(thr_data *selfptr, Uint32 node)
    * After having locked/unlock m_send_lock
    *   "protocol" dictates that we must check the m_force_send
    */
+
+  /**
+   * We need a memory barrier here to prevent race between clearing lock
+   *   and reading of m_force_send.
+   *   CPU can reorder the load to before the clear of the lock
+   */
+  mb();
   if (sb->m_force_send)
   {
     try_send(selfptr, node);
@@ -2652,7 +2659,13 @@ mt_send_handle::forceSend(NodeId nodeId)
 
   do
   {
+    /**
+     * NOTE: we don't need a memory barrier after clearing
+     *       m_force_send here as we unconditionally lock m_send_lock
+     *       hence there is no way that our data can be "unsent"
+     */
     sb->m_force_send = 0;
+
     lock(&sb->m_send_lock);
     sb->m_send_thread = selfptr->m_thr_no;
     globalTransporterRegistry.performSend(nodeId);
@@ -2664,6 +2677,12 @@ mt_send_handle::forceSend(NodeId nodeId)
      */
     selfptr->m_send_buffer_pool.release_global(rep->m_mm,
                                                RG_TRANSPORTER_BUFFERS);
+    /**
+     * We need a memory barrier here to prevent race between clearing lock
+     *   and reading of m_force_send.
+     *   CPU can reorder the load to before the clear of the lock
+     */
+    mb();
   } while (sb->m_force_send);
 
   return true;
@@ -2686,6 +2705,16 @@ try_send(thr_data * selfptr, Uint32 node)
       return;
     }
 
+    /**
+     * Now clear the flag, and start sending all data available to this node.
+     *
+     * Put a memory barrier here, so that if another thread tries to grab
+     * the send lock but fails due to us holding it here, we either
+     * 1) Will see m_force_send[nodeId] set to 1 at the end of the loop, or
+     * 2) We clear here the flag just set by the other thread, but then we
+     * will (thanks to mb()) be able to see and send all of the data already
+     * in the first send iteration.
+     */
     sb->m_force_send = 0;
     mb();
 
@@ -2699,6 +2728,13 @@ try_send(thr_data * selfptr, Uint32 node)
      */
     selfptr->m_send_buffer_pool.release_global(rep->m_mm,
                                                RG_TRANSPORTER_BUFFERS);
+
+    /**
+     * We need a memory barrier here to prevent race between clearing lock
+     *   and reading of m_force_send.
+     *   CPU can reorder the load to before the clear of the lock
+     */
+    mb();
   } while (sb->m_force_send);
 }
 
@@ -2831,6 +2867,13 @@ do_send(struct thr_data* selfptr, bool must_send)
       {
         register_pending_send(selfptr, node);
       }
+
+      /**
+       * We need a memory barrier here to prevent race between clearing lock
+       *   and reading of m_force_send.
+       *   CPU can reorder the load to before the clear of the lock
+       */
+      mb();
       if (sb->m_force_send)
       {
         /**
