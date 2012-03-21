@@ -512,7 +512,7 @@ int ha_myisammrg::add_children_list(void)
       DDL on implicitly locked underlying tables of a MERGE table.
     */
     if (! thd->locked_tables_mode &&
-        parent_l->mdl_request.type == MDL_SHARED_NO_WRITE)
+        parent_l->mdl_request.type == MDL_SHARED_UPGRADABLE)
       child_l->mdl_request.set_type(MDL_SHARED_NO_WRITE);
     /* Link TABLE_LIST object into the children list. */
     if (this->children_last_l)

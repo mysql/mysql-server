@@ -884,11 +884,11 @@ static void trace_range_all_keyparts(Opt_trace_array &trace_range,
                                      const String *range_so_far,
                                      SEL_ARG *keypart_root,
                                      const KEY_PART_INFO *key_parts);
-static void append_range(String *out,
-                         const KEY_PART_INFO *key_parts,
-                         const uchar *min_key, const uchar *max_key,
-                         const uint flag);
 #endif
+void append_range(String *out,
+                  const KEY_PART_INFO *key_parts,
+                  const uchar *min_key, const uchar *max_key,
+                  const uint flag);
 
 static SEL_TREE *tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_TREE *tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
@@ -13067,8 +13067,6 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 
 #endif /* !DBUG_OFF */
 
-#ifdef OPTIMIZER_TRACE
-
 /**
   Print a key to a string
 
@@ -13127,10 +13125,10 @@ restore_col_map:
   @param[in]     flag         Key range flags defining what min_key
                               and max_key represent @see my_base.h
  */
-static void append_range(String *out,
-                         const KEY_PART_INFO *key_part,
-                         const uchar *min_key, const uchar *max_key,
-                         const uint flag)
+void append_range(String *out,
+                  const KEY_PART_INFO *key_part,
+                  const uchar *min_key, const uchar *max_key,
+                  const uint flag)
 {
   if (out->length() > 0)
     out->append(STRING_WITH_LEN(" AND "));
@@ -13155,6 +13153,9 @@ static void append_range(String *out,
     print_key_value(out, key_part, max_key);
   }
 }
+
+
+#ifdef OPTIMIZER_TRACE
 
 /**
   Traverse an R-B tree of range conditions and append all ranges for this

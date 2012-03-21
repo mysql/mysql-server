@@ -1155,18 +1155,23 @@ public:
 
   /*
     -------------------------------------------------------------------------
-    MODULE on-line ALTER TABLE
+    MODULE in-place ALTER TABLE
     -------------------------------------------------------------------------
     These methods are in the handler interface. (used by innodb-plugin)
-    They are used for on-line/fast alter table add/drop index:
+    They are used for in-place alter table:
     -------------------------------------------------------------------------
   */
-  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
-                        handler_add_index **add);
-  virtual int final_add_index(handler_add_index *add, bool commit);
-  virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
-                                 uint num_of_keys);
-  virtual int final_drop_index(TABLE *table_arg);
+    virtual enum_alter_inplace_result
+      check_if_supported_inplace_alter(TABLE *altered_table,
+                                       Alter_inplace_info *ha_alter_info);
+    virtual bool prepare_inplace_alter_table(TABLE *altered_table,
+                                             Alter_inplace_info *ha_alter_info);
+    virtual bool inplace_alter_table(TABLE *altered_table,
+                                     Alter_inplace_info *ha_alter_info);
+    virtual bool commit_inplace_alter_table(TABLE *altered_table,
+                                            Alter_inplace_info *ha_alter_info,
+                                            bool commit);
+    virtual void notify_table_changed();
 
   /*
     -------------------------------------------------------------------------

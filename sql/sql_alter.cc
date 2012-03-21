@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,169 @@
                                              // mysql_exchange_partition
 #include "sql_base.h"                        // open_temporary_tables
 #include "sql_alter.h"
+
+
+Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
+  :drop_list(rhs.drop_list, mem_root),
+  alter_list(rhs.alter_list, mem_root),
+  key_list(rhs.key_list, mem_root),
+  create_list(rhs.create_list, mem_root),
+  flags(rhs.flags),
+  keys_onoff(rhs.keys_onoff),
+  partition_names(rhs.partition_names, mem_root),
+  num_parts(rhs.num_parts),
+  requested_algorithm(rhs.requested_algorithm),
+  requested_lock(rhs.requested_lock)
+{
+  /*
+    Make deep copies of used objects.
+    This is not a fully deep copy - clone() implementations
+    of Alter_drop, Alter_column, Key, foreign_key, Key_part_spec
+    do not copy string constants. At the same length the only
+    reason we make a copy currently is that ALTER/CREATE TABLE
+    code changes input Alter_info definitions, but string
+    constants never change.
+  */
+  list_copy_and_replace_each_value(drop_list, mem_root);
+  list_copy_and_replace_each_value(alter_list, mem_root);
+  list_copy_and_replace_each_value(key_list, mem_root);
+  list_copy_and_replace_each_value(create_list, mem_root);
+  /* partition_names are not deeply copied currently */
+}
+
+
+bool Alter_info::set_requested_algorithm(const LEX_STRING *str)
+{
+  // To avoid adding new keywords to the grammar, we match strings here.
+  if (!my_strcasecmp(system_charset_info, str->str, "INPLACE"))
+    requested_algorithm= ALTER_TABLE_ALGORITHM_INPLACE;
+  else if (!my_strcasecmp(system_charset_info, str->str, "COPY"))
+    requested_algorithm= ALTER_TABLE_ALGORITHM_COPY;
+  else if (!my_strcasecmp(system_charset_info, str->str, "DEFAULT"))
+    requested_algorithm= ALTER_TABLE_ALGORITHM_DEFAULT;
+  else
+    return true;
+  return false;
+}
+
+
+bool Alter_info::set_requested_lock(const LEX_STRING *str)
+{
+  // To avoid adding new keywords to the grammar, we match strings here.
+  if (!my_strcasecmp(system_charset_info, str->str, "NONE"))
+    requested_lock= ALTER_TABLE_LOCK_NONE;
+  else if (!my_strcasecmp(system_charset_info, str->str, "SHARED"))
+    requested_lock= ALTER_TABLE_LOCK_SHARED;
+  else if (!my_strcasecmp(system_charset_info, str->str, "EXCLUSIVE"))
+    requested_lock= ALTER_TABLE_LOCK_EXCLUSIVE;
+  else if (!my_strcasecmp(system_charset_info, str->str, "DEFAULT"))
+    requested_lock= ALTER_TABLE_LOCK_DEFAULT;
+  else
+    return true;
+  return false;
+}
+
+
+Alter_table_ctx::Alter_table_ctx()
+  : datetime_field(NULL), error_if_not_empty(false),
+    tables_opened(0),
+    db(NULL), table_name(NULL), alias(NULL),
+    new_db(NULL), new_name(NULL), new_alias(NULL)
+#ifndef DBUG_OFF
+    , tmp_table(false)
+#endif
+{
+}
+
+
+Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
+                                 uint tables_opened_arg,
+                                 char *new_db_arg, char *new_name_arg)
+  : datetime_field(NULL), error_if_not_empty(false),
+    tables_opened(tables_opened_arg),
+    new_db(new_db_arg), new_name(new_name_arg)
+#ifndef DBUG_OFF
+    , tmp_table(false)
+#endif
+{
+  /*
+    Assign members db, table_name, new_db and new_name
+    to simplify further comparisions: we want to see if it's a RENAME
+    later just by comparing the pointers, avoiding the need for strcmp.
+  */
+  db= table_list->db;
+  table_name= table_list->table_name;
+  alias= (lower_case_table_names == 2) ? table_list->alias : table_name;
+
+  if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
+    new_db= db;
+
+  if (new_name)
+  {
+    DBUG_PRINT("info", ("new_db.new_name: '%s'.'%s'", new_db, new_name));
+
+    if (lower_case_table_names == 1) // Convert new_name/new_alias to lower case
+    {
+      my_casedn_str(files_charset_info, new_name);
+      new_alias= new_name;
+    }
+    else if (lower_case_table_names == 2) // Convert new_name to lower case
+    {
+      strmov(new_alias= new_alias_buff, new_name);
+      my_casedn_str(files_charset_info, new_name);
+    }
+    else
+      new_alias= new_name; // LCTN=0 => case sensitive + case preserving
+
+    if (!is_database_changed() &&
+        !my_strcasecmp(table_alias_charset, new_name, table_name))
+    {
+      /*
+        Source and destination table names are equal:
+        make is_table_renamed() more efficient.
+      */
+      new_alias= table_name;
+      new_name= table_name;
+    }
+  }
+  else
+  {
+    new_alias= alias;
+    new_name= table_name;
+  }
+
+  my_snprintf(tmp_name, sizeof(tmp_name), "%s-%lx_%lx", tmp_file_prefix,
+              current_pid, thd->thread_id);
+  /* Safety fix for InnoDB */
+  if (lower_case_table_names)
+    my_casedn_str(files_charset_info, tmp_name);
+
+  if (table_list->table->s->tmp_table == NO_TMP_TABLE)
+  {
+    build_table_filename(path, sizeof(path) - 1, db, table_name, "", 0);
+
+    build_table_filename(new_path, sizeof(new_path) - 1, new_db, new_name, "", 0);
+
+    build_table_filename(new_filename, sizeof(new_filename) - 1,
+                         new_db, new_name, reg_ext, 0);
+
+    build_table_filename(tmp_path, sizeof(tmp_path) - 1, new_db, tmp_name, "",
+                         FN_IS_TMP);
+  }
+  else
+  {
+    /*
+      We are not filling path, new_path and new_filename members if
+      we are altering temporary table as these members are not used in
+      this case. This fact is enforced with assert.
+    */
+    build_tmptable_filename(thd, tmp_path, sizeof(tmp_path));
+#ifndef DBUG_OFF
+    tmp_table= true;
+#endif
+  }
+}
+
 
 bool Sql_cmd_alter_table::execute(THD *thd)
 {
@@ -47,13 +210,14 @@ bool Sql_cmd_alter_table::execute(THD *thd)
     We also require DROP priv for ALTER TABLE ... DROP PARTITION, as well
     as for RENAME TO, as being done by SQLCOM_RENAME_TABLE
   */
-  if (alter_info.flags & (ALTER_DROP_PARTITION | ALTER_RENAME))
+  if (alter_info.flags & (Alter_info::ALTER_DROP_PARTITION |
+                          Alter_info::ALTER_RENAME))
     priv_needed|= DROP_ACL;
 
   /* Must be set in the parser */
   DBUG_ASSERT(select_lex->db);
-  DBUG_ASSERT(!(alter_info.flags & ALTER_EXCHANGE_PARTITION));
-  DBUG_ASSERT(!(alter_info.flags & ALTER_ADMIN_PARTITION));
+  DBUG_ASSERT(!(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION));
+  DBUG_ASSERT(!(alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION));
   if (check_access(thd, priv_needed, first_table->db,
                    &first_table->grant.privilege,
                    &first_table->grant.m_internal,
@@ -145,4 +309,54 @@ bool Sql_cmd_alter_table::execute(THD *thd)
                             lex->ignore);
 
   DBUG_RETURN(result);
+}
+
+
+bool Sql_cmd_discard_import_tablespace::execute(THD *thd)
+{
+  /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
+  SELECT_LEX *select_lex= &thd->lex->select_lex;
+  /* first table of first SELECT_LEX */
+  TABLE_LIST *table_list= (TABLE_LIST*) select_lex->table_list.first;
+
+  if (check_access(thd, ALTER_ACL, table_list->db,
+                   &table_list->grant.privilege,
+                   &table_list->grant.m_internal,
+                   0, 0))
+    return true;
+
+  if (check_grant(thd, ALTER_ACL, table_list, false, UINT_MAX, false))
+    return true;
+
+  thd->enable_slow_log= opt_log_slow_admin_statements;
+
+  /*
+    Check if we attempt to alter mysql.slow_log or
+    mysql.general_log table and return an error if
+    it is the case.
+    TODO: this design is obsolete and will be removed.
+  */
+  int table_kind= check_if_log_table(table_list->db_length, table_list->db,
+                                     table_list->table_name_length,
+                                     table_list->table_name, false);
+
+  if (table_kind)
+  {
+    /* Disable alter of enabled log tables */
+    if (logger.is_log_table_enabled(table_kind))
+    {
+      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
+      return true;
+    }
+  }
+
+  /*
+    Add current database to the list of accessed databases
+    for this statement. Needed for MTS.
+  */
+  thd->add_to_binlog_accessed_dbs(table_list->db);
+
+  return
+    mysql_discard_or_import_tablespace(thd, table_list,
+                                       m_tablespace_op == DISCARD_TABLESPACE);
 }

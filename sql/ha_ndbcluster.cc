@@ -368,7 +368,7 @@ ndbcluster_alter_table_flags(uint flags)
     HA_PARTITION_FUNCTION_SUPPORTED |
     0;
 
-  if (flags & ALTER_DROP_PARTITION)
+  if (flags & Alter_info::ALTER_DROP_PARTITION)
     return 0;
 
   return f;

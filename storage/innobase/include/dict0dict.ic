@@ -1064,6 +1064,114 @@ dict_index_get_space_reserve(void)
 	return(UNIV_PAGE_SIZE / 16);
 }
 
+/********************************************************************//**
+Gets the status of online index creation.
+@return the status */
+UNIV_INLINE
+enum online_index_status
+dict_index_get_online_status(
+/*=========================*/
+	const dict_index_t*	index)	/*!< in: secondary index */
+{
+	enum online_index_status	status;
+
+	status = (enum online_index_status) index->online_status;
+	ut_ad((unsigned) status == index->online_status);
+
+#ifdef UNIV_DEBUG
+	switch (status) {
+	case ONLINE_INDEX_COMPLETE:
+	case ONLINE_INDEX_CREATION:
+	case ONLINE_INDEX_ABORTED:
+	case ONLINE_INDEX_ABORTED_DROPPED:
+		return(status);
+	}
+	ut_error;
+#endif /* UNIV_DEBUG */
+	return(status);
+}
+
+/********************************************************************//**
+Sets the status of online index creation. */
+UNIV_INLINE
+void
+dict_index_set_online_status(
+/*=========================*/
+	dict_index_t*			index,	/*!< in/out: secondary index */
+	enum online_index_status	status)	/*!< in: status */
+{
+	ut_ad(!dict_index_is_clust(index));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+#ifdef UNIV_DEBUG
+	switch (dict_index_get_online_status(index)) {
+	case ONLINE_INDEX_COMPLETE:
+	case ONLINE_INDEX_CREATION:
+		break;
+	case ONLINE_INDEX_ABORTED:
+		ut_ad(status == ONLINE_INDEX_ABORTED_DROPPED);
+		break;
+	case ONLINE_INDEX_ABORTED_DROPPED:
+		ut_error;
+	}
+#endif /* UNIV_DEBUG */
+
+	index->online_status = status;
+	ut_ad(dict_index_get_online_status(index) == status);
+}
+
+/********************************************************************//**
+Determines if a secondary index is being or has been created online,
+allowing concurrent modifications to the table.
+@retval TRUE if the index is being or has been built online
+@retval FALSE if the index has been created completely */
+UNIV_INLINE
+ibool
+dict_index_is_online_ddl(
+/*=====================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	return(UNIV_UNLIKELY(dict_index_get_online_status(index)
+			     != ONLINE_INDEX_COMPLETE));
+}
+
+/*********************************************************************//**
+Attempts to log an operation on a secondary index that is being created.
+@return TRUE if the operation was logged or the index creation failed;
+FALSE if the index creation was completed */
+UNIV_INLINE
+ibool
+dict_index_online_trylog(
+/*=====================*/
+	dict_index_t*	index,	/*!< in/out: index */
+	const dtuple_t*	entry,	/*!< in: index entry */
+	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
+	enum row_op	op)	/*!< in: operation on the index entry */
+{
+	ibool	online = FALSE;
+
+	if (!dict_index_is_online_ddl(index)) {
+		return(FALSE);
+	}
+
+	rw_lock_s_lock(dict_index_get_lock(index));
+
+	switch (dict_index_get_online_status(index)) {
+	case ONLINE_INDEX_COMPLETE:
+		break;
+	case ONLINE_INDEX_CREATION:
+		dict_index_online_log(index, entry, trx_id, op);
+		/* fall through */
+	case ONLINE_INDEX_ABORTED:
+	case ONLINE_INDEX_ABORTED_DROPPED:
+		online = TRUE;
+	}
+
+	rw_lock_s_unlock(dict_index_get_lock(index));
+	return(online);
+}
+
 /**********************************************************************//**
 Check whether a column exists in an FTS index.
 @return ULINT_UNDEFINED if no match else the offset within the vector */

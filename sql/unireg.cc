@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -122,7 +122,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   File file;
   ulong filepos, data_offset;
   uchar fileinfo[64],forminfo[288],*keybuff, *forminfo_p= forminfo;
-  uchar *screen_buff;
+  uchar *screen_buff= NULL;
   char buff[128];
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info= thd->work_part_info;
@@ -231,7 +231,10 @@ bool mysql_create_frm(THD *thd, const char *file_name,
                                 TABLE_COMMENT_MAXLEN,
                                 ER_TOO_LONG_TABLE_COMMENT,
                                 real_table_name))
+    {
+      my_free(screen_buff);
       DBUG_RETURN(true);
+    }
   }
   /*
     If table comment is longer than TABLE_COMMENT_INLINE_MAXLEN bytes,
@@ -475,31 +478,32 @@ err3:
 } /* mysql_create_frm */
 
 
-/*
+/**
   Create a frm (table definition) file and the tables
 
-  SYNOPSIS
-    rea_create_table()
-    thd			Thread handler
-    path		Name of file (including database, without .frm)
-    db			Data base name
-    table_name		Table name
-    create_info		create info parameters
-    create_fields	Fields to create
-    keys		number of keys to create
-    key_info		Keys to create
-    file		Handler to use
+  @param thd           Thread handler
+  @param path          Name of file (including database, without .frm)
+  @param db            Data base name
+  @param table_name    Table name
+  @param create_info   create info parameters
+  @param create_fields Fields to create
+  @param keys          number of keys to create
+  @param key_info      Keys to create
+  @param file          Handler to use
+  @param no_ha_table   Indicates that only .FRM file (and PAR file if table
+                       is partitioned) needs to be created and not a table
+                       in the storage engine.
 
-  RETURN
-    0  ok
-    1  error
+  @retval 0   ok
+  @retval 1   error
 */
 
 int rea_create_table(THD *thd, const char *path,
                      const char *db, const char *table_name,
                      HA_CREATE_INFO *create_info,
                      List<Create_field> &create_fields,
-                     uint keys, KEY *key_info, handler *file)
+                     uint keys, KEY *key_info, handler *file,
+                     bool no_ha_table)
 {
   DBUG_ENTER("rea_create_table");
 
@@ -514,15 +518,20 @@ int rea_create_table(THD *thd, const char *path,
   DBUG_ASSERT(*fn_rext(frm_name));
   if (thd->variables.keep_files_on_create)
     create_info->options|= HA_CREATE_KEEP_FILES;
-  if (!create_info->frm_only &&
-      (file->ha_create_handler_files(path, NULL, CHF_CREATE_FLAG,
-                                     create_info) ||
-       ha_create_table(thd, path, db, table_name, create_info, 0)))
+
+  if (file->ha_create_handler_files(path, NULL, CHF_CREATE_FLAG,
+                                    create_info))
+    goto err_handler_frm;
+
+  if (!no_ha_table &&
+       ha_create_table(thd, path, db, table_name, create_info, 0))
     goto err_handler;
   DBUG_RETURN(0);
 
 err_handler:
   (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info);
+
+err_handler_frm:
   mysql_file_delete(key_file_frm, frm_name, MYF(0));
   DBUG_RETURN(1);
 } /* rea_create_table */
@@ -1128,6 +1137,12 @@ static bool make_empty_rec(THD *thd, File file,
       /* If not ok or warning of level 'note' */
       if (res != 0 && res != 3)
       {
+        /*
+          clear current error and report INVALID DEFAULT value error message
+          */
+        if (thd->is_error())
+          thd->clear_error();
+
         my_error(ER_INVALID_DEFAULT, MYF(0), regfield->field_name);
         error= 1;
         delete regfield; //To avoid memory leak

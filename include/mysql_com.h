@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,7 +114,9 @@ enum enum_server_command
 #define BINCMP_FLAG	131072		/* Intern: Used by sql_yacc */
 #define GET_FIXED_FIELDS_FLAG (1 << 18) /* Used to get fields in item tree */
 #define FIELD_IN_PART_FUNC_FLAG (1 << 19)/* Field part of partition func */
-#define FIELD_IN_ADD_INDEX (1<< 20)	/* Intern: Field used in ADD INDEX */
+#define FIELD_IN_ADD_INDEX (1<< 20)     /* Intern: Field used in ADD INDEX.
+                                           Deprecated. Used by old in-place
+                                           ALTER TABLE API only. */
 #define FIELD_IS_RENAMED (1<< 21)       /* Intern: Field is being renamed */
 #define FIELD_FLAGS_STORAGE_MEDIA 22    /* Field storage media, bit 22-23,
                                            reserved by MySQL Cluster */
