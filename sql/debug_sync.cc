@@ -1794,6 +1794,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
           push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                        ER_DEBUG_SYNC_TIMEOUT, ER(ER_DEBUG_SYNC_TIMEOUT));
           thd->abort_on_warning= save_abort_on_warning;
+          DBUG_ASSERT(0);
           break;
         }
         error= 0;
