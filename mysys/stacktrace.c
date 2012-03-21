@@ -685,7 +685,7 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
       &(package.sym));
     have_source= pSymGetLineFromAddr64(hProcess, addr, &line_offset, &line);
 
-    fprintf(stderr,"%p    ", addr);
+    my_safe_printf_stderr("%p    ", addr);
     if(have_module)
     {
       char *base_image_name= strrchr(module.ImageName, '\\');
@@ -693,12 +693,13 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
         base_image_name++;
       else
         base_image_name= module.ImageName;
-      fprintf(stderr,"%s!", base_image_name);
+      my_safe_printf_stderr("%s!", base_image_name);
     }
     if(have_symbol)
-      fprintf(stderr, "%s()", package.sym.Name);
+      my_safe_printf_stderr("%s()", package.sym.Name);
+
     else if(have_module)
-      fprintf(stderr,"%s", "???");
+      my_safe_printf_stderr("%s", "???");
 
     if(have_source)
     {
@@ -707,10 +708,10 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
         base_file_name++;
       else
         base_file_name= line.FileName;
-      fprintf(stderr, "[%s:%u]",
+      my_safe_printf_stderr("[%s:%u]",
                             base_file_name, line.LineNumber);
     }
-    fprintf(stderr,"%s", "\n");
+    my_safe_printf_stderr("%s", "\n");
   }
 }
 
@@ -781,188 +782,9 @@ void my_safe_print_str(const char *val, int len)
 #endif /*__WIN__*/
 
 
-#ifdef __WIN__
-size_t my_write_stderr(const void *buf, size_t count)
-{
-  return fwrite(buf, 1, count, stderr);
-}
-#else
 size_t my_write_stderr(const void *buf, size_t count)
 {
   return (size_t) write(STDERR_FILENO, buf, count);
-}
-#endif
-
-
-static const char digits[]= "0123456789abcdef";
-
-char *my_safe_utoa(int base, ulonglong val, char *buf)
-{
-  *buf--= 0;
-  do {
-    *buf--= digits[val % base];
-  } while ((val /= base) != 0);
-  return buf + 1;
-}
-
-
-char *my_safe_itoa(int base, longlong val, char *buf)
-{
-  char *orig_buf= buf;
-  const my_bool is_neg= (val < 0);
-  *buf--= 0;
-
-  if (is_neg)
-    val= -val;
-  if (is_neg && base == 16)
-  {
-    int ix;
-    val-= 1;
-    for (ix= 0; ix < 16; ++ix)
-      buf[-ix]= '0';
-  }
-  
-  do {
-    *buf--= digits[val % base];
-  } while ((val /= base) != 0);
-
-  if (is_neg && base == 10)
-    *buf--= '-';
-
-  if (is_neg && base == 16)
-  {
-    int ix;
-    buf= orig_buf - 1;
-    for (ix= 0; ix < 16; ++ix, --buf)
-    {
-      switch (*buf)
-      {
-      case '0': *buf= 'f'; break;
-      case '1': *buf= 'e'; break;
-      case '2': *buf= 'd'; break;
-      case '3': *buf= 'c'; break;
-      case '4': *buf= 'b'; break;
-      case '5': *buf= 'a'; break;
-      case '6': *buf= '9'; break;
-      case '7': *buf= '8'; break;
-      case '8': *buf= '7'; break;
-      case '9': *buf= '6'; break;
-      case 'a': *buf= '5'; break;
-      case 'b': *buf= '4'; break;
-      case 'c': *buf= '3'; break;
-      case 'd': *buf= '2'; break;
-      case 'e': *buf= '1'; break;
-      case 'f': *buf= '0'; break;
-      }
-    }
-  }
-  return buf+1;
-}
-
-
-static const char *check_longlong(const char *fmt, my_bool *have_longlong)
-{
-  *have_longlong= FALSE;
-  if (*fmt == 'l')
-  {
-    fmt++;
-    if (*fmt != 'l')
-      *have_longlong= (sizeof(long) == sizeof(longlong));
-    else
-    {
-      fmt++;
-      *have_longlong= TRUE;
-    }
-  }
-  return fmt;
-}
-
-static size_t my_safe_vsnprintf(char *to, size_t size,
-                                const char* format, va_list ap)
-{
-  char *start= to;
-  char *end= start + size - 1;
-  for (; *format; ++format)
-  {
-    my_bool have_longlong = FALSE;
-    if (*format != '%')
-    {
-      if (to == end)                            /* end of buffer */
-        break;
-      *to++= *format;                           /* copy ordinary char */
-      continue;
-    }
-    ++format;                                   /* skip '%' */
-
-    format= check_longlong(format, &have_longlong);
-
-    switch (*format)
-    {
-    case 'd':
-    case 'i':
-    case 'u':
-    case 'x':
-    case 'p':
-      {
-        longlong ival= 0;
-        ulonglong uval = 0;
-        if (*format == 'p')
-          have_longlong= (sizeof(void *) == sizeof(longlong));
-        if (have_longlong)
-        {
-          if (*format == 'u')
-            uval= va_arg(ap, ulonglong);
-          else
-            ival= va_arg(ap, longlong);
-        }
-        else
-        {
-          if (*format == 'u')
-            uval= va_arg(ap, unsigned int);
-          else
-            ival= va_arg(ap, int);
-        }
-
-        {
-          char buff[22];
-          const int base= (*format == 'x' || *format == 'p') ? 16 : 10;
-          char *val_as_str= (*format == 'u') ?
-            my_safe_utoa(base, uval, &buff[sizeof(buff)-1]) :
-            my_safe_itoa(base, ival, &buff[sizeof(buff)-1]);
-
-          /* Strip off "ffffffff" if we have 'x' format without 'll' */
-          if (*format == 'x' && !have_longlong && ival < 0)
-            val_as_str+= 8;
-
-          while (*val_as_str && to < end)
-            *to++= *val_as_str++;
-          continue;
-        }
-      }
-    case 's':
-      {
-        const char *val= va_arg(ap, char*);
-        if (!val)
-          val= "(null)";
-        while (*val && to < end)
-          *to++= *val++;
-        continue;
-      }
-    }
-  }
-  *to= 0;
-  return to - start;
-}
-
-
-size_t my_safe_snprintf(char* to, size_t n, const char* fmt, ...)
-{
-  size_t result;
-  va_list args;
-  va_start(args,fmt);
-  result= my_safe_vsnprintf(to, n, fmt, args);
-  va_end(args);
-  return result;
 }
 
 
@@ -972,7 +794,7 @@ size_t my_safe_printf_stderr(const char* fmt, ...)
   size_t result;
   va_list args;
   va_start(args,fmt);
-  result= my_safe_vsnprintf(to, sizeof(to), fmt, args);
+  result= vsnprintf(to, sizeof(to), fmt, args);
   va_end(args);
   my_write_stderr(to, result);
   return result;
