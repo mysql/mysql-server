@@ -5845,6 +5845,8 @@ compare_tables(THD *thd,
       *alter_flags|= HA_SET_DEFAULT_CHARACTER_SET;
     if (alter_info->flags & ALTER_RECREATE)
       *alter_flags|= HA_RECREATE;
+    if (create_info->used_fields & HA_CREATE_USED_MAX_ROWS)
+      *alter_flags|= HA_ALTER_MAX_ROWS;
     /* TODO check for ADD/DROP FOREIGN KEY */
     if (alter_info->flags & ALTER_FOREIGN_KEY)
       *alter_flags|=  HA_ALTER_FOREIGN_KEY;
