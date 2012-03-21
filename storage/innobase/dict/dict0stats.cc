@@ -1312,7 +1312,7 @@ dict_stats_analyze_index(
 	So if we find that the first level containing D distinct
 	keys (on n_prefix columns) is L, we continue from L when
 	searching for D distinct keys on n_prefix-1 columns. */
-	level = (long) root_level;
+	level = root_level;
 	level_is_analyzed = FALSE;
 	for (n_prefix = n_uniq; n_prefix >= 1; n_prefix--) {
 
