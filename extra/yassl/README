@@ -21,8 +21,7 @@ See normal  build instructions below under 1.0.6.
 See libcurl build instructions below under 1.3.0 and note in 1.5.8.
 
 
-*****************yaSSL Release notes, version 1.9.9 (1/26/2010)
-yaSSL Release notes, version 2.0.0 (7/6/2010)
+*****************yaSSL Release notes, version 2.0.0 (7/6/2010)
 
     This release of yaSSL contains bug fixes, new testing certs,
     and a security patch for a potential heap overflow on forged application
