@@ -6,6 +6,7 @@
 #include <NdbCondition.h>
 #include <NdbTap.hpp>
 #include <Bitmask.hpp>
+#include <ndb_rand.h>
 
 #define BUGGY_VERSION 0
 
@@ -249,7 +250,7 @@ thread_main(void * _t)
         /**
          * Produce a signal to destination D
          */
-        unsigned D = rand_r(&seed) % cnt_transporters;
+        unsigned D = unsigned(ndb_rand_r(&seed)) % cnt_transporters;
         self->p.produce(D);
       }
 
@@ -258,7 +259,7 @@ thread_main(void * _t)
       /**
        * This is the equivalent of do_send()
        */
-      bool force = unsigned(rand_r(&seed) % 100) < pct_force;
+      bool force = unsigned(ndb_rand_r(&seed) % 100) < pct_force;
       self->p.consume(force);
     }
     test.wait_completed();
