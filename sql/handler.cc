@@ -5025,6 +5025,8 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   /* Default MRR implementation doesn't need buffer */
   *bufsz= 0;
 
+  DBUG_EXECUTE_IF("bug13822652_2", thd->killed= THD::KILL_QUERY;);
+
   seq_it= seq->init(seq_init_param, n_ranges, *flags);
   while (!seq->next(seq_it, &range))
   {
