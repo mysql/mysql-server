@@ -144,3 +144,12 @@ mt_thr_config_t_LDADD = \
 	$(top_builddir)/mysys/libmysyslt.la
 
 noinst_PROGRAMS = mt_thr_config-t CountingPool-t DynArr256-t
+
+mt_send_t_CXXFLAGS = -DTAP_TEST
+mt_send_t_SOURCES = mt-send-t.cpp
+mt_send_t_LDFLAGS = @ndb_bin_am_ldflags@
+mt_send_t_LDADD = $(test_ldadd)
+
+if BUILD_NDBMTD
+noinst_PROGRAMS += mt-send-t
+endif
