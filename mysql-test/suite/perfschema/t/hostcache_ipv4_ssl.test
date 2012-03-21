@@ -11,11 +11,7 @@
 
 # Enforce a clean state
 --source ../include/wait_for_pfs_thread_count.inc
-
-flush status;
-flush hosts;
-flush user_resources;
-select @@global.debug;
+--source ../include/hostcache_set_state.inc
 
 create user 'user_ssl'@'santa.claus.ipv4.example.com';
 create user 'user_ssl_x509'@'santa.claus.ipv4.example.com'
