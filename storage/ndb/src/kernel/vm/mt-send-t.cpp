@@ -258,7 +258,7 @@ thread_main(void * _t)
       /**
        * This is the equivalent of do_send()
        */
-      int force = (rand_r(&seed) % 100) < pct_force;
+      bool force = unsigned(rand_r(&seed) % 100) < pct_force;
       self->p.consume(force);
     }
     test.wait_completed();
