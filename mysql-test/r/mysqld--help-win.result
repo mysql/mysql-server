@@ -159,8 +159,8 @@ The following options may be given as the first argument:
  on that value
  --end-markers-in-json 
  In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
- trace), end_marker=on repeats the structure's key (if it
- has one) near the closing bracket
+ trace), if variable is set to 1, repeats the structure's
+ key (if it has one) near the closing bracket
  --eq-range-index-dive-limit=# 
  The optimizer will use existing index statistics instead
  of doing index dives for equality ranges if the number of
