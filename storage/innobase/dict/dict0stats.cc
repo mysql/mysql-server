@@ -141,6 +141,7 @@ Calculates new estimates for index statistics. This function is
 relatively quick and is used to calculate transient statistics that
 are not saved on disk.  This was the only way to calculate statistics
 before the Persistent Statistics feature was introduced.
+dict_stats_update_transient_for_index() @{
 @return size of the index in pages, or 0 if skipped */
 static
 ulint
@@ -207,6 +208,7 @@ fake_statistics:
 
 	return(index->stat_index_size);
 }
+/* @} */
 
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. This function
