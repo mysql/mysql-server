@@ -10,17 +10,13 @@ TABLE_ID	NAME	POS	MTYPE	PRTYPE	LEN
 12	POS	1	6	0	4
 12	FOR_COL_NAME	2	1	524292	0
 12	REF_COL_NAME	3	1	524292	0
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name');
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'Master_Id', 'Worker_Id');;
 INDEX_ID	NAME	POS
 11	ID	0
 12	FOR_NAME	0
 13	REF_NAME	0
 14	ID	0
 14	POS	1
-15	Master_id	0
-16	Master_id	0
-17	Master_id	0
-17	Worker_id	1
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 mysql/innodb_index_stats_ibfk_1	mysql/innodb_index_stats	mysql/innodb_table_stats	2	0

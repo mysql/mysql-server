@@ -1193,7 +1193,7 @@ static void set_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
     pfs_key->m_name_length= len;
   }
 
-  pfs_key_last= pfs->m_keys + MAX_KEY;
+  pfs_key_last= pfs->m_keys + MAX_INDEXES;
   for ( ; pfs_key < pfs_key_last; pfs_key++)
     pfs_key->m_name_length= 0;
 }
@@ -1353,9 +1353,10 @@ search:
 
 void PFS_table_share::aggregate_io(void)
 {
+  uint safe_key_count= sanitize_index_count(m_key_count);
   uint index= global_table_io_class.m_event_name_index;
   PFS_single_stat *table_io_total= & global_instr_class_waits_array[index];
-  m_table_stat.sum_io(table_io_total);
+  m_table_stat.sum_io(table_io_total, safe_key_count);
   m_table_stat.fast_reset_io();
 }
 

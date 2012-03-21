@@ -6490,7 +6490,6 @@ ER_PLUGIN_NO_UNINSTALL
 ER_PLUGIN_NO_INSTALL
   eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
 
-
 ER_BINLOG_UNSAFE_WRITE_AUTOINC_SELECT
   eng "Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave."
 
@@ -6629,12 +6628,6 @@ ER_SQLTHREAD_WITH_SECURE_SLAVE
 ER_TABLE_HAS_NO_FT
   eng "The table does not have FULLTEXT index to support this query"
 
-ER_INNODB_FT_LIMIT
-  eng "InnoDB presently supports one FULLTEXT index per table"
-
-ER_INNODB_NO_FT_TEMP_TABLE
-  eng "Cannot create FULLTEXT index on temporary InnoDB table"
-
 ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
   eng "The system variable %.200s cannot be set in stored functions or triggers."
 
@@ -6672,7 +6665,7 @@ ER_BAD_SLAVE_AUTO_POSITION
   eng "Parameters MASTER_LOG_FILE, MASTER_LOG_POS, RELAY_LOG_FILE and RELAY_LOG_POS cannot be set when MASTER_AUTO_POSITION is active."
 
 ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
-  eng "CHANGE MASTER TO AUTO_POSITION = 1 can only be executed when GTID_MODE = ON."
+  eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when GTID_MODE = ON."
 
 ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
   eng "Cannot execute statements with implicit commit inside a transaction when GTID_NEXT != AUTOMATIC or GTID_NEXT_LIST != NULL."
@@ -6725,6 +6718,26 @@ ER_TOO_LONG_TABLE_PARTITION_COMMENT
 
 ER_SLAVE_CONFIGURATION
   eng "Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log."
+
+ER_INNODB_FT_LIMIT
+  eng "InnoDB presently supports one FULLTEXT index creation at a time"
+
+ER_INNODB_NO_FT_TEMP_TABLE
+  eng "Cannot create FULLTEXT index on temporary InnoDB table"
+
+ER_INNODB_FT_WRONG_DOCID_COLUMN
+  eng "Column '%-.192s' is of wrong type for an InnoDB FULLTEXT index"
+
+ER_INNODB_FT_WRONG_DOCID_INDEX
+  eng "Index '%-.192s' is of wrong type for an InnoDB FULLTEXT index"
+
+ER_INNODB_ONLINE_LOG_TOO_BIG
+  eng "Creating index '%-.192s' required more than 'innodb_online_alter_log_max_size' bytes of modification log. Please try again."
+
+ER_UNKNOWN_ALTER_ALGORITHM
+  eng "Unknown ALGORITHM '%s'"
+ER_UNKNOWN_ALTER_LOCK
+  eng "Unknown LOCK type '%s'"
 
 ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
   eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"

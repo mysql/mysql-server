@@ -79,7 +79,6 @@ class Sroutine_hash_entry;
 class User_level_lock;
 class user_var_entry;
 
-enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
@@ -161,7 +160,7 @@ public:
   }
 
   inline char *str() const { return string.str; }
-  inline uint32 length() const { return string.length; }
+  inline size_t length() const { return string.length; }
   const CHARSET_INFO *charset() const { return cs; }
 
   friend LEX_STRING * thd_query_string (MYSQL_THD thd);
@@ -3172,6 +3171,11 @@ public:
     return variables.sql_mode &
       (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES);
   }
+  inline bool is_strict_mode() const
+  {
+    return test(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
+                                      MODE_STRICT_ALL_TABLES));
+  }
   inline Time_zone *time_zone()
   {
     time_zone_used= 1;
@@ -3658,7 +3662,7 @@ public:
     result= new_db && !db;
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (result)
-      PSI_CALL(set_thread_db)(new_db, new_db_len);
+      PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
     return result;
   }
@@ -3679,7 +3683,7 @@ public:
     db= new_db;
     db_length= new_db_len;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_db)(new_db, new_db_len);
+    PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
   }
   /*

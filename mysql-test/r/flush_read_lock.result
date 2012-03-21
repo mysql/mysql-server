@@ -1460,24 +1460,10 @@ Success: Was able to run 'analyze table t3_temp_trans' under FTWRL.
 Success: Was able to run 'analyze table t3_temp_trans' with FTWRL active in another connection.
 Success: Was able to run FTWRL while 'analyze table t3_temp_trans' was active in another connection.
 #
-# 39.2.c) Some statements do implicit commit and not
-#         considered read-only. As result they are 
-#         not compatible with FTWRL.
-#
-flush tables with read lock;
-# Implicit commits are allowed under FTWRL.
-alter table t3_temp_trans add column c1 int;
-unlock tables;
-#
-# Switching to connection 'con1'.
-flush tables with read lock;
-# Switching to connection 'default'.
-alter table t3_temp_trans drop column c1;
-# Switching to connection 'con1'.
-# Check that ALTER TABLE is blocked.
-unlock tables;
-# Switching to connection 'default'.
-# Reap ALTER TABLE
+# And ALTER TABLE:
+Success: Was able to run 'alter table t3_temp_trans add column c1 int' under FTWRL.
+Success: Was able to run 'alter table t3_temp_trans add column c1 int' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'alter table t3_temp_trans add column c1 int' was active in another connection.
 #
 # 40) Test effect of implicit commit for DDL which is otherwise
 #     compatible with FTWRL. Implicit commit at the start of DDL

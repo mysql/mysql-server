@@ -569,6 +569,26 @@ DROP TABLE t1;
 
 
 --echo #
+--echo # Additional test coverage for WL#5534 - Online ALTER phase 1.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, m1;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+CREATE TABLE m1(a INT) engine=merge union(t1);
+
+LOCK TABLES m1 WRITE;
+ALTER TABLE m1 COMMENT 'test';
+--echo # This triggered an assert in MDL_ticket::downgrade_lock
+FLUSH TABLE m1;
+
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+
+
+--echo #
 --echo # End of 6.0 tests.
 --echo #
 

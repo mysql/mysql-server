@@ -1229,12 +1229,12 @@ err_with_reopen:
     */
     thd->locked_tables_list.reopen_tables(thd);
     /*
-      Since downgrade_exclusive_lock() won't do anything with shared
+      Since downgrade_lock() won't do anything with shared
       metadata lock it is much simpler to go through all open tables rather
       than picking only those tables that were flushed.
     */
     for (TABLE *tab= thd->open_tables; tab; tab= tab->next)
-      tab->mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+      tab->mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
   }
   DBUG_RETURN(result);
 }
@@ -2351,8 +2351,9 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
                        table->s->table_name.str, (ulong) table->s,
                        table->db_stat, table->s->version));
 
-  if (thd->mdl_context.upgrade_shared_lock_to_exclusive(
-             table->mdl_ticket, thd->variables.lock_wait_timeout))
+  if (thd->mdl_context.upgrade_shared_lock(
+             table->mdl_ticket, MDL_EXCLUSIVE,
+             thd->variables.lock_wait_timeout))
     DBUG_RETURN(TRUE);
 
   tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN,
@@ -2401,7 +2402,7 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db_name, table_name,
                      FALSE);
     /* Remove the table from the storage engine and rm the .frm. */
-    quick_rm_table(table_type, db_name, table_name, 0);
+    quick_rm_table(thd, table_type, db_name, table_name, 0);
   }
   DBUG_VOID_RETURN;
 }
@@ -3239,9 +3240,9 @@ TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name)
          upgrade the lock and ER_TABLE_NOT_LOCKED_FOR_WRITE will be
          reported.
 
-   @return Pointer to TABLE instance with MDL_SHARED_NO_WRITE,
-           MDL_SHARED_NO_READ_WRITE, or MDL_EXCLUSIVE metadata
-           lock, NULL otherwise.
+   @return Pointer to TABLE instance with MDL_SHARED_UPGRADABLE
+           MDL_SHARED_NO_WRITE, MDL_SHARED_NO_READ_WRITE, or
+           MDL_EXCLUSIVE metadata lock, NULL otherwise.
 */
 
 TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
@@ -4772,7 +4773,7 @@ lock_table_names(THD *thd,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->mdl_request.type < MDL_SHARED_NO_WRITE ||
+    if (table->mdl_request.type < MDL_SHARED_UPGRADABLE ||
         table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
     {
@@ -4857,7 +4858,7 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->mdl_request.type < MDL_SHARED_NO_WRITE ||
+    if (table->mdl_request.type < MDL_SHARED_UPGRADABLE ||
         table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
     {
@@ -5057,7 +5058,7 @@ restart:
       for (table= *start; table && table != thd->lex->first_not_own_table();
            table= table->next_global)
       {
-        if (table->mdl_request.type >= MDL_SHARED_NO_WRITE)
+        if (table->mdl_request.type >= MDL_SHARED_UPGRADABLE)
           table->mdl_request.ticket= NULL;
       }
     }
@@ -5603,7 +5604,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   table_list->required_type= FRMTYPE_TABLE;
 
   /* This function can't properly handle requests for such metadata locks. */
-  DBUG_ASSERT(table_list->mdl_request.type < MDL_SHARED_NO_WRITE);
+  DBUG_ASSERT(table_list->mdl_request.type < MDL_SHARED_UPGRADABLE);
 
   while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx)) &&
          ot_ctx.can_recover_from_failed_open())
@@ -6068,6 +6069,9 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
   @param add_to_temporary_tables_list Specifies if the opened TABLE
                                       instance should be linked into
                                       THD::temporary_tables list.
+  @param open_in_engine               Indicates that we need to open table
+                                      in storage engine in addition to
+                                      constructing TABLE object for it.
 
   @note This function is used:
     - by alter_table() to open a temporary table;
@@ -6079,7 +6083,8 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
 
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                            const char *table_name,
-                           bool add_to_temporary_tables_list)
+                           bool add_to_temporary_tables_list,
+                           bool open_in_engine)
 {
   TABLE *tmp_table;
   TABLE_SHARE *share;
@@ -6130,8 +6135,9 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 #endif
 
   if (open_table_from_share(thd, share, table_name,
+                            open_in_engine ?
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                                    HA_GET_INDEX),
+                                    HA_GET_INDEX) : 0,
                             READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                             ha_open_options,
                             tmp_table, FALSE))
@@ -6165,17 +6171,27 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 }
 
 
-bool rm_temporary_table(handlerton *base, char *path)
+/**
+  Delete a temporary table.
+
+  @param base  Handlerton for table to be deleted.
+  @param path  Path to the table to be deleted (i.e. path
+               to its .frm without an extension).
+
+  @retval false - success.
+  @retval true  - failure.
+*/
+
+bool rm_temporary_table(handlerton *base, const char *path)
 {
   bool error=0;
   handler *file;
-  char *ext;
+  char frm_path[FN_REFLEN + 1];
   DBUG_ENTER("rm_temporary_table");
 
-  strmov(ext= strend(path), reg_ext);
-  if (mysql_file_delete(key_file_frm, path, MYF(0)))
+  strxnmov(frm_path, sizeof(frm_path) - 1, path, reg_ext, NullS);
+  if (mysql_file_delete(key_file_frm, frm_path, MYF(0)))
     error=1; /* purecov: inspected */
-  *ext= 0;				// remove extension
   file= get_new_handler((TABLE_SHARE*) 0, current_thd->mem_root, base);
   if (file && file->ha_delete_table(path))
   {
