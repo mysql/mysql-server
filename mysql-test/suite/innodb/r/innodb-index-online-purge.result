@@ -1,3 +1,4 @@
+SET DEBUG='+d,debug_sync_abort_on_timeout';
 CREATE TABLE t (a INT PRIMARY KEY, c TEXT) ENGINE=InnoDB;
 CREATE TABLE u (a INT PRIMARY KEY, b INT, c INT NOT NULL) ENGINE=InnoDB;
 INSERT INTO t VALUES (1,'aa');
@@ -15,6 +16,7 @@ INSERT INTO u SELECT a+256,NULL,a+64 FROM u;
 COMMIT;
 BEGIN;
 DELETE FROM u;
+SET DEBUG='+d,debug_sync_abort_on_timeout';
 SET DEBUG_SYNC='row_log_apply_before SIGNAL created_u WAIT_FOR dml_done_u';
 ALTER TABLE u ADD INDEX (c);
 COMMIT;
@@ -23,6 +25,7 @@ SELECT state FROM information_schema.processlist
 WHERE info='ALTER TABLE u ADD INDEX (c)';
 state
 debug sync point: row_log_apply_before
+SET DEBUG='+d,debug_sync_abort_on_timeout';
 SET DEBUG_SYNC='row_log_apply_before SIGNAL created_t WAIT_FOR dml_done_t';
 CREATE INDEX c1 ON t (c(1));
 SET DEBUG_SYNC='now WAIT_FOR created_t';
@@ -33,4 +36,5 @@ SLEEP(10)
 SET DEBUG_SYNC='now SIGNAL dml_done_u';
 SET DEBUG_SYNC='now SIGNAL dml_done_t';
 SET DEBUG_SYNC='RESET';
+SET DEBUG='-d,debug_sync_abort_on_timeout';
 DROP TABLE t,u;
