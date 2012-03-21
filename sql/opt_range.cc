@@ -1369,7 +1369,7 @@ SEL_IMERGE::SEL_IMERGE(SEL_IMERGE *arg, uint cnt,
   for (SEL_TREE **tree = trees, **arg_tree= arg->trees; tree < trees_next; 
        tree++, arg_tree++)
   {
-    if (!(*tree= new SEL_TREE(*arg_tree, FALSE, param)))
+    if (!(*tree= new SEL_TREE(*arg_tree, TRUE, param)))
       goto mem_err;
   }
 
