@@ -3652,16 +3652,17 @@ end:
     @retval       1           error
 */
 
-static int fill_schema_table_names(THD *thd, TABLE *table,
+static int fill_schema_table_names(THD *thd, TABLE_LIST *tables,
                                    LEX_STRING *db_name, LEX_STRING *table_name,
                                    bool with_i_schema)
 {
+  TABLE *table= tables->table;
   if (with_i_schema)
   {
     table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"),
                            system_charset_info);
   }
-  else
+  else if (tables->table_open_method != SKIP_OPEN_TABLE)
   {
     enum legacy_db_type not_used;
     char path[FN_REFLEN + 1];
@@ -4006,7 +4007,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
           /* SHOW TABLE NAMES command */
           if (schema_table_idx == SCH_TABLE_NAMES)
           {
-            if (fill_schema_table_names(thd, tables->table, db_name,
+            if (fill_schema_table_names(thd, tables, db_name,
                                         table_name, with_i_schema))
               continue;
           }
@@ -7622,7 +7623,7 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"TABLE_CONSTRAINTS", table_constraints_fields_info, create_schema_table,
    get_all_tables, 0, get_schema_constraints_record, 3, 4, 0, OPEN_TABLE_ONLY},
   {"TABLE_NAMES", table_names_fields_info, create_schema_table,
-   get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
+   get_all_tables, make_table_names_old_format, 0, 1, 2, 1, OPTIMIZE_I_S_TABLE},
   {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
    fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
   {"TABLE_STATISTICS", table_stats_fields_info, create_schema_table,
