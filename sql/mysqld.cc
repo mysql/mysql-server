@@ -5071,6 +5071,10 @@ int mysqld_main(int argc, char **argv)
   check_binlog_stmt_cache_size(NULL);
 
   binlog_unsafe_map_init();
+
+  // Make @@slave_skip_errors show the nice human-readable value.
+  set_slave_skip_errors(&opt_slave_skip_errors);
+
   /*
     init_slave() must be called after the thread keys are created.
   */
@@ -8137,7 +8141,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
 #ifdef HAVE_REPLICATION
   if (opt_slave_skip_errors)
-    init_slave_skip_errors(opt_slave_skip_errors);
+    add_slave_skip_errors(opt_slave_skip_errors);
 #endif
 
   if (global_system_variables.max_join_size == HA_POS_ERROR)
