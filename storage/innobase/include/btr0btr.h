@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -65,7 +65,11 @@ enum btr_latch_mode {
 	/** Search the previous record. */
 	BTR_SEARCH_PREV = 35,
 	/** Modify the previous record. */
-	BTR_MODIFY_PREV = 36
+	BTR_MODIFY_PREV = 36,
+	/** Apply records that were logged during online index creation. */
+	BTR_MODIFY_LEAF_APPLY_LOG = 37,
+	/** Apply records that were logged during online index creation. */
+	BTR_MODIFY_TREE_APPLY_LOG = 38
 };
 
 /* BTR_INSERT, BTR_DELETE and BTR_DELETE_MARK are mutually exclusive. */
@@ -91,6 +95,26 @@ insert/delete buffer when the record is not in the buffer pool. */
 /** Try to purge the record at the searched position using the insert/delete
 buffer when the record is not in the buffer pool. */
 #define BTR_DELETE		8192
+
+/**************************************************************//**
+Report that an index page is corrupted. */
+UNIV_INTERN
+void
+btr_corruption_report(
+/*==================*/
+	const buf_block_t*	block,	/*!< in: corrupted block */
+	const dict_index_t*	index)	/*!< in: index tree */
+	UNIV_COLD __attribute__((nonnull));
+
+/** Assert that a B-tree page is not corrupted.
+@param block buffer block containing a B-tree page
+@param index the B-tree index */
+#define btr_assert_not_corrupted(block, index)			\
+	if ((ibool) !!page_is_comp(buf_block_get_frame(block))	\
+	    != dict_table_is_comp((index)->table)) {		\
+		btr_corruption_report(block, index);		\
+		ut_error;					\
+	}
 
 #ifdef UNIV_BLOB_DEBUG
 # include "ut0rbt.h"
@@ -375,6 +399,7 @@ UNIV_INTERN
 rec_t*
 btr_root_raise_and_insert(
 /*======================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: cursor at which to insert: must be
 				on the root page; when the function returns,
 				the cursor is positioned on the predecessor
@@ -433,6 +458,7 @@ UNIV_INTERN
 rec_t*
 btr_page_split_and_insert(
 /*======================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: cursor at which to insert; when the
 				function returns, the cursor is positioned
 				on the predecessor of the inserted record */
@@ -446,14 +472,15 @@ UNIV_INTERN
 void
 btr_insert_on_non_leaf_level_func(
 /*==============================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	dict_index_t*	index,	/*!< in: index */
 	ulint		level,	/*!< in: level, must be > 0 */
 	dtuple_t*	tuple,	/*!< in: the record to be inserted */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mtr */
-# define btr_insert_on_non_leaf_level(i,l,t,m)				\
-	btr_insert_on_non_leaf_level_func(i,l,t,__FILE__,__LINE__,m)
+# define btr_insert_on_non_leaf_level(f,i,l,t,m)			\
+	btr_insert_on_non_leaf_level_func(f,i,l,t,__FILE__,__LINE__,m)
 #endif /* !UNIV_HOTBACKUP */
 /****************************************************************//**
 Sets a record as the predefined minimum record. */
@@ -547,17 +574,23 @@ btr_parse_page_reorganize(
 #ifndef UNIV_HOTBACKUP
 /**************************************************************//**
 Gets the number of pages in a B-tree.
-@return	number of pages */
+@return	number of pages, or ULINT_UNDEFINED if the index is unavailable */
 UNIV_INTERN
 ulint
 btr_get_size(
 /*=========*/
 	dict_index_t*	index,	/*!< in: index */
-	ulint		flag);	/*!< in: BTR_N_LEAF_PAGES or BTR_TOTAL_SIZE */
+	ulint		flag,	/*!< in: BTR_N_LEAF_PAGES or BTR_TOTAL_SIZE */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction where index
+				is s-latched */
+	__attribute__((nonnull, warn_unused_result));
 /**************************************************************//**
 Allocates a new file page to be used in an index tree. NOTE: we assume
 that the caller has made the reservation for free extents!
-@return	new allocated block, x-latched; NULL if out of space */
+@retval NULL if no page could be allocated
+@retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
+(init_mtr == mtr, or the page was not previously freed in mtr)
+@retval block (not allocated or initialized) otherwise */
 UNIV_INTERN
 buf_block_t*
 btr_page_alloc(
@@ -596,33 +629,6 @@ btr_page_free_low(
 	buf_block_t*	block,	/*!< in: block to be freed, x-latched */
 	ulint		level,	/*!< in: page level */
 	mtr_t*		mtr);	/*!< in: mtr */
-/**************************************************************//**
-Marks all MTR_MEMO_FREE_CLUST_LEAF pages nonfree or free.
-For invoking btr_store_big_rec_extern_fields() after an update,
-we must temporarily mark freed clustered index pages allocated, so
-that off-page columns will not be allocated from them. Between the
-btr_store_big_rec_extern_fields() and mtr_commit() we have to
-mark the pages free again, so that no pages will be leaked. */
-UNIV_INTERN
-void
-btr_mark_freed_leaves(
-/*==================*/
-	dict_index_t*	index,	/*!< in/out: clustered index */
-	mtr_t*		mtr,	/*!< in/out: mini-transaction */
-	ibool		nonfree)/*!< in: TRUE=mark nonfree, FALSE=mark freed */
-	UNIV_COLD __attribute__((nonnull));
-#ifdef UNIV_DEBUG
-/**************************************************************//**
-Validates all pages marked MTR_MEMO_FREE_CLUST_LEAF.
-@see btr_mark_freed_leaves()
-@return TRUE */
-UNIV_INTERN
-ibool
-btr_freed_leaves_validate(
-/*======================*/
-	mtr_t*	mtr)	/*!< in: mini-transaction */
-	__attribute__((nonnull, warn_unused_result));
-#endif /* UNIV_DEBUG */
 #ifdef UNIV_BTR_PRINT
 /*************************************************************//**
 Prints size info of a B-tree. */

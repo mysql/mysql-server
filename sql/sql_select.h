@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,16 @@
 #include "opt_range.h"                /* SQL_SELECT, QUICK_SELECT_I */
 
 #include "mem_root_array.h"
+#include "sql_executor.h"
+#include "opt_explain_format.h" // for Extra_tag
+
+#include <functional>
+/**
+   Returns a constant of type 'type' with the 'A' lowest-weight bits set.
+   Example: LOWER_BITS(uint, 3) == 7.
+   Requirement: A < sizeof(type) * 8.
+*/
+#define LOWER_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 
 /* Values in optimize */
 #define KEY_OPTIMIZE_EXISTS		1
@@ -98,7 +108,7 @@ public:
   */
   bool *cond_guard;
   /**
-     0..64    <=> This was created from semi-join IN-equality # sj_pred_no.
+     0..63    <=> This was created from semi-join IN-equality # sj_pred_no.
      UINT_MAX  Otherwise
 
      Not used if the index is fulltext (such index cannot be used for
@@ -294,14 +304,6 @@ enum join_type { /*
 
 class JOIN;
 
-enum enum_nested_loop_state
-{
-  NESTED_LOOP_KILLED= -2, NESTED_LOOP_ERROR= -1,
-  NESTED_LOOP_OK= 0, NESTED_LOOP_NO_MORE_ROWS= 1,
-  NESTED_LOOP_QUERY_LIMIT= 3, NESTED_LOOP_CURSOR_LIMIT= 4
-};
-
-
 /* Values for JOIN_TAB::packed_info */
 #define TAB_INFO_HAVE_VALUE 1
 #define TAB_INFO_USING_INDEX 2
@@ -310,11 +312,6 @@ enum enum_nested_loop_state
 
 class JOIN_CACHE;
 class SJ_TMP_TABLE;
-
-typedef enum_nested_loop_state
-(*Next_select_func)(JOIN *, struct st_join_table *, bool);
-Next_select_func setup_end_select_func(JOIN *join);
-int rr_sequential(READ_RECORD *info);
 
 #define SJ_OPT_NONE 0
 #define SJ_OPT_DUPS_WEEDOUT 1
@@ -364,7 +361,7 @@ public:
   Item          *pre_idx_push_cond;
   
   /* Special content for EXPLAIN 'Extra' column or NULL if none */
-  const char	*info;
+  Extra_tag     info;
   /* 
     Bitmap of TAB_INFO_* bits that encodes special line for EXPLAIN 'Extra'
     column, or 0 if there is no info.
@@ -593,7 +590,7 @@ st_join_table::st_join_table()
     first_upper(NULL),
     first_unmatched(NULL),
     pre_idx_push_cond(NULL),
-    info(NULL),
+    info(ET_none),
     packed_info(0),
     materialize_table(NULL),
     read_first_record(NULL),
@@ -659,881 +656,135 @@ st_join_table::st_join_table()
   memset(&read_record, 0, sizeof(read_record));
 }
 
+/**
+  "Less than" comparison function object used to compare two JOIN_TAB
+  objects based on a number of factors in this order:
 
+   - table before another table that depends on it (straight join, 
+     outer join etc), then
+   - table before another table that depends on it to use a key
+     as access method, then
+   - table with smallest number of records first, then
+   - the table with lowest-value pointer (i.e., the one located 
+     in the lowest memory address) first.
 
-/* 
-  Categories of data fields of variable length written into join cache buffers.
-  The value of any of these fields is written into cache together with the
-  prepended length of the value.     
+  @param jt1  first JOIN_TAB object
+  @param jt2  second JOIN_TAB object
+
+  @note The order relation implemented by Join_tab_compare_default is not
+    transitive, i.e. it is possible to choose a, b and c such that 
+    (a < b) && (b < c) but (c < a). This is the case in the
+    following example: 
+
+      a: dependent = <none>   found_records = 3
+      b: dependent = <none>   found_records = 4
+      c: dependent = b        found_records = 2
+
+        a < b: because a has fewer records
+        b < c: because c depends on b (e.g outer join dependency)
+        c < a: because c has fewer records
+
+    This implies that the result of a sort using the relation
+    implemented by Join_tab_compare_default () depends on the order in
+    which elements are compared, i.e. the result is
+    implementation-specific.
+
+  @return
+    true if jt1 is smaller than jt2, false otherwise
 */
-#define CACHE_BLOB      1        /* blob field  */
-#define CACHE_STRIPPED  2        /* field stripped of trailing spaces */
-#define CACHE_VARSTR1   3        /* short string value (length takes 1 byte) */ 
-#define CACHE_VARSTR2   4        /* long string value (length takes 2 bytes) */
-
-/*
-  The CACHE_FIELD structure used to describe fields of records that
-  are written into a join cache buffer from record buffers and backward.
-*/
-typedef struct st_cache_field {
-  uchar *str;   /**< buffer from/to where the field is to be copied */ 
-  uint length;  /**< maximal number of bytes to be copied from/to str */
-  /* 
-    Field object for the moved field
-    (0 - for a flag field, see JOIN_CACHE::create_flag_fields).
-  */
-  Field *field;
-  uint type;    /**< category of the of the copied field (CACHE_BLOB et al.) */
-  /* 
-    The number of the record offset value for the field in the sequence
-    of offsets placed after the last field of the record. These
-    offset values are used to access fields referred to from other caches.
-    If the value is 0 then no offset for the field is saved in the
-    trailing sequence of offsets.
-  */ 
-  uint referenced_field_no; 
-  TABLE *get_rowid; /**< only for ROWID fields used for Duplicate Elimination */
-  /* The remaining structure fields are used as containers for temp values */
-  uint blob_length; /**< length of the blob to be copied */
-  uint offset;      /**< field offset to be saved in cache buffer */
-
-  void bind_buffer(uchar *buffer) { str= buffer; }
-} CACHE_FIELD;
-
-
-/*
-  JOIN_CACHE is the base class to support the implementations of both
-  Blocked-Based Nested Loops (BNL) Join Algorithm and Batched Key Access (BKA)
-  Join Algorithm. The first algorithm is supported by the derived class
-  JOIN_CACHE_BNL, while the second algorithm is supported by the derived
-  class JOIN_CACHE_BKA.
-  These two algorithms have a lot in common. Both algorithms first
-  accumulate the records of the left join operand in a join buffer and
-  then search for matching rows of the second operand for all accumulated
-  records.
-  For the first algorithm this strategy saves on logical I/O operations:
-  the entire set of records from the join buffer requires only one look-through
-  the records provided by the second operand. 
-  For the second algorithm the accumulation of records allows to optimize
-  fetching rows of the second operand from disk for some engines (MyISAM, 
-  InnoDB), or to minimize the number of round-trips between the Server and
-  the engine nodes (NDB Cluster).        
-*/ 
-
-class JOIN_CACHE :public Sql_alloc
+class Join_tab_compare_default :
+  public std::binary_function<const JOIN_TAB*, const JOIN_TAB*, bool>
 {
+public:
+  bool operator()(const JOIN_TAB *jt1, const JOIN_TAB *jt2)
+  {
+    // Sorting distinct tables, so a table should not be compared with itself
+    DBUG_ASSERT(jt1 != jt2);
 
+    if (jt1->dependent & jt2->table->map)
+      return false;
+    if (jt2->dependent & jt1->table->map)
+      return true;
+
+    const bool jt1_keydep_jt2= jt1->key_dependent & jt2->table->map;
+    const bool jt2_keydep_jt1= jt2->key_dependent & jt1->table->map;
+
+    if (jt1_keydep_jt2 && !jt2_keydep_jt1)
+      return false;
+    if (jt2_keydep_jt1 && !jt1_keydep_jt2)
+      return true;
+
+    if (jt1->found_records > jt2->found_records)
+      return false;
+    if (jt1->found_records < jt2->found_records)
+      return true;
+
+    return jt1 < jt2;
+  }
+};
+
+/**
+  "Less than" comparison function object used to compare two JOIN_TAB
+  objects that are joined using STRAIGHT JOIN. For STRAIGHT JOINs, 
+  the join order is dictated by the relative order of the tables in the
+  query which is reflected in JOIN_TAB::dependent. Table size and key
+  dependencies are ignored here.
+*/
+class Join_tab_compare_straight :
+  public std::binary_function<const JOIN_TAB*, const JOIN_TAB*, bool>
+{
+public:
+  bool operator()(const JOIN_TAB *jt1, const JOIN_TAB *jt2)
+  {
+    // Sorting distinct tables, so a table should not be compared with itself
+    DBUG_ASSERT(jt1 != jt2);
+
+    /*
+      We don't do subquery flattening if the parent or child select has
+      STRAIGHT_JOIN modifier. It is complicated to implement and the semantics
+      is hardly useful.
+    */
+    DBUG_ASSERT(!jt1->emb_sj_nest);
+    DBUG_ASSERT(!jt2->emb_sj_nest);
+
+    if (jt1->dependent & jt2->table->map)
+      return false;
+    if (jt2->dependent & jt1->table->map)
+      return true;
+
+    return jt1 < jt2;
+  }
+};
+
+/*
+  Same as Join_tab_compare_default but tables from within the given
+  semi-join nest go first. Used when optimizing semi-join
+  materialization nests.
+*/
+class Join_tab_compare_embedded_first :
+  public std::binary_function<const JOIN_TAB*, const JOIN_TAB*, bool>
+{
 private:
-
-  /* Size of the offset of a record from the cache */   
-  uint size_of_rec_ofs;    
-  /* Size of the length of a record in the cache */
-  uint size_of_rec_len;
-  /* Size of the offset of a field within a record in the cache */   
-  uint size_of_fld_ofs;
-
-protected:
-       
-  /* 3 functions below actually do not use the hidden parameter 'this' */ 
-
-  /* Calculate the number of bytes used to store an offset value */
-  uint offset_size(uint len)
-  { return (len < 256 ? 1 : len < 256*256 ? 2 : 4); }
-
-  /* Get the offset value that takes ofs_sz bytes at the position ptr */
-  ulong get_offset(uint ofs_sz, uchar *ptr)
-  {
-    switch (ofs_sz) {
-    case 1: return uint(*ptr);
-    case 2: return uint2korr(ptr);
-    case 4: return uint4korr(ptr);
-    }
-    return 0;
-  }
-
-  /* Set the offset value ofs that takes ofs_sz bytes at the position ptr */ 
-  void store_offset(uint ofs_sz, uchar *ptr, ulong ofs)
-  {
-    switch (ofs_sz) {
-    case 1: *ptr= (uchar) ofs; return;
-    case 2: int2store(ptr, (uint16) ofs); return;
-    case 4: int4store(ptr, (uint32) ofs); return;
-    }
-  }
-  
-  /* 
-    The total maximal length of the fields stored for a record in the cache.
-    For blob fields only the sizes of the blob lengths are taken into account. 
-  */
-  uint length;
-
-  /* 
-    Representation of the executed multi-way join through which all needed
-    context can be accessed.  
-  */   
-  JOIN *join;  
-
-  /* 
-    Cardinality of the range of join tables whose fields can be put into the
-    cache. (A table from the range not necessarily contributes to the cache.)
-  */
-  uint tables;
-
-  /* 
-    The total number of flag and data fields that can appear in a record
-    written into the cache. Fields with null values are always skipped 
-    to save space. 
-  */
-  uint fields;
-
-  /* 
-    The total number of flag fields in a record put into the cache. They are
-    used for table null bitmaps, table null row flags, and an optional match
-    flag. Flag fields go before other fields in a cache record with the match
-    flag field placed always at the very beginning of the record.
-  */
-  uint flag_fields;
-
-  /* The total number of blob fields that are written into the cache */ 
-  uint blobs;
-
-  /* 
-    The total number of fields referenced from field descriptors for other join
-    caches. These fields are used to construct key values to access matching
-    rows with index lookups. Currently the fields can be referenced only from
-    descriptors for bka caches. However they may belong to a cache of any type.
-  */   
-  uint referenced_fields;
-   
-  /* 
-    The current number of already created data field descriptors.
-    This number can be useful for implementations of the init methods.  
-  */
-  uint data_field_count; 
-
-  /* 
-    The current number of already created pointers to the data field
-    descriptors. This number can be useful for implementations of
-    the init methods.  
-  */
-  uint data_field_ptr_count; 
-  /* 
-    Array of the descriptors of fields containing 'fields' elements.
-    These are all fields that are stored for a record in the cache. 
-  */
-  CACHE_FIELD *field_descr;
-
-  /* 
-    Array of pointers to the blob descriptors that contains 'blobs' elements.
-  */
-  CACHE_FIELD **blob_ptr;
-
-  /* 
-    This flag indicates that records written into the join buffer contain
-    a match flag field. The flag must be set by the init method. 
-  */
-  bool with_match_flag; 
-  /*
-    This flag indicates that any record is prepended with the length of the
-    record which allows us to skip the record or part of it without reading.
-  */
-  bool with_length;
-
-  /* 
-    The maximal number of bytes used for a record representation in
-    the cache excluding the space for blob data. 
-    For future derived classes this representation may contains some
-    redundant info such as a key value associated with the record.     
-  */
-  uint pack_length;
-  /* 
-    The value of pack_length incremented by the total size of all 
-    pointers of a record in the cache to the blob data. 
-  */
-  uint pack_length_with_blob_ptrs;
-
-  /* Pointer to the beginning of the join buffer */
-  uchar *buff;         
-  /* 
-    Size of the entire memory allocated for the join buffer.
-    Part of this memory may be reserved for the auxiliary buffer.
-  */ 
-  ulong buff_size;
-  /* Size of the auxiliary buffer. */ 
-  ulong aux_buff_size;
-
-  /* The number of records put into the join buffer */ 
-  uint records;
-
-  /* 
-    Pointer to the current position in the join buffer.
-    This member is used both when writing to buffer and
-    when reading from it.
-  */
-  uchar *pos;
-  /* 
-    Pointer to the first free position in the join buffer,
-    right after the last record into it.
-  */
-  uchar *end_pos; 
-
-  /* 
-    Pointer to the beginning of first field of the current read/write record
-    from the join buffer. The value is adjusted by the get_record/put_record
-    functions.
-  */
-  uchar *curr_rec_pos;
-  /* 
-    Pointer to the beginning of first field of the last record
-    from the join buffer.
-  */
-  uchar *last_rec_pos;
-
-  /* 
-    Flag is set if the blob data for the last record in the join buffer
-    is in record buffers rather than in the join cache.
-  */
-  bool last_rec_blob_data_is_in_rec_buff;
-
-  /* 
-    Pointer to the position to the current record link. 
-    Record links are used only with linked caches. Record links allow to set
-    connections between parts of one join record that are stored in different
-    join buffers.
-    In the simplest case a record link is just a pointer to the beginning of
-    the record stored in the buffer.
-    In a more general case a link could be a reference to an array of pointers
-    to records in the buffer.   */
-  uchar *curr_rec_link;
-
-  /** Cached value of calc_check_only_first_match(join_tab) */
-  bool check_only_first_match;
-
-  void calc_record_fields();     
-  int alloc_fields(uint external_fields);
-  void create_flag_fields();
-  void create_remaining_fields(bool all_read_fields);
-  void set_constants();
-  int alloc_buffer();
-
-  uint get_size_of_rec_offset() { return size_of_rec_ofs; }
-  uint get_size_of_rec_length() { return size_of_rec_len; }
-  uint get_size_of_fld_offset() { return size_of_fld_ofs; }
-
-  uchar *get_rec_ref(uchar *ptr)
-  {
-    return buff+get_offset(size_of_rec_ofs, ptr-size_of_rec_ofs);
-  }
-  ulong get_rec_length(uchar *ptr)
-  { 
-    return (ulong) get_offset(size_of_rec_len, ptr);
-  }
-  ulong get_fld_offset(uchar *ptr)
-  { 
-    return (ulong) get_offset(size_of_fld_ofs, ptr);
-  }
-
-  void store_rec_ref(uchar *ptr, uchar* ref)
-  {
-    store_offset(size_of_rec_ofs, ptr-size_of_rec_ofs, (ulong) (ref-buff));
-  }
-
-  void store_rec_length(uchar *ptr, ulong len)
-  {
-    store_offset(size_of_rec_len, ptr, len);
-  }
-  void store_fld_offset(uchar *ptr, ulong ofs)
-  {
-    store_offset(size_of_fld_ofs, ptr, ofs);
-  }
-
-  /* Write record fields and their required offsets into the join buffer */ 
-  uint write_record_data(uchar *link, bool *is_full);
-
-  /* 
-    This method must determine for how much the auxiliary buffer should be
-    incremented when a new record is added to the join buffer.
-    If no auxiliary buffer is needed the function should return 0.
-  */
-  virtual uint aux_buffer_incr() { return 0; }
-
-  /* Shall calculate how much space is remaining in the join buffer */ 
-  virtual ulong rem_space() 
-  { 
-    using std::max;
-    return max(buff_size-(end_pos-buff)-aux_buff_size, 0UL);
-  }
-
-  /* Shall skip record from the join buffer if its match flag is on */
-  virtual bool skip_record_if_match();
-
-  /* Read some flag and data fields of a record from the join buffer */
-  int read_some_record_fields();
-
-  /* Read some flag fields of a record from the join buffer */
-  void read_some_flag_fields();
-
-  /* Read all flag fields of the record which is at position rec_ptr */
-  void read_all_flag_fields_by_pos(uchar *rec_ptr);
-
-  /* Read a data record field from the join buffer */
-  uint read_record_field(CACHE_FIELD *copy, bool last_record);
-
-  /* Read a referenced field from the join buffer */
-  bool read_referenced_field(CACHE_FIELD *copy, uchar *rec_ptr, uint *len);
-
-  /* 
-    True if rec_ptr points to the record whose blob data stay in
-    record buffers
-  */
-  bool blob_data_is_in_rec_buff(uchar *rec_ptr)
-  {
-    return rec_ptr == last_rec_pos && last_rec_blob_data_is_in_rec_buff;
-  }
-
-  /* Find matches from the next table for records from the join buffer */   
-  virtual enum_nested_loop_state join_matching_records(bool skip_last)=0;
-
-  /* Add null complements for unmatched outer records from buffer */
-  virtual enum_nested_loop_state join_null_complements(bool skip_last);
-
-  /* Restore the fields of the last record from the join buffer */
-  virtual void restore_last_record();
-
-  /*Set match flag for a record in join buffer if it has not been set yet */
-  bool set_match_flag_if_none(JOIN_TAB *first_inner, uchar *rec_ptr);
-
-  enum_nested_loop_state generate_full_extensions(uchar *rec_ptr);
-
-  /* Check matching to a partial join record from the join buffer */
-  virtual bool check_match(uchar *rec_ptr);
-
-  /** @returns whether we should check only the first match for this table */
-  bool calc_check_only_first_match(const JOIN_TAB *t) const
-  {
-    return (t->last_sj_inner_tab == t &&
-            t->get_sj_strategy() == SJ_OPT_FIRST_MATCH) ||
-      (t->first_inner && t->first_inner->last_inner == t &&
-       t->table->reginfo.not_exists_optimize);
-  }
-
-public:
-
-  /* Table to be joined with the partial join records from the cache */ 
-  JOIN_TAB *join_tab;
-
-  /* Pointer to the previous join cache if there is any */
-  JOIN_CACHE *prev_cache;
-  /* Pointer to the next join cache if there is any */
-  JOIN_CACHE *next_cache;
-
-  /* Shall initialize the join cache structure */ 
-  virtual int init()=0;  
-
-  /* The function shall return TRUE only for BKA caches */
-  virtual bool is_key_access() { return FALSE; }
-
-  /* Shall reset the join buffer for reading/writing */
-  virtual void reset(bool for_writing);
-
-  /* 
-    This function shall add a record into the join buffer and return TRUE
-    if it has been decided that it should be the last record in the buffer.
-  */ 
-  virtual bool put_record();
-
-  /* 
-    This function shall read the next record into the join buffer and return
-    TRUE if there is no more next records.
-  */ 
-  virtual bool get_record();
-
-  /* 
-    This function shall read the record at the position rec_ptr
-    in the join buffer
-  */ 
-  virtual void get_record_by_pos(uchar *rec_ptr);
-
-  /* Shall return the value of the match flag for the positioned record */
-  virtual bool get_match_flag_by_pos(uchar *rec_ptr);
-
-  /* Shall return the position of the current record */
-  virtual uchar *get_curr_rec() { return curr_rec_pos; }
-
-  /* Shall set the current record link */
-  virtual void set_curr_rec_link(uchar *link) { curr_rec_link= link; }
-
-  /* Shall return the current record link */
-  virtual uchar *get_curr_rec_link()
-  { 
-    return (curr_rec_link ? curr_rec_link : get_curr_rec());
-  }
-     
-  /* Join records from the join buffer with records from the next join table */    
-  enum_nested_loop_state join_records(bool skip_last);
-
-  virtual ~JOIN_CACHE() {}
-  void reset_join(JOIN *j) { join= j; }
-  void free()
-  { 
-    my_free(buff);
-    buff= 0;
-  }   
-
-  /** Bits describing cache's type @sa setup_join_buffering() */
-  enum {ALG_NONE= 0, ALG_BNL= 1, ALG_BKA= 2, ALG_BKA_UNIQUE= 4};
-
-  friend class JOIN_CACHE_BNL;
-  friend class JOIN_CACHE_BKA;
-  friend class JOIN_CACHE_BKA_UNIQUE;
-};
-
-class JOIN_CACHE_BNL :public JOIN_CACHE
-{
-
-protected:
-
-  /* Using BNL find matches from the next table for records from join buffer */
-  enum_nested_loop_state join_matching_records(bool skip_last);
-
-public:
-
-  /* 
-    This constructor creates an unlinked BNL join cache. The cache is to be
-    used to join table 'tab' to the result of joining the previous tables 
-    specified by the 'j' parameter.
-  */   
-  JOIN_CACHE_BNL(JOIN *j, JOIN_TAB *tab)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= next_cache= 0;
-  }
-
-  /* 
-    This constructor creates a linked BNL join cache. The cache is to be 
-    used to join table 'tab' to the result of joining the previous tables 
-    specified by the 'j' parameter. The parameter 'prev' specifies the previous
-    cache object to which this cache is linked.
-  */   
-  JOIN_CACHE_BNL(JOIN *j, JOIN_TAB *tab, JOIN_CACHE *prev)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= prev;
-    next_cache= 0;
-    if (prev)
-      prev->next_cache= this;
-  }
-
-  /* Initialize the BNL cache */       
-  int init();
-
-};
-
-class JOIN_CACHE_BKA :public JOIN_CACHE
-{
-protected:
-
-  /* Flag to to be passed to the MRR interface */ 
-  uint mrr_mode;
-
-  /* MRR buffer assotiated with this join cache */
-  HANDLER_BUFFER mrr_buff;
-
-  /* Shall initialize the MRR buffer */
-  virtual void init_mrr_buff()
-  {
-    mrr_buff.buffer= end_pos;
-    mrr_buff.buffer_end= buff+buff_size;
-  }
-
-  /*
-    The number of the cache fields that are used in building keys to access
-    the table join_tab
-  */
-  uint local_key_arg_fields;
-  /* 
-    The total number of the fields in the previous caches that are used
-    in building keys t access the table join_tab
-  */
-  uint external_key_arg_fields;
-
-  /* 
-    This flag indicates that the key values will be read directly from the join
-    buffer. It will save us building key values in the key buffer.
-  */
-  bool use_emb_key;
-  /* The length of an embedded key value */ 
-  uint emb_key_length;
-
-  /* Check the possibility to read the access keys directly from join buffer */  
-  bool check_emb_key_usage();
-
-  /* Calculate the increment of the MM buffer for a record write */
-  uint aux_buffer_incr();
-
-  /* Using BKA find matches from the next table for records from join buffer */
-  enum_nested_loop_state join_matching_records(bool skip_last);
-
-  /* Prepare to search for records that match records from the join buffer */
-  enum_nested_loop_state init_join_matching_records(RANGE_SEQ_IF *seq_funcs,
-                                                    uint ranges);
-
+  const TABLE_LIST *emb_nest;
 public:
   
-  /* 
-    This constructor creates an unlinked BKA join cache. The cache is to be
-    used to join table 'tab' to the result of joining the previous tables 
-    specified by the 'j' parameter.
-    The MRR mode initially is set to 'flags'.
-  */   
-  JOIN_CACHE_BKA(JOIN *j, JOIN_TAB *tab, uint flags)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= next_cache= 0;
-    mrr_mode= flags;
+  Join_tab_compare_embedded_first(const TABLE_LIST *nest) : emb_nest(nest){}
+
+  bool operator()(const JOIN_TAB *jt1, const JOIN_TAB *jt2)
+  {
+    // Sorting distinct tables, so a table should not be compared with itself
+    DBUG_ASSERT(jt1 != jt2);
+
+    if (jt1->emb_sj_nest == emb_nest && jt2->emb_sj_nest != emb_nest)
+      return true;
+    if (jt1->emb_sj_nest != emb_nest && jt2->emb_sj_nest == emb_nest)
+      return false;
+
+    Join_tab_compare_default cmp;
+    return cmp(jt1,jt2);
   }
-
-  /* 
-    This constructor creates a linked BKA join cache. The cache is to be 
-    used to join table 'tab' to the result of joining the previous tables 
-    specified by the 'j' parameter. The parameter 'prev' specifies the cache
-    object to which this cache is linked.
-    The MRR mode initially is set to 'flags'.
-  */   
-  JOIN_CACHE_BKA(JOIN *j, JOIN_TAB *tab, uint flags,  JOIN_CACHE* prev)
-  { 
-    join= j;
-    join_tab= tab;
-    prev_cache= prev;
-    next_cache= 0;
-    if (prev)
-      prev->next_cache= this;
-    mrr_mode= flags;
-  }
-
-  /* Initialize the BKA cache */       
-  int init();
-
-  bool is_key_access() { return TRUE; }
-
-  /* Shall get the key built over the next record from the join buffer */
-  virtual uint get_next_key(uchar **key);
-
-  /* Check if the record combination matches the index condition */
-  bool skip_index_tuple(range_seq_t rseq, char *range_info);
 };
 
-/*
-  The class JOIN_CACHE_BKA_UNIQUE supports the variant of the BKA join algorithm
-  that submits only distinct keys to the MRR interface. The records in the join
-  buffer of a cache of this class that have the same access key are linked into
-  a chain attached to a key entry structure that either itself contains the key
-  value, or, in the case when the keys are embedded, refers to its occurance in
-  one of the records from the chain.
-  To build the chains with the same keys a hash table is employed. It is placed
-  at the very end of the join buffer. The array of hash entries is allocated
-  first at the very bottom of the join buffer, then go key entries. A hash entry
-  contains a header of the list of the key entries with the same hash value. 
-  Each key entry is a structure of the following type:
-    struct st_join_cache_key_entry {
-      union { 
-        uchar[] value;
-        cache_ref *value_ref; // offset from the beginning of the buffer
-      } hash_table_key;
-      key_ref next_key; // offset backward from the beginning of hash table
-      cache_ref *last_rec // offset from the beginning of the buffer
-    }
-  The references linking the records in a chain are always placed at the very
-  beginning of the record info stored in the join buffer. The records are 
-  linked in a circular list. A new record is always added to the end of this 
-  list. When a key is passed to the MRR interface it can be passed either with
-  an association link containing a reference to the header of the record chain
-  attached to the corresponding key entry in the hash table, or without any
-  association link. When the next record is returned by a call to the MRR 
-  function multi_range_read_next without any association (because if was not
-  passed  together with the key) then the key value is extracted from the
-  returned record and searched for it in the hash table. If there is any records
-  with such key the chain of them will be yielded as the result of this search.
-
-  The following picture represents a typical layout for the info stored in the
-  join buffer of a join cache object of the JOIN_CACHE_BKA_UNIQUE class.
-    
-  buff
-  V
-  +----------------------------------------------------------------------------+
-  |     |[*]record_1_1|                                                        |
-  |     ^ |                                                                    |
-  |     | +--------------------------------------------------+                 |
-  |     |                           |[*]record_2_1|          |                 |
-  |     |                           ^ |                      V                 |
-  |     |                           | +------------------+   |[*]record_1_2|   |
-  |     |                           +--------------------+-+   |               |
-  |+--+ +---------------------+                          | |   +-------------+ |
-  ||  |                       |                          V |                 | |
-  |||[*]record_3_1|         |[*]record_1_3|              |[*]record_2_2|     | |
-  ||^                       ^                            ^                   | |
-  ||+----------+            |                            |                   | |
-  ||^          |            |<---------------------------+-------------------+ |
-  |++          | | ... mrr  |   buffer ...           ... |     |               |
-  |            |            |                            |                     |
-  |      +-----+--------+   |                      +-----|-------+             |
-  |      V     |        |   |                      V     |       |             |
-  ||key_3|[/]|[*]|      |   |                |key_2|[/]|[*]|     |             |
-  |                   +-+---|-----------------------+            |             |
-  |                   V |   |                       |            |             |
-  |             |key_1|[*]|[*]|         |   | ... |[*]|   ...  |[*]|  ...  |   |
-  +----------------------------------------------------------------------------+
-                                        ^           ^            ^
-                                        |           i-th entry   j-th entry
-                                        hash table
-
-  i-th hash entry:
-    circular record chain for key_1:
-      record_1_1
-      record_1_2
-      record_1_3 (points to record_1_1)
-    circular record chain for key_3:
-      record_3_1 (points to itself)
-
-  j-th hash entry:
-    circular record chain for key_2:
-      record_2_1
-      record_2_2 (points to record_2_1)
-
-*/
-
-class JOIN_CACHE_BKA_UNIQUE :public JOIN_CACHE_BKA
-{
-
-private:
-
-  /* Size of the offset of a key entry in the hash table */
-  uint size_of_key_ofs;
-
-  /* 
-    Length of a key value.
-    It is assumed that all key values have the same length.
-  */
-  uint key_length;
-  /* 
-    Length of the key entry in the hash table.
-    A key entry either contains the key value, or it contains a reference
-    to the key value if use_emb_key flag is set for the cache.
-  */ 
-  uint key_entry_length;
- 
-  /* The beginning of the hash table in the join buffer */
-  uchar *hash_table;
-  /* Number of hash entries in the hash table */
-  uint hash_entries;
-
-  /* Number of key entries in the hash table (number of distinct keys) */
-  uint key_entries;
-
-  /* The position of the last key entry in the hash table */
-  uchar *last_key_entry;
-
-  /* The position of the currently retrieved key entry in the hash table */
-  uchar *curr_key_entry;
-
-  /* 
-    The offset of the record fields from the beginning of the record
-    representation. The record representation starts with a reference to
-    the next record in the key record chain followed by the length of
-    the trailing record data followed by a reference to the record segment
-     in the previous cache, if any, followed by the record fields.
-  */ 
-  uint rec_fields_offset;
-  /* The offset of the data fields from the beginning of the record fields */
-  uint data_fields_offset;
-  
-  uint get_hash_idx(uchar* key, uint key_len);
-
-  void cleanup_hash_table();
-  
-protected:
-
-  uint get_size_of_key_offset() { return size_of_key_ofs; }
-
-  /* 
-    Get the position of the next_key_ptr field pointed to by 
-    a linking reference stored at the position key_ref_ptr. 
-    This reference is actually the offset backward from the
-    beginning of hash table.
-  */  
-  uchar *get_next_key_ref(uchar *key_ref_ptr)
-  {
-    return hash_table-get_offset(size_of_key_ofs, key_ref_ptr);
-  }
-
-  /* 
-    Store the linking reference to the next_key_ptr field at 
-    the position key_ref_ptr. The position of the next_key_ptr
-    field is pointed to by ref. The stored reference is actually
-    the offset backward from the beginning of the hash table.
-  */  
-  void store_next_key_ref(uchar *key_ref_ptr, uchar *ref)
-  {
-    store_offset(size_of_key_ofs, key_ref_ptr, (ulong) (hash_table-ref));
-  }     
-  
-  /* 
-    Check whether the reference to the next_key_ptr field at the position
-    key_ref_ptr contains  a nil value.
-  */
-  bool is_null_key_ref(uchar *key_ref_ptr)
-  {
-    ulong nil= 0;
-    return memcmp(key_ref_ptr, &nil, size_of_key_ofs ) == 0;
-  } 
-
-  /* 
-    Set the reference to the next_key_ptr field at the position
-    key_ref_ptr equal to nil.
-  */
-  void store_null_key_ref(uchar *key_ref_ptr)
-  {
-    ulong nil= 0;
-    store_offset(size_of_key_ofs, key_ref_ptr, nil);
-  } 
-
-  uchar *get_next_rec_ref(uchar *ref_ptr)
-  {
-    return buff+get_offset(get_size_of_rec_offset(), ref_ptr);
-  }
-
-  void store_next_rec_ref(uchar *ref_ptr, uchar *ref)
-  {
-    store_offset(get_size_of_rec_offset(), ref_ptr, (ulong) (ref-buff));
-  }     
- 
-  /*
-    Get the position of the embedded key value for the current
-    record pointed to by get_curr_rec().
-  */ 
-  uchar *get_curr_emb_key()
-  {
-    return get_curr_rec()+data_fields_offset;
-  }
-
-  /*
-    Get the position of the embedded key value pointed to by a reference
-    stored at ref_ptr. The stored reference is actually the offset from
-    the beginning of the join buffer.
-  */  
-  uchar *get_emb_key(uchar *ref_ptr)
-  {
-    return buff+get_offset(get_size_of_rec_offset(), ref_ptr);
-  }
-
-  /* 
-    Store the reference to an embedded key at the position key_ref_ptr.
-    The position of the embedded key is pointed to by ref. The stored
-    reference is actually the offset from the beginning of the join buffer.
-  */  
-  void store_emb_key_ref(uchar *ref_ptr, uchar *ref)
-  {
-    store_offset(get_size_of_rec_offset(), ref_ptr, (ulong) (ref-buff));
-  }
-  
-  /* 
-    Calculate how much space in the buffer would not be occupied by
-    records, key entries and additional memory for the MMR buffer.
-  */ 
-  ulong rem_space() 
-  { 
-    using std::max;
-    return max(last_key_entry-end_pos-aux_buff_size, 0UL);
-  }
-
-  /* 
-    Initialize the MRR buffer allocating some space within the join buffer.
-    The entire space between the last record put into the join buffer and the
-    last key entry added to the hash table is used for the MRR buffer.
-  */
-  void init_mrr_buff()
-  {
-    mrr_buff.buffer= end_pos;
-    mrr_buff.buffer_end= last_key_entry;
-  }
-
-  /* Skip record from JOIN_CACHE_BKA_UNIQUE buffer if its match flag is on */
-  bool skip_record_if_match();
-
-  /* Using BKA_UNIQUE find matches for records from join buffer */
-  enum_nested_loop_state join_matching_records(bool skip_last);
-
-  /* Search for a key in the hash table of the join buffer */
-  bool key_search(uchar *key, uint key_len, uchar **key_ref_ptr);
-
-  virtual bool check_match(uchar *rec_ptr);
-
-public:
-
-  /* 
-    This constructor creates an unlinked BKA_UNIQUE join cache. The cache is
-    to be used to join table 'tab' to the result of joining the previous tables 
-    specified by the 'j' parameter.
-    The MRR mode initially is set to 'flags'.
-  */   
-  JOIN_CACHE_BKA_UNIQUE(JOIN *j, JOIN_TAB *tab, uint flags)
-    :JOIN_CACHE_BKA(j, tab, flags) {}
-
-  /* 
-    This constructor creates a linked BKA_UNIQUE join cache. The cache is
-    to be used to join table 'tab' to the result of joining the previous tables 
-    specified by the 'j' parameter. The parameter 'prev' specifies the cache
-    object to which this cache is linked.
-    The MRR mode initially is set to 'flags'.
-  */   
-  JOIN_CACHE_BKA_UNIQUE(JOIN *j, JOIN_TAB *tab, uint flags,  JOIN_CACHE* prev)
-    :JOIN_CACHE_BKA(j, tab, flags, prev) {}
-
-  /* Initialize the BKA_UNIQUE cache */       
-  int init();
-
-  /* Reset the JOIN_CACHE_BKA_UNIQUE  buffer for reading/writing */
-  void reset(bool for_writing);
-
-  /* Add a record into the JOIN_CACHE_BKA_UNIQUE buffer */
-  bool put_record();
-
-  /* Read the next record from the JOIN_CACHE_BKA_UNIQUE buffer */
-  bool get_record();
-
-  /*
-    Shall check whether all records in a key chain have 
-    their match flags set on
-  */   
-  virtual bool check_all_match_flags_for_key(uchar *key_chain_ptr);
-
-  uint get_next_key(uchar **key); 
-  
-  /* Get the head of the record chain attached to the current key entry */ 
-  uchar *get_curr_key_chain()
-  {
-    return get_next_rec_ref(curr_key_entry+key_entry_length-
-                            get_size_of_rec_offset());
-  }
-  
-  /* Check if the record combination matches the index condition */
-  bool skip_index_tuple(range_seq_t rseq, char *range_info);
-};
-
-
-enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
-                                        end_of_records);
-enum_nested_loop_state sub_select(JOIN *join,JOIN_TAB *join_tab, bool
-                                  end_of_records);
-enum_nested_loop_state end_send_group(JOIN *join, JOIN_TAB *join_tab,
-                                      bool end_of_records);
-enum_nested_loop_state end_write_group(JOIN *join, JOIN_TAB *join_tab,
-                                       bool end_of_records);
-enum_nested_loop_state sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, 
-                                      bool end_of_records);
 
 
 /**
@@ -1559,6 +810,9 @@ enum_nested_loop_state sub_select_sjm(JOIN *join, JOIN_TAB *join_tab,
      expensive to re-caclulate for every join prefix we consider, so we
      maintain current state in join->positions[#tables_in_prefix]. See
      advance_sj_state() for details.
+
+  This class has to stay a POD, because it is memcpy'd in many places. It
+  however has a no-argument constructor which must be used.
 */
 
 typedef struct st_position : public Sql_alloc
@@ -1674,576 +928,21 @@ typedef struct st_position : public Sql_alloc
     semi-join's ON expression so we can correctly account for fanout.
   */
   table_map sjm_scan_need_tables;
+
+  st_position() : sj_strategy(SJ_OPT_NONE), dups_producing_tables(0) {}
 } POSITION;
 
 
 typedef Bounds_checked_array<Item_null_result*> Item_null_array;
 
-typedef struct st_rollup
-{
-  enum State { STATE_NONE, STATE_INITED, STATE_READY };
-  State state;
-  Item_null_array null_items;
-  Ref_ptr_array *ref_pointer_arrays;
-  List<Item> *fields;
-} ROLLUP;
-
-
-/*
-  Temporary table used by semi-join DuplicateElimination strategy
-
-  This consists of the temptable itself and data needed to put records
-  into it. The table's DDL is as follows:
-
-    CREATE TABLE tmptable (col VARCHAR(n) BINARY, PRIMARY KEY(col));
-
-  where the primary key can be replaced with unique constraint if n exceeds
-  the limit (as it is always done for query execution-time temptables).
-
-  The record value is a concatenation of rowids of tables from the join we're
-  executing. If a join table is on the inner side of the outer join, we
-  assume that its rowid can be NULL and provide means to store this rowid in
-  the tuple.
-*/
-
-class SJ_TMP_TABLE : public Sql_alloc
-{
-public:
-  /*
-    Array of pointers to tables whose rowids compose the temporary table
-    record.
-  */
-  class TAB
-  {
-  public:
-    JOIN_TAB *join_tab;
-    uint rowid_offset;
-    ushort null_byte;
-    uchar null_bit;
-  };
-  TAB *tabs;
-  TAB *tabs_end;
-  
-  /* 
-    is_confluent==TRUE means this is a special case where the temptable record
-    has zero length (and presence of a unique key means that the temptable can
-    have either 0 or 1 records). 
-    In this case we don't create the physical temptable but instead record
-    its state in SJ_TMP_TABLE::have_confluent_record.
-  */
-  bool is_confluent;
-
-  /* 
-    When is_confluent==TRUE: the contents of the table (whether it has the
-    record or not).
-  */
-  bool have_confluent_row;
-  
-  /* table record parameters */
-  uint null_bits;
-  uint null_bytes;
-  uint rowid_len;
-
-  /* The temporary table itself (NULL means not created yet) */
-  TABLE *tmp_table;
-
-  /*
-    These are the members we got from temptable creation code. We'll need
-    them if we'll need to convert table from HEAP to MyISAM/Maria.
-  */
-  MI_COLUMNDEF *start_recinfo;
-  MI_COLUMNDEF *recinfo;
-
-  /* Pointer to next table (next->start_idx > this->end_idx) */
-  SJ_TMP_TABLE *next; 
-};
-
-
-class JOIN :public Sql_alloc
-{
-  JOIN(const JOIN &rhs);                        /**< not implemented */
-  JOIN& operator=(const JOIN &rhs);             /**< not implemented */
-public:
-  JOIN_TAB *join_tab,**best_ref;
-  JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
-  JOIN_TAB *join_tab_save; ///< saved join_tab for subquery reexecution
-  TABLE    **table,**all_tables;
-  /*
-    The table which has an index that allows to produce the requried ordering.
-    A special value of 0x1 means that the ordering will be produced by
-    passing 1st non-const table to filesort(). NULL means no such table exists.
-  */
-  TABLE    *sort_by_table;
-  uint	   tables;        /* Number of tables in the join */
-  uint     outer_tables;  /* Number of tables that are not inside semijoin */
-  uint     const_tables;
-  uint	   send_group_parts;
-  /**
-    Indicates that grouping will be performed on the result set during
-    query execution. This field belongs to query execution.
-
-    @see make_group_fields, alloc_group_fields, JOIN::exec
-  */
-  bool     sort_and_group; 
-  bool     first_record,full_join, no_field_update;
-  bool     group;            ///< If query contains GROUP BY clause
-  bool     do_send_rows;
-  table_map all_table_map;   ///< Set of tables contained in query
-  table_map const_table_map; ///< Set of tables found to be const
-  table_map found_const_table_map; ///< Tables that are const and non-empty
-  table_map outer_join;      ///< Bitmap of all inner tables from outer joins
-  /* Number of records produced after join + group operation */
-  ha_rows  send_records;
-  ha_rows found_records,examined_rows,row_limit;
-  // m_select_limit is used to decide if we are likely to scan the whole table.
-  ha_rows m_select_limit;
-  /**
-    Used to fetch no more than given amount of rows per one
-    fetch operation of server side cursor.
-    The value is checked in end_send and end_send_group in fashion, similar
-    to offset_limit_cnt:
-      - fetch_limit= HA_POS_ERROR if there is no cursor.
-      - when we open a cursor, we set fetch_limit to 0,
-      - on each fetch iteration we add num_rows to fetch to fetch_limit
-  */
-  ha_rows  fetch_limit;
-  /* Finally picked QEP. This is result of join optimization */
-  POSITION *best_positions;
-
-/******* Join optimization state members start *******/
-  
-  /* Current join optimization state */
-  POSITION *positions;  
-
-  /* We also maintain a stack of join optimization states in * join->positions[] */
-/******* Join optimization state members end *******/
-
-
-  Next_select_func first_select;
-  /**
-    The cost of best complete join plan found so far during optimization,
-    after optimization phase - cost of picked join order (not taking into
-    account the changes made by test_if_skip_sort_order()).
-  */
-  double   best_read;
-  /**
-    The estimated row count of the plan with best read time (see above).
-  */
-  ha_rows  best_rowcount;
-  List<Item> *fields;
-  List<Cached_item> group_fields, group_fields_cache;
-  TABLE    *tmp_table;
-  /// used to store 2 possible tmp table of SELECT
-  TABLE    *exec_tmp_table1, *exec_tmp_table2;
-  THD	   *thd;
-  Item_sum  **sum_funcs, ***sum_funcs_end;
-  /** second copy of sumfuncs (for queries with 2 temporary tables */
-  Item_sum  **sum_funcs2, ***sum_funcs_end2;
-  Procedure *procedure;
-  ulonglong  select_options;
-  select_result *result;
-  TMP_TABLE_PARAM tmp_table_param;
-  MYSQL_LOCK *lock;
-  /// unit structure (with global parameters) for this select
-  SELECT_LEX_UNIT *unit;
-  /// select that processed
-  SELECT_LEX *select_lex;
-  /** 
-    TRUE <=> optimizer must not mark any table as a constant table.
-    This is needed for subqueries in form "a IN (SELECT .. UNION SELECT ..):
-    when we optimize the select that reads the results of the union from a
-    temporary table, we must not mark the temp. table as constant because
-    the number of rows in it may vary from one subquery execution to another.
-  */
-  bool no_const_tables; 
-  
-  /**
-    Copy of this JOIN to be used with temporary tables.
-
-    tmp_join is used when the JOIN needs to be "reusable" (e.g. in a subquery
-    that gets re-executed several times) and we know will use temporary tables
-    for materialization. The materialization to a temporary table overwrites the
-    JOIN structure to point to the temporary table after the materialization is
-    done. This is where tmp_join is used : it's a copy of the JOIN before the
-    materialization and is used in restoring before re-execution by overwriting
-    the current JOIN structure with the saved copy.
-    Because of this we should pay extra care of not freeing up helper structures
-    that are referenced by the original contents of the JOIN. We can check for
-    this by making sure the "current" join is not the temporary copy, e.g.
-    !tmp_join || tmp_join != join
- 
-    We should free these sub-structures at JOIN::destroy() if the "current" join
-    has a copy is not that copy.
-  */
-  JOIN *tmp_join;
-  ROLLUP rollup;				///< Used with rollup
-
-  bool select_distinct;				///< Set if SELECT DISTINCT
-  /**
-    If we have the GROUP BY statement in the query,
-    but the group_list was emptied by optimizer, this
-    flag is TRUE.
-    It happens when fields in the GROUP BY are from
-    constant table
-  */
-  bool group_optimized_away;
-
-  /*
-    simple_xxxxx is set if ORDER/GROUP BY doesn't include any references
-    to other tables than the first non-constant table in the JOIN.
-    It's also set if ORDER/GROUP BY is empty.
-    Used for deciding for or against using a temporary table to compute 
-    GROUP/ORDER BY.
-  */
-  bool simple_order, simple_group;
-  /**
-    Is set only in case if we have a GROUP BY clause
-    and no ORDER BY after constant elimination of 'order'.
-  */
-  bool no_order;
-  /** Is set if we have a GROUP BY and we have ORDER BY on a constant. */
-  bool          skip_sort_order;
-
-  bool need_tmp, hidden_group_fields;
-
-  Key_use_array keyuse;
-
-  List<Item> all_fields; ///< to store all fields that used in query
-  ///Above list changed to use temporary table
-  List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
-  ///Part, shared with list above, emulate following list
-  List<Item> tmp_fields_list1, tmp_fields_list2, tmp_fields_list3;
-  List<Item> &fields_list; ///< hold field list passed to mysql_select
-  List<Item> procedure_fields_list;
-  int error;
-
-  ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
-  /** 
-    JOIN::having is initially equal to select_lex->having, but may
-    later be changed by optimizations performed by JOIN.
-    The relationship between the JOIN::having condition and the
-    associated variable select_lex->having_value is so that
-    having_value can be:
-     - COND_UNDEF if a having clause was not specified in the query or
-       if it has not been optimized yet
-     - COND_TRUE if the having clause is always true, in which case
-       JOIN::having is set to NULL.
-     - COND_FALSE if the having clause is impossible, in which case
-       JOIN::having is set to NULL
-     - COND_OK otherwise, meaning that the having clause needs to be
-       further evaluated
-    All of the above also applies to the conds/select_lex->cond_value
-    pair.
-  */
-  Item       *conds;                      ///< The where clause item tree
-  Item       *having;                     ///< The having clause item tree
-  Item       *tmp_having; ///< To store having when processed temporary table
-  TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
-  List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
-  COND_EQUAL *cond_equal;
-  /*
-    Join tab to return to. Points to an element of join->join_tab array, or to
-    join->join_tab[-1].
-    This is used at execution stage to shortcut join enumeration. Currently
-    shortcutting is done to handle outer joins or handle semi-joins with
-    FirstMatch strategy.
-  */
-  JOIN_TAB *return_tab;
-
-  /*
-    Used pointer reference for this select.
-    select_lex->ref_pointer_array contains five "slices" of the same length:
-    |========|========|========|========|========|
-     ref_ptrs items0   items1   items2   items3
-   */
-  Ref_ptr_array ref_ptrs;
-  // Copy of the initial slice above, to be used with different lists
-  Ref_ptr_array items0, items1, items2, items3;
-  // Used by rollup, to restore ref_ptrs after overwriting it.
-  Ref_ptr_array current_ref_ptrs;
-
-  const char *zero_result_cause; ///< not 0 if exec must return zero result
-  
-  bool union_part; ///< this subselect is part of union 
-  bool optimized; ///< flag to avoid double optimization in EXPLAIN
-  
-  // true: No need to run DTORs on pointers.
-  Mem_root_array<Item_exists_subselect*, true> sj_subselects;
-
-  /* Temporary tables used to weed-out semi-join duplicates */
-  List<TABLE> sj_tmp_tables;
-  List<Semijoin_mat_exec> sjm_exec_list;
-
-  /* 
-    storage for caching buffers allocated during query execution. 
-    These buffers allocations need to be cached as the thread memory pool is
-    cleared only at the end of the execution of the whole query and not caching
-    allocations that occur in repetition at execution time will result in 
-    excessive memory usage.
-    Note: make_simple_join always creates an execution plan that accesses
-    a single table, thus it is sufficient to have a one-element array for
-    table_reexec.
-  */  
-  SORT_FIELD *sortorder;                        // make_unireg_sortorder()
-  TABLE *table_reexec[1];                       // make_simple_join()
-  JOIN_TAB *join_tab_reexec;                    // make_simple_join()
-  /* end of allocation caching storage */
-
-  JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
-       select_result *result_arg)
-    : keyuse(thd_arg->mem_root),
-      fields_list(fields_arg),
-      sj_subselects(thd_arg->mem_root)
-  {
-    init(thd_arg, fields_arg, select_options_arg, result_arg);
-  }
-
-  void init(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
-       select_result *result_arg)
-  {
-    join_tab= join_tab_save= 0;
-    all_tables= 0;
-    tables= 0;
-    const_tables= 0;
-    join_list= 0;
-    implicit_grouping= FALSE;
-    sort_and_group= 0;
-    first_record= 0;
-    do_send_rows= 1;
-    send_records= 0;
-    found_records= 0;
-    fetch_limit= HA_POS_ERROR;
-    examined_rows= 0;
-    exec_tmp_table1= 0;
-    exec_tmp_table2= 0;
-    sortorder= 0;
-    table_reexec[0]= 0;
-    join_tab_reexec= 0;
-    thd= thd_arg;
-    sum_funcs= sum_funcs2= 0;
-    procedure= 0;
-    having= tmp_having= 0;
-    select_options= select_options_arg;
-    result= result_arg;
-    lock= thd_arg->lock;
-    select_lex= 0; //for safety
-    tmp_join= 0;
-    select_distinct= test(select_options & SELECT_DISTINCT);
-    no_order= 0;
-    simple_order= 0;
-    simple_group= 0;
-    skip_sort_order= 0;
-    need_tmp= 0;
-    hidden_group_fields= 0; /*safety*/
-    error= 0;
-    return_tab= 0;
-    ref_ptrs.reset();
-    items0.reset();
-    items1.reset();
-    items2.reset();
-    items3.reset();
-    zero_result_cause= 0;
-    optimized= 0;
-    cond_equal= 0;
-    group_optimized_away= 0;
-
-    all_fields= fields_arg;
-    if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
-      fields_list= fields_arg;
-    keyuse.clear();
-    tmp_table_param.init();
-    tmp_table_param.end_write_records= HA_POS_ERROR;
-    rollup.state= ROLLUP::STATE_NONE;
-
-    no_const_tables= FALSE;
-    /* can help debugging (makes smaller test cases): */
-    DBUG_EXECUTE_IF("no_const_tables",no_const_tables= TRUE;);
-    first_select= sub_select;
-  }
-
-  int prepare(TABLE_LIST *tables, uint wind_num,
-	      Item *conds, uint og_num, ORDER *order, ORDER *group,
-	      Item *having, ORDER *proc_param, SELECT_LEX *select,
-	      SELECT_LEX_UNIT *unit);
-  int optimize();
-  void reset();
-  void exec();
-  bool prepare_result(List<Item> **columns_list);
-  void explain();
-  bool destroy();
-  void restore_tmp();
-  bool alloc_func_list();
-  bool flatten_subqueries();
-  bool setup_subquery_materialization();
-  bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
-			  bool before_group_by, bool recompute= FALSE);
-
-  /// Initialzes a slice, see comments for ref_ptrs above.
-  Ref_ptr_array ref_ptr_array_slice(size_t slice_num)
-  {
-    size_t slice_sz= select_lex->ref_pointer_array.size() / 5U;
-    DBUG_ASSERT(select_lex->ref_pointer_array.size() % 5 == 0);
-    DBUG_ASSERT(slice_num < 5U);
-    return Ref_ptr_array(&select_lex->ref_pointer_array[slice_num * slice_sz],
-                         slice_sz);
-  }
-
-  /**
-     Overwrites one slice with the contents of another slice.
-     In the normal case, dst and src have the same size().
-     However: the rollup slices may have smaller size than slice_sz.
-   */
-  void copy_ref_ptr_array(Ref_ptr_array dst_arr, Ref_ptr_array src_arr)
-  {
-    DBUG_ASSERT(dst_arr.size() >= src_arr.size());
-    void *dest= dst_arr.array();
-    const void *src= src_arr.array();
-    memcpy(dest, src, src_arr.size() * src_arr.element_size());
-  }
-
-  /// Overwrites 'ref_ptrs' and remembers the the source as 'current'.
-  void set_items_ref_array(Ref_ptr_array src_arr)
-  {
-    copy_ref_ptr_array(ref_ptrs, src_arr);
-    current_ref_ptrs= src_arr;
-  }
-
-  /// Initializes 'items0' and remembers that it is 'current'.
-  void init_items_ref_array()
-  {
-    items0= ref_ptr_array_slice(1);
-    copy_ref_ptr_array(items0, ref_ptrs);
-    current_ref_ptrs= items0;
-  }
-
-  bool rollup_init();
-  bool rollup_process_const_fields();
-  bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
-			  Item_sum ***func);
-  int rollup_send_data(uint idx);
-  int rollup_write_data(uint idx, TABLE *table);
-  void remove_subq_pushed_predicates(Item **where);
-  /**
-    Release memory and, if possible, the open tables held by this execution
-    plan (and nested plans). It's used to release some tables before
-    the end of execution in order to increase concurrency and reduce
-    memory consumption.
-  */
-  void join_free();
-  /** Cleanup this JOIN, possibly for reuse */
-  void cleanup(bool full);
-  void clear();
-  bool save_join_tab();
-  bool init_save_join_tab();
-  /**
-     Send a row even if the join produced no rows if:
-     - there is an aggregate function (sum_func_count!=0), and
-     - the query is not grouped, and
-     - a possible HAVING clause evaluates to TRUE.
-  */
-  bool send_row_on_empty_set()
-  {
-    return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-	    group_list == NULL && !group_optimized_away &&
-            select_lex->having_value != Item::COND_FALSE);
-  }
-  bool change_result(select_result *result);
-  bool is_top_level_join() const
-  {
-    return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
-                                        select_lex == unit->fake_select_lex));
-  }
-  void cache_const_exprs();
-  bool generate_derived_keys();
-  void drop_unused_derived_keys();
-  bool get_best_combination();
-
-private:
-  /**
-    Execute current query. To be called from @c JOIN::exec.
-
-    If current query is a dependent subquery, this execution is performed on a
-    temporary copy of the original JOIN object in order to be able to restore
-    the original content for re-execution and EXPLAIN. (@note Subqueries may
-    be executed as part of EXPLAIN.) In such cases, execution data that may be
-    reused for later executions will be copied to the original 
-    @c JOIN object (@c parent).
-
-    @param parent Original @c JOIN object when current object is a temporary 
-                  copy. @c NULL, otherwise
-  */
-  void execute(JOIN *parent);
-  
-  /**
-    Create a temporary table to be used for processing DISTINCT/ORDER
-    BY/GROUP BY.
-
-    @note Will modify JOIN object wrt sort/group attributes
-
-    @param tmp_table_fields List of items that will be used to define
-                            column types of the table.
-    @param tmp_table_group  Group key to use for temporary table, NULL if none.
-    @param save_sum_fields  If true, do not replace Item_sum items in 
-                            @c tmp_fields list with Item_field items referring 
-                            to fields in temporary table.
-
-    @returns Pointer to temporary table on success, NULL on failure
-  */
-  TABLE* create_intermediate_table(List<Item> *tmp_table_fields,
-                                   ORDER *tmp_table_group, bool save_sum_fields);
-
-  /**
-    Optimize distinct when used on a subset of the tables.
-
-    E.g.,: SELECT DISTINCT t1.a FROM t1,t2 WHERE t1.b=t2.b
-    In this case we can stop scanning t2 when we have found one t1.a
-  */
-  void optimize_distinct();
-
-  /**
-    TRUE if the query contains an aggregate function but has no GROUP
-    BY clause. 
-  */
-  bool implicit_grouping; 
-  bool make_simple_join(JOIN *join, TABLE *tmp_table);
-  void cleanup_item_list(List<Item> &items) const;
-  void set_semijoin_info();
-  bool set_access_methods();
-};
-
-
 typedef struct st_select_check {
   uint const_ref,reg_ref;
 } SELECT_CHECK;
 
-extern const char *join_type_str[];
-
 /* Extern functions in sql_select.cc */
-bool store_val_in_field(Field *field, Item *val, enum_check_fields check_flag);
-TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
-			ORDER *group, bool distinct, bool save_sum_fields,
-			ulonglong select_options, ha_rows rows_limit,
-			const char* alias);
-void free_tmp_table(THD *thd, TABLE *entry);
 void count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
                        List<Item> &fields, bool reset_with_sum_func);
-bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
-		       Ref_ptr_array ref_pointer_array,
-		       List<Item> &new_list1, List<Item> &new_list2,
-		       uint elements, List<Item> &fields);
-void copy_fields(TMP_TABLE_PARAM *param);
-bool copy_funcs(Item **func_ptr, const THD *thd);
-bool create_myisam_from_heap(THD *thd, TABLE *table,
-                             MI_COLUMNDEF *start_recinfo,
-                             MI_COLUMNDEF **recinfo, 
-                             int error, bool ignore_last_dup,
-                             bool *is_duplicate);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
-Field* create_tmp_field_from_field(THD *thd, Field* org_field,
-                                   const char *name, TABLE *table,
-                                   Item_field *item, uint convert_blob_length);
-                                                                      
-bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
 
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
@@ -2409,22 +1108,7 @@ protected:
   }
 };
 
-bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 bool error_if_full_join(JOIN *join);
-int report_error(TABLE *table, int error);
-int safe_index_read(JOIN_TAB *tab);
-Item *remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value);
-int get_quick_record(SQL_SELECT *select);
-SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length,
-                                  SORT_FIELD *sortorder);
-int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
-		List<Item> &fields, List <Item> &all_fields, ORDER *order);
-int setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
-		List<Item> &fields, List<Item> &all_fields, ORDER *order,
-		bool *hidden_group_fields);
-bool fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
-                   Ref_ptr_array ref_pointer_array, ORDER *group_list= NULL);
-
 bool handle_select(THD *thd, LEX *lex, select_result *result,
                    ulong setup_tables_done_option);
 bool mysql_select(THD *thd,
@@ -2434,29 +1118,9 @@ bool mysql_select(THD *thd,
                   select_result *result, SELECT_LEX_UNIT *unit, 
                   SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
-Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-			Item ***copy_func, Field **from_field,
-                        Field **def_field,
-			bool group, bool modify_item,
-			bool table_cant_handle_bit_fields,
-                        bool make_copy_field,
-                        uint convert_blob_length);
-
-/*
-  General routine to change field->ptr of a NULL-terminated array of Field
-  objects. Useful when needed to call val_int, val_str or similar and the
-  field data is not in table->record[0] but in some other structure.
-  set_key_field_ptr changes all fields of an index using a key_info object.
-  All methods presume that there is at least one field to change.
-*/
-
-TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list);
 
 
-int test_if_item_cache_changed(List<Cached_item> &list);
 void calc_used_field_length(THD *thd, JOIN_TAB *join_tab);
-int join_init_read_record(JOIN_TAB *tab);
-int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl); 
 
 inline bool optimizer_flag(THD *thd, uint flag)
 { 
@@ -2469,24 +1133,20 @@ ORDER *simple_remove_const(ORDER *order, Item *where);
 bool const_expression_in_where(Item *cond, Item *comp_item,
                                Field *comp_field= NULL,
                                Item **const_item= NULL);
-bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
-                           MI_COLUMNDEF *start_recinfo,
-                           MI_COLUMNDEF **recinfo,
-                           ulonglong options, my_bool big_tables,
-                           Opt_trace_context *trace);
+bool test_if_subpart(ORDER *a,ORDER *b);
+void calc_group_buffer(JOIN *join,ORDER *group);
+bool
+test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
+			bool no_changes, const key_map *map);
+bool make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after);
+bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
+                        table_map used_tables);
+bool types_allow_materialization(Item *outer, Item *inner);
+bool and_conditions(Item **e1, Item *e2);
 
-/**
-  Printing the transformed query in EXPLAIN EXTENDED or optimizer trace
-  requires non-destroyed JOINs for subquery engines. So items must be
-  preserved until end of mysql_execute_command().
-*/
-static inline bool preserve_items_for_printing(const THD *thd)
+static inline Item * and_items(Item* cond, Item *item)
 {
-  return (thd->lex->describe
-#ifdef OPTIMIZER_TRACE
-          || thd->opt_trace.support_I_S()
-#endif
-          );
+  return (cond? (new Item_cond_and(cond, item)) : item);
 }
 
 #endif /* SQL_SELECT_INCLUDED */

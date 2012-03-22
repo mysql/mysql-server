@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,33 +20,6 @@
 ****************************************************************************/
 
 NAMED_ILIST key_caches;
-
-/**
-  ilink (intrusive list element) with a name
-*/
-class NAMED_ILINK :public ilink
-{
-public:
-  const char *name;
-  uint name_length;
-  uchar* data;
-
-  NAMED_ILINK(I_List<NAMED_ILINK> *links, const char *name_arg,
-             uint name_length_arg, uchar* data_arg)
-    :name_length(name_length_arg), data(data_arg)
-  {
-    name= my_strndup(name_arg, name_length, MYF(MY_WME));
-    links->push_back(this);
-  }
-  inline bool cmp(const char *name_cmp, uint length)
-  {
-    return length == name_length && !memcmp(name, name_cmp, length);
-  }
-  ~NAMED_ILINK()
-  {
-    my_free((void *) name);
-  }
-};
 
 uchar* find_named(I_List<NAMED_ILINK> *list, const char *name, uint length,
                 NAMED_ILINK **found)

@@ -1,0 +1,14 @@
+!include ndb_rpl_circular_2ch.cnf
+
+[mysqld.1.1]
+ndb-log-apply-status
+
+[mysqld.2.1]
+ndb-log-apply-status
+
+[mysqld.1.slave]
+ndb-log-apply-status
+
+[mysqld.2.slave]
+ndb-log-apply-status
+

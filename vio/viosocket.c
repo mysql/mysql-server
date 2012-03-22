@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -430,6 +430,12 @@ int vio_close(Vio * vio)
 
 const char *vio_description(Vio * vio)
 {
+  if (!vio->desc[0])
+  {
+    my_snprintf(vio->desc, VIO_DESCRIPTION_SIZE,
+                (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"),
+                mysql_socket_getfd(vio->mysql_socket));
+  }
   return vio->desc;
 }
 

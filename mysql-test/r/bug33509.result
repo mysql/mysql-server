@@ -1,0 +1,76 @@
+create table t1 (a int not null);
+drop procedure if exists p1|
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION select a from t1;
+prepare s1 from '
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( select a from t1) 
+  )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))';
+execute s1;
+END;
+|
+call p1();
+a
+drop procedure p1;
+drop table t1;

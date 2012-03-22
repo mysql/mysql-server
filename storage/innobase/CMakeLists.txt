@@ -1,14 +1,14 @@
 # Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
@@ -95,10 +95,34 @@ IF(NOT CMAKE_CROSSCOMPILING)
   }"
   HAVE_IB_GCC_ATOMIC_BUILTINS
   )
+  CHECK_C_SOURCE_RUNS(
+  "#include<stdint.h>
+  int main()
+  {
+    int64_t	x,y,res;
+
+    x = 10;
+    y = 123;
+    res = __sync_sub_and_fetch(&y, x);
+    if (res != y || y != 113) {
+      return(1);
+    }
+    res = __sync_add_and_fetch(&y, x);
+    if (res != y || y != 123) {
+      return(1);
+    }
+    return(0);
+  }"
+  HAVE_IB_GCC_ATOMIC_BUILTINS_64
+  )
 ENDIF()
 
 IF(HAVE_IB_GCC_ATOMIC_BUILTINS)
  ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_BUILTINS=1)
+ENDIF()
+
+IF(HAVE_IB_GCC_ATOMIC_BUILTINS_64)
+ ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_BUILTINS_64=1)
 ENDIF()
 
  # either define HAVE_IB_ATOMIC_PTHREAD_T_GCC or not
@@ -143,7 +167,7 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
      HAVE_ATOMIC_SWAP_UCHAR)
     SET(HAVE_IB_SOLARIS_ATOMICS 1)
   ENDIF()
-  
+
   IF(HAVE_IB_SOLARIS_ATOMICS)
     ADD_DEFINITIONS(-DHAVE_IB_SOLARIS_ATOMICS=1)
   ENDIF()
@@ -164,15 +188,15 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
         memset(&x3, 0x0, sizeof(x3));
 
         if (sizeof(pthread_t) == 4) {
-        
+
           atomic_cas_32(&x1, x2, x3);
-        
+
         } else if (sizeof(pthread_t) == 8) {
-        
+
           atomic_cas_64(&x1, x2, x3);
-        
+
         } else {
-        
+
           return(1);
         }
 
@@ -208,12 +232,12 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler)
 
 # Sun Studio bug with -xO2
-IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro" 
-	AND CMAKE_CXX_FLAGS_RELEASE MATCHES "O2" 
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro"
+	AND CMAKE_CXX_FLAGS_RELEASE MATCHES "O2"
 	AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
 	# Sun Studio 12 crashes with -xO2 flag, but not with higher optimization
 	# -xO3
-	SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_SOURCE_DIR}/rem/rem0rec.cc 
+	SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_SOURCE_DIR}/rem/rem0rec.cc
     PROPERTIES COMPILE_FLAGS -xO3)
 ENDIF()
 
@@ -225,12 +249,15 @@ IF (MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 ENDIF()
 
 SET(INNOBASE_SOURCES
+	api/api0api.cc
+	api/api0misc.cc
 	btr/btr0btr.cc
 	btr/btr0cur.cc
 	btr/btr0pcur.cc
 	btr/btr0sea.cc
 	buf/buf0buddy.cc
 	buf/buf0buf.cc
+	buf/buf0dblwr.cc
 	buf/buf0checksum.cc
 	buf/buf0dump.cc
 	buf/buf0flu.cc
@@ -298,6 +325,7 @@ SET(INNOBASE_SOURCES
 	row/row0ins.cc
 	row/row0merge.cc
 	row/row0mysql.cc
+	row/row0log.cc
 	row/row0purge.cc
 	row/row0row.cc
 	row/row0sel.cc
@@ -339,7 +367,7 @@ IF(WITH_INNODB)
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
 ENDIF()
 
-MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE 
+MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE
   DEFAULT
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES ${ZLIB_LIBRARY})

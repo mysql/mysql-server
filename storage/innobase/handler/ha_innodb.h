@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,19 +38,29 @@ typedef struct innodb_idx_translate_struct {
 
 
 /** InnoDB table share */
-typedef struct st_innobase_share {
+class Innobase_share : public Handler_share
+{
+public:
 	THR_LOCK		lock;		/*!< MySQL lock protecting
 						this structure */
-	const char*		table_name;	/*!< InnoDB table name */
-	uint			use_count;	/*!< reference count,
-						incremented in get_share()
-						and decremented in
-						free_share() */
-	void*			table_name_hash;/*!< hash table chain node */
 	innodb_idx_translate_t	idx_trans_tbl;	/*!< index translation
 						table between MySQL and
 						Innodb */
-} INNOBASE_SHARE;
+	Innobase_share()
+	{
+		thr_lock_init(&lock);
+		idx_trans_tbl.index_mapping = NULL;
+		idx_trans_tbl.index_count = 0;
+		idx_trans_tbl.array_size = 0;
+	}
+	~Innobase_share()
+	{
+		thr_lock_delete(&lock);
+
+		/* Free any memory from index translation table */
+		my_free(idx_trans_tbl.index_mapping);
+	}
+};
 
 
 /** InnoDB B-tree index */
@@ -73,16 +83,17 @@ class ha_innobase: public handler
 					currently using the handle; this is
 					set in external_lock function */
 	THR_LOCK_DATA	lock;
-	INNOBASE_SHARE*	share;		/*!< information for MySQL
+	Innobase_share*	share;		/*!< information for MySQL
 					table locking */
 
-	uchar*		upd_buff;	/*!< buffer used in updates */
-	uchar*		key_val_buff;	/*!< buffer used in converting
+	uchar*		upd_buf;	/*!< buffer used in updates */
+	ulint		upd_buf_size;	/*!< the size of upd_buf in bytes */
+	uchar		srch_key_val1[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
+	uchar		srch_key_val2[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
+					/*!< buffers used in converting
 					search key values from MySQL format
-					to Innodb format */
-	ulong		upd_and_key_val_buff_len;
-					/* the length of each of the previous
-					two buffers */
+					to InnoDB format. "+ 2" for the two
+					bytes where the length is stored */
 	Table_flags	int_table_flags;
 	uint		primary_key;
 	ulong		start_of_scan;	/*!< this is set to 1 when we are
@@ -217,13 +228,68 @@ class ha_innobase: public handler
 	static ulonglong get_mysql_bin_log_pos();
 	bool primary_key_is_clustered();
 	int cmp_ref(const uchar *ref1, const uchar *ref2);
-	/** Fast index creation (smart ALTER TABLE) @see handler0alter.cc @{ */
-	int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
-		      handler_add_index **add);
-	int final_add_index(handler_add_index *add, bool commit);
-	int prepare_drop_index(TABLE *table_arg, uint *key_num,
-			       uint num_of_keys);
-	int final_drop_index(TABLE *table_arg);
+	/** On-line ALTER TABLE interface @see handler0alter.cc @{ */
+
+	/** Check if InnoDB supports a particular alter table in-place
+	@param altered_table	TABLE object for new version of table.
+	@param ha_alter_info	Structure describing changes to be done
+	by ALTER TABLE and holding data used during in-place alter.
+
+	@retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
+	@retval HA_ALTER_INPLACE_EXCLUSIVE_LOCK	Supported, but requires X-lock
+	@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE Supported, prepare phase
+	*/
+	enum_alter_inplace_result check_if_supported_inplace_alter(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info);
+	/** Allows InnoDB to update internal structures with concurrent
+	writes blocked. Invoked before inplace_alter_table().
+
+	@param altered_table	TABLE object for new version of table.
+	@param ha_alter_info	Structure describing changes to be done
+	by ALTER TABLE and holding data used during in-place alter.
+
+	@retval true		Failure
+	@retval false		Success
+	*/
+	bool prepare_inplace_alter_table(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info);
+
+	/** Alter the table structure in-place with operations
+	specified using HA_ALTER_FLAGS and Alter_inplace_information.
+	The level of concurrency allowed during this operation depends
+	on the return value from check_if_supported_inplace_alter().
+
+	@param altered_table	TABLE object for new version of table.
+	@param ha_alter_info	Structure describing changes to be done
+	by ALTER TABLE and holding data used during in-place alter.
+
+	@retval true		Failure
+	@retval false		Success
+	*/
+	bool inplace_alter_table(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info);
+
+	/** Commit or rollback the changes made during
+	prepare_inplace_alter_table() and inplace_alter_table() inside
+	the storage engine. Note that the allowed level of concurrency
+	during this operation will be the same as for
+	inplace_alter_table() and thus might be higher than during
+	prepare_inplace_alter_table(). (E.g concurrent writes were
+	blocked during prepare, but might not be during commit).
+	@param altered_table	TABLE object for new version of table.
+	@param ha_alter_info	Structure describing changes to be done
+	by ALTER TABLE and holding data used during in-place alter.
+	@param commit		true => Commit, false => Rollback.
+	@retval true		Failure
+	@retval false		Success
+	*/
+	bool commit_inplace_alter_table(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info,
+		bool			commit);
 	/** @} */
 	bool check_if_incompatible_data(HA_CREATE_INFO *info,
 					uint table_changes);
@@ -295,6 +361,8 @@ public:
 private:
 	/** The multi range read session object */
 	DsMrr_impl ds_mrr;
+	/** Connects/gets Innobase_share in TABLE_SHARE */
+	Innobase_share* get_share();
 	/* @} */
 };
 
@@ -381,19 +449,6 @@ typedef struct new_ft_info
 	fts_result_t*		ft_result;
 } NEW_FT_INFO;
 
-/********************************************************************//**
-@file handler/ha_innodb.h
-Converts an InnoDB error code to a MySQL error code and also tells to MySQL
-about a possible transaction rollback inside InnoDB caused by a lock wait
-timeout or a deadlock.
-@return	MySQL error code */
-int
-convert_error_code_to_mysql(
-/*========================*/
-	int		error,	/*!< in: InnoDB error code */
-	ulint		flags,	/*!< in: InnoDB table flags, or 0 */
-	MYSQL_THD	thd);	/*!< in: user thread handle or NULL */
-
 /*********************************************************************//**
 Allocates an InnoDB transaction for a MySQL handler object.
 @return	InnoDB transaction handle */
@@ -408,18 +463,39 @@ system default primary index name 'GEN_CLUST_INDEX'. If a name
 matches, this function pushes an warning message to the client,
 and returns true.
 @return true if the index name matches the reserved name */
+UNIV_INTERN
 bool
 innobase_index_name_is_reserved(
 /*============================*/
 	THD*		thd,		/*!< in/out: MySQL connection */
 	const KEY*	key_info,	/*!< in: Indexes to be created */
-	ulint		num_of_keys);	/*!< in: Number of indexes to
+	ulint		num_of_keys)	/*!< in: Number of indexes to
 					be created. */
+	__attribute__((nonnull, warn_unused_result));
+
+/*****************************************************************//**
+Determines InnoDB table flags.
+@retval true if successful, false if error */
+UNIV_INTERN
+bool
+innobase_table_flags(
+/*=================*/
+	const char*		name,		/*!< in: table name */
+	const TABLE*		form,		/*!< in: table */
+	const HA_CREATE_INFO*	create_info,	/*!< in: information
+						on table columns and indexes */
+	THD*			thd,		/*!< in: connection */
+	bool			use_tablespace,	/*!< in: whether to create
+						outside system tablespace */
+	ulint*			flags,		/*!< out: DICT_TF flags */
+	ulint*			flags2)		/*!< out: DICT_TF2 flags */
+	__attribute__((nonnull, warn_unused_result));
+
 /*********************************************************************//**
 Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
-extern "C"
+UNIV_INTERN
 float
 innobase_fts_retrieve_ranking(
 /*==========================*/
@@ -429,51 +505,68 @@ innobase_fts_retrieve_ranking(
 Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
-extern "C"
+UNIV_INTERN
 float
 innobase_fts_find_ranking(
-/*==========================*/
+/*======================*/
 	FT_INFO*	fts_hdl,	/*!< in: FTS handler */
 	uchar*		record,		/*!< in: Unused */
 	uint		len);		/*!< in: Unused */
 /*********************************************************************//**
 Free the memory for the FTS handler */
-extern "C"
+UNIV_INTERN
 void
 innobase_fts_close_ranking(
-/*==========================*/
-	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
-/*********************************************************************//**
-Free the memory for the FTS handler */
-void
-innobase_fts_close_ranking(
-/*==========================*/
-	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
+/*=======================*/
+	FT_INFO*	fts_hdl)	/*!< in: FTS handler */
+	__attribute__((nonnull));
 /*****************************************************************//**
 Initialize the table FTS stopword list
-@return TRUE is succeed */
-extern "C"
+@return TRUE if success */
+UNIV_INTERN
 ibool
 innobase_fts_load_stopword(
 /*=======================*/
 	dict_table_t*	table,		/*!< in: Table has the FTS */
 	trx_t*		trx,		/*!< in: transaction */
-	THD*		thd);		/*!< in: current thread */
+	THD*		thd)		/*!< in: current thread */
+	__attribute__((nonnull(1,3), warn_unused_result));
 
 /** Some defines for innobase_fts_check_doc_id_index() return value */
-#define	FTS_INCORRECT_DOC_ID_INDEX	1
-#define	FTS_EXIST_DOC_ID_INDEX		2
-#define	FTS_NOT_EXIST_DOC_ID_INDEX	3
+enum fts_doc_id_index_enum {
+	FTS_INCORRECT_DOC_ID_INDEX,
+	FTS_EXIST_DOC_ID_INDEX,
+	FTS_NOT_EXIST_DOC_ID_INDEX
+};
+
 /*******************************************************************//**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
-@return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
-FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
-extern "C"
-ulint
+@return the status of the FTS_DOC_ID index */
+UNIV_INTERN
+enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index(
 /*============================*/
-	dict_table_t*	table,		/*!< in: table definition */
-	ulint*		fts_doc_col_no);/*!< out: The column number for
-					Doc ID */
+	const dict_table_t*	table,		/*!< in: table definition */
+	const Alter_inplace_info*ha_alter_info,	/*!< in: alter operation,
+						or NULL if none */
+	ulint*			fts_doc_col_no)	/*!< out: The column number for
+						Doc ID */
+	__attribute__((nonnull(1), warn_unused_result));
 
+/*******************************************************************//**
+Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
+on the Doc ID column in MySQL create index definition.
+@return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
+FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
+UNIV_INTERN
+enum fts_doc_id_index_enum
+innobase_fts_check_doc_id_index_in_def(
+/*===================================*/
+	ulint		n_key,		/*!< in: Number of keys */
+	const KEY*	key_info)	/*!< in: Key definitions */
+	__attribute__((nonnull, warn_unused_result));
+
+/** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
+system clustered index when there is no primary key. */
+extern const char innobase_index_reserve_name[];

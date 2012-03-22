@@ -7,9 +7,10 @@
 #
 # ==== Usage ====
 #
-# --let $slave_io_errno= NUMBER [, NUMBER ...]
+# --let $slave_io_errno= NUMBER [, NUMBER ...] [# comment]
 # [--let $show_slave_io_error= 1]
 # [--let $slave_io_error_is_nonfatal= 1]
+# [--let $slave_io_error_replace= REGEX]
 # [--let $rpl_debug= 1]
 # [--let $slave_timeout= NUMBER]
 # --source include/wait_for_slave_io_error.inc
@@ -19,7 +20,10 @@
 #     The expected IO error numbers. This can be either a single
 #     number, or a comma-separated list of numbers. Examples:
 #       --let $slave_io_errno= 1040, 1053, 2002, 2003, 2006, 2013
-#       --let $slave_io_errno= 1045
+#       --let $slave_io_errno= 1593 # ER_SLAVE_FATAL_ERROR
+#     It is allowed to add a comment at the end of the line, and it
+#     is strongly advised to put the symbolic name of the error in
+#     this comment, like the example above.
 #     (After BUG#41956 has been fixed, this will be required to be
 #     symbolic names instead of numbers.)
 #
@@ -57,15 +61,25 @@ let $slave_param_comparison= $old_slave_param_comparison;
 
 let $_wfsie_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
 
-if ($slave_io_errno == '') {
+if ($slave_io_errno == '')
+{
   --echo !!!ERROR IN TEST: you must set \$slave_io_errno before you source
-  --echo !!!wait_for_slave_sql_error.inc. The error we got this time was '$_wfsie_errno',
+  --echo !!!wait_for_slave_io_error.inc. The error we got this time was '$_wfsie_errno',
   --echo !!!so you probably want to add the following line to your test case:
   --echo !!!  --let \$slave_io_errno= $_wfsie_errno
+  query_vertical SHOW SLAVE STATUS;
   --die !!!ERROR IN TEST: you must set \$slave_io_errno before sourcing wait_for_slave_io_error.inc
 }
 
-if (`SELECT $_wfsie_errno NOT IN ($slave_io_errno)`) {
+# Strip away comments
+--let $_slave_io_errno= `SELECT IF(LOCATE('#', '$slave_io_errno') != 0, SUBSTR('$slave_io_errno', 1, LOCATE('#', '$slave_io_errno') - 1), '$slave_io_errno')`
+if ($rpl_debug)
+{
+  --echo # debug: slave_io_errno='$slave_io_errno'; stripped from comments='$_slave_io_errno' wfsie_errno='$_wfsie_errno'
+}
+
+if (`SELECT $_wfsie_errno NOT IN ($_slave_io_errno)`)
+{
   --echo **** Slave stopped with wrong error code: $_wfsie_errno (expected $slave_io_errno) ****
   source include/show_rpl_debug_info.inc;
   --echo **** Slave stopped with wrong error code: $_wfsie_errno (expected $slave_io_errno) ****
@@ -74,11 +88,11 @@ if (`SELECT $_wfsie_errno NOT IN ($slave_io_errno)`) {
 
 if ($show_slave_io_error)
 {
-  --let $_wait_for_slave_io_error_error= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1)
-  # remove timestamp and mask absolute path
-  --replace_regex $slave_io_error_replace
-  --let $_wait_for_slave_io_error_error= `SELECT REPLACE("$_wait_for_slave_io_error_error", '$MYSQL_TEST_DIR', 'MYSQL_TEST_DIR')`
-  --echo Last_IO_Error = '$_wait_for_slave_io_error_error'
+  --let $_wait_for_slave_io_error_old_status_items= $status_items
+  --let $status_items= Last_IO_Error
+  --let $slave_field_result_replace= $slave_io_error_replace
+  --source include/show_slave_status.inc
+  --let $status_items= $_wait_for_slave_io_error_old_status_items
 }
 
 if (!$slave_io_error_is_nonfatal)

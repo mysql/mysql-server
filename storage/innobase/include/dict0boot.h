@@ -120,30 +120,159 @@ dict_create(void);
 /*-------------------------------------------------------------*/
 /* Dictionary header offsets */
 #define DICT_HDR_ROW_ID		0	/* The latest assigned row id */
-#define	DICT_HDR_TABLE_ID	8	/* The latest assigned table id */
-#define	DICT_HDR_INDEX_ID	16	/* The latest assigned index id */
-#define DICT_HDR_MAX_SPACE_ID	24	/* The latest assigned space id, or 0*/
-#define	DICT_HDR_MIX_ID_LOW	28	/* Obsolete,always DICT_HDR_FIRST_ID */
-#define	DICT_HDR_TABLES		32	/* Root of the table index tree */
-#define	DICT_HDR_TABLE_IDS	36	/* Root of the table index tree */
-#define	DICT_HDR_COLUMNS	40	/* Root of the column index tree */
-#define	DICT_HDR_INDEXES	44	/* Root of the index index tree */
-#define	DICT_HDR_FIELDS		48	/* Root of the index field
-					index tree */
+#define DICT_HDR_TABLE_ID	8	/* The latest assigned table id */
+#define DICT_HDR_INDEX_ID	16	/* The latest assigned index id */
+#define DICT_HDR_MAX_SPACE_ID	24	/* The latest assigned space id,or 0*/
+#define DICT_HDR_MIX_ID_LOW	28	/* Obsolete,always DICT_HDR_FIRST_ID*/
+#define DICT_HDR_TABLES		32	/* Root of SYS_TABLES clust index */
+#define DICT_HDR_TABLE_IDS	36	/* Root of SYS_TABLE_IDS sec index */
+#define DICT_HDR_COLUMNS	40	/* Root of SYS_COLUMNS clust index */
+#define DICT_HDR_INDEXES	44	/* Root of SYS_INDEXES clust index */
+#define DICT_HDR_FIELDS		48	/* Root of SYS_FIELDS clust index */
 
 #define DICT_HDR_FSEG_HEADER	56	/* Segment header for the tablespace
 					segment into which the dictionary
 					header is created */
 /*-------------------------------------------------------------*/
 
+/* The columns in SYS_TABLES */
+enum dict_col_sys_tables_enum {
+	DICT_COL__SYS_TABLES__NAME		= 0,
+	DICT_COL__SYS_TABLES__ID		= 1,
+	DICT_COL__SYS_TABLES__N_COLS		= 2,
+	DICT_COL__SYS_TABLES__TYPE		= 3,
+	DICT_COL__SYS_TABLES__MIX_ID		= 4,
+	DICT_COL__SYS_TABLES__MIX_LEN		= 5,
+	DICT_COL__SYS_TABLES__CLUSTER_ID	= 6,
+	DICT_COL__SYS_TABLES__SPACE		= 7,
+	DICT_NUM_COLS__SYS_TABLES		= 8
+};
 /* The field numbers in the SYS_TABLES clustered index */
-#define DICT_SYS_TABLES_TYPE_FIELD		5
-
+enum dict_fld_sys_tables_enum {
+	DICT_FLD__SYS_TABLES__NAME		= 0,
+	DICT_FLD__SYS_TABLES__DB_TRX_ID		= 1,
+	DICT_FLD__SYS_TABLES__DB_ROLL_PTR	= 2,
+	DICT_FLD__SYS_TABLES__ID		= 3,
+	DICT_FLD__SYS_TABLES__N_COLS		= 4,
+	DICT_FLD__SYS_TABLES__TYPE		= 5,
+	DICT_FLD__SYS_TABLES__MIX_ID		= 6,
+	DICT_FLD__SYS_TABLES__MIX_LEN		= 7,
+	DICT_FLD__SYS_TABLES__CLUSTER_ID	= 8,
+	DICT_FLD__SYS_TABLES__SPACE		= 9,
+	DICT_NUM_FIELDS__SYS_TABLES		= 10
+};
+/* The field numbers in the SYS_TABLE_IDS index */
+enum dict_fld_sys_table_ids_enum {
+	DICT_FLD__SYS_TABLE_IDS__ID		= 0,
+	DICT_FLD__SYS_TABLE_IDS__NAME		= 1,
+	DICT_NUM_FIELDS__SYS_TABLE_IDS		= 2
+};
+/* The columns in SYS_COLUMNS */
+enum dict_col_sys_columns_enum {
+	DICT_COL__SYS_COLUMNS__TABLE_ID		= 0,
+	DICT_COL__SYS_COLUMNS__POS		= 1,
+	DICT_COL__SYS_COLUMNS__NAME		= 2,
+	DICT_COL__SYS_COLUMNS__MTYPE		= 3,
+	DICT_COL__SYS_COLUMNS__PRTYPE		= 4,
+	DICT_COL__SYS_COLUMNS__LEN		= 5,
+	DICT_COL__SYS_COLUMNS__PREC		= 6,
+	DICT_NUM_COLS__SYS_COLUMNS		= 7
+};
+/* The field numbers in the SYS_COLUMNS clustered index */
+enum dict_fld_sys_columns_enum {
+	DICT_FLD__SYS_COLUMNS__TABLE_ID		= 0,
+	DICT_FLD__SYS_COLUMNS__POS		= 1,
+	DICT_FLD__SYS_COLUMNS__DB_TRX_ID	= 2,
+	DICT_FLD__SYS_COLUMNS__DB_ROLL_PTR	= 3,
+	DICT_FLD__SYS_COLUMNS__NAME		= 4,
+	DICT_FLD__SYS_COLUMNS__MTYPE		= 5,
+	DICT_FLD__SYS_COLUMNS__PRTYPE		= 6,
+	DICT_FLD__SYS_COLUMNS__LEN		= 7,
+	DICT_FLD__SYS_COLUMNS__PREC		= 8,
+	DICT_NUM_FIELDS__SYS_COLUMNS		= 9
+};
+/* The columns in SYS_INDEXES */
+enum dict_col_sys_indexes_enum {
+	DICT_COL__SYS_INDEXES__TABLE_ID		= 0,
+	DICT_COL__SYS_INDEXES__ID		= 1,
+	DICT_COL__SYS_INDEXES__NAME		= 2,
+	DICT_COL__SYS_INDEXES__N_FIELDS		= 3,
+	DICT_COL__SYS_INDEXES__TYPE		= 4,
+	DICT_COL__SYS_INDEXES__SPACE		= 5,
+	DICT_COL__SYS_INDEXES__PAGE_NO		= 6,
+	DICT_NUM_COLS__SYS_INDEXES		= 7
+};
 /* The field numbers in the SYS_INDEXES clustered index */
-#define DICT_SYS_INDEXES_PAGE_NO_FIELD	 8
-#define DICT_SYS_INDEXES_SPACE_NO_FIELD	 7
-#define DICT_SYS_INDEXES_TYPE_FIELD	 6
-#define DICT_SYS_INDEXES_NAME_FIELD	 4
+enum dict_fld_sys_indexes_enum {
+	DICT_FLD__SYS_INDEXES__TABLE_ID		= 0,
+	DICT_FLD__SYS_INDEXES__ID		= 1,
+	DICT_FLD__SYS_INDEXES__DB_TRX_ID	= 2,
+	DICT_FLD__SYS_INDEXES__DB_ROLL_PTR	= 3,
+	DICT_FLD__SYS_INDEXES__NAME		= 4,
+	DICT_FLD__SYS_INDEXES__N_FIELDS		= 5,
+	DICT_FLD__SYS_INDEXES__TYPE		= 6,
+	DICT_FLD__SYS_INDEXES__SPACE		= 7,
+	DICT_FLD__SYS_INDEXES__PAGE_NO		= 8,
+	DICT_NUM_FIELDS__SYS_INDEXES		= 9
+};
+/* The columns in SYS_FIELDS */
+enum dict_col_sys_fields_enum {
+	DICT_COL__SYS_FIELDS__INDEX_ID		= 0,
+	DICT_COL__SYS_FIELDS__POS		= 1,
+	DICT_COL__SYS_FIELDS__COL_NAME		= 2,
+	DICT_NUM_COLS__SYS_FIELDS		= 3
+};
+/* The field numbers in the SYS_FIELDS clustered index */
+enum dict_fld_sys_fields_enum {
+	DICT_FLD__SYS_FIELDS__INDEX_ID		= 0,
+	DICT_FLD__SYS_FIELDS__POS		= 1,
+	DICT_FLD__SYS_FIELDS__DB_TRX_ID		= 2,
+	DICT_FLD__SYS_FIELDS__DB_ROLL_PTR	= 3,
+	DICT_FLD__SYS_FIELDS__COL_NAME		= 4,
+	DICT_NUM_FIELDS__SYS_FIELDS		= 5
+};
+/* The columns in SYS_FOREIGN */
+enum dict_col_sys_foreign_enum {
+	DICT_COL__SYS_FOREIGN__ID		= 0,
+	DICT_COL__SYS_FOREIGN__FOR_NAME		= 1,
+	DICT_COL__SYS_FOREIGN__REF_NAME		= 2,
+	DICT_COL__SYS_FOREIGN__N_COLS		= 3,
+	DICT_NUM_COLS__SYS_FOREIGN		= 4
+};
+/* The field numbers in the SYS_FOREIGN clustered index */
+enum dict_fld_sys_foreign_enum {
+	DICT_FLD__SYS_FOREIGN__ID		= 0,
+	DICT_FLD__SYS_FOREIGN__DB_TRX_ID	= 1,
+	DICT_FLD__SYS_FOREIGN__DB_ROLL_PTR	= 2,
+	DICT_FLD__SYS_FOREIGN__FOR_NAME		= 3,
+	DICT_FLD__SYS_FOREIGN__REF_NAME		= 4,
+	DICT_FLD__SYS_FOREIGN__N_COLS		= 5,
+	DICT_NUM_FIELDS__SYS_FOREIGN		= 6
+};
+/* The field numbers in the SYS_FOREIGN_FOR_NAME secondary index */
+enum dict_fld_sys_foreign_for_name_enum {
+	DICT_FLD__SYS_FOREIGN_FOR_NAME__NAME	= 0,
+	DICT_FLD__SYS_FOREIGN_FOR_NAME__ID	= 1,
+	DICT_NUM_FIELDS__SYS_FOREIGN_FOR_NAME	= 2
+};
+/* The columns in SYS_FOREIGN_COLS */
+enum dict_col_sys_foreign_cols_enum {
+	DICT_COL__SYS_FOREIGN_COLS__ID			= 0,
+	DICT_COL__SYS_FOREIGN_COLS__POS			= 1,
+	DICT_COL__SYS_FOREIGN_COLS__FOR_COL_NAME	= 2,
+	DICT_COL__SYS_FOREIGN_COLS__REF_COL_NAME	= 3,
+	DICT_NUM_COLS__SYS_FOREIGN_COLS			= 4
+};
+/* The field numbers in the SYS_FOREIGN_COLS clustered index */
+enum dict_fld_sys_foreign_cols_enum {
+	DICT_FLD__SYS_FOREIGN_COLS__ID			= 0,
+	DICT_FLD__SYS_FOREIGN_COLS__POS			= 1,
+	DICT_FLD__SYS_FOREIGN_COLS__DB_TRX_ID		= 2,
+	DICT_FLD__SYS_FOREIGN_COLS__DB_ROLL_PTR		= 3,
+	DICT_FLD__SYS_FOREIGN_COLS__FOR_COL_NAME	= 4,
+	DICT_FLD__SYS_FOREIGN_COLS__REF_COL_NAME	= 5,
+	DICT_NUM_FIELDS__SYS_FOREIGN_COLS		= 6
+};
 
 /* When a row id which is zero modulo this number (which must be a power of
 two) is assigned, the field DICT_HDR_ROW_ID on the dictionary header page is

@@ -2,7 +2,7 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,92 @@ enum partition_keywords
 #define PAR_NUM_PARTS_OFFSET 8
 /* offset to the engines array */
 #define PAR_ENGINES_OFFSET 12
+
+/** Struct used for partition_name_hash */
+typedef struct st_part_name_def
+{
+  uchar *partition_name;
+  uint length;
+  uint32 part_id;
+  my_bool is_subpart;
+} PART_NAME_DEF;
+
+/** class where to save partitions Handler_share's */
+class Parts_share_refs
+{
+public:
+  uint num_parts;                              /**< Size of ha_share array */
+  Handler_share **ha_shares;                   /**< Storage for each part */
+  Parts_share_refs()
+  {
+    num_parts= 0;
+    ha_shares= NULL;
+  }
+  ~Parts_share_refs()
+  {
+    uint i;
+    for (i= 0; i < num_parts; i++)
+      if (ha_shares[i])
+        delete ha_shares[i];
+    if (ha_shares)
+      delete [] ha_shares;
+  }
+  bool init(uint arg_num_parts)
+  {
+    DBUG_ASSERT(!num_parts && !ha_shares);
+    num_parts= arg_num_parts;
+    /* Allocate an array of Handler_share pointers */
+    ha_shares= new Handler_share *[num_parts];
+    if (!ha_shares)
+    {
+      num_parts= 0;
+      return true;
+    }
+    memset(ha_shares, 0, sizeof(Handler_share*) * num_parts);
+    return false;
+  }
+};
+
+
+/**
+  Partition specific Handler_share.
+*/
+class Partition_share : public Handler_share
+{
+public:
+  bool auto_inc_initialized;
+  mysql_mutex_t auto_inc_mutex;                /**< protecting auto_inc val */
+  ulonglong next_auto_inc_val;                 /**< first non reserved value */
+  /**
+    Hash of partition names. Initialized in the first ha_partition::open()
+    for the table_share. After that it is read-only, i.e. no locking required.
+  */
+  bool partition_name_hash_initialized;
+  HASH partition_name_hash;
+  /** Storage for each partitions Handler_share */
+  Parts_share_refs *partitions_share_refs;
+  Partition_share() {}
+  ~Partition_share()
+  {
+    DBUG_ENTER("Partition_share::~Partition_share");
+    mysql_mutex_destroy(&auto_inc_mutex);
+    if (partition_name_hash_initialized)
+      my_hash_free(&partition_name_hash);
+    if (partitions_share_refs)
+      delete partitions_share_refs;
+    DBUG_VOID_RETURN;
+  }
+  bool init(uint num_parts);
+  void lock_auto_inc()
+  {
+    mysql_mutex_lock(&auto_inc_mutex);
+  }
+  void unlock_auto_inc()
+  {
+    mysql_mutex_unlock(&auto_inc_mutex);
+  }
+};
+
 
 class ha_partition :public handler
 {
@@ -175,7 +261,18 @@ private:
   enum_monotonicity_info m_part_func_monotonicity_info;
   /** keep track of locked partitions */
   MY_BITMAP m_locked_partitions;
+  /** Stores shared auto_increment etc. */
+  Partition_share *part_share;
+  /** Temporary storage for new partitions Handler_shares during ALTER */
+  List<Parts_share_refs> m_new_partitions_share_refs;
+  /** Sorted array of partition ids in descending order of number of rows. */
+  uint32 *m_part_ids_sorted_by_num_of_records;
+  /* Compare function for my_qsort2, for reversed order. */
+  static int compare_number_of_records(ha_partition *me,
+                                       const uint32 *a,
+                                       const uint32 *b);
 public:
+  Partition_share *get_part_share() { return part_share; }
   handler *clone(const char *name, MEM_ROOT *mem_root);
   virtual void set_part_info(partition_info *part_info, bool early)
   {
@@ -251,7 +348,6 @@ public:
   virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
                                           uint table_changes);
 private:
-  int prepare_for_rename();
   int copy_partitions(ulonglong * const copied, ulonglong * const deleted);
   void cleanup_new_partition(uint part_count);
   int prepare_new_partition(TABLE *table, HA_CREATE_INFO *create_info,
@@ -283,6 +379,8 @@ private:
   bool insert_partition_name_in_hash(const char *name, uint part_id,
                                      bool is_subpart);
   bool populate_partition_name_hash();
+  Partition_share *get_share();
+  bool set_ha_share_ref(Handler_share **ha_share);
 
 public:
 
@@ -545,10 +643,25 @@ public:
   virtual int extra(enum ha_extra_function operation);
   virtual int extra_opt(enum ha_extra_function operation, ulong cachesize);
   virtual int reset(void);
+  /*
+    Do not allow caching of partitioned tables, since we cannot return
+    a callback or engine_data that would work for a generic engine.
+  */
+  virtual my_bool register_query_cache_table(THD *thd, char *table_key,
+                                             uint key_length,
+                                             qc_engine_callback
+                                               *engine_callback,
+                                             ulonglong *engine_data)
+  {
+    *engine_callback= NULL;
+    *engine_data= 0;
+    return FALSE;
+  }
 
 private:
   static const uint NO_CURRENT_PART_ID;
   int loop_extra(enum ha_extra_function operation);
+  int loop_extra_alter(enum ha_extra_function operations);
   void late_extra_cache(uint partition_id);
   void late_extra_no_cache(uint partition_id);
   void prepare_extra_cache(uint cachesize);
@@ -574,15 +687,9 @@ public:
   */
 
 private:
-  /*
-    Helper function to get the minimum number of partitions to use for
-    the optimizer hints/cost calls.
-  */
-  void partitions_optimizer_call_preparations(uint *num_used_parts,
-                                              uint *check_min_num,
-                                              uint *first);
-  ha_rows estimate_rows(bool is_records_in_range, uint inx,
-                        key_range *min_key, key_range *max_key);
+  /* Helper functions for optimizer hints. */
+  ha_rows min_rows_for_estimate();
+  uint get_biggest_used_partition(uint *part_index);
 public:
 
   /*
@@ -954,16 +1061,15 @@ private:
     /* lock already taken */
     if (auto_increment_safe_stmt_log_lock)
       return;
-    DBUG_ASSERT(table_share->ha_part_data && !auto_increment_lock);
+    DBUG_ASSERT(!auto_increment_lock);
     if(table_share->tmp_table == NO_TMP_TABLE)
     {
       auto_increment_lock= TRUE;
-      mysql_mutex_lock(&table_share->ha_part_data->LOCK_auto_inc);
+      part_share->lock_auto_inc();
     }
   }
   virtual void unlock_auto_increment()
   {
-    DBUG_ASSERT(table_share->ha_part_data);
     /*
       If auto_increment_safe_stmt_log_lock is true, we have to keep the lock.
       It will be set to false and thus unlocked at the end of the statement by
@@ -971,7 +1077,7 @@ private:
     */
     if(auto_increment_lock && !auto_increment_safe_stmt_log_lock)
     {
-      mysql_mutex_unlock(&table_share->ha_part_data->LOCK_auto_inc);
+      part_share->unlock_auto_inc();
       auto_increment_lock= FALSE;
     }
   }
@@ -980,10 +1086,10 @@ private:
     ulonglong nr= (((Field_num*) field)->unsigned_flag ||
                    field->val_int() > 0) ? field->val_int() : 0;
     lock_auto_increment();
-    DBUG_ASSERT(table_share->ha_part_data->auto_inc_initialized == TRUE);
+    DBUG_ASSERT(part_share->auto_inc_initialized);
     /* must check when the mutex is taken */
-    if (nr >= table_share->ha_part_data->next_auto_inc_val)
-      table_share->ha_part_data->next_auto_inc_val= nr + 1;
+    if (nr >= part_share->next_auto_inc_val)
+      part_share->next_auto_inc_val= nr + 1;
     unlock_auto_increment();
   }
 
@@ -1049,18 +1155,23 @@ public:
 
   /*
     -------------------------------------------------------------------------
-    MODULE on-line ALTER TABLE
+    MODULE in-place ALTER TABLE
     -------------------------------------------------------------------------
     These methods are in the handler interface. (used by innodb-plugin)
-    They are used for on-line/fast alter table add/drop index:
+    They are used for in-place alter table:
     -------------------------------------------------------------------------
   */
-  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
-                        handler_add_index **add);
-  virtual int final_add_index(handler_add_index *add, bool commit);
-  virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
-                                 uint num_of_keys);
-  virtual int final_drop_index(TABLE *table_arg);
+    virtual enum_alter_inplace_result
+      check_if_supported_inplace_alter(TABLE *altered_table,
+                                       Alter_inplace_info *ha_alter_info);
+    virtual bool prepare_inplace_alter_table(TABLE *altered_table,
+                                             Alter_inplace_info *ha_alter_info);
+    virtual bool inplace_alter_table(TABLE *altered_table,
+                                     Alter_inplace_info *ha_alter_info);
+    virtual bool commit_inplace_alter_table(TABLE *altered_table,
+                                            Alter_inplace_info *ha_alter_info,
+                                            bool commit);
+    virtual void notify_table_changed();
 
   /*
     -------------------------------------------------------------------------

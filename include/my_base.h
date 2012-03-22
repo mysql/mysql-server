@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,11 +78,11 @@ enum ha_rkey_function {
   HA_READ_PREFIX,                 /* Key which as same prefix */
   HA_READ_PREFIX_LAST,            /* Last key with the same prefix */
   HA_READ_PREFIX_LAST_OR_PREV,    /* Last or prev key with the same prefix */
-  HA_READ_MBR_CONTAIN,
-  HA_READ_MBR_INTERSECT,
-  HA_READ_MBR_WITHIN,
-  HA_READ_MBR_DISJOINT,
-  HA_READ_MBR_EQUAL
+  HA_READ_MBR_CONTAIN,            /* Minimum Bounding Rectangle contains */
+  HA_READ_MBR_INTERSECT,          /* Minimum Bounding Rectangle intersect */
+  HA_READ_MBR_WITHIN,             /* Minimum Bounding Rectangle within */
+  HA_READ_MBR_DISJOINT,           /* Minimum Bounding Rectangle disjoint */
+  HA_READ_MBR_EQUAL               /* Minimum Bounding Rectangle equal */
 };
 
 	/* Key algorithm types */
@@ -522,41 +522,40 @@ enum data_file_type {
 
 /* For key ranges */
 
-/* from -inf */
-#define NO_MIN_RANGE	1
+enum key_range_flag {
+  NO_MIN_RANGE=      1 << 0,                    ///< from -inf
+  NO_MAX_RANGE=      1 << 1,                    ///< to +inf
+  /*  X < key, i.e. not including the left endpoint */
+  NEAR_MIN=          1 << 2,
+  /* X > key, i.e. not including the right endpoint */
+  NEAR_MAX=          1 << 3,
+  /*
+    This flag means that index is a unique index, and the interval is
+    equivalent to "AND(keypart_i = const_i)", where all of const_i are
+    not NULLs.
+  */
+  UNIQUE_RANGE=      1 << 4,
+  /*
+    This flag means that the interval is equivalent to 
+    "AND(keypart_i = const_i)", where not all key parts may be used 
+    but all of const_i are not NULLs.
+  */
+  EQ_RANGE=          1 << 5,
+  /*
+    This flag has the same meaning as UNIQUE_RANGE, except that for at
+    least one keypart the condition is "keypart IS NULL".
+  */
+  NULL_RANGE=        1 << 6,
+  GEOM_FLAG=         1 << 7,                     ///< GIS
+  /* Deprecated, currently used only by NDB at row retrieval */
+  SKIP_RANGE=        1 << 8,
+  /* 
+    Used together with EQ_RANGE to indicate that index statistics
+    should be used instead of sampling the index.
+  */
+  USE_INDEX_STATISTICS= 1 << 9
+};
 
-/* to +inf */
-#define NO_MAX_RANGE	2
-
-/*  X < key, i.e. not including the left endpoint */
-#define NEAR_MIN	4
-
-/* X > key, i.e. not including the right endpoint */
-#define NEAR_MAX	8
-
-/* 
-  This flag means that index is a unique index, and the interval is 
-  equivalent to "AND(keypart_i = const_i)", where all of const_i are not NULLs.
-*/
-#define UNIQUE_RANGE	16
-
-/* 
-  This flag means that the interval is equivalent to 
-  "AND(keypart_i = const_i)", where not all key parts may be used but all of 
-  const_i are not NULLs.
-*/
-#define EQ_RANGE	32
-
-/*
-  This flag has the same meaning as UNIQUE_RANGE, except that for at least
-  one keypart the condition is "keypart IS NULL". 
-*/
-#define NULL_RANGE	64
-
-#define GEOM_FLAG      128
-
-/* Deprecated, currently used only by NDB at row retrieval */
-#define SKIP_RANGE     256
 
 typedef struct st_key_range
 {

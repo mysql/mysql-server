@@ -1,7 +1,7 @@
 #ifndef UNIREG_INCLUDED
 #define UNIREG_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,11 +134,14 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
   The flag means that I_S table uses optimization algorithm.
 */
 #define OPTIMIZE_I_S_TABLE     OPEN_VIEW_FULL*2
-
-/*
+/**
   The flag means that we need to process trigger files only.
 */
 #define OPEN_TRIGGER_ONLY      OPTIMIZE_I_S_TABLE*2
+/**
+  This flag is used to instruct tdc_open_view() to check metadata version.
+*/
+#define CHECK_METADATA_VERSION OPEN_TRIGGER_ONLY*2
 
 #define SC_INFO_LENGTH 4		/* Form format constant */
 #define TE_INFO_LENGTH 3
@@ -178,5 +181,6 @@ int rea_create_table(THD *thd, const char *path,
                      HA_CREATE_INFO *create_info,
   		     List<Create_field> &create_field,
                      uint key_count,KEY *key_info,
-                     handler *file);
+                     handler *file,
+                     bool no_ha_table);
 #endif

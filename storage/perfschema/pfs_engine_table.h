@@ -22,8 +22,10 @@
   Performance schema tables (declarations).
 */
 
+#include "pfs_instr_class.h"
 class Field;
 struct PFS_engine_table_share;
+struct time_normalizer;
 
 /**
   @addtogroup Performance_schema_engine
@@ -55,6 +57,9 @@ public:
   */
   int delete_row(TABLE *table, const unsigned char *buf, Field **fields);
 
+  /** Initialize table scan. */
+  virtual int rnd_init(bool scan){return 0;};
+
   /** Fetch the next row in this cursor. */
   virtual int rnd_next(void)= 0;
   /**
@@ -67,6 +72,9 @@ public:
   void set_position(const void *ref);
   /** Reset the cursor position to the beginning of the table. */
   virtual void reset_position(void)= 0;
+
+  /** Get the normalizer and class type for the current row. */
+  void get_normalizer(PFS_instr_class *instr_class);
 
   /** Destructor. */
   virtual ~PFS_engine_table()
@@ -111,6 +119,12 @@ public:
     @param value the value to assign
   */
   static void set_field_enum(Field *f, ulonglong value);
+  /**
+    Helper, assign a value to a timestamp field.
+    @param f the field to set
+    @param value the value to assign
+  */
+  static void set_field_timestamp(Field *f, ulonglong value);
   /**
     Helper, read a value from an enum field.
     @param f the field to read
@@ -168,13 +182,18 @@ protected:
     @param pos              address of the m_pos position member
   */
   PFS_engine_table(const PFS_engine_table_share *share, void *pos)
-    : m_share_ptr(share), m_pos_ptr(pos)
+    : m_share_ptr(share), m_pos_ptr(pos),
+      m_normalizer(NULL), m_class_type(PFS_CLASS_NONE)
   {}
 
   /** Table share. */
   const PFS_engine_table_share *m_share_ptr;
   /** Opaque pointer to the m_pos position of this cursor. */
   void *m_pos_ptr;
+  /** Current normalizer */
+  time_normalizer *m_normalizer;
+  /** Current class type */
+  enum PFS_class_type m_class_type;
 };
 
 /** Callback to open a table. */

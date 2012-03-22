@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,6 +53,7 @@
 #include "sql_table.h"                          // build_table_filename
 #include "datadict.h"   // dd_frm_type()
 #include "sql_hset.h"   // Hash_set
+#include "sql_tmp_table.h" // free_tmp_table
 #ifdef  __WIN__
 #include <io.h>
 #endif
@@ -223,7 +224,8 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
 static void free_cache_entry(TABLE *entry);
 static bool
 has_write_table_with_auto_increment(TABLE_LIST *tables);
-
+static bool
+has_write_table_with_auto_increment_and_select(TABLE_LIST *tables);
 
 uint cached_open_tables(void)
 {
@@ -1227,12 +1229,12 @@ err_with_reopen:
     */
     thd->locked_tables_list.reopen_tables(thd);
     /*
-      Since downgrade_exclusive_lock() won't do anything with shared
+      Since downgrade_lock() won't do anything with shared
       metadata lock it is much simpler to go through all open tables rather
       than picking only those tables that were flushed.
     */
     for (TABLE *tab= thd->open_tables; tab; tab= tab->next)
-      tab->mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+      tab->mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
   }
   DBUG_RETURN(result);
 }
@@ -1815,7 +1817,7 @@ bool close_temporary_tables(THD *thd)
       thd->variables.character_set_client= cs_save;
 
       thd->get_stmt_da()->set_overwrite_status(true);
-      if ((error= (mysql_bin_log.write(&qinfo) || error)))
+      if ((error= (mysql_bin_log.write_event(&qinfo) || error)))
       {
         /*
           If we're here following THD::cleanup, thence the connection
@@ -2349,8 +2351,9 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
                        table->s->table_name.str, (ulong) table->s,
                        table->db_stat, table->s->version));
 
-  if (thd->mdl_context.upgrade_shared_lock_to_exclusive(
-             table->mdl_ticket, thd->variables.lock_wait_timeout))
+  if (thd->mdl_context.upgrade_shared_lock(
+             table->mdl_ticket, MDL_EXCLUSIVE,
+             thd->variables.lock_wait_timeout))
     DBUG_RETURN(TRUE);
 
   tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN,
@@ -2399,7 +2402,7 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db_name, table_name,
                      FALSE);
     /* Remove the table from the storage engine and rm the .frm. */
-    quick_rm_table(table_type, db_name, table_name, 0);
+    quick_rm_table(thd, table_type, db_name, table_name, 0);
   }
   DBUG_VOID_RETURN;
 }
@@ -2844,7 +2847,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       if (dd_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
         if (!tdc_open_view(thd, table_list, alias, key, key_length,
-                           mem_root, 0))
+                           mem_root, CHECK_METADATA_VERSION))
         {
           DBUG_ASSERT(table_list->view != 0);
           DBUG_RETURN(FALSE); // VIEW
@@ -2869,6 +2872,14 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
   {
+    /* Check if we're trying to take a write lock in a read only transaction. */
+    if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
+        thd->tx_read_only)
+    {
+      my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
+      DBUG_RETURN(true);
+    }
+
     /*
       We are not under LOCK TABLES and going to acquire write-lock/
       modify the base table. We need to acquire protection against
@@ -2982,6 +2993,11 @@ retry_share:
     DBUG_RETURN(TRUE);
   }
 
+  /*
+    Check if this TABLE_SHARE-object corresponds to a view. Note, that there is
+    no need to call TABLE_SHARE::has_old_version() as we do for regular tables,
+    because view shares are always up to date.
+  */
   if (share->is_view)
   {
     /*
@@ -3224,9 +3240,9 @@ TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name)
          upgrade the lock and ER_TABLE_NOT_LOCKED_FOR_WRITE will be
          reported.
 
-   @return Pointer to TABLE instance with MDL_SHARED_NO_WRITE,
-           MDL_SHARED_NO_READ_WRITE, or MDL_EXCLUSIVE metadata
-           lock, NULL otherwise.
+   @return Pointer to TABLE instance with MDL_SHARED_UPGRADABLE
+           MDL_SHARED_NO_WRITE, MDL_SHARED_NO_READ_WRITE, or
+           MDL_EXCLUSIVE metadata lock, NULL otherwise.
 */
 
 TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
@@ -3817,6 +3833,24 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
                                OPEN_VIEW, &error,
                                hash_value)))
     goto err;
+
+  if ((flags & CHECK_METADATA_VERSION))
+  {
+    /*
+      Check TABLE_SHARE-version of view only if we have been instructed to do
+      so. We do not need to check the version if we're executing CREATE VIEW or
+      ALTER VIEW statements.
+
+      In the future, this functionality should be moved out from
+      tdc_open_view(), and  tdc_open_view() should became a part of a clean
+      table-definition-cache interface.
+    */
+    if (check_and_update_table_version(thd, table_list, share))
+    {
+      release_table_share(share);
+      goto err;
+    }
+  }
 
   if (share->is_view &&
       !open_new_frm(thd, share, alias,
@@ -4739,11 +4773,18 @@ lock_table_names(THD *thd,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->mdl_request.type < MDL_SHARED_NO_WRITE ||
+    if (table->mdl_request.type < MDL_SHARED_UPGRADABLE ||
         table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
     {
       continue;
+    }
+
+    /* Write lock on normal tables is not allowed in a read only transaction. */
+    if (thd->tx_read_only)
+    {
+      my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
+      return true;
     }
 
     if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && schema_set.insert(table))
@@ -4817,7 +4858,7 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->mdl_request.type < MDL_SHARED_NO_WRITE ||
+    if (table->mdl_request.type < MDL_SHARED_UPGRADABLE ||
         table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
     {
@@ -5017,7 +5058,7 @@ restart:
       for (table= *start; table && table != thd->lex->first_not_own_table();
            table= table->next_global)
       {
-        if (table->mdl_request.type >= MDL_SHARED_NO_WRITE)
+        if (table->mdl_request.type >= MDL_SHARED_UPGRADABLE)
           table->mdl_request.ticket= NULL;
       }
     }
@@ -5563,7 +5604,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   table_list->required_type= FRMTYPE_TABLE;
 
   /* This function can't properly handle requests for such metadata locks. */
-  DBUG_ASSERT(table_list->mdl_request.type < MDL_SHARED_NO_WRITE);
+  DBUG_ASSERT(table_list->mdl_request.type < MDL_SHARED_UPGRADABLE);
 
   while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx)) &&
          ot_ctx.can_recover_from_failed_open())
@@ -5829,9 +5870,20 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
 	*(ptr++)= table->table;
     }
 
+    /*
+    DML statements that modify a table with an auto_increment column based on
+    rows selected from a table are unsafe as the order in which the rows are
+    fetched fron the select tables cannot be determined and may differ on
+    master and slave.
+    */
+    if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables &&
+        has_write_table_with_auto_increment_and_select(tables))
+      thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT);
+
     /* We have to emulate LOCK TABLES if we are statement needs prelocking. */
     if (thd->lex->requires_prelocking())
     {
+
       /*
         A query that modifies autoinc column in sub-statement can make the 
         master and slave inconsistent.
@@ -6017,6 +6069,9 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
   @param add_to_temporary_tables_list Specifies if the opened TABLE
                                       instance should be linked into
                                       THD::temporary_tables list.
+  @param open_in_engine               Indicates that we need to open table
+                                      in storage engine in addition to
+                                      constructing TABLE object for it.
 
   @note This function is used:
     - by alter_table() to open a temporary table;
@@ -6028,7 +6083,8 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
 
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                            const char *table_name,
-                           bool add_to_temporary_tables_list)
+                           bool add_to_temporary_tables_list,
+                           bool open_in_engine)
 {
   TABLE *tmp_table;
   TABLE_SHARE *share;
@@ -6048,6 +6104,13 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                                       strlen(path)+1 + key_length,
                                       MYF(MY_WME))))
     DBUG_RETURN(0);				/* purecov: inspected */
+
+#ifndef DBUG_OFF
+  mysql_mutex_lock(&LOCK_open);
+  DBUG_ASSERT(!my_hash_search(&table_def_cache, (uchar*) cache_key,
+                              key_length));
+  mysql_mutex_unlock(&LOCK_open);
+#endif
 
   share= (TABLE_SHARE*) (tmp_table+1);
   tmp_path= (char*) (share+1);
@@ -6072,8 +6135,9 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 #endif
 
   if (open_table_from_share(thd, share, table_name,
+                            open_in_engine ?
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                                    HA_GET_INDEX),
+                                    HA_GET_INDEX) : 0,
                             READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                             ha_open_options,
                             tmp_table, FALSE))
@@ -6107,17 +6171,27 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 }
 
 
-bool rm_temporary_table(handlerton *base, char *path)
+/**
+  Delete a temporary table.
+
+  @param base  Handlerton for table to be deleted.
+  @param path  Path to the table to be deleted (i.e. path
+               to its .frm without an extension).
+
+  @retval false - success.
+  @retval true  - failure.
+*/
+
+bool rm_temporary_table(handlerton *base, const char *path)
 {
   bool error=0;
   handler *file;
-  char *ext;
+  char frm_path[FN_REFLEN + 1];
   DBUG_ENTER("rm_temporary_table");
 
-  strmov(ext= strend(path), reg_ext);
-  if (mysql_file_delete(key_file_frm, path, MYF(0)))
+  strxnmov(frm_path, sizeof(frm_path) - 1, path, reg_ext, NullS);
+  if (mysql_file_delete(key_file_frm, frm_path, MYF(0)))
     error=1; /* purecov: inspected */
-  *ext= 0;				// remove extension
   file= get_new_handler((TABLE_SHARE*) 0, current_thd->mem_root, base);
   if (file && file->ha_delete_table(path))
   {
@@ -6387,6 +6461,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
       */
       if (*ref && !(*ref)->is_autogenerated_name)
       {
+        item->is_autogenerated_name= false;
         item->set_name((*ref)->name, (*ref)->name_length,
                        system_charset_info);
         item->real_item()->set_name((*ref)->name, (*ref)->name_length,
@@ -6486,6 +6561,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
      */
     if (*ref && !(*ref)->is_autogenerated_name)
     {
+      item->is_autogenerated_name= false;
       item->set_name((*ref)->name, (*ref)->name_length,
                      system_charset_info);
       item->real_item()->set_name((*ref)->name, (*ref)->name_length,
@@ -7913,8 +7989,8 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
 
     /* Add a TRUE condition to outer joins that have no common columns. */
     if (table_ref_2->outer_join &&
-        !table_ref_1->on_expr && !table_ref_2->on_expr)
-      table_ref_2->on_expr= new Item_int((longlong) 1,1);   /* Always true. */
+        !table_ref_1->join_cond() && !table_ref_2->join_cond())
+      table_ref_2->set_join_cond(new Item_int((longlong) 1,1)); // Always true.
 
     /* Change this table reference to become a leaf for name resolution. */
     if (left_neighbor)
@@ -8043,7 +8119,11 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   */
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
-  thd->lex->current_select->cur_pos_in_select_list= 0;
+  // When we enter, we're "nowhere":
+  DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
+              SELECT_LEX::ALL_FIELDS_UNDEF_POS);
+  // Now we're in the SELECT list:
+  thd->lex->current_select->cur_pos_in_all_fields= 0;
   while (wild_num && (item= it++))
   {
     if (item->type() == Item::FIELD_ITEM &&
@@ -8086,9 +8166,12 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       wild_num--;
     }
     else
-      thd->lex->current_select->cur_pos_in_select_list++;
+      thd->lex->current_select->cur_pos_in_all_fields++;
   }
-  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
+  // We're nowhere again:
+  thd->lex->current_select->cur_pos_in_all_fields=
+    SELECT_LEX::ALL_FIELDS_UNDEF_POS;
+
   if (arena)
   {
     /* make * substituting permanent */
@@ -8164,7 +8247,9 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     var->set_entry(thd, FALSE);
 
   Ref_ptr_array ref= ref_pointer_array;
-  thd->lex->current_select->cur_pos_in_select_list= 0;
+  DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
+              SELECT_LEX::ALL_FIELDS_UNDEF_POS);
+  thd->lex->current_select->cur_pos_in_all_fields= 0;
   while ((item= it++))
   {
     if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
@@ -8186,10 +8271,11 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
     thd->lex->current_select->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();
-    thd->lex->current_select->cur_pos_in_select_list++;
+    thd->lex->current_select->cur_pos_in_all_fields++;
   }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
-  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
+  thd->lex->current_select->cur_pos_in_all_fields=
+    SELECT_LEX::ALL_FIELDS_UNDEF_POS;
 
   thd->lex->allow_sum_func= save_allow_sum_func;
   thd->mark_used_columns= save_mark_used_columns;
@@ -8599,7 +8685,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         thd->lex->current_select->select_list_tables|=
           item->used_tables();
       }
-      thd->lex->current_select->cur_pos_in_select_list++;
+      thd->lex->current_select->cur_pos_in_all_fields++;
     }
     /*
       In case of stored tables, all fields are considered as used,
@@ -8731,15 +8817,15 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     do
     {
       embedded= embedding;
-      if (embedded->on_expr)
+      if (embedded->join_cond())
       {
         /* Make a join an a expression */
         select_lex->resolve_place= st_select_lex::RESOLVE_JOIN_NEST;
         select_lex->resolve_nest= embedded;
         thd->where="on clause";
-        if ((!embedded->on_expr->fixed &&
-            embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
-	    embedded->on_expr->check_cols(1))
+        if ((!embedded->join_cond()->fixed &&
+           embedded->join_cond()->fix_fields(thd, embedded->join_cond_ref())) ||
+	   embedded->join_cond()->check_cols(1))
 	  goto err_no_arena;
         select_lex->cond_count++;
         select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
@@ -9323,6 +9409,41 @@ has_write_table_with_auto_increment(TABLE_LIST *tables)
   return 0;
 }
 
+/*
+   checks if we have select tables in the table list and write tables
+   with auto-increment column.
+
+  SYNOPSIS
+   has_two_write_locked_tables_with_auto_increment_and_select
+      tables        Table list
+
+  RETURN VALUES
+
+   -true if the table list has atleast one table with auto-increment column
+
+
+         and atleast one table to select from.
+   -false otherwise
+*/
+
+static bool
+has_write_table_with_auto_increment_and_select(TABLE_LIST *tables)
+{
+  bool has_select= false;
+  bool has_auto_increment_tables = has_write_table_with_auto_increment(tables);
+  for(TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+     if (!table->placeholder() &&
+        (table->lock_type <= TL_READ_NO_INSERT))
+      {
+        has_select= true;
+        break;
+      }
+  }
+  return(has_select && has_auto_increment_tables);
+}
+
+
 
 /*
   Open and lock system tables for read.
@@ -9502,11 +9623,6 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
     /* Make sure all columns get assigned to a default value */
     table->use_all_columns();
     table->no_replicate= 1;
-    /*
-      Don't set automatic timestamps as we may want to use time of logging,
-      not from query start
-    */
-    table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   }
   else
     thd->restore_backup_open_tables_state(backup);

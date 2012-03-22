@@ -878,7 +878,7 @@ void Buffer::prealloc()
 
 const char *Opt_trace_context::flag_names[]=
 {
-  "enabled", "end_marker", "one_line", "default", NullS
+  "enabled", "one_line", "default", NullS
 };
 
 const char *Opt_trace_context::feature_names[]=
@@ -907,6 +907,24 @@ Opt_trace_context::~Opt_trace_context()
     DBUG_ASSERT(pimpl->all_stmts_to_del.elements() == 0);
     delete pimpl;
   }
+}
+
+
+template<class T> T * new_nothrow_w_my_error()
+{
+  T * const t= new (std::nothrow) T();
+  if (unlikely(t == NULL))
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+             static_cast<int>(sizeof(T)));
+  return t;
+}
+template<class T, class Arg> T * new_nothrow_w_my_error(Arg a)
+{
+  T * const t= new (std::nothrow) T(a);
+  if (unlikely(t == NULL))
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+             static_cast<int>(sizeof(T)));
+  return t;
 }
 
 
@@ -959,8 +977,9 @@ bool Opt_trace_context::start(bool support_I_S_arg,
 
   DBUG_EXECUTE_IF("no_new_opt_trace_stmt", DBUG_ASSERT(0););
 
-  if (pimpl == NULL)
-    pimpl= new (std::nothrow) Opt_trace_context_impl();
+  if (pimpl == NULL &&
+      ((pimpl= new_nothrow_w_my_error<Opt_trace_context_impl>()) == NULL))
+    DBUG_RETURN(true);
 
   /*
     If tracing is disabled by some caller, then don't change settings (offset
@@ -1006,11 +1025,12 @@ bool Opt_trace_context::start(bool support_I_S_arg,
       We don't allocate it in THD's MEM_ROOT as it must survive until a next
       statement (SELECT) reads the trace.
     */
-    Opt_trace_stmt *stmt= new (std::nothrow) Opt_trace_stmt(this);
+    Opt_trace_stmt *stmt= new_nothrow_w_my_error<Opt_trace_stmt>(this);
 
     DBUG_PRINT("opt",("new stmt %p support_I_S %d", stmt, support_I_S_arg));
 
-    if (unlikely(pimpl->stack_of_current_stmts
+    if (unlikely(stmt == NULL ||
+                 pimpl->stack_of_current_stmts
                  .append(pimpl->current_stmt_in_gen)))
       goto err;                            // append() above called my_error()
 
@@ -1224,13 +1244,6 @@ void Opt_trace_context::set_query(const char *query, size_t length,
                                   const CHARSET_INFO *charset)
 {
   pimpl->current_stmt_in_gen->set_query(query, length, charset);
-}
-
-
-const char *Opt_trace_context::get_tail(size_t size)
-{
-  return (pimpl == NULL) ? "" :
-    pimpl->current_stmt_in_gen->trace_buffer_tail(size);
 }
 
 

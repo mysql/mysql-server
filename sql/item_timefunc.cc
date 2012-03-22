@@ -79,59 +79,51 @@ adjust_time_range_with_warn(MYSQL_TIME *ltime, uint8 decimals)
 
 
 /*
-  Convert seconds to MYSQL_TIME value with overflow checking
+  Convert seconds to MYSQL_TIME value with overflow checking.
 
   SYNOPSIS:
     sec_to_time()
     seconds          number of seconds
-    unsigned_flag    1, if 'seconds' is unsigned, 0, otherwise
     ltime            output MYSQL_TIME value
-    send_warn        whether to send a generic warning on truncation
 
   DESCRIPTION
     If the 'seconds' argument is inside MYSQL_TIME data range, convert it to a
     corresponding value.
-    Otherwise, truncate the resulting value to the nearest endpoint, and
-    produce a warning message.
+    Otherwise, truncate the resulting value to the nearest endpoint.
 
   RETURN
     1                if the value was truncated during conversion
     0                otherwise
 */
 
-static bool sec_to_time(longlong seconds, bool unsigned_flag,
-                        MYSQL_TIME *ltime, bool send_warn)
+static bool sec_to_time(lldiv_t seconds, MYSQL_TIME *ltime)
 {
-  uint sec;
+  int warning= 0;
 
   set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
   
-  if (seconds < 0)
+  if (seconds.quot < 0 || seconds.rem < 0)
   {
-    if (unsigned_flag)
-      goto overflow;
     ltime->neg= 1;
-    if (seconds < -3020399)
-      goto overflow;
-    seconds= -seconds;
+    seconds.quot= -seconds.quot;
+    seconds.rem= -seconds.rem;
   }
-  else if (seconds > 3020399)
-    goto overflow;
   
-  sec= (uint) ((ulonglong) seconds % 3600);
-  ltime->hour= (uint) (seconds/3600);
-  ltime->minute= sec/60;
+  if (seconds.quot > TIME_MAX_VALUE_SECONDS)
+  {
+    set_max_hhmmss(ltime);
+    return true;
+  }
+
+  ltime->hour= (uint) (seconds.quot / 3600);
+  uint sec= (uint) (seconds.quot % 3600);
+  ltime->minute= sec / 60;
   ltime->second= sec % 60;
+  ltime->second_part= (uint) (seconds.rem / 1000);
+  
+  adjust_time_range(ltime, &warning);
 
-  return 0;
-
-overflow:
-  set_max_hhmmss(ltime);
-
-  if (send_warn)
-    make_truncated_value_warning(ErrConvString(seconds, unsigned_flag),
-                                 MYSQL_TIMESTAMP_TIME);
-  return 1;
+  return warning ? true : false;
 }
 
 
@@ -1464,20 +1456,7 @@ bool Item_func_unix_timestamp::val_timeval(struct timeval *tm)
     return false; // no args: null_value is set in constructor and is always 0.
   }
   int warnings= 0;
-  if (args[0]->get_timeval(tm, &warnings)) // Don't set null_value here
-  {
-    /*
-      We set null_value only if args[0]->get_date() invoked
-      inside args[0]->get_timeval() returned null,
-      which is indicated by "warnings == 0".
-      In case of wrong non-null datetime parameter we return 0.
-      "warnings" will not be equal to 0 in this case.
-    */
-    if (warnings == 0)
-      return (null_value= true);
-    tm->tv_sec= tm->tv_usec= 0;
-  }
-  return (null_value= false);
+  return (null_value= args[0]->get_timeval(tm, &warnings));
 }
 
 
@@ -1868,6 +1847,15 @@ void Item_func_now::fix_length_and_dec()
 }
 
 
+void Item_func_now_local::store_in(Field *field)
+{
+  THD *thd= field->table != NULL ? field->table->in_use : current_thd;
+  const timeval tm= thd->query_start_timeval_trunc(field->decimals());
+  field->set_notnull();
+  return field->store_timestamp(&tm);
+}
+
+
 Time_zone *Item_func_now_local::time_zone()
 {
   return current_thd->time_zone();
@@ -1927,13 +1915,9 @@ bool Item_func_sec_to_time::get_time(MYSQL_TIME *ltime)
     make_truncated_value_warning(ErrConvString(val), MYSQL_TIMESTAMP_TIME);
     return false;
   }
-  sec_to_time(seconds.quot, 0, ltime, true);
-  /*
-    Both negative seconds.quot and negative seconds.rem
-    affect ltime->neg, hence "|=" to combine them.
-  */
-  ltime->neg|= seconds.rem < 0;
-  ltime->second_part= (seconds.rem < 0 ? -seconds.rem : seconds.rem) / 1000;
+  if (sec_to_time(seconds, ltime))
+    make_truncated_value_warning(ErrConvString(val),
+                                 MYSQL_TIMESTAMP_TIME);
   return false;
 }
 
@@ -2251,11 +2235,9 @@ void Item_date_add_interval::fix_length_and_dec()
     uint8 dec= MY_MAX(args[0]->datetime_precision(), interval_dec);
     fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, dec);
     cached_field_type= MYSQL_TYPE_DATETIME;
-    unsigned_flag= 1;
   }
   else if (arg0_field_type == MYSQL_TYPE_DATE)
   {
-    unsigned_flag= 1;
     if (int_type <= INTERVAL_DAY || int_type == INTERVAL_YEAR_MONTH)
     {
       cached_field_type= MYSQL_TYPE_DATE;
@@ -2335,8 +2317,11 @@ bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime)
                       interval.second_part) *
                       (interval.neg ? -1 : 1);
   longlong diff= usec1 + usec2;
+  lldiv_t seconds;
+  seconds.quot= diff / 1000000;
+  seconds.rem= diff % 1000000 * 1000; /* time->second_part= lldiv.rem / 1000 */
   if ((null_value= (interval.year || interval.month ||
-                    sec_to_time(diff / 1000000, 0, ltime, false))))
+                    sec_to_time(seconds, ltime))))
   {
     push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_DATETIME_FUNCTION_OVERFLOW,
@@ -2344,8 +2329,6 @@ bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime)
                         "time");
     return true;
   }  
-  ltime->second_part= (diff % 1000000) * (diff < 0 ? -1 : 1);
-  ltime->time_type= MYSQL_TIMESTAMP_TIME;
   return false;
 }
 
@@ -2515,180 +2498,6 @@ bool Item_extract::eq(const Item *item, bool binary_cmp) const
 }
 
 
-bool Item_char_typecast::eq(const Item *item, bool binary_cmp) const
-{
-  if (this == item)
-    return 1;
-  if (item->type() != FUNC_ITEM ||
-      functype() != ((Item_func*)item)->functype())
-    return 0;
-
-  Item_char_typecast *cast= (Item_char_typecast*)item;
-  if (cast_length != cast->cast_length ||
-      cast_cs     != cast->cast_cs)
-    return 0;
-
-  if (!args[0]->eq(cast->args[0], binary_cmp))
-      return 0;
-  return 1;
-}
-
-void Item_typecast::print(String *str, enum_query_type query_type)
-{
-  str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str, query_type);
-  str->append(STRING_WITH_LEN(" as "));
-  str->append(cast_type());
-  str->append(')');
-}
-
-
-void Item_char_typecast::print(String *str, enum_query_type query_type)
-{
-  str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str, query_type);
-  str->append(STRING_WITH_LEN(" as char"));
-  if (cast_length >= 0)
-    str->append_parenthesized(cast_length);
-  if (cast_cs)
-  {
-    str->append(STRING_WITH_LEN(" charset "));
-    str->append(cast_cs->csname);
-  }
-  str->append(')');
-}
-
-String *Item_char_typecast::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-  String *res;
-  uint32 length;
-
-  if (cast_length >= 0 &&
-      ((unsigned) cast_length) > current_thd->variables.max_allowed_packet)
-  {
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
-			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-			cast_cs == &my_charset_bin ?
-                        "cast_as_binary" : func_name(),
-                        current_thd->variables.max_allowed_packet);
-    null_value= 1;
-    return 0;
-  }
-
-  if (!charset_conversion)
-  {
-    if (!(res= args[0]->val_str(str)))
-    {
-      null_value= 1;
-      return 0;
-    }
-  }
-  else
-  {
-    // Convert character set if differ
-    uint dummy_errors;
-    if (!(res= args[0]->val_str(str)) ||
-        tmp_value.copy(res->ptr(), res->length(), from_cs,
-                       cast_cs, &dummy_errors))
-    {
-      null_value= 1;
-      return 0;
-    }
-    res= &tmp_value;
-  }
-
-  res->set_charset(cast_cs);
-
-  /*
-    Cut the tail if cast with length
-    and the result is longer than cast length, e.g.
-    CAST('string' AS CHAR(1))
-  */
-  if (cast_length >= 0)
-  {
-    if (res->length() > (length= (uint32) res->charpos(cast_length)))
-    {                                           // Safe even if const arg
-      char char_type[40];
-      my_snprintf(char_type, sizeof(char_type), "%s(%lu)",
-                  cast_cs == &my_charset_bin ? "BINARY" : "CHAR",
-                  (ulong) length);
-
-      if (!res->alloced_length())
-      {                                         // Don't change const str
-        str_value= *res;                        // Not malloced string
-        res= &str_value;
-      }
-      ErrConvString err(res);
-      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
-                          ER_TRUNCATED_WRONG_VALUE,
-                          ER(ER_TRUNCATED_WRONG_VALUE), char_type,
-                          err.ptr());
-      res->length((uint) length);
-    }
-    else if (cast_cs == &my_charset_bin && res->length() < (uint) cast_length)
-    {
-      if (res->alloced_length() < (uint) cast_length)
-      {
-        str_value.alloc(cast_length);
-        str_value.copy(*res);
-        res= &str_value;
-      }
-      memset(const_cast<char*>(res->ptr() + res->length()), 0,
-             cast_length - res->length());
-      res->length(cast_length);
-    }
-  }
-  null_value= 0;
-  return res;
-}
-
-
-void Item_char_typecast::fix_length_and_dec()
-{
-  uint32 char_length;
-  /* 
-     We always force character set conversion if cast_cs
-     is a multi-byte character set. It garantees that the
-     result of CAST is a well-formed string.
-     For single-byte character sets we allow just to copy
-     from the argument. A single-byte character sets string
-     is always well-formed. 
-     
-     There is a special trick to convert form a number to ucs2.
-     As numbers have my_charset_bin as their character set,
-     it wouldn't do conversion to ucs2 without an additional action.
-     To force conversion, we should pretend to be non-binary.
-     Let's choose from_cs this way:
-     - If the argument in a number and cast_cs is ucs2 (i.e. mbminlen > 1),
-       then from_cs is set to latin1, to perform latin1 -> ucs2 conversion.
-     - If the argument is a number and cast_cs is ASCII-compatible
-       (i.e. mbminlen == 1), then from_cs is set to cast_cs,
-       which allows just to take over the args[0]->val_str() result
-       and thus avoid unnecessary character set conversion.
-     - If the argument is not a number, then from_cs is set to
-       the argument's charset.
-
-       Note (TODO): we could use repertoire technique here.
-  */
-  from_cs= (args[0]->result_type() == INT_RESULT || 
-            args[0]->result_type() == DECIMAL_RESULT ||
-            args[0]->result_type() == REAL_RESULT) ?
-           (cast_cs->mbminlen == 1 ? cast_cs : &my_charset_latin1) :
-           args[0]->collation.collation;
-  charset_conversion= (cast_cs->mbmaxlen > 1) ||
-                      (!my_charset_same(from_cs, cast_cs) &&
-                       from_cs != &my_charset_bin &&
-                       cast_cs != &my_charset_bin);
-  collation.set(cast_cs, DERIVATION_IMPLICIT);
-  char_length= (cast_length >= 0) ? cast_length :
-                args[0]->max_length /
-                (cast_cs == &my_charset_bin ? 1 : args[0]->collation.collation->mbmaxlen);
-  max_length= char_length * cast_cs->mbmaxlen;
-}
-
-
 void Item_datetime_typecast::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("cast("));
@@ -2823,7 +2632,6 @@ void Item_func_add_time::fix_length_and_dec()
   else if (args[0]->is_temporal_with_date_and_time() || is_date)
   {
     cached_field_type= MYSQL_TYPE_DATETIME;
-    unsigned_flag= 1;
     uint8 dec= MY_MAX(args[0]->datetime_precision(), args[1]->time_precision());
     fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, dec);
   }
@@ -3342,7 +3150,6 @@ void Item_func_str_to_date::fix_from_format(const char *format, uint length)
         */
         cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
         cached_field_type= MYSQL_TYPE_DATETIME; 
-        unsigned_flag= 1;
         fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH,
                                                 DATETIME_MAX_DECIMALS);
         return;
@@ -3360,7 +3167,6 @@ void Item_func_str_to_date::fix_from_format(const char *format, uint length)
   }
   else if (time_part_used)
   {
-    unsigned_flag= 1;
     if (date_part_used) /* DATETIME, no microseconds */
     {
       cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
@@ -3452,19 +3258,25 @@ null_date:
 
 bool Item_func_last_day::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
-  if (get_arg0_date(ltime, fuzzy_date & ~TIME_FUZZY_DATE) ||
-      (ltime->month == 0))
+  if ((null_value= get_arg0_date(ltime, fuzzy_date)))
+    return true;
+
+  if (ltime->month == 0)
   {
-    null_value= 1;
-    return 1;
+    /*
+      Cannot calculate last day for zero month.
+      Let's print a warning and return NULL.
+    */
+    ltime->time_type= MYSQL_TIMESTAMP_DATE;
+    ErrConvString str(ltime, 0);
+    make_truncated_value_warning(ErrConvString(str), MYSQL_TIMESTAMP_ERROR);
+    return (null_value= true);
   }
-  null_value= 0;
-  uint month_idx= ltime->month-1;
+
+  uint month_idx= ltime->month - 1;
   ltime->day= days_in_month[month_idx];
-  if ( month_idx == 1 && calc_days_in_year(ltime->year) == 366)
+  if (month_idx == 1 && calc_days_in_year(ltime->year) == 366)
     ltime->day= 29;
-  ltime->hour= ltime->minute= ltime->second= 0;
-  ltime->second_part= 0;
-  ltime->time_type= MYSQL_TIMESTAMP_DATE;
-  return 0;
+  datetime_to_date(ltime);
+  return false;
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@
 
 #define MAX_DROP_TABLE_Q_LEN      1024
 
-const char *del_exts[]= {".frm", ".BAK", ".TMD",".opt", NullS};
+const char *del_exts[]= {".frm", ".BAK", ".TMD", ".opt", ".OLD", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts, NULL};
 
@@ -102,7 +102,7 @@ static inline int write_to_binlog(THD *thd, char *query, uint q_len,
   Query_log_event qinfo(thd, query, q_len, FALSE, TRUE, FALSE, 0);
   qinfo.db= db;
   qinfo.db_len= db_len;
-  return mysql_bin_log.write(&qinfo);
+  return mysql_bin_log.write_event(&qinfo);
 }  
 
 
@@ -579,7 +579,9 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   {
     if (my_errno != ENOENT)
     {
-      my_error(EE_STAT, MYF(0), path, my_errno);
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(EE_STAT, MYF(0), path,
+               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
       goto exit;
     }
     if (my_mkdir(path,0777,MYF(0)) < 0)
@@ -664,7 +666,7 @@ not_silent:
         These DDL methods and logging are protected with the exclusive
         metadata lock on the schema
       */
-      if (mysql_bin_log.write(&qinfo))
+      if (mysql_bin_log.write_event(&qinfo))
       {
         error= -1;
         goto exit;
@@ -730,7 +732,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
       These DDL methods and logging are protected with the exclusive
       metadata lock on the schema.
     */
-    if ((error= mysql_bin_log.write(&qinfo)))
+    if ((error= mysql_bin_log.write_event(&qinfo)))
       goto exit;
   }
   my_ok(thd, result);
@@ -909,7 +911,7 @@ update_binlog:
         These DDL methods and logging are protected with the exclusive
         metadata lock on the schema.
       */
-      if (mysql_bin_log.write(&qinfo))
+      if (mysql_bin_log.write_event(&qinfo))
       {
         error= true;
         goto exit;
@@ -1100,7 +1102,9 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
       if (my_delete_with_symlink(filePath, MYF(0)) &&
           my_errno != ENOENT)
       {
-        my_error(EE_DELETE, MYF(0), filePath, my_errno);
+        char errbuf[MYSYS_STRERROR_SIZE];
+        my_error(EE_DELETE, MYF(0), filePath,
+                 my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
         DBUG_RETURN(true);
       }
     }
@@ -1823,7 +1827,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
     Query_log_event qinfo(thd, thd->query(), thd->query_length(),
                           FALSE, TRUE, TRUE, errcode);
     thd->clear_error();
-    error|= mysql_bin_log.write(&qinfo);
+    error|= mysql_bin_log.write_event(&qinfo);
   }
 
   /* Step9: Let's do "use newdb" if we renamed the current database */

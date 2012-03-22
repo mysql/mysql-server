@@ -64,7 +64,11 @@ my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags)
   {
     my_errno= errno;
     if (MyFlags & MY_WME)
-      my_error(EE_CANT_SEEK, MYF(0), my_filename(fd), my_errno);
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(EE_CANT_SEEK, MYF(0), my_filename(fd),
+               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+    }
     DBUG_PRINT("error", ("lseek: %llu  errno: %d", (ulonglong) newpos, errno));
     DBUG_RETURN(MY_FILEPOS_ERROR);
   }
@@ -94,7 +98,11 @@ my_off_t my_tell(File fd, myf MyFlags)
   {
     my_errno= errno;
     if (MyFlags & MY_WME)
-      my_error(EE_CANT_SEEK, MYF(0), my_filename(fd), my_errno);
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(EE_CANT_SEEK, MYF(0), my_filename(fd),
+               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+    }
     DBUG_PRINT("error", ("tell: %llu  errno: %d", (ulonglong) pos, my_errno));
   }
   DBUG_PRINT("exit",("pos: %llu", (ulonglong) pos));

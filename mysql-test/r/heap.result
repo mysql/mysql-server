@@ -85,8 +85,8 @@ x	y	x	y
 2	6	2	2
 explain select * from t1,t1 as t2 where t1.x=t2.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	x	NULL	NULL	NULL	6	
-1	SIMPLE	t2	eq_ref	y	y	4	test.t1.x	1	
+1	SIMPLE	t1	ALL	x	NULL	NULL	NULL	6	NULL
+1	SIMPLE	t2	eq_ref	y	y	4	test.t1.x	1	NULL
 drop table t1;
 create table t1 (a int) engine=heap;
 insert into t1 values(1);
@@ -204,7 +204,7 @@ key a (a)
 INSERT INTO t1 VALUES (10), (10), (10);
 EXPLAIN SELECT * FROM t1 WHERE a=10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	5	const	3	
+1	SIMPLE	t1	ref	a	a	5	const	3	NULL
 SELECT * FROM t1 WHERE a=10;
 a
 10
@@ -775,3 +775,17 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 3	DERIVED	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using where
 DROP TABLE t1,t2,h1;
 DROP VIEW v1;
+CREATE TABLE t1 (
+c1 VARCHAR(10) NOT NULL,
+KEY i1 (c1(3))
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('foo1'), ('bar2'), ('baz3');
+SELECT * FROM t1 WHERE c1='bar2';
+c1
+bar2
+#should show one tuple!
+SELECT * FROM t1 IGNORE INDEX (i1) WHERE c1='bar2';
+c1
+bar2
+#should show one tuple!
+DROP TABLE t1;

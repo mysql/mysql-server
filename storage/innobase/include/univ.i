@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -155,19 +155,11 @@ be excluded from instrumentation. */
 #endif /* HAVE_PSI_INTERFACE */
 
 #ifdef __WIN__
-# define YY_NO_UNISTD_H
+# define YY_NO_UNISTD_H 1
 #endif /* __WIN__ */
 
 /*			DEBUG VERSION CONTROL
 			===================== */
-
-/* The following flag will make InnoDB to initialize
-all memory it allocates to zero. It hides Purify
-warnings about reading unallocated memory unless
-memory is read outside the allocated blocks. */
-/*
-#define UNIV_INIT_MEM_TO_ZERO
-*/
 
 /* When this macro is defined then additional test functions will be
 compiled. These functions live at the end of each relevant source file
@@ -243,15 +235,6 @@ operations (very slow); also UNIV_DEBUG must be defined */
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
 #define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
-
-#ifdef HAVE_purify
-/* The following sets all new allocated memory to zero before use:
-this can be used to eliminate unnecessary Purify warnings, but note that
-it also masks many bugs Purify could detect. For detailed Purify analysis it
-is best to remove the define below and look through the warnings one
-by one. */
-#define UNIV_SET_MEM_TO_ZERO
-#endif
 
 /*
 #define UNIV_SQL_DEBUG
@@ -472,6 +455,8 @@ typedef unsigned long long int	ullint;
 /** The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
 
+#define ULONG_UNDEFINED		((ulong)(-1))
+
 /** The 'undefined' value for a ib_uint64_t */
 #define UINT64_UNDEFINED	((ib_uint64_t)(-1))
 
@@ -601,7 +586,7 @@ typedef void* os_thread_ret_t;
 # define UNIV_MEM_INVALID(addr, size) VALGRIND_MAKE_MEM_UNDEFINED(addr, size)
 # define UNIV_MEM_FREE(addr, size) VALGRIND_MAKE_MEM_NOACCESS(addr, size)
 # define UNIV_MEM_ALLOC(addr, size) VALGRIND_MAKE_MEM_UNDEFINED(addr, size)
-# define UNIV_MEM_DESC(addr, size, b) VALGRIND_CREATE_BLOCK(addr, size, b)
+# define UNIV_MEM_DESC(addr, size) VALGRIND_CREATE_BLOCK(addr, size, #addr)
 # define UNIV_MEM_UNDESC(b) VALGRIND_DISCARD(b)
 # define UNIV_MEM_ASSERT_RW(addr, size) do {				\
 	const void* _p = (const void*) (ulint)				\
@@ -626,7 +611,7 @@ typedef void* os_thread_ret_t;
 # define UNIV_MEM_INVALID(addr, size) do {} while(0)
 # define UNIV_MEM_FREE(addr, size) do {} while(0)
 # define UNIV_MEM_ALLOC(addr, size) do {} while(0)
-# define UNIV_MEM_DESC(addr, size, b) do {} while(0)
+# define UNIV_MEM_DESC(addr, size) do {} while(0)
 # define UNIV_MEM_UNDESC(b) do {} while(0)
 # define UNIV_MEM_ASSERT_RW(addr, size) do {} while(0)
 # define UNIV_MEM_ASSERT_W(addr, size) do {} while(0)

@@ -221,27 +221,27 @@ insert into t1 (x) values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 update t1 set y=x;
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x between 7 and t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	
+1	SIMPLE	t1	ref	y	y	5	const	1	NULL
 1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Using MRR; Using join buffer (Block Nested Loop)
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x >= 7 and t2.x <= t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	
+1	SIMPLE	t1	ref	y	y	5	const	1	NULL
 1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Using MRR; Using join buffer (Block Nested Loop)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between t1.y-1 and t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	
+1	SIMPLE	t1	ref	y	y	5	const	1	NULL
 1	SIMPLE	t2	range	x	x	5	NULL	3	Using index condition; Using MRR; Using join buffer (Block Nested Loop)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= t1.y-1 and t2.x <= t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	
+1	SIMPLE	t1	ref	y	y	5	const	1	NULL
 1	SIMPLE	t2	range	x	x	5	NULL	3	Using index condition; Using MRR; Using join buffer (Block Nested Loop)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	
+1	SIMPLE	t1	ref	y	y	5	const	1	NULL
 1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Using MRR; Using join buffer (Block Nested Loop)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 0 and t2.x <= t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	
+1	SIMPLE	t1	ref	y	y	5	const	1	NULL
 1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Using MRR; Using join buffer (Block Nested Loop)
 explain select count(*) from t1 where x in (1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -423,19 +423,19 @@ test.t2	analyze	status	Table is already up to date
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using index condition; Using MRR
-1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
+1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	NULL
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using index condition; Using MRR
-1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
+1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	NULL
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using index condition; Using MRR
-1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
+1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	NULL
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using index condition; Using MRR
-1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
+1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	NULL
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 id	name	uid	id	name	uid
 1001	A	1	1001	A	1
@@ -1676,14 +1676,14 @@ INSERT INTO t1 VALUES (1,10), (2,20), (3,30);
 EXPLAIN
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	i4_uq	i4_uq	5	const	1	
+1	SIMPLE	t1	const	i4_uq	i4_uq	5	const	1	NULL
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 10;
 pk	i4
 1	10
 EXPLAIN
 SELECT * FROM t1 WHERE 10 BETWEEN i4 AND i4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	i4_uq	i4_uq	5	const	1	
+1	SIMPLE	t1	const	i4_uq	i4_uq	5	const	1	NULL
 SELECT * FROM t1 WHERE 10 BETWEEN i4 AND i4;
 pk	i4
 1	10
@@ -1706,7 +1706,7 @@ pk	i4
 EXPLAIN
 SELECT * FROM t1 WHERE 10 BETWEEN 10 AND 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 SELECT * FROM t1 WHERE 10 BETWEEN 10 AND 10;
 pk	i4
 1	10
@@ -1756,17 +1756,134 @@ pk	i4
 EXPLAIN
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	i4_uq	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	i4_uq	NULL	NULL	NULL	3	NULL
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	Using index condition
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 pk	i4	pk	i4
 EXPLAIN
 SELECT * FROM t1, t1 as t2 WHERE t1.i4 BETWEEN t2.pk AND t2.pk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	i4_uq	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	i4_uq	NULL	NULL	NULL	3	NULL
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	Using index condition
 SELECT * FROM t1, t1 as t2 WHERE t1.i4 BETWEEN t2.pk AND t2.pk;
 pk	i4	pk	i4
+DROP TABLE t1;
+#
+# BUG#13519696 - 62940: SELECT RESULTS VARY WITH VERSION AND
+# WITH/WITHOUT INDEX RANGE SCAN
+#
+create table t1 (id int unsigned not null auto_increment primary key);
+insert into t1 values (null);
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+create table t2 (
+id int unsigned not null auto_increment,
+val decimal(5,3) not null,
+primary key (id,val),
+unique key (val,id),
+unique key (id));
+insert into t2 select null,id*0.0009 from t1;
+select count(val) from t2 ignore index (val) where val > 0.1155;
+count(val)
+128
+select count(val) from t2 force index (val)  where val > 0.1155;
+count(val)
+128
+drop table t2, t1;
+#
+# BUG#13453382 - REGRESSION SINCE 5.1.39, RANGE OPTIMIZER WRONG
+# RESULTS WITH DECIMAL CONVERSION
+#
+create table t1 (a int,b int,c int,primary key (a,c));
+insert into t1 values (1,1,2),(1,1,3),(1,1,4);
+select convert(3, signed integer) > 2.9;
+convert(3, signed integer) > 2.9
+1
+select * from t1 force  index (primary) where a=1 and c>= 2.9;
+a	b	c
+1	1	3
+1	1	4
+select * from t1 ignore index (primary) where a=1 and c>= 2.9;
+a	b	c
+1	1	3
+1	1	4
+select * from t1 force  index (primary) where a=1 and c> 2.9;
+a	b	c
+1	1	3
+1	1	4
+select * from t1 ignore index (primary) where a=1 and c> 2.9;
+a	b	c
+1	1	3
+1	1	4
+drop table t1;
+#
+# BUG#13463488 - 63437: CHAR & BETWEEN WITH INDEX RETURNS WRONG
+# RESULT AFTER MYSQL 5.1.
+#
+CREATE TABLE t1(
+F1 CHAR(5) NOT NULL,
+F2 CHAR(5) NOT NULL,
+F3 CHAR(5) NOT NULL,
+PRIMARY KEY(F1),
+INDEX IDX_F2(F2)
+);
+INSERT INTO t1 VALUES
+('A','A','A'),('AA','AA','AA'),('AAA','AAA','AAA'),
+('AAAA','AAAA','AAAA'),('AAAAA','AAAAA','AAAAA');
+SELECT * FROM t1 WHERE F1 = 'A    ';
+F1	F2	F3
+A	A	A
+SELECT * FROM t1 IGNORE INDEX(PRIMARY) WHERE F1 = 'A    ';
+F1	F2	F3
+A	A	A
+SELECT * FROM t1 WHERE F1 >= 'A    ';
+F1	F2	F3
+A	A	A
+AA	AA	AA
+AAA	AAA	AAA
+AAAA	AAAA	AAAA
+AAAAA	AAAAA	AAAAA
+SELECT * FROM t1 WHERE F1 > 'A    ';
+F1	F2	F3
+AA	AA	AA
+AAA	AAA	AAA
+AAAA	AAAA	AAAA
+AAAAA	AAAAA	AAAAA
+SELECT * FROM t1 WHERE F1 BETWEEN 'A    ' AND 'AAAAA';
+F1	F2	F3
+A	A	A
+AA	AA	AA
+AAA	AAA	AAA
+AAAA	AAAA	AAAA
+AAAAA	AAAAA	AAAAA
+SELECT * FROM t1 WHERE F2 BETWEEN 'A    ' AND 'AAAAA';
+F1	F2	F3
+A	A	A
+AA	AA	AA
+AAA	AAA	AAA
+AAAA	AAAA	AAAA
+AAAAA	AAAAA	AAAAA
+SELECT * FROM t1 WHERE F3 BETWEEN 'A    ' AND 'AAAAA';
+F1	F2	F3
+A	A	A
+AA	AA	AA
+AAA	AAA	AAA
+AAAA	AAAA	AAAA
+AAAAA	AAAAA	AAAAA
+SELECT * FROM t1 IGNORE INDEX(PRIMARY) WHERE F1 BETWEEN 'A    ' AND
+'AAAAA';
+F1	F2	F3
+A	A	A
+AA	AA	AA
+AAA	AAA	AAA
+AAAA	AAAA	AAAA
+AAAAA	AAAAA	AAAAA
 DROP TABLE t1;
 End of 5.1 tests
 CREATE TABLE t1 (c1 DECIMAL(10,0),INDEX(c1));
@@ -1902,7 +2019,7 @@ FLUSH TABLES;
 EXPLAIN SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	SIMPLE	t2	ALL	PRIMARY,col_int_key	NULL	NULL	NULL	6	Range checked for each record (index map: 0x3)
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
@@ -2199,4 +2316,135 @@ field1	field2
 2009-12-01	cd
 2009-12-01	cd
 DROP TABLE t1, t2;
+#
+# BUG#12912171 - ASSERTION FAILED: QUICK->HEAD->READ_SET ==
+# SAVE_READ_SET
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+c INT,
+PRIMARY KEY (c,a), KEY (a),KEY (a)
+) ENGINE=INNODB PARTITION BY KEY () PARTITIONS 2;
+INSERT INTO t1 VALUES (1,5,1),(2,4,1),(3,3,1),(4,2,1),(5,1,1);
+UPDATE t1 SET b = 0, c=1 WHERE a <=>0;
+SELECT * FROM t1;
+a	b	c
+1	5	1
+2	4	1
+3	3	1
+4	2	1
+5	1	1
+DROP TABLE t1;
+#
+# BUG#13256446 - ASSERTION QUICK->HEAD->READ_SET ==
+# SAVE_READ_SET' FAILED IN OPT_RANGE.CC:1606 
+#
+CREATE TABLE t1 (
+f1 INT AUTO_INCREMENT,
+f2 INT,
+f3 INT,
+f4 INT,
+PRIMARY KEY (f1),KEY(f2)
+) ENGINE=INNODB;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT f1,f2,f3,f4 FROM t1 WHERE f2=103;
+INSERT INTO t1 VALUES (154,0,NULL,0),(0,NULL,9,0),
+(NULL,102,NULL,3),(0,3,NULL,0), (9,0,NULL,0),(0,9,NULL,157);
+SELECT * FROM v2;
+f1	f2	f3	f4
+UPDATE v2 SET f4=0, f2=NULL, f1=NULL WHERE f1 > 16 ORDER BY f1;
+SELECT * FROM v2;
+f1	f2	f3	f4
+DROP TABLE t1;
+DROP VIEW v2;
+CREATE TABLE t1 (
+f1 INT AUTO_INCREMENT,
+f2 INT,
+f3 INT,
+f4 INT,
+PRIMARY KEY (f1),KEY(f2)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1,NULL,NULL,0), (2,2,0,3), (9,0,107,18),
+(10,0,0,0), (231,0,0,0), (232,0,8,0), (234,0,0,NULL), (235,8,0,3);
+CREATE ALGORITHM=MERGE VIEW v3 AS SELECT f1,f2,f3,f4 FROM t1 WHERE f1<=85 ;
+SELECT * FROM v3;
+f1	f2	f3	f4
+1	NULL	NULL	0
+2	2	0	3
+9	0	107	18
+10	0	0	0
+UPDATE v3 SET f3=0, f4=4 WHERE f2=68 ORDER BY f1;
+SELECT * FROM v3;
+f1	f2	f3	f4
+1	NULL	NULL	0
+2	2	0	3
+9	0	107	18
+10	0	0	0
+DROP TABLE t1;
+DROP VIEW v3;
+#
+# BUG#13731380: RANGE OPTIMIZER CALLS RECORDS_IN_RANGE() FOR OPEN RANGE
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1),(3),(5);
+SELECT * FROM t1 WHERE pk <> 3 OR pk < 4;
+pk
+1
+3
+5
+DROP TABLE t1;
+#
+# BUG#13803810: TOO FEW ROWS RETURNED FOR RANGE ACCESS IN 
+#               VARCHAR INDEX USING DATETIME VALUE
+
+CREATE TABLE t1 (a DATETIME);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00');
+INSERT INTO t1 VALUES ('2001-01-01 11:22:33');
+CREATE TABLE t2 (b VARCHAR(64), KEY (b));
+INSERT INTO t2 VALUES ('2001-01-01');
+INSERT INTO t2 VALUES ('2001.01.01');
+INSERT INTO t2 VALUES ('2001#01#01');
+INSERT INTO t2 VALUES ('2001-01-01 00:00:00');
+INSERT INTO t2 VALUES ('2001-01-01 11:22:33');
+
+# range/ref access cannot be used for this query
+
+EXPLAIN SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	b	b	67	NULL	5	Using where; Using index
+SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
+b
+2001#01#01
+2001-01-01
+2001-01-01 00:00:00
+2001.01.01
+
+# range/ref access cannot be used for any of the queries below.
+# See BUG#13814468 about 'Range checked for each record'
+
+EXPLAIN SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	5	Range checked for each record (index map: 0x1)
+SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
+a	b
+2001-01-01 00:00:00	2001#01#01
+2001-01-01 00:00:00	2001-01-01
+2001-01-01 00:00:00	2001-01-01 00:00:00
+2001-01-01 00:00:00	2001.01.01
+2001-01-01 11:22:33	2001-01-01 11:22:33
+
+EXPLAIN SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	5	Range checked for each record (index map: 0x1)
+SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
+a	b
+2001-01-01 00:00:00	2001#01#01
+2001-01-01 00:00:00	2001-01-01
+2001-01-01 00:00:00	2001-01-01 00:00:00
+2001-01-01 00:00:00	2001.01.01
+2001-01-01 11:22:33	2001-01-01 11:22:33
+
+DROP TABLE t1,t2;
 set optimizer_switch=default;

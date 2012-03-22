@@ -53,6 +53,8 @@ connect (con_user1, localhost, user1,, somedb);
 connection con_user1;
 select user();
 set optimizer_trace="enabled=on";
+# SHOW GRANTS scans a hash, which gives a random order
+--sorted_result
 show grants;
 
 --echo
@@ -96,6 +98,7 @@ connect (con_user1, localhost, user1,, somedb);
 connection con_user1;
 select user();
 set optimizer_trace="enabled=on";
+--sorted_result
 show grants;
 
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
@@ -232,6 +235,7 @@ connect (con_user1, localhost, user1,, somedb);
 connection con_user1;
 select user();
 set optimizer_trace="enabled=on";
+--sorted_result
 show grants;
 
 --echo

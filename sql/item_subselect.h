@@ -161,6 +161,7 @@ public:
   enum_parsing_place place() { return parsing_place; }
   bool walk_body(Item_processor processor, bool walk_subquery, uchar *arg);
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  virtual bool explain_subquery_checker(uchar **arg);
 
   /**
     Get the SELECT_LEX structure associated with this Item.
@@ -320,7 +321,6 @@ public:
   virtual void print(String *str, enum_query_type query_type);
 
   friend class select_exists_subselect;
-  friend class subselect_uniquesubquery_engine;
   friend class subselect_indexsubquery_engine;
 };
 
@@ -350,7 +350,7 @@ protected:
     runtime memory root, for each execution, thus need not be freed.
   */
   List<Cached_item> *left_expr_cache;
-  bool first_execution;
+  bool left_expr_cache_filled; ///< Whether left_expr_cache holds a value
   /** The need for expr cache may be optimized away, @sa init_left_expr_cache. */
   bool need_expr_cache;
 
@@ -389,7 +389,7 @@ public:
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), left_expr(NULL), left_expr_cache(NULL),
-    first_execution(TRUE), need_expr_cache(TRUE), expr(NULL),
+    left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
     optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
     pushed_cond_guards(NULL), upper_item(NULL)
   {}
@@ -492,10 +492,6 @@ public:
       either captured by previously set up select_result-based 'sink' or
       stored somewhere by the exec() method itself.
 
-      A required side effect: If at least one pushed-down predicate is
-      disabled, subselect_engine->no_rows() must return correct result after 
-      the exec() call.
-
     RETURN
       0 - OK
       1 - Either an execution error, or the engine was "changed", and the
@@ -515,8 +511,6 @@ public:
                              select_result_interceptor *result)= 0;
   virtual bool no_tables() const = 0;
   virtual bool is_executed() const { return FALSE; }
-  /* Check if subquery produced any rows during last query execution */
-  virtual bool no_rows() const = 0;
   virtual enum_engine_type engine_type() const { return ABSTRACT_ENGINE; }
 #ifndef DBUG_OFF
   /**
@@ -557,7 +551,6 @@ public:
   virtual bool no_tables() const;
   virtual bool may_be_null() const;
   virtual bool is_executed() const { return executed; }
-  virtual bool no_rows() const;
   virtual enum_engine_type engine_type() const { return SINGLE_SELECT_ENGINE; }
   bool save_join_if_explain(); 
 
@@ -585,7 +578,6 @@ public:
                              select_result_interceptor *result);
   virtual bool no_tables() const;
   virtual bool is_executed() const;
-  virtual bool no_rows() const;
   virtual enum_engine_type engine_type() const { return UNION_ENGINE; }
 
 private:
@@ -596,65 +588,32 @@ private:
 struct st_join_table;
 
 
-/*
-  A subquery execution engine that evaluates the subquery by doing one index
-  lookup in a unique index.
+/**
+  A subquery execution engine that evaluates the subquery by doing index
+  lookups in a single table's index.
 
   This engine is used to resolve subqueries in forms
-  
-    outer_expr IN (SELECT tbl.unique_key FROM tbl WHERE subq_where) 
-    
-  or, tuple-based:
-  
-    (oe1, .. oeN) IN (SELECT uniq_key_part1, ... uniq_key_partK
-                      FROM tbl WHERE subqwhere) 
-  
+
+    outer_expr IN (SELECT tbl.key FROM tbl WHERE subq_where)
+
+  or, row-based:
+
+    (oe1, .. oeN) IN (SELECT key_part1, ... key_partK
+                      FROM tbl WHERE subqwhere)
+
   i.e. the subquery is a single table SELECT without GROUP BY, aggregate
   functions, etc.
 */
-
-class subselect_uniquesubquery_engine: public subselect_engine
+class subselect_indexsubquery_engine : public subselect_engine
 {
 protected:
   st_join_table *tab;
   Item *cond; /* The WHERE condition of subselect */
-  /* 
-    TRUE<=> last execution produced empty set. Valid only when left
-    expression is NULL.
-  */
-  bool empty_result_set;
-public:
-
-  // constructor can assign THD because it will be called after JOIN::prepare
-  subselect_uniquesubquery_engine(THD *thd_arg, st_join_table *tab_arg,
-				  Item_subselect *subs, Item *where)
-    :subselect_engine(subs, 0), tab(tab_arg), cond(where) {}
-  virtual void cleanup() {}
-  virtual bool prepare();
-  virtual void fix_length_and_dec(Item_cache** row);
-  virtual bool exec();
-  virtual uint cols() const { return 1; }
-  virtual uint8 uncacheable() const { return UNCACHEABLE_DEPENDENT; }
-  virtual void exclude();
-  virtual table_map upper_select_const_tables() const { return 0; }
-  virtual void print (String *str, enum_query_type query_type);
-  virtual bool change_result(Item_subselect *si,
-                             select_result_interceptor *result);
-  virtual bool no_tables() const;
-  bool scan_table();
-  void copy_ref_key(bool *require_scan, bool *convert_error);
-  virtual bool no_rows() const { return empty_result_set; }
-  virtual enum_engine_type engine_type() const { return UNIQUESUBQUERY_ENGINE; }
-};
-
-
-class subselect_indexsubquery_engine: public subselect_uniquesubquery_engine
-{
 private:
   /* FALSE for 'ref', TRUE for 'ref-or-null'. */
   bool check_null;
   /* 
-    The "having" clause. This clause (further reffered to as "artificial
+    The "having" clause. This clause (further referred to as "artificial
     having") was inserted by subquery transformation code. It contains 
     Item(s) that have a side-effect: they record whether the subquery has 
     produced a row with NULL certain components. We need to use it for cases
@@ -662,40 +621,39 @@ private:
       (oe1, oe2) IN (SELECT t.key, t.no_key FROM t1)
     where we do index lookup on t.key=oe1 but need also to check if there
     was a row such that t.no_key IS NULL.
-    
-    NOTE: This is currently here and not in the uniquesubquery_engine. Ideally
-    it should have been in uniquesubquery_engine in order to allow execution of
-    subqueries like
-    
-      (oe1, oe2) IN (SELECT primary_key, non_key_maybe_null_field FROM tbl)
-
-    We could use uniquesubquery_engine for the first component and let
-    Item_is_not_null_test( non_key_maybe_null_field) to handle the second.
-
-    However, subqueries like the above are currently not handled by index
-    lookup-based subquery engines, the engine applicability check misses
-    them: it doesn't switch the engine for case of artificial having and
-    [eq_]ref access (only for artifical having + ref_or_null or no having).
-    The above example subquery is handled as a full-blown SELECT with eq_ref
-    access to one table.
-
-    Due to this limitation, the "artificial having" currently needs to be 
-    checked by only in indexsubquery_engine.
   */
   Item *having;
+  /**
+     Whether a lookup for key value (x0,y0) (x0 and/or y0 being NULL or not
+     NULL) will find at most one row.
+  */
+  bool unique;
 public:
 
   // constructor can assign THD because it will be called after JOIN::prepare
   subselect_indexsubquery_engine(THD *thd_arg, st_join_table *tab_arg,
 				 Item_subselect *subs, Item *where,
-                                 Item *having_arg, bool chk_null)
-    :subselect_uniquesubquery_engine(thd_arg, tab_arg, subs, where),
-     check_null(chk_null),
-     having(having_arg)
-  {}
+                                 Item *having_arg, bool chk_null,
+                                 bool unique_arg)
+    :subselect_engine(subs, 0), tab(tab_arg), cond(where),
+    check_null(chk_null), having(having_arg), unique(unique_arg)
+  {};
   virtual bool exec();
   virtual void print (String *str, enum_query_type query_type);
-  virtual enum_engine_type engine_type() const { return INDEXSUBQUERY_ENGINE; }
+  virtual enum_engine_type engine_type() const
+  { return unique ? UNIQUESUBQUERY_ENGINE : INDEXSUBQUERY_ENGINE; }
+  virtual void cleanup() {}
+  virtual bool prepare();
+  virtual void fix_length_and_dec(Item_cache** row);
+  virtual uint cols() const { return 1; }
+  virtual uint8 uncacheable() const { return UNCACHEABLE_DEPENDENT; }
+  virtual void exclude();
+  virtual table_map upper_select_const_tables() const { return 0; }
+  virtual bool change_result(Item_subselect *si,
+                             select_result_interceptor *result);
+  virtual bool no_tables() const;
+  bool scan_table();
+  void copy_ref_key(bool *require_scan, bool *convert_error);
 };
 
 /*
@@ -723,14 +681,29 @@ inline bool Item_subselect::is_uncacheable() const
 /**
   Compute an IN predicate via a hash semi-join. The subquery is materialized
   during the first evaluation of the IN predicate. The IN predicate is executed
-  via the functionality inherited from subselect_uniquesubquery_engine.
+  via the functionality inherited from subselect_indexsubquery_engine.
 */
 
-class subselect_hash_sj_engine: public subselect_uniquesubquery_engine
+class subselect_hash_sj_engine: public subselect_indexsubquery_engine
 {
 private:
   /* TRUE if the subquery was materialized into a temp table. */
   bool is_materialized;
+  /**
+     Existence of inner NULLs in materialized table:
+     By design, other values than IRRELEVANT_OR_FALSE are possible only if the
+     subquery has only one inner expression.
+  */
+  enum nulls_exist
+  {
+    /// none, or they don't matter
+    NEX_IRRELEVANT_OR_FALSE= 0,
+    /// they matter, and we don't know yet if they exists
+    NEX_UNKNOWN= 1,
+    /// they matter, and we know there exists at least one.
+    NEX_TRUE= 2
+  };
+  enum nulls_exist mat_table_has_nulls;
   /*
     The old engine already chosen at parse time and stored in permanent memory.
     Through this member we can re-create and re-prepare the join object
@@ -744,10 +717,10 @@ private:
 
 public:
   subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,
-                               subselect_single_select_engine *old_engine)
-    :subselect_uniquesubquery_engine(thd, NULL, in_predicate, NULL),
-    is_materialized(FALSE), materialize_engine(old_engine),
-    tmp_param(NULL)
+                           subselect_single_select_engine *old_engine)
+    :subselect_indexsubquery_engine(thd, NULL, in_predicate, NULL,
+                                    NULL, false, true),
+    is_materialized(false), materialize_engine(old_engine), tmp_param(NULL)
   {}
   ~subselect_hash_sj_engine();
 
@@ -764,5 +737,7 @@ public:
     return materialize_engine->cols();
   }
   virtual enum_engine_type engine_type() const { return HASH_SJ_ENGINE; }
+  
+  const st_join_table *get_join_tab() const { return tab; }
 };
 #endif /* ITEM_SUBSELECT_INCLUDED */

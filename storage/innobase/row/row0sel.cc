@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2080,7 +2080,7 @@ row_sel_step(
 			for (table_node = node->table_list;
 			     table_node != 0;
 			     table_node = static_cast<sym_node_t*>(
-				     	que_node_get_next(table_node))) {
+					que_node_get_next(table_node))) {
 
 				enum db_err	err;
 
@@ -2224,7 +2224,7 @@ row_fetch_print(
 		dfield_t*	dfield = que_node_get_val(exp);
 		const dtype_t*	type = dfield_get_type(dfield);
 
-		fprintf(stderr, " column %lu:\n", (ulong)i);
+		fprintf(stderr, " column %lu:\n", (ulong) i);
 
 		dtype_print(type);
 		putc('\n', stderr);
@@ -2356,7 +2356,12 @@ row_sel_convert_mysql_key_to_innobase(
 					in the tuple is already according
 					to index! */
 	byte*		buf,		/*!< in: buffer to use in field
-					conversions */
+					conversions; NOTE that dtuple->data
+					may end up pointing inside buf so
+					do not discard that buffer while
+					the tuple is being used. See
+					row_mysql_store_col_in_innobase_format()
+					in the case of DATA_INT */
 	ulint		buf_len,	/*!< in: buffer length */
 	dict_index_t*	index,		/*!< in: index of the key value */
 	const byte*	key_ptr,	/*!< in: MySQL key value */
@@ -2488,6 +2493,7 @@ row_sel_convert_mysql_key_to_innobase(
 		/* Storing may use at most data_len bytes of buf */
 
 		if (UNIV_LIKELY(!is_null)) {
+			ut_a(buf + data_len <= original_buf + buf_len);
 			row_mysql_store_col_in_innobase_format(
 				dfield, buf,
 				FALSE, /* MySQL key value format col */
@@ -3076,17 +3082,17 @@ row_sel_get_clust_rec_for_mysql(
 
 	btr_pcur_open_with_no_init(clust_index, prebuilt->clust_ref,
 				   PAGE_CUR_LE, BTR_SEARCH_LEAF,
-				   prebuilt->clust_pcur, 0, mtr);
+				   &prebuilt->clust_pcur, 0, mtr);
 
-	clust_rec = btr_pcur_get_rec(prebuilt->clust_pcur);
+	clust_rec = btr_pcur_get_rec(&prebuilt->clust_pcur);
 
-	prebuilt->clust_pcur->trx_if_known = trx;
+	prebuilt->clust_pcur.trx_if_known = trx;
 
 	/* Note: only if the search ends up on a non-infimum record is the
 	low_match value the real match to the search tuple */
 
 	if (!page_rec_is_user_rec(clust_rec)
-	    || btr_pcur_get_low_match(prebuilt->clust_pcur)
+	    || btr_pcur_get_low_match(&prebuilt->clust_pcur)
 	    < dict_index_get_n_unique(clust_index)) {
 
 		/* In a rare case it is possible that no clust rec is found
@@ -3117,6 +3123,7 @@ row_sel_get_clust_rec_for_mysql(
 			fputs("\n"
 			      "InnoDB: Submit a detailed bug report"
 			      " to http://bugs.mysql.com\n", stderr);
+			ut_ad(0);
 		}
 
 		clust_rec = NULL;
@@ -3134,7 +3141,7 @@ row_sel_get_clust_rec_for_mysql(
 		we set a LOCK_REC_NOT_GAP type lock */
 
 		err = lock_clust_rec_read_check_and_lock(
-			0, btr_pcur_get_block(prebuilt->clust_pcur),
+			0, btr_pcur_get_block(&prebuilt->clust_pcur),
 			clust_rec, clust_index, *offsets,
 			static_cast<enum lock_mode>(prebuilt->select_lock_type),
 			LOCK_REC_NOT_GAP,
@@ -3215,11 +3222,14 @@ row_sel_get_clust_rec_for_mysql(
 func_exit:
 	*out_rec = clust_rec;
 
-	if (prebuilt->select_lock_type != LOCK_NONE) {
+	/* Store the current position if select_lock_type is not
+	LOCK_NONE or if we are scanning using InnoDB APIs */
+	if (prebuilt->select_lock_type != LOCK_NONE
+	    || prebuilt->innodb_api) {
 		/* We may use the cursor in update or in unlock_row():
 		store its position */
 
-		btr_pcur_store_position(prebuilt->clust_pcur, mtr);
+		btr_pcur_store_position(&prebuilt->clust_pcur, mtr);
 	}
 
 err_exit:
@@ -3361,7 +3371,7 @@ row_sel_dequeue_cached_row_for_mysql(
 				buf[templ->mysql_null_byte_offset]
 					^= (buf[templ->mysql_null_byte_offset]
 					    ^ cached_rec[templ->mysql_null_byte_offset])
-					& (byte)templ->mysql_null_bit_mask;
+					& (byte) templ->mysql_null_bit_mask;
 			}
 		}
 	} else if (prebuilt->mysql_prefix_len > 63) {
@@ -3488,7 +3498,7 @@ row_sel_try_search_shortcut_for_mysql(
 {
 	dict_index_t*	index		= prebuilt->index;
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
-	btr_pcur_t*	pcur		= prebuilt->pcur;
+	btr_pcur_t*	pcur		= &prebuilt->pcur;
 	trx_t*		trx		= prebuilt->trx;
 	const rec_t*	rec;
 
@@ -3659,12 +3669,12 @@ row_search_for_mysql(
 	dict_index_t*	index		= prebuilt->index;
 	ibool		comp		= dict_table_is_comp(index->table);
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
-	btr_pcur_t*	pcur		= prebuilt->pcur;
+	btr_pcur_t*	pcur		= &prebuilt->pcur;
 	trx_t*		trx		= prebuilt->trx;
 	dict_index_t*	clust_index;
 	que_thr_t*	thr;
 	const rec_t*	rec;
-	const rec_t*	result_rec;
+	const rec_t*	result_rec = NULL;
 	const rec_t*	clust_rec;
 	ulint		err				= DB_SUCCESS;
 	ibool		unique_search			= FALSE;
@@ -3911,7 +3921,8 @@ row_search_for_mysql(
 	    && dict_index_is_clust(index)
 	    && !prebuilt->templ_contains_blob
 	    && !prebuilt->used_in_HANDLER
-	    && (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)) {
+	    && (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)
+	    && !prebuilt->innodb_api) {
 
 		mode = PAGE_CUR_GE;
 
@@ -4202,10 +4213,12 @@ rec_loop:
 #ifdef UNIV_SEARCH_DEBUG
 	/*
 	fputs("Using ", stderr);
-	dict_index_name_print(stderr, index);
+	dict_index_name_print(stderr, trx, index);
 	fprintf(stderr, " cnt %lu ; Page no %lu\n", cnt,
 	page_get_page_no(page_align(rec)));
-	rec_print(rec);
+	rec_print(stderr, rec, index);
+	printf("delete-mark: %lu\n",
+	       rec_get_deleted_flag(rec, page_rec_is_comp(rec)));
 	*/
 #endif /* UNIV_SEARCH_DEBUG */
 
@@ -4277,7 +4290,8 @@ rec_loop:
 wrong_offs:
 		if (srv_force_recovery == 0 || moves_up == FALSE) {
 			ut_print_timestamp(stderr);
-			buf_page_print(page_align(rec), 0);
+			buf_page_print(page_align(rec), 0,
+				       BUF_PAGE_PRINT_NO_CRASH);
 			fprintf(stderr,
 				"\nInnoDB: rec address %p,"
 				" buf block fix count %lu\n",
@@ -4296,7 +4310,7 @@ wrong_offs:
 			      "InnoDB: restore from a backup, or"
 			      " dump + drop + reimport the table.\n",
 			      stderr);
-
+			ut_ad(0);
 			err = DB_CORRUPTION;
 
 			goto lock_wait_or_error;
@@ -4386,8 +4400,10 @@ wrong_offs:
 			btr_pcur_store_position(pcur, &mtr);
 
 			err = DB_RECORD_NOT_FOUND;
-			/* ut_print_name(stderr, index->name);
-			fputs(" record not found 3\n", stderr); */
+#if 0
+			ut_print_name(stderr, trx, FALSE, index->name);
+			fputs(" record not found 3\n", stderr);
+#endif
 
 			goto normal_return;
 		}
@@ -4425,8 +4441,10 @@ wrong_offs:
 			btr_pcur_store_position(pcur, &mtr);
 
 			err = DB_RECORD_NOT_FOUND;
-			/* ut_print_name(stderr, index->name);
-			fputs(" record not found 4\n", stderr); */
+#if 0
+			ut_print_name(stderr, trx, FALSE, index->name);
+			fputs(" record not found 4\n", stderr);
+#endif
 
 			goto normal_return;
 		}
@@ -4798,6 +4816,7 @@ requires_clust_rec:
 	    && !prebuilt->templ_contains_blob
 	    && !prebuilt->clust_index_was_generated
 	    && !prebuilt->used_in_HANDLER
+	    && !prebuilt->innodb_api
 	    && prebuilt->template_type
 	    != ROW_MYSQL_DUMMY_TEMPLATE
 	    && !prebuilt->result) {
@@ -4859,7 +4878,7 @@ requires_clust_rec:
 			       rec_offs_size(offsets));
 			mach_write_to_4(buf,
 					rec_offs_extra_size(offsets) + 4);
-		} else if (!prebuilt->idx_cond) {
+		} else if (!prebuilt->idx_cond && !prebuilt->innodb_api) {
 			/* The record was not yet converted to MySQL format. */
 			if (!row_sel_store_mysql_rec(
 				    buf, prebuilt, result_rec,
@@ -4902,11 +4921,16 @@ idx_cond_failed:
 	    || !dict_index_is_clust(index)
 	    || direction != 0
 	    || prebuilt->select_lock_type != LOCK_NONE
-	    || prebuilt->used_in_HANDLER) {
+	    || prebuilt->used_in_HANDLER
+	    || prebuilt->innodb_api) {
 
 		/* Inside an update always store the cursor position */
 
 		btr_pcur_store_position(pcur, &mtr);
+
+		if (prebuilt->innodb_api) {
+			prebuilt->innodb_api_rec = result_rec;
+		}
 	}
 
 	goto normal_return;
@@ -5124,7 +5148,7 @@ row_search_check_if_query_cache_permitted(
 	dict_table_t*	table;
 	ibool		ret	= FALSE;
 
-	table = dict_table_open_on_name(norm_name, FALSE);
+	table = dict_table_open_on_name(norm_name, FALSE, FALSE);
 
 	if (table == NULL) {
 
@@ -5158,7 +5182,7 @@ row_search_check_if_query_cache_permitted(
 		}
 	}
 
-	dict_table_close(table, FALSE);
+	dict_table_close(table, FALSE, FALSE);
 
 	return(ret);
 }

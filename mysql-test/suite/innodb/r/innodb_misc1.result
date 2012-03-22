@@ -237,7 +237,7 @@ set foreign_key_checks=0;
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
 create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
 rename table t3 to t1;
-ERROR HY000: Error on rename of './test/t3' to './test/t1' (errno: 150)
+ERROR HY000: Error on rename of './test/t3' to './test/t1' (errno: 150 - Foreign key constraint is incorrectly formed)
 set foreign_key_checks=1;
 drop table t2,t3;
 create table t1(a int primary key) row_format=redundant engine=innodb;
@@ -651,7 +651,7 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 ALTER TABLE t2 MODIFY a INT NOT NULL;
-ERROR HY000: Error on rename of '#sql-temporary' to './test/t2' (errno: 150)
+ERROR HY000: Error on rename of '#sql-temporary' to './test/t2' (errno: 150 - Foreign key constraint is incorrectly formed)
 DELETE FROM t1;
 DROP TABLE t2,t1;
 CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)
@@ -699,7 +699,7 @@ c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
 c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
 ) ENGINE = InnoDB;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is {checked_valid}. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is {checked_valid}. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 SET innodb_strict_mode=OFF;
 DROP TABLE IF EXISTS t1;
 Warnings:

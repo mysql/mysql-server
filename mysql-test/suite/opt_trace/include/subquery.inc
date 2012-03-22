@@ -4,7 +4,8 @@
 --source include/have_64bit.inc
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
-SET optimizer_trace="enabled=on,end_marker=on,one_line=off";
+SET end_markers_in_json=on;
+SET optimizer_trace="enabled=on,one_line=off";
 
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT, b INT);
@@ -175,7 +176,7 @@ sq4_alias3.`col_varchar_nokey` <> alias1.`col_varchar_key` ) ) and
 alias1.`col_int_key` not in (214) group by field1,field2,field3,
 field4,field5,field6; 
 
---replace_regex /("sort_buffer_size":) [0-9]+/\1 NNN/
+--replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/
 select * from information_schema.optimizer_trace;
 set optimizer_switch=@old_opt_switch;
 drop table t1,t2,t3,t4,t5;

@@ -73,42 +73,15 @@ event_name	short_source	object_type	object_schema	pretty_name	operation	number_o
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	update	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	update	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	update	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	delete	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 show status like 'performance_schema_%';
@@ -116,6 +89,7 @@ Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0
 Performance_schema_cond_instances_lost	0
+Performance_schema_digest_lost	0
 Performance_schema_file_classes_lost	0
 Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0

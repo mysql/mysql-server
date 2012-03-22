@@ -145,10 +145,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	level	level	1	const	#	Using index
 explain select level,id from t1 where level=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	level	level	1	const	#	
+1	SIMPLE	t1	ref	level	level	1	const	#	NULL
 explain select level,id,parent_id from t1 where level=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	level	level	1	const	#	
+1	SIMPLE	t1	ref	level	level	1	const	#	NULL
 select level,id from t1 where level=1;
 level	id
 1	1003
@@ -668,7 +668,7 @@ create table t1 (a int  primary key,b int, c int, d int, e int, f int, g int, h 
 insert into t1 values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
 explain select * from t1 where a > 0 and a < 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	#	
+1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	#	NULL
 drop table t1;
 create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) engine=MyISAM;
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
@@ -824,10 +824,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using filesort
 explain select a,b from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	NULL
 explain select a,b,c from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	NULL
 drop table t1;
 create table t1 (t int not null default 1, key (t)) engine=MyISAM;
 desc t1;
@@ -1611,15 +1611,15 @@ i	10
 select sql_big_result v,count(c) from t1 group by v limit 10;
 v	count(c)
 a	1
-a 	10
-b     	10
-c    	10
-d   	10
-e  	10
-f     	10
-g    	10
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
 h	10
-i     	10
+i	10
 select c,count(*) from t1 group by c limit 10;
 c	count(*)
 a	1

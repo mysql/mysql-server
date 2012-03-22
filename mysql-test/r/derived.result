@@ -57,9 +57,9 @@ a	b	a	b
 3	c	3	c
 explain select * from t1 as x1, (select * from t1) as x2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	x1	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	x1	ALL	NULL	NULL	NULL	NULL	4	NULL
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (Block Nested Loop)
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
 drop table if exists  t2,t3;
 select * from (select 1) as a;
 1
@@ -91,16 +91,16 @@ a	b
 2	b
 explain select * from (select * from t1 union select * from t1) a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	8	
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
-3	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	
-NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	8	NULL
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
+3	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 explain select * from (select * from t1 union all select * from t1) a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	8	
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
-3	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	
-NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	8	NULL
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
+3	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 CREATE TABLE t2 (a int not null);
 insert into t2 values(1);
 select * from (select * from t1 where t1.a=(select a from t2 where t2.a=t1.a)) a;
@@ -113,8 +113,8 @@ a	b
 3	c
 explain select * from (select t1.*, t2.a as t2a from t1,t2 where t1.a=t2.a) t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	
-2	DERIVED	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	NULL
+2	DERIVED	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
 drop table t1, t2;
 create table t1(a int not null, t char(8), index(a));
@@ -144,7 +144,7 @@ explain select count(*) from t1 as tt1, (select * from t1) as tt2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	tt1	index	NULL	a	4	NULL	10000	Using index
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	10000	Using join buffer (Block Nested Loop)
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	10000	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	10000	NULL
 drop table t1;
 SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a) as a )) as b;
 (SELECT * FROM (SELECT 1 as a) as a )
@@ -164,7 +164,7 @@ create table t1 (id int);
 insert into t1 values (1),(2),(3);
 describe select * from (select * from t1 group by id) bar;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
 drop table t1;
 create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, matintnum CHAR(6) NOT NULL, test MEDIUMINT UNSIGNED NULL);
@@ -189,16 +189,16 @@ pla_id	test
 105	3
 explain SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id FROM t1 m2 INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
+1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	NULL
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	9	Using where; Using join buffer (Block Nested Loop)
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
-2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
+2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	NULL
 explain SELECT STRAIGHT_JOIN d.pla_id, m2.test FROM t1 m2  INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
+1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	NULL
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	9	Using where; Using join buffer (Block Nested Loop)
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
-2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
+2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	NULL
 drop table t1,t2;
 SELECT a.x FROM (SELECT 1 AS x) AS a HAVING a.x = 1;
 x
@@ -232,7 +232,7 @@ count(*)
 explain select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A WHERE A.E3 = (SELECT MAX(B.E3) FROM t1 AS B WHERE A.E2 = B.E2)) AS THEMAX ON t1.E1 = THEMAX.E2 AND t1.E1 = t1.E2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	2	Using where
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	4	test.t1.E1	2	
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	4	test.t1.E1	2	NULL
 2	DERIVED	A	ALL	NULL	NULL	NULL	NULL	2	Using where
 3	DEPENDENT SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	2	Using where
 drop table t1;
@@ -246,14 +246,14 @@ a	a
 2	2
 explain select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	NULL
 1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (Block Nested Loop)
-4	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
-5	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	
-NULL	UNION RESULT	<union4,5>	ALL	NULL	NULL	NULL	NULL	NULL	
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
-3	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	
-NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+4	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
+5	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
+NULL	UNION RESULT	<union4,5>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
+3	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 drop table t1;
 CREATE TABLE `t1` (
 `N` int(11) unsigned NOT NULL default '0',
@@ -323,7 +323,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
 explain select a from (select a from t2 where a>1) tt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	DERIVED	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
 drop table t2;
 CREATE TABLE `t1` ( `itemid` int(11) NOT NULL default '0', `grpid` varchar(15) NOT NULL default '', `vendor` int(11) NOT NULL default '0', `date_` date NOT NULL default '0000-00-00', `price` decimal(12,2) NOT NULL default '0.00', PRIMARY KEY  (`itemid`,`grpid`,`vendor`,`date_`), KEY `itemid` (`itemid`,`vendor`), KEY `itemid_2` (`itemid`,`date_`));
@@ -520,10 +520,10 @@ ON table3 .`i1`  = table2 .o1
 ) ON table3 .`i2`  = table2 .o1   
 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	table1	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	table2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	table1	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	table2	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	8	const,const	0	Using index
-2	DERIVED	CC	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	CC	ALL	NULL	NULL	NULL	NULL	2	NULL
 DROP TABLE CC;
 DROP TABLE C;
 # End of test for bug#55950
@@ -550,7 +550,7 @@ SELECT DISTINCT tableB.col_datetime_key
 FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
 ) AS FROM_SUBQUERY;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	16	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	16	NULL
 2	DERIVED	tableA	ALL	NULL	NULL	NULL	NULL	4	Using temporary
 2	DERIVED	tableB	ALL	NULL	NULL	NULL	NULL	4	Using where; Distinct; Using join buffer (Block Nested Loop)
 EXPLAIN SELECT * FROM ( 
@@ -558,7 +558,7 @@ SELECT DISTINCT tableA.col_datetime_key
 FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
 ) AS FROM_SUBQUERY;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	16	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	16	NULL
 2	DERIVED	tableA	ALL	NULL	NULL	NULL	NULL	4	Using temporary
 2	DERIVED	tableB	ALL	NULL	NULL	NULL	NULL	4	Using where; Distinct; Using join buffer (Block Nested Loop)
 DROP TABLE t1;
@@ -589,8 +589,8 @@ for merged derived tables
 explain for simple derived
 EXPLAIN SELECT * FROM (SELECT * FROM t1) tt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	NULL
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	NULL
 SELECT * FROM (SELECT * FROM t1) tt;
 f1	f11
 1	1
@@ -602,8 +602,8 @@ f1	f11
 explain for multitable derived
 EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	36	100.00	
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	36	100.00	NULL
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11`,`tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`f2` = `test`.`t1`.`f1`)) `tt`
@@ -617,7 +617,7 @@ FLUSH STATUS;
 EXPLAIN EXTENDED 
 SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt WHERE f11=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	const	0	100.00	
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	const	0	100.00	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` in (2,3))) `tt` where (`tt`.`f11` = 2)
@@ -649,7 +649,7 @@ SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt JOIN
 (SELECT * FROM t1 WHERE f1 IN (1,2)) aa ON tt.f1=aa.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
-1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	tt.f1	2	100.00	
+1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	tt.f1	2	100.00	NULL
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
@@ -666,7 +666,7 @@ CREATE VIEW v4 AS SELECT * FROM t2 WHERE f2 IN (2,3);
 explain for simple views
 EXPLAIN EXTENDED SELECT * FROM v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1`
 SELECT * FROM v1;
@@ -680,7 +680,7 @@ f1	f11
 explain for multitable views
 EXPLAIN EXTENDED SELECT * FROM v2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`f2` = `test`.`t1`.`f1`)
@@ -742,7 +742,7 @@ for materialized derived tables
 explain for simple derived
 EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM t1 GROUP BY f1) tt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` group by `test`.`t1`.`f1`) `tt`
@@ -760,7 +760,7 @@ EXPLAIN EXTENDED
 SELECT * FROM t1 JOIN (SELECT * FROM t2 GROUP BY f2) tt ON f1=f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t1.f1	2	100.00	
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t1.f1	2	100.00	NULL
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` group by `test`.`t2`.`f2`) `tt` where (`tt`.`f2` = `test`.`t1`.`f1`)
@@ -796,7 +796,7 @@ CREATE VIEW v3 AS SELECT t1.f1,t1.f11 FROM t1 JOIN t1 AS t11 HAVING t1.f1<100;
 explain for simple derived
 EXPLAIN EXTENDED SELECT * FROM v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1`
@@ -813,7 +813,7 @@ FLUSH STATUS;
 EXPLAIN EXTENDED SELECT * FROM t1 JOIN v2 ON f1=f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t1.f1	2	100.00	
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t1.f1	2	100.00	NULL
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`v2`.`f2` AS `f2`,`v2`.`f22` AS `f22` from `test`.`t1` join `test`.`v2` where (`v2`.`f2` = `test`.`t1`.`f1`)
@@ -845,11 +845,11 @@ EXPLAIN EXTENDED
 SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t1.f1	3	100.00	Using where
-1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	v31.f1	3	100.00	Using where
-3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t1.f1	3	100.00	NULL
+1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	test.t1.f1	3	100.00	NULL
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 3	DERIVED	t11	ALL	NULL	NULL	NULL	NULL	6	100.00	Using join buffer (Block Nested Loop)
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	DERIVED	t11	ALL	NULL	NULL	NULL	NULL	6	100.00	Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`v31`.`f1` AS `f1`,`v31`.`f11` AS `f11`,`v3`.`f1` AS `f1`,`v3`.`f11` AS `f11` from `test`.`t1` join `test`.`v3` `v31` join `test`.`v3` where ((`v31`.`f1` = `test`.`t1`.`f1`) and (`v3`.`f1` = `test`.`t1`.`f1`))
@@ -1085,7 +1085,7 @@ explain showing late materialization for views
 EXPLAIN EXTENDED SELECT * FROM v1 JOIN v4 ON f1=f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t2.f2	2	100.00	
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t2.f2	2	100.00	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`v1` join `test`.`t2` where ((`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` in (2,3)))
@@ -1097,7 +1097,7 @@ merged derived in merged derived
 EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM 
 (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
@@ -1111,7 +1111,7 @@ materialized derived in merged derived
 EXPLAIN EXTENDED  SELECT * FROM (SELECT * FROM 
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) zz;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
@@ -1125,7 +1125,7 @@ merged derived in materialized derived
 EXPLAIN  extended SELECT * FROM (SELECT * FROM 
 (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
@@ -1139,7 +1139,7 @@ materialized derived in materialized derived
 EXPLAIN EXTENDED  SELECT * FROM (SELECT * FROM 
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) zz;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
@@ -1157,7 +1157,7 @@ JOIN
 ON x.f1 = z.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
-1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	x.f1	2	100.00	
+1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	x.f1	2	100.00	NULL
 4	DERIVED	<derived5>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
@@ -1193,7 +1193,7 @@ JOIN
 ON x.f1 = z.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
-1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	x.f1	2	100.00	
+1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	x.f1	2	100.00	NULL
 4	DERIVED	<derived5>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
@@ -1221,7 +1221,7 @@ JOIN
 ON x.f1 = z.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
-1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	x.f1	2	100.00	
+1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	x.f1	2	100.00	NULL
 4	DERIVED	<derived5>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
@@ -1242,7 +1242,7 @@ merged view in materialized derived
 EXPLAIN EXTENDED
 SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where (`test`.`t2`.`f2` in (2,3)) group by 1) `tt`
@@ -1254,7 +1254,7 @@ materialized view in merged derived
 EXPLAIN EXTENDED 
 SELECT * FROM ( SELECT * FROM v1 WHERE f1 < 7) tt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
@@ -1269,7 +1269,7 @@ merged view in a merged view in a merged derived
 CREATE VIEW v6 AS SELECT * FROM v4 WHERE f2 < 7;
 EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM v6) tt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where ((`test`.`t2`.`f2` in (2,3)) and (`test`.`t2`.`f2` < 7))) `tt`
@@ -1281,7 +1281,7 @@ materialized view in a merged view in a materialized derived
 CREATE VIEW v7 AS SELECT * FROM v1;
 EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	DERIVED	<derived4>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 4	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
@@ -1298,7 +1298,7 @@ JOIN of above two
 EXPLAIN EXTENDED SELECT * FROM v6 JOIN v7 ON f2=f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
-1	PRIMARY	<derived5>	ref	auto_key0	auto_key0	5	test.t2.f2	2	100.00	
+1	PRIMARY	<derived5>	ref	auto_key0	auto_key0	5	test.t2.f2	2	100.00	NULL
 5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22`,`v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`t2` join `test`.`v1` where ((`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` in (2,3)) and (`test`.`t2`.`f2` < 7))
@@ -1314,9 +1314,9 @@ EXPLAIN EXTENDED SELECT * FROM t1 JOIN (SELECT * FROM t2) tt ON t1.f1=tt.f2
 JOIN t3 ON tt.f22=t3.f3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	PRIMARY	<derived2>	ref	auto_key2	auto_key2	5	test.t3.f3	2	100.00	
+1	PRIMARY	<derived2>	ref	auto_key2	auto_key2	5	test.t3.f3	2	100.00	NULL
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; Using join buffer (Block Nested Loop)
-2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`tt`.`f2` AS `f2`,`tt`.`f22` AS `f22`,`test`.`t3`.`f3` AS `f3`,`test`.`t3`.`f33` AS `f33` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2`) `tt` join `test`.`t3` where ((`test`.`t1`.`f1` = `tt`.`f2`) and (`tt`.`f22` = `test`.`t3`.`f3`))
 SELECT * FROM t1 JOIN (SELECT * FROM t2) tt ON t1.f1=tt.f2
@@ -1454,9 +1454,9 @@ FROM (SELECT COUNT(col_varchar_nokey) FROM t2) d
 )
 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	DEPENDENT SUBQUERY	<derived3>	ref	auto_key0	auto_key0	8	const	0	Using where; Using index
-3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	8	const	0	Using index; FirstMatch(t1)
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 DROP TABLE t1,t2;
 #
 #
@@ -1547,7 +1547,7 @@ f1
 EXPLAIN SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func1(f1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func2(f1);
 f1
 1
@@ -1556,7 +1556,7 @@ f1
 EXPLAIN SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func2(f1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 DROP FUNCTION func1;
 DROP FUNCTION func2;
 DROP TABLE t1;
@@ -1580,8 +1580,8 @@ SELECT alias2.fk AS field1 FROM t1 AS alias1 JOIN
 (SELECT * FROM t2 ) AS alias2 ON alias1.fk = alias2.fk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	1	Using where
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.alias1.fk	2	
-2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.alias1.fk	2	NULL
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	1	NULL
 DROP TABLE t1, t2;
 #
 #
@@ -1629,10 +1629,10 @@ WHERE derived.vc IN (
 SELECT t2.vc1
 FROM t2 JOIN t3 ON t2.vc2=t3.vc);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using where
-3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start materialize; Scan
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; End materialize; Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	23	test.t2.vc1	2	NULL
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT derived.vc
 FROM (SELECT * FROM t1) AS derived
 WHERE derived.vc IN (
@@ -1726,51 +1726,12 @@ RIGHT JOIN ( SELECT * FROM t1 ) AS dt
 ON t2.col_varchar = dt.col_varchar
 WHERE t2.col_int IS NOT NULL ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	Using where
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	NULL
 SET @@max_heap_table_size= @save_heap_size;
 DROP TABLE t1,t2;
 #
-#
-# Bug#13354889: Crash on a derived table with more than 64 fields.
-#
-create table t1 (
-field00 int, field01 int, field02 int, field03 int,
-field04 int, field05 int, field06 int, field07 int,
-field10 int, field11 int, field12 int, field13 int,
-field14 int, field15 int, field16 int, field17 int,
-field20 int, field21 int, field22 int, field23 int,
-field24 int, field25 int, field26 int, field27 int,
-field30 int, field31 int, field32 int, field33 int,
-field34 int, field35 int, field36 int, field37 int,
-field40 int, field41 int, field42 int, field43 int,
-field44 int, field45 int, field46 int, field47 int,
-field50 int, field51 int, field52 int, field53 int,
-field54 int, field55 int, field56 int, field57 int,
-field60 int, field61 int, field62 int, field63 int,
-field64 int, field65 int, field66 int, field67 int,
-field70 int, field71 int, field72 int, field73 int,
-field74 int, field75 int, field76 int, field77 int,
-field100 int
-);
-insert into t1(field100) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(0);
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
-limit 1;
-field100
-1
-Should use auto_key0 and ref access.
-explain 
-select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
-limit 1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	80	Using where
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t1.field100	8	
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	80	
-drop table t1;
 #
 # Bug#13383857: Another crash in memcpy from
 #               join_cache::write_record_data with semijoin
@@ -1854,12 +1815,12 @@ WHERE outr.col_varchar_nokey = 'e'
 AND outr.col_varchar_key <> 'r'
 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	20	Using where
-3	DEPENDENT SUBQUERY	<derived4>	system	NULL	NULL	NULL	NULL	1	
-3	DEPENDENT SUBQUERY	<derived5>	ref	auto_key0	auto_key0	4	func	2	Using where
-5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	20	
-4	DERIVED	t3	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	20	
+1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	1	Start temporary
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived5>	ALL	NULL	NULL	NULL	NULL	20	Using where; End temporary; Using join buffer (Block Nested Loop)
+5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	20	NULL
+4	DERIVED	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	20	NULL
 SELECT col_time_nokey AS x
 FROM (SELECT * FROM t2) AS outr
 WHERE col_varchar_nokey IN (
@@ -1874,3 +1835,130 @@ AND outr.col_varchar_key <> 'r'
 x
 DROP TABLE t1, t2, t3;
 #
+# Bug#13354889: Crash on a derived table with more than 64 fields.
+#
+create table t1 (
+field00 int, field01 int, field02 int, field03 int,
+field04 int, field05 int, field06 int, field07 int,
+field10 int, field11 int, field12 int, field13 int,
+field14 int, field15 int, field16 int, field17 int,
+field20 int, field21 int, field22 int, field23 int,
+field24 int, field25 int, field26 int, field27 int,
+field30 int, field31 int, field32 int, field33 int,
+field34 int, field35 int, field36 int, field37 int,
+field40 int, field41 int, field42 int, field43 int,
+field44 int, field45 int, field46 int, field47 int,
+field50 int, field51 int, field52 int, field53 int,
+field54 int, field55 int, field56 int, field57 int,
+field60 int, field61 int, field62 int, field63 int,
+field64 int, field65 int, field66 int, field67 int,
+field70 int, field71 int, field72 int, field73 int,
+field74 int, field75 int, field76 int, field77 int,
+field100 int
+);
+insert into t1(field100) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(0);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
+limit 1;
+field100
+1
+Should use auto_key0 and ref access.
+explain 
+select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
+limit 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	80	Using where
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t1.field100	8	NULL
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	80	NULL
+drop table t1;
+#
+#
+# Bug#13390138: crash in memcpy from join_cache::write_record_data
+#
+CREATE TABLE t1 (
+col_varchar_key varchar(1),
+col_varchar_nokey varchar(1),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('r','r');
+CREATE TABLE t2 (
+col_varchar_key varchar(1),
+col_varchar_nokey varchar(1),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t2 VALUES
+(NULL,NULL),
+('r','r');
+CREATE TABLE t3 (
+col_int_key int,
+col_varchar_key varchar(1),
+col_varchar_nokey varchar(1),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key, col_int_key)
+);
+INSERT INTO t3 VALUES
+(9,'f','f'),
+(4,'y','y'),
+(3,'u','u'),
+(2,'m','m'),
+(NULL,NULL,NULL),
+(2,'o','o'),
+(NULL,'r','r'),
+(6,'m','m'),
+(7,'q','q'),
+(6,'c','c');
+explain SELECT grandparent.col_varchar_nokey AS g1
+FROM (SELECT * FROM t3) AS grandparent
+WHERE grandparent.col_varchar_nokey IN
+(SELECT parent.col_varchar_key AS p1
+FROM (SELECT * FROM t2) AS parent
+WHERE grandparent.col_varchar_key IN (
+SELECT child1.col_varchar_key AS c1
+FROM (SELECT * FROM t1) AS child1
+LEFT JOIN (SELECT * FROM t2) AS child2
+ON child1.col_varchar_nokey <> child2.col_varchar_key
+)
+AND grandparent.col_int_key IS UNKNOWN
+)
+ORDER BY grandparent.col_varchar_nokey;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	const	2	Using where; Using index; Using temporary; Using filesort; Start temporary
+1	PRIMARY	<derived6>	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	4	grandparent.col_varchar_nokey	2	NULL
+1	PRIMARY	<derived7>	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (Block Nested Loop)
+7	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+6	DERIVED	t1	system	NULL	NULL	NULL	NULL	1	NULL
+4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DERIVED	t3	ALL	NULL	NULL	NULL	NULL	10	NULL
+SELECT grandparent.col_varchar_nokey AS g1
+FROM (SELECT * FROM t3) AS grandparent
+WHERE grandparent.col_varchar_nokey IN
+(SELECT parent.col_varchar_key AS p1
+FROM (SELECT * FROM t2) AS parent
+WHERE grandparent.col_varchar_key IN (
+SELECT child1.col_varchar_key AS c1
+FROM (SELECT * FROM t1) AS child1
+LEFT JOIN (SELECT * FROM t2) AS child2
+ON child1.col_varchar_nokey <> child2.col_varchar_key
+)
+AND grandparent.col_int_key IS UNKNOWN
+)
+ORDER BY grandparent.col_varchar_nokey;
+g1
+r
+DROP TABLE t1, t2, t3;
+#
+# Bug#13457552: Crash on instantiating a derived table in a query with
+#               empty result.
+#
+CREATE TABLE t1 ( pk INT, col_blob BLOB ) ENGINE = MyISAM;
+CREATE TABLE t2 ( pk INT, col_blob BLOB ) ENGINE = InnoDB;
+SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS A NATURAL JOIN t1;
+pk
+EXPLAIN SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS A NATURAL JOIN t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	1	NULL
+DROP TABLE t1,t2;

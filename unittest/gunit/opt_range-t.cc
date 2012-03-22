@@ -13,8 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines,
-// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
+// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
 
@@ -49,6 +48,7 @@ protected:
     initializer.SetUp();
     m_opt_param.thd= thd();
     m_opt_param.mem_root= &m_alloc;
+    m_opt_param.current_table= 1<<0;
     init_sql_alloc(&m_alloc, thd()->variables.range_alloc_block_size, 0);
   }
 
@@ -98,12 +98,13 @@ TEST_F(SelArgTest, AllocateImplicit)
   because of limits in google test.
  */
 const SEL_TREE *null_tree= NULL;
+const SEL_ARG  *null_arg= NULL;
 
 
 class Mock_field_long : public Field_long
 {
 public:
-  Mock_field_long()
+  Mock_field_long(THD *thd, Item *item)
     : Field_long(0,                             // ptr_arg
                  8,                             // len_arg
                  NULL,                          // null_ptr_arg
@@ -119,15 +120,62 @@ public:
     m_share.db.str= const_cast<char*>(foo);
     m_share.db.length= strlen(m_share.db.str);
 
+    bitmap_init(&share_allset, 0, sizeof(my_bitmap_map), 0);
+    bitmap_set_above(&share_allset, 0, 1); //all bits 1
+    m_share.all_set= share_allset;
+
     memset(&m_table, 0, sizeof(m_table));
     m_table.s= &m_share;
+
+    bitmap_init(&tbl_readset, 0, sizeof(my_bitmap_map), 0);
+    m_table.read_set= &tbl_readset;
+
+    bitmap_init(&tbl_writeset, 0, sizeof(my_bitmap_map), 0);
+    m_table.write_set= &tbl_writeset;
+
+    m_table.map= 1<<0;
+    m_table.in_use= thd;
     this->table_name= &m_table_name;
     this->table= &m_table;
+    this->ptr= (uchar*) alloc_root((thd->mem_root), KEY_LENGTH);
+    if (item)
+      item->save_in_field_no_warnings(this, true);      
   }
+  ~Mock_field_long()
+  {
+    bitmap_free(&share_allset);
+    bitmap_free(&tbl_readset);
+    bitmap_free(&tbl_writeset);
+  }
+
+  // #bytes to store the value - see Field_long::key_lenght()
+  static const int KEY_LENGTH= 4;
   const char *m_table_name;
   TABLE_SHARE m_share;
   TABLE       m_table;
+  MY_BITMAP   share_allset;
+  MY_BITMAP   tbl_readset;
+  MY_BITMAP   tbl_writeset;
 };
+
+
+static void print_selarg_ranges(String *s, SEL_ARG *sel_arg, 
+                                const KEY_PART_INFO *kpi)
+{
+  for (SEL_ARG *cur= sel_arg->first(); 
+       cur != &null_element; 
+       cur= cur->right)
+  {
+    String current_range;
+    append_range(&current_range, kpi, cur->min_value, cur->max_value, 
+                 cur->min_flag | cur->max_flag);
+
+    if (s->length() > 0)
+      s->append(STRING_WITH_LEN("\n"));
+
+    s->append(current_range);
+  }
+}
 
 
 TEST_F(SelArgTest, SimpleCond)
@@ -136,13 +184,331 @@ TEST_F(SelArgTest, SimpleCond)
 }
 
 
+/*
+  TODO: Here we try to build a range, but a lot of mocking remains
+  before it works as intended. Currently get_mm_tree() returns NULL
+  because m_opt_param.key_parts and m_opt_param.key_parts_end have not
+  been setup. 
+*/
 TEST_F(SelArgTest, EqualCond)
 {
-  Mock_field_long field_long;
-  EXPECT_EQ(null_tree,
-            get_mm_tree(&m_opt_param,
-                        new Item_equal(new Item_int(42),
-                                       new Item_field(&field_long))));
+  Mock_field_long field_long(thd(), NULL);
+  m_opt_param.table= &field_long.m_table;
+  SEL_TREE *tree= get_mm_tree(&m_opt_param,
+                              new Item_equal(new Item_int(42),
+                                             new Item_field(&field_long)));
+  EXPECT_EQ(null_tree, tree);
+}
+
+
+TEST_F(SelArgTest, SelArgOnevalue)
+{
+  Mock_field_long field_long7(thd(), new Item_int(7));
+
+  KEY_PART_INFO kpi;
+  kpi.init_from_field(&field_long7);
+
+  uchar range_val7[field_long7.KEY_LENGTH];
+  field_long7.get_key_image(range_val7, kpi.length, Field::itRAW);
+
+  SEL_ARG sel_arg7(&field_long7, range_val7, range_val7);
+  String range_string;
+  print_selarg_ranges(&range_string, &sel_arg7, &kpi);
+  const char expected[]= "7 <= field_name <= 7";
+  EXPECT_STREQ(expected, range_string.c_ptr());
+
+  sel_arg7.min_flag|= NO_MIN_RANGE;
+  range_string.length(0);
+  print_selarg_ranges(&range_string, &sel_arg7, &kpi);
+  const char expected2[]= "field_name <= 7";
+  EXPECT_STREQ(expected2, range_string.c_ptr());
+
+  sel_arg7.max_flag= NEAR_MAX;
+  range_string.length(0);
+  print_selarg_ranges(&range_string, &sel_arg7, &kpi);
+  const char expected3[]= "field_name < 7";
+  EXPECT_STREQ(expected3, range_string.c_ptr());
+
+  sel_arg7.min_flag= NEAR_MIN;
+  sel_arg7.max_flag= NO_MAX_RANGE;
+  range_string.length(0);
+  print_selarg_ranges(&range_string, &sel_arg7, &kpi);
+  const char expected4[]= "7 < field_name";
+  EXPECT_STREQ(expected4, range_string.c_ptr());
+
+  sel_arg7.min_flag= 0;
+  range_string.length(0);
+  print_selarg_ranges(&range_string, &sel_arg7, &kpi);
+  const char expected5[]= "7 <= field_name";
+  EXPECT_STREQ(expected5, range_string.c_ptr());
+}
+
+
+TEST_F(SelArgTest, SelArgBetween)
+{
+  Mock_field_long field_long3(thd(), new Item_int(3));
+  Mock_field_long field_long5(thd(), new Item_int(5));
+
+  KEY_PART_INFO kpi;
+  kpi.init_from_field(&field_long3);
+
+  uchar range_val3[field_long3.KEY_LENGTH];
+  field_long3.get_key_image(range_val3, kpi.length, Field::itRAW);
+
+  uchar range_val5[field_long5.KEY_LENGTH];
+  field_long5.get_key_image(range_val5, kpi.length, Field::itRAW);
+
+  SEL_ARG sel_arg35(&field_long3, range_val3, range_val5);
+
+  String range_string;
+  print_selarg_ranges(&range_string, &sel_arg35, &kpi);
+  const char expected[]= "3 <= field_name <= 5";
+  EXPECT_STREQ(expected, range_string.c_ptr());
+
+  range_string.length(0);
+  sel_arg35.min_flag= NEAR_MIN;
+  print_selarg_ranges(&range_string, &sel_arg35, &kpi);
+  const char expected2[]= "3 < field_name <= 5";
+  EXPECT_STREQ(expected2, range_string.c_ptr());
+
+  range_string.length(0);
+  sel_arg35.max_flag= NEAR_MAX;
+  print_selarg_ranges(&range_string, &sel_arg35, &kpi);
+  const char expected3[]= "3 < field_name < 5";
+  EXPECT_STREQ(expected3, range_string.c_ptr());
+
+  range_string.length(0);
+  sel_arg35.min_flag= 0;
+  print_selarg_ranges(&range_string, &sel_arg35, &kpi);
+  const char expected4[]= "3 <= field_name < 5";
+  EXPECT_STREQ(expected4, range_string.c_ptr());
+
+  range_string.length(0);
+  sel_arg35.min_flag= NO_MIN_RANGE;
+  sel_arg35.max_flag= 0;
+  print_selarg_ranges(&range_string, &sel_arg35, &kpi);
+  const char expected5[]= "field_name <= 5";
+  EXPECT_STREQ(expected5, range_string.c_ptr());
+
+  range_string.length(0);
+  sel_arg35.min_flag= 0;
+  sel_arg35.max_flag= NO_MAX_RANGE;
+  print_selarg_ranges(&range_string, &sel_arg35, &kpi);
+  const char expected6[]= "3 <= field_name";
+  EXPECT_STREQ(expected6, range_string.c_ptr());
+}
+
+TEST_F(SelArgTest, CopyMax)
+{
+  Mock_field_long field_long3(thd(), new Item_int(3));
+  Mock_field_long field_long5(thd(), new Item_int(5));
+
+  KEY_PART_INFO kpi;
+  kpi.init_from_field(&field_long3);
+
+  uchar range_val3[field_long3.KEY_LENGTH];
+  field_long3.get_key_image(range_val3, kpi.length, Field::itRAW);
+
+  uchar range_val5[field_long5.KEY_LENGTH];
+  field_long5.get_key_image(range_val5, kpi.length, Field::itRAW);
+
+  SEL_ARG sel_arg3(&field_long3, range_val3, range_val3);
+  sel_arg3.min_flag= NO_MIN_RANGE;
+  SEL_ARG sel_arg5(&field_long5, range_val5, range_val5);
+  sel_arg5.min_flag= NO_MIN_RANGE;
+
+  String range_string;
+  print_selarg_ranges(&range_string, &sel_arg3, &kpi);
+  const char expected[]= "field_name <= 3";
+  EXPECT_STREQ(expected, range_string.c_ptr());
+
+  range_string.length(0);
+  print_selarg_ranges(&range_string, &sel_arg5, &kpi);
+  const char expected2[]= "field_name <= 5";
+  EXPECT_STREQ(expected2, range_string.c_ptr());
+
+  /*
+    Ranges now:
+                       -inf ----------------3-5----------- +inf
+    sel_arg3:          [-------------------->
+    sel_arg5:          [---------------------->
+    Below: merge these two ranges into sel_arg3 using copy_max()
+  */
+  bool full_range= sel_arg3.copy_max(&sel_arg5);
+  // The merged range does not cover all possible values
+  EXPECT_FALSE(full_range);
+
+  range_string.length(0);
+  print_selarg_ranges(&range_string, &sel_arg3, &kpi);
+  const char expected3[]= "field_name <= 5";
+  EXPECT_STREQ(expected3, range_string.c_ptr());
+
+  range_string.length(0);
+  sel_arg5.min_flag= 0;
+  sel_arg5.max_flag= NO_MAX_RANGE;
+  print_selarg_ranges(&range_string, &sel_arg5, &kpi);
+  const char expected4[]= "5 <= field_name";
+  EXPECT_STREQ(expected4, range_string.c_ptr());
+
+  /*
+    Ranges now:
+                       -inf ----------------3-5----------- +inf
+    sel_arg3:          [---------------------->
+    sel_arg5:                                 <---------------]
+    Below: merge these two ranges into sel_arg3 using copy_max()
+  */
+
+  full_range= sel_arg3.copy_max(&sel_arg5);
+  // The new range covers all possible values
+  EXPECT_TRUE(full_range);
+
+  range_string.length(0);
+  print_selarg_ranges(&range_string, &sel_arg3, &kpi);
+  const char expected5[]= "field_name";
+  EXPECT_STREQ(expected5, range_string.c_ptr());
+}
+
+TEST_F(SelArgTest, CopyMin)
+{
+  Mock_field_long field_long3(thd(), new Item_int(3));
+  Mock_field_long field_long5(thd(), new Item_int(5));
+
+  KEY_PART_INFO kpi;
+  kpi.init_from_field(&field_long3);
+
+  uchar range_val3[field_long3.KEY_LENGTH];
+  field_long3.get_key_image(range_val3, kpi.length, Field::itRAW);
+
+  uchar range_val5[field_long5.KEY_LENGTH];
+  field_long5.get_key_image(range_val5, kpi.length, Field::itRAW);
+
+  SEL_ARG sel_arg3(&field_long3, range_val3, range_val3);
+  sel_arg3.max_flag= NO_MAX_RANGE;
+  SEL_ARG sel_arg5(&field_long5, range_val5, range_val5);
+  sel_arg5.max_flag= NO_MAX_RANGE;
+
+  String range_string;
+  print_selarg_ranges(&range_string, &sel_arg3, &kpi);
+  const char expected[]= "3 <= field_name";
+  EXPECT_STREQ(expected, range_string.c_ptr());
+
+  range_string.length(0);
+  print_selarg_ranges(&range_string, &sel_arg5, &kpi);
+  const char expected2[]= "5 <= field_name";
+  EXPECT_STREQ(expected2, range_string.c_ptr());
+
+  /*
+    Ranges now:
+                       -inf ----------------3-5----------- +inf
+    sel_arg3:                               <-----------------]
+    sel_arg5:                                 <---------------]
+    Below: merge these two ranges into sel_arg3 using copy_max()
+  */
+  bool full_range= sel_arg5.copy_min(&sel_arg3);
+  // The merged range does not cover all possible values
+  EXPECT_FALSE(full_range);
+
+  range_string.length(0);
+  print_selarg_ranges(&range_string, &sel_arg5, &kpi);
+  const char expected3[]= "3 <= field_name";
+  EXPECT_STREQ(expected3, range_string.c_ptr());
+
+  range_string.length(0);
+  sel_arg3.max_flag= 0;
+  sel_arg3.min_flag= NO_MIN_RANGE;
+  print_selarg_ranges(&range_string, &sel_arg3, &kpi);
+  const char expected4[]= "field_name <= 3";
+  EXPECT_STREQ(expected4, range_string.c_ptr());
+
+  /*
+    Ranges now:
+                       -inf ----------------3-5----------- +inf
+    sel_arg3:          [-------------------->                
+    sel_arg5:                               <-----------------]
+    Below: merge these two ranges into sel_arg5 using copy_min()
+  */
+
+  full_range= sel_arg5.copy_min(&sel_arg3);
+  // The new range covers all possible values
+  EXPECT_TRUE(full_range);
+
+  range_string.length(0);
+  print_selarg_ranges(&range_string, &sel_arg5, &kpi);
+  const char expected5[]= "field_name";
+  EXPECT_STREQ(expected5, range_string.c_ptr());
+}
+
+
+TEST_F(SelArgTest, KeyOr1)
+{
+  Mock_field_long field_long3(thd(), new Item_int(3));
+  Mock_field_long field_long4(thd(), new Item_int(4));
+
+  KEY_PART_INFO kpi;
+  kpi.init_from_field(&field_long3);
+
+  uchar range_val3[field_long3.KEY_LENGTH];
+  field_long3.get_key_image(range_val3, kpi.length, Field::itRAW);
+
+  uchar range_val4[field_long4.KEY_LENGTH];
+  field_long4.get_key_image(range_val4, kpi.length, Field::itRAW);
+
+  SEL_ARG sel_arg_lt3(&field_long3, range_val3, range_val3);
+  sel_arg_lt3.part= 0;
+  sel_arg_lt3.min_flag= NO_MIN_RANGE;
+  sel_arg_lt3.max_flag= NEAR_MAX;
+
+  SEL_ARG sel_arg_gt3(&field_long3, range_val3, range_val3);
+  sel_arg_gt3.part= 0;
+  sel_arg_gt3.min_flag= NEAR_MIN;
+  sel_arg_gt3.max_flag= NO_MAX_RANGE;
+
+  SEL_ARG sel_arg_lt4(&field_long4, range_val4, range_val4);
+  sel_arg_lt4.part= 0;
+  sel_arg_lt4.min_flag= NO_MIN_RANGE;
+  sel_arg_lt4.max_flag= NEAR_MAX;
+
+  String range_string;
+  print_selarg_ranges(&range_string, &sel_arg_lt3, &kpi);
+  const char expected_lt3[]= "field_name < 3";
+  EXPECT_STREQ(expected_lt3, range_string.c_ptr());
+
+  range_string.length(0);
+  print_selarg_ranges(&range_string, &sel_arg_gt3, &kpi);
+  const char expected_gt3[]= "3 < field_name";
+  EXPECT_STREQ(expected_gt3, range_string.c_ptr());
+
+  range_string.length(0);
+  print_selarg_ranges(&range_string, &sel_arg_lt4, &kpi);
+  const char expected_lt4[]= "field_name < 4";
+  EXPECT_STREQ(expected_lt4, range_string.c_ptr());
+
+
+  /*
+    Ranges now:
+                       -inf ----------------34----------- +inf
+    sel_arg_lt3:       [-------------------->
+    sel_arg_gt3:                             <---------------]
+    sel_arg_lt4:       [--------------------->
+  */
+
+  SEL_ARG *tmp= key_or(NULL, &sel_arg_lt3, &sel_arg_gt3);
+
+  /*
+    Ranges now:
+                       -inf ----------------34----------- +inf
+    tmp:               [--------------------><---------------]
+    sel_arg_lt4:       [--------------------->
+  */
+  range_string.length(0);
+  print_selarg_ranges(&range_string, tmp, &kpi);
+  const char expected_merged[]= 
+    "field_name < 3\n"
+    "3 < field_name";
+  EXPECT_STREQ(expected_merged, range_string.c_ptr());
+
+  SEL_ARG *tmp2= key_or(NULL, tmp, &sel_arg_lt4);
+  EXPECT_EQ(null_arg, tmp2);
 }
 
 }

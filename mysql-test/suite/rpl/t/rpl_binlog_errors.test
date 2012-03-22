@@ -256,7 +256,7 @@ SET GLOBAL debug="-d,error_unique_log_filename";
 ###            while registering the index file and the binary log
 ###            file or failure to write the rotate event.
 
-call mtr.add_suppression("MSYQL_BIN_LOG::open failed to sync the index file.");
+call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
 call mtr.add_suppression("Could not open .*");
 
 RESET MASTER;
@@ -264,7 +264,8 @@ SHOW WARNINGS;
 
 # +d,fault_injection_registering_index => injects fault on MYSQL_BIN_LOG::open
 SET GLOBAL debug="+d,fault_injection_registering_index";
--- replace_regex /\.[\\\/]master/master/
+# normalize strerror message for solaris10-sparc-64bit as long as errno is OK
+-- replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 -- error ER_CANT_OPEN_FILE
 FLUSH LOGS;
 SET GLOBAL debug="-d,fault_injection_registering_index";
@@ -292,12 +293,12 @@ DROP TABLE t5;
 
 # +d,fault_injection_openning_index => injects fault on MYSQL_BIN_LOG::open_index_file
 SET GLOBAL debug="+d,fault_injection_openning_index";
--- replace_regex /\.[\\\/]master/master/
+# normalize strerror message for solaris10-sparc-64bit as long as errno is OK
+-- replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 -- error ER_CANT_OPEN_FILE
 FLUSH LOGS;
 SET GLOBAL debug="-d,fault_injection_openning_index";
-
--- error ER_FLUSH_MASTER_BINLOG_CLOSED
+--error ER_FLUSH_MASTER_BINLOG_CLOSED
 RESET MASTER;
 
 # issue some statements and check that they don't fail
@@ -323,8 +324,7 @@ SET GLOBAL debug="+d,fault_injection_new_file_rotate_event";
 -- error ER_ERROR_ON_WRITE
 FLUSH LOGS;
 SET GLOBAL debug="-d,fault_injection_new_file_rotate_event";
-
--- error ER_FLUSH_MASTER_BINLOG_CLOSED
+--error ER_FLUSH_MASTER_BINLOG_CLOSED
 RESET MASTER;
 
 # issue some statements and check that they don't fail
@@ -362,7 +362,7 @@ RESET MASTER;
 call mtr.add_suppression("Slave I/O: Relay log write failure: could not queue event from master.*");
 call mtr.add_suppression("Error writing file .*");
 call mtr.add_suppression("Could not open .*");
-call mtr.add_suppression("MSYQL_BIN_LOG::open failed to sync the index file.");
+call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
 call mtr.add_suppression("Can't generate a unique log-filename .*");
 -- echo ###################### TEST #13
 

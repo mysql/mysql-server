@@ -721,7 +721,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   sp_head *sp;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
-  sp_rcontext *old_spcont= thd->spcont;
+  sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
   Silence_deprecated_warning warning_handler;
   Parser_state parser_state;
 
@@ -737,7 +737,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
 
   lex_start(thd);
   thd->push_internal_handler(&warning_handler);
-  thd->spcont= 0;
+  thd->sp_runtime_ctx= NULL;
 
   if (parse_sql(thd, & parser_state, creation_ctx) || thd->lex == NULL)
   {
@@ -751,7 +751,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   }
 
   thd->pop_internal_handler();
-  thd->spcont= old_spcont;
+  thd->sp_runtime_ctx= sp_runtime_ctx_saved;
   thd->variables.sql_mode= old_sql_mode;
   thd->variables.select_limit= old_select_limit;
   return sp;
@@ -1094,8 +1094,8 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
       table->field[MYSQL_PROC_FIELD_DEFINER]->
         store(definer, (uint)strlen(definer), system_charset_info);
 
-    table->field[MYSQL_PROC_FIELD_CREATED]->set_time();
-    table->field[MYSQL_PROC_FIELD_MODIFIED]->set_time();
+    Item_func_now_local::store_in(table->field[MYSQL_PROC_FIELD_CREATED]);
+    Item_func_now_local::store_in(table->field[MYSQL_PROC_FIELD_MODIFIED]);
 
     store_failed= store_failed ||
       table->field[MYSQL_PROC_FIELD_SQL_MODE]->
@@ -1374,8 +1374,7 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     }
 
     store_record(table,record[1]);
-    table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
-    table->field[MYSQL_PROC_FIELD_MODIFIED]->set_time();
+    Item_func_now_local::store_in(table->field[MYSQL_PROC_FIELD_MODIFIED]);
     if (chistics->suid != SP_IS_DEFAULT_SUID)
       table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->
 	store((longlong)chistics->suid, TRUE);

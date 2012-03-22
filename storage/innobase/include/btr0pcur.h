@@ -53,6 +53,16 @@ UNIV_INTERN
 btr_pcur_t*
 btr_pcur_create_for_mysql(void);
 /*============================*/
+
+/**************************************************************//**
+Resets a persistent cursor object, freeing ::old_rec_buf if it is
+allocated and resetting the other members to their initial values. */
+UNIV_INTERN
+void
+btr_pcur_reset(
+/*===========*/
+	btr_pcur_t*	cursor);/*!< in, out: persistent cursor */
+
 /**************************************************************//**
 Frees the memory for a persistent cursor object. */
 UNIV_INTERN
@@ -449,7 +459,7 @@ struct btr_pcur_struct{
 					BTR_MODIFY_TREE, or BTR_NO_LATCHES,
 					depending on the latching state of
 					the page and tree where the cursor is
-					positioned; the last value means that
+					positioned; BTR_NO_LATCHES means that
 					the cursor is not currently positioned:
 					we say then that the cursor is
 					detached; it can be restored to

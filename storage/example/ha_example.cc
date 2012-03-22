@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -99,36 +99,12 @@ static handler *example_create_handler(handlerton *hton,
 
 handlerton *example_hton;
 
-/* Variables for example share methods */
-
-/* 
-   Hash used to track the number of open tables; variable for example share
-   methods
-*/
-static HASH example_open_tables;
-
-/* The mutex used to init the hash; variable for example share methods */
-mysql_mutex_t example_mutex;
-
-/**
-  @brief
-  Function we use in the creation of our hash to get key.
-*/
-
-static uchar* example_get_key(EXAMPLE_SHARE *share, size_t *length,
-                             my_bool not_used __attribute__((unused)))
-{
-  *length=share->table_name_length;
-  return (uchar*) share->table_name;
-}
-
 #ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key ex_key_mutex_example, ex_key_mutex_EXAMPLE_SHARE_mutex;
+static PSI_mutex_key ex_key_mutex_Example_share_mutex;
 
 static PSI_mutex_info all_example_mutexes[]=
 {
-  { &ex_key_mutex_example, "example", PSI_FLAG_GLOBAL},
-  { &ex_key_mutex_EXAMPLE_SHARE_mutex, "EXAMPLE_SHARE::mutex", 0}
+  { &ex_key_mutex_Example_share_mutex, "Example_share::mutex", 0}
 };
 
 static void init_example_psi_keys()
@@ -141,6 +117,13 @@ static void init_example_psi_keys()
 }
 #endif
 
+Example_share::Example_share()
+{
+  thr_lock_init(&lock);
+  mysql_mutex_init(ex_key_mutex_Example_share_mutex,
+                   &mutex, MY_MUTEX_INIT_FAST);
+}
+
 
 static int example_init_func(void *p)
 {
@@ -151,29 +134,11 @@ static int example_init_func(void *p)
 #endif
 
   example_hton= (handlerton *)p;
-  mysql_mutex_init(ex_key_mutex_example, &example_mutex, MY_MUTEX_INIT_FAST);
-  (void) my_hash_init(&example_open_tables,system_charset_info,32,0,0,
-                      (my_hash_get_key) example_get_key,0,0);
-
   example_hton->state=   SHOW_OPTION_YES;
   example_hton->create=  example_create_handler;
   example_hton->flags=   HTON_CAN_RECREATE;
 
   DBUG_RETURN(0);
-}
-
-
-static int example_done_func(void *p)
-{
-  int error= 0;
-  DBUG_ENTER("example_done_func");
-
-  if (example_open_tables.records)
-    error= 1;
-  my_hash_free(&example_open_tables);
-  mysql_mutex_destroy(&example_mutex);
-
-  DBUG_RETURN(error);
 }
 
 
@@ -185,72 +150,26 @@ static int example_done_func(void *p)
   they are needed to function.
 */
 
-static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
+Example_share *ha_example::get_share()
 {
-  EXAMPLE_SHARE *share;
-  uint length;
-  char *tmp_name;
+  Example_share *tmp_share;
 
-  mysql_mutex_lock(&example_mutex);
-  length=(uint) strlen(table_name);
+  DBUG_ENTER("ha_example::get_share()");
 
-  if (!(share=(EXAMPLE_SHARE*) my_hash_search(&example_open_tables,
-                                              (uchar*) table_name,
-                                              length)))
+  lock_shared_ha_data();
+  if (!(tmp_share= static_cast<Example_share*>(get_ha_share_ptr())))
   {
-    if (!(share=(EXAMPLE_SHARE *)
-          my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
-                          &share, sizeof(*share),
-                          &tmp_name, length+1,
-                          NullS)))
-    {
-      mysql_mutex_unlock(&example_mutex);
-      return NULL;
-    }
+    tmp_share= new Example_share;
+    if (!tmp_share)
+      goto err;
 
-    share->use_count=0;
-    share->table_name_length=length;
-    share->table_name=tmp_name;
-    strmov(share->table_name,table_name);
-    if (my_hash_insert(&example_open_tables, (uchar*) share))
-      goto error;
-    thr_lock_init(&share->lock);
-    mysql_mutex_init(ex_key_mutex_EXAMPLE_SHARE_mutex,
-                     &share->mutex, MY_MUTEX_INIT_FAST);
+    set_ha_share_ptr(static_cast<Handler_share*>(tmp_share));
   }
-  share->use_count++;
-  mysql_mutex_unlock(&example_mutex);
-
-  return share;
-
-error:
-  mysql_mutex_destroy(&share->mutex);
-  my_free(share);
-
-  return NULL;
+err:
+  unlock_shared_ha_data();
+  DBUG_RETURN(tmp_share);
 }
 
-
-/**
-  @brief
-  Free lock controls. We call this whenever we close a table. If the table had
-  the last reference to the share, then we free memory associated with it.
-*/
-
-static int free_share(EXAMPLE_SHARE *share)
-{
-  mysql_mutex_lock(&example_mutex);
-  if (!--share->use_count)
-  {
-    my_hash_delete(&example_open_tables, (uchar*) share);
-    thr_lock_delete(&share->lock);
-    mysql_mutex_destroy(&share->mutex);
-    my_free(share);
-  }
-  mysql_mutex_unlock(&example_mutex);
-
-  return 0;
-}
 
 static handler* example_create_handler(handlerton *hton,
                                        TABLE_SHARE *table, 
@@ -312,7 +231,7 @@ int ha_example::open(const char *name, int mode, uint test_if_locked)
 {
   DBUG_ENTER("ha_example::open");
 
-  if (!(share = get_share(name, table)))
+  if (!(share = get_share()))
     DBUG_RETURN(1);
   thr_lock_data_init(&share->lock,&lock,NULL);
 
@@ -322,8 +241,7 @@ int ha_example::open(const char *name, int mode, uint test_if_locked)
 
 /**
   @brief
-  Closes a table. We call the free_share() function to free any resources
-  that we have allocated in the "shared" structure.
+  Closes a table.
 
   @details
   Called from sql_base.cc, sql_select.cc, and table.cc. In sql_select.cc it is
@@ -339,7 +257,7 @@ int ha_example::open(const char *name, int mode, uint test_if_locked)
 int ha_example::close(void)
 {
   DBUG_ENTER("ha_example::close");
-  DBUG_RETURN(free_share(share));
+  DBUG_RETURN(0);
 }
 
 
@@ -362,8 +280,8 @@ int ha_example::close(void)
   ha_berekly.cc has an example of how to store it intact by "packing" it
   for ha_berkeley's own native storage type.
 
-  See the note for update_row() on auto_increments and timestamps. This
-  case also applies to write_row().
+  See the note for update_row() on auto_increments. This case also applies to
+  write_row().
 
   Called from item_sum.cc, item_sum.cc, sql_acl.cc, sql_insert.cc,
   sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc, and sql_update.cc.
@@ -394,13 +312,14 @@ int ha_example::write_row(uchar *buf)
   clause was used. Consecutive ordering is not guaranteed.
 
   @details
-  Currently new_data will not have an updated auto_increament record, or
-  and updated timestamp field. You can do these for example by doing:
+  Currently new_data will not have an updated auto_increament record. You can
+  do this for example by doing:
+
   @code
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->get_timestamp_field()->set_time();
+
   if (table->next_number_field && record == table->record[0])
     update_auto_increment();
+
   @endcode
 
   Called from sql_select.cc, sql_acl.cc, sql_update.cc, and sql_insert.cc.
@@ -554,7 +473,7 @@ int ha_example::index_last(uchar *buf)
 int ha_example::rnd_init(bool scan)
 {
   DBUG_ENTER("ha_example::rnd_init");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  DBUG_RETURN(0);
 }
 
 int ha_example::rnd_end()
@@ -997,7 +916,7 @@ mysql_declare_plugin(example)
   "Example storage engine",
   PLUGIN_LICENSE_GPL,
   example_init_func,                            /* Plugin Init */
-  example_done_func,                            /* Plugin Deinit */
+  NULL,                                         /* Plugin Deinit */
   0x0001 /* 0.1 */,
   func_status,                                  /* status variables */
   example_system_variables,                     /* system variables */

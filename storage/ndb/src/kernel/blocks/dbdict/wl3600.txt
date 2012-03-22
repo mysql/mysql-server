@@ -1,0 +1,95 @@
+Transaction framework
+
+1) BEGIN REQ
+
+### Parse phase
+
+2) OP (e.g create table) from API, Savepoint X
+3) OP::parse *on master*
+   if error
+   then
+      OP::abortParse
+      reply ref
+      goto 2
+    if
+4) OP::parse on *slaves*
+5) if error
+   then
+     goto 7
+   fi
+
+6) OP::subops (will create new OP i.e goto 2)
+
+### Rollback SP
+
+7) call OP::abortParse on all parsed operations *backwards* until SP
+   reply ref
+   goto 2
+
+### Prepare
+
+8) call OP::prepare() on each operation *forwards*
+   if error
+   then
+     goto 9
+   else
+     goto 12
+   fi
+
+### Abort
+
+9) call OP::abortPrepare on each *prepared* operation *backwards*
+10 call OP::abortParse on each operation *backwards*
+11) reply ref
+
+#### Commit
+
+12) call OP::commit on each operation *forwards*
+
+13) reply conf
+
+### Description of Operation
+
+Each operation shall work *locally* only
+
+OP::parse - Parse request, "do dict only" prepare
+            Shall modify schema-file if applicable
+
+OP::prepare - Prepare operation at node
+
+OP::commit - Commit operation at node
+
+OP::abortPrepare - undo OP::prepare
+    NOTE will be called even if OP::prepare returns REF
+
+OP::abortParse . undo OP::parse
+    NOTE will be called even if OP::parse returns REF (except err==SeizeFailed)
+
+### TODO (not sorted)
+
+- Master take-over
+
+- SchemaFile batching
+
+- Convert File* operations
+
+- Think about event/subscriber operations
+
+- RWPool
+
+### Things that Jonas would have done differently, but havent changed
+
+- Don't call abortParse if parse returns REF
+- Don't call abortPrepare if prepare returns REF
+- Removed TrxHandle
+
+### Pekkas "incomplete/not good"
+
+a) consistent schema file states
+
+b) connection with DictObject
+
+c) better support for abort
+
+d) good schema trans _id_ sharing "value space" with transId1
+

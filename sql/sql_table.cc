@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,6 +53,8 @@
 #include "sql_show.h"
 #include "transaction.h"
 #include "datadict.h"  // dd_frm_type()
+#include "sql_resolver.h"              // setup_order, fix_inner_refs
+#include <mysql/psi/mysql_table.h>
 
 #ifdef __WIN__
 #include <io.h>
@@ -70,7 +72,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
                                     List<Create_field> &create, bool ignore,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted,
-                                    enum enum_enable_or_disable keys_onoff,
+                                    Alter_info::enum_enable_or_disable keys_onoff,
                                     bool error_if_not_empty);
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
@@ -578,22 +580,19 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
 }
 
 
-/*
-  Creates path to a file: mysql_tmpdir/#sql1234_12_1.ext
+/**
+  Create path to a temporary table mysql_tmpdir/#sql1234_12_1
+  (i.e. to its .FRM file but without an extension).
 
-  SYNOPSIS
-   build_tmptable_filename()
-     thd                        The thread handle.
-     buff                       Where to write result in my_charset_filename.
-     bufflen                    buff size
+  @param thd      The thread handle.
+  @param buff     Where to write result in my_charset_filename.
+  @param bufflen  buff size
 
-  NOTES
-
+  @note
     Uses current_pid, thread_id, and tmp_table counter to create
     a file name in mysql_tmpdir.
 
-  RETURN
-    path length
+  @return Path length.
 */
 
 uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
@@ -601,9 +600,9 @@ uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
   DBUG_ENTER("build_tmptable_filename");
 
   char *p= strnmov(buff, mysql_tmpdir, bufflen);
-  my_snprintf(p, bufflen - (p - buff), "/%s%lx_%lx_%x%s",
+  my_snprintf(p, bufflen - (p - buff), "/%s%lx_%lx_%x",
               tmp_file_prefix, current_pid,
-              thd->thread_id, thd->tmp_table++, reg_ext);
+              thd->thread_id, thd->tmp_table++);
 
   if (lower_case_table_names)
   {
@@ -917,6 +916,8 @@ static void set_ddl_log_entry_from_global(DDL_LOG_ENTRY *ddl_log_entry,
     inx+= global_ddl_log.name_len;
     ddl_log_entry->tmp_name= &file_entry_buf[inx];
   }
+  else
+    ddl_log_entry->tmp_name= NULL;
 }
 
 
@@ -2394,9 +2395,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         tbl_name.append('.');
         tbl_name.append(String(table->table_name,system_charset_info));
 
-	push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
-			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
-			    tbl_name.c_ptr());
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+                            ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
+                            tbl_name.c_ptr());
       }
       else
       {
@@ -2422,21 +2423,21 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
       /* No error if non existent table and 'IF EXIST' clause or view */
       if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
-	  (if_exists || table_type == NULL))
+          (if_exists || table_type == NULL))
       {
-	error= 0;
+        error= 0;
         thd->clear_error();
       }
       if (error == HA_ERR_ROW_IS_REFERENCED)
       {
-	/* the table is referenced by a foreign key constraint */
-	foreign_key_error= 1;
+        /* the table is referenced by a foreign key constraint */
+        foreign_key_error= 1;
       }
       if (!error || error == ENOENT || error == HA_ERR_NO_SUCH_TABLE)
       {
         int new_error;
-	/* Delete the table definition file */
-	strmov(end,reg_ext);
+        /* Delete the table definition file */
+        strmov(end,reg_ext);
         if (!(new_error= mysql_file_delete(key_file_frm, path, MYF(MY_WME))))
         {
           non_tmp_table_deleted= TRUE;
@@ -2449,8 +2450,16 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
     if (error)
     {
+      if (error == HA_ERR_TOO_MANY_CONCURRENT_TRXS)
+      {
+        my_error(HA_ERR_TOO_MANY_CONCURRENT_TRXS, MYF(0));
+        wrong_tables.free();
+        error= 1;
+        goto err;
+      }
+
       if (wrong_tables.length())
-	wrong_tables.append(',');
+        wrong_tables.append(',');
 
       wrong_tables.append(String(db,system_charset_info));
       wrong_tables.append('.');
@@ -2463,6 +2472,11 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                     my_printf_error(ER_BAD_TABLE_ERROR,
                                     ER(ER_BAD_TABLE_ERROR), MYF(0),
                                     table->table_name););
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    if (drop_temporary && likely(error == 0))
+      PSI_CALL(drop_table_share)(true, table->db, table->db_length,
+                                 table->table_name, table->table_name_length);
+#endif
   }
   DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
   thd->thread_specific_used|= (trans_tmp_table_deleted ||
@@ -2568,22 +2582,20 @@ end:
 }
 
 
-/*
+/**
   Quickly remove a table.
 
-  SYNOPSIS
-    quick_rm_table()
-      base                      The handlerton handle.
-      db                        The database name.
-      table_name                The table name.
-      flags                     flags for build_table_filename().
+  @param thd         Thread context.
+  @param base        The handlerton handle.
+  @param db          The database name.
+  @param table_name  The table name.
+  @param flags       Flags for build_table_filename() as well as describing
+                     if handler files / .FRM should be deleted as well.
 
-  RETURN
-    0           OK
-    != 0        Error
+  @return False in case of success, True otherwise.
 */
 
-bool quick_rm_table(handlerton *base,const char *db,
+bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags)
 {
   char path[FN_REFLEN + 1];
@@ -2595,7 +2607,15 @@ bool quick_rm_table(handlerton *base,const char *db,
   if (mysql_file_delete(key_file_frm, path, MYF(0)))
     error= 1; /* purecov: inspected */
   path[path_length - reg_ext_length]= '\0'; // Remove reg_ext
-  if (!(flags & FRM_ONLY))
+  if (flags & NO_HA_TABLE)
+  {
+    handler *file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base);
+    if (!file)
+      DBUG_RETURN(true);
+    (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, NULL);
+    delete file;
+  }
+  if (!(flags & (FRM_ONLY|NO_HA_TABLE)))
     error|= ha_delete_table(current_thd, base, path, db, table_name, 0);
   DBUG_RETURN(error);
 }
@@ -2687,8 +2707,7 @@ bool check_duplicates_in_interval(const char *set_or_name,
     {
       THD *thd= current_thd;
       ErrConvString err(*cur_value, *cur_length, cs);
-      if ((current_thd->variables.sql_mode &
-         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+      if (current_thd->is_strict_mode())
       {
         my_error(ER_DUPLICATED_VALUE_IN_TYPE, MYF(0),
                  name, err.ptr(), set_or_name);
@@ -2746,7 +2765,6 @@ void calculate_interval_lengths(const CHARSET_INFO *cs, TYPELIB *interval,
     prepare_create_field()
     sql_field     field to prepare for packing
     blob_columns  count for BLOBs
-    timestamps    count for timestamps
     table_flags   table flags
 
   DESCRIPTION
@@ -2760,7 +2778,6 @@ void calculate_interval_lengths(const CHARSET_INFO *cs, TYPELIB *interval,
 
 int prepare_create_field(Create_field *sql_field, 
 			 uint *blob_columns, 
-			 int *timestamps, int *timestamps_with_niladic,
 			 longlong table_flags)
 {
   unsigned int dup_val_count;
@@ -2885,21 +2902,6 @@ int prepare_create_field(Create_field *sql_field,
     break;
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_TIMESTAMP2:
-    /* We should replace old TIMESTAMP fields with their newer analogs */
-    if (sql_field->unireg_check == Field::TIMESTAMP_OLD_FIELD)
-    {
-      if (!*timestamps)
-      {
-        sql_field->unireg_check= Field::TIMESTAMP_DNUN_FIELD;
-        (*timestamps_with_niladic)++;
-      }
-      else
-        sql_field->unireg_check= Field::NONE;
-    }
-    else if (sql_field->unireg_check != Field::NONE)
-      (*timestamps_with_niladic)++;
-
-    (*timestamps)++;
     /* fall-through */
   default:
     sql_field->pack_flag=(FIELDFLAG_NUMBER |
@@ -2951,6 +2953,41 @@ const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
 }
 
 
+/**
+   Modifies the first column definition whose SQL type is TIMESTAMP
+   by adding the features DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP.
+
+   @param column_definitions The list of column definitions, in the physical
+                             order in which they appear in the table.
+ */
+void promote_first_timestamp_column(List<Create_field> *column_definitions)
+{
+  List_iterator<Create_field> it(*column_definitions);
+  Create_field *column_definition;
+
+  while ((column_definition= it++) != NULL)
+  {
+    if (column_definition->sql_type == MYSQL_TYPE_TIMESTAMP ||      // TIMESTAMP
+        column_definition->sql_type == MYSQL_TYPE_TIMESTAMP2 || //  ms TIMESTAMP
+        column_definition->unireg_check == Field::TIMESTAMP_OLD_FIELD) // Legacy
+    {
+      if ((column_definition->flags & NOT_NULL_FLAG) != 0 && // NOT NULL,
+          column_definition->def == NULL &&            // no constant default,
+          column_definition->unireg_check == Field::NONE) // no function default
+      {
+        DBUG_PRINT("info", ("First TIMESTAMP column '%s' was promoted to "
+                            "DEFAULT CURRENT_TIMESTAMP ON UPDATE "
+                            "CURRENT_TIMESTAMP",
+                            column_definition->field_name
+                            ));
+        column_definition->unireg_check= Field::TIMESTAMP_DNUN_FIELD;
+      }
+      return;
+    }
+  }
+}
+
+
 /*
   Preparation for table creation
 
@@ -2991,7 +3028,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   ulong		record_offset= 0;
   KEY		*key_info;
   KEY_PART_INFO *key_part_info;
-  int		timestamps= 0, timestamps_with_niladic= 0;
   int		field_no,dup_no;
   int		select_field_pos,auto_increment=0;
   List_iterator<Create_field> it(alter_info->create_list);
@@ -3014,6 +3050,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       executing a prepared statement for the second time.
     */
     sql_field->length= sql_field->char_length;
+    /* Set field charset. */
     save_cs= sql_field->charset= get_sql_field_charset(sql_field,
                                                        create_info);
     if ((sql_field->flags & BINCMP_FLAG) &&
@@ -3273,7 +3310,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_ASSERT(sql_field->charset != 0);
 
     if (prepare_create_field(sql_field, &blob_columns, 
-			     &timestamps, &timestamps_with_niladic,
 			     file->ha_table_flags()))
       DBUG_RETURN(TRUE);
     if (sql_field->sql_type == MYSQL_TYPE_VARCHAR)
@@ -3282,12 +3318,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
     record_offset+= sql_field->pack_length;
-  }
-  if (timestamps_with_niladic > 1)
-  {
-    my_message(ER_TOO_MUCH_AUTO_TIMESTAMP_COLS,
-               ER(ER_TOO_MUCH_AUTO_TIMESTAMP_COLS), MYF(0));
-    DBUG_RETURN(TRUE);
   }
   if (auto_increment > 1)
   {
@@ -3308,6 +3338,15 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                MYF(0));
     DBUG_RETURN(TRUE);
   }
+
+  /*
+   CREATE TABLE[with auto_increment column] SELECT is unsafe as the rows
+   inserted in the created table depends on the order of the rows fetched
+   from the select tables. This order may differ on master and slave. We
+   therefore mark it as unsafe.
+  */
+  if (select_field_count > 0 && auto_increment)
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_SELECT_AUTOINC);
 
   /* Create keys */
 
@@ -3801,33 +3840,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
       DBUG_RETURN(TRUE);
     }
-
-    uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
-                                           key->key_create_info.comment.str,
-                                           key->key_create_info.comment.str +
-                                           key->key_create_info.comment.length,
-                                           INDEX_COMMENT_MAXLEN);
-
-    if (tmp_len < key->key_create_info.comment.length)
-    {
-      if ((thd->variables.sql_mode &
-           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
-      {
-        my_error(ER_TOO_LONG_INDEX_COMMENT, MYF(0),
-                 key_info->name, static_cast<ulong>(INDEX_COMMENT_MAXLEN));
-        DBUG_RETURN(-1);
-      }
-      char warn_buff[MYSQL_ERRMSG_SIZE];
-      my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_INDEX_COMMENT),
-                  key_info->name, static_cast<ulong>(INDEX_COMMENT_MAXLEN));
-      /* do not push duplicate warnings */
-      if (!thd->get_stmt_da()->has_sql_condition(warn_buff, strlen(warn_buff)))
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                     ER_TOO_LONG_INDEX_COMMENT, warn_buff);
-
-      key->key_create_info.comment.length= tmp_len;
-    }
-
+    if (validate_comment_length(thd, key->key_create_info.comment.str,
+                                &key->key_create_info.comment.length,
+                                INDEX_COMMENT_MAXLEN,
+                                ER_TOO_LONG_INDEX_COMMENT,
+                                key_info->name))
+       DBUG_RETURN(true);
     key_info->comment.length= key->key_create_info.comment.length;
     if (key_info->comment.length > 0)
     {
@@ -3861,7 +3879,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 
     if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
         !sql_field->def &&
-        real_type_with_now_as_default(sql_field->sql_type) &&
+        is_timestamp_type(sql_field->sql_type) &&
         (sql_field->flags & NOT_NULL_FLAG) &&
         (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
     {
@@ -3885,6 +3903,56 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   }
 
   DBUG_RETURN(FALSE);
+}
+
+/**
+  @brief check comment length of table, column, index and partition
+
+  @details If comment length is more than the standard length
+    truncate it and store the comment length upto the standard
+    comment length size
+
+  @param          thd             Thread handle
+  @param          comment_str     Comment string
+  @param[in,out]  comment_len     Comment length
+  @param          max_len         Maximum allowed comment length
+  @param          err_code        Error message
+  @param          comment_name    Type of comment
+
+  @return Operation status
+    @retval       true            Error found
+    @retval       false           On success
+*/
+
+bool validate_comment_length(THD *thd, const char *comment_str,
+                             size_t *comment_len, uint max_len,
+                             uint err_code, const char *comment_name)
+{
+  int length= 0;
+  DBUG_ENTER("validate_comment_length");
+  uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
+                                                   comment_str,
+                                                   comment_str +
+                                                   *comment_len,
+                                                   max_len);
+  if (tmp_len < *comment_len)
+  {
+    if (thd->is_strict_mode())
+    {
+      my_error(err_code, MYF(0),
+               comment_name, static_cast<ulong>(max_len));
+      DBUG_RETURN(true);
+    }
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+    length= my_snprintf(warn_buff, sizeof(warn_buff), ER(err_code),
+                        comment_name, static_cast<ulong>(max_len));
+    /* do not push duplicate warnings */
+    if (!thd->get_stmt_da()->has_sql_condition(warn_buff, length)) 
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                   err_code, warn_buff);
+    *comment_len= tmp_len;
+  }
+  DBUG_RETURN(false);
 }
 
 
@@ -3943,8 +4011,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
     /* Convert long VARCHAR columns to TEXT or BLOB */
     char warn_buff[MYSQL_ERRMSG_SIZE];
 
-    if (sql_field->def || (thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
-                                                      MODE_STRICT_ALL_TABLES)))
+    if (sql_field->def || thd->is_strict_mode())
     {
       my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
                static_cast<ulong>(MAX_FIELD_VARCHARLENGTH /
@@ -4027,98 +4094,59 @@ void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 }
 
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
 /**
-  Auxiliary function which allows to check if freshly created .FRM
-  file for table can be opened.
-
-  @retval FALSE - Success.
-  @retval TRUE  - Failure.
-*/
-
-static bool check_if_created_table_can_be_opened(THD *thd,
-                                                 const char *path,
-                                                 const char *db,
-                                                 const char *table_name,
-                                                 HA_CREATE_INFO *create_info,
-                                                 handler *file)
-{
-  TABLE table;
-  TABLE_SHARE share;
-  bool result;
-
-  /*
-    It is impossible to open definition of partitioned table without .par file.
-  */
-  if (file->ha_create_handler_files(path, NULL, CHF_CREATE_FLAG, create_info))
-    return TRUE;
-
-  init_tmp_table_share(thd, &share, db, 0, table_name, path);
-
-  result= (open_table_def(thd, &share, 0) ||
-           open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
-                                 0, &table, TRUE));
-  if (! result)
-    (void) closefrm(&table, 0);
-
-  free_table_share(&share);
-  (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info);
-  return result;
-}
-#endif
-
-
-/*
   Create a table
 
-  SYNOPSIS
-    mysql_create_table_no_lock()
-    thd			Thread object
-    db			Database
-    table_name		Table name
-    create_info	        Create information (like MAX_ROWS)
-    fields		List of fields to create
-    keys		List of keys to create
-    internal_tmp_table  Set to 1 if this is an internal temporary table
-			(From ALTER TABLE)
-    select_field_count
-    is_trans            identifies the type of engine where the table
-                        was created: either trans or non-trans.
+  @param thd                 Thread object
+  @param db                  Database
+  @param table_name          Table name
+  @param path                Path to table (i.e. to its .FRM file without
+                             the extension).
+  @param create_info         Create information (like MAX_ROWS)
+  @param alter_info          Description of fields and keys for new table
+  @param internal_tmp_table  Set to true if this is an internal temporary table
+                             (From ALTER TABLE)
+  @param select_field_count  Number of fields coming from SELECT part of
+                             CREATE TABLE ... SELECT statement. Must be zero
+                             for standard create of table.
+  @param no_ha_table         Indicates that only .FRM file (and PAR file if table
+                             is partitioned) needs to be created and not a table
+                             in the storage engine.
+  @param[out] is_trans       Identifies the type of engine where the table
+                             was created: either trans or non-trans.
+  @param[out] key_info       Array of KEY objects describing keys in table
+                             which was created.
+  @param[out] key_count      Number of keys in table which was created.
 
-  DESCRIPTION
-    If one creates a temporary table, this is automatically opened
+  If one creates a temporary table, this is automatically opened
 
-    Note that this function assumes that caller already have taken
-    exclusive metadata lock on table being created or used some other
-    way to ensure that concurrent operations won't intervene.
-    mysql_create_table() is a wrapper that can be used for this.
+  Note that this function assumes that caller already have taken
+  exclusive metadata lock on table being created or used some other
+  way to ensure that concurrent operations won't intervene.
+  mysql_create_table() is a wrapper that can be used for this.
 
-    no_log is needed for the case of CREATE ... SELECT,
-    as the logging will be done later in sql_insert.cc
-    select_field_count is also used for CREATE ... SELECT,
-    and must be zero for standard create of table.
-
-  RETURN VALUES
-    FALSE OK
-    TRUE  error
+  @retval false OK
+  @retval true  error
 */
 
-bool mysql_create_table_no_lock(THD *thd,
-                                const char *db, const char *table_name,
-                                HA_CREATE_INFO *create_info,
-                                Alter_info *alter_info,
-                                bool internal_tmp_table,
-                                uint select_field_count,
-                                bool *is_trans)
+static
+bool create_table_impl(THD *thd,
+                       const char *db, const char *table_name,
+                       const char *path,
+                       HA_CREATE_INFO *create_info,
+                       Alter_info *alter_info,
+                       bool internal_tmp_table,
+                       uint select_field_count,
+                       bool no_ha_table,
+                       bool *is_trans,
+                       KEY **key_info,
+                       uint *key_count)
 {
-  char		path[FN_REFLEN + 1];
-  uint          path_length;
   const char	*alias;
-  uint		db_options, key_count;
-  KEY		*key_info_buffer;
+  uint		db_options;
   handler	*file;
   bool		error= TRUE;
-  DBUG_ENTER("mysql_create_table_no_lock");
+  DBUG_ENTER("create_table_impl");
   DBUG_PRINT("enter", ("db: '%s'  table: '%s'  tmp: %d",
                        db, table_name, internal_tmp_table));
 
@@ -4185,6 +4213,42 @@ bool mysql_create_table_no_lock(THD *thd,
     char *part_syntax_buf;
     uint syntax_len;
     handlerton *engine_type;
+    List_iterator<partition_element> part_it(part_info->partitions);
+    partition_element *part_elem;
+
+    while ((part_elem= part_it++))
+    {
+      if (part_elem->part_comment)
+      {
+        size_t comment_len= strlen(part_elem->part_comment);
+        if (validate_comment_length(thd, part_elem->part_comment,
+                                     &comment_len,
+                                     TABLE_PARTITION_COMMENT_MAXLEN,
+                                     ER_TOO_LONG_TABLE_PARTITION_COMMENT,
+                                     part_elem->partition_name))
+          DBUG_RETURN(true);
+        part_elem->part_comment[comment_len]= '\0';
+      }
+      if (part_elem->subpartitions.elements)
+      {
+        List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        partition_element *subpart_elem;
+        while ((subpart_elem= sub_it++))
+        {
+          if (subpart_elem->part_comment)
+          {
+            size_t comment_len= strlen(subpart_elem->part_comment);
+            if (validate_comment_length(thd, subpart_elem->part_comment,
+                                         &comment_len,
+                                         TABLE_PARTITION_COMMENT_MAXLEN,
+                                         ER_TOO_LONG_TABLE_PARTITION_COMMENT,
+                                         subpart_elem->partition_name))
+              DBUG_RETURN(true);
+            subpart_elem->part_comment[comment_len]= '\0';
+          }
+        }
+      }
+    } 
     if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     {
       my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
@@ -4310,21 +4374,12 @@ bool mysql_create_table_no_lock(THD *thd,
   if (mysql_prepare_create_table(thd, create_info, alter_info,
                                  internal_tmp_table,
                                  &db_options, file,
-                                 &key_info_buffer, &key_count,
+                                 key_info, key_count,
                                  select_field_count))
     goto err;
 
-      /* Check if table exists */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-  {
-    path_length= build_tmptable_filename(thd, path, sizeof(path));
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
-  }
-  else  
-  {
-    path_length= build_table_filename(path, sizeof(path) - 1, db, alias, reg_ext,
-                                      internal_tmp_table ? FN_IS_TMP : 0);
-  }
 
   /* Check if table already exists */
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -4344,7 +4399,10 @@ bool mysql_create_table_no_lock(THD *thd,
 
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
-    if (!access(path,F_OK))
+    char frm_name[FN_REFLEN+1];
+    strxnmov(frm_name, sizeof(frm_name) - 1, path, reg_ext, NullS);
+
+    if (!access(frm_name, F_OK))
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
         goto warn;
@@ -4406,7 +4464,6 @@ bool mysql_create_table_no_lock(THD *thd,
 
   THD_STAGE_INFO(thd, stage_creating_table);
 
-#ifdef HAVE_READLINK
   {
     size_t dirlen;
     char   dirpath[FN_REFLEN];
@@ -4453,8 +4510,7 @@ bool mysql_create_table_no_lock(THD *thd,
   }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
-  if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
-#endif /* HAVE_READLINK */
+  if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
   {
     if (create_info->data_file_name)
       push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
@@ -4468,20 +4524,23 @@ bool mysql_create_table_no_lock(THD *thd,
   }
   create_info->table_options=db_options;
 
-  path[path_length - reg_ext_length]= '\0'; // Remove .frm extension
+  /*
+    Create .FRM (and .PAR file for partitioned table).
+    If "no_ha_table" is false also create table in storage engine.
+  */
   if (rea_create_table(thd, path, db, table_name,
                        create_info, alter_info->create_list,
-                       key_count, key_info_buffer, file))
+                       *key_count, *key_info, file, no_ha_table))
     goto err;
 
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  if (!no_ha_table && create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
     /*
       Open a table (skipping table cache) and add it into
       THD::temporary_tables list.
     */
 
-    TABLE *table= open_table_uncached(thd, path, db, table_name, TRUE);
+    TABLE *table= open_table_uncached(thd, path, db, table_name, true, true);
 
     if (!table)
     {
@@ -4495,7 +4554,7 @@ bool mysql_create_table_no_lock(THD *thd,
     thd->thread_specific_used= TRUE;
   }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  else if (part_info && create_info->frm_only)
+  else if (part_info && no_ha_table)
   {
     /*
       For partitioned tables we can't find some problems with table
@@ -4507,12 +4566,26 @@ bool mysql_create_table_no_lock(THD *thd,
       In cases when we create .FRM without SE part we have to open
       table explicitly.
     */
-    if (check_if_created_table_can_be_opened(thd, path, db, table_name,
-                                             create_info, file))
+    TABLE table;
+    TABLE_SHARE share;
+
+    init_tmp_table_share(thd, &share, db, 0, table_name, path);
+
+    bool result= (open_table_def(thd, &share, 0) ||
+                  open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
+                                        0, &table, true));
+    if (!result)
+      (void) closefrm(&table, 0);
+
+    free_table_share(&share);
+
+    if (result)
     {
-      char frm_name[FN_REFLEN];
-      strxmov(frm_name, path, reg_ext, NullS);
+      char frm_name[FN_REFLEN + 1];
+      strxnmov(frm_name, sizeof(frm_name) - 1, path, reg_ext, NullS);
       (void) mysql_file_delete(key_file_frm, frm_name, MYF(0));
+      (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG,
+                                           create_info);
       goto err;
     }
   }
@@ -4530,6 +4603,35 @@ warn:
                       ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                       alias);
   goto err;
+}
+
+
+/**
+  Simple wrapper around create_table_impl() to be used
+  in various version of CREATE TABLE statement.
+*/
+bool mysql_create_table_no_lock(THD *thd,
+                                const char *db, const char *table_name,
+                                HA_CREATE_INFO *create_info,
+                                Alter_info *alter_info,
+                                uint select_field_count,
+                                bool *is_trans)
+{
+  KEY *not_used_1;
+  uint not_used_2;
+  char path[FN_REFLEN + 1];
+
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+    build_tmptable_filename(thd, path, sizeof(path));
+  else
+  {
+    const char *alias= table_case_name(create_info, table_name);
+    build_table_filename(path, sizeof(path) - 1, db, alias, "", 0);
+  }
+
+  return create_table_impl(thd, db, table_name, path, create_info, alter_info,
+                           false, select_field_count, false, is_trans,
+                           &not_used_1, &not_used_2);
 }
 
 
@@ -4563,9 +4665,14 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   /* Got lock. */
   DEBUG_SYNC(thd, "locked_table_name");
 
+  /* We can abort create table for any table type */
+  thd->abort_on_warning= thd->is_strict_mode();
+
+  promote_first_timestamp_column(&alter_info->create_list);
+
   result= mysql_create_table_no_lock(thd, create_table->db,
                                      create_table->table_name, create_info,
-                                     alter_info, FALSE, 0, &is_trans);
+                                     alter_info, 0, &is_trans);
   /*
     Don't write statement if:
     - Table creation has failed
@@ -4590,6 +4697,8 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
       result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
     }
   }
+
+  thd->abort_on_warning= false;
 end:
   DBUG_RETURN(result);
 }
@@ -4639,25 +4748,23 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
 ****************************************************************************/
 
 
-/*
+/**
   Rename a table.
 
-  SYNOPSIS
-    mysql_rename_table()
-      base                      The handlerton handle.
-      old_db                    The old database name.
-      old_name                  The old table name.
-      new_db                    The new database name.
-      new_name                  The new table name.
-      flags                     flags for build_table_filename().
-                                FN_FROM_IS_TMP old_name is temporary.
-                                FN_TO_IS_TMP   new_name is temporary.
-                                NO_FRM_RENAME  Don't rename the FRM file
-                                but only the table in the storage engine.
+  @param base      The handlerton handle.
+  @param old_db    The old database name.
+  @param old_name  The old table name.
+  @param new_db    The new database name.
+  @param new_name  The new table name.
+  @param flags     flags
+                   FN_FROM_IS_TMP old_name is temporary.
+                   FN_TO_IS_TMP   new_name is temporary.
+                   NO_FRM_RENAME  Don't rename the FRM file
+                                  but only the table in the storage engine.
+                   NO_HA_TABLE    Don't rename table in engine.
 
-  RETURN
-    FALSE   OK
-    TRUE    Error
+  @return false    OK
+  @return true     Error
 */
 
 bool
@@ -4705,7 +4812,13 @@ mysql_rename_table(handlerton *base, const char *old_db,
     to_base= lc_to;
   }
 
-  if (!file || !(error=file->ha_rename_table(from_base, to_base)))
+  if (flags & NO_HA_TABLE)
+  {
+    if (rename_file_ext(from,to,reg_ext))
+      error= my_errno;
+    (void) file->ha_create_handler_files(to, from, CHF_RENAME_FLAG, NULL);
+  }
+  else if (!file || !(error=file->ha_rename_table(from_base, to_base)))
   {
     if (!(flags & NO_FRM_RENAME) && rename_file_ext(from,to,reg_ext))
     {
@@ -4719,7 +4832,26 @@ mysql_rename_table(handlerton *base, const char *old_db,
   if (error == HA_ERR_WRONG_COMMAND)
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TABLE");
   else if (error)
-    my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
+  {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(ER_ERROR_ON_RENAME, MYF(0), from, to,
+             error, my_strerror(errbuf, sizeof(errbuf), error));
+  }
+
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  /*
+    Remove the old table share from the pfs table share array. The new table
+    share will be created when the renamed table is first accessed.
+   */
+  if (likely(error == 0))
+  {
+    my_bool temp_table= (my_bool)is_prefix(old_name, tmp_file_prefix);
+    PSI_CALL(drop_table_share)(temp_table, old_db, strlen(old_db),
+                               old_name, strlen(old_name));
+  }
+#endif
+
+
   DBUG_RETURN(error != 0);
 }
 
@@ -4744,6 +4876,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 {
   HA_CREATE_INFO local_create_info;
   Alter_info local_alter_info;
+  Alter_table_ctx local_alter_ctx; // Not used
   bool res= TRUE;
   bool is_trans= FALSE;
   uint not_used;
@@ -4772,7 +4905,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   local_create_info.db_type= src_table->table->s->db_type();
   local_create_info.row_type= src_table->table->s->row_type;
   if (mysql_prepare_alter_table(thd, src_table->table, &local_create_info,
-                                &local_alter_info))
+                                &local_alter_info, &local_alter_ctx))
     goto err;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* Partition info is not handled by mysql_prepare_alter_table() call. */
@@ -4804,7 +4937,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
   if ((res= mysql_create_table_no_lock(thd, table->db, table->table_name,
                                        &local_create_info, &local_alter_info,
-                                       FALSE, 0, &is_trans)))
+                                       0, &is_trans)))
     goto err;
 
   /*
@@ -4915,13 +5048,11 @@ err:
 
 
 /* table_list should contain just one table */
-static int
-mysql_discard_or_import_tablespace(THD *thd,
-                                   TABLE_LIST *table_list,
-                                   Alter_info *alter_info)
+int mysql_discard_or_import_tablespace(THD *thd,
+                                       TABLE_LIST *table_list,
+                                       bool discard)
 {
-  Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
-  my_bool discard;
+  Alter_table_prelocking_strategy alter_prelocking_strategy;
   int error;
   DBUG_ENTER("mysql_discard_or_import_tablespace");
 
@@ -4931,8 +5062,6 @@ mysql_discard_or_import_tablespace(THD *thd,
   */
 
   THD_STAGE_INFO(thd, stage_discard_or_import_tablespace);
-
-  discard= test(alter_info->tablespace_op == DISCARD_TABLESPACE);
 
  /*
    We set this flag so that ha_innobase::open and ::external_lock() do
@@ -4993,295 +5122,261 @@ err:
 
 
 /**
-  Check if ALTER TABLE statement changes position of any column
-  in the table or adds new columns.
-
-  @param alter_info  Alter_info object describing structure of new
-                     version of table.
-
-  @retval True  - some column is added or changes its position.
-  @retval False - no columns are added nor their positions change.
+  Check if key is a candidate key, i.e. a unique index with no index
+  fields partial or nullable.
 */
 
-static bool has_new_or_reordered_columns(Alter_info *alter_info)
+static bool is_candidate_key(KEY *key)
 {
-  List_iterator_fast<Create_field> new_field_it(alter_info->create_list);
-  Create_field *new_field;
-  uint new_field_idx;
+  KEY_PART_INFO *key_part;
+  KEY_PART_INFO *key_part_end= key->key_part + key->key_parts;
 
-  for (new_field_idx= 0, new_field= new_field_it++; new_field;
-       new_field_idx++, new_field= new_field_it++)
+  if (!(key->flags & HA_NOSAME) || (key->flags & HA_NULL_PART_KEY))
+    return false;
+
+  for (key_part= key->key_part; key_part < key_part_end; key_part++)
   {
-    if (! new_field->field ||
-        new_field->field->field_index != new_field_idx)
-      return true;
+    if (key_part->key_part_flag & HA_PART_KEY_SEG)
+      return false;
   }
-  return false;
+
+  return true;
 }
 
 
 /**
-  @brief Check if both DROP and CREATE are present for an index in ALTER TABLE
+  Get Create_field object for newly created table by field index.
 
-  @details Checks if any index is being modified (present as both DROP INDEX
-    and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling
-    in-place ALTER TABLE.
-
-  @param table              The table being altered.
-  @param key_info_buffer    Array of KEY structs for new indexes.
-  @param index_drop_buffer  Array of offsets into table->key_info for indexes
-                            to be dropped.
-  @param index_drop_count   Number of indexes to be dropped.
-  @param index_add_buffer   Array of offsets into key_info_buffer representing
-                            new indexes.
-  @param index_add_count    Number of indexes to add.
-  @return presence of index being both dropped and added
-  @retval FALSE  No such index
-  @retval TRUE   Have at least 1 index modified
+  @param alter_info  Alter_info describing newly created table.
+  @param idx         Field index.
 */
 
-static bool
-is_index_maintenance_unique (const TABLE *table, const KEY *key_info_buffer,
-                             const uint *index_drop_buffer,
-                             uint index_drop_count,
-                             const uint *index_add_buffer, uint index_add_count)
+static Create_field *get_field_by_index(Alter_info *alter_info, uint idx)
 {
-  const KEY *add_key;
-  const KEY *drop_key;
-  const uint *idx_add_p;
-  const uint *idx_drop_p;
+  List_iterator_fast<Create_field> field_it(alter_info->create_list);
+  uint field_idx= 0;
+  Create_field *field;
 
-  for (idx_add_p= index_add_buffer;
-       idx_add_p < index_add_buffer + index_add_count; idx_add_p++)
-  {
-    add_key= key_info_buffer + *idx_add_p;
-    for (idx_drop_p= index_drop_buffer;
-         idx_drop_p < index_drop_buffer + index_drop_count; idx_drop_p++)
-    {
-      drop_key= table->key_info + *idx_drop_p;
-      if (!my_strcasecmp(system_charset_info, add_key->name, drop_key->name))
-        return true;
-    }
-  }
-  return false;
+  while ((field= field_it++) && field_idx < idx)
+  { field_idx++; }
+
+  return field;
 }
 
 
-/*
-  SYNOPSIS
-    mysql_compare_tables()
-      table                     The original table.
-      alter_info                Alter options, fields and keys for the new
-                                table.
-      create_info               Create options for the new table.
-      order_num                 Number of order list elements.
-      need_copy_table     OUT   Result of the comparison. Undefined if error.
-                                Otherwise is one of:
-                                ALTER_TABLE_METADATA_ONLY  No copy needed
-                                ALTER_TABLE_DATA_CHANGED   Data changes,
-                                                           copy needed
-                                ALTER_TABLE_INDEX_CHANGED  Index changes,
-                                                           copy might be needed
-      key_info_buffer     OUT   An array of KEY structs for new indexes
-      index_drop_buffer   OUT   An array of offsets into table->key_info.
-      index_drop_count    OUT   The number of elements in the array.
-      index_add_buffer    OUT   An array of offsets into key_info_buffer.
-      index_add_count     OUT   The number of elements in the array.
-      candidate_key_count OUT   The number of candidate keys in original table.
-      exact_match               Only set ALTER_TABLE_METADATA_ONLY if no diff.
+static int compare_uint(const uint *s, const uint *t)
+{
+  return (*s < *t) ? -1 : ((*s > *t) ? 1 : 0);
+}
 
-  DESCRIPTION
-    'table' (first argument) contains information of the original
-    table, which includes all corresponding parts that the new
-    table has in arguments create_list, key_list and create_info.
 
-    By comparing the changes between the original and new table
-    we can determine how much it has changed after ALTER TABLE
-    and whether we need to make a copy of the table, or just change
-    the .frm file.
+/**
+   Compare original and new versions of a table and fill Alter_inplace_info
+   describing differences between those versions.
 
-    If there are no data changes, but index changes, 'index_drop_buffer'
-    and/or 'index_add_buffer' are populated with offsets into
-    table->key_info or key_info_buffer respectively for the indexes
-    that need to be dropped and/or (re-)created.
+   @param          thd                Thread
+   @param          table              The original table.
+   @param          varchar            Indicates that new definition has new
+                                      VARCHAR column.
+   @param[in/out]  ha_alter_info      Data structure which already contains
+                                      basic information about create options,
+                                      field and keys for the new version of
+                                      table and which should be completed with
+                                      more detailed information needed for
+                                      in-place ALTER.
 
-  RETURN VALUES
-    TRUE   error
-    FALSE  success
+   First argument 'table' contains information of the original
+   table, which includes all corresponding parts that the new
+   table has in arguments create_list, key_list and create_info.
+
+   Compare the changes between the original and new table definitions.
+   The result of this comparison is then passed to SE which determines
+   whether it can carry out these changes in-place.
+
+   Mark any changes detected in the ha_alter_flags.
+   We generally try to specify handler flags only if there are real
+   changes. But in cases when it is cumbersome to determine if some
+   attribute has really changed we might choose to set flag
+   pessimistically, for example, relying on parser output only.
+
+   If there are no data changes, but index changes, 'index_drop_buffer'
+   and/or 'index_add_buffer' are populated with offsets into
+   table->key_info or key_info_buffer respectively for the indexes
+   that need to be dropped and/or (re-)created.
+
+   Note that this function assumes that it is OK to change Alter_info
+   and HA_CREATE_INFO which it gets. It is caller who is responsible
+   for creating copies for this structures if he needs them unchanged.
+
+   @retval true  error
+   @retval false success
 */
 
-bool
-mysql_compare_tables(TABLE *table,
-                     Alter_info *alter_info,
-                     HA_CREATE_INFO *create_info,
-                     uint order_num,
-                     Alter_table_change_level *need_copy_table,
-                     KEY **key_info_buffer,
-                     uint **index_drop_buffer, uint *index_drop_count,
-                     uint **index_add_buffer, uint *index_add_count,
-                     uint *candidate_key_count, bool exact_match)
+static bool fill_alter_inplace_info(THD *thd,
+                                    TABLE *table,
+                                    bool varchar,
+                                    Alter_inplace_info *ha_alter_info)
 {
   Field **f_ptr, *field;
-  uint changes= 0, tmp;
-  uint key_count;
-  List_iterator_fast<Create_field> new_field_it, tmp_new_field_it;
-  Create_field *new_field, *tmp_new_field;
-  KEY_PART_INFO *key_part;
+  List_iterator_fast<Create_field> new_field_it;
+  Create_field *new_field;
+  KEY_PART_INFO *key_part, *new_part;
   KEY_PART_INFO *end;
-  THD *thd= table->in_use;
-  /*
-    Remember if the new definition has new VARCHAR column;
-    create_info->varchar will be reset in mysql_prepare_create_table.
-  */
-  bool varchar= create_info->varchar;
-  bool not_nullable= true;
-  DBUG_ENTER("mysql_compare_tables");
+  uint candidate_key_count= 0;
+  Alter_info *alter_info= ha_alter_info->alter_info;
+  DBUG_ENTER("fill_alter_inplace_info");
 
-  /*
-    Create a copy of alter_info.
-    To compare the new and old table definitions, we need to "prepare"
-    the new definition - transform it from parser output to a format
-    that describes the final table layout (all column defaults are
-    initialized, duplicate columns are removed). This is done by
-    mysql_prepare_create_table.  Unfortunately,
-    mysql_prepare_create_table performs its transformations
-    "in-place", that is, modifies the argument.  Since we would
-    like to keep mysql_compare_tables() idempotent (not altering any
-    of the arguments) we create a copy of alter_info here and
-    pass it to mysql_prepare_create_table, then use the result
-    to evaluate possibility of in-place ALTER TABLE, and then
-    destroy the copy.
-  */
-  Alter_info tmp_alter_info(*alter_info, thd->mem_root);
-  uint db_options= 0; /* not used */
-
-  /* Create the prepared information. */
-  if (mysql_prepare_create_table(thd, create_info,
-                                 &tmp_alter_info,
-                                 (table->s->tmp_table != NO_TMP_TABLE),
-                                 &db_options,
-                                 table->file, key_info_buffer,
-                                 &key_count, 0))
-    DBUG_RETURN(1);
   /* Allocate result buffers. */
-  if (! (*index_drop_buffer=
-         (uint*) thd->alloc(sizeof(uint) * table->s->keys)) ||
-      ! (*index_add_buffer=
-         (uint*) thd->alloc(sizeof(uint) * tmp_alter_info.key_list.elements)))
-    DBUG_RETURN(1);
-  
+  if (! (ha_alter_info->index_drop_buffer=
+          (KEY**) thd->alloc(sizeof(KEY*) * table->s->keys)) ||
+      ! (ha_alter_info->index_add_buffer=
+          (uint*) thd->alloc(sizeof(uint) *
+                            alter_info->key_list.elements)))
+    DBUG_RETURN(true);
+
+  /* First we setup ha_alter_flags based on what was detected by parser. */
+  if (alter_info->flags & Alter_info::ALTER_ADD_COLUMN)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ADD_COLUMN;
+  if (alter_info->flags & Alter_info::ALTER_DROP_COLUMN)
+    ha_alter_info->handler_flags|= Alter_inplace_info::DROP_COLUMN;
   /*
-    Some very basic checks. If number of fields changes, or the
-    handler, we need to run full ALTER TABLE. In the future
-    new fields can be added and old dropped without copy, but
-    not yet.
-
-    Test also that engine was not given during ALTER TABLE, or
-    we are force to run regular alter table (copy).
-    E.g. ALTER TABLE tbl_name ENGINE=MyISAM.
-    Note that we do copy even if the table is already using the
-    given engine. Many users and tools depend on using ENGINE to
-    force a table rebuild.
-
-    For the following ones we also want to run regular alter table:
-    ALTER TABLE tbl_name ORDER BY ..
-    ALTER TABLE tbl_name CONVERT TO CHARACTER SET ..
-
-    At the moment we can't handle altering temporary tables without a copy.
-    We also test if OPTIMIZE TABLE was given and was mapped to alter table.
-    In that case we always do full copy.
-
-    There was a bug prior to mysql-4.0.25. Number of null fields was
-    calculated incorrectly. As a result frm and data files gets out of
-    sync after in-place alter table. There is no way to determine by which
-    mysql version (in 4.0 and 4.1 branches) table was created, thus we
-    disable in-place alter table for all tables created by mysql versions
-    prior to 5.0 branch.
-    See BUG#6236.
+    Comparing new and old default values of column is cumbersome.
+    So instead of using such a comparison for detecting if default
+    has really changed we rely on flags set by parser to get an
+    approximate value for storage engine flag.
   */
-  if (table->s->fields != alter_info->create_list.elements ||
-      table->s->db_type() != create_info->db_type ||
-      table->s->tmp_table ||
-      create_info->used_fields & HA_CREATE_USED_ENGINE ||
-      create_info->used_fields & HA_CREATE_USED_CHARSET ||
-      create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
-      (table->s->row_type != create_info->row_type) ||
-      create_info->used_fields & HA_CREATE_USED_PACK_KEYS ||
-      create_info->used_fields & HA_CREATE_USED_MAX_ROWS ||
-      (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
-      order_num ||
-      !table->s->mysql_version ||
-      (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar))
+  if (alter_info->flags & (Alter_info::ALTER_CHANGE_COLUMN |
+                           Alter_info::ALTER_CHANGE_COLUMN_DEFAULT))
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_DEFAULT;
+  if (alter_info->flags & Alter_info::ADD_FOREIGN_KEY)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ADD_FOREIGN_KEY;
+  if (alter_info->flags & Alter_info::DROP_FOREIGN_KEY)
+    ha_alter_info->handler_flags|= Alter_inplace_info::DROP_FOREIGN_KEY;
+  if (alter_info->flags & Alter_info::ALTER_OPTIONS)
+    ha_alter_info->handler_flags|= Alter_inplace_info::CHANGE_CREATE_OPTION;
+  if (alter_info->flags & Alter_info::ALTER_RENAME)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_RENAME;
+
+  /*
+    If we altering table with old VARCHAR fields we will be automatically
+    upgrading VARCHAR column types.
+  */
+  if (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar)
+    ha_alter_info->handler_flags|=  Alter_inplace_info::ALTER_COLUMN_TYPE;
+
+  /*
+    Go through fields in old version of table and detect changes to them.
+    We don't want to rely solely on Alter_info flags for this since:
+    a) new definition of column can be fully identical to the old one
+       despite the fact that this column is mentioned in MODIFY clause.
+    b) even if new column type differs from its old column from metadata
+       point of view, it might be identical from storage engine point
+       of view (e.g. when ENUM('a','b') is changed to ENUM('a','b',c')).
+    c) flags passed to storage engine contain more detailed information
+       about nature of changes than those provided from parser.
+  */
+  for (f_ptr= table->field; (field= *f_ptr); f_ptr++)
   {
-    *need_copy_table= ALTER_TABLE_DATA_CHANGED;
-    DBUG_RETURN(0);
-  }
-
-  /*
-    Use transformed info to evaluate possibility of in-place ALTER TABLE
-    but use the preserved field to persist modifications.
-  */
-  new_field_it.init(alter_info->create_list);
-  tmp_new_field_it.init(tmp_alter_info.create_list);
-
-  /*
-    Go through fields and check if the original ones are compatible
-    with new table.
-  */
-  for (f_ptr= table->field, new_field= new_field_it++,
-       tmp_new_field= tmp_new_field_it++;
-       (field= *f_ptr);
-       f_ptr++, new_field= new_field_it++,
-       tmp_new_field= tmp_new_field_it++)
-  {
-    /* Make sure we have at least the default charset in use. */
-    if (!new_field->charset)
-      new_field->charset= create_info->default_table_charset;
-
-    /* Check that NULL behavior is same for old and new fields */
-    if ((tmp_new_field->flags & NOT_NULL_FLAG) !=
-	(uint) (field->flags & NOT_NULL_FLAG))
-    {
-      *need_copy_table= ALTER_TABLE_DATA_CHANGED;
-      DBUG_RETURN(0);
-    }
-
-    /* Don't pack rows in old tables if the user has requested this. */
-    if (create_info->row_type == ROW_TYPE_DYNAMIC ||
-	(tmp_new_field->flags & BLOB_FLAG) ||
-	(tmp_new_field->sql_type == MYSQL_TYPE_VARCHAR &&
-	create_info->row_type != ROW_TYPE_FIXED))
-      create_info->table_options|= HA_OPTION_PACK_RECORD;
-
-    /* Check if field was renamed */
+    /* Clear marker for renamed field which we are going to set later. */
     field->flags&= ~FIELD_IS_RENAMED;
-    if (my_strcasecmp(system_charset_info,
-		      field->field_name,
-		      tmp_new_field->field_name))
+
+    /* Use transformed info to evaluate flags for storage engine. */
+    uint new_field_index= 0;
+    new_field_it.init(alter_info->create_list);
+    while ((new_field= new_field_it++))
     {
-      field->flags|= FIELD_IS_RENAMED;      
-      if (exact_match)
-      {
-        *need_copy_table= ALTER_TABLE_DATA_CHANGED;
-        DBUG_RETURN(0);
-      }
+      if (new_field->field == field)
+        break;
+      new_field_index++;
     }
 
-    /* Evaluate changes bitmap and send to check_if_incompatible_data() */
-    if (!(tmp= field->is_equal(tmp_new_field)))
+    if (new_field)
     {
-      *need_copy_table= ALTER_TABLE_DATA_CHANGED;
-      DBUG_RETURN(0);
+      /* Field is not dropped. Evaluate changes bitmap for it. */
+
+      /*
+        Check if type of column has changed to some incompatible type.
+      */
+      switch (field->is_equal(new_field))
+      {
+      case IS_EQUAL_NO:
+        /* New column type is incompatible with old one. */
+        ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_TYPE;
+        break;
+      case IS_EQUAL_YES:
+        /*
+          New column is the same as the old one or the fully compatible with
+          it (for example, ENUM('a','b') was changed to ENUM('a','b','c')).
+          Such a change if any can ALWAYS be carried out by simply updating
+          data-dictionary without even informing storage engine.
+          No flag is set in this case.
+        */
+        break;
+      case IS_EQUAL_PACK_LENGTH:
+        /*
+          New column type differs from the old one, but has compatible packed
+          data representation. Depending on storage engine, such a change can
+          be carried out by simply updating data dictionary without changing
+          actual data (for example, VARCHAR(300) is changed to VARCHAR(400)).
+        */
+        ha_alter_info->handler_flags|= Alter_inplace_info::
+                                         ALTER_COLUMN_EQUAL_PACK_LENGTH;
+        break;
+      default:
+        DBUG_ASSERT(0);
+        /* Safety. */
+        ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_TYPE;
+      }
+
+      /* Check if field was renamed */
+      if (my_strcasecmp(system_charset_info, field->field_name,
+                        new_field->field_name))
+      {
+        field->flags|= FIELD_IS_RENAMED;
+        ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_NAME;
+      }
+
+      /* Check that NULL behavior is same for old and new fields */
+      if ((new_field->flags & NOT_NULL_FLAG) !=
+          (uint) (field->flags & NOT_NULL_FLAG))
+        ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_NULLABLE;
+
+      /*
+        We do not detect changes to default values in this loop.
+        See comment above for more details.
+      */
+
+      /*
+        Detect changes in column order.
+      */
+      if (field->field_index != new_field_index)
+        ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_ORDER;
     }
-    // Clear indexed marker
-    field->flags&= ~FIELD_IN_ADD_INDEX;
-    if (exact_match && tmp != IS_EQUAL_YES)
+    else
     {
-      *need_copy_table= ALTER_TABLE_DATA_CHANGED;
-      DBUG_RETURN(0);
+      /*
+        Field is not present in new version of table and therefore was dropped.
+        Corresponding storage engine flag should be already set.
+      */
+      DBUG_ASSERT(ha_alter_info->handler_flags & Alter_inplace_info::DROP_COLUMN);
     }
-    changes|= tmp;
   }
+
+#ifndef DBUG_OFF
+  new_field_it.init(alter_info->create_list);
+  while ((new_field= new_field_it++))
+  {
+    if (! new_field->field)
+    {
+      /*
+        Field is not present in old version of table and therefore was added.
+        Again corresponding storage engine flag should be already set.
+      */
+      DBUG_ASSERT(ha_alter_info->handler_flags & Alter_inplace_info::ADD_COLUMN);
+      break;
+    }
+  }
+#endif /* DBUG_OFF */
 
   /*
     Go through keys and check if the original ones are compatible
@@ -5290,55 +5385,40 @@ mysql_compare_tables(TABLE *table,
   KEY *table_key;
   KEY *table_key_end= table->key_info + table->s->keys;
   KEY *new_key;
-  KEY *new_key_end= *key_info_buffer + key_count;
+  KEY *new_key_end=
+    ha_alter_info->key_info_buffer + ha_alter_info->key_count;
 
   DBUG_PRINT("info", ("index count old: %d  new: %d",
-                      table->s->keys, key_count));
+                      table->s->keys, ha_alter_info->key_count));
+
   /*
     Step through all keys of the old table and search matching new keys.
   */
-  *index_drop_count= 0;
-  *index_add_count= 0;
-  *candidate_key_count= 0;
+  ha_alter_info->index_drop_count= 0;
+  ha_alter_info->index_add_count= 0;
   for (table_key= table->key_info; table_key < table_key_end; table_key++)
   {
-    KEY_PART_INFO *table_part;
-    KEY_PART_INFO *table_part_end= table_key->key_part + table_key->key_parts;
-    KEY_PART_INFO *new_part;
-
-   /*
-      Check if key is a candidate key, i.e. a unique index with no index
-      fields nullable, then key is either already primary key or could
-      be promoted to primary key if the original primary key is dropped.
-      Count all candidate keys.
-    */
-    not_nullable= true;
-    for (table_part= table_key->key_part;
-         table_part < table_part_end;
-         table_part++)
-    {
-      not_nullable= not_nullable && (! table_part->field->maybe_null());
-    }
-    if ((table_key->flags & HA_NOSAME) && not_nullable)
-      (*candidate_key_count)++;
-
     /* Search a new key with the same name. */
-    for (new_key= *key_info_buffer; new_key < new_key_end; new_key++)
+    for (new_key= ha_alter_info->key_info_buffer;
+         new_key < new_key_end;
+         new_key++)
     {
       if (! strcmp(table_key->name, new_key->name))
         break;
     }
     if (new_key >= new_key_end)
     {
-      /* Key not found. Add the offset of the key to the drop buffer. */
-      (*index_drop_buffer)[(*index_drop_count)++]= table_key - table->key_info;
+      /* Key not found. Add the key to the drop buffer. */
+      ha_alter_info->index_drop_buffer
+        [ha_alter_info->index_drop_count++]=
+        table_key;
       DBUG_PRINT("info", ("index dropped: '%s'", table_key->name));
       continue;
     }
 
     /* Check that the key types are compatible between old and new tables. */
     if ((table_key->algorithm != new_key->algorithm) ||
-	((table_key->flags & HA_KEYFLAG_MASK) !=
+        ((table_key->flags & HA_KEYFLAG_MASK) !=
          (new_key->flags & HA_KEYFLAG_MASK)) ||
         (table_key->key_parts != new_key->key_parts))
       goto index_changed;
@@ -5347,33 +5427,37 @@ mysql_compare_tables(TABLE *table,
       Check that the key parts remain compatible between the old and
       new tables.
     */
-    for (table_part= table_key->key_part, new_part= new_key->key_part;
-         table_part < table_part_end;
-         table_part++, new_part++)
+    end= table_key->key_part + table_key->key_parts;
+    for (key_part= table_key->key_part, new_part= new_key->key_part;
+         key_part < end;
+         key_part++, new_part++)
     {
       /*
-	Key definition has changed if we are using a different field or
-	if the used key part length is different. We know that the fields
-        did not change. Comparing field numbers is sufficient.
+        Key definition has changed if we are using a different field or
+        if the used key part length is different. It makes sense to
+        check lengths first as in case when fields differ it is likely
+        that lengths differ too and checking fields is more expensive
+        in general case.
       */
-      if ((table_part->length != new_part->length) ||
-          (table_part->fieldnr - 1 != new_part->fieldnr))
-	goto index_changed;
+      if (key_part->length != new_part->length)
+        goto index_changed;
+
+      new_field= get_field_by_index(alter_info, new_part->fieldnr);
+
+      if (! new_field->field || new_field->field != key_part->field)
+        goto index_changed;
     }
     continue;
 
   index_changed:
-    /* Key modified. Add the offset of the key to both buffers. */
-    (*index_drop_buffer)[(*index_drop_count)++]= table_key - table->key_info;
-    (*index_add_buffer)[(*index_add_count)++]= new_key - *key_info_buffer;
-    key_part= new_key->key_part;
-    end= key_part + new_key->key_parts;
-    for(; key_part != end; key_part++)
-    {
-      // Mark field to be part of new key 
-      field= table->field[key_part->fieldnr];
-      field->flags|= FIELD_IN_ADD_INDEX;
-    }
+    /* Key modified. Add the key / key offset to both buffers. */
+    ha_alter_info->index_drop_buffer
+      [ha_alter_info->index_drop_count++]=
+      table_key;
+    ha_alter_info->index_add_buffer
+      [ha_alter_info->index_add_count++]=
+      new_key - ha_alter_info->key_info_buffer;
+    /* Mark all old fields which are used in newly created index. */
     DBUG_PRINT("info", ("index changed: '%s'", table_key->name));
   }
   /*end of for (; table_key < table_key_end;) */
@@ -5381,7 +5465,9 @@ mysql_compare_tables(TABLE *table,
   /*
     Step through all keys of the new table and find matching old keys.
   */
-  for (new_key= *key_info_buffer; new_key < new_key_end; new_key++)
+  for (new_key= ha_alter_info->key_info_buffer;
+       new_key < new_key_end;
+       new_key++)
   {
     /* Search an old key with the same name. */
     for (table_key= table->key_info; table_key < table_key_end; table_key++)
@@ -5392,34 +5478,266 @@ mysql_compare_tables(TABLE *table,
     if (table_key >= table_key_end)
     {
       /* Key not found. Add the offset of the key to the add buffer. */
-      (*index_add_buffer)[(*index_add_count)++]= new_key - *key_info_buffer;
-      key_part= new_key->key_part;
-      end= key_part + new_key->key_parts;
-      for(; key_part != end; key_part++)
-      {
-        // Mark field to be part of new key 
-        field= table->field[key_part->fieldnr];
-        field->flags|= FIELD_IN_ADD_INDEX;
-      }
+      ha_alter_info->index_add_buffer
+        [ha_alter_info->index_add_count++]=
+        new_key - ha_alter_info->key_info_buffer;
       DBUG_PRINT("info", ("index added: '%s'", new_key->name));
     }
   }
 
-  /* Check if changes are compatible with current handler without a copy */
+  /*
+    Sort index_add_buffer according to how key_info_buffer is sorted.
+    I.e. with primary keys first - see sort_keys().
+  */
+  my_qsort(ha_alter_info->index_add_buffer,
+           ha_alter_info->index_add_count,
+           sizeof(uint), (qsort_cmp) compare_uint);
+
+  /* Now let us calculate flags for storage engine API. */
+
+  /* Count all existing candidate keys. */
+  for (table_key= table->key_info; table_key < table_key_end; table_key++)
+  {
+    /*
+      Check if key is a candidate key, This key is either already primary key
+      or could be promoted to primary key if the original primary key is
+      dropped.
+      In MySQL one is allowed to create primary key with partial fields (i.e.
+      primary key which is not considered candidate). For simplicity we count
+      such key as a candidate key here.
+    */
+    if (((uint) (table_key - table->key_info) == table->s->primary_key) ||
+        is_candidate_key(table_key))
+      candidate_key_count++;
+  }
+
+  /* Figure out what kind of indexes we are dropping. */
+  KEY **dropped_key;
+  KEY **dropped_key_end= ha_alter_info->index_drop_buffer +
+                         ha_alter_info->index_drop_count;
+
+  for (dropped_key= ha_alter_info->index_drop_buffer;
+       dropped_key < dropped_key_end; dropped_key++)
+  {
+    table_key= *dropped_key;
+
+    if (table_key->flags & HA_NOSAME)
+    {
+      /*
+        Unique key. Check for PRIMARY KEY. Also see comment about primary
+        and candidate keys above.
+      */
+      if ((uint) (table_key - table->key_info) == table->s->primary_key)
+      {
+        ha_alter_info->handler_flags|= Alter_inplace_info::DROP_PK_INDEX;
+        candidate_key_count--;
+      }
+      else
+      {
+        ha_alter_info->handler_flags|= Alter_inplace_info::DROP_UNIQUE_INDEX;
+        if (is_candidate_key(table_key))
+          candidate_key_count--;
+      }
+    }
+    else
+      ha_alter_info->handler_flags|= Alter_inplace_info::DROP_INDEX;
+  }
+
+  /* Now figure out what kind of indexes we are adding. */
+  for (uint add_key_idx= 0; add_key_idx < ha_alter_info->index_add_count; add_key_idx++)
+  {
+    new_key= ha_alter_info->key_info_buffer + ha_alter_info->index_add_buffer[add_key_idx];
+
+    if (new_key->flags & HA_NOSAME)
+    {
+      bool is_pk= !my_strcasecmp(system_charset_info, new_key->name, primary_key_name);
+
+      if ((!(new_key->flags & HA_KEY_HAS_PART_KEY_SEG) &&
+           !(new_key->flags & HA_NULL_PART_KEY)) ||
+          is_pk)
+      {
+        /* Candidate key or primary key! */
+        if (candidate_key_count == 0 || is_pk)
+          ha_alter_info->handler_flags|= Alter_inplace_info::ADD_PK_INDEX;
+        else
+          ha_alter_info->handler_flags|= Alter_inplace_info::ADD_UNIQUE_INDEX;
+        candidate_key_count++;
+      }
+      else
+      {
+        ha_alter_info->handler_flags|= Alter_inplace_info::ADD_UNIQUE_INDEX;
+      }
+    }
+    else
+      ha_alter_info->handler_flags|= Alter_inplace_info::ADD_INDEX;
+  }
+
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Compare two tables to see if their metadata are compatible.
+  One table specified by a TABLE instance, the other using Alter_info
+  and HA_CREATE_INFO.
+
+  @param[in]  table          The first table.
+  @param[in]  alter_info     Alter options, fields and keys for the
+                             second table.
+  @param[in]  create_info    Create options for the second table.
+  @param[out] metadata_equal Result of comparison.
+
+  @retval true   error
+  @retval false  success
+*/
+
+bool mysql_compare_tables(TABLE *table,
+                          Alter_info *alter_info,
+                          HA_CREATE_INFO *create_info,
+                          bool *metadata_equal)
+{
+  DBUG_ENTER("mysql_compare_tables");
+
+  uint changes= IS_EQUAL_NO;
+  uint key_count;
+  List_iterator_fast<Create_field> tmp_new_field_it;
+  THD *thd= table->in_use;
+  *metadata_equal= false;
+
+  /*
+    Create a copy of alter_info.
+    To compare definitions, we need to "prepare" the definition - transform it
+    from parser output to a format that describes the table layout (all column
+    defaults are initialized, duplicate columns are removed). This is done by
+    mysql_prepare_create_table.  Unfortunately, mysql_prepare_create_table
+    performs its transformations "in-place", that is, modifies the argument.
+    Since we would like to keep mysql_compare_tables() idempotent (not altering
+    any of the arguments) we create a copy of alter_info here and pass it to
+    mysql_prepare_create_table, then use the result to compare the tables, and
+    then destroy the copy.
+  */
+  Alter_info tmp_alter_info(*alter_info, thd->mem_root);
+  uint db_options= 0; /* not used */
+  KEY *key_info_buffer= NULL;
+
+  /* Create the prepared information. */
+  if (mysql_prepare_create_table(thd, create_info,
+                                 &tmp_alter_info,
+                                 (table->s->tmp_table != NO_TMP_TABLE),
+                                 &db_options,
+                                 table->file, &key_info_buffer,
+                                 &key_count, 0))
+    DBUG_RETURN(true);
+
+  /* Some very basic checks. */
+  if (table->s->fields != alter_info->create_list.elements ||
+      table->s->db_type() != create_info->db_type ||
+      table->s->tmp_table ||
+      (table->s->row_type != create_info->row_type))
+    DBUG_RETURN(false);
+
+  /* Go through fields and check if they are compatible. */
+  tmp_new_field_it.init(tmp_alter_info.create_list);
+  for (Field **f_ptr= table->field; *f_ptr; f_ptr++)
+  {
+    Field *field= *f_ptr;
+    Create_field *tmp_new_field= tmp_new_field_it++;
+
+    /* Check that NULL behavior is the same. */
+    if ((tmp_new_field->flags & NOT_NULL_FLAG) !=
+	(uint) (field->flags & NOT_NULL_FLAG))
+      DBUG_RETURN(false);
+
+    /*
+      mysql_prepare_alter_table() clears HA_OPTION_PACK_RECORD bit when
+      preparing description of existing table. In ALTER TABLE it is later
+      updated to correct value by create_table_impl() call.
+      So to get correct value of this bit in this function we have to
+      mimic behavior of create_table_impl().
+    */
+    if (create_info->row_type == ROW_TYPE_DYNAMIC ||
+	(tmp_new_field->flags & BLOB_FLAG) ||
+	(tmp_new_field->sql_type == MYSQL_TYPE_VARCHAR &&
+	create_info->row_type != ROW_TYPE_FIXED))
+      create_info->table_options|= HA_OPTION_PACK_RECORD;
+
+    /* Check if field was renamed */
+    if (my_strcasecmp(system_charset_info,
+		      field->field_name,
+		      tmp_new_field->field_name))
+      DBUG_RETURN(false);
+
+    /* Evaluate changes bitmap and send to check_if_incompatible_data() */
+    uint field_changes= field->is_equal(tmp_new_field);
+    if (field_changes != IS_EQUAL_YES)
+      DBUG_RETURN(false);
+
+    changes|= field_changes;
+  }
+
+  /* Check if changes are compatible with current handler. */
   if (table->file->check_if_incompatible_data(create_info, changes))
+    DBUG_RETURN(false);
+
+  /* Go through keys and check if they are compatible. */
+  KEY *table_key;
+  KEY *table_key_end= table->key_info + table->s->keys;
+  KEY *new_key;
+  KEY *new_key_end= key_info_buffer + key_count;
+
+  /* Step through all keys of the first table and search matching keys. */
+  for (table_key= table->key_info; table_key < table_key_end; table_key++)
   {
-    *need_copy_table= ALTER_TABLE_DATA_CHANGED;
-    DBUG_RETURN(0);
+    /* Search a key with the same name. */
+    for (new_key= key_info_buffer; new_key < new_key_end; new_key++)
+    {
+      if (! strcmp(table_key->name, new_key->name))
+        break;
+    }
+    if (new_key >= new_key_end)
+      DBUG_RETURN(false);
+
+    /* Check that the key types are compatible. */
+    if ((table_key->algorithm != new_key->algorithm) ||
+	((table_key->flags & HA_KEYFLAG_MASK) !=
+         (new_key->flags & HA_KEYFLAG_MASK)) ||
+        (table_key->key_parts != new_key->key_parts))
+      DBUG_RETURN(false);
+
+    /* Check that the key parts remain compatible. */
+    KEY_PART_INFO *table_part;
+    KEY_PART_INFO *table_part_end= table_key->key_part + table_key->key_parts;
+    KEY_PART_INFO *new_part;
+    for (table_part= table_key->key_part, new_part= new_key->key_part;
+         table_part < table_part_end;
+         table_part++, new_part++)
+    {
+      /*
+	Key definition is different if we are using a different field or
+	if the used key part length is different. We know that the fields
+        are equal. Comparing field numbers is sufficient.
+      */
+      if ((table_part->length != new_part->length) ||
+          (table_part->fieldnr - 1 != new_part->fieldnr))
+        DBUG_RETURN(false);
+    }
   }
 
-  if (*index_drop_count || *index_add_count)
+  /* Step through all keys of the second table and find matching keys. */
+  for (new_key= key_info_buffer; new_key < new_key_end; new_key++)
   {
-    *need_copy_table= ALTER_TABLE_INDEX_CHANGED;
-    DBUG_RETURN(0);
+    /* Search a key with the same name. */
+    for (table_key= table->key_info; table_key < table_key_end; table_key++)
+    {
+      if (! strcmp(table_key->name, new_key->name))
+        break;
+    }
+    if (table_key >= table_key_end)
+      DBUG_RETURN(false);
   }
 
-  *need_copy_table= ALTER_TABLE_METADATA_ONLY; // Tables are compatible
-  DBUG_RETURN(0);
+  *metadata_equal= true; // Tables are compatible
+  DBUG_RETURN(false);
 }
 
 
@@ -5440,7 +5758,7 @@ mysql_compare_tables(TABLE *table,
 
 static
 bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
-                             enum enum_enable_or_disable keys_onoff)
+                             Alter_info::enum_enable_or_disable keys_onoff)
 {
   int error= 0;
   DBUG_ENTER("alter_table_manage_keys");
@@ -5448,14 +5766,14 @@ bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
              table, indexes_were_disabled, keys_onoff));
 
   switch (keys_onoff) {
-  case ENABLE:
+  case Alter_info::ENABLE:
     error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
     break;
-  case LEAVE_AS_IS:
+  case Alter_info::LEAVE_AS_IS:
     if (!indexes_were_disabled)
       break;
     /* fall-through: disabled indexes */
-  case DISABLE:
+  case Alter_info::DISABLE:
     error= table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
   }
 
@@ -5469,6 +5787,303 @@ bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
     table->file->print_error(error, MYF(0));
 
   DBUG_RETURN(error);
+}
+
+
+/**
+  Check if the pending ALTER TABLE operations support the in-place
+  algorithm based on restrictions in the SQL layer or given the
+  nature of the operations themselves. If in-place isn't supported,
+  it won't be necessary to check with the storage engine.
+
+  @param table        The original TABLE.
+  @param create_info  Information from the parsing phase about new
+                      table properties.
+  @param alter_info   Data related to detected changes.
+
+  @return false       In-place is possible, check with storage engine.
+  @return true        Incompatible operations, must use table copy.
+*/
+
+static bool is_inplace_alter_impossible(TABLE *table,
+                                        HA_CREATE_INFO *create_info,
+                                        const Alter_info *alter_info)
+{
+  DBUG_ENTER("is_inplace_alter_impossible");
+
+  /* At the moment we can't handle altering temporary tables without a copy. */
+  if (table->s->tmp_table)
+    DBUG_RETURN(true);
+
+
+  /*
+    We also test if OPTIMIZE TABLE was given and was mapped to alter table.
+    In that case we always do full copy (ALTER_RECREATE is set in this case).
+
+    For the ALTER TABLE tbl_name ORDER BY ... we also always use copy
+    algorithm. In theory, this operation can be done in-place by some
+    engine, but since a) no current engine does this and b) our current
+    API lacks infrastructure for passing information about table ordering
+    to storage engine we simply always do copy now.
+
+    ENABLE/DISABLE KEYS is a MyISAM/Heap specific operation that is
+    not supported for in-place in combination with other operations.
+    Alone, it will be done by simple_rename_or_index_change().
+  */
+  if (alter_info->flags & (Alter_info::ALTER_RECREATE |
+                           Alter_info::ALTER_ORDER |
+                           Alter_info::ALTER_KEYS_ONOFF))
+    DBUG_RETURN(true);
+
+  /*
+    Test also that engine was not given during ALTER TABLE, or
+    we are force to run regular alter table (copy).
+    E.g. ALTER TABLE tbl_name ENGINE=MyISAM.
+    Note that in addition to checking flag in HA_CREATE_INFO we
+    also check HA_CREATE_INFO::db_type value. This is done
+    to cover cases in which engine is changed implicitly
+    (e.g. when non-partitioned table becomes partitioned).
+
+    Note that we do copy even if the table is already using the
+    given engine. Many users and tools depend on using ENGINE
+    to force a table rebuild.
+  */
+  if (create_info->db_type != table->s->db_type() ||
+      create_info->used_fields & HA_CREATE_USED_ENGINE)
+    DBUG_RETURN(true);
+
+  /*
+    There was a bug prior to mysql-4.0.25. Number of null fields was
+    calculated incorrectly. As a result frm and data files gets out of
+    sync after fast alter table. There is no way to determine by which
+    mysql version (in 4.0 and 4.1 branches) table was created, thus we
+    disable fast alter table for all tables created by mysql versions
+    prior to 5.0 branch.
+    See BUG#6236.
+  */
+  if (!table->s->mysql_version)
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Perform in-place alter table.
+
+  @param thd                Thread handle.
+  @param table_list         TABLE_LIST for the table to change.
+  @param table              The original TABLE.
+  @param altered_table      TABLE object for new version of the table.
+  @param ha_alter_info      Structure describing ALTER TABLE to be carried
+                            out and serving as a storage place for data
+                            used during different phases.
+  @param inplace_supported  Enum describing the locking requirements.
+  @param target_mdl_request Metadata request/lock on the target table name.
+  @param alter_ctx          ALTER TABLE runtime context.
+
+  @retval   true              Error
+  @retval   false             Success
+
+  @note
+    If mysql_alter_table does not need to copy the table, it is
+    either an alter table where the storage engine does not
+    need to know about the change, only the frm will change,
+    or the storage engine supports performing the alter table
+    operation directly, in-place without mysql having to copy
+    the table.
+
+  @note This function frees the TABLE object associated with the new version of
+        the table and removes the .FRM file for it in case of both success and
+        failure.
+*/
+
+static bool mysql_inplace_alter_table(THD *thd,
+                                      TABLE_LIST *table_list,
+                                      TABLE *table,
+                                      TABLE *altered_table,
+                                      Alter_inplace_info *ha_alter_info,
+                                      enum_alter_inplace_result inplace_supported,
+                                      MDL_request *target_mdl_request,
+                                      Alter_table_ctx *alter_ctx)
+{
+  Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
+  handlerton *db_type= table->s->db_type();
+  MDL_ticket *mdl_ticket= table->mdl_ticket;
+  HA_CREATE_INFO *create_info= ha_alter_info->create_info;
+  Alter_info *alter_info= ha_alter_info->alter_info;
+
+  DBUG_ENTER("mysql_inplace_alter_table");
+
+  /*
+    Upgrade to EXCLUSIVE lock if:
+    - This is requested by the storage engine
+    - Or requested by the user
+  */
+  if ((inplace_supported == HA_ALTER_INPLACE_EXCLUSIVE_LOCK ||
+       alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE) &&
+      wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+  {
+    goto cleanup;
+  }
+
+  /*
+    Upgrade to SHARED_NO_WRITE lock if:
+    - The storage engine needs writes blocked for the whole duration
+    - Or the storage engine needs writes blocked for just the prepare phase
+    - Or this is requested by the user
+    Note that under LOCK TABLES, we will already have SHARED_NO_READ_WRITE.
+  */
+  if ((inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK ||
+       inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE ||
+       alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_SHARED) &&
+      thd->mdl_context.upgrade_shared_lock(table->mdl_ticket,
+                                           MDL_SHARED_NO_WRITE,
+                                           thd->variables.lock_wait_timeout))
+  {
+    goto cleanup;
+  }
+
+  // It's now safe to take the table level lock.
+  if (lock_tables(thd, table_list, alter_ctx->tables_opened, 0))
+    goto cleanup;
+
+  DEBUG_SYNC(thd, "alter_table_inplace_after_lock_upgrade");
+
+  if (table->file->ha_prepare_inplace_alter_table(altered_table,
+                                                  ha_alter_info))
+  {
+    goto rollback;
+  }
+
+  /*
+    Downgrade to SHARED_UPGRADABLE if:
+    - The storage engine needed the prepare phase to have SNW lock.
+    - And the user requested both concurrent reads and writes using
+      LOCK_DEFAULT or LOCK_NONE (i.e. a weaker lock than SNW).
+    *Unless* we are in LOCK TABLES mode. In this case, downgrading from SNRW
+    to SU will break LOCK TABLES since it will allow reads/writes from other
+    connections.
+  */
+  if ((inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE &&
+      (alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_DEFAULT ||
+       alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_NONE)) &&
+      thd->locked_tables_mode != LTM_LOCK_TABLES &&
+      thd->locked_tables_mode != LTM_PRELOCKED_UNDER_LOCK_TABLES)
+    table->mdl_ticket->downgrade_lock(MDL_SHARED_UPGRADABLE);
+
+  DEBUG_SYNC(thd, "alter_table_inplace_after_lock_downgrade");
+
+  if (table->file->ha_inplace_alter_table(altered_table,
+                                          ha_alter_info))
+  {
+    goto rollback;
+  }
+
+  // Upgrade to EXCLUSIVE before commit.
+  if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
+    goto rollback;
+
+  DBUG_EXECUTE_IF("alter_table_rollback_new_index", {
+      table->file->ha_commit_inplace_alter_table(altered_table,
+                                                 ha_alter_info,
+                                                 false);
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      goto cleanup;
+    });
+
+  DEBUG_SYNC(thd, "alter_table_inplace_before_commit");
+
+  if (table->file->ha_commit_inplace_alter_table(altered_table,
+                                                 ha_alter_info,
+                                                 true))
+  {
+    goto rollback;
+  }
+
+  close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed());
+  table_list->table= table= NULL;
+  close_temporary_table(thd, altered_table, true, false);
+
+  /*
+    Replace the old .FRM with the new .FRM, but keep the old name for now.
+    Rename to the new name (if needed) will be handled separately below.
+  */
+  if (mysql_rename_table(db_type, alter_ctx->new_db, alter_ctx->tmp_name,
+                         alter_ctx->db, alter_ctx->alias,
+                         FN_FROM_IS_TMP | NO_HA_TABLE))
+  {
+    // Since changes were done in-place, we can't revert them.
+    (void) quick_rm_table(thd, db_type,
+                          alter_ctx->new_db, alter_ctx->tmp_name,
+                          FN_IS_TMP | NO_HA_TABLE);
+    DBUG_RETURN(true);
+  }
+
+  table_list->mdl_request.ticket= mdl_ticket;
+  if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
+    DBUG_RETURN(true);
+
+  /*
+    Tell the handler that the changed frm is on disk and table
+    has been re-opened
+  */
+  table_list->table->file->ha_notify_table_changed();
+
+  /*
+    We might be going to reopen table down on the road, so we have to
+    restore state of the TABLE object which we used for obtaining of
+    handler object to make it usable for later reopening.
+  */
+  close_thread_table(thd, &thd->open_tables);
+  table_list->table= NULL;
+
+  // Rename altered table if requested.
+  if (alter_ctx->is_table_renamed())
+  {
+    // Remove TABLE and TABLE_SHARE for old name from TDC.
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                     alter_ctx->db, alter_ctx->table_name, false);
+
+    if (mysql_rename_table(db_type, alter_ctx->db, alter_ctx->table_name,
+                           alter_ctx->new_db, alter_ctx->new_alias, 0))
+    {
+      /*
+        If the rename fails we will still have a working table
+        with the old name, but with other changes applied.
+      */
+      DBUG_RETURN(true);
+    }
+    if (Table_triggers_list::change_table_name(thd,
+                                               alter_ctx->db,
+                                               alter_ctx->alias,
+                                               alter_ctx->table_name,
+                                               alter_ctx->new_db,
+                                               alter_ctx->new_alias))
+    {
+      /*
+        If the rename of trigger files fails, try to rename the table
+        back so we at least have matching table and trigger files.
+      */
+      (void) mysql_rename_table(db_type,
+                                alter_ctx->new_db, alter_ctx->new_alias,
+                                alter_ctx->db, alter_ctx->alias, 0);
+      DBUG_RETURN(true);
+    }
+  }
+
+  DBUG_RETURN(false);
+
+ rollback:
+  table->file->ha_commit_inplace_alter_table(altered_table,
+                                             ha_alter_info,
+                                             false);
+ cleanup:
+  close_temporary_table(thd, altered_table, true, false);
+  // Delete temporary .frm/.par
+  (void) quick_rm_table(thd, create_info->db_type, alter_ctx->new_db,
+                        alter_ctx->tmp_name, FN_IS_TMP | NO_HA_TABLE);
+  DBUG_RETURN(true);
 }
 
 /**
@@ -5529,6 +6144,7 @@ blob_length_by_type(enum_field_types type)
                               But since ALTER might end-up doing CREATE,
                               this distinction is gone and we just carry
                               around two structures.
+  @param[in,out]  alter_ctx   Runtime context for ALTER TABLE.
 
   @return
     Fills various create_info members based on information retrieved
@@ -5544,7 +6160,8 @@ blob_length_by_type(enum_field_types type)
 bool
 mysql_prepare_alter_table(THD *thd, TABLE *table,
                           HA_CREATE_INFO *create_info,
-                          Alter_info *alter_info)
+                          Alter_info *alter_info,
+                          Alter_table_ctx *alter_ctx)
 {
   /* New column definitions are added here */
   List<Create_field> new_create_list;
@@ -5702,12 +6319,12 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
          def->sql_type == MYSQL_TYPE_NEWDATE ||
          def->sql_type == MYSQL_TYPE_DATETIME ||
          def->sql_type == MYSQL_TYPE_DATETIME2) &&
-         !alter_info->datetime_field &&
+         !alter_ctx->datetime_field &&
          !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
          thd->variables.sql_mode & MODE_NO_ZERO_DATE)
     {
-        alter_info->datetime_field= def;
-        alter_info->error_if_not_empty= TRUE;
+        alter_ctx->datetime_field= def;
+        alter_ctx->error_if_not_empty= true;
     }
     if (!def->after)
       new_create_list.push_back(def);
@@ -5944,46 +6561,156 @@ err:
 }
 
 
-/*
+/**
+  Rename table and/or turn indexes on/off without touching .FRM
+
+  @param thd            Thread handler
+  @param table_list     TABLE_LIST for the table to change
+  @param keys_onoff     ENABLE or DISABLE KEYS?
+  @param alter_ctx      ALTER TABLE runtime context.
+
+  @return Operation status
+    @retval false           Success
+    @retval true            Failure
+*/
+
+static bool
+simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
+                              Alter_info::enum_enable_or_disable keys_onoff,
+                              Alter_table_ctx *alter_ctx)
+{
+  TABLE *table= table_list->table;
+  MDL_ticket *mdl_ticket= table->mdl_ticket;
+  int error= 0;
+  DBUG_ENTER("simple_rename_or_index_change");
+
+  if (keys_onoff != Alter_info::LEAVE_AS_IS)
+  {
+    if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+      DBUG_RETURN(true);
+
+    // It's now safe to take the table level lock.
+    if (lock_tables(thd, table_list, alter_ctx->tables_opened, 0))
+      DBUG_RETURN(true);
+
+    if (keys_onoff == Alter_info::ENABLE)
+    {
+      DEBUG_SYNC(thd,"alter_table_enable_indexes");
+      DBUG_EXECUTE_IF("sleep_alter_enable_indexes", my_sleep(6000000););
+      error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+    }
+    else if (keys_onoff == Alter_info::DISABLE)
+      error=table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+
+    if (error == HA_ERR_WRONG_COMMAND)
+    {
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+                          ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
+                          table->alias);
+      error= 0;
+    }
+    else if (error > 0)
+    {
+      table->file->print_error(error, MYF(0));
+      error= -1;
+    }
+  }
+
+  if (!error && alter_ctx->is_table_renamed())
+  {
+    THD_STAGE_INFO(thd, stage_rename);
+    handlerton *old_db_type= table->s->db_type();
+    /*
+      Then do a 'simple' rename of the table. First we need to close all
+      instances of 'source' table.
+      Note that if wait_while_table_is_used() returns error here (i.e. if
+      this thread was killed) then it must be that previous step of
+      simple rename did nothing and therefore we can safely return
+      without additional clean-up.
+    */
+    if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+      DBUG_RETURN(true);
+    close_all_tables_for_name(thd, table->s, true);
+
+    if (mysql_rename_table(old_db_type, alter_ctx->db, alter_ctx->table_name,
+                           alter_ctx->new_db, alter_ctx->new_alias, 0))
+      error= -1;
+    else if (Table_triggers_list::change_table_name(thd,
+                                                    alter_ctx->db,
+                                                    alter_ctx->alias,
+                                                    alter_ctx->table_name,
+                                                    alter_ctx->new_db,
+                                                    alter_ctx->new_alias))
+    {
+      (void) mysql_rename_table(old_db_type,
+                                alter_ctx->new_db, alter_ctx->new_alias,
+                                alter_ctx->db, alter_ctx->table_name, 0);
+      error= -1;
+    }
+  }
+
+  if (!error)
+  {
+    error= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    if (!error)
+      my_ok(thd);
+  }
+  table_list->table= NULL;                    // For query cache
+  query_cache_invalidate3(thd, table_list, 0);
+
+  if ((thd->locked_tables_mode == LTM_LOCK_TABLES ||
+       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
+  {
+    /*
+      Under LOCK TABLES we should adjust meta-data locks before finishing
+      statement. Otherwise we can rely on them being released
+      along with the implicit commit.
+    */
+    if (alter_ctx->is_table_renamed())
+      thd->mdl_context.release_all_locks_for_name(mdl_ticket);
+    else
+      mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+  }
+  DBUG_RETURN(error != 0);
+}
+
+
+/**
   Alter table
 
-  SYNOPSIS
-    mysql_alter_table()
-      thd              Thread handle
-      new_db           If there is a RENAME clause
-      new_name         If there is a RENAME clause
-      create_info      Information from the parsing phase about new
-                       table properties.
-      table_list       The table to change.
-      alter_info       Lists of fields, keys to be changed, added
-                       or dropped.
-      order_num        How many ORDER BY fields has been specified.
-      order            List of fields to ORDER BY.
-      ignore           Whether we have ALTER IGNORE TABLE
+  @param thd              Thread handle
+  @param new_db           If there is a RENAME clause
+  @param new_name         If there is a RENAME clause
+  @param create_info      Information from the parsing phase about new
+                          table properties.
+  @param table_list       The table to change.
+  @param alter_info       Lists of fields, keys to be changed, added
+                          or dropped.
+  @param order_num        How many ORDER BY fields has been specified.
+  @param order            List of fields to ORDER BY.
+  @param ignore           Whether we have ALTER IGNORE TABLE
 
-  DESCRIPTION
-    This is a veery long function and is everything but the kitchen sink :)
-    It is used to alter a table and not only by ALTER TABLE but also
-    CREATE|DROP INDEX are mapped on this function.
+  @retval   true          Error
+  @retval   false         Success
 
-    When the ALTER TABLE statement just does a RENAME or ENABLE|DISABLE KEYS,
-    or both, then this function short cuts its operation by renaming
-    the table and/or enabling/disabling the keys. In this case, the FRM is
-    not changed, directly by mysql_alter_table. However, if there is a
-    RENAME + change of a field, or an index, the short cut is not used.
-    See how `create_list` is used to generate the new FRM regarding the
-    structure of the fields. The same is done for the indices of the table.
+  This is a veery long function and is everything but the kitchen sink :)
+  It is used to alter a table and not only by ALTER TABLE but also
+  CREATE|DROP INDEX are mapped on this function.
 
-    Important is the fact, that this function tries to do as little work as
-    possible, by finding out whether a intermediate table is needed to copy
-    data into and when finishing the altering to use it as the original table.
-    For this reason the function mysql_compare_tables() is called, which decides
-    based on all kind of data how similar are the new and the original
-    tables.
+  When the ALTER TABLE statement just does a RENAME or ENABLE|DISABLE KEYS,
+  or both, then this function short cuts its operation by renaming
+  the table and/or enabling/disabling the keys. In this case, the FRM is
+  not changed, directly by mysql_alter_table. However, if there is a
+  RENAME + change of a field, or an index, the short cut is not used.
+  See how `create_list` is used to generate the new FRM regarding the
+  structure of the fields. The same is done for the indices of the table.
 
-  RETURN VALUES
-    FALSE  OK
-    TRUE   Error
+  Altering a table can be done in two ways. The table can be modified
+  directly using an in-place algorithm, or the changes can be done using
+  an intermediate temporary table (copy). In-place is the preferred
+  algorithm as it avoids copying table data. The storage engine
+  selects which algorithm to use in check_if_supported_inplace_alter()
+  based on information about the table changes from fill_alter_inplace_info().
 */
 
 bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
@@ -5992,32 +6719,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                        Alter_info *alter_info,
                        uint order_num, ORDER *order, bool ignore)
 {
-  TABLE *table, *new_table= 0;
-  MDL_ticket *mdl_ticket;
-  MDL_request target_mdl_request;
-  int error= 0;
-  char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN + 1];
-  char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
-  char index_file[FN_REFLEN], data_file[FN_REFLEN];
-  char path[FN_REFLEN + 1];
-  char reg_path[FN_REFLEN+1];
-  ha_rows copied,deleted;
-  handlerton *old_db_type, *new_db_type, *save_old_db_type;
-  enum_alter_table_change_level need_copy_table= ALTER_TABLE_METADATA_ONLY;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  TABLE *table_for_fast_alter_partition= NULL;
-  bool partition_changed= FALSE;
-#endif
-  bool need_lock_for_indexes= TRUE;
-  KEY  *key_info_buffer;
-  uint index_drop_count= 0;
-  uint *index_drop_buffer= NULL;
-  uint index_add_count= 0;
-  handler_add_index *add= NULL;
-  bool pending_inplace_add_index= false;
-  uint *index_add_buffer= NULL;
-  uint candidate_key_count= 0;
-  bool no_pk;
   DBUG_ENTER("mysql_alter_table");
 
   /*
@@ -6026,66 +6727,38 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     it is the case.
     TODO: this design is obsolete and will be removed.
   */
-  if (table_list && table_list->db && table_list->table_name)
+  int table_kind= check_if_log_table(table_list->db_length, table_list->db,
+                                     table_list->table_name_length,
+                                     table_list->table_name, false);
+
+  if (table_kind)
   {
-    int table_kind= 0;
-
-    table_kind= check_if_log_table(table_list->db_length, table_list->db,
-                                   table_list->table_name_length,
-                                   table_list->table_name, 0);
-
-    if (table_kind)
+    /* Disable alter of enabled log tables */
+    if (logger.is_log_table_enabled(table_kind))
     {
-      /* Disable alter of enabled log tables */
-      if (logger.is_log_table_enabled(table_kind))
-      {
-        my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
-        DBUG_RETURN(TRUE);
-      }
+      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
+      DBUG_RETURN(true);
+    }
 
-      /* Disable alter of log tables to unsupported engine */
-      if ((create_info->used_fields & HA_CREATE_USED_ENGINE) &&
-          (!create_info->db_type || /* unknown engine */
-           !(create_info->db_type->flags & HTON_SUPPORT_LOG_TABLES)))
-      {
-        my_error(ER_UNSUPORTED_LOG_ENGINE, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
+    /* Disable alter of log tables to unsupported engine */
+    if ((create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+        (!create_info->db_type || /* unknown engine */
+         !(create_info->db_type->flags & HTON_SUPPORT_LOG_TABLES)))
+    {
+      my_error(ER_UNSUPORTED_LOG_ENGINE, MYF(0));
+      DBUG_RETURN(true);
+    }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-      if (alter_info->flags & ALTER_PARTITION)
-      {
-        my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
-        DBUG_RETURN(TRUE);
-      }
-#endif
+    if (alter_info->flags & Alter_info::ALTER_PARTITION)
+    {
+      my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
+      DBUG_RETURN(true);
     }
+#endif
   }
 
-  /*
-    Assign variables table_name, new_name, db, new_db, path, reg_path
-    to simplify further comparisions: we want to see if it's a RENAME
-    later just by comparing the pointers, avoiding the need for strcmp.
-  */
   THD_STAGE_INFO(thd, stage_init);
-  table_name=table_list->table_name;
-  alias= (lower_case_table_names == 2) ? table_list->alias : table_name;
-  db=table_list->db;
-  if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
-    new_db= db;
-
-  thd->add_to_binlog_accessed_dbs(db);
-  if (new_db != db)
-    thd->add_to_binlog_accessed_dbs(new_db);
-
-  build_table_filename(reg_path, sizeof(reg_path) - 1, db, table_name, reg_ext, 0);
-  build_table_filename(path, sizeof(path) - 1, db, table_name, "", 0);
-
-  /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
-  if (alter_info->tablespace_op != NO_TABLESPACE_OP)
-    /* Conditionally writes to binlog. */
-    DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
-                                                   alter_info));
 
   /*
     Code below can handle only base tables so ensure that we won't open a view.
@@ -6094,22 +6767,21 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   */
   table_list->required_type= FRMTYPE_TABLE;
 
-  Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
+  Alter_table_prelocking_strategy alter_prelocking_strategy;
 
   DEBUG_SYNC(thd, "alter_table_before_open_tables");
-  error= open_and_lock_tables(thd, table_list, FALSE, 0,
-                              &alter_prelocking_strategy);
+  uint tables_opened;
+  bool error= open_tables(thd, &table_list, &tables_opened, 0,
+                          &alter_prelocking_strategy);
 
   DEBUG_SYNC(thd, "alter_opened_table");
 
   if (error)
-  {
-    DBUG_RETURN(TRUE);
-  }
+    DBUG_RETURN(true);
 
-  table= table_list->table;
+  TABLE *table= table_list->table;
   table->use_all_columns();
-  mdl_ticket= table->mdl_ticket;
+  MDL_ticket *mdl_ticket= table->mdl_ticket;
 
   /*
     Prohibit changing of the UNION list of a non-temporary MERGE table
@@ -6123,86 +6795,81 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       (table->s->tmp_table == NO_TMP_TABLE))
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
+  Alter_table_ctx alter_ctx(thd, table_list, tables_opened, new_db, new_name);
+
+  /*
+    Add old and new (if any) databases to the list of accessed databases
+    for this statement. Needed for MTS.
+  */
+  thd->add_to_binlog_accessed_dbs(alter_ctx.db);
+  if (alter_ctx.is_database_changed())
+    thd->add_to_binlog_accessed_dbs(alter_ctx.new_db);
+
+  MDL_request target_mdl_request;
+
   /* Check that we are not trying to rename to an existing table */
-  if (new_name)
+  if (alter_ctx.is_table_renamed())
   {
-    DBUG_PRINT("info", ("new_db.new_name: '%s'.'%s'", new_db, new_name));
-    strmov(new_name_buff,new_name);
-    strmov(new_alias= new_alias_buff, new_name);
-    if (lower_case_table_names)
+    if (table->s->tmp_table != NO_TMP_TABLE)
     {
-      if (lower_case_table_names != 2)
+      if (find_temporary_table(thd, alter_ctx.new_db, alter_ctx.new_name))
       {
-	my_casedn_str(files_charset_info, new_name_buff);
-	new_alias= new_name;			// Create lower case table name
+        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alter_ctx.new_alias);
+        DBUG_RETURN(true);
       }
-      my_casedn_str(files_charset_info, new_name);
-    }
-    if (new_db == db &&
-	!my_strcasecmp(table_alias_charset, new_name_buff, table_name))
-    {
-      /*
-	Source and destination table names are equal: make later check
-	easier.
-      */
-      new_alias= new_name= table_name;
     }
     else
     {
-      if (table->s->tmp_table != NO_TMP_TABLE)
-      {
-	if (find_temporary_table(thd,new_db,new_name_buff))
-	{
-	  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name_buff);
-	  DBUG_RETURN(TRUE);
-	}
-      }
-      else
-      {
-        target_mdl_request.init(MDL_key::TABLE, new_db, new_name,
-                                MDL_EXCLUSIVE, MDL_TRANSACTION);
-        /*
-          Global intention exclusive lock must have been already acquired when
-          table to be altered was open, so there is no need to do it here.
-        */
-        DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::GLOBAL,
-                                                   "", "",
-                                                   MDL_INTENTION_EXCLUSIVE));
+      MDL_request_list mdl_requests;
+      MDL_request target_db_mdl_request;
 
-        if (thd->mdl_context.try_acquire_lock(&target_mdl_request))
-          DBUG_RETURN(TRUE);
-        if (target_mdl_request.ticket == NULL)
-        {
-          /* Table exists and is locked by some thread. */
-	  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
-	  DBUG_RETURN(TRUE);
-        }
-        DEBUG_SYNC(thd, "locked_table_name");
-        /*
-          Table maybe does not exist, but we got an exclusive lock
-          on the name, now we can safely try to find out for sure.
-        */
-        build_table_filename(new_name_buff, sizeof(new_name_buff) - 1,
-                             new_db, new_name_buff, reg_ext, 0);
-        if (!access(new_name_buff, F_OK))
-	{
-	  /* Table will be closed in do_command() */
-	  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
-          goto err;
-	}
+      target_mdl_request.init(MDL_key::TABLE,
+                              alter_ctx.new_db, alter_ctx.new_name,
+                              MDL_EXCLUSIVE, MDL_TRANSACTION);
+      mdl_requests.push_front(&target_mdl_request);
+
+      /*
+        If we are moving the table to a different database, we also
+        need IX lock on the database name so that the target database
+        is protected by MDL while the table is moved.
+      */
+      if (alter_ctx.is_database_changed())
+      {
+        target_db_mdl_request.init(MDL_key::SCHEMA, alter_ctx.new_db, "",
+                                   MDL_INTENTION_EXCLUSIVE,
+                                   MDL_TRANSACTION);
+        mdl_requests.push_front(&target_db_mdl_request);
+      }
+
+      /*
+        Global intention exclusive lock must have been already acquired when
+        table to be altered was open, so there is no need to do it here.
+      */
+      DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::GLOBAL,
+                                                 "", "",
+                                                 MDL_INTENTION_EXCLUSIVE));
+
+      if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                         thd->variables.lock_wait_timeout))
+        DBUG_RETURN(true);
+
+      DEBUG_SYNC(thd, "locked_table_name");
+      /*
+        Table maybe does not exist, but we got an exclusive lock
+        on the name, now we can safely try to find out for sure.
+      */
+      if (!access(alter_ctx.get_new_filename(), F_OK))
+      {
+        /* Table will be closed in do_command() */
+        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alter_ctx.new_alias);
+        DBUG_RETURN(true);
       }
     }
   }
-  else
-  {
-    new_alias= (lower_case_table_names == 2) ? alias : table_name;
-    new_name= table_name;
-  }
 
-  old_db_type= table->s->db_type();
   if (!create_info->db_type)
   {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -6220,19 +6887,18 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     else
 #endif
-      create_info->db_type= old_db_type;
+      create_info->db_type= table->s->db_type();
   }
 
-  if (check_engine(thd, new_name, create_info))
-    goto err;
-  new_db_type= create_info->db_type;
+  if (check_engine(thd, alter_ctx.new_name, create_info))
+    DBUG_RETURN(true);
 
-  if ((new_db_type != old_db_type ||
-       alter_info->flags & ALTER_PARTITION) &&
+  if ((create_info->db_type != table->s->db_type() ||
+       alter_info->flags & Alter_info::ALTER_PARTITION) &&
       !table->file->can_switch_engines())
   {
     my_error(ER_ROW_IS_REFERENCED, MYF(0));
-    goto err;
+    DBUG_RETURN(true);
   }
 
   /*
@@ -6252,410 +6918,134 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   DBUG_PRINT("info", ("old type: %s  new type: %s",
-             ha_resolve_storage_engine_name(old_db_type),
-             ha_resolve_storage_engine_name(new_db_type)));
-  if (ha_check_storage_engine_flag(old_db_type, HTON_ALTER_NOT_SUPPORTED) ||
-      ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED))
+             ha_resolve_storage_engine_name(table->s->db_type()),
+             ha_resolve_storage_engine_name(create_info->db_type)));
+  if (ha_check_storage_engine_flag(table->s->db_type(), HTON_ALTER_NOT_SUPPORTED) ||
+      ha_check_storage_engine_flag(create_info->db_type, HTON_ALTER_NOT_SUPPORTED))
   {
     DBUG_PRINT("info", ("doesn't support alter"));
-    my_error(ER_ILLEGAL_HA, MYF(0), table_name);
-    goto err;
+    my_error(ER_ILLEGAL_HA, MYF(0), table_list->table_name);
+    DBUG_RETURN(true);
   }
 
   THD_STAGE_INFO(thd, stage_setup);
-  if (!(alter_info->flags & ~(ALTER_RENAME | ALTER_KEYS_ONOFF)) &&
+  if (!(alter_info->flags & ~(Alter_info::ALTER_RENAME |
+                              Alter_info::ALTER_KEYS_ONOFF)) &&
+      alter_info->requested_algorithm !=
+      Alter_info::ALTER_TABLE_ALGORITHM_COPY &&
       !table->s->tmp_table) // no need to touch frm
   {
-    switch (alter_info->keys_onoff) {
-    case LEAVE_AS_IS:
-      break;
-    case ENABLE:
-      if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
-        goto err;
-      DEBUG_SYNC(thd,"alter_table_enable_indexes");
-      DBUG_EXECUTE_IF("sleep_alter_enable_indexes", my_sleep(6000000););
-      error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
-      break;
-    case DISABLE:
-      if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
-        goto err;
-      error=table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
-      break;
-    default:
-      DBUG_ASSERT(FALSE);
-      error= 0;
-      break;
-    }
-    if (error == HA_ERR_WRONG_COMMAND)
+    // This requires X-lock, no other lock levels supported.
+    if (alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_DEFAULT &&
+        alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE)
     {
-      error= 0;
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
-                          ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-                          table->alias);
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      DBUG_RETURN(true);
     }
-
-    if (!error && (new_name != table_name || new_db != db))
-    {
-      THD_STAGE_INFO(thd, stage_rename);
-      /*
-        Then do a 'simple' rename of the table. First we need to close all
-        instances of 'source' table.
-        Note that if wait_while_table_is_used() returns error here (i.e. if
-        this thread was killed) then it must be that previous step of
-        simple rename did nothing and therefore we can safely return
-        without additional clean-up.
-      */
-      if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
-        goto err;
-      close_all_tables_for_name(thd, table->s, TRUE);
-      /*
-        Then, we want check once again that target table does not exist.
-        Actually the order of these two steps does not matter since
-        earlier we took exclusive metadata lock on the target table, so
-        we do them in this particular order only to be consistent with 5.0,
-        in which we don't take this lock and where this order really matters.
-        TODO: Investigate if we need this access() check at all.
-      */
-      if (!access(new_name_buff,F_OK))
-      {
-        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name);
-        error= -1;
-      }
-      else
-      {
-        *fn_ext(new_name)=0;
-        if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias, 0))
-          error= -1;
-        else if (Table_triggers_list::change_table_name(thd, db,
-                                                        alias, table_name,
-                                                        new_db, new_alias))
-        {
-          (void) mysql_rename_table(old_db_type, new_db, new_alias, db,
-                                    table_name, 0);
-          error= -1;
-        }
-      }
-    }
-
-    if (error == HA_ERR_WRONG_COMMAND)
-    {
-      error= 0;
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
-                          ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-                          table->alias);
-    }
-
-    if (!error)
-    {
-      error= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-      if (!error)
-        my_ok(thd);
-    }
-    else if (error > 0)
-    {
-      table->file->print_error(error, MYF(0));
-      error= -1;
-    }
-    table_list->table= NULL;                    // For query cache
-    query_cache_invalidate3(thd, table_list, 0);
-
-    if ((thd->locked_tables_mode == LTM_LOCK_TABLES ||
-         thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
-    {
-      /*
-        Under LOCK TABLES we should adjust meta-data locks before finishing
-        statement. Otherwise we can rely on them being released
-        along with the implicit commit.
-      */
-      if (new_name != table_name || new_db != db)
-        thd->mdl_context.release_all_locks_for_name(mdl_ticket);
-      else
-        mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
-    }
-    DBUG_RETURN(error);
+    DBUG_RETURN(simple_rename_or_index_change(thd, table_list,
+                                              alter_info->keys_onoff,
+                                              &alter_ctx));
   }
 
   /* We have to do full alter table. */
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (prep_alter_part_table(thd, table, alter_info, create_info, old_db_type,
-                            &partition_changed,
-                            db, table_name, path,
-                            &table_for_fast_alter_partition))
-    goto err;
+  bool partition_changed= false;
+  bool fast_alter_partition= false;
+  {
+    if (prep_alter_part_table(thd, table, alter_info, create_info,
+                              &alter_ctx, &partition_changed,
+                              &fast_alter_partition))
+    {
+      DBUG_RETURN(true);
+    }
+  }
 #endif
+
+  if (mysql_prepare_alter_table(thd, table, create_info, alter_info,
+                                &alter_ctx))
+  {
+    DBUG_RETURN(true);
+  }
+
+  set_table_default_charset(thd, create_info, alter_ctx.db);
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (fast_alter_partition)
+  {
+    /*
+      ALGORITHM and LOCK clauses are generally not allowed by the
+      parser for operations related to partitioning.
+      The exceptions are ALTER_PARTITION and ALTER_REMOVE_PARTITIONING.
+      For consistency, we report ER_NOT_SUPPORTED_YET here.
+    */
+    if (alter_info->requested_lock !=
+        Alter_info::ALTER_TABLE_LOCK_DEFAULT ||
+        alter_info->requested_algorithm !=
+        Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      DBUG_RETURN(true);
+    }
+
+    /*
+      Upgrade from MDL_SHARED_UPGRADABLE to MDL_SHARED_NO_WRITE.
+      Afterwards it's safe to take the table level lock.
+    */
+    if (thd->mdl_context.upgrade_shared_lock(mdl_ticket, MDL_SHARED_NO_WRITE,
+                                             thd->variables.lock_wait_timeout)
+        || lock_tables(thd, table_list, alter_ctx.tables_opened, 0))
+    {
+      DBUG_RETURN(true);
+    }
+
+    // In-place execution of ALTER TABLE for partitioning.
+    DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
+                                           create_info, table_list,
+                                           alter_ctx.db,
+                                           alter_ctx.table_name));
+  }
+#endif
+
   /*
-    If the old table had partitions and we are doing ALTER TABLE ...
-    engine= <new_engine>, the new table must preserve the original
-    partitioning. That means that the new engine is still the
-    partitioning engine, not the engine specified in the parser.
-    This is discovered  in prep_alter_part_table, which in such case
-    updates create_info->db_type.
-    Now we need to update the stack copy of create_info->db_type,
-    as otherwise we won't be able to correctly move the files of the
-    temporary table to the result table files.
+    Use copy algorithm if:
+    - old_alter_table system variable is set without in-place requested using
+      the ALGORITHM clause.
+    - Or if in-place is impossible for given operation.
+    - A partition will be changed.
   */
-  new_db_type= create_info->db_type;
-
-  if (mysql_prepare_alter_table(thd, table, create_info, alter_info))
-    goto err;
-
-  set_table_default_charset(thd, create_info, db);
-
-  if (thd->variables.old_alter_table
-      || (table->s->db_type() != create_info->db_type)
+  if ((thd->variables.old_alter_table &&
+       alter_info->requested_algorithm !=
+       Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
+      || is_inplace_alter_impossible(table, create_info, alter_info)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       || partition_changed
 #endif
      )
-    need_copy_table= ALTER_TABLE_DATA_CHANGED;
-  else
   {
-    need_copy_table= alter_info->change_level;
-
-    Alter_table_change_level need_copy_table_res;
-    /* Check how much the tables differ. */
-    if (mysql_compare_tables(table, alter_info,
-                             create_info, order_num,
-                             &need_copy_table_res,
-                             &key_info_buffer,
-                             &index_drop_buffer, &index_drop_count,
-                             &index_add_buffer, &index_add_count,
-                             &candidate_key_count, FALSE))
-      goto err;
-
-    DBUG_EXECUTE_IF("alter_table_only_metadata_change", {
-      if (need_copy_table_res != ALTER_TABLE_METADATA_ONLY)
-        goto err; });
-    DBUG_EXECUTE_IF("alter_table_only_index_change", {
-      if (need_copy_table_res != ALTER_TABLE_INDEX_CHANGED)
-        goto err; });
-
-    if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
-      need_copy_table= need_copy_table_res;
-
-    if (need_copy_table != ALTER_TABLE_DATA_CHANGED &&
-        has_new_or_reordered_columns(alter_info))
+    if (alter_info->requested_algorithm ==
+        Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
     {
-      /*
-        ALTER TABLE which adds new columns (e.g. replacing columns being
-        removed) or changes their order can't be executed using in-place
-        algorithm even if table structure stays the same.
-      */
-      need_copy_table= ALTER_TABLE_DATA_CHANGED;
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      DBUG_RETURN(true);
     }
-
-    if (need_copy_table == ALTER_TABLE_INDEX_CHANGED)
-    {
-      if (is_index_maintenance_unique(table, key_info_buffer,
-                                      index_drop_buffer, index_drop_count,
-                                      index_add_buffer, index_add_count))
-        need_copy_table= ALTER_TABLE_DATA_CHANGED;
-    }
+    alter_info->requested_algorithm= Alter_info::ALTER_TABLE_ALGORITHM_COPY;
   }
 
   /*
-    If there are index changes only, try to do them in-place. "Index
-    changes only" means also that the handler for the table does not
-    change. The table is open and locked. The handler can be accessed.
+    If the old table had partitions and we are doing ALTER TABLE ...
+    engine= <new_engine>, the new table must preserve the original
+    partitioning. This means that the new engine is still the
+    partitioning engine, not the engine specified in the parser.
+    This is discovered in prep_alter_part_table, which in such case
+    updates create_info->db_type.
+    It's therefore important that the assignment below is done
+    after prep_alter_part_table.
   */
-  if (need_copy_table == ALTER_TABLE_INDEX_CHANGED)
-  {
-    int   pk_changed= 0;
-    ulong alter_flags= 0;
-    ulong needed_inplace_with_read_flags= 0;
-    ulong needed_inplace_flags= 0;
-    KEY   *key;
-    uint  *idx_p;
-    uint  *idx_end_p;
-
-    alter_flags= table->file->alter_table_flags(alter_info->flags);
-    DBUG_PRINT("info", ("alter_flags: %lu", alter_flags));
-    /* Check dropped indexes. */
-    for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;
-         idx_p < idx_end_p;
-         idx_p++)
-    {
-      key= table->key_info + *idx_p;
-      DBUG_PRINT("info", ("index dropped: '%s'", key->name));
-      if (key->flags & HA_NOSAME)
-      {
-        /* 
-           Unique key. Check for "PRIMARY". 
-           or if dropping last unique key
-        */
-        if ((uint) (key - table->key_info) == table->s->primary_key)
-        {
-          DBUG_PRINT("info", ("Dropping primary key"));
-          /* Primary key. */
-          needed_inplace_with_read_flags|= HA_INPLACE_DROP_PK_INDEX_NO_WRITE;
-          needed_inplace_flags|= HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE;
-          pk_changed++;
-          candidate_key_count--;
-        }
-        else
-        {
-          KEY_PART_INFO *part_end= key->key_part + key->key_parts;
-          bool is_candidate_key= true;
-
-          /* Non-primary unique key. */
-          needed_inplace_with_read_flags|=
-            HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE;
-          needed_inplace_flags|= HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE;
-
-          /*
-            Check if all fields in key are declared
-            NOT NULL and adjust candidate_key_count
-          */
-          for (KEY_PART_INFO *key_part= key->key_part;
-               key_part < part_end;
-               key_part++)
-            is_candidate_key=
-              (is_candidate_key && 
-               (! table->field[key_part->fieldnr-1]->maybe_null()));
-          if (is_candidate_key)
-            candidate_key_count--;
-        }
-      }
-      else
-      {
-        /* Non-unique key. */
-        needed_inplace_with_read_flags|= HA_INPLACE_DROP_INDEX_NO_WRITE;
-        needed_inplace_flags|= HA_INPLACE_DROP_INDEX_NO_READ_WRITE;
-      }
-    }
-    no_pk= ((table->s->primary_key == MAX_KEY) ||
-            (needed_inplace_with_read_flags &
-             HA_INPLACE_DROP_PK_INDEX_NO_WRITE));
-    /* Check added indexes. */
-    for (idx_p= index_add_buffer, idx_end_p= idx_p + index_add_count;
-         idx_p < idx_end_p;
-         idx_p++)
-    {
-      key= key_info_buffer + *idx_p;
-      DBUG_PRINT("info", ("index added: '%s'", key->name));
-      if (key->flags & HA_NOSAME)
-      {
-        /* Unique key */
-
-        KEY_PART_INFO *part_end= key->key_part + key->key_parts;    
-        bool is_candidate_key= true;
-
-        /*
-          Check if all fields in key are declared
-          NOT NULL
-         */
-        for (KEY_PART_INFO *key_part= key->key_part;
-             key_part < part_end;
-             key_part++)
-          is_candidate_key=
-            (is_candidate_key && 
-             (! table->field[key_part->fieldnr]->maybe_null()));
-
-        /*
-           Check for "PRIMARY"
-           or if adding first unique key
-           defined on non-nullable fields
-        */
-
-        if ((!my_strcasecmp(system_charset_info,
-                            key->name, primary_key_name)) ||
-            (no_pk && candidate_key_count == 0 && is_candidate_key))
-        {
-          DBUG_PRINT("info", ("Adding primary key"));
-          /* Primary key. */
-          needed_inplace_with_read_flags|= HA_INPLACE_ADD_PK_INDEX_NO_WRITE;
-          needed_inplace_flags|= HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE;
-          pk_changed++;
-          no_pk= false;
-        }
-        else
-        {
-          /* Non-primary unique key. */
-          needed_inplace_with_read_flags|= HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE;
-          needed_inplace_flags|= HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE;
-        }
-      }
-      else if (key->flags & HA_FULLTEXT)
-      {
-        /*
-          Fulltext keys should be treated as primary keys as InnoDB might
-          need to rebuild the primary index.
-        */
-        needed_inplace_with_read_flags|= HA_INPLACE_ADD_PK_INDEX_NO_WRITE;
-        needed_inplace_flags|= HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE;
-      }
-      else
-      {
-        /* Non-unique key. */
-        needed_inplace_with_read_flags|= HA_INPLACE_ADD_INDEX_NO_WRITE;
-        needed_inplace_flags|= HA_INPLACE_ADD_INDEX_NO_READ_WRITE;
-      }
-    }
-
-    if ((candidate_key_count > 0) &&
-        (needed_inplace_with_read_flags & HA_INPLACE_DROP_PK_INDEX_NO_WRITE))
-    {
-      /*
-        Dropped primary key when there is some other unique 
-        not null key that should be converted to primary key
-      */
-      needed_inplace_with_read_flags|= HA_INPLACE_ADD_PK_INDEX_NO_WRITE;
-      needed_inplace_flags|= HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE;
-      pk_changed= 2;
-    }
-
-    DBUG_PRINT("info",
-          ("needed_inplace_with_read_flags: 0x%lx, needed_inplace_flags: 0x%lx",
-           needed_inplace_with_read_flags, needed_inplace_flags));
-    /*
-      In-place add/drop index is possible only if
-      the primary key is not added and dropped in the same statement.
-      Otherwise we have to recreate the table.
-      need_copy_table is no-zero at this place.
-    */
-    if ( pk_changed < 2 )
-    {
-      if ((alter_flags & needed_inplace_with_read_flags) ==
-          needed_inplace_with_read_flags)
-      {
-        /* All required in-place flags to allow concurrent reads are present. */
-        need_copy_table= ALTER_TABLE_METADATA_ONLY;
-        need_lock_for_indexes= FALSE;
-      }
-      else if ((alter_flags & needed_inplace_flags) == needed_inplace_flags)
-      {
-        /* All required in-place flags are present. */
-        need_copy_table= ALTER_TABLE_METADATA_ONLY;
-      }
-    }
-    DBUG_PRINT("info", ("need_copy_table: %u  need_lock: %d",
-                        need_copy_table, need_lock_for_indexes));
-  }
-
-  /*
-    better have a negative test here, instead of positive, like
-    alter_info->flags & ALTER_ADD_COLUMN|ALTER_ADD_INDEX|...
-    so that ALTER TABLE won't break when somebody will add new flag
-  */
-  if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
-    create_info->frm_only= 1;
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (table_for_fast_alter_partition)
-  {
-    DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
-                                           create_info, table_list,
-                                           db, table_name,
-                                           table_for_fast_alter_partition));
-  }
-#endif
-
-  my_snprintf(tmp_name, sizeof(tmp_name), "%s-%lx_%lx", tmp_file_prefix,
-	      current_pid, thd->thread_id);
-  /* Safety fix for innodb */
-  if (lower_case_table_names)
-    my_casedn_str(files_charset_info, tmp_name);
+  handlerton *new_db_type= create_info->db_type;
+  handlerton *old_db_type= table->s->db_type();
+  TABLE *new_table= NULL;
+  ha_rows copied=0,deleted=0;
 
   /*
     Handling of symlinked tables:
@@ -6681,238 +7071,304 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       Copy data.
       Remove old table and symlinks.
   */
-  if (!strcmp(db, new_db))		// Ignore symlink if db changed
+  char index_file[FN_REFLEN], data_file[FN_REFLEN];
+
+  if (!alter_ctx.is_database_changed())
   {
     if (create_info->index_file_name)
     {
       /* Fix index_file_name to have 'tmp_name' as basename */
-      strmov(index_file, tmp_name);
+      strmov(index_file, alter_ctx.tmp_name);
       create_info->index_file_name=fn_same(index_file,
-					   create_info->index_file_name,
-					   1);
+                                           create_info->index_file_name,
+                                           1);
     }
     if (create_info->data_file_name)
     {
       /* Fix data_file_name to have 'tmp_name' as basename */
-      strmov(data_file, tmp_name);
+      strmov(data_file, alter_ctx.tmp_name);
       create_info->data_file_name=fn_same(data_file,
-					  create_info->data_file_name,
-					  1);
+                                          create_info->data_file_name,
+                                          1);
     }
   }
   else
+  {
+    /* Ignore symlink if db is changed. */
     create_info->data_file_name=create_info->index_file_name=0;
+  }
 
   DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
   DBUG_EXECUTE_IF("sleep_before_create_table_no_lock",
                   my_sleep(100000););
-  /*
-    Create a table with a temporary name.
-    With create_info->frm_only == 1 this creates a .frm file only.
-    We don't log the statement, it will be logged later.
-  */
-  tmp_disable_binlog(thd);
-  error= mysql_create_table_no_lock(thd, new_db, tmp_name,
-                                    create_info,
-                                    alter_info,
-                                    1, 0, NULL);
-  reenable_binlog(thd);
-  if (error)
-    goto err;
+  /* We can abort alter table for any table type */
+  thd->abort_on_warning= !ignore && thd->is_strict_mode();
 
-  /* Open the table if we need to copy the data. */
-  DBUG_PRINT("info", ("need_copy_table: %u", need_copy_table));
-  if (need_copy_table != ALTER_TABLE_METADATA_ONLY)
+  promote_first_timestamp_column(&alter_info->create_list);
+
+  /*
+    Create .FRM for new version of table with a temporary name.
+    We don't log the statement, it will be logged later.
+
+    Keep information about keys in newly created table as it
+    will be used later to construct Alter_inplace_info object
+    and by fill_alter_inplace_info() call.
+  */
+  KEY *key_info;
+  uint key_count;
+  /*
+    Remember if the new definition has new VARCHAR column;
+    create_info->varchar will be reset in create_table_impl()/
+    mysql_prepare_create_table().
+  */
+  bool varchar= create_info->varchar;
+
+  tmp_disable_binlog(thd);
+  error= create_table_impl(thd, alter_ctx.new_db, alter_ctx.tmp_name,
+                           alter_ctx.get_tmp_path(),
+                           create_info, alter_info,
+                           true, 0, true, NULL,
+                           &key_info, &key_count);
+  reenable_binlog(thd);
+  thd->abort_on_warning= false;
+  if (error)
+    DBUG_RETURN(true);
+
+  /* Remember that we have not created table in storage engine yet. */
+  bool no_ha_table= true;
+
+  if (alter_info->requested_algorithm != Alter_info::ALTER_TABLE_ALGORITHM_COPY)
   {
-    if (table->s->tmp_table)
+    Alter_inplace_info ha_alter_info(create_info, alter_info,
+                                     key_info, key_count, ignore);
+    TABLE *altered_table= NULL;
+    bool use_inplace= true;
+
+    /* Fill the Alter_inplace_info structure. */
+    if (fill_alter_inplace_info(thd, table, varchar, &ha_alter_info))
+      goto err_new_table_cleanup;
+
+    // We assume that the table is non-temporary.
+    DBUG_ASSERT(!table->s->tmp_table);
+
+    if (!(altered_table= open_table_uncached(thd, alter_ctx.get_tmp_path(),
+                                             alter_ctx.new_db,
+                                             alter_ctx.tmp_name,
+                                             true, false)))
+      goto err_new_table_cleanup;
+
+    if (ha_alter_info.handler_flags == 0)
     {
-      TABLE_LIST tbl;
-      tbl.init_one_table(new_db, strlen(new_db),
-                         tmp_name, strlen(tmp_name),
-                         tmp_name, TL_READ_NO_INSERT);
-      /* Table is in thd->temporary_tables */
-      (void) open_temporary_table(thd, &tbl);
-      new_table= tbl.table;
+      /*
+        No-op ALTER, no need to call handler API functions.
+
+        If this code path is entered for an ALTER statement that
+        should not be a real no-op, new handler flags should be added
+        and fill_alter_inplace_info() adjusted.
+
+        Note that we can end up here if an ALTER statement has clauses
+        that cancel each other out (e.g. ADD/DROP identically index).
+
+        Also note that we ignore the LOCK clause here.
+      */
+      close_temporary_table(thd, altered_table, true, false);
+      goto end_inplace;
+    }
+
+    // Ask storage engine whether to use copy or in-place
+    enum_alter_inplace_result inplace_supported=
+      table->file->check_if_supported_inplace_alter(altered_table,
+                                                    &ha_alter_info);
+
+    switch (inplace_supported) {
+    case HA_ALTER_INPLACE_EXCLUSIVE_LOCK:
+      // If SHARED lock and no particular algorithm was requested, use COPY.
+      if (alter_info->requested_lock ==
+          Alter_info::ALTER_TABLE_LOCK_SHARED &&
+          alter_info->requested_algorithm ==
+          Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)
+      {
+        use_inplace= false;
+      }
+      // Otherwise, if weaker lock was requested, report errror.
+      else if (alter_info->requested_lock ==
+               Alter_info::ALTER_TABLE_LOCK_NONE ||
+               alter_info->requested_lock ==
+               Alter_info::ALTER_TABLE_LOCK_SHARED)
+      {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+        close_temporary_table(thd, altered_table, true, false);
+        goto err_new_table_cleanup;
+      }
+      break;
+    case HA_ALTER_INPLACE_SHARED_LOCK:
+      // If weaker lock was requested, report errror.
+      if (alter_info->requested_lock ==
+          Alter_info::ALTER_TABLE_LOCK_NONE)
+      {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+        close_temporary_table(thd, altered_table, true, false);
+        goto err_new_table_cleanup;
+      }
+      break;
+    case HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE:
+    case HA_ALTER_INPLACE_NO_LOCK:
+      break;
+    case HA_ALTER_INPLACE_NOT_SUPPORTED:
+      // If INPLACE was requested, report error.
+      if (alter_info->requested_algorithm ==
+          Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
+      {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+        close_temporary_table(thd, altered_table, true, false);
+        goto err_new_table_cleanup;
+      }
+      // Otherwise use COPY
+      use_inplace= false;
+      break;
+    case HA_ALTER_ERROR:
+    default:
+      close_temporary_table(thd, altered_table, true, false);
+      goto err_new_table_cleanup;
+    }
+
+    if (use_inplace)
+    {
+      if (mysql_inplace_alter_table(thd, table_list, table,
+                                    altered_table,
+                                    &ha_alter_info,
+                                    inplace_supported, &target_mdl_request,
+                                    &alter_ctx))
+      {
+        DBUG_RETURN(true);
+      }
+
+      goto end_inplace;
     }
     else
     {
-      char path[FN_REFLEN + 1];
-      /* table is a normal table: Create temporary table in same directory */
-      build_table_filename(path, sizeof(path) - 1, new_db, tmp_name, "",
-                           FN_IS_TMP);
-      /* Open our intermediate table. */
-      new_table= open_table_uncached(thd, path, new_db, tmp_name, TRUE);
+      close_temporary_table(thd, altered_table, true, false);
     }
-    if (!new_table)
-      goto err_new_table_cleanup;
-    /*
-      Note: In case of MERGE table, we do not attach children. We do not
-      copy data for MERGE tables. Only the children have data.
-    */
   }
+
+  /* ALTER TABLE using copy algorithm. */
+
+  if (!table->s->tmp_table)
+  {
+    // COPY algorithm doesn't work with concurrent writes.
+    if (alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_NONE)
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      goto err_new_table_cleanup;
+    }
+
+    // If EXCLUSIVE lock is requested, upgrade already.
+    if (alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE &&
+        wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+      goto err_new_table_cleanup;
+
+    /*
+      Otherwise upgrade to SHARED_NO_WRITE.
+      Note that under LOCK TABLES, we will already have SHARED_NO_READ_WRITE.
+    */
+    if (alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE &&
+        thd->mdl_context.upgrade_shared_lock(mdl_ticket, MDL_SHARED_NO_WRITE,
+                                             thd->variables.lock_wait_timeout))
+      goto err_new_table_cleanup;
+
+    DEBUG_SYNC(thd, "alter_table_copy_after_lock_upgrade");
+  }
+
+  // It's now safe to take the table level lock.
+  if (lock_tables(thd, table_list, alter_ctx.tables_opened, 0))
+    goto err_new_table_cleanup;
+
+  {
+    if (ha_create_table(thd, alter_ctx.get_tmp_path(),
+                        alter_ctx.new_db, alter_ctx.tmp_name,
+                        create_info, false))
+      goto err_new_table_cleanup;
+
+    /* Mark that we have created table in storage engine. */
+    no_ha_table= false;
+
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+    {
+      if (!open_table_uncached(thd, alter_ctx.get_tmp_path(),
+                               alter_ctx.new_db, alter_ctx.tmp_name,
+                               true, true))
+        goto err_new_table_cleanup;
+    }
+  }
+
+
+  /* Open the table since we need to copy the data. */
+  if (table->s->tmp_table != NO_TMP_TABLE)
+  {
+    TABLE_LIST tbl;
+    tbl.init_one_table(alter_ctx.new_db, strlen(alter_ctx.new_db),
+                       alter_ctx.tmp_name, strlen(alter_ctx.tmp_name),
+                       alter_ctx.tmp_name, TL_READ_NO_INSERT);
+    /* Table is in thd->temporary_tables */
+    (void) open_temporary_table(thd, &tbl);
+    new_table= tbl.table;
+  }
+  else
+  {
+    /* table is a normal table: Create temporary table in same directory */
+    /* Open our intermediate table. */
+    new_table= open_table_uncached(thd, alter_ctx.get_tmp_path(),
+                                   alter_ctx.new_db, alter_ctx.tmp_name,
+                                   true, true);
+  }
+  if (!new_table)
+    goto err_new_table_cleanup;
+  /*
+    Note: In case of MERGE table, we do not attach children. We do not
+    copy data for MERGE tables. Only the children have data.
+  */
 
   /* Copy the data if necessary. */
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
-  copied=deleted=0;
+
   /*
     We do not copy data for MERGE tables. Only the children have data.
     MERGE tables have HA_NO_COPY_ON_ALTER set.
   */
-  if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
+  if (!(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
   {
-    /* We don't want update TIMESTAMP fields during ALTER TABLE. */
-    new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
     THD_STAGE_INFO(thd, stage_copy_to_tmp_table);
     DBUG_EXECUTE_IF("abort_copy_table", {
         my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
         goto err_new_table_cleanup;
       });
-    error= copy_data_between_tables(table, new_table,
-                                    alter_info->create_list, ignore,
-                                    order_num, order, &copied, &deleted,
-                                    alter_info->keys_onoff,
-                                    alter_info->error_if_not_empty);
+    if (copy_data_between_tables(table, new_table,
+                                 alter_info->create_list, ignore,
+                                 order_num, order, &copied, &deleted,
+                                 alter_info->keys_onoff,
+                                 alter_ctx.error_if_not_empty))
+      goto err_new_table_cleanup;
   }
   else
   {
-    /*
-      Ensure that we will upgrade the metadata lock if
-      handler::enable/disable_indexes() will be called.
-    */
-    if (alter_info->keys_onoff != LEAVE_AS_IS ||
-        table->file->indexes_are_disabled())
-      need_lock_for_indexes= true;
-    if (!table->s->tmp_table && need_lock_for_indexes &&
+    /* Should be MERGE only */
+    DBUG_ASSERT(new_table->file->ht->db_type == DB_TYPE_MRG_MYISAM);
+    if (!table->s->tmp_table &&
         wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       goto err_new_table_cleanup;
     THD_STAGE_INFO(thd, stage_manage_keys);
     DEBUG_SYNC(thd, "alter_table_manage_keys");
     alter_table_manage_keys(table, table->file->indexes_are_disabled(),
                             alter_info->keys_onoff);
-    error= trans_commit_stmt(thd);
-    if (trans_commit_implicit(thd))
-      error= 1;
-  }
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
-
-  if (error)
-    goto err_new_table_cleanup;
-
-  /* If we did not need to copy, we might still need to add/drop indexes. */
-  if (! new_table)
-  {
-    uint          *key_numbers;
-    uint          *keyno_p;
-    KEY           *key_info;
-    KEY           *key;
-    uint          *idx_p;
-    uint          *idx_end_p;
-    KEY_PART_INFO *key_part;
-    KEY_PART_INFO *part_end;
-    DBUG_PRINT("info", ("No new_table, checking add/drop index"));
-
-    table->file->ha_prepare_for_alter();
-    if (index_add_count)
-    {
-      /* The add_index() method takes an array of KEY structs. */
-      key_info= (KEY*) thd->alloc(sizeof(KEY) * index_add_count);
-      key= key_info;
-      for (idx_p= index_add_buffer, idx_end_p= idx_p + index_add_count;
-           idx_p < idx_end_p;
-           idx_p++, key++)
-      {
-        /* Copy the KEY struct. */
-        *key= key_info_buffer[*idx_p];
-        /* Fix the key parts. */
-        part_end= key->key_part + key->key_parts;
-        for (key_part= key->key_part; key_part < part_end; key_part++)
-          key_part->field= table->field[key_part->fieldnr];
-      }
-      /* Add the indexes. */
-      if ((error= table->file->add_index(table, key_info, index_add_count,
-                                         &add)))
-      {
-        /*
-          Exchange the key_info for the error message. If we exchange
-          key number by key name in the message later, we need correct info.
-        */
-        KEY *save_key_info= table->key_info;
-        table->key_info= key_info;
-        table->file->print_error(error, MYF(0));
-        table->key_info= save_key_info;
-        goto err_new_table_cleanup;
-      }
-      pending_inplace_add_index= true;
-    }
-    /*end of if (index_add_count)*/
-
-    if (index_drop_count)
-    {
-      /* Currently we must finalize add index if we also drop indexes */
-      if (pending_inplace_add_index)
-      {
-        /* Committing index changes needs exclusive metadata lock. */
-        DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                                   table_list->db,
-                                                   table_list->table_name,
-                                                   MDL_EXCLUSIVE));
-        if ((error= table->file->final_add_index(add, true)))
-        {
-          table->file->print_error(error, MYF(0));
-          goto err_new_table_cleanup;
-        }
-        pending_inplace_add_index= false;
-      }
-      /* The prepare_drop_index() method takes an array of key numbers. */
-      key_numbers= (uint*) thd->alloc(sizeof(uint) * index_drop_count);
-      keyno_p= key_numbers;
-      /* Get the number of each key. */
-      for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;
-           idx_p < idx_end_p;
-           idx_p++, keyno_p++)
-        *keyno_p= *idx_p;
-      /*
-        Tell the handler to prepare for drop indexes.
-        This re-numbers the indexes to get rid of gaps.
-      */
-      if ((error= table->file->prepare_drop_index(table, key_numbers,
-                                                  index_drop_count)))
-      {
-        table->file->print_error(error, MYF(0));
-        goto err_new_table_cleanup;
-      }
-
-      /* Tell the handler to finally drop the indexes. */
-      if ((error= table->file->final_drop_index(table)))
-      {
-        table->file->print_error(error, MYF(0));
-        goto err_new_table_cleanup;
-      }
-    }
-    /*end of if (index_drop_count)*/
-
-    /*
-      The final .frm file is already created as a temporary file
-      and will be renamed to the original table name later.
-    */
-
-    /* Need to commit before a table is unlocked (NDB requirement). */
-    DBUG_PRINT("info", ("Committing before unlocking table"));
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
   }
-  /*end of if (! new_table) for add/drop index*/
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
   if (table->s->tmp_table != NO_TMP_TABLE)
   {
-    /*
-      In-place operations are not supported for temporary tables, so
-      we don't have to call final_add_index() in this case. The assert
-      verifies that in-place add index has not been done.
-    */
-    DBUG_ASSERT(!pending_inplace_add_index);
     /* Close lock if this is a transactional table */
     if (thd->lock)
     {
@@ -6920,7 +7376,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
           thd->locked_tables_mode != LTM_PRELOCKED_UNDER_LOCK_TABLES)
       {
         mysql_unlock_tables(thd, thd->lock);
-        thd->lock=0;
+        thd->lock= NULL;
       }
       else
       {
@@ -6932,14 +7388,15 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
     }
     /* Remove link to old table and rename the new one */
-    close_temporary_table(thd, table, 1, 1);
+    close_temporary_table(thd, table, true, true);
     /* Should pass the 'new_name' as we store table name in the cache */
-    if (rename_temporary_table(thd, new_table, new_db, new_name))
+    if (rename_temporary_table(thd, new_table,
+                               alter_ctx.new_db, alter_ctx.new_name))
       goto err_new_table_cleanup;
     /* We don't replicate alter table statement on temporary tables */
     if (!thd->is_current_stmt_binlog_format_row() &&
-        write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
-      DBUG_RETURN(TRUE);
+        write_bin_log(thd, true, thd->query(), thd->query_length()))
+      DBUG_RETURN(true);
     goto end_temporary;
   }
 
@@ -6948,11 +7405,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     not delete it! Even altough MERGE tables do not have their children
     attached here it is safe to call close_temporary_table().
   */
-  if (new_table)
-  {
-    close_temporary_table(thd, new_table, 1, 0);
-    new_table= 0;
-  }
+  close_temporary_table(thd, new_table, true, false);
+  new_table= NULL;
+
   DEBUG_SYNC(thd, "alter_table_before_rename_result_table");
 
   /*
@@ -6973,140 +7428,76 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   */
 
   THD_STAGE_INFO(thd, stage_rename_result_table);
-  my_snprintf(old_name, sizeof(old_name), "%s2-%lx-%lx", tmp_file_prefix,
-	      current_pid, thd->thread_id);
-  if (lower_case_table_names)
-    my_casedn_str(files_charset_info, old_name);
 
   if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
-  {
-    if (pending_inplace_add_index)
-    {
-      pending_inplace_add_index= false;
-      table->file->final_add_index(add, false);
-    }
-    // Mark this TABLE instance as stale to avoid out-of-sync index information.
-    table->m_needs_reopen= true;
     goto err_new_table_cleanup;
-  }
-  if (pending_inplace_add_index)
-  {
-    pending_inplace_add_index= false;
-    DBUG_EXECUTE_IF("alter_table_rollback_new_index", {
-      table->file->final_add_index(add, false);
-      my_error(ER_UNKNOWN_ERROR, MYF(0));
-      goto err_new_table_cleanup;
-    });
-    if ((error= table->file->final_add_index(add, true)))
-    {
-      table->file->print_error(error, MYF(0));
-      goto err_new_table_cleanup;
-    }
-  }
 
-  close_all_tables_for_name(thd, table->s,
-                            new_name != table_name || new_db != db);
-
-  error=0;
-  table_list->table= table= 0;                  /* Safety */
-  save_old_db_type= old_db_type;
+  close_all_tables_for_name(thd, table->s, alter_ctx.is_table_renamed());
+  table_list->table= table= NULL;                  /* Safety */
 
   /*
-    This leads to the storage engine (SE) not being notified for renames in
-    mysql_rename_table(), because we just juggle with the FRM and nothing
-    more. If we have an intermediate table, then we notify the SE that
-    it should become the actual table. Later, we will recycle the old table.
-    However, in case of ALTER TABLE RENAME there might be no intermediate
-    table. This is when the old and new tables are compatible, according to
-    mysql_compare_table(). Then, we need one additional call to
-    mysql_rename_table() with flag NO_FRM_RENAME, which does nothing else but
-    actual rename in the SE and the FRM is not touched. Note that, if the
-    table is renamed and the SE is also changed, then an intermediate table
-    is created and the additional call will not take place.
+    Rename the old table to temporary name to have a backup in case
+    anything goes wrong while renaming the new table.
   */
-  if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
+  char backup_name[32];
+  my_snprintf(backup_name, sizeof(backup_name), "%s2-%lx-%lx", tmp_file_prefix,
+              current_pid, thd->thread_id);
+  if (lower_case_table_names)
+    my_casedn_str(files_charset_info, backup_name);
+  if (mysql_rename_table(old_db_type, alter_ctx.db, alter_ctx.table_name,
+                         alter_ctx.db, backup_name, FN_TO_IS_TMP))
   {
-    DBUG_ASSERT(new_db_type == old_db_type);
-    /* This type cannot happen in regular ALTER. */
-    new_db_type= old_db_type= NULL;
-  }
-  if (mysql_rename_table(old_db_type, db, table_name, db, old_name,
-                         FN_TO_IS_TMP))
-  {
-    error=1;
-    (void) quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP);
-  }
-  else if (mysql_rename_table(new_db_type, new_db, tmp_name, new_db,
-                              new_alias, FN_FROM_IS_TMP) ||
-           ((new_name != table_name || new_db != db) && // we also do rename
-            (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
-             mysql_rename_table(save_old_db_type, db, table_name, new_db,
-                                new_alias, NO_FRM_RENAME)) &&
-            Table_triggers_list::change_table_name(thd, db, alias, table_name,
-                                                   new_db, new_alias)))
-  {
-    /* Try to get everything back. */
-    error=1;
-    (void) quick_rm_table(new_db_type,new_db,new_alias, 0);
-    (void) quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP);
-    (void) mysql_rename_table(old_db_type, db, old_name, db, alias,
-                            FN_FROM_IS_TMP);
-  }
-
-  if (! error)
-    (void) quick_rm_table(old_db_type, db, old_name, FN_IS_TMP);
-
-  if (error)
-  {
-    /* This shouldn't happen. But let us play it safe. */
+    // Rename to temporary name failed, delete the new table, abort ALTER.
+    (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                          alter_ctx.tmp_name, FN_IS_TMP);
     goto err_with_mdl;
   }
 
-  if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
+  // Rename the new table to the correct name.
+  if (mysql_rename_table(new_db_type, alter_ctx.new_db, alter_ctx.tmp_name,
+                         alter_ctx.new_db, alter_ctx.new_alias,
+                         FN_FROM_IS_TMP))
+  {
+    // Rename failed, delete the temporary table.
+    (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                          alter_ctx.tmp_name, FN_IS_TMP);
+    // Restore the backup of the original table to the old name.
+    (void) mysql_rename_table(old_db_type, alter_ctx.db, backup_name,
+                              alter_ctx.db, alter_ctx.alias, FN_FROM_IS_TMP);
+    goto err_with_mdl;
+  }
+
+  // Check if we renamed the table and if so update trigger files.
+  if (alter_ctx.is_table_renamed() &&
+      Table_triggers_list::change_table_name(thd,
+                                             alter_ctx.db,
+                                             alter_ctx.alias,
+                                             alter_ctx.table_name,
+                                             alter_ctx.new_db,
+                                             alter_ctx.new_alias))
+  {
+    // Rename succeeded, delete the new table.
+    (void) quick_rm_table(thd, new_db_type,
+                          alter_ctx.new_db, alter_ctx.new_alias, 0);
+    // Restore the backup of the original table to the old name.
+    (void) mysql_rename_table(old_db_type, alter_ctx.db, backup_name,
+                              alter_ctx.db, alter_ctx.alias, FN_FROM_IS_TMP);
+    goto err_with_mdl;
+  }
+
+  // ALTER TABLE succeeded, delete the backup of the old table.
+  if (quick_rm_table(thd, old_db_type, alter_ctx.db, backup_name, FN_IS_TMP))
   {
     /*
-      Now we have to inform handler that new .FRM file is in place.
-      To do this we need to obtain a handler object for it.
-      NO need to tamper with MERGE tables. The real open is done later.
+      The fact that deletion of the backup failed is not critical
+      error, but still worth reporting as it might indicate serious
+      problem with server.
     */
-    Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
-    TABLE_LIST temp_table_list;
-    TABLE_LIST *t_table_list;
-    if (new_name != table_name || new_db != db)
-    {
-      temp_table_list.init_one_table(new_db, strlen(new_db),
-                                     new_name, strlen(new_name),
-                                     new_name, TL_READ_NO_INSERT);
-      temp_table_list.mdl_request.ticket= target_mdl_request.ticket;
-      t_table_list= &temp_table_list;
-    }
-    else
-    {
-      /*
-        Under LOCK TABLES, we have a different mdl_lock_ticket
-        points to a different instance than the one set initially
-        to request the lock.
-      */
-      table_list->mdl_request.ticket= mdl_ticket;
-      t_table_list= table_list;
-    }
-    if (open_table(thd, t_table_list, thd->mem_root, &ot_ctx))
-    {
-      goto err_with_mdl;
-    }
-
-    /* Tell the handler that a new frm file is in place. */
-    error= t_table_list->table->file->ha_create_handler_files(path, NULL,
-                                                              CHF_INDEX_FLAG,
-                                                              create_info);
-
-    DBUG_ASSERT(thd->open_tables == t_table_list->table);
-    close_thread_table(thd, &thd->open_tables);
-    t_table_list->table= NULL;
-
-    if (error)
-      goto err_with_mdl;
+    goto err_with_mdl;
   }
+
+end_inplace:
+
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_mdl;
 
@@ -7117,13 +7508,13 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   ha_binlog_log_query(thd, create_info->db_type, LOGCOM_ALTER_TABLE,
                       thd->query(), thd->query_length(),
-                      db, table_name);
+                      alter_ctx.db, alter_ctx.table_name);
 
   DBUG_ASSERT(!(mysql_bin_log.is_open() &&
                 thd->is_current_stmt_binlog_format_row() &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
-  if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
-    DBUG_RETURN(TRUE);
+  if (write_bin_log(thd, true, thd->query(), thd->query_length()))
+    DBUG_RETURN(true);
 
   if (ha_check_storage_engine_flag(old_db_type, HTON_FLUSH_AFTER_RENAME))
   {
@@ -7132,10 +7523,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       have to open the new table.  If not, we get a problem on server
       shutdown. But we do not need to attach MERGE children.
     */
-    char path[FN_REFLEN];
     TABLE *t_table;
-    build_table_filename(path, sizeof(path) - 1, new_db, new_name, "", 0);
-    t_table= open_table_uncached(thd, path, new_db, new_name, FALSE);
+    t_table= open_table_uncached(thd, alter_ctx.get_new_path(),
+                                 alter_ctx.new_db, alter_ctx.new_name,
+                                 false, true);
     if (t_table)
     {
       intern_close_table(t_table);
@@ -7143,56 +7534,52 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     else
       sql_print_warning("Could not open table %s.%s after rename\n",
-                        new_db,table_name);
+                        alter_ctx.new_db, alter_ctx.table_name);
     ha_flush_logs(old_db_type);
   }
-  table_list->table=0;				// For query cache
-  query_cache_invalidate3(thd, table_list, 0);
+  table_list->table= NULL;			// For query cache
+  query_cache_invalidate3(thd, table_list, false);
 
   if (thd->locked_tables_mode == LTM_LOCK_TABLES ||
       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)
   {
-    if ((new_name != table_name || new_db != db))
+    if (alter_ctx.is_table_renamed())
       thd->mdl_context.release_all_locks_for_name(mdl_ticket);
     else
-      mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+      mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
   }
 
 end_temporary:
-  my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
+  my_snprintf(alter_ctx.tmp_name, sizeof(alter_ctx.tmp_name),
+              ER(ER_INSERT_INFO),
 	      (ulong) (copied + deleted), (ulong) deleted,
 	      (ulong) thd->get_stmt_da()->current_statement_warn_count());
-  my_ok(thd, copied + deleted, 0L, tmp_name);
-  DBUG_RETURN(FALSE);
+  my_ok(thd, copied + deleted, 0L, alter_ctx.tmp_name);
+  DBUG_RETURN(false);
 
 err_new_table_cleanup:
   if (new_table)
   {
     /* close_temporary_table() frees the new_table pointer. */
-    close_temporary_table(thd, new_table, 1, 1);
+    close_temporary_table(thd, new_table, true, true);
   }
   else
-    (void) quick_rm_table(new_db_type, new_db, tmp_name,
-                          create_info->frm_only ? FN_IS_TMP | FRM_ONLY : FN_IS_TMP);
+    (void) quick_rm_table(thd, new_db_type,
+                          alter_ctx.new_db, alter_ctx.tmp_name,
+                          (FN_IS_TMP | (no_ha_table ? NO_HA_TABLE : 0)));
 
-err:
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  /* If prep_alter_part_table created an intermediate table, destroy it. */
-  if (table_for_fast_alter_partition)
-    close_temporary(table_for_fast_alter_partition, 1, 0);
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
   /*
     No default value was provided for a DATE/DATETIME field, the
     current sql_mode doesn't allow the '0000-00-00' value and
     the table to be altered isn't empty.
     Report error here.
   */
-  if (alter_info->error_if_not_empty &&
+  if (alter_ctx.error_if_not_empty &&
       thd->get_stmt_da()->current_row_for_warning())
   {
     uint f_length;
     enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
-    switch (alter_info->datetime_field->sql_type)
+    switch (alter_ctx.datetime_field->sql_type)
     {
       case MYSQL_TYPE_DATE:
       case MYSQL_TYPE_NEWDATE:
@@ -7210,15 +7597,15 @@ err:
         DBUG_ASSERT(0);
     }
     bool save_abort_on_warning= thd->abort_on_warning;
-    thd->abort_on_warning= TRUE;
+    thd->abort_on_warning= true;
     make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                                  ErrConvString(my_zero_datetime6, f_length),
                                  t_type,
-                                 alter_info->datetime_field->field_name);
+                                 alter_ctx.datetime_field->field_name);
     thd->abort_on_warning= save_abort_on_warning;
   }
 
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 
 err_with_mdl:
   /*
@@ -7229,7 +7616,7 @@ err_with_mdl:
   */
   thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
   thd->mdl_context.release_all_locks_for_name(mdl_ticket);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 /* mysql_alter_table */
 
@@ -7288,7 +7675,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
 			 ha_rows *deleted,
-                         enum enum_enable_or_disable keys_onoff,
+                         Alter_info::enum_enable_or_disable keys_onoff,
                          bool error_if_not_empty)
 {
   int error;
@@ -7321,9 +7708,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   alter_table_manage_keys(to, from->file->indexes_are_disabled(), keys_onoff);
 
   /* We can abort alter table for any table type */
-  thd->abort_on_warning= !ignore && test(thd->variables.sql_mode &
-                                         (MODE_STRICT_TRANS_TABLES |
-                                          MODE_STRICT_ALL_TABLES));
+  thd->abort_on_warning= !ignore && thd->is_strict_mode();
 
   from->file->info(HA_STATUS_VARIABLE);
   to->file->ha_start_bulk_insert(from->file->stats.records);
@@ -7446,7 +7831,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                  (to->key_info[0].key_part[0].field->flags &
                   AUTO_INCREMENT_FLAG))
                err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
-             to->file->print_keydup_error(key_nr, err_msg);
+             to->file->print_keydup_error(key_nr == MAX_KEY ? NULL :
+                                          &to->key_info[key_nr], err_msg);
              break;
            }
          }
@@ -7517,7 +7903,8 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */
-  alter_info.flags= (ALTER_CHANGE_COLUMN | ALTER_RECREATE);
+  alter_info.flags= (Alter_info::ALTER_CHANGE_COLUMN |
+                     Alter_info::ALTER_RECREATE);
   DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
                                 table_list, &alter_info, 0,
                                 (ORDER *) 0, 0));

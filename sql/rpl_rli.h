@@ -238,7 +238,22 @@ protected:
   ulonglong future_group_master_log_pos;
 #endif
 
+private:
+  Gtid_set gtid_set;
+
 public:
+  int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
+  {
+    int ret= 0;
+    global_sid_lock.assert_some_lock();
+    DBUG_ASSERT(sidno <= global_sid_map.get_max_sidno());
+    gtid_set.ensure_sidno(sidno);
+    if (gtid_set._add_gtid(sidno, gno) != RETURN_STATUS_OK)
+      ret= 1;
+    return ret;
+  }
+  const Gtid_set *get_gtid_set() const { return &gtid_set; }
+
   int init_relay_log_pos(const char* log,
                          ulonglong pos, bool need_data_lock,
                          const char** errmsg,
@@ -252,6 +267,13 @@ public:
   */
   ulonglong log_space_limit,log_space_total;
   bool ignore_log_space_limit;
+
+  /*
+    Used by the SQL thread to instructs the IO thread to rotate 
+    the logs when the SQL thread needs to purge to release some
+    disk space.
+   */
+  bool sql_force_rotate_relay;
 
   time_t last_master_timestamp;
 
@@ -286,11 +308,30 @@ public:
      notify_*_log_name_updated() methods. (They need to be called only if SQL
      thread is running).
    */
-  enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS} until_condition;
+  enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS,
+        UNTIL_SQL_BEFORE_GTIDS} until_condition;
   char until_log_name[FN_REFLEN];
   ulonglong until_log_pos;
   /* extension extracted from log_name and converted to int */
-  ulong until_log_name_extension;   
+  ulong until_log_name_extension;
+  /**
+    The START SLAVE UNTIL SQL_BEFORE_GTIDS initializes both
+    the until_gtids_obj and request_gtids_obj. Each time a
+    gtid is about to be processed, it is removed from the
+    until_gtids_obj and when until_gtids_obj becomes empty,
+    the SQL Thread is stopped and a message saying that 
+    the condition was reached, i.e. request_gtids_obj, is
+    printed out.
+
+    This is used by the START SLAVE UNTIL SQL_BEFORE_GTIDS.
+    is issued.
+  */
+  Gtid_set until_gtids_obj;
+  /**
+    This is used when the START SLAVE UNTIL SQL_BEFORE_GTIDS
+    is issued.
+  */
+  Gtid_set request_gtids_obj;
   /* 
      Cached result of comparison of until_log_name and current log name
      -2 means unitialised, -1,0,1 are comarison results 
@@ -361,10 +402,11 @@ public:
   }
 
   int inc_group_relay_log_pos(ulonglong log_pos,
-			       bool skip_lock= FALSE);
+                              bool skip_lock);
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
+  int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
   void close_temporary_tables();
 
   /* Check if UNTIL condition is satisfied. See slave.cc for more. */
@@ -446,6 +488,7 @@ public:
   */
   DYNAMIC_ARRAY curr_group_assigned_parts;
   DYNAMIC_ARRAY curr_group_da;  // deferred array to hold partition-info-free events
+  bool curr_group_seen_gtid;   // current group started with Gtid-event or not
   bool curr_group_seen_begin;   // current group started with B-event or not
   bool curr_group_isolated;     // current group requires execution in isolation
   bool mts_end_group_sets_max_dbs; // flag indicates if partitioning info is discovered
@@ -467,7 +510,7 @@ public:
   ulong slave_parallel_workers; // the one slave session time number of workers
   ulong recovery_parallel_workers; // number of workers while recovering
   uint checkpoint_seqno;  // counter of groups executed after the most recent CP
-  uint checkpoint_group;  // number of groups in one checkpoint interval (period).
+  uint checkpoint_group;  // cache for ::opt_mts_checkpoint_group 
   MY_BITMAP recovery_groups;  // bitmap used during recovery
   ulong mts_recovery_group_cnt; // number of groups to execute at recovery
   ulong mts_recovery_index;     // running index of recoverable groups
@@ -845,8 +888,6 @@ private:
 
 bool mysql_show_relaylog_events(THD* thd);
 
-THD* mts_get_coordinator_thd();
-
 /**
    @param  thd a reference to THD
    @return TRUE if thd belongs to a Worker thread and FALSE otherwise.
@@ -855,4 +896,5 @@ inline bool is_mts_worker(const THD *thd)
 {
   return thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER;
 }
+
 #endif /* RPL_RLI_H */

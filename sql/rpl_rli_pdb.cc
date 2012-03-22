@@ -114,12 +114,14 @@ Slave_worker::~Slave_worker()
 */
 int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
 {
+  DBUG_ENTER("Slave_worker::init_worker");
   uint k;
   Slave_job_item empty= {NULL};
 
   c_rli= rli;
-  if (init_info())
-    return 1;
+  if (init_info() || 
+      DBUG_EVALUATE_IF("inject_init_worker_init_info_fault", true, false))
+    DBUG_RETURN(1);
 
   id= i;
   curr_group_exec_parts.elements= 0;
@@ -132,22 +134,23 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   end_group_sets_max_dbs= false;
   last_group_done_index= c_rli->gaq->size; // out of range
 
+  DBUG_ASSERT(!jobs.inited_queue);
   jobs.avail= 0;
   jobs.len= 0;
   jobs.overfill= FALSE;    //  todo: move into Slave_jobs_queue constructor
   jobs.waited_overfill= 0;
   jobs.entry= jobs.size= c_rli->mts_slave_worker_queue_len_max;
-  curr_group_seen_begin= FALSE;
+  jobs.inited_queue= true;
+  curr_group_seen_begin= curr_group_seen_gtid= false;
 
   my_init_dynamic_array(&jobs.Q, sizeof(Slave_job_item), jobs.size, 0);
   for (k= 0; k < jobs.size; k++)
     insert_dynamic(&jobs.Q, (uchar*) &empty);
-  
   DBUG_ASSERT(jobs.Q.elements == jobs.size);
   
   wq_overrun_set= FALSE;
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int Slave_worker::init_info()
@@ -430,20 +433,23 @@ bool init_hash_workers(ulong slave_parallel_workers)
 {
   DBUG_ENTER("init_hash_workers");
 
-#ifdef HAVE_PSI_INTERFACE
-  mysql_mutex_init(key_mutex_slave_worker_hash, &slave_worker_hash_lock,
-                   MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_cond_slave_worker_hash, &slave_worker_hash_cond, NULL);
-#else
-  mysql_mutex_init(NULL, &slave_worker_hash_lock,
-                   MY_MUTEX_INIT_FAST);
-  mysql_cond_init(NULL, &slave_worker_hash_cond, NULL);
-#endif
-
   inited_hash_workers=
     (my_hash_init(&mapping_db_to_worker, &my_charset_bin,
                  0, 0, 0, get_key,
                  (my_hash_free_key) free_entry, 0) == 0);
+  if (inited_hash_workers)
+  {
+#ifdef HAVE_PSI_INTERFACE
+    mysql_mutex_init(key_mutex_slave_worker_hash, &slave_worker_hash_lock,
+                     MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_cond_slave_worker_hash, &slave_worker_hash_cond, NULL);
+#else
+    mysql_mutex_init(NULL, &slave_worker_hash_lock,
+                     MY_MUTEX_INIT_FAST);
+    mysql_cond_init(NULL, &slave_worker_hash_cond, NULL);
+#endif
+  }
+
   DBUG_RETURN (!inited_hash_workers);
 }
 
@@ -453,9 +459,10 @@ void destroy_hash_workers(Relay_log_info *rli)
   if (inited_hash_workers)
   {
     my_hash_free(&mapping_db_to_worker);
+    mysql_mutex_destroy(&slave_worker_hash_lock);
+    mysql_cond_destroy(&slave_worker_hash_cond);
+    inited_hash_workers= false;
   }
-  mysql_mutex_destroy(&slave_worker_hash_lock);
-  mysql_cond_destroy(&slave_worker_hash_cond);
 
   DBUG_VOID_RETURN;
 }
@@ -991,7 +998,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
   }
   ep->elements= 0;
 
-  curr_group_seen_begin= FALSE;
+  curr_group_seen_gtid= curr_group_seen_begin= false;
 
   if (error)
   {
@@ -1173,9 +1180,9 @@ bool Slave_committed_queue::count_done(Relay_log_info* rli)
 
   DBUG_PRINT("mts", ("Checking if it can simulate a crash:"
              " mts_checkpoint_group %u counter %lu parallel slaves %lu\n",
-             mts_checkpoint_group, cnt, rli->slave_parallel_workers));
+             opt_mts_checkpoint_group, cnt, rli->slave_parallel_workers));
 
-  return (cnt == (rli->slave_parallel_workers * mts_checkpoint_group));
+  return (cnt == (rli->slave_parallel_workers * opt_mts_checkpoint_group));
 }
 #endif
 
@@ -1214,7 +1221,7 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
 
 #ifndef DBUG_OFF
     if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
-        cnt == mts_checkpoint_period)
+        cnt == opt_mts_checkpoint_period)
       return cnt;
 #endif
 
@@ -1687,10 +1694,10 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
 
   if (ev->starts_group())
   {
+    worker->curr_group_seen_begin= true; // The current group is started with B-event
     worker->end_group_sets_max_dbs= true;
-    worker->curr_group_seen_begin= TRUE; // The current group is started with B-event
   } 
-  else
+  else if (!is_gtid_event(ev))
   {
     if ((part_event=
          ev->contains_partition_info(worker->end_group_sets_max_dbs)))
@@ -1728,13 +1735,13 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   }
   worker->set_future_event_relay_log_pos(ev->future_event_relay_log_pos);
   error= ev->do_apply_event_worker(worker);
-  if (ev->ends_group() || (!worker->curr_group_seen_begin && 
+  if (ev->ends_group() || (!worker->curr_group_seen_begin &&
                            /* 
                               p-events of B/T-less {p,g} group (see
                               legends of Log_event::get_slave_worker)
                               obviously can't commit.
                            */
-                           part_event))
+                           part_event && !is_gtid_event(ev)))
   {
     DBUG_PRINT("slave_worker_exec_job:",
                (" commits GAQ index %lu, last committed  %lu",
@@ -1743,11 +1750,11 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
 
 #ifndef DBUG_OFF
     DBUG_PRINT("mts", ("Check_slave_debug_group worker %lu mts_checkpoint_group"
-               " %u processed %lu debug %d\n", worker->id, mts_checkpoint_group,
+               " %u processed %lu debug %d\n", worker->id, opt_mts_checkpoint_group,
                worker->groups_done,
                DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0)));
     if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
-        mts_checkpoint_group == worker->groups_done)
+        opt_mts_checkpoint_group == worker->groups_done)
     {
       DBUG_PRINT("mts", ("Putting worker %lu in busy wait.", worker->id));
       while (true) my_sleep(6000000);

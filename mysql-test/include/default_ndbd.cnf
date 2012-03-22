@@ -1,21 +1,26 @@
 
 [cluster_config]
 MaxNoOfSavedMessages=          1000
-MaxNoOfConcurrentTransactions= 128
+MaxNoOfConcurrentTransactions= 2048
 MaxNoOfConcurrentOperations=   10000
 DataMemory=                    20M
-IndexMemory=                   1M
+IndexMemory=                   3M
 Diskless=                      0
 TimeBetweenWatchDogCheck=      30000
-MaxNoOfOrderedIndexes=         32
+MaxNoOfOrderedIndexes=         128
 MaxNoOfAttributes=             2048
-TimeBetweenGlobalCheckpoints=  500
+TimeBetweenGlobalCheckpoints=  3000
+TimeBetweenEpochs=             100
 NoOfFragmentLogFiles=          4
 FragmentLogFileSize=           12M
 DiskPageBufferMemory=          4M
+SharedGlobalMemory=            20M
+TwoPassInitialNodeRestartCopy=1
 
 # O_DIRECT has issues on 2.4 whach have not been handled, Bug #29612
 #ODirect= 1
+CompressedLCP= 1
+CompressedBackup= 1
 # the following parametes just function as a small regression
 # test that the parameter exists
 InitialNoOfOpenFiles= 27
@@ -25,3 +30,4 @@ HeartbeatIntervalDbDb=         30000
 HeartbeatIntervalDbApi=        30000
 
 #TransactionDeadlockDetectionTimeout= 7500
+DiskIOThreadPool=1

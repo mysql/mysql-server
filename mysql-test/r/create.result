@@ -54,10 +54,6 @@ create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ERROR 42000: Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
 ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
-create table t1 (a datetime default now());
-ERROR 42000: Invalid default value for 'a'
-create table t1 (a datetime on update now());
-ERROR HY000: Invalid ON UPDATE clause for 'a' column
 create table t1 (a int default 100 auto_increment);
 ERROR 42000: Invalid default value for 'a'
 create table t1 (a tinyint default 1000);
@@ -1828,7 +1824,9 @@ CREATE TABLE t1(c1 TIMESTAMP, c2 TIMESTAMP);
 SET sql_mode = NO_ZERO_DATE;
 
 CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP DEFAULT 0);
-ERROR 42000: Invalid default value for 'c2'
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+DROP TABLE t2;
 
 CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP);
 ERROR 42000: Invalid default value for 'c2'
@@ -1838,7 +1836,8 @@ CREATE TABLE t2(c1 TIMESTAMP NULL);
 
 # -- Check ALTER TABLE.
 ALTER TABLE t1 ADD INDEX(c1);
-ERROR 42000: Invalid default value for 'c2'
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
 
 # -- Check DATETIME.
 SET sql_mode = '';
@@ -2451,3 +2450,9 @@ create temporary table t1 select f();
 ERROR HY000: Can't update table 't2' while 't1' is being created.
 drop view t2;
 drop function f;
+#
+# BUG#11762377 - 54963: ENHANCE THE ERROR MESSAGE TO 
+#                       REDUCE USER CONFUSION 
+#
+CREATE TABLE t1 (v varchar(65535));
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs

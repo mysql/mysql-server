@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -153,6 +153,7 @@ dfield_dup(
 /*=======*/
 	dfield_t*	field,	/*!< in/out: data field */
 	mem_heap_t*	heap);	/*!< in: memory heap where allocated */
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Tests if two data fields are equal.
 If len==0, tests the data length and content for equality.
@@ -170,13 +171,15 @@ dfield_datas_are_binary_equal(
 /*********************************************************************//**
 Tests if dfield data length and content is equal to the given.
 @return	TRUE if equal */
-UNIV_INTERN
+UNIV_INLINE
 ibool
 dfield_data_is_binary_equal(
 /*========================*/
 	const dfield_t*	field,	/*!< in: field */
 	ulint		len,	/*!< in: data length or UNIV_SQL_NULL */
-	const byte*	data);	/*!< in: data */
+	const byte*	data)	/*!< in: data */
+	__attribute__((nonnull, warn_unused_result));
+#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Gets number of fields in a data tuple.
 @return	number of fields */
@@ -231,6 +234,26 @@ dtuple_set_n_fields_cmp(
 	dtuple_t*	tuple,		/*!< in: tuple */
 	ulint		n_fields_cmp);	/*!< in: number of fields used in
 					comparisons in rem0cmp.* */
+
+/* Estimate the number of bytes that are going to be allocated when
+creating a new dtuple_t object */
+#define DTUPLE_EST_ALLOC(n_fields)	\
+	(sizeof(dtuple_t) + (n_fields) * sizeof(dfield_t))
+
+/**********************************************************//**
+Creates a data tuple from an already allocated chunk of memory.
+The size of the chunk must be at least DTUPLE_EST_ALLOC(n_fields).
+The default value for number of fields used in record comparisons
+for this tuple is n_fields.
+@return	created tuple (inside buf) */
+UNIV_INLINE
+dtuple_t*
+dtuple_create_from_mem(
+/*===================*/
+	void*	buf,		/*!< in, out: buffer to use */
+	ulint	buf_size,	/*!< in: buffer size */
+	ulint	n_fields);	/*!< in: number of fields */
+
 /**********************************************************//**
 Creates a data tuple to a memory heap. The default value for number
 of fields used in record comparisons for this tuple is n_fields.
@@ -240,7 +263,8 @@ dtuple_t*
 dtuple_create(
 /*==========*/
 	mem_heap_t*	heap,	/*!< in: memory heap where the tuple
-				is created */
+				is created, DTUPLE_EST_ALLOC(n_fields)
+				bytes will be allocated from this heap */
 	ulint		n_fields); /*!< in: number of fields */
 
 /**********************************************************//**

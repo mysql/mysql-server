@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -194,6 +194,7 @@ my $opt_cursor_protocol;
 my $opt_view_protocol;
 my $opt_trace_protocol;
 my $opt_explain_protocol;
+my $opt_json_explain_protocol;
 
 our $opt_debug;
 my $debug_d= "d";
@@ -282,6 +283,7 @@ my $opt_reorder= 1;
 my $opt_force_restart= 0;
 
 my $opt_strace_client;
+my $opt_strace_server;
 
 our $opt_user = "root";
 
@@ -294,7 +296,7 @@ my $opt_valgrind_path;
 my $valgrind_reports= 0;
 my $opt_callgrind;
 my %mysqld_logs;
-my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
+my $opt_debug_sync_timeout= 600; # Default timeout for WAIT_FOR actions.
 
 sub testcase_timeout ($) {
   my ($tinfo)= @_;
@@ -1055,6 +1057,7 @@ sub command_line_setup {
              'view-protocol'            => \$opt_view_protocol,
              'opt-trace-protocol'       => \$opt_trace_protocol,
              'explain-protocol'         => \$opt_explain_protocol,
+             'json-explain-protocol'    => \$opt_json_explain_protocol,
              'cursor-protocol'          => \$opt_cursor_protocol,
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
@@ -1121,7 +1124,8 @@ sub command_line_setup {
 	     'debugger=s'               => \$opt_debugger,
 	     'boot-dbx'                 => \$opt_boot_dbx,
 	     'client-debugger=s'        => \$opt_client_debugger,
-             'strace-client:s'          => \$opt_strace_client,
+             'strace-server'            => \$opt_strace_server,
+             'strace-client'            => \$opt_strace_client,
              'max-save-core=i'          => \$opt_max_save_core,
              'max-save-datadir=i'       => \$opt_max_save_datadir,
              'max-test-fail=i'          => \$opt_max_test_fail,
@@ -1689,7 +1693,7 @@ sub command_line_setup {
     $opt_testcase_timeout*= 10;
     $opt_suite_timeout*= 6;
     $opt_start_timeout*= 10;
-
+    $opt_debug_sync_timeout*= 10;
   }
   elsif ( $opt_valgrind_mysqld )
   {
@@ -1737,6 +1741,19 @@ sub command_line_setup {
     $opt_debug= 1;
     $debug_d= "d,query,info,error,enter,exit";
   }
+
+  if ( $opt_strace_server && ($^O ne "linux") )
+  {
+    $opt_strace_server=0;
+    mtr_warning("Strace only supported in Linux ");
+  }
+
+  if ( $opt_strace_client && ($^O ne "linux") )
+  {
+    $opt_strace_client=0;
+    mtr_warning("Strace only supported in Linux ");
+  }
+
 
   mtr_report("Checking supported features...");
 
@@ -1998,8 +2015,10 @@ sub executable_setup () {
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
   $exe_mysql_plugin=   mtr_exe_exists("$path_client_bindir/mysql_plugin");
 
-  $exe_mysql_embedded= mtr_exe_maybe_exists("$basedir/libmysqld/examples/mysql_embedded",
-                                            "$bindir/bin/mysql_embedded");
+  $exe_mysql_embedded=
+    mtr_exe_maybe_exists(vs_config_dirs('libmysqld/examples','mysql_embedded'),
+                         "$bindir/libmysqld/examples/mysql_embedded",
+                         "$bindir/bin/mysql_embedded");
 
   if ( ! $opt_skip_ndbcluster )
   {
@@ -2278,7 +2297,9 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   if ( !$opt_skip_ndbcluster )
   {
-    push(@ld_library_paths,  "$basedir/storage/ndb/src/.libs");
+    push(@ld_library_paths,  
+	 "$basedir/storage/ndb/src/.libs",
+	 "$basedir/storage/ndb/src");
   }
 
   # Plugin settings should no longer be added here, instead
@@ -2371,9 +2392,37 @@ sub environment_setup {
 		  ["storage/ndb/src/mgmclient", "bin"],
 		  "ndb_mgm");
 
-    $ENV{'NDB_TOOLS_DIR'}=
-      my_find_dir($bindir,
-		  ["storage/ndb/tools", "bin"]);
+    $ENV{'NDB_WAITER'}= $exe_ndb_waiter;
+
+    $ENV{'NDB_RESTORE'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_restore");
+
+    $ENV{'NDB_CONFIG'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_config");
+
+    $ENV{'NDB_SELECT_ALL'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_select_all");
+
+    $ENV{'NDB_DROP_TABLE'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_drop_table");
+
+    $ENV{'NDB_DESC'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_desc");
+
+    $ENV{'NDB_SHOW_TABLES'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_show_tables");
 
     $ENV{'NDB_EXAMPLES_DIR'}=
       my_find_dir($basedir,
@@ -2407,6 +2456,7 @@ sub environment_setup {
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
   $ENV{'MYSQL_PLUGIN'}=             $exe_mysql_plugin;
   $ENV{'MYSQL_EMBEDDED'}=           $exe_mysql_embedded;
+  $ENV{'PATH_CONFIG_FILE'}=         $path_config_file;
 
   my $exe_mysqld= find_mysqld($basedir);
   $ENV{'MYSQLD'}= $exe_mysqld;
@@ -2767,7 +2817,7 @@ sub check_ndbcluster_support ($) {
     mtr_report(" - MySQL Cluster");
     # Enable ndb engine and add more test suites
     $opt_include_ndbcluster = 1;
-    $DEFAULT_SUITES.=",ndb";
+    $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl";
   }
 
   if ($opt_include_ndbcluster)
@@ -2856,6 +2906,41 @@ sub ndbcluster_wait_started($$){
 }
 
 
+sub ndbcluster_dump($) {
+  my ($cluster)= @_;
+
+  print "\n== Dumping cluster log files\n\n";
+
+  # ndb_mgmd(s)
+  foreach my $ndb_mgmd ( in_cluster($cluster, ndb_mgmds()) )
+  {
+    my $datadir = $ndb_mgmd->value('DataDir');
+
+    # Should find ndb_<nodeid>_cluster.log and ndb_mgmd.log
+    foreach my $file ( glob("$datadir/ndb*.log") )
+    {
+      print "$file:\n";
+      mtr_printfile("$file");
+      print "\n";
+    }
+  }
+
+  # ndb(s)
+  foreach my $ndbd ( in_cluster($cluster, ndbds()) )
+  {
+    my $datadir = $ndbd->value('DataDir');
+
+    # Should find ndbd.log
+    foreach my $file ( glob("$datadir/ndbd.log") )
+    {
+      print "$file:\n";
+      mtr_printfile("$file");
+      print "\n";
+    }
+  }
+}
+
+
 sub ndb_mgmd_wait_started($) {
   my ($cluster)= @_;
 
@@ -2918,6 +3003,7 @@ sub ndb_mgmd_start ($$) {
   mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
   mtr_add_arg($args, "--mycnf");
   mtr_add_arg($args, "--nodaemon");
+  mtr_add_arg($args, "--configdir=%s", "$dir");
 
   my $path_ndb_mgmd_log= "$dir/ndb_mgmd.log";
 
@@ -4847,6 +4933,14 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "--gdb");
   }
 
+  # Enable the debug sync facility, set default wait timeout.
+  # Facility stays disabled if timeout value is zero.
+  mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
+              $opt_debug_sync_timeout) unless $opt_user_args;
+
+  # Options specified in .opt files should be added last so they can
+  # override defaults above.
+
   my $found_skip_core= 0;
   foreach my $arg ( @$extra_opts )
   {
@@ -4883,11 +4977,6 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "%s", "--core-file");
   }
 
-  # Enable the debug sync facility, set default wait timeout.
-  # Facility stays disabled if timeout value is zero.
-  mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
-              $opt_debug_sync_timeout) unless $opt_user_args;
-
   return $args;
 }
 
@@ -4907,6 +4996,12 @@ sub mysqld_start ($$) {
 
   my $args;
   mtr_init_args(\$args);
+# implementation for strace-server
+  if ( $opt_strace_server )
+  {
+    strace_server_arguments($args, \$exe, $mysqld->name());
+  }
+
 
   if ( $opt_valgrind_mysqld )
   {
@@ -5400,6 +5495,13 @@ sub start_servers($) {
     {
       # failed to start
       $tinfo->{'comment'}= "Start of '".$cluster->name()."' cluster failed";
+
+      #
+      # Dump cluster log files to log file to help analyze the
+      # cause of the failed start
+      #
+      ndbcluster_dump($cluster);
+
       return 1;
     }
   }
@@ -5495,6 +5597,14 @@ sub start_mysqltest ($) {
 
   mtr_init_args(\$args);
 
+  if ( $opt_strace_client )
+  {
+    $exe=  "strace";
+    mtr_add_arg($args, "-o");
+    mtr_add_arg($args, "%s/log/mysqltest.strace", $opt_vardir);
+    mtr_add_arg($args, "$exe_mysqltest");
+  }
+
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
@@ -5526,6 +5636,11 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--explain-protocol");
   }
 
+  if ( $opt_json_explain_protocol )
+  {
+    mtr_add_arg($args, "--json-explain-protocol");
+  }
+
   if ( $opt_view_protocol )
   {
     mtr_add_arg($args, "--view-protocol");
@@ -5541,13 +5656,6 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--cursor-protocol");
   }
 
-  if ( $opt_strace_client )
-  {
-    $exe=  $opt_strace_client || "strace";
-    mtr_add_arg($args, "-o");
-    mtr_add_arg($args, "%s/log/mysqltest.strace", $opt_vardir);
-    mtr_add_arg($args, "$exe_mysqltest");
-  }
 
   mtr_add_arg($args, "--timer-file=%s/log/timer", $opt_vardir);
 
@@ -5848,6 +5956,19 @@ sub debugger_arguments {
   }
 }
 
+#
+# Modify the exe and args so that program is run in strace 
+#
+sub strace_server_arguments {
+  my $args= shift;
+  my $exe=  shift;
+  my $type= shift;
+
+  mtr_add_arg($args, "-o");
+  mtr_add_arg($args, "%s/log/%s.strace", $opt_vardir, $type);
+  mtr_add_arg($args, $$exe);
+  $$exe= "strace";
+}
 
 #
 # Modify the exe and args so that program is run in valgrind
@@ -6048,7 +6169,10 @@ Options to control what engine/variation to run
                         (implies --ps-protocol)
   view-protocol         Create a view to execute all non updating queries
   opt-trace-protocol    Print optimizer trace
-  explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT queries
+  explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT, INSERT,
+                        REPLACE, UPDATE and DELETE queries.
+  json-explain-protocol Run 'EXPLAIN FORMAT=JSON' on all SELECT, INSERT,
+                        REPLACE, UPDATE and DELETE queries.
   sp-protocol           Create a stored procedure to execute all queries
   compress              Use the compressed protocol between client and server
   ssl                   Use ssl protocol between client and server
@@ -6168,9 +6292,8 @@ Options for debugging the product
                         test(s)
   manual-dbx            Let user manually start mysqld in dbx, before running
                         test(s)
-  strace-client[=path]  Create strace output for mysqltest client, optionally
-                        specifying name and path to the trace program to use.
-                        Example: $0 --strace-client=ktrace
+  strace-client         Create strace output for mysqltest client, 
+  strace-server         Create strace output for mysqltest server, 
   max-save-core         Limit the number of core files saved (to avoid filling
                         up disks for heavily crashing server). Defaults to
                         $opt_max_save_core, set to 0 for no limit. Set

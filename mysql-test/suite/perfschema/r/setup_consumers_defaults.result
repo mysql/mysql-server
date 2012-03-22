@@ -10,6 +10,7 @@ events_waits_current	NO
 events_waits_history	YES
 events_waits_history_long	NO
 global_instrumentation	YES
+statements_digest	YES
 thread_instrumentation	YES
 SELECT @@performance_schema_consumer_events_stages_current;
 ERROR HY000: Unknown system variable 'performance_schema_consumer_events_stages_current'

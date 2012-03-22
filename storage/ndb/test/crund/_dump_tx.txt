@@ -1,0 +1,31 @@
+
+  struct Free_list_usage
+  {
+    const char * m_name;
+    Uint32 m_created;
+    Uint32 m_free;
+    Uint32 m_sizeof;
+  };
+
+  Free_list_usage * get_free_list_usage(Free_list_usage*);
+
+
+
+  if (ndb)
+  {
+    Ndb::Free_list_usage tmp;
+    tmp.m_name= 0;
+    while (ndb->get_free_list_usage(&tmp))
+    {
+      buflen=
+        my_snprintf(buf, sizeof(buf),
+                  "created=%u, free=%u, sizeof=%u",
+                  tmp.m_created, tmp.m_free, tmp.m_sizeof);
+      if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
+                     tmp.m_name, strlen(tmp.m_name), buf, buflen))
+        DBUG_RETURN(TRUE);
+    }
+  }
+  ndbcluster_show_status_binlog(thd, stat_print, stat_type);
+
+

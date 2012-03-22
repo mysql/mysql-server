@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -100,13 +100,13 @@ extern my_bool opt_backup_progress_log;
 extern ulonglong log_output_options;
 extern ulong log_backup_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
+extern ulong opt_log_throttle_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop;
 extern bool in_bootstrap;
-extern uint volatile thread_count;
 extern uint connection_count;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
@@ -139,7 +139,7 @@ extern ulong expire_logs_days;
 extern my_bool relay_log_recovery;
 extern uint sync_binlog_period, sync_relaylog_period, 
             sync_relayloginfo_period, sync_masterinfo_period,
-            mts_checkpoint_period, mts_checkpoint_group;
+            opt_mts_checkpoint_period, opt_mts_checkpoint_group;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
@@ -147,7 +147,8 @@ extern my_bool relay_log_recovery;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern ulong delay_key_write_options;
-extern char *opt_logname, *opt_slow_logname;
+extern char *opt_logname, *opt_slow_logname, *opt_bin_logname, 
+            *opt_relay_logname;
 extern char *opt_backup_history_logname, *opt_backup_progress_logname,
             *opt_backup_settings_name;
 extern const char *log_output_str;
@@ -179,7 +180,7 @@ extern ulong slow_launch_threads, slow_launch_time;
 extern ulong table_cache_size, table_def_size;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern ulong max_connect_errors, connect_timeout;
-extern my_bool slave_allow_batching;
+extern my_bool opt_slave_allow_batching;
 extern my_bool allow_slave_start;
 extern LEX_CSTRING reason_slave_blocked;
 extern ulong slave_trans_retries;
@@ -198,7 +199,24 @@ extern ulong binlog_checksum_options;
 extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
+extern my_bool disable_gtid_unsafe_statements;
+enum enum_gtid_mode
+{
+  /// Support only anonymous groups, not GTIDs.
+  GTID_MODE_OFF= 0,
+  /// Support both GTIDs and anonymous groups; generate anonymous groups.
+  GTID_MODE_UPGRADE_STEP_1= 1,
+  /// Support both GTIDs and anonymous groups; generate GTIDs.
+  GTID_MODE_UPGRADE_STEP_2= 2,
+  /// Support only GTIDs, not anonymous groups.
+  GTID_MODE_ON= 3
+};
+extern ulong gtid_mode;
+extern const char *gtid_mode_names[];
+extern TYPELIB gtid_mode_typelib;
+
 extern ulong thread_cache_size;
+extern ulong stored_program_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
 extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
@@ -220,6 +238,13 @@ extern const char *opt_date_time_formats[];
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
+extern uint opt_server_id_bits;
+extern ulong opt_server_id_mask;
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+/* engine specific hook, to be made generic */
+extern int(*ndb_wait_setup_func)(ulong);
+extern ulong opt_ndb_wait_setup;
+#endif
 extern const char *load_default_groups[];
 extern struct my_option my_long_options[];
 extern int mysqld_server_started;
@@ -230,10 +255,15 @@ extern MYSQL_FILE *bootstrap_file;
 extern my_bool old_mode;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern int bootstrap_error;
-extern I_List<THD> threads;
 extern char err_shared_dir[];
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
+extern ulong connection_errors_select;
+extern ulong connection_errors_accept;
+extern ulong connection_errors_tcpwrap;
+extern ulong connection_errors_internal;
+extern ulong connection_errors_max_connection;
+extern ulong connection_errors_peer_addr;
 extern ulong log_warnings;
 
 /*
@@ -270,7 +300,8 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
-  key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc;
+  key_LOCK_error_messages, key_LOCK_thread_count,
+  key_LOCK_log_throttle_qni;
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -401,6 +432,7 @@ extern PSI_stage_info stage_user_lock;
 extern PSI_stage_info stage_user_sleep;
 extern PSI_stage_info stage_verifying_table;
 extern PSI_stage_info stage_waiting_for_delay_list;
+extern PSI_stage_info stage_waiting_for_gtid_to_be_written_to_binary_log;
 extern PSI_stage_info stage_waiting_for_handler_insert;
 extern PSI_stage_info stage_waiting_for_handler_lock;
 extern PSI_stage_info stage_waiting_for_handler_open;
@@ -482,7 +514,7 @@ extern mysql_mutex_t
        LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
-       LOCK_global_system_variables, LOCK_user_conn,
+       LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count;
 extern MYSQL_PLUGIN_IMPORT mysql_mutex_t LOCK_thread_count;
 #ifdef HAVE_OPENSSL

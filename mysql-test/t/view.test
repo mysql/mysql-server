@@ -4210,6 +4210,114 @@ DROP VIEW v1;
 DROP FUNCTION f2;
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#13418197: ASSERTION `(*TABLES)->REGINFO.LOCK_TYPE >=
+--echo #               TL_READ' FAILED | MYSQL_LOCK_TABLES
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TEMPORARY TABLE t1 (a INT) engine=InnoDB;
+CREATE VIEW t1 AS SELECT 1;
+
+DROP VIEW t1;
+DROP TEMPORARY TABLE t1;
+
+
+--echo #
+--echo # Bug#13601606: FAILED VIEW CREATION ERROR MESSAGE (FOR DB NOT PRESENT) 
+--echo #               NEEDS BIG IMPROVEMENT 
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS nodb;
+--enable_warnings
+--error ER_BAD_DB_ERROR
+CREATE VIEW nodb.a AS SELECT 1;
+
+--echo #
+--echo # Bug#13633549 HANDLE_FATAL_SIGNAL IN 
+--echo #              TEST_IF_SKIP_SORT_ORDER/CREATE_SORT_INDEX
+--echo #
+
+CREATE TABLE t1 (
+  pk        INT AUTO_INCREMENT,
+  c_int_key INT,
+  PRIMARY KEY (pk),
+  KEY (c_int_key)
+) 
+ENGINE=innodb;
+
+CREATE VIEW v_t1 AS SELECT * FROM t1;
+
+CREATE TABLE t2 (
+  pk              INT auto_increment,
+  c_varchar_600_x VARCHAR(600),
+  c_int_key       INT,
+  c_varchar_600_y VARCHAR(600),
+  c_varchar_600_z VARCHAR(600),
+  PRIMARY KEY (pk),
+  KEY (c_int_key)
+) 
+ENGINE=innodb;
+
+CREATE VIEW v_t2 AS SELECT * FROM t2;
+INSERT INTO t2 VALUES
+(
+  NULL,
+  repeat('x', 600),
+  3,
+  repeat('y', 600),
+  repeat('z', 600)
+);
+
+SELECT a1.pk AS f1
+FROM v_t1 AS a1 LEFT JOIN v_t2 AS a2 ON a1.pk=a2.c_int_key
+WHERE 
+  a1.pk > 8
+  OR ((a1.pk BETWEEN 9 AND 13) AND a1.pk = 90)
+ORDER BY f1 ;
+
+DROP TABLE t1, t2;
+DROP VIEW v_t1, v_t2;
+
+--echo #
+--echo # Bug#13783777 CONSTANT PROPAGATION IS WRONG FOR
+--echo #              DISJUNCTIVE PREDICATES IN VIEWS
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE VIEW v_t1 AS SELECT * FROM t1;
+
+# Query directly against the table (correct result)
+SELECT pk
+FROM t1
+WHERE
+  pk > 8
+  OR ((pk BETWEEN 9 AND 13) AND pk = 90)
+;
+
+# Query against a view (wrong result)
+SELECT pk
+FROM v_t1
+WHERE
+  pk > 8
+  OR ((pk BETWEEN 9 AND 13) AND pk = 90)
+;
+
+DROP VIEW v_t1;
+DROP TABLE t1;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

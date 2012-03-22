@@ -77,6 +77,9 @@
 /* Size of buffer for dump's select query */
 #define QUERY_LENGTH 1536
 
+/* Size of comment buffer. */
+#define COMMENT_LENGTH 2048
+
 /* ignore table flags */
 #define IGNORE_NONE 0x00 /* no ignore */
 #define IGNORE_DATA 0x01 /* don't dump data for this table */
@@ -105,7 +108,7 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
                 opt_slave_apply= 0, 
                 opt_include_master_host_port= 0,
-                opt_events= 0,
+                opt_events= 0, opt_comments_used= 0,
                 opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0;
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
@@ -422,7 +425,7 @@ static struct my_option my_long_options[] =
    &opt_order_by_primary, &opt_order_by_primary, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's solicited on the tty.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -546,6 +549,8 @@ static int dump_all_tablespaces();
 static int dump_tablespaces_for_tables(char *db, char **table_names, int tables);
 static int dump_tablespaces_for_databases(char** databases);
 static int dump_tablespaces(char* ts_where);
+static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
+                          ...);
 
 
 /*
@@ -568,6 +573,8 @@ static void verbose_msg(const char *fmt, ...)
   va_start(args, fmt);
   vfprintf(stderr, fmt, args);
   va_end(args);
+
+  fflush(stderr);
 
   DBUG_VOID_RETURN;
 }
@@ -638,19 +645,19 @@ static void write_header(FILE *sql_file, char *db_name)
   }
   else if (!opt_compact)
   {
-    if (opt_comments)
-    {
-      fprintf(sql_file,
-              "-- MySQL dump %s  Distrib %s, for %s (%s)\n--\n",
-              DUMP_VERSION, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-      fprintf(sql_file, "-- Host: %s    Database: %s\n",
-              current_host ? current_host : "localhost", db_name ? db_name :
-              "");
-      fputs("-- ------------------------------------------------------\n",
-            sql_file);
-      fprintf(sql_file, "-- Server version\t%s\n",
-              mysql_get_server_info(&mysql_connection));
-    }
+    print_comment(sql_file, 0,
+                  "-- MySQL dump %s  Distrib %s, for %s (%s)\n--\n",
+                  DUMP_VERSION, MYSQL_SERVER_VERSION, SYSTEM_TYPE,
+                  MACHINE_TYPE);
+    print_comment(sql_file, 0, "-- Host: %s    Database: %s\n",
+                  current_host ? current_host : "localhost",
+                  db_name ? db_name : "");
+    print_comment(sql_file, 0,
+                  "-- ------------------------------------------------------\n"
+                 );
+    print_comment(sql_file, 0, "-- Server version\t%s\n",
+                  mysql_get_server_info(&mysql_connection));
+
     if (opt_set_charset)
       fprintf(sql_file,
 "\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;"
@@ -708,18 +715,16 @@ static void write_footer(FILE *sql_file)
     fprintf(sql_file,
             "/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;\n");
     fputs("\n", sql_file);
-    if (opt_comments)
+
+    if (opt_dump_date)
     {
-      if (opt_dump_date)
-      {
-        char time_str[20];
-        get_date(time_str, GETDATE_DATE_TIME, 0);
-        fprintf(sql_file, "-- Dump completed on %s\n",
-                time_str);
-      }
-      else
-        fprintf(sql_file, "-- Dump completed\n");
+      char time_str[20];
+      get_date(time_str, GETDATE_DATE_TIME, 0);
+      print_comment(sql_file, 0, "-- Dump completed on %s\n", time_str);
     }
+    else
+      print_comment(sql_file, 0, "-- Dump completed\n");
+
     check_io(sql_file);
   }
 } /* write_footer */
@@ -793,6 +798,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     extended_insert= opt_drop= opt_lock=
       opt_disable_keys= opt_autocommit= opt_create_db= 0;
     break;
+  case 'i':
+    opt_comments_used= 1;
+    break;
   case 'I':
   case '?':
     usage();
@@ -814,11 +822,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       opt_disable_keys= lock_tables= opt_set_charset= 0;
     break;
   case (int) OPT_COMPACT:
-  if (opt_compact)
-  {
-    opt_comments= opt_drop= opt_disable_keys= opt_lock= 0;
-    opt_set_charset= 0;
-  }
+    if (opt_compact)
+    {
+       opt_comments= opt_drop= opt_disable_keys= opt_lock= 0;
+       opt_set_charset= 0;
+    }
+    break;
   case (int) OPT_TABLES:
     opt_databases=0;
     break;
@@ -899,8 +908,11 @@ static int get_options(int *argc, char ***argv)
   opt_net_buffer_length= *mysql_params->p_net_buffer_length;
 
   md_result_file= stdout;
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my",load_default_groups,argc,argv))
     return 1;
+  my_getopt_use_args_separator= FALSE;
+
   defaults_argv= *argv;
 
   if (my_hash_init(&ignore_table, charset_info, 16, 0, 0,
@@ -1648,20 +1660,20 @@ static char *quote_for_like(const char *name, char *buff)
 }
 
 
-/*
+/**
   Quote and print a string.
 
-  SYNOPSIS
-    print_quoted_xml()
-    xml_file    - output file
-    str         - string to print
-    len         - its length
+  @param xml_file          - Output file.
+  @param str               - String to print.
+  @param len               - Its length.
+  @param is_attribute_name - A check for attribute name or value.
 
-  DESCRIPTION
+  @description
     Quote '<' '>' '&' '\"' chars and print a string to the xml_file.
 */
 
-static void print_quoted_xml(FILE *xml_file, const char *str, ulong len)
+static void print_quoted_xml(FILE *xml_file, const char *str, ulong len,
+                             my_bool is_attribute_name)
 {
   const char *end;
 
@@ -1680,6 +1692,14 @@ static void print_quoted_xml(FILE *xml_file, const char *str, ulong len)
     case '\"':
       fputs("&quot;", xml_file);
       break;
+    case ' ':
+      /* Attribute names cannot contain spaces. */
+      if (is_attribute_name)
+      {
+        fputs("_", xml_file);
+        break;
+      }
+      /* fall through */
     default:
       fputc(*str, xml_file);
       break;
@@ -1740,7 +1760,7 @@ static void print_xml_tag(FILE * xml_file, const char* sbeg,
     fputs(attribute_name, xml_file);    
     fputc('\"', xml_file);
     
-    print_quoted_xml(xml_file, attribute_value, strlen(attribute_value));
+    print_quoted_xml(xml_file, attribute_value, strlen(attribute_value), 0);
     fputc('\"', xml_file);
 
     attribute_name= va_arg(arg_list, char *);
@@ -1780,9 +1800,48 @@ static void print_xml_null_tag(FILE * xml_file, const char* sbeg,
   fputs("<", xml_file);
   fputs(stag_atr, xml_file);
   fputs("\"", xml_file);
-  print_quoted_xml(xml_file, sval, strlen(sval));
+  print_quoted_xml(xml_file, sval, strlen(sval), 0);
   fputs("\" xsi:nil=\"true\" />", xml_file);
   fputs(line_end, xml_file);
+  check_io(xml_file);
+}
+
+
+/**
+  Print xml CDATA section.
+
+  @param xml_file    - output file
+  @param str         - string to print
+  @param len         - length of the string
+
+  @note
+    This function also takes care of the presence of '[[>'
+    string in the str. If found, the CDATA section is broken
+    into two CDATA sections, <![CDATA[]]]]> and <![CDATA[>]].
+*/
+
+static void print_xml_cdata(FILE *xml_file, const char *str, ulong len)
+{
+  const char *end;
+
+  fputs("<![CDATA[\n", xml_file);
+  for (end= str + len; str != end; str++)
+  {
+    switch(*str) {
+    case ']':
+      if ((*(str + 1) == ']') && (*(str + 2) =='>'))
+      {
+        fputs("]]]]><![CDATA[>", xml_file);
+        str += 2;
+        continue;
+      }
+      /* fall through */
+    default:
+      fputc(*str, xml_file);
+      break;
+    }
+  }
+  fputs("\n]]>\n", xml_file);
   check_io(xml_file);
 }
 
@@ -1796,6 +1855,7 @@ static void print_xml_null_tag(FILE * xml_file, const char* sbeg,
     row_name    - xml tag name
     tableRes    - query result
     row         - result row
+    str_create  - create statement header string
 
   DESCRIPTION
     Print tag with many attribute to the xml_file. Format is:
@@ -1805,9 +1865,13 @@ static void print_xml_null_tag(FILE * xml_file, const char* sbeg,
 */
 
 static void print_xml_row(FILE *xml_file, const char *row_name,
-                          MYSQL_RES *tableRes, MYSQL_ROW *row)
+                          MYSQL_RES *tableRes, MYSQL_ROW *row,
+                          const char *str_create)
 {
   uint i;
+  my_bool body_found= 0;
+  char *create_stmt_ptr= NULL;
+  ulong create_stmt_len= 0;
   MYSQL_FIELD *field;
   ulong *lengths= mysql_fetch_lengths(tableRes);
 
@@ -1818,16 +1882,106 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   {
     if ((*row)[i])
     {
-      fputc(' ', xml_file);
-      print_quoted_xml(xml_file, field->name, field->name_length);
-      fputs("=\"", xml_file);
-      print_quoted_xml(xml_file, (*row)[i], lengths[i]);
-      fputc('"', xml_file);
-      check_io(xml_file);
+      /* For 'create' statements, dump using CDATA. */
+      if ((str_create) && (strcmp(str_create, field->name) == 0))
+      {
+        create_stmt_ptr= (*row)[i];
+        create_stmt_len= lengths[i];
+        body_found= 1;
+      }
+      else
+      {
+        fputc(' ', xml_file);
+        print_quoted_xml(xml_file, field->name, field->name_length, 1);
+        fputs("=\"", xml_file);
+        print_quoted_xml(xml_file, (*row)[i], lengths[i], 0);
+        fputc('"', xml_file);
+        check_io(xml_file);
+      }
     }
   }
-  fputs(" />\n", xml_file);
+
+  if (create_stmt_len)
+  {
+    DBUG_ASSERT(body_found);
+    fputs(">\n", xml_file);
+    print_xml_cdata(xml_file, create_stmt_ptr, create_stmt_len);
+    fprintf(xml_file, "\t\t</%s>\n", row_name);
+  }
+  else
+    fputs(" />\n", xml_file);
+
   check_io(xml_file);
+}
+
+
+/**
+  Print xml comments.
+
+  @param xml_file       - output file
+  @param len            - length of comment message
+  @param comment_string - comment message
+
+  @description
+    Print the comment message in the format:
+      "<!-- \n comment string  \n -->\n"
+
+  @note
+    Any occurrence of continuous hyphens will be
+    squeezed to a single hyphen.
+*/
+
+static void print_xml_comment(FILE *xml_file, ulong len,
+                              const char *comment_string)
+{
+  const char* end;
+
+  fputs("<!-- ", xml_file);
+
+  for (end= comment_string + len; comment_string != end; comment_string++)
+  {
+    /*
+      The string "--" (double-hyphen) MUST NOT occur within xml comments.
+    */
+    switch (*comment_string) {
+    case '-':
+      if (*(comment_string + 1) == '-')         /* Only one hyphen allowed. */
+        break;
+    default:
+      fputc(*comment_string, xml_file);
+      break;
+    }
+  }
+  fputs(" -->\n", xml_file);
+  check_io(xml_file);
+}
+
+
+
+/* A common printing function for xml and non-xml modes. */
+
+static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
+                          ...)
+{
+  static char comment_buff[COMMENT_LENGTH];
+  va_list args;
+
+  /* If its an error message, print it ignoring opt_comments. */
+  if (!is_error && !opt_comments)
+    return;
+
+  va_start(args, format);
+  my_vsnprintf(comment_buff, COMMENT_LENGTH, format, args);
+  va_end(args);
+
+  if (!opt_xml)
+  {
+    fputs(comment_buff, sql_file);
+    check_io(sql_file);
+    return;
+  }
+
+  print_xml_comment(sql_file, strlen(comment_buff), comment_buff);
 }
 
 
@@ -1897,8 +2051,8 @@ static uint dump_events_for_db(char *db)
   mysql_real_escape_string(mysql, db_name_buff, db, strlen(db));
 
   /* nice comments */
-  if (opt_comments)
-    fprintf(sql_file, "\n--\n-- Dumping events for database '%s'\n--\n", db);
+  print_comment(sql_file, 0,
+                "\n--\n-- Dumping events for database '%s'\n--\n", db);
 
   /*
     not using "mysql_query_with_error_report" because we may have not
@@ -1913,12 +2067,17 @@ static uint dump_events_for_db(char *db)
   strcpy(delimiter, ";");
   if (mysql_num_rows(event_list_res) > 0)
   {
-    fprintf(sql_file, "/*!50106 SET @save_time_zone= @@TIME_ZONE */ ;\n");
+    if (opt_xml)
+      fputs("\t<events>\n", sql_file);
+    else
+    {
+      fprintf(sql_file, "/*!50106 SET @save_time_zone= @@TIME_ZONE */ ;\n");
 
-    /* Get database collation. */
+      /* Get database collation. */
 
-    if (fetch_db_collation(db_name_buff, db_cl_name, sizeof (db_cl_name)))
-      DBUG_RETURN(1);
+      if (fetch_db_collation(db_name_buff, db_cl_name, sizeof (db_cl_name)))
+        DBUG_RETURN(1);
+    }
 
     if (switch_character_set_results(mysql, "binary"))
       DBUG_RETURN(1);
@@ -1935,6 +2094,13 @@ static uint dump_events_for_db(char *db)
 
       while ((row= mysql_fetch_row(event_res)) != NULL)
       {
+        if (opt_xml)
+        {
+          print_xml_row(sql_file, "event", event_res, &row,
+                        "Create Event");
+          continue;
+        }
+
         /*
           if the user has EXECUTE privilege he can see event names, but not the
           event body!
@@ -2020,8 +2186,16 @@ static uint dump_events_for_db(char *db)
       mysql_free_result(event_res);
 
     } /* end of list of events */
-    fprintf(sql_file, "DELIMITER ;\n");
-    fprintf(sql_file, "/*!50106 SET TIME_ZONE= @save_time_zone */ ;\n");
+    if (opt_xml)
+    {
+      fputs("\t</events>\n", sql_file);
+      check_io(sql_file);
+    }
+    else
+    {
+      fprintf(sql_file, "DELIMITER ;\n");
+      fprintf(sql_file, "/*!50106 SET TIME_ZONE= @save_time_zone */ ;\n");
+    }
 
     if (switch_character_set_results(mysql, default_charset))
       DBUG_RETURN(1);
@@ -2075,6 +2249,7 @@ static uint dump_routines_for_db(char *db)
   const char *routine_type[]= {"FUNCTION", "PROCEDURE"};
   char       db_name_buff[NAME_LEN*2+3], name_buff[NAME_LEN*2+3];
   char       *routine_name;
+  char       *query_str;
   int        i;
   FILE       *sql_file= md_result_file;
   MYSQL_RES  *routine_res, *routine_list_res;
@@ -2089,8 +2264,8 @@ static uint dump_routines_for_db(char *db)
   mysql_real_escape_string(mysql, db_name_buff, db, strlen(db));
 
   /* nice comments */
-  if (opt_comments)
-    fprintf(sql_file, "\n--\n-- Dumping routines for database '%s'\n--\n", db);
+  print_comment(sql_file, 0,
+                "\n--\n-- Dumping routines for database '%s'\n--\n", db);
 
   /*
     not using "mysql_query_with_error_report" because we may have not
@@ -2106,6 +2281,9 @@ static uint dump_routines_for_db(char *db)
 
   if (switch_character_set_results(mysql, "binary"))
     DBUG_RETURN(1);
+
+  if (opt_xml)
+    fputs("\t<routines>\n", sql_file);
 
   /* 0, retrieve and dump functions, 1, procedures */
   for (i= 0; i <= 1; i++)
@@ -2142,13 +2320,25 @@ static uint dump_routines_for_db(char *db)
                              row[2] ? (int) strlen(row[2]) : 0));
           if (row[2] == NULL)
           {
-            fprintf(sql_file, "\n-- insufficient privileges to %s\n", query_buff);
-            fprintf(sql_file, "-- does %s have permissions on mysql.proc?\n\n", current_user);
+            print_comment(sql_file, 1, "\n-- insufficient privileges to %s\n",
+                          query_buff);
+            print_comment(sql_file, 1,
+                          "-- does %s have permissions on mysql.proc?\n\n",
+                          current_user);
             maybe_die(EX_MYSQLERR,"%s has insufficent privileges to %s!", current_user, query_buff);
           }
           else if (strlen(row[2]))
           {
-            char *query_str;
+            if (opt_xml)
+            {
+              if (i)                            // Procedures.
+                print_xml_row(sql_file, "routine", routine_res, &row,
+                              "Create Procedure");
+              else                              // Functions.
+                print_xml_row(sql_file, "routine", routine_res, &row,
+                              "Create Function");
+              continue;
+            }
             if (opt_drop)
               fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */;\n",
                       routine_type[i], routine_name);
@@ -2228,6 +2418,12 @@ static uint dump_routines_for_db(char *db)
     mysql_free_result(routine_list_res);
   } /* end of for i (0 .. 1)  */
 
+  if (opt_xml)
+  {
+    fputs("\t</routines>\n", sql_file);
+    check_io(sql_file);
+  }
+
   if (switch_character_set_results(mysql, default_charset))
     DBUG_RETURN(1);
 
@@ -2305,7 +2501,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   verbose_msg("-- Retrieving table structure for table %s...\n", table);
 
   len= my_snprintf(query_buff, sizeof(query_buff),
-                   "SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+                   "SET SQL_QUOTE_SHOW_CREATE=%d",
                    (opt_quoted || opt_keywords));
   if (!create_options)
     strmov(query_buff+len,
@@ -2340,16 +2536,16 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
         write_header(sql_file, db);
       }
-      if (!opt_xml && opt_comments)
-      {
+
       if (strcmp (table_type, "VIEW") == 0)         /* view */
-        fprintf(sql_file, "\n--\n-- Temporary table structure for view %s\n--\n\n",
-                result_table);
+        print_comment(sql_file, 0,
+                      "\n--\n-- Temporary table structure for view %s\n--\n\n",
+                      result_table);
       else
-        fprintf(sql_file, "\n--\n-- Table structure for table %s\n--\n\n",
-                result_table);
-        check_io(sql_file);
-      }
+        print_comment(sql_file, 0,
+                      "\n--\n-- Table structure for table %s\n--\n\n",
+                      result_table);
+
       if (opt_drop)
       {
       /*
@@ -2550,9 +2746,10 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           DBUG_RETURN(0);
         write_header(sql_file, db);
       }
-      if (!opt_xml && opt_comments)
-        fprintf(sql_file, "\n--\n-- Table structure for table %s\n--\n\n",
-                result_table);
+
+      print_comment(sql_file, 0,
+                    "\n--\n-- Table structure for table %s\n--\n\n",
+                    result_table);
       if (opt_drop)
         fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n", result_table);
       if (!opt_xml)
@@ -2603,7 +2800,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       {
         if (opt_xml)
         {
-          print_xml_row(sql_file, "field", result, &row);
+          print_xml_row(sql_file, "field", result, &row, NullS);
           continue;
         }
 
@@ -2675,7 +2872,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       {
         if (opt_xml)
         {
-          print_xml_row(sql_file, "key", result, &row);
+          print_xml_row(sql_file, "key", result, &row, NullS);
           continue;
         }
 
@@ -2734,7 +2931,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         else
         {
           if (opt_xml)
-            print_xml_row(sql_file, "options", result, &row);
+            print_xml_row(sql_file, "options", result, &row, NullS);
           else
           {
             fputs("/*!",sql_file);
@@ -2778,8 +2975,18 @@ static void dump_trigger_old(FILE *sql_file, MYSQL_RES *show_triggers_rs,
   char *quoted_table_name= quote_name(table_name, quoted_table_name_buf, 1);
 
   char name_buff[NAME_LEN * 4 + 3];
+  const char *xml_msg= "\nWarning! mysqldump being run against old server "
+                       "that does not\nsupport 'SHOW CREATE TRIGGERS' "
+                       "statement. Skipping..\n";
 
   DBUG_ENTER("dump_trigger_old");
+
+  if (opt_xml)
+  {
+    print_xml_comment(sql_file, strlen(xml_msg), xml_msg);
+    check_io(sql_file);
+    DBUG_VOID_RETURN;
+  }
 
   fprintf(sql_file,
           "--\n"
@@ -2847,17 +3054,25 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
                         const char *db_cl_name)
 {
   MYSQL_ROW row;
+  char *query_str;
   int db_cl_altered= FALSE;
 
   DBUG_ENTER("dump_trigger");
 
   while ((row= mysql_fetch_row(show_create_trigger_rs)))
   {
-    char *query_str= cover_definer_clause(row[2], strlen(row[2]),
-                                          C_STRING_WITH_LEN("50017"),
-                                          C_STRING_WITH_LEN("50003"),
-                                          C_STRING_WITH_LEN(" TRIGGER"));
+    if (opt_xml)
+    {
+      print_xml_row(sql_file, "trigger", show_create_trigger_rs, &row,
+                    "SQL Original Statement");
+      check_io(sql_file);
+      continue;
+    }
 
+    query_str= cover_definer_clause(row[2], strlen(row[2]),
+                                    C_STRING_WITH_LEN("50017"),
+                                    C_STRING_WITH_LEN("50003"),
+                                    C_STRING_WITH_LEN(" TRIGGER"));
     if (switch_db_collation(sql_file, db_name, ";",
                             db_cl_name, row[5], &db_cl_altered))
       DBUG_RETURN(TRUE);
@@ -2948,6 +3163,13 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
 
   /* Dump triggers. */
 
+  if (! mysql_num_rows(show_triggers_rs))
+    goto skip;
+
+  if (opt_xml)
+    print_xml_tag(sql_file, "\t", "\n", "triggers", "name=",
+                  table_name, NullS);
+
   while ((row= mysql_fetch_row(show_triggers_rs)))
   {
 
@@ -2980,6 +3202,13 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
 
   }
 
+  if (opt_xml)
+  {
+    fputs("\t</triggers>\n", sql_file);
+    check_io(sql_file);
+  }
+
+skip:
   mysql_free_result(show_triggers_rs);
 
   if (switch_character_set_results(mysql, default_charset))
@@ -3228,34 +3457,24 @@ static void dump_table(char *table, char *db)
   }
   else
   {
-    if (!opt_xml && opt_comments)
-    {
-      fprintf(md_result_file,"\n--\n-- Dumping data for table %s\n--\n",
-              result_table);
-      check_io(md_result_file);
-    }
+    print_comment(md_result_file, 0,
+                  "\n--\n-- Dumping data for table %s\n--\n",
+                  result_table);
     
     dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ * FROM ");
     dynstr_append_checked(&query_string, result_table);
 
     if (where)
     {
-      if (!opt_xml && opt_comments)
-      {
-        fprintf(md_result_file, "-- WHERE:  %s\n", where);
-        check_io(md_result_file);
-      }
-      
+      print_comment(md_result_file, 0, "-- WHERE:  %s\n", where);
+
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
     }
     if (order_by)
     {
-      if (!opt_xml && opt_comments)
-      {
-        fprintf(md_result_file, "-- ORDER BY:  %s\n", order_by);
-        check_io(md_result_file);
-      }
+      print_comment(md_result_file, 0, "-- ORDER BY:  %s\n", order_by);
+
       dynstr_append_checked(&query_string, " ORDER BY ");
       dynstr_append_checked(&query_string, order_by);
     }
@@ -3451,7 +3670,7 @@ static void dump_table(char *table, char *db)
                 {
                   print_xml_tag(md_result_file, "\t\t", "", "field", "name=", 
                                 field->name, NullS);
-                  print_quoted_xml(md_result_file, row[i], length);
+                  print_quoted_xml(md_result_file, row[i], length, 0);
                 }
                 fputs("</field>\n", md_result_file);
               }
@@ -3755,11 +3974,9 @@ static int dump_tablespaces(char* ts_where)
       first= 1;
     if (first)
     {
-      if (!opt_xml && opt_comments)
-      {
-	fprintf(md_result_file,"\n--\n-- Logfile group: %s\n--\n", row[0]);
-	check_io(md_result_file);
-      }
+      print_comment(md_result_file, 0, "\n--\n-- Logfile group: %s\n--\n",
+                    row[0]);
+
       fprintf(md_result_file, "\nCREATE");
     }
     else
@@ -3827,11 +4044,7 @@ static int dump_tablespaces(char* ts_where)
       first= 1;
     if (first)
     {
-      if (!opt_xml && opt_comments)
-      {
-	fprintf(md_result_file,"\n--\n-- Tablespace: %s\n--\n", row[0]);
-	check_io(md_result_file);
-      }
+      print_comment(md_result_file, 0, "\n--\n-- Tablespace: %s\n--\n", row[0]);
       fprintf(md_result_file, "\nCREATE");
     }
     else
@@ -3869,6 +4082,48 @@ static int dump_tablespaces(char* ts_where)
   DBUG_RETURN(0);
 }
 
+
+static int
+is_ndbinfo(MYSQL* mysql, const char* dbname)
+{
+  static int checked_ndbinfo= 0;
+  static int have_ndbinfo= 0;
+
+  if (!checked_ndbinfo)
+  {
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    char buf[32], query[64];
+
+    my_snprintf(query, sizeof(query),
+                "SHOW VARIABLES LIKE %s",
+                quote_for_like("ndbinfo_version", buf));
+
+    checked_ndbinfo= 1;
+
+    if (mysql_query_with_error_report(mysql, &res, query))
+      return 0;
+
+    if (!(row= mysql_fetch_row(res)))
+    {
+      mysql_free_result(res);
+      return 0;
+    }
+
+    have_ndbinfo= 1;
+    mysql_free_result(res);
+  }
+
+  if (!have_ndbinfo)
+    return 0;
+
+  if (my_strcasecmp(&my_charset_latin1, dbname, "ndbinfo") == 0)
+    return 1;
+
+  return 0;
+}
+
+
 static int dump_all_databases()
 {
   MYSQL_ROW row;
@@ -3885,6 +4140,9 @@ static int dump_all_databases()
 
     if (mysql_get_server_version(mysql) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
         !my_strcasecmp(&my_charset_latin1, row[0], PERFORMANCE_SCHEMA_DB_NAME))
+      continue;
+
+    if (is_ndbinfo(mysql, row[0]))
       continue;
 
     if (dump_all_tables_in_db(row[0]))
@@ -3907,6 +4165,9 @@ static int dump_all_databases()
 
       if (mysql_get_server_version(mysql) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
           !my_strcasecmp(&my_charset_latin1, row[0], PERFORMANCE_SCHEMA_DB_NAME))
+        continue;
+
+      if (is_ndbinfo(mysql, row[0]))
         continue;
 
       if (dump_all_views_in_db(row[0]))
@@ -4015,6 +4276,12 @@ int init_dumping_tables(char *qdatabase)
 
 static int init_dumping(char *database, int init_func(char*))
 {
+  if (is_ndbinfo(mysql, database))
+  {
+    verbose_msg("-- Skipping dump of ndbinfo database\n");
+    return 0;
+  }
+
   if (mysql_select_db(mysql, database))
   {
     DB_error(mysql, "when selecting the database");
@@ -4029,11 +4296,9 @@ static int init_dumping(char *database, int init_func(char*))
       */
       char quoted_database_buf[NAME_LEN*2+3];
       char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
-      if (opt_comments)
-      {
-        fprintf(md_result_file,"\n--\n-- Current Database: %s\n--\n", qdatabase);
-        check_io(md_result_file);
-      }
+
+      print_comment(md_result_file, 0,
+                    "\n--\n-- Current Database: %s\n--\n", qdatabase);
 
       /* Call the view or table specific function */
       init_func(qdatabase);
@@ -4098,6 +4363,8 @@ static int dump_all_tables_in_db(char *database)
     if (mysql_refresh(mysql, REFRESH_LOG))
       DB_error(mysql, "when doing refresh");
            /* We shall continue here, if --force was given */
+    else
+      verbose_msg("-- dump_all_tables_in_db : logs flushed successfully!\n");
   }
   while ((table= getTableName(0)))
   {
@@ -4107,8 +4374,7 @@ static int dump_all_tables_in_db(char *database)
       dump_table(table,database);
       my_free(order_by);
       order_by= 0;
-      if (opt_dump_triggers && ! opt_xml &&
-          mysql_get_server_version(mysql) >= 50009)
+      if (opt_dump_triggers && mysql_get_server_version(mysql) >= 50009)
       {
         if (dump_triggers_for_table(table, database))
         {
@@ -4119,14 +4385,12 @@ static int dump_all_tables_in_db(char *database)
       }
     }
   }
-  if (opt_events && !opt_xml &&
-      mysql_get_server_version(mysql) >= 50106)
+  if (opt_events && mysql_get_server_version(mysql) >= 50106)
   {
     DBUG_PRINT("info", ("Dumping events for database %s", database));
     dump_events_for_db(database);
   }
-  if (opt_routines && !opt_xml &&
-      mysql_get_server_version(mysql) >= 50009)
+  if (opt_routines && mysql_get_server_version(mysql) >= 50009)
   {
     DBUG_PRINT("info", ("Dumping routines for database %s", database));
     dump_routines_for_db(database);
@@ -4198,6 +4462,8 @@ static my_bool dump_all_views_in_db(char *database)
     if (mysql_refresh(mysql, REFRESH_LOG))
       DB_error(mysql, "when doing refresh");
            /* We shall continue here, if --force was given */
+    else
+      verbose_msg("-- dump_all_views_in_db : logs flushed successfully!\n");
   }
   while ((table= getTableName(0)))
   {
@@ -4336,6 +4602,8 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       DB_error(mysql, "when doing refresh");
     }
      /* We shall countinue here, if --force was given */
+    else
+      verbose_msg("-- dump_selected_tables : logs flushed successfully!\n");
   }
   if (opt_xml)
     print_xml_tag(md_result_file, "", "\n", "database", "name=", db, NullS);
@@ -4363,15 +4631,13 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     for (pos= dump_tables; pos < end; pos++)
       get_view_structure(*pos, db);
   }
-  if (opt_events && !opt_xml &&
-      mysql_get_server_version(mysql) >= 50106)
+  if (opt_events && mysql_get_server_version(mysql) >= 50106)
   {
     DBUG_PRINT("info", ("Dumping events for database %s", db));
     dump_events_for_db(db);
   }
   /* obtain dump of routines (procs/functions) */
-  if (opt_routines  && !opt_xml &&
-      mysql_get_server_version(mysql) >= 50009)
+  if (opt_routines && mysql_get_server_version(mysql) >= 50009)
   {
     DBUG_PRINT("info", ("Dumping routines for database %s", db));
     dump_routines_for_db(db);
@@ -4406,10 +4672,9 @@ static int do_show_master_status(MYSQL *mysql_con)
     if (row && row[0] && row[1])
     {
       /* SHOW MASTER STATUS reports file and position */
-      if (opt_comments)
-        fprintf(md_result_file,
-                "\n--\n-- Position to start replication or point-in-time "
-                "recovery from\n--\n\n");
+      print_comment(md_result_file, 0,
+                    "\n--\n-- Position to start replication or point-in-time "
+                    "recovery from\n--\n\n");
       fprintf(md_result_file,
               "%sCHANGE MASTER TO MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n",
               comment_prefix, row[0], row[1]);
@@ -4619,6 +4884,7 @@ static int purge_bin_logs_to(MYSQL *mysql_con, char* log_name)
 
 static int start_transaction(MYSQL *mysql_con)
 {
+  verbose_msg("-- Starting transaction...\n");
   /*
     We use BEGIN for old servers. --single-transaction --master-data will fail
     on old servers, but that's ok as it was already silently broken (it didn't
@@ -4960,7 +5226,7 @@ static my_bool get_view_structure(char *table, char* db)
   verbose_msg("-- Retrieving view structure for table %s...\n", table);
 
 #ifdef NOT_REALLY_USED_YET
-  sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+  sprintf(insert_pat,"SET SQL_QUOTE_SHOW_CREATE=%d",
           (opt_quoted || opt_keywords));
 #endif
 
@@ -4996,12 +5262,10 @@ static my_bool get_view_structure(char *table, char* db)
     write_header(sql_file, db);
   }
 
-  if (!opt_xml && opt_comments)
-  {
-    fprintf(sql_file, "\n--\n-- Final view structure for view %s\n--\n\n",
-            result_table);
-    check_io(sql_file);
-  }
+  print_comment(sql_file, 0,
+                "\n--\n-- Final view structure for view %s\n--\n\n",
+                result_table);
+
   /* Table might not exist if this view was dumped with --tab. */
   fprintf(sql_file, "/*!50001 DROP TABLE IF EXISTS %s*/;\n", opt_quoted_table);
   if (opt_drop)
@@ -5198,6 +5462,12 @@ int main(int argc, char **argv)
     exit(exit_code);
   }
 
+  /*
+    Disable comments in xml mode if 'comments' option is not explicitly used.
+  */
+  if (opt_xml && !opt_comments_used)
+    opt_comments= 0;
+
   if (log_error_file)
   {
     if(!(stderror_file= freopen(log_error_file, "a+", stderr)))
@@ -5218,24 +5488,39 @@ int main(int argc, char **argv)
   if (opt_slave_data && do_stop_slave_sql(mysql))
     goto err;
 
-  if ((opt_lock_all_tables || opt_master_data) &&
+  if ((opt_lock_all_tables || opt_master_data ||
+       (opt_single_transaction && flush_logs)) &&
       do_flush_tables_read_lock(mysql))
     goto err;
-  if (opt_single_transaction && start_transaction(mysql))
-      goto err;
-  if (opt_delete_master_logs)
+
+  /*
+    Flush logs before starting transaction since
+    this causes implicit commit starting mysql-5.5.
+  */
+  if (opt_lock_all_tables || opt_master_data ||
+      (opt_single_transaction && flush_logs) ||
+      opt_delete_master_logs)
   {
-    if (mysql_refresh(mysql, REFRESH_LOG) ||
-        get_bin_log_name(mysql, bin_log_name, sizeof(bin_log_name)))
-      goto err;
+    if (flush_logs || opt_delete_master_logs)
+    {
+      if (mysql_refresh(mysql, REFRESH_LOG))
+        goto err;
+      verbose_msg("-- main : logs flushed successfully!\n");
+    }
+
+    /* Not anymore! That would not be sensible. */
     flush_logs= 0;
   }
-  if (opt_lock_all_tables || opt_master_data)
+
+  if (opt_delete_master_logs)
   {
-    if (flush_logs && mysql_refresh(mysql, REFRESH_LOG))
+    if (get_bin_log_name(mysql, bin_log_name, sizeof(bin_log_name)))
       goto err;
-    flush_logs= 0; /* not anymore; that would not be sensible */
   }
+
+  if (opt_single_transaction && start_transaction(mysql))
+    goto err;
+
   /* Add 'STOP SLAVE to beginning of dump */
   if (opt_slave_apply && add_stop_slave())
     goto err;

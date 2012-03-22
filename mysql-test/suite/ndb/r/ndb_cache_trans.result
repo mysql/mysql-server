@@ -1,0 +1,317 @@
+result_format: 2
+drop table if exists t1;
+set GLOBAL query_cache_type=on;
+set GLOBAL query_cache_size=1355776;
+reset query cache;
+flush status;
+
+## Turn off autocommit, instead use COMMIT after each statement
+set AUTOCOMMIT=off;
+
+## Create test table in NDB
+CREATE TABLE t1 (
+  pk int not null primary key,
+  a int,
+  b int not null,
+  c varchar(20)
+) ENGINE=ndbcluster;
+
+## Add first row
+insert into t1 value (1, 2, 3, 'First row');
+COMMIT;
+
+## Query should be inserted in qcache
+Qcache_queries          0
+Qcache_inserts          0
+Qcache_hits             0
+select * from t1;
+pk	a	b	c
+1	2	3	First row
+Qcache_queries          1
+Qcache_inserts          1
+Qcache_hits             0
+COMMIT;
+Qcache_queries          1
+Qcache_inserts          1
+Qcache_hits             0
+
+## Perform the same query and make sure the query cache is hit
+Qcache_queries          1
+Qcache_inserts          1
+Qcache_hits             0
+select * from t1;
+pk	a	b	c
+1	2	3	First row
+COMMIT;
+Qcache_queries          1
+Qcache_inserts          1
+Qcache_hits             1
+
+## Update the table, should be no queries in cache afterwards
+update t1 set a=3 where pk=1;
+COMMIT;
+Qcache_queries          0
+Qcache_inserts          1
+Qcache_hits             1
+
+## Read row after update, should not hit the cache, but get inserted
+select * from t1;
+pk	a	b	c
+1	3	3	First row
+COMMIT;
+Qcache_queries          1
+Qcache_inserts          2
+Qcache_hits             1
+
+## Read row from cache
+select * from t1;
+pk	a	b	c
+1	3	3	First row
+COMMIT;
+Qcache_queries          1
+Qcache_inserts          2
+Qcache_hits             2
+
+## Insert two new rows, queries in cache should be zero
+insert into t1 value (2, 7, 8, 'Second row');
+insert into t1 value (4, 5, 6, 'Fourth row');
+COMMIT;
+Qcache_queries          0
+Qcache_inserts          2
+Qcache_hits             2
+
+## Read the three rows, should not hit the cache
+select * from t1 order by pk;
+pk	a	b	c
+1	3	3	First row
+2	7	8	Second row
+4	5	6	Fourth row
+COMMIT;
+Qcache_queries          1
+Qcache_inserts          3
+Qcache_hits             2
+
+## Read the three rows, should now hit the cache!
+select * from t1 order by pk;
+pk	a	b	c
+1	3	3	First row
+2	7	8	Second row
+4	5	6	Fourth row
+COMMIT;
+Qcache_queries          1
+Qcache_inserts          3
+Qcache_hits             3
+
+## Two selects in the same transaction should hit cache
+select * from t1 order by pk;
+pk	a	b	c
+1	3	3	First row
+2	7	8	Second row
+4	5	6	Fourth row
+select * from t1 order by pk;
+pk	a	b	c
+1	3	3	First row
+2	7	8	Second row
+4	5	6	Fourth row
+COMMIT;
+Qcache_queries          1
+Qcache_inserts          3
+Qcache_hits             5
+
+## Perform a "new" query and make sure the query cache is not hit
+select * from t1 where b=3;
+pk	a	b	c
+1	3	3	First row
+COMMIT;
+Qcache_queries          2
+Qcache_inserts          4
+Qcache_hits             5
+
+## Same query again...
+select * from t1 where b=3;
+pk	a	b	c
+1	3	3	First row
+COMMIT;
+Qcache_queries          2
+Qcache_inserts          4
+Qcache_hits             6
+
+## Delete from the table, should clear the cache
+delete from t1 where c='Fourth row';
+COMMIT;
+Qcache_queries          0
+Qcache_inserts          4
+Qcache_hits             6
+select * from t1 where b=3;
+pk	a	b	c
+1	3	3	First row
+COMMIT;
+Qcache_queries          1
+Qcache_inserts          5
+Qcache_hits             6
+
+## Start another connection and check that the query cache is hit
+set AUTOCOMMIT=off;
+use test;
+select * from t1 order by pk;
+pk	a	b	c
+1	3	3	First row
+2	7	8	Second row
+select * from t1 where b=3;
+pk	a	b	c
+1	3	3	First row
+Qcache_queries          2
+Qcache_inserts          6
+Qcache_hits             7
+
+## Update the table and switch to other connection
+update t1 set a=4 where b=3;
+COMMIT;
+
+## Connection 2
+set AUTOCOMMIT=off;
+use test;
+
+## Should not hit cache, table updated
+Qcache_queries          0
+Qcache_inserts          6
+Qcache_hits             7
+select * from t1 order by pk desc;
+pk	a	b	c
+2	7	8	Second row
+1	4	3	First row
+Qcache_queries          1
+Qcache_inserts          7
+Qcache_hits             7
+## Should hit cache
+select * from t1 order by pk desc;
+pk	a	b	c
+2	7	8	Second row
+1	4	3	First row
+Qcache_queries          1
+Qcache_inserts          7
+Qcache_hits             8
+
+## Connection 1, should hit the cache
+Qcache_queries          1
+Qcache_inserts          7
+Qcache_hits             8
+select * from t1 order by pk desc;
+pk	a	b	c
+2	7	8	Second row
+1	4	3	First row
+select * from t1 order by pk desc;
+pk	a	b	c
+2	7	8	Second row
+1	4	3	First row
+Qcache_queries          1
+Qcache_inserts          7
+Qcache_hits             10
+
+## Starting transaction and update t1
+begin;
+update t1 set a=5 where pk=1;
+Qcache_queries          0
+Qcache_inserts          7
+Qcache_hits             10
+
+## Connection 2
+## Update has flushed the qc for t1, should not hit qc
+select * from t1 order by pk desc;
+pk	a	b	c
+2	7	8	Second row
+1	4	3	First row
+Qcache_queries          1
+Qcache_inserts          8
+Qcache_hits             10
+
+## Connection 1
+commit;
+Qcache_queries          1
+Qcache_inserts          8
+Qcache_hits             10
+
+## Connection 2
+## Update is now committed, should not hit the cache
+select * from t1 order by pk desc;
+pk	a	b	c
+2	7	8	Second row
+1	5	3	First row
+Qcache_queries          1
+Qcache_inserts          9
+Qcache_hits             10
+COMMIT;
+Qcache_queries          1
+Qcache_inserts          9
+Qcache_hits             10
+
+## Connection 1
+## Should hit the cache
+select * from t1 order by pk desc;
+pk	a	b	c
+2	7	8	Second row
+1	5	3	First row
+Qcache_queries          1
+Qcache_inserts          9
+Qcache_hits             11
+
+update t1 set a=6 where pk=1;
+
+## Following query should not be taken from cache, trans is ongoing
+select * from t1 order by pk desc;
+pk	a	b	c
+2	7	8	Second row
+1	6	3	First row
+Qcache_queries          0
+Qcache_inserts          9
+Qcache_hits             11
+
+## Connection 2 should still see old data and not hit cache
+Qcache_queries          0
+Qcache_inserts          9
+Qcache_hits             11
+select * from t1 order by pk desc;
+pk	a	b	c
+2	7	8	Second row
+1	5	3	First row
+Qcache_queries          1
+Qcache_inserts          10
+Qcache_hits             11
+
+## Connection 1
+COMMIT;
+
+## Update has just been committed, should not hit cache
+Qcache_queries          1
+Qcache_inserts          10
+Qcache_hits             11
+select * from t1 order by pk desc;
+pk	a	b	c
+2	7	8	Second row
+1	6	3	First row
+Qcache_queries          1
+Qcache_inserts          11
+Qcache_hits             11
+
+## Connection 2
+
+## Should hit cache
+Qcache_queries          1
+Qcache_inserts          11
+Qcache_hits             11
+select * from t1 order by pk desc;
+pk	a	b	c
+2	7	8	Second row
+1	6	3	First row
+Qcache_queries          1
+Qcache_inserts          11
+Qcache_hits             12
+
+drop table t1;
+
+## Finally, there should be no queries in cache
+Qcache_queries          0
+Qcache_inserts          11
+Qcache_hits             12
+
+SET GLOBAL query_cache_size=0;

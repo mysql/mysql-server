@@ -1440,7 +1440,7 @@ recv_data_copy_to_buf(
 			part_len = len;
 		}
 
-		ut_memcpy(buf, ((byte*)recv_data) + sizeof(recv_data_t),
+		ut_memcpy(buf, ((byte*) recv_data) + sizeof(recv_data_t),
 			  part_len);
 		buf += part_len;
 		len -= part_len;
@@ -2273,7 +2273,7 @@ loop:
 			return(FALSE);
 		}
 
-		recv_previous_parsed_rec_type = (ulint)type;
+		recv_previous_parsed_rec_type = (ulint) type;
 		recv_previous_parsed_rec_offset = recv_sys->recovered_offset;
 		recv_previous_parsed_rec_is_multi = 0;
 
@@ -2323,7 +2323,7 @@ loop:
 						" space %lu not complete in\n"
 						"InnoDB: the replay phase."
 						" Path %s\n",
-						(ulint)type, space,
+						(ulint) type, space,
 						(char*)(body + 2));
 
 					ut_error;
@@ -2364,7 +2364,7 @@ loop:
 				return(FALSE);
 			}
 
-			recv_previous_parsed_rec_type = (ulint)type;
+			recv_previous_parsed_rec_type = (ulint) type;
 			recv_previous_parsed_rec_offset
 				= recv_sys->recovered_offset + total_len;
 			recv_previous_parsed_rec_is_multi = 1;
@@ -2866,7 +2866,7 @@ recv_init_crash_recovery(void)
 			" half-written data pages from"
 			" the doublewrite\n"
 			"InnoDB: buffer...\n");
-		trx_sys_doublewrite_init_or_restore_pages(TRUE);
+		buf_dblwr_init_or_restore_pages(TRUE);
 	}
 }
 
@@ -3139,7 +3139,7 @@ recv_recovery_from_checkpoint_start_func(
 
 		if (!recv_needed_recovery) {
 			/* Init the doublewrite buffer memory structure */
-			trx_sys_doublewrite_init_or_restore_pages(FALSE);
+			buf_dblwr_init_or_restore_pages(FALSE);
 		}
 	}
 
@@ -3297,7 +3297,9 @@ recv_recovery_from_checkpoint_finish(void)
 	that the data dictionary tables will be free of any locks.
 	The data dictionary latch should guarantee that there is at
 	most one data dictionary transaction active at a time. */
-	trx_rollback_or_clean_recovered(FALSE);
+	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
+		trx_rollback_or_clean_recovered(FALSE);
+	}
 }
 
 /********************************************************//**
@@ -3317,18 +3319,21 @@ recv_recovery_rollback_active(void)
 	/* Switch latching order checks on in sync0sync.cc */
 	sync_order_checks_on = TRUE;
 #endif
-	/* Drop partially created indexes. */
-	row_merge_drop_temp_indexes();
-	/* Drop temporary tables. */
-	row_mysql_drop_temp_tables();
-
-	/* Drop any auxiliary tables that were not dropped when the
-	parent table was dropped. This can happen if the parent table
-	was dropped but the server crashed before the auxiliary tables
-	were dropped. */
-	fts_drop_orphaned_tables();
-
+	/* We can't start any (DDL) transactions if UNDO logging
+	has been disabled, additionally disable ROLLBACK of recovered
+	user transactions. */
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
+		/* Drop partially created indexes. */
+		row_merge_drop_temp_indexes();
+		/* Drop temporary tables. */
+		row_mysql_drop_temp_tables();
+
+		/* Drop any auxiliary tables that were not dropped when the
+		parent table was dropped. This can happen if the parent table
+		was dropped but the server crashed before the auxiliary tables
+		were dropped. */
+		fts_drop_orphaned_tables();
+
 		/* Rollback the uncommitted transactions which have no user
 		session */
 
@@ -3442,7 +3447,7 @@ recv_reset_log_files_for_backup(
 	for (i = 0; i < n_log_files; i++) {
 
 		sprintf(name, "%s%s%lu", log_dir,
-			ib_logfile_basename, (ulong)i);
+			ib_logfile_basename, (ulong) i);
 
 		log_file = os_file_create_simple(innodb_file_log_key,
 						 name, OS_FILE_CREATE,

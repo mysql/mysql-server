@@ -46,7 +46,6 @@ pthread_handler_t mysql_heartbeat(void *p)
   DBUG_ENTER("mysql_heartbeat");
   struct mysql_heartbeat_context *con= (struct mysql_heartbeat_context *)p;
   char buffer[HEART_STRING_BUFFER];
-  unsigned int x= 0;
   time_t result;
   struct tm tm_tmp;
 
@@ -65,7 +64,6 @@ pthread_handler_t mysql_heartbeat(void *p)
                 tm_tmp.tm_min,
                 tm_tmp.tm_sec);
     my_write(con->heartbeat_file, (uchar*) buffer, strlen(buffer), MYF(0));
-    x++;
   }
 
   DBUG_RETURN(0);
@@ -160,6 +158,7 @@ static int daemon_example_plugin_deinit(void *p)
     (struct mysql_heartbeat_context *)plugin->data;
   time_t result= time(NULL);
   struct tm tm_tmp;
+  void *dummy_retval;
 
   pthread_cancel(con->heartbeat_thread);
 
@@ -173,6 +172,13 @@ static int daemon_example_plugin_deinit(void *p)
               tm_tmp.tm_min,
               tm_tmp.tm_sec);
   my_write(con->heartbeat_file, (uchar*) buffer, strlen(buffer), MYF(0));
+
+  /*
+    Need to wait for the hearbeat thread to terminate before closing
+    the file it writes to and freeing the memory it uses
+  */
+  pthread_join(con->heartbeat_thread, &dummy_retval);
+
   my_close(con->heartbeat_file, MYF(0));
 
   my_free(con);

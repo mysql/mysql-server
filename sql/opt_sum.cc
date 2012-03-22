@@ -268,7 +268,7 @@ int opt_sum_query(THD *thd,
     TABLE_LIST *embedded;
     for (embedded= tl ; embedded; embedded= embedded->embedding)
     {
-      if (embedded->on_expr)
+      if (embedded->join_cond())
         break;
     }
     if (embedded)
@@ -674,6 +674,11 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     break;
   case Item_func::BETWEEN:
     between= 1;
+
+    // NOT BETWEEN is equivalent to OR and is therefore not a conjunction
+    if (((Item_func_between*)cond)->negated)
+      DBUG_RETURN(false);
+
     break;
   case Item_func::MULT_EQUAL_FUNC:
     eq_type= 1;
@@ -769,7 +774,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     {
       /* Update endpoints for MAX/MIN, see function comment. */
       Item *value= args[between && max_fl ? 2 : 1];
-      store_val_in_field(part->field, value, CHECK_FIELD_IGNORE);
+      value->save_in_field_no_warnings(part->field, true);
       if (part->null_bit) 
         *key_ptr++= (uchar) test(part->field->is_null());
       part->field->get_key_image(key_ptr, part->length, Field::itRAW);

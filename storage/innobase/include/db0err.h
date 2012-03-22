@@ -114,7 +114,9 @@ enum db_err {
 	DB_UNDO_RECORD_TOO_BIG,		/*!< the undo log record is too big */
 	DB_READ_ONLY,			/*!< Update operation attempted in
 					a read-only transaction */
-	DB_FTS_INVALID_DOCID,		/* FTS Doc ID cannot be zero */
+	DB_FTS_INVALID_DOCID,		/*!< FTS Doc ID cannot be zero */
+	DB_ONLINE_LOG_TOO_BIG,		/*!< Modification log grew too big
+					during online index creation */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
@@ -123,7 +125,19 @@ enum db_err {
 	DB_STRONG_FAIL,
 	DB_ZIP_OVERFLOW,
 	DB_RECORD_NOT_FOUND = 1500,
-	DB_END_OF_INDEX
+	DB_END_OF_INDEX,
+
+        /* The following are API only error codes. */
+	DB_DATA_MISMATCH = 2000,	/*!< Column update or read failed
+					because the types mismatch */
+
+	DB_SCHEMA_NOT_LOCKED,		/*!< If an API function expects the
+					schema to be locked in exclusive mode
+					and if it's not then that API function
+					will return this error code */
+
+	DB_NOT_FOUND			/*!< Generic error code for "Not found"
+					type of errors */
 };
 
 #endif

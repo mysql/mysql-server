@@ -349,23 +349,22 @@ select * from t2;
 drop view v1;
 create view v1 as select a from t2;
 set @var=8;
---echo # XXX: bug, the SQL statement in the trigger is still
---echo # pointing at table 't3', since the view was expanded
---echo # at first statement execution.
---echo # Since the view definition is inlined in the statement
---echo # at prepare, changing the view definition does not cause 
---echo # repreparation.
---echo # Repreparation of the main statement doesn't cause repreparation
+--echo # View in the INSERT-statement in the trigger is still pointing to
+--echo # table 't3', because the trigger hasn't noticed the change
+--echo # in view definition. This will be fixed by WL#4179.
+--echo #
+--echo # The prepared INSERT-statement however does notice the change,
+--echo # but repreparation of the main statement doesn't cause repreparation
 --echo # of trigger statements.
+--echo #
+--echo # The following EXECUTE results in ER_NO_SUCH_TABLE (t3) error, because
+--echo # pre-locking list of the prepared statement has been changed
+--echo # (the prepared statement has noticed the meta-data change),
+--echo # but the trigger still tries to deal with 't3', which is not opened.
+--echo # That's why '8' is not inserted neither into 't2', nor into 't3'.
+--error ER_NO_SUCH_TABLE
 execute stmt using @var;
-call p_verify_reprepare_count(0);
---echo #
---echo # Sic: the insert went into t3, even though the view now
---echo # points at t2. This is because neither the merged view
---echo #  nor its prelocking list are affected by view DDL
---echo # The binary log is of course wrong, since it is not
---echo # using prepared statements
---echo #
+call p_verify_reprepare_count(1);
 select * from t2;
 select * from t3;
 flush table t1;
@@ -732,19 +731,134 @@ drop view t1;
 create view t1 as select a, 2*a as b, 5*a as c from t2;
 select * from t1;
 
---echo # Currently a different result from conventional statements.
---echo # A view is inlined once at prepare, later on view DDL
---echo # does not affect prepared statement and it is not re-prepared.
---echo # This is reported in Bug#36002 Prepared statements: if a view
---echo # used in a statement is replaced, bad data
-execute stmt;
-call p_verify_reprepare_count(0);
-flush table t2;
+--echo # This is actually a test case for Bug#11748352 (36002 Prepared
+--echo # statements: if a view used in a statement is replaced, bad data).
 execute stmt;
 call p_verify_reprepare_count(1);
 
+flush table t2;
+
+execute stmt;
+call p_verify_reprepare_count(1);
+
+--echo # Check that we properly handle ALTER VIEW statements.
+execute stmt;
+call p_verify_reprepare_count(0);
+alter view t1 as select a, 3*a as b, 4*a as c from t2;
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+execute stmt;
+call p_verify_reprepare_count(0);
+select * from t1;
+
+--echo # Check that DROP & CREATE is properly handled under LOCK TABLES.
+drop view t1;
+flush tables; # empty TDC
+create view t1 as select a, 5*a as b, 6*a as c from t2;
+lock tables t1 read, t2 read;
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+execute stmt;
+call p_verify_reprepare_count(0);
+unlock tables;
+--echo #   ... and once again...
+drop view t1;
+create view t1 as select a, 6*a as b, 7*a as c from t2;
+lock tables t1 read, t2 read;
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+execute stmt;
+call p_verify_reprepare_count(0);
+unlock tables;
+
+--echo # Check that ALTER VIEW is properly handled under LOCK TABLES.
+alter view t1 as select a, 7*a as b, 8*a as c from t2;
+lock tables t1 read, t2 read;
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+execute stmt;
+call p_verify_reprepare_count(0);
+unlock tables;
+
 drop table t2;
 drop view t1;
+deallocate prepare stmt;
+
+--echo # Check that DROP & CREATE is properly handled under LOCK TABLES when
+--echo # LOCK TABLES does not contain the complete set of views.
+
+create table t1(a int);
+insert into t1 values (1), (2), (3);
+
+create view v1 as select a from t1;
+
+lock tables t1 read, v1 read;
+
+prepare stmt from 'select * from v1';
+
+execute stmt;
+call p_verify_reprepare_count(0);
+
+execute stmt;
+call p_verify_reprepare_count(0);
+
+unlock tables;
+
+drop view v1;
+create view v1 as select 2*a from t1;
+
+# Miss v1.
+lock tables t1 read;
+
+--error ER_TABLE_NOT_LOCKED
+execute stmt;
+
+unlock tables;
+
+drop table t1;
+drop view v1;
+deallocate prepare stmt;
+
+--echo # Check that ALTER VIEW is properly handled under LOCK TABLES when
+--echo # LOCK TABLES does not contain the complete set of views.
+
+create table t1(a int);
+insert into t1 values (1), (2), (3);
+
+create view v1 as select a from t1;
+
+lock tables t1 read, v1 read;
+
+prepare stmt from 'select * from v1';
+
+execute stmt;
+call p_verify_reprepare_count(0);
+
+execute stmt;
+call p_verify_reprepare_count(0);
+
+unlock tables;
+
+alter view v1 as select 2*a from t1;
+
+# Miss v1.
+lock tables t1 read;
+
+--error ER_TABLE_NOT_LOCKED
+execute stmt;
+
+unlock tables;
+
+drop table t1;
+drop view v1;
 deallocate prepare stmt;
 
 --echo =====================================================================
@@ -815,10 +929,10 @@ drop view v2;
 create view v2 as select a from t2;
 execute stmt;
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 flush table t1;
 execute stmt;
-call p_verify_reprepare_count(1);
+call p_verify_reprepare_count(0);
 execute stmt;
 --echo # Test 18-d: dependent TABLE has changed
 drop view v2;

@@ -681,7 +681,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
 AND file_code = '0000000115' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	const	PRIMARY,files	PRIMARY	35	const,const	1	
+1	SIMPLE	t2	const	PRIMARY,files	PRIMARY	35	const,const	1	NULL
 DROP TABLE t2, t1;
 create table t1 (x int, y int, index xy(x, y));
 create table t2 (x int, y int, index xy(x, y));
@@ -3801,3 +3801,23 @@ ERROR HY000: Unable to open underlying table which is differently defined or of 
 DROP TRIGGER trg1;
 DROP TABLE t1;
 DROP TABLE m1;
+#
+# Test for bug #11764786 - 57657: TEMPORARY MERGE TABLE WITH TEMPORARY
+#                                 UNDERLYING TABLE, IS BROKEN BY ALTER.
+#
+DROP TABLES IF EXISTS t1, t2, t3, t4;
+CREATE TEMPORARY TABLE t1(i INT) ENGINE= MyISAM;
+CREATE TEMPORARY TABLE t2(i INT) ENGINE= MERGE UNION= (t1) INSERT_METHOD= LAST;
+ALTER TABLE t2 INSERT_METHOD= FIRST;
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+CREATE TABLE t3(i INT) ENGINE= MyISAM;
+CREATE TABLE t4(i int) ENGINE= MERGE UNION= (t3) INSERT_METHOD= LAST;
+ALTER TABLE t4 INSERT_METHOD= FIRST;
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Clean-up
+DROP TABLES t1, t2, t3, t4;
+# End of bug #11764786 - 57657

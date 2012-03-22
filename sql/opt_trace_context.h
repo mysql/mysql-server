@@ -156,14 +156,6 @@ public:
                  const CHARSET_INFO *charset);
 
   /**
-     @returns a pointer to the last bytes of the current trace, 0-terminated.
-     Can be called only if is_started() is true.
-     @param  size  How many last bytes are wanted. If greater than the trace's
-     length, then the entire trace is returned.
-  */
-  const char *get_tail(size_t size);
-
-  /**
      Brainwash: deletes all remembered traces and resets counters regarding
      OFFSET/LIMIT (so that the next statement is considered as "at offset
      0"). Does not reset the @@@@optimizer_trace_offset/limit variables.
@@ -178,7 +170,6 @@ public:
   /**
      Names of flags for @@@@optimizer_trace variable of @c sys_vars.cc :
      @li "enabled" = tracing enabled
-     @li "end_marker" = see parameter of @ref Opt_trace_context::start
      @li "one_line"= see parameter of @ref Opt_trace_context::start
      @li "default".
   */
@@ -188,8 +179,7 @@ public:
   enum {
     FLAG_DEFAULT=    0,
     FLAG_ENABLED=    1 << 0,
-    FLAG_END_MARKER= 1 << 1,
-    FLAG_ONE_LINE=   1 << 2
+    FLAG_ONE_LINE=   1 << 1
   };
 
   /**
@@ -424,8 +414,7 @@ public:
   enum {
     FLAG_DEFAULT=    0,
     FLAG_ENABLED=    1 << 0,
-    FLAG_END_MARKER= 1 << 1,
-    FLAG_ONE_LINE=   1 << 2
+    FLAG_ONE_LINE=   1 << 1
   };
   static bool is_started() { return false; }
 };

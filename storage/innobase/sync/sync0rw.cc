@@ -565,7 +565,7 @@ rw_lock_x_lock_wait(
 
 /******************************************************************//**
 Low-level function for acquiring an exclusive lock.
-@return	RW_LOCK_NOT_LOCKED if did not succeed, RW_LOCK_EX if success. */
+@return	FALSE if did not succeed, TRUE if success. */
 UNIV_INLINE
 ibool
 rw_lock_x_lock_low(

@@ -69,53 +69,6 @@ extern ib_int64_t	trx_sys_mysql_bin_log_pos;
 /** The transaction system */
 extern trx_sys_t*	trx_sys;
 
-/** Doublewrite system */
-extern trx_doublewrite_t*	trx_doublewrite;
-/** The following is set to TRUE when we are upgrading from pre-4.1
-format data files to the multiple tablespaces format data files */
-extern ibool			trx_doublewrite_must_reset_space_ids;
-/** Set to TRUE when the doublewrite buffer is being created */
-extern ibool			trx_doublewrite_buf_is_being_created;
-/** The following is TRUE when we are using the database in the
-post-4.1 format, i.e., we have successfully upgraded, or have created
-a new database installation */
-extern ibool			trx_sys_multiple_tablespace_format;
-
-/****************************************************************//**
-Creates the doublewrite buffer to a new InnoDB installation. The header of the
-doublewrite buffer is placed on the trx system header page. */
-UNIV_INTERN
-void
-trx_sys_create_doublewrite_buf(void);
-/*================================*/
-/****************************************************************//**
-At a database startup initializes the doublewrite buffer memory structure if
-we already have a doublewrite buffer created in the data files. If we are
-upgrading to an InnoDB version which supports multiple tablespaces, then this
-function performs the necessary update operations. If we are in a crash
-recovery, this function uses a possible doublewrite buffer to restore
-half-written pages in the data files. */
-UNIV_INTERN
-void
-trx_sys_doublewrite_init_or_restore_pages(
-/*======================================*/
-	ibool	restore_corrupt_pages);	/*!< in: TRUE=restore pages */
-/****************************************************************//**
-Marks the trx sys header when we have successfully upgraded to the >= 4.1.x
-multiple tablespace format. */
-UNIV_INTERN
-void
-trx_sys_mark_upgraded_to_multiple_tablespaces(void);
-/*===============================================*/
-/****************************************************************//**
-Determines if a page number is located inside the doublewrite buffer.
-@return TRUE if the location is inside the two blocks of the
-doublewrite buffer */
-UNIV_INTERN
-ibool
-trx_doublewrite_page_inside(
-/*========================*/
-	ulint	page_no);	/*!< in: page number */
 /***************************************************************//**
 Checks if a page address is the trx sys header page.
 @return	TRUE if trx sys header page */
@@ -127,7 +80,7 @@ trx_sys_hdr_page(
 	ulint	page_no);/*!< in: page number */
 /*****************************************************************//**
 Creates and initializes the central memory structures for the transaction
-system. This is called when the database is started. 
+system. This is called when the database is started.
 @return min binary heap of rsegs to purge */
 UNIV_INTERN
 ib_bh_t*
@@ -231,6 +184,12 @@ trx_id_t
 trx_sys_get_max_trx_id(void);
 /*========================*/
 #endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_DEBUG
+/* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
+extern uint			trx_rseg_n_slots_debug;
+#endif
+
 /*****************************************************************//**
 Writes a trx id to an index page. In case that the id size changes in
 some future version, this function should be used instead of
@@ -642,34 +601,6 @@ identifier is added to this 64-bit constant. */
 /* @} */
 
 #ifndef UNIV_HOTBACKUP
-/** Doublewrite control struct */
-struct trx_doublewrite_struct{
-	mutex_t	mutex;		/*!< mutex protecting the first_free field and
-				write_buf */
-	ulint	block1;		/*!< the page number of the first
-				doublewrite block (64 pages) */
-	ulint	block2;		/*!< page number of the second block */
-	ulint	first_free;	/*!< first free position in write_buf measured
-				in units of UNIV_PAGE_SIZE */
-	ulint	n_reserved;	/*!< number of slots currently reserved
-				for single page flushes. */
-	ibool*	in_use;		/*!< flag used to indicate if a slot is
-				in use. Only used for single page
-				flushes. */
-	ibool	batch_running;	/*!< set to TRUE if currently a batch
-				is being written from the doublewrite
-				buffer. */
-	byte*	write_buf;	/*!< write buffer used in writing to the
-				doublewrite buffer, aligned to an
-				address divisible by UNIV_PAGE_SIZE
-				(which is required by Windows aio) */
-	byte*	write_buf_unaligned;
-				/*!< pointer to write_buf, but unaligned */
-	buf_page_t**
-		buf_block_arr;	/*!< array to store pointers to the buffer
-				blocks which have been cached to write_buf */
-};
-
 /** The transaction system central memory data structure. */
 struct trx_sys_struct{
 

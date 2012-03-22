@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,8 +32,16 @@ Created Jan 06, 2010 Vasil Dimov
 #include "dict0types.h"
 #include "trx0types.h"
 
+/*********************************************************************//**
+Fetches or calculates new estimates for index statistics. */
+UNIV_INTERN
+void
+dict_stats_update_for_index(
+/*========================*/
+	dict_index_t*	index)	/*!< in/out: index */
+	__attribute__((nonnull));
 enum dict_stats_upd_option {
-	DICT_STATS_RECALC_PERSISTENT,/* (re)calculate the
+	DICT_STATS_RECALC_PERSISTENT,/* (re) calculate the
 				statistics using a precise and slow
 				algo and save them to the persistent
 				storage, if the persistent storage is
@@ -42,7 +50,7 @@ enum dict_stats_upd_option {
 	DICT_STATS_RECALC_PERSISTENT_SILENT,/* same as
 				DICT_STATS_RECALC_PERSISTENT
 				but do not emit a warning */
-	DICT_STATS_RECALC_TRANSIENT,/* (re)calculate the statistics
+	DICT_STATS_RECALC_TRANSIENT,/* (re) calculate the statistics
 				using an imprecise quick algo
 				without saving the results
 				persistently */
@@ -66,7 +74,7 @@ dict_stats_update(
 /*==============*/
 	dict_table_t*		table,	/*!< in/out: table */
 	dict_stats_upd_option_t	stats_upd_option,
-					/*!< in: whether to (re)calc
+					/*!< in: whether to (re) calc
 					the stats or to fetch them from
 					the persistent storage */
 	ibool			caller_has_dict_sys_mutex);
@@ -85,8 +93,9 @@ UNIV_INTERN
 enum db_err
 dict_stats_delete_index_stats(
 /*==========================*/
-	dict_index_t*	index,	/*!< in: index */
-	trx_t*		trx,	/*!< in: transaction to use */
+	const char*	tname,	/*!< in: table name */
+	const char*	iname,	/*!< in: index name */
+	trx_t*		trx,	/*!< in/out: user transaction */
 	char*		errstr, /*!< out: error message if != DB_SUCCESS
 				is returned */
 	ulint		errstr_sz);/*!< in: size of the errstr buffer */

@@ -110,6 +110,7 @@ void test_bootstrap()
   param.m_statement_class_sizing= 0;
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
+  param.m_digest_sizing= 0;
 
   boot= initialize_performance_schema(& param);
   ok(boot != NULL, "boot");
@@ -166,6 +167,7 @@ PSI * load_perfschema()
   param.m_statement_class_sizing= 0;
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
+  param.m_digest_sizing= 0;
 
   /* test_bootstrap() covered this, assuming it just works */
   boot= initialize_performance_schema(& param);
@@ -1152,11 +1154,11 @@ void test_locker_disabled()
   file_class_A->m_enabled= true;
   socket_class_A->m_enabled= true;
 
-  mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
+  mutex_locker= psi->start_mutex_wait(&mutex_state, mutex_A1, PSI_MUTEX_LOCK, "foo.cc", 12);
   ok(mutex_locker == NULL, "no locker (T-1 disabled)");
-  rwlock_locker= psi->get_thread_rwlock_locker(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK);
+  rwlock_locker= psi->start_rwlock_rdwait(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK, "foo.cc", 12);
   ok(rwlock_locker == NULL, "no locker (T-1 disabled)");
-  cond_locker= psi->get_thread_cond_locker(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT);
+  cond_locker= psi->start_cond_wait(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT, "foo.cc", 12);
   ok(cond_locker == NULL, "no locker (T-1 disabled)");
   file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
   ok(file_locker == NULL, "no locker (T-1 disabled)");
@@ -1164,7 +1166,7 @@ void test_locker_disabled()
   ok(file_locker == NULL, "no locker (T-1 disabled)");
   file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_READ);
   ok(file_locker == NULL, "no locker (T-1 disabled)");
-  socket_locker= psi->get_thread_socket_locker(&socket_state, socket_A1, PSI_SOCKET_SEND);
+  socket_locker= psi->start_socket_wait(&socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);
   ok(socket_locker == NULL, "no locker (T-1 disabled)");
 
   /* Pretend the global consumer is disabled */
@@ -1179,11 +1181,11 @@ void test_locker_disabled()
   socket_class_A->m_enabled= true;
   update_instruments_derived_flags();
 
-  mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
+  mutex_locker= psi->start_mutex_wait(&mutex_state, mutex_A1, PSI_MUTEX_LOCK, "foo.cc", 12);
   ok(mutex_locker == NULL, "no locker (global disabled)");
-  rwlock_locker= psi->get_thread_rwlock_locker(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK);
+  rwlock_locker= psi->start_rwlock_rdwait(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK, "foo.cc", 12);
   ok(rwlock_locker == NULL, "no locker (global disabled)");
-  cond_locker= psi->get_thread_cond_locker(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT);
+  cond_locker= psi->start_cond_wait(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT, "foo.cc", 12);
   ok(cond_locker == NULL, "no locker (global disabled)");
   file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
   ok(file_locker == NULL, "no locker (global disabled)");
@@ -1191,7 +1193,7 @@ void test_locker_disabled()
   ok(file_locker == NULL, "no locker (global disabled)");
   file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_READ);
   ok(file_locker == NULL, "no locker (global disabled)");
-  socket_locker= psi->get_thread_socket_locker(&socket_state, socket_A1, PSI_SOCKET_SEND);
+  socket_locker= psi->start_socket_wait(&socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);
   ok(socket_locker == NULL, "no locker (global disabled)");
 
   /* Pretend the mode is global, counted only */
@@ -1212,11 +1214,11 @@ void test_locker_disabled()
   socket_class_A->m_timed= false;
   update_instruments_derived_flags();
 
-  mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
+  mutex_locker= psi->start_mutex_wait(&mutex_state, mutex_A1, PSI_MUTEX_LOCK, "foo.cc", 12);
   ok(mutex_locker == NULL, "no locker (global counted)");
-  rwlock_locker= psi->get_thread_rwlock_locker(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK);
+  rwlock_locker= psi->start_rwlock_rdwait(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK, "foo.cc", 12);
   ok(rwlock_locker == NULL, "no locker (global counted)");
-  cond_locker= psi->get_thread_cond_locker(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT);
+  cond_locker= psi->start_cond_wait(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT, "foo.cc", 12);
   ok(cond_locker == NULL, "no locker (global counted)");
   file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
   ok(file_locker != NULL, "locker (global counted)");
@@ -1231,7 +1233,7 @@ void test_locker_disabled()
   psi->start_file_wait(file_locker, 10, __FILE__, __LINE__);
   psi->end_file_wait(file_locker, 10);
   /* The null locker shortcut applies only to socket ops with no byte count */
-  socket_locker= psi->get_thread_socket_locker(&socket_state, socket_A1, PSI_SOCKET_BIND);
+  socket_locker= psi->start_socket_wait(&socket_state, socket_A1, PSI_SOCKET_BIND, 0, "foo.cc", 12);
   ok(socket_locker == NULL, "no locker (global counted)");
 
   /* TODO */
@@ -1249,11 +1251,11 @@ void test_locker_disabled()
   socket_class_A->m_enabled= false;
   update_instruments_derived_flags();
 
-  mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
+  mutex_locker= psi->start_mutex_wait(&mutex_state, mutex_A1, PSI_MUTEX_LOCK, "foo.cc", 12);
   ok(mutex_locker == NULL, "no locker");
-  rwlock_locker= psi->get_thread_rwlock_locker(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK);
+  rwlock_locker= psi->start_rwlock_rdwait(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK, "foo.cc", 12);
   ok(rwlock_locker == NULL, "no locker");
-  cond_locker= psi->get_thread_cond_locker(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT);
+  cond_locker= psi->start_cond_wait(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT, "foo.cc", 12);
   ok(cond_locker == NULL, "no locker");
   file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
   ok(file_locker == NULL, "no locker");
@@ -1261,7 +1263,7 @@ void test_locker_disabled()
   ok(file_locker == NULL, "no locker");
   file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_READ);
   ok(file_locker == NULL, "no locker");
-  socket_locker= psi->get_thread_socket_locker(&socket_state, socket_A1, PSI_SOCKET_SEND);
+  socket_locker= psi->start_socket_wait(&socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);
   ok(socket_locker == NULL, "no locker");
 
   /* Pretend everything is enabled and timed */
@@ -1283,17 +1285,14 @@ void test_locker_disabled()
   socket_class_A->m_timed= true;
   update_instruments_derived_flags();
 
-  mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
+  mutex_locker= psi->start_mutex_wait(&mutex_state, mutex_A1, PSI_MUTEX_LOCK, __FILE__, __LINE__);
   ok(mutex_locker != NULL, "locker");
-  psi->start_mutex_wait(mutex_locker, __FILE__, __LINE__);
   psi->end_mutex_wait(mutex_locker, 0);
-  rwlock_locker= psi->get_thread_rwlock_locker(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK);
+  rwlock_locker= psi->start_rwlock_rdwait(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK, __FILE__, __LINE__);
   ok(rwlock_locker != NULL, "locker");
-  psi->start_rwlock_rdwait(rwlock_locker, __FILE__, __LINE__);
   psi->end_rwlock_rdwait(rwlock_locker, 0);
-  cond_locker= psi->get_thread_cond_locker(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT);
+  cond_locker= psi->start_cond_wait(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT, __FILE__, __LINE__);
   ok(cond_locker != NULL, "locker");
-  psi->start_cond_wait(cond_locker, __FILE__, __LINE__);
   psi->end_cond_wait(cond_locker, 0);
   file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
   ok(file_locker != NULL, "locker");
@@ -1307,9 +1306,8 @@ void test_locker_disabled()
   ok(file_locker != NULL, "locker");
   psi->start_file_wait(file_locker, 10, __FILE__, __LINE__);
   psi->end_file_wait(file_locker, 10);
-  socket_locker= psi->get_thread_socket_locker(&socket_state, socket_A1, PSI_SOCKET_SEND);
+  socket_locker= psi->start_socket_wait(&socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);
   ok(socket_locker != NULL, "locker");
-  psi->start_socket_wait(socket_locker, 10, __FILE__, __LINE__);
   psi->end_socket_wait(socket_locker, 10);
 
   /* Pretend the socket does not have a thread owner */
@@ -1319,7 +1317,7 @@ void test_locker_disabled()
   socket_A1= psi->init_socket(socket_key_A, NULL);
   ok(socket_A1 != NULL, "instrumented");
   /* Socket thread owner has not been set */
-  socket_locker= psi->get_thread_socket_locker(&socket_state, socket_A1, PSI_SOCKET_SEND);
+  socket_locker= psi->start_socket_wait(&socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);
   ok(socket_locker == NULL, "no locker (no thread owner)");
   
   /* Pretend the running thread is not instrumented */
@@ -1334,11 +1332,11 @@ void test_locker_disabled()
   socket_class_A->m_enabled= true;
   update_instruments_derived_flags();
 
-  mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
+  mutex_locker= psi->start_mutex_wait(&mutex_state, mutex_A1, PSI_MUTEX_LOCK, "foo.cc", 12);
   ok(mutex_locker == NULL, "no locker");
-  rwlock_locker= psi->get_thread_rwlock_locker(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK);
+  rwlock_locker= psi->start_rwlock_rdwait(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK, "foo.cc", 12);
   ok(rwlock_locker == NULL, "no locker");
-  cond_locker= psi->get_thread_cond_locker(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT);
+  cond_locker= psi->start_cond_wait(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT, "foo.cc", 12);
   ok(cond_locker == NULL, "no locker");
   file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
   ok(file_locker == NULL, "no locker");
@@ -1346,7 +1344,7 @@ void test_locker_disabled()
   ok(file_locker == NULL, "no locker");
   file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_READ);
   ok(file_locker == NULL, "no locker");
-  socket_locker= psi->get_thread_socket_locker(&socket_state, socket_A1, PSI_SOCKET_SEND);
+  socket_locker= psi->start_socket_wait(&socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);
   ok(socket_locker == NULL, "no locker");
 
   shutdown_performance_schema();
@@ -1510,6 +1508,7 @@ void test_event_name_index()
   param.m_statement_class_sizing= 0;
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
+  param.m_digest_sizing= 0;
 
   param.m_mutex_sizing= 0;
   param.m_rwlock_sizing= 0;

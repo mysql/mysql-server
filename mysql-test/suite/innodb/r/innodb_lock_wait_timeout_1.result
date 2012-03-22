@@ -109,7 +109,7 @@ key	NULL
 key_len	NULL
 ref	NULL
 rows	2
-Extra	
+Extra	NULL
 id	1
 select_type	PRIMARY
 table	t1
@@ -119,7 +119,7 @@ key	PRIMARY
 key_len	4
 ref	t2.a
 rows	1
-Extra	Using index condition; Using where
+Extra	Using where
 id	2
 select_type	DERIVED
 table	NULL
@@ -149,7 +149,7 @@ key	NULL
 key_len	NULL
 ref	NULL
 rows	NULL
-Extra	
+Extra	Using temporary
 #
 # Demonstrate that the reported SELECT statement
 # no longer produces warnings.
@@ -313,7 +313,7 @@ key	NULL
 key_len	NULL
 ref	NULL
 rows	2
-Extra	
+Extra	NULL
 id	1
 select_type	PRIMARY
 table	t1
@@ -323,7 +323,7 @@ key	PRIMARY
 key_len	4
 ref	t2.a
 rows	1
-Extra	Using index condition; Using where
+Extra	Using where
 id	2
 select_type	DERIVED
 table	NULL
@@ -353,7 +353,7 @@ key	NULL
 key_len	NULL
 ref	NULL
 rows	NULL
-Extra	
+Extra	Using temporary
 # Lock the record.
 select 1 from t1 natural join (select 3 as a, 2 as b union all
 select 3 as a, 1 as b) as t2 for update;

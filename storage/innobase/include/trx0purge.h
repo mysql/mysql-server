@@ -87,8 +87,39 @@ trx_purge(
 /*======*/
 	ulint	n_purge_threads,	/*!< in: number of purge tasks to
 					submit to task queue. */
-	ulint	limit);			/*!< in: the maximum number of
+	ulint	limit,			/*!< in: the maximum number of
 					records to purge in one batch */
+	bool	truncate);		/*!< in: truncate history if true */
+/*******************************************************************//**
+Stop purge and wait for it to stop, move to PURGE_STATE_STOP. */
+UNIV_INTERN
+void
+trx_purge_stop(void);
+/*================*/
+/*******************************************************************//**
+Resume purge, move to PURGE_STATE_RUN. */
+UNIV_INTERN
+void
+trx_purge_run(void);
+/*================*/
+
+/** Purge states */
+enum purge_state_t {
+	PURGE_STATE_INIT,		/*!< Purge instance created */
+	PURGE_STATE_RUN,		/*!< Purge should be running */
+	PURGE_STATE_STOP,		/*!< Purge should be stopped */
+	PURGE_STATE_EXIT,		/*!< Purge has been shutdown */
+	PURGE_STATE_DISABLED		/*!< Purge was never started */
+};
+
+/*******************************************************************//**
+Get the purge state.
+@return purge state. */
+UNIV_INTERN
+purge_state_t
+trx_purge_state(void);
+/*=================*/
+
 /** This is the purge pointer/iterator. We need both the undo no and the
 transaction no up to which purge has parsed and applied the records. */
 typedef struct purge_iter_struct {
@@ -107,14 +138,21 @@ struct trx_purge_struct{
 					purge query: this trx is not in the
 					trx list of the trx system and it
 					never ends */
-	que_t*		query;		/*!< The query graph which will do the
-					parallelized purge operation */
 	rw_lock_t	latch;		/*!< The latch protecting the purge
 					view. A purge operation must acquire an
 					x-latch here for the instant at which
 					it changes the purge view: an undo
 					log operation can prevent this by
-					obtaining an s-latch here. */
+					obtaining an s-latch here. It also
+					protects state and running */
+	os_event_t	event;		/*!< State signal event */
+	ulint		n_stop;		/*!< Counter to track number stops */
+	bool		running;	/*!< true, if purge is active */
+	volatile purge_state_t	state;	/*!< Purge coordinator thread states,
+					we check this in several places
+					without holding the latch. */
+	que_t*		query;		/*!< The query graph which will do the
+					parallelized purge operation */
 	read_view_t*	view;		/*!< The purge will not remove undo logs
 					which are >= this view (purge view) */
 	volatile ulint	n_submitted;	/*!< Count of total tasks submitted

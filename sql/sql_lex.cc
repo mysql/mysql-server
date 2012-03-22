@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,11 @@
 #include <hash.h>
 #include "sp.h"
 #include "sp_head.h"
+#include "sql_table.h"                 // primary_key_name
+#include "sql_show.h"                  // append_identifier
+#include "sql_select.h"                // JOIN
+#include "sql_optimizer.h"             // JOIN
+#include <mysql/psi/mysql_statement.h>
 
 static int lex_one_token(void *arg, void *yythd);
 
@@ -61,9 +66,11 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_MIXED_STATEMENT,
   ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT,
   ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE,
+  ER_BINLOG_UNSAFE_WRITE_AUTOINC_SELECT,
   ER_BINLOG_UNSAFE_REPLACE_SELECT,
   ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT,
   ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC,
   ER_BINLOG_UNSAFE_UPDATE_IGNORE
 };
 
@@ -108,6 +115,22 @@ const char * index_hint_type_name[] =
   "USE INDEX", 
   "FORCE INDEX"
 };
+
+
+/**
+  @note The order of the elements of this array must correspond to
+  the order of elements in type_enum
+*/
+const char *st_select_lex::type_str[SLT_total]=
+{ "NONE",
+  "PRIMARY",
+  "SIMPLE",
+  "DERIVED",
+  "SUBQUERY",
+  "UNION",
+  "UNION RESULT"
+};
+
 
 inline int lex_casecmp(const char *s, const char *t, uint len)
 {
@@ -408,7 +431,7 @@ void lex_start(THD *thd)
   lex->ignore= 0;
   lex->spname= NULL;
   lex->sphead= NULL;
-  lex->spcont= NULL;
+  lex->set_sp_current_parsing_ctx(NULL);
   lex->m_sql_cmd= NULL;
   lex->proc_list.first= 0;
   lex->escape_used= FALSE;
@@ -439,7 +462,7 @@ void lex_start(THD *thd)
   lex->server_options.socket= 0;
   lex->server_options.owner= 0;
   lex->server_options.port= -1;
-
+  lex->explain_format= NULL;
   lex->is_lex_started= TRUE;
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
@@ -878,6 +901,7 @@ int MYSQLlex(void *arg, void *yythd)
     lip->lookahead_token= -1;
     *yylval= *(lip->lookahead_yylval);
     lip->lookahead_yylval= NULL;
+    lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
     return token;
   }
 
@@ -895,8 +919,12 @@ int MYSQLlex(void *arg, void *yythd)
     token= lex_one_token(arg, yythd);
     switch(token) {
     case CUBE_SYM:
+      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_CUBE_SYM,
+                                         yylval);
       return WITH_CUBE_SYM;
     case ROLLUP_SYM:
+      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_ROLLUP_SYM,
+                                         yylval);
       return WITH_ROLLUP_SYM;
     default:
       /*
@@ -905,6 +933,7 @@ int MYSQLlex(void *arg, void *yythd)
       lip->lookahead_yylval= lip->yylval;
       lip->yylval= NULL;
       lip->lookahead_token= token;
+      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH, yylval);
       return WITH;
     }
     break;
@@ -912,6 +941,7 @@ int MYSQLlex(void *arg, void *yythd)
     break;
   }
 
+  lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
   return token;
 }
 
@@ -1639,50 +1669,6 @@ int lex_one_token(void *arg, void *yythd)
 }
 
 
-/**
-  Construct a copy of this object to be used for mysql_alter_table
-  and mysql_create_table.
-
-  Historically, these two functions modify their Alter_info
-  arguments. This behaviour breaks re-execution of prepared
-  statements and stored procedures and is compensated by always
-  supplying a copy of Alter_info to these functions.
-
-  @return You need to use check the error in THD for out
-  of memory condition after calling this function.
-*/
-
-Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
-  :drop_list(rhs.drop_list, mem_root),
-  alter_list(rhs.alter_list, mem_root),
-  key_list(rhs.key_list, mem_root),
-  create_list(rhs.create_list, mem_root),
-  flags(rhs.flags),
-  keys_onoff(rhs.keys_onoff),
-  tablespace_op(rhs.tablespace_op),
-  partition_names(rhs.partition_names, mem_root),
-  num_parts(rhs.num_parts),
-  change_level(rhs.change_level),
-  datetime_field(rhs.datetime_field),
-  error_if_not_empty(rhs.error_if_not_empty)
-{
-  /*
-    Make deep copies of used objects.
-    This is not a fully deep copy - clone() implementations
-    of Alter_drop, Alter_column, Key, foreign_key, Key_part_spec
-    do not copy string constants. At the same length the only
-    reason we make a copy currently is that ALTER/CREATE TABLE
-    code changes input Alter_info definitions, but string
-    constants never change.
-  */
-  list_copy_and_replace_each_value(drop_list, mem_root);
-  list_copy_and_replace_each_value(alter_list, mem_root);
-  list_copy_and_replace_each_value(key_list, mem_root);
-  list_copy_and_replace_each_value(create_list, mem_root);
-  /* partition_names are not deeply copied currently */
-}
-
-
 void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str)
 {
   /*
@@ -1798,7 +1784,7 @@ void st_select_lex::init_select()
   group_list.empty();
   if (group_list_ptrs)
     group_list_ptrs->clear();
-  type= db= 0;
+  db= 0;
   having= 0;
   table_join_options= 0;
   in_sum_expr= with_wild= 0;
@@ -1817,7 +1803,7 @@ void st_select_lex::init_select()
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
   with_sum_func= 0;
-  cur_pos_in_select_list= UNDEF_POS;
+  cur_pos_in_all_fields= ALL_FIELDS_UNDEF_POS;
   non_agg_fields.empty();
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
@@ -2249,7 +2235,7 @@ void st_select_lex::print_order(String *str,
       str->append(buffer, (uint) length);
     }
     else
-      (*order->item)->print(str, query_type);
+      (*order->item)->print_for_order(str, query_type, order->used_alias);
     if (order->direction == ORDER::ORDER_DESC)
       str->append(STRING_WITH_LEN(" desc"));
     if (order->next)
@@ -2297,6 +2283,398 @@ void st_select_lex::print_limit(THD *thd,
     select_limit->print(str, query_type);
   }
 }
+
+
+/**
+  @brief Print an index hint
+
+  @details Prints out the USE|FORCE|IGNORE index hint.
+
+  @param      thd         the current thread
+  @param[out] str         appends the index hint here
+  @param      hint        what the hint is (as string : "USE INDEX"|
+                          "FORCE INDEX"|"IGNORE INDEX")
+  @param      hint_length the length of the string in 'hint'
+  @param      indexes     a list of index names for the hint
+*/
+
+void 
+Index_hint::print(THD *thd, String *str)
+{
+  switch (type)
+  {
+    case INDEX_HINT_IGNORE: str->append(STRING_WITH_LEN("IGNORE INDEX")); break;
+    case INDEX_HINT_USE:    str->append(STRING_WITH_LEN("USE INDEX")); break;
+    case INDEX_HINT_FORCE:  str->append(STRING_WITH_LEN("FORCE INDEX")); break;
+  }
+  str->append (STRING_WITH_LEN(" ("));
+  if (key_name.length)
+  {
+    if (thd && !my_strnncoll(system_charset_info,
+                             (const uchar *)key_name.str, key_name.length, 
+                             (const uchar *)primary_key_name, 
+                             strlen(primary_key_name)))
+      str->append(primary_key_name);
+    else
+      append_identifier(thd, str, key_name.str, key_name.length);
+  }
+  str->append(')');
+}
+
+
+static void print_table_array(THD *thd, String *str, TABLE_LIST **table, 
+                              TABLE_LIST **end, enum_query_type query_type)
+{
+  (*table)->print(thd, str, query_type);
+
+  for (TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
+  {
+    TABLE_LIST *curr= *tbl;
+    // Print the join operator which relates this table to the previous one
+    if (curr->outer_join)
+    {
+      /* MySQL converts right to left joins */
+      str->append(STRING_WITH_LEN(" left join "));
+    }
+    else if (curr->straight)
+      str->append(STRING_WITH_LEN(" straight_join "));
+    else if (curr->sj_on_expr)
+      str->append(STRING_WITH_LEN(" semi join "));
+    else
+      str->append(STRING_WITH_LEN(" join "));
+    curr->print(thd, str, query_type);          // Print table
+    if (curr->join_cond())                      // Print join condition
+    {
+      str->append(STRING_WITH_LEN(" on("));
+      curr->join_cond()->print(str, query_type);
+      str->append(')');
+    }
+  }
+}
+
+
+/**
+  Print joins from the FROM clause.
+
+  @param thd     thread handler
+  @param str     string where table should be printed
+  @param tables  list of tables in join
+  @query_type    type of the query is being generated
+*/
+
+static void print_join(THD *thd,
+                       String *str,
+                       List<TABLE_LIST> *tables,
+                       enum_query_type query_type)
+{
+  /* List is reversed => we should reverse it before using */
+  List_iterator_fast<TABLE_LIST> ti(*tables);
+  TABLE_LIST **table;
+  uint non_const_tables= 0;
+
+  for (TABLE_LIST *t= ti++; t ; t= ti++)
+    if (!t->optimized_away)
+      non_const_tables++;
+  if (!non_const_tables)
+  {
+    str->append(STRING_WITH_LEN("dual"));
+    return; // all tables were optimized away
+  }
+  ti.rewind();
+
+  if (!(table= (TABLE_LIST **)thd->alloc(sizeof(TABLE_LIST*) *
+                                                non_const_tables)))
+    return;  // out of memory
+
+  TABLE_LIST *tmp, **t= table + (non_const_tables - 1);
+  while ((tmp= ti++))
+  {
+    if (tmp->optimized_away)
+      continue;
+    *t--= tmp;
+  }
+
+  /*
+    If the first table is a semi-join nest, swap it with something that is
+    not a semi-join nest. This is necessary because "A SEMIJOIN B" is not the
+    same as "B SEMIJOIN A".
+  */
+  if ((*table)->sj_on_expr)
+  {
+    TABLE_LIST **end= table + non_const_tables;
+    for (TABLE_LIST **t2= table; t2!=end; t2++)
+    {
+      if (!(*t2)->sj_on_expr)
+      {
+        TABLE_LIST *tmp= *t2;
+        *t2= *table;
+        *table= tmp;
+        break;
+      }
+    }
+  }
+  DBUG_ASSERT(non_const_tables >= 1);
+  print_table_array(thd, str, table, table + non_const_tables, query_type);
+}
+
+
+/**
+  Print table as it should be in join list.
+
+  @param str   string where table should be printed
+*/
+
+void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
+{
+  if (nested_join)
+  {
+    str->append('(');
+    print_join(thd, str, &nested_join->join_list, query_type);
+    str->append(')');
+  }
+  else
+  {
+    const char *cmp_name;                         // Name to compare with alias
+    if (view_name.str)
+    {
+      // A view
+      if (!(belong_to_view &&
+            belong_to_view->compact_view_format))
+      {
+        append_identifier(thd, str, view_db.str, view_db.length);
+        str->append('.');
+      }
+      append_identifier(thd, str, view_name.str, view_name.length);
+      cmp_name= view_name.str;
+    }
+    else if (derived)
+    {
+      // A derived table
+      str->append('(');
+      derived->print(str, query_type);
+      str->append(')');
+      cmp_name= "";                               // Force printing of alias
+    }
+    else
+    {
+      // A normal table
+
+      if (!(belong_to_view &&
+            belong_to_view->compact_view_format))
+      {
+        append_identifier(thd, str, db, db_length);
+        str->append('.');
+      }
+      if (schema_table)
+      {
+        append_identifier(thd, str, schema_table_name,
+                          strlen(schema_table_name));
+        cmp_name= schema_table_name;
+      }
+      else
+      {
+        append_identifier(thd, str, table_name, table_name_length);
+        cmp_name= table_name;
+      }
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+      if (partition_names && partition_names->elements)
+      {
+        int i, num_parts= partition_names->elements;
+        List_iterator<String> name_it(*(partition_names));
+        str->append(STRING_WITH_LEN(" PARTITION ("));
+        for (i= 1; i <= num_parts; i++)
+        {
+          String *name= name_it++;
+          append_identifier(thd, str, name->c_ptr(), name->length());
+          if (i != num_parts)
+            str->append(',');
+        }
+        str->append(')');
+      }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+    }
+    if (my_strcasecmp(table_alias_charset, cmp_name, alias))
+    {
+      char t_alias_buff[MAX_ALIAS_NAME];
+      const char *t_alias= alias;
+
+      str->append(' ');
+      if (lower_case_table_names== 1)
+      {
+        if (alias && alias[0])
+        {
+          strmov(t_alias_buff, alias);
+          my_casedn_str(files_charset_info, t_alias_buff);
+          t_alias= t_alias_buff;
+        }
+      }
+
+      append_identifier(thd, str, t_alias, strlen(t_alias));
+    }
+
+    if (index_hints)
+    {
+      List_iterator<Index_hint> it(*index_hints);
+      Index_hint *hint;
+
+      while ((hint= it++))
+      {
+        str->append (STRING_WITH_LEN(" "));
+        hint->print (thd, str);
+      }
+    }
+  }
+}
+
+
+void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
+{
+  /* QQ: thd may not be set for sub queries, but this should be fixed */
+  if (!thd)
+    thd= current_thd;
+
+  if (query_type & QT_SHOW_SELECT_NUMBER)
+  {
+    /* it makes EXPLAIN's "id" column understandable */
+    str->append("/* select#");
+    if (unlikely(select_number >= INT_MAX))
+      str->append("fake");
+    else
+      str->append_ulonglong(select_number);
+    str->append(" */ select ");
+  }
+  else
+    str->append(STRING_WITH_LEN("select "));
+
+  /* First add options */
+  if (options & SELECT_STRAIGHT_JOIN)
+    str->append(STRING_WITH_LEN("straight_join "));
+  if (options & SELECT_HIGH_PRIORITY)
+    str->append(STRING_WITH_LEN("high_priority "));
+  if (options & SELECT_DISTINCT)
+    str->append(STRING_WITH_LEN("distinct "));
+  if (options & SELECT_SMALL_RESULT)
+    str->append(STRING_WITH_LEN("sql_small_result "));
+  if (options & SELECT_BIG_RESULT)
+    str->append(STRING_WITH_LEN("sql_big_result "));
+  if (options & OPTION_BUFFER_RESULT)
+    str->append(STRING_WITH_LEN("sql_buffer_result "));
+  if (options & OPTION_FOUND_ROWS)
+    str->append(STRING_WITH_LEN("sql_calc_found_rows "));
+  switch (sql_cache)
+  {
+    case SQL_NO_CACHE:
+      str->append(STRING_WITH_LEN("sql_no_cache "));
+      break;
+    case SQL_CACHE:
+      str->append(STRING_WITH_LEN("sql_cache "));
+      break;
+    case SQL_CACHE_UNSPECIFIED:
+      break;
+    default:
+      DBUG_ASSERT(0);
+  }
+
+  //Item List
+  bool first= 1;
+  List_iterator_fast<Item> it(item_list);
+  Item *item;
+  while ((item= it++))
+  {
+    if (first)
+      first= 0;
+    else
+      str->append(',');
+
+    if (master_unit()->item && item->is_autogenerated_name)
+    {
+      /*
+        Do not print auto-generated aliases in subqueries. It has no purpose
+        in a view definition or other contexts where the query is printed.
+      */
+      item->print(str, query_type);
+    }
+    else
+      item->print_item_w_name(str, query_type);
+    /** @note that 'INTO variable' clauses are not printed */
+  }
+
+  /*
+    from clause
+    TODO: support USING/FORCE/IGNORE index
+  */
+  if (table_list.elements)
+  {
+    str->append(STRING_WITH_LEN(" from "));
+    /* go through join tree */
+    print_join(thd, str, &top_join_list, query_type);
+  }
+  else if (where)
+  {
+    /*
+      "SELECT 1 FROM DUAL WHERE 2" should not be printed as 
+      "SELECT 1 WHERE 2": the 1st syntax is valid, but the 2nd is not.
+    */
+    str->append(STRING_WITH_LEN(" from DUAL "));
+  }
+
+  // Where
+  Item *cur_where= where;
+  if (join)
+    cur_where= join->conds;
+  if (cur_where || cond_value != Item::COND_UNDEF)
+  {
+    str->append(STRING_WITH_LEN(" where "));
+    if (cur_where)
+      cur_where->print(str, query_type);
+    else
+      str->append(cond_value != Item::COND_FALSE ? "1" : "0");
+  }
+
+  // group by & olap
+  if (group_list.elements)
+  {
+    str->append(STRING_WITH_LEN(" group by "));
+    print_order(str, group_list.first, query_type);
+    switch (olap)
+    {
+      case CUBE_TYPE:
+	str->append(STRING_WITH_LEN(" with cube"));
+	break;
+      case ROLLUP_TYPE:
+	str->append(STRING_WITH_LEN(" with rollup"));
+	break;
+      default:
+	;  //satisfy compiler
+    }
+  }
+
+  // having
+  Item *cur_having= having;
+  if (join)
+    cur_having= join->having;
+
+  if (cur_having || having_value != Item::COND_UNDEF)
+  {
+    str->append(STRING_WITH_LEN(" having "));
+    if (cur_having)
+      cur_having->print(str, query_type);
+    else
+      str->append(having_value != Item::COND_FALSE ? "1" : "0");
+  }
+
+  if (order_list.elements)
+  {
+    str->append(STRING_WITH_LEN(" order by "));
+    print_order(str, order_list.first, query_type);
+  }
+
+  // limit
+  print_limit(thd, str, query_type);
+
+  // PROCEDURE unsupported here
+}
+
 
 /**
   @brief Restore the LEX and THD in case of a parse error.
@@ -3145,10 +3523,10 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
 {
   for (; tbl; tbl= tbl->next_local)
   {
-    if (tbl->on_expr)
+    if (tbl->join_cond())
     {
-      tbl->prep_on_expr= tbl->on_expr;
-      tbl->on_expr= tbl->on_expr->copy_andor_structure(thd);
+      tbl->prep_join_cond= tbl->join_cond();
+      tbl->set_join_cond(tbl->join_cond()->copy_andor_structure(thd));
     }
     fix_prepare_info_in_table_list(thd, tbl->merge_underlying_list);
   }
@@ -3315,6 +3693,29 @@ bool st_select_lex::handle_derived(LEX *lex,
 }
 
 
+st_select_lex::type_enum st_select_lex::type(const THD *thd)
+{
+  if (master_unit()->fake_select_lex == this)
+    return SLT_UNION_RESULT;
+  else if (&thd->lex->select_lex == this) 
+  {
+    if (first_inner_unit() || next_select())
+      return SLT_PRIMARY;
+    else
+      return SLT_SIMPLE;
+  }
+  else if (this == master_unit()->first_select())
+  {
+    if (linkage == DERIVED_TABLE_TYPE) 
+      return SLT_DERIVED;
+    else
+      return SLT_SUBQUERY;
+  }
+  else
+    return SLT_UNION;
+}
+
+
 /**
   A routine used by the parser to decide whether we are specifying a full
   partitioning or if only partitions to add or to split.
@@ -3329,8 +3730,8 @@ bool st_select_lex::handle_derived(LEX *lex,
 bool LEX::is_partition_management() const
 {
   return (sql_command == SQLCOM_ALTER_TABLE &&
-          (alter_info.flags == ALTER_ADD_PARTITION ||
-           alter_info.flags == ALTER_REORGANIZE_PARTITION));
+          (alter_info.flags == Alter_info::ALTER_ADD_PARTITION ||
+           alter_info.flags == Alter_info::ALTER_REORGANIZE_PARTITION));
 }
 
 

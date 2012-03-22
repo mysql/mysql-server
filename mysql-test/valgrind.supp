@@ -782,7 +782,7 @@
 }
 
 {
-   missing shutdown_performance_schema 8
+   missing shutdown_performance_schema 8a
    Memcheck:Leak
    fun:malloc
    fun:my_malloc
@@ -791,6 +791,18 @@
    fun:handle_options
    fun:_Z11mysqld_mainiPPc
    fun:main
+}
+
+{
+   missing shutdown_performance_schema 8b
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_Z22add_pfs_instr_to_arrayPKcS0_
+   fun:mysqld_get_one_option
+   fun:handle_options
+   fun:_Z11mysqld_mainiPPc
+   fun:(below main)
 }
 
 {
@@ -823,6 +835,16 @@
    fun:init_dynamic_array2
    fun:_Z11mysqld_mainiPPc
    fun:main
+}
+
+{
+   missing shutdown_performance_schema 11
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:init_dynamic_array2
+   fun:_Z11mysqld_mainiPPc
+   fun:(below main)
 }
 
 {
@@ -963,7 +985,7 @@
    ...
    fun:my_b_flush_io_cache
    fun:_my_b_write
-   fun:_Z*10write_keysP10Sort_paramPPhjP11st_io_cacheS4_
+   fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
    fun:_Z*13find_all_keysP10Sort_paramP10SQL_SELECTP13Filesort_infoP11st_io_cacheS6_P13Bounded_queueIhhEPy
    fun:_Z8filesortP3THDP5TABLEP13st_sort_fieldjP10SQL_SELECTybPyS7_
 }
@@ -976,7 +998,7 @@
    fun:my_write
    ...
    fun:my_b_flush_io_cache
-   fun:_Z15merge_many_buffP13st_sort_paramPhP10st_buffpekPjP11st_io_cache
+   fun:_Z15merge_many_buffP10Sort_paramPhP10st_buffpekPjP11st_io_cache
    fun:_Z8filesortP3THDP5TABLEP13st_sort_fieldjP10SQL_SELECTybPyS7_
 }
 
@@ -1000,6 +1022,6 @@
    ...
    fun:my_b_flush_io_cache
    fun:_my_b_write
-   fun:_Z*10write_keysP10Sort_paramPPhjP11st_io_cacheS4_
+   fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
    fun:_Z8filesortP3THDP5TABLEP13st_sort_fieldjP10SQL_SELECTybPyS7_
 }

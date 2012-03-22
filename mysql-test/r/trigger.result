@@ -955,7 +955,7 @@ trigger_schema	trigger_name	event_object_schema	event_object_table	action_statem
 test	t1_bi	test	t1	set @a:=new.id
 test	t1_ai	test	t1	set @b:=new.id
 rename table t1 to t2;
-ERROR HY000: Can't create/write to file './test/t1_ai.TRN~' (Errcode: 13)
+ERROR HY000: Can't create/write to file './test/t1_ai.TRN~' (Errcode: 13 - Permission denied)
 insert into t1 values (102);
 select @a, @b;
 @a	@b

@@ -51,7 +51,7 @@ que_node_get_like_node(
 				/* out: next node in a list of nodes */
 	que_node_t*     node)   /* in: node in a list */
 {
-	return(((sym_node_t*)node)->like_node);
+	return(((sym_node_t*) node)->like_node);
 }
 
 /*****************************************************************//**
@@ -434,8 +434,8 @@ eval_predefined_2(
 
 	} else if (func == PARS_RND_TOKEN) {
 
-		len1 = (ulint)eval_node_get_int_val(arg1);
-		len2 = (ulint)eval_node_get_int_val(arg2);
+		len1 = (ulint) eval_node_get_int_val(arg1);
+		len2 = (ulint) eval_node_get_int_val(arg2);
 
 		ut_ad(len2 >= len1);
 
@@ -452,7 +452,7 @@ eval_predefined_2(
 
 	} else if (func == PARS_RND_STR_TOKEN) {
 
-		len1 = (ulint)eval_node_get_int_val(arg1);
+		len1 = (ulint) eval_node_get_int_val(arg1);
 
 		data = eval_node_ensure_val_buf(func_node, len1);
 
@@ -528,8 +528,8 @@ eval_substr(
 
 	str1 = static_cast<byte*>(dfield_get_data(que_node_get_val(arg1)));
 
-	len1 = (ulint)eval_node_get_int_val(arg2);
-	len2 = (ulint)eval_node_get_int_val(arg3);
+	len1 = (ulint) eval_node_get_int_val(arg2);
+	len2 = (ulint) eval_node_get_int_val(arg3);
 
 	dfield = que_node_get_val(func_node);
 
@@ -564,8 +564,8 @@ eval_replstr(
 	str1 = static_cast<byte*>(dfield_get_data(que_node_get_val(arg1)));
 	str2 = static_cast<byte*>(dfield_get_data(que_node_get_val(arg2)));
 
-	len1 = (ulint)eval_node_get_int_val(arg3);
-	len2 = (ulint)eval_node_get_int_val(arg4);
+	len1 = (ulint) eval_node_get_int_val(arg3);
+	len2 = (ulint) eval_node_get_int_val(arg4);
 
 	if ((dfield_get_len(que_node_get_val(arg1)) < len1 + len2)
 	    || (dfield_get_len(que_node_get_val(arg2)) < len2)) {
@@ -678,7 +678,7 @@ eval_binary_to_number(
 		str2 = str1;
 	} else {
 		int_val = 0;
-		str2 = (byte*)&int_val;
+		str2 = (byte*) &int_val;
 
 		ut_memcpy(str2 + (4 - len1), str1, len1);
 	}
@@ -764,7 +764,7 @@ eval_to_binary(
 
 	arg2 = que_node_get_next(arg1);
 
-	len1 = (ulint)eval_node_get_int_val(arg2);
+	len1 = (ulint) eval_node_get_int_val(arg2);
 
 	if (len1 > 4) {
 
@@ -795,7 +795,7 @@ eval_predefined(
 
 	if (func == PARS_LENGTH_TOKEN) {
 
-		int_val = (lint)dfield_get_len(que_node_get_val(arg1));
+		int_val = (lint) dfield_get_len(que_node_get_val(arg1));
 
 	} else if (func == PARS_TO_CHAR_TOKEN) {
 
@@ -858,7 +858,7 @@ eval_predefined(
 			       dfield_get_data(que_node_get_val(arg1)));
 
 	} else if (func == PARS_SYSDATE_TOKEN) {
-		int_val = (lint)ut_time();
+		int_val = (lint) ut_time();
 	} else {
 		eval_predefined_2(func_node);
 

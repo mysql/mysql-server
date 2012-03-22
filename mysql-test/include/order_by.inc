@@ -1738,3 +1738,76 @@ SELECT t1.*, t2.* FROM t1 JOIN t2 ON t1.i1 = t2.i2
   ORDER BY t1.i1 LIMIT 5;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #11885377 VOID JOIN_READ_KEY_UNLOCK_ROW(ST_JOIN_TABLE*): ASSERTION
+--echo # `TAB->REF.USE_COUNT'
+--echo #
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(b INT,c INT);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1,2), (2,3);
+SELECT (SELECT 1 FROM t1 WHERE a=b AND c=1 ORDER BY a DESC) FROM t2;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #13531865
+--echo # TEST_IF_SKIP_SORT_ORDER() INCORRECTLY SKIP FILESORT IF
+--echo # 'TYPE' IS REF_OR_NULL 
+--echo # 
+--echo #
+
+CREATE TABLE t1 (
+  a INT,
+  c INT,
+  UNIQUE KEY a_c (a,c),
+  KEY (a)) engine=myisam;
+
+INSERT INTO t1 VALUES (1,10), (2,NULL), (2,10);
+ANALYZE TABLE t1;
+
+--echo # Using 'KEY a_c' for order-by opt, would have required 
+--echo # REF_OR_NULL access which never can be order_by skipped.
+--echo # -> Keep initial REF on 'KEY a' selected by cond. optimizer
+EXPLAIN
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL);
+EXPLAIN
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+
+EXPLAIN
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #13528826 
+--echo # TEST_IF_CHEAPER_ORDERING(): CALCULATES INCORRECT 'SELECT_LIMIT'
+--echo # 
+--echo #
+
+CREATE TABLE t1(a int PRIMARY KEY, b int) ENGINE=myisam;
+INSERT INTO t1 VALUES
+  (5, 10), (2, 70), (7, 80), (6, 20), (1, 50), (9, 40), (8, 30), (3, 60);
+CREATE TABLE t2 (p int, a int, INDEX i_a(a)) ENGINE=myisam;
+INSERT INTO t2 VALUES
+  (103, 7), (109, 3), (102, 3), (108, 1), (106, 3),
+  (107, 7), (105, 1), (101, 3), (100, 7), (110, 1);
+
+--echo # number of rows in t1 was incorrectly used as an 
+--echo # implicit limit-clause if not explicit specified
+EXPLAIN
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a;
+
+--echo # Query above used to be explained identical to this:
+EXPLAIN
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 8;
+
+-- echo # A really high limit was required to give the correct explain
+EXPLAIN
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 1000;
+
+DROP TABLE t1, t2;
+

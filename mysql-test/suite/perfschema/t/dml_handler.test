@@ -15,7 +15,7 @@
 --echo
 --echo # Create a temporary table of performance schema table names
 --echo
-
+ 
 CREATE TEMPORARY TABLE table_list (id INT AUTO_INCREMENT, PRIMARY KEY (id)) AS
   SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
   WHERE TABLE_SCHEMA='performance_schema';
@@ -37,4 +37,6 @@ while ($count > 0)
    eval HANDLER performance_schema.$table_name OPEN;
    dec $count;
 }
+
+DROP TEMPORARY TABLE table_list;
 

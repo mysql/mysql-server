@@ -400,7 +400,7 @@ EXPLAIN select count(length(a) + length(filler))
 from t2 force index (k1)
 where a>='a-1000-a' and a <'a-1001-a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	k1	k1	9	NULL	99	Using index condition; Using MRR
+1	SIMPLE	t2	range	k1	k1	9	NULL	ROWS	Using index condition; Using MRR
 select count(length(a) + length(filler))
 from t2 force index (k1)
 where a>='a-1000-a' and a <'a-1001-a';
@@ -412,7 +412,7 @@ filler char(10), key(d), primary key (a,b,c));
 insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
 explain select * from t2 force index (d) where d < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	d	d	5	NULL	#	Using index condition; Using MRR
+1	SIMPLE	t2	range	d	d	5	NULL	#	Using index condition
 drop table t2;
 drop table t1;
 set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
@@ -539,7 +539,7 @@ WHERE t2.i1 > 5
 AND t2.pk IS  NULL
 ORDER BY i1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	1	Using filesort
+1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	1	NULL
 1	SIMPLE	t2	const	PRIMARY,k1	PRIMARY	4	const	1	Using where
 SELECT i1
 FROM t1 LEFT JOIN t2 ON t1.pk = t2.i2
@@ -566,14 +566,114 @@ EXPLAIN SELECT STRAIGHT_JOIN t1.c1
 FROM t1 RIGHT OUTER JOIN t2 ON t1.c1 = t2.c1
 WHERE t1.pk > 176;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using where
 SELECT STRAIGHT_JOIN t1.c1
 FROM t1 RIGHT OUTER JOIN t2 ON t1.c1 = t2.c1
 WHERE t1.pk > 176;
 c1
 DROP TABLE t1,t2;
 set optimizer_switch= @save_optimizer_switch;
+#
+# Bug#13249966 MRR: RANDOM ERROR DUE TO UNINITIALIZED RES WITH 
+#              SMALL READ_RND_BUFFER_SIZE
+#
+set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
+set read_rnd_buffer_size=1;
+select @@read_rnd_buffer_size;
+@@read_rnd_buffer_size
+1
+CREATE TABLE t1 (
+i1 INTEGER NOT NULL,
+i2 INTEGER NOT NULL,
+KEY (i2)
+);
+INSERT INTO t1 VALUES (0,1),(1,2),(2,3);
+EXPLAIN SELECT i1
+FROM t1
+WHERE i2 > 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	i2	i2	4	NULL	1	Using index condition
+SELECT i1
+FROM t1
+WHERE i2 > 2;
+i1
+2
+DROP TABLE t1;
+set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
+select @@read_rnd_buffer_size;
+@@read_rnd_buffer_size
+262144
+#
+# Bug 12365385 STRAIGHT_JOIN QUERY QUICKLY EXHAUSTS SYSTEM+VIRT. 
+#              MEMORY LEADING TO SYSTEM CRASH
+#
+CREATE TABLE ten (a INTEGER);
+INSERT INTO ten VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+i1 INTEGER NOT NULL,
+c1 VARCHAR(10) NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1
+SELECT a, 1, 'MySQL' FROM ten;
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+c1 VARCHAR(10) NOT NULL,
+c2 varchar(10) NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2
+SELECT a, 'MySQL', 'MySQL' FROM ten;
+CREATE TABLE t3 (
+pk INTEGER NOT NULL,
+c1 VARCHAR(10) NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t3
+SELECT a, 'MySQL' FROM ten;
+CREATE TABLE t4 (
+pk int(11) NOT NULL,
+c1_key varchar(10) CHARACTER SET utf8 NOT NULL,
+c2 varchar(10) NOT NULL,
+c3 varchar(10) NOT NULL,
+PRIMARY KEY (pk),
+KEY k1 (c1_key)
+);
+CREATE TABLE t5 (
+pk INTEGER NOT NULL,
+c1 VARCHAR(10) NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t5
+SELECT a, 'MySQL' FROM ten;
+EXPLAIN SELECT STRAIGHT_JOIN *
+FROM 
+(t1 LEFT JOIN 
+(t2 LEFT JOIN
+(t3 LEFT OUTER JOIN t4 ON t3.c1 <= t4.c1_key)
+ON t2.c1 = t4.c3) 
+ON t1.c1 = t4.c2)
+RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1
+WHERE t1.i1 = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	10	NULL
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	ALL	k1	NULL	NULL	NULL	1	Range checked for each record (index map: 0x2)
+SELECT STRAIGHT_JOIN *
+FROM 
+(t1 LEFT JOIN 
+(t2 LEFT JOIN
+(t3 LEFT OUTER JOIN t4 ON t3.c1 <= t4.c1_key)
+ON t2.c1 = t4.c3) 
+ON t1.c1 = t4.c2)
+RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1
+WHERE t1.i1 = 1;
+pk	i1	c1	pk	c1	c2	pk	c1	pk	c1_key	c2	c3	pk	c1
+DROP TABLE ten, t1, t2, t3, t4, t5;
 #
 # Bug#41029 "MRR: SELECT FOR UPDATE fails to lock gaps (InnoDB table)"
 #

@@ -490,12 +490,10 @@ ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
 SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aac') DESC;
 SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aab') DESC; 
 
-
-# Valgrind error in _MI_WRITE_BLOB_RECORD, bug #13389854
-#--echo "----------Test7---------"
-#select * from t1 where match(a,b) against ('aaa')
-#union select * from t1 where match(a,b) against ('aab')
-#union select * from t1 where match(a,b) against ('aac');
+--echo "----------Test7---------"
+select * from t1 where match(a,b) against ('aaa')
+union select * from t1 where match(a,b) against ('aab')
+union select * from t1 where match(a,b) against ('aac');
 
 select * from t1 where match(a,b) against ('aaa')
                 or    match(a,b) against ('aab')
@@ -667,3 +665,150 @@ echo "restart server..."
 DELETE FROM t1 WHERE MATCH(char_column) AGAINST ('bbb');
 SET @@autocommit=1;
 DROP TABLE t1;
+
+--echo "----------Test28---------"
+drop table if exists `fts_test`;
+create table `fts_test`(`a` text,fulltext key(`a`))engine=innodb;
+set session autocommit=0;
+insert into `fts_test` values ('');
+savepoint `b`;
+savepoint `b`;
+set session autocommit=1;
+DROP TABLE fts_test;
+
+# Continue test savepoint related operations. With a commit after
+# multiple rollback to savepoints
+--echo "----------Test29---------"
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+INSERT INTO articles (title,body) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...');
+
+
+start transaction;
+
+INSERT INTO articles (title,body) VALUES 
+('How To Use MySQL Well','After you went through a ...');
+
+savepoint `a1`;
+
+INSERT INTO articles (title,body) VALUES
+('Optimizing MySQL','In this tutorial we will show ...');
+
+savepoint `a2`;
+
+INSERT INTO articles (title,body) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...');
+
+savepoint `a3`;
+
+INSERT INTO articles (title,body) VALUES
+('MySQL vs. YourSQL','In the following database comparison ...');
+
+savepoint `a4`;
+
+# FTS do not parse those uncommitted rows, only one row should show up
+SELECT * FROM articles
+        WHERE MATCH (title,body)
+        AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+
+rollback to savepoint a3;
+
+# The last inserted row should not be there
+select title, body from articles;
+
+INSERT INTO articles (title,body) VALUES
+('MySQL Security','When configured properly, MySQL ...');
+
+savepoint `a5`;
+
+select title, body from articles;
+
+rollback to savepoint a2;
+
+select title, body from articles;
+
+commit;
+
+SELECT * FROM articles
+        WHERE MATCH (title,body)
+        AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles
+        WHERE MATCH (title,body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+
+# Continue test savepoint related operations. With a rollback after
+# multiple rollback to savepoints
+--echo "----------Test30---------"
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+INSERT INTO articles (title,body) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...');
+
+start transaction;
+
+INSERT INTO articles (title,body) VALUES 
+('How To Use MySQL Well','After you went through a ...');
+
+savepoint `a1`;
+
+INSERT INTO articles (title,body) VALUES
+('Optimizing MySQL','In this tutorial we will show ...');
+
+savepoint `a2`;
+
+INSERT INTO articles (title,body) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...');
+
+savepoint `a3`;
+
+INSERT INTO articles (title,body) VALUES
+('MySQL vs. YourSQL','In the following database comparison ...');
+
+savepoint `a4`;
+
+# FTS do not parse those uncommitted rows, only one row should show up
+SELECT * FROM articles
+        WHERE MATCH (title,body)
+        AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+
+rollback to savepoint a3;
+
+# The last inserted row should not be there
+select title, body from articles;
+
+INSERT INTO articles (title,body) VALUES
+('MySQL Security','When configured properly, MySQL ...');
+
+savepoint `a5`;
+
+select title, body from articles;
+
+rollback to savepoint a2;
+
+select title, body from articles;
+
+rollback;
+
+SELECT * FROM articles
+        WHERE MATCH (title,body)
+        AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles
+        WHERE MATCH (title,body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;

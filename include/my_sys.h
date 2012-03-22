@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,6 +62,7 @@ typedef struct my_aio_result {
   area, and we would like to avoid unexpected truncation.
 */
 #define MYSYS_ERRMSG_SIZE   (512)
+#define MYSYS_STRERROR_SIZE (128)
 
 #define MY_FILE_ERROR	((size_t) -1)
 
@@ -180,8 +181,13 @@ extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
     if (debug_sync_C_callback_ptr != NULL)                              \
       (*debug_sync_C_callback_ptr)(STRING_WITH_LEN(_sync_point_name_)); } \
   while(0)
+#define DEBUG_SYNC_C_IF_THD(thd, _sync_point_name_) do {                \
+    if (debug_sync_C_callback_ptr != NULL && thd)                       \
+      (*debug_sync_C_callback_ptr)(STRING_WITH_LEN(_sync_point_name_)); } \
+  while(0)
 #else
 #define DEBUG_SYNC_C(_sync_point_name_)
+#define DEBUG_SYNC_C_IF_THD(thd, _sync_point_name_)
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
 #ifdef HAVE_LARGE_PAGES
@@ -646,6 +652,7 @@ extern void thr_set_sync_wait_callback(void (*before_sync)(void),
 extern int my_sync(File fd, myf my_flags);
 extern int my_sync_dir(const char *dir_name, myf my_flags);
 extern int my_sync_dir_by_file(const char *file_name, myf my_flags);
+extern char *my_strerror(char *buf, size_t len, int errnum);
 extern void my_error(int nr,myf MyFlags, ...);
 extern void my_printf_error(uint my_err, const char *format,
                             myf MyFlags, ...)
@@ -717,6 +724,7 @@ extern int flush_write_cache(RECORD_CACHE *info);
 extern void handle_recived_signals(void);
 
 extern sig_handler my_set_alarm_variable(int signo);
+extern my_bool radixsort_is_appliccable(uint n_items, size_t size_of_element);
 extern void my_string_ptr_sort(uchar *base,uint items,size_t size);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
 				  size_t size_of_element,uchar *buffer[]);

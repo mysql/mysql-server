@@ -961,7 +961,18 @@ public:
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   bool get_time(MYSQL_TIME *ltime);  
   void fix_length_and_dec();
-  enum Item_result result_type () const { return cmp_type; }
+  enum Item_result result_type () const
+  {
+    /*
+      If we compare as dates, then:
+      - field_type is MYSQL_TYPE_VARSTRING, MYSQL_TYPE_DATETIME
+        or MYSQL_TYPE_DATE.
+      - cmp_type is INT_RESULT or DECIMAL_RESULT,
+        depending on the amount of fractional digits.
+      We need to return STRING_RESULT in this case instead of cmp_type.
+    */
+    return compare_as_dates ? STRING_RESULT : cmp_type;
+  }
   enum Item_result cast_to_int_type () const
   {
     /*
@@ -1544,6 +1555,30 @@ public:
   void fix_length_and_dec() { max_length=21; maybe_null=1;}
 };
 
+class Item_master_gtid_set_wait :public Item_int_func
+{
+  String value;
+public:
+  Item_master_gtid_set_wait(Item *a) :Item_int_func(a) {}
+  Item_master_gtid_set_wait(Item *a, Item *b) :Item_int_func(a,b) {}
+  longlong val_int();
+  const char *func_name() const { return "sql_thread_wait_after_gtids"; }
+  void fix_length_and_dec() { max_length= 21; maybe_null= 1; }
+};
+
+#ifdef HAVE_REPLICATION
+class Item_func_gtid_subset : public Item_int_func
+{
+  String buf1;
+  String buf2;
+public:
+  Item_func_gtid_subset(Item *a, Item *b) : Item_int_func(a, b) {}
+  longlong val_int();
+  const char *func_name() const { return "gtid_subset"; }
+  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+};
+#endif // if HAVE_REPLICATION
+
 
 /**
   Common class for:
@@ -1555,6 +1590,7 @@ class Item_var_func :public Item_func
 {
 public:
   Item_var_func() :Item_func() { }
+  Item_var_func(THD *thd, Item_var_func *item) :Item_func(thd, item) { }
   Item_var_func(Item *a) :Item_func(a) { }
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
   {
@@ -1603,6 +1639,12 @@ public:
   Item_func_set_user_var(LEX_STRING a,Item *b)
     :Item_var_func(b), cached_result_type(INT_RESULT),
      entry(NULL), entry_thread_id(0), name(a)
+  {}
+  Item_func_set_user_var(THD *thd, Item_func_set_user_var *item)
+    :Item_var_func(thd, item), cached_result_type(item->cached_result_type),
+     entry(item->entry), entry_thread_id(item->entry_thread_id),
+     value(item->value), decimal_buff(item->decimal_buff),
+     null_item(item->null_item), save_result(item->save_result), name(item->name)
   {}
   enum Functype functype() const { return SUSERVAR_FUNC; }
   double val_real();
@@ -1988,6 +2030,8 @@ public:
   {
     return sp_result_field;
   }
+
+  virtual void update_null_value();
 };
 
 

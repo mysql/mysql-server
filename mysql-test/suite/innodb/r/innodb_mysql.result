@@ -187,7 +187,7 @@ min(7)
 7
 explain select min(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	NULL
 1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
 select min(7) from t2i join t1i;
 min(7)
@@ -203,7 +203,7 @@ max(7)
 7
 explain select max(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	NULL
 1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
 select max(7) from t2i join t1i;
 max(7)
@@ -235,21 +235,21 @@ select 1, max(1) from t1i where 1=99;
 explain select count(*), min(7), max(7) from t1m, t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1m	system	NULL	NULL	NULL	NULL	0	const row not found
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	NULL
 select count(*), min(7), max(7) from t1m, t1i;
 count(*)	min(7)	max(7)
 0	NULL	NULL
 explain select count(*), min(7), max(7) from t1m, t2i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1m	system	NULL	NULL	NULL	NULL	0	const row not found
-1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	NULL
 select count(*), min(7), max(7) from t1m, t2i;
 count(*)	min(7)	max(7)
 0	NULL	NULL
 explain select count(*), min(7), max(7) from t2m, t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2m	system	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t2m	system	NULL	NULL	NULL	NULL	1	NULL
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	NULL
 select count(*), min(7), max(7) from t2m, t1i;
 count(*)	min(7)	max(7)
 0	NULL	NULL
@@ -782,7 +782,7 @@ INSERT INTO t1 SELECT  a + 32, MOD(a + 32, 20), 1 FROM t1;
 INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20), 1 FROM t1;
 EXPLAIN SELECT b, SUM(c) FROM t1 GROUP BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	b	5	NULL	128	
+1	SIMPLE	t1	index	NULL	b	5	NULL	128	NULL
 EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	128	Using filesort
@@ -1131,7 +1131,6 @@ insert into t1 values('aaa');
 alter table t1 add index(a(1024));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
-Warning	1071	Specified key was too long; max key length is 767 bytes
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1175,7 +1174,7 @@ c	b	d
 3	2	40
 EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b,d ORDER BY NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 SELECT c,b,d FROM t1 GROUP BY c,b,d ORDER BY NULL;
 c	b	d
 1	1	50
@@ -1191,7 +1190,7 @@ c	b	d
 3	2	40
 EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	c	8	NULL	3	
+1	SIMPLE	t1	index	NULL	c	8	NULL	3	NULL
 SELECT c,b,d FROM t1 GROUP BY c,b;
 c	b	d
 1	1	50
@@ -1436,7 +1435,8 @@ explain
 select b from t1 where a not in (select b from t1,t2 group by a) group by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	NULL
 DROP TABLE t1,t2;
 End of 5.0 tests
 CREATE TABLE `t2` (
@@ -1737,7 +1737,7 @@ EXPLAIN
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	DERIVED	t1	ref	c3,c2	c3	5	const	2	Using where; Using filesort
 DROP TABLE t1;
 CREATE TABLE t1 (c1 REAL, c2 REAL, c3 REAL, KEY (c3), KEY (c2, c3))
@@ -1751,7 +1751,7 @@ EXPLAIN
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	DERIVED	t1	ref	c3,c2	c3	9	const	2	Using where; Using filesort
 DROP TABLE t1;
 CREATE TABLE t1 (c1 DECIMAL(12,2), c2 DECIMAL(12,2), c3 DECIMAL(12,2), 
@@ -1766,7 +1766,7 @@ EXPLAIN
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	DERIVED	t1	ref	c3,c2	c3	7	const	2	Using where; Using filesort
 DROP TABLE t1;
 End of 5.1 tests
@@ -1786,7 +1786,7 @@ insert into t1 values (0),(1),(2),(3),(4);
 insert into t2 select A.a + 10 *B.a, 1, 'filler' from t1 A, t1 B;
 explain select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
 1	SIMPLE	t2	ref	a	a	4	test.t1.a	1	Using index condition
 select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 a	a	b	filler
@@ -2383,7 +2383,7 @@ insert into t1 values (1,1),(2,2),(3,3);
 insert into t2 values (1),(2),(3);
 explain select t1.* from t1 left join t2 using(f1) group by t1.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	3	
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	3	NULL
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	1	Using index
 drop table t1,t2;
 #
@@ -2774,9 +2774,9 @@ INSERT INTO t2 VALUES (1, '1');
 EXPLAIN
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	t2	index	NULL	PRIMARY	4	NULL	1	Using where; Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Start temporary
+1	SIMPLE	t2	index	NULL	PRIMARY	4	NULL	1	Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (Block Nested Loop)
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 b
 1

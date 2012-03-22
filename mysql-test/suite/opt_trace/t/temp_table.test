@@ -8,7 +8,8 @@ if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
 }
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
-SET optimizer_trace="enabled=on,end_marker=on,one_line=off";
+SET optimizer_trace="enabled=on,one_line=off";
+SET end_markers_in_json="on";
 
 CREATE TABLE tmp (
   pk INT PRIMARY KEY AUTO_INCREMENT,
@@ -44,5 +45,10 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq;
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 SET GLOBAL tmp_table_size= @old_size;
+
+# Temp tables for I_S tables. Uses HEAP temporary table. 
+# Converts it to MyISAM packed record format due to heap size limitation
+SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 DROP TABLE t1, tmp;

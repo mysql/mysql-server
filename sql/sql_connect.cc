@@ -136,6 +136,7 @@ end:
 int check_for_max_user_connections(THD *thd, USER_CONN *uc)
 {
   int error=0;
+  Host_errors errors;
   DBUG_ENTER("check_for_max_user_connections");
 
   mysql_mutex_lock(&LOCK_user_conn);
@@ -145,6 +146,7 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   {
     my_error(ER_TOO_MANY_USER_CONNECTIONS, MYF(0), uc->user);
     error=1;
+    errors.m_max_user_connection= 1;
     goto end;
   }
   time_out_user_resource_limits(thd, uc);
@@ -155,6 +157,7 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
              "max_user_connections",
              (long) uc->user_resources.user_conn);
     error= 1;
+    errors.m_max_user_connection= 1;
     goto end;
   }
   if (uc->user_resources.conn_per_hour &&
@@ -164,6 +167,7 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
              "max_connections_per_hour",
              (long) uc->user_resources.conn_per_hour);
     error=1;
+    errors.m_max_user_connection_per_hour= 1;
     goto end;
   }
   uc->conn_per_hour++;
@@ -180,6 +184,10 @@ end:
     thd->user_connect= NULL;
   }
   mysql_mutex_unlock(&LOCK_user_conn);
+  if (error)
+  {
+    inc_host_errors(thd->main_security_ctx.ip, &errors);
+  }
   DBUG_RETURN(error);
 }
 
@@ -435,7 +443,10 @@ bool init_new_connection_handler_thread()
 {
   pthread_detach_this_thread();
   if (my_thread_init())
+  {
+    statistic_increment(connection_errors_internal, &LOCK_status);
     return 1;
+  }
   return 0;
 }
 
@@ -455,6 +466,7 @@ bool init_new_connection_handler_thread()
 static int check_connection(THD *thd)
 {
   uint connect_errors= 0;
+  int auth_rc;
   NET *net= &thd->net;
 
   DBUG_PRINT("info",
@@ -465,24 +477,103 @@ static int check_connection(THD *thd)
 
   if (!thd->main_security_ctx.host)         // If TCP/IP connection
   {
+    my_bool peer_rc;
     char ip[NI_MAXHOST];
 
-    if (vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST))
+    peer_rc= vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST);
+
+    /*
+    ===========================================================================
+    DEBUG code only (begin)
+    Simulate various output from vio_peer_addr().
+    ===========================================================================
+    */
+
+    DBUG_EXECUTE_IF("vio_peer_addr_error",
+                    {
+                      peer_rc= 1;
+                    }
+                    );
+    DBUG_EXECUTE_IF("vio_peer_addr_fake_ipv4",
+                    {
+                      struct sockaddr *sa= (sockaddr *) &net->vio->remote;
+                      sa->sa_family= AF_INET;
+                      struct in_addr *ip4= &((struct sockaddr_in *) sa)->sin_addr;
+                      /* See RFC 5737, 192.0.2.0/24 is reserved. */
+                      const char* fake= "192.0.2.4";
+                      ip4->s_addr= inet_addr(fake);
+                      strcpy(ip, fake);
+                      peer_rc= 0;
+                    }
+                    );
+
+#ifdef HAVE_IPV6
+    DBUG_EXECUTE_IF("vio_peer_addr_fake_ipv6",
+                    {
+                      struct sockaddr_in6 *sa= (sockaddr_in6 *) &net->vio->remote;
+                      sa->sin6_family= AF_INET6;
+                      struct in6_addr *ip6= & sa->sin6_addr;
+                      /* See RFC 3849, ipv6 2001:DB8::/32 is reserved. */
+                      const char* fake= "2001:db8::6:6";
+                      /* inet_pton(AF_INET6, fake, ip6); not available on Windows XP. */
+                      ip6->s6_addr[ 0] = 0x20;
+                      ip6->s6_addr[ 1] = 0x01;
+                      ip6->s6_addr[ 2] = 0x0d;
+                      ip6->s6_addr[ 3] = 0xb8;
+                      ip6->s6_addr[ 4] = 0x00;
+                      ip6->s6_addr[ 5] = 0x00;
+                      ip6->s6_addr[ 6] = 0x00;
+                      ip6->s6_addr[ 7] = 0x00;
+                      ip6->s6_addr[ 8] = 0x00;
+                      ip6->s6_addr[ 9] = 0x00;
+                      ip6->s6_addr[10] = 0x00;
+                      ip6->s6_addr[11] = 0x00;
+                      ip6->s6_addr[12] = 0x00;
+                      ip6->s6_addr[13] = 0x06;
+                      ip6->s6_addr[14] = 0x00;
+                      ip6->s6_addr[15] = 0x06;
+                      strcpy(ip, fake);
+                      peer_rc= 0;
+                    }
+                    );
+#endif /* HAVE_IPV6 */
+
+    /*
+    ===========================================================================
+    DEBUG code only (end)
+    ===========================================================================
+    */
+
+    if (peer_rc)
     {
+      /*
+        Since we can not even get the peer IP address,
+        there is nothing to show in the host_cache,
+        so increment the global status variable for peer address errors.
+      */
+      statistic_increment(connection_errors_peer_addr, &LOCK_status);
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
+    {
+      /*
+        No error accounting per IP in host_cache,
+        this is treated as a global server OOM error.
+        TODO: remove the need for my_strdup.
+      */
+      statistic_increment(connection_errors_internal, &LOCK_status);
       return 1; /* The error is set by my_strdup(). */
+    }
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
     if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
-      if (ip_to_hostname(&net->vio->remote, thd->main_security_ctx.ip,
-                         &thd->main_security_ctx.host, &connect_errors))
-      {
-        my_error(ER_BAD_HOST_ERROR, MYF(0));
-        return 1;
-      }
+      int rc;
+
+      rc= ip_to_hostname(&net->vio->remote,
+                         thd->main_security_ctx.ip,
+                         &thd->main_security_ctx.host,
+                         &connect_errors);
 
       /* Cut very long hostnames to avoid possible overflows */
       if (thd->main_security_ctx.host)
@@ -492,8 +583,10 @@ static int check_connection(THD *thd)
                                                   HOSTNAME_LENGTH)]= 0;
         thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
       }
-      if (connect_errors > max_connect_errors)
+
+      if (rc == RC_BLOCKED_HOST)
       {
+        /* HOST_CACHE stats updated by ip_to_hostname(). */
         my_error(ER_HOST_IS_BLOCKED, MYF(0), thd->main_security_ctx.host_or_ip);
         return 1;
       }
@@ -505,6 +598,7 @@ static int check_connection(THD *thd)
                         thd->main_security_ctx.ip : "unknown ip")));
     if (acl_check_host(thd->main_security_ctx.host, thd->main_security_ctx.ip))
     {
+      /* HOST_CACHE stats updated by acl_check_host(). */
       my_error(ER_HOST_NOT_PRIVILEGED, MYF(0),
                thd->main_security_ctx.host_or_ip);
       return 1;
@@ -521,9 +615,34 @@ static int check_connection(THD *thd)
   vio_keepalive(net->vio, TRUE);
 
   if (thd->packet.alloc(thd->variables.net_buffer_length))
+  {
+    /*
+      Important note:
+      net_buffer_length is a SESSION variable,
+      so it may be tempting to account OOM conditions per IP in the HOST_CACHE,
+      in case some clients are more demanding than others ...
+      However, this session variable is *not* initialized with a per client
+      value during the initial connection, it is initialized from the
+      GLOBAL net_buffer_length variable from the server.
+      Hence, there is no reason to account on OOM conditions per client IP,
+      we count failures in the global server status instead.
+    */
+    statistic_increment(connection_errors_internal, &LOCK_status);
     return 1; /* The error is set by alloc(). */
+  }
 
-  return acl_authenticate(thd, connect_errors, 0);
+  auth_rc= acl_authenticate(thd, 0);
+  if (auth_rc == 0 && connect_errors != 0)
+  {
+    /*
+      A client connection from this IP was successful,
+      after some previous failures.
+      Reset the connection error counter.
+    */
+    reset_host_connect_errors(thd->main_security_ctx.ip);
+  }
+
+  return auth_rc;
 }
 
 
@@ -671,13 +790,41 @@ void prepare_new_connection_state(THD* thd)
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())
     {
-      thd->killed= THD::KILL_CONNECTION;
+      Host_errors errors;
+      ulong packet_length;
+      NET *net= &thd->net;
+
       sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
-                        thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                        thd->thread_id,
+                        thd->db ? thd->db : "unconnected",
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip, "init_connect command failed");
       sql_print_warning("%s", thd->get_stmt_da()->message());
+
+      thd->lex->current_select= 0;
+      my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+      thd->clear_error();
+      net_new_transaction(net);
+      packet_length= my_net_read(net);
+      /*
+        If my_net_read() failed, my_error() has been already called,
+        and the main Diagnostics Area contains an error condition.
+      */
+      if (packet_length != packet_error)
+        my_error(ER_NEW_ABORTING_CONNECTION, MYF(0),
+                 thd->thread_id,
+                 thd->db ? thd->db : "unconnected",
+                 sctx->user ? sctx->user : "unauthenticated",
+                 sctx->host_or_ip, "init_connect command failed");
+
+      thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
+      thd->protocol->end_statement();
+      thd->killed = THD::KILL_CONNECTION;
+      errors.m_init_connect= 1;
+      inc_host_errors(thd->main_security_ctx.ip, &errors);
+      return;
     }
+
     thd->proc_info=0;
     thd->set_time();
     thd->init_for_queries();

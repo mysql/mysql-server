@@ -40,7 +40,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 int PRIMARY KEY, f2 LONGTEXT, f3 LONGTEXT) ENGINE=MyISAM;
 INSERT INTO t1(f1, f2, f3) VALUES(1, REPEAT('a', @@global.max_allowed_packet), REPEAT('b', @@global.max_allowed_packet));
 include/wait_for_slave_io_error.inc [errno=1236]
-Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master; the last event was read from 'master-bin.000001' at XXX, the last byte read was read from 'master-bin.000001' at XXX.''
+Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master; the first event '' at XXX, the last event read from './master-bin.000001' at XXX, the last byte read from './master-bin.000001' at XXX.''
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
@@ -77,7 +77,7 @@ WARNING: The range of printed events ends with a row event or a table map event 
 DROP TABLE t1;
 SET @@global.max_allowed_packet= 1024;
 Warnings:
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SET @@global.net_buffer_length= 1024;
 SET @@global.max_allowed_packet= 1024;
 DROP TABLE t1;

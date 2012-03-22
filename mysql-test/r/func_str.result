@@ -119,7 +119,7 @@ substring_index('aaaaaaaaa1','aaa',-3)
 aaaaaa1
 select substring_index('aaaaaaaaa1','aaa',-4);
 substring_index('aaaaaaaaa1','aaa',-4)
-
+aaaaaaaaa1
 select substring_index('the king of thethe hill','the',-2);
 substring_index('the king of thethe hill','the',-2)
 the hill
@@ -1109,13 +1109,13 @@ SELECT id
 FROM t1
 WHERE a = 16307858876001849059;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	NULL
 EXPLAIN 
 SELECT id
 FROM t1
 WHERE a = CONV('e251273eb74a8ee3', 16, 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	NULL
 DROP TABLE t1;
 SELECT CHAR(NULL,121,83,81,'76') as my_column;
 my_column
@@ -2552,14 +2552,14 @@ create table t1(f1 tinyint default null)engine=myisam;
 insert into t1 values (-1),(null);
 explain select 1 as a from t1,(select decode(f1,f1) as b from t1) a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 explain select 1 as a from t1,(select encode(f1,f1) as b from t1) a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 drop table t1;
 #
 # Bug#49141: Encode function is significantly slower in 5.1 compared to 5.0
@@ -2875,6 +2875,42 @@ SELECT ((127.1) not in ((rpad(1.0,2048,1)),(''),(-1.1)));
 SELECT ((0xf3) * (rpad(1.0,2048,1)) << (0xcc));
 ((0xf3) * (rpad(1.0,2048,1)) << (0xcc))
 0
+#
+# Bug#13359121 LARGE NUMBERS, /STRINGS/DTOA.C:662:
+#              BALLOC: ASSERTION `K <= 15' FAILED.
+# Bug#12985021 SIMPLE QUERY WITH DECIMAL NUMBERS TAKE AN 
+#              EXTRAORDINARY LONG TIME TO EXECUTE
+SELECT @tmp_max:= @@global.max_allowed_packet;
+@tmp_max:= @@global.max_allowed_packet
+1048576
+SET @@global.max_allowed_packet=1024*1024*1024;
+SELECT @@global.max_allowed_packet;
+@@global.max_allowed_packet
+1073741824
+do
+format(rpad('111111111.1',
+1111111,
+'999999999999999999999999999999999999999999'),0,'be_BY')
+;
+DO
+round(
+concat( (
+coalesce( (
+linefromwkb('2147483648',
+-b'1111111111111111111111111111111111111111111')),
+( convert('[.DC2.]',decimal(30,30)) ),
+bit_count('')
+) ),
+( lpad( ( elt('01','}:K5')),
+sha1('P'),
+( ( select '-9223372036854775808.1' > all (select '')))
+)
+)
+)
+);
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '[.DC2.]'
+SET @@global.max_allowed_packet:= @tmp_max;
 #
 # End of 5.5 tests
 #
@@ -4427,6 +4463,29 @@ SET NAMES latin2;
 EXECUTE stmt;
 COLLATION(space(2))
 latin2_general_ci
+#
+# Bug#11829861: SUBSTRING_INDEX() RESULTS IN MISSING CHARACTERS WHEN USED
+# INSIDE LOWER()
+#
+SET @user_at_host = 'root@mytinyhost-PC.local';
+SELECT LOWER(SUBSTRING_INDEX(@user_at_host, '@', -1));
+LOWER(SUBSTRING_INDEX(@user_at_host, '@', -1))
+mytinyhost-pc.local
+# End of test  BUG#11829861
+#
+# Bug#42404: SUBSTRING_INDEX() RESULTS ARE INCONSISTENT
+#
+CREATE TABLE t (i INT NOT NULL, c CHAR(255) NOT NULL);
+INSERT INTO t VALUES (0,'.www.mysql.com'),(1,'.wwwmysqlcom');
+SELECT i, SUBSTRING_INDEX(c, '.', -2) FROM t WHERE i = 1;
+i	SUBSTRING_INDEX(c, '.', -2)
+1	.wwwmysqlcom
+SELECT i, SUBSTRING_INDEX(c, '.', -2) FROM t;
+i	SUBSTRING_INDEX(c, '.', -2)
+0	mysql.com
+1	.wwwmysqlcom
+DROP TABLE t;
+# End of test  BUG#42404
 #
 # End of 5.6 tests
 #

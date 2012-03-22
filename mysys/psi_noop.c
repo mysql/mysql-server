@@ -25,23 +25,6 @@
 #include "my_sys.h"
 #include "mysql/psi/psi.h"
 
-typedef struct PSI_cond PSI_cond;
-typedef struct PSI_cond_locker PSI_cond_locker;
-typedef struct PSI_file PSI_file;
-typedef struct PSI_file_locker PSI_file_locker;
-typedef struct PSI_idle_locker PSI_idle_locker;
-typedef struct PSI_mutex PSI_mutex;
-typedef struct PSI_mutex_locker PSI_mutex_locker;
-typedef struct PSI_rwlock PSI_rwlock;
-typedef struct PSI_rwlock_locker PSI_rwlock_locker;
-typedef struct PSI_socket PSI_socket;
-typedef struct PSI_socket_locker PSI_socket_locker;
-typedef struct PSI_statement_locker PSI_statement_locker;
-typedef struct PSI_table PSI_table;
-typedef struct PSI_table_locker PSI_table_locker;
-typedef struct PSI_table_share PSI_table_share;
-typedef struct PSI_thread PSI_thread;
-
 C_MODE_START
 
 #define NNN __attribute__((unused))
@@ -158,8 +141,9 @@ static void release_table_share_noop(PSI_table_share* share NNN)
 }
 
 static void
-drop_table_share_noop(const char *schema_name NNN, int schema_name_length NNN,
-                      const char *table_name NNN, int table_name_length NNN)
+drop_table_share_noop(my_bool temporary NNN, const char *schema_name NNN,
+                      int schema_name_length NNN, const char *table_name NNN,
+                      int table_name_length NNN)
 {
   return;
 }
@@ -175,9 +159,12 @@ static void unbind_table_noop(PSI_table *table NNN)
   return;
 }
 
-static void rebind_table_noop(PSI_table *table NNN)
+static PSI_table*
+rebind_table_noop(PSI_table_share *share NNN,
+                  const void *identity NNN,
+                  PSI_table *table NNN)
 {
-  return;
+  return NULL;
 }
 
 static void close_table_noop(PSI_table *table NNN)
@@ -268,48 +255,6 @@ static void delete_thread_noop(PSI_thread *thread NNN)
   return;
 }
 
-static PSI_mutex_locker*
-get_thread_mutex_locker_noop(PSI_mutex_locker_state *state NNN,
-                             PSI_mutex *mutex NNN,
-                             enum PSI_mutex_operation op NNN)
-{
-  return NULL;
-}
-
-static PSI_rwlock_locker*
-get_thread_rwlock_locker_noop(PSI_rwlock_locker_state *state NNN,
-                              PSI_rwlock *rwlock NNN,
-                              enum PSI_rwlock_operation op NNN)
-{
-  return NULL;
-}
-
-static PSI_cond_locker*
-get_thread_cond_locker_noop(PSI_cond_locker_state *state NNN,
-                            PSI_cond *cond NNN, PSI_mutex *mutex NNN,
-                            enum PSI_cond_operation op NNN)
-{
-  return NULL;
-}
-
-static PSI_table_locker*
-get_thread_table_io_locker_noop(PSI_table_locker_state *state NNN,
-                                PSI_table *table NNN,
-                                enum PSI_table_io_operation op NNN,
-                                uint index NNN)
-{
-  return NULL;
-}
-
-static PSI_table_locker*
-get_thread_table_lock_locker_noop(PSI_table_locker_state *state NNN,
-                                  PSI_table *table NNN,
-                                  enum PSI_table_lock_operation op NNN,
-                                  ulong op_flags NNN)
-{
-  return NULL;
-}
-
 static PSI_file_locker*
 get_thread_file_name_locker_noop(PSI_file_locker_state *state NNN,
                                  PSI_file_key key NNN,
@@ -332,14 +277,6 @@ static PSI_file_locker*
 get_thread_file_descriptor_locker_noop(PSI_file_locker_state *state NNN,
                                        File file NNN,
                                        enum PSI_file_operation op NNN)
-{
-  return NULL;
-}
-
-static PSI_socket_locker*
-get_thread_socket_locker_noop(PSI_socket_locker_state *state NNN,
-                              PSI_socket *socket NNN,
-                              enum PSI_socket_operation op NNN)
 {
   return NULL;
 }
@@ -376,10 +313,13 @@ static void end_idle_wait_noop(PSI_idle_locker* locker NNN)
   return;
 }
 
-static void start_mutex_wait_noop(PSI_mutex_locker* locker NNN,
-                                  const char *src_file NNN, uint src_line NNN)
+static PSI_mutex_locker*
+start_mutex_wait_noop(PSI_mutex_locker_state *state NNN,
+                      PSI_mutex *mutex NNN,
+                      PSI_mutex_operation op NNN,
+                      const char *src_file NNN, uint src_line NNN)
 {
-  return;
+  return NULL;
 }
 
 static void end_mutex_wait_noop(PSI_mutex_locker* locker NNN, int rc NNN)
@@ -388,11 +328,13 @@ static void end_mutex_wait_noop(PSI_mutex_locker* locker NNN, int rc NNN)
 }
 
 
-static void start_rwlock_rdwait_noop(PSI_rwlock_locker* locker NNN,
-                                     const char *src_file NNN,
-                                     uint src_line NNN)
+static PSI_rwlock_locker*
+start_rwlock_rdwait_noop(struct PSI_rwlock_locker_state_v1 *state NNN,
+                         struct PSI_rwlock *rwlock NNN,
+                         enum PSI_rwlock_operation op NNN,
+                         const char *src_file NNN, uint src_line NNN)
 {
-  return;
+  return NULL;
 }
 
 static void end_rwlock_rdwait_noop(PSI_rwlock_locker* locker NNN, int rc NNN)
@@ -400,11 +342,13 @@ static void end_rwlock_rdwait_noop(PSI_rwlock_locker* locker NNN, int rc NNN)
   return;
 }
 
-static void start_rwlock_wrwait_noop(PSI_rwlock_locker* locker NNN,
-                                     const char *src_file NNN,
-                                     uint src_line NNN)
+static struct PSI_rwlock_locker*
+start_rwlock_wrwait_noop(struct PSI_rwlock_locker_state_v1 *state NNN,
+                         struct PSI_rwlock *rwlock NNN,
+                         enum PSI_rwlock_operation op NNN,
+                         const char *src_file NNN, uint src_line NNN)
 {
-  return;
+  return NULL;
 }
 
 static void end_rwlock_wrwait_noop(PSI_rwlock_locker* locker NNN, int rc NNN)
@@ -412,10 +356,14 @@ static void end_rwlock_wrwait_noop(PSI_rwlock_locker* locker NNN, int rc NNN)
   return;
 }
 
-static void start_cond_wait_noop(PSI_cond_locker* locker NNN,
-                                 const char *src_file NNN, uint src_line NNN)
+static struct PSI_cond_locker*
+start_cond_wait_noop(struct PSI_cond_locker_state_v1 *state NNN,
+                     struct PSI_cond *cond NNN,
+                     struct PSI_mutex *mutex NNN,
+                     enum PSI_cond_operation op NNN,
+                     const char *src_file NNN, uint src_line NNN)
 {
-  return;
+  return NULL;
 }
 
 static void end_cond_wait_noop(PSI_cond_locker* locker NNN, int rc NNN)
@@ -423,11 +371,14 @@ static void end_cond_wait_noop(PSI_cond_locker* locker NNN, int rc NNN)
   return;
 }
 
-static void start_table_io_wait_noop(PSI_table_locker* locker NNN,
-                                     const char *src_file NNN,
-                                     uint src_line NNN)
+static struct PSI_table_locker*
+start_table_io_wait_noop(struct PSI_table_locker_state_v1 *state NNN,
+                         struct PSI_table *table NNN,
+                         enum PSI_table_io_operation op NNN,
+                         uint index NNN,
+                         const char *src_file NNN, uint src_line NNN)
 {
-  return;
+  return NULL;
 }
 
 static void end_table_io_wait_noop(PSI_table_locker* locker NNN)
@@ -435,11 +386,14 @@ static void end_table_io_wait_noop(PSI_table_locker* locker NNN)
   return;
 }
 
-static void start_table_lock_wait_noop(PSI_table_locker* locker NNN,
-                                       const char *src_file NNN,
-                                       uint src_line NNN)
+static struct PSI_table_locker*
+start_table_lock_wait_noop(struct PSI_table_locker_state_v1 *state NNN,
+                           struct PSI_table *table NNN,
+                           enum PSI_table_lock_operation op NNN,
+                           ulong flags NNN,
+                           const char *src_file NNN, uint src_line NNN)
 {
-  return;
+  return NULL;
 }
 
 static void end_table_lock_wait_noop(PSI_table_locker* locker NNN)
@@ -485,7 +439,7 @@ static void start_stage_noop(PSI_stage_key key NNN,
   return;
 }
 
-static void end_stage_noop()
+static void end_stage_noop(void)
 {
   return;
 }
@@ -617,12 +571,15 @@ static void end_statement_noop(PSI_statement_locker *locker NNN,
   return;
 }
 
-static void start_socket_wait_noop(PSI_socket_locker *locker NNN,
-                                   size_t count NNN,
-                                   const char *src_socket NNN,
-                                   uint src_line NNN)
+static PSI_socket_locker*
+start_socket_wait_noop(PSI_socket_locker_state *state NNN,
+                       PSI_socket *socket NNN,
+                       PSI_socket_operation op NNN,
+                       size_t count NNN,
+                       const char *src_file NNN,
+                       uint src_line NNN)
 {
-  return;
+  return NULL;
 }
 
 static void end_socket_wait_noop(PSI_socket_locker *locker NNN,
@@ -648,6 +605,20 @@ static void set_socket_info_noop(PSI_socket *socket NNN,
 static void set_socket_thread_owner_noop(PSI_socket *socket NNN)
 {
   return;
+}
+
+static struct PSI_digest_locker*
+digest_start_noop(PSI_statement_locker *locker NNN)
+{
+  return NULL;
+}
+
+static PSI_digest_locker*
+digest_add_token_noop(PSI_digest_locker *locker NNN,
+                      uint token NNN,
+                      struct OPAQUE_LEX_YYSTYPE *yylval NNN)
+{
+  return NULL;
 }
 
 static PSI PSI_noop=
@@ -690,15 +661,9 @@ static PSI PSI_noop=
   set_thread_noop,
   delete_current_thread_noop,
   delete_thread_noop,
-  get_thread_mutex_locker_noop,
-  get_thread_rwlock_locker_noop,
-  get_thread_cond_locker_noop,
-  get_thread_table_io_locker_noop,
-  get_thread_table_lock_locker_noop,
   get_thread_file_name_locker_noop,
   get_thread_file_stream_locker_noop,
   get_thread_file_descriptor_locker_noop,
-  get_thread_socket_locker_noop,
   unlock_mutex_noop,
   unlock_rwlock_noop,
   signal_cond_noop,
@@ -749,7 +714,9 @@ static PSI PSI_noop=
   end_socket_wait_noop,
   set_socket_state_noop,
   set_socket_info_noop,
-  set_socket_thread_owner_noop
+  set_socket_thread_owner_noop,
+  digest_start_noop,
+  digest_add_token_noop
 };
 
 /**

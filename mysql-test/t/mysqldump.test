@@ -2214,6 +2214,119 @@ DROP DATABASE `test-database`;
 USE test;
 
 --echo #
+--echo # BUG#11760384 : 52792: mysqldump in XML mode does not dump routines.
+--echo #
+CREATE DATABASE BUG52792;
+USE BUG52792;
+CREATE TABLE t1 (c1 INT, c2 VARCHAR(20));
+CREATE TABLE t2 (c1 INT);
+INSERT INTO t1 VALUES (1, 'aaa'), (2, 'bbb'), (3, 'ccc');
+INSERT INTO t2 VALUES (1),(2),(3);
+
+--echo # Stored Procedures.
+
+DELIMITER //;
+CREATE PROCEDURE simpleproc1 (OUT param1 INT)
+BEGIN
+  SELECT COUNT(*) INTO param1 FROM t1;
+END//
+DELIMITER ;//
+
+DELIMITER //;
+CREATE PROCEDURE simpleproc2 (OUT param1 INT)
+BEGIN
+  SELECT COUNT(*) INTO param1 FROM t2;
+END//
+DELIMITER ;//
+
+--echo # Events.
+
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE BUG52792;
+CREATE EVENT e2 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE BUG52792;
+
+--echo # Functions.
+
+CREATE FUNCTION `hello1` (s CHAR(20))
+  RETURNS CHAR(50) DETERMINISTIC
+RETURN CONCAT('Hello, ' ,s ,'!');
+
+CREATE FUNCTION `hello2` (s CHAR(20))
+    RETURNS CHAR(50) DETERMINISTIC
+RETURN CONCAT(']]>, ' , s ,'!');
+
+--echo # Triggers.
+
+DELIMITER |;
+CREATE TRIGGER trig1 BEFORE INSERT ON t2
+  FOR EACH ROW BEGIN
+    INSERT INTO t2 VALUES(1);
+END;
+|
+DELIMITER ;|
+
+DELIMITER |;
+CREATE TRIGGER trig2 AFTER INSERT ON t2
+  FOR EACH ROW BEGIN
+    INSERT INTO t2 VALUES(1, ']]>');
+    INSERT INTO t2 VALUES(2, '<![CDATA]]>');
+    INSERT INTO t2 VALUES(3, '<![CDATA[');
+    INSERT INTO t2 VALUES(4, '< > & \ " _');
+END;
+|
+DELIMITER ;|
+
+--echo # Views
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM t2;
+--echo
+--echo # Dumping BUG52792 database in xml format.
+--echo
+--echo # Running 'replace_regex on timestamp'
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/--TIME--/
+--exec $MYSQL_DUMP --user=root --compact -R -E --triggers -X BUG52792
+--echo
+--echo # Dumping BUG52792 database in xml format with comments.
+--echo
+--echo # Running 'replace_regex on timestamp'
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/--TIME--/
+--exec $MYSQL_DUMP --comments --user=root -R -E --triggers -X BUG52792
+
+--echo
+--echo # Test to check 'Insufficient privileges' error.
+--echo
+
+GRANT ALL PRIVILEGES ON BUG52792.* TO user1;
+
+connect (conn_1, localhost, user1, , BUG52792, $MASTER_MYPORT, $MASTER_MYSOCK);
+connection conn_1;
+
+--echo # Running 'replace_regex on timestamp'
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/--TIME--/
+--error 2
+--exec $MYSQL_DUMP --user=user1 -R -E --triggers -X BUG52792
+
+connection default;
+disconnect conn_1;
+
+DROP USER user1;
+DROP DATABASE BUG52792;
+--echo # UTF-8
+CREATE DATABASE BUG52792;
+USE BUG52792;
+SET NAMES utf8;
+CREATE FUNCTION `straße` ( c1 CHAR(20))
+  RETURNS CHAR(50) DETERMINISTIC
+RETURN CONCAT(']]>, ', s, '!');
+
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=utf8 --compatible=mysql323 -R -X BUG52792
+
+DROP DATABASE BUG52792;
+SET NAMES default;
+
+USE test;
+
+--echo #
 --echo # End of 5.1 tests
 --echo #
 
@@ -2239,5 +2352,79 @@ CREATE TABLE t1 (a INT);
 --exec $MYSQL_DUMP --compatible=no_t,no_f --skip-comments test
 DROP TABLE t1;
 
+--echo #
+--echo # Test columns with function defaults.
+--echo #
+CREATE TABLE t1 (
+  a TIMESTAMP,
+  b TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  c TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  d TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  e TIMESTAMP NULL,
+  f TIMESTAMP DEFAULT '2010-05-26 12:34:56',
+  g DATETIME,
+  h DATETIME DEFAULT CURRENT_TIMESTAMP,
+  i DATETIME ON UPDATE CURRENT_TIMESTAMP,
+  j DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  k DATETIME NULL,
+  l DATETIME DEFAULT '2010-05-26 12:34:56'
+);
+--exec $MYSQL_DUMP --skip-comments test
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#12809202 61854: MYSQLDUMP --SINGLE-TRANSACTION --FLUSH-LOG BREAKS
+--echo #                     CONSISTENCY
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS b12809202_db;
+--enable_warnings
+
+CREATE DATABASE b12809202_db;
+CREATE TABLE b12809202_db.t1 (c1 INT);
+CREATE TABLE b12809202_db.t2 (c1 INT);
+
+INSERT INTO b12809202_db.t1 VALUES (1), (2), (3);
+INSERT INTO b12809202_db.t2 VALUES (1), (2), (3);
+
+--echo # Starting mysqldump with --single-transaction & --flush-log options..
+--echo # Note : In the following dump the transaction
+--echo #        should start only after the logs are
+--echo #        flushed, as 'flush logs' causes implicit
+--echo #        commit starting 5.5.
+--echo
+--echo #### Dump starts here ####
+--replace_regex /-- Server version.*// /-- MySQL dump .*// /-- Dump completed on .*/-- Dump completed/
+--exec $MYSQL_DUMP --verbose --single-transaction --flush-log b12809202_db 2>&1
+--echo
+--echo #### Dump ends here ####
+
+# Cleanup
+DROP TABLE b12809202_db.t1;
+DROP TABLE b12809202_db.t2;
+DROP DATABASE b12809202_db;
+
+--echo #
+--echo # Delete all existing binary logs.
+--echo #
+RESET MASTER;
+
+--echo #
+--echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS b12688860_db;
+--enable_warnings
+
+CREATE DATABASE b12688860_db;
+--exec $MYSQL_DUMP -uroot --password="" --skip-comments b12688860_db 2>&1
+DROP DATABASE b12688860_db;
+
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+--echo
+--echo End of tests

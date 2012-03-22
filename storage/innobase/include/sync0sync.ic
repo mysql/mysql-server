@@ -94,7 +94,7 @@ mutex_test_and_set(
 		mutex->lock_word = 1;
 	}
 
-	return((byte)ret);
+	return((byte) ret);
 #endif
 }
 
@@ -236,19 +236,23 @@ pfs_mutex_enter_func(
 	const char*	file_name,	/*!< in: file name where locked */
 	ulint		line)		/*!< in: line where locked */
 {
-	struct PSI_mutex_locker*	locker;
-	PSI_mutex_locker_state		state;
+	if (mutex->pfs_psi != NULL)
+	{
+		PSI_mutex_locker*	locker;
+		PSI_mutex_locker_state	state;
 
-	locker = PSI_CALL(get_thread_mutex_locker)(
-		&state, mutex->pfs_psi, PSI_MUTEX_LOCK);
-	if (locker != NULL) {
-		PSI_CALL(start_mutex_wait)(locker, file_name, line);
+		locker = PSI_CALL(start_mutex_wait)(&state, mutex->pfs_psi,
+			PSI_MUTEX_LOCK, file_name, line);
+
 		mutex_enter_func(mutex, file_name, line);
-		PSI_CALL(end_mutex_wait)(locker, 0);
-		return;
-	}
 
-	mutex_enter_func(mutex, file_name, line);
+		if (locker != NULL)
+			PSI_CALL(end_mutex_wait)(locker, 0);
+	}
+	else
+	{
+		mutex_enter_func(mutex, file_name, line);
+	}
 }
 /********************************************************************//**
 NOTE! Please use the corresponding macro mutex_enter_nowait(), not directly
@@ -266,19 +270,24 @@ pfs_mutex_enter_nowait_func(
 	ulint		line)		/*!< in: line where requested */
 {
 	ulint	ret;
-	struct PSI_mutex_locker*	locker;
-	PSI_mutex_locker_state		state;
 
-	locker = PSI_CALL(get_thread_mutex_locker)(
-			&state, mutex->pfs_psi, PSI_MUTEX_TRYLOCK);
-	if (locker != NULL) {
-		PSI_CALL(start_mutex_wait)(locker, file_name, line);
+	if (mutex->pfs_psi != NULL)
+	{
+		PSI_mutex_locker*	locker;
+		PSI_mutex_locker_state		state;
+
+		locker = PSI_CALL(start_mutex_wait)(&state, mutex->pfs_psi,
+			PSI_MUTEX_TRYLOCK, file_name, line);
+
 		ret = mutex_enter_nowait_func(mutex, file_name, line);
-		PSI_CALL(end_mutex_wait)(locker, (int) ret);
-		return(ret);
-	}
 
-	ret = mutex_enter_nowait_func(mutex, file_name, line);
+		if (locker != NULL)
+			PSI_CALL(end_mutex_wait)(locker, (int) ret);
+	}
+	else
+	{
+		ret = mutex_enter_nowait_func(mutex, file_name, line);
+	}
 
 	return(ret);
 }
@@ -293,7 +302,8 @@ pfs_mutex_exit_func(
 /*================*/
 	mutex_t*	mutex)	/*!< in: pointer to mutex */
 {
-	PSI_CALL(unlock_mutex)(mutex->pfs_psi);
+	if (mutex->pfs_psi != NULL)
+		PSI_CALL(unlock_mutex)(mutex->pfs_psi);
 
 	mutex_exit_func(mutex);
 }
@@ -342,8 +352,11 @@ pfs_mutex_free_func(
 /*================*/
 	mutex_t*	mutex)	/*!< in: mutex */
 {
-	PSI_CALL(destroy_mutex)(mutex->pfs_psi);
-	mutex->pfs_psi = NULL;
+	if (mutex->pfs_psi != NULL)
+	{
+		PSI_CALL(destroy_mutex)(mutex->pfs_psi);
+		mutex->pfs_psi = NULL;
+	}
 
 	mutex_free_func(mutex);
 }

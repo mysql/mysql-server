@@ -1,14 +1,14 @@
-#############################################################
-# Author: Serge Kozlov <Serge.Kozlov@Sun.COM>
-# Date:   02/19/2009
-# Purpose: Testing basic functionality of heartbeat.
+# ==== Purpose ====
+#
+# Testing basic functionality of heartbeat.
+#
 # Description:
 # * Testing different values for slave_heartbeat_period.
 # * How to affect various statements to slave_heartbeat_period
 # * Various states of slave and heartbeat
 # * Various states of master and heartbeat
 # * Circular replication
-#############################################################
+#
 --source include/master-slave.inc
 #
 # The test runs long and does not have any specifics to 
@@ -34,6 +34,7 @@ call mtr.add_suppression("The master's UUID has changed, although this should no
 
 --source include/stop_slave.inc
 RESET SLAVE;
+RESET MASTER;
 SET @restore_slave_net_timeout=@@global.slave_net_timeout;
 let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
 --disable_query_log
@@ -61,6 +62,7 @@ let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_hea
 let $result= query_get_value(SELECT $slave_net_timeout/$slave_heartbeat_timeout AS Result, Result, 1);
 --echo slave_net_timeout/slave_heartbeat_timeout=$result
 RESET SLAVE;
+RESET MASTER;
 --echo
 
 # Reset slave set slave_heartbeat_timeout = slave_net_timeout/2
@@ -71,6 +73,7 @@ SET @@global.slave_net_timeout=30;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=5;
 RESET SLAVE;
+RESET MASTER;
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 --echo
 
@@ -84,6 +87,7 @@ eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTE
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 RESET SLAVE;
+RESET MASTER;
 --echo
 
 # Set slave_net_timeout less than current value of slave_heartbeat_period
@@ -93,6 +97,7 @@ let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_hea
 eval SET @@global.slave_net_timeout=FLOOR($slave_heartbeat_timeout)-1;
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 RESET SLAVE;
+RESET MASTER;
 --echo
 
 # Set value of slave_heartbeat_period greater than slave_net_timeout
@@ -102,6 +107,7 @@ inc $slave_net_timeout;
 --replace_result $MASTER_MYPORT MASTER_PORT $slave_net_timeout SLAVE_NET_TIMEOUT
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=$slave_net_timeout;
 RESET SLAVE;
+RESET MASTER;
 --echo 
 
 # Changing of slave_net_timeout shouldn't affect to current value of slave_heartbeat_period
@@ -118,6 +124,7 @@ SHOW VARIABLES LIKE 'slave_net_timeout';
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 RESET SLAVE;
+RESET MASTER;
 --echo
 
 # Master value of slave_net_timeout shouldn't affect to slave's slave_heartbeat_period
@@ -129,6 +136,7 @@ SET @@global.slave_net_timeout=500;
 --connection slave
 SET @@global.slave_net_timeout=200;
 RESET SLAVE;
+RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry;
 --source include/start_slave.inc
@@ -139,6 +147,7 @@ SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 --source include/stop_slave.inc
 RESET SLAVE;
+RESET MASTER;
 --connection master
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 --echo
@@ -189,6 +198,7 @@ SHOW STATUS LIKE 'slave_received_heartbeats';
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 SHOW STATUS LIKE 'slave_received_heartbeats';
 RESET SLAVE;
+RESET MASTER;
 let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
 --replace_result $slave_heartbeat_timeout SLAVE_HEARTBEAT_TIMEOUT
 --eval SELECT $slave_heartbeat_timeout = 0 AS Result
@@ -203,10 +213,12 @@ let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_hea
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0.001;
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 RESET SLAVE;
+RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0.0009;
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 RESET SLAVE;
+RESET MASTER;
 --echo
 
 --echo *** Max slave_heartbeat_timeout ***
@@ -214,20 +226,24 @@ RESET SLAVE;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=4294967;
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 RESET SLAVE;
+RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --error ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE 
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=4294968;
 RESET SLAVE;
+RESET MASTER;
 # Check double size of max allowed value for master_heartbeat_period
 --replace_result $MASTER_MYPORT MASTER_PORT
 --error ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE 
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=8589935;
 RESET SLAVE;
+RESET MASTER;
 # Check 2^32
 --replace_result $MASTER_MYPORT MASTER_PORT
 --error ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE 
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=4294967296;
 RESET SLAVE;
+RESET MASTER;
 --echo
 
 --echo *** Misc incorrect values ***
@@ -235,14 +251,17 @@ RESET SLAVE;
 --error ER_PARSE_ERROR
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD='-1';
 RESET SLAVE;
+RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --error ER_PARSE_ERROR
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD='123abc';
 RESET SLAVE;
+RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --error ER_PARSE_ERROR
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD='';
 RESET SLAVE;
+RESET MASTER;
 --echo
 
 #
@@ -355,6 +374,7 @@ CREATE EVENT e1
 DELIMITER ;|
 --connection slave
 RESET SLAVE;
+RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=5;
 --source include/start_slave.inc
@@ -370,29 +390,22 @@ let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_hea
 let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
 --echo Number of received heartbeat events: $result
 --connection master
-DELETE FROM t1;
+DROP TABLE t1;
 DROP EVENT e1;
 --echo
 
-
-
-
 # Check received heartbeat events while logs flushed on slave
---connection slave
+--sync_slave_with_master
 --echo *** Flush logs on slave ***
-STOP SLAVE;
-RESET SLAVE;
-DROP TABLE t1;
---connection master
-DROP TABLE t1;
-RESET MASTER;
---connection slave
+--let $rpl_no_start_slave= 1
+--source include/rpl_reset.inc
+--let $rpl_no_start_slave= 0
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0.5;
 let $slave_param_comparison= =;
 --source include/start_slave.inc
 let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-# Flush logs every 0.1 second during 5 sec
+# Flush logs every 0.1 second during 10 sec
 --disable_query_log
 let $i=100;
 while ($i) {
@@ -401,9 +414,9 @@ while ($i) {
   sleep 0.1;
 }
 --enable_query_log
-let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
---echo Heartbeat events are received while rotation of relay logs (1 means 'yes'): $result
+--let $assert_cond= [SHOW STATUS LIKE "slave_received_heartbeats", Value, 1] > $rcvd_heartbeats_before
+--let $assert_text= Should receive at least one heartbeat event while running FLUSH LOGS for 10 seconds
+--source include/rpl_assert.inc
 --echo
 
 # Use compressed protocol between master and slave
@@ -413,6 +426,7 @@ SET @@global.slave_compressed_protocol=1;
 --connection slave
 --source include/stop_slave.inc
 RESET SLAVE;
+RESET MASTER;
 SET @@global.slave_compressed_protocol=1;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0.1;
@@ -431,8 +445,10 @@ SET @@global.slave_compressed_protocol=0;
 # Check received heartbeat events after reset of master
 --echo *** Reset master ***
 --connection slave
+
 STOP SLAVE;
 RESET SLAVE;
+RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0.1;
 --source include/start_slave.inc
@@ -452,6 +468,7 @@ let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_b
 --connection slave
 STOP SLAVE;
 RESET SLAVE;
+RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0.1;
 --source include/start_slave.inc
@@ -489,6 +506,12 @@ let $status_var_comparsion= >;
 --connection master
 #--replace_result $SLAVE_MYPORT SLAVE_PORT $slave_binlog SLAVE_BINLOG
 #eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SLAVE_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=1, MASTER_LOG_FILE='$slave_binlog';
+
+# BUG#12403008 RPL_HEARTBEAT_BASIC FAILS SPORADICALLY ON PUSHBUILD
+# MASTER_HEARTBEAT_PERIOD had the default value (slave_net_timeout/2)
+# so wait on "Heartbeat event received on master", that only waits for
+# 1 minute, sometimes timeout before heartbeat arrives.
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=1;
 --source include/start_slave.inc
 
 # Insert data on master and on slave and make sure that it replicated for both directions

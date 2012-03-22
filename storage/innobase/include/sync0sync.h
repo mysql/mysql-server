@@ -42,7 +42,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0arr.h"
 
 #if  defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)
-extern my_bool	timed_mutexes;
+extern "C" my_bool	timed_mutexes;
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
 #ifdef HAVE_WINDOWS_ATOMICS
@@ -109,7 +109,7 @@ extern mysql_pfs_key_t	srv_monitor_file_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
 extern mysql_pfs_key_t	sync_thread_mutex_key;
 # endif /* UNIV_SYNC_DEBUG */
-extern mysql_pfs_key_t	trx_doublewrite_mutex_key;
+extern mysql_pfs_key_t	buf_dblwr_mutex_key;
 extern mysql_pfs_key_t	trx_undo_mutex_key;
 extern mysql_pfs_key_t	trx_mutex_key;
 extern mysql_pfs_key_t	lock_sys_mutex_key;
@@ -120,6 +120,9 @@ extern mysql_pfs_key_t	srv_sys_tasks_mutex_key;
 #ifndef HAVE_ATOMIC_BUILTINS
 extern mysql_pfs_key_t	srv_conc_mutex_key;
 #endif /* !HAVE_ATOMIC_BUILTINS */
+#ifndef HAVE_ATOMIC_BUILTINS_64
+extern mysql_pfs_key_t	monitor_mutex_key;
+#endif /* !HAVE_ATOMIC_BUILTINS_64 */
 extern mysql_pfs_key_t	event_os_mutex_key;
 extern mysql_pfs_key_t	ut_list_mutex_key;
 extern mysql_pfs_key_t	os_mutex_key;
@@ -679,14 +682,16 @@ or row lock! */
 #define SYNC_EXTERN_STORAGE	500
 #define	SYNC_FSP		400
 #define	SYNC_FSP_PAGE		395
-/*------------------------------------- Insert buffer headers */
+/*------------------------------------- Change buffer headers */
 #define SYNC_IBUF_MUTEX		370	/* ibuf_mutex */
-/*------------------------------------- Insert buffer tree */
+/*------------------------------------- Change buffer tree */
 #define SYNC_IBUF_INDEX_TREE	360
 #define SYNC_IBUF_TREE_NODE_NEW	359
 #define SYNC_IBUF_TREE_NODE	358
 #define	SYNC_IBUF_BITMAP_MUTEX	351
 #define	SYNC_IBUF_BITMAP	350
+/*------------------------------------- Change log for online create index */
+#define SYNC_INDEX_ONLINE_LOG	340
 /*------------------------------------- MySQL query cache mutex */
 /*------------------------------------- MySQL binlog mutex */
 /*-------------------------------*/

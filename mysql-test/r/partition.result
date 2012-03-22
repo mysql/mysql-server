@@ -236,10 +236,10 @@ a	b
 2007-07-30 17:35:48	p1
 EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	NULL
 EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	NULL
 ALTER TABLE t1 REORGANIZE PARTITION pmax INTO (
 PARTITION p3 VALUES LESS THAN (1247688000),
 PARTITION pmax VALUES LESS THAN MAXVALUE);
@@ -253,10 +253,10 @@ a	b
 2007-07-30 17:35:48	p1
 EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	NULL
 EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	NULL
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1540,7 +1540,7 @@ f1
 NULL
 explain partitions select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p1	system	NULL	NULL	NULL	NULL	1	NULL
 drop table t1;
 create table t1 (f1 integer) partition by list(f1)
 (partition p1 values in (1), partition p2 values in (null));
@@ -1598,7 +1598,7 @@ f1
 NULL
 explain partitions select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	NULL
 drop table t1;
 create table t1 (f1 int) partition by list(f1 div 2)
 (
@@ -1620,7 +1620,7 @@ f1
 NULL
 explain partitions select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	NULL
 drop table t1;
 create table t1 (a int) partition by LIST(a) (
 partition pn values in (NULL),
@@ -2428,4 +2428,70 @@ SELECT 1 FROM t1 AS t1_0 JOIN t1 ON t1_0.a LIKE (SELECT 1 FROM t1);
 SELECT * FROM vtmp;
 1
 DROP VIEW vtmp;
+DROP TABLE t1;
+#
+# Bug#13580775 ASSERTION FAILED: RECORD_LENGTH == M_RECORD_LENGTH,
+# FILE FILESORT_UTILS.CC
+#
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT,
+c CHAR(1),
+d INT,
+KEY (c,d)
+) PARTITION BY KEY () PARTITIONS 1;
+INSERT INTO t1 VALUES (1,1,'a',1), (2,2,'a',1);
+SELECT 1 FROM t1 WHERE 1 IN
+(SELECT  group_concat(b)
+FROM t1
+WHERE c > geomfromtext('point(1 1)')
+GROUP BY b
+);
+1
+1
+1
+DROP TABLE t1;
+#
+# WL#5855 (EXPLAIN FORMAT=JSON) partition test
+#
+CREATE TABLE t1 (c1 int(11) DEFAULT NULL, KEY c1 (c1))
+PARTITION BY RANGE (c1)
+(PARTITION a VALUES LESS THAN (10),
+PARTITION b VALUES LESS THAN (100),
+PARTITION c VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	a,b	range	c1	c1	5	NULL	11	Using where; Using index
+EXPLAIN EXTENDED SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	range	c1	c1	5	NULL	11	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 15))
+EXPLAIN FORMAT=JSON SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "partitions": [
+        "a",
+        "b"
+      ],
+      "access_type": "range",
+      "possible_keys": [
+        "c1"
+      ],
+      "key": "c1",
+      "key_length": "5",
+      "rows": 11,
+      "filtered": 100,
+      "using_index": true,
+      "attached_condition": "((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 15))"
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 15))
 DROP TABLE t1;

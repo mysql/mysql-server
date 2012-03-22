@@ -27,7 +27,10 @@ Created 5/11/2006 Osku Salerma
 #ifndef HA_INNODB_PROTOTYPES_H
 #define HA_INNODB_PROTOTYPES_H
 
+#include "my_dbug.h"
 #include "my_compare.h"
+#include "my_sys.h"
+#include "m_string.h"
 
 #include "trx0types.h"
 #include "m_ctype.h" /* CHARSET_INFO */
@@ -349,6 +352,14 @@ ulint
 innobase_get_lower_case_table_names(void);
 /*=====================================*/
 
+/*****************************************************************//**
+Frees a possible InnoDB trx object associated with the current THD.
+@return 0 or error number */
+int
+innobase_close_thd(
+/*===============*/
+	void*		thd);		/*!< in: MySQL thread handle for
+					which to close the connection */
 /*************************************************************//**
 Get the next token from the given string and store it in *token. */
 UNIV_INTERN

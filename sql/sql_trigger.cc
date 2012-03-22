@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -589,7 +589,7 @@ end:
     with the implicit commit.
   */
   if (thd->locked_tables_mode && tables && lock_upgrade_done)
-    mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+    mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
 
   /* Restore the query table list. Used only for drop trigger. */
   if (!create)
@@ -724,7 +724,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   */
   old_field= new_field= table->field;
 
-  for (trg_field= lex->trg_table_fields.first;
+  for (trg_field= lex->sphead->m_trg_table_fields.first;
        trg_field; trg_field= trg_field->next_trg_field)
   {
     /*
@@ -1069,37 +1069,35 @@ Table_triggers_list::~Table_triggers_list()
   of record[0] (they will represent OLD.* row values in ON UPDATE trigger
   and in ON DELETE trigger which will be called during REPLACE execution).
 
-  @param table   pointer to TABLE object for which we are creating fields.
-
   @retval
     False   success
   @retval
     True    error
 */
-bool Table_triggers_list::prepare_record1_accessors(TABLE *table)
+bool Table_triggers_list::prepare_record1_accessors()
 {
   Field **fld, **old_fld;
 
-  if (!(record1_field= (Field **)alloc_root(&table->mem_root,
-                                            (table->s->fields + 1) *
+  if (!(record1_field= (Field **)alloc_root(&trigger_table->mem_root,
+                                            (trigger_table->s->fields + 1) *
                                             sizeof(Field*))))
-    return 1;
+    return true;
 
-  for (fld= table->field, old_fld= record1_field; *fld; fld++, old_fld++)
+  for (fld= trigger_table->field, old_fld= record1_field; *fld; fld++, old_fld++)
   {
     /*
       QQ: it is supposed that it is ok to use this function for field
       cloning...
     */
-    if (!(*old_fld= (*fld)->new_field(&table->mem_root, table,
-                                      table == (*fld)->table)))
-      return 1;
-    (*old_fld)->move_field_offset((my_ptrdiff_t)(table->record[1] -
-                                                 table->record[0]));
+    if (!(*old_fld= (*fld)->new_field(&trigger_table->mem_root, trigger_table,
+                                      trigger_table == (*fld)->table)))
+      return true;
+    (*old_fld)->move_field_offset((my_ptrdiff_t)(trigger_table->record[1] -
+                                                 trigger_table->record[0]));
   }
   *old_fld= 0;
 
-  return 0;
+  return false;
 }
 
 
@@ -1343,7 +1341,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         TODO: This could be avoided if there is no triggers
               for UPDATE and DELETE.
       */
-      if (!names_only && triggers->prepare_record1_accessors(table))
+      if (!names_only && triggers->prepare_record1_accessors())
         DBUG_RETURN(1);
 
       List_iterator_fast<sql_mode_t> itm(triggers->definition_modes_list);
@@ -1352,7 +1350,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       List_iterator_fast<LEX_STRING> it_connection_cl_name(triggers->connection_cl_names);
       List_iterator_fast<LEX_STRING> it_db_cl_name(triggers->db_cl_names);
       LEX *old_lex= thd->lex, lex;
-      sp_rcontext *save_spcont= thd->spcont;
+      sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
       sql_mode_t save_sql_mode= thd->variables.sql_mode;
       LEX_STRING *on_table_name;
 
@@ -1382,7 +1380,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
                                        it_db_cl_name++);
 
         lex_start(thd);
-        thd->spcont= NULL;
+        thd->sp_runtime_ctx= NULL;
 
         Deprecated_trigger_syntax_handler error_handler;
         thd->push_internal_handler(&error_handler);
@@ -1531,7 +1529,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         */
         triggers->trigger_fields[lex.trg_chistics.event]
                                 [lex.trg_chistics.action_time]=
-          lex.trg_table_fields.first;
+          sp->m_trg_table_fields.first;
         /*
           Also let us bind these objects to Field objects in table being
           opened.
@@ -1541,7 +1539,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           SELECT)...
           Anyway some things can be checked only during trigger execution.
         */
-        for (Item_trigger_field *trg_field= lex.trg_table_fields.first;
+        for (Item_trigger_field *trg_field= sp->m_trg_table_fields.first;
              trg_field;
              trg_field= trg_field->next_trg_field)
         {
@@ -1554,7 +1552,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       }
       thd->reset_db(save_db.str, save_db.length);
       thd->lex= old_lex;
-      thd->spcont= save_spcont;
+      thd->sp_runtime_ctx= sp_runtime_ctx_saved;
       thd->variables.sql_mode= save_sql_mode;
 
       DBUG_RETURN(0);
@@ -1563,7 +1561,7 @@ err_with_lex_cleanup:
       // QQ: anything else ?
       lex_end(&lex);
       thd->lex= old_lex;
-      thd->spcont= save_spcont;
+      thd->sp_runtime_ctx= sp_runtime_ctx_saved;
       thd->variables.sql_mode= save_sql_mode;
       thd->reset_db(save_db.str, save_db.length);
       DBUG_RETURN(1);

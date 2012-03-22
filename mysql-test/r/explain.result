@@ -14,15 +14,39 @@ id	str
 explain select * from t1 where str is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	str	str	11	const	1	Using index condition
+explain format=json select * from t1 where str is null;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "access_type": "ref",
+      "possible_keys": [
+        "str"
+      ],
+      "key": "str",
+      "key_length": "11",
+      "ref": [
+        "const"
+      ],
+      "rows": 1,
+      "filtered": 100,
+      "index_condition": "isnull(`test`.`t1`.`str`)"
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where isnull(`test`.`t1`.`str`)
 explain select * from t1 where str="foo";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	str	str	11	const	1	
+1	SIMPLE	t1	const	str	str	11	const	1	NULL
 explain select * from t1 ignore key (str) where str="foo";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
 explain select * from t1 use key (str,str) where str="foo";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	str	str	11	const	1	
+1	SIMPLE	t1	const	str	str	11	const	1	NULL
 explain select * from t1 use key (str,str,foo) where str="foo";
 ERROR 42000: Key 'foo' doesn't exist in table 't1'
 explain select * from t1 ignore key (str,str,foo) where str="foo";
@@ -62,7 +86,7 @@ insert into t1 values (1,1);
 create view v1 as select * from t1 where f1=1;
 explain extended select * from v1 where f2=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual where 1
 explain extended select * from t1 where 0;
@@ -72,7 +96,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where 0
 explain extended select * from t1 where 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual where 1
 explain extended select * from t1 having 0;
@@ -82,7 +106,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` having 0
 explain extended select * from t1 having 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual having 1
 drop view v1;
@@ -103,7 +127,7 @@ EXPLAIN SELECT 1 FROM
 (SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 X	X	X	X	X	X	X	X	X	const row not found
-X	X	X	X	X	X	X	X	X	
+X	X	X	X	X	X	X	X	X	NULL
 X	X	X	X	X	X	X	X	X	Range checked for each record (index map: 0xFFFFFFFFFF)
 DROP TABLE t2;
 DROP TABLE t1;
@@ -114,7 +138,7 @@ INSERT INTO t2 VALUES (1),(2);
 EXPLAIN EXTENDED SELECT 1
 FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
@@ -122,7 +146,7 @@ Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(disti
 EXPLAIN EXTENDED SELECT 1
 FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
@@ -132,7 +156,7 @@ prepare s1 from
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
 execute s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
@@ -142,14 +166,14 @@ prepare s1 from
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
 execute s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
 execute s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
@@ -223,7 +247,7 @@ CREATE TABLE t2 (d int);
 INSERT INTO t2 VALUES (NULL), (0);
 EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
@@ -239,12 +263,12 @@ insert into t1 values(1);
 insert into t2 values(1),(2);
 explain extended select * from t1 where f1=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '1' AS `f1` from dual where 1
 explain extended select * from t1 join t2 on f1=f2 where f1=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select '1' AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where (`test`.`t2`.`f2` = 1)
@@ -365,7 +389,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 23	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 24	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 25	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-NULL	UNION RESULT	<union1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,...,25>	ALL	NULL	NULL	NULL	NULL	NULL	
+NULL	UNION RESULT	<union1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,...,25>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 # End BUG#30597
 #
 # BUG#53562: EXPLAIN statement should hint when 
@@ -390,8 +414,8 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE url=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	1	NULL	5	100.00	Using where; Using index
 Warnings:
-Warning	1713	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'url'
-Warning	1713	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
+Warning	1736	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'url'
+Warning	1736	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` where (`test`.`t1`.`url` = 1)
 
 # Test that index can't be used for lookup due to collation mismatch
@@ -402,8 +426,8 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	1	NULL	5	100.00	Using where; Using index
 Warnings:
-Warning	1713	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'url'
-Warning	1713	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
+Warning	1736	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'url'
+Warning	1736	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` where (`test`.`t1`.`url` = <cache>(('1' collate latin1_german2_ci)))
 
 # Normally, range access on primary key is done
@@ -423,7 +447,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	1	NULL	5	100.00	Using where; Using index
 Warnings:
-Warning	1713	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
+Warning	1736	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` where (`test`.`t1`.`url` > 3)
 
 # Test that range access on index can't be done due to collation mismatch
@@ -435,7 +459,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>'3' collate latin1_german2_ci;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	1	NULL	5	100.00	Using where; Using index
 Warnings:
-Warning	1713	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
+Warning	1736	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` where (`test`.`t1`.`url` > <cache>(('3' collate latin1_german2_ci)))
 
 DROP TABLE t1;
@@ -465,9 +489,9 @@ INSERT INTO t2 VALUES (3),(4),(5);
 # EXPLAIN must return 3 rows:
 EXPLAIN SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
-2	UNION	t2	ALL	NULL	NULL	NULL	NULL	3	
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
+2	UNION	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 DROP TABLE t1, t2;
 # End WL#4897
 End of 6.0 tests.

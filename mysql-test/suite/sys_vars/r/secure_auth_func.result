@@ -8,6 +8,8 @@ SELECT @@GLOBAL.secure_auth;
 1 / ON Expected
 '#--------------------FN_DYNVARS_144_02-------------------------#'
 SET GLOBAL secure_auth = OFF;
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 CREATE USER 'testUser'@'localhost' IDENTIFIED BY 'newpass';
 ** Connecting con_user1 using testUser **
 ** Connection default**
@@ -30,6 +32,8 @@ UPDATE mysql.user SET plugin='mysql_old_password' WHERE user='testUser' AND
 host='localhost';
 FLUSH PRIVILEGES;
 SET PASSWORD FOR 'testUser'@'localhost' = OLD_PASSWORD('newpass');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 ** Connecting con_user4 using testUser **
 ERROR HY000: Server is running in --secure-auth mode, but 'testUser'@'localhost' has a password in the old format; please change the password to the new format
 Expected error "Server is in secure auth mode"

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -720,7 +720,7 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_NUM_UNDO_SLOT_CACHED},
 
-	{"trx_rseg_curent_size", "transaction",
+	{"trx_rseg_current_size", "transaction",
 	 "Current rollback segment size in pages",
 	 static_cast<monitor_type_t>(
 	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
@@ -743,7 +743,7 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_DEFAULT_START, MONITOR_N_UPD_EXIST_EXTERN},
 
 	{"purge_invoked", "purge",
-	 "Number of purge was invoked",
+	 "Number of times purge was invoked",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_PURGE_INVOKED},
 
@@ -756,6 +756,16 @@ static monitor_info_t	innodb_counter_info[] =
 	 "Microseconds DML to be delayed due to purge lagging",
 	 MONITOR_DISPLAY_CURRENT,
 	 MONITOR_DEFAULT_START, MONITOR_DML_PURGE_DELAY},
+
+	{"purge_stop_count", "purge",
+	 "Number of times purge was stopped",
+	 MONITOR_DISPLAY_CURRENT,
+	 MONITOR_DEFAULT_START, MONITOR_PURGE_STOP_COUNT},
+
+	{"purge_resume_count", "purge",
+	 "Number of times purge was resumed",
+	 MONITOR_DISPLAY_CURRENT,
+	 MONITOR_DEFAULT_START, MONITOR_PURGE_RESUME_COUNT},
 
 	/* ========== Counters for Recovery Module ========== */
 	{"module_log", "recovery", "Recovery Module",
@@ -1119,10 +1129,25 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_MODULE,
 	 MONITOR_DEFAULT_START, MONITOR_MODULE_DDL_STATS},
 
+	{"ddl_background_drop_indexes", "ddl",
+	 "Number of indexes waiting to be dropped after failed index creation",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_BACKGROUND_DROP_INDEX},
+
 	{"ddl_background_drop_tables", "ddl",
 	 "Number of tables in background drop table list",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_BACKGROUND_DROP_TABLE},
+
+	{"ddl_online_create_index", "ddl",
+	 "Number of indexes being created online",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ONLINE_CREATE_INDEX},
+
+	{"ddl_pending_alter_table", "ddl",
+	 "Number of ALTER TABLE, CREATE INDEX, DROP INDEX in progress",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_PENDING_ALTER_TABLE},
 
 	/* ===== Counters for ICP (Index Condition Pushdown) Module ===== */
 	{"module_icp", "icp", "Index Condition Pushdown",
@@ -1159,6 +1184,34 @@ UNIV_INTERN monitor_value_t	innodb_counter_value[NUM_MONITOR];
 has been turned on/off. */
 UNIV_INTERN ulint		monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT
 						- 1) / NUM_BITS_ULINT];
+
+#ifndef HAVE_ATOMIC_BUILTINS_64
+/** Mutex protecting atomic operations on platforms that lack
+built-in operations for atomic memory access */
+mutex_t	monitor_mutex;
+
+/** Key to register monitor_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	monitor_mutex_key;
+
+/****************************************************************//**
+Initialize the monitor subsystem. */
+UNIV_INTERN
+void
+srv_mon_create(void)
+/*================*/
+{
+	mutex_create(monitor_mutex_key, &monitor_mutex, SYNC_ANY_LATCH);
+}
+/****************************************************************//**
+Close the monitor subsystem. */
+UNIV_INTERN
+void
+srv_mon_free(void)
+/*==============*/
+{
+	mutex_free(&monitor_mutex);
+}
+#endif /* !HAVE_ATOMIC_BUILTINS_64 */
 
 /****************************************************************//**
 Get a monitor's "monitor_info" by its monitor id (index into the
@@ -1264,7 +1317,7 @@ srv_mon_set_module_control(
 		turn them on again (which could reset counter value) */
 		if (MONITOR_IS_ON(ix) && (set_option == MONITOR_TURN_ON)) {
 			fprintf(stderr, "Monitor '%s' is already enabled.\n",
-				srv_mon_get_name((monitor_id_t)ix));
+				srv_mon_get_name((monitor_id_t) ix));
 			continue;
 		}
 

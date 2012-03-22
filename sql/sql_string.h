@@ -320,7 +320,7 @@ public:
   friend int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
   friend int stringcmp(const String *a,const String *b);
   friend String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
-  uint32 numchars();
+  uint32 numchars() const;
   int charpos(int i,uint32 offset=0);
 
   int reserve(uint32 space_needed)
@@ -421,6 +421,26 @@ public:
     }
     return TRUE;
   }
+  /**
+    Make a zero-terminated copy of our value,allocated in the specified MEM_ROOT
+
+    @param root         MEM_ROOT to allocate the result
+
+    @return allocated string or NULL
+  */
+  char *dup(MEM_ROOT *root) const
+  {
+    if (str_length > 0 && Ptr[str_length - 1] == 0)
+      return static_cast<char *>(memdup_root(root, Ptr, str_length));
+
+    char *ret= static_cast<char*>(alloc_root(root, str_length + 1));
+    if (ret != NULL)
+    {
+      memcpy(ret, Ptr, str_length);
+      ret[str_length]= 0;
+    }
+    return ret;
+  }
 };
 
 
@@ -445,6 +465,11 @@ public:
   explicit StringBuffer(const CHARSET_INFO *cs) : String(buff, buff_sz, cs)
   {
     length(0);
+  }
+  StringBuffer(const char *str, size_t length, const CHARSET_INFO *cs)
+    : String(buff, buff_sz, cs)
+  {
+    set(str, length, cs);
   }
 };
 

@@ -923,22 +923,6 @@ int Write_rows_log_event_old::do_before_row_operations(TABLE *table)
     from the start.
   */
   table->file->ha_start_bulk_insert(0);
-  /*
-    We need TIMESTAMP_NO_AUTO_SET otherwise ha_write_row() will not use fill
-    any TIMESTAMP column with data from the row but instead will use
-    the event's current time.
-    As we replicate from TIMESTAMP to TIMESTAMP and slave has no extra
-    columns, we know that all TIMESTAMP columns on slave will receive explicit
-    data from the row, so TIMESTAMP_NO_AUTO_SET is ok.
-    When we allow a table without TIMESTAMP to be replicated to a table having
-    more columns including a TIMESTAMP column, or when we allow a TIMESTAMP
-    column to be replicated into a BIGINT column and the slave's table has a
-    TIMESTAMP column, then the slave's TIMESTAMP column will take its value
-    from set_time() which we called earlier (consistent with SBR). And then in
-    some cases we won't want TIMESTAMP_NO_AUTO_SET (will require some code to
-    analyze if explicit data is provided for slave's TIMESTAMP columns).
-  */
-  table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   return error;
 }
 
@@ -1124,8 +1108,6 @@ int Update_rows_log_event_old::do_before_row_operations(TABLE *table)
   }
   if (!m_memory)
     return HA_ERR_OUT_OF_MEM;
-
-  table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   return error;
 }
@@ -1932,7 +1914,7 @@ bool Old_rows_log_event::write_data_body(IO_CACHE*file)
 
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-void Old_rows_log_event::pack_info(Protocol *protocol)
+int Old_rows_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
   char const *const flagstr=
@@ -1940,6 +1922,7 @@ void Old_rows_log_event::pack_info(Protocol *protocol)
   size_t bytes= my_snprintf(buf, sizeof(buf),
                                "table_id: %lu%s", m_table_id, flagstr);
   protocol->store(buf, bytes, &my_charset_bin);
+  return 0;
 }
 #endif
 
@@ -2577,22 +2560,6 @@ Write_rows_log_event_old::do_before_row_operations(const Slave_reporting_capabil
     from the start.
   */
   m_table->file->ha_start_bulk_insert(0);
-  /*
-    We need TIMESTAMP_NO_AUTO_SET otherwise ha_write_row() will not use fill
-    any TIMESTAMP column with data from the row but instead will use
-    the event's current time.
-    As we replicate from TIMESTAMP to TIMESTAMP and slave has no extra
-    columns, we know that all TIMESTAMP columns on slave will receive explicit
-    data from the row, so TIMESTAMP_NO_AUTO_SET is ok.
-    When we allow a table without TIMESTAMP to be replicated to a table having
-    more columns including a TIMESTAMP column, or when we allow a TIMESTAMP
-    column to be replicated into a BIGINT column and the slave's table has a
-    TIMESTAMP column, then the slave's TIMESTAMP column will take its value
-    from set_time() which we called earlier (consistent with SBR). And then in
-    some cases we won't want TIMESTAMP_NO_AUTO_SET (will require some code to
-    analyze if explicit data is provided for slave's TIMESTAMP columns).
-  */
-  m_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   return error;
 }
 
@@ -2800,8 +2767,6 @@ Update_rows_log_event_old::do_before_row_operations(const Slave_reporting_capabi
     if (!m_key)
       return HA_ERR_OUT_OF_MEM;
   }
-
-  m_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   return 0;
 }

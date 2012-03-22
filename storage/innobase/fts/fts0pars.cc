@@ -2,20 +2,20 @@
 /* A Bison parser, made by GNU Bison 2.4.1.  */
 
 /* Skeleton implementation for Bison's Yacc-like parsers in C
-   
+
       Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
-   
+
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
@@ -28,7 +28,7 @@
    special exception, which will cause the skeleton and the resulting
    Bison output files to be licensed under the GNU General Public
    License without this special exception.
-   
+
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
@@ -100,7 +100,7 @@ extern int ftserror(const char* p);
 
 /* For passing an argument to yyparse() */
 #define YYPARSE_PARAM state
-#define YYLEX_PARAM ((fts_ast_state_t*)state)->lexer
+#define YYLEX_PARAM ((fts_ast_state_t*) state)->lexer
 
 typedef	int	(*fts_scanner_alt)(YYSTYPE* val, yyscan_t yyscanner);
 typedef	int	(*fts_scanner)();
@@ -324,7 +324,7 @@ void *malloc (YYSIZE_T); /* INFRINGES ON USER NAME SPACE */
 #   define YYFREE free
 #   if ! defined free && ! defined _STDLIB_H && (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
-void free (void *); /* INFRINGES ON USER NAME SPACE */
+void free (void*); /* INFRINGES ON USER NAME SPACE */
 #   endif
 #  endif
 # endif
@@ -846,7 +846,7 @@ int yydebug;
 # define YYMAXDEPTH 10000
 #endif
 
-
+
 
 #if YYERROR_VERBOSE
 
@@ -1057,7 +1057,7 @@ yysyntax_error (char *yyresult, int yystate, int yychar)
     }
 }
 #endif /* YYERROR_VERBOSE */
-
+
 
 /*-----------------------------------------------.
 | Release the memory associated to this symbol.  |
@@ -1259,7 +1259,7 @@ YYSTYPE yylval;
       {
 	yytype_int16 *yyss1 = yyss;
 	union yyalloc *yyptr =
-	  (union yyalloc *) YYSTACK_ALLOC (YYSTACK_BYTES (yystacksize));
+	  (union yyalloc*) YYSTACK_ALLOC (YYSTACK_BYTES (yystacksize));
 	if (! yyptr)
 	  goto yyexhaustedlab;
 	YYSTACK_RELOCATE (yyss_alloc, yyss);
@@ -1389,7 +1389,7 @@ yyreduce:
 #line 79 "fts0pars.y"
     {
 		(yyval.node) = (yyvsp[(1) - (1)].node);
-		((fts_ast_state_t*)state)->root = (yyval.node);
+		((fts_ast_state_t*) state)->root = (yyval.node);
 	;}
     break;
 
@@ -1659,7 +1659,7 @@ yyerrlab:
 	      yyalloc = YYSTACK_ALLOC_MAXIMUM;
 	    if (yymsg != yymsgbuf)
 	      YYSTACK_FREE (yymsg);
-	    yymsg = (char *) YYSTACK_ALLOC (yyalloc);
+	    yymsg = (char*) YYSTACK_ALLOC (yyalloc);
 	    if (yymsg)
 	      yymsg_alloc = yyalloc;
 	    else
@@ -1854,13 +1854,13 @@ fts_lexer_create(
 
 	if (boolean_mode) {
 		fts0blex_init(&fts_lexer->yyscanner);
-		fts0b_scan_bytes((char*)query, query_len, fts_lexer->yyscanner);
+		fts0b_scan_bytes((char*) query, query_len, fts_lexer->yyscanner);
 		fts_lexer->scanner = (fts_scan) fts_blexer;
 		/* FIXME: Debugging */
 		/* fts0bset_debug(1 , fts_lexer->yyscanner); */
 	} else {
 		fts0tlex_init(&fts_lexer->yyscanner);
-		fts0t_scan_bytes((char*)query, query_len, fts_lexer->yyscanner);
+		fts0t_scan_bytes((char*) query, query_len, fts_lexer->yyscanner);
 		fts_lexer->scanner = (fts_scan) fts_tlexer;
 	}
 

@@ -51,29 +51,29 @@ ER_YES
         spa "SI"
         ukr "ТАК"
 ER_CANT_CREATE_FILE  
-        cze "Nemohu vytvo-Břit soubor '%-.200s' (chybový kód: %d)"
-        dan "Kan ikke oprette filen '%-.200s' (Fejlkode: %d)"
-        nla "Kan file '%-.200s' niet aanmaken (Errcode: %d)"
-        eng "Can't create file '%-.200s' (errno: %d)"
-        est "Ei suuda luua faili '%-.200s' (veakood: %d)"
-        fre "Ne peut créer le fichier '%-.200s' (Errcode: %d)"
-        ger "Kann Datei '%-.200s' nicht erzeugen (Fehler: %d)"
-        greek "Αδύνατη η δημιουργία του αρχείου '%-.200s' (κωδικός λάθους: %d)"
-        hun "A '%-.200s' file nem hozhato letre (hibakod: %d)"
-        ita "Impossibile creare il file '%-.200s' (errno: %d)"
-        jpn "'%-.200s' ファイルが作れません (errno: %d)"
-        kor "화일 '%-.200s'를 만들지 못했습니다. (에러번호: %d)"
-        nor "Kan ikke opprette fila '%-.200s' (Feilkode: %d)"
-        norwegian-ny "Kan ikkje opprette fila '%-.200s' (Feilkode: %d)"
-        pol "Nie można stworzyć pliku '%-.200s' (Kod błędu: %d)"
-        por "Não pode criar o arquivo '%-.200s' (erro no. %d)"
-        rum "Nu pot sa creez fisierul '%-.200s' (Eroare: %d)"
-        rus "Невозможно создать файл '%-.200s' (ошибка: %d)"
-        serbian "Ne mogu da kreiram file '%-.200s' (errno: %d)"
-        slo "Nemôžem vytvoriť súbor '%-.200s' (chybový kód: %d)"
-        spa "No puedo crear archivo '%-.200s' (Error: %d)"
-        swe "Kan inte skapa filen '%-.200s' (Felkod: %d)"
-        ukr "Не можу створити файл '%-.200s' (помилка: %d)"
+        cze "Nemohu vytvo-Břit soubor '%-.200s' (chybový kód: %d - %s)"
+        dan "Kan ikke oprette filen '%-.200s' (Fejlkode: %d - %s)"
+        nla "Kan file '%-.200s' niet aanmaken (Errcode: %d - %s)"
+        eng "Can't create file '%-.200s' (errno: %d - %s)"
+        est "Ei suuda luua faili '%-.200s' (veakood: %d - %s)"
+        fre "Ne peut créer le fichier '%-.200s' (Errcode: %d - %s)"
+        ger "Kann Datei '%-.200s' nicht erzeugen (Fehler: %d - %s)"
+        greek "Αδύνατη η δημιουργία του αρχείου '%-.200s' (κωδικός λάθους: %d - %s)"
+        hun "A '%-.200s' file nem hozhato letre (hibakod: %d - %s)"
+        ita "Impossibile creare il file '%-.200s' (errno: %d - %s)"
+        jpn "'%-.200s' ファイルが作れません (errno: %d - %s)"
+        kor "화일 '%-.200s'를 만들지 못했습니다. (에러번호: %d - %s)"
+        nor "Kan ikke opprette fila '%-.200s' (Feilkode: %d - %s)"
+        norwegian-ny "Kan ikkje opprette fila '%-.200s' (Feilkode: %d - %s)"
+        pol "Nie można stworzyć pliku '%-.200s' (Kod błędu: %d - %s)"
+        por "Não pode criar o arquivo '%-.200s' (erro no. %d - %s)"
+        rum "Nu pot sa creez fisierul '%-.200s' (Eroare: %d - %s)"
+        rus "Невозможно создать файл '%-.200s' (ошибка: %d - %s)"
+        serbian "Ne mogu da kreiram file '%-.200s' (errno: %d - %s)"
+        slo "Nemôžem vytvoriť súbor '%-.200s' (chybový kód: %d - %s)"
+        spa "No puedo crear archivo '%-.200s' (Error: %d - %s)"
+        swe "Kan inte skapa filen '%-.200s' (Felkod: %d - %s)"
+        ukr "Не можу створити файл '%-.200s' (помилка: %d - %s)"
 ER_CANT_CREATE_TABLE  
         cze "Nemohu vytvo-Břit tabulku '%-.200s' (chybový kód: %d)"
         dan "Kan ikke oprette tabellen '%-.200s' (Fejlkode: %d)"
@@ -225,30 +225,30 @@ ER_DB_DROP_RMDIR
         swe "Fel vid radering av databasen (Kan inte radera biblioteket '%-.192s'. Felkod: %d)"
         ukr "Не можу видалити базу данних (Не можу видалити теку '%-.192s', помилка: %d)"
 ER_CANT_DELETE_FILE  
-        cze "Chyba p-Bři výmazu '%-.192s' (chybový kód: %d)"
-        dan "Fejl ved sletning af '%-.192s' (Fejlkode: %d)"
-        nla "Fout bij het verwijderen van '%-.192s' (Errcode: %d)"
-        eng "Error on delete of '%-.192s' (errno: %d)"
-        jps "'%-.192s' の削除がエラー (errno: %d)",
-        est "Viga '%-.192s' kustutamisel (veakood: %d)"
-        fre "Erreur en effaçant '%-.192s' (Errcode: %d)"
-        ger "Fehler beim Löschen von '%-.192s' (Fehler: %d)"
-        greek "Παρουσιάστηκε πρόβλημα κατά τη διαγραφή '%-.192s' (κωδικός λάθους: %d)"
-        hun "Torlesi hiba: '%-.192s' (hibakod: %d)"
-        ita "Errore durante la cancellazione di '%-.192s' (errno: %d)"
-        jpn "'%-.192s' の削除がエラー (errno: %d)"
-        kor "'%-.192s' 삭제 중 에러 (에러번호: %d)"
-        nor "Feil ved sletting av '%-.192s' (Feilkode: %d)"
-        norwegian-ny "Feil ved sletting av '%-.192s' (Feilkode: %d)"
-        pol "Bł?d podczas usuwania '%-.192s' (Kod błędu: %d)"
-        por "Erro na remoção de '%-.192s' (erro no. %d)"
-        rum "Eroare incercind sa delete '%-.192s' (Eroare: %d)"
-        rus "Ошибка при удалении '%-.192s' (ошибка: %d)"
-        serbian "Greška pri brisanju '%-.192s' (errno: %d)"
-        slo "Chyba pri mazaní '%-.192s' (chybový kód: %d)"
-        spa "Error en el borrado de '%-.192s' (Error: %d)"
-        swe "Kan inte radera filen '%-.192s' (Felkod: %d)"
-        ukr "Не можу видалити '%-.192s' (помилка: %d)"
+        cze "Chyba p-Bři výmazu '%-.192s' (chybový kód: %d - %s)"
+        dan "Fejl ved sletning af '%-.192s' (Fejlkode: %d - %s)"
+        nla "Fout bij het verwijderen van '%-.192s' (Errcode: %d - %s)"
+        eng "Error on delete of '%-.192s' (errno: %d - %s)"
+        jps "'%-.192s' の削除がエラー (errno: %d - %s)",
+        est "Viga '%-.192s' kustutamisel (veakood: %d - %s)"
+        fre "Erreur en effaçant '%-.192s' (Errcode: %d - %s)"
+        ger "Fehler beim Löschen von '%-.192s' (Fehler: %d - %s)"
+        greek "Παρουσιάστηκε πρόβλημα κατά τη διαγραφή '%-.192s' (κωδικός λάθους: %d - %s)"
+        hun "Torlesi hiba: '%-.192s' (hibakod: %d - %s)"
+        ita "Errore durante la cancellazione di '%-.192s' (errno: %d - %s)"
+        jpn "'%-.192s' の削除がエラー (errno: %d - %s)"
+        kor "'%-.192s' 삭제 중 에러 (에러번호: %d - %s)"
+        nor "Feil ved sletting av '%-.192s' (Feilkode: %d - %s)"
+        norwegian-ny "Feil ved sletting av '%-.192s' (Feilkode: %d - %s)"
+        pol "Bł?d podczas usuwania '%-.192s' (Kod błędu: %d - %s)"
+        por "Erro na remoção de '%-.192s' (erro no. %d - %s)"
+        rum "Eroare incercind sa delete '%-.192s' (Eroare: %d - %s)"
+        rus "Ошибка при удалении '%-.192s' (ошибка: %d - %s)"
+        serbian "Greška pri brisanju '%-.192s' (errno: %d - %s)"
+        slo "Chyba pri mazaní '%-.192s' (chybový kód: %d - %s)"
+        spa "Error en el borrado de '%-.192s' (Error: %d - %s)"
+        swe "Kan inte radera filen '%-.192s' (Felkod: %d - %s)"
+        ukr "Не можу видалити '%-.192s' (помилка: %d - %s)"
 ER_CANT_FIND_SYSTEM_REC  
         cze "Nemohu -Bčíst záznam v systémové tabulce"
         dan "Kan ikke læse posten i systemfolderen"
@@ -275,180 +275,180 @@ ER_CANT_FIND_SYSTEM_REC
         swe "Hittar inte posten i systemregistret"
         ukr "Не можу зчитати запис з системної таблиці"
 ER_CANT_GET_STAT  
-        cze "Nemohu z-Bískat stav '%-.200s' (chybový kód: %d)"
-        dan "Kan ikke læse status af '%-.200s' (Fejlkode: %d)"
-        nla "Kan de status niet krijgen van '%-.200s' (Errcode: %d)"
-        eng "Can't get status of '%-.200s' (errno: %d)"
-        jps "'%-.200s' のステイタスが得られません. (errno: %d)",
-        est "Ei suuda lugeda '%-.200s' olekut (veakood: %d)"
-        fre "Ne peut obtenir le status de '%-.200s' (Errcode: %d)"
-        ger "Kann Status von '%-.200s' nicht ermitteln (Fehler: %d)"
-        greek "Αδύνατη η λήψη πληροφοριών για την κατάσταση του '%-.200s' (κωδικός λάθους: %d)"
-        hun "A(z) '%-.200s' statusza nem allapithato meg (hibakod: %d)"
-        ita "Impossibile leggere lo stato di '%-.200s' (errno: %d)"
-        jpn "'%-.200s' のステイタスが得られません. (errno: %d)"
-        kor "'%-.200s'의 상태를 얻지 못했습니다. (에러번호: %d)"
-        nor "Kan ikke lese statusen til '%-.200s' (Feilkode: %d)"
-        norwegian-ny "Kan ikkje lese statusen til '%-.200s' (Feilkode: %d)"
-        pol "Nie można otrzymać statusu '%-.200s' (Kod błędu: %d)"
-        por "Não pode obter o status de '%-.200s' (erro no. %d)"
-        rum "Nu pot sa obtin statusul lui '%-.200s' (Eroare: %d)"
-        rus "Невозможно получить статусную информацию о '%-.200s' (ошибка: %d)"
-        serbian "Ne mogu da dobijem stanje file-a '%-.200s' (errno: %d)"
-        slo "Nemôžem zistiť stav '%-.200s' (chybový kód: %d)"
-        spa "No puedo obtener el estado de '%-.200s' (Error: %d)"
-        swe "Kan inte läsa filinformationen (stat) från '%-.200s' (Felkod: %d)"
-        ukr "Не можу отримати статус '%-.200s' (помилка: %d)"
+        cze "Nemohu z-Bískat stav '%-.200s' (chybový kód: %d - %s)"
+        dan "Kan ikke læse status af '%-.200s' (Fejlkode: %d - %s)"
+        nla "Kan de status niet krijgen van '%-.200s' (Errcode: %d - %s)"
+        eng "Can't get status of '%-.200s' (errno: %d - %s)"
+        jps "'%-.200s' のステイタスが得られません. (errno: %d - %s)",
+        est "Ei suuda lugeda '%-.200s' olekut (veakood: %d - %s)"
+        fre "Ne peut obtenir le status de '%-.200s' (Errcode: %d - %s)"
+        ger "Kann Status von '%-.200s' nicht ermitteln (Fehler: %d - %s)"
+        greek "Αδύνατη η λήψη πληροφοριών για την κατάσταση του '%-.200s' (κωδικός λάθους: %d - %s)"
+        hun "A(z) '%-.200s' statusza nem allapithato meg (hibakod: %d - %s)"
+        ita "Impossibile leggere lo stato di '%-.200s' (errno: %d - %s)"
+        jpn "'%-.200s' のステイタスが得られません. (errno: %d - %s)"
+        kor "'%-.200s'의 상태를 얻지 못했습니다. (에러번호: %d - %s)"
+        nor "Kan ikke lese statusen til '%-.200s' (Feilkode: %d - %s)"
+        norwegian-ny "Kan ikkje lese statusen til '%-.200s' (Feilkode: %d - %s)"
+        pol "Nie można otrzymać statusu '%-.200s' (Kod błędu: %d - %s)"
+        por "Não pode obter o status de '%-.200s' (erro no. %d - %s)"
+        rum "Nu pot sa obtin statusul lui '%-.200s' (Eroare: %d - %s)"
+        rus "Невозможно получить статусную информацию о '%-.200s' (ошибка: %d - %s)"
+        serbian "Ne mogu da dobijem stanje file-a '%-.200s' (errno: %d - %s)"
+        slo "Nemôžem zistiť stav '%-.200s' (chybový kód: %d - %s)"
+        spa "No puedo obtener el estado de '%-.200s' (Error: %d - %s)"
+        swe "Kan inte läsa filinformationen (stat) från '%-.200s' (Felkod: %d - %s)"
+        ukr "Не можу отримати статус '%-.200s' (помилка: %d - %s)"
 ER_CANT_GET_WD  
-        cze "Chyba p-Bři zjišťování pracovní adresář (chybový kód: %d)"
-        dan "Kan ikke læse aktive folder (Fejlkode: %d)"
-        nla "Kan de werkdirectory niet krijgen (Errcode: %d)"
-        eng "Can't get working directory (errno: %d)"
-        jps "working directory を得る事ができませんでした (errno: %d)",
-        est "Ei suuda identifitseerida jooksvat kataloogi (veakood: %d)"
-        fre "Ne peut obtenir le répertoire de travail (Errcode: %d)"
-        ger "Kann Arbeitsverzeichnis nicht ermitteln (Fehler: %d)"
-        greek "Ο φάκελλος εργασίας δεν βρέθηκε (κωδικός λάθους: %d)"
-        hun "A munkakonyvtar nem allapithato meg (hibakod: %d)"
-        ita "Impossibile leggere la directory di lavoro (errno: %d)"
-        jpn "working directory を得る事ができませんでした (errno: %d)"
-        kor "수행 디렉토리를 찾지 못했습니다. (에러번호: %d)"
-        nor "Kan ikke lese aktiv katalog(Feilkode: %d)"
-        norwegian-ny "Kan ikkje lese aktiv katalog(Feilkode: %d)"
-        pol "Nie można rozpoznać aktualnego katalogu (Kod błędu: %d)"
-        por "Não pode obter o diretório corrente (erro no. %d)"
-        rum "Nu pot sa obtin directorul current (working directory) (Eroare: %d)"
-        rus "Невозможно определить рабочий каталог (ошибка: %d)"
-        serbian "Ne mogu da dobijem trenutni direktorijum (errno: %d)"
-        slo "Nemôžem zistiť pracovný adresár (chybový kód: %d)"
-        spa "No puedo acceder al directorio (Error: %d)"
-        swe "Kan inte inte läsa aktivt bibliotek. (Felkod: %d)"
-        ukr "Не можу визначити робочу теку (помилка: %d)"
+        cze "Chyba p-Bři zjišťování pracovní adresář (chybový kód: %d - %s)"
+        dan "Kan ikke læse aktive folder (Fejlkode: %d - %s)"
+        nla "Kan de werkdirectory niet krijgen (Errcode: %d - %s)"
+        eng "Can't get working directory (errno: %d - %s)"
+        jps "working directory を得る事ができませんでした (errno: %d - %s)",
+        est "Ei suuda identifitseerida jooksvat kataloogi (veakood: %d - %s)"
+        fre "Ne peut obtenir le répertoire de travail (Errcode: %d - %s)"
+        ger "Kann Arbeitsverzeichnis nicht ermitteln (Fehler: %d - %s)"
+        greek "Ο φάκελλος εργασίας δεν βρέθηκε (κωδικός λάθους: %d - %s)"
+        hun "A munkakonyvtar nem allapithato meg (hibakod: %d - %s)"
+        ita "Impossibile leggere la directory di lavoro (errno: %d - %s)"
+        jpn "working directory を得る事ができませんでした (errno: %d - %s)"
+        kor "수행 디렉토리를 찾지 못했습니다. (에러번호: %d - %s)"
+        nor "Kan ikke lese aktiv katalog(Feilkode: %d - %s)"
+        norwegian-ny "Kan ikkje lese aktiv katalog(Feilkode: %d - %s)"
+        pol "Nie można rozpoznać aktualnego katalogu (Kod błędu: %d - %s)"
+        por "Não pode obter o diretório corrente (erro no. %d - %s)"
+        rum "Nu pot sa obtin directorul current (working directory) (Eroare: %d - %s)"
+        rus "Невозможно определить рабочий каталог (ошибка: %d - %s)"
+        serbian "Ne mogu da dobijem trenutni direktorijum (errno: %d - %s)"
+        slo "Nemôžem zistiť pracovný adresár (chybový kód: %d - %s)"
+        spa "No puedo acceder al directorio (Error: %d - %s)"
+        swe "Kan inte inte läsa aktivt bibliotek. (Felkod: %d - %s)"
+        ukr "Не можу визначити робочу теку (помилка: %d - %s)"
 ER_CANT_LOCK  
-        cze "Nemohu uzamknout soubor (chybov-Bý kód: %d)"
-        dan "Kan ikke låse fil (Fejlkode: %d)"
-        nla "Kan de file niet blokeren (Errcode: %d)"
-        eng "Can't lock file (errno: %d)"
-        jps "ファイルをロックできません (errno: %d)",
-        est "Ei suuda lukustada faili (veakood: %d)"
-        fre "Ne peut verrouiller le fichier (Errcode: %d)"
-        ger "Datei kann nicht gesperrt werden (Fehler: %d)"
-        greek "Το αρχείο δεν μπορεί να κλειδωθεί (κωδικός λάθους: %d)"
-        hun "A file nem zarolhato. (hibakod: %d)"
-        ita "Impossibile il locking il file (errno: %d)"
-        jpn "ファイルをロックできません (errno: %d)"
-        kor "화일을 잠그지(lock) 못했습니다. (에러번호: %d)"
-        nor "Kan ikke låse fila (Feilkode: %d)"
-        norwegian-ny "Kan ikkje låse fila (Feilkode: %d)"
-        pol "Nie można zablokować pliku (Kod błędu: %d)"
-        por "Não pode travar o arquivo (erro no. %d)"
-        rum "Nu pot sa lock fisierul (Eroare: %d)"
-        rus "Невозможно поставить блокировку на файле (ошибка: %d)"
-        serbian "Ne mogu da zaključam file (errno: %d)"
-        slo "Nemôžem zamknúť súbor (chybový kód: %d)"
-        spa "No puedo bloquear archivo: (Error: %d)"
-        swe "Kan inte låsa filen. (Felkod: %d)"
-        ukr "Не можу заблокувати файл (помилка: %d)"
+        cze "Nemohu uzamknout soubor (chybov-Bý kód: %d - %s)"
+        dan "Kan ikke låse fil (Fejlkode: %d - %s)"
+        nla "Kan de file niet blokeren (Errcode: %d - %s)"
+        eng "Can't lock file (errno: %d - %s)"
+        jps "ファイルをロックできません (errno: %d - %s)",
+        est "Ei suuda lukustada faili (veakood: %d - %s)"
+        fre "Ne peut verrouiller le fichier (Errcode: %d - %s)"
+        ger "Datei kann nicht gesperrt werden (Fehler: %d - %s)"
+        greek "Το αρχείο δεν μπορεί να κλειδωθεί (κωδικός λάθους: %d - %s)"
+        hun "A file nem zarolhato. (hibakod: %d - %s)"
+        ita "Impossibile il locking il file (errno: %d - %s)"
+        jpn "ファイルをロックできません (errno: %d - %s)"
+        kor "화일을 잠그지(lock) 못했습니다. (에러번호: %d - %s)"
+        nor "Kan ikke låse fila (Feilkode: %d - %s)"
+        norwegian-ny "Kan ikkje låse fila (Feilkode: %d - %s)"
+        pol "Nie można zablokować pliku (Kod błędu: %d - %s)"
+        por "Não pode travar o arquivo (erro no. %d - %s)"
+        rum "Nu pot sa lock fisierul (Eroare: %d - %s)"
+        rus "Невозможно поставить блокировку на файле (ошибка: %d - %s)"
+        serbian "Ne mogu da zaključam file (errno: %d - %s)"
+        slo "Nemôžem zamknúť súbor (chybový kód: %d - %s)"
+        spa "No puedo bloquear archivo: (Error: %d - %s)"
+        swe "Kan inte låsa filen. (Felkod: %d - %s)"
+        ukr "Не можу заблокувати файл (помилка: %d - %s)"
 ER_CANT_OPEN_FILE  
-        cze "Nemohu otev-Břít soubor '%-.200s' (chybový kód: %d)"
-        dan "Kan ikke åbne fil: '%-.200s' (Fejlkode: %d)"
-        nla "Kan de file '%-.200s' niet openen (Errcode: %d)"
-        eng "Can't open file: '%-.200s' (errno: %d)"
-        jps "'%-.200s' ファイルを開く事ができません (errno: %d)",
-        est "Ei suuda avada faili '%-.200s' (veakood: %d)"
-        fre "Ne peut ouvrir le fichier: '%-.200s' (Errcode: %d)"
-        ger "Kann Datei '%-.200s' nicht öffnen (Fehler: %d)"
-        greek "Δεν είναι δυνατό να ανοιχτεί το αρχείο: '%-.200s' (κωδικός λάθους: %d)"
-        hun "A '%-.200s' file nem nyithato meg (hibakod: %d)"
-        ita "Impossibile aprire il file: '%-.200s' (errno: %d)"
-        jpn "'%-.200s' ファイルを開く事ができません (errno: %d)"
-        kor "화일을 열지 못했습니다.: '%-.200s' (에러번호: %d)"
-        nor "Kan ikke åpne fila: '%-.200s' (Feilkode: %d)"
-        norwegian-ny "Kan ikkje åpne fila: '%-.200s' (Feilkode: %d)"
-        pol "Nie można otworzyć pliku: '%-.200s' (Kod błędu: %d)"
-        por "Não pode abrir o arquivo '%-.200s' (erro no. %d)"
-        rum "Nu pot sa deschid fisierul: '%-.200s' (Eroare: %d)"
-        rus "Невозможно открыть файл: '%-.200s' (ошибка: %d)"
-        serbian "Ne mogu da otvorim file: '%-.200s' (errno: %d)"
-        slo "Nemôžem otvoriť súbor: '%-.200s' (chybový kód: %d)"
-        spa "No puedo abrir archivo: '%-.200s' (Error: %d)"
-        swe "Kan inte använda '%-.200s' (Felkod: %d)"
-        ukr "Не можу відкрити файл: '%-.200s' (помилка: %d)"
+        cze "Nemohu otev-Břít soubor '%-.200s' (chybový kód: %d - %s)"
+        dan "Kan ikke åbne fil: '%-.200s' (Fejlkode: %d - %s)"
+        nla "Kan de file '%-.200s' niet openen (Errcode: %d - %s)"
+        eng "Can't open file: '%-.200s' (errno: %d - %s)"
+        jps "'%-.200s' ファイルを開く事ができません (errno: %d - %s)",
+        est "Ei suuda avada faili '%-.200s' (veakood: %d - %s)"
+        fre "Ne peut ouvrir le fichier: '%-.200s' (Errcode: %d - %s)"
+        ger "Kann Datei '%-.200s' nicht öffnen (Fehler: %d - %s)"
+        greek "Δεν είναι δυνατό να ανοιχτεί το αρχείο: '%-.200s' (κωδικός λάθους: %d - %s)"
+        hun "A '%-.200s' file nem nyithato meg (hibakod: %d - %s)"
+        ita "Impossibile aprire il file: '%-.200s' (errno: %d - %s)"
+        jpn "'%-.200s' ファイルを開く事ができません (errno: %d - %s)"
+        kor "화일을 열지 못했습니다.: '%-.200s' (에러번호: %d - %s)"
+        nor "Kan ikke åpne fila: '%-.200s' (Feilkode: %d - %s)"
+        norwegian-ny "Kan ikkje åpne fila: '%-.200s' (Feilkode: %d - %s)"
+        pol "Nie można otworzyć pliku: '%-.200s' (Kod błędu: %d - %s)"
+        por "Não pode abrir o arquivo '%-.200s' (erro no. %d - %s)"
+        rum "Nu pot sa deschid fisierul: '%-.200s' (Eroare: %d - %s)"
+        rus "Невозможно открыть файл: '%-.200s' (ошибка: %d - %s)"
+        serbian "Ne mogu da otvorim file: '%-.200s' (errno: %d - %s)"
+        slo "Nemôžem otvoriť súbor: '%-.200s' (chybový kód: %d - %s)"
+        spa "No puedo abrir archivo: '%-.200s' (Error: %d - %s)"
+        swe "Kan inte använda '%-.200s' (Felkod: %d - %s)"
+        ukr "Не можу відкрити файл: '%-.200s' (помилка: %d - %s)"
 ER_FILE_NOT_FOUND  
-        cze "Nemohu naj-Bít soubor '%-.200s' (chybový kód: %d)"
-        dan "Kan ikke finde fila: '%-.200s' (Fejlkode: %d)"
-        nla "Kan de file: '%-.200s' niet vinden (Errcode: %d)"
-        eng "Can't find file: '%-.200s' (errno: %d)"
-        jps "'%-.200s' ファイルを見付ける事ができません.(errno: %d)",
-        est "Ei suuda leida faili '%-.200s' (veakood: %d)"
-        fre "Ne peut trouver le fichier: '%-.200s' (Errcode: %d)"
-        ger "Kann Datei '%-.200s' nicht finden (Fehler: %d)"
-        greek "Δεν βρέθηκε το αρχείο: '%-.200s' (κωδικός λάθους: %d)"
-        hun "A(z) '%-.200s' file nem talalhato (hibakod: %d)"
-        ita "Impossibile trovare il file: '%-.200s' (errno: %d)"
-        jpn "'%-.200s' ファイルを見付ける事ができません.(errno: %d)"
-        kor "화일을 찾지 못했습니다.: '%-.200s' (에러번호: %d)"
-        nor "Kan ikke finne fila: '%-.200s' (Feilkode: %d)"
-        norwegian-ny "Kan ikkje finne fila: '%-.200s' (Feilkode: %d)"
-        pol "Nie można znaleĽć pliku: '%-.200s' (Kod błędu: %d)"
-        por "Não pode encontrar o arquivo '%-.200s' (erro no. %d)"
-        rum "Nu pot sa gasesc fisierul: '%-.200s' (Eroare: %d)"
-        rus "Невозможно найти файл: '%-.200s' (ошибка: %d)"
-        serbian "Ne mogu da pronađem file: '%-.200s' (errno: %d)"
-        slo "Nemôžem nájsť súbor: '%-.200s' (chybový kód: %d)"
-        spa "No puedo encontrar archivo: '%-.200s' (Error: %d)"
-        swe "Hittar inte filen '%-.200s' (Felkod: %d)"
-        ukr "Не можу знайти файл: '%-.200s' (помилка: %d)"
+        cze "Nemohu naj-Bít soubor '%-.200s' (chybový kód: %d - %s)"
+        dan "Kan ikke finde fila: '%-.200s' (Fejlkode: %d - %s)"
+        nla "Kan de file: '%-.200s' niet vinden (Errcode: %d - %s)"
+        eng "Can't find file: '%-.200s' (errno: %d - %s)"
+        jps "'%-.200s' ファイルを見付ける事ができません.(errno: %d - %s)",
+        est "Ei suuda leida faili '%-.200s' (veakood: %d - %s)"
+        fre "Ne peut trouver le fichier: '%-.200s' (Errcode: %d - %s)"
+        ger "Kann Datei '%-.200s' nicht finden (Fehler: %d - %s)"
+        greek "Δεν βρέθηκε το αρχείο: '%-.200s' (κωδικός λάθους: %d - %s)"
+        hun "A(z) '%-.200s' file nem talalhato (hibakod: %d - %s)"
+        ita "Impossibile trovare il file: '%-.200s' (errno: %d - %s)"
+        jpn "'%-.200s' ファイルを見付ける事ができません.(errno: %d - %s)"
+        kor "화일을 찾지 못했습니다.: '%-.200s' (에러번호: %d - %s)"
+        nor "Kan ikke finne fila: '%-.200s' (Feilkode: %d - %s)"
+        norwegian-ny "Kan ikkje finne fila: '%-.200s' (Feilkode: %d - %s)"
+        pol "Nie można znaleĽć pliku: '%-.200s' (Kod błędu: %d - %s)"
+        por "Não pode encontrar o arquivo '%-.200s' (erro no. %d - %s)"
+        rum "Nu pot sa gasesc fisierul: '%-.200s' (Eroare: %d - %s)"
+        rus "Невозможно найти файл: '%-.200s' (ошибка: %d - %s)"
+        serbian "Ne mogu da pronađem file: '%-.200s' (errno: %d - %s)"
+        slo "Nemôžem nájsť súbor: '%-.200s' (chybový kód: %d - %s)"
+        spa "No puedo encontrar archivo: '%-.200s' (Error: %d - %s)"
+        swe "Hittar inte filen '%-.200s' (Felkod: %d - %s)"
+        ukr "Не можу знайти файл: '%-.200s' (помилка: %d - %s)"
 ER_CANT_READ_DIR  
-        cze "Nemohu -Bčíst adresář '%-.192s' (chybový kód: %d)"
-        dan "Kan ikke læse folder '%-.192s' (Fejlkode: %d)"
-        nla "Kan de directory niet lezen van '%-.192s' (Errcode: %d)"
-        eng "Can't read dir of '%-.192s' (errno: %d)"
-        jps "'%-.192s' ディレクトリが読めません.(errno: %d)",
-        est "Ei suuda lugeda kataloogi '%-.192s' (veakood: %d)"
-        fre "Ne peut lire le répertoire de '%-.192s' (Errcode: %d)"
-        ger "Verzeichnis von '%-.192s' nicht lesbar (Fehler: %d)"
-        greek "Δεν είναι δυνατό να διαβαστεί ο φάκελλος του '%-.192s' (κωδικός λάθους: %d)"
-        hun "A(z) '%-.192s' konyvtar nem olvashato. (hibakod: %d)"
-        ita "Impossibile leggere la directory di '%-.192s' (errno: %d)"
-        jpn "'%-.192s' ディレクトリが読めません.(errno: %d)"
-        kor "'%-.192s'디렉토리를 읽지 못했습니다. (에러번호: %d)"
-        nor "Kan ikke lese katalogen '%-.192s' (Feilkode: %d)"
-        norwegian-ny "Kan ikkje lese katalogen '%-.192s' (Feilkode: %d)"
-        pol "Nie można odczytać katalogu '%-.192s' (Kod błędu: %d)"
-        por "Não pode ler o diretório de '%-.192s' (erro no. %d)"
-        rum "Nu pot sa citesc directorul '%-.192s' (Eroare: %d)"
-        rus "Невозможно прочитать каталог '%-.192s' (ошибка: %d)"
-        serbian "Ne mogu da pročitam direktorijum '%-.192s' (errno: %d)"
-        slo "Nemôžem čítať adresár '%-.192s' (chybový kód: %d)"
-        spa "No puedo leer el directorio de '%-.192s' (Error: %d)"
-        swe "Kan inte läsa från bibliotek '%-.192s' (Felkod: %d)"
-        ukr "Не можу прочитати теку '%-.192s' (помилка: %d)"
+        cze "Nemohu -Bčíst adresář '%-.192s' (chybový kód: %d - %s)"
+        dan "Kan ikke læse folder '%-.192s' (Fejlkode: %d - %s)"
+        nla "Kan de directory niet lezen van '%-.192s' (Errcode: %d - %s)"
+        eng "Can't read dir of '%-.192s' (errno: %d - %s)"
+        jps "'%-.192s' ディレクトリが読めません.(errno: %d - %s)",
+        est "Ei suuda lugeda kataloogi '%-.192s' (veakood: %d - %s)"
+        fre "Ne peut lire le répertoire de '%-.192s' (Errcode: %d - %s)"
+        ger "Verzeichnis von '%-.192s' nicht lesbar (Fehler: %d - %s)"
+        greek "Δεν είναι δυνατό να διαβαστεί ο φάκελλος του '%-.192s' (κωδικός λάθους: %d - %s)"
+        hun "A(z) '%-.192s' konyvtar nem olvashato. (hibakod: %d - %s)"
+        ita "Impossibile leggere la directory di '%-.192s' (errno: %d - %s)"
+        jpn "'%-.192s' ディレクトリが読めません.(errno: %d - %s)"
+        kor "'%-.192s'디렉토리를 읽지 못했습니다. (에러번호: %d - %s)"
+        nor "Kan ikke lese katalogen '%-.192s' (Feilkode: %d - %s)"
+        norwegian-ny "Kan ikkje lese katalogen '%-.192s' (Feilkode: %d - %s)"
+        pol "Nie można odczytać katalogu '%-.192s' (Kod błędu: %d - %s)"
+        por "Não pode ler o diretório de '%-.192s' (erro no. %d - %s)"
+        rum "Nu pot sa citesc directorul '%-.192s' (Eroare: %d - %s)"
+        rus "Невозможно прочитать каталог '%-.192s' (ошибка: %d - %s)"
+        serbian "Ne mogu da pročitam direktorijum '%-.192s' (errno: %d - %s)"
+        slo "Nemôžem čítať adresár '%-.192s' (chybový kód: %d - %s)"
+        spa "No puedo leer el directorio de '%-.192s' (Error: %d - %s)"
+        swe "Kan inte läsa från bibliotek '%-.192s' (Felkod: %d - %s)"
+        ukr "Не можу прочитати теку '%-.192s' (помилка: %d - %s)"
 ER_CANT_SET_WD  
-        cze "Nemohu zm-Běnit adresář na '%-.192s' (chybový kód: %d)"
-        dan "Kan ikke skifte folder til '%-.192s' (Fejlkode: %d)"
-        nla "Kan de directory niet veranderen naar '%-.192s' (Errcode: %d)"
-        eng "Can't change dir to '%-.192s' (errno: %d)"
-        jps "'%-.192s' ディレクトリに chdir できません.(errno: %d)",
-        est "Ei suuda siseneda kataloogi '%-.192s' (veakood: %d)"
-        fre "Ne peut changer le répertoire pour '%-.192s' (Errcode: %d)"
-        ger "Kann nicht in das Verzeichnis '%-.192s' wechseln (Fehler: %d)"
-        greek "Αδύνατη η αλλαγή του τρέχοντος καταλόγου σε '%-.192s' (κωδικός λάθους: %d)"
-        hun "Konyvtarvaltas nem lehetseges a(z) '%-.192s'-ba. (hibakod: %d)"
-        ita "Impossibile cambiare la directory in '%-.192s' (errno: %d)"
-        jpn "'%-.192s' ディレクトリに chdir できません.(errno: %d)"
-        kor "'%-.192s'디렉토리로 이동할 수 없었습니다. (에러번호: %d)"
-        nor "Kan ikke skifte katalog til '%-.192s' (Feilkode: %d)"
-        norwegian-ny "Kan ikkje skifte katalog til '%-.192s' (Feilkode: %d)"
-        pol "Nie można zmienić katalogu na '%-.192s' (Kod błędu: %d)"
-        por "Não pode mudar para o diretório '%-.192s' (erro no. %d)"
-        rum "Nu pot sa schimb directorul '%-.192s' (Eroare: %d)"
-        rus "Невозможно перейти в каталог '%-.192s' (ошибка: %d)"
-        serbian "Ne mogu da promenim direktorijum na '%-.192s' (errno: %d)"
-        slo "Nemôžem vojsť do adresára '%-.192s' (chybový kód: %d)"
-        spa "No puedo cambiar al directorio de '%-.192s' (Error: %d)"
-        swe "Kan inte byta till '%-.192s' (Felkod: %d)"
-        ukr "Не можу перейти у теку '%-.192s' (помилка: %d)"
+        cze "Nemohu zm-Běnit adresář na '%-.192s' (chybový kód: %d - %s)"
+        dan "Kan ikke skifte folder til '%-.192s' (Fejlkode: %d - %s)"
+        nla "Kan de directory niet veranderen naar '%-.192s' (Errcode: %d - %s)"
+        eng "Can't change dir to '%-.192s' (errno: %d - %s)"
+        jps "'%-.192s' ディレクトリに chdir できません.(errno: %d - %s)",
+        est "Ei suuda siseneda kataloogi '%-.192s' (veakood: %d - %s)"
+        fre "Ne peut changer le répertoire pour '%-.192s' (Errcode: %d - %s)"
+        ger "Kann nicht in das Verzeichnis '%-.192s' wechseln (Fehler: %d - %s)"
+        greek "Αδύνατη η αλλαγή του τρέχοντος καταλόγου σε '%-.192s' (κωδικός λάθους: %d - %s)"
+        hun "Konyvtarvaltas nem lehetseges a(z) '%-.192s'-ba. (hibakod: %d - %s)"
+        ita "Impossibile cambiare la directory in '%-.192s' (errno: %d - %s)"
+        jpn "'%-.192s' ディレクトリに chdir できません.(errno: %d - %s)"
+        kor "'%-.192s'디렉토리로 이동할 수 없었습니다. (에러번호: %d - %s)"
+        nor "Kan ikke skifte katalog til '%-.192s' (Feilkode: %d - %s)"
+        norwegian-ny "Kan ikkje skifte katalog til '%-.192s' (Feilkode: %d - %s)"
+        pol "Nie można zmienić katalogu na '%-.192s' (Kod błędu: %d - %s)"
+        por "Não pode mudar para o diretório '%-.192s' (erro no. %d - %s)"
+        rum "Nu pot sa schimb directorul '%-.192s' (Eroare: %d - %s)"
+        rus "Невозможно перейти в каталог '%-.192s' (ошибка: %d - %s)"
+        serbian "Ne mogu da promenim direktorijum na '%-.192s' (errno: %d - %s)"
+        slo "Nemôžem vojsť do adresára '%-.192s' (chybový kód: %d - %s)"
+        spa "No puedo cambiar al directorio de '%-.192s' (Error: %d - %s)"
+        swe "Kan inte byta till '%-.192s' (Felkod: %d - %s)"
+        ukr "Не можу перейти у теку '%-.192s' (помилка: %d - %s)"
 ER_CHECKREAD  
         cze "Z-Báznam byl změněn od posledního čtení v tabulce '%-.192s'"
         dan "Posten er ændret siden sidste læsning '%-.192s'"
@@ -473,30 +473,30 @@ ER_CHECKREAD
         swe "Posten har förändrats sedan den lästes i register '%-.192s'"
         ukr "Запис було змінено з часу останнього читання з таблиці '%-.192s'"
 ER_DISK_FULL  
-        cze "Disk je pln-Bý (%s), čekám na uvolnění nějakého místa ..."
-        dan "Ikke mere diskplads (%s). Venter på at få frigjort plads..."
-        nla "Schijf vol (%s). Aan het wachten totdat er ruimte vrij wordt gemaakt..."
-        eng "Disk full (%s); waiting for someone to free some space..."
-        jps "Disk full (%s). 誰かが何かを減らすまでまってください...",
-        est "Ketas täis (%s). Ootame kuni tekib vaba ruumi..."
-        fre "Disque plein (%s). J'attend que quelqu'un libère de l'espace..."
-        ger "Festplatte voll (%s). Warte, bis jemand Platz schafft ..."
-        greek "Δεν υπάρχει χώρος στο δίσκο (%s). Παρακαλώ, περιμένετε να ελευθερωθεί χώρος..."
-        hun "A lemez megtelt (%s)."
-        ita "Disco pieno (%s). In attesa che qualcuno liberi un po' di spazio..."
-        jpn "Disk full (%s). 誰かが何かを減らすまでまってください..."
-        kor "Disk full (%s). 다른 사람이 지울때까지 기다립니다..."
-        nor "Ikke mer diskplass (%s). Venter på å få frigjort plass..."
-        norwegian-ny "Ikkje meir diskplass (%s). Ventar på å få frigjort plass..."
-        pol "Dysk pełny (%s). Oczekiwanie na zwolnienie miejsca..."
-        por "Disco cheio (%s). Aguardando alguém liberar algum espaço..."
-        rum "Hard-disk-ul este plin (%s). Astept sa se elibereze ceva spatiu..."
-        rus "Диск заполнен. (%s). Ожидаем, пока кто-то не уберет после себя мусор..."
-        serbian "Disk je pun (%s). Čekam nekoga da dođe i oslobodi nešto mesta..."
-        slo "Disk je plný (%s), čakám na uvoľnenie miesta..."
-        spa "Disco lleno (%s). Esperando para que se libere algo de espacio..."
-        swe "Disken är full (%s). Väntar tills det finns ledigt utrymme..."
-        ukr "Диск заповнений (%s). Вичикую, доки звільниться трохи місця..."
+        cze "Disk je pln-Bý (%s), čekám na uvolnění nějakého místa ... (chybový kód: %d - %s)"
+        dan "Ikke mere diskplads (%s). Venter på at få frigjort plads... (Fejlkode: %d - %s)"
+        nla "Schijf vol (%s). Aan het wachten totdat er ruimte vrij wordt gemaakt... (Errcode: %d - %s)"
+        eng "Disk full (%s); waiting for someone to free some space... (errno: %d - %s)"
+        jps "Disk full (%s). 誰かが何かを減らすまでまってください...(errno: %d - %s)",
+        est "Ketas täis (%s). Ootame kuni tekib vaba ruumi... (veakood: %d - %s)"
+        fre "Disque plein (%s). J'attend que quelqu'un libère de l'espace... (Errcode: %d - %s)"
+        ger "Festplatte voll (%s). Warte, bis jemand Platz schafft ... (Fehler: %d - %s)"
+        greek "Δεν υπάρχει χώρος στο δίσκο (%s). Παρακαλώ, περιμένετε να ελευθερωθεί χώρος... (κωδικός λάθους: %d - %s)"
+        hun "A lemez megtelt (%s). (hibakod: %d - %s)"
+        ita "Disco pieno (%s). In attesa che qualcuno liberi un po' di spazio... (errno: %d - %s)"
+        jpn "Disk full (%s). 誰かが何かを減らすまでまってください...(errno: %d - %s)"
+        kor "Disk full (%s). 다른 사람이 지울때까지 기다립니다... (에러번호: %d - %s)"
+        nor "Ikke mer diskplass (%s). Venter på å få frigjort plass... (Feilkode: %d - %s)"
+        norwegian-ny "Ikkje meir diskplass (%s). Ventar på å få frigjort plass... (Feilkode: %d - %s)"
+        pol "Dysk pełny (%s). Oczekiwanie na zwolnienie miejsca... (Kod błędu: %d - %s)"
+        por "Disco cheio (%s). Aguardando alguém liberar algum espaço... (erro no. %d - %s)"
+        rum "Hard-disk-ul este plin (%s). Astept sa se elibereze ceva spatiu... (Eroare: %d - %s)"
+        rus "Диск заполнен. (%s). Ожидаем, пока кто-то не уберет после себя мусор... (ошибка: %d - %s)"
+        serbian "Disk je pun (%s). Čekam nekoga da dođe i oslobodi nešto mesta... (errno: %d - %s)"
+        slo "Disk je plný (%s), čakám na uvoľnenie miesta... (chybový kód: %d - %s)"
+        spa "Disco lleno (%s). Esperando para que se libere algo de espacio... (Error: %d - %s)"
+        swe "Disken är full (%s). Väntar tills det finns ledigt utrymme... (Felkod: %d - %s)"
+        ukr "Диск заповнений (%s). Вичикую, доки звільниться трохи місця... (помилка: %d - %s)"
 ER_DUP_KEY 23000 
         cze "Nemohu zapsat, zdvojen-Bý klíč v tabulce '%-.192s'"
         dan "Kan ikke skrive, flere ens nøgler i tabellen '%-.192s'"
@@ -523,103 +523,103 @@ ER_DUP_KEY 23000
         swe "Kan inte skriva, dubbel söknyckel i register '%-.192s'"
         ukr "Не можу записати, дублюючийся ключ в таблиці '%-.192s'"
 ER_ERROR_ON_CLOSE  
-        cze "Chyba p-Bři zavírání '%-.192s' (chybový kód: %d)"
-        dan "Fejl ved lukning af '%-.192s' (Fejlkode: %d)"
-        nla "Fout bij het sluiten van '%-.192s' (Errcode: %d)"
-        eng "Error on close of '%-.192s' (errno: %d)"
-        est "Viga faili '%-.192s' sulgemisel (veakood: %d)"
-        fre "Erreur a la fermeture de '%-.192s' (Errcode: %d)"
-        ger "Fehler beim Schließen von '%-.192s' (Fehler: %d)"
-        greek "Παρουσιάστηκε πρόβλημα κλείνοντας το '%-.192s' (κωδικός λάθους: %d)"
-        hun "Hiba a(z) '%-.192s' zarasakor. (hibakod: %d)"
-        ita "Errore durante la chiusura di '%-.192s' (errno: %d)"
-        kor "'%-.192s'닫는 중 에러 (에러번호: %d)"
-        nor "Feil ved lukking av '%-.192s' (Feilkode: %d)"
-        norwegian-ny "Feil ved lukking av '%-.192s' (Feilkode: %d)"
-        pol "Bł?d podczas zamykania '%-.192s' (Kod błędu: %d)"
-        por "Erro ao fechar '%-.192s' (erro no. %d)"
-        rum "Eroare inchizind '%-.192s' (errno: %d)"
-        rus "Ошибка при закрытии '%-.192s' (ошибка: %d)"
-        serbian "Greška pri zatvaranju '%-.192s' (errno: %d)"
-        slo "Chyba pri zatváraní '%-.192s' (chybový kód: %d)"
-        spa "Error en el cierre de '%-.192s' (Error: %d)"
-        swe "Fick fel vid stängning av '%-.192s' (Felkod: %d)"
-        ukr "Не можу закрити '%-.192s' (помилка: %d)"
+        cze "Chyba p-Bři zavírání '%-.192s' (chybový kód: %d - %s)"
+        dan "Fejl ved lukning af '%-.192s' (Fejlkode: %d - %s)"
+        nla "Fout bij het sluiten van '%-.192s' (Errcode: %d - %s)"
+        eng "Error on close of '%-.192s' (errno: %d - %s)"
+        est "Viga faili '%-.192s' sulgemisel (veakood: %d - %s)"
+        fre "Erreur a la fermeture de '%-.192s' (Errcode: %d - %s)"
+        ger "Fehler beim Schließen von '%-.192s' (Fehler: %d - %s)"
+        greek "Παρουσιάστηκε πρόβλημα κλείνοντας το '%-.192s' (κωδικός λάθους: %d - %s)"
+        hun "Hiba a(z) '%-.192s' zarasakor. (hibakod: %d - %s)"
+        ita "Errore durante la chiusura di '%-.192s' (errno: %d - %s)"
+        kor "'%-.192s'닫는 중 에러 (에러번호: %d - %s)"
+        nor "Feil ved lukking av '%-.192s' (Feilkode: %d - %s)"
+        norwegian-ny "Feil ved lukking av '%-.192s' (Feilkode: %d - %s)"
+        pol "Bł?d podczas zamykania '%-.192s' (Kod błędu: %d - %s)"
+        por "Erro ao fechar '%-.192s' (erro no. %d - %s)"
+        rum "Eroare inchizind '%-.192s' (errno: %d - %s)"
+        rus "Ошибка при закрытии '%-.192s' (ошибка: %d - %s)"
+        serbian "Greška pri zatvaranju '%-.192s' (errno: %d - %s)"
+        slo "Chyba pri zatváraní '%-.192s' (chybový kód: %d - %s)"
+        spa "Error en el cierre de '%-.192s' (Error: %d - %s)"
+        swe "Fick fel vid stängning av '%-.192s' (Felkod: %d - %s)"
+        ukr "Не можу закрити '%-.192s' (помилка: %d - %s)"
 ER_ERROR_ON_READ  
-        cze "Chyba p-Bři čtení souboru '%-.200s' (chybový kód: %d)"
-        dan "Fejl ved læsning af '%-.200s' (Fejlkode: %d)"
-        nla "Fout bij het lezen van file '%-.200s' (Errcode: %d)"
-        eng "Error reading file '%-.200s' (errno: %d)"
-        jps "'%-.200s' ファイルの読み込みエラー (errno: %d)",
-        est "Viga faili '%-.200s' lugemisel (veakood: %d)"
-        fre "Erreur en lecture du fichier '%-.200s' (Errcode: %d)"
-        ger "Fehler beim Lesen der Datei '%-.200s' (Fehler: %d)"
-        greek "Πρόβλημα κατά την ανάγνωση του αρχείου '%-.200s' (κωδικός λάθους: %d)"
-        hun "Hiba a '%-.200s'file olvasasakor. (hibakod: %d)"
-        ita "Errore durante la lettura del file '%-.200s' (errno: %d)"
-        jpn "'%-.200s' ファイルの読み込みエラー (errno: %d)"
-        kor "'%-.200s'화일 읽기 에러 (에러번호: %d)"
-        nor "Feil ved lesing av '%-.200s' (Feilkode: %d)"
-        norwegian-ny "Feil ved lesing av '%-.200s' (Feilkode: %d)"
-        pol "Bł?d podczas odczytu pliku '%-.200s' (Kod błędu: %d)"
-        por "Erro ao ler arquivo '%-.200s' (erro no. %d)"
-        rum "Eroare citind fisierul '%-.200s' (errno: %d)"
-        rus "Ошибка чтения файла '%-.200s' (ошибка: %d)"
-        serbian "Greška pri čitanju file-a '%-.200s' (errno: %d)"
-        slo "Chyba pri čítaní súboru '%-.200s' (chybový kód: %d)"
-        spa "Error leyendo el fichero '%-.200s' (Error: %d)"
-        swe "Fick fel vid läsning av '%-.200s' (Felkod %d)"
-        ukr "Не можу прочитати файл '%-.200s' (помилка: %d)"
+        cze "Chyba p-Bři čtení souboru '%-.200s' (chybový kód: %d - %s)"
+        dan "Fejl ved læsning af '%-.200s' (Fejlkode: %d - %s)"
+        nla "Fout bij het lezen van file '%-.200s' (Errcode: %d - %s)"
+        eng "Error reading file '%-.200s' (errno: %d - %s)"
+        jps "'%-.200s' ファイルの読み込みエラー (errno: %d - %s)",
+        est "Viga faili '%-.200s' lugemisel (veakood: %d - %s)"
+        fre "Erreur en lecture du fichier '%-.200s' (Errcode: %d - %s)"
+        ger "Fehler beim Lesen der Datei '%-.200s' (Fehler: %d - %s)"
+        greek "Πρόβλημα κατά την ανάγνωση του αρχείου '%-.200s' (κωδικός λάθους: %d - %s)"
+        hun "Hiba a '%-.200s'file olvasasakor. (hibakod: %d - %s)"
+        ita "Errore durante la lettura del file '%-.200s' (errno: %d - %s)"
+        jpn "'%-.200s' ファイルの読み込みエラー (errno: %d - %s)"
+        kor "'%-.200s'화일 읽기 에러 (에러번호: %d - %s)"
+        nor "Feil ved lesing av '%-.200s' (Feilkode: %d - %s)"
+        norwegian-ny "Feil ved lesing av '%-.200s' (Feilkode: %d - %s)"
+        pol "Bł?d podczas odczytu pliku '%-.200s' (Kod błędu: %d - %s)"
+        por "Erro ao ler arquivo '%-.200s' (erro no. %d - %s)"
+        rum "Eroare citind fisierul '%-.200s' (errno: %d - %s)"
+        rus "Ошибка чтения файла '%-.200s' (ошибка: %d - %s)"
+        serbian "Greška pri čitanju file-a '%-.200s' (errno: %d - %s)"
+        slo "Chyba pri čítaní súboru '%-.200s' (chybový kód: %d - %s)"
+        spa "Error leyendo el fichero '%-.200s' (Error: %d - %s)"
+        swe "Fick fel vid läsning av '%-.200s' (Felkod %d - %s)"
+        ukr "Не можу прочитати файл '%-.200s' (помилка: %d - %s)"
 ER_ERROR_ON_RENAME  
-        cze "Chyba p-Bři přejmenování '%-.210s' na '%-.210s' (chybový kód: %d)"
-        dan "Fejl ved omdøbning af '%-.210s' til '%-.210s' (Fejlkode: %d)"
-        nla "Fout bij het hernoemen van '%-.210s' naar '%-.210s' (Errcode: %d)"
-        eng "Error on rename of '%-.210s' to '%-.210s' (errno: %d)"
-        jps "'%-.210s' を '%-.210s' に rename できません (errno: %d)",
-        est "Viga faili '%-.210s' ümbernimetamisel '%-.210s'-ks (veakood: %d)"
-        fre "Erreur en renommant '%-.210s' en '%-.210s' (Errcode: %d)"
-        ger "Fehler beim Umbenennen von '%-.210s' in '%-.210s' (Fehler: %d)"
-        greek "Πρόβλημα κατά την μετονομασία του αρχείου '%-.210s' to '%-.210s' (κωδικός λάθους: %d)"
-        hun "Hiba a '%-.210s' file atnevezesekor '%-.210s'. (hibakod: %d)"
-        ita "Errore durante la rinominazione da '%-.210s' a '%-.210s' (errno: %d)"
-        jpn "'%-.210s' を '%-.210s' に rename できません (errno: %d)"
-        kor "'%-.210s'를 '%-.210s'로 이름 변경중 에러 (에러번호: %d)"
-        nor "Feil ved omdøping av '%-.210s' til '%-.210s' (Feilkode: %d)"
-        norwegian-ny "Feil ved omdøyping av '%-.210s' til '%-.210s' (Feilkode: %d)"
-        pol "Bł?d podczas zmieniania nazwy '%-.210s' na '%-.210s' (Kod błędu: %d)"
-        por "Erro ao renomear '%-.210s' para '%-.210s' (erro no. %d)"
-        rum "Eroare incercind sa renumesc '%-.210s' in '%-.210s' (errno: %d)"
-        rus "Ошибка при переименовании '%-.210s' в '%-.210s' (ошибка: %d)"
-        serbian "Greška pri promeni imena '%-.210s' na '%-.210s' (errno: %d)"
-        slo "Chyba pri premenovávaní '%-.210s' na '%-.210s' (chybový kód: %d)"
-        spa "Error en el renombrado de '%-.210s' a '%-.210s' (Error: %d)"
-        swe "Kan inte byta namn från '%-.210s' till '%-.210s' (Felkod: %d)"
-        ukr "Не можу перейменувати '%-.210s' у '%-.210s' (помилка: %d)"
+        cze "Chyba p-Bři přejmenování '%-.210s' na '%-.210s' (chybový kód: %d - %s)"
+        dan "Fejl ved omdøbning af '%-.210s' til '%-.210s' (Fejlkode: %d - %s)"
+        nla "Fout bij het hernoemen van '%-.210s' naar '%-.210s' (Errcode: %d - %s)"
+        eng "Error on rename of '%-.210s' to '%-.210s' (errno: %d - %s)"
+        jps "'%-.210s' を '%-.210s' に rename できません (errno: %d - %s)",
+        est "Viga faili '%-.210s' ümbernimetamisel '%-.210s'-ks (veakood: %d - %s)"
+        fre "Erreur en renommant '%-.210s' en '%-.210s' (Errcode: %d - %s)"
+        ger "Fehler beim Umbenennen von '%-.210s' in '%-.210s' (Fehler: %d - %s)"
+        greek "Πρόβλημα κατά την μετονομασία του αρχείου '%-.210s' to '%-.210s' (κωδικός λάθους: %d - %s)"
+        hun "Hiba a '%-.210s' file atnevezesekor '%-.210s'. (hibakod: %d - %s)"
+        ita "Errore durante la rinominazione da '%-.210s' a '%-.210s' (errno: %d - %s)"
+        jpn "'%-.210s' を '%-.210s' に rename できません (errno: %d - %s)"
+        kor "'%-.210s'를 '%-.210s'로 이름 변경중 에러 (에러번호: %d - %s)"
+        nor "Feil ved omdøping av '%-.210s' til '%-.210s' (Feilkode: %d - %s)"
+        norwegian-ny "Feil ved omdøyping av '%-.210s' til '%-.210s' (Feilkode: %d - %s)"
+        pol "Bł?d podczas zmieniania nazwy '%-.210s' na '%-.210s' (Kod błędu: %d - %s)"
+        por "Erro ao renomear '%-.210s' para '%-.210s' (erro no. %d - %s)"
+        rum "Eroare incercind sa renumesc '%-.210s' in '%-.210s' (errno: %d - %s)"
+        rus "Ошибка при переименовании '%-.210s' в '%-.210s' (ошибка: %d - %s)"
+        serbian "Greška pri promeni imena '%-.210s' na '%-.210s' (errno: %d - %s)"
+        slo "Chyba pri premenovávaní '%-.210s' na '%-.210s' (chybový kód: %d - %s)"
+        spa "Error en el renombrado de '%-.210s' a '%-.210s' (Error: %d - %s)"
+        swe "Kan inte byta namn från '%-.210s' till '%-.210s' (Felkod: %d - %s)"
+        ukr "Не можу перейменувати '%-.210s' у '%-.210s' (помилка: %d - %s)"
 ER_ERROR_ON_WRITE  
-        cze "Chyba p-Bři zápisu do souboru '%-.200s' (chybový kód: %d)"
-        dan "Fejl ved skriving av filen '%-.200s' (Fejlkode: %d)"
-        nla "Fout bij het wegschrijven van file '%-.200s' (Errcode: %d)"
-        eng "Error writing file '%-.200s' (errno: %d)"
-        jps "'%-.200s' ファイルを書く事ができません (errno: %d)",
-        est "Viga faili '%-.200s' kirjutamisel (veakood: %d)"
-        fre "Erreur d'écriture du fichier '%-.200s' (Errcode: %d)"
-        ger "Fehler beim Speichern der Datei '%-.200s' (Fehler: %d)"
-        greek "Πρόβλημα κατά την αποθήκευση του αρχείου '%-.200s' (κωδικός λάθους: %d)"
-        hun "Hiba a '%-.200s' file irasakor. (hibakod: %d)"
-        ita "Errore durante la scrittura del file '%-.200s' (errno: %d)"
-        jpn "'%-.200s' ファイルを書く事ができません (errno: %d)"
-        kor "'%-.200s'화일 기록 중 에러 (에러번호: %d)"
-        nor "Feil ved skriving av fila '%-.200s' (Feilkode: %d)"
-        norwegian-ny "Feil ved skriving av fila '%-.200s' (Feilkode: %d)"
-        pol "Bł?d podczas zapisywania pliku '%-.200s' (Kod błędu: %d)"
-        por "Erro ao gravar arquivo '%-.200s' (erro no. %d)"
-        rum "Eroare scriind fisierul '%-.200s' (errno: %d)"
-        rus "Ошибка записи в файл '%-.200s' (ошибка: %d)"
-        serbian "Greška pri upisu '%-.200s' (errno: %d)"
-        slo "Chyba pri zápise do súboru '%-.200s' (chybový kód: %d)"
-        spa "Error escribiendo el archivo '%-.200s' (Error: %d)"
-        swe "Fick fel vid skrivning till '%-.200s' (Felkod %d)"
-        ukr "Не можу записати файл '%-.200s' (помилка: %d)"
+        cze "Chyba p-Bři zápisu do souboru '%-.200s' (chybový kód: %d - %s)"
+        dan "Fejl ved skriving av filen '%-.200s' (Fejlkode: %d - %s)"
+        nla "Fout bij het wegschrijven van file '%-.200s' (Errcode: %d - %s)"
+        eng "Error writing file '%-.200s' (errno: %d - %s)"
+        jps "'%-.200s' ファイルを書く事ができません (errno: %d - %s)",
+        est "Viga faili '%-.200s' kirjutamisel (veakood: %d - %s)"
+        fre "Erreur d'écriture du fichier '%-.200s' (Errcode: %d - %s)"
+        ger "Fehler beim Speichern der Datei '%-.200s' (Fehler: %d - %s)"
+        greek "Πρόβλημα κατά την αποθήκευση του αρχείου '%-.200s' (κωδικός λάθους: %d - %s)"
+        hun "Hiba a '%-.200s' file irasakor. (hibakod: %d - %s)"
+        ita "Errore durante la scrittura del file '%-.200s' (errno: %d - %s)"
+        jpn "'%-.200s' ファイルを書く事ができません (errno: %d - %s)"
+        kor "'%-.200s'화일 기록 중 에러 (에러번호: %d - %s)"
+        nor "Feil ved skriving av fila '%-.200s' (Feilkode: %d - %s)"
+        norwegian-ny "Feil ved skriving av fila '%-.200s' (Feilkode: %d - %s)"
+        pol "Bł?d podczas zapisywania pliku '%-.200s' (Kod błędu: %d - %s)"
+        por "Erro ao gravar arquivo '%-.200s' (erro no. %d - %s)"
+        rum "Eroare scriind fisierul '%-.200s' (errno: %d - %s)"
+        rus "Ошибка записи в файл '%-.200s' (ошибка: %d - %s)"
+        serbian "Greška pri upisu '%-.200s' (errno: %d - %s)"
+        slo "Chyba pri zápise do súboru '%-.200s' (chybový kód: %d - %s)"
+        spa "Error escribiendo el archivo '%-.200s' (Error: %d - %s)"
+        swe "Fick fel vid skrivning till '%-.200s' (Felkod %d - %s)"
+        ukr "Не можу записати файл '%-.200s' (помилка: %d - %s)"
 ER_FILE_USED  
         cze "'%-.192s' je zam-Bčen proti změnám"
         dan "'%-.192s' er låst mod opdateringer"
@@ -919,30 +919,30 @@ ER_OUT_OF_SORTMEMORY HY001 S1001
         swe "Sorteringsbufferten räcker inte till. Kontrollera startparametrarna"
         ukr "Брак пам'яті для сортування. Треба збільшити розмір буфера сортування у сервера"
 ER_UNEXPECTED_EOF  
-        cze "Neo-Bčekávaný konec souboru při čtení '%-.192s' (chybový kód: %d)"
-        dan "Uventet afslutning på fil (eof) ved læsning af filen '%-.192s' (Fejlkode: %d)"
-        nla "Onverwachte eof gevonden tijdens het lezen van file '%-.192s' (Errcode: %d)"
-        eng "Unexpected EOF found when reading file '%-.192s' (errno: %d)"
-        jps "'%-.192s' ファイルを読み込み中に EOF が予期せぬ所で現れました. (errno: %d)",
-        est "Ootamatu faililõpumärgend faili '%-.192s' lugemisel (veakood: %d)"
-        fre "Fin de fichier inattendue en lisant '%-.192s' (Errcode: %d)"
-        ger "Unerwartetes Ende beim Lesen der Datei '%-.192s' (Fehler: %d)"
-        greek "Κατά τη διάρκεια της ανάγνωσης, βρέθηκε απροσδόκητα το τέλος του αρχείου '%-.192s' (κωδικός λάθους: %d)"
-        hun "Varatlan filevege-jel a '%-.192s'olvasasakor. (hibakod: %d)"
-        ita "Fine del file inaspettata durante la lettura del file '%-.192s' (errno: %d)"
-        jpn "'%-.192s' ファイルを読み込み中に EOF が予期せぬ所で現れました. (errno: %d)"
-        kor "'%-.192s' 화일을 읽는 도중 잘못된 eof을 발견 (에러번호: %d)"
-        nor "Uventet slutt på fil (eof) ved lesing av filen '%-.192s' (Feilkode: %d)"
-        norwegian-ny "Uventa slutt på fil (eof) ved lesing av fila '%-.192s' (Feilkode: %d)"
-        pol "Nieoczekiwany 'eof' napotkany podczas czytania z pliku '%-.192s' (Kod błędu: %d)"
-        por "Encontrado fim de arquivo inesperado ao ler arquivo '%-.192s' (erro no. %d)"
-        rum "Sfirsit de fisier neasteptat in citirea fisierului '%-.192s' (errno: %d)"
-        rus "Неожиданный конец файла '%-.192s' (ошибка: %d)"
-        serbian "Neočekivani kraj pri čitanju file-a '%-.192s' (errno: %d)"
-        slo "Neočakávaný koniec súboru pri čítaní '%-.192s' (chybový kód: %d)"
-        spa "Inesperado fin de ficheroU mientras leiamos el archivo '%-.192s' (Error: %d)"
-        swe "Oväntat filslut vid läsning från '%-.192s' (Felkod: %d)"
-        ukr "Хибний кінець файлу '%-.192s' (помилка: %d)"
+        cze "Neo-Bčekávaný konec souboru při čtení '%-.192s' (chybový kód: %d - %s)"
+        dan "Uventet afslutning på fil (eof) ved læsning af filen '%-.192s' (Fejlkode: %d - %s)"
+        nla "Onverwachte eof gevonden tijdens het lezen van file '%-.192s' (Errcode: %d - %s)"
+        eng "Unexpected EOF found when reading file '%-.192s' (errno: %d - %s)"
+        jps "'%-.192s' ファイルを読み込み中に EOF が予期せぬ所で現れました. (errno: %d - %s)",
+        est "Ootamatu faililõpumärgend faili '%-.192s' lugemisel (veakood: %d - %s)"
+        fre "Fin de fichier inattendue en lisant '%-.192s' (Errcode: %d - %s)"
+        ger "Unerwartetes Ende beim Lesen der Datei '%-.192s' (Fehler: %d - %s)"
+        greek "Κατά τη διάρκεια της ανάγνωσης, βρέθηκε απροσδόκητα το τέλος του αρχείου '%-.192s' (κωδικός λάθους: %d - %s)"
+        hun "Varatlan filevege-jel a '%-.192s'olvasasakor. (hibakod: %d - %s)"
+        ita "Fine del file inaspettata durante la lettura del file '%-.192s' (errno: %d - %s)"
+        jpn "'%-.192s' ファイルを読み込み中に EOF が予期せぬ所で現れました. (errno: %d - %s)"
+        kor "'%-.192s' 화일을 읽는 도중 잘못된 eof을 발견 (에러번호: %d - %s)"
+        nor "Uventet slutt på fil (eof) ved lesing av filen '%-.192s' (Feilkode: %d - %s)"
+        norwegian-ny "Uventa slutt på fil (eof) ved lesing av fila '%-.192s' (Feilkode: %d - %s)"
+        pol "Nieoczekiwany 'eof' napotkany podczas czytania z pliku '%-.192s' (Kod błędu: %d - %s)"
+        por "Encontrado fim de arquivo inesperado ao ler arquivo '%-.192s' (erro no. %d - %s)"
+        rum "Sfirsit de fisier neasteptat in citirea fisierului '%-.192s' (errno: %d - %s)"
+        rus "Неожиданный конец файла '%-.192s' (ошибка: %d - %s)"
+        serbian "Neočekivani kraj pri čitanju file-a '%-.192s' (errno: %d - %s)"
+        slo "Neočakávaný koniec súboru pri čítaní '%-.192s' (chybový kód: %d - %s)"
+        spa "Inesperado fin de ficheroU mientras leiamos el archivo '%-.192s' (Error: %d - %s)"
+        swe "Oväntat filslut vid läsning från '%-.192s' (Felkod: %d - %s)"
+        ukr "Хибний кінець файлу '%-.192s' (помилка: %d - %s)"
 ER_CON_COUNT_ERROR 08004 
         cze "P-Bříliš mnoho spojení"
         dan "For mange forbindelser (connections)"
@@ -2808,7 +2808,7 @@ ER_TOO_BIG_ROWSIZE 42000
         cze "-BŘádek je příliš velký. Maximální velikost řádku, nepočítaje položky blob, je %ld. Musíte změnit některé položky na blob"
         dan "For store poster. Max post størrelse, uden BLOB's, er %ld. Du må lave nogle felter til BLOB's"
         nla "Rij-grootte is groter dan toegestaan. Maximale rij grootte, blobs niet meegeteld, is %ld. U dient sommige velden in blobs te veranderen."
-        eng "Row size too large. The maximum row size for the used table type, not counting BLOBs, is %ld. You have to change some columns to TEXT or BLOBs"
+        eng "Row size too large. The maximum row size for the used table type, not counting BLOBs, is %ld. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs"
         jps "row size が大きすぎます. BLOB を含まない場合の row size の最大は %ld です. いくつかの field を BLOB に変えてください.",
         est "Liiga pikk kirje. Kirje maksimumpikkus arvestamata BLOB-tüüpi välju on %ld. Muuda mõned väljad BLOB-tüüpi väljadeks"
         fre "Ligne trop grande. Le taille maximale d'une ligne, sauf les BLOBs, est %ld. Changez le type de quelques colonnes en BLOB"
@@ -4701,14 +4701,14 @@ ER_NOT_SUPPORTED_YET 42000
         spa "Esta versión de MySQL no soporta todavia '%s'"
         swe "Denna version av MySQL kan ännu inte utföra '%s'"
 ER_MASTER_FATAL_ERROR_READING_BINLOG  
-        nla "Kreeg fatale fout %d: '%-.256s' van master tijdens lezen van data uit binaire log"
-        eng "Got fatal error %d from master when reading data from binary log: '%-.256s'"
-        ger "Schwerer Fehler %d: '%-.256s vom Master beim Lesen des binären Logs"
-        ita "Errore fatale %d: '%-.256s' dal master leggendo i dati dal log binario"
-        por "Obteve fatal erro %d: '%-.256s' do master quando lendo dados do binary log"
-        rus "Получена неисправимая ошибка %d: '%-.256s' от головного сервера в процессе выборки данных из двоичного журнала"
-        spa "Recibió fatal error %d: '%-.256s' del master cuando leyendo datos del binary log"
-        swe "Fick fatalt fel %d: '%-.256s' från master vid läsning av binärloggen"
+        nla "Kreeg fatale fout %d: '%-.320s' van master tijdens lezen van data uit binaire log"
+        eng "Got fatal error %d from master when reading data from binary log: '%-.320s'"
+        ger "Schwerer Fehler %d: '%-.320s vom Master beim Lesen des binären Logs"
+        ita "Errore fatale %d: '%-.320s' dal master leggendo i dati dal log binario"
+        por "Obteve fatal erro %d: '%-.320s' do master quando lendo dados do binary log"
+        rus "Получена неисправимая ошибка %d: '%-.320s' от головного сервера в процессе выборки данных из двоичного журнала"
+        spa "Recibió fatal error %d: '%-.320s' del master cuando leyendo datos del binary log"
+        swe "Fick fatalt fel %d: '%-.320s' från master vid läsning av binärloggen"
 ER_SLAVE_IGNORED_TABLE  
         eng "Slave SQL thread ignored the query because of replicate-*-table rules"
         ger "Slave-SQL-Thread hat die Abfrage aufgrund von replicate-*-table-Regeln ignoriert"
@@ -5985,9 +5985,8 @@ ER_WRONG_PARTITION_NAME
         eng "Incorrect partition name"
         ger "Falscher Partitionsname"
         swe "Felaktigt partitionsnamn"
-ER_CANT_CHANGE_TX_ISOLATION 25001
-        eng "Transaction isolation level can't be changed while a transaction is in progress"
-        ger "Transaktionsisolationsebene kann während einer laufenden Transaktion nicht geändert werden"
+ER_CANT_CHANGE_TX_CHARACTERISTICS 25001
+        eng "Transaction characteristics can't be changed while a transaction is in progress"
 ER_DUP_ENTRY_AUTOINCREMENT_CASE
         eng "ALTER TABLE causes auto_increment resequencing, resulting in duplicate entry '%-.192s' for key '%-.192s'"
         ger "ALTER TABLE führt zur Neusequenzierung von auto_increment, wodurch der doppelte Eintrag '%-.192s' für Schlüssel '%-.192s' auftritt"
@@ -6426,6 +6425,81 @@ ER_SET_PASSWORD_AUTH_PLUGIN
 ER_GRANT_PLUGIN_USER_EXISTS
         eng "GRANT with IDENTIFIED WITH is illegal because the user %-.*s already exists"
 
+ER_TRUNCATE_ILLEGAL_FK 42000
+  eng "Cannot truncate a table referenced in a foreign key constraint (%.192s)"
+
+ER_PLUGIN_IS_PERMANENT
+  eng "Plugin '%s' is force_plus_permanent and can not be unloaded"
+
+ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN
+  eng "The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled."
+
+ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
+  eng "The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout."
+
+ER_STMT_CACHE_FULL  
+        eng "Multi-row statements required more than 'max_binlog_stmt_cache_size' bytes of storage; increase this mysqld variable and try again"
+
+ER_MULTI_UPDATE_KEY_CONFLICT
+  eng "Primary key/partition key update is not allowed since the table is updated both as '%-.192s' and '%-.192s'."
+
+# When translating this error message make sure to include "ALTER TABLE" in the
+# message as mysqlcheck parses the error message looking for ALTER TABLE.
+ER_TABLE_NEEDS_REBUILD
+        eng "Table rebuild required. Please do \"ALTER TABLE `%-.32s` FORCE\" or dump/reload to fix it!"
+
+WARN_OPTION_BELOW_LIMIT
+  eng "The value of '%s' should be no less than the value of '%s'"
+
+ER_INDEX_COLUMN_TOO_LONG
+  eng "Index column size too large. The maximum column size is %lu bytes."
+
+ER_ERROR_IN_TRIGGER_BODY
+  eng "Trigger '%-.64s' has an error in its body: '%-.256s'"
+
+ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
+  eng "Unknown trigger has an error in its body: '%-.256s'"
+
+ER_INDEX_CORRUPT
+  eng "Index %s is corrupted"
+
+ER_UNDO_RECORD_TOO_BIG
+  eng "Undo log record is too big."
+
+ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT
+  eng "INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE
+  eng "INSERT... SELECT... ON DUPLICATE KEY UPDATE is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are updated. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_REPLACE_SELECT
+ eng "REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT
+  eng "CREATE... IGNORE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT
+  eng "CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_UPDATE_IGNORE
+  eng "UPDATE IGNORE is unsafe because the order in which rows are updated determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+
+ER_PLUGIN_NO_UNINSTALL
+  eng "Plugin '%s' is marked as not dynamically uninstallable. You have to stop the server to uninstall it."
+
+ER_PLUGIN_NO_INSTALL
+  eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
+
+ER_BINLOG_UNSAFE_WRITE_AUTOINC_SELECT
+  eng "Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC
+  eng "CREATE TABLE... SELECT...  on a table with an auto-increment column is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are inserted. This order cannot be predicted and may differ on master and the slave."
+
+#
+#  End of 5.5 error messages.
+#
+
 ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
   eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
   ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
@@ -6465,17 +6539,6 @@ ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX
   eng "Option binlog_cache_size (%lu) is greater than max_binlog_cache_size (%lu); setting binlog_cache_size equal to max_binlog_cache_size."
 ER_WARN_INDEX_NOT_APPLICABLE
   eng "Cannot use %-.64s access on index '%-.64s' due to type or collation conversion on field '%-.64s'"
-ER_TRUNCATE_ILLEGAL_FK 42000
-  eng "Cannot truncate a table referenced in a foreign key constraint (%.192s)"
-
-ER_PLUGIN_IS_PERMANENT
-  eng "Plugin '%s' is force_plus_permanent and can not be unloaded"
-
-ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN
-  eng "The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled."
-
-ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
-  eng "The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout."
 
 ER_PARTITION_EXCHANGE_FOREIGN_KEY
   eng "Table to exchange with partition has foreign key references: '%-.64s'"
@@ -6488,12 +6551,6 @@ ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
   eng "Replication event checksum verification failed while reading from network."
 ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE
   eng "Replication event checksum verification failed while reading from a log file."
-
-ER_STMT_CACHE_FULL  
-        eng "Multi-row statements required more than 'max_binlog_stmt_cache_size' bytes of storage; increase this mysqld variable and try again"
-
-ER_MULTI_UPDATE_KEY_CONFLICT
-  eng "Primary key/partition key update is not allowed since the table is updated both as '%-.192s' and '%-.192s'."
 
 ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX
   eng "Option binlog_stmt_cache_size (%lu) is greater than max_binlog_stmt_cache_size (%lu); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size."
@@ -6526,14 +6583,6 @@ ER_NO_SUCH_PARTITION
   spa "Particion '%-.64s' no existe"
   swe "Det finns ingen partition som heter '%-.64s'"
 
-# When translating this error message make sure to include "ALTER TABLE" in the
-# message as mysqlcheck parses the error message looking for ALTER TABLE.
-ER_TABLE_NEEDS_REBUILD
-        eng "Table rebuild required. Please do \"ALTER TABLE `%-.32s` FORCE\" or dump/reload to fix it!"
-
-WARN_OPTION_BELOW_LIMIT
-  eng "The value of '%s' should be no less than the value of '%s'"
-
 ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE
   eng "Failure while changing the type of replication repository: %s."
 
@@ -6541,18 +6590,6 @@ ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE
   eng "The creation of some temporary tables could not be rolled back."
 ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE
   eng "Some temporary tables were dropped, but these operations could not be rolled back."
-
-ER_INDEX_COLUMN_TOO_LONG
-  eng "Index column size too large. The maximum column size is %lu bytes."
-
-ER_ERROR_IN_TRIGGER_BODY
-  eng "Trigger '%-.64s' has an error in its body: '%-.256s'"
-
-ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
-  eng "Unknown trigger has an error in its body: '%-.256s'"
-
-ER_INDEX_CORRUPT
-  eng "Index %s is corrupted"
 
 ER_MTS_FEATURE_IS_NOT_SUPPORTED
   eng "%s is not supported in multi-threaded slave mode. %s"
@@ -6563,33 +6600,6 @@ ER_MTS_CANT_PARALLEL
 ER_MTS_INCONSISTENT_DATA
   eng "%s"
 
-ER_UNDO_RECORD_TOO_BIG
-  eng "Undo log record is too big."
-
-ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT
-  eng "INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
-
-ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE
-  eng "INSERT... SELECT... ON DUPLICATE KEY UPDATE is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are updated. This order cannot be predicted and may differ on master and the slave."
-
-ER_BINLOG_UNSAFE_REPLACE_SELECT
- eng "REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
-
-ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT
-  eng "CREATE... IGNORE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
-
-ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT
-  eng "CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
-
-ER_BINLOG_UNSAFE_UPDATE_IGNORE
-  eng "UPDATE IGNORE is unsafe because the order in which rows are updated determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
-
-ER_PLUGIN_NO_UNINSTALL
-  eng "Plugin '%s' is marked as not dynamically uninstallable. You have to stop the server to uninstall it."
-
-ER_PLUGIN_NO_INSTALL
-  eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
-
 ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
   eng "FULLTEXT index is not supported for partitioned tables."
   swe "FULLTEXT index stöds ej för partitionerade tabeller."
@@ -6597,6 +6607,12 @@ ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
 ER_DA_INVALID_CONDITION_NUMBER 35000
   eng "Invalid condition number"
   por "Número de condição inválido"
+
+ER_INSECURE_PLAIN_TEXT
+  eng "Sending passwords in plain text without SSL/TLS is extremely insecure."
+
+ER_INSECURE_CHANGE_MASTER
+  eng "Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives."
 
 ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO 23000 S1009
         eng "Foreign key constraint for table '%.192s', record '%-.192s' would lead to a duplicate entry in table '%.192s', key '%.192s'"
@@ -6608,24 +6624,126 @@ ER_FOREIGN_DUPLICATE_KEY_WITHOUT_CHILD_INFO 23000 S1009
         ger "Fremdschlüssel-Beschränkung für Tabelle '%.192s', Datensatz '%-.192s' würde zu einem doppelten Eintrag in einer Kind-Tabelle führen"
         swe "FOREIGN KEY constraint för tabell '%.192s', posten '%-.192s' kan inte uppdatera en barntabell på grund av UNIQUE-test"
 
-ER_INSECURE_PLAIN_TEXT
-  eng "Sending passwords in plain text without SSL/TLS is extremely insecure."
-
-ER_INSECURE_CHANGE_MASTER
-  eng "Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives."
-
 ER_SQLTHREAD_WITH_SECURE_SLAVE
   eng "Setting authentication options is not possible when only the Slave SQL Thread is being started."
 
 ER_TABLE_HAS_NO_FT
   eng "The table does not have FULLTEXT index to support this query"
 
+ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+  eng "The system variable %.200s cannot be set in stored functions or triggers."
+
+ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+  eng "The system variable %.200s cannot be set when there is an ongoing transaction."
+
+ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST
+  eng "The system variable @@SESSION.GTID_NEXT has the value %.200s, which is not listed in @@SESSION.GTID_NEXT_LIST."
+
+ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL
+  eng "When @@SESSION.GTID_NEXT_LIST == NULL, the system variable @@SESSION.GTID_NEXT cannot change inside a transaction."
+
+ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
+  eng "The statement 'SET %.200s' cannot invoke a stored function."
+
+ER_GTID_NEXT_CANT_BE_AUTOMATIC_IF_GTID_NEXT_LIST_IS_NON_NULL
+  eng "The system variable @@SESSION.GTID_NEXT cannot be 'AUTOMATIC' when @@SESSION.GTID_NEXT_LIST is non-NULL."
+
+ER_SKIPPING_LOGGED_TRANSACTION
+  eng "Skipping transaction %.200s because it has already been executed and logged."
+
+ER_MALFORMED_GTID_SET_SPECIFICATION
+  eng "Malformed GTID set specification '%.200s'."
+
+ER_MALFORMED_GTID_SET_ENCODING
+  eng "Malformed GTID set encoding."
+
+ER_MALFORMED_GTID_SPECIFICATION
+  eng "Malformed GTID specification '%.200s'."
+
+ER_GNO_EXHAUSTED
+  eng "Impossible to generate Global Transaction Identifier: the integer component reached the maximal value. Restart the server with a new server_uuid."
+
+ER_BAD_SLAVE_AUTO_POSITION
+  eng "Parameters MASTER_LOG_FILE, MASTER_LOG_POS, RELAY_LOG_FILE and RELAY_LOG_POS cannot be set when MASTER_AUTO_POSITION is active."
+
+ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
+  eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when GTID_MODE = ON."
+
+ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
+  eng "Cannot execute statements with implicit commit inside a transaction when GTID_NEXT != AUTOMATIC or GTID_NEXT_LIST != NULL."
+
+ER_GTID_MODE_2_OR_3_REQUIRES_DISABLE_GTID_UNSAFE_STATEMENTS_ON
+  eng "GTID_MODE = ON or GTID_MODE = UPGRADE_STEP_2 requires DISABLE_GTID_UNSAFE_STATEMENTS = 1."
+
+ER_GTID_MODE_REQUIRES_BINLOG
+  eng "GTID_MODE = ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates."
+
+ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF
+  eng "GTID_NEXT cannot be set to UUID:NUMBER when GTID_MODE = OFF."
+
+ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
+  eng "GTID_NEXT cannot be set to ANONYMOUS when GTID_MODE = ON."
+
+ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF
+  eng "GTID_NEXT_LIST cannot be set to a non-NULL value when GTID_MODE = OFF."
+
+ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF
+  eng "Found a Gtid_log_event or Previous_gtids_log_event when GTID_MODE = OFF."
+
+ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
+  eng "Updates to non-transactional tables are forbidden when DISABLE_GTID_UNSAFE_STATEMENTS = 1."
+
+ER_GTID_UNSAFE_CREATE_SELECT
+  eng "CREATE TABLE ... SELECT is forbidden when DISABLE_GTID_UNSAFE_STATEMENTS = 1."
+
+ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
+  eng "When DISABLE_GTID_UNSAFE_STATEMENTS = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1."
+
+ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
+  eng "The value of GTID_MODE can only change one step at a time: OFF <-> UPGRADE_STEP_1 <-> UPGRADE_STEP_2 <-> ON. Also note that this value must be stepped up or down simultaneously on all servers; see the Manual for instructions." 
+
+ER_MASTER_HAS_PURGED_REQUIRED_GTIDS
+  eng "The slave is connecting using CHANGE MASTER TO MASTER_AUTO_POSITION = 1, but the master has purged binary logs containing GTIDs that the slave requires."
+
+ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
+  eng "GTID_NEXT cannot be changed by a client that owns a GTID. The client owns %s. Ownership is released on COMMIT or ROLLBACK."
+
+ER_UNKNOWN_EXPLAIN_FORMAT
+  eng "Unknown EXPLAIN format name: '%s'"
+  rus "Неизвестное имя формата команды EXPLAIN: '%s'"
+
+ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION 25006
+  eng "Cannot execute statement in a READ ONLY transaction."
+
+ER_TOO_LONG_TABLE_PARTITION_COMMENT
+  eng "Comment for table partition '%-.64s' is too long (max = %lu)"
+
+ER_SLAVE_CONFIGURATION
+  eng "Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log."
+
 ER_INNODB_FT_LIMIT
-  eng "InnoDB presently supports one FULLTEXT index per table"
+  eng "InnoDB presently supports one FULLTEXT index creation at a time"
 
 ER_INNODB_NO_FT_TEMP_TABLE
   eng "Cannot create FULLTEXT index on temporary InnoDB table"
 
+ER_INNODB_FT_WRONG_DOCID_COLUMN
+  eng "Column '%-.192s' is of wrong type for an InnoDB FULLTEXT index"
+
+ER_INNODB_FT_WRONG_DOCID_INDEX
+  eng "Index '%-.192s' is of wrong type for an InnoDB FULLTEXT index"
+
+ER_INNODB_ONLINE_LOG_TOO_BIG
+  eng "Creating index '%-.192s' required more than 'innodb_online_alter_log_max_size' bytes of modification log. Please try again."
+
+ER_UNKNOWN_ALTER_ALGORITHM
+  eng "Unknown ALGORITHM '%s'"
+ER_UNKNOWN_ALTER_LOCK
+  eng "Unknown LOCK type '%s'"
+
 ER_PASSWORD_FORMAT
   eng "The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function."
 
+#
+#  End of 5.6 error messages.
+#

@@ -145,12 +145,27 @@ The following options may be given as the first argument:
  handling INSERT DELAYED. If the queue becomes full, any
  client that does INSERT DELAYED will wait until there is
  room in the queue again
+ --disable-gtid-unsafe-statements 
+ Prevents execution of statements that would be impossible
+ to log in a transactionally safe manner. Currently, the
+ disallowed statements include CREATE TEMPORARY TABLE
+ inside transactions, all updates to non-transactional
+ tables, and CREATE TABLE ... SELECT.
  --disconnect-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
  replication.
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
+ --end-markers-in-json 
+ In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
+ trace), if variable is set to 1, repeats the structure's
+ key (if it has one) near the closing bracket
+ --eq-range-index-dive-limit=# 
+ The optimizer will use existing index statistics instead
+ of doing index dives for equality ranges if the number of
+ equality ranges for the index is larger than or equal to
+ this number. If set to 0, index dives are always used.
  --event-scheduler[=name] 
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
@@ -189,8 +204,12 @@ The following options may be given as the first argument:
  --group-concat-max-len=# 
  The maximum length of the result of function 
  GROUP_CONCAT()
+ --gtid-mode=name    Whether Global Transaction Identifiers (GTIDs) are
+ enabled. Can be ON or OFF.
  -?, --help          Display this help and exit.
+ --host-cache-size=# How many host names should be cached to avoid resolving.
  --ignore-builtin-innodb 
+ IGNORED. This option will be removed in future releases.
  Disable initialization of builtin InnoDB plugin
  --ignore-db-dir=name 
  Specifies a directory to add to the ignore list when
@@ -275,6 +294,12 @@ The following options may be given as the first argument:
  transactions that affect more than one storage engine,
  when binary log is disabled).
  --log-tc-size=#     Size of transaction coordinator log.
+ --log-throttle-queries-not-using-indexes[=#] 
+ Log at most this many 'not using index' warnings per
+ minute to the slow log. Any further warnings will be
+ condensed into a single summary line. A value of 0
+ disables throttling. Option has no effect unless
+ --log_queries_not_using_indexes is set.
  -W, --log-warnings[=#] 
  Log some not critical warnings to the log file
  --long-query-time=# Log all queries that have taken more than long_query_time
@@ -431,13 +456,14 @@ The following options may be given as the first argument:
  is one of {index_merge, index_merge_union,
  index_merge_sort_union, index_merge_intersection,
  engine_condition_pushdown, index_condition_pushdown, mrr,
- mrr_cost_based, block_nested_loop, batched_key_access}
- and val is one of {on, off, default}
+ mrr_cost_based, materialization, semijoin, loosescan,
+ firstmatch, block_nested_loop, batched_key_access} and
+ val is one of {on, off, default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
- is one of {enabled, end_marker, one_line} and val is one
- of {on, off, default}
+ is one of {enabled, one_line} and val is one of {on,
+ default}
  --optimizer-trace-features=name 
  Enables/disables tracing of selected features of the
  Optimizer:
@@ -487,10 +513,15 @@ The following options may be given as the first argument:
  Default startup value for the global_instrumentation
  consumer.
  (Defaults to on; use --skip-performance-schema-consumer-global-instrumentation to disable.)
+ --performance-schema-consumer-statements-digest 
+ Default startup value for the statements_digest consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-statements-digest to disable.)
  --performance-schema-consumer-thread-instrumentation 
  Default startup value for the thread_instrumentation
  consumer.
  (Defaults to on; use --skip-performance-schema-consumer-thread-instrumentation to disable.)
+ --performance-schema-digests-size=# 
+ Size of the statement digest.
  --performance-schema-events-stages-history-long-size=# 
  Number of rows in EVENTS_STAGES_HISTORY_LONG.
  --performance-schema-events-stages-history-size=# 
@@ -702,11 +733,13 @@ The following options may be given as the first argument:
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
  (pre-4.1) passwords
+ (Defaults to on; use --skip-secure-auth to disable.)
  --secure-file-priv=name 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
  files within specified directory
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
+ --server-id-bits=#  Set number of significant bits in server-id
  --shared-memory     Enable the shared memory
  --shared-memory-base-name=name 
  Base name of shared memory
@@ -724,6 +757,8 @@ The following options may be given as the first argument:
  Don't allow 'SHOW DATABASE' commands
  --skip-slave-start  If set, slave is not autostarted.
  --skip-stack-trace  Don't print a stack trace on failure.
+ --slave-allow-batching 
+ Allow slave to batch requests
  --slave-checkpoint-group=# 
  Maximum number of processed transactions by
  Multi-threaded slave before a checkpoint operation is
@@ -785,6 +820,10 @@ The following options may be given as the first argument:
  Log slow queries to given log file. Defaults logging to
  hostname-slow.log. Must be enabled to activate other slow
  log options
+ --slow-start-timeout=# 
+ Maximum number of milliseconds that the service control
+ manager should wait before trying to kill the windows
+ service during startup(Default: 15000).
  --socket=name       Socket file to use for connection
  --sort-buffer-size=# 
  Each thread that needs to do a sort allocates a buffer of
@@ -795,6 +834,9 @@ The following options may be given as the first argument:
  --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
  for the complete list of valid sql modes
  --standalone        Dummy option to start as a standalone program (NT).
+ --stored-program-cache=# 
+ The soft upper limit for number of cached stored routines
+ for one connection.
  -s, --symbolic-links 
  Enable symbolic link support.
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
@@ -845,6 +887,9 @@ The following options may be given as the first argument:
  --transaction-prealloc-size=# 
  Persistent buffer for transactions to be stored in binary
  log
+ --transaction-read-only 
+ Default transaction access mode. True if transactions are
+ read-only.
  --updatable-views-with-limit=name 
  YES = Don't issue an error message (warning only) if a
  VIEW without presence of a key of the underlying table is
@@ -897,8 +942,11 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
+disable-gtid-unsafe-statements FALSE
 disconnect-slave-event-count 0
 div-precision-increment 4
+end-markers-in-json FALSE
+eq-range-index-dive-limit 10
 event-scheduler OFF
 expire-logs-days 0
 external-locking FALSE
@@ -912,7 +960,9 @@ ft-stopword-file (No default value)
 gdb FALSE
 general-log FALSE
 group-concat-max-len 1024
+gtid-mode OFF
 help TRUE
+host-cache-size 128
 ignore-builtin-innodb FALSE
 init-connect 
 init-file (No default value)
@@ -944,6 +994,7 @@ log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
 log-tc tc.log
 log-tc-size 24576
+log-throttle-queries-not-using-indexes 0
 log-warnings 1
 long-query-time 10
 low-priority-updates FALSE
@@ -997,7 +1048,7 @@ old-passwords FALSE
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on
 optimizer-trace 
 optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
 optimizer-trace-limit 1
@@ -1015,7 +1066,9 @@ performance-schema-consumer-events-waits-current FALSE
 performance-schema-consumer-events-waits-history FALSE
 performance-schema-consumer-events-waits-history-long FALSE
 performance-schema-consumer-global-instrumentation TRUE
+performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
+performance-schema-digests-size 200
 performance-schema-events-stages-history-long-size 10000
 performance-schema-events-stages-history-size 10
 performance-schema-events-statements-history-long-size 10000
@@ -1036,7 +1089,7 @@ performance-schema-max-rwlock-instances 1000000
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances 1000
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 167
+performance-schema-max-statement-classes 168
 performance-schema-max-table-handles 10000
 performance-schema-max-table-instances 1000
 performance-schema-max-thread-classes 50
@@ -1069,12 +1122,13 @@ relay-log-space-limit 0
 replicate-same-server-id FALSE
 report-host (No default value)
 report-password (No default value)
-report-port 3306
+report-port 0
 report-user (No default value)
 safe-user-create FALSE
-secure-auth FALSE
+secure-auth TRUE
 secure-file-priv (No default value)
 server-id 0
+server-id-bits 32
 shared-memory FALSE
 shared-memory-base-name MYSQL
 show-slave-auth-info FALSE
@@ -1083,6 +1137,7 @@ skip-name-resolve FALSE
 skip-networking FALSE
 skip-show-database FALSE
 skip-slave-start FALSE
+slave-allow-batching FALSE
 slave-checkpoint-group 512
 slave-checkpoint-period 300
 slave-compressed-protocol FALSE
@@ -1096,9 +1151,11 @@ slave-transaction-retries 10
 slave-type-conversions 
 slow-launch-time 2
 slow-query-log FALSE
+slow-start-timeout 15000
 sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
 sql-mode 
+stored-program-cache 256
 symbolic-links FALSE
 sync-binlog 0
 sync-frm TRUE
@@ -1119,6 +1176,7 @@ tmp-table-size 16777216
 transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
+transaction-read-only FALSE
 updatable-views-with-limit YES
 verbose TRUE
 wait-timeout 28800

@@ -43,6 +43,9 @@
                          // mysql_handle_derived,
                          // mysql_derived_filling
 #include "opt_trace.h"   // Opt_trace_object
+#include "sql_tmp_table.h"                      // tmp tables
+#include "sql_optimizer.h"                      // remove_eq_conds
+#include "sql_resolver.h"                       // setup_order, fix_inner_refs
 
 /**
    True if the table's input and output record buffers are comparable using
@@ -282,6 +285,8 @@ int mysql_update(THD *thd,
   ulonglong     id;
   List<Item> all_fields;
   THD::killed_state killed_status= THD::NOT_KILLED;
+  COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &fields, &values);
+
   DBUG_ENTER("mysql_update");
 
   if (open_tables(thd, &table_list, &table_count, 0))
@@ -348,20 +353,9 @@ int mysql_update(THD *thd,
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
     DBUG_RETURN(1);
   }
-  if (table->get_timestamp_field())
-  {
-    // Don't set timestamp column if this is modified
-    if (bitmap_is_set(table->write_set,
-                      table->get_timestamp_field()->field_index))
-      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
-    else
-    {
-      if (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
-          table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH)
-        bitmap_set_bit(table->write_set,
-                       table->get_timestamp_field()->field_index);
-    }
-  }
+
+  if (update.add_function_default_columns(table, table->write_set))
+    DBUG_RETURN(1);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Check values */
@@ -386,16 +380,17 @@ int mysql_update(THD *thd,
       limit= 0;                                   // Impossible WHERE
   }
 
-  /*
-    If a timestamp field settable on UPDATE is present then to avoid wrong
-    update force the table handler to retrieve write-only fields to be able
-    to compare records and detect data change.
-  */
-  if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
-      table->get_timestamp_field() &&
-      (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
-       table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
+  if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) != 0 &&
+      update.function_defaults_apply(table))
+    /*
+      A column is to be set to its ON UPDATE function default only if other
+      columns of the row are changing. To know this, we must be able to
+      compare the "before" and "after" value of those columns
+      (i.e. records_are_comparable() must be true below). Thus, we must read
+      those columns:
+    */
     bitmap_union(table->read_set, table->write_set);
+
   // Don't count on usage of 'only index' when calculating which key to use
   table->covering_keys.clear_all();
 
@@ -488,7 +483,9 @@ int mysql_update(THD *thd,
                                 (used_key_is_modified || order);
     error= explain_single_table_modification(thd, table, select, used_index,
                                              limit, using_tmp_table,
-                                             using_filesort);
+                                             using_filesort,
+                                             true,
+                                             used_key_is_modified);
     goto exit_without_my_ok;
   }
 
@@ -498,12 +495,15 @@ int mysql_update(THD *thd,
       We can't update table directly;  We must first search after all
       matching rows before updating the table!
     */
+
+    // Verify that table->restore_column_maps_after_mark_index() will work
+    DBUG_ASSERT(table->read_set == &table->def_read_set);
+    DBUG_ASSERT(table->write_set == &table->def_write_set);
+
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
       table->add_read_columns_used_by_index(used_index);
     else
-    {
       table->use_all_columns();
-    }
 
     /* note: We avoid sorting if we sort on the used index */
     if (using_filesort)
@@ -633,8 +633,11 @@ int mysql_update(THD *thd,
       if (error >= 0)
         goto exit_without_my_ok;
     }
-    if (table->key_read)
-      table->restore_column_maps_after_mark_index();
+    /*
+      This restore bitmaps, works for add_read_columns_used_by_index() and
+      use_all_columns():
+    */
+    table->restore_column_maps_after_mark_index();
   }
 
   if (ignore)
@@ -656,10 +659,8 @@ int mysql_update(THD *thd,
   THD_STAGE_INFO(thd, stage_updating);
 
   transactional_table= table->file->has_transactions();
-  thd->abort_on_warning= test(!ignore &&
-                              (thd->variables.sql_mode &
-                               (MODE_STRICT_TRANS_TABLES |
-                                MODE_STRICT_ALL_TABLES)));
+  thd->abort_on_warning= (!ignore && thd->is_strict_mode());
+
   if (table->triggers &&
       table->triggers->has_triggers(TRG_EVENT_UPDATE,
                                     TRG_ACTION_AFTER))
@@ -713,6 +714,14 @@ int mysql_update(THD *thd,
             break;
           }
         }
+
+        /*
+          In order to keep MySQL legacy behavior, we do this update *after*
+          the CHECK OPTION test. Proper behavior is probably to throw an
+          error, though.
+        */
+        update.set_function_defaults(table);
+
         if (will_batch)
         {
           /*
@@ -1308,11 +1317,6 @@ int mysql_multi_update_prepare(THD *thd)
   for (tl= leaves; tl; tl= tl->next_leaf)
   {
     TABLE *table= tl->table;
-    /* Only set timestamp column if this is not modified */
-    if (table->get_timestamp_field() &&
-        bitmap_is_set(table->write_set,
-                      table->get_timestamp_field()->field_index))
-      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     /* if table will be updated then check that it is unique */
     if (table->map & tables_for_update)
@@ -1439,9 +1443,7 @@ bool mysql_multi_update(THD *thd,
     DBUG_RETURN(TRUE);
   }
 
-  thd->abort_on_warning= test(thd->variables.sql_mode &
-                              (MODE_STRICT_TRANS_TABLES |
-                               MODE_STRICT_ALL_TABLES));
+  thd->abort_on_warning= thd->is_strict_mode();
 
   if (thd->lex->describe)
     res= explain_multi_table_modification(thd, *result);
@@ -1481,7 +1483,8 @@ multi_update::multi_update(TABLE_LIST *table_list,
    tmp_tables(0), updated(0), found(0), fields(field_list),
    values(value_list), table_count(0), copy_field(0),
    handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(1),
-   transactional_tables(0), ignore(ignore_arg), error_handled(0)
+   transactional_tables(0), ignore(ignore_arg), error_handled(0),
+   update_operations(NULL)
 {}
 
 
@@ -1545,16 +1548,6 @@ int multi_update::prepare(List<Item> &not_used_values,
     {
       table->read_set= &table->def_read_set;
       bitmap_union(table->read_set, &table->tmp_set);
-      /*
-        If a timestamp field settable on UPDATE is present then to avoid wrong
-        update force the table handler to retrieve write-only fields to be able
-        to compare records and detect data change.
-        */
-      if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
-          table->get_timestamp_field() &&
-          (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
-           table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
-        bitmap_union(table->read_set, table->write_set);
     }
   }
   
@@ -1609,6 +1602,11 @@ int multi_update::prepare(List<Item> &not_used_values,
 					      table_count);
   values_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
 					      table_count);
+
+  DBUG_ASSERT(update_operations == NULL);
+  update_operations= (COPY_INFO**) thd->calloc(sizeof(COPY_INFO*) *
+                                               table_count);
+
   if (thd->is_fatal_error)
     DBUG_RETURN(1);
   for (i=0 ; i < table_count ; i++)
@@ -1636,6 +1634,38 @@ int multi_update::prepare(List<Item> &not_used_values,
   for (i=0 ; i < table_count ; i++)
     set_if_bigger(max_fields, fields_for_table[i]->elements + leaf_table_count);
   copy_field= new Copy_field[max_fields];
+
+
+  for (TABLE_LIST *ref= leaves; ref != NULL; ref= ref->next_leaf)
+  {
+    TABLE *table= ref->table;
+    if (tables_to_update & table->map)
+    {
+      const uint position= table->pos_in_table_list->shared;
+      List<Item> *cols= fields_for_table[position];
+      List<Item> *vals= values_for_table[position];
+      COPY_INFO *update=
+        new (thd->mem_root) COPY_INFO(COPY_INFO::UPDATE_OPERATION, cols, vals);
+      if (update == NULL ||
+          update->add_function_default_columns(table, table->write_set))
+        DBUG_RETURN(1);
+
+      update_operations[position]= update;
+
+      if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) != 0 &&
+          update->function_defaults_apply(table))
+      {
+        /*
+          A column is to be set to its ON UPDATE function default only if
+          other columns of the row are changing. To know this, we must be able
+          to compare the "before" and "after" value of those columns. Thus, we
+          must read those columns:
+        */
+        bitmap_union(table->read_set, table->write_set);
+      }
+    }
+  }
+
   DBUG_RETURN(thd->is_fatal_error != 0);
 }
 
@@ -1762,7 +1792,6 @@ multi_update::initialize_tables(JOIN *join)
       }
     }
     table->mark_columns_needed_for_update();
-    table->prepare_for_position();
 
     /*
       enable uncacheable flag if we update a view with check option
@@ -1821,6 +1850,13 @@ loop_end:
     TABLE *tbl= table;
     do
     {
+      /*
+        Signal each table (including tables referenced by WITH CHECK OPTION
+        clause) for which we will store row position in the temporary table
+        that we need a position to be read first.
+      */
+      tbl->prepare_for_position();
+
       Field_string *field= new Field_string(tbl->file->ref_length, 0,
                                             tbl->alias, &my_charset_bin);
       if (!field)
@@ -1891,6 +1927,10 @@ multi_update::~multi_update()
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
   DBUG_ASSERT(trans_safe || !updated ||
               thd->transaction.stmt.cannot_safely_rollback());
+
+  if (update_operations != NULL)
+    for (uint i= 0; i < table_count; i++)
+      delete update_operations[i];
 }
 
 
@@ -1922,8 +1962,10 @@ bool multi_update::send_data(List<Item> &not_used_values)
     {
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
-      if (fill_record_n_invoke_before_triggers(thd, *fields_for_table[offset],
-                                               *values_for_table[offset], 0,
+      if (fill_record_n_invoke_before_triggers(thd,
+                                               *fields_for_table[offset],
+                                               *values_for_table[offset],
+                                               false, // ignore_errors
                                                table->triggers,
                                                TRG_EVENT_UPDATE))
 	DBUG_RETURN(1);
@@ -1936,6 +1978,8 @@ bool multi_update::send_data(List<Item> &not_used_values)
       found++;
       if (!records_are_comparable(table) || compare_records(table))
       {
+        update_operations[offset]->set_function_defaults(table);
+
 	int error;
         if ((error= cur_table->view_check_option(thd, ignore)) !=
             VIEW_CHECK_OK)
@@ -2202,6 +2246,7 @@ int multi_update::do_updates()
 
       if (!records_are_comparable(table) || compare_records(table))
       {
+        update_operations[offset]->set_function_defaults(table);
         int error;
         if ((error= cur_table->view_check_option(thd, ignore)) !=
             VIEW_CHECK_OK)
@@ -2211,16 +2256,15 @@ int multi_update::do_updates()
           else if (error == VIEW_CHECK_ERROR)
             goto err;
         }
-	if ((local_error=table->file->ha_update_row(table->record[1],
-						    table->record[0])) &&
-            local_error != HA_ERR_RECORD_IS_THE_SAME)
-	{
-	  if (!ignore ||
-              table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
-	    goto err;
-	}
-        if (local_error != HA_ERR_RECORD_IS_THE_SAME)
+        local_error= table->file->ha_update_row(table->record[1],
+                                                table->record[0]);
+        if (!local_error)
           updated++;
+        else if (local_error == HA_ERR_RECORD_IS_THE_SAME)
+          local_error= 0;
+        else if (!ignore ||
+                 table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+          goto err;
         else
           local_error= 0;
       }

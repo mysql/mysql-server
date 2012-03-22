@@ -438,10 +438,10 @@ create table t1 (a int);
 insert into t1 values (1),(2);
 show status like "Qcache_queries_in_cache";
 select * from t1;
-SET OPTION SQL_SELECT_LIMIT=1;
+SET SQL_SELECT_LIMIT=1;
 select * from t1;
 show status like "Qcache_queries_in_cache";
-SET OPTION SQL_SELECT_LIMIT=DEFAULT;
+SET SQL_SELECT_LIMIT=DEFAULT;
 drop table t1;
 
 #

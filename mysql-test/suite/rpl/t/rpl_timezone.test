@@ -13,13 +13,13 @@
 # timezone used in CONVERT_TZ is not binlogged. To debug (by Guilhem
 # and possibly Konstantin).
 
+source include/master-slave.inc;
+
 --disable_query_log
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 --enable_query_log
 
 --disable_ps_protocol
-
-source include/master-slave.inc;
 
 # Save original timezone
 set @my_time_zone= @@global.time_zone;
@@ -90,6 +90,7 @@ insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
 # from originally inserted)
 #
 set time_zone='MET';
+--disable_warnings ONCE
 insert into t2 (select * from t1);
 SELECT * FROM t1 ORDER BY n;
 sync_slave_with_master;
@@ -196,7 +197,10 @@ select * from t1;
 DROP TABLE t1;
 
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 | $MYSQL
+--copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.saved
+# Forget GTIDs
+RESET MASTER;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved | $MYSQL
 --connection master1
 select * from t1 order by a;
 DROP TABLE t1;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -478,7 +478,7 @@ DECLARE_THREAD(io_handler_thread)(
 {
 	ulint	segment;
 
-	segment = *((ulint*)arg);
+	segment = *((ulint*) arg);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Io handler thread %lu starts, id %lu\n", segment,
@@ -904,8 +904,9 @@ skip_size_check:
 #endif /* UNIV_LOG_ARCHIVE */
 				min_flushed_lsn, max_flushed_lsn);
 
-			if (UNIV_PAGE_SIZE
-			    != fsp_flags_get_page_size(flags)) {
+			if (!one_opened
+			    && UNIV_PAGE_SIZE
+			       != fsp_flags_get_page_size(flags)) {
 
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -1298,6 +1299,44 @@ srv_undo_tablespaces_init(
 	}
 
 	return(DB_SUCCESS);
+}
+
+/********************************************************************
+Wait for the purge thread(s) to start up. */
+static
+void
+srv_start_wait_for_purge_to_start()
+/*===============================*/
+{
+	/* Wait for the purge coordinator and master thread to startup. */
+
+	purge_state_t	state = trx_purge_state();
+
+	ut_a(state != PURGE_STATE_DISABLED);
+
+	while (srv_shutdown_state == SRV_SHUTDOWN_NONE
+	       && srv_force_recovery < SRV_FORCE_NO_BACKGROUND
+	       && state == PURGE_STATE_INIT) {
+
+		switch (state = trx_purge_state()) {
+		case PURGE_STATE_RUN:
+		case PURGE_STATE_STOP:
+			break;
+
+		case PURGE_STATE_INIT:
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: "
+				"Waiting for the background threads to "
+				"start\n");
+
+			os_thread_sleep(50000);
+			break;
+
+		case PURGE_STATE_EXIT:
+		case PURGE_STATE_DISABLED:
+			ut_error;
+		}
+	}
 }
 
 /********************************************************************
@@ -2148,10 +2187,10 @@ innobase_start_or_create_for_mysql(void)
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 	page_get_free_space_of_empty() / 2); */
 
-	if (trx_doublewrite == NULL) {
+	if (buf_dblwr == NULL) {
 		/* Create the doublewrite buffer to a new tablespace */
 
-		trx_sys_create_doublewrite_buf();
+		buf_dblwr_create();
 	}
 
 	/* Here the double write buffer has already been created and so
@@ -2170,13 +2209,18 @@ innobase_start_or_create_for_mysql(void)
 	ut_a(srv_undo_logs > 0);
 	ut_a(srv_undo_logs <= TRX_SYS_N_RSEGS);
 
-	/* Note: We set the config variable here to the number of rollback
-	segments that are actually active. This allows the user to discover
-	the currently configured number of undo segments in an existing
-	instance. */
+	/* The number of rsegs that exist in InnoDB is given by status
+	variable srv_available_undo_logs. The number of rsegs to use can
+	be set using the dynamic global variable srv_undo_logs. */
 
-	srv_undo_logs = trx_sys_create_rsegs(
+	srv_available_undo_logs = trx_sys_create_rsegs(
 		srv_undo_tablespaces, srv_undo_logs);
+
+	if (srv_available_undo_logs == ULINT_UNDEFINED) {
+		/* Can only happen if force recovery is set. */
+		ut_a(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
+		srv_undo_logs = ULONG_UNDEFINED;
+	}
 
 	/* Create the thread which watches the timeouts for lock waits */
 	os_thread_create(
@@ -2195,13 +2239,15 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_is_being_started = FALSE;
 
+	/* Create the SYS_FOREIGN and SYS_FOREIGN_COLS system tables */
 	err = dict_create_or_check_foreign_constraint_tables();
-
 	if (err != DB_SUCCESS) {
 		return((int)DB_ERROR);
 	}
 
 	srv_is_being_started = FALSE;
+
+	ut_a(trx_purge_state() == PURGE_STATE_INIT);
 
 	/* Create the master thread which does purge and other utility
 	operations */
@@ -2210,10 +2256,7 @@ innobase_start_or_create_for_mysql(void)
 		srv_master_thread,
 		NULL, thread_ids + (1 + SRV_MAX_N_IO_THREADS));
 
-	/* If the user has requested a separate purge thread then
-	start the purge thread. */
-	if (srv_n_purge_threads >= 1
-	    && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
+	if (srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
 
 		os_thread_create(
 			srv_purge_coordinator_thread,
@@ -2222,36 +2265,20 @@ innobase_start_or_create_for_mysql(void)
 		ut_a(UT_ARR_SIZE(thread_ids)
 		     > 5 + srv_n_purge_threads + SRV_MAX_N_IO_THREADS);
 
+		/* We've already created the purge coordinator thread above. */
 		for (i = 1; i < srv_n_purge_threads; ++i) {
 			os_thread_create(
 				srv_worker_thread, NULL,
 				thread_ids + 5 + i + SRV_MAX_N_IO_THREADS);
 		}
+
+		srv_start_wait_for_purge_to_start();
+
+	} else {
+		purge_sys->state = PURGE_STATE_DISABLED;
 	}
 
-
-	os_thread_create(
-		buf_flush_page_cleaner_thread, NULL, NULL);
-
-	/* Wait for the purge coordinator and master thread to startup. */
-
-	while (srv_shutdown_state == SRV_SHUTDOWN_NONE
-	       && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
-
-		if (srv_thread_has_reserved_slot(SRV_MASTER) == ULINT_UNDEFINED
-		    || (srv_n_purge_threads > 0
-			&& srv_thread_has_reserved_slot(SRV_PURGE)
-			== ULINT_UNDEFINED)) {
-
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: "
-				"Waiting for the background threads to "
-				"start\n");
-			os_thread_sleep(1000000);
-		} else {
-			break;
-		}
-	}
+	os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
 
 #ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */
@@ -2388,67 +2415,6 @@ innobase_start_or_create_for_mysql(void)
 
 	fflush(stderr);
 
-	if (trx_doublewrite_must_reset_space_ids) {
-		/* Actually, we did not change the undo log format between
-		4.0 and 4.1.1, and we would not need to run purge to
-		completion. Note also that the purge algorithm in 4.1.1
-		can process the history list again even after a full
-		purge, because our algorithm does not cut the end of the
-		history list in all cases so that it would become empty
-		after a full purge. That mean that we may purge 4.0 type
-		undo log even after this phase.
-
-		The insert buffer record format changed between 4.0 and
-		4.1.1. It is essential that the insert buffer is emptied
-		here! */
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: You are upgrading to an"
-			" InnoDB version which allows multiple\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: tablespaces. Wait that purge"
-			" and insert buffer merge run to\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: completion...\n");
-		for (;;) {
-			os_thread_sleep(1000000);
-
-			if (0 == strcmp(srv_main_thread_op_info,
-					"waiting for server activity")) {
-
-				ut_a(ibuf_is_empty());
-
-				break;
-			}
-		}
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Full purge and insert buffer merge"
-			" completed.\n");
-
-		trx_sys_mark_upgraded_to_multiple_tablespaces();
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: You have now successfully upgraded"
-			" to the multiple tablespaces\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: format. You should NOT DOWNGRADE"
-			" to an earlier version of\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: InnoDB! But if you absolutely need to"
-			" downgrade, see\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: " REFMAN "multiple-tablespaces.html\n"
-			" InnoDB: for instructions.\n");
-	}
-
 	if (srv_force_recovery == 0) {
 		/* In the insert buffer we may have even bigger tablespace
 		id's, because we may have dropped those tablespaces, but
@@ -2541,6 +2507,11 @@ innobase_shutdown_for_mysql(void)
 			srv_conc_get_active_threads());
 	}
 
+	/* This functionality will be used by WL#5522. */
+	ut_a(trx_purge_state() == PURGE_STATE_RUN
+	     || trx_purge_state() == PURGE_STATE_EXIT
+	     || srv_force_recovery >= SRV_FORCE_NO_BACKGROUND);
+
 	/* 2. Make all threads created by InnoDB to exit */
 
 	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
@@ -2562,11 +2533,8 @@ innobase_shutdown_for_mysql(void)
 		/* c. We wake the master thread so that it exits */
 		srv_wake_master_thread();
 
-		/* d. We wake the purge thread(s) so that they exit */
-		if (srv_n_purge_threads > 0) {
-			srv_wake_purge_thread();
-			srv_wake_worker_threads(srv_n_purge_threads - 1);
-		}
+		/* d. Wakeup purge threads. */
+		srv_purge_wakeup();
 
 		/* e. Exit the i/o threads */
 
@@ -2641,6 +2609,7 @@ innobase_shutdown_for_mysql(void)
 	os_aio_free();
 	que_close();
 	row_mysql_close();
+	srv_mon_free();
 	sync_close();
 	srv_free();
 	fil_close();

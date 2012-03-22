@@ -460,6 +460,8 @@ INSERT INTO t1 (a,b) VALUES
 ('How To Use MySQL Well','After you went through a ...'),
 ('Optimizing MySQL','In this tutorial we will show ...');
 ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -649,6 +651,8 @@ INSERT INTO t1 (a,b) VALUES
 ('Trial version','query performace @1255 minute on 2.1Hz Memory 2GB...')  ,
 ('when To Use MySQL Well','for free faq  mail@xyz.com ...');
 CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("вредит χωρὶς");
 id	a	b
 1	Я могу есть стекло	оно мне не вредит
@@ -735,3 +739,120 @@ id	a	b
 9	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
 10	when To Use MySQL Well	for free faq  mail@xyz.com ...
 DROP TABLE t1;
+CREATE TABLE t1(ID INT PRIMARY KEY,
+no_fts_field VARCHAR(10),
+fts_field VARCHAR(10),
+FULLTEXT INDEX f(fts_field)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, 'AAA', 'BBB');
+SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
+ID	no_fts_field	fts_field
+1	AAA	BBB
+UPDATE t1 SET fts_field='anychange' where id = 1;
+SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
+ID	no_fts_field	fts_field
+1	AAA	anychange
+UPDATE t1 SET no_fts_field='anychange' where id = 1;
+SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
+ID	no_fts_field	fts_field
+1	anychange	anychange
+UPDATE t1 SET no_fts_field='anychange', fts_field='other' where id = 1;
+SELECT * FROM t1 WHERE MATCH(fts_field) against("other");
+ID	no_fts_field	fts_field
+1	anychange	other
+SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
+ID	no_fts_field	fts_field
+DROP INDEX f on t1;
+UPDATE t1 SET fts_field='anychange' where id = 1;
+UPDATE t1 SET no_fts_field='anychange' where id = 1;
+UPDATE t1 SET no_fts_field='anychange', fts_field='other' where id = 1;
+CREATE FULLTEXT INDEX f ON t1(FTS_FIELD);
+SELECT * FROM t1 WHERE MATCH(fts_field) against("other");
+ID	no_fts_field	fts_field
+1	anychange	other
+DROP TABLE t1;
+CREATE TABLE t1(`FTS_DOC_ID` serial,
+no_fts_field VARCHAR(10),
+fts_field VARCHAR(10),
+FULLTEXT INDEX f(fts_field)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, 'AAA', 'BBB');
+UPDATE t1 SET fts_field='anychange' where FTS_DOC_ID = 1;
+ERROR HY000: Invalid InnoDB FTS Doc ID
+UPDATE t1 SET fts_field='anychange', FTS_DOC_ID = 2 where FTS_DOC_ID = 1;
+SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
+FTS_DOC_ID	no_fts_field	fts_field
+2	AAA	anychange
+SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
+FTS_DOC_ID	no_fts_field	fts_field
+UPDATE t1 SET no_fts_field='anychange' where FTS_DOC_ID = 2;
+SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
+FTS_DOC_ID	no_fts_field	fts_field
+2	anychange	anychange
+UPDATE t1 SET no_fts_field='anychange', fts_field='other' where FTS_DOC_ID = 2;
+ERROR HY000: Invalid InnoDB FTS Doc ID
+SELECT * FROM t1 WHERE MATCH(fts_field) against("other");
+FTS_DOC_ID	no_fts_field	fts_field
+UPDATE t1 SET  FTS_DOC_ID = 1 where FTS_DOC_ID = 2;
+ERROR HY000: Invalid InnoDB FTS Doc ID
+DROP INDEX f ON t1;
+UPDATE t1 SET fts_field='newchange' where FTS_DOC_ID = 2;
+UPDATE t1 SET no_fts_field='anychange' where FTS_DOC_ID = 2;
+SELECT * FROM t1;
+FTS_DOC_ID	no_fts_field	fts_field
+2	anychange	newchange
+DROP TABLE t1;
+CREATE TABLE t1(ID INT PRIMARY KEY,
+no_fts_field VARCHAR(10),
+fts_field VARCHAR(10),
+FULLTEXT INDEX f(fts_field), index k(fts_field)) ENGINE=INNODB;
+CREATE TABLE t2(ID INT PRIMARY KEY,
+no_fts_field VARCHAR(10),
+fts_field VARCHAR(10),
+FULLTEXT INDEX f(fts_field),
+INDEX k2(fts_field),
+FOREIGN KEY(fts_field) REFERENCES
+t1(fts_field) ON UPDATE CASCADE) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, 'AAA', 'BBB');
+INSERT INTO t2 VALUES (1, 'AAA', 'BBB');
+update t1 set fts_field='newchange' where id =1;
+SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
+ID	no_fts_field	fts_field
+SELECT * FROM t2 WHERE MATCH(fts_field) against("BBB");
+ID	no_fts_field	fts_field
+SELECT * FROM t1 WHERE MATCH(fts_field) against("newchange");
+ID	no_fts_field	fts_field
+1	AAA	newchange
+SELECT * FROM t2 WHERE MATCH(fts_field) against("newchange");
+ID	no_fts_field	fts_field
+1	AAA	newchange
+DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1(id INT PRIMARY KEY,
+fts_field VARCHAR(10),
+FULLTEXT INDEX f(fts_field)) ENGINE=INNODB;
+CREATE TABLE t2(id INT PRIMARY KEY,
+fts_field VARCHAR(10),
+FULLTEXT INDEX f(fts_field)) ENGINE=INNODB;
+INSERT INTO t1 values (1,'100'),(2,'200'),(3,'300'),(4,'400'),(5,'500'),(6,'600'), (7,'700'),(8,'800'),(9,'900'),(10,'1000'),(11,'1100'),(12,'1200');
+INSERT INTO t2 values (1,'100'),(2,'200'),(3,'300'),(4,'400'),(5,'500'),(6,'600'), (7,'700'),(8,'800');
+UPDATE t1, t2 set t1.fts_field = CONCAT(t1.fts_field, 'foo');
+UPDATE t1, t2 set t1.fts_field = CONCAT(t1.fts_field, 'foo') WHERE t1.fts_field = "100foo";
+UPDATE t1, t2 set t1.fts_field = CONCAT(t1.fts_field, 'xoo'), t2.fts_field = CONCAT(t1.fts_field, 'xoo') where t1.fts_field=CONCAT(t2.fts_field, 'foo');
+SELECT * FROM t1 WHERE MATCH(fts_field) against("100foofoo");
+id	fts_field
+1	100foofoo
+SELECT * FROM t1 WHERE MATCH(fts_field) against("100foo");
+id	fts_field
+SELECT * FROM t1 WHERE MATCH(fts_field) against("100");
+id	fts_field
+SELECT * FROM t2 WHERE MATCH(fts_field) against("400fooxoo");
+id	fts_field
+4	400fooxoo
+SELECT * FROM t2 WHERE MATCH(fts_field) against("100");
+id	fts_field
+1	100
+SELECT * FROM t2 WHERE MATCH(fts_field) against("200");
+id	fts_field
+SELECT * FROM t2 WHERE MATCH(fts_field) against("400");
+id	fts_field
+DROP TABLE t1;
+DROP TABLE t2;

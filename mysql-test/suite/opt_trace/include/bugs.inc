@@ -5,7 +5,8 @@
 let $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
 eval set optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
 
-SET optimizer_trace="enabled=on,end_marker=on,one_line=off";
+SET end_markers_in_json=on;
+SET optimizer_trace="enabled=on,one_line=off";
 
 --echo #
 --echo # BUG#12430646 - SEL_ARG::LEFT AND RIGHT POINTERS INCORRECTLY 
@@ -250,3 +251,14 @@ WHERE (field1, ( SELECT COUNT( col_int_key ) FROM t1 )) IN (
 select * from information_schema.optimizer_trace;
 
 DROP TABLE where_subselect_20070,t1;
+
+--echo #
+--echo # Bug#13430443 - ASSERTION `NEW_TYPE[0] != 'U'' FAILED. WHEN
+--echo # OPTIMIZER_TRACE IS ENABLED
+--echo #
+CREATE TABLE t1
+ (a INT,b INT,c INT, KEY(a),KEY (a,c)) ENGINE=INNODB;
+SELECT 1 FROM t1 WHERE 1 LIKE
+ (SELECT a FROM t1 WHERE a = 1 ORDER BY c);
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+DROP TABLE t1;

@@ -26,6 +26,9 @@
 #include "sql_cursor.h"
 #include "sql_base.h"                           // fill_record
 #include "filesort.h"                           // filesort_free_buffers
+#include "sql_tmp_table.h"                      // tmp tables
+#include "sql_optimizer.h"                      // JOIN
+#include "opt_explain_format.h"
 
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option)
@@ -563,16 +566,24 @@ bool st_select_lex_unit::optimize()
 void st_select_lex_unit::explain()
 {
   SELECT_LEX *lex_select_save= thd->lex->current_select;
+  Explain_format *fmt= thd->lex->explain_format;
   DBUG_ENTER("st_select_lex_unit::explain");
   JOIN *join;
 
   DBUG_ASSERT((is_union() || fake_select_lex) && describe && optimized);
   executed= true;
 
+  if (fmt->begin_context(CTX_UNION))
+    DBUG_VOID_RETURN;
+
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
+    if (fmt->begin_context(CTX_QUERY_SPEC))
+      DBUG_VOID_RETURN;
     DBUG_ASSERT(sl->join);
     sl->join->explain();
+    if (fmt->end_context(CTX_QUERY_SPEC))
+      DBUG_VOID_RETURN;
   }
 
   if (init_prepare_fake_select_lex(thd, true))
@@ -581,6 +592,7 @@ void st_select_lex_unit::explain()
   if (thd->is_fatal_error)
     DBUG_VOID_RETURN;
   join= fake_select_lex->join;
+
   /*
     In EXPLAIN command, constant subqueries that do not use any
     tables are executed two times:
@@ -603,7 +615,11 @@ void st_select_lex_unit::explain()
   }
   else
     join->explain();
+
   thd->lex->current_select= lex_select_save;
+
+  fmt->end_context(CTX_UNION);
+
   DBUG_VOID_RETURN;
 }
 
@@ -642,6 +658,7 @@ bool st_select_lex_unit::exec()
         DBUG_ASSERT(0);
       }
     }
+
     for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     {
       ha_rows records_at_start= 0;
@@ -821,6 +838,8 @@ bool st_select_lex_unit::cleanup()
     }
   }
 
+  explain_marker= CTX_NONE;
+
   DBUG_RETURN(error);
 }
 
@@ -940,6 +959,7 @@ bool st_select_lex::cleanup()
   {
     error|= lex_unit->cleanup();
   }
+  cur_pos_in_all_fields= ALL_FIELDS_UNDEF_POS;
   non_agg_fields.empty();
   inner_refs_list.empty();
   DBUG_RETURN(error);

@@ -73,14 +73,6 @@ UNIV_INTERN ulint	os_innodb_umask
 UNIV_INTERN ulint	os_innodb_umask		= 0;
 #endif
 
-#ifdef UNIV_DO_FLUSH
-/* If the following is set to TRUE, we do not call os_file_flush in every
-os_file_write. We can set this TRUE when the doublewrite buffer is used. */
-UNIV_INTERN ibool	os_do_not_call_flush_at_each_write	= FALSE;
-#else
-/* We do not call os_file_flush in every os_file_write. */
-#endif /* UNIV_DO_FLUSH */
-
 #ifndef UNIV_HOTBACKUP
 /* We use these mutexes to protect lseek + file i/o operation, if the
 OS does not provide an atomic pread or pwrite, or similar */
@@ -106,7 +98,7 @@ of the high level design.
 There are four io-threads (for ibuf, log, read, write).
 All synchronous IO requests are serviced by the calling thread using
 os_file_write/os_file_read. The Asynchronous requests are queued up
-in an array (there are four such arrays) by the calling thread. 
+in an array (there are four such arrays) by the calling thread.
 Later these requests are picked up by the io-thread and are serviced
 synchronously.
 
@@ -235,7 +227,7 @@ struct os_aio_array_struct{
 
 #if defined(LINUX_NATIVE_AIO)
 	io_context_t*		aio_ctx;
-				/* completion queue for IO. There is 
+				/* completion queue for IO. There is
 				one such queue per segment. Each thread
 				will work on one ctx exclusively. */
 	struct io_event*	aio_events;
@@ -258,7 +250,7 @@ struct os_aio_array_struct{
 #endif
 
 /** Array of events used in simulated aio */
-static os_event_t*	os_aio_segment_wait_events	= NULL;
+static os_event_t*	os_aio_segment_wait_events = NULL;
 
 /** The aio arrays for non-ibuf i/o and ibuf i/o, as well as sync aio. These
 are NULL when the module has not yet been initialized. @{ */
@@ -505,11 +497,11 @@ os_file_get_last_error_low(
 				" the access rights to\n"
 				"InnoDB: the directory.\n");
 		} else {
-			if (strerror((int)err) != NULL) {
+			if (strerror((int) err) != NULL) {
 				fprintf(stderr,
 					"InnoDB: Error number %lu"
 					" means '%s'.\n",
-					err, strerror((int)err));
+					err, strerror((int) err));
 			}
 
 
@@ -587,7 +579,7 @@ os_file_handle_error_cond_exit(
 
 	err = os_file_get_last_error_low(FALSE, on_error_silent);
 
-	switch(err) {
+	switch (err) {
 	case OS_FILE_DISK_FULL:
 		/* We only print a warning about disk full once */
 
@@ -907,16 +899,16 @@ next_file:
 	ret = FindNextFile(dir, lpFindFileData);
 
 	if (ret) {
-		ut_a(strlen((char *) lpFindFileData->cFileName)
+		ut_a(strlen((char*) lpFindFileData->cFileName)
 		     < OS_FILE_MAX_PATH);
 
-		if (strcmp((char *) lpFindFileData->cFileName, ".") == 0
-		    || strcmp((char *) lpFindFileData->cFileName, "..") == 0) {
+		if (strcmp((char*) lpFindFileData->cFileName, ".") == 0
+		    || strcmp((char*) lpFindFileData->cFileName, "..") == 0) {
 
 			goto next_file;
 		}
 
-		strcpy(info->name, (char *) lpFindFileData->cFileName);
+		strcpy(info->name, (char*) lpFindFileData->cFileName);
 
 		info->size = (ib_int64_t)(lpFindFileData->nFileSizeLow)
 			+ (((ib_int64_t)(lpFindFileData->nFileSizeHigh))
@@ -969,7 +961,7 @@ next_file:
 next_file:
 
 #ifdef HAVE_READDIR_R
-	ret = readdir_r(dir, (struct dirent*)dirent_buf, &ent);
+	ret = readdir_r(dir, (struct dirent*) dirent_buf, &ent);
 
 	if (ret != 0
 #ifdef UNIV_AIX
@@ -982,7 +974,7 @@ next_file:
 	   ) {
 		fprintf(stderr,
 			"InnoDB: cannot read directory %s, error %lu\n",
-			dirname, (ulong)ret);
+			dirname, (ulong) ret);
 
 		return(-1);
 	}
@@ -1043,7 +1035,7 @@ next_file:
 		return(-1);
 	}
 
-	info->size = (ib_int64_t)statinfo.st_size;
+	info->size = (ib_int64_t) statinfo.st_size;
 
 	if (S_ISDIR(statinfo.st_mode)) {
 		info->type = OS_FILE_TYPE_DIR;
@@ -1383,7 +1375,7 @@ os_file_set_nocache(
 #if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)
 	if (directio(fd, DIRECTIO_ON) == -1) {
 		int	errno_save;
-		errno_save = (int)errno;
+		errno_save = (int) errno;
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Failed to set DIRECTIO_ON "
@@ -1393,7 +1385,7 @@ os_file_set_nocache(
 #elif defined(O_DIRECT)
 	if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
 		int	errno_save;
-		errno_save = (int)errno;
+		errno_save = (int) errno;
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Failed to set O_DIRECT "
@@ -1633,7 +1625,7 @@ try_again:
 	/* We disable OS caching (O_DIRECT) only on data files */
 	if (type != OS_LOG_FILE
 	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
-		
+
 		os_file_set_nocache(file, name, mode_str);
 	}
 
@@ -1643,7 +1635,7 @@ try_again:
 		if (create_mode == OS_FILE_OPEN_RETRY) {
 			int i;
 			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Retrying to lock"
+			fputs(" InnoDB: Retrying to lock"
 			      " the first data file\n",
 			      stderr);
 			for (i = 0; i < 100; i++) {
@@ -1654,7 +1646,7 @@ try_again:
 				}
 			}
 			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Unable to open the first data file\n",
+			fputs(" InnoDB: Unable to open the first data file\n",
 			      stderr);
 		}
 
@@ -1685,7 +1677,7 @@ loop:
 	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
 	it */
 
-	ret = DeleteFile((LPCTSTR)name);
+	ret = DeleteFile((LPCTSTR) name);
 
 	if (ret) {
 		return(TRUE);
@@ -1748,7 +1740,7 @@ loop:
 	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
 	it */
 
-	ret = DeleteFile((LPCTSTR)name);
+	ret = DeleteFile((LPCTSTR) name);
 
 	if (ret) {
 		return(TRUE);
@@ -1811,7 +1803,7 @@ os_file_rename_func(
 #ifdef __WIN__
 	BOOL	ret;
 
-	ret = MoveFile((LPCTSTR)oldpath, (LPCTSTR)newpath);
+	ret = MoveFile((LPCTSTR) oldpath, (LPCTSTR) newpath);
 
 	if (ret) {
 		return(TRUE);
@@ -2067,7 +2059,7 @@ os_file_fsync(
 
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
-					"  InnoDB: fsync(): "
+					" InnoDB: fsync(): "
 					"No locks available; retrying\n");
 			}
 
@@ -2173,7 +2165,7 @@ os_file_flush_func(
 	ut_print_timestamp(stderr);
 
 	fprintf(stderr,
-		"  InnoDB: Error: the OS said file flush did not succeed\n");
+		" InnoDB: Error: the OS said file flush did not succeed\n");
 
 	os_file_handle_error(NULL, "flush");
 
@@ -2275,7 +2267,7 @@ os_file_pread(
 		if (ret_offset < 0) {
 			ret = -1;
 		} else {
-			ret = read(file, buf, (ssize_t)n);
+			ret = read(file, buf, (ssize_t) n);
 		}
 
 #ifndef UNIV_HOTBACKUP
@@ -2341,7 +2333,7 @@ os_file_pwrite(
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
 #endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD < 8 */
 
-	ret = pwrite(file, buf, (ssize_t)n, offs);
+	ret = pwrite(file, buf, (ssize_t) n, offs);
 
 #if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
 	os_mutex_enter(os_file_count_mutex);
@@ -2354,19 +2346,6 @@ os_file_pwrite(
 	(void) os_atomic_decrement_ulint(&os_file_n_pending_pwrites, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
 #endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD < 8 */
-
-# ifdef UNIV_DO_FLUSH
-	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
-	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
-	    && !os_do_not_call_flush_at_each_write) {
-
-		/* Always do fsync to reduce the probability that when
-		the OS crashes, a database page is only partially
-		physically written to disk. */
-
-		ut_a(TRUE == os_file_flush(file));
-	}
-# endif /* UNIV_DO_FLUSH */
 
 	return(ret);
 #else
@@ -2396,20 +2375,7 @@ os_file_pwrite(
 			goto func_exit;
 		}
 
-		ret = write(file, buf, (ssize_t)n);
-
-# ifdef UNIV_DO_FLUSH
-		if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
-		    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
-		    && !os_do_not_call_flush_at_each_write) {
-
-			/* Always do fsync to reduce the probability that when
-			the OS crashes, a database page is only partially
-			physically written to disk. */
-
-			ut_a(TRUE == os_file_flush(file));
-		}
-# endif /* UNIV_DO_FLUSH */
+		ret = write(file, buf, (ssize_t) n);
 
 func_exit:
 # ifndef UNIV_HOTBACKUP
@@ -2519,7 +2485,7 @@ try_again:
 try_again:
 	ret = os_file_pread(file, buf, n, offset);
 
-	if ((ulint)ret == n) {
+	if ((ulint) ret == n) {
 
 		return(TRUE);
 	}
@@ -2648,7 +2614,7 @@ try_again:
 try_again:
 	ret = os_file_pread(file, buf, n, offset);
 
-	if ((ulint)ret == n) {
+	if ((ulint) ret == n) {
 
 		return(TRUE);
 	}
@@ -2758,7 +2724,7 @@ retry:
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-			"  InnoDB: Error: File pointer positioning to"
+			" InnoDB: Error: File pointer positioning to"
 			" file %s failed at\n"
 			"InnoDB: offset %llu. Operating system"
 			" error number %lu.\n"
@@ -2772,15 +2738,6 @@ retry:
 	}
 
 	ret = WriteFile(file, buf, (DWORD) n, &len, NULL);
-
-	/* Always do fsync to reduce the probability that when the OS crashes,
-	a database page is only partially physically written to disk. */
-
-# ifdef UNIV_DO_FLUSH
-	if (!os_do_not_call_flush_at_each_write) {
-		ut_a(TRUE == os_file_flush(file));
-	}
-# endif /* UNIV_DO_FLUSH */
 
 #ifndef UNIV_HOTBACKUP
 	os_mutex_exit(os_file_seek_mutexes[i]);
@@ -2811,12 +2768,12 @@ retry:
 
 	if (!os_has_said_disk_full) {
 
-		err = (ulint)GetLastError();
+		err = (ulint) GetLastError();
 
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-			"  InnoDB: Error: Write to file %s failed"
+			" InnoDB: Error: Write to file %s failed"
 			" at offset %llu.\n"
 			"InnoDB: %lu bytes should have been written,"
 			" only %lu were written.\n"
@@ -2828,10 +2785,10 @@ retry:
 			name, offset,
 			(ulong) n, (ulong) len, (ulong) err);
 
-		if (strerror((int)err) != NULL) {
+		if (strerror((int) err) != NULL) {
 			fprintf(stderr,
 				"InnoDB: Error number %lu means '%s'.\n",
-				(ulong) err, strerror((int)err));
+				(ulong) err, strerror((int) err));
 		}
 
 		fprintf(stderr,
@@ -2849,7 +2806,7 @@ retry:
 
 	ret = os_file_pwrite(file, buf, n, offset);
 
-	if ((ulint)ret == n) {
+	if ((ulint) ret == n) {
 
 		return(TRUE);
 	}
@@ -2859,7 +2816,7 @@ retry:
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-			"  InnoDB: Error: Write to file %s failed"
+			" InnoDB: Error: Write to file %s failed"
 			" at offset "UINT64PF".\n"
 			"InnoDB: %lu bytes should have been written,"
 			" only %ld were written.\n"
@@ -2873,7 +2830,7 @@ retry:
 		if (strerror(errno) != NULL) {
 			fprintf(stderr,
 				"InnoDB: Error number %lu means '%s'.\n",
-				(ulint)errno, strerror(errno));
+				(ulint) errno, strerror(errno));
 		}
 
 		fprintf(stderr,
@@ -3048,9 +3005,9 @@ os_file_get_status(
 
 /****************************************************************//**
 The function os_file_dirname returns a directory component of a
-null-terminated pathname string.  In the usual case, dirname returns
+null-terminated pathname string. In the usual case, dirname returns
 the string up to, but not including, the final '/', and basename
-is the component following the final '/'.  Trailing '/' charac­
+is the component following the final '/'. Trailing '/' charac­
 ters are not counted as part of the pathname.
 
 If path does not contain a slash, dirname returns the string ".".
@@ -3058,7 +3015,7 @@ If path does not contain a slash, dirname returns the string ".".
 Concatenating the string returned by dirname, a "/", and the basename
 yields a complete pathname.
 
-The return value is  a copy of the directory component of the pathname.
+The return value is a copy of the directory component of the pathname.
 The copy is allocated from heap. It is the caller responsibility
 to free it after it is no longer needed.
 
@@ -3196,7 +3153,7 @@ retry:
 			/* First time around. */
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB: Warning: io_setup() failed"
+				" InnoDB: Warning: io_setup() failed"
 				" with EAGAIN. Will make %d attempts"
 				" before giving up.\n",
 				OS_AIO_IO_SETUP_RETRY_ATTEMPTS);
@@ -3215,7 +3172,7 @@ retry:
 		/* Have tried enough. Better call it a day. */
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Error: io_setup() failed"
+			" InnoDB: Error: io_setup() failed"
 			" with EAGAIN after %d attempts.\n",
 			OS_AIO_IO_SETUP_RETRY_ATTEMPTS);
 		break;
@@ -3223,7 +3180,7 @@ retry:
 	case -ENOSYS:
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Error: Linux Native AIO interface"
+			" InnoDB: Error: Linux Native AIO interface"
 			" is not supported on this platform. Please"
 			" check your OS documentation and install"
 			" appropriate binary of InnoDB.\n");
@@ -3233,14 +3190,98 @@ retry:
 	default:
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Error: Linux Native AIO setup"
+			" InnoDB: Error: Linux Native AIO setup"
 			" returned following error[%d]\n", -ret);
 		break;
 	}
 
 	fprintf(stderr,
 		"InnoDB: You can disable Linux Native AIO by"
-		" setting innodb_native_aio = off in my.cnf\n");
+		" setting innodb_use_native_aio = 0 in my.cnf\n");
+	return(FALSE);
+}
+
+/******************************************************************//**
+Checks if the system supports native linux aio. On some kernel
+versions where native aio is supported it won't work on tmpfs. In such
+cases we can't use native aio as it is not possible to mix simulated
+and native aio.
+@return: TRUE if supported, FALSE otherwise. */
+static
+ibool
+os_aio_native_aio_supported(void)
+/*=============================*/
+{
+	int			fd;
+	byte*			buf;
+	byte*			ptr;
+	struct io_event		io_event;
+	io_context_t		io_ctx;
+	struct iocb		iocb;
+	struct iocb*		p_iocb;
+	int			err;
+
+	if (!os_aio_linux_create_io_ctx(1, &io_ctx)) {
+		/* The platform does not support native aio. */
+		return(FALSE);
+	}
+
+	/* Now check if tmpdir supports native aio ops. */
+	fd = innobase_mysql_tmpfile();
+
+	if (fd < 0) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error: unable to create "
+			"temp file to check native AIO support.\n");
+
+		return(FALSE);
+	}
+
+	memset(&io_event, 0x0, sizeof(io_event));
+
+	buf = static_cast<byte*>(ut_malloc(UNIV_PAGE_SIZE * 2));
+	ptr = static_cast<byte*>(ut_align(buf, UNIV_PAGE_SIZE));
+
+	/* Suppress valgrind warning. */
+	memset(buf, 0x00, UNIV_PAGE_SIZE * 2);
+
+	memset(&iocb, 0x0, sizeof(iocb));
+	p_iocb = &iocb;
+	io_prep_pwrite(p_iocb, fd, ptr, UNIV_PAGE_SIZE, 0);
+
+	err = io_submit(io_ctx, 1, &p_iocb);
+	if (err >= 1) {
+		/* Now collect the submitted IO request. */
+		err = io_getevents(io_ctx, 1, 1, &io_event, NULL);
+	}
+
+	ut_free(buf);
+	close(fd);
+
+	switch (err) {
+	case 1:
+		return(TRUE);
+
+	case -EINVAL:
+	case -ENOSYS:
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Error: Linux Native AIO is not"
+			" supported on tmpdir.\n"
+			"InnoDB: You can either move tmpdir to a"
+			" file system that supports native AIO\n"
+			"InnoDB: or you can set"
+			" innodb_use_native_aio to FALSE to avoid"
+			" this message.\n");
+
+		/* fall through. */
+	default:
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Error: Linux Native AIO check"
+			" on tmpdir returned error[%d]\n", -err);
+	}
+
 	return(FALSE);
 }
 #endif /* LINUX_NATIVE_AIO */
@@ -3307,7 +3348,7 @@ os_aio_array_create(
 
 	for (i = 0; i < n_segments; ++i) {
 		if (!os_aio_linux_create_io_ctx(n/n_segments,
-					   &array->aio_ctx[i])) {
+						&array->aio_ctx[i])) {
 			/* If something bad happened during aio setup
 			we should call it a day and return right away.
 			We don't care about any leaks because a failure
@@ -3411,6 +3452,19 @@ os_aio_init(
 	ut_ad(n_segments >= 4);
 
 	os_io_init_simple();
+
+#if defined(LINUX_NATIVE_AIO)
+	/* Check if native aio is supported on this system and tmpfs */
+	if (srv_use_native_aio
+	    && !os_aio_native_aio_supported()) {
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Warning: Linux Native AIO"
+			" disabled.\n");
+		srv_use_native_aio = FALSE;
+	}
+#endif /* LINUX_NATIVE_AIO */
 
 	for (i = 0; i < n_segments; i++) {
 		srv_set_io_thread_op_info(i, "not started yet");
@@ -3698,7 +3752,7 @@ os_aio_array_reserve_slot(
 	segment. This can help in merging IO requests when we are
 	doing simulated AIO */
 	local_seg = (offset >> (UNIV_PAGE_SIZE_SHIFT + 6))
-		    % array->n_segments;
+		% array->n_segments;
 
 loop:
 	os_mutex_enter(array->mutex);
@@ -3788,7 +3842,7 @@ found:
 		io_prep_pwrite(iocb, file, buf, len, aio_offset);
 	}
 
-	iocb->data = (void*)slot;
+	iocb->data = (void*) slot;
 	slot->n_bytes = 0;
 	slot->ret = 0;
 	/*fprintf(stderr, "Filled up Linux native iocb.\n");*/
@@ -3985,7 +4039,7 @@ os_aio_linux_dispatch(
 	fprintf(stderr,
 		"io_submit[%c] ret[%d]: slot[%p] ctx[%p] seg[%lu]\n",
 		(slot->type == OS_FILE_WRITE) ? 'w' : 'r', ret, slot,
-		array->aio_ctx[io_ctx_index], (ulong)io_ctx_index);
+		array->aio_ctx[io_ctx_index], (ulong) io_ctx_index);
 #endif
 
 	/* io_submit returns number of successfully
@@ -4130,7 +4184,7 @@ try_again:
 			os_n_file_reads++;
 			os_bytes_read_since_printout += n;
 #ifdef WIN_ASYNC_IO
-			ret = ReadFile(file, buf, (DWORD)n, &len,
+			ret = ReadFile(file, buf, (DWORD) n, &len,
 				       &(slot->control));
 
 #elif defined(LINUX_NATIVE_AIO)
@@ -4149,7 +4203,7 @@ try_again:
 		if (srv_use_native_aio) {
 			os_n_file_writes++;
 #ifdef WIN_ASYNC_IO
-			ret = WriteFile(file, buf, (DWORD)n, &len,
+			ret = WriteFile(file, buf, (DWORD) n, &len,
 					&(slot->control));
 
 #elif defined(LINUX_NATIVE_AIO)
@@ -4312,16 +4366,8 @@ os_aio_windows_handle(
 	*type = slot->type;
 
 	if (ret && len == slot->len) {
-		ret_val = TRUE;
 
-#ifdef UNIV_DO_FLUSH
-		if (slot->type == OS_FILE_WRITE
-		    && !os_do_not_call_flush_at_each_write) {
-			if (!os_file_flush(slot->file)) {
-				ut_error;
-			}
-		}
-#endif /* UNIV_DO_FLUSH */
+		ret_val = TRUE;
 	} else if (os_file_handle_error(slot->name, "Windows aio")) {
 
 		retry = TRUE;
@@ -4452,10 +4498,10 @@ retry:
 			os_aio_slot_t*	slot;
 			struct iocb*	control;
 
-			control = (struct iocb *)events[i].obj;
+			control = (struct iocb*) events[i].obj;
 			ut_a(control != NULL);
 
-			slot = (os_aio_slot_t *) control->data;
+			slot = (os_aio_slot_t*) control->data;
 
 			/* Some sanity checks. */
 			ut_a(slot != NULL);
@@ -4510,7 +4556,7 @@ retry:
 	/* All other errors should cause a trap for now. */
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: unexpected ret_code[%d] from io_getevents()!\n",
+		" InnoDB: unexpected ret_code[%d] from io_getevents()!\n",
 		ret);
 	ut_error;
 }
@@ -4612,16 +4658,9 @@ found:
 
 	*type = slot->type;
 
-	if ((slot->ret == 0) && (slot->n_bytes == (long)slot->len)) {
-		ret = TRUE;
+	if ((slot->ret == 0) && (slot->n_bytes == (long) slot->len)) {
 
-#ifdef UNIV_DO_FLUSH
-		if (slot->type == OS_FILE_WRITE
-		    && !os_do_not_call_flush_at_each_write)
-		    && !os_file_flush(slot->file) {
-			ut_error;
-		}
-#endif /* UNIV_DO_FLUSH */
+		ret = TRUE;
 	} else {
 		errno = -slot->ret;
 
@@ -4767,8 +4806,8 @@ restart:
 		slot = os_aio_array_get_nth_slot(array, i + segment * n);
 
 		if (slot->reserved) {
-			age = (ulint)difftime(time(NULL),
-					      slot->reservation_time);
+			age = (ulint) difftime(time(NULL),
+					       slot->reservation_time);
 
 			if ((age >= 2 && age > biggest_age)
 			    || (age >= 2 && age == biggest_age
@@ -5208,7 +5247,7 @@ loop:
 		" %.2f writes/s, %.2f fsyncs/s\n",
 		(os_n_file_reads - os_n_file_reads_old)
 		/ time_elapsed,
-		(ulong)avg_bytes_read,
+		(ulong) avg_bytes_read,
 		(os_n_file_writes - os_n_file_writes_old)
 		/ time_elapsed,
 		(os_n_fsyncs - os_n_fsyncs_old)

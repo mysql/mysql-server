@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -631,8 +631,11 @@ static inline int inline_mysql_mutex_destroy(
   )
 {
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-  PSI_CALL(destroy_mutex)(that->m_psi);
-  that->m_psi= NULL;
+  if (that->m_psi != NULL)
+  {
+    PSI_CALL(destroy_mutex)(that->m_psi);
+    that->m_psi= NULL;
+  }
 #endif
 #ifdef SAFE_MUTEX
   return safe_mutex_destroy(&that->m_mutex, src_file, src_line);
@@ -651,13 +654,17 @@ static inline int inline_mysql_mutex_lock(
   )
 {
   int result;
+
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-  struct PSI_mutex_locker *locker;
-  PSI_mutex_locker_state state;
-  locker= PSI_CALL(get_thread_mutex_locker)(&state, that->m_psi, PSI_MUTEX_LOCK);
-  if (likely(locker != NULL))
+  if (that->m_psi != NULL)
   {
-    PSI_CALL(start_mutex_wait)(locker, src_file, src_line);
+    /* Instrumentation start */
+    PSI_mutex_locker *locker;
+    PSI_mutex_locker_state state;
+    locker= PSI_CALL(start_mutex_wait)(&state, that->m_psi,
+                                       PSI_MUTEX_LOCK, src_file, src_line);
+
+    /* Instrumented code */
 #ifdef SAFE_MUTEX
     result= safe_mutex_lock(&that->m_mutex, FALSE, src_file, src_line);
 #elif defined(MY_PTHREAD_FASTMUTEX)
@@ -665,11 +672,16 @@ static inline int inline_mysql_mutex_lock(
 #else
     result= pthread_mutex_lock(&that->m_mutex);
 #endif
-    PSI_CALL(end_mutex_wait)(locker, result);
+
+    /* Instrumentation end */
+    if (locker != NULL)
+      PSI_CALL(end_mutex_wait)(locker, result);
+
     return result;
   }
 #endif
 
+  /* Non instrumented code */
 #ifdef SAFE_MUTEX
   result= safe_mutex_lock(&that->m_mutex, FALSE, src_file, src_line);
 #elif defined(MY_PTHREAD_FASTMUTEX)
@@ -677,6 +689,7 @@ static inline int inline_mysql_mutex_lock(
 #else
   result= pthread_mutex_lock(&that->m_mutex);
 #endif
+
   return result;
 }
 
@@ -688,13 +701,17 @@ static inline int inline_mysql_mutex_trylock(
   )
 {
   int result;
+
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-  struct PSI_mutex_locker *locker;
-  PSI_mutex_locker_state state;
-  locker= PSI_CALL(get_thread_mutex_locker)(&state, that->m_psi, PSI_MUTEX_TRYLOCK);
-  if (likely(locker != NULL))
+  if (that->m_psi != NULL)
   {
-    PSI_CALL(start_mutex_wait)(locker, src_file, src_line);
+    /* Instrumentation start */
+    PSI_mutex_locker *locker;
+    PSI_mutex_locker_state state;
+    locker= PSI_CALL(start_mutex_wait)(&state, that->m_psi,
+                                       PSI_MUTEX_TRYLOCK, src_file, src_line);
+
+    /* Instrumented code */
 #ifdef SAFE_MUTEX
     result= safe_mutex_lock(&that->m_mutex, TRUE, src_file, src_line);
 #elif defined(MY_PTHREAD_FASTMUTEX)
@@ -702,11 +719,16 @@ static inline int inline_mysql_mutex_trylock(
 #else
     result= pthread_mutex_trylock(&that->m_mutex);
 #endif
-    PSI_CALL(end_mutex_wait)(locker, result);
+
+    /* Instrumentation end */
+    if (locker != NULL)
+      PSI_CALL(end_mutex_wait)(locker, result);
+
     return result;
   }
 #endif
 
+  /* Non instrumented code */
 #ifdef SAFE_MUTEX
   result= safe_mutex_lock(&that->m_mutex, TRUE, src_file, src_line);
 #elif defined(MY_PTHREAD_FASTMUTEX)
@@ -714,6 +736,7 @@ static inline int inline_mysql_mutex_trylock(
 #else
   result= pthread_mutex_trylock(&that->m_mutex);
 #endif
+
   return result;
 }
 
@@ -725,9 +748,12 @@ static inline int inline_mysql_mutex_unlock(
   )
 {
   int result;
+
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-  PSI_CALL(unlock_mutex)(that->m_psi);
+  if (that->m_psi != NULL)
+    PSI_CALL(unlock_mutex)(that->m_psi);
 #endif
+
 #ifdef SAFE_MUTEX
   result= safe_mutex_unlock(&that->m_mutex, src_file, src_line);
 #elif defined(MY_PTHREAD_FASTMUTEX)
@@ -735,6 +761,7 @@ static inline int inline_mysql_mutex_unlock(
 #else
   result= pthread_mutex_unlock(&that->m_mutex);
 #endif
+
   return result;
 }
 
@@ -792,8 +819,11 @@ static inline int inline_mysql_rwlock_destroy(
   mysql_rwlock_t *that)
 {
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  PSI_CALL(destroy_rwlock)(that->m_psi);
-  that->m_psi= NULL;
+  if (that->m_psi != NULL)
+  {
+    PSI_CALL(destroy_rwlock)(that->m_psi);
+    that->m_psi= NULL;
+  }
 #endif
   return rwlock_destroy(&that->m_rwlock);
 }
@@ -803,8 +833,11 @@ static inline int inline_mysql_prlock_destroy(
   mysql_prlock_t *that)
 {
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  PSI_CALL(destroy_rwlock)(that->m_psi);
-  that->m_psi= NULL;
+  if (that->m_psi != NULL)
+  {
+    PSI_CALL(destroy_rwlock)(that->m_psi);
+    that->m_psi= NULL;
+  }
 #endif
   return rw_pr_destroy(&that->m_prlock);
 }
@@ -818,21 +851,30 @@ static inline int inline_mysql_rwlock_rdlock(
   )
 {
   int result;
+
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  struct PSI_rwlock_locker *locker;
-  PSI_rwlock_locker_state state;
-  locker= PSI_CALL(get_thread_rwlock_locker)(&state, that->m_psi,
-                                             PSI_RWLOCK_READLOCK);
-  if (likely(locker != NULL))
+  if (that->m_psi != NULL)
   {
-    PSI_CALL(start_rwlock_rdwait)(locker, src_file, src_line);
+    /* Instrumentation start */
+    PSI_rwlock_locker *locker;
+    PSI_rwlock_locker_state state;
+    locker= PSI_CALL(start_rwlock_rdwait)(&state, that->m_psi,
+                                          PSI_RWLOCK_READLOCK, src_file, src_line);
+
+    /* Instrumented code */
     result= rw_rdlock(&that->m_rwlock);
-    PSI_CALL(end_rwlock_rdwait)(locker, result);
+
+    /* Instrumentation end */
+    if (locker != NULL)
+      PSI_CALL(end_rwlock_rdwait)(locker, result);
+
     return result;
   }
 #endif
 
+  /* Non instrumented code */
   result= rw_rdlock(&that->m_rwlock);
+
   return result;
 }
 
@@ -845,21 +887,30 @@ static inline int inline_mysql_prlock_rdlock(
   )
 {
   int result;
+
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  struct PSI_rwlock_locker *locker;
-  PSI_rwlock_locker_state state;
-  locker= PSI_CALL(get_thread_rwlock_locker)(&state, that->m_psi,
-                                             PSI_RWLOCK_READLOCK);
-  if (likely(locker != NULL))
+  if (that->m_psi != NULL)
   {
-    PSI_CALL(start_rwlock_rdwait)(locker, src_file, src_line);
+    /* Instrumentation start */
+    PSI_rwlock_locker *locker;
+    PSI_rwlock_locker_state state;
+    locker= PSI_CALL(start_rwlock_rdwait)(&state, that->m_psi,
+                                          PSI_RWLOCK_READLOCK, src_file, src_line);
+
+    /* Instrumented code */
     result= rw_pr_rdlock(&that->m_prlock);
-    PSI_CALL(end_rwlock_rdwait)(locker, result);
+
+    /* Instrumentation end */
+    if (locker != NULL)
+      PSI_CALL(end_rwlock_rdwait)(locker, result);
+
     return result;
   }
 #endif
 
+  /* Non instrumented code */
   result= rw_pr_rdlock(&that->m_prlock);
+
   return result;
 }
 #endif
@@ -872,21 +923,30 @@ static inline int inline_mysql_rwlock_wrlock(
   )
 {
   int result;
+
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  struct PSI_rwlock_locker *locker;
-  PSI_rwlock_locker_state state;
-  locker= PSI_CALL(get_thread_rwlock_locker)(&state, that->m_psi,
-                                             PSI_RWLOCK_WRITELOCK);
-  if (likely(locker != NULL))
+  if (that->m_psi != NULL)
   {
-    PSI_CALL(start_rwlock_wrwait)(locker, src_file, src_line);
+    /* Instrumentation start */
+    PSI_rwlock_locker *locker;
+    PSI_rwlock_locker_state state;
+    locker= PSI_CALL(start_rwlock_wrwait)(&state, that->m_psi,
+                                          PSI_RWLOCK_WRITELOCK, src_file, src_line);
+
+    /* Instrumented code */
     result= rw_wrlock(&that->m_rwlock);
-    PSI_CALL(end_rwlock_wrwait)(locker, result);
+
+    /* Instrumentation end */
+    if (locker != NULL)
+      PSI_CALL(end_rwlock_wrwait)(locker, result);
+
     return result;
   }
 #endif
 
+  /* Non instrumented code */
   result= rw_wrlock(&that->m_rwlock);
+
   return result;
 }
 
@@ -899,21 +959,30 @@ static inline int inline_mysql_prlock_wrlock(
   )
 {
   int result;
+
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  struct PSI_rwlock_locker *locker;
-  PSI_rwlock_locker_state state;
-  locker= PSI_CALL(get_thread_rwlock_locker)(&state, that->m_psi,
-                                             PSI_RWLOCK_WRITELOCK);
-  if (likely(locker != NULL))
+  if (that->m_psi != NULL)
   {
-    PSI_CALL(start_rwlock_wrwait)(locker, src_file, src_line);
+    /* Instrumentation start */
+    PSI_rwlock_locker *locker;
+    PSI_rwlock_locker_state state;
+    locker= PSI_CALL(start_rwlock_wrwait)(&state, that->m_psi,
+                                          PSI_RWLOCK_WRITELOCK, src_file, src_line);
+
+    /* Instrumented code */
     result= rw_pr_wrlock(&that->m_prlock);
-    PSI_CALL(end_rwlock_wrwait)(locker, result);
+
+    /* Instrumentation end */
+    if (locker != NULL)
+      PSI_CALL(end_rwlock_wrwait)(locker, result);
+
     return result;
   }
 #endif
 
+  /* Non instrumented code */
   result= rw_pr_wrlock(&that->m_prlock);
+
   return result;
 }
 #endif
@@ -926,21 +995,30 @@ static inline int inline_mysql_rwlock_tryrdlock(
   )
 {
   int result;
+
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  struct PSI_rwlock_locker *locker;
-  PSI_rwlock_locker_state state;
-  locker= PSI_CALL(get_thread_rwlock_locker)(&state, that->m_psi,
-                                             PSI_RWLOCK_TRYREADLOCK);
-  if (likely(locker != NULL))
+  if (that->m_psi != NULL)
   {
-    PSI_CALL(start_rwlock_rdwait)(locker, src_file, src_line);
+    /* Instrumentation start */
+    PSI_rwlock_locker *locker;
+    PSI_rwlock_locker_state state;
+    locker= PSI_CALL(start_rwlock_rdwait)(&state, that->m_psi,
+                                          PSI_RWLOCK_TRYREADLOCK, src_file, src_line);
+
+    /* Instrumented code */
     result= rw_tryrdlock(&that->m_rwlock);
-    PSI_CALL(end_rwlock_rdwait)(locker, result);
+
+    /* Instrumentation end */
+    if (locker != NULL)
+      PSI_CALL(end_rwlock_rdwait)(locker, result);
+
     return result;
   }
 #endif
 
+  /* Non instrumented code */
   result= rw_tryrdlock(&that->m_rwlock);
+
   return result;
 }
 
@@ -952,21 +1030,30 @@ static inline int inline_mysql_rwlock_trywrlock(
   )
 {
   int result;
+
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  struct PSI_rwlock_locker *locker;
-  PSI_rwlock_locker_state state;
-  locker= PSI_CALL(get_thread_rwlock_locker)(&state, that->m_psi,
-                                             PSI_RWLOCK_TRYWRITELOCK);
-  if (likely(locker != NULL))
+  if (that->m_psi != NULL)
   {
-    PSI_CALL(start_rwlock_wrwait)(locker, src_file, src_line);
+    /* Instrumentation start */
+    PSI_rwlock_locker *locker;
+    PSI_rwlock_locker_state state;
+    locker= PSI_CALL(start_rwlock_wrwait)(&state, that->m_psi,
+                                          PSI_RWLOCK_TRYWRITELOCK, src_file, src_line);
+
+    /* Instrumented code */
     result= rw_trywrlock(&that->m_rwlock);
-    PSI_CALL(end_rwlock_wrwait)(locker, result);
+
+    /* Instrumentation end */
+    if (locker != NULL)
+      PSI_CALL(end_rwlock_wrwait)(locker, result);
+
     return result;
   }
 #endif
 
+  /* Non instrumented code */
   result= rw_trywrlock(&that->m_rwlock);
+
   return result;
 }
 
@@ -975,7 +1062,8 @@ static inline int inline_mysql_rwlock_unlock(
 {
   int result;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  PSI_CALL(unlock_rwlock)(that->m_psi);
+  if (that->m_psi != NULL)
+    PSI_CALL(unlock_rwlock)(that->m_psi);
 #endif
   result= rw_unlock(&that->m_rwlock);
   return result;
@@ -987,7 +1075,8 @@ static inline int inline_mysql_prlock_unlock(
 {
   int result;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  PSI_CALL(unlock_rwlock)(that->m_psi);
+  if (that->m_psi != NULL)
+    PSI_CALL(unlock_rwlock)(that->m_psi);
 #endif
   result= rw_pr_unlock(&that->m_prlock);
   return result;
@@ -1030,8 +1119,11 @@ static inline int inline_mysql_cond_destroy(
   mysql_cond_t *that)
 {
 #ifdef HAVE_PSI_COND_INTERFACE
-  PSI_CALL(destroy_cond)(that->m_psi);
-  that->m_psi= NULL;
+  if (that->m_psi != NULL)
+  {
+    PSI_CALL(destroy_cond)(that->m_psi);
+    that->m_psi= NULL;
+  }
 #endif
   return pthread_cond_destroy(&that->m_cond);
 }
@@ -1045,21 +1137,30 @@ static inline int inline_mysql_cond_wait(
   )
 {
   int result;
+
 #ifdef HAVE_PSI_COND_INTERFACE
-  struct PSI_cond_locker *locker;
-  PSI_cond_locker_state state;
-  locker= PSI_CALL(get_thread_cond_locker)(&state, that->m_psi, mutex->m_psi,
-                                           PSI_COND_WAIT);
-  if (likely(locker != NULL))
+  if (that->m_psi != NULL)
   {
-    PSI_CALL(start_cond_wait)(locker, src_file, src_line);
+    /* Instrumentation start */
+    PSI_cond_locker *locker;
+    PSI_cond_locker_state state;
+    locker= PSI_CALL(start_cond_wait)(&state, that->m_psi, mutex->m_psi,
+                                      PSI_COND_WAIT, src_file, src_line);
+
+    /* Instrumented code */
     result= my_cond_wait(&that->m_cond, &mutex->m_mutex);
-    PSI_CALL(end_cond_wait)(locker, result);
+
+    /* Instrumentation end */
+    if (locker != NULL)
+      PSI_CALL(end_cond_wait)(locker, result);
+
     return result;
   }
 #endif
 
+  /* Non instrumented code */
   result= my_cond_wait(&that->m_cond, &mutex->m_mutex);
+
   return result;
 }
 
@@ -1073,21 +1174,30 @@ static inline int inline_mysql_cond_timedwait(
   )
 {
   int result;
+
 #ifdef HAVE_PSI_COND_INTERFACE
-  struct PSI_cond_locker *locker;
-  PSI_cond_locker_state state;
-  locker= PSI_CALL(get_thread_cond_locker)(&state, that->m_psi, mutex->m_psi,
-                                           PSI_COND_TIMEDWAIT);
-  if (likely(locker != NULL))
+  if (that->m_psi != NULL)
   {
-    PSI_CALL(start_cond_wait)(locker, src_file, src_line);
+    /* Instrumentation start */
+    PSI_cond_locker *locker;
+    PSI_cond_locker_state state;
+    locker= PSI_CALL(start_cond_wait)(&state, that->m_psi, mutex->m_psi,
+                                      PSI_COND_TIMEDWAIT, src_file, src_line);
+
+    /* Instrumented code */
     result= my_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime);
-    PSI_CALL(end_cond_wait)(locker, result);
+
+    /* Instrumentation end */
+    if (locker != NULL)
+      PSI_CALL(end_cond_wait)(locker, result);
+
     return result;
   }
 #endif
 
+  /* Non instrumented code */
   result= my_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime);
+
   return result;
 }
 
@@ -1096,7 +1206,8 @@ static inline int inline_mysql_cond_signal(
 {
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
-  PSI_CALL(signal_cond)(that->m_psi);
+  if (that->m_psi != NULL)
+    PSI_CALL(signal_cond)(that->m_psi);
 #endif
   result= pthread_cond_signal(&that->m_cond);
   return result;
@@ -1107,7 +1218,8 @@ static inline int inline_mysql_cond_broadcast(
 {
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
-  PSI_CALL(broadcast_cond)(that->m_psi);
+  if (that->m_psi != NULL)
+    PSI_CALL(broadcast_cond)(that->m_psi);
 #endif
   result= pthread_cond_broadcast(&that->m_cond);
   return result;

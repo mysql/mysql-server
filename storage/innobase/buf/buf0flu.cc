@@ -62,11 +62,6 @@ Each interval is 1 second, defined by the rate at which
 srv_error_monitor_thread() calls buf_flush_stat_update(). */
 #define BUF_FLUSH_STAT_N_INTERVAL 20
 
-/** Time in milliseconds that we sleep when unable to find a slot in
-the doublewrite buffer or when we have to wait for a running batch
-to end. */
-#define TRX_DOUBLEWRITE_BATCH_POLL_DELAY	10000
-
 /** Sampled values buf_flush_stat_cur.
 Not protected by any mutex.  Updated by buf_flush_stat_update(). */
 static buf_flush_stat_t	buf_flush_stat_arr[BUF_FLUSH_STAT_N_INTERVAL];
@@ -697,501 +692,19 @@ buf_flush_write_complete(
 
 		os_event_set(buf_pool->no_flush[flush_type]);
 	}
-}
 
-/********************************************************************//**
-Flush a batch of writes to the datafiles that have already been
-written by the OS. */
-static
-void
-buf_flush_sync_datafiles(void)
-/*==========================*/
-{
-	/* Wake possible simulated aio thread to actually post the
-	writes to the operating system */
-	os_aio_simulated_wake_handler_threads();
-
-	/* Wait that all async writes to tablespaces have been posted to
-	the OS */
-	os_aio_wait_until_no_pending_writes();
-
-	/* Now we flush the data to disk (for example, with fsync) */
-	fil_flush_file_spaces(FIL_TABLESPACE);
-
-	return;
-}
-
-/********************************************************************//**
-Check the LSN values on the page. */
-static
-void
-buf_flush_doublewrite_check_page_lsn(
-/*=================================*/
-	const page_t*	page)		/*!< in: page to check */
-{
-	if (memcmp(page + (FIL_PAGE_LSN + 4),
-		   page + (UNIV_PAGE_SIZE
-			   - FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
-		   4)) {
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: ERROR: The page to be written"
-			" seems corrupt!\n"
-			"InnoDB: The low 4 bytes of LSN fields do not match "
-			"(" ULINTPF " != " ULINTPF ")!"
-			" Noticed in the buffer pool.\n",
-			mach_read_from_4(
-				page + FIL_PAGE_LSN + 4),
-			mach_read_from_4(
-				page + UNIV_PAGE_SIZE
-				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4));
+	switch (flush_type) {
+	case BUF_FLUSH_LIST:
+	case BUF_FLUSH_LRU:
+		buf_dblwr_update();
+		break;
+	case BUF_FLUSH_SINGLE_PAGE:
+		/* Single page flushes are synchronous. No need
+		to update doublewrite */
+		break;
+	case BUF_FLUSH_N_TYPES:
+		ut_error;
 	}
-}
-
-/********************************************************************//**
-Asserts when a corrupt block is find during writing out data to the
-disk. */
-static
-void
-buf_flush_doublewrite_assert_on_corrupt_block(
-/*==========================================*/
-	const buf_block_t*	block)	/*!< in: block to check */
-{
-	buf_page_print(block->frame, 0);
-
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		"  InnoDB: Apparent corruption of an"
-		" index page n:o %lu in space %lu\n"
-		"InnoDB: to be written to data file."
-		" We intentionally crash server\n"
-		"InnoDB: to prevent corrupt data"
-		" from ending up in data\n"
-		"InnoDB: files.\n",
-		(ulong) buf_block_get_page_no(block),
-		(ulong) buf_block_get_space(block));
-
-	ut_error;
-}
-
-/********************************************************************//**
-Check the LSN values on the page with which this block is associated.
-Also validate the page if the option is set. */
-static
-void
-buf_flush_doublewrite_check_block(
-/*==============================*/
-	const buf_block_t*	block)	/*!< in: block to check */
-{
-	if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE
-	    || block->page.zip.data) {
-		/* No simple validate for compressed pages exists. */
-		return;
-	}
-
-	buf_flush_doublewrite_check_page_lsn(block->frame);
-
-	if (!block->check_index_page_at_flush) {
-		return;
-	}
-
-	if (page_is_comp(block->frame)) {
-		if (!page_simple_validate_new(block->frame)) {
-			buf_flush_doublewrite_assert_on_corrupt_block(block);
-		}
-	} else if (!page_simple_validate_old(block->frame)) {
-
-		buf_flush_doublewrite_assert_on_corrupt_block(block);
-	}
-}
-
-/********************************************************************//**
-Writes a page that has already been written to the doublewrite buffer
-to the datafile. It is the job of the caller to sync the datafile. */
-static
-void
-buf_flush_write_block_to_datafile(
-/*==============================*/
-	const buf_block_t*	block)	/*!< in: block to write */
-{
-	ut_a(block);
-	ut_a(buf_page_in_file(&block->page));
-
-	if (block->page.zip.data) {
-		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-		       FALSE, buf_page_get_space(&block->page),
-		       buf_page_get_zip_size(&block->page),
-		       buf_page_get_page_no(&block->page), 0,
-		       buf_page_get_zip_size(&block->page),
-		       (void*)block->page.zip.data,
-		       (void*)block);
-
-		goto exit;
-	}
-
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	buf_flush_doublewrite_check_page_lsn(block->frame);
-
-	fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-	       FALSE, buf_block_get_space(block), 0,
-	       buf_block_get_page_no(block), 0, UNIV_PAGE_SIZE,
-	       (void*)block->frame, (void*)block);
-
-exit:
-	/* Increment the counter of I/O operations used
-	for selecting LRU policy. */
-	buf_LRU_stat_inc_io();
-}
-
-/********************************************************************//**
-Flushes possible buffered writes from the doublewrite memory buffer to disk,
-and also wakes up the aio thread if simulated aio is used. It is very
-important to call this function after a batch of writes has been posted,
-and also when we may have to wait for a page latch! Otherwise a deadlock
-of threads can occur. */
-static
-void
-buf_flush_buffered_writes(void)
-/*===========================*/
-{
-	byte*		write_buf;
-	ulint		len;
-	ulint		len2;
-	ulint		i;
-
-	if (!srv_use_doublewrite_buf || trx_doublewrite == NULL) {
-		/* Sync the writes to the disk. */
-		buf_flush_sync_datafiles();
-		return;
-	}
-
-try_again:
-	mutex_enter(&(trx_doublewrite->mutex));
-
-	/* Write first to doublewrite buffer blocks. We use synchronous
-	aio and thus know that file write has been completed when the
-	control returns. */
-
-	if (trx_doublewrite->first_free == 0) {
-
-		mutex_exit(&(trx_doublewrite->mutex));
-
-		return;
-	}
-
-	if (trx_doublewrite->batch_running) {
-		mutex_exit(&trx_doublewrite->mutex);
-
-		/* Another thread is running the batch right now. Wait
-		for it to finish. */
-		os_thread_sleep(TRX_DOUBLEWRITE_BATCH_POLL_DELAY);
-		goto try_again;
-	}
-
-	ut_a(!trx_doublewrite->batch_running);
-
-	/* Disallow anyone else to post to doublewrite buffer or to
-	start another batch of flushing. */
-	trx_doublewrite->batch_running = TRUE;
-
-	/* Now safe to release the mutex. Note that though no other
-	thread is allowed to post to the doublewrite batch flushing
-	but any threads working on single page flushes are allowed
-	to proceed. */
-	mutex_exit(&trx_doublewrite->mutex);
-
-	write_buf = trx_doublewrite->write_buf;
-
-	for (len2 = 0, i = 0;
-	     i < trx_doublewrite->first_free;
-	     len2 += UNIV_PAGE_SIZE, i++) {
-
-		const buf_block_t*	block;
-
-		block = (buf_block_t*) trx_doublewrite->buf_block_arr[i];
-
-		if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE
-		    || block->page.zip.data) {
-			/* No simple validate for compressed
-			pages exists. */
-			continue;
-		}
-
-		/* Check that the actual page in the buffer pool is
-		not corrupt and the LSN values are sane. */
-		buf_flush_doublewrite_check_block(block);
-
-		/* Check that the page as written to the doublewrite
-		buffer has sane LSN values. */
-		buf_flush_doublewrite_check_page_lsn(write_buf + len2);
-	}
-
-	/* Write out the first block of the doublewrite buffer */
-	len = ut_min(TRX_SYS_DOUBLEWRITE_BLOCK_SIZE,
-		     trx_doublewrite->first_free) * UNIV_PAGE_SIZE;
-
-	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE, 0,
-	       trx_doublewrite->block1, 0, len,
-	       (void*) write_buf, NULL);
-
-	if (trx_doublewrite->first_free <= TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
-		/* No unwritten pages in the second block. */
-		goto flush;
-	}
-
-	/* Write out the second block of the doublewrite buffer. */
-	len = (trx_doublewrite->first_free - TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
-	       * UNIV_PAGE_SIZE;
-
-	write_buf = trx_doublewrite->write_buf
-		    + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
-
-	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE, 0,
-	       trx_doublewrite->block2, 0, len,
-	       (void*) write_buf, NULL);
-
-flush:
-	/* increment the doublewrite flushed pages counter */
-	srv_dblwr_pages_written += trx_doublewrite->first_free;
-	srv_dblwr_writes++;
-
-	/* Now flush the doublewrite buffer data to disk */
-	fil_flush(TRX_SYS_SPACE);
-
-	/* We know that the writes have been flushed to disk now
-	and in recovery we will find them in the doublewrite buffer
-	blocks. Next do the writes to the intended positions. */
-
-	for (i = 0; i < trx_doublewrite->first_free; i++) {
-		const buf_block_t* block = (buf_block_t*)
-			trx_doublewrite->buf_block_arr[i];
-
-		buf_flush_write_block_to_datafile(block);
-	}
-
-	/* Sync the writes to the disk. */
-	buf_flush_sync_datafiles();
-
-	mutex_enter(&trx_doublewrite->mutex);
-
-	/* We can now reuse the doublewrite memory buffer: */
-	trx_doublewrite->first_free = 0;
-	trx_doublewrite->batch_running = FALSE;
-
-	mutex_exit(&(trx_doublewrite->mutex));
-}
-
-/********************************************************************//**
-Posts a buffer page for writing. If the doublewrite memory buffer is
-full, calls buf_flush_buffered_writes and waits for for free space to
-appear. */
-static
-void
-buf_flush_post_to_doublewrite_buf(
-/*==============================*/
-	buf_page_t*	bpage)	/*!< in: buffer block to write */
-{
-	ulint	zip_size;
-
-	ut_a(buf_page_in_file(bpage));
-
-try_again:
-	mutex_enter(&(trx_doublewrite->mutex));
-
-	ut_a(trx_doublewrite->first_free <= srv_doublewrite_batch_size);
-
-	if (trx_doublewrite->batch_running) {
-		mutex_exit(&trx_doublewrite->mutex);
-
-		/* This not nearly as bad as it looks. There is only
-		page_cleaner thread which does background flushing
-		in batches therefore it is unlikely to be a contention
-		point. The only exception is when a user thread is
-		forced to do a flush batch because of a sync
-		checkpoint. */
-		os_thread_sleep(TRX_DOUBLEWRITE_BATCH_POLL_DELAY);
-		goto try_again;
-	}
-
-	if (trx_doublewrite->first_free == srv_doublewrite_batch_size) {
-		mutex_exit(&(trx_doublewrite->mutex));
-
-		buf_flush_buffered_writes();
-
-		goto try_again;
-	}
-
-	zip_size = buf_page_get_zip_size(bpage);
-
-	if (zip_size) {
-		UNIV_MEM_ASSERT_RW(bpage->zip.data, zip_size);
-		/* Copy the compressed page and clear the rest. */
-		memcpy(trx_doublewrite->write_buf
-		       + UNIV_PAGE_SIZE * trx_doublewrite->first_free,
-		       bpage->zip.data, zip_size);
-		memset(trx_doublewrite->write_buf
-		       + UNIV_PAGE_SIZE * trx_doublewrite->first_free
-		       + zip_size, 0, UNIV_PAGE_SIZE - zip_size);
-	} else {
-		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
-		UNIV_MEM_ASSERT_RW(((buf_block_t*) bpage)->frame,
-				   UNIV_PAGE_SIZE);
-
-		memcpy(trx_doublewrite->write_buf
-		       + UNIV_PAGE_SIZE * trx_doublewrite->first_free,
-		       ((buf_block_t*) bpage)->frame, UNIV_PAGE_SIZE);
-	}
-
-	trx_doublewrite->buf_block_arr[trx_doublewrite->first_free] = bpage;
-
-	trx_doublewrite->first_free++;
-
-	if (trx_doublewrite->first_free == srv_doublewrite_batch_size) {
-		mutex_exit(&(trx_doublewrite->mutex));
-
-		buf_flush_buffered_writes();
-
-		return;
-	}
-
-	mutex_exit(&(trx_doublewrite->mutex));
-}
-
-/********************************************************************//**
-Writes a page to the doublewrite buffer on disk, sync it, then write
-the page to the datafile and sync the datafile. This function is used
-for single page flushes. If all the buffers allocated for single page
-flushes in the doublewrite buffer are in use we wait here for one to
-become free. We are guaranteed that a slot will become free because any
-thread that is using a slot must also release the slot before leaving
-this function. */
-static
-void
-buf_flush_write_to_dblwr_and_datafile(
-/*==================================*/
-	buf_page_t*	bpage)	/*!< in: buffer block to write */
-{
-	ulint		n_slots;
-	ulint		size;
-	ulint		zip_size;
-	ulint		offset;
-	ulint		i;
-
-	ut_a(buf_page_in_file(bpage));
-	ut_a(srv_use_doublewrite_buf);
-	ut_a(trx_doublewrite != NULL);
-
-	/* total number of slots available for single page flushes
-	starts from srv_doublewrite_batch_size to the end of the
-	buffer. */
-	size = 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE;
-	ut_a(size > srv_doublewrite_batch_size);
-	n_slots = size - srv_doublewrite_batch_size;
-
-	if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
-
-		/* Check that the actual page in the buffer pool is
-		not corrupt and the LSN values are sane. */
-		buf_flush_doublewrite_check_block((buf_block_t*) bpage);
-
-		/* Check that the page as written to the doublewrite
-		buffer has sane LSN values. */
-		if (!bpage->zip.data) {
-			buf_flush_doublewrite_check_page_lsn(
-				((buf_block_t*) bpage)->frame);
-		}
-	}
-
-retry:
-	mutex_enter(&trx_doublewrite->mutex);
-	if (trx_doublewrite->n_reserved == n_slots) {
-
-		mutex_exit(&trx_doublewrite->mutex);
-		/* All slots are reserved. Since it involves two IOs
-		during the processing a sleep of 10ms should be
-		enough. */
-		os_thread_sleep(TRX_DOUBLEWRITE_BATCH_POLL_DELAY);
-		goto retry;
-	}
-
-	for (i = srv_doublewrite_batch_size; i < size; ++i) {
-
-		if (!trx_doublewrite->in_use[i]) {
-			break;
-		}
-	}
-
-	/* We are guaranteed to find a slot. */
-	ut_a(i < size);
-	trx_doublewrite->in_use[i] = TRUE;
-	trx_doublewrite->n_reserved++;
-	trx_doublewrite->buf_block_arr[i] = bpage;
-	mutex_exit(&trx_doublewrite->mutex);
-
-	/* Lets see if we are going to write in the first or second
-	block of the doublewrite buffer. */
-	if (i < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
-		offset = trx_doublewrite->block1 + i;
-	} else {
-		offset = trx_doublewrite->block2 + i
-			 - TRX_SYS_DOUBLEWRITE_BLOCK_SIZE;
-	}
-
-	/* We deal with compressed and uncompressed pages a little
-	differently here. In case of uncompressed pages we can
-	directly write the block to the allocated slot in the
-	doublewrite buffer in the system tablespace and then after
-	syncing the system table space we can proceed to write the page
-	in the datafile.
-	In case of compressed page we first do a memcpy of the block
-	to the in-memory buffer of doublewrite before proceeding to
-	write it. This is so because we want to pad the remaining
-	bytes in the doublewrite page with zeros. */
-
-	zip_size = buf_page_get_zip_size(bpage);
-	if (zip_size) {
-		memcpy(trx_doublewrite->write_buf + UNIV_PAGE_SIZE * i,
-		       bpage->zip.data, zip_size);
-		memset(trx_doublewrite->write_buf + UNIV_PAGE_SIZE * i
-		       + zip_size, 0, UNIV_PAGE_SIZE - zip_size);
-
-		fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE, 0,
-		       offset, 0, UNIV_PAGE_SIZE,
-		       (void*) (trx_doublewrite->write_buf
-				+ UNIV_PAGE_SIZE * i), NULL);
-	} else {
-		/* It is a regular page. Write it directly to the
-		doublewrite buffer */
-		fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE, 0,
-		       offset, 0, UNIV_PAGE_SIZE,
-		       (void*) ((buf_block_t*) bpage)->frame,
-		       NULL);
-	}
-
-	/* Now flush the doublewrite buffer data to disk */
-	fil_flush(TRX_SYS_SPACE);
-
-	/* We know that the write has been flushed to disk now
-	and during recovery we will find it in the doublewrite buffer
-	blocks. Next do the write to the intended position. */
-	buf_flush_write_block_to_datafile((buf_block_t*) bpage);
-
-	/* Sync the writes to the disk. */
-	buf_flush_sync_datafiles();
-
-	mutex_enter(&trx_doublewrite->mutex);
-
-	trx_doublewrite->n_reserved--;
-	trx_doublewrite->buf_block_arr[i] = NULL;
-	trx_doublewrite->in_use[i] = FALSE;
-
-	/* increment the doublewrite flushed pages counter */
-	srv_dblwr_pages_written += trx_doublewrite->first_free;
-	srv_dblwr_writes++;
-
-	mutex_exit(&(trx_doublewrite->mutex));
-
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1309,9 +822,32 @@ buf_flush_init_for_writing(
 
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
+Flush a batch of writes to the datafiles that have already been
+written by the OS. */
+UNIV_INTERN
+void
+buf_flush_sync_datafiles(void)
+/*==========================*/
+{
+	/* Wake possible simulated aio thread to actually post the
+	writes to the operating system */
+	os_aio_simulated_wake_handler_threads();
+
+	/* Wait that all async writes to tablespaces have been posted to
+	the OS */
+	os_aio_wait_until_no_pending_writes();
+
+	/* Now we flush the data to disk (for example, with fsync) */
+	fil_flush_file_spaces(FIL_TABLESPACE);
+
+	return;
+}
+
+/********************************************************************//**
 Does an asynchronous write of a buffer page. NOTE: in simulated aio and
 also when the doublewrite buffer is used, we must call
-buf_flush_buffered_writes after we have posted a batch of writes! */
+buf_dblwr_flush_buffered_writes after we have posted a batch of
+writes! */
 static
 void
 buf_flush_write_block_low(
@@ -1392,16 +928,16 @@ buf_flush_write_block_low(
 		break;
 	}
 
-	if (!srv_use_doublewrite_buf || !trx_doublewrite) {
+	if (!srv_use_doublewrite_buf || !buf_dblwr) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 		       FALSE, buf_page_get_space(bpage), zip_size,
 		       buf_page_get_page_no(bpage), 0,
 		       zip_size ? zip_size : UNIV_PAGE_SIZE,
 		       frame, bpage);
 	} else if (flush_type == BUF_FLUSH_SINGLE_PAGE) {
-		buf_flush_write_to_dblwr_and_datafile(bpage);
+		buf_dblwr_write_single_page(bpage);
 	} else {
-		buf_flush_post_to_doublewrite_buf(bpage);
+		buf_dblwr_add_to_batch(bpage);
 	}
 }
 
@@ -1469,7 +1005,7 @@ buf_flush_page(
 		flush_list or LRU_list. */
 
 		if (!is_s_latched) {
-			buf_flush_buffered_writes();
+			buf_dblwr_flush_buffered_writes();
 
 			if (is_uncompressed) {
 				rw_lock_s_lock_gen(&((buf_block_t*) bpage)
@@ -1549,6 +1085,7 @@ buf_flush_page_try(
 	/* The following call will release the buffer pool and
 	block mutex. */
 	buf_flush_page(buf_pool, &block->page, BUF_FLUSH_SINGLE_PAGE);
+	buf_flush_sync_datafiles();
 	return(TRUE);
 }
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -1588,7 +1125,7 @@ buf_flush_try_neighbors(
 		original page. */
 
 		ulint	buf_flush_area;
-	
+
 		buf_flush_area	= ut_min(
 			BUF_READ_AHEAD_AREA(buf_pool),
 			buf_pool->curr_size / 16);
@@ -2070,7 +1607,7 @@ buf_flush_batch(
 
 	/* Note: The buffer pool mutex is released and reacquired within
 	the flush functions. */
-	switch(flush_type) {
+	switch (flush_type) {
 	case BUF_FLUSH_LRU:
 		count = buf_do_LRU_batch(buf_pool, min_n);
 		break;
@@ -2083,7 +1620,7 @@ buf_flush_batch(
 
 	buf_pool_mutex_exit(buf_pool);
 
-	buf_flush_buffered_writes();
+	buf_dblwr_flush_buffered_writes();
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints && count > 0) {
@@ -2108,7 +1645,7 @@ buf_flush_common(
 	enum buf_flush	flush_type,	/*!< in: type of flush */
 	ulint		page_count)	/*!< in: number of pages flushed */
 {
-	buf_flush_buffered_writes();
+	buf_dblwr_flush_buffered_writes();
 
 	ut_a(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
@@ -2377,6 +1914,8 @@ buf_flush_single_page_from_LRU(
 	/* The following call will release the buffer pool and
 	block mutex. */
 	buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE);
+
+	buf_flush_sync_datafiles();
 
 	/* At this point the page has been written to the disk.
 	As we are not holding buffer pool or block mutex therefore
@@ -2849,7 +2388,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	ut_a(srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE);
 
 	/* We can now make a final sweep on flushing the buffer pool
-	and exit after we have cleaned the whole buffer pool. 
+	and exit after we have cleaned the whole buffer pool.
 	It is important that we wait for any running batch that has
 	been triggered by us to finish. Otherwise we can end up
 	considering end of that batch as a finish of our final

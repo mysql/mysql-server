@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -188,7 +188,7 @@ private:
 
 /*************************************************************************/
 
-/* Order clause list element */
+/** Order clause list element */
 
 typedef struct st_order {
   struct st_order *next;
@@ -203,9 +203,15 @@ typedef struct st_order {
   };
 
   enum_order direction;                 /* Requested direction of ordering */
-  bool   free_me;                       /* true if item isn't shared  */
   bool   in_field_list;                 /* true if in select field list */
   bool   counter_used;                  /* parameter was counter of columns */
+  /**
+     Tells whether this ORDER element was referenced with an alias or with an
+     expression, in the query:
+     SELECT a AS foo GROUP BY foo: true.
+     SELECT a AS foo GROUP BY a: false.
+  */
+  bool   used_alias;
   Field  *field;                        /* If tmp-table group */
   char   *buff;                         /* If tmp-table group */
   table_map used, depend_map;
@@ -319,6 +325,10 @@ public:
   uchar     *record_pointers;    /* If sorted in memory */
   ha_rows   found_records;      /* How many records in sort */
 
+  /** Sort filesort_buffer */
+  void sort_buffer(Sort_param *param, uint count)
+  { filesort_buffer.sort_buffer(param, count); }
+
   /**
      Accessors for Filesort_buffer (which @c).
   */
@@ -331,6 +341,9 @@ public:
   uchar **alloc_sort_buffer(uint num_records, uint record_length)
   { return filesort_buffer.alloc_sort_buffer(num_records, record_length); }
 
+  std::pair<uint, uint> sort_buffer_properties() const
+  { return filesort_buffer.sort_buffer_properties(); }
+
   void free_sort_buffer()
   { filesort_buffer.free_sort_buffer(); }
 
@@ -341,26 +354,6 @@ public:
   { return filesort_buffer.sort_buffer_size(); }
 };
 
-
-/*
-  Values in this enum are used to indicate how a tables TIMESTAMP field
-  should be treated. It can be set to the current timestamp on insert or
-  update or both.
-  WARNING: The values are used for bit operations. If you change the
-  enum, you must keep the bitwise relation of the values. For example:
-  (int) TIMESTAMP_AUTO_SET_ON_BOTH must be equal to
-  (int) TIMESTAMP_AUTO_SET_ON_INSERT | (int) TIMESTAMP_AUTO_SET_ON_UPDATE.
-  We use an enum here so that the debugger can display the value names.
-*/
-enum timestamp_auto_set_type
-{
-  TIMESTAMP_NO_AUTO_SET= 0, TIMESTAMP_AUTO_SET_ON_INSERT= 1,
-  TIMESTAMP_AUTO_SET_ON_UPDATE= 2, TIMESTAMP_AUTO_SET_ON_BOTH= 3
-};
-#define clear_timestamp_auto_bits(_target_, _bits_) \
-  (_target_)= (enum timestamp_auto_set_type)((int)(_target_) & ~(int)(_bits_))
-
-class Field_timestamp;
 class Field_blob;
 class Table_triggers_list;
 
@@ -519,36 +512,6 @@ typedef struct st_table_field_def
 } TABLE_FIELD_DEF;
 
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-/** Struct to be used for partition_name_hash */
-typedef struct st_part_name_def
-{
-  uchar *partition_name;
-  uint length;
-  uint32 part_id;
-  my_bool is_subpart;
-} PART_NAME_DEF;
-
-uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
-                     my_bool not_used __attribute__((unused)));
-
-/**
-  Partition specific ha_data struct.
-*/
-typedef struct st_ha_data_partition
-{
-  bool auto_inc_initialized;
-  mysql_mutex_t LOCK_auto_inc;                 /**< protecting auto_inc val */
-  ulonglong next_auto_inc_val;                 /**< first non reserved value */
-  /**
-    Hash of partition names. Initialized in the first ha_partition::open()
-    for the table_share. After that it is read-only, i.e. no locking required.
-  */
-  HASH partition_name_hash;
-} HA_DATA_PARTITION;
-#endif
-
-
 class Table_check_intact
 {
 protected:
@@ -634,7 +597,6 @@ struct TABLE_SHARE
   /* The following is copied to each TABLE on OPEN */
   Field **field;
   Field **found_next_number_field;
-  Field *timestamp_field;               /* Used only during open */
   KEY  *key_info;			/* data of keys defined for the table */
   uint	*blob_field;			/* Index to blobs in Field arrray*/
 
@@ -681,7 +643,6 @@ struct TABLE_SHARE
   enum tmp_table_type tmp_table;
 
   uint ref_count;                       /* How many TABLE objects uses this */
-  uint blob_ptr_size;			/* 4 or 8 */
   uint key_block_size;			/* create key_block_size, if used */
   uint null_bytes, last_null_bit_pos;
   uint fields;				/* Number of fields */
@@ -696,7 +657,6 @@ struct TABLE_SHARE
   uint uniques;                         /* Number of UNIQUE index */
   uint null_fields;			/* number of null fields */
   uint blob_fields;			/* number of blob fields */
-  uint timestamp_field_offset;		/* Field number for timestamp field */
   uint varchar_fields;                  /* number of varchar fields */
   uint db_create_options;		/* Create options from database */
   uint db_options_in_use;		/* Options in use */
@@ -757,17 +717,8 @@ struct TABLE_SHARE
   */
   const TABLE_FIELD_DEF *table_field_def_cache;
 
-  /** place to store storage engine specific data */
-  void *ha_data;
-  void (*ha_data_destroy)(void *); /* An optional destructor for ha_data */
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  /** place to store partition specific data, LOCK_ha_data hold while init. */
-  HA_DATA_PARTITION *ha_part_data;
-  /* Destructor for ha_part_data */
-  void (*ha_part_data_destroy)(HA_DATA_PARTITION *);
-#endif
-
+  /** Main handler's share */
+  Handler_share *ha_share;
 
   /** Instrumentation for this table share. */
   PSI_table_share *m_psi;
@@ -867,7 +818,7 @@ struct TABLE_SHARE
   }
   /**
     Return a table metadata version.
-     * for base tables, we return table_map_id.
+     * for base tables and views, we return table_map_id.
        It is assigned from a global counter incremented for each
        new table loaded into the table definition cache (TDC).
      * for temporary tables it's table_map_id again. But for
@@ -876,7 +827,7 @@ struct TABLE_SHARE
        counter incremented for every new SQL statement. Since
        temporary tables are thread-local, each temporary table
        gets a unique id.
-     * for everything else (views, information schema tables),
+     * for everything else (e.g. information schema tables),
        the version id is zero.
 
    This choice of version id is a large compromise
@@ -891,8 +842,8 @@ struct TABLE_SHARE
    version id of a temporary table is never compared with
    a version id of a view, and vice versa.
 
-   Secondly, for base tables, we know that each DDL flushes the
-   respective share from the TDC. This ensures that whenever
+   Secondly, for base tables and views, we know that each DDL flushes
+   the respective share from the TDC. This ensures that whenever
    a table is altered or dropped and recreated, it gets a new
    version id.
    Unfortunately, since elements of the TDC are also flushed on
@@ -913,26 +864,6 @@ struct TABLE_SHARE
    Metadata of information schema tables never changes.
    Thus we can safely assume 0 for a good enough version id.
 
-   Views are a special and tricky case. A view is always inlined
-   into the parse tree of a prepared statement at prepare.
-   Thus, when we execute a prepared statement, the parse tree
-   will not get modified even if the view is replaced with another
-   view.  Therefore, we can safely choose 0 for version id of
-   views and effectively never invalidate a prepared statement
-   when a view definition is altered. Note, that this leads to
-   wrong binary log in statement-based replication, since we log
-   prepared statement execution in form Query_log_events
-   containing conventional statements. But since there is no
-   metadata locking for views, the very same problem exists for
-   conventional statements alone, as reported in Bug#25144. The only
-   difference between prepared and conventional execution is,
-   effectively, that for prepared statements the race condition
-   window is much wider.
-   In 6.0 we plan to support view metadata locking (WL#3726) and
-   extend table definition cache to cache views (WL#4298).
-   When this is done, views will be handled in the same fashion
-   as the base tables.
-
    Finally, by taking into account table type, we always
    track that a change has taken place when a view is replaced
    with a base table, a base table is replaced with a temporary
@@ -942,7 +873,7 @@ struct TABLE_SHARE
   */
   ulong get_table_ref_version() const
   {
-    return (tmp_table == SYSTEM_TMP_TABLE || is_view) ? 0 : table_map_id;
+    return (tmp_table == SYSTEM_TMP_TABLE) ? 0 : table_map_id;
   }
 
   bool visit_subgraph(Wait_for_flush *waiting_ticket,
@@ -969,6 +900,7 @@ typedef Bitmap<MAX_FIELDS> Field_map;
 struct TABLE
 {
   TABLE() {}                               /* Remove gcc warning */
+  virtual ~TABLE() {}
 
   TABLE_SHARE	*s;
   handler	*file;
@@ -1076,20 +1008,6 @@ public:
     this table and constants)
   */
   ha_rows       quick_condition_rows;
-
-  /*
-    If this table has TIMESTAMP field with auto-set property (pointed by
-    timestamp_field member) then this variable indicates during which
-    operations (insert only/on update/in both cases) we should set this
-    field to current timestamp. If there are no such field in this table
-    or we should not automatically set its value during execution of current
-    statement then the variable contains TIMESTAMP_NO_AUTO_SET (i.e. 0).
-
-    Value of this variable is set for each statement in open_table() and
-    if needed cleared later in statement processing code (see mysql_update()
-    as example).
-  */
-  timestamp_auto_set_type timestamp_field_type;
   table_map	map;                    /* ID bit of table (1,2,4,8,16...) */
 
   uint          lock_position;          /* Position in MYSQL_LOCK.table */
@@ -1097,12 +1015,10 @@ public:
   uint          lock_count;             /* Number of locks */
   uint		tablenr,used_fields;
   uint          temp_pool_slot;		/* Used by intern temp tables */
-  uint		status;                 /* What's in record[0] */
   uint		db_stat;		/* mode of file as in handler.h */
   /* number of select if it is derived table */
   uint          derived_select_number;
   int		current_lock;           /* Type of lock on table */
-  my_bool copy_blobs;			/* copy_blobs when storing */
 
   /*
     0 or JOIN_TYPE_{LEFT|RIGHT}. Currently this is only compared to 0.
@@ -1115,6 +1031,9 @@ public:
     NULL, including columns declared as "not null" (see maybe_null).
   */
   my_bool null_row;
+
+  uint8   status;                       /* What's in record[0] */
+  my_bool copy_blobs;                   /* copy_blobs when storing */
 
   /*
     TODO: Each of the following flags take up 8 bits. They can just as easily
@@ -1163,6 +1082,11 @@ public:
   uint max_keys; /* Size of allocated key_info array. */
 
   REGINFO reginfo;			/* field connections */
+  /**
+     @todo This member should not be declared in-line. That makes it
+     impossible for any function that does memory allocation to take a const
+     reference to a TABLE object.
+   */
   MEM_ROOT mem_root;
   GRANT_INFO grant;
   Filesort_info sort;
@@ -1514,7 +1438,24 @@ struct TABLE_LIST
   TABLE_LIST *next_global, **prev_global;
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
-  Item		*on_expr;		/* Used with outer join */
+
+private:
+  Item		*m_join_cond;           /* Used with outer join */
+public:
+  Item         **join_cond_ref() { return &m_join_cond; }
+  Item          *join_cond() { return m_join_cond; }
+  Item          *set_join_cond(Item *val)
+                 { return m_join_cond= val; }
+  /*
+    The structure of the join condition presented in the member above
+    can be changed during certain optimizations. This member
+    contains a snapshot of AND-OR structure of the join condition
+    made after permanent transformations of the parse tree, and is
+    used to restore the join condition before every reexecution of a prepared
+    statement or stored procedure.
+  */
+  Item          *prep_join_cond;
+
   Item          *sj_on_expr;            /* Synthesized semijoin condition */
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
@@ -1526,15 +1467,6 @@ struct TABLE_LIST
   Item_exists_subselect  *sj_subq_pred;
   Semijoin_mat_exec *sj_mat_exec;
 
-  /*
-    The structure of ON expression presented in the member above
-    can be changed during certain optimizations. This member
-    contains a snapshot of AND-OR structure of the ON expression
-    made after permanent transformations of the parse tree, and is
-    used to restore ON clause before every reexecution of a prepared
-    statement or stored procedure.
-  */
-  Item          *prep_on_expr;
   COND_EQUAL    *cond_equal;            /* Used with outer join */
   /*
     During parsing - left operand of NATURAL/USING join where 'this' is
@@ -1820,7 +1752,7 @@ struct TABLE_LIST
 
   void calc_md5(char *buffer);
   void set_underlying_merge();
-  int view_check_option(THD *thd, bool ignore_failure);
+  int view_check_option(THD *thd, bool ignore_failure) const;
   bool setup_underlying(THD *thd);
   void cleanup_items();
   bool placeholder()
@@ -1836,8 +1768,15 @@ struct TABLE_LIST
   TABLE_LIST *first_leaf_for_name_resolution();
   TABLE_LIST *last_leaf_for_name_resolution();
   bool is_leaf_for_name_resolution();
-  inline TABLE_LIST *top_table()
+  inline const TABLE_LIST *top_table() const
     { return belong_to_view ? belong_to_view : this; }
+
+  inline TABLE_LIST *top_table()
+  {
+    return
+      const_cast<TABLE_LIST*>(const_cast<const TABLE_LIST*>(this)->top_table());
+  }
+
   inline bool prepare_check_option(THD *thd)
   {
     bool res= FALSE;
@@ -2184,7 +2123,7 @@ static inline my_bitmap_map *tmp_use_all_columns(TABLE *table,
                                                  MY_BITMAP *bitmap)
 {
   my_bitmap_map *old= bitmap->bitmap;
-  bitmap->bitmap= table->s->all_set.bitmap;
+  bitmap->bitmap= table->s->all_set.bitmap;// does not repoint last_word_ptr
   return old;
 }
 
@@ -2327,7 +2266,6 @@ inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;
   table->status|=STATUS_NULL_ROW;
-  memset(table->null_flags, 255, table->s->null_bytes);
 }
 
 bool is_simple_order(ORDER *order);

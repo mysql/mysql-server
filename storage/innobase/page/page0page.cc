@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -148,7 +148,7 @@ page_dir_find_owner_slot(
 			fputs("\n"
 			      "InnoDB: on that page!\n", stderr);
 
-			buf_page_print(page, 0);
+			buf_page_print(page, 0, 0);
 
 			ut_error;
 		}
@@ -549,8 +549,7 @@ page_copy_rec_list_end_no_locks(
 		page_cur_move_to_next(&cur1);
 	}
 
-	ut_a((ibool)!!page_is_comp(new_page)
-	     == dict_table_is_comp(index->table));
+	btr_assert_not_corrupted(new_block, index);
 	ut_a(page_is_comp(new_page) == page_rec_is_comp(rec));
 	ut_a(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == (ulint)
 	     (page_is_comp(new_page) ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
@@ -570,8 +569,10 @@ page_copy_rec_list_end_no_locks(
 			/* Track an assertion failure reported on the mailing
 			list on June 18th, 2003 */
 
-			buf_page_print(new_page, 0);
-			buf_page_print(page_align(rec), 0);
+			buf_page_print(new_page, 0,
+				       BUF_PAGE_PRINT_NO_CRASH);
+			buf_page_print(page_align(rec), 0,
+				       BUF_PAGE_PRINT_NO_CRASH);
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
@@ -1588,13 +1589,14 @@ page_rec_print(
 			" n_owned: %lu; heap_no: %lu; next rec: %lu\n",
 			(ulong) rec_get_n_owned_old(rec),
 			(ulong) rec_get_heap_no_old(rec),
-			(ulong) rec_get_next_offs(rec, TRUE));
+			(ulong) rec_get_next_offs(rec, FALSE));
 	}
 
 	page_rec_check(rec);
 	rec_validate(rec, offsets);
 }
 
+# ifdef UNIV_BTR_PRINT
 /***************************************************************//**
 This is used to print the contents of the directory for
 debugging purposes. */
@@ -1755,6 +1757,7 @@ page_print(
 	page_dir_print(page, dn);
 	page_print_list(block, index, rn);
 }
+# endif /* UNIV_BTR_PRINT */
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************//**
@@ -1830,7 +1833,7 @@ page_check_dir(
 		fprintf(stderr,
 			"InnoDB: Page directory corruption:"
 			" infimum not pointed to\n");
-		buf_page_print(page, 0);
+		buf_page_print(page, 0, 0);
 	}
 
 	if (UNIV_UNLIKELY(!page_rec_is_supremum_low(supremum_offs))) {
@@ -1838,7 +1841,7 @@ page_check_dir(
 		fprintf(stderr,
 			"InnoDB: Page directory corruption:"
 			" supremum not pointed to\n");
-		buf_page_print(page, 0);
+		buf_page_print(page, 0, 0);
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -2322,7 +2325,7 @@ page_validate(
 	if (UNIV_UNLIKELY(!(page_header_get_ptr(page, PAGE_HEAP_TOP)
 			    <= page_dir_get_nth_slot(page, n_slots - 1)))) {
 
-		fprintf(stderr, 
+		fprintf(stderr,
 			"InnoDB: Record heap and dir overlap"
 			" on space %lu page %lu index %s, %p, %p\n",
 			(ulong) page_get_space_id(page),
@@ -2365,7 +2368,7 @@ page_validate(
 			if (UNIV_UNLIKELY
 			    (1 != cmp_rec_rec(rec, old_rec,
 					      offsets, old_offsets, index))) {
-				fprintf(stderr, 
+				fprintf(stderr,
 					"InnoDB: Records in wrong order"
 					" on space %lu page %lu index %s\n",
 					(ulong) page_get_space_id(page),
@@ -2536,13 +2539,13 @@ func_exit:
 
 	if (UNIV_UNLIKELY(ret == FALSE)) {
 func_exit2:
-		fprintf(stderr, 
+		fprintf(stderr,
 			"InnoDB: Apparent corruption"
 			" in space %lu page %lu index %s\n",
 			(ulong) page_get_space_id(page),
 			(ulong) page_get_page_no(page),
 			index->name);
-		buf_page_print(page, 0);
+		buf_page_print(page, 0, 0);
 	}
 
 	return(ret);

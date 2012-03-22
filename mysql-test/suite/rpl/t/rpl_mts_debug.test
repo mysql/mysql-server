@@ -1,0 +1,148 @@
+################################################################################
+# This test case checks if MTS allows to concurrently access the replication
+# tables, and as such, concurrently commit transactions that update different
+# databases.
+#
+# It does so by making the workers' threads to sleep after updating replication
+# tables but before releasing locks and committing the current transaction.
+################################################################################
+
+--source include/master-slave.inc
+--source include/have_debug.inc
+--source include/have_innodb.inc
+# no format specific tests so we run it only in MIXED mode
+--source include/have_binlog_format_mixed.inc
+
+--connection master
+CREATE DATABASE db_1;
+CREATE DATABASE db_2;
+
+CREATE TABLE db_1.test_1 (id INTEGER) engine=Innodb;
+CREATE TABLE db_2.test_1 (id INTEGER) engine=Innodb;
+
+--connection master
+--sync_slave_with_master
+
+--connection slave
+--source include/stop_slave.inc
+--let $save_slave_parallel_workers= `SELECT @@global.slave_parallel_workers`
+--let $save_debug= `SELECT @@global.debug`
+SET @@global.slave_parallel_workers= 2;
+ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
+ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
+--source include/start_slave.inc
+
+--connection master
+--sync_slave_with_master
+SET GLOBAL debug="d,mts_debug_concurrent_access";
+
+--connection master
+INSERT INTO db_1.test_1 VALUES(1);
+INSERT INTO db_2.test_1 VALUES(1);
+DROP DATABASE db_1;
+DROP DATABASE db_2;
+--sync_slave_with_master
+
+--source include/stop_slave.inc
+--replace_result $save_slave_parallel_workers save_slave_parallel_workers
+--eval SET @@global.slave_parallel_workers= $save_slave_parallel_workers
+--eval SET @@global.debug= "$save_debug"
+--source include/start_slave.inc
+
+#
+# Bug#12964649 MTS memory not released
+#
+# Originally reported when opt_slave_checkpoint_group is set to be greater
+# than sizeof(BLOB) * 8 - 1 Workers initialization code fails.
+# VALID_RANGE() for opt_slave_checkpoint_group is fixed in bug12979420.
+# 
+# The current bug test simulates a failure to start by a Worker
+# thread, checks the error, and verifies that all memory is released
+# (valgrind proves, the user can watch top report).
+#
+
+connection slave;
+
+call mtr.add_suppression('Error reading slave worker configuration');
+call mtr.add_suppression('Failed during slave workers initialization');
+call mtr.add_suppression('Failed during slave worker thread create');
+
+source include/stop_slave.inc;
+set @save.slave_checkpoint_group= @@global.slave_checkpoint_group;
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+
+# The following assignment can work only with debug builds.
+# It sets opt_slave_checkpoint_group to one more to its VALID_RANGE() maximum.
+# set @@global.slave_checkpoint_group= 524280 + 1;
+
+set @save.debug= @@global.debug;
+SET @@global.debug= "d,mts_worker_thread_fails";
+set @@global.slave_parallel_workers= 2;
+
+start slave sql_thread;
+--let $slave_sql_errno= 1593
+source include/wait_for_slave_sql_error.inc;
+
+set @@global.slave_checkpoint_group= @save.slave_checkpoint_group;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.debug= @save.debug;
+
+source include/start_slave.inc;
+
+#
+# BUG#13681205 : REPLICATION FAILS DURING SLAVE WORKERS INITIALIZATION, 
+#                CRASHES SLAVE 
+#
+# This test checks that the slave starts correctly, even
+# if we set the maximum of slave_checkpoint_group higher
+# than the maximum (the server adjusts it to the proper
+# value).                    
+#
+--connection master
+--source include/rpl_reset.inc
+
+--connection slave
+--source include/stop_slave.inc
+call mtr.add_suppression("option 'slave_checkpoint_group': unsigned value 524281 adjusted to 524280");
+call mtr.add_suppression("Failed during slave worker thread create");
+call mtr.add_suppression("Slave SQL: Failed during slave workers initialization, Error_code: 1593");
+
+--let $saved_slave_checkpoint_group= `SELECT @@global.slave_checkpoint_group`
+--let $saved_slave_parallel_workers= `SELECT @@global.slave_parallel_workers`
+SET GLOBAL slave_parallel_workers= 2;
+SET GLOBAL slave_checkpoint_group=524281;
+
+## TEST #1 
+
+# check that slave will start with the slave_checkpoint_group
+# if include/start_slave.inc does not timeout then the slave was able to start correctly
+--source include/start_slave.inc
+
+--let $assert_cond= @@slave_checkpoint_group=524280
+--let $assert_text= Assert that slave_checkpoint_group was truncated to a valid value.
+--source include/assert.inc
+
+--source include/check_slave_is_running.inc
+
+--source include/rpl_reset.inc
+
+## TEST #2
+#
+# Check that even if the initialization of the info storage
+# fails the server won't crash.
+
+--source include/stop_slave.inc
+--let $saved_debug=`SELECT @global.debug`
+SET GLOBAL debug= "d,inject_init_worker_init_info_fault";
+START SLAVE SQL_THREAD;
+--let $slave_sql_errno=1593
+--source include/wait_for_slave_sql_error.inc
+--eval SET GLOBAL debug="$saved_debug"
+
+## clean up
+--eval SET GLOBAL slave_checkpoint_group= $saved_slave_checkpoint_group
+--eval SET GLOBAL slave_parallel_workers= $saved_slave_parallel_workers
+--source include/start_slave.inc
+--source include/rpl_reset.inc
+
+--source include/rpl_end.inc

@@ -387,7 +387,7 @@ log_close(void)
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB: ERROR: the age of the last"
+				" InnoDB: ERROR: the age of the last"
 				" checkpoint is " LSN_PF ",\n"
 				"InnoDB: which exceeds the log group"
 				" capacity " LSN_PF ".\n"
@@ -583,9 +583,9 @@ log_calc_where_lsn_is(
 
 	if (lsn < first_header_lsn) {
 		add_this_many = 1 + (first_header_lsn - lsn)
-			/ (capacity * (ib_int64_t)n_log_files);
+			/ (capacity * (ib_int64_t) n_log_files);
 		lsn += add_this_many
-			* capacity * (ib_int64_t)n_log_files;
+			* capacity * (ib_int64_t) n_log_files;
 	}
 
 	ut_a(lsn >= first_header_lsn);
@@ -717,7 +717,7 @@ failure:
 			"InnoDB: " REFMAN "adding-and-removing.html\n"
 			"InnoDB: Cannot continue operation."
 			" Calling exit(1).\n",
-			(ulong)srv_thread_concurrency);
+			(ulong) srv_thread_concurrency);
 
 		exit(1);
 	}
@@ -1062,7 +1062,7 @@ log_io_complete(
 	ulint	unlock;
 
 #ifdef UNIV_LOG_ARCHIVE
-	if ((byte*)group == &log_archive_io) {
+	if ((byte*) group == &log_archive_io) {
 		/* It was an archive write */
 
 		log_io_complete_archive();
@@ -1071,9 +1071,9 @@ log_io_complete(
 	}
 #endif /* UNIV_LOG_ARCHIVE */
 
-	if ((ulint)group & 0x1UL) {
+	if ((ulint) group & 0x1UL) {
 		/* It was a checkpoint write */
-		group = (log_group_t*)((ulint)group - 1);
+		group = (log_group_t*)((ulint) group - 1);
 
 		if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
 		    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
@@ -1389,7 +1389,7 @@ loop:
 		if (flush_to_disk
 		    && log_sys->current_flush_lsn >= lsn) {
 			/* The write + flush will write enough: wait for it to
-			complete  */
+			complete */
 
 			goto do_waits;
 		}
@@ -1397,7 +1397,7 @@ loop:
 		if (!flush_to_disk
 		    && log_sys->write_lsn >= lsn) {
 			/* The write will write enough: wait for it to
-			complete  */
+			complete */
 
 			goto do_waits;
 		}
@@ -1850,9 +1850,9 @@ log_group_checkpoint(
 		       write_offset / UNIV_PAGE_SIZE,
 		       write_offset % UNIV_PAGE_SIZE,
 		       OS_FILE_LOG_BLOCK_SIZE,
-		       buf, ((byte*)group + 1));
+		       buf, ((byte*) group + 1));
 
-		ut_ad(((ulint)group & 0x1UL) == 0);
+		ut_ad(((ulint) group & 0x1UL) == 0);
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -3125,7 +3125,7 @@ logs_empty_and_mark_files_at_shutdown(void)
 
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Starting shutdown...\n");
+		fprintf(stderr, " InnoDB: Starting shutdown...\n");
 	}
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
@@ -3148,7 +3148,7 @@ loop:
 
 		if (srv_print_verbose_log && count > 600) {
 			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Waiting for %s to exit\n",
+			fprintf(stderr, " InnoDB: Waiting for %s to exit\n",
 				thread_name);
 			count = 0;
 		}
@@ -3167,7 +3167,7 @@ loop:
 
 		if (srv_print_verbose_log && count > 600) {
 			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Waiting for %lu "
+			fprintf(stderr, " InnoDB: Waiting for %lu "
 				"active transactions to finish\n",
 				(ulong) total_trx);
 
@@ -3183,6 +3183,10 @@ loop:
 
 	if (active_thd != SRV_NONE) {
 
+		if (active_thd == SRV_PURGE) {
+			srv_purge_wakeup();
+		}
+
 		/* The srv_lock_timeout_thread, srv_error_monitor_thread
 		and srv_monitor_thread should already exit by now. The
 		only threads to be suspended are the master threads
@@ -3195,7 +3199,7 @@ loop:
 			case SRV_NONE:
 				/* This shouldn't happen because we've
 				already checked for this case before
-				entering the if().  We handle it here
+				entering the if(). We handle it here
 				to avoid a compiler warning. */
 				ut_error;
 			case SRV_WORKER:
@@ -3210,8 +3214,8 @@ loop:
 			}
 
 			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Waiting for %s "
-				" to be suspended\n", thread_type);
+			fprintf(stderr, " InnoDB: Waiting for %s "
+				"to be suspended\n", thread_type);
 			count = 0;
 		}
 
@@ -3229,7 +3233,7 @@ loop:
 		if (srv_print_verbose_log && count > 600) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB: Waiting for page_cleaner to "
+				" InnoDB: Waiting for page_cleaner to "
 				"finish flushing of buffer pool\n");
 			count = 0;
 		}
@@ -3247,8 +3251,8 @@ loop:
 		if (srv_print_verbose_log && count > 600) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB: Pending checkpoint_writes: %lu\n"
-				"  InnoDB: Pending log flush writes: %lu\n",
+				" InnoDB: Pending checkpoint_writes: %lu\n"
+				" InnoDB: Pending log flush writes: %lu\n",
 				(ulong) log_sys->n_pending_checkpoint_writes,
 				(ulong) log_sys->n_pending_writes);
 			count = 0;
@@ -3261,7 +3265,7 @@ loop:
 	if (pending_io) {
 		if (srv_print_verbose_log && count > 600) {
 			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Waiting for %lu buffer page "
+			fprintf(stderr, " InnoDB: Waiting for %lu buffer page "
 				"I/Os to complete\n",
 				(ulong) pending_io);
 			count = 0;
@@ -3276,7 +3280,7 @@ loop:
 	if (srv_fast_shutdown == 2) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: MySQL has requested a very fast shutdown"
+			" InnoDB: MySQL has requested a very fast shutdown"
 			" without flushing "
 			"the InnoDB buffer pool to data files."
 			" At the next mysqld startup "
@@ -3363,7 +3367,7 @@ loop:
 
 		if (srv_print_verbose_log && count > 600) {
 			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Waiting for dirty buffer "
+			fprintf(stderr, " InnoDB: Waiting for dirty buffer "
 				"pages to be flushed\n");
 			count = 0;
 		}

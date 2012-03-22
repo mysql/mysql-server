@@ -326,7 +326,7 @@ srv_conc_exit_innodb_without_atomics(
 
 	slot = NULL;
 
-	if (srv_conc.n_active < (lint)srv_thread_concurrency) {
+	if (srv_conc.n_active < (lint) srv_thread_concurrency) {
 		/* Look for a slot where a thread is waiting and no other
 		thread has yet released the thread */
 

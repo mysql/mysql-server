@@ -203,11 +203,10 @@ a
 SET SQL_MODE=TRADITIONAL;
 EXPLAIN SELECT * FROM t1 WHERE a = '0000-00-00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	i	i	4	const	1	Using where; Using index
+1	SIMPLE	t1	ref	i	i	4	const	1	Using index
 Warnings:
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 1
 SELECT * FROM t1 WHERE a = '0000-00-00';
 a
 0000-00-00
@@ -215,7 +214,6 @@ a
 Warnings:
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 1
 SELECT * FROM t2 WHERE a = '0000-00-00';
 a
 0000-00-00
@@ -243,11 +241,10 @@ a
 SET SQL_MODE=TRADITIONAL;
 EXPLAIN SELECT * FROM t1 WHERE a = '1000-00-00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	i	i	4	const	1	Using where; Using index
+1	SIMPLE	t1	ref	i	i	4	const	1	Using index
 Warnings:
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 1
 SELECT * FROM t1 WHERE a = '1000-00-00';
 a
 1000-00-00
@@ -255,7 +252,6 @@ a
 Warnings:
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 1
 SELECT * FROM t2 WHERE a = '1000-00-00';
 a
 1000-00-00
@@ -397,4 +393,179 @@ a
 0000-00-00
 DROP TABLE t1;
 SET timestamp=DEFAULT;
+#
+# Testing cast from DECIMAL to DATE
+#
+CREATE TABLE t1 (a DECIMAL(23,4));
+INSERT INTO t1 VALUES (NULL),(101010.9999),(-101010.9999);
+SELECT a, CAST(a AS DATE) FROM t1;
+a	CAST(a AS DATE)
+NULL	NULL
+101010.9999	2010-10-10
+-101010.9999	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '-101010.9999'
+DROP TABLE t1;
+#
+# Testing CASE with DATE type without a found item
+#
+SELECT CAST(CASE WHEN 0 THEN '2001-01-01' END AS DATE);
+CAST(CASE WHEN 0 THEN '2001-01-01' END AS DATE)
+NULL
+SELECT CAST(CASE WHEN 0 THEN DATE'2001-01-01' END AS DATE);
+CAST(CASE WHEN 0 THEN DATE'2001-01-01' END AS DATE)
+NULL
+#
+# Testing DATE field with NULL value with NOT IN
+#
+CREATE TABLE t1 (a DATE);
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1 WHERE a NOT IN (DATE'2001-01-01',DATE'2002-02-02');
+a
+DROP TABLE t1;
+#
+# Testing COALESCE with DATE type without a found item
+#
+SELECT COALESCE(DATE(NULL));
+COALESCE(DATE(NULL))
+NULL
+#
+# Testing Item_func_min_max::val_str when DATE type and NULL
+#
+SELECT CAST(LEAST(DATE(NULL), DATE(NULL)) AS CHAR);
+CAST(LEAST(DATE(NULL), DATE(NULL)) AS CHAR)
+NULL
+#
+# Testing Item_func_min_max::get_date with non-temporal arguments
+#
+SELECT CAST(LEAST(20010101,20020202) AS DATE);
+CAST(LEAST(20010101,20020202) AS DATE)
+2001-01-01
+#
+#  Item::get_date_from_numeric
+#
+SELECT CAST(SUM(0) AS DATETIME);
+CAST(SUM(0) AS DATETIME)
+0000-00-00 00:00:00
+SELECT CAST(SUM(0 + 0e0) AS DATETIME);
+CAST(SUM(0 + 0e0) AS DATETIME)
+0000-00-00 00:00:00
+SET timestamp=1322115004;
+SELECT CAST(UNIX_TIMESTAMP() AS DATE);
+CAST(UNIX_TIMESTAMP() AS DATE)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '1322115004'
+SET timestamp=DEFAULT;
+#
+# Item::get_date_from_non_temporal
+#
+SELECT DATE(20110512154559.6 + 0e0);
+DATE(20110512154559.6 + 0e0)
+2011-05-12
+#
+# Item_name_const::get_date
+#
+SELECT DATE(NAME_CONST('a', 0));
+DATE(NAME_CONST('a', 0))
+0000-00-00
+#
+# Item_cache_datetime::get_date
+#
+SET timestamp=UNIX_TIMESTAMP('2011-11-24');
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES (0);
+SELECT DATE(MIN(a)) FROM t1;
+DATE(MIN(a))
+2011-11-24
+DROP TABLE t1;
+SET timestamp=DEFAULT;
+#
+# Bug #13626019 DIFFERENCE IN OUTPUT BETWEEN 5.1 & 5.5 FOR A LAST_DAY IS
+# NULL SELECT QUERY
+#
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+CREATE TABLE t2(b CHAR(19));
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES('0000-00-00 00:00:00');
+SELECT * FROM t1 WHERE LAST_DAY('0000-00-00 00:00:00') IS NULL;
+a
+1
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
+SELECT * FROM t1 WHERE
+LAST_DAY((SELECT b FROM t2 WHERE b = '0000-00-00 00:00:00')) IS NULL;
+a
+1
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
+DROP TABLE t1,t2;
+#
+# Test for bug#11747847 - 34280: create table fails if NO_ZERO_DATE
+# or NO_ZERO_IN_DATE SQL mode is set.
+DROP TABLE IF EXISTS t1, t2, t3;
+SET @org_mode=@@sql_mode;
+#Table creation in strict mode with NO_ZERO_IN_DATE/NO_ZERO_DATE
+SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
+CREATE TABLE t1 (c1 DATE DEFAULT 0);
+ERROR 42000: Invalid default value for 'c1'
+CREATE TABLE t1 (c1 DATE DEFAULT '0000-00-00');
+ERROR 42000: Invalid default value for 'c1'
+SET @@sql_mode='NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
+CREATE TABLE t1 (c1 DATE DEFAULT '2012-02-00');
+ERROR 42000: Invalid default value for 'c1'
+#Table creation in non-strict mode but with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE';
+CREATE TABLE t1 (c1 DATE DEFAULT 0);
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+CREATE TABLE t2 (c1 DATE DEFAULT '0000-00-00');
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+SET @@sql_mode='NO_ZERO_IN_DATE';
+CREATE TABLE t3 (c1 DATE DEFAULT '2012-02-00');
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+DROP TABLE t1, t2, t3;
+#Table creation with out any SQL modes
+SET @@sql_mode='';
+CREATE TABLE t1 (c1 DATE DEFAULT 0);
+CREATE TABLE t2 (c1 DATE DEFAULT '0000-00-00');
+CREATE TABLE t3 (c1 DATE DEFAULT '2012-02-00');
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (c1 INT);
+#Alter table in strict mode with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
+ALTER TABLE t1 ADD c2 DATE DEFAULT 0;
+ERROR 42000: Invalid default value for 'c2'
+ALTER TABLE t1 ADD c2 DATE DEFAULT '0000-00-00';
+ERROR 42000: Invalid default value for 'c2'
+SET @@sql_mode='NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
+ALTER TABLE t1 ADD c2 DATE DEFAULT '2012-02-00';
+ERROR 42000: Invalid default value for 'c2'
+#Alter table in non-strict mode but with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE';
+ALTER TABLE t1 ADD c2 DATE DEFAULT 0;
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+ALTER TABLE t1 ADD c3 DATE DEFAULT '0000-00-00';
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+SET @@sql_mode='NO_ZERO_IN_DATE';
+ALTER TABLE t1 ADD c4 DATE DEFAULT '2012-02-00';
+Warnings:
+Warning	1264	Out of range value for column 'c4' at row 1
+DROP TABLE t1;
+CREATE TABLE t1 (c1 int);
+#Alter table with out any SQL modes
+SET @@sql_mode='';
+ALTER TABLE t1 ADD c2 DATE DEFAULT 0;
+ALTER TABLE t1 ADD c3 DATE DEFAULT '0000-00-00';
+ALTER TABLE t1 ADD c4 DATE DEFAULT '2012-02-00';
+DROP TABLE t1;
+SET @@sql_mode= @org_mode;
+# END of Test for bug#11747847 - 34280
 End of 5.6 tests

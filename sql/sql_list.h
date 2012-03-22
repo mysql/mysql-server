@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -185,6 +185,14 @@ protected:
 public:
   uint elements;
 
+  bool operator==(const base_list &rhs) const
+  {
+    return
+      elements == rhs.elements &&
+      first == rhs.first &&
+      last == rhs.last;
+  }
+
   inline void empty() { elements=0; first= &end_of_list; last=&first;}
   inline base_list() { empty(); }
   /**
@@ -340,7 +348,7 @@ public:
   inline list_node* first_node() { return first;}
   inline void *head() { return first->info; }
   inline void **head_ref() { return first != &end_of_list ? &first->info : 0; }
-  inline bool is_empty() { return first == &end_of_list ; }
+  inline bool is_empty() const { return first == &end_of_list ; }
   inline list_node *last_ref() { return &end_of_list; }
   friend class base_list_iterator;
   friend class error_list;
@@ -501,10 +509,15 @@ public:
   inline List(const List<T> &tmp) :base_list(tmp) {}
   inline List(const List<T> &tmp, MEM_ROOT *mem_root) :
     base_list(tmp, mem_root) {}
-  inline bool push_back(T *a) { return base_list::push_back(a); }
+  /*
+    Typecasting to (void *) it's necessary if we want to declare List<T> with
+    constant T parameter (like List<const char>), since the untyped storage
+    is "void *", and assignment of const pointer to "void *" is a syntax error.
+  */
+  inline bool push_back(T *a) { return base_list::push_back((void *) a); }
   inline bool push_back(T *a, MEM_ROOT *mem_root)
-  { return base_list::push_back(a, mem_root); }
-  inline bool push_front(T *a) { return base_list::push_front(a); }
+  { return base_list::push_back((void *) a, mem_root); }
+  inline bool push_front(T *a) { return base_list::push_front((void *) a); }
   inline T* head() {return (T*) base_list::head(); }
   inline T** head_ref() {return (T**) base_list::head_ref(); }
   inline T* pop()  {return (T*) base_list::pop(); }
@@ -521,17 +534,8 @@ public:
     }
     empty();
   }
-  /**
-    @brief
-    Sort the list according to provided comparison function
 
-    @param cmp  node comparison function
-    @param arg  additional info to be passed to comparison function
-  * /
-  inline void sort(Node_cmp_func cmp, void *arg)
-  {
-    base_list::sort(cmp, arg);
-  }*/
+  using base_list::sort;
 };
 
 
@@ -573,41 +577,43 @@ public:
 };
 
 
+template <typename T> class base_ilist;
+template <typename T> class base_ilist_iterator;
+
 /*
   A simple intrusive list which automaticly removes element from list
   on delete (for THD element)
+  NOTE: this inherently unsafe, since we rely on <T> to have
+  the same layout as ilink<T> (see base_ilist::sentinel).
+  Please consider using a different strategy for linking objects.
 */
 
-struct ilink
+template <typename T>
+class ilink
 {
-  struct ilink **prev,*next;
-  static void *operator new(size_t size) throw ()
-  {
-    return (void*)my_malloc((uint)size, MYF(MY_WME | MY_FAE | ME_FATALERROR));
-  }
-  static void operator delete(void* ptr_arg, size_t size)
-  {
-     my_free(ptr_arg);
-  }
+  T **prev, *next;
+public:
+  ilink() : prev(NULL), next(NULL) {}
 
-  inline ilink()
-  {
-    prev=0; next=0;
-  }
-  inline void unlink()
+  void unlink()
   {
     /* Extra tests because element doesn't have to be linked */
     if (prev) *prev= next;
     if (next) next->prev=prev;
-    prev=0 ; next=0;
+    prev= NULL;
+    next= NULL;
   }
+
   virtual ~ilink() { unlink(); }		/*lint -e1740 */
+
+  friend class base_ilist<T>;
+  friend class base_ilist_iterator<T>;
 };
 
 
 /* Needed to be able to have an I_List of char* strings in mysqld.cc. */
 
-class i_string: public ilink
+class i_string: public ilink<i_string>
 {
 public:
   const char* ptr;
@@ -616,7 +622,7 @@ public:
 };
 
 /* needed for linked list of two strings for replicate-rewrite-db */
-class i_string_pair: public ilink
+class i_string_pair: public ilink<i_string_pair>
 {
 public:
   const char* key;
@@ -630,38 +636,48 @@ public:
 template <class T> class I_List_iterator;
 
 
+template<typename T>
 class base_ilist
 {
-  struct ilink *first;
-  struct ilink last;
+  T *first;
+  ilink<T> sentinel;
 public:
-  inline void empty() { first= &last; last.prev= &first; }
+  void empty() {
+    first= static_cast<T*>(&sentinel);
+    sentinel.prev= &first;
+  }
   base_ilist() { empty(); }
-  inline bool is_empty() {  return first == &last; }
-  inline void push_front(ilink *a)
+  bool is_empty() const { return first == static_cast<const T*>(&sentinel); }
+
+  /// Pushes new element in front of list.
+  void push_front(T *a)
   {
     first->prev= &a->next;
-    a->next=first; a->prev= &first; first=a;
+    a->next= first;
+    a->prev= &first;
+    first= a;
   }
-  inline void push_back(ilink *a)
+
+  /// Pushes new element to the end of the list, i.e. in front of the sentinel.
+  void push_back(T *a)
   {
-    *last.prev= a;
-    a->next= &last;
-    a->prev= last.prev;
-    last.prev= &a->next;
+    *sentinel.prev= a;
+    a->next= static_cast<T*>(&sentinel);
+    a->prev= sentinel.prev;
+    sentinel.prev= &a->next;
   }
-  inline struct ilink *get()
+
+  // Unlink first element, and return it.
+  T *get()
   {
-    struct ilink *first_link=first;
-    if (first_link == &last)
-      return 0;
-    first_link->unlink();			// Unlink from list
+    if (is_empty())
+      return NULL;
+    T *first_link= first;
+    first_link->unlink();
     return first_link;
   }
-  inline struct ilink *head()
-  {
-    return (first != &last) ? first : 0;
-  }
+
+  T *head() { return is_empty() ? NULL : first; }
 
   /**
     Moves list elements to new owner, and empties current owner (i.e. this).
@@ -674,11 +690,11 @@ public:
   {
     DBUG_ASSERT(new_owner->is_empty());
     new_owner->first= first;
-    new_owner->last= last;
+    new_owner->sentinel= sentinel;
     empty();
   }
 
-  friend class base_ilist_iterator;
+  friend class base_ilist_iterator<T>;
  private:
   /*
     We don't want to allow copying of this class, as that would give us
@@ -690,18 +706,24 @@ public:
 };
 
 
+template<typename T>
 class base_ilist_iterator
 {
-  base_ilist *list;
-  struct ilink **el,*current;
+  base_ilist<T> *list;
+  T **el, *current;
 public:
-  base_ilist_iterator(base_ilist &list_par) :list(&list_par),
-    el(&list_par.first),current(0) {}
-  void *next(void)
+  base_ilist_iterator(base_ilist<T> &list_par) :
+    list(&list_par),
+    el(&list_par.first),
+    current(NULL)
+  {}
+
+  T *next(void)
   {
     /* This is coded to allow push_back() while iterating */
     current= *el;
-    if (current == &list->last) return 0;
+    if (current == static_cast<T*>(&list->sentinel))
+      return NULL;
     el= &current->next;
     return current;
   }
@@ -709,18 +731,17 @@ public:
 
 
 template <class T>
-class I_List :private base_ilist
+class I_List :private base_ilist<T>
 {
 public:
-  I_List() :base_ilist()	{}
-  inline void empty()		{ base_ilist::empty(); }
-  inline bool is_empty()        { return base_ilist::is_empty(); } 
-  inline void push_front(T* a)	{ base_ilist::push_front(a); }
-  inline void push_back(T* a)	{ base_ilist::push_back(a); }
-  inline T* get()		{ return (T*) base_ilist::get(); }
-  inline T* head()		{ return (T*) base_ilist::head(); }
-  inline void move_elements_to(I_List<T>* new_owner) {
-    base_ilist::move_elements_to(new_owner);
+  using base_ilist<T>::empty;
+  using base_ilist<T>::is_empty;
+  using base_ilist<T>::get;
+  using base_ilist<T>::push_front;
+  using base_ilist<T>::push_back;
+  using base_ilist<T>::head;
+  void move_elements_to(I_List<T>* new_owner) {
+    base_ilist<T>::move_elements_to(new_owner);
   }
 #ifndef _lint
   friend class I_List_iterator<T>;
@@ -728,11 +749,12 @@ public:
 };
 
 
-template <class T> class I_List_iterator :public base_ilist_iterator
+template <class T> 
+class I_List_iterator :public base_ilist_iterator<T>
 {
 public:
-  I_List_iterator(I_List<T> &a) : base_ilist_iterator(a) {}
-  inline T* operator++(int) { return (T*) base_ilist_iterator::next(); }
+  I_List_iterator(I_List<T> &a) : base_ilist_iterator<T>(a) {}
+  inline T* operator++(int) { return base_ilist_iterator<T>::next(); }
 };
 
 /**

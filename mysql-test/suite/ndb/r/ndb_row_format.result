@@ -1,0 +1,79 @@
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
+drop database if exists mysqltest;
+CREATE TABLE t1
+( a INT KEY,
+b VARCHAR(10) )
+ROW_FORMAT=FIXED
+ENGINE=NDB;
+Warnings:
+Warning	1478	Row format FIXED incompatible with dynamic attribute b
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	Row format FIXED incompatible with dynamic attribute b
+ForceVarPart: 0
+INSERT INTO t1 values(0,''),(2,"**"),(4,"****"),(6,"******"),(8,"********"),(10,"**********"),(12,"************");
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 7
+SELECT * FROM t1 ORDER BY a;
+a	b
+0	
+2	**
+4	****
+6	******
+8	********
+10	**********
+12	**********
+DROP TABLE t1;
+CREATE TABLE t1
+( a INT KEY,
+b INT )
+ENGINE=NDB;
+ForceVarPart: 1
+DROP TABLE t1;
+CREATE TABLE t1
+( a INT KEY,
+b INT )
+ROW_FORMAT=DEFAULT
+ENGINE=NDB;
+ForceVarPart: 1
+DROP TABLE t1;
+CREATE TABLE t1
+( a INT KEY,
+b INT )
+ROW_FORMAT=FIXED
+ENGINE=NDB;
+ForceVarPart: 0
+DROP TABLE t1;
+CREATE TABLE t1
+( a INT KEY,
+b INT )
+ROW_FORMAT=DYNAMIC
+ENGINE=NDB;
+ForceVarPart: 1
+DROP TABLE t1;
+create table t1 (a int auto_increment primary key, b varchar(1000)) engine = ndb;
+insert into t1(b) values ('0123456789');
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+select count(*) from t1;
+count(*)
+1024
+begin;
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+rollback;
+select count(*),b from t1 group by b;
+count(*)	b
+1024	0123456789
+drop table t1;

@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -193,6 +193,15 @@ enum enum_mdl_type {
     SELECT ... FOR UPDATE.
   */
   MDL_SHARED_WRITE,
+  /*
+    An upgradable shared metadata lock for cases when there is an intention
+    to modify (and not just read) data in the table.
+    Can be upgraded to MDL_SHARED_NO_WRITE and MDL_EXCLUSIVE.
+    A connection holding SU lock can read table metadata and modify or read
+    table data (after acquiring appropriate table and row-level locks).
+    To be used for the first phase of ALTER TABLE.
+  */
+  MDL_SHARED_UPGRADABLE,
   /*
     An upgradable shared metadata lock which blocks all attempts to update
     table data, allowing reads.
@@ -565,13 +574,14 @@ public:
   MDL_context *get_ctx() const { return m_ctx; }
   bool is_upgradable_or_exclusive() const
   {
-    return m_type == MDL_SHARED_NO_WRITE ||
+    return m_type == MDL_SHARED_UPGRADABLE ||
+           m_type == MDL_SHARED_NO_WRITE ||
            m_type == MDL_SHARED_NO_READ_WRITE ||
            m_type == MDL_EXCLUSIVE;
   }
   enum_mdl_type get_type() const { return m_type; }
   MDL_lock *get_lock() const { return m_lock; }
-  void downgrade_exclusive_lock(enum_mdl_type type);
+  void downgrade_lock(enum_mdl_type type);
 
   bool has_stronger_or_equal_type(enum_mdl_type type) const;
 
@@ -723,8 +733,9 @@ public:
   bool try_acquire_lock(MDL_request *mdl_request);
   bool acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout);
   bool acquire_locks(MDL_request_list *requests, ulong lock_wait_timeout);
-  bool upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket,
-                                        ulong lock_wait_timeout);
+  bool upgrade_shared_lock(MDL_ticket *mdl_ticket,
+                           enum_mdl_type new_type,
+                           ulong lock_wait_timeout);
 
   bool clone_ticket(MDL_request *mdl_request);
 

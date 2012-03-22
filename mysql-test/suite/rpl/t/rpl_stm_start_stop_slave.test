@@ -4,6 +4,7 @@
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
 --source include/have_innodb.inc
+--source include/not_gtid_enabled.inc
 
 # make innodb updates run fast
 --connection slave
@@ -22,5 +23,5 @@ SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 --connection master
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
-
+--let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

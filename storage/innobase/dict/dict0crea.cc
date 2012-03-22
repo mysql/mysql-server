@@ -73,12 +73,16 @@ dict_create_sys_tables_tuple(
 	dict_table_copy_types(entry, sys_tables);
 
 	/* 0: NAME -----------------------------*/
-	dfield = dtuple_get_nth_field(entry, 0/*NAME*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_TABLES__NAME);
 
 	dfield_set_data(dfield, table->name, ut_strlen(table->name));
 
+	/* 1: DB_TRX_ID added later */
+	/* 2: DB_ROLL_PTR added later */
 	/* 3: ID -------------------------------*/
-	dfield = dtuple_get_nth_field(entry, 1/*ID*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_TABLES__ID);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(ptr, table->id);
@@ -86,7 +90,8 @@ dict_create_sys_tables_tuple(
 	dfield_set_data(dfield, ptr, 8);
 
 	/* 4: N_COLS ---------------------------*/
-	dfield = dtuple_get_nth_field(entry, 2/*N_COLS*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_TABLES__N_COLS);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, table->n_def
@@ -94,7 +99,8 @@ dict_create_sys_tables_tuple(
 	dfield_set_data(dfield, ptr, 4);
 
 	/* 5: TYPE (table flags) -----------------------------*/
-	dfield = dtuple_get_nth_field(entry, 3/*TYPE*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_TABLES__TYPE);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 
@@ -107,14 +113,16 @@ dict_create_sys_tables_tuple(
 	dfield_set_data(dfield, ptr, 4);
 
 	/* 6: MIX_ID (obsolete) ---------------------------*/
-	dfield = dtuple_get_nth_field(entry, 4/*MIX_ID*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_TABLES__MIX_ID);
 
 	ptr = static_cast<byte*>(mem_heap_zalloc(heap, 8));
 
 	dfield_set_data(dfield, ptr, 8);
 
 	/* 7: MIX_LEN (additional flags) --------------------------*/
-	dfield = dtuple_get_nth_field(entry, 5/*MIX_LEN*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_TABLES__MIX_LEN);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	/* Be sure all non-used bits are zero. */
@@ -124,11 +132,13 @@ dict_create_sys_tables_tuple(
 	dfield_set_data(dfield, ptr, 4);
 
 	/* 8: CLUSTER_NAME ---------------------*/
-	dfield = dtuple_get_nth_field(entry, 6/*CLUSTER_NAME*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_TABLES__CLUSTER_ID);
 	dfield_set_null(dfield); /* not supported */
 
 	/* 9: SPACE ----------------------------*/
-	dfield = dtuple_get_nth_field(entry, 7/*SPACE*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_TABLES__SPACE);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, table->space);
@@ -172,47 +182,55 @@ dict_create_sys_columns_tuple(
 	dict_table_copy_types(entry, sys_columns);
 
 	/* 0: TABLE_ID -----------------------*/
-	dfield = dtuple_get_nth_field(entry, 0/*TABLE_ID*/);
+	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_COLUMNS__TABLE_ID);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(ptr, table->id);
 
 	dfield_set_data(dfield, ptr, 8);
+
 	/* 1: POS ----------------------------*/
-	dfield = dtuple_get_nth_field(entry, 1/*POS*/);
+	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_COLUMNS__POS);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, i);
 
 	dfield_set_data(dfield, ptr, 4);
+
+	/* 2: DB_TRX_ID added later */
+	/* 3: DB_ROLL_PTR added later */
 	/* 4: NAME ---------------------------*/
-	dfield = dtuple_get_nth_field(entry, 2/*NAME*/);
+	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_COLUMNS__NAME);
 
 	col_name = dict_table_get_col_name(table, i);
 	dfield_set_data(dfield, col_name, ut_strlen(col_name));
+
 	/* 5: MTYPE --------------------------*/
-	dfield = dtuple_get_nth_field(entry, 3/*MTYPE*/);
+	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_COLUMNS__MTYPE);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, column->mtype);
 
 	dfield_set_data(dfield, ptr, 4);
+
 	/* 6: PRTYPE -------------------------*/
-	dfield = dtuple_get_nth_field(entry, 4/*PRTYPE*/);
+	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_COLUMNS__PRTYPE);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, column->prtype);
 
 	dfield_set_data(dfield, ptr, 4);
+
 	/* 7: LEN ----------------------------*/
-	dfield = dtuple_get_nth_field(entry, 5/*LEN*/);
+	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_COLUMNS__LEN);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, column->len);
 
 	dfield_set_data(dfield, ptr, 4);
+
 	/* 8: PREC ---------------------------*/
-	dfield = dtuple_get_nth_field(entry, 6/*PREC*/);
+	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_COLUMNS__PREC);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, 0/* unused */);
@@ -240,27 +258,20 @@ dict_build_table_def_step(
 	ibool		is_path;
 	mtr_t		mtr;
 	ulint		space = 0;
-	ibool		file_per_table;
+	bool		use_tablespace;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	table = node->table;
-
-	/* Cache the global variable "srv_file_per_table" to
-	a local variable before using it. Please note
-	"srv_file_per_table" is not under dict_sys mutex
-	protection, and could be changed while executing
-	this function. So better to cache the current value
-	to a local variable, and all future reference to
-	"srv_file_per_table" should use this local variable. */
-	file_per_table = srv_file_per_table;
+	use_tablespace = !!(table->flags2 & DICT_TF2_USE_TABLESPACE);
 
 	dict_hdr_get_new_id(&table->id, NULL, NULL);
 
 	thr_get_trx(thr)->table_id = table->id;
 
-	if (file_per_table) {
-		/* Get a new space id if srv_file_per_table is set */
+	if (use_tablespace) {
+		/* This table will not use the system tablespace.
+		Get a new space id. */
 		dict_hdr_get_new_id(NULL, NULL, &space);
 
 		if (UNIV_UNLIKELY(space == ULINT_UNDEFINED)) {
@@ -293,6 +304,7 @@ dict_build_table_def_step(
 		error = fil_create_new_single_table_tablespace(
 			space, path_or_name, is_path,
 			dict_tf_to_fsp_flags(table->flags),
+			table->flags2,
 			FIL_IBD_FILE_INITIAL_SIZE);
 		table->space = (unsigned int) space;
 
@@ -370,7 +382,8 @@ dict_create_sys_indexes_tuple(
 	dict_table_copy_types(entry, sys_indexes);
 
 	/* 0: TABLE_ID -----------------------*/
-	dfield = dtuple_get_nth_field(entry, 0/*TABLE_ID*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_INDEXES__TABLE_ID);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(ptr, table->id);
@@ -378,20 +391,25 @@ dict_create_sys_indexes_tuple(
 	dfield_set_data(dfield, ptr, 8);
 
 	/* 1: ID ----------------------------*/
-	dfield = dtuple_get_nth_field(entry, 1/*ID*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_INDEXES__ID);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(ptr, index->id);
 
 	dfield_set_data(dfield, ptr, 8);
 
+	/* 2: DB_TRX_ID added later */
+	/* 3: DB_ROLL_PTR added later */
 	/* 4: NAME --------------------------*/
-	dfield = dtuple_get_nth_field(entry, 2/*NAME*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_INDEXES__NAME);
 
 	dfield_set_data(dfield, index->name, ut_strlen(index->name));
 
 	/* 5: N_FIELDS ----------------------*/
-	dfield = dtuple_get_nth_field(entry, 3/*N_FIELDS*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_INDEXES__N_FIELDS);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, index->n_fields);
@@ -399,7 +417,8 @@ dict_create_sys_indexes_tuple(
 	dfield_set_data(dfield, ptr, 4);
 
 	/* 6: TYPE --------------------------*/
-	dfield = dtuple_get_nth_field(entry, 4/*TYPE*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_INDEXES__TYPE);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, index->type);
@@ -408,11 +427,8 @@ dict_create_sys_indexes_tuple(
 
 	/* 7: SPACE --------------------------*/
 
-#if DICT_SYS_INDEXES_SPACE_NO_FIELD != 7
-#error "DICT_SYS_INDEXES_SPACE_NO_FIELD != 7"
-#endif
-
-	dfield = dtuple_get_nth_field(entry, 5/*SPACE*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_INDEXES__SPACE);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, index->space);
@@ -421,11 +437,8 @@ dict_create_sys_indexes_tuple(
 
 	/* 8: PAGE_NO --------------------------*/
 
-#if DICT_SYS_INDEXES_PAGE_NO_FIELD != 8
-#error "DICT_SYS_INDEXES_PAGE_NO_FIELD != 8"
-#endif
-
-	dfield = dtuple_get_nth_field(entry, 6/*PAGE_NO*/);
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_INDEXES__PAGE_NO);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, FIL_NULL);
@@ -446,7 +459,7 @@ dtuple_t*
 dict_create_sys_fields_tuple(
 /*=========================*/
 	const dict_index_t*	index,	/*!< in: index */
-	ulint			i,	/*!< in: field number */
+	ulint			fld_no,	/*!< in: field number */
 	mem_heap_t*		heap)	/*!< in: memory heap from
 					which the memory for the built
 					tuple is allocated */
@@ -469,7 +482,7 @@ dict_create_sys_fields_tuple(
 		}
 	}
 
-	field = dict_index_get_nth_field(index, i);
+	field = dict_index_get_nth_field(index, fld_no);
 
 	sys_fields = dict_sys->sys_fields;
 
@@ -478,15 +491,16 @@ dict_create_sys_fields_tuple(
 	dict_table_copy_types(entry, sys_fields);
 
 	/* 0: INDEX_ID -----------------------*/
-	dfield = dtuple_get_nth_field(entry, 0/*INDEX_ID*/);
+	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_FIELDS__INDEX_ID);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(ptr, index->id);
 
 	dfield_set_data(dfield, ptr, 8);
-	/* 1: POS + PREFIX LENGTH ----------------------------*/
 
-	dfield = dtuple_get_nth_field(entry, 1/*POS*/);
+	/* 1: POS; FIELD NUMBER & PREFIX LENGTH -----------------------*/
+
+	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_FIELDS__POS);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 
@@ -495,18 +509,21 @@ dict_create_sys_fields_tuple(
 		we store the number of the field to the 2 HIGH bytes
 		and the prefix length to the 2 low bytes, */
 
-		mach_write_to_4(ptr, (i << 16) + field->prefix_len);
+		mach_write_to_4(ptr, (fld_no << 16) + field->prefix_len);
 	} else {
 		/* Else we store the number of the field to the 2 LOW bytes.
 		This is to keep the storage format compatible with
 		InnoDB versions < 4.0.14. */
 
-		mach_write_to_4(ptr, i);
+		mach_write_to_4(ptr, fld_no);
 	}
 
 	dfield_set_data(dfield, ptr, 4);
+
+	/* 2: DB_TRX_ID added later */
+	/* 3: DB_ROLL_PTR added later */
 	/* 4: COL_NAME -------------------------*/
-	dfield = dtuple_get_nth_field(entry, 2/*COL_NAME*/);
+	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_FIELDS__COL_NAME);
 
 	dfield_set_data(dfield, field->name,
 			ut_strlen(field->name));
@@ -578,7 +595,10 @@ dict_build_index_def_step(
 		return(DB_TABLE_NOT_FOUND);
 	}
 
-	trx->table_id = table->id;
+	if (!trx->table_id) {
+		/* Record only the first table id. */
+		trx->table_id = table->id;
+	}
 
 	node->table = table;
 
@@ -670,10 +690,10 @@ dict_create_index_tree_step(
 	node->page_no = btr_create(index->type, index->space, zip_size,
 				   index->id, index, &mtr);
 	/* printf("Created a new index tree in space %lu root page %lu\n",
-	index->space, index->page_no); */
+	index->space, node->page_no); */
 
 	page_rec_write_field(btr_pcur_get_rec(&pcur),
-			     DICT_SYS_INDEXES_PAGE_NO_FIELD,
+			     DICT_FLD__SYS_INDEXES__PAGE_NO,
 			     node->page_no, &mtr);
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -704,7 +724,8 @@ dict_drop_index_tree(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
-	ptr = rec_get_nth_field_old(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD, &len);
+	ptr = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__PAGE_NO, &len);
 
 	ut_ad(len == 4);
 
@@ -716,8 +737,8 @@ dict_drop_index_tree(
 		return;
 	}
 
-	ptr = rec_get_nth_field_old(rec,
-				    DICT_SYS_INDEXES_SPACE_NO_FIELD, &len);
+	ptr = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__SPACE, &len);
 
 	ut_ad(len == 4);
 
@@ -744,7 +765,7 @@ dict_drop_index_tree(
 	root_page_no); */
 	btr_free_root(space, zip_size, root_page_no, mtr);
 
-	page_rec_write_field(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
+	page_rec_write_field(rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
 			     FIL_NULL, mtr);
 }
 
@@ -780,7 +801,8 @@ dict_truncate_index_tree(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
 	rec = btr_pcur_get_rec(pcur);
-	ptr = rec_get_nth_field_old(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD, &len);
+	ptr = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__PAGE_NO, &len);
 
 	ut_ad(len == 4);
 
@@ -795,8 +817,8 @@ dict_truncate_index_tree(
 		drop = FALSE;
 	}
 
-	ptr = rec_get_nth_field_old(rec,
-				    DICT_SYS_INDEXES_SPACE_NO_FIELD, &len);
+	ptr = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__SPACE, &len);
 
 	ut_ad(len == 4);
 
@@ -816,12 +838,12 @@ dict_truncate_index_tree(
 		return(FIL_NULL);
 	}
 
-	ptr = rec_get_nth_field_old(rec,
-				    DICT_SYS_INDEXES_TYPE_FIELD, &len);
+	ptr = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
 	ut_ad(len == 4);
 	type = mach_read_from_4(ptr);
 
-	ptr = rec_get_nth_field_old(rec, 1, &len);
+	ptr = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__ID, &len);
 	ut_ad(len == 8);
 	index_id = mach_read_from_8(ptr);
 
@@ -848,7 +870,7 @@ create:
 	in SYS_INDEXES, so that the database will not get into an
 	inconsistent state in case it crashes between the mtr_commit()
 	below and the following mtr_commit() call. */
-	page_rec_write_field(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
+	page_rec_write_field(rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
 			     FIL_NULL, mtr);
 
 	/* We will need to commit the mini-transaction in order to avoid

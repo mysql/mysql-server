@@ -42,7 +42,7 @@ set global slave_checkpoint_period="foo";
 set global slave_checkpoint_period=1;
 select @@global.slave_checkpoint_period;
 set global slave_checkpoint_period=cast(-1 as unsigned int);
-select @@global.slave_checkpoint_period;
+select @@global.slave_checkpoint_period as "truncated to the maximum";
 
 SET @@global.slave_checkpoint_period = @start_global_value;
 SELECT @@global.slave_checkpoint_period;

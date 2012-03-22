@@ -27,6 +27,7 @@
 #include "pfs_timer.h"
 #include "sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
 #include "table_helper.h"
+#include "my_md5.h"
 
 THR_LOCK table_events_statements_current::m_table_lock;
 
@@ -79,6 +80,16 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("SQL_TEXT") },
+    { C_STRING_WITH_LEN("longtext") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("DIGEST") },
+    { C_STRING_WITH_LEN("varchar(32)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("DIGEST_TEXT") },
     { C_STRING_WITH_LEN("longtext") },
     { NULL, 0}
   },
@@ -226,7 +237,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_events_statements_current::m_field_def=
-{38 , field_types };
+{40 , field_types };
 
 PFS_engine_table_share
 table_events_statements_current::m_share=
@@ -308,8 +319,7 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   m_row.m_nesting_event_id= statement->m_nesting_event_id;
   m_row.m_nesting_event_type= statement->m_nesting_event_type;
 
-  time_normalizer *normalizer= time_normalizer::get(statement_timer);
-  normalizer->to_pico(statement->m_timer_start, statement->m_timer_end,
+  m_normalizer->to_pico(statement->m_timer_start, statement->m_timer_end,
                       & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
   m_row.m_lock_time= statement->m_lock_time * MICROSEC_TO_PICOSEC;
 
@@ -356,6 +366,31 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   m_row.m_sort_scan= statement->m_sort_scan;
   m_row.m_no_index_used= statement->m_no_index_used;
   m_row.m_no_good_index_used= statement->m_no_good_index_used;
+  /* 
+    Filling up statement digest information.
+  */
+  PSI_digest_storage *digest= & statement->m_digest_storage;
+  if (digest->m_byte_count > 0)
+  {
+    PFS_digest_hash md5;
+    compute_md5_hash((char *) md5.m_md5,
+                     (char *) digest->m_token_array,
+                     digest->m_byte_count);
+
+    /* Generate the DIGEST string from the MD5 digest  */
+    MD5_HASH_TO_STRING(md5.m_md5,
+                       m_row.m_digest.m_digest);
+    m_row.m_digest.m_digest_length= MD5_HASH_TO_STRING_LENGTH;
+
+    /* Generate the DIGEST_TEXT string from the token array */
+    get_digest_text(m_row.m_digest.m_digest_text, digest);
+    m_row.m_digest.m_digest_text_length= strlen(m_row.m_digest.m_digest_text);
+  }
+  else
+  {
+    m_row.m_digest.m_digest_length= 0;
+    m_row.m_digest.m_digest_text_length= 0;
+  }
 
   m_row_exists= true;
   return;
@@ -373,9 +408,10 @@ int table_events_statements_common::read_row_values(TABLE *table,
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 2);
+  DBUG_ASSERT(table->s->null_bytes == 3);
   buf[0]= 0;
   buf[1]= 0;
+  buf[2]= 0;
 
   for (; (f= *fields) ; fields++)
   {
@@ -431,101 +467,115 @@ int table_events_statements_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 10: /* CURRENT_SCHEMA */
+      case 10: /* DIGEST */
+        if (m_row.m_digest.m_digest_length > 0)
+          set_field_varchar_utf8(f, m_row.m_digest.m_digest,
+                                 m_row.m_digest.m_digest_length);
+        else
+          f->set_null();
+        break;
+      case 11: /* DIGEST_TEXT */
+        if (m_row.m_digest.m_digest_text_length > 0)
+           set_field_longtext_utf8(f, m_row.m_digest.m_digest_text,
+                                   m_row.m_digest.m_digest_text_length);
+        else
+          f->set_null();
+        break;
+      case 12: /* CURRENT_SCHEMA */
         if (m_row.m_current_schema_name_length)
           set_field_varchar_utf8(f, m_row.m_current_schema_name, m_row.m_current_schema_name_length);
         else
           f->set_null();
         break;
-      case 11: /* OBJECT_TYPE */
+      case 13: /* OBJECT_TYPE */
         f->set_null();
         break;
-      case 12: /* OBJECT_SCHEMA */
+      case 14: /* OBJECT_SCHEMA */
         f->set_null();
         break;
-      case 13: /* OBJECT_NAME */
+      case 15: /* OBJECT_NAME */
         f->set_null();
         break;
-      case 14: /* OBJECT_INSTANCE_BEGIN */
+      case 16: /* OBJECT_INSTANCE_BEGIN */
         f->set_null();
         break;
-      case 15: /* MYSQL_ERRNO */
+      case 17: /* MYSQL_ERRNO */
         set_field_ulong(f, m_row.m_sql_errno);
         break;
-      case 16: /* RETURNED_SQLSTATE */
+      case 18: /* RETURNED_SQLSTATE */
         if (m_row.m_sqlstate[0] != 0)
           set_field_varchar_utf8(f, m_row.m_sqlstate, SQLSTATE_LENGTH);
         else
           f->set_null();
         break;
-      case 17: /* MESSAGE_TEXT */
+      case 19: /* MESSAGE_TEXT */
         len= strlen(m_row.m_message_text);
         if (len)
           set_field_varchar_utf8(f, m_row.m_message_text, len);
         else
           f->set_null();
         break;
-      case 18: /* ERRORS */
+      case 20: /* ERRORS */
         set_field_ulonglong(f, m_row.m_error_count);
         break;
-      case 19: /* WARNINGS */
+      case 21: /* WARNINGS */
         set_field_ulonglong(f, m_row.m_warning_count);
         break;
-      case 20: /* ROWS_AFFECTED */
+      case 22: /* ROWS_AFFECTED */
         set_field_ulonglong(f, m_row.m_rows_affected);
         break;
-      case 21: /* ROWS_SENT */
+      case 23: /* ROWS_SENT */
         set_field_ulonglong(f, m_row.m_rows_sent);
         break;
-      case 22: /* ROWS_EXAMINED */
+      case 24: /* ROWS_EXAMINED */
         set_field_ulonglong(f, m_row.m_rows_examined);
         break;
-      case 23: /* CREATED_TMP_DISK_TABLES */
+      case 25: /* CREATED_TMP_DISK_TABLES */
         set_field_ulonglong(f, m_row.m_created_tmp_disk_tables);
         break;
-      case 24: /* CREATED_TMP_TABLES */
+      case 26: /* CREATED_TMP_TABLES */
         set_field_ulonglong(f, m_row.m_created_tmp_tables);
         break;
-      case 25: /* SELECT_FULL_JOIN */
+      case 27: /* SELECT_FULL_JOIN */
         set_field_ulonglong(f, m_row.m_select_full_join);
         break;
-      case 26: /* SELECT_FULL_RANGE_JOIN */
+      case 28: /* SELECT_FULL_RANGE_JOIN */
         set_field_ulonglong(f, m_row.m_select_full_range_join);
         break;
-      case 27: /* SELECT_RANGE */
+      case 29: /* SELECT_RANGE */
         set_field_ulonglong(f, m_row.m_select_range);
         break;
-      case 28: /* SELECT_RANGE_CHECK */
+      case 30: /* SELECT_RANGE_CHECK */
         set_field_ulonglong(f, m_row.m_select_range_check);
         break;
-      case 29: /* SELECT_SCAN */
+      case 31: /* SELECT_SCAN */
         set_field_ulonglong(f, m_row.m_select_scan);
         break;
-      case 30: /* SORT_MERGE_PASSES */
+      case 32: /* SORT_MERGE_PASSES */
         set_field_ulonglong(f, m_row.m_sort_merge_passes);
         break;
-      case 31: /* SORT_RANGE */
+      case 33: /* SORT_RANGE */
         set_field_ulonglong(f, m_row.m_sort_range);
         break;
-      case 32: /* SORT_ROWS */
+      case 34: /* SORT_ROWS */
         set_field_ulonglong(f, m_row.m_sort_rows);
         break;
-      case 33: /* SORT_SCAN */
+      case 35: /* SORT_SCAN */
         set_field_ulonglong(f, m_row.m_sort_scan);
         break;
-      case 34: /* NO_INDEX_USED */
+      case 36: /* NO_INDEX_USED */
         set_field_ulonglong(f, m_row.m_no_index_used);
         break;
-      case 35: /* NO_GOOD_INDEX_USED */
+      case 37: /* NO_GOOD_INDEX_USED */
         set_field_ulonglong(f, m_row.m_no_good_index_used);
         break;
-      case 36: /* NESTING_EVENT_ID */
+      case 38: /* NESTING_EVENT_ID */
         if (m_row.m_nesting_event_id != 0)
           set_field_ulonglong(f, m_row.m_nesting_event_id);
         else
           f->set_null();
         break;
-      case 37: /* NESTING_EVENT_TYPE */
+      case 39: /* NESTING_EVENT_TYPE */
         if (m_row.m_nesting_event_id != 0)
           set_field_enum(f, m_row.m_nesting_event_type);
         else
@@ -553,6 +603,12 @@ void table_events_statements_current::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
+}
+
+int table_events_statements_current::rnd_init(bool scan)
+{
+  m_normalizer= time_normalizer::get(statement_timer);
+  return 0;
 }
 
 int table_events_statements_current::rnd_next(void)
@@ -657,6 +713,12 @@ void table_events_statements_history::reset_position(void)
   m_next_pos.reset();
 }
 
+int table_events_statements_history::rnd_init(bool scan)
+{
+  m_normalizer= time_normalizer::get(statement_timer);
+  return 0;
+}
+
 int table_events_statements_history::rnd_next(void)
 {
   PFS_thread *pfs_thread;
@@ -752,6 +814,12 @@ void table_events_statements_history_long::reset_position(void)
 {
   m_pos.m_index= 0;
   m_next_pos.m_index= 0;
+}
+
+int table_events_statements_history_long::rnd_init(bool scan)
+{
+  m_normalizer= time_normalizer::get(statement_timer);
+  return 0;
 }
 
 int table_events_statements_history_long::rnd_next(void)

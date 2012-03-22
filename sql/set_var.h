@@ -31,6 +31,7 @@ class Item_func_set_user_var;
 
 // This include needs to be here since item.h requires enum_var_type :-P
 #include "item.h"                          /* Item */
+#include "sql_class.h"                     /* THD  */
 
 extern TYPELIB bool_typelib;
 
@@ -329,6 +330,8 @@ sql_mode_t expand_sql_mode(sql_mode_t sql_mode);
 bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode, LEX_STRING *ls);
 
 extern sys_var *Sys_autocommit_ptr;
+extern sys_var *Sys_gtid_next_ptr;
+extern sys_var *Sys_gtid_next_list_ptr;
 
 const CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 

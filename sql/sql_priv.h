@@ -178,7 +178,7 @@
    If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
    optimizer features (semijoin) will be available.
  */
-#undef OPTIMIZER_SWITCH_ALL
+#define OPTIMIZER_SWITCH_ALL 1
 
 /* 
   The following must be kept in sync with optimizer_switch string in 
@@ -258,13 +258,6 @@
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
 #define UNCACHEABLE_UNITED     16
 #define UNCACHEABLE_CHECKOPTION 32
-
-/* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
-#define UNDEF_POS (-1)
-
-/* BINLOG_DUMP options */
-
-#define BINLOG_DUMP_NON_BLOCK   1
 
 /*
   Some defines for exit codes for ::is_equal class functions.

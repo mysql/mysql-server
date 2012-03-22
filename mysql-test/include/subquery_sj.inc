@@ -357,6 +357,7 @@ create table t22 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08
 update t22 set c = '2005-12-08 15:58:27' where a = 255;
 explain select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
+explain format=json select * from t1 where a in (select a from t11);
 select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 
@@ -390,7 +391,9 @@ select * from t1 where 2 in (select a from t0);
 # 
 # FirstMatch referring to a derived table
 #
-explain select * from (select a from t0) X where a in (select a from t1);
+let $query=select * from (select a from t0) x where a in (select a from t1);
+--eval explain $query
+--eval explain format=json $query
 drop table t0, t1;
 
 #
@@ -496,6 +499,7 @@ create table t2 as select * from t1;
 create table t3 (a int, b int, filler char(100), key(a));
 insert into t3 select A.a + 10*B.a, A.a + 10*B.a, 'filler' from t1 A, t1 B, t1 C;
 explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
+explain format=json select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
 
 #
 # Verify that straight_join modifier in parent or child prevents flattening
@@ -2512,13 +2516,15 @@ INSERT INTO t3 VALUES
 ('BEL','Dutch',59.2),('BLZ','English',50.8);
 --enable_query_log
 
-EXPLAIN
+let $query=
 SELECT Name FROM t2 
   WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
         AND
         t2.Code IN (SELECT Country FROM t3 
                            WHERE Language='English' AND Percentage > 10 AND
                                  t2.Population > 100000);
+--eval EXPLAIN $query
+--eval EXPLAIN FORMAT=JSON $query
 
 DROP TABLE t1,t2,t3;
 
@@ -2976,93 +2982,6 @@ select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t3));
 
 drop table t0, t1, t2, t3;
 
-
-#
-# BUG#33509: Server crashes with number of recursive subqueries=61
-#  (the query may or may not fail with an error so we're using it with SP 
-#  
-create table t1 (a int not null);
-
-delimiter |;
-
---disable_warnings
-drop procedure if exists p1|
---enable_warnings
-CREATE PROCEDURE p1()
-BEGIN
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION select a from t1;
-  prepare s1 from '
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( 
-  select a from t1 where a in ( select a from t1) 
-  )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))';
-  execute s1;
-END;
-|
-delimiter ;|
-
-call p1();
-drop procedure p1;
-drop table t1;
 
 #
 # BUG#35468 "Slowdown and wrong result for uncorrelated subquery w/o where"
@@ -3910,9 +3829,6 @@ WHERE (grandparent1.col_varchar_key) IN
 eval EXPLAIN $query;
 eval $query;
 
---echo -- Notice that Materialize-scan algorithm reports wrong result for this query.
---echo -- This problem will be filed as a separate bug and dealt with in WL#5561.
-
 DROP TABLE t1, t2;
 
 --echo # End of test for bug#12603183.
@@ -4436,6 +4352,7 @@ WHERE g1 NOT IN
 );
 
 eval explain $query;
+eval explain format=json $query;
 eval $query;
 
 DROP TABLE t1, t2, t3;
@@ -4485,5 +4402,518 @@ EXECUTE stmt;
 DROP VIEW v_t2;
 DROP TABLE t1, t2, t3;
 --echo # End of test for bug#13339643.
+
+--echo #
+--echo # Bug#13424134: Wrong result on JOIN + nested WHERE ... IN clauses
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyIsam;
+
+INSERT INTO t1 VALUES
+ (10,1,7), (13,7,3), (18,0,1), (23,8,1);
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_key int NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyIsam;
+
+INSERT INTO t2 VALUES (1,7);
+
+let $query=
+SELECT t1a.*
+FROM t1 AS t1a
+  JOIN t1 AS t1b USING ( col_int_nokey )
+WHERE t1a.col_int_key IN (
+  SELECT pk
+  FROM t2
+  WHERE col_int_key IN (
+    SELECT col_int_nokey
+    FROM t1
+  )
+);
+
+eval EXPLAIN $query;
+eval $query;
+
+ALTER TABLE t1 ENGINE=Innodb;
+ALTER TABLE t2 ENGINE=Innodb;
+
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13424134.
+
+--echo #
+--echo # Bug#13414014: Extra rows in result on semijoin query with where ...
+--echo #
+
+CREATE TABLE t1 (
+  c INT,
+  d INT,
+  a VARCHAR(1),
+  b VARCHAR(1),
+  KEY a (a)
+);
+
+INSERT INTO t1 VALUES
+ (NULL,8,'x','x'), (7,4,'q','q'), (6,8,'c','c');
+
+CREATE TABLE t2 (
+  a VARCHAR(1),
+  KEY a (a)
+);
+
+INSERT INTO t2 VALUES
+ ('c'), (NULL), ('x'), ('q');
+
+let $query=
+SELECT *
+FROM t2 AS ot
+WHERE (a, a) IN
+   (SELECT a, b
+    FROM t1 AS it
+    WHERE it.a = 'x' OR it.c > it.d
+   )
+;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13414014.
+
+--echo #
+--echo # Bug#13545215: Missing rows on nested in-subquery with materialization
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key int,
+  col_varchar_key varchar(1),
+  col_varchar_nokey varchar(1),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ;
+
+INSERT INTO t1 VALUES
+ (8,'x','x'), (0,'p','p'), (8,'c','c');
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_varchar_key varchar(1),
+  col_varchar_nokey varchar(1),
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t2 VALUES
+ (1,'v','v'), (2,'v','v'), (3,'c','c'), (4,NULL,NULL),
+ (5,'x','x'), (6,'i','i'), (7,'e','e'), (8,'p','p');
+
+CREATE TABLE t3 (
+ col_int_nokey int
+);
+
+INSERT INTO t3 VALUES (7);
+
+let $query=
+SELECT grandparent1.col_varchar_nokey
+FROM t1 AS grandparent1 JOIN t1 AS grandparent2 USING (col_int_key)
+WHERE grandparent1.col_varchar_key IN (
+    SELECT col_varchar_nokey
+    FROM t2 AS parent1
+    WHERE col_varchar_key IN (
+        SELECT child1.col_varchar_nokey
+        FROM t2 AS child1 LEFT JOIN t3 AS child2
+             ON child1.pk < child2.col_int_nokey
+        )
+    );
+
+eval explain $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # End of test for bug#13545215.
+
+--echo #
+--echo # BUG#13553211 - MISSING ROWS ON SELECT WITH IN-SUBQUERY AND
+--echo # MATERIALIZATION + SEMIJOIN ON
+--echo #
+CREATE TABLE t1 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (4,'v','v');
+INSERT INTO t1 VALUES (62,'v','v');
+INSERT INTO t1 VALUES (7,'c','c');
+INSERT INTO t1 VALUES (1,NULL,NULL);
+
+let $query=
+SELECT
+  alias1.col_varchar_nokey AS a1_nokey,
+  alias1.col_varchar_key AS a1_key,
+  alias2.col_varchar_nokey AS a2_nokey
+FROM
+  t1 AS alias1, t1 AS alias2
+WHERE
+  (alias1.col_varchar_nokey,alias2.col_varchar_nokey)
+  IN
+  (
+    SELECT
+      SQ2_alias2.col_varchar_nokey, SQ2_alias1.col_varchar_key
+    FROM
+      t1 AS SQ2_alias1, t1 AS SQ2_alias2
+  )
+;
+
+eval EXPLAIN $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#13541406: Wrong result with loosescan on select .. where .. in
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key INT NOT NULL,
+  col_varchar_nokey VARCHAR(1) NOT NULL,
+  KEY col_int_key (col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+ (7,'v'), (0,'s'), (9,'l'), (3,'y'), (4,'c'), (2,'i'), (5,'h'), (3,'q'),
+ (1,'a'), (3,'v'), (6,'u'), (7,'s'), (5,'y'), (1,'z'), (204,'h'), (224,'p'),
+ (9,'e'), (5,'i'), (0,'y'), (3,'w');
+
+CREATE TABLE t2 (
+  pk INT NOT NULL,
+  col_int_key INT NOT NULL,
+  col_varchar_key VARCHAR(1) NOT NULL,
+  col_varchar_nokey VARCHAR(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES
+ (1,0,'j','j'), (2,8,'v','v'), (3,1,'c','c'), (4,8,'m','m'),
+ (5,9,'d','d'), (6,24,'d','d'), (7,6,'y','y'), (8,1,'t','t'),
+ (9,6,'d','d'), (10,2,'s','s'), (11,4,'r','r'), (12,8,'m','m'),
+ (13,4,'b','b'), (14,4,'x','x'), (15,7,'g','g'), (16,4,'p','p'),
+ (17,1,'q','q'), (18,9,'w','w'), (19,4,'d','d'), (20,8,'e','e');
+
+let $query=
+SELECT ot1.col_int_key AS field1
+FROM t2 AS ot1, t2 AS ot2
+WHERE (ot1.col_varchar_key, ot2.col_varchar_nokey) IN (
+    SELECT it2.col_varchar_nokey, it1.col_varchar_key
+    FROM t2 AS it1 JOIN t1 AS it2 ON it2.col_int_key = it1.pk);
+
+--echo # This query should never use a LooseScan strategy
+
+eval explain $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13541406.
+
+--echo #
+--echo # Bug#13576391: Missing rows on select with in-subquery and
+--echo # batched-key-access=on and semijoin
+--echo #
+
+CREATE TABLE t1 (
+ col_int_nokey int NOT NULL,
+ col_varchar_key varchar(1) NOT NULL,
+ KEY col_varchar_key (col_varchar_key)
+) engine=InnoDB;
+
+INSERT INTO t1 VALUES
+ (1,'v'), (7,'s'), (4,'l'), (7,'y'), (0,'c'), (2,'i'), (9,'h'), (4,'q'),
+ (0,'a'), (9,'v'), (1,'u'), (3,'s'), (8,'y'), (8,'z'), (18,'h'), (84,'p'),
+ (6,'e'), (3,'i'), (6,'y'), (6,'w');
+
+CREATE TABLE t2 (
+ col_int_nokey int NOT NULL,
+ col_varchar_nokey varchar(1) NOT NULL
+) engine=InnoDB;
+
+INSERT INTO t2 VALUES
+ (4,'j'), (6,'v'), (3,'c'), (5,'m'), (3,'d'), (246,'d'), (2,'y'), (9,'t'),
+ (3,'d'), (8,'s'), (1,'r'), (8,'m'), (8,'b'), (5,'x'), (7,'g'), (5,'p'),
+ (1,'q'), (6,'w'), (2,'d'), (9,'e');
+
+let $query=
+SELECT col_varchar_nokey
+FROM t2 AS ot
+WHERE col_varchar_nokey IN (
+  SELECT col_varchar_key
+  FROM t1 AS it
+  WHERE it.col_int_nokey <= it.col_int_nokey
+    AND NOT ot.col_int_nokey < 2
+)
+ORDER BY col_varchar_nokey;
+
+eval explain $query;
+eval $query;
+
+ALTER TABLE t1 ENGINE=MyISAM;
+ALTER TABLE t2 ENGINE=MyISAM;
+
+eval explain $query;
+eval $query;
+
+ALTER TABLE t1 ENGINE=Memory;
+ALTER TABLE t2 ENGINE=Memory;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13576391.
+
+--echo #
+--echo # Bug #13589848 "MISSING ROW ON SELECT WITH NESTED IN CLAUSES WHEN LOOSESCAN=ON"
+--echo #
+CREATE TABLE t1 (
+  id INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  KEY (col_varchar_key)
+);
+
+INSERT INTO t1 VALUES (100,'m','m'),
+(200,'b','b'), (300,'x','x');
+
+CREATE TABLE t2 (
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  KEY (col_varchar_key)
+);
+
+INSERT INTO t2 VALUES ('b','b');
+
+CREATE TABLE t3 (
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  KEY (col_varchar_key)
+);
+
+INSERT INTO t3 VALUES ('k','k');
+
+let $query=SELECT GP1.id
+FROM t1 AS GP1 JOIN t3 AS GP2
+     ON GP2.col_varchar_key <> GP1.col_varchar_nokey
+WHERE (GP1.col_varchar_nokey, GP1.col_varchar_nokey)
+      IN (
+           SELECT col_varchar_nokey, col_varchar_nokey
+           FROM t1
+           WHERE col_varchar_nokey
+           IN ( SELECT col_varchar_key
+                FROM t2 LEFT JOIN t3 USING (col_varchar_key) )
+         )
+;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #13596176: Missing row on select with nested in clause when
+--echo #                matr=on and bnl=off + MyISAM
+--echo #
+
+CREATE TABLE t1 (
+  int_key int DEFAULT NULL,
+  vc_key varchar(1) DEFAULT NULL,
+  vc_nokey varchar(1) DEFAULT NULL,
+  KEY int_key (int_key),
+  KEY vc_key (vc_key, int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES
+ (8,'x','x'), (7,'d','d'), (1,'r','r'), (7,'f','f'),
+ (9,'y','y'), (NULL,'u','u'), (1,'m','m'), (9,NULL,NULL),
+ (2,'o','o'), (9,'w','w'), (2,'m','m'), (4,'q','q'),
+ (0,NULL,NULL), (4,'d','d'), (8,'g','g'), (NULL,'x','x'),
+ (NULL,'f','f'), (0,'p','p'), (NULL,'j','j'), (8,'c','c');
+
+CREATE TABLE t2 (
+  int_key int DEFAULT NULL,
+  vc_key varchar(1) DEFAULT NULL,
+  KEY int_key (int_key),
+  KEY vc_key (vc_key, int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (8,'g');
+
+let $query=
+SELECT vc_key
+FROM t1 as outr
+WHERE (vc_nokey, vc_key ) IN
+ (SELECT vc_nokey, vc_nokey
+  FROM t1 middle
+  WHERE vc_nokey IN
+   (SELECT child1.vc_key
+    FROM t2 AS child1 JOIN t1 AS child2 USING (int_key)
+   )
+ );
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13596176.
+
+--echo #
+--echo # BUG#11754478: MAX/MIN + SUBQUERY + AND FAILS TO RETURN ANY ROWS
+--echo # BUG#13599013: MAX/MIN + SUBQUERY IN WHERE CLAUSE MATCHING NO 
+--echo #               ROWS + INDEX DOES NOT RETURN NULL
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) PRIMARY KEY,
+  int_key int(11),
+  KEY int_key (int_key)
+);
+
+INSERT INTO t1 VALUES (1,0),(2,0),(3,2),(4,0),(5,3),(6,0);
+
+SELECT MIN(int_key) FROM t1 WHERE (4, 4) IN (SELECT 1, 2);
+SELECT MIN(int_key) FROM t1 WHERE (4, 4) IN (SELECT 4, 4);
+SELECT MIN(pk) FROM t1 WHERE pk IN (SELECT int_key FROM t1) AND pk = 6;
+
+DROP TABLE t1;
+
+--echo # BUG#13726217: Crash in Item_ident::fix_after_pullout()
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+INSERT INTO t1 VALUES (0);
+
+SELECT 0
+FROM t1
+WHERE 0 IN
+   (SELECT 0
+    FROM t1
+    WHERE 0 LIKE
+       (SELECT elt(a, 0) AS b
+        FROM t1
+        GROUP BY a
+        HAVING b
+       )
+   );
+
+DROP TABLE t1;
+
+--echo # End of test for bug#13726217.
+
+--echo # BUG#13773979: Missing rows on second execution of prepared statement
+
+CREATE TABLE t1 (
+  col_int_nokey INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1)
+);
+
+INSERT INTO t1 VALUES
+ (1,7,'v'), (7,0,'s'), (4,9,'l'), (7,3,'y'),
+ (2,2,'i'), (9,5,'h'), (0,1,'a'), (9,3,'v');
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+let $query=
+SELECT *
+FROM t1
+WHERE col_int_key IN (
+  SELECT alias1.col_int_nokey AS field1
+  FROM v1 AS alias1
+  WHERE alias1.col_varchar_key < 'v'
+);
+
+eval $query;
+eval prepare stmt FROM "$query";
+execute stmt;
+execute stmt;
+
+DEALLOCATE PREPARE stmt;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo # End of test for bug#13773979.
+
+--echo #
+--echo # BUG#13685026 ASSERTION CUR_SJ_INNER_TABLES == 0 IN
+--echo # --OPTIMIZE_TABLE_ORDER::CHOOSE_TABLE_ORDER
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key INT(11) NOT NULL,
+  col_datetime_key DATETIME NOT NULL,
+  col_varchar_key VARCHAR(1) NOT NULL,
+  col_varchar_nokey VARCHAR(1) NOT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (0,'2002-02-13 17:30:06','j','j');
+INSERT INTO t1 VALUES (8,'2008-09-27 00:34:58','v','v');
+
+CREATE TABLE t2 (
+  col_int_key INT(11) NOT NULL,
+  col_datetime_key DATETIME NOT NULL,
+  col_varchar_key VARCHAR(1) NOT NULL,
+  col_varchar_nokey VARCHAR(1) NOT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
+
+SET @old_depth=@@optimizer_search_depth;
+SET optimizer_search_depth=4;
+
+let $query=SELECT col_datetime_key
+FROM t1 as outr
+WHERE col_datetime_key IN (
+  SELECT alias1.col_datetime_key
+  FROM t1 AS alias1
+    LEFT JOIN t1 as alias3
+      STRAIGHT_JOIN ( t2 AS alias4
+        JOIN t1 AS alias5
+        ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
+      ON alias5.col_int_key < alias4.col_int_key
+    ON alias5.col_varchar_key = alias4.col_varchar_key
+);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
+SET @@optimizer_search_depth=@old_depth;
 
 --echo # End of 5.6 tests

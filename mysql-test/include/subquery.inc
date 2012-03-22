@@ -3223,7 +3223,7 @@ INSERT INTO t1 VALUES (10,1), (14,1);
 CREATE TABLE t2 (pk int PRIMARY KEY, int_key int);
 INSERT INTO t2 VALUES (3,3), (5,NULL), (7,3);
 
---echo # should have eq_ref for t1
+--echo # should have eq_ref for t1, unless subquery materialization is used
 --replace_column 1 x 2 x 5 x 6 x 7 x 8 x 9 x 10 x
 EXPLAIN
 SELECT * FROM t2 outr
@@ -5643,3 +5643,427 @@ WHERE (col_varchar_nokey, 'x') IN
 
 --echo
 DROP TABLE it, ot;
+
+--echo #
+--echo # Bug #11829691: Pure virtual method called in Item_bool_func2::fix...()
+--echo #
+
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(b INTEGER);
+
+PREPARE stmt FROM "
+SELECT SUM(b) FROM t2 GROUP BY b HAVING b IN (SELECT b FROM t1)";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #13595212 EXTRA ROWS RETURNED ON RIGHT JOIN WITH VIEW AND
+--echo # IN-SUBQUERY IN WHERE
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_key int(11) NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (1,0,'j','j'),(2,8,'v','v'),
+(3,1,'c','c'),(4,8,'m','m'),(5,9,'d','d');
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+# RIGHT JOIN
+
+let $query=
+SELECT alias2.col_varchar_nokey
+FROM v1 AS alias1
+  RIGHT JOIN t1 AS alias2 ON 1
+WHERE alias2.col_varchar_key IN (
+  SELECT sq2_alias1.col_varchar_nokey
+  FROM v1 AS sq2_alias1
+    LEFT JOIN t1 AS sq2_alias2
+    ON (sq2_alias2.col_int_key = sq2_alias1.pk)
+  WHERE sq2_alias1.pk != alias1.col_int_key
+    AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
+)
+;
+
+eval EXPLAIN EXTENDED $query;
+--sorted_result
+eval $query;
+
+# Same, but in view:
+
+eval CREATE VIEW v2 AS $query;
+
+EXPLAIN EXTENDED SELECT * FROM v2;
+--sorted_result
+SELECT * FROM v2;
+
+# Same, with LEFT JOIN
+
+let $query=SELECT alias2.col_varchar_nokey
+FROM t1 AS alias2
+  LEFT JOIN v1 AS alias1 ON 1
+WHERE alias2.col_varchar_key IN (
+  SELECT sq2_alias1.col_varchar_nokey
+  FROM v1 AS sq2_alias1
+    LEFT JOIN t1 AS sq2_alias2
+    ON (sq2_alias2.col_int_key = sq2_alias1.pk)
+  WHERE sq2_alias1.pk != alias1.col_int_key
+    AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
+);
+
+eval EXPLAIN EXTENDED $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1;
+DROP VIEW v1,v2;
+
+--echo #
+--echo # Bug#13651009 WRONG RESULT FROM DERIVED TABLE IF THE SUBQUERY
+--echo # HAS AN EMPTY RESULT
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  col_time_key time NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_time_key (col_time_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  pk int NOT NULL AUTO_INCREMENT,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  col_time_key time NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_time_key (col_time_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (1,4,4,'00:00:00','b','b');
+
+SET @var2:=4, @var3:=8;
+
+--echo
+--echo Testcase without inner subquery
+
+let $subq=
+SELECT @var3:=12, sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
+      sq4_alias1.col_varchar_key = @var3;
+
+eval EXPLAIN $subq;
+eval $subq;
+SELECT @var3;
+
+# Now as derived table:
+eval EXPLAIN SELECT * FROM ( $subq ) AS alias3;
+eval SELECT * FROM ( $subq ) AS alias3;
+SELECT @var3;
+
+--echo
+--echo Testcase with inner subquery; crashed WL#6095
+SET @var3=8;
+let $subq=
+SELECT sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key , sq4_alias1.col_varchar_nokey)
+      NOT IN
+      (SELECT c_sq1_alias1.col_varchar_key AS c_sq1_field1,
+              c_sq1_alias1.col_varchar_nokey AS c_sq1_field2
+       FROM t2 AS c_sq1_alias1
+       WHERE (c_sq1_alias1.col_int_nokey != @var2
+              OR c_sq1_alias1.pk != @var3));
+
+eval EXPLAIN $subq;
+eval $subq;
+# Now as derived table:
+eval EXPLAIN SELECT * FROM ( $subq ) AS alias3;
+eval SELECT * FROM ( $subq ) AS alias3;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Test that indexsubquery_engine only does one lookup if
+--echo # the technique is unique_subquery: does not try to read the
+--echo # next row if the first row failed the subquery's WHERE
+--echo # condition (here: b=3).
+--echo #
+
+create table t1(a int);
+insert into t1 values(1),(2);
+create table t2(a int primary key, b int);
+insert into t2 values(1,10),(2,10);
+let $query=select * from t1 where a in (select a from t2 where b=3);
+eval explain $query;
+flush status;
+eval $query;
+show status like "handler_read%";
+drop table t1,t2;
+
+--echo #
+--echo # Bug#13735980 Difference in number of rows when using subqueries
+--echo #
+
+CREATE TABLE m (c1 VARCHAR(1), c2 INTEGER, c3 INTEGER);
+INSERT INTO m VALUES ('',6,8), ('',75,NULL);
+
+CREATE TABLE o (c1 VARCHAR(1));
+INSERT INTO o VALUES ('S'), ('S'), ('S');
+
+CREATE VIEW v1 AS
+SELECT m.c1 AS c1,m.c2 AS c2,m.c3 AS c3 FROM m;
+
+CREATE VIEW v2 AS
+SELECT o.c1 AS c1 FROM o;
+
+SELECT t1.c3
+FROM v1 AS t1 JOIN v2 AS t2 ON t1.c1 < t2.c1
+WHERE t1.c3 BETWEEN 2 AND 6 OR
+      (t1.c3 IN(4) AND t1.c3 <> 2) OR t1.c2 >= 8;
+
+CREATE TABLE integers (i1 INTEGER);
+INSERT IGNORE INTO integers VALUES (2),(4),(6),(8);
+
+SELECT t1.c3
+FROM v1 AS t1 JOIN v2 AS t2 ON t1.c1 < t2.c1
+WHERE t1.c3 BETWEEN (SELECT i1 FROM integers WHERE i1 = 2) AND
+                    (SELECT i1 FROM integers WHERE i1 = 6)  OR
+      t1.c3 IN((SELECT i1 FROM integers WHERE i1 = 4)) AND
+      t1.c3 <>(SELECT i1 FROM integers WHERE i1 = 2) OR
+      t1.c2 >=(SELECT i1 FROM integers WHERE i1 = 8);
+
+# Outcome is unaffected when replacing views with tables:
+
+SELECT t1.c3
+FROM m AS t1 JOIN o AS t2 ON t1.c1 < t2.c1
+WHERE t1.c3 BETWEEN (SELECT i1 FROM integers WHERE i1 = 2) AND
+                    (SELECT i1 FROM integers WHERE i1 = 6)  OR
+      t1.c3 IN((SELECT i1 FROM integers WHERE i1 = 4)) AND
+      t1.c3 <>(SELECT i1 FROM integers WHERE i1 = 2) OR
+      t1.c2 >=(SELECT i1 FROM integers WHERE i1 = 8);
+
+DROP VIEW v1, v2;
+DROP TABLE m, o, integers;
+
+--echo #
+--echo # Bug #13736664 RIGHT JOIN+WHERE QUERY GIVES DIFF RESULTS WHEN USING
+--echo # SELECT * SUBQ FOR TABLES
+--echo #
+
+CREATE TABLE t1(a INT, b CHAR(1));
+INSERT INTO t1 VALUES (NULL, 'x');
+
+CREATE TABLE t2(c INT, d CHAR(1));
+INSERT INTO t2 VALUES (NULL, 'y'), (9, 'z');
+
+SELECT d
+FROM t2 AS a2 RIGHT JOIN t1 AS a1 ON c = a
+WHERE d LIKE '_'
+ORDER BY d;
+
+SELECT d
+FROM (SELECT * FROM t2) AS a2 RIGHT JOIN (SELECT * FROM t1) AS a1 ON c = a
+WHERE d LIKE '_'
+ORDER BY d;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#13468414 Query shows different results when literals are selected
+--echo #              from separate table
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+ ('v','v'), ('s','s'), ('l','l'), ('y','y'), ('c','c'),
+ ('i','i'), ('h','h'), ('q','q'), ('a','a'), ('v','v'),
+ ('u','u'), ('s','s'), ('y','y'), ('z','z'), ('h','h'),
+ ('p','p'), ('e','e'), ('i','i'), ('y','y'), ('w','w');
+
+CREATE TABLE t2 (
+  col_int_nokey INT NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES
+ (4,'j'), (6,'v'), (3,'c'), (5,'m'), (3,'d'), (246,'d'), (2,'y'), (9,'t'),
+ (3,'d'), (8,'s'), (1,'r'), (8,'m'), (8,'b'), (5,'x'), (7,'g'), (5,'p'),
+ (1,'q'), (6,'w'), (2,'d'), (9,'e');
+
+CREATE TABLE t0 (
+ i1 INTEGER NOT NULL PRIMARY KEY
+);
+INSERT INTO t0 VALUES (7);
+
+SELECT col_varchar_nokey
+FROM t1
+WHERE (7) NOT IN
+ (SELECT it2.col_int_nokey
+  FROM t2 AS it2 LEFT JOIN t1 AS it1
+       ON it2.col_varchar_nokey = it1.col_varchar_key
+ );
+
+let $query=
+SELECT col_varchar_nokey
+FROM t1
+WHERE (SELECT i1 FROM t0 WHERE i1 = 7) NOT IN
+ (SELECT it2.col_int_nokey
+  FROM t2 AS it2 LEFT JOIN t1 AS it1
+       ON it2.col_varchar_nokey = it1.col_varchar_key
+ );
+
+eval $query;
+eval explain extended $query;
+
+DROP TABLE t0, t1, t2;
+
+--echo #
+--echo # Bug#13735704 Memory engine + NOT IN + subquery produces different
+--echo # result set
+--echo #
+
+CREATE TABLE t1(
+ col_varchar_key varchar(1),
+ KEY col_varchar_key(col_varchar_key)
+) engine=MEMORY;
+INSERT INTO t1 VALUES
+ ('v'), ('s'), ('y'), ('z'), ('h'), ('p');
+
+CREATE TABLE t2(
+ col_int_nokey int,
+ col_int_key int,
+ KEY col_int_key(col_int_key)
+) engine=MEMORY;
+INSERT INTO t2 VALUES
+ (4,4), (2,7), (2,5), (2,3), (197,188), (4,4), (6,2), (1,4),
+ (156,231), (2,1), (1,2), (80,194), (3,2), (8,3), (91,98), (6,3),
+ (7,1), (3,0), (161,189), (7,8), (7,3), (213,120), (248,25), (1,1),
+ (6,3), (6,1), (3,3), (140,153), (0,5), (7,9), (6,1), (1,2),
+ (1,7), (9,2), (0,1), (6,5);
+
+CREATE TABLE t0(i1 INTEGER NOT NULL PRIMARY KEY);
+INSERT INTO t0 VALUES(7),(2);
+
+SELECT col_varchar_key
+FROM t1
+WHERE (7,2) NOT IN
+   (SELECT col_int_key,col_int_nokey FROM t2);
+
+let $query=
+SELECT col_varchar_key
+FROM t1
+WHERE ((SELECT i1 FROM t0 WHERE i1 = 7),
+       (SELECT i1 FROM t0 WHERE i1 = 2)) NOT IN
+    (SELECT col_int_key,col_int_nokey FROM t2);
+
+eval explain extended $query;
+eval $query;
+
+DROP TABLE t0, t1, t2;
+
+--echo #
+--echo # Bug#13731417 WRONG RESULT WITH NOT IN (SUBQUERY) AND
+--echo # COMPOSITE INDEX ON SUBQUERY'S TABLE
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+CREATE TABLE t2 (a int, b int, KEY a_b (a,b));
+CREATE TABLE t4 (a int);
+INSERT INTO t1 VALUES(0,1);
+INSERT INTO t2 VALUES(NULL,1),(NULL,1);
+INSERT INTO t4 VALUES(1);
+
+SELECT ((0,1) NOT IN (SELECT NULL,1)) IS NULL;
+
+let $query=SELECT * FROM t1
+WHERE ((a,b) NOT IN (SELECT t2.a,t2.b FROM
+        t4 STRAIGHT_JOIN t2 WHERE t4.a=t2.b)) IS NULL;
+
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+ALTER TABLE t2 DROP INDEX a_b;
+
+EVAL EXPLAIN EXTENDED $query;
+eval $query;
+
+DROP TABLE t1,t2,t4;
+
+--echo #
+--echo # Bug#13725821 ASSERT NULL_REF_KEY == __NULL FAILED IN
+--echo # CREATE_REF_FOR_KEY() IN SQL_SELECT.CC
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  col_int_nokey INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (17,NULL,9,NULL,NULL),
+(18,2,2,'o','o'),(19,NULL,9,'w','w'),(20,6,2,'m','m'),(21,7,4,'q','q'),
+(22,2,0,NULL,NULL),(23,5,4,'d','d'),(24,7,8,'g','g'),(25,6,NULL,'x','x'),
+(26,6,NULL,'f','f'),(27,2,0,'p','p'),(28,9,NULL,'j','j'),(29,6,8,'c','c');
+
+ALTER TABLE t1 DISABLE KEYS;
+ALTER TABLE t1 ENABLE KEYS;
+
+let $query=
+SELECT table1.col_varchar_key AS field1,
+       table1.col_int_nokey AS field2,
+       table2.col_varchar_key AS field3,
+       table1.col_int_nokey AS field4,
+       table2.col_int_nokey AS field5,
+       table1.col_varchar_nokey AS field6
+FROM ( t1 AS table1
+  INNER JOIN t1 AS table2
+  ON (( table2.col_int_nokey = table1.col_int_key )
+    AND ( table2.col_int_key = table1.col_int_key )
+  ) )
+WHERE ( table1.col_varchar_key = table2.col_varchar_key OR table1.pk = 154 )
+  OR table1.pk != 201
+  AND ( table1.col_varchar_key LIKE '%a%' OR table1.col_varchar_key LIKE
+'%b%')
+;
+
+eval CREATE TABLE t2 $query ;
+
+eval SELECT *
+     FROM t2
+     WHERE (field1, field2, field3, field4, field5, field6) NOT IN ( $query
+);
+
+DROP TABLE t2,t1;

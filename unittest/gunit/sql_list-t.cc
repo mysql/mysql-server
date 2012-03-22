@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,7 @@
   http://code.google.com/p/googletest/wiki/GoogleTestPrimer
 */
 
-// First include (the generated) my_config.h, to get correct platform defines,
-// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
+// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
 
@@ -143,16 +142,16 @@ TEST_F(SqlListTest, DeepCopy)
 {
   int values[] = {11, 22, 33, 42, 5};
   insert_values(values, &m_int_list);
-  MEM_ROOT *mem_root= (MEM_ROOT*) malloc(1 << 20);
-  init_alloc_root(mem_root, 4096, 4096);
-  List<int> list_copy(m_int_list, mem_root);
+  MEM_ROOT mem_root;
+  init_alloc_root(&mem_root, 4096, 4096);
+  List<int> list_copy(m_int_list, &mem_root);
   EXPECT_EQ(list_copy.elements, m_int_list.elements);
   while (!list_copy.is_empty())
   {
     EXPECT_EQ(*m_int_list.pop(), *list_copy.pop());
   }
   EXPECT_TRUE(m_int_list.is_empty());
-  free(mem_root);
+  free_root(&mem_root, MYF(0));
 }
 
 
@@ -176,7 +175,7 @@ TEST_F(SqlListTest, Iterate)
 
 
 // A simple helper class for testing intrusive lists.
-class Linked_node : public ilink
+class Linked_node : public ilink<Linked_node>
 {
 public:
   Linked_node(int val) : m_value(val) {}
@@ -184,6 +183,7 @@ public:
 private:
   int m_value;
 };
+const Linked_node * const null_node= NULL;
 
 
 // An example of a test without any fixture.
@@ -192,17 +192,17 @@ TEST(SqlIlistTest, ConstructAndDestruct)
   I_List<Linked_node> i_list;
   I_List_iterator<Linked_node> i_list_iter(i_list);
   EXPECT_TRUE(i_list.is_empty());
-  const Linked_node *null_node= NULL;
   EXPECT_EQ(null_node, i_list_iter++);
 }
 
 
 // Tests iteration over intrusive lists.
-TEST(SqlIlistTest, Iterate)
+TEST(SqlIlistTest, PushBackAndIterate)
 {
   I_List<Linked_node> i_list;
   I_List_iterator<Linked_node> i_list_iter(i_list);
   int values[] = {11, 22, 33, 42, 5};
+  EXPECT_EQ(null_node, i_list.head());
   for (int ix= 0; ix < array_size(values); ++ix)
   {
     i_list.push_back(new Linked_node(values[ix]));
@@ -214,6 +214,12 @@ TEST(SqlIlistTest, Iterate)
   {
     EXPECT_EQ(values[value_number++], node->get_value());
   }
+  for (value_number= 0; (node= i_list.get()); ++value_number)
+  {
+    EXPECT_EQ(values[value_number], node->get_value());
+    delete node;
+  }
+  EXPECT_EQ(array_size(values), value_number);
 }
 
 // Another iteration test over intrusive lists.
@@ -233,6 +239,8 @@ TEST(SqlIlistTest, PushFrontAndIterate)
   {
     EXPECT_EQ(values[value_number--], node->get_value());
   }
+  while ((node= i_list.get()))
+    delete node;
 }
 
 static int cmp_test(void *a, void *b, void *c)

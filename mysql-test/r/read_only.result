@@ -75,18 +75,16 @@ connection default;
 set global read_only=1;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables ;
-send set global read_only=1;
 set global read_only=1;
-connection con1;
-select @@global.read_only;
-@@global.read_only
-0
-unlock tables ;
 select @@global.read_only;
 @@global.read_only
 1
+connection con1;
+select @@global.read_only;
+@@global.read_only
+1
+unlock tables ;
 connection default;
-reap;
 connection default;
 set global read_only=0;
 BEGIN;
@@ -159,3 +157,40 @@ delete from mysql.columns_priv where User like 'mysqltest_%';
 flush privileges;
 drop database mysqltest_db1;
 set global read_only= @start_read_only;
+#
+# WL#5968 Implement START TRANSACTION READ (WRITE|ONLY);
+#
+#
+# Test interaction with read_only system variable.
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE USER user1;
+SET GLOBAL read_only= 1;
+# All allowed with super privilege
+START TRANSACTION;
+COMMIT;
+START TRANSACTION READ ONLY;
+COMMIT;
+START TRANSACTION READ WRITE;
+COMMIT;
+# We allow implicit RW transaction without super privilege
+# for compatibility reasons
+START TRANSACTION;
+# Check that table updates are still disallowed.
+INSERT INTO t1 VALUES (3);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+UPDATE t1 SET a= 1;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+DELETE FROM t1;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+COMMIT;
+START TRANSACTION READ ONLY;
+COMMIT;
+# Explicit RW trans is not allowed without super privilege
+START TRANSACTION READ WRITE;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+COMMIT;
+DROP USER user1;
+SET GLOBAL read_only= 0;
+DROP TABLE t1;

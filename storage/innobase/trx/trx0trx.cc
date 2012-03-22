@@ -270,8 +270,8 @@ trx_free_for_background(
 			"  InnoDB: Error: MySQL is freeing a thd\n"
 			"InnoDB: though trx->n_mysql_tables_in_use is %lu\n"
 			"InnoDB: and trx->mysql_n_tables_locked is %lu.\n",
-			(ulong)trx->n_mysql_tables_in_use,
-			(ulong)trx->mysql_n_tables_locked);
+			(ulong) trx->n_mysql_tables_in_use,
+			(ulong) trx->mysql_n_tables_locked);
 		trx_print(stderr, trx, 600);
 		ut_print_buf(stderr, trx, sizeof(trx_t));
 		putc('\n', stderr);
@@ -620,19 +620,19 @@ trx_lists_init_at_db_start(void)
 /******************************************************************//**
 Assigns a rollback segment to a transaction in a round-robin fashion.
 @return	assigned rollback segment instance */
-UNIV_INLINE
+static
 trx_rseg_t*
-trx_assign_rseg(
-/*============*/
-	ulint	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
+trx_assign_rseg_low(
+/*================*/
+	ulong	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
 	ulint	n_tablespaces)	/*!< in: number of rollback tablespaces */
 {
 	ulint		i;
 	trx_rseg_t*	rseg;
 	static ulint	latest_rseg = 0;
 
-	if (srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
-		ut_a(max_undo_logs == ULINT_UNDEFINED);
+	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
+		ut_a(max_undo_logs == ULONG_UNDEFINED);
 		return(NULL);
 	}
 
@@ -668,6 +668,23 @@ trx_assign_rseg(
 }
 
 /****************************************************************//**
+Assign a read-only transaction a rollback-segment, if it is attempting
+to write to a TEMPORARY table. */
+UNIV_INTERN
+void
+trx_assign_rseg(
+/*============*/
+	trx_t*		trx)		/*!< A read-only transaction that
+					needs to be assigned a RBS. */
+{
+	ut_a(trx->rseg == 0);
+	ut_a(trx->read_only);
+	ut_a(!trx_is_autocommit_non_locking(trx));
+
+	trx->rseg = trx_assign_rseg_low(srv_undo_logs, srv_undo_tablespaces);
+}
+
+/****************************************************************//**
 Starts a transaction. */
 static
 void
@@ -695,7 +712,7 @@ trx_start_low(
 	}
 
 	if (!trx->read_only) {
-		trx->rseg = trx_assign_rseg(
+		trx->rseg = trx_assign_rseg_low(
 			srv_undo_logs, srv_undo_tablespaces);
 	}
 
@@ -738,7 +755,10 @@ trx_start_low(
 			ut_d(trx->in_ro_trx_list = TRUE);
 		}
 	} else {
-		ut_ad(trx->rseg != NULL);
+
+		ut_ad(trx->rseg != NULL
+		      || srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
+
 		ut_ad(!trx_is_autocommit_non_locking(trx));
 		UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
 		ut_d(trx->in_rw_trx_list = TRUE);
@@ -1022,6 +1042,13 @@ trx_commit(
 		ut_ad(!trx->in_ro_trx_list);
 		ut_ad(!trx->in_rw_trx_list);
 
+		/* Note: We are asserting without holding the lock mutex. But
+		that is OK because this transaction is not waiting and cannot
+		be rolled back and no new locks can (or should not) be added
+		becuase it is flagged as a non-locking read-only transaction. */
+
+		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+
 		/* This state change is not protected by any mutex, therefore
 		there is an inherent race here around state transition during
 		printouts. We ignore this race for the sake of efficiency.
@@ -1047,7 +1074,6 @@ trx_commit(
 		assert_trx_in_list(trx);
 
 		if (trx->read_only) {
-			ut_ad(trx->rseg == NULL);
 			UT_LIST_REMOVE(trx_list, trx_sys->ro_trx_list, trx);
 			ut_d(trx->in_ro_trx_list = FALSE);
 			MONITOR_INC(MONITOR_TRX_RO_COMMIT);
@@ -1163,6 +1189,9 @@ trx_commit(
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
+
+	trx->error_state = DB_SUCCESS;
+
 	/* trx->in_mysql_trx_list would hold between
 	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
 	hold for recovered transactions or system transactions. */
@@ -1505,11 +1534,11 @@ trx_print_low(
 		goto state_ok;
 	case TRX_STATE_ACTIVE:
 		fprintf(f, ", ACTIVE %lu sec",
-			(ulong)difftime(time(NULL), trx->start_time));
+			(ulong) difftime(time(NULL), trx->start_time));
 		goto state_ok;
 	case TRX_STATE_PREPARED:
 		fprintf(f, ", ACTIVE (PREPARED) %lu sec",
-			(ulong)difftime(time(NULL), trx->start_time));
+			(ulong) difftime(time(NULL), trx->start_time));
 		goto state_ok;
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		fputs(", COMMITTED IN MEMORY", f);
@@ -2055,5 +2084,4 @@ trx_start_if_not_started(
 	}
 
 	ut_error;
-
 }

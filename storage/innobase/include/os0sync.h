@@ -365,7 +365,11 @@ Atomic compare-and-swap and increment for InnoDB. */
 
 #if defined(HAVE_IB_GCC_ATOMIC_BUILTINS)
 
-#define HAVE_ATOMIC_BUILTINS
+# define HAVE_ATOMIC_BUILTINS
+
+# ifdef HAVE_IB_GCC_ATOMIC_BUILTINS_64
+#  define HAVE_ATOMIC_BUILTINS_64
+# endif
 
 /**********************************************************//**
 Returns true if swapped, ptr is pointer to target, old_val is value to
@@ -419,6 +423,9 @@ amount to decrement. */
 # define os_atomic_decrement_ulint(ptr, amount) \
 	os_atomic_decrement(ptr, amount)
 
+# define os_atomic_decrement_uint64(ptr, amount) \
+	os_atomic_decrement(ptr, amount)
+
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val */
 
@@ -430,12 +437,13 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 
 #elif defined(HAVE_IB_SOLARIS_ATOMICS)
 
-#define HAVE_ATOMIC_BUILTINS
+# define HAVE_ATOMIC_BUILTINS
+# define HAVE_ATOMIC_BUILTINS_64
 
 /* If not compiling with GCC or GCC doesn't support the atomic
 intrinsics and running on Solaris >= 10 use Solaris atomics */
 
-#include <atomic.h>
+# include <atomic.h>
 
 /**********************************************************//**
 Returns true if swapped, ptr is pointer to target, old_val is value to
@@ -445,15 +453,15 @@ compare to, new_val is the value to swap in. */
 	(atomic_cas_ulong(ptr, old_val, new_val) == old_val)
 
 # define os_compare_and_swap_lint(ptr, old_val, new_val) \
-	((lint)atomic_cas_ulong((ulong_t*) ptr, old_val, new_val) == old_val)
+	((lint) atomic_cas_ulong((ulong_t*) ptr, old_val, new_val) == old_val)
 
 # ifdef HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS
 #  if SIZEOF_PTHREAD_T == 4
 #   define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
-	((pthread_t)atomic_cas_32(ptr, old_val, new_val) == old_val)
+	((pthread_t) atomic_cas_32(ptr, old_val, new_val) == old_val)
 #  elif SIZEOF_PTHREAD_T == 8
 #   define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
-	((pthread_t)atomic_cas_64(ptr, old_val, new_val) == old_val)
+	((pthread_t) atomic_cas_64(ptr, old_val, new_val) == old_val)
 #  else
 #   error "SIZEOF_PTHREAD_T != 4 or 8"
 #  endif /* SIZEOF_PTHREAD_T CHECK */
@@ -487,6 +495,9 @@ amount to decrement. */
 # define os_atomic_decrement_ulint(ptr, amount) \
 	os_atomic_increment_ulint(ptr, -(amount))
 
+# define os_atomic_decrement_uint64(ptr, amount) \
+	os_atomic_increment_uint64(ptr, -(amount))
+
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val */
 
@@ -498,7 +509,11 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 
 #elif defined(HAVE_WINDOWS_ATOMICS)
 
-#define HAVE_ATOMIC_BUILTINS
+# define HAVE_ATOMIC_BUILTINS
+
+# ifndef _WIN32
+#  define HAVE_ATOMIC_BUILTINS_64
+# endif
 
 /**********************************************************//**
 Atomic compare and exchange of signed integers (both 32 and 64 bit).
@@ -574,8 +589,10 @@ amount of increment. */
 # define os_atomic_increment_ulint(ptr, amount) \
 	((ulint) (win_xchg_and_add((lint*) ptr, (lint) amount) + amount))
 
-# define os_atomic_increment_uint64(ptr, amount) \
-	((ulint) (win_xchg_and_add(ptr, (lint) amount) + amount))
+# define os_atomic_increment_uint64(ptr, amount)		\
+	((ib_uint64_t) (InterlockedExchangeAdd64(		\
+				(ib_int64_t*) ptr,		\
+				(ib_int64_t) amount) + amount))
 
 /**********************************************************//**
 Returns the resulting value, ptr is pointer to target, amount is the
@@ -586,6 +603,11 @@ amount to decrement. There is no atomic substract function on Windows */
 
 # define os_atomic_decrement_ulint(ptr, amount) \
 	((ulint) (win_xchg_and_add((lint*) ptr, -(lint) amount) - amount))
+
+# define os_atomic_decrement_uint64(ptr, amount)		\
+	((ib_uint64_t) (InterlockedExchangeAdd64(		\
+				(ib_int64_t*) ptr,		\
+				-(ib_int64_t) amount) - amount))
 
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val.

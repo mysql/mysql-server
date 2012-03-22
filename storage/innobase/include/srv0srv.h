@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -134,8 +134,10 @@ extern ulint	srv_max_file_format_at_startup;
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
 
-/* Variable specifying the FTS parallel sort buffer size */
+/** Sort buffer size in index creation */
 extern ulong	srv_sort_buf_size;
+/** Maximum modification log file size for online index creation */
+extern unsigned long long	srv_online_max_size;
 
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
@@ -254,6 +256,7 @@ extern ulong	srv_checksum_algorithm;
 
 extern ulong	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
+extern ulong	srv_max_purge_lag_delay;
 
 extern ulong	srv_replication_delay;
 /*-------------------------------------------*/
@@ -289,6 +292,7 @@ extern ibool	srv_priority_boost;
 extern ulint	srv_n_lock_wait_count;
 
 extern ulint	srv_truncated_status_writes;
+extern ulint	srv_available_undo_logs;
 
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
@@ -523,21 +527,6 @@ void
 srv_general_init(void);
 /*==================*/
 /*********************************************************************//**
-Gets the number of threads in the system.
-@return	sum of srv_n_threads[] */
-UNIV_INTERN
-ulint
-srv_get_n_threads(void);
-/*===================*/
-/*********************************************************************//**
-Check whether thread type has reserved a slot.
-@return	slot number or UNDEFINED if not found*/
-UNIV_INTERN
-ulint
-srv_thread_has_reserved_slot(
-/*=========================*/
-	enum srv_thread_type	type);	/*!< in: thread type to check */
-/*********************************************************************//**
 Sets the info describing an i/o thread current state. */
 UNIV_INTERN
 void
@@ -556,12 +545,6 @@ UNIV_INTERN
 void
 srv_wake_purge_thread_if_not_active(void);
 /*=====================================*/
-/*******************************************************************//**
-Wakes up the purge thread if it's not already awake. */
-UNIV_INTERN
-void
-srv_wake_purge_thread(void);
-/*=======================*/
 /*******************************************************************//**
 Tells the Innobase server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used
@@ -696,15 +679,6 @@ DECLARE_THREAD(srv_worker_thread)(
 						required by os_thread_create */
 } /* extern "C" */
 
-/*******************************************************************//**
-Wakes up the worker threads. */
-UNIV_INTERN
-void
-srv_wake_worker_threads(
-/*====================*/
-	ulint	n_workers);			/*!< number or workers to
-						wake up */
-
 /**********************************************************************//**
 Get count of tasks in the queue.
 @return number of tasks in queue  */
@@ -727,12 +701,19 @@ srv_release_threads(
 
 /**********************************************************************//**
 Check whether any background thread are active. If so print which thread
-is active. Send the threads wakeup signal. 
+is active. Send the threads wakeup signal.
 @return name of thread that is active or NULL */
 UNIV_INTERN
 const char*
 srv_any_background_threads_are_active(void);
 /*=======================================*/
+
+/**********************************************************************//**
+Wakeup the purge threads. */
+UNIV_INTERN
+void
+srv_purge_wakeup(void);
+/*==================*/
 
 /** Status variables to be passed to MySQL */
 struct export_var_struct{
@@ -791,17 +772,18 @@ struct export_var_struct{
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
 	ulint innodb_num_open_files;		/*!< fil_n_file_opened */
 	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
+	ulint innodb_available_undo_logs;       /*!< srv_available_undo_logs */
 };
 
 /** Thread slot in the thread table.  */
 struct srv_slot_struct{
-	enum srv_thread_type
-			type;			/*!< thread type: user,
+	srv_thread_type type;			/*!< thread type: user,
 						utility etc. */
 	ibool		in_use;			/*!< TRUE if this slot
 						is in use */
-	ibool		suspended;		/*!< TRUE if the thread is waiting for the
-						event of this slot */
+	ibool		suspended;		/*!< TRUE if the thread is
+						waiting for the event of this
+						slot */
 	ib_time_t	suspend_time;		/*!< time when the thread was
 						suspended. Initialized by
 						lock_wait_table_reserve_slot()
@@ -811,9 +793,9 @@ struct srv_slot_struct{
 						Initialized by
 						lock_wait_table_reserve_slot()
 						for lock wait */
-	os_event_t	event;			/*!< event used in suspending the
-						thread when it has nothing to
-						do */
+	os_event_t	event;			/*!< event used in suspending
+						the thread when it has nothing
+						to do */
 	que_thr_t*	thr;			/*!< suspended query thread
 						(only used for user threads) */
 };
