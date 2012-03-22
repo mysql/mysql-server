@@ -49,7 +49,7 @@ public:
                                         join->tables - join->const_tables)),
     prune_level(thd->variables.optimizer_prune_level),
     thd(thd), join(join),
-    cur_embedding_map(0), cur_sj_inner_tables(0), emb_sjm_nest(sjm_nest),
+    cur_embedding_map(0), emb_sjm_nest(sjm_nest),
     excluded_tables(sjm_nest ?
                     (join->all_table_map & ~sjm_nest->sj_inner_tables) |
                     OUTER_REF_TABLE_BIT :
@@ -77,12 +77,6 @@ private:
   */
   nested_join_map cur_embedding_map;
   /**
-    Bitmap of inner tables of semi-join nests that have a proper subset of
-    their tables in the current join prefix. That is, of those semi-join
-    nests that have their tables both in and outside of the join prefix.
-  */
-  table_map cur_sj_inner_tables;
-  /**
     If non-NULL, we are optimizing a materialized semi-join nest.
     If NULL, we are optimizing a complete join plan.
   */
@@ -105,8 +99,8 @@ private:
                         const JOIN_TAB *tab, uint idx,
                         double *current_rowcount, double *current_cost,
                         POSITION *loose_scan_pos);
-  void backout_nj_sj_state(const table_map remaining_tables,
-                           const JOIN_TAB *tab);
+  void backout_nj_state(const table_map remaining_tables,
+                        const JOIN_TAB *tab);
   void optimize_straight_join(table_map join_tables);
   bool greedy_search(table_map remaining_tables);
   bool best_extension_by_limited_search(table_map remaining_tables,
@@ -120,8 +114,8 @@ private:
                                         double record_count,
                                         double read_time,
                                         uint current_search_depth);
-  void consider_complete_plan(uint idx, double record_count, double read_time,
-                              Opt_trace_object *trace_obj);
+  void consider_plan(uint idx, double record_count, double read_time,
+                     Opt_trace_object *trace_obj);
   bool fix_semijoin_strategies();
   bool semijoin_firstmatch_loosescan_access_paths(
                 uint first_tab, uint last_tab, table_map remaining_tables, 
