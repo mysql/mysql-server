@@ -2372,7 +2372,7 @@ row_ins_index_entry_big_rec_func(
 
 	ut_ad(dict_index_is_clust(index));
 
-	DEBUG_SYNC_C("before_row_ins_extern_latch");
+	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
 
 	mtr_start(&mtr);
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,

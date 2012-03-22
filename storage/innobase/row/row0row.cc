@@ -93,8 +93,7 @@ row_build_index_entry_low(
 			= dtuple_get_nth_field(entry, i);
 		const dfield_t*		dfield2
 			= dtuple_get_nth_field(row, col_no);
-		ulint			len
-			= dfield_get_len(dfield2);
+		ulint			len;
 
 #if DATA_MISSING != 0
 # error "DATA_MISSING != 0"
@@ -105,6 +104,8 @@ row_build_index_entry_low(
 			This should be from trx_undo_rec_get_partial_row(). */
 			return(NULL);
 		}
+
+		len = dfield_get_len(dfield2);
 
 		dfield_copy(dfield, dfield2);
 

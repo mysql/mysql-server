@@ -326,8 +326,10 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&os_mutex_key, "os_mutex", 0},
 #ifndef HAVE_ATOMIC_BUILTINS
 	{&srv_conc_mutex_key, "srv_conc_mutex", 0},
-	{&monitor_mutex_key, "monitor_mutex", 0},
 #endif /* !HAVE_ATOMIC_BUILTINS */
+#ifndef HAVE_ATOMIC_BUILTINS_64
+	{&monitor_mutex_key, "monitor_mutex", 0},
+#endif /* !HAVE_ATOMIC_BUILTINS_64 */
 	{&ut_list_mutex_key, "ut_list_mutex", 0},
 	{&trx_sys_mutex_key, "trx_sys_mutex", 0},
 };

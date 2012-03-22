@@ -259,6 +259,8 @@ ha_innobase::check_if_supported_inplace_alter(
 			if (key->flags & HA_FULLTEXT) {
 				DBUG_ASSERT(!(key->flags & HA_KEYFLAG_MASK
 					      & ~(HA_FULLTEXT
+						  | HA_PACK_KEY
+						  | HA_GENERATED_KEY
 						  | HA_BINARY_PACK_KEY)));
 				DBUG_RETURN(HA_ALTER_INPLACE_EXCLUSIVE_LOCK);
 			}

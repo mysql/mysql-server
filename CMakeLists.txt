@@ -92,6 +92,12 @@ ELSE()
 ENDIF()
 PROJECT(${MYSQL_PROJECT_NAME})
 
+OPTION(WITH_DEFAULT_COMPILER_OPTIONS
+  "Use flags from cmake/build_configurations/compiler_options.cmake"
+  ON)
+OPTION(WITH_DEFAULT_FEATURE_SET
+  "Use feature set in cmake/build_configurations/feature_set.cmake"
+  ON)
 IF(BUILD_CONFIG)
   INCLUDE(
   ${CMAKE_SOURCE_DIR}/cmake/build_configurations/${BUILD_CONFIG}.cmake)
@@ -127,6 +133,15 @@ ENDIF()
 # specified in environment variable CPPFLAGS
 IF(DEFINED ENV{CPPFLAGS})
   ADD_DEFINITIONS($ENV{CPPFLAGS})
+ENDIF()
+
+INCLUDE(CheckTypeSize)
+CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
+IF(WITH_DEFAULT_COMPILER_OPTIONS)
+  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
+ENDIF()
+IF(WITH_DEFAULT_FEATURE_SET)
+  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/feature_set.cmake)
 ENDIF()
 
 #
@@ -194,11 +209,26 @@ IF(ENABLE_DEBUG_SYNC)
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC") 
 ENDIF() 
  
+# Older versions of ccache must be disabled: export CCACHE_DISABLE=1
+# See http://www.cmake.org/Wiki/CTest/Coverage
 OPTION(ENABLE_GCOV "Enable gcov (debug, Linux builds only)" OFF)
 IF (ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
-  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage")
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage")
-  SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -lgcov")
+  SET(CMAKE_CXX_FLAGS_DEBUG
+    "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage")
+  SET(CMAKE_C_FLAGS_DEBUG
+    "${CMAKE_C_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage")
+  SET(CMAKE_EXE_LINKER_FLAGS_DEBUG
+    "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -lgcov")
+ENDIF()
+
+OPTION(ENABLE_GPROF "Enable gprof (optimized, Linux builds only)" OFF)
+IF (ENABLE_GPROF AND NOT WIN32 AND NOT APPLE)
+  SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+    "${CMAKE_C_FLAGS_RELWITHDEBINFO} -pg")
+  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -pg")
+  SET(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO
+    "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} -pg")
 ENDIF()
 
 OPTION(ENABLED_LOCAL_INFILE

@@ -1,4 +1,6 @@
 --source include/not_embedded.inc
+# TODO: the windows emulation of pthreads doesn't behave predictably
+--source include/not_windows.inc
 
 --echo #
 --echo # Bug #12969156 : SEGMENTATION FAULT ON UNINSTALLING

@@ -141,6 +141,7 @@ Calculates new estimates for index statistics. This function is
 relatively quick and is used to calculate transient statistics that
 are not saved on disk.  This was the only way to calculate statistics
 before the Persistent Statistics feature was introduced.
+dict_stats_update_transient_for_index() @{
 @return size of the index in pages, or 0 if skipped */
 static
 ulint
@@ -207,6 +208,7 @@ fake_statistics:
 
 	return(index->stat_index_size);
 }
+/* @} */
 
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. This function
@@ -1312,7 +1314,7 @@ dict_stats_analyze_index(
 	So if we find that the first level containing D distinct
 	keys (on n_prefix columns) is L, we continue from L when
 	searching for D distinct keys on n_prefix-1 columns. */
-	level = (long) root_level;
+	level = root_level;
 	level_is_analyzed = FALSE;
 	for (n_prefix = n_uniq; n_prefix >= 1; n_prefix--) {
 
