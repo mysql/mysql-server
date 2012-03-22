@@ -510,13 +510,6 @@ dict_stats_analyze_index_level(
 			(*total_pages)++;
 		}
 
-		/* skip delete-marked records */
-		if (rec_get_deleted_flag(rec, page_is_comp(
-				btr_pcur_get_page(&pcur)))) {
-
-			continue;
-		}
-
 		offsets_rec = rec_get_offsets(rec, index, offsets_rec_onstack,
 					      n_uniq, &heap);
 
@@ -574,7 +567,7 @@ dict_stats_analyze_index_level(
 				n_diff[i]++;
 			}
 		} else {
-			/* this is the first non-delete marked record */
+			/* this is the first record */
 			for (i = 1; i <= n_uniq; i++) {
 				n_diff[i] = 1;
 			}
