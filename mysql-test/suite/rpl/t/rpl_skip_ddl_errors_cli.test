@@ -1,0 +1,3 @@
+--echo Show the effect of the server command line option slave-skip-errors
+--echo being passed the alias ignore_ddl_errors and a numeric error code
+SHOW VARIABLES LIKE 'slave_skip_errors';

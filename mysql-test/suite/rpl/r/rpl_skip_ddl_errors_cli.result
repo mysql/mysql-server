@@ -1,0 +1,5 @@
+Show the effect of the server command line option slave-skip-errors
+being passed the alias ignore_ddl_errors and a numeric error code
+SHOW VARIABLES LIKE 'slave_skip_errors';
+Variable_name	Value
+slave_skip_errors	1003,1007,1008,1050,1051,1054,1060,1061,1068,1091,1146
