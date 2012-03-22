@@ -15524,7 +15524,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     DBUG_RETURN(NESTED_LOOP_KILLED);            /* purecov: inspected */
   }
 
-  update_virtual_fields(join->thd, join_tab->table);
+  if (join_tab->table->vfield)
+    update_virtual_fields(join->thd, join_tab->table);
 
   if (select_cond)
   {
