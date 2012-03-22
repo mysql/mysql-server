@@ -1359,6 +1359,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   uint keyparts, length;
   TABLE *const table= j->table;
   KEY   *const keyinfo= table->key_info+key;
+  Key_use *chosen_keyuses[MAX_REF_PARTS];
 
   if (ftkey)
   {
@@ -1372,22 +1373,26 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   {
     keyparts=length=0;
     uint found_part_ref_or_null= 0;
-    /*
-      Calculate length for the used key
-      Stop if there is a missing key part or when we find second key_part
-      with KEY_OPTIMIZE_REF_OR_NULL
-    */
+    // Calculate length for the used key. Remember chosen Key_use-s.
     do
     {
-      if (!(~used_tables & keyuse->used_tables))
+      /*
+        This Key_use is chosen if:
+        - it involves a key part at the right place (if index is (a,b) we
+        can have a search criterion on 'b' only if we also have a criterion
+        on 'a'),
+        - it references only tables earlier in the plan.
+        Moreover, the execution layer is limited to maximum one ref_or_null
+        keypart, as TABLE_REF::null_ref_key is only one byte.
+      */
+      if (!(~used_tables & keyuse->used_tables) &&
+          keyparts == keyuse->keypart &&
+          !(found_part_ref_or_null & keyuse->optimize))
       {
-	if (keyparts == keyuse->keypart &&
-	    !(found_part_ref_or_null & keyuse->optimize))
-	{
-	  keyparts++;
-	  length+= keyinfo->key_part[keyuse->keypart].store_length;
-	  found_part_ref_or_null|= keyuse->optimize;
-	}
+        chosen_keyuses[keyparts]= keyuse;
+        keyparts++;
+        length+= keyinfo->key_part[keyuse->keypart].store_length;
+        found_part_ref_or_null|= keyuse->optimize;
       }
       keyuse++;
     } while (keyuse->table == table && keyuse->key == key);
@@ -1429,12 +1434,10 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   }
   else
   {
-    for (uint part_no= 0 ; part_no < keyparts ; keyuse++, part_no++)
+    // Set up TABLE_REF based on chosen Key_use-s.
+    for (uint part_no= 0 ; part_no < keyparts ; part_no++)
     {
-      while (keyuse->keypart != part_no ||
-             ((~used_tables) & keyuse->used_tables))
-        keyuse++;                               // Skip other parts
-
+      keyuse= chosen_keyuses[part_no];
       uint maybe_null= test(keyinfo->key_part[part_no].null_bit);
 
       if (keyuse->val->type() == Item::FIELD_ITEM)
