@@ -427,6 +427,14 @@ btr_cur_search_to_nth_level(
 	cursor->low_match = ULINT_UNDEFINED;
 #endif
 
+	ibool	s_latch_by_caller;
+
+	s_latch_by_caller = latch_mode & BTR_ALREADY_S_LATCHED;
+
+	ut_ad(!s_latch_by_caller
+	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
+				   MTR_MEMO_S_LOCK));
+
 	/* These flags are mutually exclusive, they are lumped together
 	with the latch mode for historical reasons. It's possible for
 	none of the flags to be set. */
@@ -466,7 +474,10 @@ btr_cur_search_to_nth_level(
 			| BTR_DELETE_MARK
 			| BTR_DELETE
 			| BTR_ESTIMATE
-			| BTR_IGNORE_SEC_UNIQUE);
+			| BTR_IGNORE_SEC_UNIQUE
+			| BTR_ALREADY_S_LATCHED);
+
+	ut_ad(!s_latch_by_caller || latch_mode == BTR_SEARCH_LEAF);
 
 	cursor->flag = BTR_CUR_BINARY;
 	cursor->index = index;
@@ -551,7 +562,9 @@ no_guess:
 					MTR_MEMO_X_LOCK));
 		break;
 	default:
-		mtr_s_lock(dict_index_get_lock(index), mtr);
+		if (!s_latch_by_caller) {
+			mtr_s_lock(dict_index_get_lock(index), mtr);
+		}
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -735,10 +748,12 @@ retry_page_get:
 		case BTR_CONT_MODIFY_TREE:
 			break;
 		default:
-			/* Release the tree s-latch */
-
-			mtr_release_s_latch_at_savepoint(
-				mtr, savepoint, dict_index_get_lock(index));
+			if (!s_latch_by_caller) {
+				/* Release the tree s-latch */
+				mtr_release_s_latch_at_savepoint(
+					mtr, savepoint,
+					dict_index_get_lock(index));
+			}
 		}
 
 		page_mode = mode;
