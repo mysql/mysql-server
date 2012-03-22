@@ -111,8 +111,9 @@ MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
 #
 # Add NDB binaries if ndbcluster is built
 #
-IF (NOT DEFINED WITH_NDBCLUSTER)
+IF (NOT WITH_NDBCLUSTER)
   # Not building NDB 
+  MESSAGE(STATUS "Not building NDB")
   RETURN()
 ENDIF()
 

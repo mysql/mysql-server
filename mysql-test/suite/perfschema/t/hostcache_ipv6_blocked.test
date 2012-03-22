@@ -13,11 +13,10 @@
 --source include/have_ipv6.inc
 --source include/have_perfschema.inc
 
-flush status;
-flush hosts;
-flush user_resources;
-select @@global.debug;
-select @@global.max_connect_errors;
+# Enforce a clean state
+--source ../include/wait_for_pfs_thread_count.inc
+--source ../include/hostcache_set_state.inc
+
 select @@global.max_connect_errors into @saved_max_connect_errors;
 
 set global max_connect_errors = 2;

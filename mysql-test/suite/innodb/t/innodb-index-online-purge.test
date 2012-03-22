@@ -1,8 +1,11 @@
 --source include/have_innodb.inc
+--source include/have_debug.inc
 --source include/have_debug_sync.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
+
+SET DEBUG='+d,debug_sync_abort_on_timeout';
 
 connect (con1,localhost,root,,);
 
@@ -30,6 +33,7 @@ BEGIN;
 DELETE FROM u;
 
 connection con2;
+SET DEBUG='+d,debug_sync_abort_on_timeout';
 SET DEBUG_SYNC='row_log_apply_before SIGNAL created_u WAIT_FOR dml_done_u';
 --send
 ALTER TABLE u ADD INDEX (c);
@@ -48,7 +52,7 @@ SELECT state FROM information_schema.processlist
 WHERE info='ALTER TABLE u ADD INDEX (c)';
 
 connection con1;
-
+SET DEBUG='+d,debug_sync_abort_on_timeout';
 SET DEBUG_SYNC='row_log_apply_before SIGNAL created_t WAIT_FOR dml_done_t';
 --send
 CREATE INDEX c1 ON t (c(1));
@@ -67,6 +71,7 @@ reap;
 disconnect con1;
 connection default;
 SET DEBUG_SYNC='RESET';
+SET DEBUG='-d,debug_sync_abort_on_timeout';
 DROP TABLE t,u;
 
 # Check that all connections opened by test cases in this file are really

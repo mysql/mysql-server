@@ -1,6 +1,7 @@
 call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
 call mtr.add_suppression("Cannot find index .*c2 in InnoDB index translation table");
 call mtr.add_suppression("Find index .*c2 in InnoDB index list but not its MySQL index number");
+SET DEBUG='+d,debug_sync_abort_on_timeout';
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
 SET GLOBAL innodb_monitor_enable=module_ddl;
@@ -12,6 +13,7 @@ ddl_online_create_index	0
 ddl_pending_alter_table	0
 SET DEBUG_SYNC='write_row_noreplace SIGNAL have_handle WAIT_FOR go_ahead';
 INSERT INTO t1 VALUES(1,2,3);
+SET DEBUG='+d,debug_sync_abort_on_timeout';
 SET DEBUG_SYNC='now WAIT_FOR have_handle';
 SET lock_wait_timeout=1;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
@@ -251,6 +253,7 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SET DEBUG_SYNC='RESET';
+SET DEBUG='-d,debug_sync_abort_on_timeout';
 SET GLOBAL innodb_monitor_disable=module_ddl;
 DROP TABLE t1;
 SET GLOBAL innodb_monitor_enable=default;

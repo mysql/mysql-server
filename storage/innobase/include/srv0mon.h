@@ -563,7 +563,7 @@ Use MONITOR_DEC if appropriate mutex protection already exists.
 		mutex_exit(mutex);					\
 	}
 
-#if defined HAVE_ATOMIC_BUILTINS && !defined _WIN32
+#if defined HAVE_ATOMIC_BUILTINS_64
 /** Atomically increment a monitor counter.
 Use MONITOR_INC if appropriate mutex protection exists.
 @param monitor	monitor to be incremented by 1 */
@@ -595,7 +595,7 @@ Use MONITOR_DEC if appropriate mutex protection exists.
 	}
 # define srv_mon_create() ((void) 0)
 # define srv_mon_free() ((void) 0)
-#else /* HAVE_ATOMIC_BUILTINS && !_WIN32 */
+#else /* HAVE_ATOMIC_BUILTINS_64 */
 /** Mutex protecting atomic operations on platforms that lack
 built-in operations for atomic memory access */
 extern mutex_t	monitor_mutex;
@@ -620,7 +620,7 @@ Use MONITOR_INC if appropriate mutex protection exists.
 Use MONITOR_DEC if appropriate mutex protection exists.
 @param monitor	monitor to be decremented by 1 */
 # define MONITOR_ATOMIC_DEC(monitor) MONITOR_MUTEX_DEC(&monitor_mutex, monitor)
-#endif /* HAVE_ATOMIC_BUILTINS && !_WIN32 */
+#endif /* HAVE_ATOMIC_BUILTINS_64 */
 
 #define	MONITOR_DEC(monitor)						\
 	if (MONITOR_IS_ON(monitor)) {					\
