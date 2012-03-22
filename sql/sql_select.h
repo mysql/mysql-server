@@ -1144,18 +1144,4 @@ static inline Item * and_items(Item* cond, Item *item)
   return (cond? (new Item_cond_and(cond, item)) : item);
 }
 
-/**
-  Printing the transformed query in EXPLAIN EXTENDED or optimizer trace
-  requires non-destroyed JOINs for subquery engines. So items must be
-  preserved until end of mysql_execute_command().
-*/
-static inline bool preserve_items_for_printing(const THD *thd)
-{
-  return (thd->lex->describe
-#ifdef OPTIMIZER_TRACE
-          || thd->opt_trace.support_I_S()
-#endif
-          );
-}
-
 #endif /* SQL_SELECT_INCLUDED */
