@@ -41,23 +41,35 @@ function label(name)  {
 ### What is the thread doing? 
 ### Patterns higher up in this file take precedence over lower ones
 
-$2 ~ /^epoll_wait,TransporterRegistry::po/ { label("epoll_wait_transporter_recv"); next }
-                                             
-$2 ~ /^epoll_wait/                         { label("epoll_wait"); next }
+/epoll_wait,TransporterRegistry::po/       { label("epoll_wait_transporter_recv"); next }
 
-$2 ~ /^writev,TCP_Transporter::doSend/     { label("sending_to_ndb"); next }
+/writev,TCP_Transporter::doSend/           { label("sending_to_ndb"); next }
 
-$2 ~ /^recv,TCP_Transporter/               { label("tcp_recv_from_ndb"); next }
+/recv,TCP_Transporter/                     { label("tcp_recv_from_ndb"); next }
 
-$2 ~ /^sendmsg,conn_mwrite/                { label("sending_to_client"); next }
+/Ndb::closeTransaction/                    { label("ndb_transaction_close"); next } 
+
+/sendmsg,conn_mwrite/                      { label("writing_to_client"); next }
+
+/recv,conn_read,event_handler/             { label("reading_from_client"); next }
+
+/poll_dispatch/                            { label("poll_dispatch"); next } 
 
 /pthread_mutex_unlock/                     { label("releasing_locks"); next }
+
+/_lock,pthread_cond_/                      { label("getting_lock_for_condition_var"); next }
 
 /pthread_mutex_lock,Ndb::sendPrepared/     { label("lock_Ndb_impl"); next }
 
 /_mutex_lock/ && /TransporterFacade/       { label("lock_transporter_facade_mutex"); next }
 
 /pthread_cond_timedwait/ && /ollNdb/       { label("wait_poll_ndb"); next }
+
+/::schedule/ && /pthread_cond_signal/      { label("Scheduler_signaling_cond_var") ; next }
+
+/pthread_rwlock_rdlock/                    { label("acquiring_rwlock") ; next } 
+
+/pthread_cond_[a-z]*wait/                  { label("condition_variable_wait"); next }
                                         
 /workqueue_consumer_wait/                  { label("workqueue_idle_wait"); next }
 
@@ -67,6 +79,12 @@ $2 ~ /^sendmsg,conn_mwrite/                { label("sending_to_client"); next }
 
 /Ndb::computeHash/                         { label("ndb_compute_hash"); next }
 
+/workitem__initialize/                     { label("workitem_initialize"); next } 
+
+/worker_prepare_operation/                 { label("worker_prepare_operation"); next } 
+                                             
+/^epoll_wait/                              { label("epoll_wait"); next }
+
 /sleep/                                    { label("sleep"); next }
 
 
@@ -74,26 +92,26 @@ $2 ~ /^sendmsg,conn_mwrite/                { label("sending_to_client"); next }
 
 END { 
       for(i in event) if (i != "total")
-       printf("%s\t%.2f%%\t%s\n", 
+       printf("%s\t%.2f%% \t%s\n", 
               "Event", (event[i] / event["total"]) * 100, i)
       printf("\n");
 
       for(i in commit) if(i != "total")
-       printf("%s\t%.2f%%\t%s\n", 
+       printf("%s\t%.2f%% \t%s\n", 
               "Commit", (commit[i] / commit["total"]) * 100, i)
       if(commit["total"]) printf("\n");
 
       for(i in send) if(i != "total")
-       printf("%s\t%.2f%%\t%s\n", 
+       printf("%s\t%.2f%% \t%s\n", 
               "Send", (send[i] / send["total"]) * 100, i)
       if(send["total"]) printf("\n");
 
       for(i in poll) if(i != "total")
-       printf("%s\t%.2f%%\t%s\n", 
+       printf("%s\t%.2f%% \t%s\n", 
               "Poll", (poll[i] / poll["total"]) * 100, i)
       if(poll["total"]) printf("\n");
 
       for(i in x) if(i != "total")
-       printf("%s\t%.2f%%\t%s\n", 
+       printf("%s\t%.2f%% \t%s\n", 
               "Unidentified", (x[i] / x["total"]) * 100, i)
     }
