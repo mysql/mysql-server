@@ -4,8 +4,7 @@
 --source include/not_valgrind.inc
 
 SET GLOBAL DEBUG='d,query,debug_sync_exec:i:A,ds.trace';
-SET DEBUG='+d,debug_sync_abort_on_timeout';
-SET DEBUG='d,query,debug_sync_exec:i:A,ds.trace';
+SET DEBUG='d,query,debug_sync_exec,debug_sync_abort_on_timeout:i:A,ds.trace';
 
 call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
 # These will be triggered by INSERT INTO t1 VALUES(6,3,1);
@@ -28,8 +27,7 @@ INSERT INTO t1 VALUES(1,2,3);
 
 connect (con1,localhost,root,,);
 connection con1;
-SET DEBUG='+d,debug_sync_abort_on_timeout';
-SET DEBUG='d,query,debug_sync_exec:i:A,ds.trace';
+SET DEBUG='d,query,debug_sync_exec,debug_sync_abort_on_timeout:i:A,ds.trace';
 
 # This should block at the end because of the INSERT in connection default
 # is holding a metadata lock.
@@ -261,7 +259,6 @@ disconnect con1;
 connection default;
 
 SET DEBUG_SYNC='RESET';
-SET DEBUG='-d,debug_sync_abort_on_timeout';
 SET DEBUG='';
 SET GLOBAL innodb_monitor_disable=module_ddl;
 
